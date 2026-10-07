@@ -135,6 +135,19 @@ export async function isCurrent(
   }
 }
 
+export async function bindSession(
+  job: Job,
+  capsule: Capsule,
+  sessionId: string,
+): Promise<Cas<Capsule>> {
+  const next = parseCapsule({
+    ...capsule,
+    epoch: capsule.epoch + 1,
+    sessionId,
+  });
+  return storeCapsule(job, next, capsule.epoch);
+}
+
 export async function refreshCAS(
   capsule: Capsule,
   facts: RepoFacts,
@@ -154,6 +167,31 @@ export async function refreshCAS(
     next,
     capsule.epoch,
   );
+}
+
+export async function checkpoint(
+  job: Job,
+  sessionId: string,
+): Promise<Capsule> {
+  const current = readCapsule(job);
+  if (!current) throw new Error('cannot checkpoint without a relay capsule');
+  if (
+    current.sessionId === sessionId &&
+    current.nextAction === 'resume after checkpoint'
+  )
+    return current;
+  if (current.sessionId !== sessionId)
+    throw new Error('checkpoint session is stale');
+  const next = parseCapsule({
+    ...current,
+    ...repoFacts(job),
+    epoch: current.epoch + 1,
+    nextAction: 'resume after checkpoint',
+    sessionId,
+  });
+  const saved = await storeCapsule(job, next, current.epoch);
+  if (!saved.applied) throw new Error('checkpoint capsule CAS conflict');
+  return next;
 }
 
 export async function withFindingsCAS(
