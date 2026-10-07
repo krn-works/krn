@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -30,7 +30,7 @@ test('unknown commands forward arguments, streams, and exit code to the legacy b
     );
     const result = spawnSync(process.execPath, [cli, 'legacy-command', 'one'], {
       encoding: 'utf8',
-      env: { ...process.env, KRN_LEGACY_BIN: legacy, KRN_FORWARDED: '' },
+      env: { ...process.env, KRN_LEGACY_ENTRY: legacy, KRN_FORWARDED: '' },
     });
     assert.equal(result.status, 23);
     assert.deepEqual(JSON.parse(result.stdout), {
@@ -46,8 +46,49 @@ test('unknown commands forward arguments, streams, and exit code to the legacy b
 test('forwarding guard blocks a recursive legacy invocation', () => {
   const result = spawnSync(process.execPath, [cli, 'legacy-command'], {
     encoding: 'utf8',
-    env: { ...process.env, KRN_LEGACY_BIN: cli, KRN_FORWARDED: '' },
+    env: { ...process.env, KRN_LEGACY_ENTRY: cli, KRN_FORWARDED: '' },
   });
   assert.equal(result.status, 70);
   assert.match(result.stderr, /recursion blocked/u);
+});
+
+test('legacy entry defaults under the current Codex installation', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-cli-home-'));
+  try {
+    const legacy = join(directory, '.codex/krn/current/scripts/krn.mjs');
+    await mkdir(join(directory, '.codex/krn/current/scripts'), {
+      recursive: true,
+    });
+    await writeFile(legacy, "process.stdout.write('default legacy');");
+    const result = spawnSync(process.execPath, [cli, 'legacy-command'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        HOME: directory,
+        USERPROFILE: directory,
+        KRN_LEGACY_ENTRY: '',
+        KRN_FORWARDED: '',
+      },
+    });
+    assert.equal(result.status, 0);
+    assert.equal(result.stdout, 'default legacy');
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('realpath recursion guard blocks a symlink to the CLI itself', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-cli-link-'));
+  try {
+    const alias = join(directory, 'legacy-link.mjs');
+    await symlink(cli, alias);
+    const result = spawnSync(process.execPath, [cli, 'legacy-command'], {
+      encoding: 'utf8',
+      env: { ...process.env, KRN_LEGACY_ENTRY: alias, KRN_FORWARDED: '' },
+    });
+    assert.equal(result.status, 70);
+    assert.match(result.stderr, /recursion blocked/u);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
