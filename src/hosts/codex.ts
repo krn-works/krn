@@ -40,6 +40,14 @@ export type CodexStartInput = {
   readonly model: 'gpt-6-luna';
   readonly prompt: string;
   readonly limits: { readonly timeoutMs: number };
+  readonly checkpoint?: {
+    readonly cli: string;
+    readonly job: string;
+    readonly issue: string;
+    readonly worktree: string;
+    readonly intent: string;
+  };
+  readonly onStarted?: (sessionId: string) => Promise<boolean>;
 };
 
 export class CodexHost {
@@ -52,6 +60,12 @@ export class CodexHost {
 
   async start(input: CodexStartInput): Promise<CodexSession> {
     const id = randomUUID();
+    if (input.onStarted && !(await input.onStarted(id)))
+      throw new Error('session intent was already started');
+    const checkpoint = input.checkpoint
+      ? `\n\nIf interrupted after checkpointing, run: ${process.execPath} ${input.checkpoint.cli} checkpoint --job ${input.checkpoint.job} --issue ${input.checkpoint.issue} --worktree ${input.checkpoint.worktree} --intent ${input.checkpoint.intent} --session ${id}`
+      : '';
+    const prompt = `${input.prompt}${checkpoint}`;
     const child = spawn(
       this.#executable,
       [
@@ -71,7 +85,7 @@ export class CodexHost {
     const running = new RunningSession(id, child);
     this.#sessions.set(id, running);
     child.once('close', () => this.#sessions.delete(id));
-    child.stdin?.end(input.prompt);
+    child.stdin?.end(prompt);
     const timer = setTimeout(
       () => void this.cancelTree(id),
       input.limits.timeoutMs,

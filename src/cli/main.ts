@@ -6,12 +6,24 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { dispatch } from './index.ts';
+
 const version = '0.1.0';
 const recursionFlag = 'KRN_FORWARDED';
 
 export function main(args = process.argv.slice(2)): void {
   if (args[0] === '--version') {
     process.stdout.write(`krn ${version}\n`);
+    return;
+  }
+
+  if (['start', 'checkpoint', 'stop'].includes(args[0] ?? '')) {
+    void dispatch(args).catch((error: unknown) => {
+      process.stderr.write(
+        `${error instanceof Error ? error.message : String(error)}\n`,
+      );
+      process.exitCode = 64;
+    });
     return;
   }
 
