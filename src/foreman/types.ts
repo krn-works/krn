@@ -1,8 +1,32 @@
 import type { Job } from '../core/index.ts';
 
 export type Contract = { readonly revision: string };
-export type Capsule = { readonly epoch: number; readonly head: string };
-export type RepoFacts = { readonly head: string; readonly fingerprint: string };
+export type Capsule = {
+  readonly jobId: string;
+  readonly issue: string;
+  readonly contractRevision: string;
+  readonly epoch: number;
+  readonly base: string;
+  readonly head: string;
+  readonly branch: string;
+  readonly worktree: string;
+  readonly nextAction: string;
+  readonly blockers: readonly string[];
+  readonly decisions: readonly {
+    readonly date: string;
+    readonly source: string;
+    readonly text: string;
+  }[];
+  readonly rejectedApproaches: readonly string[];
+  readonly references: readonly string[];
+  readonly sessionId?: string | undefined;
+};
+export type RepoFacts = {
+  readonly base: string;
+  readonly head: string;
+  readonly branch: string;
+  readonly worktree: string;
+};
 export type SessionEnd = {
   readonly reason: string;
   readonly claimsDone: boolean;
@@ -39,7 +63,7 @@ export type Deps = {
       sessionId: string,
     ): Promise<Cas<Capsule>>;
     isCurrent(job: Job, epoch: number, sessionId: string): Promise<boolean>;
-    repoFacts(job: Job): Promise<RepoFacts>;
+    repoFacts(job: Job): RepoFacts | Promise<RepoFacts>;
     validate(capsule: Capsule, facts: RepoFacts): Validation;
     project(capsule: Capsule, facts: RepoFacts): string;
     refreshCAS(
@@ -57,6 +81,7 @@ export type Deps = {
       intent: string,
       sessionId: string,
     ): Promise<boolean>;
+    sessionEnd(job: Job, sessionId: string): Promise<SessionEnd | null>;
     log(
       job: Job,
       intent: string,

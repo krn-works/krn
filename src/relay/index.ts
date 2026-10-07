@@ -140,9 +140,12 @@ export async function bindSession(
   capsule: Capsule,
   sessionId: string,
 ): Promise<Cas<Capsule>> {
+  if (capsule.sessionId && capsule.nextAction !== 'resume after checkpoint')
+    return { applied: false };
   const next = parseCapsule({
     ...capsule,
     epoch: capsule.epoch + 1,
+    nextAction: 'session active',
     sessionId,
   });
   return storeCapsule(job, next, capsule.epoch);

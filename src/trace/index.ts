@@ -11,7 +11,7 @@ import {
   writeSync,
 } from 'node:fs';
 import { join } from 'node:path';
-
+import { z } from 'zod';
 import type { Job } from '../core/index.ts';
 import type { SessionEnd } from '../foreman/types.ts';
 
@@ -120,6 +120,20 @@ export async function hasCheckpoint(
   return events(job).some(
     (event) => event.key === `${intentId}:checkpoint:${sessionId}`,
   );
+}
+
+export async function sessionEnd(
+  job: Job,
+  sessionId: string,
+): Promise<SessionEnd | null> {
+  const value = events(job).find(
+    (event) =>
+      event.kind === 'session_ended' && event.data.sessionId === sessionId,
+  )?.data.end;
+  const parsed = z
+    .object({ reason: z.string(), claimsDone: z.boolean() })
+    .safeParse(value);
+  return parsed.success ? parsed.data : null;
 }
 
 export async function log(

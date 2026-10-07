@@ -1,6 +1,11 @@
 // Checkpointed workers restart from the relay capsule with a fresh host session. ADR 0001.
 import type { Job } from '../core/index.ts';
-import { runSession } from './session.ts';
+import {
+  failureOutcome,
+  finishSession,
+  recoverLease,
+  runSession,
+} from './session.ts';
 import { type Deps, type Outcome, validBudget } from './types.ts';
 
 export async function runJob(job: Job, d: Deps): Promise<Outcome> {
@@ -8,6 +13,9 @@ export async function runJob(job: Job, d: Deps): Promise<Outcome> {
     return d.stop(job, 'human_decision', ['invalid foreman budget']);
   const contract = await d.ledger.readContract(job.issue);
   let capsule = await d.relay.load(job, contract);
+  const lease = await recoverLease(job, capsule, d);
+  if (lease.outcome) return lease.outcome;
+  capsule = lease.capsule;
   for (let resets = 0; resets <= d.budget.maxResets; resets += 1) {
     const facts = await d.relay.repoFacts(job);
     const valid = d.relay.validate(capsule, facts);
@@ -19,21 +27,9 @@ export async function runJob(job: Job, d: Deps): Promise<Outcome> {
         capsule = await d.relay.load(job, contract);
         continue;
       }
-      const next = await d.relay.refreshCAS(
-        run.capsule,
-        await d.relay.repoFacts(job),
-        run.end,
-      );
-      if (!next.applied)
-        return d.stop(job, 'human_decision', ['capsule revision conflict']);
-      return d.stop(job, 'human_decision', [
-        run.end.claimsDone
-          ? 'S5/S6 verdict path is not enabled'
-          : 'session ended without a checkpoint',
-      ]);
+      return finishSession(job, run, d);
     } catch (error) {
-      await d.trace.failure(job, intent, error);
-      return d.stop(job, 'human_decision', ['worker or trace failure']);
+      return failureOutcome(job, intent, error, d);
     }
   }
   return d.stop(job, 'human_decision', ['reset budget exhausted']);
