@@ -80,11 +80,11 @@ export async function runSession(
         worktree: job.worktree,
         intent,
       },
-      onStarted: async (sessionId, pgid) => {
+      onStarted: async (sessionId, pgid, isolation) => {
         const result = await d.relay.bindSession(job, capsule, sessionId);
         if (!result.applied) throw new AlreadyRunning();
         bound = result.value;
-        if (!(await d.trace.started(job, intent, sessionId, pgid)))
+        if (!(await d.trace.started(job, intent, sessionId, pgid, isolation)))
           throw new AlreadyRunning();
         return true;
       },

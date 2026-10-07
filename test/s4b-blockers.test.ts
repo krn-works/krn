@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import {
   chmod,
   copyFile,
@@ -55,19 +56,32 @@ test('B1 foreman waits for a checkpointing tool session to die before retrying',
   const root = await repoFixture();
   const outside = await mkdtemp(join(tmpdir(), 'krn-s4b-shell-'));
   const pidFile = join(outside, 'session-pid');
+  const escapedPidFile = join(outside, 'escaped-pid');
+  const escapedSource = [
+    "import { readFileSync, writeFileSync } from 'node:fs';",
+    "const ids=readFileSync('/proc/self/status','utf8').match(/^NSpid:\\s+(.+)$/m)[1].trim().split(/\\s+/);",
+    `writeFileSync(${JSON.stringify(escapedPidFile)}, ids[0]);`,
+    'setInterval(()=>{},1000);',
+  ].join('');
   const job = { id: 'B1', issue: 'I-1', worktree: root };
   const executable = await fakeCodex(
     outside,
     `
 import { spawn } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
+const escaped = spawn('setsid', [process.execPath, '-e', ${JSON.stringify(escapedSource)}], {stdio:'ignore'});
 const countFile = ${JSON.stringify(join(outside, 'count'))};
+const allPidsFile = ${JSON.stringify(join(outside, 'all-pids'))};
 let count = 0; try { count = Number((await import('node:fs')).readFileSync(countFile, 'utf8')); } catch {}
 count++; writeFileSync(countFile, String(count));
+await new Promise(resolve => escaped.once('spawn', resolve));
+let escapedHostPid; for(let i=0;i<100&&!escapedHostPid;i++){try{escapedHostPid=Number(readFileSync(${JSON.stringify(escapedPidFile)},'utf8'))}catch{} if(!escapedHostPid) await new Promise(r=>setTimeout(r,10))}
+const hostPid=Number(readFileSync('/proc/self/status','utf8').match(/^NSpid:\\s+(\\d+)/m)[1]);
+appendFileSync(allPidsFile, hostPid+'\\n'+escapedHostPid+'\\n');
 process.stdout.write(JSON.stringify({type:'thread.started',thread_id:'t'+count})+'\\n');
 process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:12,output_tokens:4,total_tokens:16}})+'\\n');
 if (count === 1) {
-  writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));
+  writeFileSync(${JSON.stringify(pidFile)}, hostPid+'\\n'+escapedHostPid);
   let prompt=''; for await (const chunk of process.stdin) prompt += chunk;
   const match = /--session ([0-9a-f-]+)/.exec(prompt); const sid=match[1];
   const args = [${JSON.stringify(new URL('../src/cli/main.ts', import.meta.url).pathname)}, 'checkpoint','--job','B1','--issue','I-1','--worktree',${JSON.stringify(root)},'--intent','intent:0','--session',sid,'--next','step B'];
@@ -75,6 +89,7 @@ if (count === 1) {
   await new Promise(r=>setTimeout(r, 120000));
 } else {
   process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'done'}})+'\\n');
+  process.exit(0);
 }
 `,
   );
@@ -90,18 +105,29 @@ if (count === 1) {
     // The fake runs the real CLI inside a distinct shell process group.
     const startedAt = Date.now();
     const outcome = await runJob(job, {
-      budget: { maxResets: 1, maxRepairs: 0, session: { timeoutMs: 8_000 } },
+      budget: { maxResets: 1, maxRepairs: 0, session: { timeoutMs: 20_000 } },
       ledger: { readContract: async () => ({ revision: 'r1' }) },
       relay: realRelay,
       trace,
       hosts: {
         codex: {
           start: async (input) => {
-            if (started.length)
+            if (started.length) {
+              const firstPids = (await readFile(pidFile, 'utf8'))
+                .trim()
+                .split('\n')
+                .map(Number);
+              const escapedPid = firstPids[1];
+              if (escapedPid !== undefined && (await isAlive(escapedPid)))
+                await writeFile(
+                  join(outside, 'escaped-alive-before-second'),
+                  'alive',
+                );
               assert.ok(
                 cancelled.includes(started[0] ?? ''),
                 'session 1 must be cancelled before session 2 starts',
               );
+            }
             const session = await host.start(input);
             started.push(session.id);
             return session;
@@ -115,7 +141,7 @@ if (count === 1) {
       stop: (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
     });
     assert.ok(
-      Date.now() - startedAt < 7_500,
+      Date.now() - startedAt < 15_000,
       'foreman cancellation must beat the host timeout',
     );
     assert.deepEqual(outcome.kind, 'stop');
@@ -137,8 +163,27 @@ if (count === 1) {
       lines.filter((event) => event.kind === 'session_started').length,
       2,
     );
-    assert.equal(await isAlive(Number(await readFile(pidFile, 'utf8'))), false);
+    assert.equal(
+      lines.find((event) => event.kind === 'session_started')?.data.isolation,
+      'pid_namespace',
+    );
+    const pids = (await readFile(join(outside, 'all-pids'), 'utf8'))
+      .trim()
+      .split('\n')
+      .map(Number);
+    for (const pid of pids) assert.equal(await isAlive(pid), false);
+    assert.equal(
+      existsSync(join(outside, 'escaped-alive-before-second')),
+      false,
+    );
   } finally {
+    try {
+      for (const pid of (await readFile(join(outside, 'all-pids'), 'utf8'))
+        .trim()
+        .split('\n')
+        .map(Number))
+        process.kill(pid, 'SIGKILL');
+    } catch {}
     await rm(root, { recursive: true, force: true });
     await rm(outside, { recursive: true, force: true });
   }
@@ -147,12 +192,25 @@ if (count === 1) {
 test('B2 a foreman SIGTERM cancels every detached session group and exits 130', async () => {
   const root = await repoFixture();
   const pidFile = join(root, 'pids');
+  const childPidFile = join(root, 'child-pid');
+  const escapedPidFile = join(root, 'escaped-pid');
+  const workerSource = (path: string) =>
+    [
+      "import { readFileSync, writeFileSync } from 'node:fs';",
+      "const ids=readFileSync('/proc/self/status','utf8').match(/^NSpid:\\s+(.+)$/m)[1].trim().split(/\\s+/);",
+      `writeFileSync(${JSON.stringify(path)}, ids[0]);`,
+      'setInterval(()=>{},1000);',
+    ].join('');
   const executable = await fakeCodex(
     root,
     `
 import { spawn } from 'node:child_process'; import { writeFileSync } from 'node:fs';
-const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'});
-child.once('spawn',()=>writeFileSync(${JSON.stringify(pidFile)},process.pid+'\\n'+child.pid));
+const child=spawn(process.execPath,['-e',${JSON.stringify(workerSource(childPidFile))}],{stdio:'ignore'});
+const escaped=spawn('setsid',[process.execPath,'-e',${JSON.stringify(workerSource(escapedPidFile))}],{stdio:'ignore'});
+const waitPid=async(path)=>{for(let i=0;i<200;i++){try{return Number((await import('node:fs')).readFileSync(path,'utf8'))}catch{} await new Promise(r=>setTimeout(r,10))} throw new Error('child pid unavailable')};
+await Promise.all([new Promise(r=>child.once('spawn',r)),new Promise(r=>escaped.once('spawn',r))]);
+const hostPid=Number((await import('node:fs')).readFileSync('/proc/self/status','utf8').match(/^NSpid:\\s+(\\d+)/m)[1]);
+writeFileSync(${JSON.stringify(pidFile)},[hostPid,await waitPid(${JSON.stringify(childPidFile)}),await waitPid(${JSON.stringify(escapedPidFile)})].join('\\n'));
 process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,output_tokens:1,total_tokens:2}})+'\\n'); setInterval(()=>{},1000);
 `,
   );
@@ -269,7 +327,78 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
   }
 });
 
-test('B3 live uses the requested job repo and resumes its supplied worktree', async () => {
+test('B2 proc-tree fallback is selected and reaps a setsid descendant', async () => {
+  const root = await repoFixture();
+  const pidFile = join(root, 'escaped-pid');
+  const namespaceLauncher = join(root, 'unshare-unavailable');
+  await writeFile(namespaceLauncher, '#!/bin/sh\nexit 1\n');
+  await chmod(namespaceLauncher, 0o755);
+  const workerSource = [
+    "import { readFileSync, writeFileSync } from 'node:fs';",
+    "const ids=readFileSync('/proc/self/status','utf8').match(/^NSpid:\\s+(.+)$/m)[1].trim().split(/\\s+/);",
+    `writeFileSync(${JSON.stringify(pidFile)}, ids[0]);`,
+    'setInterval(()=>{},1000);',
+  ].join('');
+  const executable = await fakeCodex(
+    root,
+    `
+import { spawn } from 'node:child_process';
+const child=spawn('setsid',[process.execPath,'-e',${JSON.stringify(workerSource)}],{stdio:'ignore'});
+await new Promise(resolve=>child.once('spawn',resolve));
+process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:3,output_tokens:2,total_tokens:5}})+'\\n');
+setInterval(()=>{},1000);
+`,
+  );
+  const job = { id: 'B2-fallback', issue: 'I-2', worktree: root };
+  const intent = await trace.intent(job, 0);
+  const host = new CodexHost({ executable, namespaceLauncher });
+  try {
+    const session = await host.start({
+      cwd: root,
+      model: 'gpt-6-luna',
+      prompt: 'hold',
+      limits: { timeoutMs: 10_000 },
+      onStarted: (id, pgid, isolation) =>
+        trace.started(job, intent, id, pgid, isolation),
+    });
+    const pid = Number(
+      await waitFor(async () => {
+        try {
+          return (await readFile(pidFile, 'utf8')).trim();
+        } catch {
+          return undefined;
+        }
+      }),
+    );
+    await host.cancelTree(session.id);
+    await session.wait();
+    if (await isAlive(pid)) {
+      const state = spawnSync(
+        'ps',
+        ['-o', 'pid,ppid,pgid,sid,stat,args', '-p', String(pid)],
+        { encoding: 'utf8' },
+      );
+      assert.fail(`fallback left descendant ${pid} alive: ${state.stdout}`);
+    }
+    const events = (
+      await readFile(join(root, '.krn/runs/foreman/B2-fallback.jsonl'), 'utf8')
+    )
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+    assert.equal(
+      events.find((event) => event.kind === 'session_started')?.data.isolation,
+      'proc_tree_fallback',
+    );
+  } finally {
+    try {
+      process.kill(Number(await readFile(pidFile, 'utf8')), 'SIGKILL');
+    } catch {}
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('B3 live uses the requested repo and resumes an existing job by id', async () => {
   const repo = await repoFixture();
   const bin = await fakeCodex(
     repo,
@@ -311,7 +440,7 @@ test('B3 live uses the requested job repo and resumes its supplied worktree', as
     assert.equal(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const job = JSON.parse(lastOutputLine(first.stdout)).job;
     assert.ok(job.worktree.startsWith(`${repo}-jobs/`));
-    const resumed = exec(['--worktree', job.worktree]);
+    const resumed = exec();
     assert.equal(resumed.status, 0, `${resumed.stdout}\n${resumed.stderr}`);
     assert.equal(
       JSON.parse(lastOutputLine(resumed.stdout)).job.worktree,

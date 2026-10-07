@@ -84,6 +84,7 @@ export async function started(
   intentId: string,
   sessionId: string,
   pgid?: number,
+  isolation?: 'pid_namespace' | 'proc_tree_fallback',
 ): Promise<boolean> {
   // Session starts are unique by opaque host identity, while the intent key fences retries.
   const prior = events(job).find(
@@ -95,6 +96,7 @@ export async function started(
     sessionId,
     ...(pgid === undefined ? {} : { pgid }),
     sandbox: 'workspace-write',
+    isolation: isolation ?? 'unknown',
   });
   return true;
 }

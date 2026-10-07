@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
-import { isAbsolute, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runJob } from '../src/foreman/run.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
@@ -26,6 +26,13 @@ function git(root, args) {
   return result.stdout.trim();
 }
 
+function hasWorktree(root, path) {
+  return git(root, ['worktree', 'list', '--porcelain'])
+    .split('\n')
+    .filter((line) => line.startsWith('worktree '))
+    .some((line) => resolve(line.slice('worktree '.length)) === path);
+}
+
 const jobId = argument('--job');
 const issue = argument('--issue');
 const revision = argument('--revision');
@@ -40,7 +47,14 @@ const requestedWorktree = process.argv.includes('--worktree')
 if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(jobId) || jobId === '..')
   throw new Error('invalid job id');
 const cli = fileURLToPath(new URL('../src/cli/main.ts', import.meta.url));
-const worktree = requestedWorktree ?? undefined;
+const existingJobWorktree = resolve(
+  dirname(repo),
+  `${basename(repo)}-jobs`,
+  jobId,
+);
+const worktree =
+  requestedWorktree ??
+  (hasWorktree(repo, existingJobWorktree) ? existingJobWorktree : undefined);
 if (git(repo, ['rev-parse', '--show-toplevel']) !== repo)
   throw new Error('--repo must be the repository root');
 const ignoredRuns = (root) =>
@@ -57,11 +71,8 @@ let job;
 if (worktree) {
   if (git(worktree, ['rev-parse', '--show-toplevel']) !== worktree)
     throw new Error('--worktree must be the job repository root');
-  const registered = git(repo, ['worktree', 'list', '--porcelain'])
-    .split('\n')
-    .filter((line) => line.startsWith('worktree '))
-    .some((line) => resolve(line.slice('worktree '.length)) === worktree);
-  if (!registered) throw new Error('--worktree does not belong to --repo');
+  if (!hasWorktree(repo, worktree))
+    throw new Error('--worktree does not belong to --repo');
   job = { id: jobId, issue, worktree };
 } else {
   const started = spawnSync(
