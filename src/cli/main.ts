@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // The CLI owns its name while unknown commands pass through to the configured legacy entry. ADR 0001.
 import { spawn } from 'node:child_process';
-import { resolve } from 'node:path';
+import { realpathSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const version = '0.1.0';
@@ -13,18 +15,20 @@ export function main(args = process.argv.slice(2)): void {
     return;
   }
 
-  const legacyBin = process.env.KRN_LEGACY_BIN;
-  if (!legacyBin) {
-    process.stderr.write(
-      'Unknown command; set KRN_LEGACY_BIN to enable legacy forwarding.\n',
-    );
-    process.exitCode = 64;
-    return;
-  }
+  const legacyBin =
+    process.env.KRN_LEGACY_ENTRY ||
+    join(homedir(), '.codex/krn/current/scripts/krn.mjs');
+  const canonical = (path: string): string => {
+    try {
+      return realpathSync(path);
+    } catch {
+      return resolve(path);
+    }
+  };
 
   if (
     process.env[recursionFlag] === '1' ||
-    resolve(legacyBin) === fileURLToPath(import.meta.url)
+    canonical(legacyBin) === canonical(fileURLToPath(import.meta.url))
   ) {
     process.stderr.write('Legacy forwarding recursion blocked.\n');
     process.exitCode = 70;

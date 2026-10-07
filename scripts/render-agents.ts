@@ -1,12 +1,16 @@
 // Render the checked-in repository instructions from their sole rule registry. ADR 0001.
-import { readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 
 type Rule = {
   id: string;
   trigger: string;
   action: string;
   owner: string;
-  enforcement: { kind: 'hook' | 'test' | 'gate' | 'none'; check: string };
+  enforcement: {
+    kind: 'test' | 'gate' | 'none';
+    check: string;
+    deadline?: string;
+  };
   rationale: string;
 };
 
@@ -31,14 +35,61 @@ export function render(): string {
   ].join('\n');
 }
 
-const expected = render();
-const checkOnly = process.argv.includes('--check');
-if (checkOnly) {
-  const actual = await readFile(agentsPath, 'utf8').catch(() => '');
-  if (actual !== expected) {
-    process.stderr.write('AGENTS.md is stale; run npm run render:agents.\n');
-    process.exitCode = 1;
+async function checkRegistry(): Promise<string[]> {
+  const { scripts } = JSON.parse(
+    await readFile(new URL('package.json', root), 'utf8'),
+  ) as { scripts: Record<string, string> };
+  const testFiles = await readdir(new URL('test/', root));
+  const testSources = await Promise.all(
+    testFiles
+      .filter((file) => file.endsWith('.test.ts'))
+      .map((file) => readFile(new URL(`test/${file}`, root), 'utf8')),
+  );
+  const titles = new Set(
+    testSources.flatMap((source) =>
+      [...source.matchAll(/\btest\(\s*['"]([^'"]+)['"]/gu)].map(
+        (match) => match[1],
+      ),
+    ),
+  );
+  const errors: string[] = [];
+  for (const rule of rules) {
+    const { kind, check } = rule.enforcement;
+    if (kind === 'test' && !titles.has(check))
+      errors.push(`${rule.id} names missing test: ${check}`);
+    if (
+      kind === 'gate' &&
+      !Object.hasOwn(scripts, check.replace(/^npm run /u, ''))
+    )
+      errors.push(`${rule.id} names missing gate script: ${check}`);
+    if (kind === 'none' && rule.enforcement.deadline === undefined)
+      errors.push(`${rule.id} none enforcement needs a migration deadline`);
   }
-} else {
-  await writeFile(agentsPath, expected);
+  return errors;
+}
+
+if (import.meta.main) {
+  const expected = render();
+  const checkOnly = process.argv.includes('--check');
+  const write = process.argv.includes('--write');
+  if (checkOnly === write) {
+    process.stderr.write('Choose exactly one of --check or --write.\n');
+    process.exitCode = 2;
+  } else {
+    const errors = await checkRegistry();
+    if (errors.length) {
+      process.stderr.write(`${errors.join('\n')}\n`);
+      process.exitCode = 1;
+    } else if (checkOnly) {
+      const actual = await readFile(agentsPath, 'utf8').catch(() => '');
+      if (actual !== expected) {
+        process.stderr.write(
+          'AGENTS.md is stale; run npm run render:agents.\n',
+        );
+        process.exitCode = 1;
+      }
+    } else {
+      await writeFile(agentsPath, expected);
+    }
+  }
 }

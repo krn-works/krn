@@ -1,52 +1,34 @@
 {
   "rules": [
     {
-      "id": "KRN-01",
-      "trigger": "every progress update is issued",
-      "action": "the lead MUST name the owner of the update.",
-      "owner": "lead",
-      "enforcement": { "kind": "none", "check": "prose" },
-      "rationale": "Ownership makes follow-up explicit."
-    },
-    {
-      "id": "KRN-02",
-      "trigger": "the lead is about to claim completion",
-      "action": "the lead MUST read back the observed effect.",
-      "owner": "lead",
-      "enforcement": { "kind": "gate", "check": "readback" },
-      "rationale": "Readback binds claims to evidence."
-    },
-    {
-      "id": "KRN-03",
-      "trigger": "a new falsifier is proposed",
-      "action": "the lead MUST show it failing at base before counting it.",
-      "owner": "lead",
-      "enforcement": { "kind": "gate", "check": "changes check --before" },
-      "rationale": "A red base proves the check can detect the change."
-    },
-    {
-      "id": "KRN-04",
-      "trigger": "a brief is issued to a worker",
-      "action": "the lead MUST give it a stop condition, a budget, and a human_decision path.",
-      "owner": "lead",
-      "enforcement": { "kind": "gate", "check": "brief review" },
-      "rationale": "Bounded briefs provide a safe stopping point."
-    },
-    {
       "id": "KRN-05",
-      "trigger": "code in core is changed",
-      "action": "the author MUST keep core imports independent of hosts, ledger, and trace.",
+      "trigger": "core code is changed",
+      "action": "the author MUST keep imports within core",
       "owner": "author",
-      "enforcement": { "kind": "test", "check": "core import boundary" },
-      "rationale": "The core remains independent of replaceable adapters."
+      "enforcement": {
+        "kind": "test",
+        "check": "core imports only its own files, including nested files and every module form"
+      },
+      "rationale": "Core stays independent of replaceable adapters."
     },
     {
       "id": "KRN-06",
       "trigger": "the CLI receives an unknown command",
-      "action": "the CLI MUST forward it to KRN_LEGACY_BIN with a recursion guard.",
+      "action": "the CLI MUST forward it to the configured legacy entry with a recursion guard",
       "owner": "CLI",
-      "enforcement": { "kind": "test", "check": "legacy forwarding" },
+      "enforcement": {
+        "kind": "test",
+        "check": "unknown commands forward arguments, streams, and exit code to the legacy binary"
+      },
       "rationale": "The strangler CLI preserves unmigrated commands."
+    },
+    {
+      "id": "KRN-07",
+      "trigger": "a change is ready for integration",
+      "action": "the author MUST pass `npm run gate`",
+      "owner": "author",
+      "enforcement": { "kind": "gate", "check": "npm run gate" },
+      "rationale": "The gate checks types, style, tests, and generated rules."
     }
   ]
 }

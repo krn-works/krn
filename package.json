@@ -14,7 +14,7 @@
     "check": "tsc --noEmit",
     "lint": "biome check .",
     "test": "node --test",
-    "render:agents": "node scripts/render-agents.ts",
+    "render:agents": "node scripts/render-agents.ts --write",
     "rules": "node scripts/render-agents.ts --check",
     "gate": "npm run check && npm run lint && npm test && npm run rules"
   },
