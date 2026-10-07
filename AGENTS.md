@@ -4,3 +4,4 @@
 - **KRN-05** When core code is changed, the author MUST keep imports within core _(owner: author; test: core imports only its own files, including nested files and every module form; Core stays independent of replaceable adapters.)_
 - **KRN-06** When the CLI receives an unknown command, the CLI MUST forward it to the configured legacy entry with a recursion guard _(owner: CLI; test: unknown commands forward arguments, streams, and exit code to the legacy binary; The strangler CLI preserves unmigrated commands.)_
 - **KRN-07** When a change is ready for integration, the author MUST pass `npm run gate` _(owner: author; gate: npm run gate; The gate checks types, style, tests, and generated rules.)_
+- **KRN-08** When agent state is written for this repository, the author MUST keep agent state under `.krn/` _(owner: author; test: project tools ignore nested worktree state; Agent state is repository-local and stays outside tracked project inputs.)_

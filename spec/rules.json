@@ -29,6 +29,17 @@
       "owner": "author",
       "enforcement": { "kind": "gate", "check": "npm run gate" },
       "rationale": "The gate checks types, style, tests, and generated rules."
+    },
+    {
+      "id": "KRN-08",
+      "trigger": "agent state is written for this repository",
+      "action": "the author MUST keep agent state under `.krn/`",
+      "owner": "author",
+      "enforcement": {
+        "kind": "test",
+        "check": "project tools ignore nested worktree state"
+      },
+      "rationale": "Agent state is repository-local and stays outside tracked project inputs."
     }
   ]
 }
