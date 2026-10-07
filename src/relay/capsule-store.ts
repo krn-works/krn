@@ -96,10 +96,10 @@ function renderAbi(capsule: Capsule, expectedEpoch: number | null): string {
     'LOCAL_ONLY',
     `base=${capsule.base}; HEAD=${capsule.head}; branch=${capsule.branch}; worktree=${capsule.worktree}`,
     'none',
-    `session=${JSON.stringify(capsule.sessionId ?? '')}`,
+    'ABSENT',
     'none',
     `capsule CAS expectedEpoch=${expectedEpoch === null ? 'empty' : expectedEpoch}`,
-    'continuation capsule refreshed by relay',
+    `session=${JSON.stringify(capsule.sessionId ?? '')}`,
     'no transcript or memory-event writes',
     `decisions=${JSON.stringify(capsule.decisions)}; rejectedApproaches=${JSON.stringify(capsule.rejectedApproaches)}`,
     JSON.stringify(capsule.blockers),
@@ -136,7 +136,7 @@ function parseAbi(text: string): Capsule {
     );
   if (!identity || !owner || !anchors)
     throw new Error('capsule ABI identity or repository anchors are malformed');
-  const session = /^session=(.*)$/.exec(fields.get(labels[6]) ?? '');
+  const session = /^session=(.*)$/.exec(fields.get(labels[9]) ?? '');
   const decisions = /^decisions=(\[.*\]); rejectedApproaches=(\[.*\])$/.exec(
     fields.get(labels[11]) ?? '',
   );
