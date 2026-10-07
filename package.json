@@ -1,0 +1,26 @@
+{
+  "name": "krn",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.10.1",
+  "engines": {
+    "node": ">=24.11"
+  },
+  "bin": {
+    "krn": "src/cli/main.ts"
+  },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "lint": "biome check .",
+    "test": "node --test",
+    "render:agents": "node scripts/render-agents.ts",
+    "rules": "node scripts/render-agents.ts --check",
+    "gate": "npm run check && npm run lint && npm test && npm run rules"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "24.6.2",
+    "typescript": "7.0.2"
+  }
+}
