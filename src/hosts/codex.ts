@@ -1,11 +1,11 @@
 // Owns one ephemeral Codex process per stable session ID. ADR 0001.
-import { type ChildProcess, spawn } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { z } from 'zod';
 
-const outputLimit = 1024 * 1024;
+const lineLimit = 256 * 1024;
 const killGraceMs = 1000;
 const codexRecord = z.record(z.string(), z.unknown());
 const tokenValue = z.number().int().nonnegative().safe();
@@ -24,9 +24,12 @@ export type CodexUsage = {
 export type CodexSessionResult = {
   readonly sessionId: string;
   readonly threadId?: string;
-  readonly reason: string;
+  readonly reasonKind: string;
+  readonly reasonSha256: string;
+  readonly reasonLength: number;
   readonly claimsDone: boolean;
   readonly exitCode: number | null;
+  readonly signal: NodeJS.Signals | null;
   readonly usage: CodexUsage;
 };
 
@@ -47,7 +50,7 @@ export type CodexStartInput = {
     readonly worktree: string;
     readonly intent: string;
   };
-  readonly onStarted?: (sessionId: string) => Promise<boolean>;
+  readonly onStarted?: (sessionId: string, pgid?: number) => Promise<boolean>;
 };
 
 export class CodexHost {
@@ -60,12 +63,11 @@ export class CodexHost {
 
   async start(input: CodexStartInput): Promise<CodexSession> {
     const id = randomUUID();
-    if (input.onStarted && !(await input.onStarted(id)))
-      throw new Error('session intent was already started');
     const checkpoint = input.checkpoint
       ? `\n\nIf interrupted after checkpointing, run: ${process.execPath} ${input.checkpoint.cli} checkpoint --job ${input.checkpoint.job} --issue ${input.checkpoint.issue} --worktree ${input.checkpoint.worktree} --intent ${input.checkpoint.intent} --session ${id}`
       : '';
-    const prompt = `${input.prompt}${checkpoint}`;
+    const prompt = `${input.prompt}${checkpoint}\n\nAfter saving a checkpoint, finish this turn immediately.`;
+    const gitDir = resolve(input.cwd, gitCommonDir(input.cwd));
     const child = spawn(
       this.#executable,
       [
@@ -74,6 +76,10 @@ export class CodexHost {
         '--ephemeral',
         '--model',
         input.model,
+        '--sandbox',
+        'workspace-write',
+        '--add-dir',
+        gitDir,
         '--cd',
         input.cwd,
         '--color',
@@ -85,6 +91,10 @@ export class CodexHost {
     const running = new RunningSession(id, child);
     this.#sessions.set(id, running);
     child.once('close', () => this.#sessions.delete(id));
+    if (input.onStarted && !(await input.onStarted(id, child.pid))) {
+      await running.cancel();
+      throw new Error('session intent was already started');
+    }
     child.stdin?.end(prompt);
     const timer = setTimeout(
       () => void this.cancelTree(id),
@@ -99,52 +109,12 @@ export class CodexHost {
     const running = this.#sessions.get(sessionId);
     if (running) await running.cancel();
   }
-}
 
-export function parseCodexOutput(stdout: string): {
-  readonly threadId?: string;
-  readonly finalMessage?: string;
-  readonly usage: CodexUsage;
-  readonly error?: string;
-} {
-  let threadId: string | undefined;
-  let finalMessage: string | undefined;
-  let inputTokens = 0;
-  let outputTokens = 0;
-  let totalTokens = 0;
-  for (const line of stdout.split(/\r?\n/).filter(Boolean)) {
-    let event: Record<string, unknown>;
-    try {
-      event = record(JSON.parse(line) as unknown);
-    } catch {
-      return {
-        usage: { inputTokens, outputTokens, totalTokens },
-        error: 'codex emitted malformed JSONL',
-      };
-    }
-    if (
-      event.type === 'thread.started' &&
-      typeof event.thread_id === 'string'
-    ) {
-      threadId = event.thread_id;
-    }
-    if (event.type === 'item.completed') {
-      const item = record(event.item);
-      if (item.type === 'agent_message' && typeof item.text === 'string')
-        finalMessage = item.text;
-    }
-    if (event.type === 'turn.completed') {
-      const usage = record(event.usage);
-      inputTokens += tokenCount(usage.input_tokens);
-      outputTokens += tokenCount(usage.output_tokens);
-      totalTokens += tokenCount(usage.total_tokens);
-    }
+  async cancelAll(): Promise<void> {
+    await Promise.all(
+      [...this.#sessions.keys()].map((id) => this.cancelTree(id)),
+    );
   }
-  return {
-    ...(threadId === undefined ? {} : { threadId }),
-    ...(finalMessage === undefined ? {} : { finalMessage }),
-    usage: { inputTokens, outputTokens, totalTokens },
-  };
 }
 
 class RunningSession {
@@ -155,8 +125,15 @@ class RunningSession {
     readonly signal: NodeJS.Signals | null;
   }>;
   readonly #closedListeners: (() => void)[] = [];
-  #stdout = '';
-  #stderr = '';
+  #lineBuffer = '';
+  #threadId: string | undefined;
+  #finalMessage: { hash: string; length: number } | undefined;
+  #stderrHash = createHash('sha256');
+  #stderrLength = 0;
+  #malformed = false;
+  #inputTokens = 0;
+  #outputTokens = 0;
+  #totalTokens = 0;
   #overflow = false;
   #result?: Promise<CodexSessionResult>;
 
@@ -170,11 +147,15 @@ class RunningSession {
       });
       child.once('error', () => resolve({ code: null, signal: null }));
     });
-    child.stdout?.setEncoding('utf8').on('data', (chunk: string) => {
-      this.#stdout = appendBounded(this.#stdout, chunk, outputLimit, this);
-    });
+    child.stdout
+      ?.setEncoding('utf8')
+      .on('data', (chunk: string) => this.consume(chunk));
     child.stderr?.setEncoding('utf8').on('data', (chunk: string) => {
-      this.#stderr = appendBounded(this.#stderr, chunk, outputLimit, this);
+      this.#stderrHash.update(chunk);
+      this.#stderrLength = Math.min(
+        this.#stderrLength + Buffer.byteLength(chunk),
+        Number.MAX_SAFE_INTEGER,
+      );
     });
   }
 
@@ -182,30 +163,111 @@ class RunningSession {
     this.#closedListeners.push(listener);
   }
 
-  markOverflow(): void {
-    if (this.#overflow) return;
-    this.#overflow = true;
-    void this.cancel();
-  }
-
   wait(): Promise<CodexSessionResult> {
     this.#result ??= this.#close.then(({ code, signal }) => {
-      const parsed = parseCodexOutput(this.#stdout);
+      if (this.#lineBuffer) this.consumeLine(this.#lineBuffer);
+      const reasonKind = this.#overflow
+        ? 'line_limit'
+        : this.#malformed
+          ? 'malformed_jsonl'
+          : this.#finalMessage
+            ? 'agent_message'
+            : this.#stderrLength
+              ? 'stderr'
+              : code === 0
+                ? 'exit'
+                : 'process_exit';
       const reason = this.#overflow
-        ? 'codex output exceeded the bounded envelope'
-        : (parsed.error ??
-          parsed.finalMessage ??
-          (this.#stderr.trim() || `codex exited ${String(code ?? signal)}`));
+        ? {
+            hash: createHash('sha256').update('line_limit').digest('hex'),
+            length: 10,
+          }
+        : (this.#finalMessage ?? {
+            hash: this.#stderrHash.digest('hex'),
+            length: Math.min(this.#stderrLength, Number.MAX_SAFE_INTEGER),
+          });
       return {
         sessionId: this.#id,
-        ...(parsed.threadId === undefined ? {} : { threadId: parsed.threadId }),
-        reason,
-        claimsDone: code === 0 && !this.#overflow,
+        ...(this.#threadId === undefined ? {} : { threadId: this.#threadId }),
+        reasonKind,
+        reasonSha256: reason.hash,
+        reasonLength: reason.length,
+        claimsDone:
+          code === 0 &&
+          !this.#overflow &&
+          !this.#malformed &&
+          Boolean(this.#finalMessage),
         exitCode: code,
-        usage: parsed.usage,
+        signal,
+        usage: {
+          inputTokens: this.#inputTokens,
+          outputTokens: this.#outputTokens,
+          totalTokens: this.#totalTokens,
+        },
       };
     });
     return this.#result;
+  }
+
+  private consume(chunk: string): void {
+    this.#lineBuffer += chunk;
+    for (;;) {
+      const newline = this.#lineBuffer.indexOf('\n');
+      if (newline < 0) break;
+      const line = this.#lineBuffer.slice(0, newline).replace(/\r$/, '');
+      this.#lineBuffer = this.#lineBuffer.slice(newline + 1);
+      this.consumeLine(line);
+    }
+    if (Buffer.byteLength(this.#lineBuffer) > lineLimit) {
+      this.#overflow = true;
+      void this.cancel();
+    }
+  }
+
+  private consumeLine(line: string): void {
+    if (Buffer.byteLength(line) > lineLimit) {
+      this.#overflow = true;
+      void this.cancel();
+      return;
+    }
+    if (!line) return;
+    let event: Record<string, unknown>;
+    try {
+      event = record(JSON.parse(line) as unknown);
+    } catch {
+      this.#malformed = true;
+      void this.cancel();
+      return;
+    }
+    if (
+      event.type === 'thread.started' &&
+      typeof event.thread_id === 'string' &&
+      event.thread_id.length <= 256
+    )
+      this.#threadId = event.thread_id;
+    if (event.type === 'item.completed') {
+      const item = record(event.item);
+      if (item.type === 'agent_message' && typeof item.text === 'string')
+        this.#finalMessage = {
+          hash: createHash('sha256').update(item.text).digest('hex'),
+          length: Buffer.byteLength(item.text),
+        };
+    }
+    if (event.type === 'turn.completed') {
+      const usage = record(event.usage);
+      this.#inputTokens = safeAdd(
+        this.#inputTokens,
+        tokenCount(usage.input_tokens),
+      );
+      this.#outputTokens = safeAdd(
+        this.#outputTokens,
+        tokenCount(usage.output_tokens),
+      );
+      this.#totalTokens = safeAdd(
+        this.#totalTokens,
+        tokenCount(usage.total_tokens),
+      );
+    }
   }
 
   async cancel(): Promise<void> {
@@ -221,19 +283,6 @@ class RunningSession {
     if (!closed) signalTree(this.#child, 'SIGKILL');
     await this.#close;
   }
-}
-
-function appendBounded(
-  current: string,
-  chunk: string,
-  limit: number,
-  session: RunningSession,
-): string {
-  if (current.length + chunk.length > limit) {
-    session.markOverflow();
-    return current;
-  }
-  return current + chunk;
 }
 
 function signalTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -254,4 +303,20 @@ function record(value: unknown): Record<string, unknown> {
 function tokenCount(value: unknown): number {
   const parsed = tokenValue.safeParse(value);
   return parsed.success ? parsed.data : 0;
+}
+
+function safeAdd(left: number, right: number): number {
+  return Math.min(left + right, Number.MAX_SAFE_INTEGER);
+}
+
+function gitCommonDir(cwd: string): string {
+  const result = spawnSync(
+    'git',
+    ['-C', cwd, 'rev-parse', '--git-common-dir'],
+    { encoding: 'utf8' },
+  );
+  if (result.status !== 0)
+    throw new Error(result.stderr || 'unable to find git directory');
+  const path = result.stdout.trim();
+  return isAbsolute(path) ? path : resolve(cwd, path);
 }

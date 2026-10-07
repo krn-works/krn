@@ -1,6 +1,6 @@
 // Start creates the isolated job worktree; checkpoint persists before stopping its worker. ADR 0001.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 
 import type { Job } from '../core/index.ts';
@@ -41,18 +41,6 @@ async function start(args: string[]): Promise<void> {
   process.stdout.write(`${JSON.stringify(job)}\n`);
 }
 
-function parentGroup(): number {
-  const stat = readFileSync(`/proc/${process.ppid}/stat`, 'utf8');
-  const fields = stat
-    .slice(stat.lastIndexOf(')') + 2)
-    .trim()
-    .split(/\s+/);
-  const group = Number(fields[2]);
-  if (!Number.isSafeInteger(group) || group <= 0)
-    throw new Error('worker process group is unavailable');
-  return group;
-}
-
 async function stop(
   args: string[],
   kind: 'checkpoint' | 'stop',
@@ -63,9 +51,25 @@ async function stop(
     worktree: resolve(value(args, '--worktree')),
   };
   if (kind === 'checkpoint') {
-    await saveCheckpoint(job, value(args, '--session'));
-    await checkpoint(job, value(args, '--intent'), value(args, '--session'));
-    process.kill(-parentGroup(), 'SIGTERM');
+    const next = value(args, '--next');
+    if (next.length > 200 || /[\r\n]/.test(next))
+      throw new Error('--next must be a single line of at most 200 characters');
+    const decision = args.includes('--decision')
+      ? value(args, '--decision')
+      : undefined;
+    if (decision && (decision.length > 500 || /[\r\n]/.test(decision)))
+      throw new Error(
+        '--decision must be a single line of at most 500 characters',
+      );
+    const status = git(job.worktree, [
+      'status',
+      '--porcelain',
+      '--untracked-files=normal',
+    ]);
+    if (status) throw new Error('checkpoint requires a clean working tree');
+    const session = value(args, '--session');
+    await saveCheckpoint(job, session, next, decision);
+    await checkpoint(job, value(args, '--intent'), session, next, decision);
   } else await operatorStop(job, process.env.USER ?? 'local operator');
 }
 

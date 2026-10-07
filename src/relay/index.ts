@@ -47,6 +47,7 @@ export async function load(
     epoch: 0,
     ...repoFacts(job),
     nextAction: 'read the current task contract',
+    lease: 'ended',
     blockers: [],
     decisions: [],
     rejectedApproaches: [],
@@ -140,12 +141,12 @@ export async function bindSession(
   capsule: Capsule,
   sessionId: string,
 ): Promise<Cas<Capsule>> {
-  if (capsule.sessionId && capsule.nextAction !== 'resume after checkpoint')
+  if (capsule.sessionId && capsule.lease !== 'checkpointed')
     return { applied: false };
   const next = parseCapsule({
     ...capsule,
     epoch: capsule.epoch + 1,
-    nextAction: 'session active',
+    lease: 'active',
     sessionId,
   });
   return storeCapsule(job, next, capsule.epoch);
@@ -162,7 +163,8 @@ export async function refreshCAS(
     epoch: capsule.epoch + 1,
     nextAction: end.claimsDone
       ? 'verify the reported completion'
-      : `resume after session ended (${end.reason})`,
+      : `resume after session ended (${end.reasonKind})`,
+    lease: 'ended',
     sessionId: undefined,
   });
   return storeCapsule(
@@ -175,13 +177,12 @@ export async function refreshCAS(
 export async function checkpoint(
   job: Job,
   sessionId: string,
+  nextAction: string,
+  decision?: string,
 ): Promise<Capsule> {
   const current = readCapsule(job);
   if (!current) throw new Error('cannot checkpoint without a relay capsule');
-  if (
-    current.sessionId === sessionId &&
-    current.nextAction === 'resume after checkpoint'
-  )
+  if (current.sessionId === sessionId && current.lease === 'checkpointed')
     return current;
   if (current.sessionId !== sessionId)
     throw new Error('checkpoint session is stale');
@@ -189,7 +190,20 @@ export async function checkpoint(
     ...current,
     ...repoFacts(job),
     epoch: current.epoch + 1,
-    nextAction: 'resume after checkpoint',
+    nextAction,
+    lease: 'checkpointed',
+    ...(decision === undefined
+      ? {}
+      : {
+          decisions: [
+            ...current.decisions,
+            {
+              date: new Date().toISOString(),
+              source: sessionId,
+              text: decision,
+            },
+          ],
+        }),
     sessionId,
   });
   const saved = await storeCapsule(job, next, current.epoch);
