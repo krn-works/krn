@@ -70,11 +70,12 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
                   { id: 'job-1', issue: 'issue-1', worktree: '/tmp/job-1' },
                   'intent-0',
                   id,
+                  'continue with step B',
                 );
                 await d.hosts.cancelTree(id);
-                return { reason: 'interrupted', claimsDone: false };
+                return { reasonKind: 'interrupted', claimsDone: false };
               }
-              return { reason: 'exit', claimsDone: true };
+              return { reasonKind: 'exit', claimsDone: true };
             },
           };
         },
@@ -130,9 +131,9 @@ test('a concurrent run cannot replace the active capsule session', async () => {
   const job = { id: 'job-active', issue: 'issue-active', worktree };
   const started: string[] = [];
   let release!: () => void;
-  const hold = new Promise<{ reason: string; claimsDone: boolean }>(
+  const hold = new Promise<{ reasonKind: string; claimsDone: boolean }>(
     (resolve) => {
-      release = () => resolve({ reason: 'exit', claimsDone: true });
+      release = () => resolve({ reasonKind: 'exit', claimsDone: true });
     },
   );
   const d: Deps = {
@@ -157,7 +158,9 @@ test('a concurrent run cannot replace the active capsule session', async () => {
           return {
             id,
             wait: async () =>
-              id === 'session-1' ? hold : { reason: 'exit', claimsDone: true },
+              id === 'session-1'
+                ? hold
+                : { reasonKind: 'exit', claimsDone: true },
           };
         },
       },
