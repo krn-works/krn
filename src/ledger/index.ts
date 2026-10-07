@@ -1,8 +1,10 @@
 // Ledger reads and submits work through the Paperclip authority. ADR 0001.
 import { type Job, NotImplemented } from '../core/index.ts';
+import type { PaperclipIssue } from '../core/paperclip.ts';
 
 // Paperclip status is projected for reads and is never stored on Job. ADR 0001.
 export type BoardView = Readonly<{
+  issue: PaperclipIssue;
   status: string;
   revision: string;
   observedAt: string;
