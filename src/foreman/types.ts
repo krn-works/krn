@@ -11,6 +11,7 @@ export type Capsule = {
   readonly branch: string;
   readonly worktree: string;
   readonly nextAction: string;
+  readonly lease: 'active' | 'checkpointed' | 'ended';
   readonly blockers: readonly string[];
   readonly decisions: readonly {
     readonly date: string;
@@ -28,8 +29,18 @@ export type RepoFacts = {
   readonly worktree: string;
 };
 export type SessionEnd = {
-  readonly reason: string;
+  readonly reasonKind: string;
+  readonly reasonSha256?: string;
+  readonly reasonLength?: number;
   readonly claimsDone: boolean;
+  readonly exitCode?: number | null;
+  readonly signal?: NodeJS.Signals | null;
+  readonly threadId?: string;
+  readonly usage?: {
+    readonly inputTokens: number;
+    readonly outputTokens: number;
+    readonly totalTokens: number;
+  };
 };
 export type Session = { readonly id: string; wait(): Promise<SessionEnd> };
 export type Outcome =
@@ -56,7 +67,12 @@ export type Deps = {
   readonly ledger: { readContract(issue: string): Promise<Contract> };
   readonly relay: {
     load(job: Job, contract: Contract): Promise<Capsule>;
-    checkpoint(job: Job, sessionId: string): Promise<Capsule>;
+    checkpoint(
+      job: Job,
+      sessionId: string,
+      next: string,
+      decision?: string,
+    ): Promise<Capsule>;
     bindSession(
       job: Job,
       capsule: Capsule,
@@ -74,8 +90,20 @@ export type Deps = {
   };
   readonly trace: {
     intent(job: Job, epoch: number): Promise<string>;
-    started(job: Job, intent: string, sessionId: string): Promise<boolean>;
-    checkpoint(job: Job, intent: string, sessionId: string): Promise<void>;
+    started(
+      job: Job,
+      intent: string,
+      sessionId: string,
+      pgid?: number,
+      isolation?: 'pid_namespace' | 'proc_tree_fallback',
+    ): Promise<boolean>;
+    checkpoint(
+      job: Job,
+      intent: string,
+      sessionId: string,
+      next: string,
+      decision?: string,
+    ): Promise<void>;
     hasCheckpoint(
       job: Job,
       intent: string,
@@ -105,7 +133,11 @@ export type Deps = {
           readonly worktree: string;
           readonly intent: string;
         };
-        readonly onStarted: (sessionId: string) => Promise<boolean>;
+        readonly onStarted: (
+          sessionId: string,
+          pgid?: number,
+          isolation?: 'pid_namespace' | 'proc_tree_fallback',
+        ) => Promise<boolean>;
       }): Promise<Session>;
     };
     cancelTree(sessionId: string): Promise<void>;

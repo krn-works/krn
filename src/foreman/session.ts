@@ -80,23 +80,49 @@ export async function runSession(
         worktree: job.worktree,
         intent,
       },
-      onStarted: async (sessionId) => {
+      onStarted: async (sessionId, pgid, isolation) => {
         const result = await d.relay.bindSession(job, capsule, sessionId);
         if (!result.applied) throw new AlreadyRunning();
         bound = result.value;
-        if (!(await d.trace.started(job, intent, sessionId)))
+        if (!(await d.trace.started(job, intent, sessionId, pgid, isolation)))
           throw new AlreadyRunning();
         return true;
       },
     });
-    const end = await session.wait();
-    const checkpointed = await d.trace.hasCheckpoint(job, intent, session.id);
+    const running = session;
+    let checkpointed = false;
+    let pollError: unknown;
+    let cancelTimer: NodeJS.Timeout | undefined;
+    const poll = setInterval(() => {
+      void d.trace
+        .hasCheckpoint(job, intent, running.id)
+        .then((found) => {
+          if (!found || checkpointed) return;
+          checkpointed = true;
+          cancelTimer = setTimeout(
+            () => void d.hosts.cancelTree(running.id),
+            5_000,
+          );
+        })
+        .catch((error: unknown) => {
+          pollError = error;
+          void d.hosts.cancelTree(running.id).catch((cancelError: unknown) => {
+            pollError = cancelError;
+          });
+        });
+    }, 1000);
+    poll.unref();
+    const end = await running.wait();
+    clearInterval(poll);
+    if (cancelTimer) clearTimeout(cancelTimer);
+    if (pollError !== undefined) throw pollError;
+    checkpointed ||= await d.trace.hasCheckpoint(job, intent, running.id);
     if (
       !checkpointed &&
-      !(await d.relay.isCurrent(job, bound.epoch, session.id))
+      !(await d.relay.isCurrent(job, bound.epoch, running.id))
     )
       throw new Error('stale worker session');
-    await d.trace.log(job, intent, session.id, 'session_ended', end);
+    await d.trace.log(job, intent, running.id, 'session_ended', end);
     return {
       end,
       checkpointed,
@@ -113,7 +139,7 @@ export async function recoverLease(
   capsule: Capsule,
   d: Deps,
 ): Promise<{ readonly capsule: typeof capsule; readonly outcome?: Outcome }> {
-  if (!capsule.sessionId || capsule.nextAction === 'resume after checkpoint')
+  if (!capsule.sessionId || capsule.lease === 'checkpointed')
     return { capsule };
   const end = await d.trace.sessionEnd(job, capsule.sessionId);
   if (!end)

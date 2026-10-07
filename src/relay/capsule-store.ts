@@ -49,6 +49,7 @@ const capsuleSchema = z.object({
   branch: z.string().min(1),
   worktree: z.string().min(1),
   nextAction: z.string().min(1),
+  lease: z.enum(['active', 'checkpointed', 'ended']).default('ended'),
   blockers: z.array(z.string()),
   decisions: z.array(decisionSchema),
   rejectedApproaches: z.array(z.string()),
@@ -64,7 +65,7 @@ export type RepoFacts = {
   readonly worktree: string;
 };
 export type SessionEnd = {
-  readonly reason: string;
+  readonly reasonKind: string;
   readonly claimsDone: boolean;
 };
 export type Cas<T> =
@@ -99,7 +100,7 @@ function renderAbi(capsule: Capsule, expectedEpoch: number | null): string {
     'ABSENT',
     'none',
     `capsule CAS expectedEpoch=${expectedEpoch === null ? 'empty' : expectedEpoch}`,
-    `session=${JSON.stringify(capsule.sessionId ?? '')}`,
+    `session=${JSON.stringify(capsule.sessionId ?? '')}; lease=${capsule.lease}`,
     'no transcript or memory-event writes',
     `decisions=${JSON.stringify(capsule.decisions)}; rejectedApproaches=${JSON.stringify(capsule.rejectedApproaches)}`,
     JSON.stringify(capsule.blockers),
@@ -107,6 +108,8 @@ function renderAbi(capsule: Capsule, expectedEpoch: number | null): string {
     JSON.stringify(capsule.references),
     capsule.nextAction,
   ];
+  if (values.some((value) => /[\r\n]/.test(value)))
+    throw new Error('capsule ABI values must be single-line');
   const text = labels
     .map((label, index) => `${label}: ${values[index]}`)
     .join('\n');
@@ -136,7 +139,9 @@ function parseAbi(text: string): Capsule {
     );
   if (!identity || !owner || !anchors)
     throw new Error('capsule ABI identity or repository anchors are malformed');
-  const session = /^session=(.*)$/.exec(fields.get(labels[9]) ?? '');
+  const session = /^session=(.*); lease=(active|checkpointed|ended)$/.exec(
+    fields.get(labels[9]) ?? '',
+  );
   const decisions = /^decisions=(\[.*\]); rejectedApproaches=(\[.*\])$/.exec(
     fields.get(labels[11]) ?? '',
   );
@@ -152,6 +157,7 @@ function parseAbi(text: string): Capsule {
       branch: anchors[3],
       worktree: anchors[4],
       nextAction: fields.get(labels[15]),
+      lease: session?.[2] ?? 'ended',
       blockers: JSON.parse(fields.get(labels[12]) ?? '[]'),
       decisions: JSON.parse(decisions?.[1] ?? '[]'),
       rejectedApproaches: JSON.parse(decisions?.[2] ?? '[]'),

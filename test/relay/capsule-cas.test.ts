@@ -40,6 +40,7 @@ test('a capsule write from a stale epoch is rejected', async () => {
     branch: 'feat/s3-relay',
     worktree,
     nextAction: 'resume implementation',
+    lease: 'ended' as const,
     blockers: [],
     decisions: [],
     rejectedApproaches: [],
@@ -113,7 +114,10 @@ test('the existing state checker accepts a capsule session id as evidence', asyn
       'utf8',
     );
     assert.match(state, /^Restart state: ABSENT$/m);
-    assert.match(state, /^Evidence observed: session="session-opaque-42"$/m);
+    assert.match(
+      state,
+      /^Evidence observed: session="session-opaque-42"; lease=ended$/m,
+    );
 
     const checked = spawnSync(
       process.execPath,

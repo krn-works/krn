@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -16,6 +17,8 @@ test('cancellation kills the Codex process tree and keeps the session identity',
 
   const directory = await mkdtemp(join(tmpdir(), 'krn-codex-cancel-'));
   try {
+    const initialized = spawnSync('git', ['-C', directory, 'init', '-q']);
+    assert.equal(initialized.status, 0);
     const pidFile = join(directory, 'pids');
     const executable = join(directory, 'fake-codex');
     const source = `#!/usr/bin/env node

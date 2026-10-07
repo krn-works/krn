@@ -83,6 +83,8 @@ export async function started(
   job: Job,
   intentId: string,
   sessionId: string,
+  pgid?: number,
+  isolation?: 'pid_namespace' | 'proc_tree_fallback',
 ): Promise<boolean> {
   // Session starts are unique by opaque host identity, while the intent key fences retries.
   const prior = events(job).find(
@@ -92,6 +94,9 @@ export async function started(
   append(job, `${intentId}:session`, 'session_started', {
     intent: intentId,
     sessionId,
+    ...(pgid === undefined ? {} : { pgid }),
+    sandbox: 'workspace-write',
+    isolation: isolation ?? 'unknown',
   });
   return true;
 }
@@ -100,6 +105,8 @@ export async function checkpoint(
   job: Job,
   intentId: string,
   sessionId: string,
+  next: string,
+  decision?: string,
 ): Promise<void> {
   const started = events(job).find(
     (event) => event.key === `${intentId}:session`,
@@ -109,6 +116,8 @@ export async function checkpoint(
   append(job, `${intentId}:checkpoint:${sessionId}`, 'checkpoint', {
     intent: intentId,
     sessionId,
+    next,
+    ...(decision === undefined ? {} : { decision }),
   });
 }
 
@@ -131,7 +140,7 @@ export async function sessionEnd(
       event.kind === 'session_ended' && event.data.sessionId === sessionId,
   )?.data.end;
   const parsed = z
-    .object({ reason: z.string(), claimsDone: z.boolean() })
+    .object({ reasonKind: z.string(), claimsDone: z.boolean() })
     .safeParse(value);
   return parsed.success ? parsed.data : null;
 }
@@ -146,7 +155,16 @@ export async function log(
   append(job, `${intentId}:ended:${sessionId}`, event, {
     intent: intentId,
     sessionId,
-    end,
+    end: {
+      exitCode: end.exitCode,
+      signal: end.signal,
+      threadId: end.threadId,
+      usage: end.usage,
+      reasonKind: end.reasonKind,
+      reasonSha256: end.reasonSha256,
+      reasonLength: end.reasonLength,
+      claimsDone: end.claimsDone,
+    },
   });
 }
 
@@ -155,7 +173,9 @@ export async function failure(
   intentId: string,
   error: unknown,
 ): Promise<void> {
-  append(job, `${intentId}:failure`, 'failure', { message: String(error) });
+  append(job, `${intentId}:failure`, 'failure', {
+    errorType: error instanceof Error ? error.name : typeof error,
+  });
 }
 
 export async function operatorStart(job: Job, operator: string): Promise<void> {
