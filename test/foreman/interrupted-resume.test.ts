@@ -16,8 +16,17 @@ import type {
   VerdictEvidence,
 } from '../../src/ledger/index.ts';
 import * as relay from '../../src/relay/index.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
-test('resuming a ready_for_review checkpoint re-verdicts without starting a session', async () => {
+test('resuming a ready_for_review checkpoint re-verdicts without starting a session', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'resuming a ready_for_review checkpoint re-verdicts without starting a session',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const scratch = join(process.cwd(), '.krn', 'tmp');
   await mkdir(scratch, { recursive: true });
   const worktree = await mkdtemp(join(scratch, 'krn-foreman-ready-'));

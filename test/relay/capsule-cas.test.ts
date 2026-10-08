@@ -9,8 +9,7 @@ import test from 'node:test';
 import * as relay from '../../src/relay/index.ts';
 import * as trace from '../../src/trace/index.ts';
 
-const validator =
-  '/mnt/storage/coding/krn/active/krn-codex-skills/scripts/krn.mjs';
+const validator = new URL('../../src/cli/main.ts', import.meta.url).pathname;
 
 function git(root: string, args: string[]): string {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });

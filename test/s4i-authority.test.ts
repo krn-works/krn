@@ -67,7 +67,15 @@ function repo(): string {
   return root;
 }
 
-test('J1 public verdict entrypoint runs a check declared at the base SHA', async () => {
+test('J1 public verdict entrypoint runs a check declared at the base SHA', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'J1 public verdict entrypoint runs a check declared at the base SHA',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const root = repo();
   try {
     const sha = git(root, ['rev-parse', 'HEAD']);

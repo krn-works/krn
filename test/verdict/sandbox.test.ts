@@ -132,7 +132,15 @@ test('real SIGTERM during a sleeping verdict check stops before submit and is tr
   }
 });
 
-test('Paperclip board changes and conflicts return human decision outcomes', async () => {
+test('Paperclip board changes and conflicts return human decision outcomes', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'Paperclip board changes and conflicts return human decision outcomes',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const f = fixture(['/usr/bin/true']);
   const capsule: Capsule = {
     jobId: f.job.id,

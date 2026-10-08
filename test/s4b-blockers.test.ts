@@ -242,7 +242,15 @@ test('start refuses a worktrees symlink that escapes the target repo', async () 
   }
 });
 
-test('B1 foreman waits for a checkpointing tool session to die before retrying', async () => {
+test('B1 foreman waits for a checkpointing tool session to die before retrying', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'B1 foreman waits for a checkpointing tool session to die before retrying',
+      ['bwrap'],
+    )
+  )
+    return;
   const previousIsolation = process.env.KRN_ISOLATION;
   const root = await repoFixture();
   const outside = await mkdtemp(join(tmpdir(), 'krn-s4b-shell-'));
