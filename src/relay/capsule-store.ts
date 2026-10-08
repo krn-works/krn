@@ -19,6 +19,12 @@ import type { Job } from '../core/index.ts';
 import { ensureProjectionDirectory, stateDirectory } from '../foreman/state.ts';
 import type { Contract } from '../ledger/index.ts';
 
+const MAX_PROJECTION_TOKENS = 2000;
+
+function approximateTokenCount(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+
 const labels = [
   'Outcome and observable acceptance',
   'Current workflow owner and sole writer',
@@ -116,9 +122,10 @@ function renderAbi(capsule: Capsule, expectedEpoch: number | null): string {
   const text = labels
     .map((label, index) => `${label}: ${values[index]}`)
     .join('\n');
-  if (text.length > 8000)
+  const projection = `${text}\n`;
+  if (approximateTokenCount(projection) > MAX_PROJECTION_TOKENS)
     throw new Error('capsule exceeds the 2k-token projection budget');
-  return `${text}\n`;
+  return projection;
 }
 
 export function projectCapsule(job: Job, capsule: Capsule): void {
@@ -246,7 +253,8 @@ export function renderProjection(
   ].join('\n');
   const separator = '\n';
   const fullProjection = `${capsuleProjection}${separator}${sectionStart}\n${contract.description}${sectionEnd}\n`;
-  if (fullProjection.length <= 2000) return fullProjection;
+  if (approximateTokenCount(fullProjection) <= MAX_PROJECTION_TOKENS)
+    return fullProjection;
 
   const marker =
     '\n[description truncated to fit the 2k-token projection budget]';
@@ -258,13 +266,13 @@ export function renderProjection(
     marker.length +
     sectionEnd.length +
     1;
-  const descriptionLength = 2000 - fixedLength;
+  const descriptionLength = MAX_PROJECTION_TOKENS * 4 - fixedLength;
   if (descriptionLength < 0)
     throw new Error(
       'task contract metadata exceeds the 2k-token projection budget',
     );
   const truncated = `${capsuleProjection}${separator}${sectionStart}\n${contract.description.slice(0, descriptionLength)}${marker}${sectionEnd}\n`;
-  if (truncated.length > 2000)
+  if (approximateTokenCount(truncated) > MAX_PROJECTION_TOKENS)
     throw new Error('task contract projection exceeds the 2k-token budget');
   return truncated;
 }

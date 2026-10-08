@@ -76,26 +76,17 @@ test('a capsule write from a stale epoch is rejected', async () => {
     const state = await readFile(statePath, 'utf8');
     assert.match(state, /^Outcome and observable acceptance:/m);
     assert.deepEqual(await relay.load(job, { revision: 'rev-1' }), capsule);
-    assert.ok(
-      relay.project(
-        capsule,
-        {
-          base: capsule.base,
-          head: capsule.head,
-          branch: capsule.branch,
-          worktree,
-        },
-        {
-          issueId: 'issue-1',
-          identifier: 'LON-200',
-          title: 'A worker receives the task',
-          description: 'Implement the worker task from this description.',
-          revision: 'rev-1',
-          targetRepo: 'krn/krn',
-          checks: ['gate', 'typecheck'],
-        },
-      ).length <= 2000,
-    );
+    const lonDescription = `Follow-up from Luna judges on #366 (non-blocking). Step A: docs/adr/0010-claude-orchestrates-codex-implements.md line 6 lists 'Claude Code lead sessions' as consumer; the lead is swappable across harnesses (Claude Opus or Codex gpt-6.1-sol) per the #366 amendment -> state 'lead sessions across harnesses'. Check: node --test test/rules/instruction-ownership.test.mjs. Step B: CONTEXT.md line ~25 summary still says Claude leads and Codex workers implement -> align with ADR 0010 amendment (workers and judges gpt-6-luna; Sol only on operator request; lead harness-neutral). Check: npm run validate:remaining. Used as the first live krn J1 run (L1): no board writes by the worker; PR via the normal lead loop afterwards.\n\n\`\`\`krn-contract\n{"version":1,"targetRepo":"krn-works/krn-codex-skills","checks":["instruction-ownership","validate-remaining","skills-check"]}\n\`\`\``;
+    const taskContract = {
+      issueId: 'issue-1',
+      identifier: 'LON-200',
+      title:
+        'docs: describe the lead as harness-neutral in ADR 0010 and CONTEXT',
+      description: lonDescription,
+      revision: 'rev-1',
+      targetRepo: 'krn-works/krn-codex-skills',
+      checks: ['instruction-ownership', 'validate-remaining', 'skills-check'],
+    };
     const brief = relay.project(
       capsule,
       {
@@ -104,21 +95,17 @@ test('a capsule write from a stale epoch is rejected', async () => {
         branch: capsule.branch,
         worktree,
       },
-      {
-        issueId: 'issue-1',
-        identifier: 'LON-200',
-        title: 'A worker receives the task',
-        description: 'Implement the worker task from this description.',
-        revision: 'rev-1',
-        targetRepo: 'krn/krn',
-        checks: ['gate', 'typecheck'],
-      },
+      taskContract,
     );
     assert.match(brief, /Task contract:/u);
     assert.match(brief, /LON-200/u);
-    assert.match(brief, /A worker receives the task/u);
-    assert.match(brief, /Implement the worker task from this description\./u);
-    assert.match(brief, /gate, typecheck/u);
+    assert.match(brief, /docs: describe the lead as harness-neutral/u);
+    assert.ok(brief.includes(lonDescription));
+    assert.doesNotMatch(brief, /description truncated/u);
+    assert.match(
+      brief,
+      /instruction-ownership, validate-remaining, skills-check/u,
+    );
     assert.match(
       brief,
       /This contract is your task source; do not look for tasks elsewhere\./u,
@@ -132,16 +119,12 @@ test('a capsule write from a stale epoch is rejected', async () => {
         worktree,
       },
       {
-        issueId: 'issue-1',
-        identifier: 'LON-200',
-        title: 'A worker receives the task',
-        description: 'x'.repeat(7000),
-        revision: 'rev-1',
-        targetRepo: 'krn/krn',
-        checks: ['gate'],
+        ...taskContract,
+        description: 'x'.repeat(12000),
       },
     );
-    assert.ok(longBrief.length <= 2000);
+    assert.ok(longBrief.length > 2000);
+    assert.ok(Math.ceil(longBrief.length / 4) <= 2000);
     assert.match(
       longBrief,
       /\[description truncated to fit the 2k-token projection budget\]/u,
