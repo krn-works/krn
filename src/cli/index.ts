@@ -1,7 +1,7 @@
 // Start creates the isolated job worktree; checkpoint persists before stopping its worker. ADR 0001.
 import { spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
-import { basename, dirname, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 
 import type { Job } from '../core/index.ts';
 import { checkpoint as saveCheckpoint } from '../relay/index.ts';
@@ -27,7 +27,12 @@ async function start(args: string[]): Promise<void> {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(id) || id === '..')
     throw new Error('invalid job id');
   const root = git(process.cwd(), ['rev-parse', '--show-toplevel']);
-  const worktree = resolve(dirname(root), `${basename(root)}-jobs`, id);
+  const ignored = spawnSync('git', ['-C', root, 'check-ignore', '-q', '.krn/']);
+  if (ignored.status !== 0)
+    throw new Error(
+      'target repository must ignore .krn/; add ".krn/" to its .gitignore before starting a job',
+    );
+  const worktree = resolve(root, '.krn', 'worktrees', id);
   mkdirSync(dirname(worktree), { recursive: true });
   const result = spawnSync(
     'git',

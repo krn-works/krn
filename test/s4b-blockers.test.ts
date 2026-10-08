@@ -19,7 +19,7 @@ import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
 
-async function repoFixture(): Promise<string> {
+async function repoFixture(ignore = '.krn/\n'): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'krn-s4b-'));
   const git = (args: string[]) => {
     const result = spawnSync('git', ['-C', root, ...args], {
@@ -28,7 +28,7 @@ async function repoFixture(): Promise<string> {
     assert.equal(result.status, 0, result.stderr);
   };
   git(['init', '-q', '--initial-branch=main']);
-  await writeFile(join(root, '.gitignore'), '.krn/runs/\n');
+  await writeFile(join(root, '.gitignore'), ignore);
   await writeFile(join(root, 'README.md'), 'fixture\n');
   git(['add', '.gitignore', 'README.md']);
   git([
@@ -51,6 +51,64 @@ async function fakeCodex(root: string, body: string): Promise<string> {
 }
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+test('start stores jobs inside the repo without creating a sibling folder', async () => {
+  const root = await repoFixture('.krn/\n');
+  const cli = new URL('../src/cli/main.ts', import.meta.url).pathname;
+  const run = (repo: string, id: string) =>
+    spawnSync(
+      process.execPath,
+      [cli, 'start', '--job', id, '--issue', 'I-S4c'],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+      },
+    );
+  const jobId = 'S4c-inside';
+  const sibling = join(root, '..', `${root.split('/').at(-1)}-jobs`, jobId);
+  try {
+    const result = run(root, jobId);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.equal(
+      JSON.parse(result.stdout).worktree,
+      join(root, '.krn', 'worktrees', jobId),
+    );
+    assert.equal(existsSync(sibling), false);
+  } finally {
+    spawnSync('git', [
+      '-C',
+      root,
+      'worktree',
+      'remove',
+      '--force',
+      join(root, '.krn', 'worktrees', jobId),
+    ]);
+    await rm(join(root, '.krn'), { recursive: true, force: true });
+    await rm(sibling, { recursive: true, force: true });
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('start refuses when the target repo does not ignore .krn', async () => {
+  const root = await repoFixture('');
+  const cli = new URL('../src/cli/main.ts', import.meta.url).pathname;
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [cli, 'start', '--job', 'S4c-refused', '--issue', 'I-S4c'],
+      { cwd: root, encoding: 'utf8' },
+    );
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /\.krn.*ignored|ignore.*\.krn/i);
+    assert.equal(existsSync(join(root, '.krn', 'worktrees')), false);
+    assert.equal(
+      existsSync(join(root, '..', `${root.split('/').at(-1)}-jobs`)),
+      false,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test('B1 foreman waits for a checkpointing tool session to die before retrying', async () => {
   const root = await repoFixture();
@@ -439,7 +497,7 @@ test('B3 live uses the requested repo and resumes an existing job by id', async 
     const first = exec();
     assert.equal(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const job = JSON.parse(lastOutputLine(first.stdout)).job;
-    assert.ok(job.worktree.startsWith(`${repo}-jobs/`));
+    assert.equal(job.worktree, join(repo, '.krn', 'worktrees', 'same-job'));
     const resumed = exec();
     assert.equal(resumed.status, 0, `${resumed.stdout}\n${resumed.stderr}`);
     assert.equal(
@@ -451,8 +509,11 @@ test('B3 live uses the requested repo and resumes an existing job by id', async 
       /\/$/,
       '',
     );
-    for (const parent of [repo, packageRoot]) {
-      const worktree = join(`${parent}-jobs`, 'same-job');
+    for (const worktree of [
+      join(repo, '.krn', 'worktrees', 'same-job'),
+      join(packageRoot, '.krn', 'worktrees', 'same-job'),
+    ]) {
+      const parent = worktree.startsWith(`${repo}/`) ? repo : packageRoot;
       spawnSync('git', [
         '-C',
         parent,
