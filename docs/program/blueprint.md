@@ -162,6 +162,8 @@ Store zdarzeń `krn-factory` pokazuje wykonalność techniczną. Nie dowodzi, ż
 
 ## 6. Pamięć
 
+Brain v2 record, ingestion, retrieval, and evaluation design: [ADR 0002](../adr/0002-brain-v2.md).
+
 - **Etap 1:** kapsuła i wskaźniki do ADR, CONTEXT i skilli.
 - **Etap 3, warunkowo** [POLICY]: wchodzi przy ≥3 incydentach utraty wiedzy *między zadaniami*. Wtedy powstają
   zdarzenia z allowlisty ADR 0009 do SQLite, epizody jako niezweryfikowana interpretacja, a rekordy semantyczne
