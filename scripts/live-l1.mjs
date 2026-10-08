@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
-import { basename, dirname, isAbsolute, resolve } from 'node:path';
+import { isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runJob } from '../src/foreman/run.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
@@ -47,11 +47,7 @@ const requestedWorktree = process.argv.includes('--worktree')
 if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(jobId) || jobId === '..')
   throw new Error('invalid job id');
 const cli = fileURLToPath(new URL('../src/cli/main.ts', import.meta.url));
-const existingJobWorktree = resolve(
-  dirname(repo),
-  `${basename(repo)}-jobs`,
-  jobId,
-);
+const existingJobWorktree = resolve(repo, '.krn', 'worktrees', jobId);
 const worktree =
   requestedWorktree ??
   (hasWorktree(repo, existingJobWorktree) ? existingJobWorktree : undefined);

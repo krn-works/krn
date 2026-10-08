@@ -1,7 +1,7 @@
 // Start creates the isolated job worktree; checkpoint persists before stopping its worker. ADR 0001.
 import { spawnSync } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
-import { basename, dirname, resolve } from 'node:path';
+import { mkdirSync, realpathSync } from 'node:fs';
+import { dirname, resolve, sep } from 'node:path';
 
 import type { Job } from '../core/index.ts';
 import { checkpoint as saveCheckpoint } from '../relay/index.ts';
@@ -21,14 +21,29 @@ function git(root: string, args: string[]): string {
   return result.stdout.trim();
 }
 
+function assertWorktreeParentInside(root: string, parent: string): void {
+  const realRoot = realpathSync(root);
+  const realParent = realpathSync(parent);
+  if (realParent !== realRoot && !realParent.startsWith(`${realRoot}${sep}`))
+    throw new Error(
+      'job worktree parent must resolve inside the target repository',
+    );
+}
+
 async function start(args: string[]): Promise<void> {
   const id = value(args, '--job');
   const issue = value(args, '--issue');
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(id) || id === '..')
     throw new Error('invalid job id');
   const root = git(process.cwd(), ['rev-parse', '--show-toplevel']);
-  const worktree = resolve(dirname(root), `${basename(root)}-jobs`, id);
+  const ignored = spawnSync('git', ['-C', root, 'check-ignore', '-q', '.krn/']);
+  if (ignored.status !== 0)
+    throw new Error(
+      'target repository must ignore .krn/; add ".krn/" to its .gitignore before starting a job',
+    );
+  const worktree = resolve(root, '.krn', 'worktrees', id);
   mkdirSync(dirname(worktree), { recursive: true });
+  assertWorktreeParentInside(root, dirname(worktree));
   const result = spawnSync(
     'git',
     ['-C', root, 'worktree', 'add', '--detach', worktree, 'HEAD'],
@@ -36,6 +51,20 @@ async function start(args: string[]): Promise<void> {
   );
   if (result.status !== 0)
     throw new Error(result.stderr || 'unable to create job worktree');
+  try {
+    assertWorktreeParentInside(root, dirname(worktree));
+  } catch (error) {
+    const rollback = spawnSync(
+      'git',
+      ['-C', root, 'worktree', 'remove', '--force', worktree],
+      { encoding: 'utf8' },
+    );
+    if (rollback.status !== 0)
+      throw new Error(
+        `${error instanceof Error ? error.message : String(error)}; unable to roll back escaped worktree: ${rollback.stderr || 'git command failed'}`,
+      );
+    throw error;
+  }
   const job: Job = { id, issue, worktree };
   await operatorStart(job, process.env.USER ?? 'local operator');
   process.stdout.write(`${JSON.stringify(job)}\n`);
