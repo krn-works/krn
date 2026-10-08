@@ -254,6 +254,10 @@ export async function verdict(job: Job, event: VerdictEvent): Promise<void> {
   });
 }
 
+export async function readyForReview(job: Job, sha: string): Promise<void> {
+  append(job, `ready-for-review:${sha}`, 'ready_for_review', { sha });
+}
+
 export async function operatorStart(job: Job, operator: string): Promise<void> {
   append(job, `operator-start:${randomUUID()}`, 'operator_start', { operator });
 }

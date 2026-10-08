@@ -55,7 +55,7 @@ export type Session = { readonly id: string; wait(): Promise<SessionResult> };
 export type Outcome =
   | {
       readonly kind: 'verdict_pass';
-      readonly state: 'in_review';
+      readonly state: 'in_review' | 'ready_for_review';
       readonly sha: string;
     }
   | { readonly kind: 'review'; readonly head: string }
@@ -172,6 +172,7 @@ export type Deps = {
       job: Job,
       event: import('../verdict/index.ts').VerdictEvent,
     ): Promise<void>;
+    readyForReview?(job: Job, sha: string): Promise<void>;
   };
   readonly hosts: {
     readonly codex: {

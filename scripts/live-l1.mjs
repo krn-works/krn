@@ -4,6 +4,11 @@ import { isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runJob } from '../src/foreman/run.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
+import { createLedger } from '../src/ledger/index.ts';
+import {
+  loadLiveContract,
+  withLiveSubmissionGate,
+} from '../src/ledger/live.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
 
@@ -15,6 +20,14 @@ if (process.env.KRN_LIVE !== '1') {
 function argument(flag) {
   const index = process.argv.indexOf(flag);
   const result = index < 0 ? undefined : process.argv[index + 1];
+  if (!result || result.startsWith('--')) throw new Error(`missing ${flag}`);
+  return result;
+}
+
+function optionalArgument(flag) {
+  const index = process.argv.indexOf(flag);
+  if (index < 0) return undefined;
+  const result = process.argv[index + 1];
   if (!result || result.startsWith('--')) throw new Error(`missing ${flag}`);
   return result;
 }
@@ -35,7 +48,7 @@ function hasWorktree(root, path) {
 
 const jobId = argument('--job');
 const issue = argument('--issue');
-const revision = argument('--revision');
+const revision = optionalArgument('--revision');
 const prompt = argument('--prompt');
 if (!isAbsolute(argument('--repo'))) throw new Error('--repo must be absolute');
 const repo = realpathSync(resolve(argument('--repo')));
@@ -53,6 +66,27 @@ const worktree =
   (hasWorktree(repo, existingJobWorktree) ? existingJobWorktree : undefined);
 if (git(repo, ['rev-parse', '--show-toplevel']) !== repo)
   throw new Error('--repo must be the repository root');
+const origin = git(repo, ['remote', 'get-url', 'origin']);
+const paperclipUrl = process.env.KRN_PAPERCLIP_API_URL;
+const paperclipToken = process.env.KRN_PAPERCLIP_TOKEN;
+const session = process.env.KRN_SESSION;
+if (!paperclipUrl || !paperclipToken || !session)
+  throw new Error(
+    'KRN_PAPERCLIP_API_URL, KRN_PAPERCLIP_TOKEN, and KRN_SESSION are required',
+  );
+const paperclip = createLedger({
+  apiUrl: paperclipUrl,
+  token: paperclipToken,
+  session,
+});
+const { contract, board } = await loadLiveContract(paperclip, issue, {
+  origin,
+  ...(revision === undefined ? {} : { revision }),
+});
+const liveLedger = withLiveSubmissionGate(
+  { ...paperclip, readContract: async () => contract },
+  process.argv.includes('--submit'),
+);
 const ignoredTrace = (root) =>
   spawnSync('git', [
     '-C',
@@ -116,7 +150,7 @@ const outcome = await runJob(job, {
     maxRepairs: 2,
     session: { timeoutMs: 15 * 60 * 1000 },
   },
-  ledger: { readContract: async () => ({ revision }) },
+  ledger: liveLedger,
   relay: {
     ...relay,
     project: (capsule, facts) =>
@@ -129,4 +163,4 @@ const outcome = await runJob(job, {
 clearTimeout(wallTimer);
 for (const { signal, handler } of signals)
   process.removeListener(signal, handler);
-process.stdout.write(`${JSON.stringify({ job, outcome })}\n`);
+process.stdout.write(`${JSON.stringify({ job, board, outcome })}\n`);
