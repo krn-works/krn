@@ -5,6 +5,9 @@ import { z } from 'zod';
 import type { Job, Result } from '../core/index.ts';
 import type { CheckEvidence } from '../verdict/index.ts';
 
+const MAX_RESPONSE_BYTES = 1024 * 1024;
+const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
+
 const issueSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1),
@@ -65,6 +68,7 @@ export type LedgerOptions = {
   token: string;
   session: string;
   fetch?: typeof fetch;
+  requestTimeoutMs?: number;
 };
 
 function parseIssue(value: unknown) {
@@ -109,41 +113,108 @@ function validEvidence(contract: Contract, evidence: VerdictEvidence): boolean {
   );
 }
 
+async function readBoundedJson(response: Response): Promise<unknown> {
+  if (!response.body) throw new Error('Paperclip response body is empty');
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_RESPONSE_BYTES) {
+        await reader.cancel();
+        throw new Error('Paperclip response exceeds 1 MiB');
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  return JSON.parse(text);
+}
+
 export function createLedger(options: LedgerOptions) {
   const token = options.token.trim();
   if (!token) throw new Error('Paperclip credential is required');
   if (!options.session.trim() || /[\r\n]/.test(options.session))
     throw new Error('invalid Krn-Session value');
+  const timeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 60_000)
+    throw new Error('invalid Paperclip request timeout');
   const base = options.apiUrl.replace(/\/$/, '');
-  const request = options.fetch ?? fetch;
+  const fetchRequest = options.fetch ?? fetch;
   const headers = {
     authorization: `Bearer ${token}`,
     accept: 'application/json',
   };
 
+  async function requestJson(
+    input: string,
+    init: RequestInit,
+  ): Promise<{ response: Response; body: unknown }> {
+    const controller = new AbortController();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let timedOut = false;
+    const operation = (async () => {
+      const response = await fetchRequest(input, {
+        ...init,
+        signal: controller.signal,
+      });
+      return { response, body: await readBoundedJson(response) };
+    })();
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+        reject(new Error(`Paperclip request timed out after ${timeoutMs} ms`));
+      }, timeoutMs);
+    });
+    try {
+      return await Promise.race([operation, timeout]);
+    } catch (error) {
+      if (timedOut)
+        throw new Error(`Paperclip request timed out after ${timeoutMs} ms`);
+      throw error;
+    } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+    }
+  }
+
   async function readIssue(issueId: string) {
     if (!/^[A-Za-z0-9_-]+$/.test(issueId))
       throw new Error('invalid Paperclip issue ID');
-    const response = await request(`${base}/api/issues/${issueId}`, {
-      headers,
-      redirect: 'error',
-    });
+    const { response, body } = await requestJson(
+      `${base}/api/issues/${issueId}`,
+      {
+        headers,
+        redirect: 'error',
+      },
+    );
     if (!response.ok)
       throw new Error(`Paperclip issue read failed (${response.status})`);
-    const parsed = parseIssue(await response.json());
+    const parsed = parseIssue(body);
     if (!parsed.success || parsed.data.id !== issueId)
       throw new Error('invalid Paperclip issue response');
     return parsed.data;
   }
 
   async function readActivity(issueId: string) {
-    const response = await request(`${base}/api/issues/${issueId}/activity`, {
-      headers,
-      redirect: 'error',
-    });
+    const { response, body } = await requestJson(
+      `${base}/api/issues/${issueId}/activity`,
+      { headers, redirect: 'error' },
+    );
     if (!response.ok)
       throw new Error(`Paperclip activity read failed (${response.status})`);
-    const parsed = activitySchema.safeParse(await response.json());
+    const parsed = activitySchema.safeParse(body);
     if (!parsed.success) throw new Error('invalid Paperclip activity response');
     return parsed.data;
   }
@@ -171,12 +242,15 @@ export function createLedger(options: LedgerOptions) {
       ...observed,
       'Human review is required; the ledger made no status correction.',
     ].join('\n');
-    const response = await request(`${base}/api/issues/${issueId}/comments`, {
-      method: 'POST',
-      redirect: 'error',
-      headers: { ...headers, 'content-type': 'application/json' },
-      body: JSON.stringify({ body: comment }),
-    });
+    const { response } = await requestJson(
+      `${base}/api/issues/${issueId}/comments`,
+      {
+        method: 'POST',
+        redirect: 'error',
+        headers: { ...headers, 'content-type': 'application/json' },
+        body: JSON.stringify({ body: comment }),
+      },
+    );
     if (!response.ok)
       throw new Error(`Paperclip conflict comment failed (${response.status})`);
   }
@@ -224,11 +298,14 @@ export function createLedger(options: LedgerOptions) {
         evidence.sha !== recordedSha
       )
         return 'refused';
-      const current = await readIssue(job.issue);
+      const current = await readIssue(job.issue).catch(() => null);
+      if (!current) return 'refused';
       if (current.updatedAt !== contract.revision || current.status === 'done')
         return 'board_changed';
-      const beforeActivity = await readActivity(job.issue);
-      const fenced = await readIssue(job.issue);
+      const beforeActivity = await readActivity(job.issue).catch(() => null);
+      if (!beforeActivity) return 'refused';
+      const fenced = await readIssue(job.issue).catch(() => null);
+      if (!fenced) return 'refused';
       if (fenced.updatedAt !== contract.revision || fenced.status === 'done')
         return 'board_changed';
       const results = evidence.checks
@@ -241,17 +318,20 @@ export function createLedger(options: LedgerOptions) {
         results,
         `Evidence SHA-256: ${hash(`${evidence.sha}\n${results}`)}`,
       ].join('\n');
-      const response = await request(`${base}/api/issues/${job.issue}`, {
-        method: 'PATCH',
-        redirect: 'error',
-        headers: { ...headers, 'content-type': 'application/json' },
-        body: JSON.stringify({ status: 'in_review', comment }),
-      });
+      const { response, body } = await requestJson(
+        `${base}/api/issues/${job.issue}`,
+        {
+          method: 'PATCH',
+          redirect: 'error',
+          headers: { ...headers, 'content-type': 'application/json' },
+          body: JSON.stringify({ status: 'in_review', comment }),
+        },
+      );
       if (!response.ok)
         throw new Error(
           `Paperclip review submission failed (${response.status})`,
         );
-      const receipt = parseIssue(await response.json());
+      const receipt = parseIssue(body);
       if (!receipt.success || receipt.data.id !== job.issue)
         throw new Error('invalid Paperclip review receipt');
       const [afterIssue, afterActivity] = await Promise.all([

@@ -80,6 +80,54 @@ test('readContract refuses a Paperclip issue without a valid contract block', as
   );
 });
 
+test('oversized Paperclip responses are refused before parsing', async () => {
+  const ledger = createLedger({
+    apiUrl: 'http://paperclip.test',
+    token: 'fixture-token',
+    session: 'session-7',
+    fetch: async () =>
+      new Response(
+        JSON.stringify({ ...issue(), title: 'x'.repeat(1_048_577) }),
+        { headers: { 'content-type': 'application/json' } },
+      ),
+  });
+  await assert.rejects(ledger.readContract(job.issue), /1 MiB/u);
+});
+
+test('a timed-out pre-write board read refuses without a PATCH', async () => {
+  let requests = 0;
+  let patches = 0;
+  const ledger = createLedger({
+    apiUrl: 'http://paperclip.test',
+    token: 'fixture-token',
+    session: 'session-7',
+    requestTimeoutMs: 5,
+    fetch: async (_input, init) => {
+      requests += 1;
+      if (requests === 1) return response(issue());
+      if (init?.method === 'PATCH') patches += 1;
+      return new Promise<Response>((_resolve, reject) => {
+        if (!init?.signal) {
+          setTimeout(() => reject(new Error('simulated request timeout')), 5);
+          return;
+        }
+        init.signal.addEventListener(
+          'abort',
+          () => reject(new Error('simulated request timeout')),
+          { once: true },
+        );
+      });
+    },
+  });
+  const contract = await ledger.readContract(job.issue);
+  let result: string | undefined;
+  await assert.doesNotReject(async () => {
+    result = await ledger.submitForReview(job, contract, evidence(), sha);
+  });
+  assert.equal(result, 'refused');
+  assert.equal(patches, 0);
+});
+
 test('readBoard projects status, assignee, and update time without writing', async () => {
   let writes = 0;
   const ledger = createLedger({
