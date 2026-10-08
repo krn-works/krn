@@ -9,6 +9,7 @@ import {
   cleanupWorktrees,
   createWorktreeDirectory,
   execute,
+  TeardownUnconfirmed,
 } from './sandbox.ts';
 
 export type CheckEvidence = {
@@ -102,6 +103,7 @@ export async function judge(
   const before = await clean(job.worktree, sha);
   if (before) return { kind: 'refused', checks: [], findings: [before] };
   const copies: string[] = [];
+  let teardownUnconfirmed = false;
   const localController = signal ? undefined : new AbortController();
   const effectiveSignal = signal ?? localController?.signal;
   const onSigint = () => localController?.abort('SIGINT');
@@ -170,6 +172,10 @@ export async function judge(
         }
       : { kind: 'pass', checks: results };
   } catch (error) {
+    if (error instanceof TeardownUnconfirmed) {
+      teardownUnconfirmed = true;
+      process.exitCode = 1;
+    }
     return {
       kind: 'refused',
       checks: [],
@@ -180,6 +186,7 @@ export async function judge(
       process.removeListener('SIGINT', onSigint);
       process.removeListener('SIGTERM', onSigterm);
     }
-    await cleanupWorktrees(root, copies);
+    if (teardownUnconfirmed) process.exitCode = 1;
+    else await cleanupWorktrees(root, copies);
   }
 }

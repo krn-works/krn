@@ -218,7 +218,18 @@ const outcome = await runJob(job, {
 clearTimeout(wallTimer);
 for (const { signal, handler } of signals)
   process.removeListener(signal, handler);
-if (abortController.signal.aborted) {
+const teardownFailure =
+  outcome.kind === 'stop' &&
+  outcome.reasons.some((reason) => reason.startsWith('teardown_unconfirmed:'));
+if (teardownFailure) {
+  await trace.teardownUnconfirmed(
+    job,
+    outcome.kind === 'stop'
+      ? outcome.reasons.join('; ')
+      : 'teardown unconfirmed',
+  );
+  process.exitCode = 1;
+} else if (abortController.signal.aborted) {
   await trace.stopped(job, stopSignal ?? 'aborted');
   process.exitCode = stopSignal === 'wall-timeout' ? 124 : 130;
 }

@@ -99,7 +99,7 @@ test('real SIGTERM during a sleeping verdict check stops before submit and is tr
       child.once('close', resolve),
     );
     assert.ok(
-      Date.now() - startedAt < 4000,
+      Date.now() - startedAt < 8000,
       'SIGTERM must kill the verdict scope promptly',
     );
     assert.equal(code, 130, errors);

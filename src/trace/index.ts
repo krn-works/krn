@@ -264,6 +264,15 @@ export async function stopped(job: Job, signal: string): Promise<void> {
   append(job, `stopped:${randomUUID()}`, 'stopped', { signal });
 }
 
+export async function teardownUnconfirmed(
+  job: Job,
+  detail: string,
+): Promise<void> {
+  append(job, `teardown-unconfirmed:${randomUUID()}`, 'teardown_unconfirmed', {
+    detail: detail.slice(0, 1000),
+  });
+}
+
 export async function readyForReview(job: Job, sha: string): Promise<void> {
   append(job, `ready-for-review:${sha}`, 'ready_for_review', { sha });
 }

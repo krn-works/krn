@@ -219,6 +219,95 @@ export async function cleanupWorktrees(root: string, copies: readonly string[]):
   }
 }
 
+export class TeardownUnconfirmed extends Error {
+  constructor(detail: string) {
+    super(`teardown_unconfirmed: ${detail}`);
+    this.name = 'TeardownUnconfirmed';
+  }
+}
+
+function scopePids(controlGroup: string): number[] {
+  if (!controlGroup) return [];
+  if (!controlGroup.startsWith('/') || controlGroup.split('/').includes('..'))
+    throw new Error('systemd returned an invalid cgroup path');
+  const cgroup = resolve('/sys/fs/cgroup', controlGroup.slice(1));
+  try {
+    return readFileSync(join(cgroup, 'cgroup.procs'), 'utf8')
+      .trim()
+      .split(/\s+/u)
+      .filter(Boolean)
+      .map((pid) => {
+        if (!/^\d+$/u.test(pid)) throw new Error('invalid cgroup PID');
+        return Number(pid);
+      });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
+}
+
+async function killAndVerifyScope(
+  root: string,
+  busEnv: NodeJS.ProcessEnv,
+  unit: string,
+): Promise<void> {
+  const kill = await run(
+    'systemctl',
+    ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', unit],
+    root,
+    5000,
+    busEnv,
+  );
+  const deadline = Date.now() + 5000;
+  let lastState = kill.stderr.toString() || `kill status ${kill.status}`;
+  while (Date.now() < deadline) {
+    const shown = await run(
+      'systemctl',
+      [
+        '--user',
+        'show',
+        unit,
+        '-p',
+        'ActiveState',
+        '-p',
+        'ControlGroup',
+        '--value',
+      ],
+      root,
+      1500,
+      busEnv,
+    );
+    const [activeState = '', controlGroup = ''] = shown.stdout
+      .toString()
+      .trimEnd()
+      .split(/\r?\n/u);
+    let pids: number[];
+    try {
+      pids = scopePids(controlGroup);
+    } catch (error) {
+      lastState = error instanceof Error ? error.message : String(error);
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, 50));
+      continue;
+    }
+    if (shown.status === 0) {
+      if (activeState === 'inactive' && pids.length === 0) return;
+      lastState = `state=${activeState || 'unknown'}; PIDs=${pids.join(',') || 'none'}`;
+    } else {
+      const detail = `${shown.stderr.toString()} ${shown.stdout.toString()}`;
+      if (
+        /not loaded|not found|could not be found/i.test(detail) &&
+        pids.length === 0
+      )
+        return;
+      lastState = detail.trim() || 'systemctl show failed';
+    }
+    await new Promise((resolveDelay) => setTimeout(resolveDelay, 50));
+  }
+  throw new TeardownUnconfirmed(
+    `${unit} did not become inactive and empty: ${lastState}`,
+  );
+}
+
 async function runSandbox(
   root: string,
   copy: string,
@@ -281,6 +370,8 @@ async function runSandbox(
   };
   // biome-ignore format: Preserve the exact scope argv beside the bwrap argv.
   const capture = new OutputCapture();
+  let abortPromise: Promise<void> | undefined;
+  let timedOut = false;
   const resultPromise = new Promise<{ status: number | null }>(
     (resolveResult, reject) => {
       const child = spawn(
@@ -298,17 +389,20 @@ async function runSandbox(
         ],
         { cwd: root, env: busEnv, stdio: ['ignore', 'pipe', 'pipe'] },
       );
-      let aborting = false;
       const abort = () => {
-        if (aborting) return;
-        aborting = true;
-        const killer = spawn(
-          'systemctl',
-          ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', unit],
-          { cwd: root, env: busEnv, stdio: 'ignore' },
+        if (abortPromise) return abortPromise;
+        abortPromise = killAndVerifyScope(root, busEnv, unit).catch(
+          (error: unknown) => {
+            child.kill('SIGTERM');
+            throw error instanceof TeardownUnconfirmed
+              ? error
+              : new TeardownUnconfirmed(
+                  error instanceof Error ? error.message : String(error),
+                );
+          },
         );
-        killer.unref();
-        child.kill('SIGTERM');
+        void abortPromise.catch(() => {});
+        return abortPromise;
       };
       child.stdout.on('data', (chunk: Buffer) => {
         capture.append(chunk);
@@ -320,7 +414,10 @@ async function runSandbox(
       });
       if (signal?.aborted) abort();
       else signal?.addEventListener('abort', abort, { once: true });
-      const timer = setTimeout(() => abort(), timeoutMs + 10000);
+      const timer = setTimeout(() => {
+        timedOut = true;
+        void abort();
+      }, timeoutMs + 10000);
       child.once('error', reject);
       child.once('close', (status) => {
         clearTimeout(timer);
@@ -330,15 +427,12 @@ async function runSandbox(
     },
   );
   const result = await resultPromise;
-  if (signal?.aborted) throw new Error('stopped');
-  if (result.status === 125)
-    await run(
-      'systemctl',
-      ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', unit],
-      root,
-      15000,
-      busEnv,
-    );
+  if (abortPromise) await abortPromise;
+  if (signal?.aborted) {
+    if (!abortPromise) await killAndVerifyScope(root, busEnv, unit);
+    throw new Error('stopped');
+  }
+  if (result.status === 125) await killAndVerifyScope(root, busEnv, unit);
   // biome-ignore format: Both systemd observations use the same scope identity.
   const state = await run('systemctl', ['--user', 'show', unit, '-p', 'ActiveState', '--value'], root, 15000, busEnv);
   // biome-ignore format: Both systemd observations use the same scope identity.
@@ -347,14 +441,13 @@ async function runSandbox(
   const processList = cgroup ? `/sys/fs/cgroup${cgroup}/cgroup.procs` : '';
   const survivors = processList ? readFileSync(processList, 'utf8').trim() : '';
   if (state.status !== 0 || group.status !== 0 || survivors) {
-    // biome-ignore format: Keep the cleanup command next to the failed scope check.
-    await run('systemctl', ['--user', 'kill', '--kill-who=all', '--signal=KILL', unit], root, 15000, busEnv);
+    await killAndVerifyScope(root, busEnv, unit);
     throw new Error('check systemd scope did not become empty');
   }
   if (state.stdout.toString().trim() !== 'inactive')
     throw new Error('check systemd scope state is unknown');
   return {
-    status: capture.exceeded ? 125 : result.status,
+    status: capture.exceeded ? 125 : timedOut ? 124 : result.status,
     sha256: capture.sha256,
     tail: capture.tail,
     outputBytes: capture.outputBytes,
