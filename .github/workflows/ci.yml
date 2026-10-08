@@ -27,22 +27,45 @@ jobs:
 
       - name: Check isolation test capabilities
         run: |
-          set -euo pipefail
-          command -v bwrap
-          command -v systemctl
-          command -v systemd-run
-          echo 'Checking bwrap user namespace and mount capabilities'
-          bwrap --ro-bind / / --proc /proc --dev /dev /usr/bin/true
-          echo 'Checking systemd user manager and transient scope capability'
-          systemctl --user show-environment >/dev/null
-          systemd-run --user --scope --wait --quiet /usr/bin/true
+          set -uo pipefail
+          capability_failure=0
+
+          echo 'Checking bwrap network and PID namespace, mount, and execution capabilities'
+          if bwrap --die-with-parent --ro-bind / / --clearenv --unshare-net --unshare-pid --as-pid-1 --tmpfs /tmp --setenv HOME /tmp --setenv TMPDIR /tmp --setenv PATH /usr/bin:/bin --proc /proc --dev /dev -- /usr/bin/true; then
+            echo 'bwrap capability check passed'
+          else
+            status=$?
+            echo "::error::bwrap capability check failed with exit code ${status}"
+            capability_failure=1
+          fi
+
+          echo 'Checking systemd user manager capability'
+          if systemctl --user show-environment >/dev/null; then
+            echo 'systemd user manager check passed'
+          else
+            status=$?
+            echo "::error::systemd user manager check failed with exit code ${status}"
+            capability_failure=1
+          fi
+
+          echo 'Checking systemd transient user scope capability'
+          if systemd-run --user --scope --wait --quiet /usr/bin/true; then
+            echo 'systemd transient user scope check passed'
+          else
+            status=$?
+            echo "::error::systemd transient user scope check failed with exit code ${status}"
+            capability_failure=1
+          fi
+
+          if [ "$capability_failure" -ne 0 ]; then
+            exit 1
+          fi
           echo 'Isolation capability check passed: bwrap and systemd user scope are available'
 
       - name: Enable pnpm through Corepack
         run: |
           set -euo pipefail
           corepack enable
-          corepack prepare pnpm@12.10.1 --activate
           pnpm --version
 
       - name: Install dependencies
