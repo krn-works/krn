@@ -16,10 +16,10 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-
 import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
+import { requiresIsolation } from './helpers/isolation.ts';
 
 async function repoFixture(
   ignore = '.krn/\n',
@@ -395,7 +395,15 @@ if (count === 1) {
   }
 });
 
-test('B2 a foreman SIGTERM cancels every detached session group and exits 130', async () => {
+test('B2 a foreman SIGTERM cancels every detached session group and exits 130', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'B2 a foreman SIGTERM cancels every detached session group and exits 130',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const root = await repoFixture();
   const paperclip = await fakePaperclip('I-2');
   const pidFile = join(root, 'pids');
@@ -543,7 +551,15 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
   }
 });
 
-test('default systemd scope isolation reaps a setsid descendant', async () => {
+test('default systemd scope isolation reaps a setsid descendant', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'default systemd scope isolation reaps a setsid descendant',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const root = await repoFixture();
   const pidFile = join(root, 'escaped-pid');
   const previousIsolation = process.env.KRN_ISOLATION;
@@ -708,7 +724,15 @@ test('B3 live uses the requested repo and resumes an existing job by id', async 
   }
 });
 
-test('live SIGTERM reaps every Paperclip CLI group during contract loading', async () => {
+test('live SIGTERM reaps every Paperclip CLI group during contract loading', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'live SIGTERM reaps every Paperclip CLI group during contract loading',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const repo = await repoFixture();
   const fakeBin = await mkdtemp(join(tmpdir(), 'krn-s4b-paperclip-bin-'));
   const fakeHome = await mkdtemp(join(tmpdir(), 'krn-s4b-paperclip-home-'));
@@ -789,7 +813,15 @@ test('live SIGTERM reaps every Paperclip CLI group during contract loading', asy
   }
 });
 
-test('live SIGTERM during a real verdict waits for scope teardown before exit', async () => {
+test('live SIGTERM during a real verdict waits for scope teardown before exit', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'live SIGTERM during a real verdict waits for scope teardown before exit',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const repoScratch = join(process.cwd(), '.krn', 'tmp');
   await mkdir(repoScratch, { recursive: true });
   const root = await repoFixture('.krn/\n', repoScratch);
@@ -1192,7 +1224,15 @@ test('B5 trace stores only bounded session metadata and capsule ABI rejects newl
   }
 });
 
-test('B6 parses a multi-megabyte JSONL session under a per-line limit', async () => {
+test('B6 parses a multi-megabyte JSONL session under a per-line limit', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'B6 parses a multi-megabyte JSONL session under a per-line limit',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const root = await repoFixture();
   const executable = await fakeCodex(
     root,
@@ -1219,7 +1259,15 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:9
   }
 });
 
-test('B7 codex command grants workspace write without the git common dir', async () => {
+test('B7 codex command grants workspace write without the git common dir', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'B7 codex command grants workspace write without the git common dir',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const root = await repoFixture();
   const worktree = join(`${root}-linked`, 'job');
   await mkdir(`${root}-linked`, { recursive: true });

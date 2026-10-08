@@ -5,8 +5,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
-test('cancellation kills the Codex process tree and keeps the session identity', async () => {
+test('cancellation kills the Codex process tree and keeps the session identity', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'cancellation kills the Codex process tree and keeps the session identity',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const hostModule = await import('../../src/hosts/codex.ts').catch(
     () => undefined,
   );

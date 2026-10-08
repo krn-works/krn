@@ -9,6 +9,7 @@ import {
   withLiveSubmissionGate,
 } from '../../src/ledger/live.ts';
 import { createPaperclipCliTransport } from '../../src/ledger/paperclip-cli.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
 const issue = {
   id: 'ca71eba4-3f82-4a19-acc8-7bbae1315e58',
@@ -42,7 +43,15 @@ async function waitForPidGone(pid: number): Promise<void> {
   assert.fail(`process ${pid} survived best-effort cleanup`);
 }
 
-test('readContract uses CLI JSON without KRN credentials and default reads never update', async () => {
+test('readContract uses CLI JSON without KRN credentials and default reads never update', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'readContract uses CLI JSON without KRN credentials and default reads never update',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const fake = await fakeCli();
   // Embed the capture path after creation so the fake executable stays isolated.
   await writeFile(
@@ -112,7 +121,15 @@ test('readContract uses CLI JSON without KRN credentials and default reads never
   }
 });
 
-test('CLI update carries status and comment in one argv-safe invocation', async () => {
+test('CLI update carries status and comment in one argv-safe invocation', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'CLI update carries status and comment in one argv-safe invocation',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const fake = await fakeCli();
   await writeFile(
     fake.executable,
@@ -141,7 +158,15 @@ test('CLI update carries status and comment in one argv-safe invocation', async 
   }
 });
 
-test('CLI activity conflicts use the read-only issue activity command', async () => {
+test('CLI activity conflicts use the read-only issue activity command', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'CLI activity conflicts use the read-only issue activity command',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const fake = await fakeCli();
   await writeFile(
     fake.executable,
@@ -160,7 +185,15 @@ test('CLI activity conflicts use the read-only issue activity command', async ()
   }
 });
 
-test('CLI submit reconciles its own update and comment activity without a conflict write', async () => {
+test('CLI submit reconciles its own update and comment activity without a conflict write', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'CLI submit reconciles its own update and comment activity without a conflict write',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const fake = await fakeCli();
   await writeFile(
     fake.executable,
@@ -223,7 +256,15 @@ if (args[0] === 'issue' && args[1] === 'get') {
   }
 });
 
-test('CLI submit reconciliation reads issue comments with JSON output', async () => {
+test('CLI submit reconciliation reads issue comments with JSON output', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'CLI submit reconciliation reads issue comments with JSON output',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const fake = await fakeCli();
   await writeFile(
     fake.executable,
@@ -242,7 +283,15 @@ test('CLI submit reconciliation reads issue comments with JSON output', async ()
   }
 });
 
-test('CLI transport refuses oversized output and timed out commands', async () => {
+test('CLI transport refuses oversized output and timed out commands', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'CLI transport refuses oversized output and timed out commands',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const oversized = await fakeCli();
   const hanging = await fakeCli();
   await Promise.all([
@@ -288,7 +337,15 @@ test('CLI transport refuses oversized output and timed out commands', async () =
   }
 });
 
-test('timeout returns promptly when a setsid descendant holds CLI pipes', async () => {
+test('timeout returns promptly when a setsid descendant holds CLI pipes', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'timeout returns promptly when a setsid descendant holds CLI pipes',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const fake = await fakeCli();
   await writeFile(
     fake.executable,
@@ -353,7 +410,15 @@ test('Paperclip CLI refuses to launch when systemd user scopes are unavailable',
   }
 });
 
-test('aborting a CLI request kills and waits for its process group', async () => {
+test('aborting a CLI request kills and waits for its process group', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'aborting a CLI request kills and waits for its process group',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const fake = await fakeCli();
   await writeFile(
     fake.executable,

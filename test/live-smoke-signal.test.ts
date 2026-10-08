@@ -12,12 +12,21 @@ import {
 import { join, resolve, sep } from 'node:path';
 import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
+import { requiresIsolation } from './helpers/isolation.ts';
 
 const repoRoot = resolve(import.meta.dirname, '..');
 const smokeScript = join(repoRoot, 'scripts/live-smoke.mjs');
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
-  test(`live smoke cleans up its session and repo on ${signal}`, async () => {
+  test(`live smoke cleans up its session and repo on ${signal}`, async (t) => {
+    if (
+      !requiresIsolation(
+        t,
+        `live smoke cleans up its session and repo on ${signal}`,
+        ['systemdUserScope'],
+      )
+    )
+      return;
     const fixtureRoot = join(repoRoot, '.krn', 'tmp');
     await mkdir(fixtureRoot, { recursive: true });
     const fixture = await mkdtemp(join(fixtureRoot, 'krn-smoke-signal-test-'));

@@ -36,7 +36,11 @@ test('project tools ignore nested worktree state', {
       const result = spawnSync(command, args, {
         cwd: root,
         encoding: 'utf8',
-        env: { ...process.env, KRN_SCOPE_PROBE: '1' },
+        env: {
+          ...process.env,
+          GITHUB_STEP_SUMMARY: '',
+          KRN_SCOPE_PROBE: '1',
+        },
         timeout: 120_000,
       });
       assert.equal(
@@ -49,6 +53,13 @@ test('project tools ignore nested worktree state', {
         0,
         `${command} ${args.join(' ')} scanned .krn state:\n${result.stdout}\n${result.stderr}`,
       );
+      if (process.env.CI === 'true') {
+        const skips = result.stdout
+          .split(/\r?\n/u)
+          .map((line) => line.replace(/^#\s?/u, ''))
+          .filter((line) => line.startsWith('SKIP(isolation):'));
+        for (const skip of skips) process.stdout.write(`${skip}\n`);
+      }
     }
   } finally {
     await rm(fixture, { recursive: true, force: true });

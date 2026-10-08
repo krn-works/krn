@@ -30,6 +30,7 @@ import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
 import { judge } from '../src/verdict/index.ts';
+import { requiresIsolation } from './helpers/isolation.ts';
 
 function git(root: string, args: string[]): string {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
@@ -427,7 +428,15 @@ test('B3 end without a checkpoint reports dirty paths as uncommitted changes', a
   assert.match(blockers.join(' '), /uncommitted_changes.*change\.txt/u);
 });
 
-test('B3 a worker completion message alone never sets claimsDone', async () => {
+test('B3 a worker completion message alone never sets claimsDone', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'B3 a worker completion message alone never sets claimsDone',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const executable = join(
     mkdtempSync(join(tmpdir(), 'krn-s4i-host-')),
     'codex',
@@ -494,7 +503,15 @@ test('B3 trace completion derives only from checkpoint next=done', async () => {
   }
 });
 
-test('B2 double-fork setsid survivor is dead before checkpoint review returns', async () => {
+test('B2 double-fork setsid survivor is dead before checkpoint review returns', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'B2 double-fork setsid survivor is dead before checkpoint review returns',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const root = repo();
   const job = {
     id: 'S4i-survivor',
