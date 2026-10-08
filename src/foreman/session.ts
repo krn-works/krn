@@ -138,6 +138,12 @@ export async function runSession(
         issue: job.issue,
         worktree: job.worktree,
         ...(job.repoRoot === undefined ? {} : { repoRoot: job.repoRoot }),
+        ...(job.checkpoint === undefined
+          ? {}
+          : {
+              message: job.checkpoint.message,
+              next: job.checkpoint.next,
+            }),
         intent,
       },
       onStarted: async (sessionId, pgid, isolation) => {

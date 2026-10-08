@@ -30,11 +30,14 @@ async function runLiveSmoke() {
   const tmpRoot = join(repositoryRoot, '.krn', 'tmp');
   await mkdir(tmpRoot, { recursive: true });
   const cwd = await mkdtemp(join(tmpRoot, 'krn-codex-live-smoke-'));
-  const job = {
-    id: `smoke-${basename(cwd).slice(-16)}`,
+  const jobId = `smoke-${basename(cwd).slice(-16)}`;
+  const makeJob = (id) => ({
+    id,
     issue: 'live-codex-checkpoint-smoke',
     worktree: cwd,
-  };
+    checkpoint: { message: 'feat: live sandbox checkpoint', next: 'done' },
+  });
+  let job = makeJob(jobId);
   const host = new CodexHost({ executable });
   let terminationSignal;
   let cancellation;
@@ -107,36 +110,79 @@ async function runLiveSmoke() {
     ]);
     git(['config', 'user.name', 'KRN live smoke foreman']);
     git(['config', 'user.email', 'krn-live-foreman@example.invalid']);
-
-    const outcome = await runJob(job, {
-      budget: {
-        maxResets: 0,
-        maxRepairs: 0,
-        session: { timeoutMs: 145_000 },
-      },
-      ledger: {
-        readContract: async () => ({
-          revision: 'live-smoke-checkpoint-v1',
-          checks: ['checkpoint-file'],
-        }),
-      },
-      relay: {
-        ...relay,
-        project: (capsule, facts) =>
-          `${relay.project(capsule, facts)}\nLive sandbox task: Run the shell command pwd. Create live-checkpoint.txt containing exactly "checkpoint reached". Then execute the exact checkpoint command printed by the environment with --message "feat: live sandbox checkpoint" and --next "done". Confirm the command succeeds before ending your turn; the foreman creates the commit.`,
-      },
-      trace,
-      hosts: {
-        codex: host,
-        cancelTree: (sessionId) => host.cancelTree(sessionId),
-      },
-      stop: (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
+    await mkdir(join(cwd, '.krn', 'runs', 'foreman', 'checkpoint'), {
+      recursive: true,
+      mode: 0o700,
     });
+
+    const runSmokeSession = (attemptJob) =>
+      runJob(attemptJob, {
+        budget: {
+          maxResets: 0,
+          maxRepairs: 0,
+          session: { timeoutMs: 145_000 },
+        },
+        ledger: {
+          readContract: async () => ({
+            revision: 'live-smoke-checkpoint-v1',
+            checks: ['checkpoint-file'],
+          }),
+        },
+        relay: {
+          ...relay,
+          project: () =>
+            attemptJob.id === `${jobId}-retry`
+              ? `Live sandbox retry. Complete exactly these two steps in order. If the file already exists, it is pending work from the first session:\n1. Ensure live-checkpoint.txt contains exactly "checkpoint reached"; leave it unchanged if it already does.\n2. Immediately execute the exact checkpoint command that follows in your terminal to record the pending change.`
+              : `Live sandbox task. Complete exactly these two steps in order:\n1. Ensure live-checkpoint.txt contains exactly "checkpoint reached".\n2. Immediately execute the exact checkpoint command that follows in your terminal.`,
+        },
+        trace,
+        hosts: {
+          codex: host,
+          cancelTree: (sessionId) => host.cancelTree(sessionId),
+        },
+        stop: (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
+      });
+    let outcome = await runSmokeSession(job);
 
     if (terminationSignal) {
       await cancellation;
       process.exitCode = terminationSignal === 'SIGINT' ? 130 : 143;
       return;
+    }
+
+    const readEvents = async (attemptJob) => {
+      const file = join(
+        cwd,
+        '.krn',
+        'runs',
+        'foreman',
+        attemptJob.id,
+        'trace.jsonl',
+      );
+      return readFile(file, 'utf8')
+        .then((value) =>
+          value
+            .trim()
+            .split('\n')
+            .filter(Boolean)
+            .map((line) => JSON.parse(line)),
+        )
+        .catch(() => []);
+    };
+    let events = await readEvents(job);
+    const endedWithoutCheckpoint =
+      events.some((event) => event.kind === 'session_ended') &&
+      !events.some((event) => event.kind === 'checkpoint');
+    let smokeRetryReason;
+    if (endedWithoutCheckpoint) {
+      smokeRetryReason =
+        outcome.kind === 'stop'
+          ? outcome.reasons.join('; ') || 'session ended without checkpoint'
+          : 'session ended without checkpoint';
+      process.stdout.write(`smoke_retry: ${smokeRetryReason}\n`);
+      job = makeJob(`${jobId}-retry`);
+      outcome = await runSmokeSession(job);
+      events = await readEvents(job);
     }
 
     const diagnostics = await readdir(
@@ -154,10 +200,14 @@ async function runLiveSmoke() {
       )
       .then((files) => files.join('\n'))
       .catch(() => '');
+    const finalMessage = await readFile(
+      join(cwd, '.krn', 'runs', 'foreman', job.id, 'reason.txt'),
+      'utf8',
+    ).catch(() => '');
     assert.equal(
       outcome.kind,
       'verdict_pass',
-      `foreman did not record a positive verdict: ${JSON.stringify(outcome)}\n${diagnostics}`,
+      `foreman did not record a positive verdict: ${JSON.stringify(outcome)}\n${diagnostics}\n${finalMessage}`,
     );
     assert.equal(
       outcome.sha,
@@ -177,15 +227,6 @@ async function runLiveSmoke() {
       'checkpoint reached',
       'Codex did not create the requested checkpoint file',
     );
-    const events = (
-      await readFile(
-        join(cwd, '.krn', 'runs', 'foreman', job.id, 'trace.jsonl'),
-        'utf8',
-      )
-    )
-      .trim()
-      .split('\n')
-      .map((line) => JSON.parse(line));
     const checkpoint = events.find((event) => event.kind === 'checkpoint');
     const commit = events.find((event) => event.kind === 'commit');
     assert.ok(checkpoint, 'Codex did not run the printed checkpoint command');

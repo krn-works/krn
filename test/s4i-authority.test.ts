@@ -24,6 +24,7 @@ import type { Capsule, Deps, RepoFacts } from '../src/foreman/types.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
+import { judge } from '../src/verdict/index.ts';
 
 function git(root: string, args: string[]): string {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
@@ -59,6 +60,27 @@ function repo(): string {
   git(root, ['config', 'user.email', 'foreman@example.invalid']);
   return root;
 }
+
+test('J1 public verdict entrypoint runs a check declared at the base SHA', async () => {
+  const root = repo();
+  try {
+    const sha = git(root, ['rev-parse', 'HEAD']);
+    const job = { id: 'J1-public', issue: 'I', worktree: root, repoRoot: root };
+    let resultPromise: ReturnType<typeof judge> | undefined;
+    assert.doesNotThrow(() => {
+      resultPromise = judge(job, sha, sha, ['always'], async () => {});
+    });
+    assert.ok(resultPromise);
+    const result = await resultPromise;
+    assert.equal(
+      result.kind,
+      'pass',
+      result.kind === 'pass' ? '' : result.findings.join('; '),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('B2 refuses protected files and records session provenance', () => {
   const root = repo();

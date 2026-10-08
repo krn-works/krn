@@ -9,6 +9,7 @@ import {
   mkdirSync,
   mkdtempSync,
   openSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
@@ -150,6 +151,59 @@ function git(root: string, args: string[]): string {
   if (result.error || result.status !== 0)
     throw result.error ?? new Error(result.stderr || 'git command failed');
   return result.stdout.trim();
+}
+
+function registeredWorktrees(root: string): string[] {
+  const result = run(
+    'git',
+    ['-C', root, 'worktree', 'list', '--porcelain'],
+    root,
+  );
+  if (result.error || result.status !== 0)
+    throw result.error ?? new Error(result.stderr || 'cannot list worktrees');
+  return result.stdout
+    .split(/\r?\n/u)
+    .filter((line) => line.startsWith('worktree '))
+    .map((line) => resolve(line.slice('worktree '.length)));
+}
+
+function pruneExactWorktree(root: string, copy: string): void {
+  const exactPath = resolve(copy);
+  const removed = run(
+    'git',
+    ['-C', root, 'worktree', 'remove', '--force', exactPath],
+    root,
+  );
+
+  // `git worktree prune` has no path argument. Remove only the administrative
+  // record whose gitdir points at this disposable worktree if remove left it.
+  if (registeredWorktrees(root).includes(exactPath)) {
+    const commonDir = resolve(
+      root,
+      git(root, ['rev-parse', '--git-common-dir']),
+    );
+    const adminRoot = join(commonDir, 'worktrees');
+    if (existsSync(adminRoot)) {
+      for (const name of readdirSync(adminRoot)) {
+        const admin = join(adminRoot, name);
+        const pointer = join(admin, 'gitdir');
+        if (!existsSync(pointer)) continue;
+        if (
+          resolve(readFileSync(pointer, 'utf8').trim()) !==
+          join(exactPath, '.git')
+        )
+          continue;
+        rmSync(admin, { recursive: true, force: true });
+        break;
+      }
+    }
+  }
+  if (registeredWorktrees(root).includes(exactPath))
+    throw (
+      removed.error ??
+      new Error(`could not prune verdict worktree ${exactPath}`)
+    );
+  rmSync(exactPath, { recursive: true, force: true });
 }
 
 function clean(root: string, sha: string): string | null {
@@ -444,6 +498,15 @@ export async function judge(
   const before = clean(job.worktree, sha);
   if (before) return { kind: 'refused', checks: [], findings: [before] };
   const copies: string[] = [];
+  let terminationSignal: NodeJS.Signals | undefined;
+  const onSigint = () => {
+    terminationSignal = 'SIGINT';
+  };
+  const onSigterm = () => {
+    terminationSignal = 'SIGTERM';
+  };
+  process.on('SIGINT', onSigint);
+  process.on('SIGTERM', onSigterm);
   try {
     const checks = resolveChecks(root, base, ids);
     const state = join(root, '.krn');
@@ -456,6 +519,12 @@ export async function judge(
       throw new Error('unsafe verdict worktree directory');
     const results: CheckEvidence[] = [];
     for (const check of checks) {
+      if (terminationSignal)
+        return {
+          kind: 'refused',
+          checks: results,
+          findings: [`interrupted by ${terminationSignal}`],
+        };
       const copy = mkdtempSync(join(directory, 'verdict-'));
       copies.push(copy);
       git(root, ['worktree', 'add', '--detach', copy, sha]);
@@ -463,6 +532,12 @@ export async function judge(
         execute(root, copy, job, check.id, check.argv, check.timeoutMs, sha),
       );
     }
+    if (terminationSignal)
+      return {
+        kind: 'refused',
+        checks: results,
+        findings: [`interrupted by ${terminationSignal}`],
+      };
     await record({ sha, checks: results });
     const after = clean(job.worktree, sha);
     if (after) return { kind: 'refused', checks: results, findings: [after] };
@@ -483,11 +558,21 @@ export async function judge(
       findings: [error instanceof Error ? error.message : String(error)],
     };
   } finally {
+    process.removeListener('SIGINT', onSigint);
+    process.removeListener('SIGTERM', onSigterm);
+    const cleanupErrors: unknown[] = [];
     for (const copy of copies) {
-      spawnSync('git', ['-C', root, 'worktree', 'remove', '--force', copy], {
-        encoding: 'utf8',
-      });
-      rmSync(copy, { recursive: true, force: true });
+      try {
+        pruneExactWorktree(root, copy);
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+    }
+    if (cleanupErrors.length) {
+      process.stderr.write(
+        `verdict worktree cleanup failed: ${cleanupErrors.map(String).join('; ')}\n`,
+      );
+      process.exitCode = 1;
     }
   }
 }

@@ -285,3 +285,88 @@ test('moving the worker HEAD during checks is refused', async () => {
     rmSync(f.root, { recursive: true, force: true });
   }
 });
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  test(`${signal} during a verdict removes its registered check worktree`, async () => {
+    const f = fixture(['/usr/bin/sleep', '30']);
+    const staleDecoy = join(f.root, '.krn', 'tmp', 'unrelated-stale-worktree');
+    spawnSync('git', [
+      '-C',
+      f.root,
+      'worktree',
+      'add',
+      '--detach',
+      staleDecoy,
+      f.sha,
+    ]);
+    rmSync(staleDecoy, { recursive: true, force: true });
+    const child = spawn(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `import { judge } from ${JSON.stringify(new URL('../../src/verdict/index.ts', import.meta.url).href)}; await judge(${JSON.stringify(f.job)}, ${JSON.stringify(f.sha)}, ${JSON.stringify(f.base)}, ['declared'], async () => {});`,
+      ],
+      { stdio: 'ignore' },
+    );
+    const registered = () =>
+      spawnSync('git', ['-C', f.root, 'worktree', 'list', '--porcelain'], {
+        encoding: 'utf8',
+      })
+        .stdout.split('\n')
+        .find(
+          (line) => line.startsWith('worktree ') && line.includes('/verdict-'),
+        )
+        ?.slice('worktree '.length);
+    let checkWorktree: string | undefined;
+    try {
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline && !checkWorktree) {
+        checkWorktree = registered();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      assert.ok(
+        checkWorktree,
+        'verdict did not register its detached check worktree',
+      );
+      child.kill(signal);
+      await new Promise<void>((resolve) => child.once('exit', () => resolve()));
+      const worktrees = spawnSync(
+        'git',
+        ['-C', f.root, 'worktree', 'list', '--porcelain'],
+        { encoding: 'utf8' },
+      ).stdout;
+      assert.equal(
+        registered(),
+        undefined,
+        `${signal} left a registered check worktree`,
+      );
+      assert.ok(
+        worktrees.includes(staleDecoy),
+        'verdict cleanup pruned an unrelated stale worktree',
+      );
+    } finally {
+      if (child.exitCode === null && child.signalCode === null)
+        child.kill('SIGKILL');
+      if (checkWorktree) {
+        spawnSync('git', [
+          '-C',
+          f.root,
+          'worktree',
+          'remove',
+          '--force',
+          checkWorktree,
+        ]);
+        spawnSync('git', [
+          '-C',
+          f.root,
+          'worktree',
+          'prune',
+          '--expire',
+          'now',
+        ]);
+      }
+      rmSync(f.root, { recursive: true, force: true });
+    }
+  });
+}
