@@ -9,7 +9,11 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { CodexHost, defaultCodexExecutable } from '../hosts/codex.ts';
+import {
+  CodexHost,
+  type CodexSession,
+  defaultCodexExecutable,
+} from '../hosts/codex.ts';
 import { git, temporaryDirectory } from './repository.ts';
 import {
   findingSchema,
@@ -49,6 +53,13 @@ const judgeResponseSchema = z.object({
   findings: z.array(findingSchema),
 });
 
+export class ReviewAbortedError extends Error {
+  constructor() {
+    super('review panel aborted by signal');
+    this.name = 'ReviewAbortedError';
+  }
+}
+
 export function parseJudgeResponse(
   value: string,
 ): z.infer<typeof judgeResponseSchema> {
@@ -84,7 +95,9 @@ export async function judgeRole(
   red: readonly RedFirstResult[],
   timeoutMs: number,
   executable = defaultCodexExecutable,
+  signal?: AbortSignal,
 ): Promise<z.infer<typeof judgeSchema>> {
+  if (signal?.aborted) throw new ReviewAbortedError();
   const parent = mkdtempSync(join(temporaryDirectory(root), `judge-${role}-`));
   const scratch = join(parent, 'repo');
   try {
@@ -96,22 +109,46 @@ export async function judgeRole(
     const host = new CodexHost({
       executable: readOnlyLauncher(parent, executable),
     });
-    const session = await host.start({
-      cwd: scratch,
-      model: 'gpt-6-luna',
-      prompt: makeBrief(role, sha, lens, red),
-      limits: { timeoutMs },
-      onStarted: async (_id, _pgid, isolation) => isolation === 'systemd_scope',
-    });
-    const response = await session.wait();
-    if (response.exitCode !== 0 || !response.finalMessage)
-      throw new Error(`judge ${role} ended without a verdict`);
-    return judgeSchema.parse({
-      role,
-      ...parseJudgeResponse(response.finalMessage),
-      sessionId: response.sessionId,
-      finalMessage: response.finalMessage,
-    });
+    let session: CodexSession;
+    try {
+      session = await host.start({
+        cwd: scratch,
+        model: 'gpt-6-luna',
+        prompt: makeBrief(role, sha, lens, red),
+        limits: { timeoutMs },
+        onStarted: async (_id, _pgid, isolation) =>
+          isolation === 'systemd_scope' && !signal?.aborted,
+      });
+    } catch (error) {
+      if (signal?.aborted) throw new ReviewAbortedError();
+      throw error;
+    }
+    let cancellation: Promise<void> | undefined;
+    const cancel = () => {
+      cancellation ??= host.cancelTree(session.id);
+    };
+    const onAbort = () => cancel();
+    signal?.addEventListener('abort', onAbort, { once: true });
+    try {
+      if (signal?.aborted) cancel();
+      const response = await session.wait();
+      if (signal?.aborted) throw new ReviewAbortedError();
+      if (response.exitCode !== 0 || !response.finalMessage)
+        throw new Error(`judge ${role} ended without a verdict`);
+      return judgeSchema.parse({
+        role,
+        ...parseJudgeResponse(response.finalMessage),
+        sessionId: response.sessionId,
+        finalMessage: response.finalMessage,
+      });
+    } finally {
+      signal?.removeEventListener('abort', onAbort);
+      if (signal?.aborted) {
+        cancel();
+        await cancellation;
+        await session.wait();
+      }
+    }
   } finally {
     rmSync(parent, { recursive: true, force: true });
   }

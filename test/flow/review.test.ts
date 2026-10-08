@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -170,3 +171,165 @@ test('an invalid judge verdict leaves no review record', async () => {
     cleanup();
   }
 });
+
+test('real SIGTERM cancels the judge scope and exits 130 without a review record', async () => {
+  const { root, cleanup } = fixture();
+  const pidFile = join(root, 'judge.pid');
+  let reviewProcess: ReturnType<typeof spawn> | undefined;
+  let judgePid: number | undefined;
+  let judgeUnit: string | undefined;
+  let judgeCgroup: string | undefined;
+  try {
+    const base = git(root, 'rev-parse', 'HEAD');
+    writeFileSync(join(root, 'src.ts'), 'export const answer = 42;\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'review target');
+    const head = git(root, 'rev-parse', 'HEAD');
+    const lens = join(root, 'lens.txt');
+    writeFileSync(lens, 'Check acceptance.\n');
+    const fake = join(root, 'slow-codex.mjs');
+    writeFileSync(
+      fake,
+      `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(process.env.KRN_REVIEW_PID_FILE, String(process.pid));\nsetInterval(() => {}, 1000);\n`,
+    );
+    chmodSync(fake, 0o700);
+    const runner = join(root, 'review-parent.mjs');
+    writeFileSync(
+      runner,
+      `import { reviewCommand } from ${JSON.stringify(new URL('../../src/flow/cli.ts', import.meta.url).href)};\nawait reviewCommand(process.argv.slice(2), { codexExecutable: process.env.KRN_REVIEW_CODEX });\n`,
+    );
+    const child = spawn(
+      process.execPath,
+      [
+        runner,
+        '--repo',
+        root,
+        '--base',
+        base,
+        '--head',
+        head,
+        '--lens',
+        lens,
+        '--panel',
+        'standards',
+      ],
+      {
+        stdio: ['ignore', 'ignore', 'pipe'],
+        env: {
+          ...process.env,
+          KRN_REVIEW_CODEX: fake,
+          KRN_REVIEW_PID_FILE: pidFile,
+        },
+      },
+    );
+    reviewProcess = child;
+    let stderr = '';
+    child.stderr
+      ?.setEncoding('utf8')
+      .on('data', (chunk: string) => (stderr += chunk));
+    const closed = new Promise<{
+      readonly code: number | null;
+      readonly signal: NodeJS.Signals | null;
+    }>((resolveClose) =>
+      child.once('close', (code, signal) => resolveClose({ code, signal })),
+    );
+    const deadline = Date.now() + 10000;
+    while (!existsSync(pidFile) && Date.now() < deadline)
+      await new Promise((resolveWait) => setTimeout(resolveWait, 25));
+    assert.ok(existsSync(pidFile), `fake judge did not start: ${stderr}`);
+    const pid = Number(readFileSync(pidFile, 'utf8'));
+    judgePid = pid;
+    const cgroup = readFileSync(`/proc/${pid}/cgroup`, 'utf8')
+      .split('\n')
+      .find((line) => line.startsWith('0::'))
+      ?.slice(3);
+    const unit = cgroup?.split('/').at(-1);
+    judgeCgroup = cgroup;
+    judgeUnit = unit;
+    assert.match(unit ?? '', /^krn-repo-[A-Za-z0-9-]+\.scope$/u);
+    assert.equal(child.kill('SIGTERM'), true);
+    const result = await closed;
+    assert.deepEqual(result, { code: 130, signal: null }, stderr);
+    assert.equal(isProcessAlive(pid), false);
+    assertScopeIsEmpty(unit as string, cgroup as string);
+    assert.equal(
+      existsSync(join(root, '.krn', 'runs', 'review', head, 'record.json')),
+      false,
+    );
+  } finally {
+    if (reviewProcess?.exitCode === null && reviewProcess.signalCode === null) {
+      reviewProcess.kill('SIGKILL');
+      await new Promise<void>((resolveClose) =>
+        reviewProcess?.once('close', () => resolveClose()),
+      );
+    }
+    if (judgeUnit && judgePid !== undefined && isProcessAlive(judgePid)) {
+      spawnSync(
+        'systemctl',
+        ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', judgeUnit],
+        { encoding: 'utf8', env: systemdEnvironment() },
+      );
+      const until = Date.now() + 5000;
+      while (
+        (isProcessAlive(judgePid) || scopeIsPopulated(judgeCgroup)) &&
+        Date.now() < until
+      )
+        await new Promise((resolveWait) => setTimeout(resolveWait, 20));
+      if (judgeCgroup) assertScopeIsEmpty(judgeUnit, judgeCgroup);
+    }
+    cleanup();
+  }
+});
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+    return (
+      stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3) !== 'Z'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function assertScopeIsEmpty(unit: string, cgroup: string): void {
+  const eventsPath = join('/sys/fs/cgroup', cgroup, 'cgroup.events');
+  if (existsSync(eventsPath))
+    assert.match(
+      readFileSync(eventsPath, 'utf8'),
+      /^populated 0$/mu,
+      `${unit} still has processes`,
+    );
+  const state = spawnSync(
+    'systemctl',
+    ['--user', 'show', unit, '--property=ActiveState', '--value'],
+    { encoding: 'utf8', env: systemdEnvironment() },
+  );
+  assert.ok(
+    state.status !== 0 || state.stdout.trim() !== 'active',
+    `${unit} is still active`,
+  );
+}
+
+function systemdEnvironment(): NodeJS.ProcessEnv {
+  const uid = process.getuid?.();
+  if (uid === undefined) return process.env;
+  const runtime = process.env.XDG_RUNTIME_DIR ?? `/run/user/${uid}`;
+  return {
+    ...process.env,
+    XDG_RUNTIME_DIR: runtime,
+    DBUS_SESSION_BUS_ADDRESS:
+      process.env.DBUS_SESSION_BUS_ADDRESS ?? `unix:path=${runtime}/bus`,
+  };
+}
+
+function scopeIsPopulated(cgroup: string | undefined): boolean {
+  if (!cgroup) return false;
+  try {
+    return /^populated 1$/mu.test(
+      readFileSync(join('/sys/fs/cgroup', cgroup, 'cgroup.events'), 'utf8'),
+    );
+  } catch {
+    return false;
+  }
+}

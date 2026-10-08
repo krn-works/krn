@@ -1,7 +1,7 @@
 // Compose red-first evidence, independent panel sessions, and their bound record.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { judgeRole } from './panel.ts';
+import { judgeRole, ReviewAbortedError } from './panel.ts';
 import { writeReviewRecord } from './record.ts';
 import {
   redFirst,
@@ -24,6 +24,7 @@ export async function runReview(input: {
   readonly lens: string;
   readonly panel?: readonly ReviewRole[];
   readonly timeoutMs?: number;
+  readonly signal?: AbortSignal;
   /** Test seam; the CLI always uses CodexHost's installed executable. */
   readonly codexExecutable?: string;
 }): Promise<ReviewRecord> {
@@ -50,8 +51,11 @@ export async function runReview(input: {
         red.results,
         input.timeoutMs ?? 600000,
         input.codexExecutable,
+        input.signal,
       ),
     );
+  await new Promise<void>((resolveTick) => setImmediate(resolveTick));
+  if (input.signal?.aborted) throw new ReviewAbortedError();
   const record = reviewRecordSchema.parse({
     schemaVersion: 1,
     headSha: sha,

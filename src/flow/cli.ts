@@ -11,7 +11,32 @@ function value(args: readonly string[], flag: string): string {
   return result;
 }
 
-export async function reviewCommand(args: readonly string[]): Promise<void> {
+export async function reviewCommand(
+  args: readonly string[],
+  options: { readonly codexExecutable?: string } = {},
+): Promise<void> {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  process.on('SIGINT', abort);
+  process.on('SIGTERM', abort);
+  process.on('SIGHUP', abort);
+  try {
+    await runReviewCommand(args, controller, options);
+  } catch (error) {
+    if (!controller.signal.aborted) throw error;
+    process.exitCode = 130;
+  } finally {
+    process.off('SIGINT', abort);
+    process.off('SIGTERM', abort);
+    process.off('SIGHUP', abort);
+  }
+}
+
+async function runReviewCommand(
+  args: readonly string[],
+  controller: AbortController,
+  options: { readonly codexExecutable?: string },
+): Promise<void> {
   const repo = value(args, '--repo');
   const head = value(args, '--head');
   if (args.includes('--override')) {
@@ -37,6 +62,10 @@ export async function reviewCommand(args: readonly string[]): Promise<void> {
     head,
     lens: value(args, '--lens'),
     panel: panel as (typeof panelRoles)[number][],
+    signal: controller.signal,
+    ...(options.codexExecutable
+      ? { codexExecutable: options.codexExecutable }
+      : {}),
   });
   process.stdout.write(
     `${JSON.stringify({ headSha: record.headSha, record: resolve(repo, '.krn', 'runs', 'review', record.headSha, 'record.json'), judges: record.judges.map(({ role, verdict }) => ({ role, verdict })) })}\n`,
