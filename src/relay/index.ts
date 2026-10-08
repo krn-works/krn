@@ -1,5 +1,7 @@
 // Relay validates and advances the hook-readable continuation capsule. ADR 0001.
 import { spawnSync } from 'node:child_process';
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { z } from 'zod';
 
@@ -51,10 +53,28 @@ export async function load(
     blockers: [],
     decisions: [],
     rejectedApproaches: [],
-    references: ['AGENTS.md', 'docs/adr/0001-product-krn.md'],
+    references: repoReferences(job),
   });
   const result = await storeCapsule(job, initial, null);
   return result.applied ? initial : load(job, contract);
+}
+
+export function repoReferences(job: Job): string[] {
+  const root = job.worktree;
+  const references = ['AGENTS.md', 'CONTEXT.md'].filter((path) => {
+    const candidate = join(root, path);
+    return existsSync(candidate) && statSync(candidate).isFile();
+  });
+  const adrDirectory = join(root, 'docs', 'adr');
+  if (existsSync(adrDirectory) && statSync(adrDirectory).isDirectory()) {
+    references.push(
+      ...readdirSync(adrDirectory, { withFileTypes: true })
+        .filter((entry) => entry.isFile())
+        .map((entry) => `docs/adr/${entry.name}`)
+        .sort(),
+    );
+  }
+  return references;
 }
 
 export function repoFacts(job: Job): RepoFacts {

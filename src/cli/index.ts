@@ -54,7 +54,7 @@ async function start(args: string[]): Promise<void> {
   assertWorktreeParentInside(root, dirname(worktree));
   const result = spawnSync(
     'git',
-    ['-C', root, 'worktree', 'add', '--detach', worktree, 'HEAD'],
+    ['-C', root, 'worktree', 'add', '-b', `krn/${id}`, worktree, 'HEAD'],
     { encoding: 'utf8' },
   );
   if (result.status !== 0)

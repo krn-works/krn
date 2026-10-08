@@ -1,4 +1,7 @@
 // Host and trace I/O for one session stays outside the bounded orchestration loop. ADR 0001.
+
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { Job } from '../core/index.ts';
@@ -17,11 +20,18 @@ export class AlreadyRunning extends Error {
   }
 }
 
-export function endOutcome(job: Job, end: SessionEnd, d: Deps): Outcome {
+export function endOutcome(
+  job: Job,
+  end: SessionEnd,
+  d: Deps,
+  noProgress = false,
+): Outcome {
   return d.stop(job, 'human_decision', [
-    end.claimsDone
-      ? 'S5/S6 verdict path is not enabled'
-      : 'session ended without a checkpoint',
+    noProgress
+      ? 'no_progress'
+      : end.claimsDone
+        ? 'S5/S6 verdict path is not enabled'
+        : 'session ended without a checkpoint',
   ]);
 }
 
@@ -30,13 +40,10 @@ export async function finishSession(
   run: { readonly capsule: Capsule; readonly end: SessionEnd },
   d: Deps,
 ): Promise<Outcome> {
-  const next = await d.relay.refreshCAS(
-    run.capsule,
-    await d.relay.repoFacts(job),
-    run.end,
-  );
+  const facts = await d.relay.repoFacts(job);
+  const next = await d.relay.refreshCAS(run.capsule, facts, run.end);
   return next.applied
-    ? endOutcome(job, run.end, d)
+    ? endOutcome(job, run.end, d, facts.head === run.capsule.head)
     : d.stop(job, 'human_decision', ['capsule revision conflict']);
 }
 
@@ -112,7 +119,7 @@ export async function runSession(
         });
     }, 1000);
     poll.unref();
-    const end = await running.wait();
+    const { finalMessage, ...end } = await running.wait();
     clearInterval(poll);
     if (cancelTimer) clearTimeout(cancelTimer);
     if (pollError !== undefined) throw pollError;
@@ -122,6 +129,19 @@ export async function runSession(
       !(await d.relay.isCurrent(job, bound.epoch, running.id))
     )
       throw new Error('stale worker session');
+    if (process.env.KRN_LIVE_DIAG === '1' && finalMessage !== undefined) {
+      if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(job.id) || job.id === '..')
+        throw new Error('invalid diagnostic job id');
+      const directory = join(job.worktree, '.krn', 'runs', 'foreman');
+      mkdirSync(directory, { recursive: true, mode: 0o700 });
+      writeFileSync(
+        join(directory, `${job.id}.reason.txt`),
+        finalMessage.slice(0, 2000),
+        {
+          mode: 0o600,
+        },
+      );
+    }
     await d.trace.log(job, intent, running.id, 'session_ended', end);
     return {
       end,
@@ -147,15 +167,17 @@ export async function recoverLease(
       capsule,
       outcome: d.stop(job, 'human_decision', ['already running']),
     };
-  const recovered = await d.relay.refreshCAS(
-    capsule,
-    await d.relay.repoFacts(job),
-    end,
-  );
+  const facts = await d.relay.repoFacts(job);
+  const recovered = await d.relay.refreshCAS(capsule, facts, end);
   if (!recovered.applied)
     return {
       capsule,
       outcome: d.stop(job, 'human_decision', ['session recovery CAS conflict']),
+    };
+  if (facts.head === capsule.head)
+    return {
+      capsule: recovered.value,
+      outcome: d.stop(job, 'human_decision', ['no_progress']),
     };
   if (end.claimsDone)
     return {

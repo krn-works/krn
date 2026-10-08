@@ -103,7 +103,7 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
   assert.deepEqual(outcome, {
     kind: 'stop',
     state: 'human_decision',
-    reasons: ['S5/S6 verdict path is not enabled'],
+    reasons: ['no_progress'],
   });
 });
 

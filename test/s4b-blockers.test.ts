@@ -232,7 +232,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
 if (count === 1) {
   writeFileSync(${JSON.stringify(pidFile)}, hostPid+'\\n'+escapedHostPid);
   let prompt=''; for await (const chunk of process.stdin) prompt += chunk;
-  const match = /--session ([0-9a-f-]+)/.exec(prompt); const sid=match[1];
+  const match = /--session'?\\s+'?([0-9a-f-]+)/.exec(prompt); const sid=match[1];
   const args = [${JSON.stringify(new URL('../src/cli/main.ts', import.meta.url).pathname)}, 'checkpoint','--job','B1','--issue','I-1','--worktree',${JSON.stringify(root)},'--intent','intent:0','--session',sid,'--next','step B'];
   const shell = spawn('setsid', ['bash','-c', "node " + args.map((x)=>JSON.stringify(x)).join(' ')], {stdio:'ignore'});
   await new Promise(r=>setTimeout(r, 120000));
