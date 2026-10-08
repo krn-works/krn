@@ -103,7 +103,10 @@ async function runLiveSmoke() {
 
     assert.equal(outcome.kind, 'review', 'foreman did not finish the job');
     assert.equal(
-      await readFile(join(cwd, 'live-checkpoint.txt'), 'utf8'),
+      (await readFile(join(cwd, 'live-checkpoint.txt'), 'utf8')).replace(
+        /\r?\n$/u,
+        '',
+      ),
       'checkpoint reached',
       'Codex did not create the requested checkpoint file',
     );

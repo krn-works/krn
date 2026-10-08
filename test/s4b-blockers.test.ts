@@ -483,7 +483,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
   }
 });
 
-test('default process-tree isolation reaps a setsid descendant', async () => {
+test('default systemd scope isolation reaps a setsid descendant', async () => {
   const root = await repoFixture();
   const pidFile = join(root, 'escaped-pid');
   const previousIsolation = process.env.KRN_ISOLATION;
@@ -546,7 +546,7 @@ setInterval(()=>{},1000);
       .map((line) => JSON.parse(line));
     assert.equal(
       events.find((event) => event.kind === 'session_started')?.data.isolation,
-      'proc_tree_fallback',
+      'systemd_scope',
     );
   } finally {
     if (previousIsolation === undefined) delete process.env.KRN_ISOLATION;

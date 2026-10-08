@@ -106,7 +106,7 @@ export type Deps = {
       intent: string,
       sessionId: string,
       pgid?: number,
-      isolation?: 'pid_namespace' | 'proc_tree_fallback',
+      isolation?: 'pid_namespace' | 'systemd_scope',
     ): Promise<boolean>;
     checkpoint(
       job: Job,
@@ -165,7 +165,7 @@ export type Deps = {
         readonly onStarted: (
           sessionId: string,
           pgid?: number,
-          isolation?: 'pid_namespace' | 'proc_tree_fallback',
+          isolation?: 'pid_namespace' | 'systemd_scope',
         ) => Promise<boolean>;
       }): Promise<Session>;
     };

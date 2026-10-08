@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -12,10 +13,14 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { setTimeout as delay } from 'node:timers/promises';
 import { writeCheckpointRequest } from '../src/foreman/checkpoint-request.ts';
 import { commitCheckpoint } from '../src/foreman/commit.ts';
+import { runJob } from '../src/foreman/run.ts';
 import { runSession } from '../src/foreman/session.ts';
+import { recordRepo } from '../src/foreman/state.ts';
 import type { Capsule, Deps, RepoFacts } from '../src/foreman/types.ts';
+import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
 
@@ -422,6 +427,95 @@ test('B3 trace completion derives only from checkpoint next=done', async () => {
       );
     }
   } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('B2 double-fork setsid survivor is dead before checkpoint review returns', async () => {
+  const root = repo();
+  const job = {
+    id: 'S4i-survivor',
+    issue: 'I-survivor',
+    worktree: root,
+    repoRoot: root,
+  };
+  const lateFile = join(root, 'late.txt');
+  const previousIsolation = process.env.KRN_ISOLATION;
+  delete process.env.KRN_ISOLATION;
+  recordRepo(job, root);
+  const executable = join(root, 'fake-codex');
+  writeFileSync(
+    executable,
+    `#!/usr/bin/env node
+import { spawn, spawnSync } from 'node:child_process';
+let prompt=''; for await (const chunk of process.stdin) prompt += chunk;
+const sid=/--session'?\\s+'?([0-9a-f-]+)/.exec(prompt)?.[1];
+if (!sid) throw new Error('missing session id');
+const args=[${JSON.stringify(new URL('../src/cli/main.ts', import.meta.url).pathname)},'checkpoint','--job',${JSON.stringify(job.id)},'--issue',${JSON.stringify(job.issue)},'--worktree',${JSON.stringify(root)},'--repo-root',${JSON.stringify(root)},'--intent','intent:0','--session',sid,'--message','feat: survivor falsifier','--next','done'];
+spawn('/bin/sh',['-c',${JSON.stringify(`setsid /bin/sh -c 'sleep 4; printf late > ${lateFile}' </dev/null >/dev/null 2>&1 &`)}],{detached:true,stdio:'ignore'}).unref();
+const saved=spawnSync(process.execPath,args,{cwd:${JSON.stringify(root)},stdio:'ignore'});
+if(saved.status!==0) throw new Error('checkpoint request failed');
+process.stdout.write(JSON.stringify({type:'thread.started',thread_id:'survivor-test'})+'\\n');
+process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,output_tokens:1,total_tokens:2}})+'\\n');
+process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'done'}})+'\\n');
+`,
+  );
+  chmodSync(executable, 0o755);
+  const host = new CodexHost({ executable });
+  try {
+    const outcome = await runJob(job, {
+      budget: {
+        maxResets: 0,
+        maxRepairs: 0,
+        session: { timeoutMs: 10_000 },
+      },
+      ledger: { readContract: async () => ({ revision: 'survivor-r1' }) },
+      relay,
+      trace,
+      hosts: { codex: host, cancelTree: (id) => host.cancelTree(id) },
+      stop: (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
+    });
+    assert.equal(outcome.kind, 'review');
+    await delay(4_200);
+    assert.equal(
+      existsSync(lateFile),
+      false,
+      'late survivor wrote after review returned',
+    );
+  } finally {
+    if (previousIsolation === undefined) delete process.env.KRN_ISOLATION;
+    else process.env.KRN_ISOLATION = previousIsolation;
+    await rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('B2 refuses worker launch when neither systemd scope nor namespace is selected', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'krn-s4i-no-scope-'));
+  const executable = join(root, 'must-not-launch');
+  const marker = join(root, 'launched');
+  const oldPath = process.env.PATH;
+  const oldIsolation = process.env.KRN_ISOLATION;
+  writeFileSync(executable, `#!/bin/sh\ntouch ${marker}\n`);
+  chmodSync(executable, 0o755);
+  process.env.PATH = root;
+  delete process.env.KRN_ISOLATION;
+  try {
+    const host = new CodexHost({ executable });
+    await assert.rejects(
+      host.start({
+        cwd: root,
+        model: 'gpt-6-luna',
+        prompt: 'must not run',
+        limits: { timeoutMs: 1000 },
+      }),
+      /systemd user scopes are unavailable/u,
+    );
+    assert.equal(existsSync(marker), false);
+  } finally {
+    if (oldPath === undefined) delete process.env.PATH;
+    else process.env.PATH = oldPath;
+    if (oldIsolation === undefined) delete process.env.KRN_ISOLATION;
+    else process.env.KRN_ISOLATION = oldIsolation;
     rmSync(root, { recursive: true, force: true });
   }
 });
