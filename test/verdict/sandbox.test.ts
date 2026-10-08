@@ -12,6 +12,8 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
+import type { Capsule, Deps } from '../../src/foreman/types.ts';
+import { verifyCheckpoint } from '../../src/foreman/verdict.ts';
 import { judge } from '../../src/verdict/index.ts';
 
 function fixture(argv: readonly string[], withLockfile = false) {
@@ -56,6 +58,57 @@ function fixture(argv: readonly string[], withLockfile = false) {
   };
   return { root, job, git, base, sha: base };
 }
+
+test('SIGTERM during verdict recording refuses checkpoint pass', async () => {
+  const f = fixture(['/usr/bin/true']);
+  const capsule: Capsule = {
+    jobId: f.job.id,
+    issue: f.job.issue,
+    contractRevision: 'r1',
+    epoch: 0,
+    base: f.base,
+    head: f.sha,
+    branch: 'main',
+    worktree: f.root,
+    nextAction: 'done',
+    lease: 'active',
+    blockers: [],
+    decisions: [],
+    rejectedApproaches: [],
+    references: [],
+  };
+  const deps = {
+    budget: { maxRepairs: 0 },
+    trace: {
+      verdict: async () => {
+        process.emit('SIGTERM');
+      },
+    },
+    stop: (_job: unknown, state: string, reasons: readonly string[]) => ({
+      kind: 'stop',
+      state,
+      reasons,
+    }),
+  } as unknown as Deps;
+  try {
+    const result = await verifyCheckpoint(
+      f.job,
+      capsule,
+      f.sha,
+      { revision: 'r1', checks: ['declared'] },
+      0,
+      deps,
+    );
+    assert.equal(result.kind, 'stop');
+    if (result.kind === 'stop') {
+      assert.equal(result.outcome.kind, 'stop');
+      if (result.outcome.kind === 'stop')
+        assert.match(result.outcome.reasons.join(' '), /SIGTERM/u);
+    }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
 
 test('worker HEAD registry edits cannot replace commands from the base registry', async () => {
   const f = fixture(['/usr/bin/printf', 'from-base']);
