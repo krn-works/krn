@@ -428,6 +428,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
     process.execPath,
     [
       live,
+      '--http',
       '--repo',
       root,
       '--job',
@@ -471,6 +472,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       process.execPath,
       [
         live,
+        '--http',
         '--repo',
         root,
         '--job',
@@ -620,6 +622,7 @@ test('B3 live uses the requested repo and resumes an existing job by id', async 
   const args = [
     '--job',
     'same-job',
+    '--http',
     '--issue',
     'I-1',
     '--prompt',

@@ -9,6 +9,7 @@ import {
   loadLiveContract,
   withLiveSubmissionGate,
 } from '../src/ledger/live.ts';
+import { createPaperclipCliTransport } from '../src/ledger/paperclip-cli.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
 
@@ -67,18 +68,20 @@ const worktree =
 if (git(repo, ['rev-parse', '--show-toplevel']) !== repo)
   throw new Error('--repo must be the repository root');
 const origin = git(repo, ['remote', 'get-url', 'origin']);
-const paperclipUrl = process.env.KRN_PAPERCLIP_API_URL;
-const paperclipToken = process.env.KRN_PAPERCLIP_TOKEN;
 const session = process.env.KRN_SESSION;
-if (!paperclipUrl || !paperclipToken || !session)
-  throw new Error(
-    'KRN_PAPERCLIP_API_URL, KRN_PAPERCLIP_TOKEN, and KRN_SESSION are required',
-  );
-const paperclip = createLedger({
-  apiUrl: paperclipUrl,
-  token: paperclipToken,
-  session,
-});
+const useHttp = process.argv.includes('--http');
+if (process.argv.includes('--submit') && !session)
+  throw new Error('KRN_SESSION is required with --submit');
+const paperclip = useHttp
+  ? createLedger({
+      apiUrl: process.env.KRN_PAPERCLIP_API_URL ?? '',
+      token: process.env.KRN_PAPERCLIP_TOKEN ?? '',
+      session: session ?? '',
+    })
+  : createLedger({
+      session: session ?? '',
+      transport: createPaperclipCliTransport(),
+    });
 const { contract, board } = await loadLiveContract(paperclip, issue, {
   origin,
   ...(revision === undefined ? {} : { revision }),
