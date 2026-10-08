@@ -133,11 +133,45 @@ export async function judgeRole(
       if (signal?.aborted) cancel();
       const response = await session.wait();
       if (signal?.aborted) throw new ReviewAbortedError();
-      if (response.exitCode !== 0 || !response.finalMessage)
-        throw new Error(`judge ${role} ended without a verdict`);
+      const incomplete = (
+        reason:
+          | 'turn_incomplete'
+          | 'nonzero_exit'
+          | 'empty_final_message'
+          | 'invalid_verdict',
+      ) =>
+        judgeSchema.parse({
+          state: 'incomplete',
+          role,
+          reason,
+          reasonKind: response.reasonKind,
+          sessionId: response.sessionId,
+          exitCode: response.exitCode,
+          ...(response.finalMessage === undefined
+            ? {}
+            : { finalMessage: response.finalMessage.slice(0, 12000) }),
+        });
+      if (response.exitCode !== 0) return incomplete('nonzero_exit');
+      if (!response.claimsDone)
+        return incomplete(
+          response.finalMessage?.trim()
+            ? 'turn_incomplete'
+            : 'empty_final_message',
+        );
+      if (!response.finalMessage?.trim())
+        return incomplete('empty_final_message');
+      if (response.finalMessage.length > 12000)
+        return incomplete('invalid_verdict');
+      let verdict: ReturnType<typeof parseJudgeResponse>;
+      try {
+        verdict = parseJudgeResponse(response.finalMessage);
+      } catch {
+        return incomplete('invalid_verdict');
+      }
       return judgeSchema.parse({
+        state: 'complete',
         role,
-        ...parseJudgeResponse(response.finalMessage),
+        ...verdict,
         sessionId: response.sessionId,
         finalMessage: response.finalMessage,
       });

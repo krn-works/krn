@@ -68,6 +68,6 @@ async function runReviewCommand(
       : {}),
   });
   process.stdout.write(
-    `${JSON.stringify({ headSha: record.headSha, record: resolve(repo, '.krn', 'runs', 'review', record.headSha, 'record.json'), judges: record.judges.map(({ role, verdict }) => ({ role, verdict })) })}\n`,
+    `${JSON.stringify({ headSha: record.headSha, panelVerdict: record.panelVerdict, record: resolve(repo, '.krn', 'runs', 'review', record.headSha, 'record.json'), judges: record.judges })}\n`,
   );
 }

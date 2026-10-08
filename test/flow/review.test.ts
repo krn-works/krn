@@ -40,13 +40,18 @@ function fixture(): { readonly root: string; readonly cleanup: () => void } {
 function fakeCodex(
   directory: string,
   response: string,
+  options: { readonly completeTurn?: boolean } = {},
 ): { readonly executable: string; readonly argsFile: string } {
   const executable = join(directory, 'fake-codex.mjs');
   const argsFile = join(directory, 'codex-args.json');
   const encoded = JSON.stringify(response);
+  const completion =
+    options.completeTurn === false
+      ? ''
+      : "process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,output_tokens:1,total_tokens:2}})+'\\n');";
   writeFileSync(
     executable,
-    `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nlet prompt=''; for await (const chunk of process.stdin) prompt += chunk;\nwriteFileSync(process.env.KRN_REVIEW_ARGS, JSON.stringify(process.argv.slice(2)));\nconst text=${encoded};\nprocess.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text}})+'\\n');\nprocess.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,output_tokens:1,total_tokens:2}})+'\\n');\n`,
+    `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nlet prompt=''; for await (const chunk of process.stdin) prompt += chunk;\nwriteFileSync(process.env.KRN_REVIEW_ARGS, JSON.stringify(process.argv.slice(2)));\nconst text=${encoded};\nprocess.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text}})+'\\n');\n${completion}\n`,
   );
   chmodSync(executable, 0o700);
   process.env.KRN_REVIEW_ARGS = argsFile;
@@ -124,7 +129,9 @@ test('panel launcher forces read-only and a lead override is appended after FAIL
       codexExecutable: fake.executable,
       timeoutMs: 30000,
     });
-    assert.equal(record.judges[0]?.verdict, 'FAIL');
+    assert.equal(record.judges[0]?.state, 'complete');
+    if (record.judges[0]?.state === 'complete')
+      assert.equal(record.judges[0].verdict, 'FAIL');
     const args = JSON.parse(readFileSync(fake.argsFile, 'utf8')) as string[];
     assert.equal(args[args.indexOf('--sandbox') + 1], 'read-only');
     const updated = appendOverride(root, head, {
@@ -140,7 +147,7 @@ test('panel launcher forces read-only and a lead override is appended after FAIL
   }
 });
 
-test('an invalid judge verdict leaves no review record', async () => {
+test('an invalid judge verdict is recorded incomplete', async () => {
   const { root, cleanup } = fixture();
   const priorArgs = process.env.KRN_REVIEW_ARGS;
   try {
@@ -152,19 +159,67 @@ test('an invalid judge verdict leaves no review record', async () => {
     const lens = join(root, 'lens.txt');
     writeFileSync(lens, 'Check acceptance.\n');
     const fake = fakeCodex(root, '{"findings":[]}');
-    await assert.rejects(
-      runReview({
-        repo: root,
-        base,
-        head,
-        lens,
-        panel: ['spec'],
-        codexExecutable: fake.executable,
-      }),
+    const record = await runReview({
+      repo: root,
+      base,
+      head,
+      lens,
+      panel: ['spec'],
+      codexExecutable: fake.executable,
+    });
+    assert.equal(record.judges[0]?.state, 'incomplete');
+    assert.equal(record.panelVerdict, 'INCOMPLETE');
+    assert.ok(
+      readFileSync(
+        join(root, '.krn', 'runs', 'review', head, 'record.json'),
+        'utf8',
+      ),
     );
-    assert.throws(() =>
-      readFileSync(join(root, '.krn', 'runs', 'review', head, 'record.json')),
-    );
+  } finally {
+    if (priorArgs === undefined) delete process.env.KRN_REVIEW_ARGS;
+    else process.env.KRN_REVIEW_ARGS = priorArgs;
+    cleanup();
+  }
+});
+
+test('PASS agent message without turn.completed is recorded incomplete', async () => {
+  const { root, cleanup } = fixture();
+  const priorArgs = process.env.KRN_REVIEW_ARGS;
+  try {
+    const base = git(root, 'rev-parse', 'HEAD');
+    writeFileSync(join(root, 'src.ts'), 'export const answer = 42;\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'review target');
+    const head = git(root, 'rev-parse', 'HEAD');
+    const lens = join(root, 'lens.txt');
+    writeFileSync(lens, 'Check acceptance.\n');
+    const fake = fakeCodex(root, '{"verdict":"PASS","findings":[]}', {
+      completeTurn: false,
+    });
+    const record = await runReview({
+      repo: root,
+      base,
+      head,
+      lens,
+      panel: ['spec'],
+      codexExecutable: fake.executable,
+    });
+    const persisted = JSON.parse(
+      readFileSync(
+        join(root, '.krn', 'runs', 'review', head, 'record.json'),
+        'utf8',
+      ),
+    ) as {
+      readonly panelVerdict: string;
+      readonly judges: readonly {
+        readonly state: string;
+        readonly verdict?: string;
+      }[];
+    };
+    assert.equal(persisted.judges[0]?.state, 'incomplete');
+    assert.equal(persisted.judges[0]?.verdict, undefined);
+    assert.equal(persisted.panelVerdict, 'INCOMPLETE');
+    assert.equal(record.judges[0]?.state, 'incomplete');
   } finally {
     if (priorArgs === undefined) delete process.env.KRN_REVIEW_ARGS;
     else process.env.KRN_REVIEW_ARGS = priorArgs;

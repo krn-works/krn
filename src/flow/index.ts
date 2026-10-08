@@ -61,6 +61,13 @@ export async function runReview(input: {
     headSha: sha,
     base,
     createdAt: new Date().toISOString(),
+    panelVerdict: judges.some((judge) => judge.state === 'incomplete')
+      ? 'INCOMPLETE'
+      : judges.some(
+            (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
+          )
+        ? 'FAIL'
+        : 'PASS',
     redFirst: red.results,
     judges,
   });

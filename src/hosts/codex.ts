@@ -248,6 +248,12 @@ class RunningSession {
   #lineBuffer = '';
   #threadId: string | undefined;
   #finalMessage: { hash: string; length: number; text: string } | undefined;
+  #pendingTurnMessage:
+    | { hash: string; length: number; text: string }
+    | undefined;
+  #completedTurnMessage:
+    | { hash: string; length: number; text: string }
+    | undefined;
   #stderrHash = createHash('sha256');
   #stderrLength = 0;
   #malformed = false;
@@ -338,7 +344,8 @@ class RunningSession {
         reasonKind,
         reasonSha256: reason.hash,
         reasonLength: reason.length,
-        claimsDone: false,
+        claimsDone:
+          code === 0 && Boolean(this.#completedTurnMessage?.text.trim()),
         ...(this.#finalMessage === undefined
           ? {}
           : { finalMessage: this.#finalMessage.text }),
@@ -390,16 +397,26 @@ class RunningSession {
       event.thread_id.length <= 256
     )
       this.#threadId = event.thread_id;
+    if (event.type === 'turn.started') {
+      this.#pendingTurnMessage = undefined;
+      this.#completedTurnMessage = undefined;
+    }
     if (event.type === 'item.completed') {
       const item = record(event.item);
-      if (item.type === 'agent_message' && typeof item.text === 'string')
-        this.#finalMessage = {
+      if (item.type === 'agent_message' && typeof item.text === 'string') {
+        const message = {
           hash: createHash('sha256').update(item.text).digest('hex'),
           length: Buffer.byteLength(item.text),
           text: item.text,
         };
+        this.#finalMessage = message;
+        this.#pendingTurnMessage = message;
+        this.#completedTurnMessage = undefined;
+      }
     }
     if (event.type === 'turn.completed') {
+      this.#completedTurnMessage = this.#pendingTurnMessage;
+      this.#pendingTurnMessage = undefined;
       const usage = record(event.usage);
       this.#inputTokens = safeAdd(
         this.#inputTokens,

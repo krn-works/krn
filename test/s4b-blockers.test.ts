@@ -902,7 +902,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:9
       limits: { timeoutMs: 30_000 },
     });
     const end = await session.wait();
-    assert.equal(end.claimsDone, false);
+    assert.equal(end.claimsDone, true);
     assert.equal(end.usage.totalTokens, 103000);
     assert.equal(end.reasonLength, 4);
   } finally {

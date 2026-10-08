@@ -75,7 +75,11 @@ export function appendOverride(
   if (current.headSha !== sha)
     throw new Error('review record SHA does not match');
   if (current.override) throw new Error('review override already exists');
-  if (!current.judges.some((judge) => judge.verdict === 'FAIL'))
+  if (
+    !current.judges.some(
+      (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
+    )
+  )
     throw new Error('override requires a recorded FAIL verdict');
   const updated = reviewRecordSchema.parse({
     ...current,

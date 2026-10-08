@@ -23,13 +23,32 @@ export const findingSchema = z.object({
   defect: z.string().min(1).max(2000),
   fix: z.string().min(1).max(1000),
 });
-export const judgeSchema = z.object({
+const completeJudgeSchema = z.object({
+  state: z.literal('complete'),
   role: roleSchema,
   verdict: z.enum(['PASS', 'FAIL']),
   findings: z.array(findingSchema),
   sessionId: z.string().min(1),
   finalMessage: z.string().min(1).max(12000),
 });
+const incompleteJudgeSchema = z.object({
+  state: z.literal('incomplete'),
+  role: roleSchema,
+  reason: z.enum([
+    'turn_incomplete',
+    'nonzero_exit',
+    'empty_final_message',
+    'invalid_verdict',
+  ]),
+  reasonKind: z.string().min(1),
+  sessionId: z.string().min(1),
+  exitCode: z.number().int().nullable(),
+  finalMessage: z.string().max(12000).optional(),
+});
+export const judgeSchema = z.discriminatedUnion('state', [
+  completeJudgeSchema,
+  incompleteJudgeSchema,
+]);
 const overrideSchema = z.object({
   reason: z.string().min(1).max(2000),
   evidence: z.string().min(1).max(4000),
@@ -40,6 +59,7 @@ export const reviewRecordSchema = z.object({
   headSha: z.string().regex(/^[a-f0-9]{40,64}$/u),
   base: z.string().min(1),
   createdAt: z.string().datetime(),
+  panelVerdict: z.enum(['PASS', 'FAIL', 'INCOMPLETE']),
   redFirst: z.array(redFirstSchema),
   judges: z.array(judgeSchema).min(1),
   override: overrideSchema.optional(),
