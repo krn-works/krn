@@ -128,6 +128,61 @@ test('real CLI records a dirty checkpoint and foreman commits it for the bound s
   }
 });
 
+test('checkpoint CLI records its request when git execution is forbidden', async () => {
+  const { root, auxiliary } = await fixture({ edit: true, next: 'done' });
+  const gitShim = join(auxiliary, 'git');
+  try {
+    await writeFile(
+      gitShim,
+      '#!/bin/sh\nprintf "spawnSync git EPERM\\n" >&2\nexit 1\n',
+    );
+    await chmod(gitShim, 0o755);
+    const sid = 'sandbox-session-1';
+    const job = { id: 'S4h', issue: 'S4h', worktree: root };
+    await relay.bindSession(
+      job,
+      await relay.load(job, { revision: 'r1' }),
+      sid,
+    );
+    await trace.started(job, 'intent:0', sid);
+    const request = spawnSync(
+      process.execPath,
+      [
+        new URL('../src/cli/main.ts', import.meta.url).pathname,
+        'checkpoint',
+        '--job',
+        'S4h',
+        '--issue',
+        'S4h',
+        '--worktree',
+        root,
+        '--intent',
+        'intent:0',
+        '--session',
+        sid,
+        '--message',
+        'feat: save worker step',
+        '--next',
+        'done',
+      ],
+      {
+        cwd: root,
+        encoding: 'utf8',
+        env: { ...process.env, PATH: auxiliary },
+      },
+    );
+
+    assert.equal(request.status, 0, request.stderr);
+    assert.deepEqual(await trace.checkpointRequest(job, 'intent:0', sid), {
+      message: 'feat: save worker step',
+      next: 'done',
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+    await rm(auxiliary, { recursive: true, force: true });
+  }
+});
+
 test('foreman commits even when the worker git commit attempt fails', async () => {
   const { root, auxiliary } = await fixture({ edit: true, next: 'done' });
   try {

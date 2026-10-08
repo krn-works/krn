@@ -203,13 +203,8 @@ export async function checkpoint(
 ): Promise<Capsule> {
   const current = readCapsule(job);
   if (!current) throw new Error('cannot checkpoint without a relay capsule');
-  if (current.sessionId === sessionId && current.lease === 'checkpointed')
-    return current;
-  if (current.sessionId !== sessionId)
-    throw new Error('checkpoint session is stale');
   const next = parseCapsule({
     ...current,
-    ...repoFacts(job),
     epoch: current.epoch + 1,
     nextAction,
     lease: 'checkpointed',

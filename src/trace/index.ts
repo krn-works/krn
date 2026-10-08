@@ -109,11 +109,6 @@ export async function checkpoint(
   next: string,
   decision?: string,
 ): Promise<void> {
-  const started = events(job).find(
-    (event) => event.key === `${intentId}:session`,
-  );
-  if (started?.data.sessionId !== sessionId)
-    throw new Error('checkpoint does not match a started session');
   append(job, `${intentId}:checkpoint:${sessionId}`, 'checkpoint', {
     intent: intentId,
     sessionId,
@@ -128,7 +123,10 @@ export async function checkpointRequest(
   intentId: string,
   sessionId: string,
 ): Promise<{ readonly message: string; readonly next: string } | null> {
-  const value = events(job).find(
+  const trace = events(job);
+  const started = trace.find((event) => event.key === `${intentId}:session`);
+  if (started?.data.sessionId !== sessionId) return null;
+  const value = trace.find(
     (event) => event.key === `${intentId}:checkpoint:${sessionId}`,
   );
   if (value?.data.sessionId !== sessionId) return null;
