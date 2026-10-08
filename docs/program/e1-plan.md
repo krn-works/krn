@@ -48,7 +48,8 @@
 - **Quarry:** `scripts/lib/paperclip/api-filter.mjs`; `scripts/lib/paperclip/qualification.mjs`; `scripts/lib/paperclip/publisher-gateway.mjs`; `krn-factory/src/reviewer-gate.ts`.
 - **Accept:** exact issue/revision binding and visible readback; unavailable or stale board cannot write; no direct Git/PR publisher path.
 - **Falsifier (red first):** `node --test test/ledger/board-only.test.ts` asserts credential-less or non-allowlisted mutation is refused.
-- **Residual risk:** Paperclip issue PATCH has no revision precondition, so a detected concurrent board write is corrected and returned for human review; the write remains non-atomic.
+- **Residual risk:** Paperclip issue PATCH has no atomic revision precondition; detected post-write conflicts are reported by comment for human review without a status rollback.
+- **Upstream:** request Paperclip support `If-Match`/`expectedUpdatedAt` on issue PATCH.
 - **Depends/parallel group:** L1/G2; isolated ledger/test files.
 
 ### S6 — E1-08: exact-SHA verdict

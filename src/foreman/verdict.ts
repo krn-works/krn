@@ -43,7 +43,9 @@ export async function verifyCheckpoint(
           : d.stop(job, 'human_decision', [
               submitted === 'board_conflict'
                 ? 'board_conflict'
-                : 'Paperclip review submission refused',
+                : submitted === 'board_changed'
+                  ? 'board_changed'
+                  : 'Paperclip review submission refused',
             ]),
     };
   }

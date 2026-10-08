@@ -115,7 +115,7 @@ test('SIGTERM during verdict recording refuses checkpoint pass', async () => {
   }
 });
 
-test('Paperclip board conflict returns a human decision outcome', async () => {
+test('Paperclip board changes and conflicts return human decision outcomes', async () => {
   const f = fixture(['/usr/bin/true']);
   const capsule: Capsule = {
     jobId: f.job.id,
@@ -133,9 +133,10 @@ test('Paperclip board conflict returns a human decision outcome', async () => {
     rejectedApproaches: [],
     references: [],
   };
+  let submission: 'board_conflict' | 'board_changed' = 'board_conflict';
   const deps = {
     budget: { maxRepairs: 0 },
-    ledger: { submitForReview: async () => 'board_conflict' },
+    ledger: { submitForReview: async () => submission },
     trace: {},
     stop: (_job: unknown, state: string, reasons: readonly string[]) => ({
       kind: 'stop',
@@ -144,26 +145,29 @@ test('Paperclip board conflict returns a human decision outcome', async () => {
     }),
   } as unknown as Deps;
   try {
-    const result = await verifyCheckpoint(
-      f.job,
-      capsule,
-      f.sha,
-      {
-        issueId: f.job.issue,
-        revision: 'r1',
-        targetRepo: 'fixture/repo',
-        checks: ['declared'],
-      },
-      0,
-      deps,
-    );
-    assert.equal(result.kind, 'stop');
-    if (result.kind === 'stop') {
-      assert.deepEqual(result.outcome, {
-        kind: 'stop',
-        state: 'human_decision',
-        reasons: ['board_conflict'],
-      });
+    for (const reason of ['board_conflict', 'board_changed'] as const) {
+      submission = reason;
+      const result = await verifyCheckpoint(
+        f.job,
+        capsule,
+        f.sha,
+        {
+          issueId: f.job.issue,
+          revision: 'r1',
+          targetRepo: 'fixture/repo',
+          checks: ['declared'],
+        },
+        0,
+        deps,
+      );
+      assert.equal(result.kind, 'stop');
+      if (result.kind === 'stop') {
+        assert.deepEqual(result.outcome, {
+          kind: 'stop',
+          state: 'human_decision',
+          reasons: [reason],
+        });
+      }
     }
   } finally {
     rmSync(f.root, { recursive: true, force: true });

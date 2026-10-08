@@ -99,7 +99,7 @@ test('readBoard projects status, assignee, and update time without writing', asy
   assert.equal(writes, 0);
 });
 
-test('revision changes between contract read and submit cause no write', async () => {
+test('pre-write revision drift refuses with board_changed and makes no write', async () => {
   const writes: Request[] = [];
   let reads = 0;
   const ledger = createLedger({
@@ -120,14 +120,15 @@ test('revision changes between contract read and submit cause no write', async (
   const contract = await ledger.readContract(job.issue);
   assert.equal(
     await ledger.submitForReview(job, contract, evidence(), sha),
-    'refused',
+    'board_changed',
   );
   assert.equal(writes.length, 0);
 });
 
-test('intervening board update is corrected and returned as board_conflict', async () => {
+test('concurrent done is never overwritten by a second status write', async () => {
   const activities: Array<Record<string, unknown>> = [];
   const patches: Array<{ status: string; comment: string }> = [];
+  const comments: string[] = [];
   let status = 'in_progress';
   const ledger = createLedger({
     apiUrl: 'http://paperclip.test',
@@ -136,6 +137,10 @@ test('intervening board update is corrected and returned as board_conflict', asy
     fetch: async (input, init) => {
       const path = new URL(String(input)).pathname;
       if (path.endsWith('/activity')) return response(activities);
+      if (path.endsWith('/comments') && init?.method === 'POST') {
+        comments.push((JSON.parse(String(init.body)) as { body: string }).body);
+        return response({ id: 'comment-1' }, 201);
+      }
       if (init?.method === 'PATCH') {
         const body = JSON.parse(String(init.body)) as {
           status: string;
@@ -143,13 +148,6 @@ test('intervening board update is corrected and returned as board_conflict', asy
         };
         patches.push(body);
         if (body.status === 'in_review') {
-          activities.push({
-            id: 'concurrent-update',
-            action: 'issue.updated',
-            entityId: job.issue,
-            createdAt: '2026-10-08T10:00:00.001Z',
-            details: { priority: 'high' },
-          });
           status = body.status;
           activities.push({
             id: 'ledger-update',
@@ -158,6 +156,19 @@ test('intervening board update is corrected and returned as board_conflict', asy
             createdAt: '2026-10-08T10:00:00.002Z',
             details: { status: 'in_review', source: 'comment' },
           });
+          const receipt = response(issue(undefined, status));
+          status = 'done';
+          activities.push({
+            id: 'concurrent-update',
+            action: 'issue.updated',
+            entityId: job.issue,
+            createdAt: '2026-10-08T10:00:00.003Z',
+            details: {
+              status: 'done',
+              changes: { status: { from: 'in_review', to: 'done' } },
+            },
+          });
+          return receipt;
         } else {
           status = body.status;
         }
@@ -173,9 +184,15 @@ test('intervening board update is corrected and returned as board_conflict', asy
   );
   assert.deepEqual(
     patches.map((patch) => patch.status),
-    ['in_review', 'in_progress'],
+    ['in_review'],
   );
-  assert.match(patches[1]?.comment ?? '', /board conflict/i);
+  assert.equal(comments.length, 1);
+  assert.match(comments[0] ?? '', /status=in_review/);
+  assert.match(comments[0] ?? '', new RegExp(sha));
+  assert.match(comments[0] ?? '', /2026-10-08T10:00:00.000Z/);
+  assert.match(comments[0] ?? '', /issue.updated at 2026-10-08T10:00:00.003Z/);
+  assert.match(comments[0] ?? '', /"to":"done"/);
+  assert.equal(status, 'done');
 });
 
 test('submission requires a verdict pass bound to the recorded SHA', async () => {
@@ -269,7 +286,7 @@ test('done issue is never moved by ledger', async () => {
   const contract = await ledger.readContract(job.issue);
   assert.equal(
     await ledger.submitForReview(job, contract, evidence(), sha),
-    'refused',
+    'board_changed',
   );
   assert.equal(writes.length, 0);
 });

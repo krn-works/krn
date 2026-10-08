@@ -1,4 +1,4 @@
-// Paperclip owns task status; review writes verify activity and reconcile conflicts. ADR 0007.
+// Paperclip owns task status; review writes report post-write conflicts. ADR 0007.
 // Residual risk: non-atomic board write; Paperclip exposes no issue-revision precondition.
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
@@ -54,7 +54,11 @@ export type VerdictEvidence = Readonly<{
   sha: string;
   checks: readonly CheckEvidence[];
 }>;
-export type ReviewSubmission = 'submitted' | 'refused' | 'board_conflict';
+export type ReviewSubmission =
+  | 'submitted'
+  | 'refused'
+  | 'board_changed'
+  | 'board_conflict';
 export type Ledger = ReturnType<typeof createLedger>;
 export type LedgerOptions = {
   apiUrl: string;
@@ -144,27 +148,37 @@ export function createLedger(options: LedgerOptions) {
     return parsed.data;
   }
 
-  async function restoreAfterConflict(
+  async function reportBoardConflict(
     issueId: string,
-    previousStatus: string,
     sha: string,
+    writtenAt: string,
+    writtenCommentHash: string,
+    events: readonly z.infer<typeof activitySchema>[number][],
   ) {
-    const status = previousStatus;
+    const observed = events.length
+      ? events.map(
+          (event) =>
+            `${event.action} at ${event.createdAt}; details=${JSON.stringify(event.details ?? null)}`,
+        )
+      : [
+          'No non-ledger activity was returned for the changed post-write revision.',
+        ];
     const comment = [
       `Krn-Session: ${options.session}`,
-      `Board conflict after review submission for ${sha}.`,
-      `The ledger restored status to ${status} and requires human review.`,
+      `Board conflict after Krn's single review PATCH.`,
+      `Krn wrote status=in_review for candidate SHA=${sha} at Paperclip updatedAt=${writtenAt}; review-comment SHA-256=${writtenCommentHash}.`,
+      'Intervening board activity observed:',
+      ...observed,
+      'Human review is required; the ledger made no status correction.',
     ].join('\n');
-    const response = await request(`${base}/api/issues/${issueId}`, {
-      method: 'PATCH',
+    const response = await request(`${base}/api/issues/${issueId}/comments`, {
+      method: 'POST',
       redirect: 'error',
       headers: { ...headers, 'content-type': 'application/json' },
-      body: JSON.stringify({ status, comment }),
+      body: JSON.stringify({ body: comment }),
     });
     if (!response.ok)
-      throw new Error(
-        `Paperclip conflict correction failed (${response.status})`,
-      );
+      throw new Error(`Paperclip conflict comment failed (${response.status})`);
   }
 
   return {
@@ -212,11 +226,11 @@ export function createLedger(options: LedgerOptions) {
         return 'refused';
       const current = await readIssue(job.issue);
       if (current.updatedAt !== contract.revision || current.status === 'done')
-        return 'refused';
+        return 'board_changed';
       const beforeActivity = await readActivity(job.issue);
       const fenced = await readIssue(job.issue);
       if (fenced.updatedAt !== contract.revision || fenced.status === 'done')
-        return 'refused';
+        return 'board_changed';
       const results = evidence.checks
         .map((check) => `- ${check.id}: pass; result sha256 ${check.sha256}`)
         .join('\n');
@@ -263,7 +277,13 @@ export function createLedger(options: LedgerOptions) {
         ownReviewEvents.length !== 1 ||
         afterIssue.updatedAt !== receipt.data.updatedAt
       ) {
-        await restoreAfterConflict(job.issue, fenced.status, evidence.sha);
+        await reportBoardConflict(
+          job.issue,
+          evidence.sha,
+          receipt.data.updatedAt,
+          hash(comment),
+          foreignEvents.length > 0 ? foreignEvents : newEvents,
+        );
         return 'board_conflict';
       }
       return afterIssue.status === 'in_review' ? 'submitted' : 'refused';
