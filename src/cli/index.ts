@@ -88,6 +88,11 @@ async function stop(
     worktree: resolve(value(args, '--worktree')),
   };
   if (kind === 'checkpoint') {
+    const message = value(args, '--message');
+    if (message.length > 200 || /[\r\n]/.test(message))
+      throw new Error(
+        '--message must be a single line of at most 200 characters',
+      );
     const next = value(args, '--next');
     if (next.length > 200 || /[\r\n]/.test(next))
       throw new Error('--next must be a single line of at most 200 characters');
@@ -98,15 +103,16 @@ async function stop(
       throw new Error(
         '--decision must be a single line of at most 500 characters',
       );
-    const status = git(job.worktree, [
-      'status',
-      '--porcelain',
-      '--untracked-files=normal',
-    ]);
-    if (status) throw new Error('checkpoint requires a clean working tree');
     const session = value(args, '--session');
-    await saveCheckpoint(job, session, next, decision);
-    await checkpoint(job, value(args, '--intent'), session, next, decision);
+    await saveCheckpoint(job, session, message, next, decision);
+    await checkpoint(
+      job,
+      value(args, '--intent'),
+      session,
+      message,
+      next,
+      decision,
+    );
   } else await operatorStop(job, process.env.USER ?? 'local operator');
 }
 

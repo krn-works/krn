@@ -1,5 +1,5 @@
-// Checkpointed workers restart from the relay capsule with a fresh host session. ADR 0001.
 import type { Job } from '../core/index.ts';
+import { finishCheckpoint, isCheckpointRefusal } from './checkpoint.ts';
 import {
   failureOutcome,
   finishSession,
@@ -24,11 +24,15 @@ export async function runJob(job: Job, d: Deps): Promise<Outcome> {
     try {
       const run = await runSession(job, capsule, facts, intent, d);
       if (run.checkpointed) {
-        capsule = await d.relay.load(job, contract);
+        const checkpoint = await finishCheckpoint(job, run.capsule, intent, d);
+        if (checkpoint.done) return { kind: 'review', head: checkpoint.sha };
+        capsule = checkpoint.capsule;
         continue;
       }
       return finishSession(job, run, d);
     } catch (error) {
+      if (isCheckpointRefusal(error))
+        return d.stop(job, 'human_decision', [error.message]);
       return failureOutcome(job, intent, error, d);
     }
   }

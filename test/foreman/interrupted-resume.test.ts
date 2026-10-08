@@ -11,6 +11,29 @@ import type { Capsule, Deps } from '../../src/foreman/types.ts';
 import * as relay from '../../src/relay/index.ts';
 
 test('checkpoint interruption resumes one action in a fresh session', async () => {
+  const worktree = await mkdtemp(join(tmpdir(), 'krn-foreman-resume-'));
+  const git = (args: string[]) => {
+    const result = spawnSync('git', ['-C', worktree, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  git(['init', '-q', '--initial-branch=main']);
+  await writeFile(join(worktree, 'README.md'), 'fixture\n');
+  git(['add', 'README.md']);
+  git([
+    '-c',
+    'user.name=Fixture',
+    '-c',
+    'user.email=fixture@example.invalid',
+    'commit',
+    '-qm',
+    'fixture',
+  ]);
+  git(['config', 'user.name', 'Fixture']);
+  git(['config', 'user.email', 'fixture@example.invalid']);
+  const job = { id: 'job-1', issue: 'issue-1', worktree };
   const sessions: string[] = [];
   const actionSessions: string[] = [];
   let epoch = 0;
@@ -21,19 +44,22 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
       readContract: async () => ({ revision: 'rev-1' }),
     },
     relay: {
-      load: async () => ({ epoch, head: 'a'.repeat(40) }) as Capsule,
+      load: async () =>
+        ({ epoch, head: git(['rev-parse', 'HEAD']) }) as Capsule,
       checkpoint: async () =>
-        ({ epoch: ++epoch, head: 'a'.repeat(40) }) as Capsule,
+        ({ epoch: ++epoch, head: git(['rev-parse', 'HEAD']) }) as Capsule,
+      recordCommit: async (_job, sessionId, sha) =>
+        ({ epoch: ++epoch, head: sha, sessionId }) as Capsule,
       bindSession: async (_job, capsule, _sessionId) => ({
         applied: true as const,
-        value: { ...capsule, epoch: ++epoch },
+        value: { ...capsule, epoch: ++epoch, sessionId: _sessionId },
       }),
       isCurrent: async (_job, value) => value === epoch,
       repoFacts: async () => ({
-        base: 'a'.repeat(40),
-        head: 'a'.repeat(40),
+        base: git(['rev-parse', 'HEAD']),
+        head: git(['rev-parse', 'HEAD']),
         branch: 'main',
-        worktree: '/tmp/job-1',
+        worktree,
       }),
       validate: () => ({ ok: true as const }),
       project: () => 'perform action exactly once',
@@ -51,6 +77,11 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
         checkpointed = true;
         epoch += 1;
       },
+      checkpointRequest: async () => ({
+        message: 'feat: step A',
+        next: 'step B',
+      }),
+      commit: async () => undefined,
       hasCheckpoint: async (_job, _intent, sessionId) =>
         checkpointed && sessionId === 'session-1',
       sessionEnd: async () => null,
@@ -66,10 +97,12 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
             id,
             wait: async () => {
               if (sessions.length === 1) {
+                await writeFile(join(worktree, 'step-a.txt'), 'completed\n');
                 await d.trace.checkpoint(
-                  { id: 'job-1', issue: 'issue-1', worktree: '/tmp/job-1' },
+                  job,
                   'intent-0',
                   id,
+                  'feat: step A',
                   'continue with step B',
                 );
                 await d.hosts.cancelTree(id);
@@ -91,10 +124,7 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
 
   let outcome: unknown;
   await assert.doesNotReject(async () => {
-    outcome = await runJob(
-      { id: 'job-1', issue: 'issue-1', worktree: '/tmp/job-1' },
-      d,
-    );
+    outcome = await runJob(job, d);
   });
   assert.equal(checkpointed, true);
   assert.equal(sessions.length, 2);
@@ -144,6 +174,8 @@ test('a concurrent run cannot replace the active capsule session', async () => {
       intent: async (_job, epoch) => `intent-${epoch}`,
       started: async () => true,
       checkpoint: async () => undefined,
+      checkpointRequest: async () => null,
+      commit: async () => undefined,
       hasCheckpoint: async () => false,
       sessionEnd: async () => null,
       log: async () => undefined,

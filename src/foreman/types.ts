@@ -71,8 +71,15 @@ export type Deps = {
     checkpoint(
       job: Job,
       sessionId: string,
+      message: string,
       next: string,
       decision?: string,
+    ): Promise<Capsule>;
+    recordCommit(
+      job: Job,
+      sessionId: string,
+      sha: string,
+      message: string,
     ): Promise<Capsule>;
     bindSession(
       job: Job,
@@ -102,8 +109,21 @@ export type Deps = {
       job: Job,
       intent: string,
       sessionId: string,
+      message: string,
       next: string,
       decision?: string,
+    ): Promise<void>;
+    checkpointRequest(
+      job: Job,
+      intent: string,
+      sessionId: string,
+    ): Promise<{ readonly message: string; readonly next: string } | null>;
+    commit(
+      job: Job,
+      intent: string,
+      sessionId: string,
+      sha: string,
+      message: string,
     ): Promise<void>;
     hasCheckpoint(
       job: Job,

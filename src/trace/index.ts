@@ -105,6 +105,7 @@ export async function checkpoint(
   job: Job,
   intentId: string,
   sessionId: string,
+  message: string,
   next: string,
   decision?: string,
 ): Promise<void> {
@@ -116,8 +117,51 @@ export async function checkpoint(
   append(job, `${intentId}:checkpoint:${sessionId}`, 'checkpoint', {
     intent: intentId,
     sessionId,
+    message,
     next,
     ...(decision === undefined ? {} : { decision }),
+  });
+}
+
+export async function checkpointRequest(
+  job: Job,
+  intentId: string,
+  sessionId: string,
+): Promise<{ readonly message: string; readonly next: string } | null> {
+  const value = events(job).find(
+    (event) => event.key === `${intentId}:checkpoint:${sessionId}`,
+  );
+  if (value?.data.sessionId !== sessionId) return null;
+  const parsed = z
+    .object({ message: z.string().min(1), next: z.string().min(1) })
+    .safeParse(value.data);
+  return parsed.success ? parsed.data : null;
+}
+
+export async function commit(
+  job: Job,
+  intentId: string,
+  sessionId: string,
+  sha: string,
+  message: string,
+): Promise<void> {
+  if (!/^[a-f0-9]{40,64}$/i.test(sha))
+    throw new Error('commit SHA is malformed');
+  const request = await checkpointRequest(job, intentId, sessionId);
+  if (!request || request.message !== message)
+    throw new Error('commit does not match the bound checkpoint request');
+  const key = `${intentId}:commit:${sessionId}`;
+  const prior = events(job).find((event) => event.key === key);
+  if (prior) {
+    if (prior.data.sha !== sha || prior.data.message !== message)
+      throw new Error('commit conflicts with the recorded session commit');
+    return;
+  }
+  append(job, key, 'commit', {
+    intent: intentId,
+    sessionId,
+    sha,
+    message,
   });
 }
 

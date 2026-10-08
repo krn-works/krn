@@ -197,6 +197,7 @@ export async function refreshCAS(
 export async function checkpoint(
   job: Job,
   sessionId: string,
+  message: string,
   nextAction: string,
   decision?: string,
 ): Promise<Capsule> {
@@ -212,22 +213,55 @@ export async function checkpoint(
     epoch: current.epoch + 1,
     nextAction,
     lease: 'checkpointed',
-    ...(decision === undefined
-      ? {}
-      : {
-          decisions: [
-            ...current.decisions,
+    decisions: [
+      ...current.decisions,
+      {
+        date: new Date().toISOString(),
+        source: sessionId,
+        text: `commit request: ${message}`,
+      },
+      ...(decision === undefined
+        ? []
+        : [
             {
               date: new Date().toISOString(),
               source: sessionId,
               text: decision,
             },
-          ],
-        }),
+          ]),
+    ],
     sessionId,
   });
   const saved = await storeCapsule(job, next, current.epoch);
   if (!saved.applied) throw new Error('checkpoint capsule CAS conflict');
+  return next;
+}
+
+export async function recordCommit(
+  job: Job,
+  sessionId: string,
+  sha: string,
+  message: string,
+): Promise<Capsule> {
+  const current = readCapsule(job);
+  if (current?.sessionId !== sessionId || current.lease !== 'checkpointed')
+    throw new Error('commit session is not bound to the checkpointed capsule');
+  const facts = repoFacts(job);
+  const next = parseCapsule({
+    ...current,
+    ...facts,
+    epoch: current.epoch + 1,
+    decisions: [
+      ...current.decisions,
+      {
+        date: new Date().toISOString(),
+        source: sessionId,
+        text: `foreman commit ${sha}: ${message}`,
+      },
+    ],
+  });
+  const saved = await storeCapsule(job, next, current.epoch);
+  if (!saved.applied) throw new Error('commit capsule CAS conflict');
   return next;
 }
 

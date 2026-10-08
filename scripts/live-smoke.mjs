@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CodexHost, defaultCodexExecutable } from '../src/hosts/codex.ts';
 
@@ -57,9 +57,11 @@ async function runLiveSmoke() {
     }
 
     assert.equal(result.claimsDone, true, 'Codex did not finish successfully');
+    const reportedCwd = result.finalMessage?.trim() ?? '';
     assert.ok(
-      result.finalMessage?.includes(cwd),
-      `Expected final message to contain ${cwd}, got ${JSON.stringify(result.finalMessage)}`,
+      isAbsolute(reportedCwd) &&
+        reportedCwd.endsWith(join('.krn', 'tmp', basename(cwd))),
+      `Expected final message to identify ${basename(cwd)}, got ${JSON.stringify(result.finalMessage)}`,
     );
     process.stdout.write(`Live Codex smoke passed: ${result.finalMessage}\n`);
   } finally {

@@ -95,15 +95,18 @@ test('checkpoint instruction is imperative and its filled command executes', asy
     assert.match(printedCommand, /--worktree/u);
     assert.match(printedCommand, /--intent/u);
     assert.match(printedCommand, /--session/u);
-    assert.match(printedCommand, /--next "<one line>"/u);
+    assert.match(printedCommand, /--message "<conventional commit subject>"/u);
+    assert.match(printedCommand, /--next "<one line \| done>"/u);
     assert.equal(
       git(root, ['status', '--porcelain', '--untracked-files=normal']),
       '',
     );
-    const command = printedCommand.replace(
-      '--next "<one line>"',
-      '--next "continue with step two"',
-    );
+    const command = printedCommand
+      .replace(
+        '--message "<conventional commit subject>"',
+        '--message "feat: save step one"',
+      )
+      .replace('--next "<one line | done>"', '--next "continue with step two"');
     const result = spawnSync('/bin/sh', ['-lc', command], {
       cwd: root,
       encoding: 'utf8',
