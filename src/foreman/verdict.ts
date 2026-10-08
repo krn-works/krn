@@ -14,6 +14,13 @@ export async function verifyCheckpoint(
   | { readonly kind: 'repair'; readonly capsule: Capsule }
   | { readonly kind: 'stop'; readonly outcome: Outcome }
 > {
+  if (capsule.head !== sha)
+    return {
+      kind: 'stop',
+      outcome: d.stop(job, 'human_decision', [
+        'verdict SHA differs from recorded commit',
+      ]),
+    };
   const verdict = await judge(
     job,
     sha,
@@ -21,11 +28,22 @@ export async function verifyCheckpoint(
     contract.checks ?? [],
     (event) => d.trace.verdict?.(job, event) ?? Promise.resolve(),
   );
-  if (verdict.kind === 'pass')
+  if (verdict.kind === 'pass') {
+    const submitted = await d.ledger.submitForReview(
+      job,
+      contract,
+      { kind: 'verdict_pass', sha, checks: verdict.checks },
+      capsule.head,
+    );
     return {
       kind: 'stop',
-      outcome: { kind: 'verdict_pass', state: 'human_decision', sha },
+      outcome: submitted
+        ? { kind: 'verdict_pass', state: 'in_review', sha }
+        : d.stop(job, 'human_decision', [
+            'Paperclip review submission refused',
+          ]),
     };
+  }
   if (verdict.kind === 'refused' || repairs >= d.budget.maxRepairs)
     return {
       kind: 'stop',

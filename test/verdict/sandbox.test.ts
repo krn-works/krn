@@ -95,7 +95,12 @@ test('SIGTERM during verdict recording refuses checkpoint pass', async () => {
       f.job,
       capsule,
       f.sha,
-      { revision: 'r1', checks: ['declared'] },
+      {
+        issueId: f.job.issue,
+        revision: 'r1',
+        targetRepo: 'fixture/repo',
+        checks: ['declared'],
+      },
       0,
       deps,
     );
