@@ -40,6 +40,7 @@ export type CodexSessionResult = {
   readonly reasonSha256: string;
   readonly reasonLength: number;
   readonly claimsDone: boolean;
+  readonly finalMessage?: string;
   readonly exitCode: number | null;
   readonly signal: NodeJS.Signals | null;
   readonly usage: CodexUsage;
@@ -91,7 +92,25 @@ export class CodexHost {
       this.#isolationMode ?? detectIsolationMode(this.#namespaceLauncher);
     this.#isolationMode = isolation;
     const checkpoint = input.checkpoint
-      ? `\n\nIf interrupted after checkpointing, run: ${process.execPath} ${input.checkpoint.cli} checkpoint --job ${input.checkpoint.job} --issue ${input.checkpoint.issue} --worktree ${input.checkpoint.worktree} --intent ${input.checkpoint.intent} --session ${id}`
+      ? `\n\nWhen you reach a checkpoint, run exactly: ${[
+          process.execPath,
+          input.checkpoint.cli,
+          'checkpoint',
+          '--job',
+          input.checkpoint.job,
+          '--issue',
+          input.checkpoint.issue,
+          '--worktree',
+          input.checkpoint.worktree,
+          '--intent',
+          input.checkpoint.intent,
+          '--session',
+          id,
+        ]
+          .map(shellQuote)
+          .join(
+            ' ',
+          )} --next "<one line>"\nIf needed, add --decision "<one line>".`
       : '';
     const prompt = `${input.prompt}${checkpoint}\n\nAfter saving a checkpoint, finish this turn immediately.`;
     const gitDir = resolve(input.cwd, gitCommonDir(input.cwd));
@@ -197,7 +216,7 @@ class RunningSession {
   readonly #closedListeners: (() => void)[] = [];
   #lineBuffer = '';
   #threadId: string | undefined;
-  #finalMessage: { hash: string; length: number } | undefined;
+  #finalMessage: { hash: string; length: number; text: string } | undefined;
   #stderrHash = createHash('sha256');
   #stderrLength = 0;
   #malformed = false;
@@ -296,6 +315,9 @@ class RunningSession {
           !this.#overflow &&
           !this.#malformed &&
           Boolean(this.#finalMessage),
+        ...(this.#finalMessage === undefined
+          ? {}
+          : { finalMessage: this.#finalMessage.text }),
         exitCode: code,
         signal,
         usage: {
@@ -350,6 +372,7 @@ class RunningSession {
         this.#finalMessage = {
           hash: createHash('sha256').update(item.text).digest('hex'),
           length: Buffer.byteLength(item.text),
+          text: item.text,
         };
     }
     if (event.type === 'turn.completed') {
@@ -422,6 +445,10 @@ class RunningSession {
       if (this.#descendants.size) await delay(20);
     }
   }
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", `'\\''`)}'`;
 }
 
 function signalTree(child: ChildProcess, signal: NodeJS.Signals): void {
