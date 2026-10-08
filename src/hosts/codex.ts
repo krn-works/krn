@@ -3,7 +3,7 @@ import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { readdirSync, readFileSync, readlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { isAbsolute, join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { z } from 'zod';
 
 const lineLimit = 256 * 1024;
@@ -61,6 +61,7 @@ export type CodexStartInput = {
     readonly job: string;
     readonly issue: string;
     readonly worktree: string;
+    readonly repoRoot?: string;
     readonly intent: string;
   };
   readonly onStarted?: (
@@ -102,6 +103,9 @@ export class CodexHost {
           input.checkpoint.issue,
           '--worktree',
           input.checkpoint.worktree,
+          ...(input.checkpoint.repoRoot
+            ? ['--repo-root', input.checkpoint.repoRoot]
+            : []),
           '--intent',
           input.checkpoint.intent,
           '--session',
@@ -113,7 +117,6 @@ export class CodexHost {
           )} --message "<conventional commit subject>" --next "<one line | done>"\nDo not run git commands or create commits. Checkpoint records your request; the foreman commits the worktree changes. If there are no changes, report that instead of checkpointing. If needed, add --decision "<one line>".`
       : '';
     const prompt = `${input.prompt}${checkpoint}\n\nAfter saving a checkpoint, finish this turn immediately.`;
-    const gitDir = resolve(input.cwd, gitCommonDir(input.cwd));
     const codexArgs = [
       'exec',
       '--json',
@@ -124,8 +127,6 @@ export class CodexHost {
       'model_reasoning_effort=low',
       '--sandbox',
       'workspace-write',
-      '--add-dir',
-      gitDir,
       '--cd',
       input.cwd,
       '--color',
@@ -182,7 +183,12 @@ export class CodexHost {
       await running.cancel();
       throw new Error('session intent was already started');
     }
-    child.stdin?.end(prompt);
+    if (child.stdin) {
+      child.stdin.on('error', (error: NodeJS.ErrnoException) => {
+        if (error.code !== 'EPIPE') child.kill('SIGTERM');
+      });
+      child.stdin.end(prompt);
+    }
     const timer = setTimeout(
       () => void this.cancelTree(id),
       input.limits.timeoutMs,
@@ -312,11 +318,7 @@ class RunningSession {
         reasonKind,
         reasonSha256: reason.hash,
         reasonLength: reason.length,
-        claimsDone:
-          code === 0 &&
-          !this.#overflow &&
-          !this.#malformed &&
-          Boolean(this.#finalMessage?.text.trim()),
+        claimsDone: false,
         ...(this.#finalMessage === undefined
           ? {}
           : { finalMessage: this.#finalMessage.text }),
@@ -625,16 +627,4 @@ function tokenCount(value: unknown): number {
 
 function safeAdd(left: number, right: number): number {
   return Math.min(left + right, Number.MAX_SAFE_INTEGER);
-}
-
-function gitCommonDir(cwd: string): string {
-  const result = spawnSync(
-    'git',
-    ['-C', cwd, 'rev-parse', '--git-common-dir'],
-    { encoding: 'utf8' },
-  );
-  if (result.status !== 0)
-    throw new Error(result.stderr || 'unable to find git directory');
-  const path = result.stdout.trim();
-  return isAbsolute(path) ? path : resolve(cwd, path);
 }

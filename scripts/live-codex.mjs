@@ -22,9 +22,9 @@ const result = await session.wait();
 process.stdout.write(
   `model=gpt-6-luna input_tokens=${result.usage.inputTokens} output_tokens=${result.usage.outputTokens} total_tokens=${result.usage.totalTokens}\n`,
 );
-if (!result.claimsDone) {
+if (result.exitCode !== 0 || result.signal) {
   process.stderr.write(
-    `Codex session ended without completion (session ${result.sessionId}).\n`,
+    `Codex process did not exit cleanly (session ${result.sessionId}).\n`,
   );
   process.exitCode = 1;
 }

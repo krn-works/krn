@@ -59,11 +59,11 @@ const ignoredTrace = (root) =>
     root,
     'check-ignore',
     '-q',
-    `.krn/runs/foreman/${jobId}.jsonl`,
+    `.krn/runs/foreman/${jobId}/trace.jsonl`,
   ]);
 if (ignoredTrace(repo).status !== 0)
   throw new Error(
-    `job repository must ignore .krn/runs/foreman/${jobId}.jsonl`,
+    `job repository must ignore .krn/runs/foreman/${jobId}/trace.jsonl`,
   );
 let job;
 if (worktree) {
@@ -85,7 +85,7 @@ if (worktree) {
 const ignored = ignoredTrace(job.worktree);
 if (ignored.status !== 0)
   throw new Error(
-    `job repository must ignore .krn/runs/foreman/${jobId}.jsonl`,
+    `job repository must ignore .krn/runs/foreman/${jobId}/trace.jsonl`,
   );
 
 const host = new CodexHost(

@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import * as relay from '../../src/relay/index.ts';
+import * as trace from '../../src/trace/index.ts';
 
 const validator =
   '/mnt/storage/coding/krn/active/krn-codex-skills/scripts/krn.mjs';
@@ -29,7 +30,7 @@ test('a capsule write from a stale epoch is rejected', async () => {
     assert.fail('relay exposes capsule CAS writes');
 
   const worktree = await mkdtemp(join(tmpdir(), 'krn-relay-'));
-  const job = { id: 'E1-04', issue: 'issue-1', worktree };
+  const job = { id: 'E1-04', issue: 'issue-1', worktree, repoRoot: worktree };
   const capsule = {
     jobId: job.id,
     issue: job.issue,
@@ -48,6 +49,18 @@ test('a capsule write from a stale epoch is rejected', async () => {
   };
 
   try {
+    git(worktree, ['init', '-q', '--initial-branch=main']);
+    await writeFile(join(worktree, '.gitignore'), '.krn/\n');
+    git(worktree, ['add', '.gitignore']);
+    git(worktree, [
+      '-c',
+      'user.name=Relay Test',
+      '-c',
+      'user.email=relay@example.invalid',
+      'commit',
+      '-qm',
+      'fixture',
+    ]);
     assert.deepEqual(await writeCapsule(job, capsule, null), {
       applied: true,
       value: capsule,
@@ -85,7 +98,7 @@ test('the existing state checker accepts a capsule session id as evidence', asyn
     `capsule ABI validator is available at ${validator}`,
   );
   const worktree = await mkdtemp(join(tmpdir(), 'krn-relay-validator-'));
-  const job = { id: 'E1-04', issue: 'issue-1', worktree };
+  const job = { id: 'E1-04', issue: 'issue-1', worktree, repoRoot: worktree };
   try {
     git(worktree, ['init', '-q', '--initial-branch=main']);
     await Promise.all([
@@ -103,6 +116,7 @@ test('the existing state checker accepts a capsule session id as evidence', asyn
       'fixture',
     ]);
     const capsule = await relay.load(job, { revision: 'rev-1' });
+    await trace.intent(job, capsule.epoch);
     const resumed = { ...capsule, epoch: 1, sessionId: 'session-opaque-42' };
     assert.deepEqual(await relay.writeCapsule(job, resumed, 0), {
       applied: true,

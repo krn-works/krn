@@ -13,6 +13,8 @@ import {
 import { join } from 'node:path';
 import { z } from 'zod';
 import type { Job } from '../core/index.ts';
+import { readCheckpointRequest } from '../foreman/checkpoint-request.ts';
+import { stateDirectory } from '../foreman/state.ts';
 import type { SessionEnd } from '../foreman/types.ts';
 
 type Event = {
@@ -25,27 +27,31 @@ type Event = {
 function file(job: Job): string {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(job.id) || job.id === '..')
     throw new Error('invalid trace job id');
-  return join(job.worktree, '.krn', 'runs', 'foreman', `${job.id}.jsonl`);
+  return join(stateDirectory(job), 'trace.jsonl');
 }
 
 function events(job: Job): Event[] {
   const path = file(job);
   if (!existsSync(path)) return [];
-  return readFileSync(path, 'utf8')
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => {
-      const value: unknown = JSON.parse(line);
-      if (
-        !value ||
-        typeof value !== 'object' ||
-        !('key' in value) ||
-        !('kind' in value) ||
-        !('data' in value)
-      )
-        throw new Error('malformed trace event');
-      return value as Event;
-    });
+  try {
+    return readFileSync(path, 'utf8')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        const value: unknown = JSON.parse(line);
+        return z
+          .object({
+            key: z.string(),
+            kind: z.string(),
+            at: z.string(),
+            data: z.record(z.string(), z.unknown()),
+          })
+          .parse(value);
+      });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw error;
+  }
 }
 
 function append(
@@ -55,7 +61,7 @@ function append(
   data: Record<string, unknown>,
 ): void {
   const path = file(job);
-  mkdirSync(join(job.worktree, '.krn', 'runs', 'foreman'), {
+  mkdirSync(stateDirectory(job), {
     recursive: true,
     mode: 0o700,
   });
@@ -107,14 +113,17 @@ export async function checkpoint(
   sessionId: string,
   message: string,
   next: string,
-  decision?: string,
+  _decision?: string,
 ): Promise<void> {
+  const request = await checkpointRequest(job, intentId, sessionId);
+  if (!request || request.message !== message || request.next !== next)
+    throw new Error('checkpoint request is missing or stale');
   append(job, `${intentId}:checkpoint:${sessionId}`, 'checkpoint', {
     intent: intentId,
     sessionId,
     message,
     next,
-    ...(decision === undefined ? {} : { decision }),
+    ...(request.decision === undefined ? {} : { decision: request.decision }),
   });
 }
 
@@ -122,18 +131,24 @@ export async function checkpointRequest(
   job: Job,
   intentId: string,
   sessionId: string,
-): Promise<{ readonly message: string; readonly next: string } | null> {
+): Promise<{
+  readonly message: string;
+  readonly next: string;
+  readonly decision?: string;
+} | null> {
   const trace = events(job);
   const started = trace.find((event) => event.key === `${intentId}:session`);
   if (started?.data.sessionId !== sessionId) return null;
-  const value = trace.find(
-    (event) => event.key === `${intentId}:checkpoint:${sessionId}`,
-  );
-  if (value?.data.sessionId !== sessionId) return null;
-  const parsed = z
-    .object({ message: z.string().min(1), next: z.string().min(1) })
-    .safeParse(value.data);
-  return parsed.success ? parsed.data : null;
+  const request = readCheckpointRequest(job, sessionId);
+  return request?.intent === intentId && request.sessionId === sessionId
+    ? {
+        message: request.message,
+        next: request.next,
+        ...(request.decision === undefined
+          ? {}
+          : { decision: request.decision }),
+      }
+    : null;
 }
 
 export async function commit(
@@ -168,23 +183,29 @@ export async function hasCheckpoint(
   intentId: string,
   sessionId: string,
 ): Promise<boolean> {
-  return events(job).some(
-    (event) => event.key === `${intentId}:checkpoint:${sessionId}`,
-  );
+  return (await checkpointRequest(job, intentId, sessionId)) !== null;
 }
 
 export async function sessionEnd(
   job: Job,
   sessionId: string,
 ): Promise<SessionEnd | null> {
-  const value = events(job).find(
+  const trace = events(job);
+  const value = trace.find(
     (event) =>
       event.kind === 'session_ended' && event.data.sessionId === sessionId,
   )?.data.end;
   const parsed = z
     .object({ reasonKind: z.string(), claimsDone: z.boolean() })
     .safeParse(value);
-  return parsed.success ? parsed.data : null;
+  if (!parsed.success) return null;
+  const completed = trace.some(
+    (event) =>
+      event.kind === 'checkpoint' &&
+      event.data.sessionId === sessionId &&
+      event.data.next === 'done',
+  );
+  return { ...parsed.data, claimsDone: completed };
 }
 
 export async function log(

@@ -94,7 +94,7 @@ test('real CLI records a dirty checkpoint and foreman commits it for the bound s
       'feat: save worker step',
     );
     const events = (
-      await readFile(join(root, '.krn/runs/foreman/S4g.jsonl'), 'utf8')
+      await readFile(join(root, '.krn/runs/foreman/S4g/trace.jsonl'), 'utf8')
     )
       .trim()
       .split('\n')

@@ -109,7 +109,7 @@ async function runLiveSmoke() {
     );
     const events = (
       await readFile(
-        join(cwd, '.krn', 'runs', 'foreman', `${job.id}.jsonl`),
+        join(cwd, '.krn', 'runs', 'foreman', job.id, 'trace.jsonl'),
         'utf8',
       )
     )

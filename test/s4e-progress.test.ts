@@ -56,6 +56,7 @@ test('checkpoint instruction is imperative and its filled command executes', asy
       namespaceLauncher: 'missing-unshare',
     });
     const job = { id: 'J1', issue: 'issue-1', worktree: root };
+    let startedSession = '';
     const run = await host.start({
       cwd: root,
       model: 'gpt-6-luna',
@@ -69,6 +70,7 @@ test('checkpoint instruction is imperative and its filled command executes', asy
         intent: 'intent:0',
       },
       onStarted: async (session) => {
+        startedSession = session;
         const capsule = await relay.load(job, { revision: 'r1' });
         const bound = await relay.bindSession(job, capsule, session);
         assert.equal(bound.applied, true);
@@ -112,10 +114,11 @@ test('checkpoint instruction is imperative and its filled command executes', asy
       encoding: 'utf8',
     });
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.equal(
-      (await relay.load(job, { revision: 'r1' })).nextAction,
-      'continue with step two',
-    );
+    const { checkpointRequest } = await import('../src/trace/index.ts');
+    assert.deepEqual(await checkpointRequest(job, 'intent:0', startedSession), {
+      message: 'feat: save step one',
+      next: 'continue with step two',
+    });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -179,8 +182,17 @@ test('krn start creates a named krn/<job-id> branch', () => {
       { cwd: root, encoding: 'utf8' },
     );
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    const job = JSON.parse(result.stdout) as { worktree: string };
+    const job = JSON.parse(result.stdout) as {
+      worktree: string;
+      repoRoot: string;
+    };
     assert.equal(git(job.worktree, ['branch', '--show-current']), 'krn/J3');
+    assert.equal(job.repoRoot, root);
+    const record = JSON.parse(
+      readFileSync(join(root, '.krn/runs/foreman/J3/repo.json'), 'utf8'),
+    ) as { gitDir: string; gitWorkTree: string };
+    assert.equal(record.gitWorkTree, job.worktree);
+    assert.match(record.gitDir, /\.git/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -254,7 +266,19 @@ test('foreman reports no_progress when a claimed-complete session has no checkpo
 
 test('KRN_LIVE_DIAG stores only an opt-in, 2000-character reason file outside trace', async () => {
   const root = mkdtempSync(join(tmpdir(), 'krn-s4e-diag-'));
-  const job = { id: 'J5', issue: 'issue-5', worktree: root };
+  git(root, ['init', '-q', '--initial-branch=main']);
+  writeFileSync(join(root, 'README.md'), 'fixture\n');
+  git(root, ['add', 'README.md']);
+  git(root, [
+    '-c',
+    'user.name=KRN Test',
+    '-c',
+    'user.email=test@example.invalid',
+    'commit',
+    '-qm',
+    'fixture',
+  ]);
+  const job = { id: 'J5', issue: 'issue-5', worktree: root, repoRoot: root };
   const head = 'b'.repeat(40);
   const capsule = {
     jobId: job.id,
@@ -323,7 +347,7 @@ test('KRN_LIVE_DIAG stores only an opt-in, 2000-character reason file outside tr
     }),
   } as unknown as Deps;
 
-  const path = join(root, '.krn', 'runs', 'foreman', 'J5.reason.txt');
+  const path = join(root, '.krn', 'runs', 'foreman', 'J5', 'reason.txt');
   const previous = process.env.KRN_LIVE_DIAG;
   try {
     delete process.env.KRN_LIVE_DIAG;
