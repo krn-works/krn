@@ -165,6 +165,15 @@ export type Deps = {
       sessionId: string,
     ): Promise<boolean>;
     sessionEnd(job: Job, sessionId: string): Promise<SessionEnd | null>;
+    sessionIsolation?(
+      job: Job,
+      sessionId: string,
+    ): Promise<'pid_namespace' | 'systemd_scope' | null>;
+    sessionLost?(
+      job: Job,
+      sessionId: string,
+      dirtyPaths: readonly string[],
+    ): Promise<void>;
     log(
       job: Job,
       intent: string,
@@ -216,6 +225,10 @@ export type Deps = {
       }): Promise<Session>;
     };
     cancelTree(sessionId: string): Promise<void>;
+    sessionScopeActive?(
+      jobId: string,
+      sessionId: string,
+    ): boolean | null | Promise<boolean | null>;
   };
   readonly stop: (
     job: Job,

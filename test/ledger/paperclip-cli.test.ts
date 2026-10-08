@@ -160,6 +160,69 @@ test('CLI activity conflicts use the read-only issue activity command', async ()
   }
 });
 
+test('CLI submit reconciles its own update and comment activity without a conflict write', async () => {
+  const fake = await fakeCli();
+  await writeFile(
+    fake.executable,
+    `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+const statePath = ${JSON.stringify(fake.capture)};
+let state = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, 'utf8')) : { status: 'in_progress', updatedAt: ${JSON.stringify(issue.updatedAt)}, events: [], writes: 0, reads: 0 };
+if (args[0] === 'issue' && args[1] === 'get') {
+  state.reads++;
+  fs.writeFileSync(statePath, JSON.stringify(state));
+  process.stdout.write(JSON.stringify({ ...${JSON.stringify(issue)}, status: state.status, updatedAt: state.updatedAt }));
+} else if (args[0] === 'activity' && args[1] === 'issue') {
+  process.stdout.write(JSON.stringify(state.events));
+} else if (args[0] === 'issue' && args[1] === 'update') {
+  const comment = args[args.indexOf('--comment') + 1];
+  state.writes++;
+  state.status = 'in_review';
+  state.updatedAt = new Date().toISOString();
+  state.events.push(
+    { id: 'update-1', action: 'issue.updated', entityId: ${JSON.stringify(issue.id)}, createdAt: state.updatedAt, details: { changes: { status: { from: 'in_progress', to: 'in_review' } } } },
+    { id: 'comment-1', action: 'issue.commented', entityId: ${JSON.stringify(issue.id)}, createdAt: state.updatedAt, details: { body: comment } }
+  );
+  fs.writeFileSync(statePath, JSON.stringify(state));
+  process.stdout.write(JSON.stringify({ ...${JSON.stringify(issue)}, status: state.status, updatedAt: state.updatedAt }));
+} else {
+  process.stderr.write('unexpected fake Paperclip command: ' + args.join(' '));
+  process.exit(2);
+}
+`,
+  );
+  await chmod(fake.executable, 0o755);
+  try {
+    const ledger = createLedger({
+      session: 'session-from-trailer',
+      transport: createPaperclipCliTransport({ executable: fake.executable }),
+    });
+    const contract = await ledger.readContract(issue.id);
+    assert.equal(
+      await ledger.submitForReview(
+        { id: 'cli-submit', issue: issue.id, worktree: process.cwd() },
+        contract,
+        {
+          kind: 'verdict_pass',
+          sha: 'a'.repeat(40),
+          checks: [
+            { id: 'gate', exitCode: 0, durationMs: 1, sha256: 'b'.repeat(64) },
+          ],
+        },
+        'a'.repeat(40),
+      ),
+      'submitted',
+    );
+    const state = JSON.parse(await readFile(fake.capture, 'utf8')) as {
+      writes: number;
+    };
+    assert.equal(state.writes, 1);
+  } finally {
+    await rm(fake.directory, { recursive: true, force: true });
+  }
+});
+
 test('CLI submit reconciliation reads issue comments with JSON output', async () => {
   const fake = await fakeCli();
   await writeFile(

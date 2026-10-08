@@ -315,10 +315,32 @@ test('submission requires a verdict pass bound to the recorded SHA', async () =>
   assert.equal(writes.length, 0);
 });
 
+test('KRN_SESSION override must match the verified commit trailer', async () => {
+  let writes = 0;
+  const ledger = createLedger({
+    apiUrl: 'http://paperclip.test',
+    token: 'fixture-token',
+    session: 'different-session',
+    fetch: async (_input, init) => {
+      if (init?.method) writes += 1;
+      return response(issue());
+    },
+  });
+  const contract = await ledger.readContract(job.issue);
+  assert.equal(
+    await ledger.submitForReview(job, contract, evidence(), sha, {
+      session: 'trailer-session',
+    }),
+    'refused',
+  );
+  assert.equal(writes, 0);
+});
+
 test('review uses one in_review PATCH with SHA, check hashes, and session comment', async () => {
   const writes: Request[] = [];
   const activities: Array<Record<string, unknown>> = [];
   let status = 'in_progress';
+  let updatedAt = '2026-10-08T10:00:00.000Z';
   const ledger = createLedger({
     apiUrl: 'http://paperclip.test',
     token: 'fixture-token',
@@ -328,16 +350,27 @@ test('review uses one in_review PATCH with SHA, check hashes, and session commen
       if (path.endsWith('/activity')) return response(activities);
       if (init?.method === 'PATCH') {
         writes.push(new Request('http://paperclip.test', init));
+        const body = JSON.parse(String(init.body)) as { comment: string };
         status = 'in_review';
-        activities.push({
-          id: 'ledger-update',
-          action: 'issue.updated',
-          entityId: job.issue,
-          createdAt: '2026-10-08T10:00:00.002Z',
-          details: { status: 'in_review', source: 'comment' },
-        });
+        updatedAt = new Date().toISOString();
+        activities.push(
+          {
+            id: 'ledger-update',
+            action: 'issue.updated',
+            entityId: job.issue,
+            createdAt: updatedAt,
+            details: { status: 'in_review', source: 'comment' },
+          },
+          {
+            id: 'ledger-comment',
+            action: 'issue.commented',
+            entityId: job.issue,
+            createdAt: updatedAt,
+            details: { body: body.comment },
+          },
+        );
       }
-      return response(issue(undefined, status));
+      return response({ ...issue(updatedAt, status), updatedAt });
     },
   });
   const contract = await ledger.readContract(job.issue);
@@ -355,6 +388,56 @@ test('review uses one in_review PATCH with SHA, check hashes, and session commen
     new RegExp(`gate: pass; result sha256 ${resultHash}`),
   );
   assert.notEqual(body.status, 'done');
+});
+
+test('post-write reconciliation recognizes the paired update and exact comment', async () => {
+  const activities: Array<Record<string, unknown>> = [];
+  const comments: string[] = [];
+  let status = 'in_progress';
+  let updatedAt = '2026-10-08T10:00:00.000Z';
+  const ledger = createLedger({
+    apiUrl: 'http://paperclip.test',
+    token: 'fixture-token',
+    session: 'session-7',
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path.endsWith('/activity')) return response(activities);
+      if (init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as {
+          status: string;
+          comment: string;
+        };
+        status = body.status;
+        comments.push(body.comment);
+        updatedAt = new Date().toISOString();
+        activities.push(
+          {
+            id: 'own-status-change',
+            action: 'issue.updated',
+            entityId: job.issue,
+            createdAt: updatedAt,
+            details: {
+              changes: { status: { from: 'in_progress', to: 'in_review' } },
+            },
+          },
+          {
+            id: 'own-comment',
+            action: 'issue.commented',
+            entityId: job.issue,
+            createdAt: updatedAt,
+            details: { body: body.comment },
+          },
+        );
+      }
+      return response({ ...issue(updatedAt, status), updatedAt });
+    },
+  });
+  const contract = await ledger.readContract(job.issue);
+  assert.equal(
+    await ledger.submitForReview(job, contract, evidence(), sha),
+    'submitted',
+  );
+  assert.equal(comments.length, 1);
 });
 
 test('done issue is never moved by ledger', async () => {

@@ -9,6 +9,7 @@ import {
   assertSystemdUserScopesAvailable,
   killAndVerifyScope,
   spawnSystemdScope,
+  systemdScopeActive,
   userManagerEnvironment,
 } from './systemd-scope.ts';
 
@@ -223,6 +224,13 @@ export class CodexHost {
   async cancelTree(sessionId: string): Promise<void> {
     const running = this.#sessions.get(sessionId);
     if (running) await running.cancel();
+  }
+
+  sessionScopeActive(jobId: string, sessionId: string): boolean | null {
+    const job =
+      jobId.replace(/[^A-Za-z0-9:_.-]/g, '-').slice(0, 80) || 'session';
+    if (!/^[A-Za-z0-9-]{1,128}$/.test(sessionId)) return null;
+    return systemdScopeActive(`krn-${job}-${sessionId}.scope`);
   }
 
   async cancelAll(): Promise<void> {

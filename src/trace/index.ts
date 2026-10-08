@@ -211,6 +211,31 @@ export async function sessionEnd(
   return { ...parsed.data, claimsDone: completed };
 }
 
+export async function sessionIsolation(
+  job: Job,
+  sessionId: string,
+): Promise<'pid_namespace' | 'systemd_scope' | null> {
+  const started = events(job).find(
+    (event) =>
+      event.kind === 'session_started' && event.data.sessionId === sessionId,
+  );
+  return started?.data.isolation === 'systemd_scope' ||
+    started?.data.isolation === 'pid_namespace'
+    ? started.data.isolation
+    : null;
+}
+
+export async function sessionLost(
+  job: Job,
+  sessionId: string,
+  dirtyPaths: readonly string[],
+): Promise<void> {
+  append(job, `session-lost:${sessionId}`, 'session_lost', {
+    sessionId,
+    dirtyPaths,
+  });
+}
+
 export async function log(
   job: Job,
   intentId: string,

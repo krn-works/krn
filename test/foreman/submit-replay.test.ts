@@ -93,18 +93,29 @@ async function fixture(failFirstUpdate = false) {
     updateIssue: async (_id: string, newStatus: string, comment: string) => {
       updates += 1;
       status = newStatus;
-      updatedAt = `2026-10-08T10:00:00.00${updates}Z`;
+      updatedAt = new Date().toISOString();
       comments.push({
         body: comment,
-        createdAt: `2026-10-08T10:00:00.00${updates}Z`,
+        createdAt: updatedAt,
       });
-      activities.push({
-        id: `update-${updates}`,
-        action: 'issue.updated',
-        entityId: issueId,
-        createdAt: `2026-10-08T10:00:00.00${updates}Z`,
-        details: { status: newStatus, source: 'comment' },
-      });
+      activities.push(
+        {
+          id: `update-${updates}`,
+          action: 'issue.updated',
+          entityId: issueId,
+          createdAt: updatedAt,
+          details: {
+            changes: { status: { from: 'in_progress', to: newStatus } },
+          },
+        },
+        {
+          id: `comment-${updates}`,
+          action: 'issue.commented',
+          entityId: issueId,
+          createdAt: updatedAt,
+          details: { body: comment },
+        },
+      );
       if (failFirstUpdate && updates === 1)
         throw new Error('simulated process crash after Paperclip PATCH');
       return issue();
