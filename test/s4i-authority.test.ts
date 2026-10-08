@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -23,6 +24,7 @@ import type { Capsule, Deps, RepoFacts } from '../src/foreman/types.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
+import { judge } from '../src/verdict/index.ts';
 
 function git(root: string, args: string[]): string {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
@@ -31,11 +33,20 @@ function git(root: string, args: string[]): string {
 }
 
 function repo(): string {
-  const root = mkdtempSync(join(tmpdir(), 'krn-s4i-'));
+  const scratch = join(process.cwd(), '.krn', 'tmp');
+  mkdirSync(scratch, { recursive: true });
+  const root = mkdtempSync(join(scratch, 'krn-s4i-'));
   writeFileSync(join(root, '.gitignore'), '.krn/\n');
   writeFileSync(join(root, 'README.md'), 'fixture\n');
+  writeFileSync(
+    join(root, 'krn.checks.json'),
+    JSON.stringify({
+      version: 1,
+      checks: [{ id: 'always', argv: ['/usr/bin/true'], timeoutMs: 3000 }],
+    }),
+  );
   git(root, ['init', '-q', '--initial-branch=main']);
-  git(root, ['add', '.gitignore', 'README.md']);
+  git(root, ['add', '.gitignore', 'README.md', 'krn.checks.json']);
   git(root, [
     '-c',
     'user.name=Fixture',
@@ -49,6 +60,27 @@ function repo(): string {
   git(root, ['config', 'user.email', 'foreman@example.invalid']);
   return root;
 }
+
+test('J1 public verdict entrypoint runs a check declared at the base SHA', async () => {
+  const root = repo();
+  try {
+    const sha = git(root, ['rev-parse', 'HEAD']);
+    const job = { id: 'J1-public', issue: 'I', worktree: root, repoRoot: root };
+    let resultPromise: ReturnType<typeof judge> | undefined;
+    assert.doesNotThrow(() => {
+      resultPromise = judge(job, sha, sha, ['always'], async () => {});
+    });
+    assert.ok(resultPromise);
+    const result = await resultPromise;
+    assert.equal(
+      result.kind,
+      'pass',
+      result.kind === 'pass' ? '' : result.findings.join('; '),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test('B2 refuses protected files and records session provenance', () => {
   const root = repo();
@@ -469,13 +501,39 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
         maxRepairs: 0,
         session: { timeoutMs: 10_000 },
       },
-      ledger: { readContract: async () => ({ revision: 'survivor-r1' }) },
+      ledger: {
+        readContract: async () => ({
+          revision: 'survivor-r1',
+          checks: ['always'],
+        }),
+      },
       relay,
       trace,
       hosts: { codex: host, cancelTree: (id) => host.cancelTree(id) },
       stop: (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
     });
-    assert.equal(outcome.kind, 'review');
+    const directory = join(
+      root,
+      '.krn',
+      'runs',
+      'foreman',
+      job.id,
+      'diagnostics',
+    );
+    const diagnostics = existsSync(directory)
+      ? readdirSync(directory)
+          .map((file) => readFileSync(join(directory, file), 'utf8'))
+          .join('\n')
+      : '';
+    assert.deepEqual(
+      outcome,
+      {
+        kind: 'verdict_pass',
+        state: 'human_decision',
+        sha: git(root, ['rev-parse', 'HEAD']),
+      },
+      diagnostics,
+    );
     await delay(4_200);
     assert.equal(
       existsSync(lateFile),

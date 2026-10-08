@@ -4,6 +4,10 @@ export type Job = {
   readonly issue: string;
   readonly worktree: string;
   readonly repoRoot?: string;
+  readonly checkpoint?: {
+    readonly message: string;
+    readonly next: string;
+  };
 };
 
 export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };

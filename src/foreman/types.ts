@@ -1,6 +1,9 @@
 import type { Job } from '../core/index.ts';
 
-export type Contract = { readonly revision: string };
+export type Contract = {
+  readonly revision: string;
+  readonly checks?: readonly string[];
+};
 export type Capsule = {
   readonly jobId: string;
   readonly issue: string;
@@ -48,6 +51,11 @@ export type SessionEnd = {
 export type SessionResult = SessionEnd & { readonly finalMessage?: string };
 export type Session = { readonly id: string; wait(): Promise<SessionResult> };
 export type Outcome =
+  | {
+      readonly kind: 'verdict_pass';
+      readonly state: 'human_decision';
+      readonly sha: string;
+    }
   | { readonly kind: 'review'; readonly head: string }
   | {
       readonly kind: 'stop';
@@ -98,6 +106,10 @@ export type Deps = {
       facts: RepoFacts,
       end: SessionEnd,
     ): Promise<Cas<Capsule>>;
+    withFindingsCAS?(
+      capsule: Capsule,
+      findings: readonly string[],
+    ): Promise<Cas<Capsule>>;
   };
   readonly trace: {
     intent(job: Job, epoch: number): Promise<string>;
@@ -146,6 +158,10 @@ export type Deps = {
       end: SessionEnd,
     ): Promise<void>;
     failure(job: Job, intent: string, error: unknown): Promise<void>;
+    verdict?(
+      job: Job,
+      event: import('../verdict/index.ts').VerdictEvent,
+    ): Promise<void>;
   };
   readonly hosts: {
     readonly codex: {

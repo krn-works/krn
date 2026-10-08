@@ -28,7 +28,9 @@ function git(root: string, args: string[]): string {
 test('checkpoint instruction is imperative and its filled command executes', async () => {
   const root = mkdtempSync(join(tmpdir(), 'krn-s4e-checkpoint-'));
   const executable = join(root, 'fake-codex');
+  const argsPath = join(root, '.krn', 'args.json');
   try {
+    mkdirSync(join(root, '.krn'), { recursive: true });
     writeFileSync(join(root, '.gitignore'), '.krn/\nfake-codex\n');
     writeFileSync(join(root, 'README.md'), 'checkpoint fixture\n');
     git(root, ['init', '-q', '--initial-branch=main']);
@@ -44,7 +46,7 @@ test('checkpoint instruction is imperative and its filled command executes', asy
     ]);
     writeFileSync(
       executable,
-      `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nconst data = await new Promise((resolve) => { let value = ''; process.stdin.setEncoding('utf8').on('data', (part) => value += part).on('end', () => resolve(value)); });\nwriteFileSync(${JSON.stringify(join(root, '.krn', 'prompt.txt'))}, data);\n`,
+      `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nconst data = await new Promise((resolve) => { let value = ''; process.stdin.setEncoding('utf8').on('data', (part) => value += part).on('end', () => resolve(value)); });\nwriteFileSync(${JSON.stringify(join(root, '.krn', 'prompt.txt'))}, data);\nwriteFileSync(${JSON.stringify(argsPath)}, JSON.stringify(process.argv.slice(2)));\n`,
     );
     git(root, ['config', 'user.name', 'KRN Test']);
     git(root, ['config', 'user.email', 'test@example.invalid']);
@@ -68,6 +70,8 @@ test('checkpoint instruction is imperative and its filled command executes', asy
         issue: job.issue,
         worktree: root,
         intent: 'intent:0',
+        message: 'feat: save step one',
+        next: 'continue with step two',
       },
       onStarted: async (session) => {
         startedSession = session;
@@ -82,11 +86,23 @@ test('checkpoint instruction is imperative and its filled command executes', asy
       },
     });
     await run.wait();
-    const prompt = readFileSync(join(root, '.krn', 'prompt.txt'), 'utf8');
-    assert.match(prompt, /When you reach a checkpoint, run exactly:/u);
-    const match = /When you reach a checkpoint, run exactly: ([^\n]+)/u.exec(
-      prompt,
+    const codexArgs = JSON.parse(readFileSync(argsPath, 'utf8')) as string[];
+    assert.deepEqual(
+      codexArgs.slice(
+        codexArgs.indexOf('--add-dir'),
+        codexArgs.indexOf('--add-dir') + 2,
+      ),
+      ['--add-dir', join(root, '.krn')],
     );
+    const prompt = readFileSync(join(root, '.krn', 'prompt.txt'), 'utf8');
+    assert.match(
+      prompt,
+      /Execute this exact command in your terminal now, then end your turn\. Do not write the command as a text response:/u,
+    );
+    const match =
+      /Execute this exact command in your terminal now, then end your turn\. Do not write the command as a text response:\n([^\n]+)/u.exec(
+        prompt,
+      );
     const printedCommand = match?.[1];
     assert.ok(
       printedCommand,
@@ -97,19 +113,14 @@ test('checkpoint instruction is imperative and its filled command executes', asy
     assert.match(printedCommand, /--worktree/u);
     assert.match(printedCommand, /--intent/u);
     assert.match(printedCommand, /--session/u);
-    assert.match(printedCommand, /--message "<conventional commit subject>"/u);
-    assert.match(printedCommand, /--next "<one line \| done>"/u);
+    assert.match(printedCommand, /--message 'feat: save step one'/u);
+    assert.match(printedCommand, /--next 'continue with step two'/u);
+    assert.equal(prompt.trimEnd().split('\n').at(-1), printedCommand);
     assert.equal(
       git(root, ['status', '--porcelain', '--untracked-files=normal']),
       '',
     );
-    const command = printedCommand
-      .replace(
-        '--message "<conventional commit subject>"',
-        '--message "feat: save step one"',
-      )
-      .replace('--next "<one line | done>"', '--next "continue with step two"');
-    const result = spawnSync('/bin/sh', ['-lc', command], {
+    const result = spawnSync('/bin/sh', ['-lc', printedCommand], {
       cwd: root,
       encoding: 'utf8',
     });

@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -14,7 +22,9 @@ async function fixture(options: {
   readonly editAfter?: boolean;
   readonly next: string;
 }) {
-  const root = await mkdtemp(join(tmpdir(), 'krn-s4g-'));
+  const scratch = join(process.cwd(), '.krn', 'tmp');
+  await mkdir(scratch, { recursive: true });
+  const root = await mkdtemp(join(scratch, 'krn-s4g-'));
   const auxiliary = await mkdtemp(join(tmpdir(), 'krn-s4g-worker-'));
   const git = (args: string[]) => {
     const result = spawnSync('git', ['-C', root, ...args], {
@@ -26,7 +36,14 @@ async function fixture(options: {
   git(['init', '-q', '--initial-branch=main']);
   await writeFile(join(root, '.gitignore'), '.krn/\n');
   await writeFile(join(root, 'README.md'), 'fixture\n');
-  git(['add', '.gitignore', 'README.md']);
+  await writeFile(
+    join(root, 'krn.checks.json'),
+    JSON.stringify({
+      version: 1,
+      checks: [{ id: 'always', argv: ['/usr/bin/true'], timeoutMs: 3000 }],
+    }),
+  );
+  git(['add', '.gitignore', 'README.md', 'krn.checks.json']);
   git([
     '-c',
     'user.name=Fixture',
@@ -69,7 +86,9 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
   const job = { id: 'S4g', issue: 'S4g', worktree: root };
   const outcome = await runJob(job, {
     budget: { maxResets: 1, maxRepairs: 0, session: { timeoutMs: 10_000 } },
-    ledger: { readContract: async () => ({ revision: 'r1' }) },
+    ledger: {
+      readContract: async () => ({ revision: 'r1', checks: ['always'] }),
+    },
     relay,
     trace,
     hosts: {
@@ -223,19 +242,40 @@ test('checkpoint with no worktree changes is refused without a commit', async ()
   }
 });
 
-test('real CLI --next done ends the job without opening another session', async () => {
+test('real CLI --next done records a verdict without opening another session', async () => {
   const { root, auxiliary, outcome } = await fixture({
     edit: false,
     editAfter: true,
     next: 'done',
   });
   try {
-    assert.deepEqual(outcome, {
-      kind: 'review',
-      head: spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], {
-        encoding: 'utf8',
-      }).stdout.trim(),
-    });
+    const diagPath = join(
+      root,
+      '.krn',
+      'runs',
+      'foreman',
+      'S4g',
+      'diagnostics',
+    );
+    const diagnostics = await readdir(diagPath)
+      .then((files) =>
+        Promise.all(
+          files.map((file) => readFile(join(diagPath, file), 'utf8')),
+        ),
+      )
+      .then((files) => files.join('\n'))
+      .catch(() => '');
+    assert.deepEqual(
+      outcome,
+      {
+        kind: 'verdict_pass',
+        state: 'human_decision',
+        sha: spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], {
+          encoding: 'utf8',
+        }).stdout.trim(),
+      },
+      diagnostics,
+    );
     assert.equal(await readFile(join(auxiliary, 'calls'), 'utf8'), '1');
   } finally {
     await rm(root, { recursive: true, force: true });

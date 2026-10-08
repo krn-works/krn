@@ -63,6 +63,8 @@ export type CodexStartInput = {
     readonly worktree: string;
     readonly repoRoot?: string;
     readonly intent: string;
+    readonly message?: string;
+    readonly next?: string;
   };
   readonly onStarted?: (
     sessionId: string,
@@ -95,7 +97,7 @@ export class CodexHost {
     const scope =
       isolation === 'systemd_scope' ? scopeName(input, id) : undefined;
     const checkpoint = input.checkpoint
-      ? `\n\nWhen you reach a checkpoint, run exactly: ${[
+      ? `\n\nDo not run git commands or create commits. Checkpoint records your request; the foreman commits the worktree changes. If needed, add --decision "<one line>". Execute this exact command in your terminal now, then end your turn. Do not write the command as a text response:\n${[
           process.execPath,
           input.checkpoint.cli,
           'checkpoint',
@@ -116,9 +118,9 @@ export class CodexHost {
           .map(shellQuote)
           .join(
             ' ',
-          )} --message "<conventional commit subject>" --next "<one line | done>"\nDo not run git commands or create commits. Checkpoint records your request; the foreman commits the worktree changes. If there are no changes, report that instead of checkpointing. If needed, add --decision "<one line>".`
+          )} --message ${input.checkpoint.message ? shellQuote(input.checkpoint.message) : '"<conventional commit subject>"'} --next ${input.checkpoint.next ? shellQuote(input.checkpoint.next) : '"<one line | done>"'}`
       : '';
-    const prompt = `${input.prompt}${checkpoint}\n\nAfter saving a checkpoint, finish this turn immediately.`;
+    const prompt = `${input.prompt}${checkpoint}`;
     const codexArgs = [
       'exec',
       '--json',
@@ -131,6 +133,9 @@ export class CodexHost {
       'workspace-write',
       '--cd',
       input.cwd,
+      ...(input.checkpoint && existsSync(join(input.cwd, '.krn'))
+        ? ['--add-dir', join(input.cwd, '.krn')]
+        : []),
       '--color',
       'never',
       '-',
