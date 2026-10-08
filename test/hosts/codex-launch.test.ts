@@ -37,3 +37,30 @@ test('CodexHost pins low reasoning effort for bounded shell work', async () => {
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('an empty Codex final message is not a completed claim', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-codex-empty-'));
+  try {
+    const initialized = spawnSync('git', ['-C', directory, 'init', '-q']);
+    assert.equal(initialized.status, 0);
+    const executable = join(directory, 'fake-codex');
+    await writeFile(
+      executable,
+      `#!/usr/bin/env node\nprocess.stdout.write(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: '' } }) + '\\n');\nprocess.stdout.write(JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } }) + '\\n');\n`,
+    );
+    await chmod(executable, 0o755);
+
+    const host = new CodexHost({ executable });
+    const session = await host.start({
+      cwd: directory,
+      model: 'gpt-6-luna',
+      prompt: 'Run pwd',
+      limits: { timeoutMs: 5000 },
+    });
+    const result = await session.wait();
+    assert.equal(result.finalMessage, '');
+    assert.equal(result.claimsDone, false);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

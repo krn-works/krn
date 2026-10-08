@@ -202,6 +202,7 @@ test('start refuses a worktrees symlink that escapes the target repo', async () 
 });
 
 test('B1 foreman waits for a checkpointing tool session to die before retrying', async () => {
+  const previousIsolation = process.env.KRN_ISOLATION;
   const root = await repoFixture();
   const outside = await mkdtemp(join(tmpdir(), 'krn-s4b-shell-'));
   const pidFile = join(outside, 'session-pid');
@@ -251,6 +252,7 @@ if (count === 1) {
   const cancelled: string[] = [];
   const started: string[] = [];
   try {
+    process.env.KRN_ISOLATION = 'pid_namespace';
     // The fake runs the real CLI inside a distinct shell process group.
     const startedAt = Date.now();
     const outcome = await runJob(job, {
@@ -335,6 +337,8 @@ if (count === 1) {
     } catch {}
     await rm(root, { recursive: true, force: true });
     await rm(outside, { recursive: true, force: true });
+    if (previousIsolation === undefined) delete process.env.KRN_ISOLATION;
+    else process.env.KRN_ISOLATION = previousIsolation;
   }
 });
 
@@ -476,12 +480,11 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
   }
 });
 
-test('B2 proc-tree fallback is selected and reaps a setsid descendant', async () => {
+test('default process-tree isolation reaps a setsid descendant', async () => {
   const root = await repoFixture();
   const pidFile = join(root, 'escaped-pid');
-  const namespaceLauncher = join(root, 'unshare-unavailable');
-  await writeFile(namespaceLauncher, '#!/bin/sh\nexit 1\n');
-  await chmod(namespaceLauncher, 0o755);
+  const previousIsolation = process.env.KRN_ISOLATION;
+  delete process.env.KRN_ISOLATION;
   const workerSource = [
     "import { readFileSync, writeFileSync } from 'node:fs';",
     "const ids=readFileSync('/proc/self/status','utf8').match(/^NSpid:\\s+(.+)$/m)[1].trim().split(/\\s+/);",
@@ -500,7 +503,7 @@ setInterval(()=>{},1000);
   );
   const job = { id: 'B2-fallback', issue: 'I-2', worktree: root };
   const intent = await trace.intent(job, 0);
-  const host = new CodexHost({ executable, namespaceLauncher });
+  const host = new CodexHost({ executable });
   try {
     const session = await host.start({
       cwd: root,
@@ -540,6 +543,8 @@ setInterval(()=>{},1000);
       'proc_tree_fallback',
     );
   } finally {
+    if (previousIsolation === undefined) delete process.env.KRN_ISOLATION;
+    else process.env.KRN_ISOLATION = previousIsolation;
     try {
       process.kill(Number(await readFile(pidFile, 'utf8')), 'SIGKILL');
     } catch {}

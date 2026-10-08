@@ -316,7 +316,7 @@ class RunningSession {
           code === 0 &&
           !this.#overflow &&
           !this.#malformed &&
-          Boolean(this.#finalMessage),
+          Boolean(this.#finalMessage?.text.trim()),
         ...(this.#finalMessage === undefined
           ? {}
           : { finalMessage: this.#finalMessage.text }),
@@ -476,6 +476,8 @@ function signalPid(pid: number, signal: NodeJS.Signals): void {
 }
 
 function detectIsolationMode(namespaceLauncher: string): CodexIsolationMode {
+  if (process.env.KRN_ISOLATION !== 'pid_namespace')
+    return 'proc_tree_fallback';
   if (process.platform !== 'linux') return 'proc_tree_fallback';
   const result = spawnSync(
     namespaceLauncher,
