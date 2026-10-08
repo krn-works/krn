@@ -117,12 +117,13 @@ function changedTestFiles(root: string, base: string, head: string): string[] {
     .sort();
 }
 
-function classifyTest(
+async function classifyTest(
   root: string,
   scratch: string,
   sha: string,
   path: string,
-): RedFirstResult {
+  signal?: AbortSignal,
+): Promise<RedFirstResult> {
   const started = Date.now();
   const id = `red-first-${randomUUID()}`;
   const job: Job = {
@@ -130,7 +131,7 @@ function classifyTest(
     issue: 'red-first',
     worktree: scratch,
   };
-  const evidence = execute(
+  const evidence = await execute(
     root,
     scratch,
     job,
@@ -138,6 +139,7 @@ function classifyTest(
     [process.execPath, '--test', path],
     120000,
     sha,
+    signal,
   );
   const diagnostics = join(stateDirectory(job), 'diagnostics');
   if (realpathSync(diagnostics) !== diagnostics)
@@ -182,15 +184,16 @@ function classifyTest(
   });
 }
 
-export function redFirst(
+export async function redFirst(
   rootInput: string,
   base: string,
   headInput: string,
-): {
+  signal?: AbortSignal,
+): Promise<{
   readonly baseSha: string;
   readonly headSha: string;
   readonly results: readonly RedFirstResult[];
-} {
+}> {
   const root = repoRoot(rootInput);
   const head = validateSha(root, headInput);
   const baseSha = resolveCommit(root, base);
@@ -198,15 +201,16 @@ export function redFirst(
   const temporary = temporaryDirectory(root);
   const copies: string[] = [];
   try {
-    const results = files.map((path) => {
+    const results: RedFirstResult[] = [];
+    for (const path of files) {
       const scratch = createWorktreeDirectory(temporary);
       copies.push(scratch);
-      addWorktree(root, scratch, baseSha);
+      await addWorktree(root, scratch, baseSha);
       git(scratch, ['checkout', head, '--', ...files]);
-      return classifyTest(root, scratch, baseSha, path);
-    });
+      results.push(await classifyTest(root, scratch, baseSha, path, signal));
+    }
     return { baseSha, headSha: head, results };
   } finally {
-    cleanupWorktrees(root, copies);
+    await cleanupWorktrees(root, copies);
   }
 }

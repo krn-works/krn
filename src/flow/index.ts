@@ -39,7 +39,7 @@ export async function runReview(input: {
     throw new Error('--panel must contain unique judge roles');
   for (const role of panel) roleSchema.parse(role);
   const base = resolveCommit(root, input.base);
-  const red = redFirst(root, base, sha);
+  const red = await redFirst(root, base, sha, input.signal);
   const judges = [];
   for (const role of panel)
     judges.push(
