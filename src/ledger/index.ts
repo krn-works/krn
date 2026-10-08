@@ -81,6 +81,7 @@ export type LedgerTransport = Readonly<{
     status: string,
     comment: string,
   ): Promise<unknown>;
+  cancelAll?(): Promise<void>;
 }>;
 
 function parseIssue(value: unknown) {

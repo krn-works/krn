@@ -153,13 +153,16 @@ export function createPaperclipCliTransport(
     signal?: AbortSignal;
   } = {},
 ): LedgerTransport {
+  const configurationSignal = configuration.signal;
+  const stopController = new AbortController();
+  const signal = configurationSignal
+    ? AbortSignal.any([configurationSignal, stopController.signal])
+    : stopController.signal;
   const options = {
     executable: configuration.executable ?? 'paperclip',
     timeoutMs: configuration.timeoutMs ?? TIMEOUT_MS,
     maxOutputBytes: configuration.maxOutputBytes ?? MAX_OUTPUT_BYTES,
-    ...(configuration.signal === undefined
-      ? {}
-      : { signal: configuration.signal }),
+    signal,
   };
   if (
     !Number.isSafeInteger(options.timeoutMs) ||
@@ -174,13 +177,29 @@ export function createPaperclipCliTransport(
   )
     throw new Error('invalid Paperclip CLI output limit');
   const resolvedIds = new Map<string, string>();
+  const activeCalls = new Set<Promise<unknown>>();
+  function invoke(args: readonly string[]): Promise<unknown> {
+    const pending = runPaperclip(args, options);
+    activeCalls.add(pending);
+    return pending.then(
+      (value) => {
+        activeCalls.delete(pending);
+        return value;
+      },
+      (error: unknown) => {
+        activeCalls.delete(pending);
+        throw error;
+      },
+    );
+  }
   return {
+    async cancelAll() {
+      stopController.abort();
+      await Promise.allSettled([...activeCalls]);
+    },
     async readIssue(issueId) {
       validIssueId(issueId);
-      const value = await runPaperclip(
-        ['issue', 'get', issueId, '--json'],
-        options,
-      );
+      const value = await invoke(['issue', 'get', issueId, '--json']);
       const normalized = normalizeIssueIdentifier(issueId, value);
       if (typeof value !== 'object' || value === null || Array.isArray(value))
         return normalized;
@@ -192,10 +211,7 @@ export function createPaperclipCliTransport(
     },
     async readActivity(issueId) {
       validIssueId(issueId);
-      const value = await runPaperclip(
-        ['activity', 'issue', issueId, '--json'],
-        options,
-      );
+      const value = await invoke(['activity', 'issue', issueId, '--json']);
       const resolvedId = resolvedIds.get(issueId);
       if (!resolvedId || !Array.isArray(value)) return value;
       return value.map((event: unknown) => {
@@ -214,19 +230,16 @@ export function createPaperclipCliTransport(
       if (!status || /[\r\n]/.test(status))
         throw new Error('invalid Paperclip issue status');
       const resolvedId = resolvedIds.get(issueId) ?? issueId;
-      const receipt = await runPaperclip(
-        [
-          'issue',
-          'update',
-          resolvedId,
-          '--status',
-          status,
-          '--comment',
-          comment,
-          '--json',
-        ],
-        options,
-      );
+      const receipt = await invoke([
+        'issue',
+        'update',
+        resolvedId,
+        '--status',
+        status,
+        '--comment',
+        comment,
+        '--json',
+      ]);
       return normalizeIssueIdentifier(issueId, receipt);
     },
   };
