@@ -10,8 +10,8 @@ Accepted for E1 scaffold.
 
 The approved product blueprint selects a new `krn` repository, a single package
 with module directories, a Node 24 TypeScript runtime, and a CLI strangler
-boundary. The source decision is [Blueprint v4, §§3, 7, 9, 10](../../../krn-codex-skills/.krn/runs/lead/program-krn-az/blueprint-v4.md#3-struktura)
-and [the operator charter](../../../krn-codex-skills/.krn/runs/lead/program-krn-az/charter.md#decyzja-nazwy-lead-2026-10-07-na-polecenie-operatora-sam-zadecyduj).
+boundary. The source decision is [Blueprint v4, §§3, 7, 9, 10](../program/blueprint.md#3-struktura)
+and [the operator charter](../program/charter.md#decyzja-nazwy-lead-2026-10-07-na-polecenie-operatora-sam-zadecyduj).
 
 ## Decision
 
