@@ -428,6 +428,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
     process.execPath,
     [
       live,
+      '--http',
       '--repo',
       root,
       '--job',
@@ -471,6 +472,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       process.execPath,
       [
         live,
+        '--http',
         '--repo',
         root,
         '--job',
@@ -620,6 +622,7 @@ test('B3 live uses the requested repo and resumes an existing job by id', async 
   const args = [
     '--job',
     'same-job',
+    '--http',
     '--issue',
     'I-1',
     '--prompt',
@@ -695,6 +698,87 @@ test('B3 live uses the requested repo and resumes an existing job by id', async 
     await rm(repo, { recursive: true, force: true });
     await rm(fakeHome, { recursive: true, force: true });
     await paperclip.close();
+  }
+});
+
+test('live SIGTERM reaps every Paperclip CLI group during contract loading', async () => {
+  const repo = await repoFixture();
+  const fakeBin = await mkdtemp(join(tmpdir(), 'krn-s4b-paperclip-bin-'));
+  const fakeHome = await mkdtemp(join(tmpdir(), 'krn-s4b-paperclip-home-'));
+  const pidFile = join(fakeHome, 'descendants.txt');
+  const executable = join(fakeBin, 'paperclip');
+  await writeFile(
+    executable,
+    `#!/usr/bin/env node\nconst fs = require('node:fs');\nconst { spawn } = require('node:child_process');\nconst child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });\nfs.appendFileSync(process.env.PAPERCLIP_TEST_PID_FILE, String(child.pid) + '\\n');\nsetInterval(() => {}, 1000);\n`,
+  );
+  await chmod(executable, 0o755);
+  const script = new URL('../scripts/live-l1.mjs', import.meta.url).pathname;
+  const live = spawn(
+    process.execPath,
+    [
+      script,
+      '--repo',
+      repo,
+      '--job',
+      'signal-during-ledger-read',
+      '--issue',
+      'I-SIGTERM',
+      '--prompt',
+      'hold during contract read',
+    ],
+    {
+      cwd: new URL('..', import.meta.url).pathname,
+      env: {
+        ...process.env,
+        PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
+        HOME: fakeHome,
+        KRN_LIVE: '1',
+        PAPERCLIP_TEST_PID_FILE: pidFile,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    },
+  );
+  let stderr = '';
+  live.stderr.setEncoding('utf8').on('data', (chunk) => (stderr += chunk));
+  let pids: number[] = [];
+  try {
+    const recorded = await waitFor(async () => {
+      try {
+        const contents = await readFile(pidFile, 'utf8');
+        pids = contents.trim().split('\n').filter(Boolean).map(Number);
+        return pids.length >= 2 ? contents : undefined;
+      } catch {
+        return undefined;
+      }
+    });
+    assert.ok(recorded);
+    live.kill('SIGTERM');
+    const result = await new Promise<{
+      code: number | null;
+      signal: NodeJS.Signals | null;
+    }>((resolve) =>
+      live.once('close', (code, signal) => resolve({ code, signal })),
+    );
+    assert.ok(
+      (await Promise.all(pids.map((pid) => isAlive(pid)))).every(
+        (alive) => !alive,
+      ),
+      'SIGTERM must reap Paperclip CLI descendants before live-l1 exits',
+    );
+    assert.equal(result.code, 130, `${result.signal}: ${stderr}`);
+  } finally {
+    if (live.exitCode === null && live.signalCode === null)
+      live.kill('SIGKILL');
+    for (const pid of pids) {
+      try {
+        process.kill(pid, 'SIGKILL');
+      } catch {}
+    }
+    await Promise.all([
+      rm(fakeBin, { recursive: true, force: true }),
+      rm(fakeHome, { recursive: true, force: true }),
+      rm(repo, { recursive: true, force: true }),
+    ]);
   }
 });
 

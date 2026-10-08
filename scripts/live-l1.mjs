@@ -9,8 +9,30 @@ import {
   loadLiveContract,
   withLiveSubmissionGate,
 } from '../src/ledger/live.ts';
+import { createPaperclipCliTransport } from '../src/ledger/paperclip-cli.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
+
+let cancelPaperclip = async () => {};
+let host;
+let stopping = false;
+let stopPromise;
+const stop = async (code = 130) => {
+  if (stopPromise) return stopPromise;
+  stopping = true;
+  stopPromise = (async () => {
+    const pending = [cancelPaperclip()];
+    if (host) pending.push(host.cancelAll());
+    await Promise.allSettled(pending);
+    process.exit(code);
+  })();
+  return stopPromise;
+};
+const signals = ['SIGINT', 'SIGTERM', 'SIGHUP'].map((signal) => {
+  const handler = () => void stop(130);
+  process.once(signal, handler);
+  return { signal, handler };
+});
 
 if (process.env.KRN_LIVE !== '1') {
   process.stderr.write('Set KRN_LIVE=1 to start the L1 live foreman run.\n');
@@ -67,22 +89,36 @@ const worktree =
 if (git(repo, ['rev-parse', '--show-toplevel']) !== repo)
   throw new Error('--repo must be the repository root');
 const origin = git(repo, ['remote', 'get-url', 'origin']);
-const paperclipUrl = process.env.KRN_PAPERCLIP_API_URL;
-const paperclipToken = process.env.KRN_PAPERCLIP_TOKEN;
 const session = process.env.KRN_SESSION;
-if (!paperclipUrl || !paperclipToken || !session)
-  throw new Error(
-    'KRN_PAPERCLIP_API_URL, KRN_PAPERCLIP_TOKEN, and KRN_SESSION are required',
-  );
-const paperclip = createLedger({
-  apiUrl: paperclipUrl,
-  token: paperclipToken,
-  session,
-});
-const { contract, board } = await loadLiveContract(paperclip, issue, {
-  origin,
-  ...(revision === undefined ? {} : { revision }),
-});
+const useHttp = process.argv.includes('--http');
+if (process.argv.includes('--submit') && !session)
+  throw new Error('KRN_SESSION is required with --submit');
+let paperclipTransport;
+const paperclip = useHttp
+  ? createLedger({
+      apiUrl: process.env.KRN_PAPERCLIP_API_URL ?? '',
+      token: process.env.KRN_PAPERCLIP_TOKEN ?? '',
+      session: session ?? '',
+    })
+  : (() => {
+      paperclipTransport = createPaperclipCliTransport();
+      cancelPaperclip = () => paperclipTransport.cancelAll();
+      return createLedger({
+        session: session ?? '',
+        transport: paperclipTransport,
+      });
+    })();
+let contract;
+let board;
+try {
+  ({ contract, board } = await loadLiveContract(paperclip, issue, {
+    origin,
+    ...(revision === undefined ? {} : { revision }),
+  }));
+} catch (error) {
+  if (stopping) await stopPromise;
+  throw error;
+}
 const liveLedger = withLiveSubmissionGate(
   { ...paperclip, readContract: async () => contract },
   process.argv.includes('--submit'),
@@ -122,24 +158,9 @@ if (ignored.status !== 0)
     `job repository must ignore .krn/runs/foreman/${jobId}/trace.jsonl`,
   );
 
-const host = new CodexHost(
+host = new CodexHost(
   process.env.KRN_CODEX_BIN ? { executable: process.env.KRN_CODEX_BIN } : {},
 );
-let stopping = false;
-const stop = async (code = 130) => {
-  if (stopping) return;
-  stopping = true;
-  try {
-    await host.cancelAll();
-  } finally {
-    process.exit(code);
-  }
-};
-const signals = ['SIGINT', 'SIGTERM', 'SIGHUP'].map((signal) => {
-  const handler = () => void stop(130);
-  process.once(signal, handler);
-  return { signal, handler };
-});
 const wallTimeMs = Number(process.env.KRN_LIVE_WALL_TIME_MS ?? 20 * 60 * 1000);
 if (!Number.isSafeInteger(wallTimeMs) || wallTimeMs <= 0)
   throw new Error('invalid live wall-time limit');

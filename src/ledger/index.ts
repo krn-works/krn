@@ -65,12 +65,24 @@ export type ReviewSubmission =
   | 'board_conflict';
 export type Ledger = ReturnType<typeof createLedger>;
 export type LedgerOptions = {
-  apiUrl: string;
-  token: string;
+  apiUrl?: string;
+  token?: string;
   session: string;
   fetch?: typeof fetch;
   requestTimeoutMs?: number;
+  transport?: LedgerTransport;
 };
+
+export type LedgerTransport = Readonly<{
+  readIssue(issueId: string): Promise<unknown>;
+  readActivity(issueId: string): Promise<unknown>;
+  updateIssue(
+    issueId: string,
+    status: string,
+    comment: string,
+  ): Promise<unknown>;
+  cancelAll?(): Promise<void>;
+}>;
 
 function parseIssue(value: unknown) {
   return issueSchema.safeParse(value);
@@ -144,14 +156,16 @@ async function readBoundedJson(response: Response): Promise<unknown> {
 }
 
 export function createLedger(options: LedgerOptions) {
-  const token = options.token.trim();
-  if (!token) throw new Error('Paperclip credential is required');
-  if (!options.session.trim() || /[\r\n]/.test(options.session))
+  const token = options.token?.trim() ?? '';
+  if (!options.transport && !token)
+    throw new Error('Paperclip credential is required');
+  if (options.session && /[\r\n]/.test(options.session))
     throw new Error('invalid Krn-Session value');
   const timeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 60_000)
     throw new Error('invalid Paperclip request timeout');
-  const base = options.apiUrl.replace(/\/$/, '');
+  const base = options.apiUrl?.replace(/\/$/, '') ?? '';
+  const transport = options.transport;
   const fetchRequest = options.fetch ?? fetch;
   const headers = {
     authorization: `Bearer ${token}`,
@@ -193,6 +207,12 @@ export function createLedger(options: LedgerOptions) {
   async function readIssue(issueId: string) {
     if (!/^[A-Za-z0-9_-]+$/.test(issueId))
       throw new Error('invalid Paperclip issue ID');
+    if (transport) {
+      const parsed = parseIssue(await transport.readIssue(issueId));
+      if (!parsed.success || parsed.data.id !== issueId)
+        throw new Error('invalid Paperclip issue response');
+      return parsed.data;
+    }
     const { response, body } = await requestJson(
       `${base}/api/issues/${issueId}`,
       {
@@ -209,6 +229,16 @@ export function createLedger(options: LedgerOptions) {
   }
 
   async function readActivity(issueId: string) {
+    if (!/^[A-Za-z0-9_-]+$/.test(issueId))
+      throw new Error('invalid Paperclip issue ID');
+    if (transport) {
+      const parsed = activitySchema.safeParse(
+        await transport.readActivity(issueId),
+      );
+      if (!parsed.success)
+        throw new Error('invalid Paperclip activity response');
+      return parsed.data;
+    }
     const { response, body } = await requestJson(
       `${base}/api/issues/${issueId}/activity`,
       { headers, redirect: 'error' },
@@ -227,6 +257,7 @@ export function createLedger(options: LedgerOptions) {
     writtenCommentHash: string,
     events: readonly z.infer<typeof activitySchema>[number][],
   ) {
+    if (!options.session) throw new Error('KRN_SESSION is required to submit');
     const observed = events.length
       ? events.map(
           (event) =>
@@ -243,6 +274,11 @@ export function createLedger(options: LedgerOptions) {
       ...observed,
       'Human review is required; the ledger made no status correction.',
     ].join('\n');
+    if (transport) {
+      const current = await readIssue(issueId);
+      await transport.updateIssue(issueId, current.status, comment);
+      return;
+    }
     const { response } = await requestJson(
       `${base}/api/issues/${issueId}/comments`,
       {
@@ -299,6 +335,8 @@ export function createLedger(options: LedgerOptions) {
         evidence.sha !== recordedSha
       )
         return 'refused';
+      if (!options.session)
+        throw new Error('KRN_SESSION is required to submit');
       const current = await readIssue(job.issue).catch(() => null);
       if (!current) return 'refused';
       if (current.updatedAt !== contract.revision || current.status === 'done')
@@ -319,16 +357,21 @@ export function createLedger(options: LedgerOptions) {
         results,
         `Evidence SHA-256: ${hash(`${evidence.sha}\n${results}`)}`,
       ].join('\n');
-      const { response, body } = await requestJson(
-        `${base}/api/issues/${job.issue}`,
-        {
+      let response: Response | undefined;
+      let body: unknown;
+      if (transport) {
+        body = await transport.updateIssue(job.issue, 'in_review', comment);
+      } else {
+        const result = await requestJson(`${base}/api/issues/${job.issue}`, {
           method: 'PATCH',
           redirect: 'error',
           headers: { ...headers, 'content-type': 'application/json' },
           body: JSON.stringify({ status: 'in_review', comment }),
-        },
-      );
-      if (!response.ok)
+        });
+        response = result.response;
+        body = result.body;
+      }
+      if (response && !response.ok)
         throw new Error(
           `Paperclip review submission failed (${response.status})`,
         );
