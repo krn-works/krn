@@ -62,7 +62,7 @@ function fakeCodex(
   return { executable, argsFile };
 }
 
-test('mechanical red-first distinguishes assertion failures from missing imports', () => {
+test('mechanical red-first distinguishes assertion failures from missing imports', async () => {
   const { root, cleanup } = fixture(join(process.cwd(), '.krn', 'tmp'));
   try {
     const base = git(root, 'rev-parse', 'HEAD');
@@ -78,7 +78,7 @@ test('mechanical red-first distinguishes assertion failures from missing imports
     git(root, 'add', '.');
     git(root, 'commit', '-qm', 'add failing tests');
     const head = git(root, 'rev-parse', 'HEAD');
-    const report = redFirst(root, base, head);
+    const report = await redFirst(root, base, head);
     assert.deepEqual(
       report.results.map(({ classification }) => classification),
       ['assertion', 'procedural'],
@@ -89,7 +89,7 @@ test('mechanical red-first distinguishes assertion failures from missing imports
   }
 });
 
-test('red-first treats real Node resolution and linking errors as procedural', () => {
+test('red-first treats real Node resolution and linking errors as procedural', async () => {
   const { root, cleanup } = fixture(join(process.cwd(), '.krn', 'tmp'));
   try {
     writeFileSync(
@@ -142,7 +142,7 @@ test('red-first treats real Node resolution and linking errors as procedural', (
     git(root, 'add', '.');
     git(root, 'commit', '-qm', 'add Node loader failure cases');
     const head = git(root, 'rev-parse', 'HEAD');
-    const report = redFirst(root, base, head);
+    const report = await redFirst(root, base, head);
     assert.deepEqual(
       report.results.map(({ classification }) => classification),
       orderedFailures.map(() => 'procedural'),
@@ -207,7 +207,7 @@ test('red-first contains detached tests and blocks their network access', async 
     git(root, 'commit', '-qm', 'add sandbox probe');
     const head = git(root, 'rev-parse', 'HEAD');
     const before = populatedCheckScopes();
-    const report = redFirst(root, base, head);
+    const report = await redFirst(root, base, head);
     assert.equal(
       report.results[0]?.classification,
       'other',
