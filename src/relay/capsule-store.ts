@@ -17,6 +17,7 @@ import { z } from 'zod';
 
 import type { Job } from '../core/index.ts';
 import { ensureProjectionDirectory, stateDirectory } from '../foreman/state.ts';
+import type { Contract } from '../ledger/index.ts';
 
 const labels = [
   'Outcome and observable acceptance',
@@ -226,9 +227,44 @@ export function writeCapsule(
   }
 }
 
-export function renderProjection(capsule: Capsule, facts: RepoFacts): string {
-  const projection = renderAbi({ ...capsule, ...facts }, null);
-  if (projection.length > 2000)
-    throw new Error('capsule projection exceeds the 2k-token budget');
-  return projection;
+export function renderProjection(
+  capsule: Capsule,
+  facts: RepoFacts,
+  contract: Contract,
+): string {
+  const capsuleProjection = renderAbi({ ...capsule, ...facts }, null);
+  const sectionStart = [
+    'Task contract:',
+    `Identifier: ${contract.identifier}`,
+    `Title: ${contract.title}`,
+    'Description:',
+  ].join('\n');
+  const sectionEnd = [
+    '',
+    `Checks: ${contract.checks.join(', ')}`,
+    'This contract is your task source; do not look for tasks elsewhere.',
+  ].join('\n');
+  const separator = '\n';
+  const fullProjection = `${capsuleProjection}${separator}${sectionStart}\n${contract.description}${sectionEnd}\n`;
+  if (fullProjection.length <= 2000) return fullProjection;
+
+  const marker =
+    '\n[description truncated to fit the 2k-token projection budget]';
+  const fixedLength =
+    capsuleProjection.length +
+    separator.length +
+    sectionStart.length +
+    1 +
+    marker.length +
+    sectionEnd.length +
+    1;
+  const descriptionLength = 2000 - fixedLength;
+  if (descriptionLength < 0)
+    throw new Error(
+      'task contract metadata exceeds the 2k-token projection budget',
+    );
+  const truncated = `${capsuleProjection}${separator}${sectionStart}\n${contract.description.slice(0, descriptionLength)}${marker}${sectionEnd}\n`;
+  if (truncated.length > 2000)
+    throw new Error('task contract projection exceeds the 2k-token budget');
+  return truncated;
 }

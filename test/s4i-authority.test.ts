@@ -20,7 +20,12 @@ import { commitCheckpoint } from '../src/foreman/commit.ts';
 import { runJob } from '../src/foreman/run.ts';
 import { runSession } from '../src/foreman/session.ts';
 import { recordRepo } from '../src/foreman/state.ts';
-import type { Capsule, Deps, RepoFacts } from '../src/foreman/types.ts';
+import type {
+  Capsule,
+  Contract,
+  Deps,
+  RepoFacts,
+} from '../src/foreman/types.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
@@ -228,6 +233,9 @@ test('B1 a worker supplied diagnostic cannot write through a worktree symlink', 
     ledger: {
       readContract: async () => ({
         issueId: 'authority',
+        identifier: 'authority',
+        title: 'authority fixture',
+        description: 'authority fixture',
         revision: 'r1',
         targetRepo: 'fixture/repo',
         checks: [],
@@ -272,7 +280,22 @@ test('B1 a worker supplied diagnostic cannot write through a worktree symlink', 
     symlinkSync(outside, join(directory, 'reason.txt'));
     symlinkSync(outside, join(directory, 'S4i.reason.txt'));
     process.env.KRN_LIVE_DIAG = '1';
-    await runSession(job, capsule, facts, 'intent:0', d);
+    await runSession(
+      job,
+      capsule,
+      facts,
+      {
+        issueId: job.issue,
+        identifier: 'S4i',
+        title: 'test',
+        description: 'test',
+        revision: 'r1',
+        targetRepo: 'fixture/repo',
+        checks: [],
+      } satisfies Contract,
+      'intent:0',
+      d,
+    );
     assert.equal(readFileSync(outside, 'utf8'), 'unchanged');
   } finally {
     delete process.env.KRN_LIVE_DIAG;
@@ -315,7 +338,7 @@ test('B1 foreman rebuilds the hook capsule from main-checkout authority', async 
     assert.equal(rebuilt.nextAction, initial.nextAction);
     assert.match(
       readFileSync(projection, 'utf8'),
-      /read the current task contract/u,
+      /follow the projected task contract/u,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -512,6 +535,9 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
       ledger: {
         readContract: async () => ({
           issueId: job.issue,
+          identifier: 'S4i',
+          title: 'survivor fixture',
+          description: 'survivor fixture',
           revision: 'survivor-r1',
           targetRepo: 'fixture/repo',
           checks: ['always'],

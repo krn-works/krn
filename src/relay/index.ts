@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import type { Job } from '../core/index.ts';
 import { git } from '../foreman/git.ts';
+import type { Contract } from '../ledger/index.ts';
 import {
   type Capsule,
   type Cas,
@@ -50,7 +51,7 @@ export async function load(
     contractRevision: contract.revision,
     epoch: 0,
     ...repoFacts(job),
-    nextAction: 'read the current task contract',
+    nextAction: 'follow the projected task contract',
     lease: 'ended',
     blockers: [],
     decisions: [],
@@ -129,8 +130,12 @@ export function validate(capsule: Capsule, facts: RepoFacts): Validation {
   return reasons.length === 0 ? { ok: true } : { ok: false, reasons };
 }
 
-export function project(capsule: Capsule, facts: RepoFacts): string {
-  return renderProjection(capsule, facts);
+export function project(
+  capsule: Capsule,
+  facts: RepoFacts,
+  contract: Contract,
+): string {
+  return renderProjection(capsule, facts, contract);
 }
 
 export async function isCurrent(

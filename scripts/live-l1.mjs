@@ -71,7 +71,6 @@ function hasWorktree(root, path) {
 const jobId = argument('--job');
 const issue = argument('--issue');
 const revision = optionalArgument('--revision');
-const prompt = argument('--prompt');
 if (!isAbsolute(argument('--repo'))) throw new Error('--repo must be absolute');
 const repo = realpathSync(resolve(argument('--repo')));
 if (process.argv.includes('--worktree') && !isAbsolute(argument('--worktree')))
@@ -174,8 +173,8 @@ const outcome = await runJob(job, {
   ledger: liveLedger,
   relay: {
     ...relay,
-    project: (capsule, facts) =>
-      `${relay.project(capsule, facts)}\nL1 task: ${prompt}`,
+    project: (capsule, facts, taskContract) =>
+      relay.project(capsule, facts, taskContract),
   },
   trace,
   hosts: { codex: host, cancelTree: (sessionId) => host.cancelTree(sessionId) },

@@ -97,6 +97,9 @@ test('SIGTERM during verdict recording refuses checkpoint pass', async () => {
       f.sha,
       {
         issueId: f.job.issue,
+        identifier: 'fixture',
+        title: 'sandbox fixture',
+        description: 'sandbox fixture',
         revision: 'r1',
         targetRepo: 'fixture/repo',
         checks: ['declared'],
@@ -153,6 +156,9 @@ test('Paperclip board changes and conflicts return human decision outcomes', asy
         f.sha,
         {
           issueId: f.job.issue,
+          identifier: 'fixture',
+          title: 'sandbox fixture',
+          description: 'sandbox fixture',
           revision: 'r1',
           targetRepo: 'fixture/repo',
           checks: ['declared'],

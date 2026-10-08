@@ -298,6 +298,9 @@ if (count === 1) {
       ledger: {
         readContract: async () => ({
           issueId: 'blockers',
+          identifier: 'blockers',
+          title: 'blockers fixture',
+          description: 'blockers fixture',
           revision: 'r1',
           targetRepo: 'fixture/repo',
           checks: [],

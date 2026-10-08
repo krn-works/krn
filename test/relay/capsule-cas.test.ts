@@ -77,12 +77,78 @@ test('a capsule write from a stale epoch is rejected', async () => {
     assert.match(state, /^Outcome and observable acceptance:/m);
     assert.deepEqual(await relay.load(job, { revision: 'rev-1' }), capsule);
     assert.ok(
-      relay.project(capsule, {
+      relay.project(
+        capsule,
+        {
+          base: capsule.base,
+          head: capsule.head,
+          branch: capsule.branch,
+          worktree,
+        },
+        {
+          issueId: 'issue-1',
+          identifier: 'LON-200',
+          title: 'A worker receives the task',
+          description: 'Implement the worker task from this description.',
+          revision: 'rev-1',
+          targetRepo: 'krn/krn',
+          checks: ['gate', 'typecheck'],
+        },
+      ).length <= 2000,
+    );
+    const brief = relay.project(
+      capsule,
+      {
         base: capsule.base,
         head: capsule.head,
         branch: capsule.branch,
         worktree,
-      }).length <= 2000,
+      },
+      {
+        issueId: 'issue-1',
+        identifier: 'LON-200',
+        title: 'A worker receives the task',
+        description: 'Implement the worker task from this description.',
+        revision: 'rev-1',
+        targetRepo: 'krn/krn',
+        checks: ['gate', 'typecheck'],
+      },
+    );
+    assert.match(brief, /Task contract:/u);
+    assert.match(brief, /LON-200/u);
+    assert.match(brief, /A worker receives the task/u);
+    assert.match(brief, /Implement the worker task from this description\./u);
+    assert.match(brief, /gate, typecheck/u);
+    assert.match(
+      brief,
+      /This contract is your task source; do not look for tasks elsewhere\./u,
+    );
+    const longBrief = relay.project(
+      capsule,
+      {
+        base: capsule.base,
+        head: capsule.head,
+        branch: capsule.branch,
+        worktree,
+      },
+      {
+        issueId: 'issue-1',
+        identifier: 'LON-200',
+        title: 'A worker receives the task',
+        description: 'x'.repeat(7000),
+        revision: 'rev-1',
+        targetRepo: 'krn/krn',
+        checks: ['gate'],
+      },
+    );
+    assert.ok(longBrief.length <= 2000);
+    assert.match(
+      longBrief,
+      /\[description truncated to fit the 2k-token projection budget\]/u,
+    );
+    await assert.rejects(
+      relay.load(job, { revision: 'rev-2' }),
+      /contract revision is stale/u,
     );
     assert.deepEqual(await writeCapsule(job, { ...capsule, epoch: 1 }, -1), {
       applied: false,
