@@ -7,7 +7,10 @@ import { basename, join } from 'node:path';
 import { z } from 'zod';
 import {
   assertSystemdUserScopesAvailable,
+  codexScopeRuntimeProperties,
   killAndVerifyScope,
+  type ReapedSystemdScope,
+  reapOrphanedCodexScopes,
   spawnSystemdScope,
   userManagerEnvironment,
 } from './systemd-scope.ts';
@@ -46,6 +49,7 @@ export type CodexSessionResult = {
   readonly reasonSha256: string;
   readonly reasonLength: number;
   readonly claimsDone: boolean;
+  readonly reapedScopes?: readonly ReapedSystemdScope[];
   readonly finalMessage?: string;
   readonly exitCode: number | null;
   readonly signal: NodeJS.Signals | null;
@@ -100,6 +104,8 @@ export class CodexHost {
     const isolation =
       this.#isolationMode ?? detectIsolationMode(this.#namespaceLauncher);
     this.#isolationMode = isolation;
+    const reapedScopes =
+      isolation === 'systemd_scope' ? await reapOrphanedCodexScopes() : [];
     const scope =
       isolation === 'systemd_scope' ? scopeName(input, id) : undefined;
     const checkpoint = input.checkpoint
@@ -173,6 +179,9 @@ export class CodexHost {
             detached: true,
             stdio: 'pipe',
             env: userManagerEnvironment(),
+            systemdProperties: codexScopeRuntimeProperties(
+              input.limits.timeoutMs,
+            ),
           })
         : spawn(launcher, launcherArgs, {
             cwd: input.cwd,
@@ -198,6 +207,7 @@ export class CodexHost {
       namespace?.identity,
       namespace?.initPid,
       scope,
+      reapedScopes,
     );
     this.#sessions.set(id, running);
     child.once('close', () => this.#sessions.delete(id));
@@ -239,6 +249,7 @@ class RunningSession {
   readonly #namespace: string | undefined;
   readonly #namespaceInitPid: number | undefined;
   readonly #scope: string | undefined;
+  readonly #reapedScopes: readonly ReapedSystemdScope[];
   readonly #scopeEnvironment: NodeJS.ProcessEnv;
   readonly #close: Promise<{
     readonly code: number | null;
@@ -270,6 +281,7 @@ class RunningSession {
     namespace?: string,
     namespaceInitPid?: number,
     scope?: string,
+    reapedScopes: readonly ReapedSystemdScope[] = [],
   ) {
     this.#id = id;
     this.#child = child;
@@ -277,6 +289,7 @@ class RunningSession {
     this.#namespace = namespace;
     this.#namespaceInitPid = namespaceInitPid;
     this.#scope = scope;
+    this.#reapedScopes = reapedScopes;
     this.#scopeEnvironment = userManagerEnvironment();
     this.#close = new Promise((resolveClose, rejectClose) => {
       let finished = false;
@@ -346,6 +359,7 @@ class RunningSession {
         reasonLength: reason.length,
         claimsDone:
           code === 0 && Boolean(this.#completedTurnMessage?.text.trim()),
+        reapedScopes: this.#reapedScopes,
         ...(this.#finalMessage === undefined
           ? {}
           : { finalMessage: this.#finalMessage.text }),

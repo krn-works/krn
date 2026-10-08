@@ -150,6 +150,9 @@ export async function judgeRole(
           ...(response.finalMessage === undefined
             ? {}
             : { finalMessage: response.finalMessage.slice(0, 12000) }),
+          ...(response.reapedScopes?.length
+            ? { reapedScopes: response.reapedScopes }
+            : {}),
         });
       if (response.exitCode !== 0) return incomplete('nonzero_exit');
       if (!response.claimsDone)
@@ -174,6 +177,9 @@ export async function judgeRole(
         ...verdict,
         sessionId: response.sessionId,
         finalMessage: response.finalMessage,
+        ...(response.reapedScopes?.length
+          ? { reapedScopes: response.reapedScopes }
+          : {}),
       });
     } finally {
       signal?.removeEventListener('abort', onAbort);

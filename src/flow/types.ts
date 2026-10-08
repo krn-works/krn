@@ -23,6 +23,11 @@ export const findingSchema = z.object({
   defect: z.string().min(1).max(2000),
   fix: z.string().min(1).max(1000),
 });
+const reapedScopeSchema = z.object({
+  unit: z.string().min(1),
+  ownerPid: z.number().int().positive(),
+  ownerStartTicks: z.string().regex(/^\d+$/u),
+});
 const completeJudgeSchema = z.object({
   state: z.literal('complete'),
   role: roleSchema,
@@ -30,6 +35,7 @@ const completeJudgeSchema = z.object({
   findings: z.array(findingSchema),
   sessionId: z.string().min(1),
   finalMessage: z.string().min(1).max(12000),
+  reapedScopes: z.array(reapedScopeSchema).optional(),
 });
 const incompleteJudgeSchema = z.object({
   state: z.literal('incomplete'),
@@ -44,6 +50,7 @@ const incompleteJudgeSchema = z.object({
   sessionId: z.string().min(1),
   exitCode: z.number().int().nullable(),
   finalMessage: z.string().max(12000).optional(),
+  reapedScopes: z.array(reapedScopeSchema).optional(),
 });
 export const judgeSchema = z.discriminatedUnion('state', [
   completeJudgeSchema,

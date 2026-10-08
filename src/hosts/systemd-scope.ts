@@ -2,6 +2,7 @@ import { type SpawnOptions, spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { z } from 'zod';
 
 let scopesAvailableFor: string | undefined;
 
@@ -23,6 +24,110 @@ export function userManagerEnvironment(
 export function systemdScopeUnit(prefix: string): string {
   const safePrefix = prefix.replace(/[^A-Za-z0-9:_.-]/g, '-').slice(0, 64);
   return `krn-${safePrefix || 'scope'}-${randomUUID()}.scope`;
+}
+
+export type ReapedSystemdScope = {
+  readonly unit: string;
+  readonly ownerPid: number;
+  readonly ownerStartTicks: string;
+};
+
+const ownerDescription = /^krn-codex-owner-v1:(\d+):(\d+):(\d+)$/u;
+const scopeListSchema = z.array(
+  z.object({
+    unit: z.string(),
+    active: z.string(),
+    description: z.string(),
+  }),
+);
+export const codexScopeRuntimeGraceMs = 3000;
+
+export function codexScopeOwnerDescription(): string {
+  const uid = process.getuid?.();
+  if (uid === undefined)
+    throw new Error('Codex systemd scope owner requires a process uid');
+  const startTicks = processStartTicks(process.pid);
+  if (!startTicks)
+    throw new Error('cannot establish Codex scope owner identity');
+  return `krn-codex-owner-v1:${uid}:${process.pid}:${startTicks}`;
+}
+
+export async function reapOrphanedCodexScopes(): Promise<ReapedSystemdScope[]> {
+  assertSystemdUserScopesAvailable();
+  const uid = process.getuid?.();
+  if (uid === undefined) return [];
+  const env = userManagerEnvironment();
+  const listed = spawnSync(
+    'systemctl',
+    [
+      '--user',
+      'list-units',
+      '--all',
+      '--type=scope',
+      '--no-pager',
+      '--output=json',
+    ],
+    { encoding: 'utf8', env, timeout: 5000, maxBuffer: 1024 * 1024 },
+  );
+  if (listed.error || listed.status !== 0)
+    throw (
+      listed.error ?? new Error(listed.stderr || 'cannot list Codex scopes')
+    );
+  const scopes = scopeListSchema.parse(JSON.parse(listed.stdout) as unknown);
+  const reaped: ReapedSystemdScope[] = [];
+  for (const { unit, active, description } of scopes) {
+    if (!unit?.startsWith('krn-') || !unit.endsWith('.scope')) continue;
+    if (active !== 'active' && active !== 'activating') continue;
+    const match = ownerDescription.exec(description);
+    if (!match?.[1] || !match[2] || !match[3] || Number(match[1]) !== uid)
+      continue;
+    const ownerPid = Number(match[2]);
+    const ownerStartTicks = match[3];
+    if (ownerProcessIsAlive(ownerPid, ownerStartTicks)) continue;
+    await killAndVerifyScope(unit, env);
+    reaped.push({ unit, ownerPid, ownerStartTicks });
+  }
+  return reaped;
+}
+
+export function codexScopeRuntimeProperties(
+  timeoutMs: number,
+): readonly string[] {
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0)
+    throw new Error('Codex session timeout must be a positive safe integer');
+  return [
+    `RuntimeMaxSec=${timeoutMs + codexScopeRuntimeGraceMs}ms`,
+    'KillMode=control-group',
+    'KillSignal=SIGKILL',
+    'SendSIGKILL=yes',
+    `Description=${codexScopeOwnerDescription()}`,
+  ];
+}
+
+function processStartTicks(pid: number): string | undefined {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+    const fields = stat
+      .slice(stat.lastIndexOf(')') + 2)
+      .trim()
+      .split(/\s+/u);
+    return fields[19];
+  } catch {
+    return undefined;
+  }
+}
+
+function ownerProcessIsAlive(pid: number, startTicks: string): boolean {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+    const fields = stat
+      .slice(stat.lastIndexOf(')') + 2)
+      .trim()
+      .split(/\s+/u);
+    return fields[0] !== 'Z' && fields[0] !== 'X' && fields[19] === startTicks;
+  } catch {
+    return false;
+  }
 }
 
 export function assertSystemdUserScopesAvailable(
@@ -50,15 +155,30 @@ export function spawnSystemdScope(
   unit: string,
   executable: string,
   args: readonly string[],
-  options: SpawnOptions = {},
+  options: SpawnOptions & {
+    readonly systemdProperties?: readonly string[];
+  } = {},
 ) {
   assertSystemdUserScopesAvailable();
   if (!/^[A-Za-z0-9:_.@-]+\.scope$/.test(unit))
     throw new Error('invalid systemd scope unit name');
-  const { env = process.env, ...spawnOptions } = options;
+  const {
+    env = process.env,
+    systemdProperties = [],
+    ...spawnOptions
+  } = options;
   return spawn(
     'systemd-run',
-    ['--user', '--scope', '--unit', unit, '--quiet', executable, ...args],
+    [
+      '--user',
+      '--scope',
+      '--unit',
+      unit,
+      '--quiet',
+      ...systemdProperties.map((property) => `--property=${property}`),
+      executable,
+      ...args,
+    ],
     {
       ...spawnOptions,
       shell: false,
