@@ -90,6 +90,57 @@ test('start stores jobs inside the repo without creating a sibling folder', asyn
   }
 });
 
+test('start accepts ignored .krn contents with a runs gitignore exception', async () => {
+  const root = await repoFixture('/.krn/*/*\n!/.krn/runs/.gitignore\n');
+  const cli = new URL('../src/cli/main.ts', import.meta.url).pathname;
+  const jobId = 'S4d-contents-ignored';
+  await mkdir(join(root, '.krn', 'runs'), { recursive: true });
+  await writeFile(join(root, '.krn', 'runs', '.gitignore'), '');
+  const addException = spawnSync('git', [
+    '-C',
+    root,
+    'add',
+    '.krn/runs/.gitignore',
+  ]);
+  assert.equal(addException.status, 0, addException.stderr.toString());
+  try {
+    assert.notEqual(
+      spawnSync('git', ['-C', root, 'check-ignore', '-q', '.krn/']).status,
+      0,
+    );
+    assert.equal(
+      spawnSync('git', [
+        '-C',
+        root,
+        'check-ignore',
+        '-q',
+        `.krn/worktrees/${jobId}`,
+      ]).status,
+      0,
+    );
+    const result = spawnSync(
+      process.execPath,
+      [cli, 'start', '--job', jobId, '--issue', 'I-S4d'],
+      { cwd: root, encoding: 'utf8' },
+    );
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.equal(
+      JSON.parse(result.stdout).worktree,
+      join(root, '.krn', 'worktrees', jobId),
+    );
+  } finally {
+    spawnSync('git', [
+      '-C',
+      root,
+      'worktree',
+      'remove',
+      '--force',
+      join(root, '.krn', 'worktrees', jobId),
+    ]);
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('start refuses when the target repo does not ignore .krn', async () => {
   const root = await repoFixture('');
   const cli = new URL('../src/cli/main.ts', import.meta.url).pathname;

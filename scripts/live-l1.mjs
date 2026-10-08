@@ -53,16 +53,18 @@ const worktree =
   (hasWorktree(repo, existingJobWorktree) ? existingJobWorktree : undefined);
 if (git(repo, ['rev-parse', '--show-toplevel']) !== repo)
   throw new Error('--repo must be the repository root');
-const ignoredRuns = (root) =>
+const ignoredTrace = (root) =>
   spawnSync('git', [
     '-C',
     root,
     'check-ignore',
     '-q',
-    '.krn/runs/foreman/probe.jsonl',
+    `.krn/runs/foreman/${jobId}.jsonl`,
   ]);
-if (ignoredRuns(repo).status !== 0)
-  throw new Error('job repository must ignore .krn/runs');
+if (ignoredTrace(repo).status !== 0)
+  throw new Error(
+    `job repository must ignore .krn/runs/foreman/${jobId}.jsonl`,
+  );
 let job;
 if (worktree) {
   if (git(worktree, ['rev-parse', '--show-toplevel']) !== worktree)
@@ -80,9 +82,11 @@ if (worktree) {
     throw new Error(started.stderr || 'job worktree creation failed');
   job = JSON.parse(started.stdout);
 }
-const ignored = ignoredRuns(job.worktree);
+const ignored = ignoredTrace(job.worktree);
 if (ignored.status !== 0)
-  throw new Error('job repository must ignore .krn/runs');
+  throw new Error(
+    `job repository must ignore .krn/runs/foreman/${jobId}.jsonl`,
+  );
 
 const host = new CodexHost(
   process.env.KRN_CODEX_BIN ? { executable: process.env.KRN_CODEX_BIN } : {},
