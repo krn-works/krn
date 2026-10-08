@@ -6,10 +6,12 @@ import type { Job, Result } from '../core/index.ts';
 import type { CheckEvidence } from '../verdict/index.ts';
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
+const MAX_CONTRACT_DESCRIPTION_BYTES = 8 * 1024;
 const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
 const issueSchema = z.object({
   id: z.string().min(1),
+  identifier: z.string().min(1).optional(),
   title: z.string().min(1),
   description: z.string(),
   updatedAt: z.string().datetime({ offset: true }),
@@ -43,6 +45,9 @@ const contractBlockSchema = z
 
 export type Contract = Readonly<{
   issueId: string;
+  identifier: string;
+  title: string;
+  description: string;
   revision: string;
   targetRepo: string;
   checks: readonly string[];
@@ -295,10 +300,20 @@ export function createLedger(options: LedgerOptions) {
   return {
     async readContract(issueId: string): Promise<Contract> {
       const issue = await readIssue(issueId);
+      if (
+        Buffer.byteLength(issue.description, 'utf8') >
+        MAX_CONTRACT_DESCRIPTION_BYTES
+      )
+        throw new Error(
+          'Paperclip task description exceeds the 8 KB contract limit',
+        );
       const block = parseContract(issue.description);
       if (!block.ok) throw new Error(block.error);
       return {
         issueId: issue.id,
+        identifier: issue.identifier ?? issue.id,
+        title: issue.title,
+        description: issue.description,
         revision: issue.updatedAt,
         targetRepo: block.value.targetRepo,
         checks: block.value.checks,

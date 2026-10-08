@@ -14,7 +14,7 @@ import test from 'node:test';
 
 import { runJob } from '../src/foreman/run.ts';
 import { runSession } from '../src/foreman/session.ts';
-import type { Capsule, Deps } from '../src/foreman/types.ts';
+import type { Capsule, Contract, Deps } from '../src/foreman/types.ts';
 import * as relay from '../src/relay/index.ts';
 
 const cli = new URL('../src/cli/main.ts', import.meta.url).pathname;
@@ -224,6 +224,9 @@ test('foreman reports no_progress when a claimed-complete session has no checkpo
     ledger: {
       readContract: async () => ({
         issueId: 'progress',
+        identifier: 'progress',
+        title: 'progress fixture',
+        description: 'progress fixture',
         revision: 'r1',
         targetRepo: 'fixture/repo',
         checks: [],
@@ -313,6 +316,9 @@ test('KRN_LIVE_DIAG stores only an opt-in, 2000-character reason file outside tr
     ledger: {
       readContract: async () => ({
         issueId: 'progress',
+        identifier: 'progress',
+        title: 'progress fixture',
+        description: 'progress fixture',
         revision: 'r1',
         targetRepo: 'fixture/repo',
         checks: [],
@@ -378,10 +384,40 @@ test('KRN_LIVE_DIAG stores only an opt-in, 2000-character reason file outside tr
   const previous = process.env.KRN_LIVE_DIAG;
   try {
     delete process.env.KRN_LIVE_DIAG;
-    await runSession(job, capsule, facts, 'intent:0', d);
+    await runSession(
+      job,
+      capsule,
+      facts,
+      {
+        issueId: job.issue,
+        identifier: 'J5',
+        title: 'test',
+        description: 'test',
+        revision: 'r1',
+        targetRepo: 'fixture/repo',
+        checks: [],
+      } satisfies Contract,
+      'intent:0',
+      d,
+    );
     assert.equal(existsSync(path), false);
     process.env.KRN_LIVE_DIAG = '1';
-    await runSession(job, capsule, facts, 'intent:0', d);
+    await runSession(
+      job,
+      capsule,
+      facts,
+      {
+        issueId: job.issue,
+        identifier: 'J5',
+        title: 'test',
+        description: 'test',
+        revision: 'r1',
+        targetRepo: 'fixture/repo',
+        checks: [],
+      } satisfies Contract,
+      'intent:0',
+      d,
+    );
     assert.equal(readFileSync(path, 'utf8'), message.slice(0, 2000));
     assert.ok(!logged.includes('finalMessage'));
     assert.ok(!logged.includes(message.slice(0, 30)));

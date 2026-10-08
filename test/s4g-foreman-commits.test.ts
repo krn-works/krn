@@ -89,6 +89,9 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
     ledger: {
       readContract: async () => ({
         issueId: job.issue,
+        identifier: 'S4g',
+        title: 'commit fixture',
+        description: 'commit fixture',
         revision: 'r1',
         targetRepo: 'fixture/repo',
         checks: ['always'],

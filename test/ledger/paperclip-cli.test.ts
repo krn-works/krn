@@ -66,6 +66,9 @@ test('readContract uses CLI JSON without KRN credentials and default reads never
     });
     assert.deepEqual(live.contract, {
       issueId: 'LON-200',
+      identifier: 'LON-200',
+      title: issue.title,
+      description: issue.description,
       revision: issue.updatedAt,
       targetRepo: 'krn-works/krn',
       checks: ['gate'],

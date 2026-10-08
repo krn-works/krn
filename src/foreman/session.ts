@@ -88,7 +88,7 @@ export async function runAttempt(
 > {
   const intent = await d.trace.intent(job, capsule.epoch);
   try {
-    const run = await runSession(job, capsule, facts, intent, d);
+    const run = await runSession(job, capsule, facts, contract, intent, d);
     if (!run.checkpointed)
       return { kind: 'outcome', outcome: await finishSession(job, run, d) };
     const step = await checkpointStep(
@@ -117,6 +117,7 @@ export async function runSession(
   job: Job,
   capsule: Capsule,
   facts: RepoFacts,
+  contract: Contract,
   intent: string,
   d: Deps,
 ): Promise<{
@@ -130,7 +131,7 @@ export async function runSession(
     session = await d.hosts.codex.start({
       cwd: job.worktree,
       model: 'gpt-6-luna',
-      prompt: d.relay.project(capsule, facts),
+      prompt: d.relay.project(capsule, facts, contract),
       limits: d.budget.session,
       checkpoint: {
         cli: fileURLToPath(new URL('../cli/main.ts', import.meta.url)),

@@ -110,7 +110,7 @@ export type Deps = {
     isCurrent(job: Job, epoch: number, sessionId: string): Promise<boolean>;
     repoFacts(job: Job): RepoFacts | Promise<RepoFacts>;
     validate(capsule: Capsule, facts: RepoFacts): Validation;
-    project(capsule: Capsule, facts: RepoFacts): string;
+    project(capsule: Capsule, facts: RepoFacts, contract: Contract): string;
     refreshCAS(
       capsule: Capsule,
       facts: RepoFacts,

@@ -43,6 +43,9 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
     ledger: {
       readContract: async () => ({
         issueId: 'issue-1',
+        identifier: 'issue-1',
+        title: 'resume fixture',
+        description: 'resume fixture',
         revision: 'rev-1',
         targetRepo: 'fixture/repo',
         checks: [],
@@ -177,6 +180,9 @@ test('a concurrent run cannot replace the active capsule session', async () => {
     ledger: {
       readContract: async () => ({
         issueId: 'issue-active',
+        identifier: 'issue-active',
+        title: 'active fixture',
+        description: 'active fixture',
         revision: 'rev-1',
         targetRepo: 'fixture/repo',
         checks: [],

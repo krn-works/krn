@@ -55,6 +55,9 @@ test('live contract loads real checks and board view with no writes by default',
 
   assert.deepEqual(live.contract, {
     issueId,
+    identifier: issueId,
+    title: 'Live contract fixture',
+    description,
     revision: '2026-10-08T10:00:00.000Z',
     targetRepo: 'krn-works/krn',
     checks: ['gate'],

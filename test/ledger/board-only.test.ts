@@ -80,6 +80,44 @@ test('readContract refuses a Paperclip issue without a valid contract block', as
   );
 });
 
+test('readContract returns the task contract from its single issue read', async () => {
+  let reads = 0;
+  const ledger = createLedger({
+    apiUrl: 'http://paperclip.test',
+    token: 'fixture-token',
+    session: 'session-7',
+    fetch: async () => {
+      reads += 1;
+      return response(issue());
+    },
+  });
+
+  assert.deepEqual(await ledger.readContract(job.issue), {
+    issueId: job.issue,
+    identifier: job.issue,
+    title: 'Test issue',
+    description,
+    revision: '2026-10-08T10:00:00.000Z',
+    targetRepo: 'krn/krn',
+    checks: ['gate'],
+  });
+  assert.equal(reads, 1);
+});
+
+test('readContract refuses descriptions larger than 8 KB', async () => {
+  const ledger = createLedger({
+    apiUrl: 'http://paperclip.test',
+    token: 'fixture-token',
+    session: 'session-7',
+    fetch: async () =>
+      response({
+        ...issue(),
+        description: `${description}${'x'.repeat(8192)}`,
+      }),
+  });
+  await assert.rejects(ledger.readContract(job.issue), /8 KB/u);
+});
+
 test('oversized Paperclip responses are refused before parsing', async () => {
   const ledger = createLedger({
     apiUrl: 'http://paperclip.test',
