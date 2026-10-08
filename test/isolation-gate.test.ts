@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { spawn, spawnSync } from 'node:child_process';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
@@ -125,6 +125,100 @@ test('requiresIsolation logs a named CI skip and fails when CI is absent', async
   }
 });
 
+for (const [signal, exitCode] of [
+  ['SIGINT', 130],
+  ['SIGTERM', 143],
+] as const) {
+  test(`${signal} of the test-suite wrapper stops its sleeping test child`, async () => {
+    await assertTestSuiteSignal(signal, exitCode);
+  });
+}
+
+async function assertTestSuiteSignal(
+  signal: NodeJS.Signals,
+  expectedExitCode: number,
+): Promise<void> {
+  const directory = await mkdtemp(join(process.cwd(), 'test/wrapper-signal-'));
+  const fixture = join(directory, 'sleeping.test.mjs');
+  const pidFile = join(directory, 'child.pid');
+  const wrapper = new URL('../scripts/test-suite.mjs', import.meta.url)
+    .pathname;
+  await writeFile(
+    fixture,
+    `import { spawn } from 'node:child_process';\nimport { writeFileSync } from 'node:fs';\nimport { test } from 'node:test';\ntest('sleeping test', async () => { const sleeper = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' }); writeFileSync(${JSON.stringify(pidFile)}, String(sleeper.pid)); await new Promise(() => {}); });\n`,
+  );
+
+  let output = '';
+  let errors = '';
+  let wrapperProcess: ReturnType<typeof spawn> | undefined;
+  let wrapperPid: number | undefined;
+  let testRunnerPid: number | undefined;
+  let sleepingPid: number | undefined;
+  try {
+    const wrapperEnv = { ...process.env };
+    delete wrapperEnv.NODE_TEST_CONTEXT;
+    const runningWrapper = spawn(process.execPath, [wrapper, fixture], {
+      cwd: process.cwd(),
+      detached: true,
+      env: wrapperEnv,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    wrapperProcess = runningWrapper;
+    assert.ok(runningWrapper.stdout);
+    assert.ok(runningWrapper.stderr);
+    runningWrapper.stdout.setEncoding('utf8').on('data', (chunk) => {
+      output += chunk;
+    });
+    runningWrapper.stderr.setEncoding('utf8').on('data', (chunk) => {
+      errors += chunk;
+    });
+    sleepingPid = await waitForFile(pidFile);
+    wrapperPid = wrapperProcess.pid;
+    assert.ok(wrapperPid);
+    testRunnerPid = await waitForChildProcess(wrapperPid);
+    const exited = new Promise<{
+      code: number | null;
+      signal: NodeJS.Signals | null;
+    }>((resolve) =>
+      runningWrapper.once('exit', (code, signal) => resolve({ code, signal })),
+    );
+    process.kill(wrapperPid, signal);
+    const result = await exited;
+    await waitForProcessExit(sleepingPid);
+    assert.deepEqual(
+      {
+        exitCode: result.code,
+        signal: result.signal,
+        sleepingChildAlive: processIsAlive(sleepingPid),
+      },
+      {
+        exitCode: expectedExitCode,
+        signal: null,
+        sleepingChildAlive: false,
+      },
+      `${output}\n${errors}`,
+    );
+  } finally {
+    if (wrapperPid !== undefined) killProcessGroup(wrapperPid);
+    if (testRunnerPid !== undefined) killProcessGroup(testRunnerPid);
+    if (
+      wrapperProcess?.exitCode === null &&
+      wrapperProcess.signalCode === null
+    ) {
+      wrapperProcess.kill('SIGKILL');
+      await new Promise<void>((resolve) =>
+        wrapperProcess?.once('close', () => resolve()),
+      );
+    }
+    if (sleepingPid !== undefined && processIsAlive(sleepingPid)) {
+      try {
+        process.kill(sleepingPid, 'SIGKILL');
+      } catch {}
+    }
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
 test('gate-local refuses to post a status when any isolation test was skipped', async () => {
   let posted = false;
   const accepted = await postGateStatusWhenClean({
@@ -148,3 +242,55 @@ test('gate-local refuses to post a status when any isolation test was skipped', 
   assert.equal(failedGate, false);
   assert.equal(posted, false);
 });
+
+async function waitForFile(path: string): Promise<number> {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    try {
+      return Number((await readFile(path, 'utf8')).trim());
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  }
+  assert.fail(`timed out waiting for sleeping test pid file ${path}`);
+}
+
+async function waitForProcessExit(pid: number): Promise<void> {
+  const deadline = Date.now() + 3000;
+  while (Date.now() < deadline && processIsAlive(pid))
+    await new Promise((resolve) => setTimeout(resolve, 20));
+}
+
+async function waitForChildProcess(parentPid: number): Promise<number> {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    const result = spawnSync(
+      'ps',
+      ['-o', 'pid=', '--ppid', String(parentPid)],
+      {
+        encoding: 'utf8',
+      },
+    );
+    const pid = Number(result.stdout.trim().split(/\s+/u)[0]);
+    if (Number.isInteger(pid) && pid > 0) return pid;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  assert.fail(`timed out waiting for test runner child of ${parentPid}`);
+}
+
+function killProcessGroup(pid: number): void {
+  try {
+    process.kill(-pid, 'SIGKILL');
+  } catch {}
+}
+
+function processIsAlive(pid: number): boolean {
+  try {
+    const stat = spawnSync('ps', ['-o', 'stat=', '-p', String(pid)], {
+      encoding: 'utf8',
+    });
+    return stat.status === 0 && !stat.stdout.trim().startsWith('Z');
+  } catch {
+    return false;
+  }
+}

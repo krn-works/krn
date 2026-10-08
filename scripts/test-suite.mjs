@@ -18,15 +18,19 @@ const capabilities = inheritedCapabilities ?? probeIsolationCapabilities();
 if (!inheritedCapabilities)
   process.stdout.write(`${formatIsolationProbe(capabilities)}\n`);
 let stdout = '';
+const requestedTestFiles = process.argv.slice(2);
 const child = spawn(
   process.execPath,
   [
     '--test',
     '--test-concurrency=1',
     '--test-reporter=tap',
-    'test/**/*.test.ts',
+    ...(requestedTestFiles.length > 0
+      ? requestedTestFiles
+      : ['test/**/*.test.ts']),
   ],
   {
+    detached: process.platform !== 'win32',
     env: {
       ...process.env,
       KRN_ISOLATION_CAPABILITIES: JSON.stringify(capabilities),
@@ -34,6 +38,27 @@ const child = spawn(
     stdio: ['ignore', 'pipe', 'pipe'],
   },
 );
+let forwardedSignal;
+const forwardSignal = (signal) => {
+  if (forwardedSignal) return;
+  forwardedSignal = signal;
+  const sendSignal = () => {
+    if (!child.pid) return;
+    try {
+      if (process.platform === 'win32') child.kill(signal);
+      else process.kill(-child.pid, signal);
+    } catch (error) {
+      if (error?.code !== 'ESRCH')
+        process.stderr.write(
+          `Unable to forward ${signal} to test process group: ${error.message}\n`,
+        );
+    }
+  };
+  if (child.pid) sendSignal();
+  else child.once('spawn', sendSignal);
+};
+process.once('SIGINT', () => forwardSignal('SIGINT'));
+process.once('SIGTERM', () => forwardSignal('SIGTERM'));
 child.stdout.setEncoding('utf8').on('data', (chunk) => {
   stdout += chunk;
   process.stdout.write(chunk);
@@ -69,11 +94,15 @@ child.once('close', async (code) => {
     ].join('\n');
     await appendFile(process.env.GITHUB_STEP_SUMMARY, markdown);
   }
-  const exitCode = testSuiteExitCode(
-    code ?? 1,
-    skipCount,
-    process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS === '1',
-  );
+  const exitCode = forwardedSignal
+    ? forwardedSignal === 'SIGINT'
+      ? 130
+      : 143
+    : testSuiteExitCode(
+        code ?? 1,
+        skipCount,
+        process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS === '1',
+      );
   if (process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS === '1' && skipCount > 0)
     process.stderr.write(
       `gate:local requires zero isolation skips; observed ${skipCount}\n`,
