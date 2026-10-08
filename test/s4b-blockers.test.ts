@@ -260,7 +260,15 @@ if (count === 1) {
     const startedAt = Date.now();
     const outcome = await runJob(job, {
       budget: { maxResets: 1, maxRepairs: 0, session: { timeoutMs: 20_000 } },
-      ledger: { readContract: async () => ({ revision: 'r1' }) },
+      ledger: {
+        readContract: async () => ({
+          issueId: 'blockers',
+          revision: 'r1',
+          targetRepo: 'fixture/repo',
+          checks: [],
+        }),
+        submitForReview: async () => 'submitted',
+      },
       relay: realRelay,
       trace,
       hosts: {

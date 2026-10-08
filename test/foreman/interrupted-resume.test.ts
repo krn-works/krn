@@ -41,7 +41,13 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
   const d: Deps = {
     budget: { maxResets: 3, maxRepairs: 2, session: { timeoutMs: 1000 } },
     ledger: {
-      readContract: async () => ({ revision: 'rev-1' }),
+      readContract: async () => ({
+        issueId: 'issue-1',
+        revision: 'rev-1',
+        targetRepo: 'fixture/repo',
+        checks: [],
+      }),
+      submitForReview: async () => 'submitted',
     },
     relay: {
       load: async () =>
@@ -168,7 +174,15 @@ test('a concurrent run cannot replace the active capsule session', async () => {
   );
   const d: Deps = {
     budget: { maxResets: 3, maxRepairs: 2, session: { timeoutMs: 1000 } },
-    ledger: { readContract: async () => ({ revision: 'rev-1' }) },
+    ledger: {
+      readContract: async () => ({
+        issueId: 'issue-active',
+        revision: 'rev-1',
+        targetRepo: 'fixture/repo',
+        checks: [],
+      }),
+      submitForReview: async () => 'submitted',
+    },
     relay,
     trace: {
       intent: async (_job, epoch) => `intent-${epoch}`,

@@ -225,7 +225,15 @@ test('B1 a worker supplied diagnostic cannot write through a worktree symlink', 
   } as RepoFacts;
   const d = {
     budget: { maxResets: 0, maxRepairs: 0, session: { timeoutMs: 1000 } },
-    ledger: { readContract: async () => ({ revision: 'r1' }) },
+    ledger: {
+      readContract: async () => ({
+        issueId: 'authority',
+        revision: 'r1',
+        targetRepo: 'fixture/repo',
+        checks: [],
+      }),
+      submitForReview: async () => 'submitted',
+    },
     relay: {
       bindSession: async (_job: unknown, value: Capsule) => ({
         applied: true as const,
@@ -503,9 +511,12 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
       },
       ledger: {
         readContract: async () => ({
+          issueId: job.issue,
           revision: 'survivor-r1',
+          targetRepo: 'fixture/repo',
           checks: ['always'],
         }),
+        submitForReview: async () => 'submitted',
       },
       relay,
       trace,
@@ -529,7 +540,7 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
       outcome,
       {
         kind: 'verdict_pass',
-        state: 'human_decision',
+        state: 'in_review',
         sha: git(root, ['rev-parse', 'HEAD']),
       },
       diagnostics,

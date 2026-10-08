@@ -87,7 +87,13 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
   const outcome = await runJob(job, {
     budget: { maxResets: 1, maxRepairs: 0, session: { timeoutMs: 10_000 } },
     ledger: {
-      readContract: async () => ({ revision: 'r1', checks: ['always'] }),
+      readContract: async () => ({
+        issueId: job.issue,
+        revision: 'r1',
+        targetRepo: 'fixture/repo',
+        checks: ['always'],
+      }),
+      submitForReview: async () => 'submitted',
     },
     relay,
     trace,
@@ -269,7 +275,7 @@ test('real CLI --next done records a verdict without opening another session', a
       outcome,
       {
         kind: 'verdict_pass',
-        state: 'human_decision',
+        state: 'in_review',
         sha: spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], {
           encoding: 'utf8',
         }).stdout.trim(),

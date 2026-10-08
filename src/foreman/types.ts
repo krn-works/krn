@@ -1,9 +1,11 @@
 import type { Job } from '../core/index.ts';
+import type {
+  Contract,
+  ReviewSubmission,
+  VerdictEvidence,
+} from '../ledger/index.ts';
 
-export type Contract = {
-  readonly revision: string;
-  readonly checks?: readonly string[];
-};
+export type { Contract } from '../ledger/index.ts';
 export type Capsule = {
   readonly jobId: string;
   readonly issue: string;
@@ -53,7 +55,7 @@ export type Session = { readonly id: string; wait(): Promise<SessionResult> };
 export type Outcome =
   | {
       readonly kind: 'verdict_pass';
-      readonly state: 'human_decision';
+      readonly state: 'in_review';
       readonly sha: string;
     }
   | { readonly kind: 'review'; readonly head: string }
@@ -76,7 +78,15 @@ export type Budget = {
 
 export type Deps = {
   readonly budget: Budget;
-  readonly ledger: { readContract(issue: string): Promise<Contract> };
+  readonly ledger: {
+    readContract(issue: string): Promise<Contract>;
+    submitForReview(
+      job: Job,
+      contract: Contract,
+      evidence: VerdictEvidence,
+      recordedSha: string,
+    ): Promise<ReviewSubmission>;
+  };
   readonly relay: {
     load(job: Job, contract: Contract): Promise<Capsule>;
     checkpoint(

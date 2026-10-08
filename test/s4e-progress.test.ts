@@ -221,7 +221,15 @@ test('foreman reports no_progress when a claimed-complete session has no checkpo
   const facts = { base: head, head, branch: 'krn/J4', worktree: job.worktree };
   const d = {
     budget: { maxResets: 0, maxRepairs: 0, session: { timeoutMs: 1000 } },
-    ledger: { readContract: async () => ({ revision: 'r1' }) },
+    ledger: {
+      readContract: async () => ({
+        issueId: 'progress',
+        revision: 'r1',
+        targetRepo: 'fixture/repo',
+        checks: [],
+      }),
+      submitForReview: async () => 'submitted',
+    },
     relay: {
       load: async () => capsule,
       checkpoint: async () => capsule,
@@ -302,7 +310,15 @@ test('KRN_LIVE_DIAG stores only an opt-in, 2000-character reason file outside tr
   let logged = '';
   const d = {
     budget: { maxResets: 0, maxRepairs: 0, session: { timeoutMs: 1000 } },
-    ledger: { readContract: async () => ({ revision: 'r1' }) },
+    ledger: {
+      readContract: async () => ({
+        issueId: 'progress',
+        revision: 'r1',
+        targetRepo: 'fixture/repo',
+        checks: [],
+      }),
+      submitForReview: async () => 'submitted',
+    },
     relay: {
       load: async () => capsule,
       checkpoint: async () => capsule,
