@@ -160,6 +160,25 @@ test('CLI activity conflicts use the read-only issue activity command', async ()
   }
 });
 
+test('CLI submit reconciliation reads issue comments with JSON output', async () => {
+  const fake = await fakeCli();
+  await writeFile(
+    fake.executable,
+    `#!/usr/bin/env node\nconst args = process.argv.slice(2);\nprocess.stdout.write(JSON.stringify(args));\n`,
+  );
+  await chmod(fake.executable, 0o755);
+  try {
+    assert.deepEqual(
+      await createPaperclipCliTransport({
+        executable: fake.executable,
+      }).readComments('LON-200'),
+      ['issue', 'comments', 'LON-200', '--limit', '500', '--json'],
+    );
+  } finally {
+    await rm(fake.directory, { recursive: true, force: true });
+  }
+});
+
 test('CLI transport refuses oversized output and timed out commands', async () => {
   const oversized = await fakeCli();
   const hanging = await fakeCli();

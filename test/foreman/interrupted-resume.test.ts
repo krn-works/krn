@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -9,6 +9,122 @@ import * as foreman from '../../src/foreman/index.ts';
 import { runJob } from '../../src/foreman/run.ts';
 import type { Capsule, Deps } from '../../src/foreman/types.ts';
 import * as relay from '../../src/relay/index.ts';
+
+test('resuming a ready_for_review checkpoint re-verdicts without starting a session', async () => {
+  const scratch = join(process.cwd(), '.krn', 'tmp');
+  await mkdir(scratch, { recursive: true });
+  const worktree = await mkdtemp(join(scratch, 'krn-foreman-ready-'));
+  const git = (args: string[]) => {
+    const result = spawnSync('git', ['-C', worktree, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  git(['init', '-q', '--initial-branch=main']);
+  git(['config', 'user.name', 'Fixture']);
+  git(['config', 'user.email', 'fixture@example.invalid']);
+  await writeFile(join(worktree, '.gitignore'), '.krn/\n');
+  await writeFile(
+    join(worktree, 'krn.checks.json'),
+    JSON.stringify({
+      version: 1,
+      checks: [{ id: 'declared', argv: ['/usr/bin/true'], timeoutMs: 3000 }],
+    }),
+  );
+  git(['add', '.gitignore', 'krn.checks.json']);
+  git(['commit', '-qm', 'fixture']);
+  const head = git(['rev-parse', 'HEAD']);
+  const job = {
+    id: 'ready-resume',
+    issue: 'issue-ready',
+    worktree,
+    repoRoot: worktree,
+  };
+  let sessions = 0;
+  let verdicts = 0;
+  let submissions = 0;
+  const capsule = {
+    jobId: job.id,
+    issue: job.issue,
+    contractRevision: 'rev-1',
+    epoch: 0,
+    base: head,
+    head,
+    branch: 'main',
+    worktree,
+    nextAction: 'done',
+    lease: 'checkpointed' as const,
+    blockers: [],
+    decisions: [],
+    rejectedApproaches: [],
+    references: [],
+  };
+  const d: Deps = {
+    budget: { maxResets: 3, maxRepairs: 0, session: { timeoutMs: 1000 } },
+    signal: new AbortController().signal,
+    ledger: {
+      readContract: async () => ({
+        issueId: job.issue,
+        identifier: 'ready',
+        title: 'ready',
+        description: 'ready',
+        revision: 'rev-1',
+        targetRepo: 'fixture/repo',
+        checks: ['declared'],
+      }),
+      submitForReview: async () => {
+        submissions += 1;
+        return 'ready_for_review';
+      },
+    },
+    relay: {
+      load: async () => capsule,
+      repoFacts: async () => ({ base: head, head, branch: 'main', worktree }),
+      validate: () => ({ ok: true }),
+      project: () => 'unused',
+    } as unknown as Deps['relay'],
+    trace: {
+      hasVerdict: async (_job, sha) => sha === head,
+      verdict: async () => {
+        verdicts += 1;
+      },
+      readyForReview: async () => undefined,
+      intent: async () => 'unused',
+      started: async () => true,
+      checkpoint: async () => undefined,
+      checkpointRequest: async () => null,
+      commit: async () => undefined,
+      hasCheckpoint: async () => false,
+      sessionEnd: async () => null,
+      log: async () => undefined,
+      failure: async () => undefined,
+    },
+    hosts: {
+      codex: {
+        start: async () => {
+          sessions += 1;
+          throw new Error('session must not start');
+        },
+      },
+      cancelTree: async () => undefined,
+    },
+    stop: (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
+  };
+  try {
+    const outcome = await runJob(job, d);
+    assert.deepEqual(outcome, {
+      kind: 'verdict_pass',
+      state: 'ready_for_review',
+      sha: head,
+    });
+    assert.equal(sessions, 0);
+    assert.equal(verdicts, 1);
+    assert.equal(submissions, 1);
+  } finally {
+    await rm(worktree, { recursive: true, force: true });
+  }
+});
 
 test('checkpoint interruption resumes one action in a fresh session', async () => {
   const worktree = await mkdtemp(join(tmpdir(), 'krn-foreman-resume-'));

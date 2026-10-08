@@ -1,5 +1,5 @@
 // Resolve check IDs from the immutable base commit. ADR 0001.
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { dirname } from 'node:path';
 import { z } from 'zod';
 
@@ -22,34 +22,52 @@ const registrySchema = z
 
 export type Check = z.infer<typeof registrySchema>['checks'][number];
 
-function git(root: string, args: string[]): string {
-  const result = spawnSync('git', ['-C', root, ...args], {
-    cwd: root,
-    encoding: 'utf8',
-    env: {
-      PATH: [dirname(process.execPath), '/usr/bin', '/bin'].join(':'),
-      LANG: 'C',
-      LC_ALL: 'C',
-      HOME: '/tmp/krn-home',
-      TMPDIR: '/tmp/krn-home',
-    },
-    timeout: 15000,
-    maxBuffer: 1024 * 1024,
+async function git(root: string, args: string[]): Promise<string> {
+  const result = await new Promise<{
+    status: number | null;
+    stdout: string;
+    stderr: string;
+  }>((resolve, reject) => {
+    const child = spawn('git', ['-C', root, ...args], {
+      cwd: root,
+      env: {
+        PATH: [dirname(process.execPath), '/usr/bin', '/bin'].join(':'),
+        LANG: 'C',
+        LC_ALL: 'C',
+        HOME: '/tmp/krn-home',
+        TMPDIR: '/tmp/krn-home',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8').on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.setEncoding('utf8').on('data', (chunk) => {
+      stderr += chunk;
+    });
+    const timer = setTimeout(() => child.kill('SIGTERM'), 15000);
+    child.once('error', reject);
+    child.once('close', (status) => {
+      clearTimeout(timer);
+      resolve({ status, stdout, stderr });
+    });
   });
-  if (result.error || result.status !== 0)
-    throw result.error ?? new Error(result.stderr || 'git command failed');
+  if (result.status !== 0)
+    throw new Error(result.stderr || 'git command failed');
   return result.stdout.trim();
 }
 
-export function resolveChecks(
+export async function resolveChecks(
   root: string,
   base: string,
   ids: readonly string[],
-): Check[] {
+): Promise<Check[]> {
   if (!ids.length) throw new Error('zero declared checks');
   if (ids.length > 16 || new Set(ids).size !== ids.length)
     throw new Error('invalid check IDs');
-  const raw = git(root, ['show', `${base}:krn.checks.json`]);
+  const raw = await git(root, ['show', `${base}:krn.checks.json`]);
   const registry = registrySchema.parse(JSON.parse(raw));
   const checks = new Map(registry.checks.map((check) => [check.id, check]));
   return ids.map((id) => {

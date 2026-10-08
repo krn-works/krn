@@ -9,16 +9,46 @@ export async function reportPassingVerdict(
   contract: Contract,
   sha: string,
   checks: readonly CheckEvidence[],
-  ledger: Pick<Deps['ledger'], 'submitForReview'>,
-  trace: Pick<Deps['trace'], 'readyForReview'>,
+  ledger: Pick<Deps['ledger'], 'submitForReview'> & {
+    readonly submissionEnabled?: boolean;
+  },
+  trace: Pick<
+    Deps['trace'],
+    | 'readyForReview'
+    | 'paperclipUpdateStarted'
+    | 'submitIntent'
+    | 'submittedFor'
+    | 'submitted'
+  >,
   stop: Deps['stop'],
+  signal?: AbortSignal,
 ): Promise<Outcome> {
+  const prior = await trace.submittedFor?.(job, sha);
+  if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
+  if (prior)
+    return {
+      kind: 'verdict_pass',
+      state: prior.status === 'in_review' ? 'in_review' : 'ready_for_review',
+      sha,
+    };
+  const reconcile =
+    ledger.submissionEnabled === false
+      ? false
+      : ((await trace.submitIntent?.(job, sha, contract.revision)) ?? false);
+  if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
   const submitted = await ledger.submitForReview(
     job,
     contract,
     { kind: 'verdict_pass', sha, checks },
     sha,
+    {
+      ...(signal === undefined ? {} : { signal }),
+      reconcile,
+      onWriteStarted: (kind) => trace.paperclipUpdateStarted?.(job, sha, kind),
+      onSubmitted: (receipt) => trace.submitted?.(job, sha, receipt),
+    },
   );
+  if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
   if (submitted === 'ready_for_review') {
     await trace.readyForReview?.(job, sha);
     return { kind: 'verdict_pass', state: 'ready_for_review', sha };
@@ -26,11 +56,13 @@ export async function reportPassingVerdict(
   return submitted === 'submitted'
     ? { kind: 'verdict_pass', state: 'in_review', sha }
     : stop(job, 'human_decision', [
-        submitted === 'board_conflict'
-          ? 'board_conflict'
-          : submitted === 'board_changed'
-            ? 'board_changed'
-            : 'Paperclip review submission refused',
+        submitted === 'stopped'
+          ? 'stopped'
+          : submitted === 'board_conflict'
+            ? 'board_conflict'
+            : submitted === 'board_changed'
+              ? 'board_changed'
+              : 'Paperclip review submission refused',
       ]);
 }
 
@@ -58,8 +90,15 @@ export async function verifyCheckpoint(
     capsule.base,
     contract.checks ?? [],
     (event) => d.trace.verdict?.(job, event) ?? Promise.resolve(),
+    d.signal,
   );
   if (verdict.kind === 'pass') {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    if (d.signal?.aborted)
+      return {
+        kind: 'stop',
+        outcome: d.stop(job, 'human_decision', ['stopped']),
+      };
     return {
       kind: 'stop',
       outcome: await reportPassingVerdict(
@@ -70,6 +109,7 @@ export async function verifyCheckpoint(
         d.ledger,
         d.trace,
         d.stop,
+        d.signal,
       ),
     };
   }

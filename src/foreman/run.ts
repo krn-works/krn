@@ -2,6 +2,7 @@
 import type { Job } from '../core/index.ts';
 import { recoverLease, runAttempt } from './session.ts';
 import { type Deps, type Outcome, validBudget } from './types.ts';
+import { verifyCheckpoint } from './verdict.ts';
 
 export async function runJob(job: Job, d: Deps): Promise<Outcome> {
   if (!validBudget(d))
@@ -12,6 +13,24 @@ export async function runJob(job: Job, d: Deps): Promise<Outcome> {
   const lease = await recoverLease(job, capsule, d);
   if (lease.outcome) return lease.outcome;
   capsule = lease.capsule;
+  if (
+    capsule.nextAction === 'done' &&
+    capsule.lease === 'checkpointed' &&
+    (await d.relay.repoFacts(job)).head === capsule.head &&
+    (await d.trace.hasVerdict?.(job, capsule.head))
+  ) {
+    const replay = await verifyCheckpoint(
+      job,
+      capsule,
+      capsule.head,
+      contract,
+      repairs,
+      d,
+    );
+    if (replay.kind === 'stop') return replay.outcome;
+    capsule = replay.capsule;
+    repairs += 1;
+  }
   for (
     let resets = 0;
     resets <= d.budget.maxResets + d.budget.maxRepairs;

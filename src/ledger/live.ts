@@ -4,7 +4,7 @@ import type { Contract, Ledger, ReviewSubmission } from './index.ts';
 type LiveLedger = Pick<
   Ledger,
   'readContract' | 'readBoard' | 'submitForReview'
->;
+> & { readonly submissionEnabled?: boolean };
 
 export async function loadLiveContract(
   ledger: Pick<Ledger, 'readContract' | 'readBoard'>,
@@ -31,9 +31,10 @@ export async function loadLiveContract(
 export function withLiveSubmissionGate(
   ledger: LiveLedger,
   submit: boolean,
-): LiveLedger {
+): LiveLedger & { readonly submissionEnabled: boolean } {
   return {
     ...ledger,
+    submissionEnabled: submit,
     submitForReview: (...args): Promise<ReviewSubmission> =>
       submit
         ? ledger.submitForReview(...args)

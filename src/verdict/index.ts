@@ -1,5 +1,5 @@
 // Compose base-declared checks, sandbox execution, and verdict recording. ADR 0001.
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { mkdirSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { Job } from '../core/index.ts';
@@ -9,6 +9,7 @@ import {
   cleanupWorktrees,
   createWorktreeDirectory,
   execute,
+  TeardownUnconfirmed,
 } from './sandbox.ts';
 
 export type CheckEvidence = {
@@ -34,29 +35,49 @@ export type Verdict =
       readonly findings: readonly string[];
     };
 
-function git(root: string, args: string[]): string {
-  const result = spawnSync('git', ['-C', root, ...args], {
-    cwd: root,
-    encoding: 'utf8',
-    env: {
-      PATH: [dirname(process.execPath), '/usr/bin', '/bin'].join(':'),
-      LANG: 'C',
-      LC_ALL: 'C',
-      HOME: '/tmp/krn-home',
-      TMPDIR: '/tmp/krn-home',
-    },
-    timeout: 15000,
-    maxBuffer: 1024 * 1024,
+async function git(root: string, args: string[]): Promise<string> {
+  const result = await new Promise<{
+    status: number | null;
+    stdout: string;
+    stderr: string;
+  }>((resolveResult, reject) => {
+    const child = spawn('git', ['-C', root, ...args], {
+      cwd: root,
+      env: {
+        PATH: [dirname(process.execPath), '/usr/bin', '/bin'].join(':'),
+        LANG: 'C',
+        LC_ALL: 'C',
+        HOME: '/tmp/krn-home',
+        TMPDIR: '/tmp/krn-home',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8').on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.setEncoding('utf8').on('data', (chunk) => {
+      stderr += chunk;
+    });
+    const timer = setTimeout(() => child.kill('SIGTERM'), 15000);
+    child.once('error', reject);
+    child.once('close', (status) => {
+      clearTimeout(timer);
+      resolveResult({ status, stdout, stderr });
+    });
   });
-  if (result.error || result.status !== 0)
-    throw result.error ?? new Error(result.stderr || 'git command failed');
+  if (result.status !== 0)
+    throw new Error(result.stderr || 'git command failed');
   return result.stdout.trim();
 }
 
-function clean(root: string, sha: string): string | null {
-  if (git(root, ['status', '--porcelain=v1', '--untracked-files=all']))
+async function clean(root: string, sha: string): Promise<string | null> {
+  if (await git(root, ['status', '--porcelain=v1', '--untracked-files=all']))
     return 'worktree is dirty';
-  return git(root, ['rev-parse', 'HEAD']) === sha ? null : 'HEAD changed';
+  return (await git(root, ['rev-parse', 'HEAD'])) === sha
+    ? null
+    : 'HEAD changed';
 }
 
 export async function judge(
@@ -65,10 +86,12 @@ export async function judge(
   base: string,
   ids: readonly string[],
   record: (event: VerdictEvent) => Promise<void>,
+  signal?: AbortSignal,
 ): Promise<Verdict> {
   const root = realpathSync(
     resolve(
-      job.repoRoot ?? git(job.worktree, ['rev-parse', '--show-toplevel']),
+      job.repoRoot ??
+        (await git(job.worktree, ['rev-parse', '--show-toplevel'])),
     ),
   );
   if (!/^[a-f0-9]{40,64}$/i.test(sha) || !/^[a-f0-9]{40,64}$/i.test(base))
@@ -77,20 +100,20 @@ export async function judge(
       checks: [],
       findings: ['invalid base or target SHA'],
     };
-  const before = clean(job.worktree, sha);
+  const before = await clean(job.worktree, sha);
   if (before) return { kind: 'refused', checks: [], findings: [before] };
   const copies: string[] = [];
-  let terminationSignal: NodeJS.Signals | undefined;
-  const onSigint = () => {
-    terminationSignal = 'SIGINT';
-  };
-  const onSigterm = () => {
-    terminationSignal = 'SIGTERM';
-  };
-  process.on('SIGINT', onSigint);
-  process.on('SIGTERM', onSigterm);
+  let teardownUnconfirmed = false;
+  const localController = signal ? undefined : new AbortController();
+  const effectiveSignal = signal ?? localController?.signal;
+  const onSigint = () => localController?.abort('SIGINT');
+  const onSigterm = () => localController?.abort('SIGTERM');
+  if (localController) {
+    process.on('SIGINT', onSigint);
+    process.on('SIGTERM', onSigterm);
+  }
   try {
-    const checks = resolveChecks(root, base, ids);
+    const checks = await resolveChecks(root, base, ids);
     const state = resolve(root, '.krn');
     const directory = resolve(state, 'tmp');
     mkdirSync(state, { recursive: true, mode: 0o700 });
@@ -101,33 +124,42 @@ export async function judge(
       throw new Error('unsafe verdict worktree directory');
     const results: CheckEvidence[] = [];
     for (const check of checks) {
-      if (terminationSignal)
+      if (effectiveSignal?.aborted)
         return {
           kind: 'refused',
           checks: results,
-          findings: [`interrupted by ${terminationSignal}`],
+          findings: ['stopped'],
         };
       const copy = createWorktreeDirectory(directory);
       copies.push(copy);
-      addWorktree(root, copy, sha);
+      await addWorktree(root, copy, sha);
       results.push(
-        execute(root, copy, job, check.id, check.argv, check.timeoutMs, sha),
+        await execute(
+          root,
+          copy,
+          job,
+          check.id,
+          check.argv,
+          check.timeoutMs,
+          sha,
+          effectiveSignal,
+        ),
       );
     }
-    if (terminationSignal)
+    if (effectiveSignal?.aborted)
       return {
         kind: 'refused',
         checks: results,
-        findings: [`interrupted by ${terminationSignal}`],
+        findings: ['stopped'],
       };
     await record({ sha, checks: results });
-    if (terminationSignal)
+    if (effectiveSignal?.aborted)
       return {
         kind: 'refused',
         checks: results,
-        findings: [`interrupted by ${terminationSignal}`],
+        findings: ['stopped'],
       };
-    const after = clean(job.worktree, sha);
+    const after = await clean(job.worktree, sha);
     if (after) return { kind: 'refused', checks: results, findings: [after] };
     const failed = results.filter((check) => check.exitCode !== 0);
     return failed.length
@@ -140,14 +172,21 @@ export async function judge(
         }
       : { kind: 'pass', checks: results };
   } catch (error) {
+    if (error instanceof TeardownUnconfirmed) {
+      teardownUnconfirmed = true;
+      process.exitCode = 1;
+    }
     return {
       kind: 'refused',
       checks: [],
       findings: [error instanceof Error ? error.message : String(error)],
     };
   } finally {
-    process.removeListener('SIGINT', onSigint);
-    process.removeListener('SIGTERM', onSigterm);
-    cleanupWorktrees(root, copies);
+    if (localController) {
+      process.removeListener('SIGINT', onSigint);
+      process.removeListener('SIGTERM', onSigterm);
+    }
+    if (teardownUnconfirmed) process.exitCode = 1;
+    else await cleanupWorktrees(root, copies);
   }
 }
