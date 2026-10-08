@@ -4,8 +4,9 @@ import { existsSync, mkdirSync, realpathSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
 
 import type { Job } from '../core/index.ts';
-import { checkpoint as saveCheckpoint } from '../relay/index.ts';
-import { checkpoint, operatorStart, operatorStop } from '../trace/index.ts';
+import { writeCheckpointRequest } from '../foreman/checkpoint-request.ts';
+import { recordRepo } from '../foreman/state.ts';
+import { operatorStart, operatorStop } from '../trace/index.ts';
 
 function value(args: string[], flag: string): string {
   const index = args.indexOf(flag);
@@ -73,7 +74,8 @@ async function start(args: string[]): Promise<void> {
       );
     throw error;
   }
-  const job: Job = { id, issue, worktree };
+  const job: Job = { id, issue, worktree, repoRoot: root };
+  recordRepo(job, root);
   await operatorStart(job, process.env.USER ?? 'local operator');
   process.stdout.write(`${JSON.stringify(job)}\n`);
 }
@@ -86,6 +88,9 @@ async function stop(
     id: value(args, '--job'),
     issue: value(args, '--issue'),
     worktree: resolve(value(args, '--worktree')),
+    ...(args.includes('--repo-root')
+      ? { repoRoot: resolve(value(args, '--repo-root')) }
+      : {}),
   };
   if (kind === 'checkpoint') {
     const message = value(args, '--message');
@@ -104,15 +109,13 @@ async function stop(
         '--decision must be a single line of at most 500 characters',
       );
     const session = value(args, '--session');
-    await saveCheckpoint(job, session, message, next, decision);
-    await checkpoint(
-      job,
-      value(args, '--intent'),
-      session,
+    writeCheckpointRequest(job, {
+      intent: value(args, '--intent'),
+      sessionId: session,
       message,
       next,
       decision,
-    );
+    });
   } else await operatorStop(job, process.env.USER ?? 'local operator');
 }
 

@@ -3,6 +3,7 @@ export type Job = {
   readonly id: string;
   readonly issue: string;
   readonly worktree: string;
+  readonly repoRoot?: string;
 };
 
 export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };

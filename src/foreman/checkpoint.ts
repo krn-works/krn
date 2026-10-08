@@ -22,7 +22,22 @@ export async function finishCheckpoint(
   if (!sessionId) throw new Error('checkpoint has no bound session');
   const request = await d.trace.checkpointRequest(job, intent, sessionId);
   if (!request) throw new Error('checkpoint request is missing or stale');
-  const sha = commitCheckpoint(job, request.message);
+  await d.relay.checkpoint(
+    job,
+    sessionId,
+    request.message,
+    request.next,
+    request.decision,
+  );
+  await d.trace.checkpoint(
+    job,
+    intent,
+    sessionId,
+    request.message,
+    request.next,
+    request.decision,
+  );
+  const sha = commitCheckpoint(job, request.message, sessionId);
   await d.trace.commit(job, intent, sessionId, sha, request.message);
   const committed = await d.relay.recordCommit(
     job,

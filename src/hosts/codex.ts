@@ -1,9 +1,9 @@
 // Owns one ephemeral Codex process per stable session ID. ADR 0001.
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
-import { readdirSync, readFileSync, readlinkSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { isAbsolute, join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { z } from 'zod';
 
 const lineLimit = 256 * 1024;
@@ -12,7 +12,7 @@ const codexRecord = z.record(z.string(), z.unknown());
 const tokenValue = z.number().int().nonnegative().safe();
 const namespaceCleanupGraceMs = 1000;
 
-export type CodexIsolationMode = 'pid_namespace' | 'proc_tree_fallback';
+export type CodexIsolationMode = 'pid_namespace' | 'systemd_scope';
 const namespaceWrapper = `
 let prompt = '';
 process.stdin.setEncoding('utf8').on('data', (chunk) => prompt += chunk).on('end', () => {
@@ -61,6 +61,7 @@ export type CodexStartInput = {
     readonly job: string;
     readonly issue: string;
     readonly worktree: string;
+    readonly repoRoot?: string;
     readonly intent: string;
   };
   readonly onStarted?: (
@@ -91,6 +92,8 @@ export class CodexHost {
     const isolation =
       this.#isolationMode ?? detectIsolationMode(this.#namespaceLauncher);
     this.#isolationMode = isolation;
+    const scope =
+      isolation === 'systemd_scope' ? scopeName(input, id) : undefined;
     const checkpoint = input.checkpoint
       ? `\n\nWhen you reach a checkpoint, run exactly: ${[
           process.execPath,
@@ -102,6 +105,9 @@ export class CodexHost {
           input.checkpoint.issue,
           '--worktree',
           input.checkpoint.worktree,
+          ...(input.checkpoint.repoRoot
+            ? ['--repo-root', input.checkpoint.repoRoot]
+            : []),
           '--intent',
           input.checkpoint.intent,
           '--session',
@@ -113,7 +119,6 @@ export class CodexHost {
           )} --message "<conventional commit subject>" --next "<one line | done>"\nDo not run git commands or create commits. Checkpoint records your request; the foreman commits the worktree changes. If there are no changes, report that instead of checkpointing. If needed, add --decision "<one line>".`
       : '';
     const prompt = `${input.prompt}${checkpoint}\n\nAfter saving a checkpoint, finish this turn immediately.`;
-    const gitDir = resolve(input.cwd, gitCommonDir(input.cwd));
     const codexArgs = [
       'exec',
       '--json',
@@ -124,8 +129,6 @@ export class CodexHost {
       'model_reasoning_effort=low',
       '--sandbox',
       'workspace-write',
-      '--add-dir',
-      gitDir,
       '--cd',
       input.cwd,
       '--color',
@@ -135,7 +138,9 @@ export class CodexHost {
     const launcher =
       isolation === 'pid_namespace'
         ? this.#namespaceLauncher
-        : this.#executable;
+        : isolation === 'systemd_scope'
+          ? 'systemd-run'
+          : this.#executable;
     const launcherArgs =
       isolation === 'pid_namespace'
         ? [
@@ -151,11 +156,24 @@ export class CodexHost {
             this.#executable,
             ...codexArgs,
           ]
-        : codexArgs;
+        : isolation === 'systemd_scope'
+          ? [
+              '--user',
+              '--scope',
+              '--unit',
+              scopeName(input, id),
+              '--quiet',
+              this.#executable,
+              ...codexArgs,
+            ]
+          : codexArgs;
     const child = spawn(launcher, launcherArgs, {
       cwd: input.cwd,
       detached: process.platform !== 'win32',
       stdio: 'pipe',
+      ...(isolation === 'systemd_scope'
+        ? { env: userManagerEnvironment() }
+        : {}),
     });
     let namespace:
       | { readonly identity: string; readonly initPid: number }
@@ -175,6 +193,7 @@ export class CodexHost {
       isolation,
       namespace?.identity,
       namespace?.initPid,
+      scope,
     );
     this.#sessions.set(id, running);
     child.once('close', () => this.#sessions.delete(id));
@@ -182,7 +201,12 @@ export class CodexHost {
       await running.cancel();
       throw new Error('session intent was already started');
     }
-    child.stdin?.end(prompt);
+    if (child.stdin) {
+      child.stdin.on('error', (error: NodeJS.ErrnoException) => {
+        if (error.code !== 'EPIPE') child.kill('SIGTERM');
+      });
+      child.stdin.end(prompt);
+    }
     const timer = setTimeout(
       () => void this.cancelTree(id),
       input.limits.timeoutMs,
@@ -210,7 +234,8 @@ class RunningSession {
   readonly #isolation: CodexIsolationMode;
   readonly #namespace: string | undefined;
   readonly #namespaceInitPid: number | undefined;
-  readonly #descendants = new Map<number, string>();
+  readonly #scope: string | undefined;
+  readonly #scopeEnvironment: NodeJS.ProcessEnv;
   readonly #close: Promise<{
     readonly code: number | null;
     readonly signal: NodeJS.Signals | null;
@@ -226,7 +251,6 @@ class RunningSession {
   #outputTokens = 0;
   #totalTokens = 0;
   #overflow = false;
-  #descendantTracker: NodeJS.Timeout | undefined;
   #result?: Promise<CodexSessionResult>;
 
   constructor(
@@ -235,21 +259,16 @@ class RunningSession {
     isolation: CodexIsolationMode,
     namespace?: string,
     namespaceInitPid?: number,
+    scope?: string,
   ) {
     this.#id = id;
     this.#child = child;
     this.#isolation = isolation;
     this.#namespace = namespace;
     this.#namespaceInitPid = namespaceInitPid;
-    if (isolation === 'proc_tree_fallback' && child.pid !== undefined) {
-      this.captureDescendants();
-      this.#descendantTracker = setInterval(
-        () => this.captureDescendants(),
-        50,
-      );
-      this.#descendantTracker.unref();
-    }
-    this.#close = new Promise((resolve) => {
+    this.#scope = scope;
+    this.#scopeEnvironment = userManagerEnvironment();
+    this.#close = new Promise((resolveClose, rejectClose) => {
       let finished = false;
       const finish = async (
         code: number | null,
@@ -257,12 +276,15 @@ class RunningSession {
       ) => {
         if (finished) return;
         finished = true;
-        if (this.#descendantTracker) clearInterval(this.#descendantTracker);
-        if (this.#isolation === 'proc_tree_fallback')
-          await this.reapDescendants();
-        if (this.#namespace) await waitForNamespaceExit(this.#namespace);
-        for (const listener of this.#closedListeners) listener();
-        resolve({ code, signal });
+        try {
+          if (this.#scope)
+            await killAndVerifyScope(this.#scope, this.#scopeEnvironment);
+          if (this.#namespace) await waitForNamespaceExit(this.#namespace);
+          for (const listener of this.#closedListeners) listener();
+          resolveClose({ code, signal });
+        } catch (error) {
+          rejectClose(error);
+        }
       };
       child.once('close', (code, signal) => void finish(code, signal));
       child.once('error', () => void finish(null, null));
@@ -312,11 +334,7 @@ class RunningSession {
         reasonKind,
         reasonSha256: reason.hash,
         reasonLength: reason.length,
-        claimsDone:
-          code === 0 &&
-          !this.#overflow &&
-          !this.#malformed &&
-          Boolean(this.#finalMessage?.text.trim()),
+        claimsDone: false,
         ...(this.#finalMessage === undefined
           ? {}
           : { finalMessage: this.#finalMessage.text }),
@@ -395,17 +413,18 @@ class RunningSession {
   }
 
   async cancel(): Promise<void> {
+    if (this.#scope) {
+      await killAndVerifyScope(this.#scope, this.#scopeEnvironment);
+      await this.#close;
+      return;
+    }
     if (this.#child.exitCode !== null || this.#child.signalCode !== null) {
       await this.#close;
       return;
     }
     if (this.#isolation === 'pid_namespace' && this.#namespaceInitPid)
       signalPid(this.#namespaceInitPid, 'SIGTERM');
-    else {
-      this.captureDescendants();
-      signalTree(this.#child, 'SIGTERM');
-      this.signalDescendants('SIGTERM');
-    }
+    else signalTree(this.#child, 'SIGTERM');
     const closed = await Promise.race([
       this.#close.then(() => true),
       new Promise<boolean>((resolve) =>
@@ -415,37 +434,9 @@ class RunningSession {
     if (!closed) {
       if (this.#isolation === 'pid_namespace' && this.#namespaceInitPid)
         signalPid(this.#namespaceInitPid, 'SIGKILL');
-      else {
-        this.captureDescendants();
-        this.signalDescendants('SIGKILL');
-        signalTree(this.#child, 'SIGKILL');
-      }
+      else signalTree(this.#child, 'SIGKILL');
     }
     await this.#close;
-  }
-
-  private captureDescendants(): void {
-    if (this.#child.pid === undefined) return;
-    for (const [pid, info] of procDescendants(this.#child.pid))
-      this.#descendants.set(pid, info.startTime);
-  }
-
-  private signalDescendants(signal: NodeJS.Signals): void {
-    for (const [pid, startTime] of this.#descendants) {
-      if (procInfo(pid)?.startTime === startTime) signalPid(pid, signal);
-    }
-  }
-
-  private async reapDescendants(): Promise<void> {
-    while (this.#descendants.size) {
-      this.captureDescendants();
-      for (const [pid, startTime] of this.#descendants) {
-        if (procInfo(pid)?.startTime !== startTime)
-          this.#descendants.delete(pid);
-        else signalPid(pid, 'SIGKILL');
-      }
-      if (this.#descendants.size) await delay(20);
-    }
   }
 }
 
@@ -476,25 +467,103 @@ function signalPid(pid: number, signal: NodeJS.Signals): void {
 }
 
 function detectIsolationMode(namespaceLauncher: string): CodexIsolationMode {
-  if (process.env.KRN_ISOLATION !== 'pid_namespace')
-    return 'proc_tree_fallback';
-  if (process.platform !== 'linux') return 'proc_tree_fallback';
+  const requested = process.env.KRN_ISOLATION;
+  if (requested && requested !== 'pid_namespace')
+    throw new Error(`unsupported KRN_ISOLATION: ${requested}`);
+  if (requested === 'pid_namespace') {
+    if (process.platform !== 'linux')
+      throw new Error('PID namespace isolation requires Linux');
+    const result = spawnSync(
+      namespaceLauncher,
+      [
+        '--user',
+        '--map-root-user',
+        '--pid',
+        '--fork',
+        '--kill-child',
+        '--',
+        'true',
+      ],
+      { stdio: 'ignore', timeout: 3000 },
+    );
+    if (result.error || result.status !== 0)
+      throw new Error('requested PID namespace isolation is unavailable');
+    return 'pid_namespace';
+  }
+  if (process.platform !== 'linux')
+    throw new Error('systemd scope isolation requires Linux');
+  const unit = `krn-probe-${randomUUID()}.scope`;
   const result = spawnSync(
-    namespaceLauncher,
-    [
-      '--user',
-      '--map-root-user',
-      '--pid',
-      '--fork',
-      '--kill-child',
-      '--',
-      'true',
-    ],
-    { stdio: 'ignore', timeout: 3000 },
+    'systemd-run',
+    ['--user', '--scope', '--unit', unit, '--quiet', '/bin/true'],
+    { stdio: 'ignore', timeout: 5000, env: userManagerEnvironment() },
   );
-  return !result.error && result.status === 0
-    ? 'pid_namespace'
-    : 'proc_tree_fallback';
+  if (result.error || result.status !== 0)
+    throw new Error(
+      'systemd user scopes are unavailable; refusing to start worker',
+    );
+  return 'systemd_scope';
+}
+
+function scopeName(input: CodexStartInput, sessionId: string): string {
+  const raw = input.checkpoint?.job ?? basename(input.cwd);
+  const job = raw.replace(/[^A-Za-z0-9:_.-]/g, '-').slice(0, 80) || 'session';
+  return `krn-${job}-${sessionId}.scope`;
+}
+
+function userManagerEnvironment(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  const uid = process.getuid?.();
+  if (uid === undefined) return env;
+  const runtime = env.XDG_RUNTIME_DIR ?? `/run/user/${uid}`;
+  const bus = join(runtime, 'bus');
+  if (!env.XDG_RUNTIME_DIR && existsSync(runtime))
+    env.XDG_RUNTIME_DIR = runtime;
+  if (!env.DBUS_SESSION_BUS_ADDRESS && existsSync(bus))
+    env.DBUS_SESSION_BUS_ADDRESS = `unix:path=${bus}`;
+  return env;
+}
+
+async function killAndVerifyScope(
+  unit: string,
+  env: NodeJS.ProcessEnv,
+): Promise<void> {
+  const killed = spawnSync(
+    'systemctl',
+    ['--user', 'kill', '--kill-whom=all', '--signal=SIGKILL', unit],
+    { encoding: 'utf8', env, timeout: 5000 },
+  );
+  const deadline = Date.now() + 5000;
+  let lastError = killed.error?.message ?? killed.stderr.trim();
+  while (Date.now() < deadline) {
+    const shown = spawnSync(
+      'systemctl',
+      ['--user', 'show', '--property=ControlGroup', '--value', unit],
+      { encoding: 'utf8', env, timeout: 3000 },
+    );
+    if (shown.status !== 0) {
+      const detail = `${shown.stderr}\n${shown.stdout}`;
+      if (/not loaded|not found|could not be found/i.test(detail)) return;
+      throw new Error(`cannot verify systemd scope ${unit}: ${detail.trim()}`);
+    }
+    const controlGroup = shown.stdout.trim();
+    if (!controlGroup) return;
+    if (!controlGroup.startsWith('/') || controlGroup.split('/').includes('..'))
+      throw new Error(`systemd returned an invalid cgroup path for ${unit}`);
+    const cgroup = resolve('/sys/fs/cgroup', controlGroup.slice(1));
+    try {
+      const events = readFileSync(join(cgroup, 'cgroup.events'), 'utf8');
+      if (/^populated 0$/m.test(events)) return;
+      lastError = `cgroup ${controlGroup} remains populated`;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+      throw error;
+    }
+    await delay(20);
+  }
+  if (killed.status !== 0 && !lastError)
+    lastError = killed.stderr || 'systemd kill command failed';
+  throw new Error(`systemd scope ${unit} did not become empty: ${lastError}`);
 }
 
 async function namespaceIdentity(
@@ -551,64 +620,6 @@ function namespacePids(namespace: string): number[] {
   });
 }
 
-function procInfo(
-  pid: number,
-): { readonly parent: number; readonly startTime: string } | undefined {
-  try {
-    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
-    const fields = stat
-      .slice(stat.lastIndexOf(')') + 2)
-      .trim()
-      .split(/\s+/);
-    const parent = Number(fields[1]);
-    const startTime = fields[19];
-    return Number.isSafeInteger(parent) && startTime
-      ? { parent, startTime }
-      : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function procDescendants(
-  rootPid: number,
-): Map<number, { readonly startTime: string }> {
-  let entries: string[];
-  try {
-    entries = readdirSync('/proc');
-  } catch {
-    return new Map();
-  }
-  const snapshot = new Map<
-    number,
-    { readonly parent: number; readonly startTime: string }
-  >();
-  for (const entry of entries) {
-    if (!/^\d+$/.test(entry)) continue;
-    const info = procInfo(Number(entry));
-    if (info) snapshot.set(Number(entry), info);
-  }
-  const tree = new Set([rootPid]);
-  for (;;) {
-    let changed = false;
-    for (const [pid, info] of snapshot) {
-      if (!tree.has(pid) && tree.has(info.parent)) {
-        tree.add(pid);
-        changed = true;
-      }
-    }
-    if (!changed) break;
-  }
-  return new Map(
-    [...tree]
-      .filter((pid) => pid !== rootPid)
-      .flatMap((pid) => {
-        const info = snapshot.get(pid);
-        return info ? [[pid, { startTime: info.startTime }] as const] : [];
-      }),
-  );
-}
-
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -625,16 +636,4 @@ function tokenCount(value: unknown): number {
 
 function safeAdd(left: number, right: number): number {
   return Math.min(left + right, Number.MAX_SAFE_INTEGER);
-}
-
-function gitCommonDir(cwd: string): string {
-  const result = spawnSync(
-    'git',
-    ['-C', cwd, 'rev-parse', '--git-common-dir'],
-    { encoding: 'utf8' },
-  );
-  if (result.status !== 0)
-    throw new Error(result.stderr || 'unable to find git directory');
-  const path = result.stdout.trim();
-  return isAbsolute(path) ? path : resolve(cwd, path);
 }

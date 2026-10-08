@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { Job } from '../core/index.ts';
+import { stateDirectory } from './state.ts';
 import type {
   Capsule,
   Deps,
@@ -27,11 +28,13 @@ export function endOutcome(
   noProgress = false,
 ): Outcome {
   return d.stop(job, 'human_decision', [
-    noProgress
-      ? 'no_progress'
-      : end.claimsDone
-        ? 'S5/S6 verdict path is not enabled'
-        : 'session ended without a checkpoint',
+    end.dirtyPaths?.length
+      ? `uncommitted_changes: reasonKind=${end.reasonKind}; paths=${end.dirtyPaths.join(',')}`
+      : noProgress
+        ? 'no_progress'
+        : end.claimsDone
+          ? 'S5/S6 verdict path is not enabled'
+          : 'session ended without a checkpoint',
   ]);
 }
 
@@ -41,9 +44,14 @@ export async function finishSession(
   d: Deps,
 ): Promise<Outcome> {
   const facts = await d.relay.repoFacts(job);
-  const next = await d.relay.refreshCAS(run.capsule, facts, run.end);
+  const end = {
+    ...run.end,
+    claimsDone: false,
+    dirtyPaths: facts.dirtyPaths ?? [],
+  };
+  const next = await d.relay.refreshCAS(run.capsule, facts, end);
   return next.applied
-    ? endOutcome(job, run.end, d, facts.head === run.capsule.head)
+    ? endOutcome(job, end, d, facts.head === run.capsule.head)
     : d.stop(job, 'human_decision', ['capsule revision conflict']);
 }
 
@@ -85,6 +93,7 @@ export async function runSession(
         job: job.id,
         issue: job.issue,
         worktree: job.worktree,
+        ...(job.repoRoot === undefined ? {} : { repoRoot: job.repoRoot }),
         intent,
       },
       onStarted: async (sessionId, pgid, isolation) => {
@@ -132,10 +141,10 @@ export async function runSession(
     if (process.env.KRN_LIVE_DIAG === '1' && finalMessage !== undefined) {
       if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(job.id) || job.id === '..')
         throw new Error('invalid diagnostic job id');
-      const directory = join(job.worktree, '.krn', 'runs', 'foreman');
+      const directory = stateDirectory(job);
       mkdirSync(directory, { recursive: true, mode: 0o700 });
       writeFileSync(
-        join(directory, `${job.id}.reason.txt`),
+        join(directory, 'reason.txt'),
         finalMessage.slice(0, 2000),
         {
           mode: 0o600,
@@ -144,7 +153,7 @@ export async function runSession(
     }
     await d.trace.log(job, intent, running.id, 'session_ended', end);
     return {
-      end,
+      end: { ...end, claimsDone: false },
       checkpointed,
       capsule: bound,
     };

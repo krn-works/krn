@@ -10,6 +10,7 @@ export type Capsule = {
   readonly head: string;
   readonly branch: string;
   readonly worktree: string;
+  readonly dirtyPaths?: readonly string[];
   readonly nextAction: string;
   readonly lease: 'active' | 'checkpointed' | 'ended';
   readonly blockers: readonly string[];
@@ -27,9 +28,11 @@ export type RepoFacts = {
   readonly head: string;
   readonly branch: string;
   readonly worktree: string;
+  readonly dirtyPaths?: readonly string[];
 };
 export type SessionEnd = {
   readonly reasonKind: string;
+  readonly dirtyPaths?: readonly string[];
   readonly reasonSha256?: string;
   readonly reasonLength?: number;
   readonly claimsDone: boolean;
@@ -103,7 +106,7 @@ export type Deps = {
       intent: string,
       sessionId: string,
       pgid?: number,
-      isolation?: 'pid_namespace' | 'proc_tree_fallback',
+      isolation?: 'pid_namespace' | 'systemd_scope',
     ): Promise<boolean>;
     checkpoint(
       job: Job,
@@ -117,7 +120,11 @@ export type Deps = {
       job: Job,
       intent: string,
       sessionId: string,
-    ): Promise<{ readonly message: string; readonly next: string } | null>;
+    ): Promise<{
+      readonly message: string;
+      readonly next: string;
+      readonly decision?: string;
+    } | null>;
     commit(
       job: Job,
       intent: string,
@@ -152,12 +159,13 @@ export type Deps = {
           readonly job: string;
           readonly issue: string;
           readonly worktree: string;
+          readonly repoRoot?: string;
           readonly intent: string;
         };
         readonly onStarted: (
           sessionId: string,
           pgid?: number,
-          isolation?: 'pid_namespace' | 'proc_tree_fallback',
+          isolation?: 'pid_namespace' | 'systemd_scope',
         ) => Promise<boolean>;
       }): Promise<Session>;
     };

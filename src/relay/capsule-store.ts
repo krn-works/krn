@@ -1,19 +1,22 @@
 // Capsule files keep the hook-readable ABI intact and serialize epoch compare-and-swap writes. ADR 0001.
 import {
   closeSync,
+  constants,
   mkdirSync,
   openSync,
   readFileSync,
+  realpathSync,
   renameSync,
   statSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 
 import { z } from 'zod';
 
 import type { Job } from '../core/index.ts';
+import { ensureProjectionDirectory, stateDirectory } from '../foreman/state.ts';
 
 const labels = [
   'Outcome and observable acceptance',
@@ -63,10 +66,12 @@ export type RepoFacts = {
   readonly head: string;
   readonly branch: string;
   readonly worktree: string;
+  readonly dirtyPaths?: readonly string[];
 };
 export type SessionEnd = {
   readonly reasonKind: string;
   readonly claimsDone: boolean;
+  readonly dirtyPaths?: readonly string[];
 };
 export type Cas<T> =
   | { readonly applied: true; readonly value: T }
@@ -79,14 +84,11 @@ export function parseCapsule(input: unknown): Capsule {
 function capsulePath(job: Job): string {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(job.id) || job.id === '..')
     throw new Error('invalid capsule job id');
-  return join(
-    job.worktree,
-    '.krn',
-    'runs',
-    'delivery-loop',
-    job.id,
-    'state.md',
-  );
+  return join(ensureProjectionDirectory(job), 'state.md');
+}
+
+function authoritativePath(job: Job): string {
+  return join(stateDirectory(job), 'capsule.json');
 }
 
 function renderAbi(capsule: Capsule, expectedEpoch: number | null): string {
@@ -98,7 +100,7 @@ function renderAbi(capsule: Capsule, expectedEpoch: number | null): string {
     `base=${capsule.base}; HEAD=${capsule.head}; branch=${capsule.branch}; worktree=${capsule.worktree}`,
     'none',
     'ABSENT',
-    'none',
+    `[.krn/runs/foreman/${capsule.jobId}; foreman; $foreman; closes with capsule; ACTIVE]`,
     `capsule CAS expectedEpoch=${expectedEpoch === null ? 'empty' : expectedEpoch}`,
     `session=${JSON.stringify(capsule.sessionId ?? '')}; lease=${capsule.lease}`,
     'no transcript or memory-event writes',
@@ -118,56 +120,26 @@ function renderAbi(capsule: Capsule, expectedEpoch: number | null): string {
   return `${text}\n`;
 }
 
-function parseAbi(text: string): Capsule {
-  const fields = new Map<string, string>();
-  for (const label of labels) {
-    const line = text
-      .split('\n')
-      .find((entry) => entry.startsWith(`${label}:`));
-    if (!line) throw new Error(`capsule ABI field missing: ${label}`);
-    fields.set(label, line.slice(label.length + 1).trim());
-  }
-  const identity = /^issue=(.+); contractRevision=(.+)$/.exec(
-    fields.get(labels[0]) ?? '',
-  );
-  const owner = /^relay; job=([^;]+); epoch=(\d+)$/.exec(
-    fields.get(labels[1]) ?? '',
-  );
-  const anchors =
-    /^base=([^;]+); HEAD=([^;]+); branch=([^;]+); worktree=(.+)$/.exec(
-      fields.get(labels[4]) ?? '',
-    );
-  if (!identity || !owner || !anchors)
-    throw new Error('capsule ABI identity or repository anchors are malformed');
-  const session = /^session=(.*); lease=(active|checkpointed|ended)$/.exec(
-    fields.get(labels[9]) ?? '',
-  );
-  const decisions = /^decisions=(\[.*\]); rejectedApproaches=(\[.*\])$/.exec(
-    fields.get(labels[11]) ?? '',
+export function projectCapsule(job: Job, capsule: Capsule): void {
+  const projection = capsulePath(job);
+  const directory = ensureProjectionDirectory(job);
+  if (realpathSync(directory) !== directory)
+    throw new Error('unsafe projection directory');
+  const temporary = `${projection}.${process.pid}.${Date.now()}.tmp`;
+  const fd = openSync(
+    temporary,
+    constants.O_WRONLY |
+      constants.O_CREAT |
+      constants.O_EXCL |
+      constants.O_NOFOLLOW,
+    0o600,
   );
   try {
-    const sessionId: unknown = JSON.parse(session?.[1] ?? '""');
-    return capsuleSchema.parse({
-      jobId: owner[1],
-      issue: JSON.parse(identity[1] ?? ''),
-      contractRevision: JSON.parse(identity[2] ?? ''),
-      epoch: Number(owner[2]),
-      base: anchors[1],
-      head: anchors[2],
-      branch: anchors[3],
-      worktree: anchors[4],
-      nextAction: fields.get(labels[15]),
-      lease: session?.[2] ?? 'ended',
-      blockers: JSON.parse(fields.get(labels[12]) ?? '[]'),
-      decisions: JSON.parse(decisions?.[1] ?? '[]'),
-      rejectedApproaches: JSON.parse(decisions?.[2] ?? '[]'),
-      references: JSON.parse(fields.get(labels[14]) ?? '[]'),
-      ...(typeof sessionId === 'string' && sessionId ? { sessionId } : {}),
-    });
-  } catch (error) {
-    if (error instanceof z.ZodError) throw error;
-    throw new Error('capsule ABI data is malformed');
+    writeFileSync(fd, renderAbi(capsule, null));
+  } finally {
+    closeSync(fd);
   }
+  renameSync(temporary, projection);
 }
 
 function acquireLock(path: string): number | null {
@@ -202,7 +174,9 @@ function acquireLock(path: string): number | null {
 
 export function readCapsule(job: Job): Capsule | null {
   try {
-    return parseAbi(readFileSync(capsulePath(job), 'utf8'));
+    return capsuleSchema.parse(
+      JSON.parse(readFileSync(authoritativePath(job), 'utf8')),
+    );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
     throw error;
@@ -217,9 +191,9 @@ export function writeCapsule(
   const capsule = capsuleSchema.parse(input);
   if (capsule.jobId !== job.id || capsule.worktree !== job.worktree)
     throw new Error('capsule does not belong to this job');
-  const path = capsulePath(job);
+  const path = authoritativePath(job);
   const lock = `${path}.lock`;
-  mkdirSync(dirname(path), { recursive: true });
+  mkdirSync(stateDirectory(job), { recursive: true, mode: 0o700 });
   const lockFd = acquireLock(lock);
   if (lockFd === null) return Promise.resolve({ applied: false });
   try {
@@ -230,12 +204,21 @@ export function writeCapsule(
     )
       return Promise.resolve({ applied: false });
     const temporary = `${path}.${process.pid}.${Date.now()}.tmp`;
-    writeFileSync(temporary, renderAbi(capsule, expectedEpoch), {
-      encoding: 'utf8',
-      flag: 'wx',
-      mode: 0o600,
-    });
+    const fd = openSync(
+      temporary,
+      constants.O_WRONLY |
+        constants.O_CREAT |
+        constants.O_EXCL |
+        constants.O_NOFOLLOW,
+      0o600,
+    );
+    try {
+      writeFileSync(fd, JSON.stringify(capsule));
+    } finally {
+      closeSync(fd);
+    }
     renameSync(temporary, path);
+    projectCapsule(job, capsule);
     return Promise.resolve({ applied: true, value: capsule });
   } finally {
     closeSync(lockFd);

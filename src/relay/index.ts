@@ -1,15 +1,16 @@
 // Relay validates and advances the hook-readable continuation capsule. ADR 0001.
-import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { z } from 'zod';
 
 import type { Job } from '../core/index.ts';
+import { git } from '../foreman/git.ts';
 import {
   type Capsule,
   type Cas,
   parseCapsule,
+  projectCapsule,
   type RepoFacts,
   readCapsule,
   renderProjection,
@@ -40,6 +41,7 @@ export async function load(
       throw new Error('capsule belongs to a different job');
     if (current.contractRevision !== contract.revision)
       throw new Error('capsule contract revision is stale');
+    projectCapsule(job, current);
     return current;
   }
   const initial = parseCapsule({
@@ -78,25 +80,15 @@ export function repoReferences(job: Job): string[] {
 }
 
 export function repoFacts(job: Job): RepoFacts {
-  const result = spawnSync(
-    'git',
-    [
-      '-C',
-      job.worktree,
-      'rev-parse',
-      '--show-toplevel',
-      'HEAD',
-      '--abbrev-ref',
-      'HEAD',
-    ],
-    { encoding: 'utf8' },
-  );
-  if (result.error || result.status !== 0)
-    throw (
-      result.error ??
-      new Error(result.stderr || 'unable to read repository anchors')
-    );
-  const [root, head, branch] = result.stdout.trim().split('\n');
+  const [root, head, branch] = git(job, [
+    'rev-parse',
+    '--show-toplevel',
+    'HEAD',
+    '--abbrev-ref',
+    'HEAD',
+  ])
+    .trim()
+    .split('\n');
   const anchors = z
     .object({
       root: z.string().min(1),
@@ -104,25 +96,27 @@ export function repoFacts(job: Job): RepoFacts {
       branch: z.string().min(1),
     })
     .parse({ root, head, branch });
-  const baseResult = spawnSync(
-    'git',
-    ['-C', job.worktree, 'merge-base', 'HEAD', 'main'],
-    { encoding: 'utf8' },
-  );
-  if (baseResult.error || baseResult.status !== 0)
-    throw (
-      baseResult.error ??
-      new Error(baseResult.stderr || 'unable to read repository base')
-    );
+  const baseResult = git(job, ['merge-base', 'HEAD', 'main']);
   const base = z
     .string()
     .regex(/^[0-9a-f]{40,64}$/i)
-    .parse(baseResult.stdout.trim());
+    .parse(baseResult.trim());
+  const dirtyPaths = git(job, [
+    'status',
+    '--porcelain=v1',
+    '-z',
+    '--no-renames',
+    '--untracked-files=all',
+  ])
+    .split('\0')
+    .filter(Boolean)
+    .map((field) => field.slice(3));
   return {
     base,
     head: anchors.head,
     branch: anchors.branch,
     worktree: job.worktree,
+    dirtyPaths,
   };
 }
 
@@ -186,6 +180,12 @@ export async function refreshCAS(
       : `resume after session ended (${end.reasonKind})`,
     lease: 'ended',
     sessionId: undefined,
+    blockers: facts.dirtyPaths?.length
+      ? facts.dirtyPaths.map(
+          (path) =>
+            `uncommitted_changes: reasonKind=${end.reasonKind}; path=${path}`,
+        )
+      : [],
   });
   return storeCapsule(
     { id: capsule.jobId, issue: capsule.issue, worktree: capsule.worktree },
@@ -203,6 +203,24 @@ export async function checkpoint(
 ): Promise<Capsule> {
   const current = readCapsule(job);
   if (!current) throw new Error('cannot checkpoint without a relay capsule');
+  const priorRequest = [...current.decisions]
+    .reverse()
+    .find(
+      (entry) =>
+        entry.source === sessionId && entry.text.startsWith('commit request: '),
+    );
+  const priorTail = current.decisions.at(-1)?.text;
+  if (current.sessionId === sessionId && current.lease === 'checkpointed') {
+    if (
+      current.nextAction === nextAction &&
+      priorRequest?.text === `commit request: ${message}` &&
+      priorTail === (decision ?? `commit request: ${message}`)
+    )
+      return current;
+    throw new Error('checkpoint request conflicts with prior request');
+  }
+  if (current.sessionId !== sessionId || current.lease !== 'active')
+    throw new Error('checkpoint session is stale');
   const next = parseCapsule({
     ...current,
     epoch: current.epoch + 1,
