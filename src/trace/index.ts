@@ -273,6 +273,22 @@ export async function teardownUnconfirmed(
   });
 }
 
+export function paperclipUpdateStarted(
+  job: Job,
+  sha: string,
+  kind: 'review' | 'conflict_comment',
+): void {
+  append(
+    job,
+    `paperclip-update-started:${randomUUID()}`,
+    'paperclip_update_started',
+    {
+      sha,
+      kind,
+    },
+  );
+}
+
 export async function readyForReview(job: Job, sha: string): Promise<void> {
   append(job, `ready-for-review:${sha}`, 'ready_for_review', { sha });
 }

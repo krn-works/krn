@@ -86,6 +86,8 @@ export type Deps = {
       contract: Contract,
       evidence: VerdictEvidence,
       recordedSha: string,
+      signal?: AbortSignal,
+      onWriteStarted?: (kind: 'review' | 'conflict_comment') => void,
     ): Promise<ReviewSubmission>;
   };
   readonly relay: {
@@ -175,6 +177,11 @@ export type Deps = {
     ): Promise<void>;
     hasVerdict?(job: Job, sha: string): Promise<boolean>;
     stopped?(job: Job, signal: string): Promise<void>;
+    paperclipUpdateStarted?(
+      job: Job,
+      sha: string,
+      kind: 'review' | 'conflict_comment',
+    ): void;
     readyForReview?(job: Job, sha: string): Promise<void>;
   };
   readonly hosts: {

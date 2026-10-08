@@ -65,6 +65,7 @@ export type VerdictEvidence = Readonly<{
 export type ReviewSubmission =
   | 'submitted'
   | 'ready_for_review'
+  | 'stopped'
   | 'refused'
   | 'board_changed'
   | 'board_conflict';
@@ -79,8 +80,8 @@ export type LedgerOptions = {
 };
 
 export type LedgerTransport = Readonly<{
-  readIssue(issueId: string): Promise<unknown>;
-  readActivity(issueId: string): Promise<unknown>;
+  readIssue(issueId: string, signal?: AbortSignal): Promise<unknown>;
+  readActivity(issueId: string, signal?: AbortSignal): Promise<unknown>;
   updateIssue(
     issueId: string,
     status: string,
@@ -180,14 +181,18 @@ export function createLedger(options: LedgerOptions) {
   async function requestJson(
     input: string,
     init: RequestInit,
+    signal?: AbortSignal,
   ): Promise<{ response: Response; body: unknown }> {
     const controller = new AbortController();
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     let timedOut = false;
     const operation = (async () => {
+      const requestSignal = signal
+        ? AbortSignal.any([controller.signal, signal])
+        : controller.signal;
       const response = await fetchRequest(input, {
         ...init,
-        signal: controller.signal,
+        signal: requestSignal,
       });
       return { response, body: await readBoundedJson(response) };
     })();
@@ -209,11 +214,11 @@ export function createLedger(options: LedgerOptions) {
     }
   }
 
-  async function readIssue(issueId: string) {
+  async function readIssue(issueId: string, signal?: AbortSignal) {
     if (!/^[A-Za-z0-9_-]+$/.test(issueId))
       throw new Error('invalid Paperclip issue ID');
     if (transport) {
-      const parsed = parseIssue(await transport.readIssue(issueId));
+      const parsed = parseIssue(await transport.readIssue(issueId, signal));
       if (!parsed.success || parsed.data.id !== issueId)
         throw new Error('invalid Paperclip issue response');
       return parsed.data;
@@ -224,6 +229,7 @@ export function createLedger(options: LedgerOptions) {
         headers,
         redirect: 'error',
       },
+      signal,
     );
     if (!response.ok)
       throw new Error(`Paperclip issue read failed (${response.status})`);
@@ -233,12 +239,12 @@ export function createLedger(options: LedgerOptions) {
     return parsed.data;
   }
 
-  async function readActivity(issueId: string) {
+  async function readActivity(issueId: string, signal?: AbortSignal) {
     if (!/^[A-Za-z0-9_-]+$/.test(issueId))
       throw new Error('invalid Paperclip issue ID');
     if (transport) {
       const parsed = activitySchema.safeParse(
-        await transport.readActivity(issueId),
+        await transport.readActivity(issueId, signal),
       );
       if (!parsed.success)
         throw new Error('invalid Paperclip activity response');
@@ -247,6 +253,7 @@ export function createLedger(options: LedgerOptions) {
     const { response, body } = await requestJson(
       `${base}/api/issues/${issueId}/activity`,
       { headers, redirect: 'error' },
+      signal,
     );
     if (!response.ok)
       throw new Error(`Paperclip activity read failed (${response.status})`);
@@ -261,6 +268,8 @@ export function createLedger(options: LedgerOptions) {
     writtenAt: string,
     writtenCommentHash: string,
     events: readonly z.infer<typeof activitySchema>[number][],
+    signal?: AbortSignal,
+    onWriteStarted?: (kind: 'review' | 'conflict_comment') => void,
   ) {
     if (!options.session) throw new Error('KRN_SESSION is required to submit');
     const observed = events.length
@@ -280,10 +289,17 @@ export function createLedger(options: LedgerOptions) {
       'Human review is required; the ledger made no status correction.',
     ].join('\n');
     if (transport) {
-      const current = await readIssue(issueId);
+      const current = await readIssue(issueId, signal);
+      if (signal?.aborted) return;
+      onWriteStarted?.('conflict_comment');
+      if (signal?.aborted) return;
       await transport.updateIssue(issueId, current.status, comment);
+      if (signal?.aborted) return;
       return;
     }
+    if (signal?.aborted) return;
+    onWriteStarted?.('conflict_comment');
+    if (signal?.aborted) return;
     const { response } = await requestJson(
       `${base}/api/issues/${issueId}/comments`,
       {
@@ -293,6 +309,7 @@ export function createLedger(options: LedgerOptions) {
         body: JSON.stringify({ body: comment }),
       },
     );
+    if (signal?.aborted) return;
     if (!response.ok)
       throw new Error(`Paperclip conflict comment failed (${response.status})`);
   }
@@ -343,6 +360,8 @@ export function createLedger(options: LedgerOptions) {
       contract: Contract,
       evidence: VerdictEvidence,
       recordedSha: string,
+      signal?: AbortSignal,
+      onWriteStarted?: (kind: 'review' | 'conflict_comment') => void,
     ): Promise<ReviewSubmission> {
       if (
         contract.issueId !== job.issue ||
@@ -352,13 +371,19 @@ export function createLedger(options: LedgerOptions) {
         return 'refused';
       if (!options.session)
         throw new Error('KRN_SESSION is required to submit');
-      const current = await readIssue(job.issue).catch(() => null);
+      if (signal?.aborted) return 'stopped';
+      const current = await readIssue(job.issue, signal).catch(() => null);
+      if (signal?.aborted) return 'stopped';
       if (!current) return 'refused';
       if (current.updatedAt !== contract.revision || current.status === 'done')
         return 'board_changed';
-      const beforeActivity = await readActivity(job.issue).catch(() => null);
+      const beforeActivity = await readActivity(job.issue, signal).catch(
+        () => null,
+      );
+      if (signal?.aborted) return 'stopped';
       if (!beforeActivity) return 'refused';
-      const fenced = await readIssue(job.issue).catch(() => null);
+      const fenced = await readIssue(job.issue, signal).catch(() => null);
+      if (signal?.aborted) return 'stopped';
       if (!fenced) return 'refused';
       if (fenced.updatedAt !== contract.revision || fenced.status === 'done')
         return 'board_changed';
@@ -374,6 +399,9 @@ export function createLedger(options: LedgerOptions) {
       ].join('\n');
       let response: Response | undefined;
       let body: unknown;
+      if (signal?.aborted) return 'stopped';
+      onWriteStarted?.('review');
+      if (signal?.aborted) return 'stopped';
       if (transport) {
         body = await transport.updateIssue(job.issue, 'in_review', comment);
       } else {
@@ -386,6 +414,7 @@ export function createLedger(options: LedgerOptions) {
         response = result.response;
         body = result.body;
       }
+      if (signal?.aborted) return 'stopped';
       if (response && !response.ok)
         throw new Error(
           `Paperclip review submission failed (${response.status})`,
@@ -393,10 +422,12 @@ export function createLedger(options: LedgerOptions) {
       const receipt = parseIssue(body);
       if (!receipt.success || receipt.data.id !== job.issue)
         throw new Error('invalid Paperclip review receipt');
+      if (signal?.aborted) return 'stopped';
       const [afterIssue, afterActivity] = await Promise.all([
-        readIssue(job.issue),
-        readActivity(job.issue),
+        readIssue(job.issue, signal),
+        readActivity(job.issue, signal),
       ]);
+      if (signal?.aborted) return 'stopped';
       const beforeIds = new Set(beforeActivity.map((event) => event.id));
       const newEvents = afterActivity.filter(
         (event) => !beforeIds.has(event.id),
@@ -422,7 +453,10 @@ export function createLedger(options: LedgerOptions) {
           receipt.data.updatedAt,
           hash(comment),
           foreignEvents.length > 0 ? foreignEvents : newEvents,
+          signal,
+          onWriteStarted,
         );
+        if (signal?.aborted) return 'stopped';
         return 'board_conflict';
       }
       return afterIssue.status === 'in_review' ? 'submitted' : 'refused';

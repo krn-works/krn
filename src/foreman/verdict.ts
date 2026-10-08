@@ -10,15 +10,19 @@ export async function reportPassingVerdict(
   sha: string,
   checks: readonly CheckEvidence[],
   ledger: Pick<Deps['ledger'], 'submitForReview'>,
-  trace: Pick<Deps['trace'], 'readyForReview'>,
+  trace: Pick<Deps['trace'], 'readyForReview' | 'paperclipUpdateStarted'>,
   stop: Deps['stop'],
+  signal?: AbortSignal,
 ): Promise<Outcome> {
   const submitted = await ledger.submitForReview(
     job,
     contract,
     { kind: 'verdict_pass', sha, checks },
     sha,
+    signal,
+    (kind) => trace.paperclipUpdateStarted?.(job, sha, kind),
   );
+  if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
   if (submitted === 'ready_for_review') {
     await trace.readyForReview?.(job, sha);
     return { kind: 'verdict_pass', state: 'ready_for_review', sha };
@@ -26,11 +30,13 @@ export async function reportPassingVerdict(
   return submitted === 'submitted'
     ? { kind: 'verdict_pass', state: 'in_review', sha }
     : stop(job, 'human_decision', [
-        submitted === 'board_conflict'
-          ? 'board_conflict'
-          : submitted === 'board_changed'
-            ? 'board_changed'
-            : 'Paperclip review submission refused',
+        submitted === 'stopped'
+          ? 'stopped'
+          : submitted === 'board_conflict'
+            ? 'board_conflict'
+            : submitted === 'board_changed'
+              ? 'board_changed'
+              : 'Paperclip review submission refused',
       ]);
 }
 
@@ -77,6 +83,7 @@ export async function verifyCheckpoint(
         d.ledger,
         d.trace,
         d.stop,
+        d.signal,
       ),
     };
   }
