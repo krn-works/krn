@@ -77,6 +77,7 @@ export type Budget = {
 };
 
 export type Deps = {
+  readonly signal?: AbortSignal;
   readonly budget: Budget;
   readonly ledger: {
     readContract(issue: string): Promise<Contract>;
@@ -172,6 +173,8 @@ export type Deps = {
       job: Job,
       event: import('../verdict/index.ts').VerdictEvent,
     ): Promise<void>;
+    hasVerdict?(job: Job, sha: string): Promise<boolean>;
+    stopped?(job: Job, signal: string): Promise<void>;
     readyForReview?(job: Job, sha: string): Promise<void>;
   };
   readonly hosts: {

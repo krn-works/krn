@@ -254,6 +254,16 @@ export async function verdict(job: Job, event: VerdictEvent): Promise<void> {
   });
 }
 
+export async function hasVerdict(job: Job, sha: string): Promise<boolean> {
+  return events(job).some(
+    (event) => event.kind === 'verdict' && event.data.sha === sha,
+  );
+}
+
+export async function stopped(job: Job, signal: string): Promise<void> {
+  append(job, `stopped:${randomUUID()}`, 'stopped', { signal });
+}
+
 export async function readyForReview(job: Job, sha: string): Promise<void> {
   append(job, `ready-for-review:${sha}`, 'ready_for_review', { sha });
 }

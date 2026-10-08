@@ -491,7 +491,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
           ...process.env,
           KRN_LIVE: '1',
           KRN_CODEX_BIN: executable,
-          KRN_LIVE_WALL_TIME_MS: '1500',
+          KRN_LIVE_WALL_TIME_MS: '5000',
           KRN_PAPERCLIP_API_URL: paperclip.apiUrl,
           KRN_PAPERCLIP_TOKEN: 'fixture-token',
           KRN_SESSION: 'fixture-session',

@@ -58,8 +58,15 @@ export async function verifyCheckpoint(
     capsule.base,
     contract.checks ?? [],
     (event) => d.trace.verdict?.(job, event) ?? Promise.resolve(),
+    d.signal,
   );
   if (verdict.kind === 'pass') {
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    if (d.signal?.aborted)
+      return {
+        kind: 'stop',
+        outcome: d.stop(job, 'human_decision', ['stopped']),
+      };
     return {
       kind: 'stop',
       outcome: await reportPassingVerdict(

@@ -12,6 +12,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
+import { recordRepo } from '../../src/foreman/state.ts';
 import type { Capsule, Deps } from '../../src/foreman/types.ts';
 import { verifyCheckpoint } from '../../src/foreman/verdict.ts';
 import { judge } from '../../src/verdict/index.ts';
@@ -59,61 +60,64 @@ function fixture(argv: readonly string[], withLockfile = false) {
   return { root, job, git, base, sha: base };
 }
 
-test('SIGTERM during verdict recording refuses checkpoint pass', async () => {
-  const f = fixture(['/usr/bin/true']);
-  const capsule: Capsule = {
-    jobId: f.job.id,
-    issue: f.job.issue,
-    contractRevision: 'r1',
-    epoch: 0,
-    base: f.base,
-    head: f.sha,
-    branch: 'main',
-    worktree: f.root,
-    nextAction: 'done',
-    lease: 'active',
-    blockers: [],
-    decisions: [],
-    rejectedApproaches: [],
-    references: [],
-  };
-  const deps = {
-    budget: { maxRepairs: 0 },
-    trace: {
-      verdict: async () => {
-        process.emit('SIGTERM');
-      },
-    },
-    stop: (_job: unknown, state: string, reasons: readonly string[]) => ({
-      kind: 'stop',
-      state,
-      reasons,
-    }),
-  } as unknown as Deps;
+test('real SIGTERM during a sleeping verdict check stops before submit and is traced', async () => {
+  const f = fixture(['/usr/bin/sleep', '30']);
+  recordRepo(f.job, f.root);
+  const marker = join(f.root, 'submit-called');
+  const source = `
+    import { writeFileSync } from 'node:fs';
+    import { verifyCheckpoint } from ${JSON.stringify(new URL('../../src/foreman/verdict.ts', import.meta.url).href)};
+    import * as trace from ${JSON.stringify(new URL('../../src/trace/index.ts', import.meta.url).href)};
+    const job=${JSON.stringify(f.job)};
+    const controller=new AbortController();
+    process.once('SIGTERM',()=>controller.abort('SIGTERM'));
+    const capsule=${JSON.stringify({ jobId: f.job.id, issue: f.job.issue, contractRevision: 'r1', epoch: 0, base: f.base, head: f.sha, branch: 'main', worktree: f.root, nextAction: 'done', lease: 'checkpointed', blockers: [], decisions: [], rejectedApproaches: [], references: [] })};
+    const contract=${JSON.stringify({ issueId: f.job.issue, identifier: 'fixture', title: 'fixture', description: 'fixture', revision: 'r1', targetRepo: 'fixture/repo', checks: ['declared'] })};
+    const deps={budget:{maxRepairs:0},signal:controller.signal,trace:{verdict:trace.verdict},ledger:{submitForReview:async()=>{writeFileSync(${JSON.stringify(marker)},'called');return 'submitted'}},stop:(_job,state,reasons)=>({kind:'stop',state,reasons})};
+    const result=await verifyCheckpoint(job,capsule,${JSON.stringify(f.sha)},contract,0,deps);
+    if(controller.signal.aborted) await trace.stopped(job,'SIGTERM');
+    process.stdout.write(JSON.stringify(result)+'\\n');
+    if(controller.signal.aborted) process.exitCode=130;
+  `;
+  const child = spawn(process.execPath, ['--input-type=module', '-e', source], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let output = '';
+  let errors = '';
+  const startedAt = Date.now();
+  child.stdout.setEncoding('utf8').on('data', (chunk) => (output += chunk));
+  child.stderr.setEncoding('utf8').on('data', (chunk) => (errors += chunk));
   try {
-    const result = await verifyCheckpoint(
-      f.job,
-      capsule,
-      f.sha,
-      {
-        issueId: f.job.issue,
-        identifier: 'fixture',
-        title: 'sandbox fixture',
-        description: 'sandbox fixture',
-        revision: 'r1',
-        targetRepo: 'fixture/repo',
-        checks: ['declared'],
-      },
-      0,
-      deps,
+    const deadline = Date.now() + 10000;
+    while (!existsSync(join(f.root, '.krn', 'tmp')) && Date.now() < deadline)
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    assert.ok(child.pid);
+    process.kill(child.pid, 'SIGTERM');
+    const code = await new Promise<number | null>((resolve) =>
+      child.once('close', resolve),
     );
-    assert.equal(result.kind, 'stop');
-    if (result.kind === 'stop') {
-      assert.equal(result.outcome.kind, 'stop');
-      if (result.outcome.kind === 'stop')
-        assert.match(result.outcome.reasons.join(' '), /SIGTERM/u);
-    }
+    assert.ok(
+      Date.now() - startedAt < 4000,
+      'SIGTERM must kill the verdict scope promptly',
+    );
+    assert.equal(code, 130, errors);
+    assert.equal(
+      existsSync(marker),
+      false,
+      'SIGTERM must prevent submitForReview',
+    );
+    assert.match(output, /stopped/u);
+    assert.match(
+      readFileSync(
+        join(f.root, '.krn', 'runs', 'foreman', f.job.id, 'trace.jsonl'),
+        'utf8',
+      ),
+      /"kind":"stopped"/u,
+    );
   } finally {
+    if (child.exitCode === null && child.signalCode === null)
+      child.kill('SIGKILL');
     rmSync(f.root, { recursive: true, force: true });
   }
 });
@@ -394,6 +398,9 @@ test('moving the worker HEAD during checks is refused', async () => {
       ],
       { stdio: 'ignore' },
     );
+    const moverDone = new Promise<void>((resolve) =>
+      mover.once('exit', () => resolve()),
+    );
     const result = await judge(
       f.job,
       f.sha,
@@ -401,7 +408,7 @@ test('moving the worker HEAD during checks is refused', async () => {
       ['declared'],
       async () => {},
     );
-    await new Promise<void>((resolve) => mover.once('exit', () => resolve()));
+    await moverDone;
     assert.equal(result.kind, 'refused');
     assert.match(result.findings.join(' '), /HEAD changed/u);
   } finally {
