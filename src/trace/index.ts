@@ -16,6 +16,7 @@ import type { Job } from '../core/index.ts';
 import { readCheckpointRequest } from '../foreman/checkpoint-request.ts';
 import { stateDirectory } from '../foreman/state.ts';
 import type { SessionEnd } from '../foreman/types.ts';
+import type { VerdictEvent } from '../verdict/index.ts';
 
 type Event = {
   readonly key: string;
@@ -238,6 +239,18 @@ export async function failure(
 ): Promise<void> {
   append(job, `${intentId}:failure`, 'failure', {
     errorType: error instanceof Error ? error.name : typeof error,
+  });
+}
+
+export async function verdict(job: Job, event: VerdictEvent): Promise<void> {
+  append(job, `verdict:${event.sha}`, 'verdict', {
+    sha: event.sha,
+    checks: event.checks.map(({ id, exitCode, durationMs, sha256 }) => ({
+      id,
+      exitCode,
+      durationMs,
+      sha256,
+    })),
   });
 }
 

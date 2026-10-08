@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runJob } from '../src/foreman/run.ts';
@@ -60,7 +67,35 @@ async function runLiveSmoke() {
     assert.equal(initialized.status, 0, 'could not initialize the smoke repo');
     await writeFile(join(cwd, '.gitignore'), '.krn/\n');
     await writeFile(join(cwd, 'README.md'), 'live checkpoint smoke\n');
-    git(['add', '.gitignore', 'README.md']);
+    await writeFile(
+      join(cwd, 'package.json'),
+      await readFile(join(repositoryRoot, 'package.json')),
+    );
+    await writeFile(
+      join(cwd, 'pnpm-lock.yaml'),
+      await readFile(join(repositoryRoot, 'pnpm-lock.yaml')),
+    );
+    await writeFile(
+      join(cwd, 'krn.checks.json'),
+      JSON.stringify({
+        version: 1,
+        checks: [
+          {
+            id: 'checkpoint-file',
+            argv: ['node', '--version'],
+            timeoutMs: 20000,
+          },
+        ],
+      }),
+    );
+    git([
+      'add',
+      '.gitignore',
+      'README.md',
+      'package.json',
+      'pnpm-lock.yaml',
+      'krn.checks.json',
+    ]);
     git([
       '-c',
       'user.name=KRN live smoke',
@@ -80,12 +115,15 @@ async function runLiveSmoke() {
         session: { timeoutMs: 145_000 },
       },
       ledger: {
-        readContract: async () => ({ revision: 'live-smoke-checkpoint-v1' }),
+        readContract: async () => ({
+          revision: 'live-smoke-checkpoint-v1',
+          checks: ['checkpoint-file'],
+        }),
       },
       relay: {
         ...relay,
         project: (capsule, facts) =>
-          `${relay.project(capsule, facts)}\nLive sandbox task: Run the shell command pwd. Then create a file named live-checkpoint.txt containing exactly "checkpoint reached". When the checkpoint command is printed, run it with --message "feat: live sandbox checkpoint" and --next "done". Let the foreman create the commit.`,
+          `${relay.project(capsule, facts)}\nLive sandbox task: Run the shell command pwd. Create live-checkpoint.txt containing exactly "checkpoint reached". Then execute the exact checkpoint command printed by the environment with --message "feat: live sandbox checkpoint" and --next "done". Confirm the command succeeds before ending your turn; the foreman creates the commit.`,
       },
       trace,
       hosts: {
@@ -101,7 +139,36 @@ async function runLiveSmoke() {
       return;
     }
 
-    assert.equal(outcome.kind, 'review', 'foreman did not finish the job');
+    const diagnostics = await readdir(
+      join(cwd, '.krn', 'runs', 'foreman', job.id, 'diagnostics'),
+    )
+      .then((files) =>
+        Promise.all(
+          files.map((file) =>
+            readFile(
+              join(cwd, '.krn', 'runs', 'foreman', job.id, 'diagnostics', file),
+              'utf8',
+            ),
+          ),
+        ),
+      )
+      .then((files) => files.join('\n'))
+      .catch(() => '');
+    assert.equal(
+      outcome.kind,
+      'verdict_pass',
+      `foreman did not record a positive verdict: ${JSON.stringify(outcome)}\n${diagnostics}`,
+    );
+    assert.equal(
+      outcome.sha,
+      git(['rev-parse', 'HEAD']),
+      'verdict SHA differs from HEAD',
+    );
+    assert.equal(
+      git(['status', '--porcelain=v1', '--untracked-files=all']),
+      '',
+      'live smoke repo was dirty after the sandbox verdict',
+    );
     assert.equal(
       (await readFile(join(cwd, 'live-checkpoint.txt'), 'utf8')).replace(
         /\r?\n$/u,

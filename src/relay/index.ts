@@ -285,7 +285,8 @@ export async function withFindingsCAS(
   const next = parseCapsule({
     ...capsule,
     epoch: capsule.epoch + 1,
-    blockers: [...findings],
+    blockers: [...findings].slice(0, 2),
+    nextAction: 'repair the failed deterministic checks',
   });
   return storeCapsule(
     { id: capsule.jobId, issue: capsule.issue, worktree: capsule.worktree },

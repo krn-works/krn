@@ -5,9 +5,11 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import type { Job } from '../core/index.ts';
+import { checkpointStep, isCheckpointRefusal } from './checkpoint.ts';
 import { stateDirectory } from './state.ts';
 import type {
   Capsule,
+  Contract,
   Deps,
   Outcome,
   RepoFacts,
@@ -67,6 +69,48 @@ export async function failureOutcome(
       ? 'already running'
       : 'worker or trace failure',
   ]);
+}
+
+export async function runAttempt(
+  job: Job,
+  capsule: Capsule,
+  facts: RepoFacts,
+  contract: Contract,
+  repairs: number,
+  d: Deps,
+): Promise<
+  | {
+      readonly kind: 'continue';
+      readonly capsule: Capsule;
+      readonly repaired: boolean;
+    }
+  | { readonly kind: 'outcome'; readonly outcome: Outcome }
+> {
+  const intent = await d.trace.intent(job, capsule.epoch);
+  try {
+    const run = await runSession(job, capsule, facts, intent, d);
+    if (!run.checkpointed)
+      return { kind: 'outcome', outcome: await finishSession(job, run, d) };
+    const step = await checkpointStep(
+      job,
+      run.capsule,
+      intent,
+      contract,
+      repairs,
+      d,
+    );
+    return step;
+  } catch (error) {
+    if (isCheckpointRefusal(error))
+      return {
+        kind: 'outcome',
+        outcome: d.stop(job, 'human_decision', [error.message]),
+      };
+    return {
+      kind: 'outcome',
+      outcome: await failureOutcome(job, intent, error, d),
+    };
+  }
 }
 
 export async function runSession(

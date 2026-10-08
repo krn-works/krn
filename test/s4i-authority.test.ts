@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -31,11 +32,20 @@ function git(root: string, args: string[]): string {
 }
 
 function repo(): string {
-  const root = mkdtempSync(join(tmpdir(), 'krn-s4i-'));
+  const scratch = join(process.cwd(), '.krn', 'tmp');
+  mkdirSync(scratch, { recursive: true });
+  const root = mkdtempSync(join(scratch, 'krn-s4i-'));
   writeFileSync(join(root, '.gitignore'), '.krn/\n');
   writeFileSync(join(root, 'README.md'), 'fixture\n');
+  writeFileSync(
+    join(root, 'krn.checks.json'),
+    JSON.stringify({
+      version: 1,
+      checks: [{ id: 'always', argv: ['/usr/bin/true'], timeoutMs: 3000 }],
+    }),
+  );
   git(root, ['init', '-q', '--initial-branch=main']);
-  git(root, ['add', '.gitignore', 'README.md']);
+  git(root, ['add', '.gitignore', 'README.md', 'krn.checks.json']);
   git(root, [
     '-c',
     'user.name=Fixture',
@@ -469,13 +479,39 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
         maxRepairs: 0,
         session: { timeoutMs: 10_000 },
       },
-      ledger: { readContract: async () => ({ revision: 'survivor-r1' }) },
+      ledger: {
+        readContract: async () => ({
+          revision: 'survivor-r1',
+          checks: ['always'],
+        }),
+      },
       relay,
       trace,
       hosts: { codex: host, cancelTree: (id) => host.cancelTree(id) },
       stop: (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
     });
-    assert.equal(outcome.kind, 'review');
+    const directory = join(
+      root,
+      '.krn',
+      'runs',
+      'foreman',
+      job.id,
+      'diagnostics',
+    );
+    const diagnostics = existsSync(directory)
+      ? readdirSync(directory)
+          .map((file) => readFileSync(join(directory, file), 'utf8'))
+          .join('\n')
+      : '';
+    assert.deepEqual(
+      outcome,
+      {
+        kind: 'verdict_pass',
+        state: 'human_decision',
+        sha: git(root, ['rev-parse', 'HEAD']),
+      },
+      diagnostics,
+    );
     await delay(4_200);
     assert.equal(
       existsSync(lateFile),
