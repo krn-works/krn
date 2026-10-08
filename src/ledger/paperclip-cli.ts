@@ -1,4 +1,11 @@
-import { spawn } from 'node:child_process';
+import { accessSync, constants } from 'node:fs';
+import { delimiter, isAbsolute, resolve } from 'node:path';
+import {
+  killAndVerifyScope,
+  spawnSystemdScope,
+  systemdScopeUnit,
+  userManagerEnvironment,
+} from '../hosts/systemd-scope.ts';
 import type { LedgerTransport } from './index.ts';
 
 const TIMEOUT_MS = 15_000;
@@ -18,6 +25,22 @@ function cliEnvironment(): NodeJS.ProcessEnv {
   return env;
 }
 
+function resolveExecutable(
+  executable: string,
+  environment: NodeJS.ProcessEnv,
+): string {
+  if (isAbsolute(executable)) return executable;
+  if (executable.includes('/')) return resolve(executable);
+  for (const directory of (environment.PATH ?? '').split(delimiter)) {
+    const candidate = resolve(directory || '.', executable);
+    try {
+      accessSync(candidate, constants.X_OK);
+      return candidate;
+    } catch {}
+  }
+  throw new Error('Paperclip CLI could not be started');
+}
+
 function runPaperclip(
   args: readonly string[],
   options: {
@@ -28,12 +51,19 @@ function runPaperclip(
   },
 ): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    const child = spawn(options.executable, [...args], {
-      shell: false,
-      detached: true,
-      env: cliEnvironment(),
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const scope = systemdScopeUnit('paperclip');
+    const environment = cliEnvironment();
+    const scopeEnvironment = userManagerEnvironment(environment);
+    const child = spawnSystemdScope(
+      scope,
+      resolveExecutable(options.executable, environment),
+      args,
+      {
+        detached: true,
+        env: environment,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
     const chunks: Buffer[] = [];
     let outputBytes = 0;
     let settled = false;
@@ -74,12 +104,22 @@ function runPaperclip(
       } else {
         child.kill('SIGKILL');
       }
-      child.stdout.destroy();
-      child.stderr.destroy();
-      settled = true;
-      reject(new Error(message));
-      const reapBy = Date.now() + BEST_EFFORT_REAP_MS;
+      child.stdout?.destroy();
+      child.stderr?.destroy();
       void (async () => {
+        let cleanupError: Error | undefined;
+        try {
+          await killAndVerifyScope(scope, scopeEnvironment);
+        } catch {
+          cleanupError = new Error(
+            'Paperclip CLI scope could not be stopped and verified',
+          );
+        }
+        if (!settled) {
+          settled = true;
+          reject(cleanupError ?? new Error(message));
+        }
+        const reapBy = Date.now() + BEST_EFFORT_REAP_MS;
         try {
           await Promise.race([
             closed,
@@ -111,8 +151,8 @@ function runPaperclip(
       }
       chunks.push(chunk);
     };
-    child.stdout.on('data', collect);
-    child.stderr.on('data', collect);
+    child.stdout?.on('data', collect);
+    child.stderr?.on('data', collect);
     timer = setTimeout(
       () =>
         finishError(`Paperclip CLI timed out after ${options.timeoutMs} ms`),

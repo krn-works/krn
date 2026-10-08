@@ -230,12 +230,40 @@ test('timeout returns promptly when a setsid descendant holds CLI pipes', async 
       `timeout refusal took longer than 450 ms (${Date.now() - startedAt} ms)`,
     );
     assert.ok(Date.now() - startedAt <= 450);
+    const descendantPid = Number(await readFile(fake.capture, 'utf8'));
+    await waitForPidGone(descendantPid);
   } finally {
     try {
       const descendantPid = Number(await readFile(fake.capture, 'utf8'));
       process.kill(descendantPid, 'SIGKILL');
     } catch {}
     await pending?.catch(() => {});
+    await rm(fake.directory, { recursive: true, force: true });
+  }
+});
+
+test('Paperclip CLI refuses to launch when systemd user scopes are unavailable', async () => {
+  const fake = await fakeCli();
+  const systemdRun = join(fake.directory, 'systemd-run');
+  await writeFile(systemdRun, '#!/bin/sh\nexit 1\n');
+  await chmod(systemdRun, 0o755);
+  const previousPath = process.env.PATH;
+  process.env.PATH = fake.directory;
+  try {
+    await assert.rejects(
+      createPaperclipCliTransport({ executable: fake.executable }).readIssue(
+        'LON-200',
+      ),
+      /systemd user scopes are unavailable; refusing to launch/u,
+    );
+    assert.equal(
+      await readFile(fake.capture, 'utf8').catch(() => ''),
+      '',
+      'Paperclip must not launch outside a systemd user scope',
+    );
+  } finally {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
     await rm(fake.directory, { recursive: true, force: true });
   }
 });
