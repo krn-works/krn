@@ -61,7 +61,7 @@ export function probeIsolationCapabilities() {
   );
   const systemdScope = check(
     'systemd-run',
-    ['--user', '--scope', '--wait', '--quiet', '/usr/bin/true'],
+    ['--user', '--scope', '--quiet', '/usr/bin/true'],
     'systemd transient user scope probe',
   );
   const systemdUserScope =
