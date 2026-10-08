@@ -31,6 +31,42 @@ const activitySchema = z.array(
     })
     .passthrough(),
 );
+
+function latestKrnCommentSha(value: unknown): string | null {
+  const list = Array.isArray(value)
+    ? value
+    : typeof value === 'object' && value !== null && 'comments' in value
+      ? (value as { comments?: unknown }).comments
+      : undefined;
+  if (!Array.isArray(list)) return null;
+  const comments = list.flatMap((entry, index) => {
+    if (typeof entry !== 'object' || entry === null || !('body' in entry))
+      return [];
+    const body = (entry as { body?: unknown }).body;
+    if (typeof body !== 'string' || !/^Krn-Session:\s*\S+/imu.test(body))
+      return [];
+    const createdAt = (entry as { createdAt?: unknown }).createdAt;
+    return [
+      {
+        body,
+        index,
+        createdAt: typeof createdAt === 'string' ? createdAt : undefined,
+      },
+    ];
+  });
+  comments.sort((left, right) =>
+    left.createdAt && right.createdAt
+      ? left.createdAt.localeCompare(right.createdAt)
+      : left.index - right.index,
+  );
+  const latest = comments.at(-1);
+  if (!latest) return null;
+  return commentReceiptSha(latest.body);
+}
+
+function commentReceiptSha(body: string): string | null {
+  return /^Commit:\s*([a-f0-9]{40,64})\s*$/imu.exec(body)?.[1] ?? null;
+}
 const contractBlockSchema = z
   .object({
     version: z.literal(1),
@@ -69,6 +105,17 @@ export type ReviewSubmission =
   | 'refused'
   | 'board_changed'
   | 'board_conflict';
+export type SubmissionReceipt = Readonly<{
+  issueId: string;
+  status: string;
+  updatedAt: string;
+}>;
+export type SubmitForReviewOptions = Readonly<{
+  signal?: AbortSignal;
+  reconcile?: boolean;
+  onWriteStarted?: (kind: 'review' | 'conflict_comment') => void;
+  onSubmitted?: (receipt: SubmissionReceipt) => void;
+}>;
 export type Ledger = ReturnType<typeof createLedger>;
 export type LedgerOptions = {
   apiUrl?: string;
@@ -82,6 +129,7 @@ export type LedgerOptions = {
 export type LedgerTransport = Readonly<{
   readIssue(issueId: string, signal?: AbortSignal): Promise<unknown>;
   readActivity(issueId: string, signal?: AbortSignal): Promise<unknown>;
+  readComments(issueId: string, signal?: AbortSignal): Promise<unknown>;
   updateIssue(
     issueId: string,
     status: string,
@@ -262,6 +310,20 @@ export function createLedger(options: LedgerOptions) {
     return parsed.data;
   }
 
+  async function readComments(issueId: string, signal?: AbortSignal) {
+    if (!/^[A-Za-z0-9_-]+$/.test(issueId))
+      throw new Error('invalid Paperclip issue ID');
+    if (transport) return transport.readComments(issueId, signal);
+    const { response, body } = await requestJson(
+      `${base}/api/issues/${issueId}/comments?order=asc&limit=500`,
+      { headers, redirect: 'error' },
+      signal,
+    );
+    if (!response.ok)
+      throw new Error(`Paperclip comments read failed (${response.status})`);
+    return body;
+  }
+
   async function reportBoardConflict(
     issueId: string,
     sha: string,
@@ -360,9 +422,9 @@ export function createLedger(options: LedgerOptions) {
       contract: Contract,
       evidence: VerdictEvidence,
       recordedSha: string,
-      signal?: AbortSignal,
-      onWriteStarted?: (kind: 'review' | 'conflict_comment') => void,
+      submitOptions: SubmitForReviewOptions = {},
     ): Promise<ReviewSubmission> {
+      const { signal, reconcile, onWriteStarted, onSubmitted } = submitOptions;
       if (
         contract.issueId !== job.issue ||
         !validEvidence(contract, evidence) ||
@@ -371,6 +433,27 @@ export function createLedger(options: LedgerOptions) {
         return 'refused';
       if (!options.session)
         throw new Error('KRN_SESSION is required to submit');
+      if (reconcile) {
+        const replayIssue = await readIssue(job.issue, signal).catch(
+          () => null,
+        );
+        if (signal?.aborted) return 'stopped';
+        const comments = await readComments(job.issue, signal).catch(
+          () => null,
+        );
+        if (signal?.aborted) return 'stopped';
+        if (
+          replayIssue?.status === 'in_review' &&
+          latestKrnCommentSha(comments) === evidence.sha
+        ) {
+          onSubmitted?.({
+            issueId: replayIssue.id,
+            status: replayIssue.status,
+            updatedAt: replayIssue.updatedAt,
+          });
+          return 'submitted';
+        }
+      }
       if (signal?.aborted) return 'stopped';
       const current = await readIssue(job.issue, signal).catch(() => null);
       if (signal?.aborted) return 'stopped';
@@ -422,6 +505,11 @@ export function createLedger(options: LedgerOptions) {
       const receipt = parseIssue(body);
       if (!receipt.success || receipt.data.id !== job.issue)
         throw new Error('invalid Paperclip review receipt');
+      onSubmitted?.({
+        issueId: receipt.data.id,
+        status: receipt.data.status,
+        updatedAt: receipt.data.updatedAt,
+      });
       if (signal?.aborted) return 'stopped';
       const [afterIssue, afterActivity] = await Promise.all([
         readIssue(job.issue, signal),

@@ -9,18 +9,44 @@ export async function reportPassingVerdict(
   contract: Contract,
   sha: string,
   checks: readonly CheckEvidence[],
-  ledger: Pick<Deps['ledger'], 'submitForReview'>,
-  trace: Pick<Deps['trace'], 'readyForReview' | 'paperclipUpdateStarted'>,
+  ledger: Pick<Deps['ledger'], 'submitForReview'> & {
+    readonly submissionEnabled?: boolean;
+  },
+  trace: Pick<
+    Deps['trace'],
+    | 'readyForReview'
+    | 'paperclipUpdateStarted'
+    | 'submitIntent'
+    | 'submittedFor'
+    | 'submitted'
+  >,
   stop: Deps['stop'],
   signal?: AbortSignal,
 ): Promise<Outcome> {
+  const prior = await trace.submittedFor?.(job, sha);
+  if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
+  if (prior)
+    return {
+      kind: 'verdict_pass',
+      state: prior.status === 'in_review' ? 'in_review' : 'ready_for_review',
+      sha,
+    };
+  const reconcile =
+    ledger.submissionEnabled === false
+      ? false
+      : ((await trace.submitIntent?.(job, sha, contract.revision)) ?? false);
+  if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
   const submitted = await ledger.submitForReview(
     job,
     contract,
     { kind: 'verdict_pass', sha, checks },
     sha,
-    signal,
-    (kind) => trace.paperclipUpdateStarted?.(job, sha, kind),
+    {
+      ...(signal === undefined ? {} : { signal }),
+      reconcile,
+      onWriteStarted: (kind) => trace.paperclipUpdateStarted?.(job, sha, kind),
+      onSubmitted: (receipt) => trace.submitted?.(job, sha, receipt),
+    },
   );
   if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
   if (submitted === 'ready_for_review') {

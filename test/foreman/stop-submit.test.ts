@@ -63,6 +63,7 @@ test('SIGTERM during the pre-write activity read prevents the real ledger update
         }
         return [];
       },
+      readComments:async()=>[],
       updateIssue:async(_issue,status,comment)=>{
         appendFileSync(${JSON.stringify(updateCalls)},JSON.stringify({status,comment})+'\\n');
         return makeIssue('2026-10-08T11:00:00.000Z',status);

@@ -295,6 +295,13 @@ export function createPaperclipCliTransport(
         return event;
       });
     },
+    async readComments(issueId, signal) {
+      validIssueId(issueId);
+      return invoke(
+        ['issue', 'comments', issueId, '--limit', '500', '--json'],
+        signal,
+      );
+    },
     async updateIssue(issueId, status, comment) {
       validIssueId(issueId);
       if (!status || /[\r\n]/.test(status))

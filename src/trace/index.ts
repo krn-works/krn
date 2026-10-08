@@ -16,6 +16,7 @@ import type { Job } from '../core/index.ts';
 import { readCheckpointRequest } from '../foreman/checkpoint-request.ts';
 import { stateDirectory } from '../foreman/state.ts';
 import type { SessionEnd } from '../foreman/types.ts';
+import type { SubmissionReceipt } from '../ledger/index.ts';
 import type { VerdictEvent } from '../verdict/index.ts';
 
 type Event = {
@@ -60,14 +61,14 @@ function append(
   key: string,
   kind: string,
   data: Record<string, unknown>,
-): void {
+): boolean {
   const path = file(job);
   mkdirSync(stateDirectory(job), {
     recursive: true,
     mode: 0o700,
   });
   const prior = events(job).find((event) => event.key === key);
-  if (prior) return;
+  if (prior) return false;
   const fd = openSync(path, 'a', 0o600);
   try {
     writeSync(
@@ -78,6 +79,7 @@ function append(
   } finally {
     closeSync(fd);
   }
+  return true;
 }
 
 export async function intent(job: Job, epoch: number): Promise<string> {
@@ -258,6 +260,45 @@ export async function hasVerdict(job: Job, sha: string): Promise<boolean> {
   return events(job).some(
     (event) => event.kind === 'verdict' && event.data.sha === sha,
   );
+}
+
+export async function submitIntent(
+  job: Job,
+  sha: string,
+  contractRevision: string,
+): Promise<boolean> {
+  const priorForSha = events(job).some(
+    (event) => event.kind === 'submit_intent' && event.data.sha === sha,
+  );
+  const key = `submit-intent:${sha}:${contractRevision}`;
+  const created = append(job, key, 'submit_intent', { sha, contractRevision });
+  return priorForSha || !created;
+}
+
+export async function submittedFor(
+  job: Job,
+  sha: string,
+): Promise<SubmissionReceipt | null> {
+  const event = events(job).find(
+    (candidate) => candidate.kind === 'submitted' && candidate.data.sha === sha,
+  );
+  if (!event) return null;
+  const parsed = z
+    .object({
+      issueId: z.string().min(1),
+      status: z.string().min(1),
+      updatedAt: z.string().min(1),
+    })
+    .safeParse(event.data.receipt);
+  return parsed.success ? parsed.data : null;
+}
+
+export function submitted(
+  job: Job,
+  sha: string,
+  receipt: SubmissionReceipt,
+): void {
+  append(job, `submitted:${sha}`, 'submitted', { sha, receipt });
 }
 
 export async function stopped(job: Job, signal: string): Promise<void> {

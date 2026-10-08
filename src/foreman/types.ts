@@ -2,6 +2,8 @@ import type { Job } from '../core/index.ts';
 import type {
   Contract,
   ReviewSubmission,
+  SubmissionReceipt,
+  SubmitForReviewOptions,
   VerdictEvidence,
 } from '../ledger/index.ts';
 
@@ -80,14 +82,14 @@ export type Deps = {
   readonly signal?: AbortSignal;
   readonly budget: Budget;
   readonly ledger: {
+    readonly submissionEnabled?: boolean;
     readContract(issue: string): Promise<Contract>;
     submitForReview(
       job: Job,
       contract: Contract,
       evidence: VerdictEvidence,
       recordedSha: string,
-      signal?: AbortSignal,
-      onWriteStarted?: (kind: 'review' | 'conflict_comment') => void,
+      options?: SubmitForReviewOptions,
     ): Promise<ReviewSubmission>;
   };
   readonly relay: {
@@ -176,6 +178,13 @@ export type Deps = {
       event: import('../verdict/index.ts').VerdictEvent,
     ): Promise<void>;
     hasVerdict?(job: Job, sha: string): Promise<boolean>;
+    submitIntent?(
+      job: Job,
+      sha: string,
+      contractRevision: string,
+    ): Promise<boolean>;
+    submittedFor?(job: Job, sha: string): Promise<SubmissionReceipt | null>;
+    submitted?(job: Job, sha: string, receipt: SubmissionReceipt): void;
     stopped?(job: Job, signal: string): Promise<void>;
     paperclipUpdateStarted?(
       job: Job,
