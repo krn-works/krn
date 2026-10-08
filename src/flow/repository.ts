@@ -1,15 +1,24 @@
 // Process and repository boundaries for deterministic red-first evaluation.
 import { spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import {
-  existsSync,
+  lstatSync,
   mkdirSync,
-  mkdtempSync,
+  readdirSync,
+  readFileSync,
   realpathSync,
-  rmSync,
-  symlinkSync,
+  rmdirSync,
+  unlinkSync,
 } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
+import type { Job } from '../core/index.ts';
+import { stateDirectory } from '../foreman/state.ts';
+import {
+  addWorktree,
+  cleanupWorktrees,
+  createWorktreeDirectory,
+  execute,
+} from '../verdict/sandbox.ts';
 import { type RedFirstResult, redFirstSchema } from './types.ts';
 
 const testPath = /^test\/.+\.test\.(?:ts|js|mjs|cjs)$/u;
@@ -17,11 +26,9 @@ const missingImport =
   /ERR_MODULE_NOT_FOUND|ERR_PACKAGE_PATH_NOT_EXPORTED|ERR_UNSUPPORTED_DIR_IMPORT|Cannot find (?:module|package)|Module not found/u;
 const assertionFailure = /AssertionError|ERR_ASSERTION|assert\./u;
 
-export function command(
-  file: string,
+function gitOutput(
+  root: string,
   args: readonly string[],
-  cwd: string,
-  timeout = 30000,
 ): {
   readonly status: number | null;
   readonly stdout: string;
@@ -29,10 +36,10 @@ export function command(
 } {
   const env = { ...process.env };
   delete env.NODE_TEST_CONTEXT;
-  const result = spawnSync(file, [...args], {
-    cwd,
+  const result = spawnSync('git', ['-C', root, ...args], {
+    cwd: root,
     encoding: 'utf8',
-    timeout,
+    timeout: 30000,
     maxBuffer: 1024 * 1024,
     env,
   });
@@ -51,7 +58,7 @@ export function command(
 }
 
 export function git(root: string, args: readonly string[]): string {
-  const result = command('git', ['-C', root, ...args], root);
+  const result = gitOutput(root, args);
   if (result.status !== 0)
     throw new Error(result.stderr || `git ${args.join(' ')} failed`);
   return result.stdout.trim();
@@ -110,26 +117,55 @@ function changedTestFiles(root: string, base: string, head: string): string[] {
     .sort();
 }
 
-function overlayAtBase(
+function classifyTest(
   root: string,
   scratch: string,
-  base: string,
-  head: string,
-  files: readonly string[],
-): void {
-  git(scratch, ['checkout', '--detach', base]);
-  if (files.length) git(scratch, ['checkout', head, '--', ...files]);
-  const dependencies = join(root, 'node_modules');
-  if (existsSync(dependencies) && !existsSync(join(scratch, 'node_modules')))
-    symlinkSync(dependencies, join(scratch, 'node_modules'), 'dir');
-}
-
-function classifyTest(scratch: string, path: string): RedFirstResult {
+  sha: string,
+  path: string,
+): RedFirstResult {
   const started = Date.now();
-  const result = command(process.execPath, ['--test', path], scratch, 120000);
-  const output = `${result.stdout}\n${result.stderr}`;
+  const id = `red-first-${randomUUID()}`;
+  const job: Job = {
+    id,
+    issue: 'red-first',
+    worktree: scratch,
+  };
+  const evidence = execute(
+    root,
+    scratch,
+    job,
+    id,
+    [process.execPath, '--test', path],
+    120000,
+    sha,
+  );
+  const diagnostics = join(stateDirectory(job), 'diagnostics');
+  if (realpathSync(diagnostics) !== diagnostics)
+    throw new Error('unsafe red-first diagnostic directory');
+  const tailFile = readdirSync(diagnostics).find((name) =>
+    name.startsWith(`${sha}-${id}-`),
+  );
+  if (!tailFile) throw new Error(`missing sandbox diagnostic for ${path}`);
+  const tailPath = join(diagnostics, tailFile);
+  const tailStat = lstatSync(tailPath);
+  if (tailStat.isSymbolicLink() || !tailStat.isFile())
+    throw new Error('unsafe red-first diagnostic file');
+  const output = readFileSync(tailPath, 'utf8');
+  unlinkSync(tailPath);
+  for (const directory of [diagnostics, stateDirectory(job)]) {
+    try {
+      rmdirSync(directory);
+    } catch (error) {
+      if (
+        !['ENOENT', 'ENOTEMPTY'].includes(
+          (error as NodeJS.ErrnoException).code ?? '',
+        )
+      )
+        throw error;
+    }
+  }
   const classification =
-    result.status === 0
+    evidence.exitCode === 0
       ? 'pass'
       : missingImport.test(output)
         ? 'procedural'
@@ -139,9 +175,9 @@ function classifyTest(scratch: string, path: string): RedFirstResult {
   return redFirstSchema.parse({
     path,
     classification,
-    exitCode: result.status,
+    exitCode: evidence.exitCode,
     durationMs: Date.now() - started,
-    outputSha256: createHash('sha256').update(output).digest('hex'),
+    outputSha256: evidence.sha256,
     summary: output.slice(-2000),
   });
 }
@@ -159,14 +195,18 @@ export function redFirst(
   const head = validateSha(root, headInput);
   const baseSha = resolveCommit(root, base);
   const files = changedTestFiles(root, baseSha, head);
-  const parent = mkdtempSync(join(temporaryDirectory(root), 'red-first-'));
-  const scratch = join(parent, 'repo');
+  const temporary = temporaryDirectory(root);
+  const copies: string[] = [];
   try {
-    git(root, ['clone', '--quiet', '--no-hardlinks', root, scratch]);
-    overlayAtBase(root, scratch, baseSha, head, files);
-    const results = files.map((path) => classifyTest(scratch, path));
+    const results = files.map((path) => {
+      const scratch = createWorktreeDirectory(temporary);
+      copies.push(scratch);
+      addWorktree(root, scratch, baseSha);
+      git(scratch, ['checkout', head, '--', ...files]);
+      return classifyTest(root, scratch, baseSha, path);
+    });
     return { baseSha, headSha: head, results };
   } finally {
-    rmSync(parent, { recursive: true, force: true });
+    cleanupWorktrees(root, copies);
   }
 }

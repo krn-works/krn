@@ -23,8 +23,12 @@ function git(root: string, ...args: string[]): string {
   return result.stdout.trim();
 }
 
-function fixture(): { readonly root: string; readonly cleanup: () => void } {
-  const root = mkdtempSync(join(tmpdir(), 'krn-review-'));
+function fixture(parent = tmpdir()): {
+  readonly root: string;
+  readonly cleanup: () => void;
+} {
+  mkdirSync(parent, { recursive: true });
+  const root = mkdtempSync(join(parent, 'krn-review-'));
   git(root, 'init', '-q');
   git(root, 'config', 'user.name', 'KRN test');
   git(root, 'config', 'user.email', 'krn-test@example.invalid');
@@ -59,7 +63,7 @@ function fakeCodex(
 }
 
 test('mechanical red-first distinguishes assertion failures from missing imports', () => {
-  const { root, cleanup } = fixture();
+  const { root, cleanup } = fixture(join(process.cwd(), '.krn', 'tmp'));
   try {
     const base = git(root, 'rev-parse', 'HEAD');
     mkdirSync(join(root, 'test'));
@@ -84,6 +88,143 @@ test('mechanical red-first distinguishes assertion failures from missing imports
     cleanup();
   }
 });
+
+test('red-first contains detached tests and blocks their network access', async () => {
+  const { root, cleanup } = fixture(join(process.cwd(), '.krn', 'tmp'));
+  const portFile = join(root, 'probe.port');
+  const hitFile = join(root, 'probe.hit');
+  let server: ReturnType<typeof spawn> | undefined;
+  let serverClosed: Promise<void> | undefined;
+  try {
+    const serverFile = join(root, 'network-server.mjs');
+    writeFileSync(
+      serverFile,
+      `import { createServer } from 'node:http';\nimport { writeFileSync } from 'node:fs';\nconst server=createServer((_request,response)=>{writeFileSync(process.env.KRN_PROBE_HIT,'hit');response.end('reachable');});\nserver.listen(0,'127.0.0.1',()=>writeFileSync(process.env.KRN_PROBE_PORT,String(server.address().port)));\nsetInterval(()=>{},1000);\n`,
+    );
+    server = spawn(process.execPath, [serverFile], {
+      stdio: ['ignore', 'ignore', 'pipe'],
+      env: {
+        ...process.env,
+        KRN_PROBE_PORT: portFile,
+        KRN_PROBE_HIT: hitFile,
+      },
+    });
+    server.stderr?.resume();
+    serverClosed = new Promise((resolveClose) =>
+      server?.once('close', () => resolveClose()),
+    );
+    const port = Number(await waitForFile(portFile));
+    const target = `http://127.0.0.1:${port}/probe`;
+    const base = git(root, 'rev-parse', 'HEAD');
+    mkdirSync(join(root, 'test'));
+    writeFileSync(
+      join(root, 'test', 'sandbox.test.ts'),
+      [
+        "import assert from 'node:assert/strict';",
+        "import { spawn } from 'node:child_process';",
+        "import { existsSync, readFileSync } from 'node:fs';",
+        "import { dirname, join } from 'node:path';",
+        "import { fileURLToPath } from 'node:url';",
+        "import { test } from 'node:test';",
+        `const target=${JSON.stringify(target)};`,
+        "test('red-first confines test execution', async () => {",
+        "  const marker=join(dirname(fileURLToPath(import.meta.url)),'network-result');",
+        "  const code='const fs=require(\"node:fs\"); fetch('+JSON.stringify(target)+',{signal:AbortSignal.timeout(1000)}).then(()=>fs.writeFileSync('+JSON.stringify(marker)+',\"reached\"),()=>fs.writeFileSync('+JSON.stringify(marker)+',\"blocked\")); setTimeout(()=>process.exit(0),1800);';",
+        "  const child=spawn(process.execPath,['-e',code],{detached:true,stdio:'ignore'}); child.unref();",
+        '  const deadline=Date.now()+3000; while(!existsSync(marker)&&Date.now()<deadline) await new Promise(r=>setTimeout(r,20));',
+        "  assert.equal(readFileSync(marker,'utf8'),'blocked'); console.log('NETWORK_BLOCKED');",
+        '});',
+        '',
+      ].join('\n'),
+    );
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'add sandbox probe');
+    const head = git(root, 'rev-parse', 'HEAD');
+    const before = populatedCheckScopes();
+    const report = redFirst(root, base, head);
+    assert.equal(
+      report.results[0]?.classification,
+      'other',
+      JSON.stringify(report.results[0]),
+    );
+    assert.match(report.results[0]?.summary ?? '', /NETWORK_BLOCKED/u);
+    assert.match(
+      report.results[0]?.summary ?? '',
+      /detached check processes remained/u,
+    );
+    assert.equal(
+      existsSync(hitFile),
+      false,
+      'red-first test reached host network',
+    );
+    assert.deepEqual(
+      [...populatedCheckScopes()].filter((unit) => !before.has(unit)),
+      [],
+    );
+  } finally {
+    await new Promise((resolveWait) => setTimeout(resolveWait, 1900));
+    if (server?.exitCode === null && server.signalCode === null) {
+      server.kill('SIGTERM');
+      await serverClosed;
+    }
+    cleanup();
+  }
+});
+
+async function waitForFile(path: string): Promise<string> {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    try {
+      return readFileSync(path, 'utf8');
+    } catch {
+      await new Promise((resolveWait) => setTimeout(resolveWait, 20));
+    }
+  }
+  assert.fail(`timed out waiting for ${path}`);
+}
+
+function populatedCheckScopes(): Set<string> {
+  const listed = spawnSync(
+    'systemctl',
+    [
+      '--user',
+      'list-units',
+      '--all',
+      '--type=scope',
+      '--no-pager',
+      '--output=json',
+    ],
+    { encoding: 'utf8', env: systemdEnvironment() },
+  );
+  assert.equal(listed.status, 0, listed.stderr);
+  const scopes: unknown = JSON.parse(listed.stdout);
+  assert.ok(Array.isArray(scopes));
+  const populated = new Set<string>();
+  for (const scope of scopes) {
+    if (
+      typeof scope?.unit !== 'string' ||
+      !scope.unit.startsWith('krn-check-') ||
+      scope.active !== 'active'
+    )
+      continue;
+    const shown = spawnSync(
+      'systemctl',
+      ['--user', 'show', scope.unit, '--property=ControlGroup', '--value'],
+      { encoding: 'utf8', env: systemdEnvironment() },
+    );
+    const cgroup = shown.stdout.trim();
+    if (!cgroup.startsWith('/')) continue;
+    try {
+      if (
+        /^populated 1$/mu.test(
+          readFileSync(join('/sys/fs/cgroup', cgroup, 'cgroup.events'), 'utf8'),
+        )
+      )
+        populated.add(scope.unit);
+    } catch {}
+  }
+  return populated;
+}
 
 test('a judge response without a verdict cannot be parsed into a review record', () => {
   assert.throws(() => parseJudgeResponse('{"findings":[]}'));
