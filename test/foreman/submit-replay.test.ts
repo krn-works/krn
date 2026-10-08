@@ -9,6 +9,7 @@ import { recordRepo } from '../../src/foreman/state.ts';
 import type { Deps } from '../../src/foreman/types.ts';
 import { createLedger } from '../../src/ledger/index.ts';
 import * as trace from '../../src/trace/index.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
 const revision = '2026-10-08T10:00:00.000Z';
 const issueId = 'I-SUBMIT-REPLAY';
@@ -169,7 +170,14 @@ async function fixture(failFirstUpdate = false) {
   return { root, job, deps, events, updateCount: () => updates };
 }
 
-test('two terminal replays submit one Paperclip update', async () => {
+test('two terminal replays submit one Paperclip update', async (t) => {
+  if (
+    !requiresIsolation(t, 'two terminal replays submit one Paperclip update', [
+      'bwrap',
+      'systemdUserScope',
+    ])
+  )
+    return;
   const f = await fixture();
   try {
     const first = await runJob(f.job, f.deps);
@@ -203,7 +211,15 @@ test('two terminal replays submit one Paperclip update', async () => {
   }
 });
 
-test('replay reconciles a PATCH whose submitted trace event was lost', async () => {
+test('replay reconciles a PATCH whose submitted trace event was lost', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'replay reconciles a PATCH whose submitted trace event was lost',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const f = await fixture(true);
   try {
     await assert.rejects(

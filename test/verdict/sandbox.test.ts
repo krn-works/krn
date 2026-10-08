@@ -17,6 +17,7 @@ import type { Capsule, Deps } from '../../src/foreman/types.ts';
 import { verifyCheckpoint } from '../../src/foreman/verdict.ts';
 import { judge } from '../../src/verdict/index.ts';
 import { MAX_CHECK_OUTPUT_BYTES } from '../../src/verdict/sandbox.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
 function fixture(argv: readonly string[], withLockfile = false) {
   const scratch = join(process.cwd(), '.krn', 'tmp');
@@ -61,7 +62,15 @@ function fixture(argv: readonly string[], withLockfile = false) {
   return { root, job, git, base, sha: base };
 }
 
-test('real SIGTERM during a sleeping verdict check stops before submit and is traced', async () => {
+test('real SIGTERM during a sleeping verdict check stops before submit and is traced', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'real SIGTERM during a sleeping verdict check stops before submit and is traced',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const f = fixture(['/usr/bin/sleep', '30']);
   recordRepo(f.job, f.root);
   const marker = join(f.root, 'submit-called');
@@ -123,7 +132,15 @@ test('real SIGTERM during a sleeping verdict check stops before submit and is tr
   }
 });
 
-test('Paperclip board changes and conflicts return human decision outcomes', async () => {
+test('Paperclip board changes and conflicts return human decision outcomes', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'Paperclip board changes and conflicts return human decision outcomes',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const f = fixture(['/usr/bin/true']);
   const capsule: Capsule = {
     jobId: f.job.id,
@@ -185,7 +202,15 @@ test('Paperclip board changes and conflicts return human decision outcomes', asy
   }
 });
 
-test('worker HEAD registry edits cannot replace commands from the base registry', async () => {
+test('worker HEAD registry edits cannot replace commands from the base registry', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'worker HEAD registry edits cannot replace commands from the base registry',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const f = fixture(['/usr/bin/printf', 'from-base']);
   try {
     writeFileSync(
@@ -263,7 +288,14 @@ test('zero declared checks are refused', async () => {
   }
 });
 
-test('sandbox checks can write to the detached copy', async () => {
+test('sandbox checks can write to the detached copy', async (t) => {
+  if (
+    !requiresIsolation(t, 'sandbox checks can write to the detached copy', [
+      'bwrap',
+      'systemdUserScope',
+    ])
+  )
+    return;
   const f = fixture(['/usr/bin/touch', 'check-output']);
   try {
     const result = await judge(
@@ -283,7 +315,14 @@ test('sandbox checks can write to the detached copy', async () => {
   }
 });
 
-test('a successful check command returns zero', async () => {
+test('a successful check command returns zero', async (t) => {
+  if (
+    !requiresIsolation(t, 'a successful check command returns zero', [
+      'bwrap',
+      'systemdUserScope',
+    ])
+  )
+    return;
   const f = fixture(['/usr/bin/true']);
   try {
     const result = await judge(
@@ -314,7 +353,15 @@ test('a successful check command returns zero', async () => {
   }
 });
 
-test('16 MiB check output is capped with the correct hash and rolling tail', async () => {
+test('16 MiB check output is capped with the correct hash and rolling tail', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      '16 MiB check output is capped with the correct hash and rolling tail',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const expectedBytes = MAX_CHECK_OUTPUT_BYTES;
   assert.equal(expectedBytes, 8 * 1024 * 1024);
   const f = fixture([
@@ -376,7 +423,15 @@ test('16 MiB check output is capped with the correct hash and rolling tail', asy
   }
 });
 
-test('locked dependencies install offline inside the detached copy', async () => {
+test('locked dependencies install offline inside the detached copy', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'locked dependencies install offline inside the detached copy',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const f = fixture(['node', '--version'], true);
   try {
     const result = await judge(
@@ -409,7 +464,15 @@ test('locked dependencies install offline inside the detached copy', async () =>
   }
 });
 
-test('a detached background writer cannot produce a pass', async () => {
+test('a detached background writer cannot produce a pass', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'a detached background writer cannot produce a pass',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const source = `const {spawn}=require('node:child_process');const child=spawn(process.execPath,['-e',${JSON.stringify('setTimeout(()=>{},30000)')}],{detached:true,stdio:'ignore'});child.unref();`;
   const f = fixture([process.execPath, '-e', source]);
   try {
@@ -426,7 +489,14 @@ test('a detached background writer cannot produce a pass', async () => {
   }
 });
 
-test('network access is blocked inside checks', async () => {
+test('network access is blocked inside checks', async (t) => {
+  if (
+    !requiresIsolation(t, 'network access is blocked inside checks', [
+      'bwrap',
+      'systemdUserScope',
+    ])
+  )
+    return;
   const f = fixture([
     process.execPath,
     '-e',
@@ -450,7 +520,14 @@ test('network access is blocked inside checks', async () => {
   }
 });
 
-test('moving the worker HEAD during checks is refused', async () => {
+test('moving the worker HEAD during checks is refused', async (t) => {
+  if (
+    !requiresIsolation(t, 'moving the worker HEAD during checks is refused', [
+      'bwrap',
+      'systemdUserScope',
+    ])
+  )
+    return;
   const f = fixture([process.execPath, '-e', 'setTimeout(()=>{},1500)']);
   try {
     const mover = spawn(
@@ -480,7 +557,15 @@ test('moving the worker HEAD during checks is refused', async () => {
 });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-  test(`${signal} during a verdict removes its registered check worktree`, async () => {
+  test(`${signal} during a verdict removes its registered check worktree`, async (t) => {
+    if (
+      !requiresIsolation(
+        t,
+        `${signal} during a verdict removes its registered check worktree`,
+        ['bwrap', 'systemdUserScope'],
+      )
+    )
+      return;
     const f = fixture(['/usr/bin/sleep', '30']);
     const staleDecoy = join(f.root, '.krn', 'tmp', 'unrelated-stale-worktree');
     spawnSync('git', [

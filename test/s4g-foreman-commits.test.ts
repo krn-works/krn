@@ -16,6 +16,7 @@ import { runJob } from '../src/foreman/run.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
+import { requiresIsolation } from './helpers/isolation.ts';
 
 async function fixture(options: {
   readonly edit: boolean;
@@ -109,7 +110,15 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
   return { root, auxiliary, outcome };
 }
 
-test('real CLI records a dirty checkpoint and foreman commits it for the bound session', async () => {
+test('real CLI records a dirty checkpoint and foreman commits it for the bound session', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'real CLI records a dirty checkpoint and foreman commits it for the bound session',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const { root, auxiliary, outcome } = await fixture({
     edit: true,
     next: 'step B',
@@ -211,7 +220,15 @@ test('checkpoint CLI records its request when git execution is forbidden', async
   }
 });
 
-test('foreman commits even when the worker git commit attempt fails', async () => {
+test('foreman commits even when the worker git commit attempt fails', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'foreman commits even when the worker git commit attempt fails',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const { root, auxiliary } = await fixture({ edit: true, next: 'done' });
   try {
     assert.notEqual(
@@ -230,7 +247,15 @@ test('foreman commits even when the worker git commit attempt fails', async () =
   }
 });
 
-test('checkpoint with no worktree changes is refused without a commit', async () => {
+test('checkpoint with no worktree changes is refused without a commit', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'checkpoint with no worktree changes is refused without a commit',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const { root, auxiliary, outcome } = await fixture({
     edit: false,
     next: 'step B',
@@ -251,7 +276,15 @@ test('checkpoint with no worktree changes is refused without a commit', async ()
   }
 });
 
-test('real CLI --next done records a verdict without opening another session', async () => {
+test('real CLI --next done records a verdict without opening another session', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'real CLI --next done records a verdict without opening another session',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const { root, auxiliary, outcome } = await fixture({
     edit: false,
     editAfter: true,

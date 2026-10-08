@@ -4,8 +4,17 @@ import { existsSync } from 'node:fs';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
-test('SIGTERM during the pre-write activity read prevents the real ledger update', async () => {
+test('SIGTERM during the pre-write activity read prevents the real ledger update', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'SIGTERM during the pre-write activity read prevents the real ledger update',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const scratch = join(process.cwd(), '.krn', 'tmp');
   await mkdir(scratch, { recursive: true });
   const root = await mkdtemp(join(scratch, 'krn-stop-submit-'));

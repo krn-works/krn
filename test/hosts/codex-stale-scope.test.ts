@@ -7,10 +7,19 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { CodexHost } from '../../src/hosts/codex.ts';
 import { codexScopeRuntimeGraceMs } from '../../src/hosts/systemd-scope.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
 const sessionTimeoutMs = 700;
 
-test('systemd scope ends after parent SIGKILL within timeout plus grace', async () => {
+test('systemd scope ends after parent SIGKILL within timeout plus grace', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'systemd scope ends after parent SIGKILL within timeout plus grace',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const directory = await mkdtemp(join(tmpdir(), 'krn-host-hard-timeout-'));
   const pidFile = join(directory, 'judge.json');
   let parent: ReturnType<typeof spawn> | undefined;
@@ -45,7 +54,15 @@ test('systemd scope ends after parent SIGKILL within timeout plus grace', async 
   }
 });
 
-test('a new host reaps an orphaned scope by prefix and owner metadata', async () => {
+test('a new host reaps an orphaned scope by prefix and owner metadata', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'a new host reaps an orphaned scope by prefix and owner metadata',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const directory = await mkdtemp(join(tmpdir(), 'krn-host-stale-scope-'));
   const pidFile = join(directory, 'judge.json');
   let parent: ReturnType<typeof spawn> | undefined;

@@ -16,6 +16,7 @@ import { runReview } from '../../src/flow/index.ts';
 import { parseJudgeResponse } from '../../src/flow/panel.ts';
 import { appendOverride } from '../../src/flow/record.ts';
 import { redFirst } from '../../src/flow/repository.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
 function git(root: string, ...args: string[]): string {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
@@ -62,7 +63,15 @@ function fakeCodex(
   return { executable, argsFile };
 }
 
-test('mechanical red-first distinguishes assertion failures from missing imports', async () => {
+test('mechanical red-first distinguishes assertion failures from missing imports', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'mechanical red-first distinguishes assertion failures from missing imports',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const { root, cleanup } = fixture(join(process.cwd(), '.krn', 'tmp'));
   try {
     const base = git(root, 'rev-parse', 'HEAD');
@@ -89,7 +98,15 @@ test('mechanical red-first distinguishes assertion failures from missing imports
   }
 });
 
-test('red-first treats real Node resolution and linking errors as procedural', async () => {
+test('red-first treats real Node resolution and linking errors as procedural', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'red-first treats real Node resolution and linking errors as procedural',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const { root, cleanup } = fixture(join(process.cwd(), '.krn', 'tmp'));
   try {
     writeFileSync(
@@ -155,7 +172,15 @@ test('red-first treats real Node resolution and linking errors as procedural', a
   }
 });
 
-test('red-first contains detached tests and blocks their network access', async () => {
+test('red-first contains detached tests and blocks their network access', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'red-first contains detached tests and blocks their network access',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const { root, cleanup } = fixture(join(process.cwd(), '.krn', 'tmp'));
   const portFile = join(root, 'probe.port');
   const hitFile = join(root, 'probe.hit');
@@ -296,7 +321,15 @@ test('a judge response without a verdict cannot be parsed into a review record',
   assert.throws(() => parseJudgeResponse('{"findings":[]}'));
 });
 
-test('panel launcher forces read-only and a lead override is appended after FAIL', async () => {
+test('panel launcher forces read-only and a lead override is appended after FAIL', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'panel launcher forces read-only and a lead override is appended after FAIL',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const { root, cleanup } = fixture();
   const priorArgs = process.env.KRN_REVIEW_ARGS;
   try {
@@ -354,7 +387,13 @@ test('panel launcher forces read-only and a lead override is appended after FAIL
   }
 });
 
-test('an invalid judge verdict is recorded incomplete', async () => {
+test('an invalid judge verdict is recorded incomplete', async (t) => {
+  if (
+    !requiresIsolation(t, 'an invalid judge verdict is recorded incomplete', [
+      'systemdUserScope',
+    ])
+  )
+    return;
   const { root, cleanup } = fixture();
   const priorArgs = process.env.KRN_REVIEW_ARGS;
   try {
@@ -389,7 +428,15 @@ test('an invalid judge verdict is recorded incomplete', async () => {
   }
 });
 
-test('PASS agent message without turn.completed is recorded incomplete', async () => {
+test('PASS agent message without turn.completed is recorded incomplete', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'PASS agent message without turn.completed is recorded incomplete',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const { root, cleanup } = fixture();
   const priorArgs = process.env.KRN_REVIEW_ARGS;
   try {
@@ -434,7 +481,15 @@ test('PASS agent message without turn.completed is recorded incomplete', async (
   }
 });
 
-test('real SIGTERM cancels the judge scope and exits 130 without a review record', async () => {
+test('real SIGTERM cancels the judge scope and exits 130 without a review record', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'real SIGTERM cancels the judge scope and exits 130 without a review record',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const { root, cleanup } = fixture();
   const pidFile = join(root, 'judge.pid');
   let reviewProcess: ReturnType<typeof spawn> | undefined;

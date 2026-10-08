@@ -5,8 +5,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { CodexHost } from '../../src/hosts/codex.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
-test('CodexHost pins low reasoning effort for bounded shell work', async () => {
+test('CodexHost pins low reasoning effort for bounded shell work', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'CodexHost pins low reasoning effort for bounded shell work',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const directory = await mkdtemp(join(tmpdir(), 'krn-codex-launch-'));
   try {
     const initialized = spawnSync('git', ['-C', directory, 'init', '-q']);
@@ -39,7 +48,15 @@ test('CodexHost pins low reasoning effort for bounded shell work', async () => {
   }
 });
 
-test('an empty Codex final message is not a completed claim', async () => {
+test('an empty Codex final message is not a completed claim', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'an empty Codex final message is not a completed claim',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const directory = await mkdtemp(join(tmpdir(), 'krn-codex-empty-'));
   try {
     const initialized = spawnSync('git', ['-C', directory, 'init', '-q']);

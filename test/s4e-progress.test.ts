@@ -11,11 +11,11 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-
 import { runJob } from '../src/foreman/run.ts';
 import { runSession } from '../src/foreman/session.ts';
 import type { Capsule, Contract, Deps } from '../src/foreman/types.ts';
 import * as relay from '../src/relay/index.ts';
+import { requiresIsolation } from './helpers/isolation.ts';
 
 const cli = new URL('../src/cli/main.ts', import.meta.url).pathname;
 
@@ -25,7 +25,15 @@ function git(root: string, args: string[]): string {
   return result.stdout.trim();
 }
 
-test('checkpoint instruction is imperative and its filled command executes', async () => {
+test('checkpoint instruction is imperative and its filled command executes', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'checkpoint instruction is imperative and its filled command executes',
+      ['systemdUserScope'],
+    )
+  )
+    return;
   const root = mkdtempSync(join(tmpdir(), 'krn-s4e-checkpoint-'));
   const executable = join(root, 'fake-codex');
   const argsPath = join(root, '.krn', 'args.json');

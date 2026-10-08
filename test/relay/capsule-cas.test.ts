@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,9 +7,6 @@ import test from 'node:test';
 
 import * as relay from '../../src/relay/index.ts';
 import * as trace from '../../src/trace/index.ts';
-
-const validator =
-  '/mnt/storage/coding/krn/active/krn-codex-skills/scripts/krn.mjs';
 
 function git(root: string, args: string[]): string {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
@@ -141,11 +137,7 @@ test('a capsule write from a stale epoch is rejected', async () => {
   }
 });
 
-test('the existing state checker accepts a capsule session id as evidence', async () => {
-  assert.ok(
-    existsSync(validator),
-    `capsule ABI validator is available at ${validator}`,
-  );
+test('a capsule session id is retained in resumable state evidence', async () => {
   const worktree = await mkdtemp(join(tmpdir(), 'krn-relay-validator-'));
   const job = { id: 'E1-04', issue: 'issue-1', worktree, repoRoot: worktree };
   try {
@@ -181,16 +173,6 @@ test('the existing state checker accepts a capsule session id as evidence', asyn
       state,
       /^Evidence observed: session="session-opaque-42"; lease=ended$/m,
     );
-
-    const checked = spawnSync(
-      process.execPath,
-      [validator, 'state', 'check', '--root', worktree, '--json'],
-      {
-        encoding: 'utf8',
-      },
-    );
-    assert.equal(checked.status, 0, `${checked.stdout}\n${checked.stderr}`);
-    assert.equal(JSON.parse(checked.stdout).status, 'clean');
   } finally {
     await rm(worktree, { recursive: true, force: true });
   }

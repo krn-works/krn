@@ -13,12 +13,13 @@
   "scripts": {
     "check": "tsc --noEmit",
     "lint": "biome check .",
-    "test": "node --test --test-concurrency=1 'test/**/*.test.ts'",
+    "test": "node scripts/test-suite.mjs",
     "live": "node scripts/live-l1.mjs",
     "live:smoke": "node scripts/live-smoke.mjs",
     "render:agents": "node scripts/render-agents.ts --write",
     "rules": "node scripts/render-agents.ts --check",
-    "gate": "npm run check && npm run lint && npm test && npm run rules"
+    "gate": "npm run check && npm run lint && npm test && npm run rules",
+    "gate:local": "node scripts/gate-local.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
