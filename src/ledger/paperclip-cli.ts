@@ -3,6 +3,7 @@ import type { LedgerTransport } from './index.ts';
 
 const TIMEOUT_MS = 15_000;
 const MAX_OUTPUT_BYTES = 1024 * 1024;
+const PROCESS_GROUP_POLL_MS = 10;
 
 function cliEnvironment(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
@@ -18,24 +19,82 @@ function cliEnvironment(): NodeJS.ProcessEnv {
 
 function runPaperclip(
   args: readonly string[],
-  options: { executable: string; timeoutMs: number; maxOutputBytes: number },
+  options: {
+    executable: string;
+    timeoutMs: number;
+    maxOutputBytes: number;
+    signal?: AbortSignal;
+  },
 ): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const child = spawn(options.executable, [...args], {
       shell: false,
+      detached: true,
       env: cliEnvironment(),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     const chunks: Buffer[] = [];
     let outputBytes = 0;
     let settled = false;
-    const finishError = (message: string) => {
+    let stopping = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const pid = child.pid;
+    const closed = new Promise<void>((resolveClose) => {
+      child.once('close', () => resolveClose());
+    });
+    const cleanup = () => {
+      if (timer !== undefined) clearTimeout(timer);
+      options.signal?.removeEventListener('abort', onAbort);
+    };
+    const waitForGroupGone = async () => {
+      if (pid === undefined) return;
+      while (true) {
+        try {
+          process.kill(-pid, 0);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === 'ESRCH') return;
+          throw error;
+        }
+        await new Promise((done) => setTimeout(done, PROCESS_GROUP_POLL_MS));
+      }
+    };
+    const stopGroup = async (message: string) => {
+      if (settled || stopping) return;
+      stopping = true;
+      cleanup();
+      if (pid !== undefined) {
+        try {
+          process.kill(-pid, 'SIGKILL');
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
+            settled = true;
+            reject(
+              new Error('Paperclip CLI process group could not be killed'),
+            );
+            return;
+          }
+        }
+      } else {
+        child.kill('SIGKILL');
+      }
+      try {
+        await closed;
+        await waitForGroupGone();
+      } catch {
+        // The original failure is safer to expose than process details.
+      }
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
-      child.kill('SIGKILL');
       reject(new Error(message));
     };
+    const onAbort = () => void stopGroup('Paperclip CLI request aborted');
+    const finishError = (message: string) => void stopGroup(message);
+    child.on('error', () => {
+      if (settled || stopping) return;
+      settled = true;
+      cleanup();
+      reject(new Error('Paperclip CLI could not be started'));
+    });
     const collect = (chunk: Buffer) => {
       outputBytes += chunk.length;
       if (outputBytes > options.maxOutputBytes) {
@@ -48,16 +107,17 @@ function runPaperclip(
     };
     child.stdout.on('data', collect);
     child.stderr.on('data', collect);
-    child.on('error', () => finishError('Paperclip CLI could not be started'));
-    const timer = setTimeout(
+    timer = setTimeout(
       () =>
         finishError(`Paperclip CLI timed out after ${options.timeoutMs} ms`),
       options.timeoutMs,
     );
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+    if (options.signal?.aborted) onAbort();
     child.on('close', (code) => {
-      if (settled) return;
+      if (settled || stopping) return;
       settled = true;
-      clearTimeout(timer);
+      cleanup();
       if (code !== 0) {
         reject(new Error('Paperclip CLI command failed'));
         return;
@@ -71,6 +131,15 @@ function runPaperclip(
   });
 }
 
+function normalizeIssueIdentifier(issueId: string, value: unknown): unknown {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return value;
+  const issue = value as Record<string, unknown>;
+  return issue.identifier === issueId && typeof issue.id === 'string'
+    ? { ...issue, id: issueId }
+    : value;
+}
+
 function validIssueId(issueId: string): void {
   if (!/^[A-Za-z0-9_-]+$/.test(issueId))
     throw new Error('invalid Paperclip issue ID');
@@ -81,12 +150,16 @@ export function createPaperclipCliTransport(
     executable?: string;
     timeoutMs?: number;
     maxOutputBytes?: number;
+    signal?: AbortSignal;
   } = {},
 ): LedgerTransport {
   const options = {
     executable: configuration.executable ?? 'paperclip',
     timeoutMs: configuration.timeoutMs ?? TIMEOUT_MS,
     maxOutputBytes: configuration.maxOutputBytes ?? MAX_OUTPUT_BYTES,
+    ...(configuration.signal === undefined
+      ? {}
+      : { signal: configuration.signal }),
   };
   if (
     !Number.isSafeInteger(options.timeoutMs) ||
@@ -108,14 +181,14 @@ export function createPaperclipCliTransport(
         ['issue', 'get', issueId, '--json'],
         options,
       );
+      const normalized = normalizeIssueIdentifier(issueId, value);
       if (typeof value !== 'object' || value === null || Array.isArray(value))
-        return value;
+        return normalized;
       const issue = value as Record<string, unknown>;
       if (typeof issue.id === 'string') {
         resolvedIds.set(issueId, issue.id);
-        if (issue.identifier === issueId) return { ...issue, id: issueId };
       }
-      return value;
+      return normalized;
     },
     async readActivity(issueId) {
       validIssueId(issueId);
@@ -141,7 +214,7 @@ export function createPaperclipCliTransport(
       if (!status || /[\r\n]/.test(status))
         throw new Error('invalid Paperclip issue status');
       const resolvedId = resolvedIds.get(issueId) ?? issueId;
-      return runPaperclip(
+      const receipt = await runPaperclip(
         [
           'issue',
           'update',
@@ -154,6 +227,7 @@ export function createPaperclipCliTransport(
         ],
         options,
       );
+      return normalizeIssueIdentifier(issueId, receipt);
     },
   };
 }

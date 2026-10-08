@@ -99,14 +99,15 @@ test('CLI update carries status and comment in one argv-safe invocation', async 
   const fake = await fakeCli();
   await writeFile(
     fake.executable,
-    `#!/usr/bin/env node\nconst fs = require('node:fs');\nconst args = process.argv.slice(2);\nfs.writeFileSync(${JSON.stringify(fake.capture)}, JSON.stringify(args));\nprocess.stdout.write('{}');\n`,
+    `#!/usr/bin/env node\nconst fs = require('node:fs');\nconst args = process.argv.slice(2);\nfs.writeFileSync(${JSON.stringify(fake.capture)}, JSON.stringify(args));\nprocess.stdout.write(${JSON.stringify(JSON.stringify(issue))});\n`,
   );
   await chmod(fake.executable, 0o755);
   try {
     const comment = 'review $HOME; $(must stay one argument)';
-    await createPaperclipCliTransport({
+    const receipt = await createPaperclipCliTransport({
       executable: fake.executable,
     }).updateIssue('LON-200', 'in_review', comment);
+    assert.equal((receipt as { id: string }).id, 'LON-200');
     const args = JSON.parse(await readFile(fake.capture, 'utf8')) as string[];
     assert.deepEqual(args, [
       'issue',
@@ -152,7 +153,7 @@ test('CLI transport refuses oversized output and timed out commands', async () =
     ),
     writeFile(
       hanging.executable,
-      '#!/usr/bin/env node\nsetTimeout(() => process.stdout.write("{}"), 5000);\n',
+      `#!/usr/bin/env node\nconst fs = require('node:fs');\nconst { spawn } = require('node:child_process');\nconst descendant = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });\nfs.writeFileSync(${JSON.stringify(hanging.capture)}, String(descendant.pid));\nsetInterval(() => {}, 1000);\n`,
     ),
   ]);
   await Promise.all([
@@ -170,14 +171,68 @@ test('CLI transport refuses oversized output and timed out commands', async () =
     await assert.rejects(
       createPaperclipCliTransport({
         executable: hanging.executable,
-        timeoutMs: 25,
+        timeoutMs: 250,
       }).readIssue('LON-200'),
-      /timed out after 25 ms/u,
+      /timed out after 250 ms/u,
+    );
+    const descendantPid = Number(await readFile(hanging.capture, 'utf8'));
+    assert.throws(
+      () => process.kill(descendantPid, 0),
+      { code: 'ESRCH' },
+      'timed-out CLI descendants must be gone before rejection',
     );
   } finally {
+    try {
+      const descendantPid = Number(await readFile(hanging.capture, 'utf8'));
+      process.kill(descendantPid, 'SIGKILL');
+    } catch {}
     await Promise.all([
       rm(oversized.directory, { recursive: true, force: true }),
       rm(hanging.directory, { recursive: true, force: true }),
     ]);
+  }
+});
+
+test('aborting a CLI request kills and waits for its process group', async () => {
+  const fake = await fakeCli();
+  await writeFile(
+    fake.executable,
+    `#!/usr/bin/env node\nconst fs = require('node:fs');\nconst { spawn } = require('node:child_process');\nconst descendant = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });\nfs.writeFileSync(${JSON.stringify(fake.capture)}, String(descendant.pid));\nsetInterval(() => {}, 1000);\n`,
+  );
+  await chmod(fake.executable, 0o755);
+  const controller = new AbortController();
+  let descendantPid: number | undefined;
+  try {
+    const pending = createPaperclipCliTransport({
+      executable: fake.executable,
+      timeoutMs: 5_000,
+      signal: controller.signal,
+    }).readIssue('LON-200');
+    for (
+      let attempt = 0;
+      attempt < 100 && descendantPid === undefined;
+      attempt++
+    ) {
+      try {
+        descendantPid = Number(await readFile(fake.capture, 'utf8'));
+      } catch {
+        await new Promise((done) => setTimeout(done, 10));
+      }
+    }
+    assert.ok(descendantPid, 'fake CLI must fork its descendant');
+    controller.abort();
+    await assert.rejects(pending, /request aborted/u);
+    assert.throws(
+      () => process.kill(descendantPid as number, 0),
+      { code: 'ESRCH' },
+      'aborted CLI descendants must be gone before rejection',
+    );
+  } finally {
+    if (descendantPid !== undefined) {
+      try {
+        process.kill(descendantPid, 'SIGKILL');
+      } catch {}
+    }
+    await rm(fake.directory, { recursive: true, force: true });
   }
 });
