@@ -17,7 +17,7 @@ export function main(args = process.argv.slice(2)): void {
     return;
   }
 
-  if (['start', 'checkpoint', 'stop'].includes(args[0] ?? '')) {
+  if (['start', 'checkpoint', 'stop', 'review'].includes(args[0] ?? '')) {
     void dispatch(args).catch((error: unknown) => {
       process.stderr.write(
         `${error instanceof Error ? error.message : String(error)}\n`,
