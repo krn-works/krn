@@ -222,11 +222,39 @@ export async function recoverLease(
   if (!capsule.sessionId || capsule.lease === 'checkpointed')
     return { capsule };
   const end = await d.trace.sessionEnd(job, capsule.sessionId);
-  if (!end)
+  if (!end) {
+    const isolation = await d.trace.sessionIsolation?.(job, capsule.sessionId);
+    const scopeActive =
+      isolation === 'systemd_scope'
+        ? await d.hosts.sessionScopeActive?.(job.id, capsule.sessionId)
+        : null;
+    if (
+      isolation === 'systemd_scope' &&
+      scopeActive === false &&
+      d.trace.sessionLost
+    ) {
+      const facts = await d.relay.repoFacts(job);
+      const lost = {
+        reasonKind: 'session_lost',
+        claimsDone: false,
+        dirtyPaths: facts.dirtyPaths ?? [],
+      };
+      await d.trace.sessionLost(job, capsule.sessionId, lost.dirtyPaths);
+      const recovered = await d.relay.refreshCAS(capsule, facts, lost);
+      if (!recovered.applied)
+        return {
+          capsule,
+          outcome: d.stop(job, 'human_decision', [
+            'session recovery CAS conflict',
+          ]),
+        };
+      return { capsule: recovered.value };
+    }
     return {
       capsule,
       outcome: d.stop(job, 'human_decision', ['already running']),
     };
+  }
   const facts = await d.relay.repoFacts(job);
   const recovered = await d.relay.refreshCAS(capsule, facts, end);
   if (!recovered.applied)

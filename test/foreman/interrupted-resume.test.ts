@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -7,7 +7,14 @@ import test from 'node:test';
 
 import * as foreman from '../../src/foreman/index.ts';
 import { runJob } from '../../src/foreman/run.ts';
+import { recoverLease } from '../../src/foreman/session.ts';
 import type { Capsule, Deps } from '../../src/foreman/types.ts';
+import { reportPassingVerdict } from '../../src/foreman/verdict.ts';
+import type {
+  Contract,
+  SubmitForReviewOptions,
+  VerdictEvidence,
+} from '../../src/ledger/index.ts';
 import * as relay from '../../src/relay/index.ts';
 
 test('resuming a ready_for_review checkpoint re-verdicts without starting a session', async () => {
@@ -260,6 +267,161 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
     state: 'human_decision',
     reasons: ['no_progress'],
   });
+});
+
+test('a dead scoped session without an end record is recovered as session_lost', async () => {
+  const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
+    stdio: 'ignore',
+  });
+  await new Promise<void>((resolve) => child.once('spawn', resolve));
+  const sessionId = 'session-lost-fixture';
+  const job = { id: 'lost-job', issue: 'I-LOST', worktree: process.cwd() };
+  const capsule = {
+    jobId: job.id,
+    issue: job.issue,
+    contractRevision: 'rev-1',
+    epoch: 4,
+    base: 'a'.repeat(40),
+    head: 'b'.repeat(40),
+    branch: 'main',
+    worktree: job.worktree,
+    nextAction: 'continue work',
+    lease: 'active' as const,
+    sessionId,
+    blockers: [],
+    decisions: [],
+    rejectedApproaches: [],
+    references: [],
+  };
+  let recorded: readonly string[] | undefined;
+  let scopeActive = true;
+  let refreshed:
+    | { reasonKind: string; dirtyPaths?: readonly string[] }
+    | undefined;
+  const d = {
+    trace: {
+      sessionEnd: async () => null,
+      sessionIsolation: async () => 'systemd_scope' as const,
+      sessionLost: async (
+        _job: typeof job,
+        _session: string,
+        paths: readonly string[],
+      ) => {
+        recorded = paths;
+      },
+    },
+    hosts: {
+      sessionScopeActive: async () => scopeActive,
+    },
+    relay: {
+      repoFacts: async () => ({
+        base: capsule.base,
+        head: capsule.head,
+        branch: 'main',
+        worktree: job.worktree,
+        dirtyPaths: ['unfinished.ts'],
+      }),
+      refreshCAS: async (
+        _capsule: typeof capsule,
+        _facts: unknown,
+        end: typeof refreshed,
+      ) => {
+        refreshed = end;
+        return {
+          applied: true as const,
+          value: { ...capsule, epoch: 5, lease: 'ended' as const },
+        };
+      },
+    },
+    stop: (
+      _job: typeof job,
+      _state: 'human_decision',
+      reasons: readonly string[],
+    ) => ({
+      kind: 'stop' as const,
+      state: 'human_decision' as const,
+      reasons,
+    }),
+  };
+  const active = await recoverLease(job, capsule, d as never);
+  assert.deepEqual(active.outcome, {
+    kind: 'stop',
+    state: 'human_decision',
+    reasons: ['already running'],
+  });
+  const dead = new Promise<void>((resolve) =>
+    child.once('exit', () => resolve()),
+  );
+  child.kill('SIGKILL');
+  await dead;
+  scopeActive = false;
+  const result = await recoverLease(job, capsule, d as never);
+  assert.equal(result.outcome, undefined);
+  assert.deepEqual(recorded, ['unfinished.ts']);
+  assert.equal(refreshed?.reasonKind, 'session_lost');
+  assert.deepEqual(refreshed?.dirtyPaths, ['unfinished.ts']);
+  assert.equal(result.capsule.lease, 'ended');
+});
+
+test('live submission takes Krn-Session from the verified commit trailer', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-session-trailer-'));
+  const git = (args: string[]) => {
+    const result = spawnSync('git', ['-C', root, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  try {
+    git(['init', '-q', '--initial-branch=main']);
+    await writeFile(join(root, 'README.md'), 'fixture\n');
+    git(['add', 'README.md']);
+    git([
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      'commit',
+      '-qm',
+      'test: verified commit\n\nKrn-Session: trailer-session',
+    ]);
+    const sha = git(['rev-parse', 'HEAD']);
+    const job = { id: 'session-job', issue: 'I-SESSION', worktree: root };
+    let supplied: string | undefined;
+    const result = await reportPassingVerdict(
+      job,
+      {
+        issueId: job.issue,
+        identifier: job.issue,
+        title: 'test',
+        description: 'test',
+        revision: 'rev',
+        targetRepo: 'fixture/repo',
+        checks: [],
+      },
+      sha,
+      [],
+      {
+        submissionEnabled: true,
+        submitForReview: async (
+          _job: typeof job,
+          _contract: Contract,
+          _evidence: VerdictEvidence,
+          _sha: string,
+          options?: SubmitForReviewOptions,
+        ) => {
+          supplied = options?.session;
+          return 'submitted';
+        },
+      } as never,
+      {},
+      (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
+    );
+    assert.equal(result.kind, 'verdict_pass');
+    assert.equal(supplied, 'trailer-session');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test('a concurrent run cannot replace the active capsule session', async () => {

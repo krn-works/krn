@@ -2,6 +2,7 @@
 import type { Job } from '../core/index.ts';
 import type { CheckEvidence } from '../verdict/index.ts';
 import { judge } from '../verdict/index.ts';
+import { git } from './git.ts';
 import type { Capsule, Contract, Deps, Outcome } from './types.ts';
 
 export async function reportPassingVerdict(
@@ -36,6 +37,23 @@ export async function reportPassingVerdict(
       ? false
       : ((await trace.submitIntent?.(job, sha, contract.revision)) ?? false);
   if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
+  let session: string | undefined;
+  if (ledger.submissionEnabled === true) {
+    try {
+      session = git(job, [
+        'show',
+        '-s',
+        '--format=%(trailers:key=Krn-Session,valueonly)',
+        sha,
+      ]).trim();
+    } catch {
+      session = undefined;
+    }
+    if (!session || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(session))
+      return stop(job, 'human_decision', [
+        'verified commit is missing a valid Krn-Session trailer',
+      ]);
+  }
   const submitted = await ledger.submitForReview(
     job,
     contract,
@@ -43,6 +61,7 @@ export async function reportPassingVerdict(
     sha,
     {
       ...(signal === undefined ? {} : { signal }),
+      ...(session === undefined ? {} : { session }),
       reconcile,
       onWriteStarted: (kind) => trace.paperclipUpdateStarted?.(job, sha, kind),
       onSubmitted: (receipt) => trace.submitted?.(job, sha, receipt),

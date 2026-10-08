@@ -108,3 +108,58 @@ export async function killAndVerifyScope(
     lastError = killed.stderr || 'systemd kill command failed';
   throw new Error(`systemd scope ${unit} did not become empty: ${lastError}`);
 }
+
+export function systemdScopeActive(
+  unit: string,
+  env: NodeJS.ProcessEnv = userManagerEnvironment(),
+): boolean | null {
+  const shown = spawnSync(
+    'systemctl',
+    [
+      '--user',
+      'show',
+      '-p',
+      'ActiveState',
+      '-p',
+      'ControlGroup',
+      '--value',
+      unit,
+    ],
+    { encoding: 'utf8', env, timeout: 3000 },
+  );
+  if (shown.status !== 0) {
+    const detail = `${shown.stderr}\n${shown.stdout}`;
+    if (/not loaded|not found|could not be found/i.test(detail)) return false;
+    return null;
+  }
+  const [state = '', controlGroup = ''] = shown.stdout
+    .trimEnd()
+    .split(/\r?\n/u);
+  if (
+    controlGroup &&
+    (!controlGroup.startsWith('/') || controlGroup.split('/').includes('..'))
+  )
+    return null;
+  let pids: string[] = [];
+  if (controlGroup) {
+    try {
+      pids = readFileSync(
+        join('/sys/fs/cgroup', controlGroup.slice(1), 'cgroup.procs'),
+        'utf8',
+      )
+        .trim()
+        .split(/\s+/u)
+        .filter(Boolean);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return null;
+    }
+  }
+  if (
+    pids.length ||
+    state === 'active' ||
+    state === 'activating' ||
+    state === 'reloading'
+  )
+    return true;
+  return state === 'inactive' || !controlGroup ? false : null;
+}

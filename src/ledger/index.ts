@@ -113,6 +113,7 @@ export type SubmissionReceipt = Readonly<{
 export type SubmitForReviewOptions = Readonly<{
   signal?: AbortSignal;
   reconcile?: boolean;
+  session?: string;
   onWriteStarted?: (kind: 'review' | 'conflict_comment') => void;
   onSubmitted?: (receipt: SubmissionReceipt) => void;
 }>;
@@ -164,6 +165,51 @@ function parseContract(
 
 function hash(value: string): string {
   return createHash('sha256').update(value).digest('hex');
+}
+
+function activityCommentHash(value: unknown): string | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const record = value as Record<string, unknown>;
+  for (const key of ['body', 'comment', 'commentBody']) {
+    const candidate = record[key];
+    if (typeof candidate === 'string') return hash(candidate);
+    const nested = activityCommentHash(candidate);
+    if (nested) return nested;
+  }
+  for (const candidate of Object.values(record)) {
+    if (typeof candidate === 'object' && candidate !== null) {
+      const nested = activityCommentHash(candidate);
+      if (nested) return nested;
+    }
+  }
+  return null;
+}
+
+function eventCommentHash(event: z.infer<typeof activitySchema>[number]) {
+  return (
+    activityCommentHash(event.details) ?? activityCommentHash(event as unknown)
+  );
+}
+
+function activityStatus(event: z.infer<typeof activitySchema>[number]) {
+  if (event.details?.status === 'in_review') return true;
+  const changes = event.details?.changes;
+  if (typeof changes !== 'object' || changes === null) return false;
+  const status = (changes as Record<string, unknown>).status;
+  return (
+    typeof status === 'object' &&
+    status !== null &&
+    (status as Record<string, unknown>).to === 'in_review'
+  );
+}
+
+function withinWriteWindow(
+  event: z.infer<typeof activitySchema>[number],
+  startedAt: number,
+  receiptAt: number,
+): boolean {
+  const at = Date.parse(event.createdAt);
+  return at >= startedAt - 1000 && at <= receiptAt + 1000;
 }
 
 function validEvidence(contract: Contract, evidence: VerdictEvidence): boolean {
@@ -327,13 +373,14 @@ export function createLedger(options: LedgerOptions) {
   async function reportBoardConflict(
     issueId: string,
     sha: string,
+    session: string,
     writtenAt: string,
     writtenCommentHash: string,
     events: readonly z.infer<typeof activitySchema>[number][],
     signal?: AbortSignal,
     onWriteStarted?: (kind: 'review' | 'conflict_comment') => void,
   ) {
-    if (!options.session) throw new Error('KRN_SESSION is required to submit');
+    if (!session) throw new Error('Krn-Session is required to submit');
     const observed = events.length
       ? events.map(
           (event) =>
@@ -343,7 +390,7 @@ export function createLedger(options: LedgerOptions) {
           'No non-ledger activity was returned for the changed post-write revision.',
         ];
     const comment = [
-      `Krn-Session: ${options.session}`,
+      `Krn-Session: ${session}`,
       `Board conflict after Krn's single review PATCH.`,
       `Krn wrote status=in_review for candidate SHA=${sha} at Paperclip updatedAt=${writtenAt}; review-comment SHA-256=${writtenCommentHash}.`,
       'Intervening board activity observed:',
@@ -425,14 +472,21 @@ export function createLedger(options: LedgerOptions) {
       submitOptions: SubmitForReviewOptions = {},
     ): Promise<ReviewSubmission> {
       const { signal, reconcile, onWriteStarted, onSubmitted } = submitOptions;
+      const session = submitOptions.session ?? options.session;
       if (
         contract.issueId !== job.issue ||
         !validEvidence(contract, evidence) ||
         evidence.sha !== recordedSha
       )
         return 'refused';
-      if (!options.session)
-        throw new Error('KRN_SESSION is required to submit');
+      if (
+        !session ||
+        !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(session) ||
+        (submitOptions.session !== undefined &&
+          options.session !== '' &&
+          options.session !== submitOptions.session)
+      )
+        return 'refused';
       if (reconcile) {
         const replayIssue = await readIssue(job.issue, signal).catch(
           () => null,
@@ -474,7 +528,7 @@ export function createLedger(options: LedgerOptions) {
         .map((check) => `- ${check.id}: pass; result sha256 ${check.sha256}`)
         .join('\n');
       const comment = [
-        `Krn-Session: ${options.session}`,
+        `Krn-Session: ${session}`,
         `Commit: ${evidence.sha}`,
         'Checks:',
         results,
@@ -483,6 +537,7 @@ export function createLedger(options: LedgerOptions) {
       let response: Response | undefined;
       let body: unknown;
       if (signal?.aborted) return 'stopped';
+      const writeStartedAt = Date.now();
       onWriteStarted?.('review');
       if (signal?.aborted) return 'stopped';
       if (transport) {
@@ -520,24 +575,39 @@ export function createLedger(options: LedgerOptions) {
       const newEvents = afterActivity.filter(
         (event) => !beforeIds.has(event.id),
       );
+      const receiptAt = Date.parse(receipt.data.updatedAt);
+      const ownCommentEvents = newEvents.filter(
+        (event) =>
+          /comment/iu.test(event.action) &&
+          eventCommentHash(event) === hash(comment) &&
+          withinWriteWindow(event, writeStartedAt, receiptAt),
+      );
       const ownReviewEvents = newEvents.filter(
         (event) =>
           event.action === 'issue.updated' &&
           event.entityId === job.issue &&
-          event.details?.status === 'in_review' &&
-          event.details?.source === 'comment',
+          activityStatus(event) &&
+          withinWriteWindow(event, writeStartedAt, receiptAt) &&
+          ownCommentEvents.some(
+            (commentEvent) =>
+              Math.abs(
+                Date.parse(commentEvent.createdAt) -
+                  Date.parse(event.createdAt),
+              ) <= 1000,
+          ),
       );
-      const foreignEvents = newEvents.filter(
-        (event) => !ownReviewEvents.includes(event),
-      );
+      const ownEvents = new Set([...ownCommentEvents, ...ownReviewEvents]);
+      const foreignEvents = newEvents.filter((event) => !ownEvents.has(event));
       if (
         foreignEvents.length > 0 ||
         ownReviewEvents.length !== 1 ||
+        ownCommentEvents.length !== 1 ||
         afterIssue.updatedAt !== receipt.data.updatedAt
       ) {
         await reportBoardConflict(
           job.issue,
           evidence.sha,
+          session,
           receipt.data.updatedAt,
           hash(comment),
           foreignEvents.length > 0 ? foreignEvents : newEvents,

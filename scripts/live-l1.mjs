@@ -115,10 +115,8 @@ const worktree =
 if ((await git(repo, ['rev-parse', '--show-toplevel'])) !== repo)
   throw new Error('--repo must be the repository root');
 const origin = await git(repo, ['remote', 'get-url', 'origin']);
-const session = process.env.KRN_SESSION;
+const session = process.env.KRN_SESSION ?? '';
 const useHttp = process.argv.includes('--http');
-if (process.argv.includes('--submit') && !session)
-  throw new Error('KRN_SESSION is required with --submit');
 let paperclipTransport;
 const paperclip = useHttp
   ? createLedger({
