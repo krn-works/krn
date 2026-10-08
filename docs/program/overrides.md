@@ -6,3 +6,5 @@ Every lead override of a judge FAIL is recorded here before merge.
 | 2026-10-08 | krn S4c | FAIL (procedural, intra-branch parent) | merge | slice falsifiers red on main 9dd36c2 per first judge | judge J-S4c run 1 |
 | 2026-10-08 | krn S6' | FAIL (procedural, new-file import at base) | merge | base falsifier in test/s4i-authority.test.ts fails by assertion | J-S6p run 3 |
 | 2026-10-08 | krn S5 | FAIL (non-atomic board write) | merge | Paperclip PATCH has no precondition (server/src/routes/issues.ts); residual risk accepted; post-write conflict comment + human_decision | J-S5 run 3 |
+| 2026-10-08 | krn S7b | FAIL (procedural: new test file absent at base) | merge | base falsifier = live L1 probe failing at 63c6468 with "KRN_PAPERCLIP_API_URL, KRN_PAPERCLIP_TOKEN, and KRN_SESSION are required" (first S7b judge); behaviour verified (94 tests, live read-only LON-200 probe, hung/oversized output, SIGTERM) | J-S7b run 5 |
+| 2026-10-08 | krn-codex-skills #375 | spec FAIL on first run, PASS on re-run | merge | merge body carries a pre-written override note although the final spec verdict passed; no override was needed | pipeline-fleet3.log |
