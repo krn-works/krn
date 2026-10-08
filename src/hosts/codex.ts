@@ -7,7 +7,10 @@ import { basename, join } from 'node:path';
 import { z } from 'zod';
 import {
   assertSystemdUserScopesAvailable,
+  codexScopeRuntimeProperties,
   killAndVerifyScope,
+  type ReapedSystemdScope,
+  reapOrphanedCodexScopes,
   spawnSystemdScope,
   systemdScopeActive,
   userManagerEnvironment,
@@ -47,6 +50,7 @@ export type CodexSessionResult = {
   readonly reasonSha256: string;
   readonly reasonLength: number;
   readonly claimsDone: boolean;
+  readonly reapedScopes?: readonly ReapedSystemdScope[];
   readonly finalMessage?: string;
   readonly exitCode: number | null;
   readonly signal: NodeJS.Signals | null;
@@ -101,6 +105,8 @@ export class CodexHost {
     const isolation =
       this.#isolationMode ?? detectIsolationMode(this.#namespaceLauncher);
     this.#isolationMode = isolation;
+    const reapedScopes =
+      isolation === 'systemd_scope' ? await reapOrphanedCodexScopes() : [];
     const scope =
       isolation === 'systemd_scope' ? scopeName(input, id) : undefined;
     const checkpoint = input.checkpoint
@@ -174,6 +180,9 @@ export class CodexHost {
             detached: true,
             stdio: 'pipe',
             env: userManagerEnvironment(),
+            systemdProperties: codexScopeRuntimeProperties(
+              input.limits.timeoutMs,
+            ),
           })
         : spawn(launcher, launcherArgs, {
             cwd: input.cwd,
@@ -199,6 +208,7 @@ export class CodexHost {
       namespace?.identity,
       namespace?.initPid,
       scope,
+      reapedScopes,
     );
     this.#sessions.set(id, running);
     child.once('close', () => this.#sessions.delete(id));
@@ -247,6 +257,7 @@ class RunningSession {
   readonly #namespace: string | undefined;
   readonly #namespaceInitPid: number | undefined;
   readonly #scope: string | undefined;
+  readonly #reapedScopes: readonly ReapedSystemdScope[];
   readonly #scopeEnvironment: NodeJS.ProcessEnv;
   readonly #close: Promise<{
     readonly code: number | null;
@@ -256,6 +267,12 @@ class RunningSession {
   #lineBuffer = '';
   #threadId: string | undefined;
   #finalMessage: { hash: string; length: number; text: string } | undefined;
+  #pendingTurnMessage:
+    | { hash: string; length: number; text: string }
+    | undefined;
+  #completedTurnMessage:
+    | { hash: string; length: number; text: string }
+    | undefined;
   #stderrHash = createHash('sha256');
   #stderrLength = 0;
   #malformed = false;
@@ -272,6 +289,7 @@ class RunningSession {
     namespace?: string,
     namespaceInitPid?: number,
     scope?: string,
+    reapedScopes: readonly ReapedSystemdScope[] = [],
   ) {
     this.#id = id;
     this.#child = child;
@@ -279,6 +297,7 @@ class RunningSession {
     this.#namespace = namespace;
     this.#namespaceInitPid = namespaceInitPid;
     this.#scope = scope;
+    this.#reapedScopes = reapedScopes;
     this.#scopeEnvironment = userManagerEnvironment();
     this.#close = new Promise((resolveClose, rejectClose) => {
       let finished = false;
@@ -346,7 +365,9 @@ class RunningSession {
         reasonKind,
         reasonSha256: reason.hash,
         reasonLength: reason.length,
-        claimsDone: false,
+        claimsDone:
+          code === 0 && Boolean(this.#completedTurnMessage?.text.trim()),
+        reapedScopes: this.#reapedScopes,
         ...(this.#finalMessage === undefined
           ? {}
           : { finalMessage: this.#finalMessage.text }),
@@ -398,16 +419,26 @@ class RunningSession {
       event.thread_id.length <= 256
     )
       this.#threadId = event.thread_id;
+    if (event.type === 'turn.started') {
+      this.#pendingTurnMessage = undefined;
+      this.#completedTurnMessage = undefined;
+    }
     if (event.type === 'item.completed') {
       const item = record(event.item);
-      if (item.type === 'agent_message' && typeof item.text === 'string')
-        this.#finalMessage = {
+      if (item.type === 'agent_message' && typeof item.text === 'string') {
+        const message = {
           hash: createHash('sha256').update(item.text).digest('hex'),
           length: Buffer.byteLength(item.text),
           text: item.text,
         };
+        this.#finalMessage = message;
+        this.#pendingTurnMessage = message;
+        this.#completedTurnMessage = undefined;
+      }
     }
     if (event.type === 'turn.completed') {
+      this.#completedTurnMessage = this.#pendingTurnMessage;
+      this.#pendingTurnMessage = undefined;
       const usage = record(event.usage);
       this.#inputTokens = safeAdd(
         this.#inputTokens,

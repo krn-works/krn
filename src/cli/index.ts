@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, realpathSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
 
 import type { Job } from '../core/index.ts';
+import { reviewCommand } from '../flow/cli.ts';
 import { writeCheckpointRequest } from '../foreman/checkpoint-request.ts';
 import { recordRepo } from '../foreman/state.ts';
 import { operatorStart, operatorStop } from '../trace/index.ts';
@@ -124,6 +125,7 @@ export async function dispatch(args: string[]): Promise<boolean> {
   if (command === 'start') await start(options);
   else if (command === 'checkpoint' || command === 'stop')
     await stop(options, command);
+  else if (command === 'review') await reviewCommand(options);
   else return false;
   return true;
 }

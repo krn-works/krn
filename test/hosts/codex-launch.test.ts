@@ -33,6 +33,7 @@ test('CodexHost pins low reasoning effort for bounded shell work', async () => {
       'CodexHost must not inherit a slower user reasoning setting',
     );
     assert.equal(result.finalMessage, 'ready');
+    assert.equal(result.claimsDone, true);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
