@@ -120,6 +120,8 @@ export class CodexHost {
       '--ephemeral',
       '--model',
       input.model,
+      '-c',
+      'model_reasoning_effort=low',
       '--sandbox',
       'workspace-write',
       '--add-dir',
