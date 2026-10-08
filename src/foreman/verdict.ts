@@ -37,11 +37,14 @@ export async function verifyCheckpoint(
     );
     return {
       kind: 'stop',
-      outcome: submitted
-        ? { kind: 'verdict_pass', state: 'in_review', sha }
-        : d.stop(job, 'human_decision', [
-            'Paperclip review submission refused',
-          ]),
+      outcome:
+        submitted === 'submitted'
+          ? { kind: 'verdict_pass', state: 'in_review', sha }
+          : d.stop(job, 'human_decision', [
+              submitted === 'board_conflict'
+                ? 'board_conflict'
+                : 'Paperclip review submission refused',
+            ]),
     };
   }
   if (verdict.kind === 'refused' || repairs >= d.budget.maxRepairs)

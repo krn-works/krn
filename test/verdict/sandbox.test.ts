@@ -115,6 +115,61 @@ test('SIGTERM during verdict recording refuses checkpoint pass', async () => {
   }
 });
 
+test('Paperclip board conflict returns a human decision outcome', async () => {
+  const f = fixture(['/usr/bin/true']);
+  const capsule: Capsule = {
+    jobId: f.job.id,
+    issue: f.job.issue,
+    contractRevision: 'r1',
+    epoch: 0,
+    base: f.base,
+    head: f.sha,
+    branch: 'main',
+    worktree: f.root,
+    nextAction: 'done',
+    lease: 'active',
+    blockers: [],
+    decisions: [],
+    rejectedApproaches: [],
+    references: [],
+  };
+  const deps = {
+    budget: { maxRepairs: 0 },
+    ledger: { submitForReview: async () => 'board_conflict' },
+    trace: {},
+    stop: (_job: unknown, state: string, reasons: readonly string[]) => ({
+      kind: 'stop',
+      state,
+      reasons,
+    }),
+  } as unknown as Deps;
+  try {
+    const result = await verifyCheckpoint(
+      f.job,
+      capsule,
+      f.sha,
+      {
+        issueId: f.job.issue,
+        revision: 'r1',
+        targetRepo: 'fixture/repo',
+        checks: ['declared'],
+      },
+      0,
+      deps,
+    );
+    assert.equal(result.kind, 'stop');
+    if (result.kind === 'stop') {
+      assert.deepEqual(result.outcome, {
+        kind: 'stop',
+        state: 'human_decision',
+        reasons: ['board_conflict'],
+      });
+    }
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
 test('worker HEAD registry edits cannot replace commands from the base registry', async () => {
   const f = fixture(['/usr/bin/printf', 'from-base']);
   try {

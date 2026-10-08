@@ -1,4 +1,5 @@
-// Paperclip owns task status; ledger binds review submission to its issue revision. ADR 0007.
+// Paperclip owns task status; review writes verify activity and reconcile conflicts. ADR 0007.
+// Residual risk: non-atomic board write; Paperclip exposes no issue-revision precondition.
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { Job, Result } from '../core/index.ts';
@@ -14,6 +15,17 @@ const issueSchema = z.object({
   assigneeAgentId: z.string().nullable().optional(),
   assigneeUserId: z.string().nullable().optional(),
 });
+const activitySchema = z.array(
+  z
+    .object({
+      id: z.string().min(1),
+      action: z.string().min(1),
+      entityId: z.string().min(1),
+      createdAt: z.string().datetime({ offset: true }),
+      details: z.record(z.string(), z.unknown()).nullable().optional(),
+    })
+    .passthrough(),
+);
 const contractBlockSchema = z
   .object({
     version: z.literal(1),
@@ -42,6 +54,7 @@ export type VerdictEvidence = Readonly<{
   sha: string;
   checks: readonly CheckEvidence[];
 }>;
+export type ReviewSubmission = 'submitted' | 'refused' | 'board_conflict';
 export type Ledger = ReturnType<typeof createLedger>;
 export type LedgerOptions = {
   apiUrl: string;
@@ -93,12 +106,14 @@ function validEvidence(contract: Contract, evidence: VerdictEvidence): boolean {
 }
 
 export function createLedger(options: LedgerOptions) {
-  if (!options.session || /[\r\n]/.test(options.session))
+  const token = options.token.trim();
+  if (!token) throw new Error('Paperclip credential is required');
+  if (!options.session.trim() || /[\r\n]/.test(options.session))
     throw new Error('invalid Krn-Session value');
   const base = options.apiUrl.replace(/\/$/, '');
   const request = options.fetch ?? fetch;
   const headers = {
-    authorization: `Bearer ${options.token}`,
+    authorization: `Bearer ${token}`,
     accept: 'application/json',
   };
 
@@ -115,6 +130,41 @@ export function createLedger(options: LedgerOptions) {
     if (!parsed.success || parsed.data.id !== issueId)
       throw new Error('invalid Paperclip issue response');
     return parsed.data;
+  }
+
+  async function readActivity(issueId: string) {
+    const response = await request(`${base}/api/issues/${issueId}/activity`, {
+      headers,
+      redirect: 'error',
+    });
+    if (!response.ok)
+      throw new Error(`Paperclip activity read failed (${response.status})`);
+    const parsed = activitySchema.safeParse(await response.json());
+    if (!parsed.success) throw new Error('invalid Paperclip activity response');
+    return parsed.data;
+  }
+
+  async function restoreAfterConflict(
+    issueId: string,
+    previousStatus: string,
+    sha: string,
+  ) {
+    const status = previousStatus;
+    const comment = [
+      `Krn-Session: ${options.session}`,
+      `Board conflict after review submission for ${sha}.`,
+      `The ledger restored status to ${status} and requires human review.`,
+    ].join('\n');
+    const response = await request(`${base}/api/issues/${issueId}`, {
+      method: 'PATCH',
+      redirect: 'error',
+      headers: { ...headers, 'content-type': 'application/json' },
+      body: JSON.stringify({ status, comment }),
+    });
+    if (!response.ok)
+      throw new Error(
+        `Paperclip conflict correction failed (${response.status})`,
+      );
   }
 
   return {
@@ -153,16 +203,20 @@ export function createLedger(options: LedgerOptions) {
       contract: Contract,
       evidence: VerdictEvidence,
       recordedSha: string,
-    ): Promise<boolean> {
+    ): Promise<ReviewSubmission> {
       if (
         contract.issueId !== job.issue ||
         !validEvidence(contract, evidence) ||
         evidence.sha !== recordedSha
       )
-        return false;
+        return 'refused';
       const current = await readIssue(job.issue);
       if (current.updatedAt !== contract.revision || current.status === 'done')
-        return false;
+        return 'refused';
+      const beforeActivity = await readActivity(job.issue);
+      const fenced = await readIssue(job.issue);
+      if (fenced.updatedAt !== contract.revision || fenced.status === 'done')
+        return 'refused';
       const results = evidence.checks
         .map((check) => `- ${check.id}: pass; result sha256 ${check.sha256}`)
         .join('\n');
@@ -186,7 +240,33 @@ export function createLedger(options: LedgerOptions) {
       const receipt = parseIssue(await response.json());
       if (!receipt.success || receipt.data.id !== job.issue)
         throw new Error('invalid Paperclip review receipt');
-      return receipt.data.status === 'in_review';
+      const [afterIssue, afterActivity] = await Promise.all([
+        readIssue(job.issue),
+        readActivity(job.issue),
+      ]);
+      const beforeIds = new Set(beforeActivity.map((event) => event.id));
+      const newEvents = afterActivity.filter(
+        (event) => !beforeIds.has(event.id),
+      );
+      const ownReviewEvents = newEvents.filter(
+        (event) =>
+          event.action === 'issue.updated' &&
+          event.entityId === job.issue &&
+          event.details?.status === 'in_review' &&
+          event.details?.source === 'comment',
+      );
+      const foreignEvents = newEvents.filter(
+        (event) => !ownReviewEvents.includes(event),
+      );
+      if (
+        foreignEvents.length > 0 ||
+        ownReviewEvents.length !== 1 ||
+        afterIssue.updatedAt !== receipt.data.updatedAt
+      ) {
+        await restoreAfterConflict(job.issue, fenced.status, evidence.sha);
+        return 'board_conflict';
+      }
+      return afterIssue.status === 'in_review' ? 'submitted' : 'refused';
     },
   };
 }

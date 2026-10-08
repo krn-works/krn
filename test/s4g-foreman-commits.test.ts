@@ -93,7 +93,7 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
         targetRepo: 'fixture/repo',
         checks: ['always'],
       }),
-      submitForReview: async () => true,
+      submitForReview: async () => 'submitted',
     },
     relay,
     trace,

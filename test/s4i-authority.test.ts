@@ -232,7 +232,7 @@ test('B1 a worker supplied diagnostic cannot write through a worktree symlink', 
         targetRepo: 'fixture/repo',
         checks: [],
       }),
-      submitForReview: async () => true,
+      submitForReview: async () => 'submitted',
     },
     relay: {
       bindSession: async (_job: unknown, value: Capsule) => ({
@@ -516,7 +516,7 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
           targetRepo: 'fixture/repo',
           checks: ['always'],
         }),
-        submitForReview: async () => true,
+        submitForReview: async () => 'submitted',
       },
       relay,
       trace,

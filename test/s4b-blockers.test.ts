@@ -267,7 +267,7 @@ if (count === 1) {
           targetRepo: 'fixture/repo',
           checks: [],
         }),
-        submitForReview: async () => true,
+        submitForReview: async () => 'submitted',
       },
       relay: realRelay,
       trace,

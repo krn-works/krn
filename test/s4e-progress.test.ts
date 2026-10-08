@@ -228,7 +228,7 @@ test('foreman reports no_progress when a claimed-complete session has no checkpo
         targetRepo: 'fixture/repo',
         checks: [],
       }),
-      submitForReview: async () => true,
+      submitForReview: async () => 'submitted',
     },
     relay: {
       load: async () => capsule,
@@ -317,7 +317,7 @@ test('KRN_LIVE_DIAG stores only an opt-in, 2000-character reason file outside tr
         targetRepo: 'fixture/repo',
         checks: [],
       }),
-      submitForReview: async () => true,
+      submitForReview: async () => 'submitted',
     },
     relay: {
       load: async () => capsule,

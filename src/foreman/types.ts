@@ -1,5 +1,9 @@
 import type { Job } from '../core/index.ts';
-import type { Contract, VerdictEvidence } from '../ledger/index.ts';
+import type {
+  Contract,
+  ReviewSubmission,
+  VerdictEvidence,
+} from '../ledger/index.ts';
 
 export type { Contract } from '../ledger/index.ts';
 export type Capsule = {
@@ -81,7 +85,7 @@ export type Deps = {
       contract: Contract,
       evidence: VerdictEvidence,
       recordedSha: string,
-    ): Promise<boolean>;
+    ): Promise<ReviewSubmission>;
   };
   readonly relay: {
     load(job: Job, contract: Contract): Promise<Capsule>;

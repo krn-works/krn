@@ -48,6 +48,24 @@ test('invalid or missing krn-contract blocks are refused', () => {
   assert.equal(parsePaperclipContract('```krn-contract\n{}\n```').ok, false);
 });
 
+test('blank Paperclip credentials are rejected before any request', () => {
+  let requests = 0;
+  assert.throws(
+    () =>
+      createLedger({
+        apiUrl: 'http://paperclip.test',
+        token: ' \t ',
+        session: 'session-7',
+        fetch: async () => {
+          requests += 1;
+          return response(issue());
+        },
+      }),
+    /credential/i,
+  );
+  assert.equal(requests, 0);
+});
+
 test('readContract refuses a Paperclip issue without a valid contract block', async () => {
   const ledger = createLedger({
     apiUrl: 'http://paperclip.test',
@@ -102,9 +120,62 @@ test('revision changes between contract read and submit cause no write', async (
   const contract = await ledger.readContract(job.issue);
   assert.equal(
     await ledger.submitForReview(job, contract, evidence(), sha),
-    false,
+    'refused',
   );
   assert.equal(writes.length, 0);
+});
+
+test('intervening board update is corrected and returned as board_conflict', async () => {
+  const activities: Array<Record<string, unknown>> = [];
+  const patches: Array<{ status: string; comment: string }> = [];
+  let status = 'in_progress';
+  const ledger = createLedger({
+    apiUrl: 'http://paperclip.test',
+    token: 'fixture-token',
+    session: 'session-7',
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path.endsWith('/activity')) return response(activities);
+      if (init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body)) as {
+          status: string;
+          comment: string;
+        };
+        patches.push(body);
+        if (body.status === 'in_review') {
+          activities.push({
+            id: 'concurrent-update',
+            action: 'issue.updated',
+            entityId: job.issue,
+            createdAt: '2026-10-08T10:00:00.001Z',
+            details: { priority: 'high' },
+          });
+          status = body.status;
+          activities.push({
+            id: 'ledger-update',
+            action: 'issue.updated',
+            entityId: job.issue,
+            createdAt: '2026-10-08T10:00:00.002Z',
+            details: { status: 'in_review', source: 'comment' },
+          });
+        } else {
+          status = body.status;
+        }
+        return response(issue(undefined, status));
+      }
+      return response(issue(undefined, status));
+    },
+  });
+  const contract = await ledger.readContract(job.issue);
+  assert.equal(
+    await ledger.submitForReview(job, contract, evidence(), sha),
+    'board_conflict',
+  );
+  assert.deepEqual(
+    patches.map((patch) => patch.status),
+    ['in_review', 'in_progress'],
+  );
+  assert.match(patches[1]?.comment ?? '', /board conflict/i);
 });
 
 test('submission requires a verdict pass bound to the recorded SHA', async () => {
@@ -132,36 +203,44 @@ test('submission requires a verdict pass bound to the recorded SHA', async () =>
       evidence({ kind: 'fail' }),
       sha,
     ),
-    false,
+    'refused',
   );
   assert.equal(
     await ledger.submitForReview(job, contract, evidence(), 'c'.repeat(40)),
-    false,
+    'refused',
   );
   assert.equal(writes.length, 0);
 });
 
 test('review uses one in_review PATCH with SHA, check hashes, and session comment', async () => {
   const writes: Request[] = [];
+  const activities: Array<Record<string, unknown>> = [];
+  let status = 'in_progress';
   const ledger = createLedger({
     apiUrl: 'http://paperclip.test',
     token: 'fixture-token',
     session: 'session-7',
-    fetch: async (_input, init) => {
-      if (init?.method === 'PATCH')
+    fetch: async (input, init) => {
+      const path = new URL(String(input)).pathname;
+      if (path.endsWith('/activity')) return response(activities);
+      if (init?.method === 'PATCH') {
         writes.push(new Request('http://paperclip.test', init));
-      return response(
-        issue(
-          undefined,
-          init?.method === 'PATCH' ? 'in_review' : 'in_progress',
-        ),
-      );
+        status = 'in_review';
+        activities.push({
+          id: 'ledger-update',
+          action: 'issue.updated',
+          entityId: job.issue,
+          createdAt: '2026-10-08T10:00:00.002Z',
+          details: { status: 'in_review', source: 'comment' },
+        });
+      }
+      return response(issue(undefined, status));
     },
   });
   const contract = await ledger.readContract(job.issue);
   assert.equal(
     await ledger.submitForReview(job, contract, evidence(), sha),
-    true,
+    'submitted',
   );
   assert.equal(writes.length, 1);
   const body = (await writes[0]?.json()) as { status: string; comment: string };
@@ -190,7 +269,7 @@ test('done issue is never moved by ledger', async () => {
   const contract = await ledger.readContract(job.issue);
   assert.equal(
     await ledger.submitForReview(job, contract, evidence(), sha),
-    false,
+    'refused',
   );
   assert.equal(writes.length, 0);
 });

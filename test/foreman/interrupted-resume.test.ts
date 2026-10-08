@@ -47,7 +47,7 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
         targetRepo: 'fixture/repo',
         checks: [],
       }),
-      submitForReview: async () => true,
+      submitForReview: async () => 'submitted',
     },
     relay: {
       load: async () =>
@@ -181,7 +181,7 @@ test('a concurrent run cannot replace the active capsule session', async () => {
         targetRepo: 'fixture/repo',
         checks: [],
       }),
-      submitForReview: async () => true,
+      submitForReview: async () => 'submitted',
     },
     relay,
     trace: {
