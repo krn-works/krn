@@ -22,8 +22,8 @@ import {
 import { type RedFirstResult, redFirstSchema } from './types.ts';
 
 const testPath = /^test\/.+\.test\.(?:ts|js|mjs|cjs)$/u;
-const missingImport =
-  /ERR_MODULE_NOT_FOUND|ERR_PACKAGE_PATH_NOT_EXPORTED|ERR_UNSUPPORTED_DIR_IMPORT|Cannot find (?:module|package)|Module not found/u;
+const nodeResolutionFailure =
+  /\bERR_(?:MODULE_NOT_FOUND|PACKAGE_PATH_NOT_EXPORTED|PACKAGE_IMPORT_NOT_DEFINED|INVALID_MODULE_SPECIFIER|INVALID_PACKAGE_CONFIG|INVALID_PACKAGE_TARGET|UNSUPPORTED_DIR_IMPORT|UNSUPPORTED_RESOLVE_REQUEST|UNSUPPORTED_ESM_URL_SCHEME|UNKNOWN_FILE_EXTENSION|UNKNOWN_BUILTIN_MODULE|REQUIRE_ESM)\b|Cannot find (?:module|package)\b|Module not found\b|does not provide an export named|Named export .+ not found/u;
 const assertionFailure = /AssertionError|ERR_ASSERTION|assert\./u;
 
 function gitOutput(
@@ -167,7 +167,7 @@ function classifyTest(
   const classification =
     evidence.exitCode === 0
       ? 'pass'
-      : missingImport.test(output)
+      : nodeResolutionFailure.test(output)
         ? 'procedural'
         : assertionFailure.test(output)
           ? 'assertion'

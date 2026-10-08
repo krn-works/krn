@@ -89,6 +89,72 @@ test('mechanical red-first distinguishes assertion failures from missing imports
   }
 });
 
+test('red-first treats real Node resolution and linking errors as procedural', () => {
+  const { root, cleanup } = fixture(join(process.cwd(), '.krn', 'tmp'));
+  try {
+    writeFileSync(
+      join(root, 'package.json'),
+      JSON.stringify({
+        name: 'krn-redfirst-resolution-fixture',
+        type: 'module',
+        exports: { '.': './src/public.mjs', './public': './src/public.mjs' },
+      }),
+    );
+    mkdirSync(join(root, 'src'));
+    writeFileSync(
+      join(root, 'src', 'public.mjs'),
+      'export const present = true;\n',
+    );
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'add module resolution fixture');
+    const base = git(root, 'rev-parse', 'HEAD');
+    const failures = [
+      {
+        path: 'test/errors/module-not-found.test.mjs',
+        source: "import '../../src/not-present.mjs';\n",
+        message: /ERR_MODULE_NOT_FOUND/u,
+      },
+      {
+        path: 'test/errors/named-export.test.mjs',
+        source:
+          "import { absent } from '../../src/public.mjs';\nvoid absent;\n",
+        message: /does not provide an export named/u,
+      },
+      {
+        path: 'test/errors/package-path.test.mjs',
+        source: "import 'krn-redfirst-resolution-fixture/private';\n",
+        message: /ERR_PACKAGE_PATH_NOT_EXPORTED/u,
+      },
+      {
+        path: 'test/errors/cjs-module.test.mjs',
+        source:
+          "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url); require('../../src/not-present.cjs');\n",
+        message: /Cannot find module/u,
+      },
+    ] as const;
+    const orderedFailures = [...failures].sort((left, right) =>
+      left.path.localeCompare(right.path),
+    );
+    for (const failure of orderedFailures) {
+      mkdirSync(join(root, failure.path, '..'), { recursive: true });
+      writeFileSync(join(root, failure.path), failure.source);
+    }
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'add Node loader failure cases');
+    const head = git(root, 'rev-parse', 'HEAD');
+    const report = redFirst(root, base, head);
+    assert.deepEqual(
+      report.results.map(({ classification }) => classification),
+      orderedFailures.map(() => 'procedural'),
+      JSON.stringify(report.results),
+    );
+    for (const [index, failure] of orderedFailures.entries())
+      assert.match(report.results[index]?.summary ?? '', failure.message);
+  } finally {
+    cleanup();
+  }
+});
+
 test('red-first contains detached tests and blocks their network access', async () => {
   const { root, cleanup } = fixture(join(process.cwd(), '.krn', 'tmp'));
   const portFile = join(root, 'probe.port');
