@@ -4,6 +4,7 @@ import type { LedgerTransport } from './index.ts';
 const TIMEOUT_MS = 15_000;
 const MAX_OUTPUT_BYTES = 1024 * 1024;
 const PROCESS_GROUP_POLL_MS = 10;
+const BEST_EFFORT_REAP_MS = 500;
 
 function cliEnvironment(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
@@ -46,9 +47,9 @@ function runPaperclip(
       if (timer !== undefined) clearTimeout(timer);
       options.signal?.removeEventListener('abort', onAbort);
     };
-    const waitForGroupGone = async () => {
+    const waitForGroupGone = async (deadline: number) => {
       if (pid === undefined) return;
-      while (true) {
+      while (Date.now() < deadline) {
         try {
           process.kill(-pid, 0);
         } catch (error) {
@@ -58,7 +59,7 @@ function runPaperclip(
         await new Promise((done) => setTimeout(done, PROCESS_GROUP_POLL_MS));
       }
     };
-    const stopGroup = async (message: string) => {
+    const stopGroup = (message: string) => {
       if (settled || stopping) return;
       stopping = true;
       cleanup();
@@ -67,25 +68,30 @@ function runPaperclip(
           process.kill(-pid, 'SIGKILL');
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== 'ESRCH') {
-            settled = true;
-            reject(
-              new Error('Paperclip CLI process group could not be killed'),
-            );
-            return;
+            child.kill('SIGKILL');
           }
         }
       } else {
         child.kill('SIGKILL');
       }
-      try {
-        await closed;
-        await waitForGroupGone();
-      } catch {
-        // The original failure is safer to expose than process details.
-      }
-      if (settled) return;
+      child.stdout.destroy();
+      child.stderr.destroy();
       settled = true;
       reject(new Error(message));
+      const reapBy = Date.now() + BEST_EFFORT_REAP_MS;
+      void (async () => {
+        try {
+          await Promise.race([
+            closed,
+            new Promise<void>((resolveReap) =>
+              setTimeout(resolveReap, BEST_EFFORT_REAP_MS),
+            ),
+          ]);
+          await waitForGroupGone(reapBy);
+        } catch {
+          // Cleanup is bounded and must not delay the refusal.
+        }
+      })();
     };
     const onAbort = () => void stopGroup('Paperclip CLI request aborted');
     const finishError = (message: string) => void stopGroup(message);

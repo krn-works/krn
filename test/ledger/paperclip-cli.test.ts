@@ -28,6 +28,20 @@ async function fakeCli() {
   return { directory, capture, executable };
 }
 
+async function waitForPidGone(pid: number): Promise<void> {
+  const deadline = Date.now() + 1000;
+  while (Date.now() < deadline) {
+    try {
+      process.kill(pid, 0);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ESRCH') return;
+      throw error;
+    }
+    await new Promise((done) => setTimeout(done, 10));
+  }
+  assert.fail(`process ${pid} survived best-effort cleanup`);
+}
+
 test('readContract uses CLI JSON without KRN credentials and default reads never update', async () => {
   const fake = await fakeCli();
   // Embed the capture path after creation so the fake executable stays isolated.
@@ -176,11 +190,7 @@ test('CLI transport refuses oversized output and timed out commands', async () =
       /timed out after 250 ms/u,
     );
     const descendantPid = Number(await readFile(hanging.capture, 'utf8'));
-    assert.throws(
-      () => process.kill(descendantPid, 0),
-      { code: 'ESRCH' },
-      'timed-out CLI descendants must be gone before rejection',
-    );
+    await waitForPidGone(descendantPid);
   } finally {
     try {
       const descendantPid = Number(await readFile(hanging.capture, 'utf8'));
@@ -190,6 +200,43 @@ test('CLI transport refuses oversized output and timed out commands', async () =
       rm(oversized.directory, { recursive: true, force: true }),
       rm(hanging.directory, { recursive: true, force: true }),
     ]);
+  }
+});
+
+test('timeout returns promptly when a setsid descendant holds CLI pipes', async () => {
+  const fake = await fakeCli();
+  await writeFile(
+    fake.executable,
+    `#!/usr/bin/env node\nconst fs = require('node:fs');\nconst { spawn } = require('node:child_process');\nconst descendant = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true, stdio: 'inherit' });\nfs.writeFileSync(${JSON.stringify(fake.capture)}, String(descendant.pid));\nsetInterval(() => {}, 1000);\n`,
+  );
+  await chmod(fake.executable, 0o755);
+  let pending: Promise<unknown> | undefined;
+  try {
+    const startedAt = Date.now();
+    pending = createPaperclipCliTransport({
+      executable: fake.executable,
+      timeoutMs: 250,
+    }).readIssue('LON-200');
+    const returned = await Promise.race([
+      pending.then(
+        () => true,
+        () => true,
+      ),
+      new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 450)),
+    ]);
+    assert.equal(
+      returned,
+      true,
+      `timeout refusal took longer than 450 ms (${Date.now() - startedAt} ms)`,
+    );
+    assert.ok(Date.now() - startedAt <= 450);
+  } finally {
+    try {
+      const descendantPid = Number(await readFile(fake.capture, 'utf8'));
+      process.kill(descendantPid, 'SIGKILL');
+    } catch {}
+    await pending?.catch(() => {});
+    await rm(fake.directory, { recursive: true, force: true });
   }
 });
 
@@ -222,11 +269,7 @@ test('aborting a CLI request kills and waits for its process group', async () =>
     assert.ok(descendantPid, 'fake CLI must fork its descendant');
     controller.abort();
     await assert.rejects(pending, /request aborted/u);
-    assert.throws(
-      () => process.kill(descendantPid as number, 0),
-      { code: 'ESRCH' },
-      'aborted CLI descendants must be gone before rejection',
-    );
+    await waitForPidGone(descendantPid);
   } finally {
     if (descendantPid !== undefined) {
       try {
