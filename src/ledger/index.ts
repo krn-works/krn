@@ -59,6 +59,7 @@ export type VerdictEvidence = Readonly<{
 }>;
 export type ReviewSubmission =
   | 'submitted'
+  | 'ready_for_review'
   | 'refused'
   | 'board_changed'
   | 'board_conflict';

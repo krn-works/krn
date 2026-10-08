@@ -1,7 +1,38 @@
 // A completed checkpoint only advances with deterministic checks on its SHA. ADR 0001.
 import type { Job } from '../core/index.ts';
+import type { CheckEvidence } from '../verdict/index.ts';
 import { judge } from '../verdict/index.ts';
 import type { Capsule, Contract, Deps, Outcome } from './types.ts';
+
+export async function reportPassingVerdict(
+  job: Job,
+  contract: Contract,
+  sha: string,
+  checks: readonly CheckEvidence[],
+  ledger: Pick<Deps['ledger'], 'submitForReview'>,
+  trace: Pick<Deps['trace'], 'readyForReview'>,
+  stop: Deps['stop'],
+): Promise<Outcome> {
+  const submitted = await ledger.submitForReview(
+    job,
+    contract,
+    { kind: 'verdict_pass', sha, checks },
+    sha,
+  );
+  if (submitted === 'ready_for_review') {
+    await trace.readyForReview?.(job, sha);
+    return { kind: 'verdict_pass', state: 'ready_for_review', sha };
+  }
+  return submitted === 'submitted'
+    ? { kind: 'verdict_pass', state: 'in_review', sha }
+    : stop(job, 'human_decision', [
+        submitted === 'board_conflict'
+          ? 'board_conflict'
+          : submitted === 'board_changed'
+            ? 'board_changed'
+            : 'Paperclip review submission refused',
+      ]);
+}
 
 export async function verifyCheckpoint(
   job: Job,
@@ -29,24 +60,17 @@ export async function verifyCheckpoint(
     (event) => d.trace.verdict?.(job, event) ?? Promise.resolve(),
   );
   if (verdict.kind === 'pass') {
-    const submitted = await d.ledger.submitForReview(
-      job,
-      contract,
-      { kind: 'verdict_pass', sha, checks: verdict.checks },
-      capsule.head,
-    );
     return {
       kind: 'stop',
-      outcome:
-        submitted === 'submitted'
-          ? { kind: 'verdict_pass', state: 'in_review', sha }
-          : d.stop(job, 'human_decision', [
-              submitted === 'board_conflict'
-                ? 'board_conflict'
-                : submitted === 'board_changed'
-                  ? 'board_changed'
-                  : 'Paperclip review submission refused',
-            ]),
+      outcome: await reportPassingVerdict(
+        job,
+        contract,
+        sha,
+        verdict.checks,
+        d.ledger,
+        d.trace,
+        d.stop,
+      ),
     };
   }
   if (verdict.kind === 'refused' || repairs >= d.budget.maxRepairs)
