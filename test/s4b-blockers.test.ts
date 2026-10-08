@@ -8,6 +8,7 @@ import {
   mkdtemp,
   readFile,
   rm,
+  symlink,
   unlink,
   writeFile,
 } from 'node:fs/promises';
@@ -107,6 +108,45 @@ test('start refuses when the target repo does not ignore .krn', async () => {
     );
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('start refuses a worktrees symlink that escapes the target repo', async () => {
+  const root = await repoFixture('.krn/\n');
+  const external = await mkdtemp(join(tmpdir(), 'krn-s4c-external-'));
+  const id = 'S4c-symlink';
+  const externalWorktree = join(external, id);
+  const cli = new URL('../src/cli/main.ts', import.meta.url).pathname;
+  await mkdir(join(root, '.krn'), { recursive: true });
+  await symlink(external, join(root, '.krn', 'worktrees'), 'dir');
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [cli, 'start', '--job', id, '--issue', 'I-S4c'],
+      { cwd: root, encoding: 'utf8' },
+    );
+    assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stderr, /escape|inside|within/i);
+    assert.equal(existsSync(externalWorktree), false);
+    assert.doesNotMatch(
+      spawnSync('git', ['-C', root, 'worktree', 'list', '--porcelain'], {
+        encoding: 'utf8',
+      }).stdout,
+      new RegExp(externalWorktree.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
+    );
+  } finally {
+    spawnSync('git', [
+      '-C',
+      root,
+      'worktree',
+      'remove',
+      '--force',
+      externalWorktree,
+    ]);
+    await rm(externalWorktree, { recursive: true, force: true });
+    await unlink(join(root, '.krn', 'worktrees'));
+    await rm(root, { recursive: true, force: true });
+    await rm(external, { recursive: true, force: true });
   }
 });
 
