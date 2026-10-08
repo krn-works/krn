@@ -16,6 +16,7 @@ import { recordRepo } from '../../src/foreman/state.ts';
 import type { Capsule, Deps } from '../../src/foreman/types.ts';
 import { verifyCheckpoint } from '../../src/foreman/verdict.ts';
 import { judge } from '../../src/verdict/index.ts';
+import { MAX_CHECK_OUTPUT_BYTES } from '../../src/verdict/sandbox.ts';
 
 function fixture(argv: readonly string[], withLockfile = false) {
   const scratch = join(process.cwd(), '.krn', 'tmp');
@@ -309,6 +310,68 @@ test('a successful check command returns zero', async () => {
       `${result.kind === 'pass' ? '' : result.findings.join('; ')} ${details}`,
     );
   } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('16 MiB check output is capped with the correct hash and rolling tail', async () => {
+  const expectedBytes = MAX_CHECK_OUTPUT_BYTES;
+  assert.equal(expectedBytes, 8 * 1024 * 1024);
+  const f = fixture([
+    process.execPath,
+    '-e',
+    `process.stdout.write('x'.repeat(16*1024*1024))`,
+  ]);
+  const beforeExternal = process.memoryUsage().external;
+  let peakExternal = beforeExternal;
+  const sample = setInterval(() => {
+    peakExternal = Math.max(peakExternal, process.memoryUsage().external);
+  }, 1);
+  let event:
+    | {
+        readonly checks: readonly {
+          readonly exitCode: number;
+          readonly sha256: string;
+        }[];
+      }
+    | undefined;
+  try {
+    const result = await judge(
+      f.job,
+      f.sha,
+      f.base,
+      ['declared'],
+      async (value) => {
+        event = value;
+      },
+    );
+    assert.equal(result.kind, 'fail');
+    assert.equal(event?.checks[0]?.exitCode, 125);
+    const diagnostic = join(
+      f.root,
+      '.krn',
+      'runs',
+      'foreman',
+      f.job.id,
+      'diagnostics',
+    );
+    const [diagnosticFile] = readdirSync(diagnostic);
+    assert.ok(diagnosticFile);
+    const tail = readFileSync(join(diagnostic, diagnosticFile));
+    assert.equal(
+      event?.checks[0]?.sha256,
+      createHash('sha256')
+        .update(Buffer.alloc(expectedBytes, 'x'))
+        .digest('hex'),
+      `unexpected bounded output digest; tail=${tail.toString('hex')}`,
+    );
+    assert.equal(tail.toString(), 'x'.repeat(2 * 1024));
+    assert.ok(
+      peakExternal - beforeExternal < 12 * 1024 * 1024,
+      `captured output expanded parent external memory by ${peakExternal - beforeExternal} bytes`,
+    );
+  } finally {
+    clearInterval(sample);
     rmSync(f.root, { recursive: true, force: true });
   }
 });

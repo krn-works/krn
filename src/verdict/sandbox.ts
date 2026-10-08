@@ -10,6 +10,55 @@ import type { Job } from '../core/index.ts';
 import { stateDirectory } from '../foreman/state.ts';
 import type { CheckEvidence } from './index.ts';
 
+export const MAX_CHECK_OUTPUT_BYTES = 8 * 1024 * 1024;
+const OUTPUT_TAIL_BYTES = 2 * 1024;
+
+class OutputCapture {
+  readonly #hash = createHash('sha256');
+  #tail = Buffer.alloc(0);
+  #bytes = 0;
+  #exceeded = false;
+
+  append(chunk: Buffer): Buffer {
+    const remaining = MAX_CHECK_OUTPUT_BYTES - this.#bytes;
+    const accepted = chunk.subarray(0, Math.max(0, remaining));
+    if (accepted.length !== chunk.length) this.#exceeded = true;
+    if (accepted.length) {
+      this.#hash.update(accepted);
+      this.#bytes += accepted.length;
+      if (accepted.length >= OUTPUT_TAIL_BYTES) {
+        this.#tail = Buffer.from(accepted.subarray(-OUTPUT_TAIL_BYTES));
+      } else {
+        const keep = Math.min(
+          OUTPUT_TAIL_BYTES - accepted.length,
+          this.#tail.length,
+        );
+        this.#tail = Buffer.concat([
+          this.#tail.subarray(this.#tail.length - keep),
+          accepted,
+        ]);
+      }
+    }
+    return accepted;
+  }
+
+  get exceeded(): boolean {
+    return this.#exceeded;
+  }
+
+  get tail(): Buffer {
+    return Buffer.from(this.#tail);
+  }
+
+  get outputBytes(): number {
+    return this.#bytes;
+  }
+
+  get sha256(): string {
+    return this.#hash.copy().digest('hex');
+  }
+}
+
 // biome-ignore format: Share the fixed process limits across sandbox metadata commands.
 type CommandResult = { status: number | null; stdout: Buffer; stderr: Buffer };
 function run(
@@ -177,23 +226,42 @@ async function runSandbox(
   timeoutMs: number,
   extraPath?: string,
   signal?: AbortSignal,
-): Promise<{ status: number | null; stdout: Buffer; stderr: Buffer }> {
+): Promise<{
+  status: number | null;
+  sha256: string;
+  tail: Buffer;
+  outputBytes: number;
+  outputExceeded: boolean;
+}> {
   const unit = `krn-check-${randomUUID()}`;
   const home = '/tmp';
   const executable = argv[0];
   if (!executable) throw new Error('check argv is empty');
   const path = sandboxEnv(extraPath).PATH ?? '/usr/bin:/bin';
   const monitor = `
-    const { spawn } = require('node:child_process'), { readdirSync, readFileSync } = require('node:fs');
+    const { spawn } = require('node:child_process'), { readdirSync, readFileSync } = require('node:fs'), { createHash } = require('node:crypto');
+    const LIMIT=${MAX_CHECK_OUTPUT_BYTES}, TAIL=${OUTPUT_TAIL_BYTES}, hash=createHash('sha256');
+    let bytes=0, tail=Buffer.alloc(0), exceeded=false;
     const child = spawn(process.argv[1], process.argv.slice(2), { stdio: ['ignore', 'pipe', 'pipe'] });
-    const stdout = [], stderr = [];
-    child.stdout.on('data', (chunk) => stdout.push(chunk));
-    child.stderr.on('data', (chunk) => stderr.push(chunk));
+    const forward=(chunk, destination)=>{
+      const accepted=chunk.subarray(0,Math.max(0,LIMIT-bytes));
+      if(accepted.length!==chunk.length){exceeded=true;child.kill('SIGKILL');}
+      if(accepted.length){
+        hash.update(accepted);bytes+=accepted.length;
+        tail=accepted.length>=TAIL?Buffer.from(accepted.subarray(-TAIL)):Buffer.concat([tail.subarray(Math.max(0,tail.length-(TAIL-accepted.length))),accepted]);
+        destination.write(accepted);
+      }
+    };
+    child.stdout.on('data', (chunk) => forward(chunk,process.stdout));
+    child.stderr.on('data', (chunk) => forward(chunk,process.stderr));
     child.on('close', (status) => {
     const children = readdirSync('/proc').filter((n) => /^\\d+$/.test(n)).filter((n) => n !== String(process.pid) && (() => { try { const stat = readFileSync('/proc/' + n + '/stat', 'utf8'); return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[1] === '1'; } catch { return false; } })());
     for (const pid of children) { try { process.kill(Number(pid), 'SIGKILL'); } catch {} }
-    if (stdout.length) process.stdout.write(Buffer.concat(stdout)); if (stderr.length) process.stderr.write(Buffer.concat(stderr));
-    if (children.length) { process.stderr.write('detached check processes remained\\n'); process.exit(125); } process.exit(status ?? 1);
+    const digest=hash.digest('hex');
+    let exitStatus=exceeded?125:(status ?? 1);
+    if(tail.length>TAIL||digest.length!==64)exitStatus=125;
+    if (children.length) { process.stderr.write('detached check processes remained\\n'); exitStatus=125; }
+    process.exitCode=exitStatus;
     });
   `;
   // biome-ignore format: Keep bwrap's flat argv sequence visible as one invocation.
@@ -212,29 +280,65 @@ async function runSandbox(
       process.env.DBUS_SESSION_BUS_ADDRESS ?? `unix:path=/run/user/${uid}/bus`,
   };
   // biome-ignore format: Preserve the exact scope argv beside the bwrap argv.
-  const resultPromise = new Promise<{ status: number | null; stdout: Buffer; stderr: Buffer }>((resolveResult, reject) => {
-    const child = spawn('systemd-run', ['--quiet', '--user', '--scope', '--unit', unit, '--property', `RuntimeMaxSec=${Math.ceil(timeoutMs / 1000) + 2}s`, 'bwrap', ...sandbox], { cwd: root, env: busEnv, stdio: ['ignore', 'pipe', 'pipe'] });
-    const stdout: Buffer[] = [];
-    const stderr: Buffer[] = [];
-    child.stdout.on('data', (chunk: Buffer) => stdout.push(chunk));
-    child.stderr.on('data', (chunk: Buffer) => stderr.push(chunk));
-    const abort = () => {
-      const killer = spawn('systemctl', ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', unit], { cwd: root, env: busEnv, stdio: 'ignore' });
-      killer.unref();
-      child.kill('SIGTERM');
-    };
-    if (signal?.aborted) abort();
-    else signal?.addEventListener('abort', abort, { once: true });
-    const timer = setTimeout(() => abort(), timeoutMs + 10000);
-    child.once('error', reject);
-    child.once('close', (status) => {
-      clearTimeout(timer);
-      signal?.removeEventListener('abort', abort);
-      resolveResult({ status, stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr) });
-    });
-  });
+  const capture = new OutputCapture();
+  const resultPromise = new Promise<{ status: number | null }>(
+    (resolveResult, reject) => {
+      const child = spawn(
+        'systemd-run',
+        [
+          '--quiet',
+          '--user',
+          '--scope',
+          '--unit',
+          unit,
+          '--property',
+          `RuntimeMaxSec=${Math.ceil(timeoutMs / 1000) + 2}s`,
+          'bwrap',
+          ...sandbox,
+        ],
+        { cwd: root, env: busEnv, stdio: ['ignore', 'pipe', 'pipe'] },
+      );
+      let aborting = false;
+      const abort = () => {
+        if (aborting) return;
+        aborting = true;
+        const killer = spawn(
+          'systemctl',
+          ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', unit],
+          { cwd: root, env: busEnv, stdio: 'ignore' },
+        );
+        killer.unref();
+        child.kill('SIGTERM');
+      };
+      child.stdout.on('data', (chunk: Buffer) => {
+        capture.append(chunk);
+        if (capture.exceeded) abort();
+      });
+      child.stderr.on('data', (chunk: Buffer) => {
+        capture.append(chunk);
+        if (capture.exceeded) abort();
+      });
+      if (signal?.aborted) abort();
+      else signal?.addEventListener('abort', abort, { once: true });
+      const timer = setTimeout(() => abort(), timeoutMs + 10000);
+      child.once('error', reject);
+      child.once('close', (status) => {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', abort);
+        resolveResult({ status });
+      });
+    },
+  );
   const result = await resultPromise;
   if (signal?.aborted) throw new Error('stopped');
+  if (result.status === 125)
+    await run(
+      'systemctl',
+      ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', unit],
+      root,
+      15000,
+      busEnv,
+    );
   // biome-ignore format: Both systemd observations use the same scope identity.
   const state = await run('systemctl', ['--user', 'show', unit, '-p', 'ActiveState', '--value'], root, 15000, busEnv);
   // biome-ignore format: Both systemd observations use the same scope identity.
@@ -249,10 +353,16 @@ async function runSandbox(
   }
   if (state.stdout.toString().trim() !== 'inactive')
     throw new Error('check systemd scope state is unknown');
-  return result;
+  return {
+    status: capture.exceeded ? 125 : result.status,
+    sha256: capture.sha256,
+    tail: capture.tail,
+    outputBytes: capture.outputBytes,
+    outputExceeded: capture.exceeded || result.status === 125,
+  };
 }
 
-function addTail(tail: string, sha: string, id: string, job: Job): void {
+function addTail(tail: Buffer, sha: string, id: string, job: Job): void {
   const directory = join(stateDirectory(job), 'diagnostics');
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   if (realpathSync(directory) !== directory)
@@ -267,7 +377,7 @@ function addTail(tail: string, sha: string, id: string, job: Job): void {
     0o600,
   );
   try {
-    writeSync(fd, tail.slice(-2048));
+    writeSync(fd, tail.subarray(-OUTPUT_TAIL_BYTES));
   } finally {
     closeSync(fd);
   }
@@ -310,10 +420,10 @@ export async function execute(
     const configured = await runSandbox(root, copy, [pnpm, `--store-dir=${localStore}`, 'store', 'path'], timeoutMs, dirname(pnpm), signal);
     if (
       configured.status !== 0 ||
-      configured.stdout.toString().trim() !== versionedStore
+      configured.tail.toString().trim() !== versionedStore
     )
       throw new Error(
-        `pnpm did not select the writable per-check store: ${configured.stdout.toString().trim()} ${configured.stderr.toString().trim()}`,
+        `pnpm did not select the writable per-check store: ${configured.tail.toString().trim()}`,
       );
     // biome-ignore format: Verify the per-check lock path inside this sandbox.
     const lockWrite = await runSandbox(root, copy, ['/usr/bin/touch', join(versionedStore, 'pnpm-store-operation-locks')], timeoutMs, dirname(pnpm), signal);
@@ -349,15 +459,14 @@ export async function execute(
           signal,
         )
       : install;
-  const output = Buffer.concat([
-    result.stdout ?? Buffer.alloc(0),
-    result.stderr ?? Buffer.alloc(0),
-  ]);
-  addTail(output.toString('utf8'), sha, id, job);
+  const resultTail = 'tail' in result ? result.tail : Buffer.alloc(0);
+  const outputHash =
+    'sha256' in result ? result.sha256 : createHash('sha256').digest('hex');
+  addTail(resultTail, sha, id, job);
   return {
     id,
     exitCode: result.status ?? 1,
     durationMs: Date.now() - start,
-    sha256: createHash('sha256').update(output).digest('hex'),
+    sha256: outputHash,
   };
 }
