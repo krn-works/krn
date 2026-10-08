@@ -41,6 +41,8 @@ async function repoFixture(ignore = '.krn/\n'): Promise<string> {
     '-qm',
     'fixture',
   ]);
+  git(['config', 'user.name', 'Fixture']);
+  git(['config', 'user.email', 'fixture@example.invalid']);
   return root;
 }
 
@@ -231,10 +233,11 @@ appendFileSync(allPidsFile, hostPid+'\\n'+escapedHostPid+'\\n');
 process.stdout.write(JSON.stringify({type:'thread.started',thread_id:'t'+count})+'\\n');
 process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:12,output_tokens:4,total_tokens:16}})+'\\n');
 if (count === 1) {
+  writeFileSync(${JSON.stringify(join(root, 'worker-change.txt'))}, 'step A\\n');
   writeFileSync(${JSON.stringify(pidFile)}, hostPid+'\\n'+escapedHostPid);
   let prompt=''; for await (const chunk of process.stdin) prompt += chunk;
   const match = /--session'?\\s+'?([0-9a-f-]+)/.exec(prompt); const sid=match[1];
-  const args = [${JSON.stringify(new URL('../src/cli/main.ts', import.meta.url).pathname)}, 'checkpoint','--job','B1','--issue','I-1','--worktree',${JSON.stringify(root)},'--intent','intent:0','--session',sid,'--next','step B'];
+  const args = [${JSON.stringify(new URL('../src/cli/main.ts', import.meta.url).pathname)}, 'checkpoint','--job','B1','--issue','I-1','--worktree',${JSON.stringify(root)},'--intent','intent:0','--session',sid,'--message','feat: step A','--next','step B'];
   const shell = spawn('setsid', ['bash','-c', "node " + args.map((x)=>JSON.stringify(x)).join(' ')], {stdio:'ignore'});
   await new Promise(r=>setTimeout(r, 120000));
 } else {
@@ -648,6 +651,8 @@ test('B4 checkpoint preserves worker action and decisions beside lease state', a
       intent,
       '--session',
       'session-4',
+      '--message',
+      'feat: checkpoint step A',
       '--next',
       'step B: verify',
       '--decision',
@@ -662,8 +667,13 @@ test('B4 checkpoint preserves worker action and decisions beside lease state', a
     assert.equal(checkpointed.sessionId, 'session-4');
     await writeFile(join(root, 'README.md'), 'dirty after checkpoint\n');
     const dirty = await runIsolatedCheckpoint(args);
-    assert.notEqual(dirty.code, 0);
-    assert.match(dirty.stderr, /clean working tree/);
+    assert.equal(dirty.code, 0, `${dirty.stdout}\n${dirty.stderr}`);
+    assert.equal(
+      (await relay.load(job, { revision: 'r1' })).decisions.some((decision) =>
+        decision.text.includes('feat: checkpoint step A'),
+      ),
+      true,
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

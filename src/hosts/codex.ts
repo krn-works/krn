@@ -110,7 +110,7 @@ export class CodexHost {
           .map(shellQuote)
           .join(
             ' ',
-          )} --next "<one line>"\nIf needed, add --decision "<one line>".`
+          )} --message "<conventional commit subject>" --next "<one line | done>"\nDo not run git commands or create commits. Checkpoint records your request; the foreman commits the worktree changes. If there are no changes, report that instead of checkpointing. If needed, add --decision "<one line>".`
       : '';
     const prompt = `${input.prompt}${checkpoint}\n\nAfter saving a checkpoint, finish this turn immediately.`;
     const gitDir = resolve(input.cwd, gitCommonDir(input.cwd));
