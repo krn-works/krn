@@ -3,6 +3,13 @@
 Data: 2026-10-08. Właściciel: lead. Status: propozycja. Slice'y oznaczone decyzją D1–D5 (§3) startują dopiero po
 niej. Etykiety jak w blueprincie: [CODE], [OURS-EVIDENCE], [POLICY], [HYPOTHESIS].
 
+**Aktualizacja 2026-10-09.** PR #1 scalono jako `1018556` z innym projektem R0: CI pomija zadeklarowane testy
+zależne od izolacji i zapisuje powody; nie ma skryptu `test:portable`. PR-y #2/#3 zastąpiono odpowiednio PR #5/#4.
+W0 to LON-206 (PR #7), a K0 to LON-207 (PR #6); w K0 rejestr obejmuje tylko `typecheck`, `lint` i `rules`,
+bo suite nie może działać wewnątrz bwrap verdictu. `main` w `krn-works` pozostaje bez ochrony: lead odmawia
+merge'a bez wymaganych statusów albo wiersza override, a API readback sprawdza autorów statusów. Ochrona gałęzi
+wraca jako opcja, jeśli operator później kupi GitHub Team.
+
 ## 0. Wynik i granice
 
 E2 ma trzy wyniki:
@@ -49,7 +56,7 @@ tylko Wizard-of-Oz. Aktualizacja blueprintu to osobny slice dokumentacyjny.
      `test/flow/review`, `test/verdict/sandbox`, `test/hosts/codex-stale-scope` i `test/ledger/paperclip-cli`.
    - `test/relay/capsule-cas.test.ts:13` ma na sztywno ścieżkę hosta do `krn-codex-skills`.
    - Wniosek: testy izolacji wymagają lokalnego statusu `krn/gate-local`.
-4. **Materiał Wizard-of-Oz (PR #2, niezmergowany).** Sześć zadań. Pakiety mają 910–1359 znaków (228–340 tokenów
+4. **Materiał Wizard-of-Oz przed korektą (zastąpiony PR #5).** Sześć zadań. Pakiety mają 910–1359 znaków (228–340 tokenów
    szacunkowych), a kontrole są dopasowane długością przez dopełnienie spacjami na końcu. Dla replayu od commitu
    sprzed poprawki są dwa defekty blokujące:
    - **a) Wyciek rozwiązania.** Wzorcowy diff w każdym pakiecie pochodzi z zaakceptowanej zmiany *tego samego*
@@ -65,11 +72,10 @@ tylko Wizard-of-Oz. Aktualizacja blueprintu to osobny slice dokumentacyjny.
      `test:memory` dodaje dopiero `6567b4b` [OURS-EVIDENCE `git show --stat`]. Na bazie są to testy ukryte
      (held-out). Część z nich jest sprzężona z interfejsem przyjętej implementacji.
 
-   Do tego prereg rozjeżdża się z ADR 0002:
-   - progi są inne (4/6 wygranych zamiast +20 pp);
-   - prereg nie podaje liczby powtórzeń, a ADR wymaga dwóch;
-   - zapis „No cost win threshold” stoi w sprzeczności z decyzją operatora, która metryką główną czyni koszt;
-   - pakiety nie zawierają rekordów przestarzałych ani sprzecznych, których wymaga ADR.
+   **Uwaga o progach.** Dla tej rundy Wizard-of-Oz `n=6` niezmienione progi preregistracji 1–2 oraz dodany decyzją
+   D2 główny próg kosztu są jawnym, zapisanym odstępstwem od progów ADR 0002 (+20 pp, połowa luki i +10 pp). Te
+   progi z ADR obowiązują późniejszą rundę 20 zadań. D3 ustala w tej rundzie jeden przebieg na ramię i zadanie (24
+   łącznie), jawnie zamiast dwóch powtórzeń wymaganych przez ADR.
 5. **E1** [OURS-EVIDENCE `.krn/runs/lead/L1/notes.md`].
    - Jest jeden zaakceptowany wynik: LON-200, zaakceptowany przez leada 2026-10-08 17:19 po replayu L1g z `--submit`.
    - Żaden przebieg nie przerwał pracy w toku (korekta G3: watcher widzi checkpoint dopiero po `session_ended`).
@@ -101,12 +107,16 @@ tylko Wizard-of-Oz. Aktualizacja blueprintu to osobny slice dokumentacyjny.
     Brak funkcji na bazie jest wtedy asercją, a nie brakującym importem. Klasa override'ów z P1 nie może wracać.
   - W slice'ach żywych i danych falsyfikatorem jest deterministyczny readback: komenda i oczekiwana wartość,
     czerwone przed przebiegiem.
-- **Statusy docelowe (po E2-R5).**
+- **Statusy docelowe (po E2-R5; `main` bez ochrony).**
   - `krn/gate`: CI, część przenośna gate'u.
   - `krn/gate-local`: host, pełny gate na dokładnym SHA.
   - `krn/judge`: host, `krn review` na dokładnym SHA.
 
-  Do czasu E2-R5 integrator robi to co dziś: `npm run gate` na fixed poincie i ręczny `krn review`.
+  Lead scala PR tylko wtedy, gdy na dokładnym headzie są sukcesy `krn/gate`, `krn/gate-local` i `krn/judge`,
+  albo istnieje wiersz dla tego PR w `docs/program/overrides.md`. Jego pipeline merge'a odmawia w pozostałych
+  przypadkach. API readback zmergowanych PR-ów weryfikuje dokładny SHA oraz autora każdego statusu. Ochrona
+  gałęzi wraca jako opcja, jeśli operator później kupi GitHub Team. Do czasu E2-R5 integrator robi to co dziś:
+  `npm run gate` na fixed poincie i ręczny `krn review`.
 - **Override.** Merge mimo FAIL wymaga przed merge'em wiersza w `docs/program/overrides.md` oraz
   `krn review --override` w rekordzie. Override nie zmienia statusu `krn/judge`.
 - **Przebiegi żywe.**
@@ -120,8 +130,8 @@ tylko Wizard-of-Oz. Aktualizacja blueprintu to osobny slice dokumentacyjny.
 
 | ID | Decyzja | Rekomendacja leada | Blokuje |
 |---|---|---|---|
-| D1 | Token GitHub do statusów i komentarzy z hosta (magazyn `gh`, bez nowego pliku z sekretem) oraz ochrona gałęzi `main` w `krn-works/krn` (uprawnienie admina) | grant tylko dla `repo:status` i komentarzy PR | publikacja w R1/R4, całe R5 |
-| D2 | Ponowne zamrożenie materiału Wizard-of-Oz przed pierwszym przebiegiem: usunięcie wycieku (1.4a), podział checków na widoczne i ukryte (1.4b), rejestracja metryki głównej jako aneksu do prereg | metryka główna jako zarejestrowana metryka decyzyjna; próg „koszt B ≤ 0,5 × R” z ADR 0002, progi 1–2 z prereg bez zmian | merge W0 |
+| D1 | Token GitHub do statusów i komentarzy z hosta (magazyn `gh`, bez nowego pliku z sekretem); `main` pozostaje bez ochrony, a pipeline leada odmawia merge'a bez wymaganych statusów lub wiersza override | grant tylko dla `repo:status` i komentarzy PR; ochronę gałęzi rozważyć ponownie po zakupie GitHub Team | publikacja w R1/R4, całe R5 |
+| D2 | Ponowne zamrożenie materiału Wizard-of-Oz przed pierwszym przebiegiem: usunięcie wycieku (1.4a), podział checków na widoczne i ukryte (1.4b), rejestracja metryki głównej jako aneksu do prereg | progi preregistracji 1–2 bez zmian i główny próg kosztu B ≤ 0,5 × R przy zerze uciekających defektów; jawne odstępstwo od progów ADR 0002 dla n=6 | merge W0 |
 | D3 | Liczba powtórzeń: 1 przebieg na ramię i zadanie (24 przebiegi, R = 6 przebiegów Opusa zgodnie z grantem) zamiast 2 z ADR (48, w tym 12 Opusa) | 1, z odstępstwem od ADR jawnie odnotowanym | merge W0 |
 | D4 | Początkowa mapa ryzyka dla Sol (`krn.risk.json`, lista w R3) | przyjąć listę z R3 | merge R3 |
 | D5 | Porównywalność wyjścia E1: podróże na `krn` nie są tej samej klasy co B0 (`krn-codex-skills`, `frontend-system`) | G3 ocenia metrykę z tym ograniczeniem; opcjonalnie jedna podróż na `frontend-system` | K3 i G3 |
@@ -129,20 +139,17 @@ tylko Wizard-of-Oz. Aktualizacja blueprintu to osobny slice dokumentacyjny.
 ## 4. Ścieżka R — `krn review` jako sędzia każdego PR
 
 ### E2-R0 — `krn/gate`: przenośny gate w CI
-- **Cel.** CI w bezrootowym kontenerze uruchamia tę część gate'u, która nie wymaga izolacji, i raportuje job
-  `krn/gate`. Slice przejmuje PR #1 i usuwa jego preflight izolacji, który jest błędny i niewykonalny w tym kontenerze.
-- **Moduły/pliki.** `.github/workflows/ci.yml`, `test/workflow.test.ts`, `package.json` (skrypty `test:portable`,
-  `gate:portable`), `test/isolation.json` (lista plików testów wymagających systemd, bwrap, Codex albo hosta, każdy
-  z powodem), `test/test-partition.test.ts`.
+- **Cel.** CI w bezrootowym kontenerze raportuje job `krn/gate`; zadeklarowane testy zależne od izolacji są pomijane
+  z zapisanym powodem. PR #1 scalono jako `1018556` z tym projektem; nie powstaje skrypt `test:portable`.
+- **Moduły/pliki.** `.github/workflows/ci.yml`, `test/workflow.test.ts` i rejestr powodów pominięć testów izolacji.
 - **Akceptacja.**
   - Job `krn/gate` jest zielony na runnerze `krn-ci-isolated`.
   - `npm run gate` lokalnie pozostaje pełny.
-  - Testy izolacji nigdy nie są pomijane (`skip`): są tylko poza zbiorem przenośnym.
-  - `test/relay/capsule-cas.test.ts` trafia na listę z powodem „ścieżka hosta”, dopóki nie naprawi go podróż z K1.
-- **Falsyfikator (red first).** `test/test-partition.test.ts` uruchamia `npm run test:portable` z `PATH`, w którym
-  `systemd-run`, `systemctl` i `bwrap` to zaślepki z exit 127, i asertuje exit 0. Na bazie skryptu nie ma, więc
-  asercja kodu wyjścia pada.
-- **Zależności.** Brak; PR #1 zostaje zamknięty jako zastąpiony.
+  - Każde pominięcie testu zależnego od izolacji ma jawny powód w raporcie CI.
+- **Falsyfikator (red first).** Readback joba `krn/gate` na runnerze bez `systemd`, `bwrap` i busa użytkownika:
+  job kończy się sukcesem, a każdy pominięty test ma powód w raporcie. Brak powodu albo niezerowy exit joba
+  falsyfikuje slice.
+- **Zależności.** Brak; PR #1 jest już zmergowany jako `1018556`.
 - **Grupa równoległa.** P1.
 - **Kryteria zabicia.**
   - Zbiór przenośny obejmuje mniej niż połowę plików testów albo wyklucza test logiki niezależnej od hosta
@@ -264,20 +271,24 @@ tylko Wizard-of-Oz. Aktualizacja blueprintu to osobny slice dokumentacyjny.
 
 ### E2-R5 — wdrożenie: każdy PR w krn-works przez `krn review`
 - **Cel.**
-  1. Ochrona gałęzi `main` w `krn-works/krn` wymaga kontekstów `krn/gate`, `krn/gate-local` i `krn/judge` (D1).
-  2. Pętla leada na każdy nowy head SHA: zielone `krn/gate`, potem `krn gate local`, potem `krn review pr`.
+  1. `main` w `krn-works` pozostaje bez ochrony. `krn-pr.sh` i dyscyplina leada odmawiają merge'a, chyba że
+     dokładny head ma statusy `success` `krn/gate`, `krn/gate-local` i `krn/judge` albo PR ma wiersz w
+     `docs/program/overrides.md`. Po późniejszym zakupie GitHub Team operator może przywrócić ochronę gałęzi.
+  2. Pętla leada na każdy nowy head SHA: zielone `krn/gate`, potem `krn gate local`, potem `krn review pr`;
+     zmiana SHA unieważnia dotychczasowe statusy i wymaga ponownego przebiegu.
   3. Lead przestaje używać `bin/krn-judge.sh` i `bin/pr-pipeline.sh` dla `krn`.
   4. Fala kolejnych repo krn-works z aktywnością PR (lista z API przy starcie): `krn-codex-skills`, potem
      repozytorium `frontend-system`, potem reszta przy pierwszym nowym PR. Każde repo dostaje własne
      `krn.checks.json`, `krn.review.json` i `krn.risk.json` w PR-ze tego repo, wykonanym przez workera Luna.
-- **Moduły/pliki.** Konfiguracja repo (ochrona gałęzi); pliki polityki w repozytoriach docelowych. Bez kodu `krn`.
+- **Moduły/pliki.** Pipeline merge'a leada (`krn-pr.sh`); pliki polityki w repozytoriach docelowych. Bez kodu `krn`.
 - **Akceptacja.**
-  - 10 kolejnych PR-ów zmergowanych w `krn`, każdy z trzema statusami `success` na zmergowanym headzie albo z
-    wierszem override; readback przez API.
+  - 10 kolejnych PR-ów zmergowanych w `krn`: każdy ma trzy statusy `success` na dokładnym zmergowanym headzie albo
+    wiersz override. API readback dla każdego z nich sprawdza SHA, nazwę i autora każdego statusu.
   - ≥1 osądzony PR w każdym repo z pierwszej fali.
-  - Zero merge'y z pominięciem statusów bez wiersza override.
-- **Falsyfikator (red first).** Readback: PR-sonda bez `krn/judge` ma w API `mergeable_state == "blocked"`. Na
-  bazie, bez ochrony, ma stan `clean`.
+  - Zero merge'y bez kompletu statusów lub wiersza override.
+- **Falsyfikator (red first).** Na PR-sondzie dokładnego headu bez `krn/judge` `krn-pr.sh` odmawia merge'a;
+  readback potwierdza, że PR nie został scalony. Po dodaniu wiersza override pipeline dopuszcza merge, a API
+  readback zmergowanych PR-ów sprawdza SHA i autorów statusów. Bez tej odmowy falsyfikator jest czerwony.
 - **Zależności.** R0, R1, R2, R4. R3 przed objęciem zmian wysokiego ryzyka. D1.
 - **Grupa równoległa.** P3.
 - **Kryteria zabicia.**
@@ -309,7 +320,7 @@ tylko Wizard-of-Oz. Aktualizacja blueprintu to osobny slice dokumentacyjny.
 
 ### E2-W0 — korekta i ponowne zamrożenie materiału
 - **Cel.**
-  1. Zmergować PR #2 bez zmian, jako zachowaną historię.
+  1. Zmergować PR #5 bez zmian, jako zachowaną historię.
   2. Przed pierwszym przebiegiem (README pozwala zmieniać materiał do tego momentu) poprawić materiał:
      - **(a) Wzorce.** Wzorcowy diff pochodzi z *innej* zaakceptowanej zmiany tej samej klasy, z datą commitu nie
        późniejszą niż baza. Źródła pakietu czytamy w rewizji bazy, a źródło dodane dopiero przez poprawkę zadania
@@ -336,8 +347,8 @@ tylko Wizard-of-Oz. Aktualizacja blueprintu to osobny slice dokumentacyjny.
   - Lead robi readback, a operator zatwierdza zamrożenie (D2, D3).
   - SHA merge'a staje się kotwicą zamrożenia przed jakimkolwiek przebiegiem.
 - **Falsyfikator (red first).** `test/woz-manifest.test.ts` asertuje, że żaden pakiet nie zawiera SHA ani prefiksu
-  ≥7 znaków przyjętej zmiany własnego zadania. Na materiale z PR #2 asercja pada dla wszystkich 6 pakietów.
-- **Zależności.** Merge PR #2; D2, D3.
+  ≥7 znaków przyjętej zmiany własnego zadania. Na materiale z PR #5 asercja pada dla wszystkich 6 pakietów.
+- **Zależności.** Merge PR #5; D2, D3.
 - **Grupa równoległa.** P1 (tylko `evals/**` i jeden nowy test).
 - **Kryteria zabicia.** Dla ≥3 z 6 zadań nie da się podać checku akceptacji niezależnego od interfejsu i nie ma
   zamiennika tej samej klasy: runda jest nieważna przed startem, decyduje operator. Wymiana zadań po pierwszym
@@ -420,12 +431,24 @@ tylko Wizard-of-Oz. Aktualizacja blueprintu to osobny slice dokumentacyjny.
   runda nieważna.
 
 ### E2-W4 — analiza i decyzja
-- **Cel.** Raport według prereg:
+- **Cel.** Dla tej rundy `n=6` niezmienione progi preregistracji 1–2 oraz dodany decyzją D2 główny próg kosztu
+  (próg 5 prereg) są jawnym, zapisanym odstępstwem od progów ADR 0002. Progi ADR (+20 pp, połowa luki, +10 pp)
+  obowiązują późniejszą rundę 20 zadań. Decyzja dla pakietu jest pozytywna tylko wtedy, gdy B spełnia próg
+  jakości 1 i główny próg kosztu 5 przy zerze uciekających P0/P1; jeśli warunek kosztu nie jest spełniony,
+  wynik nie uzasadnia pakietu.
+  Raport pokazuje osobno pozostałe progi prereg i ich rolę:
   - tabele per zadanie i ramię;
-  - progi 1–6;
+  - próg 1: B ma więcej pierwszych PASS niż A na co najmniej 4/6 zadań i niż C na co najmniej 4/6, bez
+    dodatkowego uciekającego P0/P1 względem A ani C;
+  - próg 2 „w stronę Opusa”: zamknięcie co najmniej 50% luki PASS, `(PASS_B − PASS_A)/(PASS_R − PASS_A)`,
+    tylko gdy `PASS_R > PASS_A`; w przeciwnym razie wynik jest nierozstrzygający;
+  - progi 3–4 jako sygnały wspierające: mediana napraw B nie większa niż A i C; liczba blokujących znalezisk
+    pierwszego werdyktu B niższa niż A i C;
   - metryka główna operatora: koszt na zaakceptowany wynik przy zerze uciekających P0/P1, łącznie i per zadanie,
-    z cennika z manifestu, z cache liczonym po cenie cache;
-  - R jako referencja; luka liczona tylko przy `PASS_R > PASS_A`.
+    z progiem `koszt_B ≤ 0,5 × koszt_R`, z cennika manifestu i cache liczonym po cenie cache; próg dotyczy
+    zaakceptowanych wyników bez uciekających defektów;
+  - próg 5 dodatkowo nakazuje opisać jako kompromis jakości/kosztu, a nie bezwarunkową wygraną, jeśli mediana
+    tokenów B przekracza A o ponad 25%; próg 6 zabrania twierdzeń o istotności przy `n=6` i wykluczeń post hoc.
 
   Decyzja trafia do statusu ADR 0002.
 - **Moduły/pliki.** `evals/woz/results.json`, `evals/woz/report.md`, `docs/adr/0002-brain-v2.md` (tylko status i
@@ -438,28 +461,29 @@ tylko Wizard-of-Oz. Aktualizacja blueprintu to osobny slice dokumentacyjny.
   `results.json`. Na bazie wyników nie ma.
 - **Zależności.** W3.
 - **Grupa równoległa.** P4.
-- **Kryteria zabicia (reguła decyzyjna z prereg i ADR).**
-  - B nie wygrywa z A na ≥4/6 zadań albo z C na ≥4/6: stop produktyzacji pakietu (bez potoku, indeksu i pakietu w
-    `relay`), a teza zostaje zawężona do „mózg jako źródło standardów dla verdictu”.
-  - Koszt B na zaakceptowany wynik bez ucieczek przekracza koszt A przy remisie jakości: brak pakietu.
+- **Kryteria zabicia (progi prereg dla n=6).**
+  - Niespełnienie progu 1 albo kosztu B ≤ 0,5 × R przy zerze uciekających defektów: stop produktyzacji pakietu
+    (bez potoku, indeksu i pakietu w `relay`), a teza zostaje zawężona do „mózg jako źródło standardów dla verdictu”.
+  - Niespełnienie progu 2 oznacza brak potwierdzenia tezy „w stronę Opusa”; progi 3–4 pozostają sygnałami
+    wspierającymi i nie zastępują progów 1 i 5.
 
 ## 6. Ścieżka K — domknięcie E1
 
 ### E2-K0 — rejestr checków `krn` i rekord wyników E1
 - **Cel.**
-  - `krn.checks.json` w `krn` z ID `typecheck`, `lint`, `test-portable` i `rules` dla verdictu w bwrap bez sieci,
-    oraz `gate-local` (pełny `npm run gate`) dla R4.
+  - `krn.checks.json` w `krn` z ID `typecheck`, `lint` i `rules` dla verdictu w bwrap bez sieci oraz
+    `gate-local` (pełny `npm run gate`) dla R4. Suite nie może działać wewnątrz bwrap verdictu.
   - `evals/journeys/e1-results.json` z wynikiem nr 1: LON-200, SHA `695df905` w `krn-codex-skills`, akceptacja
     2026-10-08 17:19, tokeny i ograniczenia z rekordu L1g.
 - **Moduły/pliki.** `krn.checks.json`, `evals/journeys/e1-results.json`, `test/checks-registry.test.ts`.
-- **Akceptacja.** `verdict.judge` na commicie `krn` uruchamia 4 checki w bwrap i przechodzi.
+- **Akceptacja.** `verdict.judge` na commicie `krn` uruchamia 3 checki w bwrap i przechodzi.
 - **Falsyfikator (red first).** `test/checks-registry.test.ts` asertuje, że
-  `resolveChecks(repo, 'HEAD', ['typecheck','lint','test-portable','rules'])` zwraca 4 checki. Na bazie pliku nie
+  `resolveChecks(repo, 'HEAD', ['typecheck','lint','rules'])` zwraca 3 checki. Na bazie pliku nie
   ma i obietnica zostaje odrzucona (`assert.doesNotReject`).
-- **Zależności.** R0 (skrypt `test:portable`).
+- **Zależności.** R0 (job `krn/gate`); check `gate-local` z R4 uruchamia pełne `npm run gate` na hoście.
 - **Grupa równoległa.** P2.
-- **Kryteria zabicia.** Testy przenośne nie działają w bwrap bez sieci: rejestr zawęża się do `typecheck`, `lint` i
-  `rules`, a ograniczenie trafia do rekordu.
+- **Kryteria zabicia.** Suite nie może działać wewnątrz bwrap verdictu: rejestr ogranicza się do `typecheck`,
+  `lint` i `rules`, a ograniczenie trafia do rekordu.
 
 ### E2-K1 — „krn builds krn”: co najmniej 2 kolejne zaakceptowane wyniki
 - **Cel.** Lead zakłada w projekcie Paperclip `krn` 3 issue. Każde jest realne, dwuetapowe i ma `krn-contract` z
@@ -551,7 +575,7 @@ w danej grupie.
 
 | Grupa | Slice'y | Warunek wejścia | Wspólne pliki rozdzielone |
 |---|---|---|---|
-| P0 | D1–D5, merge PR #2, zamknięcie PR #1 jako zastąpionego | — | — |
+| P0 | D1–D5, PR #5/#4 zastępują PR #2/#3; PR #1 już zmergowany | — | — |
 | P1 | R0, R1, R2, W0, W1 | P0 (W0: D2, D3) | `src/flow`: R1 ma `pr/github/cli`, R2 ma `index/policy/types/repository`; `package.json` tylko R0 |
 | P2 | R3, R4, K0 | R3 po R2; R4 po R1 i K0; K0 po R0 | R3 ma `index/panel/types/risk`; R4 ma `cli/index` i `gate-local` |
 | P3 | R5, R6, W2+W3, K1 | R5 po R0–R2 i R4; W2 po W0, W1, R2; K1 po K0 | przebiegi żywe: ≤2 naraz na hoście |
@@ -560,7 +584,9 @@ w danej grupie.
 ## 8. Wyjście z E2 i kryteria zabicia całości
 
 **Wyjście:**
-- 10 kolejnych PR-ów w `krn` przez trzy statusy i ≥1 PR w każdym repo z pierwszej fali R5;
+- 10 kolejnych PR-ów w `krn` scalonych przez pipeline leada: trzy sukcesy statusów na dokładnym headzie albo
+  wiersz override; API readback potwierdza SHA i autora każdego statusu. Co najmniej 1 osądzony PR w każdym repo
+  z pierwszej fali R5;
 - raport R6 z `n=20`;
 - raport W4 i status ADR 0002;
 - rekord K3 i raport G3.
@@ -573,7 +599,7 @@ w danej grupie.
   R, a G3 przechodzi do następnego okna.
 
 **Ryzyko rezydualne:**
-- Status commita z tokenem PAT może wystawić każdy z prawem zapisu, a ochrona gałęzi nie przypina źródła statusu do
-  aplikacji. Readback w R5 sprawdza więc autora statusu.
+- `main` w `krn-works` jest bez ochrony, więc egzekwowanie zależy od pipeline'a merge'a i dyscypliny leada. Status
+  commita z tokenem PAT może wystawić każdy z prawem zapisu; API readback w R5 sprawdza więc autora każdego statusu.
 - Sędziowie i red-first działają wyłącznie na hoście (scope systemd, bwrap, poświadczenia Codex). CI w kontenerze ich
   nie zastąpi bez osobnej decyzji o izolacji i sekretach na runnerze.
