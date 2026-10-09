@@ -19,7 +19,11 @@ import { judge } from '../../src/verdict/index.ts';
 import { MAX_CHECK_OUTPUT_BYTES } from '../../src/verdict/sandbox.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
-function fixture(argv: readonly string[], withLockfile = false) {
+function fixture(
+  argv: readonly string[],
+  withLockfile = false,
+  timeoutMs = 3000,
+) {
   const scratch = join(process.cwd(), '.krn', 'tmp');
   mkdirSync(scratch, { recursive: true });
   const root = mkdtempSync(join(scratch, 'krn-verdict-'));
@@ -39,7 +43,7 @@ function fixture(argv: readonly string[], withLockfile = false) {
     join(root, 'krn.checks.json'),
     JSON.stringify({
       version: 1,
-      checks: [{ id: 'declared', argv, timeoutMs: 3000 }],
+      checks: [{ id: 'declared', argv, timeoutMs }],
     }),
   );
   if (withLockfile) {
@@ -71,8 +75,39 @@ test('real SIGTERM during a sleeping verdict check stops before submit and is tr
     )
   )
     return;
-  const f = fixture(['/usr/bin/sleep', '30']);
+  const f = fixture(['/usr/bin/sleep', '30'], false, 30000);
   recordRepo(f.job, f.root);
+  const busEnv = {
+    ...process.env,
+    XDG_RUNTIME_DIR:
+      process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? 0}`,
+    DBUS_SESSION_BUS_ADDRESS:
+      process.env.DBUS_SESSION_BUS_ADDRESS ??
+      `unix:path=/run/user/${process.getuid?.() ?? 0}/bus`,
+  };
+  const scopeUnits = () => {
+    const result = spawnSync(
+      'systemctl',
+      [
+        '--user',
+        'list-units',
+        '--type=scope',
+        '--all',
+        '--no-legend',
+        '--plain',
+        '--no-pager',
+      ],
+      { encoding: 'utf8', env: busEnv },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout
+      .split(/\r?\n/u)
+      .map((line) => line.trim().split(/\s+/u)[0])
+      .filter(
+        (unit) => unit?.startsWith('krn-check-') && unit.endsWith('.scope'),
+      );
+  };
+  const scopesBefore = new Set(scopeUnits());
   const marker = join(f.root, 'submit-called');
   const source = `
     import { writeFileSync } from 'node:fs';
@@ -101,7 +136,12 @@ test('real SIGTERM during a sleeping verdict check stops before submit and is tr
     const deadline = Date.now() + 10000;
     while (!existsSync(join(f.root, '.krn', 'tmp')) && Date.now() < deadline)
       await new Promise((resolve) => setTimeout(resolve, 10));
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    let ownedScope: string | undefined;
+    while (Date.now() < deadline && !ownedScope) {
+      ownedScope = scopeUnits().find((unit) => !scopesBefore.has(unit));
+      if (!ownedScope) await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    assert.ok(ownedScope, 'verdict did not create an observable systemd scope');
     assert.ok(child.pid);
     process.kill(child.pid, 'SIGTERM');
     const code = await new Promise<number | null>((resolve) =>
@@ -110,6 +150,44 @@ test('real SIGTERM during a sleeping verdict check stops before submit and is tr
     assert.ok(
       Date.now() - startedAt < 8000,
       'SIGTERM must kill the verdict scope promptly',
+    );
+    const scope = spawnSync(
+      'systemctl',
+      [
+        '--user',
+        'show',
+        ownedScope,
+        '-p',
+        'Id',
+        '-p',
+        'ActiveState',
+        '-p',
+        'ControlGroup',
+        '--value',
+      ],
+      { encoding: 'utf8', env: busEnv },
+    );
+    assert.equal(scope.status, 0, scope.stderr);
+    const [scopeId, activeState, controlGroup] = scope.stdout
+      .trimEnd()
+      .split(/\r?\n/u);
+    assert.equal(
+      scopeId,
+      ownedScope,
+      'cancellation must verify the created .scope identity',
+    );
+    assert.ok(
+      activeState === 'inactive' || activeState === 'failed',
+      `cancelled verdict scope must be stopped (state=${activeState})`,
+    );
+    const cgroupProcs = controlGroup
+      ? `/sys/fs/cgroup${controlGroup}/cgroup.procs`
+      : '';
+    assert.ok(
+      !cgroupProcs ||
+        !existsSync(cgroupProcs) ||
+        readFileSync(cgroupProcs, 'utf8').trim() === '',
+      'cancelled verdict scope must have no remaining processes',
     );
     assert.equal(code, 130, errors);
     assert.equal(
