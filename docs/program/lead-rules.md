@@ -30,9 +30,9 @@ At the first missing tool or capability, stop dependent work. Diagnose the gap a
 
 After launching a background task group, issue one blocking wait for the entire group. Do not poll or send progress messages while it runs. Resume when the wait returns a result or a real blocker or decision needs attention. If the wait command reaches its time limit, repeat that same wait without an interim status message.
 
-## Keep proposals and decisions distinct
+## Record proposals and decisions
 
-Record each lead suggestion in the proposal registry with a date, status, and source. Keep accepted, rejected, or superseded status changes visible. Record accepted decisions in the charter, then update the durable repository source that owns the decision, such as an ADR or `spec/rules.json`.
+When the lead proposes a change, record the suggestion in the proposal registry with a date, status, and source. When the lead records a decision, put it in the charter. Keep accepted, rejected, or superseded decision status visible; when a decision is accepted, update the durable repository source that owns it, such as an ADR or `spec/rules.json`.
 
 ## Change host infrastructure
 

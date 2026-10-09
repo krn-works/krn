@@ -127,15 +127,15 @@
     },
     {
       "id": "KRN-16",
-      "trigger": "the lead proposes a change or records a decision",
-      "action": "the lead MUST record suggestions in the proposal registry and decisions in the charter, then update the durable repository source when accepted",
+      "trigger": "the lead proposes a change",
+      "action": "the lead MUST record the suggestion in the proposal registry",
       "owner": "lead",
       "enforcement": {
         "kind": "none",
         "check": "manual review",
         "deadline": "2026-12-31"
       },
-      "rationale": "Separate proposal intake from accepted, durable decisions."
+      "rationale": "Proposal intake stays separate from decisions."
     },
     {
       "id": "KRN-17",
@@ -160,6 +160,18 @@
         "deadline": "2026-12-31"
       },
       "rationale": "Evidence and grant scope bound changes to shared infrastructure."
+    },
+    {
+      "id": "KRN-19",
+      "trigger": "the lead records a decision",
+      "action": "the lead MUST record it in the charter and update the durable repository source when accepted",
+      "owner": "lead",
+      "enforcement": {
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
+      },
+      "rationale": "Accepted decisions become durable repository truth."
     }
   ]
 }
