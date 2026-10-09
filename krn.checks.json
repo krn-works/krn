@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "checks": [
+    {
+      "id": "typecheck",
+      "argv": ["npm", "run", "check"],
+      "timeoutMs": 600000
+    },
+    {
+      "id": "lint",
+      "argv": ["npm", "run", "lint"],
+      "timeoutMs": 600000
+    },
+    {
+      "id": "rules",
+      "argv": ["npm", "run", "rules"],
+      "timeoutMs": 600000
+    }
+  ]
+}
