@@ -1,6 +1,9 @@
-# Irrelevant control
-Source: krn-codex-skills/docs/adr/0009-layered-memory.md §§2–3 and retention. Unrelated to CSS selector subjects, independent measurement cases and HTML/CSS URL effects.
+# Irrelevant engineering control
 
-A captured event is source-bound evidence, not an accepted conclusion. Preserve event time, capture time, source revision, project scope and capture-policy version. Unknown payload keys, unapproved sources and missing provenance are rejected before storage. Apply the known-secret shape detector to every string before persistence and return only a typed reason on a match.
+**Topic: data migration.** Plan a migration around compatible schema stages. Introduce nullable or defaulted fields, make all readers and writers accept both forms, then backfill data in bounded batches. Check totals and sampled values before making the new field mandatory.
 
-Derived observations retain event ancestry, input hash, derivation version, scope and uncertainty. Model-suggested relations remain proposals; repeated evidence from one source is not independent evidence. An unavailable or deleted source leaves dependent views unknown. Search ranking never grants authority or permits evidence to cross project scope.                                                                                                       
+Make each batch safe to retry and report progress without printing customer data. Use a stable cursor so restarts do not rescan completed rows. For a large table, inspect query plans and measure lock time against realistic indexes. Keep renames, bulk rewrites, and application behavior changes in separate releases.
+
+Deploy compatibility before starting the backfill. Watch errors, request latency, and replication lag; remove old reads only when every supported writer has switched. A local fixture covers mapping logic, not production scale or rollback safety. Record an owner, duration estimate, and removal condition for temporary compatibility code.
+
+Compare query plans before and after each batch, then test rollback in staging. Schedule indexes separately and measure their write cost. Measure locks.

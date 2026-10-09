@@ -1,6 +1,9 @@
-# Irrelevant control
-Source: krn-codex-skills/docs/adr/0009-layered-memory.md §§2–3 and retention. Unrelated to CSS selector subjects, independent measurement cases and HTML/CSS URL effects.
+# Irrelevant engineering control
 
-A captured event is source-bound evidence, not an accepted conclusion. Preserve event time, capture time, source revision, project scope and capture-policy version. Unknown payload keys, unapproved sources and missing provenance are rejected before storage. Apply the known-secret shape detector to every string before persistence and return only a typed reason on a match.
+**Topic: data migration.** Treat a database migration as a sequence of compatible states. Add nullable or defaulted fields first, update readers and writers to tolerate both schemas, then backfill in bounded batches. Verify row counts and representative values before tightening constraints.
 
-Derived observations retain event ancestry, input hash, derivation version, scope and uncertainty. Model-suggested relations remain proposals; repeated evidence from one source is not independent evidence. An unavailable or deleted source leaves dependent views unknown. Search ranking never grants authority or permits evidence to cross project scope.                                                                                      
+Keep migration code idempotent and make progress observable without logging customer payloads. A retry should resume from a stable cursor rather than repeat an unbounded scan. For large tables, measure lock duration and query plans on realistic indexes. Avoid combining a schema rename, data rewrite, and application behavior change in one release.
+
+Deploy the compatibility layer before the backfill. Monitor errors, latency, and lag, then remove the old read path only after every supported writer has moved. A local fixture can cover conversion logic; it does not establish production scale or rollback safety. Record the owner, expected duration, and cleanup condition for temporary compatibility code.
+
+Review query plans after the backfill and keep the migration reversible. Use staging.

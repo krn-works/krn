@@ -1,13 +1,12 @@
 # LON-21 standards packet
 
-**Standards / pitfalls.** Expected criteria/observation are untrusted; case bytes arrive independently from integrator/receiver. Validate at runtime, hash exact bytes and bind acceptance to them. A self-supplied raw case/hash cannot restore trust; old call shapes must not regain authority. Keep malformed/missing independent input, coordinated criterion substitution, valid measurement and actual behavior fault as distinct outcomes. Do not claim PKI or browser-artifact authenticity outside the contract. Preserve existing tests and report real full-check evidence; mocks do not prove a browser or independent author.
+**Measurement evidence.** Acceptance criteria and observed artifacts have separate owners. Validate the received bytes at runtime, bind the report to those exact bytes and their revision, and refuse legacy call shapes that cannot establish independence. Keep malformed evidence, missing evidence, a valid negative observation, and a real behavior defect distinguishable. Do not infer independent authorship from a self-supplied digest. Preserve the limits of static checks and mocks; they cannot establish browser execution or an external author’s identity.
 
-**Sources.** frontend-system/AGENTS.md:84-88,292-305; krn/docs/program/blueprint.md §9 K7-K8; accepted fix c7eaee106ad6695405429373df2f252c82bddd47.
+**Exemplar from another accepted measurement change.** Commit `65d328e661e3b47f8dd1e351385d14b6ed0300e5`, present at base `7f2be36eac60470dad9c0446f1dfe82947783915`; quoted from `harness/workshop/src/author-measure.ts` at that base:
 
-**Exemplar accepted diff.** SHA c7eaee106ad6695405429373df2f252c82bddd47:
-```diff
--  expected: Expected,
-+  expectedInput: Expected,
-   input: unknown, har: unknown, condition: unknown,
-+  caseBytes: string | Uint8Array,
+```ts
+const before = await fingerprintInputs(root);
+if (JSON.stringify(before) !== JSON.stringify(identity.inputs))
 ```
+
+This compares observed inputs with the build identity before measurement. Preserve provenance through the complete acceptance path and report when the available evidence cannot support a verdict.

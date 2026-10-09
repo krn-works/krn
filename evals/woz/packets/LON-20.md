@@ -1,10 +1,11 @@
 # LON-20 standards packet
 
-**Standards / pitfalls.** Keep correction at the existing CSS parser/policy seam and distinguish final selector subject from ancestor context. Legal .wrapper .card must pass while true wrapper override and forbidden reel-child change remain blocked. Preserve other positives/negatives and canonical CSS/token/API behavior; do not add a general cascade resolver, dependency or broader policy. Infer parser AST types; no cast/suppression shortcut. Add one focused runtime falsifier to existing test, show behavioral failure on unchanged implementation, then run same check green. Typecheck is static evidence only; complete npm run check is required.
+**Policy evaluation.** Reason about the semantic target of a rule separately from ancestors that provide context. Keep positive cases, direct overrides, nested selectors, and protected-child behavior distinguishable. Preserve existing canonical behavior and public extension points. A narrow policy correction should not become a general cascade engine or broaden unrelated restrictions. Use parser-provided structures without casts that erase uncertainty. A focused behavior check should cover both allowed context and forbidden target changes; typechecking alone does not establish policy behavior.
 
-**Sources.** frontend-system/AGENTS.md:84-88,109-116,295-305; krn/docs/program/blueprint.md §9 K3-K8; accepted fix a262a5fb97018c479fb682ccc884bfa03100c591.
+**Exemplar from a different accepted CSS-policy change.** Commit `57a77cd82ed642f51a57d27f5d42dcdbc39ea6cc`, available at base `f57c8543c5c0021da4399939789610b738863134`; quoted from `harness/workshop/src/rules.ts` at that base:
 
-**Exemplar accepted diff.** SHA a262a5fb97018c479fb682ccc884bfa03100c591:
-```diff
-+// The final compound targets the element; preceding compounds only supply context.
+```ts
+// Overlapping mechanical properties, not a second cascade/value resolver.
 ```
+
+This keeps two policy modes explicit at the observation boundary. Maintain the same separation between rule context and rule target, and retain regression controls for both sides.

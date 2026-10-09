@@ -1,6 +1,6 @@
 # E2 preregistration — standards-packet Wizard of Oz
 
-**Freeze:** 2026-10-08, before any A/B/C/R run. Owner: experiment lead. Consumer: E2 decision on whether task-scoped packets improve Luna; delete/supersede this transient record when that decision is recorded. Freeze tasks, packet, control, base SHA, checks and randomization before execution.
+**Freeze preparation:** 2026-10-09, before any A/B/C/R run. Owner: experiment lead. Consumer: E2 decision on whether task-scoped packets improve Luna; delete/supersede this transient record when that decision is recorded. The manifest binds tasks, packets, controls, base SHAs, checks, and randomization. The merge SHA and `krn review` judge SHA remain explicit placeholders until the freeze point after PR merge.
 
 ## Arms and interruption
 
@@ -13,7 +13,7 @@ For each paired Paperclip task compare A Luna, B Luna plus its task packet, C Lu
 - **Judge findings:** unique P0/P1/P2 defects from first verdict and final fixed point, deduplicated by defect/severity; list nonblocking findings separately. Judges are blind to arm/model/context and one another.
 - **Tokens per accepted result:** all input/output tokens across both sessions and repairs through first accepted fixed point, including packet/control. For no accepted result, report spent tokens and “no accepted result”; do not impute.
 - **Escaped defects:** defects missed by named checks and both final judges but found by a predeclared post-acceptance audit of frozen diff/check surface. Apply same blinded checklist to each accepted outcome; count severity and task.
-- Any packet over 2,000 estimated tokens (ceil(chars/4)), non-equal paired control length, arm leakage, or changed isolation/check fingerprint invalidates that task before outcome review.
+- Any packet over 2,000 estimated tokens (ceil(chars/4)), paired control outside the registered ±2% character tolerance, arm leakage, or changed isolation/check fingerprint invalidates that task before outcome review.
 
 ## Thresholds (fixed before runs)
 
@@ -21,7 +21,7 @@ For each paired Paperclip task compare A Luna, B Luna plus its task packet, C Lu
 2. “Toward Opus” requires at least 50% of pooled first-try PASS gap closed: (PASS_B − PASS_A)/(PASS_R − PASS_A). Compute only if PASS_R > PASS_A; otherwise comparison is non-discriminating. Show raw paired counts.
 3. Supportive repair signal: B median repair rounds no greater than A and C; report all paired values.
 4. B first-verdict blocking findings total lower than both A and C; report severity and final counts.
-5. Report tokens per accepted result by arm. If B median exceeds A by >25%, describe a quality/cost trade-off, not an unqualified win. No cost win threshold.
+5. **Primary D2 cost threshold:** cost per accepted result for B is at most 0.5 × R, counted only when the accepted result has zero escaped defects. Report tokens per accepted result by arm. If B median tokens exceed A by >25%, describe a quality/cost trade-off, not an unqualified win.
 6. Six tasks do not support a significance claim. No post-hoc exclusion or threshold changes.
 
 ## Analysis
@@ -32,13 +32,19 @@ Tabulate per task/arm first-try PASS, final acceptance, repairs, first/final fin
 
 ## Frozen context sizes
 
-Character count includes headings and citations; estimated tokens are ceil(characters/4). Each control is character-for-character length matched to its packet.
+Character count includes headings and citations and counts Unicode code points. Estimated tokens are ceil(characters/4). Each control uses original, plausible engineering text unrelated to its paired task and matches packet length within ±2%; no whitespace padding is used.
 
-| Task | Packet chars | Estimated tokens | Control chars | Match |
+| Task | Packet chars | Estimated tokens | Control chars | Difference |
 |---|---:|---:|---:|---|
-| LON-130 | 1305 | 327 | 1305 | yes |
-| LON-131 | 1359 | 340 | 1359 | yes |
-| LON-133 | 1178 | 295 | 1178 | yes |
-| LON-20 | 1006 | 252 | 1006 | yes |
-| LON-21 | 1023 | 256 | 1023 | yes |
-| LON-22 | 910 | 228 | 910 | yes |
+| LON-130 | 1507 | 377 | 1494 | 0.86% |
+| LON-131 | 1236 | 309 | 1221 | 1.21% |
+| LON-133 | 1321 | 331 | 1313 | 0.61% |
+| LON-20 | 1125 | 282 | 1121 | 0.36% |
+| LON-21 | 1137 | 285 | 1119 | 1.58% |
+| LON-22 | 1082 | 271 | 1074 | 0.74% |
+
+## Decision annex — operator decisions D2 and D3
+
+**D2 — primary metric and cost threshold.** The primary decision metric is cost per accepted result at zero escaped defects. B clears the cost condition only when its cost per accepted result is ≤0.5 × R, as registered in ADR 0002 §A/B/C/R. The original preregistered thresholds 1 and 2 above remain unchanged. Quality, escaped defects, repairs, findings, and token counts remain reported as specified. Dollar pricing is `UNKNOWN` in the manifest and must be sourced with a date before monetary costs are computed; no price is inferred.
+
+**D3 — repetitions.** Run one observation per arm per task: 4 arms × 6 tasks = 24 runs, including 6 Opus runs in R. This is an explicit operator deviation from ADR 0002’s two repetitions (48 total runs, including 12 Opus runs). No result from this single repetition will be described as statistically significant.

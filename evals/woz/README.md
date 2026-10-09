@@ -8,3 +8,5 @@ This directory preserves the pre-registered input material for KRN's A/B/C/R eva
 - **R:** Opus without a packet, as the reference arm.
 
 Do not edit `prereg.md` after the first run.
+
+`manifest.json` is the machine-readable run contract. It records each replay base and sealed accepted change, base-verified visible checks, held-out checks and interface coupling, packet/control hashes and sizes, seeded arm order, model IDs, dated pricing status, token estimator, worktree fingerprint, run budgets, and the frozen audit checklist. The current manifest is prepared for freeze; replace its merge and judge SHA placeholders with exact readbacks before the first run. The packet falsifier is `test/woz-manifest.test.ts`; its original red output is retained in `red-test-output.txt`.
