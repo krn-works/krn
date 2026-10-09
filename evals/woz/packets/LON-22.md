@@ -1,10 +1,11 @@
 # LON-22 standards packet
 
-**Standards / pitfalls.** Treat HTML/CSS and URL-bearing fields as untrusted. Check source before build and hash-verified frozen HTML/CSS before browser preparation. Refuse disallowed effects explicitly; do not rewrite source. Keep static refusal, controlled effects and input integrity as separate claims. This is not a universal sanitizer or network sandbox. Do not widen host permissions or add unrelated policy. Preserve positive controls and deterministic negatives; run targeted policy tests and full npm run check. Missing browser/network proof is missing, not inferred from static checks.
+**Effect boundaries.** Treat submitted markup and styles as untrusted source. Preserve the original bytes for audit, inspect effects at each boundary that can trigger them, and refuse unsupported navigation requests explicitly. Keep source refusal, frozen-artifact integrity, and browser/network behavior as separate claims. Do not rewrite input and then claim the original was safe. Positive cases and deterministic negative cases should cover the actual public boundary. Static policy evidence does not prove isolation from every browser or network effect.
 
-**Sources.** frontend-system/AGENTS.md:84-88,109-116,295-305; krn/docs/program/blueprint.md §9 K7-K8; accepted PR #20, SHA a43a99c77e9b311d508b0072f3dddd7a00445e9a.
+**Exemplar from another accepted source-integrity change.** Commit `a2aea8be56b5976608e9b93c54a597af071b5968`, available at base `459cce9a330636559a80ff923dab735cbefd3651`; quoted from `harness/workshop/src/observe.ts` at that base:
 
-**Exemplar accepted diff.** SHA a43a99c77e9b311d508b0072f3dddd7a00445e9a:
-```diff
-+const urlAttributes = new Set([
+```ts
+copy.append(suffix);
 ```
+
+The accepted change appends a distinct node so original markup and listeners remain intact. Boundary checks should retain the submitted representation and refuse disallowed effects without silently normalizing away the evidence.

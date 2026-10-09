@@ -1,0 +1,332 @@
+{
+  "schema_version": 1,
+  "freeze": {
+    "state": "prepared_pending_merge_anchor",
+    "prepared_at": "2026-10-09",
+    "freeze_anchor_sha": "PENDING: fill with the merge SHA before the first run",
+    "judge_identity": {
+      "kind": "krn review exact-head record",
+      "sha": "PENDING: fill with the krn review SHA at freeze"
+    }
+  },
+  "arms": ["A", "B", "C", "R"],
+  "arm_models": {
+    "A": "gpt-6-luna",
+    "B": "gpt-6-luna",
+    "C": "gpt-6-luna",
+    "R": "claude-opus-5-5"
+  },
+  "randomization": {
+    "seed": "LON-206-W0Z-2026-10-09",
+    "algorithm": "Fisher-Yates over A,B,C,R; each index is the first UInt32BE of SHA-256(seed:task-id:counter), reduced modulo the remaining range"
+  },
+  "control_tolerance_percent": 2,
+  "token_estimator": {
+    "method": "ceil(Unicode code points / 4)",
+    "scope": "Packet or control file text including headings, code, and citations; runtime token usage comes from provider-reported counts"
+  },
+  "base_check_execution": {
+    "method": "Read the exact test and imported source files from each base with git show into temporary local snapshots, then run the recorded command from its listed cwd.",
+    "dependencies": "Resolve dependencies through the source repository's existing node_modules using a read-only symlink; the source repositories were not modified.",
+    "node": "24.21.0"
+  },
+  "pricing": {
+    "status": "UNKNOWN",
+    "as_of": "2026-10-09",
+    "source": "UNKNOWN",
+    "note": "Do not infer provider prices. Resolve from dated primary pricing sources before computing monetary cost per accepted result."
+  },
+  "worktree_fingerprint": {
+    "method": "SHA-256 over canonical JSON containing repo identifier, base SHA, HEAD SHA, git status --porcelain=v1 -z, git diff --binary HEAD, git diff --cached --binary, and sorted relative path/mode/SHA-256 tuples for all worktree files; exclude .git and node_modules."
+  },
+  "budgets": {
+    "session_minutes_max": 45,
+    "repairs_max": 2,
+    "tokens_per_task_arm_run_max": 80000,
+    "repetitions_per_arm_per_task": 1,
+    "total_runs": 24
+  },
+  "audit_checklist": [
+    {
+      "id": "inputs",
+      "check": "Confirm task brief, base SHA, visible checks, hidden checks, packet and control hashes match this manifest before the run.",
+      "status": "frozen"
+    },
+    {
+      "id": "isolation",
+      "check": "Record exact worktree fingerprint before and after each session; refuse a changed base, task contract, or check set.",
+      "status": "frozen"
+    },
+    {
+      "id": "limits",
+      "check": "Record elapsed time, repairs, input/output tokens, and provider-reported usage for each run; enforce the session, repair, and token ceilings.",
+      "status": "frozen"
+    },
+    {
+      "id": "acceptance",
+      "check": "Require all named checks plus independent exact-head Standards and Spec judgments; missing evidence is not acceptance.",
+      "status": "frozen"
+    },
+    {
+      "id": "escaped-defects",
+      "check": "Apply the same blinded post-acceptance audit checklist to every accepted diff and count any escaped defect by task and severity.",
+      "status": "frozen"
+    },
+    {
+      "id": "blinding",
+      "check": "Lock judgments and escaped-defect findings before unblinding arm, model, and packet condition.",
+      "status": "frozen"
+    },
+    {
+      "id": "freeze-anchor",
+      "check": "Fill the merge SHA and exact-head krn review SHA before the first run; reject any run with a different anchor.",
+      "status": "pending_merge"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "LON-130",
+      "repository": "krn-works/krn-codex-skills",
+      "base_sha": "d6e1f09e101c9476387df12571903515e95d4e00",
+      "base_method": "first parent of sealed accepted change",
+      "accepted_sha": "6567b4b78fc5c5b8dae1a8536f42450f5c1c79ce",
+      "visible_checks": [
+        {
+          "command": "node --test test/memory/records.test.mjs",
+          "cwd": "repository root",
+          "verified_at_base": "d6e1f09e101c9476387df12571903515e95d4e00",
+          "result": "passed: 9 tests"
+        }
+      ],
+      "hidden_checks": [
+        {
+          "command": "node --test test/memory/read-cli.test.mjs",
+          "interface_coupled": true,
+          "exists_at_base": false
+        }
+      ],
+      "packet": {
+        "path": "evals/woz/packets/LON-130.md",
+        "sha256": "dbfc4848bf588deed12fd44e1b1bd218b9ea098e8c8a61d4d27990a431c655c4",
+        "characters": 1507,
+        "estimated_tokens": 377
+      },
+      "control": {
+        "path": "evals/woz/controls/LON-130.md",
+        "sha256": "b51294f0dff00af43c54c935dad256a7cd1a822c4caa84efc575813b7c867050",
+        "characters": 1494
+      },
+      "control_match_percent": 0.86,
+      "packet_records": [
+        "stale_superseded:M-14",
+        "conflicting_disputed:M-23/M-24"
+      ],
+      "exemplar": {
+        "source_sha": "b7bb3bd7f3c5e68519b7e141cf0f27e3e3bbe2fa",
+        "quoted_path": "scripts/lib/memory/records.mjs",
+        "quoted_at_revision": "d6e1f09e101c9476387df12571903515e95d4e00"
+      },
+      "arm_order": ["R", "C", "B", "A"]
+    },
+    {
+      "id": "LON-131",
+      "repository": "krn-works/krn-codex-skills",
+      "base_sha": "145a98ece9ce84dfaeeff18a1acdfcf1f55286a4",
+      "base_method": "first parent of sealed accepted change",
+      "accepted_sha": "fd9b1b56e47f3b630d20ed8588107fd824515ca0",
+      "visible_checks": [
+        {
+          "command": "node --test test/memory/records.test.mjs",
+          "cwd": "repository root",
+          "verified_at_base": "145a98ece9ce84dfaeeff18a1acdfcf1f55286a4",
+          "result": "passed: 9 tests"
+        }
+      ],
+      "hidden_checks": [
+        {
+          "command": "node --test test/memory/proposal-cli.test.mjs",
+          "interface_coupled": true,
+          "exists_at_base": false
+        }
+      ],
+      "packet": {
+        "path": "evals/woz/packets/LON-131.md",
+        "sha256": "b0617bca6986f02453917944e7547a0b755ec856ce190e030660efa4dfcad86b",
+        "characters": 1236,
+        "estimated_tokens": 309
+      },
+      "control": {
+        "path": "evals/woz/controls/LON-131.md",
+        "sha256": "1d43fa263e8e20c98bab911e4b63c42c52c769d4097ec44da125510ee641caf0",
+        "characters": 1221
+      },
+      "control_match_percent": 1.21,
+      "arm_order": ["A", "B", "R", "C"],
+      "exemplar": {
+        "source_sha": "6567b4b78fc5c5b8dae1a8536f42450f5c1c79ce",
+        "quoted_path": "scripts/lib/memory/read-cli.mjs",
+        "quoted_at_revision": "145a98ece9ce84dfaeeff18a1acdfcf1f55286a4"
+      }
+    },
+    {
+      "id": "LON-133",
+      "repository": "krn-works/krn-codex-skills",
+      "base_sha": "7b3c3d759c22101302c6995ad285ac5d2e83a8f3",
+      "base_method": "first parent of sealed accepted change",
+      "accepted_sha": "d1bc745f1872a38f31f25f86311a281b010859a3",
+      "visible_checks": [
+        {
+          "command": "node --test test/memory/records.test.mjs",
+          "cwd": "repository root",
+          "verified_at_base": "7b3c3d759c22101302c6995ad285ac5d2e83a8f3",
+          "result": "passed: 9 tests"
+        }
+      ],
+      "hidden_checks": [
+        {
+          "command": "node --test test/memory/projection-cli.test.mjs",
+          "interface_coupled": true,
+          "exists_at_base": false
+        }
+      ],
+      "packet": {
+        "path": "evals/woz/packets/LON-133.md",
+        "sha256": "6e3848090ae8e185d7b53952b6677b125c7fc0b082a26adb6704d8647e35f7dc",
+        "characters": 1321,
+        "estimated_tokens": 331
+      },
+      "control": {
+        "path": "evals/woz/controls/LON-133.md",
+        "sha256": "3e0b462199fd6745b5441eda300ef45ff3b54c95b776a0105eed3df43109448d",
+        "characters": 1313
+      },
+      "control_match_percent": 0.61,
+      "arm_order": ["R", "B", "C", "A"],
+      "exemplar": {
+        "source_sha": "fd9b1b56e47f3b630d20ed8588107fd824515ca0",
+        "quoted_path": "scripts/lib/memory/proposal-cli.mjs",
+        "quoted_at_revision": "7b3c3d759c22101302c6995ad285ac5d2e83a8f3"
+      }
+    },
+    {
+      "id": "LON-20",
+      "repository": "frontend-system",
+      "base_sha": "f57c8543c5c0021da4399939789610b738863134",
+      "base_method": "first parent of sealed accepted change",
+      "accepted_sha": "a262a5fb97018c479fb682ccc884bfa03100c591",
+      "visible_checks": [
+        {
+          "command": "node --test --test-name-pattern='syntetyczna poprawna kontrola logiki' test/check.test.ts",
+          "cwd": "harness/workshop",
+          "verified_at_base": "f57c8543c5c0021da4399939789610b738863134",
+          "result": "passed: 1 test"
+        }
+      ],
+      "hidden_checks": [
+        {
+          "command": "node --test --test-name-pattern='selector-subject' test/build.test.ts",
+          "interface_coupled": true,
+          "exists_at_base": false
+        }
+      ],
+      "packet": {
+        "path": "evals/woz/packets/LON-20.md",
+        "sha256": "e4b63371782a3fcb8fb6551b88a5b1e3beeda4fe27391a62d3fc049f1d6c41af",
+        "characters": 1125,
+        "estimated_tokens": 282
+      },
+      "control": {
+        "path": "evals/woz/controls/LON-20.md",
+        "sha256": "0fb25f14717709b9f00c4273392306e4e71f32b891144eee1714bec24d971b64",
+        "characters": 1121
+      },
+      "control_match_percent": 0.36,
+      "arm_order": ["A", "B", "R", "C"],
+      "exemplar": {
+        "source_sha": "57a77cd82ed642f51a57d27f5d42dcdbc39ea6cc",
+        "quoted_path": "harness/workshop/src/rules.ts",
+        "quoted_at_revision": "f57c8543c5c0021da4399939789610b738863134"
+      }
+    },
+    {
+      "id": "LON-21",
+      "repository": "frontend-system",
+      "base_sha": "7f2be36eac60470dad9c0446f1dfe82947783915",
+      "base_method": "first parent of sealed accepted change",
+      "accepted_sha": "c7eaee106ad6695405429373df2f252c82bddd47",
+      "visible_checks": [
+        {
+          "command": "node --test --test-name-pattern='syntetyczna poprawna kontrola logiki' test/check.test.ts",
+          "cwd": "harness/workshop",
+          "verified_at_base": "7f2be36eac60470dad9c0446f1dfe82947783915",
+          "result": "passed: 1 test"
+        }
+      ],
+      "hidden_checks": [
+        {
+          "command": "node --test --test-name-pattern='fs008:' test/check.test.ts",
+          "interface_coupled": true,
+          "exists_at_base": false
+        }
+      ],
+      "packet": {
+        "path": "evals/woz/packets/LON-21.md",
+        "sha256": "a0d7a3d74f0ff69e93ba7243ff12fe0c64599a46c9e951d41f83728ff7bcf56e",
+        "characters": 1137,
+        "estimated_tokens": 285
+      },
+      "control": {
+        "path": "evals/woz/controls/LON-21.md",
+        "sha256": "1dc6c45a0b8d4e2fafc1168f256295a04a730ace8f79d54fe72b53726cd9bdec",
+        "characters": 1119
+      },
+      "control_match_percent": 1.58,
+      "arm_order": ["A", "R", "B", "C"],
+      "exemplar": {
+        "source_sha": "65d328e661e3b47f8dd1e351385d14b6ed0300e5",
+        "quoted_path": "harness/workshop/src/author-measure.ts",
+        "quoted_at_revision": "7f2be36eac60470dad9c0446f1dfe82947783915"
+      }
+    },
+    {
+      "id": "LON-22",
+      "repository": "frontend-system",
+      "base_sha": "459cce9a330636559a80ff923dab735cbefd3651",
+      "base_method": "first parent of sealed accepted change",
+      "accepted_sha": "a43a99c77e9b311d508b0072f3dddd7a00445e9a",
+      "visible_checks": [
+        {
+          "command": "node --test --test-name-pattern='syntetyczna poprawna kontrola logiki' test/check.test.ts",
+          "cwd": "harness/workshop",
+          "verified_at_base": "459cce9a330636559a80ff923dab735cbefd3651",
+          "result": "passed: 1 test"
+        }
+      ],
+      "hidden_checks": [
+        {
+          "command": "node --test test/url-policy.test.ts",
+          "interface_coupled": true,
+          "exists_at_base": false
+        }
+      ],
+      "packet": {
+        "path": "evals/woz/packets/LON-22.md",
+        "sha256": "d6bf718c22ca54f1151bbd739ae33a690c7b9caecd75a6c0d1d6ebea5317e467",
+        "characters": 1082,
+        "estimated_tokens": 271
+      },
+      "control": {
+        "path": "evals/woz/controls/LON-22.md",
+        "sha256": "c29dbcd9bb01b70c88a1f55436102e92493d8f87fc242702c7c9c2d7956cd7df",
+        "characters": 1074
+      },
+      "control_match_percent": 0.74,
+      "arm_order": ["A", "B", "C", "R"],
+      "exemplar": {
+        "source_sha": "a2aea8be56b5976608e9b93c54a597af071b5968",
+        "quoted_path": "harness/workshop/src/observe.ts",
+        "quoted_at_revision": "459cce9a330636559a80ff923dab735cbefd3651"
+      }
+    }
+  ]
+}
