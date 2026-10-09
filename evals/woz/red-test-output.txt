@@ -1,30 +1,26 @@
-✖ packets do not contain their own accepted change SHA (6.256047ms)
-ℹ tests 1
-ℹ suites 0
-ℹ pass 0
-ℹ fail 1
-ℹ cancelled 0
-ℹ skipped 0
-ℹ todo 0
-ℹ duration_ms 361.867929
+LON-206 final-observer before-state proof
 
-✖ failing tests:
+Base: 856131bf890a382b91c67e09338e3bd0aed8d8e8 (git merge-base origin/main HEAD before this repair)
+Observer source: final test/woz-manifest.test.ts bytes from this repair worktree, copied unchanged into the base snapshot.
+Base material: git archive at the base SHA, including its original evals/woz/packets/*.md; no manifest, controls, or other eval inputs were copied from repair HEAD.
 
-test at test/woz-manifest.test.ts:16:1
-✖ packets do not contain their own accepted change SHA (6.256047ms)
-  AssertionError [ERR_ASSERTION]: LON-130 packet contains its own accepted SHA prefix
-  
-  true !== false
-  
-      at TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/lon206/test/woz-manifest.test.ts:19:12)
-      at Test.runInAsyncScope (node:async_hooks:227:14)
-      at Test.run (node:internal/test_runner/test:1402:25)
-      at Test.start (node:internal/test_runner/test:1262:17)
-      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
-    generatedMessage: false,
-    code: 'ERR_ASSERTION',
-    actual: true,
-    expected: false,
-    operator: 'strictEqual',
-    diff: 'simple'
-  }
+Reproduction commands, from the repair worktree:
+  mkdir -p .krn/tmp/lon206-base-856131bf890a382b91c67e09338e3bd0aed8d8e8
+  git archive 856131bf890a382b91c67e09338e3bd0aed8d8e8 | tar -x -C .krn/tmp/lon206-base-856131bf890a382b91c67e09338e3bd0aed8d8e8
+  cp test/woz-manifest.test.ts .krn/tmp/lon206-base-856131bf890a382b91c67e09338e3bd0aed8d8e8/test/woz-manifest.test.ts
+Then from .krn/tmp/lon206-base-856131bf890a382b91c67e09338e3bd0aed8d8e8:
+  WOZ_BASE_FALSIFIER=1 PATH=/home/krn/.local/share/mise/installs/node/24.21.0/bin:$PATH node --test test/woz-manifest.test.ts
+Exit: 1 (expected behavioral red)
+
+Assertion excerpt:
+  AssertionError [ERR_ASSERTION]: own accepted-change SHA leaked into packet(s): LON-130: accepted SHA prefix length 7, LON-131: accepted SHA prefix length 7, LON-133: accepted SHA prefix length 7, LON-20: accepted SHA prefix length 7, LON-21: accepted SHA prefix length 7, LON-22: accepted SHA prefix length 7
+  actual: [all six task leak findings]
+  expected: []
+
+The base test reaches the final behavioral assertion at test/woz-manifest.test.ts:70; it does not fail reading a manifest. It scans original base packet bytes before conditionally skipping manifest-only checks.
+
+HEAD proof (repair worktree before commit):
+  PATH=/home/krn/.local/share/mise/installs/node/24.21.0/bin:$PATH node --test test/woz-manifest.test.ts
+Exit: 0 (1 test passed; 0 failed/skipped)
+  PATH=/home/krn/.local/share/mise/installs/node/24.21.0/bin:$PATH npm run gate
+Exit: 0; typecheck, lint, tests and generated rules passed; 127/127 tests passed; isolation-dependent tests skipped: 0.
