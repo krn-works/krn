@@ -834,6 +834,9 @@ test('live SIGTERM during a real verdict waits for scope teardown before exit', 
   await mkdir(repoScratch, { recursive: true });
   const root = await repoFixture('.krn/\n', repoScratch);
   const fakeBin = await mkdtemp(join(tmpdir(), 'krn-s4b-verdict-bin-'));
+  const diagnosticScratch = await mkdtemp(
+    join(repoScratch, 'lon212-proof-sol2-'),
+  );
   const jobId = 'signal-during-verdict';
   const issue = 'I-VERDICT-STOP';
   const submitMarker = join(fakeBin, 'submit-called');
@@ -841,9 +844,12 @@ test('live SIGTERM during a real verdict waits for scope teardown before exit', 
   const fakePaperclip = join(fakeBin, 'paperclip');
   const fakeCodexPath = join(fakeBin, 'codex');
   const toolchain = await mkdtemp(join(repoScratch, 'krn-s4b-toolchain-'));
+  const scopeUnitMarker = join(toolchain, 'owned-scope-unit');
   const fakeMise = join(fakeBin, 'mise');
   const fakePnpm = join(toolchain, 'pnpm');
   const fakeSystemctl = join(toolchain, 'systemctl');
+  const fakeObserverSystemctl = join(diagnosticScratch, 'systemctl');
+  const fakeSystemdRun = join(toolchain, 'systemd-run');
   const storePath = join(toolchain, 'store', 'v11');
   await mkdir(storePath, { recursive: true });
   await writeFile(
@@ -907,6 +913,44 @@ case "$*" in *" kill "*) sleep 2; /usr/bin/systemctl "$@"; status=$?; touch ${JS
 exec /usr/bin/systemctl "$@"
 `,
   );
+  await writeFile(
+    fakeObserverSystemctl,
+    `#!/bin/sh
+case "$*" in
+  *" list-units "*--plain*)
+    index=0
+    while [ "$index" -lt 80 ]; do
+      printf 'krn-check-stale-lon212-%03d.scope loaded inactive dead simulated-stale-metadata\n' "$index"
+      index=$((index + 1))
+    done
+    /usr/bin/systemctl "$@"
+    exit $?
+    ;;
+  *" show krn-check-stale-lon212-"*) sleep 0.5 ;;
+esac
+exec /usr/bin/systemctl "$@"
+`,
+  );
+  await writeFile(
+    fakeSystemdRun,
+    `#!/bin/sh
+previous=''
+unit=''
+has_sleeping_check=0
+for argument do
+  if [ "$previous" = '--unit' ]; then
+    unit="$argument"
+  fi
+  if [ "$argument" = '/usr/bin/sleep' ]; then has_sleeping_check=1; fi
+  previous="$argument"
+done
+if [ -n "$unit" ] && [ "$has_sleeping_check" -eq 1 ]; then
+  case "$unit" in *.scope) ;; *) unit="$unit.scope" ;; esac
+  printf '%s\\n' "$unit" > ${JSON.stringify(scopeUnitMarker)}
+fi
+exec /usr/bin/systemd-run "$@"
+`,
+  );
   const contract = {
     version: 1,
     targetRepo: 'fixture/repo',
@@ -939,9 +983,15 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
 `;
   await writeFile(fakeCodexPath, `#!/usr/bin/env node\n${fakeCodexBody}\n`);
   await Promise.all(
-    [fakePaperclip, fakeCodexPath, fakeMise, fakePnpm, fakeSystemctl].map(
-      (file) => chmod(file, 0o755),
-    ),
+    [
+      fakePaperclip,
+      fakeCodexPath,
+      fakeMise,
+      fakePnpm,
+      fakeSystemctl,
+      fakeObserverSystemctl,
+      fakeSystemdRun,
+    ].map((file) => chmod(file, 0o755)),
   );
   const live = new URL('../scripts/live-l1.mjs', import.meta.url).pathname;
   const runner = spawn(
@@ -951,7 +1001,7 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
       cwd: root,
       env: {
         ...process.env,
-        PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
+        PATH: `${diagnosticScratch}:${fakeBin}:${process.env.PATH ?? ''}`,
         KRN_LIVE: '1',
         KRN_CODEX_BIN: fakeCodexPath,
         KRN_SESSION: 'fixture-session',
@@ -976,32 +1026,17 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
   try {
     const deadline = Date.now() + 15000;
     while (Date.now() < deadline && !unit && runner.exitCode === null) {
-      const listed = spawnSync(
-        'systemctl',
-        [
-          '--user',
-          'list-units',
-          '--type=scope',
-          '--all',
-          '--no-legend',
-          '--plain',
-        ],
-        { encoding: 'utf8', env: systemdEnv },
-      );
-      const candidates = listed.stdout
-        .split('\n')
-        .map((line) => line.trim().split(/\s+/u)[0] ?? '')
-        .filter((name) => /^krn-check-[A-Za-z0-9-]+\.scope$/u.test(name));
-      for (const candidate of candidates) {
+      const candidate = (
+        await readFile(scopeUnitMarker, 'utf8').catch(() => '')
+      ).trim();
+      if (/^krn-check-[A-Za-z0-9-]+\.scope$/u.test(candidate)) {
         const state = spawnSync(
           'systemctl',
           ['--user', 'show', candidate, '-p', 'ActiveState', '--value'],
           { encoding: 'utf8', env: systemdEnv },
         );
-        if (state.stdout.trim() === 'active') {
+        if (state.status === 0 && state.stdout.trim() === 'active')
           unit = candidate;
-          break;
-        }
       }
       if (!unit) await pause(20);
     }
@@ -1028,7 +1063,7 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
     );
     assert.ok(
       unit,
-      `sleeping check never entered its systemd scope (runner exit=${runner.exitCode}; stdout=${stdout}; stderr=${stderr}; trace=${earlyTrace}; diagnostics=${diagnostics.join('---')})`,
+      `sleeping check never entered its systemd scope (owned unit=${await readFile(scopeUnitMarker, 'utf8').catch(() => '<missing>')}; runner exit=${runner.exitCode}; stdout=${stdout}; stderr=${stderr}; trace=${earlyTrace}; diagnostics=${diagnostics.join('---')})`,
     );
     const group = spawnSync(
       'systemctl',
@@ -1128,7 +1163,21 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
         } catch {}
       }
     }
+    const ownedUnit = await readFile(scopeUnitMarker, 'utf8').catch(() => '');
+    if (ownedUnit.trim())
+      spawnSync(
+        'systemctl',
+        [
+          '--user',
+          'kill',
+          '--kill-who=all',
+          '--signal=SIGKILL',
+          ownedUnit.trim(),
+        ],
+        { encoding: 'utf8', env: systemdEnv },
+      );
     await rm(fakeBin, { recursive: true, force: true });
+    await rm(diagnosticScratch, { recursive: true, force: true });
     await rm(toolchain, { recursive: true, force: true });
     await rm(root, { recursive: true, force: true });
   }
