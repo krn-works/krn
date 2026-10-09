@@ -51,33 +51,46 @@ async function repoFixture(
   return root;
 }
 
-async function fakePaperclip(issue: string) {
-  const server = createServer((_request, response) => {
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(
-      JSON.stringify({
-        id: issue,
-        title: 'Fixture issue',
-        description: [
-          '```krn-contract',
-          JSON.stringify({
-            version: 1,
-            targetRepo: 'fixture/repo',
-            checks: ['gate'],
-          }),
-          '```',
-        ].join('\n'),
-        updatedAt: '2026-10-08T10:00:00.000Z',
-        status: 'in_progress',
-        assigneeAgentId: 'fixture-agent',
-      }),
-    );
+async function fakePaperclip(issue: string, responseDelayMs = 0) {
+  let delayedBootstrapIssueReads = responseDelayMs > 0 ? 2 : 0;
+  const server = createServer((request, response) => {
+    const delayResponse =
+      request.method === 'GET' &&
+      request.url === `/api/issues/${issue}` &&
+      delayedBootstrapIssueReads > 0;
+    if (delayResponse) delayedBootstrapIssueReads -= 1;
+    const respond = () => {
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(
+        JSON.stringify({
+          id: issue,
+          title: 'Fixture issue',
+          description: [
+            '```krn-contract',
+            JSON.stringify({
+              version: 1,
+              targetRepo: 'fixture/repo',
+              checks: ['gate'],
+            }),
+            '```',
+          ].join('\n'),
+          updatedAt: '2026-10-08T10:00:00.000Z',
+          status: 'in_progress',
+          assigneeAgentId: 'fixture-agent',
+        }),
+      );
+    };
+    if (delayResponse) setTimeout(respond, responseDelayMs);
+    else respond();
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
   assert.ok(address && typeof address !== 'string');
   return {
     apiUrl: `http://127.0.0.1:${address.port}`,
+    resetBootstrapIssueReadPair: () => {
+      delayedBootstrapIssueReads = responseDelayMs > 0 ? 2 : 0;
+    },
     close: () =>
       new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
@@ -413,7 +426,7 @@ test('B2 a foreman SIGTERM cancels every detached session group and exits 130', 
   )
     return;
   const root = await repoFixture();
-  const paperclip = await fakePaperclip('I-2');
+  const paperclip = await fakePaperclip('I-2', 3200);
   const pidFile = join(root, 'pids');
   const childPidFile = join(root, 'child-pid');
   const escapedPidFile = join(root, 'escaped-pid');
@@ -447,6 +460,41 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
     );
   }
   const live = new URL('../scripts/live-l1.mjs', import.meta.url).pathname;
+  const waitForSessionStarted = async (
+    job: string,
+    process: ReturnType<typeof spawn>,
+  ) => {
+    let stdout = '';
+    let stderr = '';
+    process.stdout?.setEncoding('utf8').on('data', (chunk) => {
+      stdout += chunk;
+    });
+    process.stderr?.setEncoding('utf8').on('data', (chunk) => {
+      stderr += chunk;
+    });
+    const tracePath = join(root, `.krn/runs/foreman/${job}/trace.jsonl`);
+    const setupWaitMs = 20_000;
+    const setupDeadline = Date.now() + setupWaitMs;
+    let traceText = '';
+    let sessionStarted = false;
+    while (Date.now() < setupDeadline && !sessionStarted) {
+      traceText = await readFile(tracePath, 'utf8').catch(() => '');
+      sessionStarted = traceText.split('\n').some((line) => {
+        try {
+          return JSON.parse(line).kind === 'session_started';
+        } catch {
+          return false;
+        }
+      });
+      if (process.exitCode !== null) break;
+      if (!sessionStarted) await pause(20);
+    }
+    assert.ok(
+      sessionStarted,
+      `${job} foreman did not reach session_started within ${setupWaitMs}ms before PID readiness (exit=${process.exitCode}; stdout=${stdout}; stderr=${stderr}; trace=${traceText})`,
+    );
+  };
+  let timed: ReturnType<typeof spawn> | undefined;
   const foreman = spawn(
     process.execPath,
     [
@@ -471,10 +519,11 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
         KRN_PAPERCLIP_TOKEN: 'fixture-token',
         KRN_SESSION: 'fixture-session',
       },
-      stdio: 'ignore',
+      stdio: ['ignore', 'pipe', 'pipe'],
     },
   );
   try {
+    await waitForSessionStarted('B2-live', foreman);
     await waitFor(async () => {
       try {
         return (await readFile(pidFile, 'utf8')).trim() || undefined;
@@ -491,7 +540,8 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       .map(Number);
     for (const pid of pids) assert.equal(await isAlive(pid), false);
     await unlink(pidFile);
-    const timed = spawn(
+    paperclip.resetBootstrapIssueReadPair();
+    const timeoutForeman = spawn(
       process.execPath,
       [
         live,
@@ -516,9 +566,11 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
           KRN_PAPERCLIP_TOKEN: 'fixture-token',
           KRN_SESSION: 'fixture-session',
         },
-        stdio: 'ignore',
+        stdio: ['ignore', 'pipe', 'pipe'],
       },
     );
+    timed = timeoutForeman;
+    await waitForSessionStarted('B2-timeout', timeoutForeman);
     await waitFor(async () => {
       try {
         return (await readFile(pidFile, 'utf8')).trim() || undefined;
@@ -527,7 +579,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       }
     });
     assert.equal(
-      await new Promise((resolve) => timed.once('close', resolve)),
+      await new Promise((resolve) => timeoutForeman.once('close', resolve)),
       124,
     );
     for (const pid of (await readFile(pidFile, 'utf8'))
@@ -537,6 +589,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       assert.equal(await isAlive(pid), false);
   } finally {
     foreman.kill('SIGKILL');
+    if (timed?.exitCode === null) timed.kill('SIGKILL');
     try {
       for (const pid of (await readFile(pidFile, 'utf8'))
         .trim()
