@@ -40,6 +40,126 @@
         "check": "project tools ignore nested worktree state"
       },
       "rationale": "Agent state is repository-local and stays outside tracked project inputs."
+    },
+    {
+      "id": "KRN-09",
+      "trigger": "the lead searches for files or facts in ignored repository state",
+      "action": "the lead MUST inspect ignored state with `git status --ignored --short`, `git check-ignore -v`, and `rg --no-ignore --hidden`, treating it as evidence rather than durable truth; follow `docs/program/lead-rules.md`",
+      "owner": "lead",
+      "enforcement": {
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
+      },
+      "rationale": "Ignored files can reveal context but do not establish durable repository truth."
+    },
+    {
+      "id": "KRN-10",
+      "trigger": "sources disagree about a decision",
+      "action": "the lead MUST apply this order—operator charter, ADR, repo `AGENTS.md`, skill, plan, working notes—and report conflicts instead of resolving them silently",
+      "owner": "lead",
+      "enforcement": {
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
+      },
+      "rationale": "A fixed precedence order prevents working notes from silently overriding decisions."
+    },
+    {
+      "id": "KRN-11",
+      "trigger": "the lead selects a verification step",
+      "action": "the lead MUST use the cheapest signal that could disagree with the claim first: readback, focused test, judge, then milestone review",
+      "owner": "lead",
+      "enforcement": {
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
+      },
+      "rationale": "Cheap contradictory evidence limits wasted verification effort."
+    },
+    {
+      "id": "KRN-12",
+      "trigger": "a fact comes from a prior handoff or plan",
+      "action": "the lead MUST read back the current source before acting and label stale facts explicitly",
+      "owner": "lead",
+      "enforcement": {
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
+      },
+      "rationale": "A current readback prevents stale plans from driving actions."
+    },
+    {
+      "id": "KRN-13",
+      "trigger": "a check fails on the current slice",
+      "action": "the lead MUST compare the failing file or test with the merge-base before attributing the failure to the slice; matching base behavior is a pre-existing issue",
+      "owner": "lead",
+      "enforcement": {
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
+      },
+      "rationale": "Base comparison separates slice regressions from pre-existing failures."
+    },
+    {
+      "id": "KRN-14",
+      "trigger": "a required tool or capability is unavailable",
+      "action": "the lead MUST stop at the first tool gap, diagnose it, and request one decision instead of chaining workarounds",
+      "owner": "lead",
+      "enforcement": {
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
+      },
+      "rationale": "A bounded stop prevents unreviewed workaround chains."
+    },
+    {
+      "id": "KRN-15",
+      "trigger": "the lead launches background tasks",
+      "action": "the lead MUST make one blocking wait for the whole task group and stay silent until a result, blocker, or decision exists",
+      "owner": "lead",
+      "enforcement": {
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
+      },
+      "rationale": "One grouped wait avoids noisy polling and status messages."
+    },
+    {
+      "id": "KRN-16",
+      "trigger": "the lead proposes a change or records a decision",
+      "action": "the lead MUST record suggestions in the proposal registry and decisions in the charter, then update the durable repository source when accepted",
+      "owner": "lead",
+      "enforcement": {
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
+      },
+      "rationale": "Separate proposal intake from accepted, durable decisions."
+    },
+    {
+      "id": "KRN-17",
+      "trigger": "the lead analyzes evidence or reports a finding",
+      "action": "the lead MUST label claims with their evidence class: `[CODE]`, `[VENDOR]`, `[EMPIRICAL]`, `[OURS-EVIDENCE]`, `[HYPOTHESIS]`, or `[POLICY]`",
+      "owner": "lead",
+      "enforcement": {
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
+      },
+      "rationale": "Evidence labels distinguish observation from inference and policy."
+    },
+    {
+      "id": "KRN-18",
+      "trigger": "the lead changes host infrastructure",
+      "action": "the lead MUST establish the cause from logs, capture before-and-after state, and stay within the recorded grant",
+      "owner": "lead",
+      "enforcement": {
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
+      },
+      "rationale": "Evidence and grant scope bound changes to shared infrastructure."
     }
   ]
 }
