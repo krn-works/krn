@@ -323,6 +323,7 @@ async function runSandbox(
   outputExceeded: boolean;
 }> {
   const unit = `krn-check-${randomUUID()}`;
+  const scope = `${unit}.scope`;
   const home = '/tmp';
   const executable = argv[0];
   if (!executable) throw new Error('check argv is empty');
@@ -391,7 +392,7 @@ async function runSandbox(
       );
       const abort = () => {
         if (abortPromise) return abortPromise;
-        abortPromise = killAndVerifyScope(root, busEnv, unit).catch(
+        abortPromise = killAndVerifyScope(root, busEnv, scope).catch(
           (error: unknown) => {
             child.kill('SIGTERM');
             throw error instanceof TeardownUnconfirmed
@@ -429,14 +430,14 @@ async function runSandbox(
   const result = await resultPromise;
   if (abortPromise) await abortPromise;
   if (signal?.aborted) {
-    if (!abortPromise) await killAndVerifyScope(root, busEnv, unit);
+    if (!abortPromise) await killAndVerifyScope(root, busEnv, scope);
     throw new Error('stopped');
   }
-  if (result.status === 125) await killAndVerifyScope(root, busEnv, unit);
+  if (result.status === 125) await killAndVerifyScope(root, busEnv, scope);
   // biome-ignore format: Both systemd observations use the same scope identity.
-  const state = await run('systemctl', ['--user', 'show', unit, '-p', 'ActiveState', '--value'], root, 15000, busEnv);
+  const state = await run('systemctl', ['--user', 'show', scope, '-p', 'ActiveState', '--value'], root, 15000, busEnv);
   // biome-ignore format: Both systemd observations use the same scope identity.
-  const group = await run('systemctl', ['--user', 'show', unit, '-p', 'ControlGroup', '--value'], root, 15000, busEnv);
+  const group = await run('systemctl', ['--user', 'show', scope, '-p', 'ControlGroup', '--value'], root, 15000, busEnv);
   const cgroup = group.stdout.toString().trim();
   const processList = cgroup ? `/sys/fs/cgroup${cgroup}/cgroup.procs` : '';
   const survivors = processList ? readFileSync(processList, 'utf8').trim() : '';
