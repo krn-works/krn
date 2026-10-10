@@ -3,23 +3,13 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { Job, Result } from '../core/index.ts';
+import { paperclipIssueSchema } from '../core/paperclip.ts';
 import type { CheckEvidence } from '../verdict/index.ts';
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const MAX_CONTRACT_DESCRIPTION_BYTES = 8 * 1024;
 const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
-const issueSchema = z.object({
-  id: z.string().min(1),
-  identifier: z.string().min(1).optional(),
-  title: z.string().min(1),
-  description: z.string(),
-  updatedAt: z.string().datetime({ offset: true }),
-  status: z.string().min(1),
-  assignee: z.unknown().optional(),
-  assigneeAgentId: z.string().nullable().optional(),
-  assigneeUserId: z.string().nullable().optional(),
-});
 const activitySchema = z.array(
   z
     .object({
@@ -140,7 +130,7 @@ export type LedgerTransport = Readonly<{
 }>;
 
 function parseIssue(value: unknown) {
-  return issueSchema.safeParse(value);
+  return paperclipIssueSchema.safeParse(value);
 }
 
 function parseContract(

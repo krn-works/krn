@@ -11,10 +11,3 @@ export type Job = {
 };
 
 export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
-
-export class NotImplemented extends Error {
-  constructor(step: string) {
-    super(`Not implemented: ${step}`);
-    this.name = 'NotImplemented';
-  }
-}
