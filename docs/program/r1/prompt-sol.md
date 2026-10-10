@@ -49,11 +49,13 @@ After the admission Goal returns READY and that result is read back in the lifec
     START (for this full Goal and after every compaction, resume, or crash)
     1. Read the current Paperclip task/assignment state, the lifecycle capsule, the merged R1-00 baseline report, README,
        and tracked seed backlog. Facts from earlier context are stale until read back (KRN-12).
-    2. Verify that supervised R1-00 preparation is complete: its Luna-authored baseline LON PR is merged, pinned-host
-       gate evidence is read back, and qualified confinement was recorded against the exact dedicated workspace. If any
-       evidence is absent or stale, stop full delivery and route the missing work through a separately authorized
-       supervised-preparation workflow. Do not run R1-00 or commission its report from this full Goal. After the READY
-       readback, execute R1-09 before delegating other tasks.
+    2. Verify supervised R1-00 preparation is complete: its Luna-authored baseline LON PR is merged, pinned-host gate
+       evidence is read back, and qualified confinement was recorded against the exact dedicated workspace. If evidence
+       is absent or stale, stop this full Goal. Read back whether an existing operator grant covers the separate
+       supervised-preparation workflow; use that grant without asking again when it does. If no current grant covers
+       the missing preparation, record BLOCKED and ask one decision. This Goal/card does not itself grant preparation.
+       Do not run R1-00 or commission its report from this full Goal. After READY is read back, execute R1-09 before
+       delegating other tasks.
 
     LOOP (details and exact commands are in the README; the README wins over this summary)
     - Pick up to 3 todo tasks whose dependsOn are all done and whose "files" do not overlap any in_progress task; lowest
