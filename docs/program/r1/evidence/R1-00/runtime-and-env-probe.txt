@@ -1,0 +1,7 @@
+ts=2026-10-10T15:40:17+02:00
+Terminated                 $Q/confine/confine.sh $K/.krn/worktrees/r1-confine-qual $Q/qual-run --runtime-max-sec 20 -- /usr/bin/sleep 120
+runtime_probe: RuntimeMaxSec=20 command='sleep 120' exit=143 elapsed_s=21
+leftover_sleep120=1
+codex_binary_contains_GH_PAGER_literal=2
+codex_binary_GH_PAGER_context=L‰÷ÿPÒßH…À„#	H‰ÇH‰ŞL‰òH‰Ãÿ¥ãßH‰ØH‰\$ é@H¸GH_PAGERH‹L$H9u¬Iƒş…¨¶H¿€ù’ÁÀáÁ€ùn…¶CH¿€ù’ registryCheckingtimedOutterminalLC_CTYPEGH_PAGERCLICOLORTERMINFOseveritymeasuredNO_PROXY 
+host_env_GH_PAGER_set=0

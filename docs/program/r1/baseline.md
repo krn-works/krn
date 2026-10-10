@@ -35,7 +35,7 @@ Evidence below is from the tracked copies in `docs/program/r1/evidence/R1-00/` u
 
 ## Backend qualification
 
-[OURS-EVIDENCE] Command: the qualified wrapper `docs/program/r1/evidence/R1-00/confine.sh <workspace> <run-dir> -- <Codex 0.160.0 binary> exec -m gpt-6-luna`, with the real-agent turn run using stdin from `/dev/null`. Direct and real-agent observers returned exit 0. Dedicated workspace: `.krn/worktrees/r1-confine-qual` at `22f4100` (the recorded main SHA prefix).
+[OURS-EVIDENCE] The backend is qualified for supervised use within the measured boundaries below. Direct and real-agent observers returned exit 0. Dedicated workspace: `.krn/worktrees/r1-confine-qual` at `22f4100` (the recorded main SHA prefix). The tracked `confine.sh`, `observer.py`, and `qualify.sh` are captured source copies for review; they are not runnable from `docs/program/r1/evidence/R1-00/` because their path checks bind to `.krn/` locations by design. Qualification used their ignored run-state copies.
 
 | Boundary | Observed result |
 |---|---|
@@ -47,17 +47,16 @@ Evidence below is from the tracked copies in `docs/program/r1/evidence/R1-00/` u
 | Model API network | Open (known limit) |
 | Host CLI `auth.json` | Readable (accepted model credential; known limit) |
 
-[OURS-EVIDENCE] Agent-turn `GH_PAGER` was identified in the capsule as a pager variable injected by Codex shell, not a credential. The first attempt hung on stdin; outer timeout exited 143, while `RuntimeMaxSec=540` did not fire before the outer timeout of 600 seconds. Qualification sources: `docs/program/r1/evidence/R1-00/qual-direct.out`, `docs/program/r1/evidence/R1-00/qual-agent-summary.txt`, `docs/program/r1/evidence/R1-00/qual-hashes.txt`, `docs/program/r1/evidence/R1-00/qualification-capsule-excerpt.md`, `docs/program/r1/evidence/R1-00/confine.sh`, `docs/program/r1/evidence/R1-00/observer.py`, `docs/program/r1/evidence/R1-00/qualify.sh`, and `docs/program/r1/evidence/R1-00/confine-README.md`.
+[OURS-EVIDENCE] The Codex 0.160.0 binary contains the literal `GH_PAGER`, while the host environment has no `GH_PAGER`; the observed agent-turn value is therefore identified as a variable injected by the Codex binary into its shell, not a credential. A separate probe observed `RuntimeMaxSec=20` terminate `sleep 120` with exit 143 after 21 seconds, followed by a check finding no surviving process. The earlier `RuntimeMaxSec=540` attempt did not fire before its outer 600-second timeout; the separate probe supplies the runtime-limit evidence. Sources: `docs/program/r1/evidence/R1-00/runtime-and-env-probe.txt`, `docs/program/r1/evidence/R1-00/qual-direct.out`, `docs/program/r1/evidence/R1-00/qual-agent-summary.txt`, `docs/program/r1/evidence/R1-00/qual-hashes.txt`, `docs/program/r1/evidence/R1-00/qualification-capsule-excerpt.md`, `docs/program/r1/evidence/R1-00/confine.sh`, `docs/program/r1/evidence/R1-00/observer.py`, `docs/program/r1/evidence/R1-00/qualify.sh`, and `docs/program/r1/evidence/R1-00/confine-README.md`.
 
 ## Board mapping
 
-[OURS-EVIDENCE] Paperclip readback maps identifier `LON-214`, status `todo`, title `docs(program): measured supervised R1-00 baseline`, and `R1-task: R1-00`. Source: `docs/program/r1/evidence/R1-00/paperclip-LON-214-readback.json`.
+[OURS-EVIDENCE] Paperclip issue `LON-214` is mapped to `R1-00` by the description line `R1-task: R1-00`. Its readback shows status `todo` and no assignee fields set. The installed board CLI does not assign users; assignment remains a gap, with the lead as owner. Sources: `docs/program/r1/evidence/R1-00/paperclip-LON-214-assignment-readback.json` and `docs/program/r1/evidence/R1-00/paperclip-LON-214-readback.json`.
 
 ## Not measured
 
 - Actual ruleset/classic protection settings, due to both API calls returning HTTP 403.
 - Whether `/goal`, subagent creation, or `shell_environment_policy` is available; captured help/features do not establish these.
-- Whether `RuntimeMaxSec` fires without the outer timeout; this attempt ended at the outer timeout first.
 - Any backend network restriction beyond the recorded open model API access.
 
 ## Evidence index
@@ -80,3 +79,5 @@ All timestamps are filesystem modification times (`+02:00`), 2026-10-10. SHA val
 | `docs/program/r1/evidence/R1-00/observer.py` | `c1e58c1d615378845fa565d52f06860f7066c6b49a3dedf2f39095d91ee5538e` | 15:32:25.326 |
 | `docs/program/r1/evidence/R1-00/qualify.sh` | `d1ecbbbb921069d66e7dfb7c845751a1d56e8257ee4f5cd0b90e57a7c879ec72` | 15:32:25.326 |
 | `docs/program/r1/evidence/R1-00/confine-README.md` | `c59ffcc0b15edf08832b0927d0c204196b8d2088121dad4b2e3cac4ee4ce0949` | 15:32:25.326 |
+| `docs/program/r1/evidence/R1-00/runtime-and-env-probe.txt` | `52f24cd05b96027f03ef60a2bc355afa4a038a00aef9d62f974e86959d285989` | 15:44:09.377 |
+| `docs/program/r1/evidence/R1-00/paperclip-LON-214-assignment-readback.json` | `6e1eeacdcc5209967f9c67a3941c4258f029fad3f7550fc255df8bd448da206e` | 15:44:36.092 |
