@@ -1,6 +1,6 @@
 # R1 worker brief (Luna)
 
-The lead prepends these lines after reading back the Paperclip mapping:
+The lead prepends these lines after reading back and archiving the Paperclip description mapping as evidence:
 
     TICKET: LON-<n>
     TASK: R1-xx

@@ -47,7 +47,7 @@ Stretch: R1-09..R1-16 `done`. Anything not reached is `todo` or `blocked` with a
 
 ## Grants and hard limits (charter 2026-10-10 §§4–6)
 
-Each R1 task is linked to exactly one assigned Paperclip LON issue before work starts. Use branches `krn/LON-<n>-R1-xx-<slug>`, Conventional Commit/PR titles ending `(LON-<n>)`, and trailers `Ticket: LON-<n>` plus `R1-task: R1-xx`. A docs-only report/baseline commit uses `Change-contract: docs/<named-readback>:green->green` and states `Proof budget: 0 (docs-only)`; a runtime contract uses its assertion falsifier `Change-contract: <test-name>:red->green`. Do not start a task until its LON mapping is read back.
+Each R1 task maps to exactly one Paperclip LON issue through `R1-task: R1-xx` in the issue description; read back and archive the mapping as evidence before work starts. A Paperclip assignee is not required. Use branches `krn/LON-<n>-R1-xx-<slug>`, Conventional Commit/PR titles ending `(LON-<n>)`, and trailers `Ticket: LON-<n>` plus `R1-task: R1-xx`. A docs-only report/baseline commit uses `Change-contract: docs/<named-readback>:green->green` and states `Proof budget: 0 (docs-only)`; a runtime contract uses its assertion falsifier `Change-contract: <test-name>:red->green`.
 
 Allowed without asking: create branches `krn/LON-<n>-R1-xx-<slug>`, commit, push those branches, open and update PRs, run
 `npm run gate`, `npm run gate:local`, `krn review`, `npm run live` **without** `--submit`, read Paperclip, and merge a PR
@@ -85,7 +85,7 @@ When a step needs anything outside these grants, stop that task, set its Papercl
     # After readback of fetch authority, update only the selected main ref; never prune or force-update.
     git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
     git rev-parse refs/remotes/origin/main && git log --oneline -5 origin/main
-    # Read the accepted Paperclip task and assignment state through the authorized board-only path.
+    # Read the accepted Paperclip task and its R1-task description mapping through the authorized board-only path; archive the mapping as evidence.
     # Read the sole capsule at "$KRN_REPO/.krn/runs/delivery-loop/r1/state.md".
     sed -n '1,220p' docs/program/r1/README.md
     cat .krn/runs/delivery-loop/r1/state.md
@@ -103,8 +103,8 @@ and generic `workspace-write` are not confinement proof.
 ## Loop
 
 1. **Pick.** In Paperclip, choose up to three `todo` tasks whose `dependsOn` are `done` and whose `files` sets do not
-   overlap with any `in_progress` task. Prefer the lowest wave, then the highest `priority`. Record their authorized
-   assignment and `in_progress` status in Paperclip.
+   overlap with any `in_progress` task. Prefer the lowest wave, then the highest `priority`. Record the selected task and
+   its `in_progress` status in Paperclip; a Paperclip assignee is optional.
 2. **Prepare.** For each task, create a worktree from fresh `origin/main` and copy the card into the run state:
 
         git worktree add -b krn/LON-<n>-R1-xx-<slug> "$KRN_REPO/.krn/worktrees/R1-xx" origin/main
@@ -163,7 +163,7 @@ and generic `workspace-write` are not confinement proof.
         Independent statuses: krn/judge-standards=success; krn/judge-spec=success on <head-sha>.
         No override."
 
-7. **Record.** The lead updates Paperclip task status/assignment through the authorized administrative path and records
+7. **Record.** The lead updates Paperclip task status and any authorized assignment through the authorized administrative path and records
    lifecycle evidence in `.krn/runs/delivery-loop/r1/state.md`. Do not mirror per-transition status into the tracked seed
    backlog, progress or decisions files. Remove only a task worktree created for this run after merge. Later tasks start
    from the new `origin/main`; do not rewrite history.
