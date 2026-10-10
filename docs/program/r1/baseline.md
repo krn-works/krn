@@ -8,7 +8,7 @@ Evidence below is from the tracked copies in `docs/program/r1/evidence/R1-00/` u
 
 ## Clean-main gate
 
-[OURS-EVIDENCE] Host gate on clean `main` SHA `22f4100a76886cd93e78c4ab0de9b359f4391032`: exit 0, 161.32 seconds, 126 tests passed, 0 failed, 0 skipped, and `Isolation-dependent tests skipped: 0`. Sources: `docs/program/r1/evidence/R1-00/current-main-host-gate.json` and `docs/program/r1/evidence/R1-00/gate-summary.txt`. The JSON references the full log at `/mnt/storage/coding/krn/active/krn/.krn/runs/r1/LON-214/current-main-host-gate.log`, which remains in ignored run state; the summary is tracked.
+[OURS-EVIDENCE] Host gate on clean `main` SHA `22f4100a76886cd93e78c4ab0de9b359f4391032`: exit 0, 161.32 seconds, 126 tests passed, 0 failed, 0 skipped, and `Isolation-dependent tests skipped: 0`. Sources: `docs/program/r1/evidence/R1-00/current-main-host-gate.json`, `docs/program/r1/evidence/R1-00/gate-summary.txt`, and the bounded transcript excerpt `docs/program/r1/evidence/R1-00/gate-transcript-excerpt.txt`. The JSON references the full log at `/mnt/storage/coding/krn/active/krn/.krn/runs/r1/LON-214/current-main-host-gate.log`, which remains in ignored run state; the summary and excerpt are tracked.
 
 ## Branch protection
 
@@ -57,6 +57,10 @@ Evidence below is from the tracked copies in `docs/program/r1/evidence/R1-00/` u
 - Whether `/goal`, subagent creation, or `shell_environment_policy` is available; captured help/features do not establish these.
 - Any backend network restriction beyond the recorded open model API access.
 
+## Delivery and acceptance
+
+Per `docs/program/r1/tasks/R1-00.md` Validation, delivery through this LON-214 PR, its merge and the board readback happen after merge and are recorded in Paperclip and the lifecycle capsule; this report cannot contain evidence of its own merge.
+
 ## Evidence index
 
 All timestamps are filesystem modification times (`+02:00`), 2026-10-10. SHA values are SHA-256. JSON evidence is Biome-formatted; parsed content equals the capture (deep-equal verified); other files are byte-identical.
@@ -68,6 +72,7 @@ All timestamps are filesystem modification times (`+02:00`), 2026-10-10. SHA val
 | `docs/program/r1/evidence/R1-00/confine.sh` | `1703a734478a6d5390fe99a3dad2dc723d3f98b602df948d1f9eef298f149cd7` | 15:32:25.325 |
 | `docs/program/r1/evidence/R1-00/current-main-host-gate.json` | `92fe5e621d22e8b9371e08589814305200d089a6f0b6eb5057fe9765fa313640` | 15:25:02.209 |
 | `docs/program/r1/evidence/R1-00/gate-summary.txt` | `07da5fee00845a6d11b5f7c4ac02b2b0702a42fe8dd48ef9d2964d566efd1620` | 15:25:02.216 |
+| `docs/program/r1/evidence/R1-00/gate-transcript-excerpt.txt` | `bd9a3abf42b3d93a6a992c319a2c021130aa7fa08a77d3457e9653a37637f3b0` | 16:22:07.302 |
 | `docs/program/r1/evidence/R1-00/live-candidates.json` | `468467c119c55537948660745f25bcc024f4af5d51411f3f179b88aa9ae03196` | 15:35:05.205 |
 | `docs/program/r1/evidence/R1-00/observer.py` | `c1e58c1d615378845fa565d52f06860f7066c6b49a3dedf2f39095d91ee5538e` | 15:32:25.325 |
 | `docs/program/r1/evidence/R1-00/paperclip-LON-214-mapping-readback.json` | `416a6483a19fd6bd98a80a20ccbbd767f62843fdd78689961839430dc2e08805` | 16:15:50.031 |
