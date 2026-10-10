@@ -1,0 +1,10 @@
+{
+  "readAt": "2026-10-10T13:32:25.303Z",
+  "identifier": "LON-214",
+  "id": "91c195e8-5880-4e0b-80b8-814533a3fe86",
+  "projectId": "bf8ff205-1dbd-40ac-8d1c-46c642073fea",
+  "status": "todo",
+  "title": "docs(program): measured supervised R1-00 baseline",
+  "r1TaskLine": "R1-task: R1-00",
+  "cardPath": "docs/program/r1/tasks/R1-00.md"
+}

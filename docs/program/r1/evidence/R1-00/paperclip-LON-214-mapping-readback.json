@@ -1,0 +1,8 @@
+{
+  "readAt": "2026-10-10T14:12:51.289Z",
+  "identifier": "LON-214",
+  "status": "todo",
+  "title": "docs(program): measured supervised R1-00 baseline",
+  "r1TaskLine": "R1-task: R1-00",
+  "mappingRule": "docs/program/charter.md decision 6 (2026-10-10): R1-task description line; assignee not required"
+}
