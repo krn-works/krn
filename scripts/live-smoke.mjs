@@ -17,12 +17,26 @@ import * as trace from '../src/trace/index.ts';
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-if (process.env.KRN_LIVE !== '1') {
-  process.stderr.write('Set KRN_LIVE=1 to run the live Codex smoke check.\n');
-  process.exit(2);
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  if (process.env.KRN_LIVE !== '1') {
+    process.stderr.write('Set KRN_LIVE=1 to run the live Codex smoke check.\n');
+    process.exit(2);
+  }
+  await runLiveSmoke();
 }
 
-await runLiveSmoke();
+export function createLiveSmokeLedger() {
+  return {
+    readContract: async () => ({
+      revision: 'live-smoke-checkpoint-v1',
+      checks: ['checkpoint-file'],
+    }),
+    submitForReview: async () => 'submitted',
+  };
+}
 
 async function runLiveSmoke() {
   const executable =
@@ -122,12 +136,7 @@ async function runLiveSmoke() {
           maxRepairs: 0,
           session: { timeoutMs: 145_000 },
         },
-        ledger: {
-          readContract: async () => ({
-            revision: 'live-smoke-checkpoint-v1',
-            checks: ['checkpoint-file'],
-          }),
-        },
+        ledger: createLiveSmokeLedger(),
         relay: {
           ...relay,
           project: () =>
