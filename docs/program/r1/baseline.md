@@ -8,7 +8,7 @@ Evidence below is from the tracked copies in `docs/program/r1/evidence/R1-00/` u
 
 ## Clean-main gate
 
-[OURS-EVIDENCE] Host gate on clean `main` SHA `22f4100a76886cd93e78c4ab0de9b359f4391032`: exit 0, 161.32 seconds, 126 tests passed, 0 failed, 0 skipped, and `Isolation-dependent tests skipped: 0`. Sources: `docs/program/r1/evidence/R1-00/current-main-host-gate.json`, `docs/program/r1/evidence/R1-00/gate-summary.txt`, and the bounded transcript excerpt `docs/program/r1/evidence/R1-00/gate-transcript-excerpt.txt`. The JSON references the full log at `/mnt/storage/coding/krn/active/krn/.krn/runs/r1/LON-214/current-main-host-gate.log`, which remains in ignored run state; the summary and excerpt are tracked.
+[OURS-EVIDENCE] Host gate on clean `main` SHA `22f4100a76886cd93e78c4ab0de9b359f4391032`: exit 0, 161.32 seconds, 126 tests passed, 0 failed, 0 skipped, and `Isolation-dependent tests skipped: 0`. Sources: `docs/program/r1/evidence/R1-00/current-main-host-gate.json`, `docs/program/r1/evidence/R1-00/gate-summary.txt`, and the bounded transcript excerpt `docs/program/r1/evidence/R1-00/gate-transcript-excerpt.txt`. On the same clean SHA `22f4100`, rules exited 0; the recorded gate exit 0 also covers rules because its script runs the recorded `&&` chain. Source: `docs/program/r1/evidence/R1-00/rules-check-22f4100.txt`. The JSON references the full log at `/mnt/storage/coding/krn/active/krn/.krn/runs/r1/LON-214/current-main-host-gate.log`, which remains in ignored run state; the summary and excerpt are tracked.
 
 ## Branch protection
 
@@ -83,4 +83,5 @@ All timestamps are filesystem modification times (`+02:00`), 2026-10-10. SHA val
 | `docs/program/r1/evidence/R1-00/qual-hashes.txt` | `91786c1c06ace79cb5fb8f8cc94962c3fc011cc43d19d8284d379d7aa6aafb5f` | 15:25:02.209 |
 | `docs/program/r1/evidence/R1-00/qualification-capsule-excerpt.md` | `d451a951b2f2d69be5fcaf31071f1e5cf763372f996eef27aa6ca5237b05cb01` | 15:25:02.279 |
 | `docs/program/r1/evidence/R1-00/qualify.sh` | `d1ecbbbb921069d66e7dfb7c845751a1d56e8257ee4f5cd0b90e57a7c879ec72` | 15:32:25.325 |
+| `docs/program/r1/evidence/R1-00/rules-check-22f4100.txt` | `babd5d02bb842c49d66a60aadeeec4cd3fd7a0a85c0d044c7c13f7cb29f835cd` | 16:26:43.967 |
 | `docs/program/r1/evidence/R1-00/runtime-and-env-probe.txt` | `1783f089190eb47658781e817af7b37d6f50e77202b3affd264df11309033c0c` | 16:12:30.458 |
