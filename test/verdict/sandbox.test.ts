@@ -19,6 +19,22 @@ import { judge } from '../../src/verdict/index.ts';
 import { MAX_CHECK_OUTPUT_BYTES } from '../../src/verdict/sandbox.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
+test('final teardown fallback targets the canonical systemd scope', () => {
+  const source = readFileSync(
+    new URL('../../src/verdict/sandbox.ts', import.meta.url),
+    'utf8',
+  );
+  const fallback = source.match(
+    /if \(state\.status !== 0 \|\| group\.status !== 0 \|\| survivors\) \{\s*await killAndVerifyScope\(root, busEnv, (\w+)\);/u,
+  );
+  assert.ok(fallback, 'final teardown fallback must remain covered');
+  assert.equal(
+    fallback[1],
+    'scope',
+    'final teardown fallback must target the canonical .scope identity',
+  );
+});
+
 function fixture(
   argv: readonly string[],
   withLockfile = false,

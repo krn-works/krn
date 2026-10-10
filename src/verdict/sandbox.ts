@@ -442,7 +442,7 @@ async function runSandbox(
   const processList = cgroup ? `/sys/fs/cgroup${cgroup}/cgroup.procs` : '';
   const survivors = processList ? readFileSync(processList, 'utf8').trim() : '';
   if (state.status !== 0 || group.status !== 0 || survivors) {
-    await killAndVerifyScope(root, busEnv, unit);
+    await killAndVerifyScope(root, busEnv, scope);
     throw new Error('check systemd scope did not become empty');
   }
   if (state.stdout.toString().trim() !== 'inactive')
