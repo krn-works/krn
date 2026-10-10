@@ -3,10 +3,16 @@ import { z } from 'zod';
 
 import type { Result } from './index.ts';
 
-const paperclipIssueSchema = z.object({
+export const paperclipIssueSchema = z.object({
   id: z.string().min(1),
+  identifier: z.string().min(1).optional(),
   title: z.string().min(1),
   description: z.string(),
+  updatedAt: z.string().datetime({ offset: true }),
+  status: z.string().min(1),
+  assignee: z.unknown().optional(),
+  assigneeAgentId: z.string().nullable().optional(),
+  assigneeUserId: z.string().nullable().optional(),
 });
 
 export type PaperclipIssue = z.infer<typeof paperclipIssueSchema>;
