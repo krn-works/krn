@@ -1,7 +1,7 @@
 {
-  "readAt": "2026-10-10T16:01:52.420Z",
+  "readAt": "2026-10-10T16:46:30.263Z",
   "identifier": "LON-221",
   "status": "todo",
-  "title": "docs(program): R1 lens accepts tree-bound evidence and host gate status (governance)",
-  "r1TaskLine": "R1-task: none (governance record of an operator decision; not an R1 card)"
+  "title": "docs(program): accept tree-bound evidence and host gate status in R1 reviews (LON-221)",
+  "r1TaskLine": "R1-task: governance (no R1 card; operator decision record)"
 }
