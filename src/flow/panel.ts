@@ -114,6 +114,7 @@ export async function judgeRole(
       session = await host.start({
         cwd: scratch,
         model: 'gpt-6-luna',
+        reasoningEffort: 'high',
         prompt: makeBrief(role, sha, lens, red),
         limits: { timeoutMs },
         onStarted: async (_id, _pgid, isolation) =>

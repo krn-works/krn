@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { runReview } from '../../src/flow/index.ts';
-import { parseJudgeResponse } from '../../src/flow/panel.ts';
+import { judgeRole, parseJudgeResponse } from '../../src/flow/panel.ts';
 import { appendOverride } from '../../src/flow/record.ts';
 import { redFirst } from '../../src/flow/repository.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
@@ -62,6 +62,43 @@ function fakeCodex(
   process.env.KRN_REVIEW_ARGS = argsFile;
   return { executable, argsFile };
 }
+
+test('judgeRole launches Codex with high reasoning effort', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'judgeRole launches Codex with high reasoning effort',
+      ['systemdUserScope'],
+    )
+  )
+    return;
+  const { root, cleanup } = fixture();
+  const priorArgs = process.env.KRN_REVIEW_ARGS;
+  try {
+    const sha = git(root, 'rev-parse', 'HEAD');
+    const fake = fakeCodex(root, '{"verdict":"PASS","findings":[]}');
+    const result = await judgeRole(
+      root,
+      sha,
+      'spec',
+      'Check acceptance.',
+      [],
+      5000,
+      fake.executable,
+    );
+    assert.equal(result.state, 'complete');
+    assert.ok(
+      (JSON.parse(readFileSync(fake.argsFile, 'utf8')) as string[]).includes(
+        'model_reasoning_effort=high',
+      ),
+      'panel judges must use high Codex reasoning effort',
+    );
+  } finally {
+    if (priorArgs === undefined) delete process.env.KRN_REVIEW_ARGS;
+    else process.env.KRN_REVIEW_ARGS = priorArgs;
+    cleanup();
+  }
+});
 
 test('mechanical red-first distinguishes assertion failures from missing imports', async (t) => {
   if (
