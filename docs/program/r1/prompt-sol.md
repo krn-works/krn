@@ -3,7 +3,13 @@
 Paste the goal line first (Codex `/goal`), then the prompt body, into a fresh Codex session started in the krn repository
 on the operator host with reasoning effort xHigh. Versioned here so the run is reproducible.
 
-## Goal line
+## Admission Goal line (first; read-only admission only)
+
+    /goal Complete read-only admission for R1 using docs/program/r1/README.md and this prompt's START section. Record the observed result as READY or BLOCKED. Do not dispatch unattended writers or begin the full R1 delivery from this Goal. Stop at the admission result.
+
+## Full R1 Goal line (only after recorded READY)
+
+After the admission Goal returns READY and that result is read back in the lifecycle capsule, start a separate Goal with this line. The operator has authorized continuing after observed READY; admission alone does not launch it.
 
     /goal Deliver krn run R1 to its oracle in docs/program/r1/README.md ("Goal and oracle"): R1-00..R1-08 merged through the R1 merge gate, main CI green with 0 isolation skips on the host, evaluator-tamper falsifier and canaries passing, ≥1 live interrupted-resume record (or R1-12 blocked with the exact precondition in the lifecycle capsule and final report), and docs/program/r1/report.md merged through its own LON-backed PR. Stop at 7.5 h wall time.
 
@@ -37,7 +43,9 @@ on the operator host with reasoning effort xHigh. Versioned here so the run is r
     1. Read the current Paperclip task/assignment state, the lifecycle capsule, the README, and the tracked seed backlog
        before acting. Facts from earlier context are stale until read back (KRN-12).
     2. On first admission, execute R1-00. Do not start unattended writers until its baseline and qualified confined
-       backend evidence make the outcome READY. Then execute R1-09 before delegating other tasks.
+       backend evidence make the outcome READY. The admission Goal ends at READY or BLOCKED and does not dispatch work.
+       On READY, read it back, then invoke the separate Full R1 Goal line above; on BLOCKED, stop at the recorded owner
+       decision. In the full Goal, execute R1-09 before delegating other tasks.
 
     LOOP (details and exact commands are in the README; the README wins over this summary)
     - Pick up to 3 todo tasks whose dependsOn are all done and whose "files" do not overlap any in_progress task; lowest
