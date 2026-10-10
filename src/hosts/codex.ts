@@ -21,6 +21,26 @@ const killGraceMs = 1000;
 const codexRecord = z.record(z.string(), z.unknown());
 const tokenValue = z.number().int().nonnegative().safe();
 const namespaceCleanupGraceMs = 1000;
+const workerEnvironmentKeys = new Set([
+  'HOME',
+  'PATH',
+  'USER',
+  'LOGNAME',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'TERM',
+  'TZ',
+  'TMPDIR',
+  'XDG_RUNTIME_DIR',
+  'DBUS_SESSION_BUS_ADDRESS',
+  'HTTPS_PROXY',
+  'HTTP_PROXY',
+  'NO_PROXY',
+  'https_proxy',
+  'http_proxy',
+  'no_proxy',
+]);
 
 export type CodexIsolationMode = 'pid_namespace' | 'systemd_scope';
 const namespaceWrapper = `
@@ -32,10 +52,28 @@ process.stdin.setEncoding('utf8').on('data', (chunk) => prompt += chunk).on('end
   child.once('close', (code, signal) => process.exit(code ?? (signal ? 128 : 1)));
 });`;
 
-export const defaultCodexExecutable = join(
-  homedir(),
-  '.codex/packages/app-server-daemon/releases/0.160.0-x86_64-unknown-linux-musl/bin/codex',
-);
+export function workerEnvironment(
+  source: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {};
+  for (const [key, value] of Object.entries(source)) {
+    if (
+      value !== undefined &&
+      (workerEnvironmentKeys.has(key) ||
+        key.startsWith('CODEX_') ||
+        key.startsWith('OPENAI_'))
+    )
+      env[key] = value;
+  }
+  return env;
+}
+
+export const defaultCodexExecutable =
+  process.env.KRN_CODEX_BIN ??
+  join(
+    homedir(),
+    '.codex/packages/app-server-daemon/releases/0.160.0-x86_64-unknown-linux-musl/bin/codex',
+  );
 
 export type CodexUsage = {
   readonly inputTokens: number;
@@ -179,7 +217,7 @@ export class CodexHost {
             cwd: input.cwd,
             detached: true,
             stdio: 'pipe',
-            env: userManagerEnvironment(),
+            env: userManagerEnvironment(workerEnvironment()),
             systemdProperties: codexScopeRuntimeProperties(
               input.limits.timeoutMs,
             ),
@@ -188,6 +226,7 @@ export class CodexHost {
             cwd: input.cwd,
             detached: process.platform !== 'win32',
             stdio: 'pipe',
+            env: workerEnvironment(),
           });
     let namespace:
       | { readonly identity: string; readonly initPid: number }

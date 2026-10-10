@@ -56,10 +56,9 @@ function fakeCodex(
       : "process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,output_tokens:1,total_tokens:2}})+'\\n');";
   writeFileSync(
     executable,
-    `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nlet prompt=''; for await (const chunk of process.stdin) prompt += chunk;\nwriteFileSync(process.env.KRN_REVIEW_ARGS, JSON.stringify(process.argv.slice(2)));\nconst text=${encoded};\nprocess.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text}})+'\\n');\n${completion}\n`,
+    `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nlet prompt=''; for await (const chunk of process.stdin) prompt += chunk;\nwriteFileSync(${JSON.stringify(argsFile)}, JSON.stringify(process.argv.slice(2)));\nconst text=${encoded};\nprocess.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text}})+'\\n');\n${completion}\n`,
   );
   chmodSync(executable, 0o700);
-  process.env.KRN_REVIEW_ARGS = argsFile;
   return { executable, argsFile };
 }
 
@@ -331,7 +330,6 @@ test('panel launcher forces read-only and a lead override is appended after FAIL
   )
     return;
   const { root, cleanup } = fixture();
-  const priorArgs = process.env.KRN_REVIEW_ARGS;
   try {
     const base = git(root, 'rev-parse', 'HEAD');
     writeFileSync(join(root, 'src.ts'), 'export const answer = 42;\n');
@@ -381,8 +379,6 @@ test('panel launcher forces read-only and a lead override is appended after FAIL
     assert.equal(updated.override?.reason, 'accepted residual risk');
     assert.equal(updated.headSha, head);
   } finally {
-    if (priorArgs === undefined) delete process.env.KRN_REVIEW_ARGS;
-    else process.env.KRN_REVIEW_ARGS = priorArgs;
     cleanup();
   }
 });
@@ -395,7 +391,6 @@ test('an invalid judge verdict is recorded incomplete', async (t) => {
   )
     return;
   const { root, cleanup } = fixture();
-  const priorArgs = process.env.KRN_REVIEW_ARGS;
   try {
     const base = git(root, 'rev-parse', 'HEAD');
     writeFileSync(join(root, 'src.ts'), 'export const answer = 42;\n');
@@ -422,8 +417,6 @@ test('an invalid judge verdict is recorded incomplete', async (t) => {
       ),
     );
   } finally {
-    if (priorArgs === undefined) delete process.env.KRN_REVIEW_ARGS;
-    else process.env.KRN_REVIEW_ARGS = priorArgs;
     cleanup();
   }
 });
@@ -438,7 +431,6 @@ test('PASS agent message without turn.completed is recorded incomplete', async (
   )
     return;
   const { root, cleanup } = fixture();
-  const priorArgs = process.env.KRN_REVIEW_ARGS;
   try {
     const base = git(root, 'rev-parse', 'HEAD');
     writeFileSync(join(root, 'src.ts'), 'export const answer = 42;\n');
@@ -475,8 +467,6 @@ test('PASS agent message without turn.completed is recorded incomplete', async (
     assert.equal(persisted.panelVerdict, 'INCOMPLETE');
     assert.equal(record.judges[0]?.state, 'incomplete');
   } finally {
-    if (priorArgs === undefined) delete process.env.KRN_REVIEW_ARGS;
-    else process.env.KRN_REVIEW_ARGS = priorArgs;
     cleanup();
   }
 });
@@ -507,13 +497,13 @@ test('real SIGTERM cancels the judge scope and exits 130 without a review record
     const fake = join(root, 'slow-codex.mjs');
     writeFileSync(
       fake,
-      `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(process.env.KRN_REVIEW_PID_FILE, String(process.pid));\nsetInterval(() => {}, 1000);\n`,
+      `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(pidFile)}, String(process.pid));\nsetInterval(() => {}, 1000);\n`,
     );
     chmodSync(fake, 0o700);
     const runner = join(root, 'review-parent.mjs');
     writeFileSync(
       runner,
-      `import { reviewCommand } from ${JSON.stringify(new URL('../../src/flow/cli.ts', import.meta.url).href)};\nawait reviewCommand(process.argv.slice(2), { codexExecutable: process.env.KRN_REVIEW_CODEX });\n`,
+      `import { reviewCommand } from ${JSON.stringify(new URL('../../src/flow/cli.ts', import.meta.url).href)};\nawait reviewCommand(process.argv.slice(2), { codexExecutable: ${JSON.stringify(fake)} });\n`,
     );
     const child = spawn(
       process.execPath,
@@ -530,14 +520,7 @@ test('real SIGTERM cancels the judge scope and exits 130 without a review record
         '--panel',
         'standards',
       ],
-      {
-        stdio: ['ignore', 'ignore', 'pipe'],
-        env: {
-          ...process.env,
-          KRN_REVIEW_CODEX: fake,
-          KRN_REVIEW_PID_FILE: pidFile,
-        },
-      },
+      { stdio: ['ignore', 'ignore', 'pipe'] },
     );
     reviewProcess = child;
     let stderr = '';
