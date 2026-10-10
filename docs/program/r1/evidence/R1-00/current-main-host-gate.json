@@ -1,0 +1,11 @@
+{
+  "consumer": "R1-00 measured baseline, lead and Luna report author",
+  "supersession": "mainSHA/dependencies/runtime change or acceptedbaseline snapshot",
+  "sha": "22f4100a76886cd93e78c4ab0de9b359f4391032",
+  "node": "24.21.0",
+  "exit": 0,
+  "durationSeconds": 161.32,
+  "beforeStatus": "",
+  "afterStatus": "",
+  "log": "/mnt/storage/coding/krn/active/krn/.krn/runs/r1/LON-214/current-main-host-gate.log"
+}
