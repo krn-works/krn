@@ -7,9 +7,9 @@
     "tests": 126
   },
   "rules": [
-    "Only the orchestrator edits this file.",
-    "Only status, pr, evidence, blocker and updatedAt may change; never delete a task or weaken a card's acceptance.",
-    "status: todo | in_progress | in_review | done | blocked",
+    "This file is the accepted scope/dependency/file specification and seed snapshot, not the live task tracker; Paperclip is the sole source of current task, assignment and status state.",
+    "Do not mutate task entries or weaken a card's acceptance during execution; the final report may snapshot Paperclip IDs, statuses and evidence.",
+    "The task status fields in this snapshot are initial values, not live status; current status is read from Paperclip.",
     "A task may start only when every dependsOn task is done and its files do not overlap an in_progress task.",
     "At most 3 tasks in_progress at once (charter 2026-10-10 §2)."
   ],
@@ -17,8 +17,8 @@
     "R1-00..R1-08 done with merged PRs",
     "main CI gate green; host gate 0 isolation skips",
     "evaluator-surface falsifier and tamper canaries pass",
-    "j1-first-live.json has >=1 record or R1-12 blocked with a decisions.md entry",
-    "docs/program/r1/report.md written"
+    "j1-first-live.json has >=1 record or R1-12 blocked with the exact precondition recorded in the lifecycle capsule and final report",
+    "docs/program/r1/report.md merged through its own LON-backed PR"
   ],
   "tasks": [
     {

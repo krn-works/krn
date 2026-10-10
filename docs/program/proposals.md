@@ -15,3 +15,4 @@ durable source that owns them. Status: `proposed` | `accepted` | `rejected` | `s
 | P-008 | 2026-10-10 | audit D9 | No distribution beyond the operator for 180 days (CRA, licence, SECURITY.md out of scope) | proposed |
 | P-009 | 2026-10-10 | audit §7 | Delete remote branches of closed PRs #2, #3, #7, #9 | proposed (needs deletion grant) |
 | P-010 | 2026-10-10 | audit §10 | Enforce SHA pinning in the org Actions policy | proposed (needs org admin) |
+| P-012 | 2026-10-10 | Operator ratification recorded for LON-213; lineage: working registry P12 in `.krn/runs/lead/PROPOSALS.md` | Reconcile R1 with Paperclip as sole control plane, `.krn/` lifecycle state, Luna-only repository authorship, fresh-main replay for prior PRs, qualified unattended confinement, and independent exact-SHA Standards/Spec evidence; no wider access from native Goals | accepted (charter 2026-10-10, R1 admission addendum) |
