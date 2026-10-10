@@ -59,3 +59,25 @@ G3 na wyjściu E1, oraz przed każdą zmianą architektury. Rutynowe PR-y sędzi
 Luna-judges sprawdzały literę akceptacji, nie składały prawdziwych modułów ani nie testowały przerwań; Opus G2 znalazł 7
 blokerów, które wszystkie przepuściły. Zmiana: brief sędziego wymaga ataku adwersarskiego (sygnały, grupy procesów,
 re-run, crash). Dane do decyzji o eksperymencie "tylko Luna" na G3.
+
+## Decyzje operatora 2026-10-10 (audyt produktu i przebieg R1)
+Źródło: [audyt 2026-10-10](audit-2026-10-10.md); operator przyjął rekomendacje w sesji Claude Code 2026-10-10.
+1. **D1 — metryka główna v2 (zastępuje „minuty operatora” jako metrykę główną; baseline minut = 0, więc kryterium −30% było
+   nieobliczalne).** Metryka główna: *zaakceptowane wyniki bez uciekających defektów*, raportowane z trzema licznikami na
+   wynik: interwencje leada, prompty rekonstrukcyjne, tokeny. Kryterium zabicia (blueprint §12) v2: po 6 podróżach ramienia B
+   rdzeń zostaje zamrożony, jeśli mediana interwencji leada na zaakceptowany wynik nie jest ≥30% niższa niż w B0 **albo**
+   wystąpi ≥1 uciekający defekt P0/P1. Minuty operatora pozostają metryką pomocniczą. Baseline B0 trzeba przeliczyć (R1-06).
+2. **D2 — limit WIP.** Żaden nowy moduł ani host, dopóki R1-01..R1-05 i L2 (R1-12) nie mają kryteriów wyjścia. Maks. 3 zadania
+   implementacyjne naraz, rozłączne plikowo.
+3. **D3 — polityka powierzchni ewaluatora: odmowa.** Werdykt odmawia (`refused` → `human_decision`), gdy diff `base..sha`
+   dotyka powierzchni ewaluatora zadeklarowanej w bazie albo domyślnej (patrz R1-02). Nakładka plików z bazy (wariant C)
+   dopiero przy >1 fałszywej odmowie na 10 zadań.
+4. **Przebieg R1 (long-running).** Orkiestratorem jest Sol 6.1 (xHigh) — na wyraźne życzenie operatora, zgodnie z zasadą
+   „Sol wyłącznie na wyraźne życzenie”. Workerzy i sędziowie: Luna. Sol wykonuje adwersarialny przegląd na końcu każdej fali
+   i nigdy nie ocenia kodu, którego jest autorem.
+5. **Grant R1 — merge.** Orkiestrator MAY mergować PR-y R1 do `main` wyłącznie gdy: CI `gate` zielone na dokładnym head,
+   `krn/gate-local` zielone, `krn review` = PASS na dokładnym head (Luna), zero nadpisań. Każde FAIL po 2 rundach naprawy =
+   zadanie `blocked`, bez override.
+6. **Grant R1 — live.** Dozwolone `npm run live` (Codex/Luna) **bez** `--submit`: wynik kończy się na `ready_for_review`.
+   Zero zapisów do Paperclip (także edycji opisów issue). Zero instalacji `krn` jako bin, zero zmian infrastruktury hosta,
+   zero force-push i przepisywania historii, zero usuwania branchy bez osobnego grantu.
