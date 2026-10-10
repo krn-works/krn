@@ -1,0 +1,36 @@
+Isolation capability probe: bwrap=available; systemd user scope=available
+TAP version 13
+# Subtest: Codex worker does not receive board credentials
+not ok 1 - Codex worker does not receive board credentials
+  ---
+  duration_ms: 221.964233
+  type: 'test'
+  location: '/mnt/storage/coding/krn/active/krn/.krn/tmp/redfirst-R1-04/test/hosts/codex-env.test.ts:9:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'sentinel-token'
+    - undefined
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  actual: 'sentinel-token'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/tmp/redfirst-R1-04/test/hosts/codex-env.test.ts:49:12)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 613.875881
+Isolation-dependent tests skipped: 0
+exit=1

@@ -1,0 +1,7 @@
+{
+  "readAt": "2026-10-10T14:55:54.731Z",
+  "identifier": "LON-216",
+  "status": "todo",
+  "title": "hosts: start workers with an allowlisted environment (R1-04)",
+  "r1TaskLine": "R1-task: R1-04"
+}

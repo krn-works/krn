@@ -1,0 +1,23 @@
+task=R1-04 ticket=LON-216 captured=2026-10-10T17:56:00+02:00
+measured_head=771837fc71c21bec9a9959e49f7499fb66aed4b1 merge_base=1e6c354a5974ba10111638933515534ea49c3fbb
+src_tree=799e3daf58394ef4ca85954a2874a6c4ea43968b test_tree=5ea36ceca995e15f37b89229b11c2c4a2e618c37
+note: evidence-only commits leave src/test trees unchanged; identical trees = identical code.
+note: isolation-dependent tests need systemd user scopes and bwrap on the operator host; a read-only review sandbox cannot reproduce them. The reproducible check is the krn/gate-local commit status on the exact head, published by scripts/gate-local.mjs with zero isolation skips.
+--- host gate on measured code (scripts/gate-local.mjs; status post may fail before push, tests are what count)
+# tests 129
+# pass 129
+# fail 0
+# skipped 0
+Isolation-dependent tests skipped: 0
+--- falsifier at merge-base with the head test file overlaid (exit=1)
+not ok 1 - Codex worker does not receive board credentials
+  name: 'AssertionError'
+  actual: 'sentinel-token'
+# tests 1
+# pass 0
+# fail 1
+--- falsifier at head (exit=0)
+# tests 1
+# pass 1
+# fail 0
+# skipped 0
