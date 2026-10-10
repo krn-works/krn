@@ -67,6 +67,8 @@ When a step needs anything outside these grants, stop that task, set its Papercl
 ## Session start routine (run at start and after every compaction or resume)
 
     cd "$KRN_REPO" && pwd && git status --short
+    /home/krn/.local/share/mise/installs/node/24.21.0/bin/node --version
+    export PATH="/home/krn/.local/share/mise/installs/node/24.21.0/bin:$PATH"
     git ls-remote origin refs/heads/main
     # After readback of fetch authority, update only the selected main ref; never prune or force-update.
     git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
