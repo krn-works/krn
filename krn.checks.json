@@ -1,5 +1,12 @@
 {
-  "version": 1,
+  "version": 2,
+  "protected": [
+    "scripts/**",
+    "tsconfig.json",
+    "biome.json",
+    "spec/rules.json",
+    "test/helpers/**"
+  ],
   "checks": [
     {
       "id": "typecheck",

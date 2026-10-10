@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { Job } from '../core/index.ts';
-import { resolveChecks } from './registry.ts';
+import { resolveChecks, resolveRegistry } from './registry.ts';
 import {
   addWorktree,
   cleanupWorktrees,
@@ -11,6 +11,7 @@ import {
   execute,
   TeardownUnconfirmed,
 } from './sandbox.ts';
+import { evaluatorSurfaceChanges } from './surface.ts';
 
 export type CheckEvidence = {
   readonly id: string;
@@ -113,6 +114,15 @@ export async function judge(
     process.on('SIGTERM', onSigterm);
   }
   try {
+    const registry = await resolveRegistry(root, base);
+    const surfaceChanges = await evaluatorSurfaceChanges(
+      root,
+      base,
+      sha,
+      registry.protected,
+    );
+    if (surfaceChanges.length)
+      return { kind: 'refused', checks: [], findings: surfaceChanges };
     const checks = await resolveChecks(root, base, ids);
     const state = resolve(root, '.krn');
     const directory = resolve(state, 'tmp');
