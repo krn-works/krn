@@ -172,6 +172,18 @@
         "deadline": "2026-12-31"
       },
       "rationale": "Accepted decisions become durable repository truth."
+    },
+    {
+      "id": "KRN-20",
+      "trigger": "work spans more than one session, pull request, or module",
+      "action": "the lead MUST keep a living ExecPlan as defined in `docs/program/PLANS.md`",
+      "owner": "lead",
+      "enforcement": {
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
+      },
+      "rationale": "A self-contained plan lets a fresh session resume long work without reconstruction."
     }
   ]
 }
