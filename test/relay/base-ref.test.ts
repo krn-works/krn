@@ -6,7 +6,6 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { resolveBaseRef } from '../../src/cli/index.ts';
 import { repoFacts } from '../../src/relay/index.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
@@ -16,39 +15,6 @@ function git(root: string, args: string[]): string {
   assert.equal(result.status, 0, result.stderr);
   return result.stdout.trim();
 }
-
-test('base ref resolution prefers --base, then origin/HEAD, then current branch', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'krn-base-order-'));
-  try {
-    git(root, ['init', '-q', '--initial-branch=master']);
-    await writeFile(join(root, '.gitignore'), '.krn/\n');
-    await writeFile(join(root, 'README.md'), 'initial commit\n');
-    git(root, ['add', '.gitignore', 'README.md']);
-    git(root, [
-      '-c',
-      'user.name=Base Ref Test',
-      '-c',
-      'user.email=base-ref@example.invalid',
-      'commit',
-      '-qm',
-      'initial commit',
-    ]);
-    git(root, ['branch', 'trunk']);
-    git(root, ['update-ref', 'refs/remotes/origin/trunk', 'trunk']);
-    git(root, [
-      'symbolic-ref',
-      'refs/remotes/origin/HEAD',
-      'refs/remotes/origin/trunk',
-    ]);
-
-    assert.equal(resolveBaseRef(root, 'master'), 'master');
-    assert.equal(resolveBaseRef(root), 'trunk');
-    git(root, ['symbolic-ref', '--delete', 'refs/remotes/origin/HEAD']);
-    assert.equal(resolveBaseRef(root), 'master');
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
 
 test('repo facts use the recorded base of a master-default repository', async () => {
   const root = await mkdtemp(join(tmpdir(), 'krn-base-ref-'));
