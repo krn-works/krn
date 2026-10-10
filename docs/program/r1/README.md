@@ -14,6 +14,18 @@ without `--submit`. The sole lifecycle capsule is `.krn/runs/delivery-loop/r1/st
 lead. Native Goal and the capsule are continuation views. `progress.md` and `decisions.md` here remain seed snapshots;
 accepted decisions belong in the charter and unresolved run state belongs in the capsule. The Luna-authored baseline and final report PRs snapshot Paperclip IDs, final statuses, PRs and evidence for durable close-out.
 
+## Read-only admission (initial Goal only)
+
+The first R1 Goal checks existing evidence; it does not execute R1-00, install packages, run tests/gates, commission a
+worker, create a branch/PR, change Paperclip, or launch full R1. Read current grant/board status, pinned-host baseline and
+gate evidence, and the exact qualified-backend command/version/workspace readback from existing reports and the lifecycle
+capsule. Write one compact observed `READY` or `BLOCKED` record to `.krn/runs/delivery-loop/r1/state.md` as the lead's
+sole transient-state write. `READY` requires the R1-00 measured baseline report merged through its LON PR, the required
+host gate readback, qualified confinement on a dedicated workspace, and current board/grant readback. Missing evidence
+means `BLOCKED` with its owner and exact gap. Any missing preparation is a separate supervised workflow under its own
+explicit grant; admission itself stops at the result. A read-back `READY` permits the operator-authorized next step: a
+separate Full R1 Goal. It never launches that Goal automatically.
+
 ## Goal and oracle
 
 **Goal.** Make krn's acceptance evidence trustworthy and its core claim measurable: a worker can no longer pass the
@@ -64,7 +76,7 @@ When a step needs anything outside these grants, stop that task, set its Papercl
   ExecPlan upkeep. Does not push, merge, or touch other tasks' files.
 - **Judges (Luna via `krn review`):** roles `standards`, `spec`, `adversarial` with [`review-lens.md`](review-lens.md).
 
-## Session start routine (run at start and after every compaction or resume)
+## Session start routine (full Goal only; run after every compaction or resume)
 
     cd "$KRN_REPO" && pwd && git status --short
     /home/krn/.local/share/mise/installs/node/24.21.0/bin/node --version
