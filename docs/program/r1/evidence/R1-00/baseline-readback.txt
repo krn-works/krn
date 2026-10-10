@@ -1,0 +1,55 @@
+ts=2026-10-10T15:24:28+02:00
+node=v24.21.0
+pnpm=12.10.1
+codex=codex-cli 0.160.0
+bwrap=bubblewrap 0.12.0
+paperclip=2026.1001.0 (managed npm pinned; payload /home/krn/.local/state/krn/paperclip/cli/installs/npm/2026.1001.0)
+gh=gh version 2.101.0 (2026-09-15)
+bus=ok
+main_live=22f4100a76886cd93e78c4ab0de9b359f4391032
+== codex features
+agent_message_board                      under development  false
+analytics_plan_history                   experimental       false
+api_key_model_discovery                  under development  true
+apply_patch_freeform                     removed            false
+apply_patch_preserve_line_endings        under development  false
+apply_patch_streaming_events             under development  false
+apps                                     stable             true
+apps_mcp_path_override                   removed            false
+artifact                                 under development  false
+auth_elicitation                         stable             true
+background_paginated_rollout_migration   under development  false
+bedrock_setup_wizard                     under development  false
+browser_use                              stable             true
+browser_use_external                     stable             true
+browser_use_full_cdp_access              stable             true
+chronicle                                under development  false
+code_mode                                under development  false
+code_mode_buffered_exec                  removed            false
+code_mode_host                           stable             true
+code_mode_interrupt                      under development  false
+code_mode_only                           under development  false
+code_mode_prewarm                        under development  false
+codex_apps_mcp_2026_07_28                under development  false
+codex_git_commit                         removed            false
+collaboration_modes                      removed            true
+compaction_image_budget                  stable             true
+computer_use                             stable             true
+concurrent_reasoning_summaries           under development  false
+content_item_kinds                       stable             true
+context_management                       under development  false
+current_time_reminder                    under development  false
+cwd_relative_turn_diffs                  under development  false
+daemon_auto_start                        stable             true
+default_mode_request_user_input          under development  false
+defer_mailbox_preemption                 under development  false
+deferred_executor                        under development  false
+deferred_tool_world_state                under development  false
+elevated_windows_sandbox                 removed            false
+enable_fanout                            removed            false
+enable_mcp_apps                          under development  false
+== codex help goal/subagent
+  agents            Browse all agent sessions on the shared local app-server daemon
+  apply             Apply the latest diff produced by Codex agent as a `git apply` to your local
+          Model the agent should use
+          Tell the agent to use the specified directory as its working root
