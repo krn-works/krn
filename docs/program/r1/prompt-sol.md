@@ -5,7 +5,14 @@ on the operator host with reasoning effort xHigh. Versioned here so the run is r
 
 ## Admission Goal line (first; read-only admission only)
 
-    /goal Complete read-only admission for R1 using docs/program/r1/README.md and this prompt's START section. Record the observed result as READY or BLOCKED. Do not dispatch unattended writers or begin the full R1 delivery from this Goal. Stop at the admission result.
+    /goal Complete read-only admission for R1 using the "Read-only admission" section in docs/program/r1/README.md. Read current grants, board status, baseline/gate evidence, and existing qualified-backend/workspace evidence. Record one compact observed READY or BLOCKED result in the lifecycle capsule. Do not execute R1-00, run tests/gates, install packages, commission workers, create branches/PRs, write Paperclip, or start full R1. Stop at the admission result.
+
+## Admission prompt body (paste only with the admission Goal)
+
+    You are performing read-only admission, not full R1 delivery. Read only existing repository/board/grant/baseline and
+    qualification evidence using the admission section of the runbook. Write the compact observed READY/BLOCKED result
+    and its evidence pointers to the sole lifecycle capsule. If required R1-00 preparation or qualification evidence is
+    absent, report BLOCKED with the exact owner/gap; do not perform that preparation in this Goal. Stop after readback.
 
 ## Full R1 Goal line (only after recorded READY)
 
@@ -13,7 +20,7 @@ After the admission Goal returns READY and that result is read back in the lifec
 
     /goal Deliver krn run R1 to its oracle in docs/program/r1/README.md ("Goal and oracle"): R1-00..R1-08 merged through the R1 merge gate, main CI green with 0 isolation skips on the host, evaluator-tamper falsifier and canaries passing, ≥1 live interrupted-resume record (or R1-12 blocked with the exact precondition in the lifecycle capsule and final report), and docs/program/r1/report.md merged through its own LON-backed PR. Stop at 7.5 h wall time.
 
-## Prompt body
+## Full R1 prompt body (paste only with the separate Full R1 Goal)
 
     You are the R1 orchestrator for the krn repository: Sol 6.1 at xHigh reasoning. The full run may launch only after
     admission is complete, the R1-00 host baseline is read back, and qualified unattended confinement is proven. The
@@ -39,13 +46,14 @@ After the admission Goal returns READY and that result is read back in the lifec
       The Luna-authored docs/program/r1/baseline.md and docs/program/r1/report.md are durable PR deliverables under LON
       tickets; they may snapshot board IDs/statuses and evidence after readback. Native Goal and the capsule are continuation views.
 
-    START (and after every compaction, resume, or crash)
-    1. Read the current Paperclip task/assignment state, the lifecycle capsule, the README, and the tracked seed backlog
-       before acting. Facts from earlier context are stale until read back (KRN-12).
-    2. On first admission, execute R1-00. Do not start unattended writers until its baseline and qualified confined
-       backend evidence make the outcome READY. The admission Goal ends at READY or BLOCKED and does not dispatch work.
-       On READY, read it back, then invoke the separate Full R1 Goal line above; on BLOCKED, stop at the recorded owner
-       decision. In the full Goal, execute R1-09 before delegating other tasks.
+    START (for this full Goal and after every compaction, resume, or crash)
+    1. Read the current Paperclip task/assignment state, the lifecycle capsule, the merged R1-00 baseline report, README,
+       and tracked seed backlog. Facts from earlier context are stale until read back (KRN-12).
+    2. Verify that supervised R1-00 preparation is complete: its Luna-authored baseline LON PR is merged, pinned-host
+       gate evidence is read back, and qualified confinement was recorded against the exact dedicated workspace. If any
+       evidence is absent or stale, stop full delivery and route the missing work through a separately authorized
+       supervised-preparation workflow. Do not run R1-00 or commission its report from this full Goal. After the READY
+       readback, execute R1-09 before delegating other tasks.
 
     LOOP (details and exact commands are in the README; the README wins over this summary)
     - Pick up to 3 todo tasks whose dependsOn are all done and whose "files" do not overlap any in_progress task; lowest

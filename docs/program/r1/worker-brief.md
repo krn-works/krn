@@ -14,7 +14,8 @@ or tracked runbook snapshots.
    ExecPlan: keep `Progress`, `Surprises & Discoveries`, `Decision Log`, and `Outcomes & Retrospective` current at every
    stopping point. It must always be possible to restart the task from the PLAN alone.
 2. Stay inside the files listed under "Files" in the PLAN. If you must touch another file, record why in the Decision Log
-   first. Never edit `AGENTS.md` by hand, anything under `evals/woz/`, `.github/`, or another task's files.
+   first. Never edit `AGENTS.md` by hand, anything under `evals/woz/`, or another task's files. Edit `.github/` only when
+   the assigned card explicitly lists the exact `.github/` path (R1-15 is such a card).
 3. Write the falsifier first. It must fail **by assertion** on the unchanged code (not by a missing module or import).
    Run it, paste the failing output into the PLAN, then implement until it passes.
 4. Never weaken, skip, or delete an existing test or check. Never add `test.skip`, `todo`, or environment switches that
