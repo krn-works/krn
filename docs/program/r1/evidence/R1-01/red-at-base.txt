@@ -1,0 +1,42 @@
+Isolation capability probe: bwrap=available; systemd user scope=available
+TAP version 13
+# Subtest: judge refuses a check-script bypass when the candidate also contains a defect
+not ok 1 - judge refuses a check-script bypass when the candidate also contains a defect
+  ---
+  duration_ms: 2868.813939
+  type: 'test'
+  location: '/mnt/storage/coding/krn/active/krn/.krn/tmp/redfirst-R1-01/test/verdict/evaluator-surface.test.ts:62:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    'pass' !== 'refused'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'refused'
+  actual: 'pass'
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/tmp/redfirst-R1-01/test/verdict/evaluator-surface.test.ts:103:12)
+    process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    async Test.run (node:internal/test_runner/test:1409:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
+  ...
+# Subtest: judge does not refuse a source-only change for surface reasons
+ok 2 - judge does not refuse a source-only change for surface reasons
+  ---
+  duration_ms: 1014.807824
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4235.691335
+Isolation-dependent tests skipped: 0
+exit=1

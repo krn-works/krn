@@ -1,0 +1,24 @@
+task=R1-01 ticket=LON-219 captured=2026-10-10T17:50:32+02:00
+measured_head=6a7c38e3486f2e2398198d6ef6ec0d319c1f0f75 merge_base=1e6c354a5974ba10111638933515534ea49c3fbb
+src_tree=c3886b7ab11d4d7a1a34568f9e657a9455f16e57 test_tree=f2850279e23dbe917aaa2e6f60af3d2a05ff74ef
+note: evidence-only commits leave src/test trees unchanged; identical trees = identical code.
+note: isolation-dependent tests need systemd user scopes and bwrap on the operator host; a read-only review sandbox cannot reproduce them. The reproducible check is the krn/gate-local commit status on the exact head, published by scripts/gate-local.mjs with zero isolation skips.
+--- host gate on measured code (scripts/gate-local.mjs; status post may fail before push, tests are what count)
+# tests 129
+# pass 129
+# fail 0
+# skipped 0
+Isolation-dependent tests skipped: 0
+--- falsifier at merge-base with the head test file overlaid (exit=1)
+not ok 1 - judge refuses a check-script bypass when the candidate also contains a defect
+  name: 'AssertionError'
+  expected: 'refused'
+  actual: 'pass'
+# tests 2
+# pass 1
+# fail 1
+--- falsifier at head (exit=0)
+# tests 2
+# pass 2
+# fail 0
+# skipped 0
