@@ -202,11 +202,11 @@ test('Paperclip board changes and conflicts return human decision outcomes', asy
   }
 });
 
-test('worker HEAD registry edits cannot replace commands from the base registry', async (t) => {
+test('worker HEAD registry edits are refused before any command runs', async (t) => {
   if (
     !requiresIsolation(
       t,
-      'worker HEAD registry edits cannot replace commands from the base registry',
+      'worker HEAD registry edits are refused before any command runs',
       ['bwrap', 'systemdUserScope'],
     )
   )
@@ -244,22 +244,11 @@ test('worker HEAD registry edits cannot replace commands from the base registry'
         event = value;
       },
     );
-    assert.equal(
-      result.kind,
-      'pass',
-      result.kind === 'pass' ? '' : result.findings.join('; '),
-    );
-    assert.equal(
-      event?.checks[0]?.sha256,
-      createHash('sha256').update('from-base').digest('hex'),
-    );
-    assert.equal(event?.sha, sha);
-    assert.deepEqual(Object.keys(event?.checks[0] ?? {}).sort(), [
-      'durationMs',
-      'exitCode',
-      'id',
-      'sha256',
+    assert.equal(result.kind, 'refused');
+    assert.deepEqual(result.findings, [
+      'evaluator surface changed: krn.checks.json',
     ]);
+    assert.equal(event, undefined, 'refused checks must not emit an event');
     const diagnostic = join(
       f.root,
       '.krn',
@@ -268,10 +257,15 @@ test('worker HEAD registry edits cannot replace commands from the base registry'
       f.job.id,
       'diagnostics',
     );
-    const details = readdirSync(diagnostic).map((name) =>
-      readFileSync(join(diagnostic, name), 'utf8'),
+    const details = existsSync(diagnostic)
+      ? readdirSync(diagnostic).map((name) =>
+          readFileSync(join(diagnostic, name), 'utf8'),
+        )
+      : [];
+    assert.ok(
+      details.every((value) => !value.includes('from-head')),
+      'worker registry command output must not appear in diagnostics',
     );
-    assert.ok(details.some((value) => value.includes('from-base')));
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }

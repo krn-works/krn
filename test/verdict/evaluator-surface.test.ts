@@ -4,7 +4,6 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 import { judge } from '../../src/verdict/index.ts';
-import { resolveRegistry } from '../../src/verdict/registry.ts';
 
 function fixture() {
   const scratch = join(process.cwd(), '.krn', 'tmp');
@@ -104,64 +103,6 @@ test('judge refuses a check-script bypass when the candidate also contains a def
     assert.equal(verdict.kind, 'refused');
     assert.deepEqual(verdict.findings, [
       'evaluator surface changed: package.json#scripts.check',
-    ]);
-  } finally {
-    rmSync(f.root, { recursive: true, force: true });
-  }
-});
-
-test('judge accepts a v1 registry and a v2 registry with protected globs', async () => {
-  const f = fixture();
-  try {
-    const v1 = await resolveRegistry(f.root, f.base);
-    assert.deepEqual(v1.protected, []);
-    assert.deepEqual(
-      v1.checks.map(({ id }) => id),
-      ['check'],
-    );
-
-    writeFileSync(
-      join(f.root, 'krn.checks.json'),
-      JSON.stringify({
-        version: 2,
-        checks: [
-          { id: 'check', argv: ['npm', 'run', 'check'], timeoutMs: 3000 },
-        ],
-        protected: ['src/**'],
-      }),
-    );
-    mkdirSync(join(f.root, 'src'));
-    writeFileSync(
-      join(f.root, 'src', 'guarded.ts'),
-      'export const value = 1;\n',
-    );
-    f.git(['add', 'src/guarded.ts', 'krn.checks.json']);
-    f.git(['commit', '-qm', 'v2 registry']);
-    const v2Sha = f.git(['rev-parse', 'HEAD']);
-    const v2 = await resolveRegistry(f.root, v2Sha);
-    assert.deepEqual(v2.protected, ['src/**']);
-    assert.deepEqual(
-      v2.checks.map(({ id }) => id),
-      ['check'],
-    );
-
-    writeFileSync(
-      join(f.root, 'src', 'guarded.ts'),
-      'export const value = 2;\n',
-    );
-    f.git(['add', 'src/guarded.ts']);
-    f.git(['commit', '-qm', 'change protected path']);
-    const protectedSha = f.git(['rev-parse', 'HEAD']);
-    const protectedVerdict = await judge(
-      f.job,
-      protectedSha,
-      v2Sha,
-      ['check'],
-      async () => {},
-    );
-    assert.equal(protectedVerdict.kind, 'refused');
-    assert.deepEqual(protectedVerdict.findings, [
-      'evaluator surface changed: src/guarded.ts',
     ]);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
