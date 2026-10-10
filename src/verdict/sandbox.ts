@@ -105,8 +105,26 @@ function sandboxEnv(extraPath?: string): NodeJS.ProcessEnv {
 }
 
 async function pnpmBinary(manager: string): Promise<string> {
-  // biome-ignore format: Toolchain lookup is one process boundary.
-  const result = await run('mise', ['where', manager], tmpdir(), 15000, { PATH: process.env.PATH, HOME: process.env.HOME });
+  let result: CommandResult;
+  try {
+    // biome-ignore format: Toolchain lookup is one process boundary.
+    result = await run('mise', ['where', manager], tmpdir(), 15000, { PATH: process.env.PATH, HOME: process.env.HOME });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    const version = await run('pnpm', ['--version'], tmpdir(), 15000, {
+      PATH: process.env.PATH,
+      HOME: process.env.HOME,
+    });
+    const expectedVersion = manager.slice('pnpm@'.length);
+    if (
+      version.status !== 0 ||
+      version.stdout.toString().trim() !== expectedVersion
+    )
+      throw new Error(
+        version.stderr.toString() || `PATH pnpm must be ${expectedVersion}`,
+      );
+    return 'pnpm';
+  }
   const directory = result.stdout.toString().trim();
   if (result.status !== 0 || !directory)
     throw new Error(result.stderr.toString() || `cannot locate ${manager}`);

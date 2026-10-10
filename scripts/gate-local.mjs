@@ -2,8 +2,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { postGateStatusWhenClean } from './isolation-gate.mjs';
 
-const ghPath =
-  '/home/krn/.local/share/mise/installs/gh/latest/gh_2.101.0_linux_amd64/bin/gh';
+const ghPath = process.env.KRN_GH_BIN ?? 'gh';
 
 function readHead() {
   const result = spawnSync('git', ['rev-parse', 'HEAD'], {

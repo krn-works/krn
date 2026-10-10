@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import type { Job } from '../core/index.ts';
 import { git } from '../foreman/git.ts';
+import { repoRecord } from '../foreman/state.ts';
 import type { Contract } from '../ledger/index.ts';
 import {
   type Capsule,
@@ -97,7 +98,11 @@ export function repoFacts(job: Job): RepoFacts {
       branch: z.string().min(1),
     })
     .parse({ root, head, branch });
-  const baseResult = git(job, ['merge-base', 'HEAD', 'main']);
+  const baseResult = git(job, [
+    'merge-base',
+    'HEAD',
+    repoRecord(job).baseRef ?? 'main',
+  ]);
   const base = z
     .string()
     .regex(/^[0-9a-f]{40,64}$/i)

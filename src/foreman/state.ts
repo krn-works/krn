@@ -18,6 +18,7 @@ const recordSchema = z.object({
   repoRoot: z.string().min(1),
   gitDir: z.string().min(1),
   gitWorkTree: z.string().min(1),
+  baseRef: z.string().min(1).optional(),
 });
 export type RepoRecord = z.infer<typeof recordSchema>;
 
@@ -68,7 +69,11 @@ export function repoRecord(job: Job): RepoRecord {
   });
 }
 
-export function recordRepo(job: Job, root: string): RepoRecord {
+export function recordRepo(
+  job: Job,
+  root: string,
+  baseRef?: string,
+): RepoRecord {
   const repoRoot = realpathSync(resolve(root));
   const result = spawnSync(
     'git',
@@ -86,6 +91,7 @@ export function recordRepo(job: Job, root: string): RepoRecord {
     repoRoot,
     gitDir: resolve(result.stdout.trim()),
     gitWorkTree,
+    ...(baseRef === undefined ? {} : { baseRef }),
   });
   const directory = join(repoRoot, '.krn', 'runs', 'foreman', job.id);
   mkdirSync(directory, { recursive: true, mode: 0o700 });

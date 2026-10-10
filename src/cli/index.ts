@@ -23,6 +23,54 @@ function git(root: string, args: string[]): string {
   return result.stdout.trim();
 }
 
+export function resolveBaseRef(root: string, requested?: string): string {
+  const remoteHead = spawnSync(
+    'git',
+    [
+      '-C',
+      root,
+      'symbolic-ref',
+      '--quiet',
+      '--short',
+      'refs/remotes/origin/HEAD',
+    ],
+    { encoding: 'utf8' },
+  );
+  const currentBranch = spawnSync(
+    'git',
+    ['-C', root, 'branch', '--show-current'],
+    { encoding: 'utf8' },
+  );
+  const candidates = [
+    ...(requested ? [requested] : []),
+    ...(remoteHead.status === 0
+      ? [remoteHead.stdout.trim().replace(/^origin\//u, '')]
+      : []),
+    ...(currentBranch.status === 0 && currentBranch.stdout.trim()
+      ? [currentBranch.stdout.trim()]
+      : []),
+  ];
+  const candidate = candidates[0];
+  if (!candidate)
+    throw new Error('unable to resolve a base ref; specify one with --base');
+  const commit = spawnSync(
+    'git',
+    [
+      '-C',
+      root,
+      'rev-parse',
+      '--verify',
+      '--quiet',
+      '--end-of-options',
+      `${candidate}^{commit}`,
+    ],
+    { encoding: 'utf8' },
+  );
+  if (commit.status !== 0)
+    throw new Error(`base ref "${candidate}" does not resolve to a commit`);
+  return candidate;
+}
+
 function assertWorktreeParentInside(root: string, parent: string): void {
   const realRoot = realpathSync(root);
   const realParent = realpathSync(parent);
@@ -38,6 +86,10 @@ async function start(args: string[]): Promise<void> {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(id) || id === '..')
     throw new Error('invalid job id');
   const root = git(process.cwd(), ['rev-parse', '--show-toplevel']);
+  const baseRef = resolveBaseRef(
+    root,
+    args.includes('--base') ? value(args, '--base') : undefined,
+  );
   const worktree = resolve(root, '.krn', 'worktrees', id);
   if (existsSync(dirname(worktree)))
     assertWorktreeParentInside(root, dirname(worktree));
@@ -76,7 +128,7 @@ async function start(args: string[]): Promise<void> {
     throw error;
   }
   const job: Job = { id, issue, worktree, repoRoot: root };
-  recordRepo(job, root);
+  recordRepo(job, root, baseRef);
   await operatorStart(job, process.env.USER ?? 'local operator');
   process.stdout.write(`${JSON.stringify(job)}\n`);
 }

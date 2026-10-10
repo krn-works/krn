@@ -1,0 +1,111 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+import { resolveBaseRef } from '../../src/cli/index.ts';
+import { repoFacts } from '../../src/relay/index.ts';
+
+const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
+
+function git(root: string, args: string[]): string {
+  const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout.trim();
+}
+
+test('base ref resolution prefers --base, then origin/HEAD, then current branch', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-base-order-'));
+  try {
+    git(root, ['init', '-q', '--initial-branch=master']);
+    await writeFile(join(root, '.gitignore'), '.krn/\n');
+    await writeFile(join(root, 'README.md'), 'initial commit\n');
+    git(root, ['add', '.gitignore', 'README.md']);
+    git(root, [
+      '-c',
+      'user.name=Base Ref Test',
+      '-c',
+      'user.email=base-ref@example.invalid',
+      'commit',
+      '-qm',
+      'initial commit',
+    ]);
+    git(root, ['branch', 'trunk']);
+    git(root, ['update-ref', 'refs/remotes/origin/trunk', 'trunk']);
+    git(root, [
+      'symbolic-ref',
+      'refs/remotes/origin/HEAD',
+      'refs/remotes/origin/trunk',
+    ]);
+
+    assert.equal(resolveBaseRef(root, 'master'), 'master');
+    assert.equal(resolveBaseRef(root), 'trunk');
+    git(root, ['symbolic-ref', '--delete', 'refs/remotes/origin/HEAD']);
+    assert.equal(resolveBaseRef(root), 'master');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('repo facts use the recorded base of a master-default repository', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-base-ref-'));
+  try {
+    git(root, ['init', '-q', '--initial-branch=master']);
+    await writeFile(join(root, '.gitignore'), '.krn/\n');
+    await writeFile(join(root, 'README.md'), 'initial commit\n');
+    git(root, ['add', '.gitignore', 'README.md']);
+    git(root, [
+      '-c',
+      'user.name=Base Ref Test',
+      '-c',
+      'user.email=base-ref@example.invalid',
+      'commit',
+      '-qm',
+      'initial commit',
+    ]);
+    const master = git(root, ['rev-parse', 'master']);
+    const started = spawnSync(
+      process.execPath,
+      [cli, 'start', '--job', 'j1', '--issue', 'X'],
+      { cwd: root, encoding: 'utf8' },
+    );
+    assert.equal(started.status, 0, started.stderr);
+    const job = JSON.parse(started.stdout.trim()) as {
+      id: string;
+      issue: string;
+      worktree: string;
+      repoRoot: string;
+    };
+    await writeFile(join(job.worktree, 'job-change.txt'), 'job commit\n');
+    git(job.worktree, ['add', 'job-change.txt']);
+    git(job.worktree, [
+      '-c',
+      'user.name=Base Ref Test',
+      '-c',
+      'user.email=base-ref@example.invalid',
+      'commit',
+      '-qm',
+      'job commit',
+    ]);
+
+    const observed = await (async () => {
+      try {
+        return { facts: repoFacts(job) };
+      } catch (error) {
+        return {
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    })();
+    assert.equal(
+      'facts' in observed ? observed.facts.base : undefined,
+      master,
+      'repo facts should compare the job worktree to the base recorded at start',
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
