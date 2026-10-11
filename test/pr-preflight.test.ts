@@ -19,6 +19,7 @@ const gitOverrideKeys = [
 
 type FixtureOptions = {
   title?: string;
+  r1TaskTrailer?: string;
   paperclipTask?: string;
   gateState?: string;
   gateDescription?: string;
@@ -72,7 +73,7 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
     '-m',
     options.title ?? 'feat(review): add preflight (LON-230)',
     '-m',
-    'Ticket: LON-230\nR1-task: none',
+    `Ticket: LON-230\nR1-task: ${options.r1TaskTrailer ?? 'none'}`,
   ]);
   const head = await git(repo, ['rev-parse', 'HEAD']);
   const srcTreeSha = await git(repo, ['rev-parse', `${head}:src`]);
@@ -234,6 +235,29 @@ test('preflight rejects a Paperclip R1-task mismatch', async (t) => {
   assert.ok(report.reasons.some((reason) => /R1-task/u.test(reason)));
 });
 
+test('preflight accepts matching LON task identifiers in trailer and Paperclip', async (t) => {
+  const value = await fixture(t, {
+    r1TaskTrailer: 'LON-231',
+    paperclipTask: 'LON-231',
+  });
+  const { report } = parseHarness(runHarness(value));
+  assert.equal(report.verdict, 'pass');
+  assert.equal(report.r1TaskTrailer, 'LON-231');
+  assert.equal(report.paperclipR1Task, 'LON-231');
+});
+
+test('preflight checks equality between valid LON task identifiers', async (t) => {
+  const value = await fixture(t, {
+    r1TaskTrailer: 'LON-231',
+    paperclipTask: 'LON-232',
+  });
+  const { report } = parseHarness(runHarness(value));
+  assert.equal(report.verdict, 'fail');
+  assert.ok(
+    report.reasons.some((reason) => /R1-task trailer must match/u.test(reason)),
+  );
+});
+
 test('preflight rejects a PR head that differs from the requested exact head', async (t) => {
   const value = await fixture(t, { prHead: 'a'.repeat(40) });
   const { report } = parseHarness(runHarness(value));
@@ -259,6 +283,15 @@ test('preflight rejects non-success and isolation-skipping gate-local statuses',
   assert.equal(skipped.verdict, 'fail');
   assert.ok(
     skipped.reasons.some((reason) => /zero isolation skips/u.test(reason)),
+  );
+
+  const tenSkippedStatus = await fixture(t, {
+    gateDescription: 'Gate passed: 12 tests, 10 isolation skips',
+  });
+  const tenSkipped = parseHarness(runHarness(tenSkippedStatus)).report;
+  assert.equal(tenSkipped.verdict, 'fail');
+  assert.ok(
+    tenSkipped.reasons.some((reason) => /zero isolation skips/u.test(reason)),
   );
 });
 
