@@ -7,11 +7,11 @@ import { test } from 'node:test';
 import { CodexHost } from '../../src/hosts/codex.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
-test('CodexHost pins low reasoning effort for bounded shell work', async (t) => {
+test('CodexHost defaults to high reasoning effort for bounded shell work', async (t) => {
   if (
     !requiresIsolation(
       t,
-      'CodexHost pins low reasoning effort for bounded shell work',
+      'CodexHost defaults to high reasoning effort for bounded shell work',
       ['systemdUserScope'],
     )
   )
@@ -38,8 +38,8 @@ test('CodexHost pins low reasoning effort for bounded shell work', async (t) => 
     const result = await session.wait();
     const args: string[] = JSON.parse(await readFile(argsFile, 'utf8'));
     assert.ok(
-      args.includes('model_reasoning_effort=low'),
-      'CodexHost must not inherit a slower user reasoning setting',
+      args.includes('model_reasoning_effort=high'),
+      'CodexHost must default to high reasoning effort',
     );
     assert.equal(result.finalMessage, 'ready');
     assert.equal(result.claimsDone, true);
