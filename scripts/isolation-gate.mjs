@@ -6,6 +6,14 @@ const tapSummarySchema = z.object({
   todoCount: z.number().int().nonnegative().optional(),
   isolationSkipNames: z.array(z.string()),
 });
+const isolationSkipEventSchema = z
+  .object({
+    nonce: z.string().regex(/^[a-f0-9]{64}$/u),
+    testName: z.string().min(1),
+    line: z.string().min(1),
+  })
+  .strict();
+const isolationSkipNonceSchema = z.string().regex(/^[a-f0-9]{64}$/u);
 const emptyTapSummary = { isolationSkipNames: [] };
 
 export function decideIsolation(testName, required, capabilities, isCI) {
@@ -38,11 +46,41 @@ export function isolationSummary(skipNames) {
   return lines.join('\n');
 }
 
-export function countIsolationSkips(output) {
-  return parseTapSummary(output).isolationSkipNames.length;
+export function parseIsolationSkipSignals(output, expectedNonce) {
+  const parsedOutput = z.string().safeParse(output);
+  const parsedNonce = isolationSkipNonceSchema.safeParse(expectedNonce);
+  if (!parsedOutput.success || !parsedNonce.success) return [];
+
+  const signals = [];
+  for (const line of parsedOutput.data.split(/\r?\n/u)) {
+    if (line.length === 0) continue;
+    let payload;
+    try {
+      payload = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const parsedSignal = isolationSkipEventSchema.safeParse(payload);
+    if (parsedSignal.success && parsedSignal.data.nonce === parsedNonce.data)
+      signals.push({
+        testName: parsedSignal.data.testName,
+        line: parsedSignal.data.line,
+      });
+  }
+  return signals;
 }
 
-export function parseTapSummary(output) {
+export function countIsolationSkips(output) {
+  const parsedOutput = z.string().safeParse(output);
+  if (!parsedOutput.success) return 0;
+  return [
+    ...parsedOutput.data.matchAll(
+      /^[ \t]*ok [\d.]+ - .*? # SKIP SKIP\(isolation\):[^\r\n]*$/gmu,
+    ),
+  ].length;
+}
+
+export function parseTapSummary(output, isolationSkipSignals = []) {
   const capturedOutput = z.string().safeParse(output);
   if (!capturedOutput.success) return emptyTapSummary;
   const count = (name) => {
@@ -52,11 +90,25 @@ export function parseTapSummary(output) {
     const last = [...matches].at(-1);
     return last ? Number(last[1]) : undefined;
   };
-  const isolationSkipNames = [
-    ...capturedOutput.data.matchAll(
-      /^[ \t]*ok \d+ - (.*?) # SKIP SKIP\(isolation\):[^\r\n]*$/gmu,
-    ),
-  ].map((match) => match[1]);
+  const skippedEntries = [
+    ...capturedOutput.data.matchAll(/^[ \t]*ok [\d.]+ - (.*?) # SKIP (.*)$/gmu),
+  ].map((match) => ({ testName: match[1], line: match[2] }));
+  const parsedSignals = z
+    .array(z.object({ testName: z.string(), line: z.string() }).strict())
+    .safeParse(isolationSkipSignals);
+  const unmatchedEntries = [...skippedEntries];
+  const isolationSkipNames = [];
+  if (parsedSignals.success) {
+    for (const signal of parsedSignals.data) {
+      const index = unmatchedEntries.findIndex(
+        (entry) =>
+          entry.testName === signal.testName && entry.line === signal.line,
+      );
+      if (index < 0) continue;
+      unmatchedEntries.splice(index, 1);
+      isolationSkipNames.push(signal.testName);
+    }
+  }
   const summary = tapSummarySchema.safeParse({
     testCount: count('tests'),
     skippedCount: count('skipped'),

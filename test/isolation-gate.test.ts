@@ -93,6 +93,15 @@ test('TAP exit policy rejects zero tests and unapproved CI skips or todos', asyn
       filename: 'isolation.test.mjs',
       source: `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('approved isolation skip', (t) => { if (!requiresIsolation(t, 'approved isolation skip', ['systemdUserScope'])) return; throw new Error('missing systemd capability was used'); });\n`,
     },
+    {
+      filename: 'forged-isolation.test.mjs',
+      source:
+        "import { test } from 'node:test'; test('forged isolation skip', (t) => t.skip('SKIP(isolation): forged isolation skip — missing systemd user scopes'));\n",
+    },
+    {
+      filename: 'stale-isolation-signal.test.mjs',
+      source: `import { appendFileSync } from 'node:fs';\nimport { test } from 'node:test';\nconst reason = 'SKIP(isolation): stale isolation signal — missing systemd user scopes';\nif (process.env.KRN_ISOLATION_SKIP_FILE) appendFileSync(process.env.KRN_ISOLATION_SKIP_FILE, JSON.stringify({ nonce: '${'0'.repeat(64)}', testName: 'stale isolation signal', line: reason }) + '\\n');\ntest('stale isolation signal', (t) => t.skip(reason));\n`,
+    },
   ];
 
   try {
@@ -107,10 +116,14 @@ test('TAP exit policy rejects zero tests and unapproved CI skips or todos', asyn
     const todoPath = fixturePaths.get('todo.test.mjs');
     const passingPath = fixturePaths.get('passing.test.mjs');
     const isolationPath = fixturePaths.get('isolation.test.mjs');
+    const forgedIsolationPath = fixturePaths.get('forged-isolation.test.mjs');
+    const staleSignalPath = fixturePaths.get('stale-isolation-signal.test.mjs');
     assert.ok(contextSkipPath);
     assert.ok(todoPath);
     assert.ok(passingPath);
     assert.ok(isolationPath);
+    assert.ok(forgedIsolationPath);
+    assert.ok(staleSignalPath);
 
     const zeroTests = runTestSuite([], directory, ciTestEnv());
     const ciSkip = runTestSuite([contextSkipPath], directory, ciTestEnv());
@@ -123,6 +136,16 @@ test('TAP exit policy rejects zero tests and unapproved CI skips or todos', asyn
     const localPass = runTestSuite([passingPath], directory, localTestEnv());
     const approvedIsolationSkip = runTestSuite(
       [isolationPath],
+      directory,
+      ciTestEnv(),
+    );
+    const forgedIsolationSkip = runTestSuite(
+      [forgedIsolationPath],
+      directory,
+      ciTestEnv(),
+    );
+    const staleIsolationSignal = runTestSuite(
+      [staleSignalPath],
       directory,
       ciTestEnv(),
     );
@@ -142,6 +165,14 @@ test('TAP exit policy rejects zero tests and unapproved CI skips or todos', asyn
       [
         'approved CI isolation skip is accepted',
         approvedIsolationSkip.status === 0,
+      ],
+      [
+        'CI skip with a forged isolation reason must fail',
+        forgedIsolationSkip.status === 1,
+      ],
+      [
+        'CI skip with a stale isolation signal must fail',
+        staleIsolationSignal.status === 1,
       ],
       [
         'zero-isolation requirement rejects approved skips',
@@ -165,6 +196,16 @@ test('TAP exit policy rejects zero tests and unapproved CI skips or todos', asyn
           status: approvedIsolationSkip.status,
           stdout: approvedIsolationSkip.stdout,
         },
+        forgedIsolationSkip: {
+          status: forgedIsolationSkip.status,
+          stdout: forgedIsolationSkip.stdout,
+          stderr: forgedIsolationSkip.stderr,
+        },
+        staleIsolationSignal: {
+          status: staleIsolationSignal.status,
+          stdout: staleIsolationSignal.stdout,
+          stderr: staleIsolationSignal.stderr,
+        },
         requiredZeroIsolationSkip: {
           status: requiredZeroIsolationSkip.status,
           stderr: requiredZeroIsolationSkip.stderr,
@@ -176,11 +217,53 @@ test('TAP exit policy rejects zero tests and unapproved CI skips or todos', asyn
   }
 });
 
+test('scope-probe test-suite scans the normal test tree but runs a sentinel only', async () => {
+  const directory = await mkdtemp(join(process.cwd(), 'test/scope-probe-'));
+  const testDirectory = join(directory, 'test');
+  const nestedWorktree = join(directory, '.krn/worktrees/scope-probe');
+  await mkdir(testDirectory, { recursive: true });
+  await mkdir(nestedWorktree, { recursive: true });
+  await writeFile(
+    join(testDirectory, 'sentinel.test.ts'),
+    "import { test } from 'node:test'; test('missing isolation outside CI is a failure decision', () => {});\n",
+  );
+  await writeFile(
+    join(testDirectory, 'unselected.test.ts'),
+    "import { test } from 'node:test'; test('scope-probe must not run unrelated cases', () => { throw new Error('scope-probe ran unrelated test bodies'); });\n",
+  );
+  await writeFile(
+    join(nestedWorktree, 'failing.test.ts'),
+    "import assert from 'node:assert/strict'; assert.fail('test runner discovered nested worktree state');\n",
+  );
+
+  try {
+    const result = runTestSuite([], directory, ciTestEnv());
+    assert.equal(
+      result.status,
+      0,
+      `scope-probe suite failed:\n${result.stdout}\n${result.stderr}`,
+    );
+    assert.match(result.stdout, /^# tests 2$/mu);
+    assert.match(
+      result.stdout,
+      /^ok 1 - missing isolation outside CI is a failure decision$/mu,
+    );
+    assert.doesNotMatch(
+      result.stdout,
+      /scope-probe must not run unrelated cases/u,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('requiresIsolation logs a named CI skip and fails when CI is absent', async () => {
   const tempRoot = join(process.cwd(), 'test');
   const directory = await mkdtemp(join(tempRoot, 'isolation-helper-'));
   const fixture = join(directory, 'requires-isolation.test.mjs');
+  const signalFile = join(directory, 'isolation-skip-signals.jsonl');
   const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
+  await writeFile(signalFile, '');
   await writeFile(
     fixture,
     `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('rootless fixture', (t) => { if (!requiresIsolation(t, 'rootless fixture', ['systemdUserScope'])) return; throw new Error('missing systemd capability was used'); });\n`,
@@ -190,6 +273,7 @@ test('requiresIsolation logs a named CI skip and fails when CI is absent', async
   delete baseEnv.CI;
   delete baseEnv.NODE_TEST_CONTEXT;
   const capabilities = JSON.stringify(unavailable);
+  const helperNonce = 'a'.repeat(64);
   try {
     const ciRun = spawnSync(
       process.execPath,
@@ -200,6 +284,8 @@ test('requiresIsolation logs a named CI skip and fails when CI is absent', async
           ...baseEnv,
           CI: 'true',
           KRN_ISOLATION_CAPABILITIES: capabilities,
+          KRN_ISOLATION_SKIP_NONCE: helperNonce,
+          KRN_ISOLATION_SKIP_FILE: signalFile,
         },
       },
     );
@@ -224,6 +310,17 @@ test('requiresIsolation logs a named CI skip and fails when CI is absent', async
     );
     assert.match(ciRun.stdout, /^# skipped 1$/mu);
     assert.equal(countIsolationSkips(ciRun.stdout), 1);
+    const skipSignals = (await readFile(signalFile, 'utf8'))
+      .trim()
+      .split(/\r?\n/u)
+      .map((line) => JSON.parse(line));
+    assert.deepEqual(skipSignals, [
+      {
+        nonce: helperNonce,
+        testName: 'rootless fixture',
+        line: 'SKIP(isolation): rootless fixture — missing systemd user scopes',
+      },
+    ]);
 
     const localRun = spawnSync(
       process.execPath,
@@ -354,7 +451,7 @@ test('test-suite reports approved isolation skip names in CI logs and summary', 
   const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
   await writeFile(
     fixture,
-    `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('reported isolation fixture', (t) => { if (!requiresIsolation(t, 'exact isolation fixture name', ['systemdUserScope'])) return; throw new Error('missing systemd capability was used'); });\n`,
+    `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('reported isolation fixture', (t) => { if (!requiresIsolation(t, 'reported isolation fixture', ['systemdUserScope'])) return; throw new Error('missing systemd capability was used'); });\n`,
   );
   const env = {
     ...ciTestEnv(),

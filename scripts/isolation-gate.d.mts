@@ -13,6 +13,10 @@ export type TapSummary = {
   todoCount: number | undefined;
   isolationSkipNames: string[];
 };
+export type IsolationSkipSignal = {
+  testName: string;
+  line: string;
+};
 export function decideIsolation(
   testName: string,
   required: readonly IsolationCapability[],
@@ -20,8 +24,15 @@ export function decideIsolation(
   isCI: boolean,
 ): IsolationDecision;
 export function isolationSummary(skipNames: readonly string[]): string;
+export function parseIsolationSkipSignals(
+  output: string,
+  expectedNonce: string,
+): IsolationSkipSignal[];
 export function countIsolationSkips(output: string): number;
-export function parseTapSummary(output: string): TapSummary;
+export function parseTapSummary(
+  output: string,
+  isolationSkipSignals?: readonly IsolationSkipSignal[],
+): TapSummary;
 export function testSuiteExitCode(
   exitCode: number,
   summary: TapSummary,
