@@ -165,7 +165,7 @@ test('judgeRole launches Codex with high reasoning effort', async (t) => {
       sha,
       'spec',
       'Check acceptance.',
-      [],
+      { baseSha: sha, headSha: sha, results: [] },
       5000,
       fake.executable,
     );
