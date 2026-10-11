@@ -26,6 +26,12 @@ const nodeResolutionFailure =
   /\bERR_(?:MODULE_NOT_FOUND|PACKAGE_PATH_NOT_EXPORTED|PACKAGE_IMPORT_NOT_DEFINED|INVALID_MODULE_SPECIFIER|INVALID_PACKAGE_CONFIG|INVALID_PACKAGE_TARGET|UNSUPPORTED_DIR_IMPORT|UNSUPPORTED_RESOLVE_REQUEST|UNSUPPORTED_ESM_URL_SCHEME|UNKNOWN_FILE_EXTENSION|UNKNOWN_BUILTIN_MODULE|REQUIRE_ESM)\b|Cannot find (?:module|package)\b|Module not found\b|does not provide an export named|Named export .+ not found/u;
 const assertionFailure = /AssertionError|ERR_ASSERTION|assert\./u;
 
+export interface RedFirstReport {
+  readonly baseSha: string;
+  readonly headSha: string;
+  readonly results: readonly RedFirstResult[];
+}
+
 function gitOutput(
   root: string,
   args: readonly string[],
@@ -120,6 +126,7 @@ function changedTestFiles(root: string, base: string, head: string): string[] {
 async function classifyTest(
   root: string,
   scratch: string,
+  side: 'base' | 'head',
   sha: string,
   path: string,
   signal?: AbortSignal,
@@ -176,6 +183,8 @@ async function classifyTest(
           : 'other';
   return redFirstSchema.parse({
     path,
+    side,
+    sha,
     classification,
     exitCode: evidence.exitCode,
     durationMs: Date.now() - started,
@@ -189,11 +198,7 @@ export async function redFirst(
   base: string,
   headInput: string,
   signal?: AbortSignal,
-): Promise<{
-  readonly baseSha: string;
-  readonly headSha: string;
-  readonly results: readonly RedFirstResult[];
-}> {
+): Promise<RedFirstReport> {
   const root = repoRoot(rootInput);
   const head = validateSha(root, headInput);
   const baseSha = resolveCommit(root, base);
@@ -202,12 +207,19 @@ export async function redFirst(
   const copies: string[] = [];
   try {
     const results: RedFirstResult[] = [];
-    for (const path of files) {
-      const scratch = createWorktreeDirectory(temporary);
-      copies.push(scratch);
-      await addWorktree(root, scratch, baseSha);
-      git(scratch, ['checkout', head, '--', ...files]);
-      results.push(await classifyTest(root, scratch, baseSha, path, signal));
+    for (const [side, sha] of [
+      ['base', baseSha],
+      ['head', head],
+    ] as const) {
+      for (const path of files) {
+        const scratch = createWorktreeDirectory(temporary);
+        copies.push(scratch);
+        await addWorktree(root, scratch, side === 'base' ? baseSha : head);
+        if (side === 'base') git(scratch, ['checkout', head, '--', ...files]);
+        results.push(
+          await classifyTest(root, scratch, side, sha, path, signal),
+        );
+      }
     }
     return { baseSha, headSha: head, results };
   } finally {

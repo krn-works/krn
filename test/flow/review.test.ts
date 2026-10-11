@@ -16,7 +16,84 @@ import { runReview } from '../../src/flow/index.ts';
 import { judgeRole, parseJudgeResponse } from '../../src/flow/panel.ts';
 import { appendOverride } from '../../src/flow/record.ts';
 import { redFirst } from '../../src/flow/repository.ts';
+import { redFirstSchema } from '../../src/flow/types.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+
+test('red-first results retain the side and exact commit SHA', () => {
+  const result = redFirstSchema.parse({
+    path: 'test/example.test.ts',
+    side: 'base',
+    sha: 'a'.repeat(40),
+    classification: 'assertion',
+    exitCode: 1,
+    durationMs: 1,
+    outputSha256: 'b'.repeat(64),
+    summary: 'AssertionError',
+  });
+
+  assert.equal(result.side, 'base');
+  assert.equal(result.sha, 'a'.repeat(40));
+  assert.throws(() =>
+    redFirstSchema.parse({ ...result, side: undefined, sha: undefined }),
+  );
+});
+
+test('legacy review records without red-first side and SHA still accept overrides', () => {
+  const { root, cleanup } = fixture();
+  try {
+    const headSha = git(root, 'rev-parse', 'HEAD');
+    const recordDirectory = join(root, '.krn', 'runs', 'review', headSha);
+    mkdirSync(recordDirectory, { recursive: true });
+    writeFileSync(
+      join(recordDirectory, 'record.json'),
+      `${JSON.stringify(
+        {
+          schemaVersion: 1,
+          headSha,
+          base: headSha,
+          createdAt: '2026-10-11T00:00:00.000Z',
+          panelVerdict: 'FAIL',
+          redFirst: [
+            {
+              path: 'test/legacy.test.ts',
+              classification: 'assertion',
+              exitCode: 1,
+              durationMs: 1,
+              outputSha256: 'b'.repeat(64),
+              summary: 'AssertionError',
+            },
+          ],
+          judges: [
+            {
+              state: 'complete',
+              role: 'adversarial',
+              verdict: 'FAIL',
+              findings: [],
+              sessionId: 'legacy-session',
+              finalMessage: 'FAIL',
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    let updated: ReturnType<typeof appendOverride> | undefined;
+    assert.doesNotThrow(() => {
+      updated = appendOverride(root, headSha, {
+        reason: 'accepted legacy evidence',
+        evidence: 'the existing record remains readable',
+      });
+    });
+
+    assert.equal(updated?.override?.reason, 'accepted legacy evidence');
+    assert.equal(updated?.redFirst[0]?.side, undefined);
+    assert.equal(updated?.redFirst[0]?.sha, undefined);
+  } finally {
+    cleanup();
+  }
+});
 
 function git(root: string, ...args: string[]): string {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
@@ -46,9 +123,14 @@ function fakeCodex(
   directory: string,
   response: string,
   options: { readonly completeTurn?: boolean } = {},
-): { readonly executable: string; readonly argsFile: string } {
+): {
+  readonly executable: string;
+  readonly argsFile: string;
+  readonly promptFile: string;
+} {
   const executable = join(directory, 'fake-codex.mjs');
   const argsFile = join(directory, 'codex-args.json');
+  const promptFile = join(directory, 'codex-prompt.txt');
   const encoded = JSON.stringify(response);
   const completion =
     options.completeTurn === false
@@ -56,11 +138,12 @@ function fakeCodex(
       : "process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,output_tokens:1,total_tokens:2}})+'\\n');";
   writeFileSync(
     executable,
-    `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nlet prompt=''; for await (const chunk of process.stdin) prompt += chunk;\nwriteFileSync(process.env.KRN_REVIEW_ARGS, JSON.stringify(process.argv.slice(2)));\nconst text=${encoded};\nprocess.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text}})+'\\n');\n${completion}\n`,
+    `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nlet prompt=''; for await (const chunk of process.stdin) prompt += chunk;\nwriteFileSync(process.env.KRN_REVIEW_ARGS, JSON.stringify(process.argv.slice(2)));\nwriteFileSync(process.env.KRN_REVIEW_PROMPT, prompt);\nconst text=${encoded};\nprocess.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text}})+'\\n');\n${completion}\n`,
   );
   chmodSync(executable, 0o700);
   process.env.KRN_REVIEW_ARGS = argsFile;
-  return { executable, argsFile };
+  process.env.KRN_REVIEW_PROMPT = promptFile;
+  return { executable, argsFile, promptFile };
 }
 
 test('judgeRole launches Codex with high reasoning effort', async (t) => {
@@ -127,8 +210,17 @@ test('mechanical red-first distinguishes assertion failures from missing imports
     const report = await redFirst(root, base, head);
     assert.deepEqual(
       report.results.map(({ classification }) => classification),
-      ['assertion', 'procedural'],
+      ['assertion', 'procedural', 'assertion', 'procedural'],
       JSON.stringify(report.results),
+    );
+    assert.deepEqual(
+      report.results.map(({ side, sha }) => [side, sha]),
+      [
+        ['base', base],
+        ['base', base],
+        ['head', head],
+        ['head', head],
+      ],
     );
   } finally {
     cleanup();
@@ -199,10 +291,13 @@ test('red-first treats real Node resolution and linking errors as procedural', a
     const report = await redFirst(root, base, head);
     assert.deepEqual(
       report.results.map(({ classification }) => classification),
-      orderedFailures.map(() => 'procedural'),
+      [...orderedFailures, ...orderedFailures].map(() => 'procedural'),
       JSON.stringify(report.results),
     );
-    for (const [index, failure] of orderedFailures.entries())
+    for (const [index, failure] of [
+      ...orderedFailures,
+      ...orderedFailures,
+    ].entries())
       assert.match(report.results[index]?.summary ?? '', failure.message);
   } finally {
     cleanup();
@@ -369,6 +464,7 @@ test('panel launcher forces read-only and a lead override is appended after FAIL
     return;
   const { root, cleanup } = fixture();
   const priorArgs = process.env.KRN_REVIEW_ARGS;
+  const priorPrompt = process.env.KRN_REVIEW_PROMPT;
   try {
     const base = git(root, 'rev-parse', 'HEAD');
     writeFileSync(join(root, 'src.ts'), 'export const answer = 42;\n');
@@ -411,6 +507,9 @@ test('panel launcher forces read-only and a lead override is appended after FAIL
       assert.equal(record.judges[0].verdict, 'FAIL');
     const args = JSON.parse(readFileSync(fake.argsFile, 'utf8')) as string[];
     assert.equal(args[args.indexOf('--sandbox') + 1], 'read-only');
+    const prompt = readFileSync(fake.promptFile, 'utf8');
+    assert.ok(prompt.includes(`MECHANICAL RED-FIRST REPORT — BASE ${base}`));
+    assert.ok(prompt.includes(`MECHANICAL RED-FIRST REPORT — HEAD ${head}`));
     const updated = appendOverride(root, head, {
       reason: 'accepted residual risk',
       evidence: 'verified in the follow-up probe',
@@ -420,6 +519,8 @@ test('panel launcher forces read-only and a lead override is appended after FAIL
   } finally {
     if (priorArgs === undefined) delete process.env.KRN_REVIEW_ARGS;
     else process.env.KRN_REVIEW_ARGS = priorArgs;
+    if (priorPrompt === undefined) delete process.env.KRN_REVIEW_PROMPT;
+    else process.env.KRN_REVIEW_PROMPT = priorPrompt;
     cleanup();
   }
 });
