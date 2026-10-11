@@ -339,6 +339,15 @@ export function createPaperclipCliTransport(
         signal,
       );
     },
+    async commentIssue(issueId, comment) {
+      validIssueId(issueId);
+      const resolvedId = resolvedIds.get(issueId) ?? issueId;
+      return invoke(
+        ['issue', 'comment', resolvedId, '--body', comment, '--json'],
+        undefined,
+        false,
+      );
+    },
     async updateIssue(issueId, status, comment) {
       validIssueId(issueId);
       if (!status || /[\r\n]/.test(status))

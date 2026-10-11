@@ -228,6 +228,49 @@ test('CLI update carries status and comment in one argv-safe invocation', async 
   }
 });
 
+test('CLI conflict comments use the comment-only command without a status', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'CLI conflict comments use the comment-only command without a status',
+      ['systemdUserScope'],
+    )
+  )
+    return;
+  const fake = await fakeCli();
+  await writeFile(
+    fake.executable,
+    `#!/usr/bin/env node\nconst fs = require('node:fs');\nconst args = process.argv.slice(2);\nfs.writeFileSync(${JSON.stringify(fake.capture)}, JSON.stringify(args));\nprocess.stdout.write('{"id":"comment-1"}');\n`,
+  );
+  await chmod(fake.executable, 0o755);
+  try {
+    const transport = createPaperclipCliTransport({
+      executable: fake.executable,
+    });
+    assert.ok(
+      'commentIssue' in transport,
+      'CLI transport must expose a comment-only operation',
+    );
+    const commentIssue = (
+      transport as typeof transport & {
+        commentIssue(issueId: string, comment: string): Promise<unknown>;
+      }
+    ).commentIssue;
+    const comment = 'Krn-Session: session-7\nBoard conflict';
+    await commentIssue.call(transport, 'LON-200', comment);
+    assert.deepEqual(JSON.parse(await readFile(fake.capture, 'utf8')), [
+      'issue',
+      'comment',
+      'LON-200',
+      '--body',
+      comment,
+      '--json',
+    ]);
+  } finally {
+    await rm(fake.directory, { recursive: true, force: true });
+  }
+});
+
 test('CLI activity conflicts use the read-only issue activity command', async (t) => {
   if (
     !requiresIsolation(

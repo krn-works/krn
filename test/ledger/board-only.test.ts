@@ -132,6 +132,33 @@ test('oversized Paperclip responses are refused before parsing', async () => {
   await assert.rejects(ledger.readContract(job.issue), /1 MiB/u);
 });
 
+test('non-JSON Paperclip errors preserve HTTP status before JSON parsing', async () => {
+  const ledger = createLedger({
+    apiUrl: 'http://paperclip.test',
+    token: 'fixture-token',
+    session: 'session-7',
+    fetch: async () =>
+      new Response('<html>upstream unavailable</html>', { status: 502 }),
+  });
+  await assert.rejects(
+    ledger.readContract(job.issue),
+    /Paperclip issue read failed \(502\)/u,
+  );
+});
+
+test('oversized Paperclip error bodies are bounded and retain HTTP status', async () => {
+  const ledger = createLedger({
+    apiUrl: 'http://paperclip.test',
+    token: 'fixture-token',
+    session: 'session-7',
+    fetch: async () => new Response('x'.repeat(1_048_577), { status: 502 }),
+  });
+  await assert.rejects(
+    ledger.readContract(job.issue),
+    /Paperclip issue read failed \(502\).*1 MiB/u,
+  );
+});
+
 test('a timed-out pre-write board read refuses without a PATCH', async () => {
   let requests = 0;
   let patches = 0;

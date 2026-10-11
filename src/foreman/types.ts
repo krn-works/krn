@@ -3,6 +3,7 @@ import type {
   Contract,
   ReviewSubmission,
   SubmissionReceipt,
+  SubmissionReconciliation,
   SubmitForReviewOptions,
   VerdictEvidence,
 } from '../ledger/index.ts';
@@ -194,6 +195,15 @@ export type Deps = {
     ): Promise<boolean>;
     submittedFor?(job: Job, sha: string): Promise<SubmissionReceipt | null>;
     submitted?(job: Job, sha: string, receipt: SubmissionReceipt): void;
+    submissionReconciledFor?(
+      job: Job,
+      sha: string,
+    ): Promise<SubmissionReconciliation | null>;
+    submissionReconciled?(
+      job: Job,
+      sha: string,
+      result: SubmissionReconciliation,
+    ): void;
     stopped?(job: Job, signal: string): Promise<void>;
     paperclipUpdateStarted?(
       job: Job,

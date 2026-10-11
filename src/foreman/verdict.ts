@@ -18,20 +18,27 @@ export async function reportPassingVerdict(
     | 'readyForReview'
     | 'paperclipUpdateStarted'
     | 'submitIntent'
-    | 'submittedFor'
     | 'submitted'
+    | 'submissionReconciledFor'
+    | 'submissionReconciled'
   >,
   stop: Deps['stop'],
   signal?: AbortSignal,
 ): Promise<Outcome> {
-  const prior = await trace.submittedFor?.(job, sha);
+  const priorReconciliation = await trace.submissionReconciledFor?.(job, sha);
   if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
-  if (prior)
+  if (priorReconciliation === 'submitted')
     return {
       kind: 'verdict_pass',
-      state: prior.status === 'in_review' ? 'in_review' : 'ready_for_review',
+      state: 'in_review',
       sha,
     };
+  if (priorReconciliation)
+    return stop(job, 'human_decision', [
+      priorReconciliation === 'board_conflict'
+        ? 'board_conflict'
+        : 'Paperclip review submission refused',
+    ]);
   const reconcile =
     ledger.submissionEnabled === false
       ? false
@@ -65,6 +72,7 @@ export async function reportPassingVerdict(
       reconcile,
       onWriteStarted: (kind) => trace.paperclipUpdateStarted?.(job, sha, kind),
       onSubmitted: (receipt) => trace.submitted?.(job, sha, receipt),
+      onReconciled: (result) => trace.submissionReconciled?.(job, sha, result),
     },
   );
   if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);

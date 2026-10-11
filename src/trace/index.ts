@@ -17,7 +17,10 @@ import type { Job } from '../core/index.ts';
 import { readCheckpointRequest } from '../foreman/checkpoint-request.ts';
 import { stateDirectory } from '../foreman/state.ts';
 import type { SessionEnd } from '../foreman/types.ts';
-import type { SubmissionReceipt } from '../ledger/index.ts';
+import type {
+  SubmissionReceipt,
+  SubmissionReconciliation,
+} from '../ledger/index.ts';
 import type { VerdictEvent } from '../verdict/index.ts';
 
 type Event = {
@@ -43,6 +46,15 @@ const verdictDataSchema = z.object({
       sha256: z.string().regex(/^[a-f0-9]{64}$/iu),
     }),
   ),
+});
+const submissionReconciliationSchema = z.enum([
+  'submitted',
+  'refused',
+  'board_conflict',
+]);
+const submissionReconciliationDataSchema = z.object({
+  sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
+  result: submissionReconciliationSchema,
 });
 
 function file(job: Job): string {
@@ -391,6 +403,28 @@ export function submitted(
   receipt: SubmissionReceipt,
 ): void {
   append(job, `submitted:${sha}`, 'submitted', { sha, receipt });
+}
+
+export async function submissionReconciledFor(
+  job: Job,
+  sha: string,
+): Promise<SubmissionReconciliation | null> {
+  const event = events(job).find(
+    (candidate) =>
+      candidate.kind === 'submission_reconciled' && candidate.data.sha === sha,
+  );
+  if (!event) return null;
+  const parsed = submissionReconciliationDataSchema.safeParse(event.data);
+  return parsed.success ? parsed.data.result : null;
+}
+
+export function submissionReconciled(
+  job: Job,
+  sha: string,
+  result: SubmissionReconciliation,
+): void {
+  const data = submissionReconciliationDataSchema.parse({ sha, result });
+  append(job, `submission-reconciled:${sha}`, 'submission_reconciled', data);
 }
 
 export async function stopped(job: Job, signal: string): Promise<void> {

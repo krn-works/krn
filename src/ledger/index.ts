@@ -100,12 +100,17 @@ export type SubmissionReceipt = Readonly<{
   status: string;
   updatedAt: string;
 }>;
+export type SubmissionReconciliation =
+  | 'submitted'
+  | 'refused'
+  | 'board_conflict';
 export type SubmitForReviewOptions = Readonly<{
   signal?: AbortSignal;
   reconcile?: boolean;
   session?: string;
   onWriteStarted?: (kind: 'review' | 'conflict_comment') => void;
   onSubmitted?: (receipt: SubmissionReceipt) => void;
+  onReconciled?: (result: SubmissionReconciliation) => void;
 }>;
 export type Ledger = ReturnType<typeof createLedger>;
 export type LedgerOptions = {
@@ -121,6 +126,7 @@ export type LedgerTransport = Readonly<{
   readIssue(issueId: string, signal?: AbortSignal): Promise<unknown>;
   readActivity(issueId: string, signal?: AbortSignal): Promise<unknown>;
   readComments(issueId: string, signal?: AbortSignal): Promise<unknown>;
+  commentIssue?(issueId: string, comment: string): Promise<unknown>;
   updateIssue(
     issueId: string,
     status: string,
@@ -216,8 +222,8 @@ function validEvidence(contract: Contract, evidence: VerdictEvidence): boolean {
   );
 }
 
-async function readBoundedJson(response: Response): Promise<unknown> {
-  if (!response.body) throw new Error('Paperclip response body is empty');
+async function readBoundedBody(response: Response): Promise<Uint8Array> {
+  if (!response.body) return new Uint8Array();
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -241,8 +247,26 @@ async function readBoundedJson(response: Response): Promise<unknown> {
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
+  return bytes;
+}
+
+async function readBoundedJson(response: Response): Promise<unknown> {
+  const bytes = await readBoundedBody(response);
+  if (bytes.byteLength === 0)
+    throw new Error('Paperclip response body is empty');
   const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   return JSON.parse(text);
+}
+
+function responseFailure(
+  operation: string,
+  response: Response,
+  errorBodyReadError?: string,
+): Error {
+  const detail = errorBodyReadError ? `: ${errorBodyReadError}` : '';
+  return new Error(
+    `Paperclip ${operation} failed (${response.status})${detail}`,
+  );
 }
 
 export function createLedger(options: LedgerOptions) {
@@ -266,7 +290,11 @@ export function createLedger(options: LedgerOptions) {
     input: string,
     init: RequestInit,
     signal?: AbortSignal,
-  ): Promise<{ response: Response; body: unknown }> {
+  ): Promise<{
+    response: Response;
+    body: unknown;
+    errorBodyReadError?: string;
+  }> {
     const controller = new AbortController();
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     let timedOut = false;
@@ -278,6 +306,22 @@ export function createLedger(options: LedgerOptions) {
         ...init,
         signal: requestSignal,
       });
+      if (!response.ok) {
+        try {
+          await readBoundedBody(response);
+        } catch (error) {
+          return {
+            response,
+            body: undefined,
+            errorBodyReadError:
+              error instanceof Error &&
+              error.message === 'Paperclip response exceeds 1 MiB'
+                ? error.message
+                : 'Paperclip error body could not be read',
+          };
+        }
+        return { response, body: undefined };
+      }
       return { response, body: await readBoundedJson(response) };
     })();
     const timeout = new Promise<never>((_resolve, reject) => {
@@ -307,7 +351,7 @@ export function createLedger(options: LedgerOptions) {
         throw new Error('invalid Paperclip issue response');
       return parsed.data;
     }
-    const { response, body } = await requestJson(
+    const { response, body, errorBodyReadError } = await requestJson(
       `${base}/api/issues/${issueId}`,
       {
         headers,
@@ -316,7 +360,7 @@ export function createLedger(options: LedgerOptions) {
       signal,
     );
     if (!response.ok)
-      throw new Error(`Paperclip issue read failed (${response.status})`);
+      throw responseFailure('issue read', response, errorBodyReadError);
     const parsed = parseIssue(body);
     if (!parsed.success || parsed.data.id !== issueId)
       throw new Error('invalid Paperclip issue response');
@@ -334,13 +378,13 @@ export function createLedger(options: LedgerOptions) {
         throw new Error('invalid Paperclip activity response');
       return parsed.data;
     }
-    const { response, body } = await requestJson(
+    const { response, body, errorBodyReadError } = await requestJson(
       `${base}/api/issues/${issueId}/activity`,
       { headers, redirect: 'error' },
       signal,
     );
     if (!response.ok)
-      throw new Error(`Paperclip activity read failed (${response.status})`);
+      throw responseFailure('activity read', response, errorBodyReadError);
     const parsed = activitySchema.safeParse(body);
     if (!parsed.success) throw new Error('invalid Paperclip activity response');
     return parsed.data;
@@ -350,13 +394,13 @@ export function createLedger(options: LedgerOptions) {
     if (!/^[A-Za-z0-9_-]+$/.test(issueId))
       throw new Error('invalid Paperclip issue ID');
     if (transport) return transport.readComments(issueId, signal);
-    const { response, body } = await requestJson(
+    const { response, body, errorBodyReadError } = await requestJson(
       `${base}/api/issues/${issueId}/comments?order=asc&limit=500`,
       { headers, redirect: 'error' },
       signal,
     );
     if (!response.ok)
-      throw new Error(`Paperclip comments read failed (${response.status})`);
+      throw responseFailure('comments read', response, errorBodyReadError);
     return body;
   }
 
@@ -388,18 +432,18 @@ export function createLedger(options: LedgerOptions) {
       'Human review is required; the ledger made no status correction.',
     ].join('\n');
     if (transport) {
-      const current = await readIssue(issueId, signal);
-      if (signal?.aborted) return;
+      if (!transport.commentIssue)
+        throw new Error('Paperclip comment-only transport is required');
       onWriteStarted?.('conflict_comment');
       if (signal?.aborted) return;
-      await transport.updateIssue(issueId, current.status, comment);
+      await transport.commentIssue(issueId, comment);
       if (signal?.aborted) return;
       return;
     }
     if (signal?.aborted) return;
     onWriteStarted?.('conflict_comment');
     if (signal?.aborted) return;
-    const { response } = await requestJson(
+    const { response, errorBodyReadError } = await requestJson(
       `${base}/api/issues/${issueId}/comments`,
       {
         method: 'POST',
@@ -410,7 +454,7 @@ export function createLedger(options: LedgerOptions) {
     );
     if (signal?.aborted) return;
     if (!response.ok)
-      throw new Error(`Paperclip conflict comment failed (${response.status})`);
+      throw responseFailure('conflict comment', response, errorBodyReadError);
   }
 
   return {
@@ -461,7 +505,8 @@ export function createLedger(options: LedgerOptions) {
       recordedSha: string,
       submitOptions: SubmitForReviewOptions = {},
     ): Promise<ReviewSubmission> {
-      const { signal, reconcile, onWriteStarted, onSubmitted } = submitOptions;
+      const { signal, reconcile, onWriteStarted, onSubmitted, onReconciled } =
+        submitOptions;
       const session = submitOptions.session ?? options.session;
       if (
         contract.issueId !== job.issue ||
@@ -495,6 +540,7 @@ export function createLedger(options: LedgerOptions) {
             status: replayIssue.status,
             updatedAt: replayIssue.updatedAt,
           });
+          onReconciled?.('submitted');
           return 'submitted';
         }
       }
@@ -526,8 +572,9 @@ export function createLedger(options: LedgerOptions) {
       ].join('\n');
       let response: Response | undefined;
       let body: unknown;
+      let errorBodyReadError: string | undefined;
       if (signal?.aborted) return 'stopped';
-      const writeStartedAt = Date.now();
+      const serverWriteStartedAt = Date.parse(fenced.updatedAt);
       onWriteStarted?.('review');
       if (signal?.aborted) return 'stopped';
       if (transport) {
@@ -541,11 +588,14 @@ export function createLedger(options: LedgerOptions) {
         });
         response = result.response;
         body = result.body;
+        errorBodyReadError = result.errorBodyReadError;
       }
       if (signal?.aborted) return 'stopped';
       if (response && !response.ok)
-        throw new Error(
-          `Paperclip review submission failed (${response.status})`,
+        throw responseFailure(
+          'review submission',
+          response,
+          errorBodyReadError,
         );
       const receipt = parseIssue(body);
       if (!receipt.success || receipt.data.id !== job.issue)
@@ -570,14 +620,14 @@ export function createLedger(options: LedgerOptions) {
         (event) =>
           /comment/iu.test(event.action) &&
           eventCommentHash(event) === hash(comment) &&
-          withinWriteWindow(event, writeStartedAt, receiptAt),
+          withinWriteWindow(event, serverWriteStartedAt, receiptAt),
       );
       const ownReviewEvents = newEvents.filter(
         (event) =>
           event.action === 'issue.updated' &&
           event.entityId === job.issue &&
           activityStatus(event) &&
-          withinWriteWindow(event, writeStartedAt, receiptAt) &&
+          withinWriteWindow(event, serverWriteStartedAt, receiptAt) &&
           ownCommentEvents.some(
             (commentEvent) =>
               Math.abs(
@@ -594,6 +644,7 @@ export function createLedger(options: LedgerOptions) {
         ownCommentEvents.length !== 1 ||
         afterIssue.updatedAt !== receipt.data.updatedAt
       ) {
+        onReconciled?.('board_conflict');
         await reportBoardConflict(
           job.issue,
           evidence.sha,
@@ -607,7 +658,10 @@ export function createLedger(options: LedgerOptions) {
         if (signal?.aborted) return 'stopped';
         return 'board_conflict';
       }
-      return afterIssue.status === 'in_review' ? 'submitted' : 'refused';
+      const reconciliation =
+        afterIssue.status === 'in_review' ? 'submitted' : 'refused';
+      onReconciled?.(reconciliation);
+      return reconciliation;
     },
   };
 }
