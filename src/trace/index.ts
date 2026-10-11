@@ -1,10 +1,11 @@
 // Trace is append-only so a resumed worker can distinguish durable checkpoints. ADR 0001.
 
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
   existsSync,
   fsyncSync,
+  ftruncateSync,
   mkdirSync,
   openSync,
   readFileSync,
@@ -26,34 +27,92 @@ type Event = {
   readonly data: Record<string, unknown>;
 };
 
+const eventSchema = z.object({
+  key: z.string(),
+  kind: z.string(),
+  at: z.string(),
+  data: z.record(z.string(), z.unknown()),
+});
+const verdictDataSchema = z.object({
+  sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
+  checks: z.array(
+    z.object({
+      id: z.string(),
+      exitCode: z.number().int(),
+      durationMs: z.number().nonnegative(),
+      sha256: z.string().regex(/^[a-f0-9]{64}$/iu),
+    }),
+  ),
+});
+
 function file(job: Job): string {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(job.id) || job.id === '..')
     throw new Error('invalid trace job id');
   return join(stateDirectory(job), 'trace.jsonl');
 }
 
+function parseEvent(line: string): Event {
+  const value: unknown = JSON.parse(line);
+  return eventSchema.parse(value);
+}
+
+function writeAllSync(fd: number, value: string): void {
+  const bytes = Buffer.from(value);
+  let offset = 0;
+  while (offset < bytes.length) {
+    const written = writeSync(fd, bytes, offset, bytes.length - offset);
+    if (written < 1) throw new Error('trace write made no progress');
+    offset += written;
+  }
+}
+
 function events(job: Job): Event[] {
   const path = file(job);
   if (!existsSync(path)) return [];
+  let contents: Buffer;
   try {
-    return readFileSync(path, 'utf8')
-      .split('\n')
-      .filter(Boolean)
-      .map((line) => {
-        const value: unknown = JSON.parse(line);
-        return z
-          .object({
-            key: z.string(),
-            kind: z.string(),
-            at: z.string(),
-            data: z.record(z.string(), z.unknown()),
-          })
-          .parse(value);
-      });
+    contents = readFileSync(path);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
     throw error;
   }
+  const terminated =
+    contents.length === 0 || contents[contents.length - 1] === 0x0a;
+  const lastNewline = contents.lastIndexOf(0x0a);
+  const completeLength = terminated ? contents.length - 1 : lastNewline + 1;
+  const result = contents
+    .subarray(0, completeLength)
+    .toString('utf8')
+    .split('\n')
+    .filter(Boolean)
+    .map(parseEvent);
+  if (terminated || contents.length === 0) return result;
+
+  const tail = contents.subarray(completeLength).toString('utf8');
+  let finalEvent: Event;
+  try {
+    finalEvent = parseEvent(tail);
+  } catch {
+    const fd = openSync(path, 'r+');
+    try {
+      ftruncateSync(fd, completeLength);
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
+    console.warn('krn trace: discarded torn final trace line');
+    return result;
+  }
+
+  const fd = openSync(path, 'a');
+  try {
+    writeAllSync(fd, '\n');
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+  result.push(finalEvent);
+  return result;
 }
 
 function append(
@@ -71,7 +130,7 @@ function append(
   if (prior) return false;
   const fd = openSync(path, 'a', 0o600);
   try {
-    writeSync(
+    writeAllSync(
       fd,
       `${JSON.stringify({ id: randomUUID(), key, kind, at: new Date().toISOString(), data })}\n`,
     );
@@ -270,7 +329,7 @@ export async function failure(
 }
 
 export async function verdict(job: Job, event: VerdictEvent): Promise<void> {
-  append(job, `verdict:${event.sha}`, 'verdict', {
+  const data = {
     sha: event.sha,
     checks: event.checks.map(({ id, exitCode, durationMs, sha256 }) => ({
       id,
@@ -278,13 +337,21 @@ export async function verdict(job: Job, event: VerdictEvent): Promise<void> {
       durationMs,
       sha256,
     })),
-  });
+  };
+  const resultHash = createHash('sha256')
+    .update(JSON.stringify(data))
+    .digest('hex');
+  append(job, `verdict:${event.sha}:${resultHash}`, 'verdict', data);
 }
 
 export async function hasVerdict(job: Job, sha: string): Promise<boolean> {
-  return events(job).some(
-    (event) => event.kind === 'verdict' && event.data.sha === sha,
-  );
+  return events(job).some((event) => {
+    if (event.kind !== 'verdict') return false;
+    const parsed = verdictDataSchema.parse(event.data);
+    return (
+      parsed.sha === sha && parsed.checks.every((check) => check.exitCode === 0)
+    );
+  });
 }
 
 export async function submitIntent(
