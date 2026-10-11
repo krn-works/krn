@@ -20,6 +20,7 @@ import { ensureProjectionDirectory, stateDirectory } from '../foreman/state.ts';
 import type { Contract } from '../ledger/index.ts';
 
 const MAX_PROJECTION_TOKENS = 2000;
+const MAX_CAPSULE_DECISIONS = 64;
 
 function approximateTokenCount(text: string): number {
   return Math.ceil(text.length / 4);
@@ -128,7 +129,7 @@ function renderAbi(capsule: Capsule, expectedEpoch: number | null): string {
   return projection;
 }
 
-export function projectCapsule(job: Job, capsule: Capsule): void {
+function writeProjection(job: Job, content: string): void {
   const projection = capsulePath(job);
   const directory = ensureProjectionDirectory(job);
   if (realpathSync(directory) !== directory)
@@ -143,11 +144,15 @@ export function projectCapsule(job: Job, capsule: Capsule): void {
     0o600,
   );
   try {
-    writeFileSync(fd, renderAbi(capsule, null));
+    writeFileSync(fd, content);
   } finally {
     closeSync(fd);
   }
   renameSync(temporary, projection);
+}
+
+export function projectCapsule(job: Job, capsule: Capsule): void {
+  writeProjection(job, renderAbi(capsule, null));
 }
 
 function acquireLock(path: string): number | null {
@@ -199,6 +204,9 @@ export function writeCapsule(
   const capsule = capsuleSchema.parse(input);
   if (capsule.jobId !== job.id || capsule.worktree !== job.worktree)
     throw new Error('capsule does not belong to this job');
+  // Bound new writes while keeping the reader able to load older capsules.
+  if (capsule.decisions.length > MAX_CAPSULE_DECISIONS)
+    return Promise.resolve({ applied: false });
   const path = authoritativePath(job);
   const lock = `${path}.lock`;
   mkdirSync(stateDirectory(job), { recursive: true, mode: 0o700 });
@@ -211,6 +219,18 @@ export function writeCapsule(
       capsule.epoch !== (expectedEpoch === null ? 0 : expectedEpoch + 1)
     )
       return Promise.resolve({ applied: false });
+    let projection: string;
+    try {
+      projection = renderAbi(capsule, null);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message === 'capsule ABI values must be single-line' ||
+          error.message === 'capsule exceeds the 2k-token projection budget')
+      )
+        return Promise.resolve({ applied: false });
+      throw error;
+    }
     const temporary = `${path}.${process.pid}.${Date.now()}.tmp`;
     const fd = openSync(
       temporary,
@@ -226,7 +246,7 @@ export function writeCapsule(
       closeSync(fd);
     }
     renameSync(temporary, path);
-    projectCapsule(job, capsule);
+    writeProjection(job, projection);
     return Promise.resolve({ applied: true, value: capsule });
   } finally {
     closeSync(lockFd);
