@@ -45,11 +45,12 @@ const nodeTestReportSchema = z.object({
   testFailure: z.boolean(),
   errorCodes: z.array(z.string()),
   causeCodes: z.array(z.string()),
+  diagnostics: z.string().max(2048).default(''),
 });
+const nodeTestReportPrefix = 'KRN_NODE_TEST_REPORT:';
 
-// The reporter receives Node's structured test events, not candidate stdout.
-// Keep only failure metadata so arbitrary test output cannot become verdict data.
-const nodeTestReporter = `
+// Keep candidate diagnostics observable while classification consumes only error codes.
+export const nodeTestReporter = `
 import { Transform } from 'node:stream';
 const knownCodes = new Set(${JSON.stringify([
   ...nodeResolutionCodes,
@@ -59,26 +60,59 @@ const knownCodes = new Set(${JSON.stringify([
 let testFailure = false;
 const errorCodes = new Set();
 const causeCodes = new Set();
+let diagnostics = '';
+function appendDiagnostic(message) {
+  if (typeof message !== 'string' || !message) return;
+  diagnostics = (diagnostics + message).slice(-2048);
+}
 export default new Transform({
   writableObjectMode: true,
   transform(event, _encoding, callback) {
+    if (event?.type === 'test:stdout' || event?.type === 'test:stderr') {
+      appendDiagnostic(event.data?.message);
+    }
     if (event?.type === 'test:fail') {
       testFailure = true;
       const error = event.data?.details?.error;
       const cause = error?.cause;
-      if (knownCodes.has(error?.code)) errorCodes.add(error.code);
+      if (knownCodes.has(error?.code)) {
+        errorCodes.add(error.code);
+        appendDiagnostic('\\n' + error.code);
+      }
+      appendDiagnostic(error?.message ? '\\n' + error.message : '');
       if (cause && typeof cause === 'object') {
-        if (knownCodes.has(cause.code)) causeCodes.add(cause.code);
+        if (knownCodes.has(cause.code)) {
+          causeCodes.add(cause.code);
+          appendDiagnostic('\\n' + cause.code);
+        }
+        appendDiagnostic(cause.message ? '\\n' + cause.message : '');
       }
     }
     callback();
   },
   flush(callback) {
-    this.push(JSON.stringify({
+    let retainedDiagnostics = diagnostics;
+    let report = JSON.stringify({
       testFailure,
       errorCodes: [...errorCodes],
       causeCodes: [...causeCodes],
-    }) + '\\n');
+      diagnostics: retainedDiagnostics,
+    });
+    while (
+      Buffer.byteLength(report, 'utf8') > 1600 &&
+      retainedDiagnostics.length > 0
+    ) {
+      retainedDiagnostics = retainedDiagnostics.slice(
+        Math.ceil(retainedDiagnostics.length / 2),
+      );
+      report = JSON.stringify({
+        testFailure,
+        errorCodes: [...errorCodes],
+        causeCodes: [...causeCodes],
+        diagnostics: retainedDiagnostics,
+      });
+    }
+    this.push('${nodeTestReportPrefix}' + report + '\\n');
     callback();
   },
 });
@@ -204,7 +238,7 @@ export function classifyNodeTestOutput(
   if (exitCode === 0) return 'pass';
   let report: z.infer<typeof nodeTestReportSchema>;
   try {
-    report = nodeTestReportSchema.parse(JSON.parse(output));
+    report = parseNodeTestReport(output);
   } catch {
     return 'other';
   }
@@ -222,6 +256,39 @@ export function classifyNodeTestOutput(
   )
     return 'procedural';
   return 'other';
+}
+
+function parseNodeTestReport(
+  output: string,
+): z.infer<typeof nodeTestReportSchema> {
+  const lines = output.split(/\r?\n/u);
+  const reportLine = lines.find((line) =>
+    line.startsWith(nodeTestReportPrefix),
+  );
+  const payload = reportLine
+    ? reportLine.slice(nodeTestReportPrefix.length)
+    : (lines[0] ?? '');
+  return nodeTestReportSchema.parse(JSON.parse(payload));
+}
+
+export function summarizeNodeTestOutput(output: string): string {
+  try {
+    const report = parseNodeTestReport(output);
+    const lines = output.split(/\r?\n/u);
+    const prefixedLine = lines.findIndex((line) =>
+      line.startsWith(nodeTestReportPrefix),
+    );
+    const reportIndex = prefixedLine >= 0 ? prefixedLine : 0;
+    const trailingDiagnostics = lines
+      .filter((_line, index) => index !== reportIndex)
+      .join('\n');
+    return [report.diagnostics, trailingDiagnostics]
+      .filter(Boolean)
+      .join('\n')
+      .slice(-2000);
+  } catch {
+    return output.slice(-2000);
+  }
 }
 
 async function classifyTest(
@@ -305,7 +372,7 @@ async function classifyTest(
     exitCode: evidence.exitCode,
     durationMs: Date.now() - started,
     outputSha256: evidence.sha256,
-    summary: output.slice(-2000),
+    summary: summarizeNodeTestOutput(output),
   });
 }
 

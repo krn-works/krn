@@ -9,8 +9,8 @@ import { fileURLToPath } from 'node:url';
 
 const cli = fileURLToPath(new URL('../src/cli/main.ts', import.meta.url));
 
-test('krn review maps a runtime failure to exit code 70', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'krn-review-runtime-'));
+test('krn review maps invalid argument values to exit code 64', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-review-invalid-'));
   try {
     const lens = join(directory, 'lens.md');
     await writeFile(lens, 'Review the change.\n');
@@ -31,9 +31,96 @@ test('krn review maps a runtime failure to exit code 70', async () => {
       { encoding: 'utf8' },
     );
 
-    assert.equal(result.status, 70, result.stderr);
+    assert.equal(result.status, 64, result.stderr);
   } finally {
     await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('krn review maps an invalid base revision to exit code 64', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-review-base-'));
+  try {
+    const git = (...args: string[]) => {
+      const result = spawnSync('git', ['-C', directory, ...args], {
+        encoding: 'utf8',
+      });
+      assert.equal(result.status, 0, result.stderr);
+      return result.stdout.trim();
+    };
+    git('init', '--quiet');
+    git('config', 'user.name', 'KRN CLI test');
+    git('config', 'user.email', 'krn-test@example.invalid');
+    await writeFile(join(directory, 'README.md'), 'review fixture\n');
+    await writeFile(join(directory, 'lens.md'), 'Review the change.\n');
+    git('add', 'README.md', 'lens.md');
+    git('commit', '-qm', 'create review fixture');
+    const head = git('rev-parse', 'HEAD');
+    const result = spawnSync(
+      process.execPath,
+      [
+        cli,
+        'review',
+        '--repo',
+        directory,
+        '--base',
+        'missing-review-base',
+        '--head',
+        head,
+        '--lens',
+        join(directory, 'lens.md'),
+      ],
+      { encoding: 'utf8' },
+    );
+
+    assert.equal(result.status, 64, result.stderr);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('krn review maps a runtime failure to exit code 70', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-review-runtime-'));
+  const outside = await mkdtemp(join(tmpdir(), 'krn-review-runtime-state-'));
+  try {
+    const lens = join(directory, 'lens.md');
+    await writeFile(lens, 'Review the change.\n');
+    const git = (...args: string[]) => {
+      const result = spawnSync('git', ['-C', directory, ...args], {
+        encoding: 'utf8',
+      });
+      assert.equal(result.status, 0, result.stderr);
+      return result.stdout.trim();
+    };
+    git('init', '--quiet');
+    git('config', 'user.name', 'KRN CLI test');
+    git('config', 'user.email', 'krn-test@example.invalid');
+    await writeFile(join(directory, 'README.md'), 'runtime fixture\n');
+    git('add', 'README.md', 'lens.md');
+    git('commit', '-qm', 'create review fixture');
+    const head = git('rev-parse', 'HEAD');
+    await symlink(outside, join(directory, '.krn'));
+    const result = spawnSync(
+      process.execPath,
+      [
+        cli,
+        'review',
+        '--repo',
+        directory,
+        '--base',
+        head,
+        '--head',
+        head,
+        '--lens',
+        lens,
+      ],
+      { encoding: 'utf8' },
+    );
+
+    assert.equal(result.status, 70, result.stderr);
+    assert.match(result.stderr, /unsafe repository state directory/u);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
   }
 });
 

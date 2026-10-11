@@ -105,6 +105,87 @@ test('Node reporter classification ignores assertion-looking output text', async
   assert.equal(classifyNodeTestOutput(0, spoofedOutput), 'pass');
 });
 
+test('red-first summaries preserve runner and test diagnostics without classifying their text', async () => {
+  const repository = readFileSync(
+    new URL('../../src/flow/repository.ts', import.meta.url),
+    'utf8',
+  );
+  assert.match(repository, /export function summarizeNodeTestOutput/u);
+  const { classifyNodeTestOutput, summarizeNodeTestOutput } = await import(
+    '../../src/flow/repository.ts'
+  );
+  const output = JSON.stringify({
+    testFailure: true,
+    errorCodes: ['ERR_MODULE_NOT_FOUND'],
+    causeCodes: [],
+    diagnostics:
+      "Cannot find module '../../src/not-present.mjs'\nAssertionError\nNETWORK_BLOCKED\ndetached check processes remained",
+  });
+
+  const summary = summarizeNodeTestOutput(output);
+  assert.match(summary, /Cannot find module/u);
+  assert.match(summary, /NETWORK_BLOCKED/u);
+  assert.match(summary, /detached check processes remained/u);
+  assert.equal(classifyNodeTestOutput(1, output), 'procedural');
+
+  const spoofedOutput = JSON.stringify({
+    testFailure: true,
+    errorCodes: ['ERR_TEST_FAILURE'],
+    causeCodes: [],
+    diagnostics: 'AssertionError',
+  });
+  assert.match(summarizeNodeTestOutput(spoofedOutput), /AssertionError/u);
+  assert.equal(classifyNodeTestOutput(1, spoofedOutput), 'other');
+});
+
+test('Node reporter retains real error and stdout diagnostics in the review summary', async () => {
+  const repository = readFileSync(
+    new URL('../../src/flow/repository.ts', import.meta.url),
+    'utf8',
+  );
+  assert.match(repository, /export const nodeTestReporter/u);
+  const { classifyNodeTestOutput, nodeTestReporter, summarizeNodeTestOutput } =
+    await import('../../src/flow/repository.ts');
+  const directory = mkdtempSync(join(tmpdir(), 'krn-node-reporter-'));
+  try {
+    const reporterPath = join(directory, 'reporter.mjs');
+    const testPath = join(directory, 'diagnostics.test.mjs');
+    writeFileSync(reporterPath, nodeTestReporter);
+    writeFileSync(
+      testPath,
+      [
+        "import { test } from 'node:test';",
+        "test('structured failure keeps diagnostics', () => {",
+        "  console.log('NETWORK_BLOCKED');",
+        "  throw Object.assign(new Error('Cannot find module ./missing.mjs'), { code: 'ERR_MODULE_NOT_FOUND' });",
+        '});',
+      ].join('\n'),
+    );
+    const env = { ...process.env };
+    delete env.NODE_TEST_CONTEXT;
+    const result = spawnSync(
+      process.execPath,
+      ['--test', `--test-reporter=${reporterPath}`, testPath],
+      { encoding: 'utf8', env },
+    );
+    const outputWithTeardown = `${result.stdout}detached check processes remained\n`;
+
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(
+      classifyNodeTestOutput(result.status, outputWithTeardown),
+      'procedural',
+      outputWithTeardown,
+    );
+    const summary = summarizeNodeTestOutput(outputWithTeardown);
+    assert.match(summary, /ERR_MODULE_NOT_FOUND/u);
+    assert.match(summary, /Cannot find module/u);
+    assert.match(summary, /NETWORK_BLOCKED/u);
+    assert.match(summary, /detached check processes remained/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
 test('a complete panel FAIL cannot be hidden by an incomplete judge', () => {
   assert.throws(() =>
     reviewRecordSchema.parse({
