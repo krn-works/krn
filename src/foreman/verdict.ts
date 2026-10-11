@@ -18,6 +18,7 @@ export async function reportPassingVerdict(
     | 'readyForReview'
     | 'paperclipUpdateStarted'
     | 'submitIntent'
+    | 'submittedFor'
     | 'submitted'
     | 'submissionReconciledFor'
     | 'submissionReconciled'
@@ -43,6 +44,10 @@ export async function reportPassingVerdict(
     ledger.submissionEnabled === false
       ? false
       : ((await trace.submitIntent?.(job, sha, contract.revision)) ?? false);
+  if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
+  const priorReceipt = reconcile
+    ? ((await trace.submittedFor?.(job, sha)) ?? undefined)
+    : undefined;
   if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
   let session: string | undefined;
   if (ledger.submissionEnabled === true) {
@@ -70,6 +75,7 @@ export async function reportPassingVerdict(
       ...(signal === undefined ? {} : { signal }),
       ...(session === undefined ? {} : { session }),
       reconcile,
+      ...(priorReceipt === undefined ? {} : { priorReceipt }),
       onWriteStarted: (kind) => trace.paperclipUpdateStarted?.(job, sha, kind),
       onSubmitted: (receipt) => trace.submitted?.(job, sha, receipt),
       onReconciled: (result) => trace.submissionReconciled?.(job, sha, result),

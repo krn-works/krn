@@ -21,42 +21,20 @@ const activitySchema = z.array(
     })
     .passthrough(),
 );
-
-function latestKrnCommentSha(value: unknown): string | null {
-  const list = Array.isArray(value)
-    ? value
-    : typeof value === 'object' && value !== null && 'comments' in value
-      ? (value as { comments?: unknown }).comments
-      : undefined;
-  if (!Array.isArray(list)) return null;
-  const comments = list.flatMap((entry, index) => {
-    if (typeof entry !== 'object' || entry === null || !('body' in entry))
-      return [];
-    const body = (entry as { body?: unknown }).body;
-    if (typeof body !== 'string' || !/^Krn-Session:\s*\S+/imu.test(body))
-      return [];
-    const createdAt = (entry as { createdAt?: unknown }).createdAt;
-    return [
-      {
-        body,
-        index,
-        createdAt: typeof createdAt === 'string' ? createdAt : undefined,
-      },
-    ];
-  });
-  comments.sort((left, right) =>
-    left.createdAt && right.createdAt
-      ? left.createdAt.localeCompare(right.createdAt)
-      : left.index - right.index,
-  );
-  const latest = comments.at(-1);
-  if (!latest) return null;
-  return commentReceiptSha(latest.body);
-}
-
-function commentReceiptSha(body: string): string | null {
-  return /^Commit:\s*([a-f0-9]{40,64})\s*$/imu.exec(body)?.[1] ?? null;
-}
+const submissionReceiptSchema = z
+  .object({
+    issueId: z.string().min(1),
+    status: z.string().min(1),
+    updatedAt: z.string().datetime({ offset: true }),
+    writeWindow: z
+      .object({
+        startedAt: z.string().datetime({ offset: true }),
+        beforeActivityIds: z.array(z.string().min(1)),
+        commentHash: z.string().regex(/^[a-f0-9]{64}$/),
+      })
+      .strict(),
+  })
+  .strict();
 const contractBlockSchema = z
   .object({
     version: z.literal(1),
@@ -95,10 +73,16 @@ export type ReviewSubmission =
   | 'refused'
   | 'board_changed'
   | 'board_conflict';
+export type SubmissionWriteWindow = Readonly<{
+  startedAt: string;
+  beforeActivityIds: readonly string[];
+  commentHash: string;
+}>;
 export type SubmissionReceipt = Readonly<{
   issueId: string;
   status: string;
   updatedAt: string;
+  writeWindow: SubmissionWriteWindow;
 }>;
 export type SubmissionReconciliation =
   | 'submitted'
@@ -107,6 +91,7 @@ export type SubmissionReconciliation =
 export type SubmitForReviewOptions = Readonly<{
   signal?: AbortSignal;
   reconcile?: boolean;
+  priorReceipt?: SubmissionReceipt;
   session?: string;
   onWriteStarted?: (kind: 'review' | 'conflict_comment') => void;
   onSubmitted?: (receipt: SubmissionReceipt) => void;
@@ -390,20 +375,6 @@ export function createLedger(options: LedgerOptions) {
     return parsed.data;
   }
 
-  async function readComments(issueId: string, signal?: AbortSignal) {
-    if (!/^[A-Za-z0-9_-]+$/.test(issueId))
-      throw new Error('invalid Paperclip issue ID');
-    if (transport) return transport.readComments(issueId, signal);
-    const { response, body, errorBodyReadError } = await requestJson(
-      `${base}/api/issues/${issueId}/comments?order=asc&limit=500`,
-      { headers, redirect: 'error' },
-      signal,
-    );
-    if (!response.ok)
-      throw responseFailure('comments read', response, errorBodyReadError);
-    return body;
-  }
-
   async function reportBoardConflict(
     issueId: string,
     sha: string,
@@ -457,6 +428,70 @@ export function createLedger(options: LedgerOptions) {
       throw responseFailure('conflict comment', response, errorBodyReadError);
   }
 
+  async function reconcileSubmission(
+    job: Job,
+    evidence: VerdictEvidence,
+    session: string,
+    receipt: SubmissionReceipt,
+    signal?: AbortSignal,
+    onReconciled?: (result: SubmissionReconciliation) => void,
+    onWriteStarted?: (kind: 'review' | 'conflict_comment') => void,
+  ): Promise<ReviewSubmission> {
+    const [afterIssue, afterActivity] = await Promise.all([
+      readIssue(job.issue, signal),
+      readActivity(job.issue, signal),
+    ]);
+    if (signal?.aborted) return 'stopped';
+    const beforeIds = new Set(receipt.writeWindow.beforeActivityIds);
+    const newEvents = afterActivity.filter((event) => !beforeIds.has(event.id));
+    const receiptAt = Date.parse(receipt.updatedAt);
+    const startedAt = Date.parse(receipt.writeWindow.startedAt);
+    const ownCommentEvents = newEvents.filter(
+      (event) =>
+        /comment/iu.test(event.action) &&
+        eventCommentHash(event) === receipt.writeWindow.commentHash &&
+        withinWriteWindow(event, startedAt, receiptAt),
+    );
+    const ownReviewEvents = newEvents.filter(
+      (event) =>
+        event.action === 'issue.updated' &&
+        event.entityId === job.issue &&
+        activityStatus(event) &&
+        withinWriteWindow(event, startedAt, receiptAt) &&
+        ownCommentEvents.some(
+          (commentEvent) =>
+            Math.abs(
+              Date.parse(commentEvent.createdAt) - Date.parse(event.createdAt),
+            ) <= 1000,
+        ),
+    );
+    const ownEvents = new Set([...ownCommentEvents, ...ownReviewEvents]);
+    const foreignEvents = newEvents.filter((event) => !ownEvents.has(event));
+    if (
+      foreignEvents.length > 0 ||
+      ownReviewEvents.length !== 1 ||
+      ownCommentEvents.length !== 1 ||
+      afterIssue.updatedAt !== receipt.updatedAt
+    ) {
+      onReconciled?.('board_conflict');
+      await reportBoardConflict(
+        job.issue,
+        evidence.sha,
+        session,
+        receipt.updatedAt,
+        receipt.writeWindow.commentHash,
+        foreignEvents.length > 0 ? foreignEvents : newEvents,
+        signal,
+        onWriteStarted,
+      );
+      if (signal?.aborted) return 'stopped';
+      return 'board_conflict';
+    }
+    const result = afterIssue.status === 'in_review' ? 'submitted' : 'refused';
+    onReconciled?.(result);
+    return result;
+  }
+
   return {
     async readContract(issueId: string): Promise<Contract> {
       const issue = await readIssue(issueId);
@@ -505,8 +540,14 @@ export function createLedger(options: LedgerOptions) {
       recordedSha: string,
       submitOptions: SubmitForReviewOptions = {},
     ): Promise<ReviewSubmission> {
-      const { signal, reconcile, onWriteStarted, onSubmitted, onReconciled } =
-        submitOptions;
+      const {
+        signal,
+        reconcile,
+        priorReceipt,
+        onWriteStarted,
+        onSubmitted,
+        onReconciled,
+      } = submitOptions;
       const session = submitOptions.session ?? options.session;
       if (
         contract.issueId !== job.issue ||
@@ -522,27 +563,39 @@ export function createLedger(options: LedgerOptions) {
           options.session !== submitOptions.session)
       )
         return 'refused';
+      const results = evidence.checks
+        .map((check) => `- ${check.id}: pass; result sha256 ${check.sha256}`)
+        .join('\n');
+      const comment = [
+        `Krn-Session: ${session}`,
+        `Commit: ${evidence.sha}`,
+        'Checks:',
+        results,
+        `Evidence SHA-256: ${hash(`${evidence.sha}\n${results}`)}`,
+      ].join('\n');
+      const commentHash = hash(comment);
       if (reconcile) {
-        const replayIssue = await readIssue(job.issue, signal).catch(
-          () => null,
-        );
-        if (signal?.aborted) return 'stopped';
-        const comments = await readComments(job.issue, signal).catch(
-          () => null,
-        );
-        if (signal?.aborted) return 'stopped';
+        const parsedPrior = submissionReceiptSchema.safeParse(priorReceipt);
         if (
-          replayIssue?.status === 'in_review' &&
-          latestKrnCommentSha(comments) === evidence.sha
+          !parsedPrior.success ||
+          parsedPrior.data.issueId !== job.issue ||
+          parsedPrior.data.status !== 'in_review' ||
+          parsedPrior.data.writeWindow.commentHash !== commentHash ||
+          Date.parse(parsedPrior.data.writeWindow.startedAt) >
+            Date.parse(parsedPrior.data.updatedAt)
         ) {
-          onSubmitted?.({
-            issueId: replayIssue.id,
-            status: replayIssue.status,
-            updatedAt: replayIssue.updatedAt,
-          });
-          onReconciled?.('submitted');
-          return 'submitted';
+          onReconciled?.('refused');
+          return 'refused';
         }
+        return reconcileSubmission(
+          job,
+          evidence,
+          session,
+          parsedPrior.data,
+          signal,
+          onReconciled,
+          onWriteStarted,
+        );
       }
       if (signal?.aborted) return 'stopped';
       const current = await readIssue(job.issue, signal).catch(() => null);
@@ -560,21 +613,10 @@ export function createLedger(options: LedgerOptions) {
       if (!fenced) return 'refused';
       if (fenced.updatedAt !== contract.revision || fenced.status === 'done')
         return 'board_changed';
-      const results = evidence.checks
-        .map((check) => `- ${check.id}: pass; result sha256 ${check.sha256}`)
-        .join('\n');
-      const comment = [
-        `Krn-Session: ${session}`,
-        `Commit: ${evidence.sha}`,
-        'Checks:',
-        results,
-        `Evidence SHA-256: ${hash(`${evidence.sha}\n${results}`)}`,
-      ].join('\n');
       let response: Response | undefined;
       let body: unknown;
       let errorBodyReadError: string | undefined;
       if (signal?.aborted) return 'stopped';
-      const serverWriteStartedAt = Date.parse(fenced.updatedAt);
       onWriteStarted?.('review');
       if (signal?.aborted) return 'stopped';
       if (transport) {
@@ -600,68 +642,27 @@ export function createLedger(options: LedgerOptions) {
       const receipt = parseIssue(body);
       if (!receipt.success || receipt.data.id !== job.issue)
         throw new Error('invalid Paperclip review receipt');
-      onSubmitted?.({
+      const submissionReceipt: SubmissionReceipt = {
         issueId: receipt.data.id,
         status: receipt.data.status,
         updatedAt: receipt.data.updatedAt,
-      });
+        writeWindow: {
+          startedAt: fenced.updatedAt,
+          beforeActivityIds: beforeActivity.map((event) => event.id),
+          commentHash,
+        },
+      };
+      onSubmitted?.(submissionReceipt);
       if (signal?.aborted) return 'stopped';
-      const [afterIssue, afterActivity] = await Promise.all([
-        readIssue(job.issue, signal),
-        readActivity(job.issue, signal),
-      ]);
-      if (signal?.aborted) return 'stopped';
-      const beforeIds = new Set(beforeActivity.map((event) => event.id));
-      const newEvents = afterActivity.filter(
-        (event) => !beforeIds.has(event.id),
+      return reconcileSubmission(
+        job,
+        evidence,
+        session,
+        submissionReceipt,
+        signal,
+        onReconciled,
+        onWriteStarted,
       );
-      const receiptAt = Date.parse(receipt.data.updatedAt);
-      const ownCommentEvents = newEvents.filter(
-        (event) =>
-          /comment/iu.test(event.action) &&
-          eventCommentHash(event) === hash(comment) &&
-          withinWriteWindow(event, serverWriteStartedAt, receiptAt),
-      );
-      const ownReviewEvents = newEvents.filter(
-        (event) =>
-          event.action === 'issue.updated' &&
-          event.entityId === job.issue &&
-          activityStatus(event) &&
-          withinWriteWindow(event, serverWriteStartedAt, receiptAt) &&
-          ownCommentEvents.some(
-            (commentEvent) =>
-              Math.abs(
-                Date.parse(commentEvent.createdAt) -
-                  Date.parse(event.createdAt),
-              ) <= 1000,
-          ),
-      );
-      const ownEvents = new Set([...ownCommentEvents, ...ownReviewEvents]);
-      const foreignEvents = newEvents.filter((event) => !ownEvents.has(event));
-      if (
-        foreignEvents.length > 0 ||
-        ownReviewEvents.length !== 1 ||
-        ownCommentEvents.length !== 1 ||
-        afterIssue.updatedAt !== receipt.data.updatedAt
-      ) {
-        onReconciled?.('board_conflict');
-        await reportBoardConflict(
-          job.issue,
-          evidence.sha,
-          session,
-          receipt.data.updatedAt,
-          hash(comment),
-          foreignEvents.length > 0 ? foreignEvents : newEvents,
-          signal,
-          onWriteStarted,
-        );
-        if (signal?.aborted) return 'stopped';
-        return 'board_conflict';
-      }
-      const reconciliation =
-        afterIssue.status === 'in_review' ? 'submitted' : 'refused';
-      onReconciled?.(reconciliation);
-      return reconciliation;
     },
   };
 }

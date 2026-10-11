@@ -65,6 +65,11 @@ test('same-SHA replay preserves a board conflict separately from its PATCH recei
     issueId: job.issue,
     status: 'in_review',
     updatedAt: '2036-10-11T13:00:01.000Z',
+    writeWindow: {
+      startedAt: '2036-10-11T13:00:00.000Z',
+      beforeActivityIds: [],
+      commentHash: 'c'.repeat(64),
+    },
   };
   let submissions = 0;
   const ledger = {
@@ -256,4 +261,97 @@ test('paired own events plus one foreign event alone cause conflict without stat
   assert.match(board.conflictComments[0] ?? '', /issue\.assigned/);
   assert.doesNotMatch(board.conflictComments[0] ?? '', /issue\.updated/);
   assert.doesNotMatch(board.conflictComments[0] ?? '', /issue\.commented/);
+});
+
+test('crash after PATCH receipt rechecks the persisted activity window before replay success', async () => {
+  const root = await makeRepo();
+  const job = { ...jobBase, worktree: root };
+  recordRepo(job, root);
+  let status = 'in_progress';
+  let updatedAt = serverBeforeAt;
+  let patched = false;
+  let patchCalls = 0;
+  let postWriteActivityReads = 0;
+  let reviewComment = '';
+  const activities: Array<Record<string, unknown>> = [];
+  const conflictComments: string[] = [];
+  const transport = {
+    readIssue: async () => boardIssue(status, updatedAt),
+    readActivity: async () => {
+      if (!patched) return [];
+      postWriteActivityReads += 1;
+      if (postWriteActivityReads === 1)
+        throw new Error('simulated crash after PATCH receipt');
+      return [...activities];
+    },
+    readComments: async () => (reviewComment ? [{ body: reviewComment }] : []),
+    updateIssue: async (
+      _issueId: string,
+      nextStatus: string,
+      comment: string,
+    ) => {
+      patchCalls += 1;
+      patched = true;
+      status = nextStatus;
+      updatedAt = serverReceiptAt;
+      reviewComment = comment;
+      activities.push(
+        event('own-update', 'issue.updated', serverReceiptAt, {
+          changes: { status: { from: 'in_progress', to: 'in_review' } },
+        }),
+        event('own-comment', 'issue.commented', serverReceiptAt, {
+          body: comment,
+        }),
+        event(
+          'foreign-assignment',
+          'issue.assigned',
+          '2016-10-11T13:00:01.200Z',
+          { assigneeId: 'human-agent' },
+        ),
+      );
+      return boardIssue(status, updatedAt);
+    },
+    commentIssue: async (_issueId: string, comment: string) => {
+      conflictComments.push(comment);
+      return { id: 'conflict-comment' };
+    },
+  };
+  const ledger = createLedger({ session: 'session-7', transport });
+  const stop = (
+    _job: typeof job,
+    state: 'human_decision',
+    reasons: readonly string[],
+  ) => ({ kind: 'stop', state, reasons }) as const;
+
+  try {
+    await assert.rejects(
+      reportPassingVerdict(job, contract, sha, checks, ledger, trace, stop),
+      /simulated crash after PATCH receipt/u,
+    );
+    assert.equal((await trace.submittedFor(job, sha))?.status, 'in_review');
+    assert.equal(await trace.submissionReconciledFor(job, sha), null);
+
+    const replay = await reportPassingVerdict(
+      job,
+      contract,
+      sha,
+      checks,
+      ledger,
+      trace,
+      stop,
+    );
+    assert.deepEqual(replay, {
+      kind: 'stop',
+      state: 'human_decision',
+      reasons: ['board_conflict'],
+    });
+    assert.equal(patchCalls, 1, 'replay must reconcile without another PATCH');
+    assert.equal(
+      await trace.submissionReconciledFor(job, sha),
+      'board_conflict',
+    );
+    assert.match(conflictComments[0] ?? '', /issue\.assigned/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

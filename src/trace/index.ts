@@ -56,6 +56,24 @@ const submissionReconciliationDataSchema = z.object({
   sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
   result: submissionReconciliationSchema,
 });
+const submissionReceiptSchema = z
+  .object({
+    issueId: z.string().min(1),
+    status: z.string().min(1),
+    updatedAt: z.string().datetime({ offset: true }),
+    writeWindow: z
+      .object({
+        startedAt: z.string().datetime({ offset: true }),
+        beforeActivityIds: z.array(z.string().min(1)),
+        commentHash: z.string().regex(/^[a-f0-9]{64}$/),
+      })
+      .strict(),
+  })
+  .strict();
+const submittedDataSchema = z.object({
+  sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
+  receipt: submissionReceiptSchema,
+});
 
 function file(job: Job): string {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(job.id) || job.id === '..')
@@ -387,13 +405,7 @@ export async function submittedFor(
     (candidate) => candidate.kind === 'submitted' && candidate.data.sha === sha,
   );
   if (!event) return null;
-  const parsed = z
-    .object({
-      issueId: z.string().min(1),
-      status: z.string().min(1),
-      updatedAt: z.string().min(1),
-    })
-    .safeParse(event.data.receipt);
+  const parsed = submissionReceiptSchema.safeParse(event.data.receipt);
   return parsed.success ? parsed.data : null;
 }
 
@@ -402,7 +414,8 @@ export function submitted(
   sha: string,
   receipt: SubmissionReceipt,
 ): void {
-  append(job, `submitted:${sha}`, 'submitted', { sha, receipt });
+  const data = submittedDataSchema.parse({ sha, receipt });
+  append(job, `submitted:${sha}`, 'submitted', data);
 }
 
 export async function submissionReconciledFor(
