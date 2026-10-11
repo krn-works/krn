@@ -9,8 +9,12 @@ import {
   realpathSync,
   rmdirSync,
   unlinkSync,
+  writeFileSync,
 } from 'node:fs';
-import { isAbsolute, join } from 'node:path';
+import { isAbsolute, join, matchesGlob } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { z } from 'zod';
+import { TEST_FILE_GLOB } from '../../scripts/test-suite.mjs';
 import type { Job } from '../core/index.ts';
 import { stateDirectory } from '../foreman/state.ts';
 import {
@@ -21,10 +25,114 @@ import {
 } from '../verdict/sandbox.ts';
 import { type RedFirstResult, redFirstSchema } from './types.ts';
 
-const testPath = /^test\/.+\.test\.(?:ts|js|mjs|cjs)$/u;
-const nodeResolutionFailure =
-  /\bERR_(?:MODULE_NOT_FOUND|PACKAGE_PATH_NOT_EXPORTED|PACKAGE_IMPORT_NOT_DEFINED|INVALID_MODULE_SPECIFIER|INVALID_PACKAGE_CONFIG|INVALID_PACKAGE_TARGET|UNSUPPORTED_DIR_IMPORT|UNSUPPORTED_RESOLVE_REQUEST|UNSUPPORTED_ESM_URL_SCHEME|UNKNOWN_FILE_EXTENSION|UNKNOWN_BUILTIN_MODULE|REQUIRE_ESM)\b|Cannot find (?:module|package)\b|Module not found\b|does not provide an export named|Named export .+ not found/u;
-const assertionFailure = /AssertionError|ERR_ASSERTION|assert\./u;
+const nodeResolutionCodes = new Set([
+  'ERR_MODULE_NOT_FOUND',
+  'MODULE_NOT_FOUND',
+  'ERR_PACKAGE_PATH_NOT_EXPORTED',
+  'ERR_PACKAGE_IMPORT_NOT_DEFINED',
+  'ERR_INVALID_MODULE_SPECIFIER',
+  'ERR_INVALID_PACKAGE_CONFIG',
+  'ERR_INVALID_PACKAGE_TARGET',
+  'ERR_UNSUPPORTED_DIR_IMPORT',
+  'ERR_UNSUPPORTED_RESOLVE_REQUEST',
+  'ERR_UNSUPPORTED_ESM_URL_SCHEME',
+  'ERR_UNKNOWN_FILE_EXTENSION',
+  'ERR_UNKNOWN_BUILTIN_MODULE',
+  'ERR_REQUIRE_ESM',
+  'ERR_MODULE_LINKING',
+]);
+const nodeTestReportSchema = z.object({
+  testFailure: z.boolean(),
+  errorCodes: z.array(z.string()),
+  causeCodes: z.array(z.string()),
+  diagnostics: z.string().max(2048).default(''),
+});
+const nodeTestReportPrefix = 'KRN_NODE_TEST_REPORT:';
+
+// Keep candidate diagnostics observable while classification consumes only error codes.
+export const nodeTestReporter = `
+import { Transform } from 'node:stream';
+const knownCodes = new Set(${JSON.stringify([
+  ...nodeResolutionCodes,
+  'ERR_ASSERTION',
+  'ERR_TEST_FAILURE',
+])});
+let testFailure = false;
+const errorCodes = new Set();
+const causeCodes = new Set();
+let diagnostics = '';
+function appendDiagnostic(message) {
+  if (typeof message !== 'string' || !message) return;
+  diagnostics = (diagnostics + message).slice(-2048);
+}
+export default new Transform({
+  writableObjectMode: true,
+  transform(event, _encoding, callback) {
+    if (event?.type === 'test:stdout' || event?.type === 'test:stderr') {
+      appendDiagnostic(event.data?.message);
+    }
+    if (event?.type === 'test:fail') {
+      testFailure = true;
+      const error = event.data?.details?.error;
+      const cause = error?.cause;
+      if (knownCodes.has(error?.code)) {
+        errorCodes.add(error.code);
+        appendDiagnostic('\\n' + error.code);
+      }
+      appendDiagnostic(error?.message ? '\\n' + error.message : '');
+      if (cause && typeof cause === 'object') {
+        if (knownCodes.has(cause.code)) {
+          causeCodes.add(cause.code);
+          appendDiagnostic('\\n' + cause.code);
+        }
+        appendDiagnostic(cause.message ? '\\n' + cause.message : '');
+      }
+    }
+    callback();
+  },
+  flush(callback) {
+    let retainedDiagnostics = diagnostics;
+    let report = JSON.stringify({
+      testFailure,
+      errorCodes: [...errorCodes],
+      causeCodes: [...causeCodes],
+      diagnostics: retainedDiagnostics,
+    });
+    while (
+      Buffer.byteLength(report, 'utf8') > 1600 &&
+      retainedDiagnostics.length > 0
+    ) {
+      retainedDiagnostics = retainedDiagnostics.slice(
+        Math.ceil(retainedDiagnostics.length / 2),
+      );
+      report = JSON.stringify({
+        testFailure,
+        errorCodes: [...errorCodes],
+        causeCodes: [...causeCodes],
+        diagnostics: retainedDiagnostics,
+      });
+    }
+    this.push('${nodeTestReportPrefix}' + report + '\\n');
+    callback();
+  },
+});
+`;
+function nodeTestWrapper(testModulePath: string): string {
+  const testModuleUrl = pathToFileURL(testModulePath).href;
+  return `
+import { test } from 'node:test';
+// Keep the candidate path visible to tests that inspect argv[1].
+process.argv[1] = ${JSON.stringify(testModulePath)};
+try {
+  await import(${JSON.stringify(testModuleUrl)});
+} catch (error) {
+  const failure = error instanceof SyntaxError
+    ? Object.assign(new Error(error.message, { cause: error }), { code: 'ERR_MODULE_LINKING' })
+    : error;
+  test('candidate test module load', () => { throw failure; });
+}
+`;
+}
 
 export interface RedFirstReport {
   readonly baseSha: string;
@@ -119,8 +227,68 @@ function changedTestFiles(root: string, base: string, head: string): string[] {
     'test',
   ])
     .split('\n')
-    .filter((path) => path && testPath.test(path))
+    .filter((path) => path && matchesGlob(path, TEST_FILE_GLOB))
     .sort();
+}
+
+export function classifyNodeTestOutput(
+  exitCode: number | null,
+  output: string,
+): RedFirstResult['classification'] {
+  if (exitCode === 0) return 'pass';
+  let report: z.infer<typeof nodeTestReportSchema>;
+  try {
+    report = parseNodeTestReport(output);
+  } catch {
+    return 'other';
+  }
+  if (
+    report.testFailure &&
+    (report.errorCodes.includes('ERR_ASSERTION') ||
+      report.causeCodes.includes('ERR_ASSERTION'))
+  )
+    return 'assertion';
+  if (
+    report.testFailure &&
+    [...report.errorCodes, ...report.causeCodes].some((code) =>
+      nodeResolutionCodes.has(code),
+    )
+  )
+    return 'procedural';
+  return 'other';
+}
+
+function parseNodeTestReport(
+  output: string,
+): z.infer<typeof nodeTestReportSchema> {
+  const lines = output.split(/\r?\n/u);
+  const reportLine = lines.find((line) =>
+    line.startsWith(nodeTestReportPrefix),
+  );
+  const payload = reportLine
+    ? reportLine.slice(nodeTestReportPrefix.length)
+    : (lines[0] ?? '');
+  return nodeTestReportSchema.parse(JSON.parse(payload));
+}
+
+export function summarizeNodeTestOutput(output: string): string {
+  try {
+    const report = parseNodeTestReport(output);
+    const lines = output.split(/\r?\n/u);
+    const prefixedLine = lines.findIndex((line) =>
+      line.startsWith(nodeTestReportPrefix),
+    );
+    const reportIndex = prefixedLine >= 0 ? prefixedLine : 0;
+    const trailingDiagnostics = lines
+      .filter((_line, index) => index !== reportIndex)
+      .join('\n');
+    return [report.diagnostics, trailingDiagnostics]
+      .filter(Boolean)
+      .join('\n')
+      .slice(-2000);
+  } catch {
+    return output.slice(-2000);
+  }
 }
 
 async function classifyTest(
@@ -138,16 +306,38 @@ async function classifyTest(
     issue: 'red-first',
     worktree: scratch,
   };
+  const reporterPath = join(scratch, `.krn-redfirst-reporter-${id}.mjs`);
+  const wrapperPath = join(scratch, `.krn-redfirst-wrapper-${id}.mjs`);
+  writeFileSync(reporterPath, nodeTestReporter, {
+    flag: 'wx',
+    mode: 0o400,
+  });
+  writeFileSync(wrapperPath, nodeTestWrapper(join(scratch, path)), {
+    flag: 'wx',
+    mode: 0o400,
+  });
   const evidence = await execute(
     root,
     scratch,
     job,
     id,
-    [process.execPath, '--test', path],
+    [
+      process.execPath,
+      '--test',
+      `--test-reporter=${reporterPath}`,
+      wrapperPath,
+    ],
     120000,
     sha,
     signal,
   );
+  for (const helper of [reporterPath, wrapperPath]) {
+    try {
+      unlinkSync(helper);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  }
   const diagnostics = join(stateDirectory(job), 'diagnostics');
   if (realpathSync(diagnostics) !== diagnostics)
     throw new Error('unsafe red-first diagnostic directory');
@@ -173,14 +363,7 @@ async function classifyTest(
         throw error;
     }
   }
-  const classification =
-    evidence.exitCode === 0
-      ? 'pass'
-      : nodeResolutionFailure.test(output)
-        ? 'procedural'
-        : assertionFailure.test(output)
-          ? 'assertion'
-          : 'other';
+  const classification = classifyNodeTestOutput(evidence.exitCode, output);
   return redFirstSchema.parse({
     path,
     side,
@@ -189,7 +372,7 @@ async function classifyTest(
     exitCode: evidence.exitCode,
     durationMs: Date.now() - started,
     outputSha256: evidence.sha256,
-    summary: output.slice(-2000),
+    summary: summarizeNodeTestOutput(output),
   });
 }
 
