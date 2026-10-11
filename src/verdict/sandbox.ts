@@ -11,6 +11,8 @@ import { stateDirectory } from '../foreman/state.ts';
 import type { CheckEvidence } from './index.ts';
 
 export const MAX_CHECK_OUTPUT_BYTES = 8 * 1024 * 1024;
+const MAX_PACKAGE_MANIFEST_BYTES = 1024 * 1024;
+const MAX_LOCKFILE_BYTES = 16 * 1024 * 1024;
 const OUTPUT_TAIL_BYTES = 2 * 1024;
 
 class OutputCapture {
@@ -102,14 +104,7 @@ function sandboxEnv(extraPath?: string): NodeJS.ProcessEnv {
   return { PATH: [dirname(process.execPath), extraPath, '/usr/bin', '/bin'].filter((path): path is string => Boolean(path)).join(':'), LANG: 'C', LC_ALL: 'C', HOME: '/tmp/krn-home', TMPDIR: '/tmp/krn-home' };
 }
 
-async function pnpmBinary(copy: string): Promise<string> {
-  const manifest = JSON.parse(
-    readFileSync(join(copy, 'package.json'), 'utf8'),
-  ) as { readonly packageManager?: string };
-  const manager = z
-    .string()
-    .regex(/^pnpm@\d+\.\d+\.\d+$/)
-    .parse(manifest.packageManager);
+async function pnpmBinary(manager: string): Promise<string> {
   // biome-ignore format: Toolchain lookup is one process boundary.
   const result = await run('mise', ['where', manager], tmpdir(), 15000, { PATH: process.env.PATH, HOME: process.env.HOME });
   const directory = result.stdout.toString().trim();
@@ -138,6 +133,78 @@ async function git(root: string, args: string[]): Promise<string> {
   if (result.status !== 0)
     throw new Error(result.stderr.toString() || 'git command failed');
   return result.stdout.toString().trim();
+}
+
+async function gitBlob(
+  root: string,
+  sha: string,
+  path: 'package.json' | 'pnpm-lock.yaml',
+  limit: number,
+): Promise<Buffer | undefined> {
+  const entry = await git(root, ['ls-tree', '-z', sha, '--', path]);
+  if (!entry) return undefined;
+  const [metadata, entryPathWithTerminator] = entry.split('\t');
+  const entryPath = entryPathWithTerminator?.replace(/\0$/u, '');
+  const [mode, type, oid] = metadata?.split(/\s+/u) ?? [];
+  if (
+    entryPath !== path ||
+    type !== 'blob' ||
+    !oid ||
+    !['100644', '100755'].includes(mode ?? '')
+  )
+    throw new Error(`candidate ${path} must be a regular Git file`);
+
+  const child = spawn('git', ['-C', root, 'cat-file', 'blob', oid], {
+    cwd: root,
+    env: sandboxEnv(),
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const chunks: Buffer[] = [];
+  let size = 0;
+  let oversized = false;
+  let stderr = '';
+  child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+    stderr += chunk;
+  });
+  child.stdout.on('data', (chunk: Buffer) => {
+    size += chunk.length;
+    if (size > limit) {
+      oversized = true;
+      child.kill('SIGKILL');
+      return;
+    }
+    chunks.push(chunk);
+  });
+  const status = await new Promise<number | null>((resolveStatus, reject) => {
+    const timer = setTimeout(() => child.kill('SIGKILL'), 15000);
+    child.once('error', reject);
+    child.once('close', (code) => {
+      clearTimeout(timer);
+      resolveStatus(code);
+    });
+  });
+  if (oversized) throw new Error(`candidate ${path} exceeds its size limit`);
+  if (status !== 0)
+    throw new Error(
+      stderr.trim()
+        ? `cannot read candidate ${path}`
+        : `git failed reading candidate ${path}`,
+    );
+  return Buffer.concat(chunks, size);
+}
+
+function sandboxDirectories(paths: readonly string[]): string[] {
+  const directories = new Set<string>(['/usr', '/etc', '/tmp', '/home']);
+  for (const path of paths) {
+    let directory = resolve(path);
+    while (directory !== '/') {
+      directories.add(directory);
+      directory = dirname(directory);
+    }
+  }
+  return [...directories].sort(
+    (left, right) => left.split('/').length - right.split('/').length,
+  );
 }
 
 async function registeredWorktrees(root: string): Promise<string[]> {
@@ -327,6 +394,20 @@ async function runSandbox(
   const executable = argv[0];
   if (!executable) throw new Error('check argv is empty');
   const path = sandboxEnv(extraPath).PATH ?? '/usr/bin:/bin';
+  const nodeDirectory = dirname(process.execPath);
+  const toolDirectories = [
+    ...new Set(
+      [nodeDirectory, extraPath].filter((value): value is string =>
+        Boolean(value),
+      ),
+    ),
+  ];
+  const directories = sandboxDirectories([
+    ...toolDirectories,
+    copy,
+    '/dev',
+    '/proc',
+  ]);
   const monitor = `
     const { spawn } = require('node:child_process'), { readdirSync, readFileSync } = require('node:fs'), { createHash } = require('node:crypto');
     const LIMIT=${MAX_CHECK_OUTPUT_BYTES}, TAIL=${OUTPUT_TAIL_BYTES}, hash=createHash('sha256');
@@ -353,13 +434,79 @@ async function runSandbox(
     process.exitCode=exitStatus;
     });
   `;
-  // biome-ignore format: Keep bwrap's flat argv sequence visible as one invocation.
+  // The new root starts empty. Only runtime files and the detached candidate
+  // copy are mounted, so host sockets and operator files have no path in it.
   const sandbox = [
-    '--die-with-parent', '--ro-bind', '/', '/', '--bind', copy, copy, '--clearenv',
-    '--unshare-net', '--unshare-pid', '--as-pid-1', '--tmpfs', home,
-    '--setenv', 'HOME', home, '--setenv', 'TMPDIR', home, '--setenv', 'PATH', path,
-    '--setenv', 'LANG', 'C', '--setenv', 'LC_ALL', 'C', '--proc', '/proc', '--dev', '/dev',
-    '--chdir', copy, '--', process.execPath, '-e', monitor, executable, ...argv.slice(1),
+    '--die-with-parent',
+    '--tmpfs',
+    '/',
+    ...directories.flatMap((directory) => ['--dir', directory]),
+    '--ro-bind',
+    '/usr',
+    '/usr',
+    '--ro-bind',
+    '/etc',
+    '/etc',
+    '--symlink',
+    '/usr/bin',
+    '/bin',
+    '--symlink',
+    '/usr/sbin',
+    '/sbin',
+    '--symlink',
+    '/usr/lib',
+    '/lib',
+    '--symlink',
+    '/usr/lib64',
+    '/lib64',
+    ...toolDirectories.flatMap((directory) => [
+      '--ro-bind',
+      directory,
+      directory,
+    ]),
+    '--size',
+    '67108864',
+    '--tmpfs',
+    home,
+    '--bind',
+    copy,
+    copy,
+    '--clearenv',
+    '--unshare-net',
+    '--unshare-ipc',
+    '--unshare-uts',
+    '--unshare-pid',
+    '--as-pid-1',
+    '--new-session',
+    '--cap-drop',
+    'ALL',
+    '--setenv',
+    'HOME',
+    home,
+    '--setenv',
+    'TMPDIR',
+    home,
+    '--setenv',
+    'PATH',
+    path,
+    '--setenv',
+    'LANG',
+    'C',
+    '--setenv',
+    'LC_ALL',
+    'C',
+    '--proc',
+    '/proc',
+    '--dev',
+    '/dev',
+    '--chdir',
+    copy,
+    '--',
+    process.execPath,
+    '-e',
+    monitor,
+    executable,
+    ...argv.slice(1),
   ];
   const uid = process.getuid?.() ?? 0;
   const busEnv = {
@@ -384,6 +531,10 @@ async function runSandbox(
           unit,
           '--property',
           `RuntimeMaxSec=${Math.ceil(timeoutMs / 1000) + 2}s`,
+          '--property',
+          'MemoryMax=1G',
+          '--property',
+          'TasksMax=256',
           'bwrap',
           ...sandbox,
         ],
@@ -417,7 +568,7 @@ async function runSandbox(
       const timer = setTimeout(() => {
         timedOut = true;
         void abort();
-      }, timeoutMs + 10000);
+      }, timeoutMs);
       child.once('error', reject);
       child.once('close', (status) => {
         clearTimeout(timer);
@@ -487,8 +638,35 @@ export async function execute(
   signal?: AbortSignal,
 ): Promise<CheckEvidence> {
   const start = Date.now();
-  const lockfile = existsSync(join(copy, 'pnpm-lock.yaml'));
-  const pnpm = lockfile ? await pnpmBinary(copy) : '';
+  const lockfile = await gitBlob(
+    root,
+    sha,
+    'pnpm-lock.yaml',
+    MAX_LOCKFILE_BYTES,
+  );
+  let pnpm = '';
+  if (lockfile) {
+    const packageManifest = await gitBlob(
+      root,
+      sha,
+      'package.json',
+      MAX_PACKAGE_MANIFEST_BYTES,
+    );
+    if (!packageManifest) throw new Error('candidate package.json is missing');
+    let manager: string;
+    try {
+      const parsed = JSON.parse(packageManifest.toString('utf8')) as {
+        readonly packageManager?: unknown;
+      };
+      manager = z
+        .string()
+        .regex(/^pnpm@\d+\.\d+\.\d+$/u)
+        .parse(parsed.packageManager);
+    } catch {
+      throw new Error('candidate package.json has an invalid packageManager');
+    }
+    pnpm = await pnpmBinary(manager);
+  }
   const localStore = join(copy, '.krn', 'pnpm-store');
   const pnpmPath = lockfile ? await pnpmStore(pnpm, root) : '';
   const versionedStore = join(localStore, basename(pnpmPath));
