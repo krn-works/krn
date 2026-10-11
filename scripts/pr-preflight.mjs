@@ -59,8 +59,9 @@ function conventionalTicket(title) {
   return match?.[1] ?? null;
 }
 
-function trailerValues(message, name) {
+function trailerValues(message, name, cwd) {
   const trailers = command('git', ['interpret-trailers', '--parse'], {
+    cwd,
     input: message,
   });
   return trailers.split('\n').flatMap((line) => {
@@ -73,14 +74,15 @@ export function evaluateMetadata({
   title,
   commitMessage,
   paperclipDescription,
+  repo,
 }) {
   const reasons = [];
   const ticket = conventionalTicket(title);
   if (!ticket)
     reasons.push('PR title is not Conventional or lacks a trailing (LON-<n>)');
 
-  const tickets = trailerValues(commitMessage, 'Ticket');
-  const tasks = trailerValues(commitMessage, 'R1-task');
+  const tickets = trailerValues(commitMessage, 'Ticket', repo);
+  const tasks = trailerValues(commitMessage, 'R1-task', repo);
   if (tickets.length !== 1 || tickets[0] !== ticket)
     reasons.push(
       'head commit must contain exactly one matching Ticket trailer',
@@ -210,6 +212,7 @@ async function main(args = process.argv.slice(2)) {
     title: pr.title,
     commitMessage,
     paperclipDescription,
+    repo: options.repo,
   });
   reasons.push(...metadata.reasons);
 

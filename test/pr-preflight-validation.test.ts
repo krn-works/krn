@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 const title = 'docs(program): reset review system (LON-225)';
@@ -61,4 +64,50 @@ test('preflight rejects duplicate or mismatched commit trailers', () => {
       'head commit must contain exactly one matching Ticket trailer',
     ),
   );
+});
+
+test('preflight uses target repo trailers from an unrelated Git cwd', (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'krn-pr-preflight-cwd-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+
+  const repo = join(root, 'target-repo');
+  const unrelated = join(root, 'unrelated');
+  mkdirSync(repo);
+  mkdirSync(unrelated);
+
+  for (const directory of [repo, unrelated]) {
+    const initialized = spawnSync('git', ['init', '--quiet', directory], {
+      encoding: 'utf8',
+    });
+    assert.equal(initialized.status, 0, initialized.stderr);
+  }
+  const configured = spawnSync(
+    'git',
+    ['-C', unrelated, 'config', '--local', 'trailer.separators', '='],
+    { encoding: 'utf8' },
+  );
+  assert.equal(configured.status, 0, configured.stderr);
+
+  const code = `const { evaluateMetadata } = await import(${JSON.stringify(scriptUrl)}); process.stdout.write(JSON.stringify(evaluateMetadata(JSON.parse(process.argv[1]))));`;
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      code,
+      JSON.stringify({
+        title,
+        commitMessage,
+        paperclipDescription: 'R1-task: none\n',
+        repo,
+      }),
+    ],
+    { cwd: unrelated, encoding: 'utf8' },
+  );
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.deepEqual(JSON.parse(result.stdout), {
+    ticket: 'LON-225',
+    task: 'none',
+    reasons: [],
+  });
 });
