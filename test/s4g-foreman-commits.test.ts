@@ -12,6 +12,8 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { isCheckpointRefusal } from '../src/foreman/checkpoint.ts';
+import { commitCheckpoint } from '../src/foreman/commit.ts';
 import { runJob } from '../src/foreman/run.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
@@ -273,6 +275,108 @@ test('checkpoint with no worktree changes is refused without a commit', async (t
   } finally {
     await rm(root, { recursive: true, force: true });
     await rm(auxiliary, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint accepts deletions, Git metadata files, and Zod password schemas', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-commit-paths-'));
+  const git = (args: string[]) => {
+    const result = spawnSync('git', ['-C', root, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  const job = { id: 'commit-paths', issue: 'commit-paths', worktree: root };
+  try {
+    git(['init', '-q', '--initial-branch=main']);
+    await Promise.all([
+      writeFile(join(root, '.gitignore'), '.krn/\n'),
+      writeFile(join(root, '.gitattributes'), '*.ts text eol=lf\n'),
+      writeFile(join(root, 'README.md'), 'tracked file\n'),
+      writeFile(join(root, 'password.ts'), 'const password = z.string();\n'),
+    ]);
+    git(['add', '.']);
+    git([
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      'commit',
+      '-qm',
+      'fixture',
+    ]);
+    await Promise.all([
+      writeFile(join(root, '.gitignore'), '.krn/\n*.tmp\n'),
+      writeFile(join(root, '.gitattributes'), '*.ts text eol=lf\n*.md text\n'),
+      writeFile(
+        join(root, 'password.ts'),
+        'const password = z.string().min(8);\n',
+      ),
+      rm(join(root, 'README.md')),
+    ]);
+
+    let sha: string | undefined;
+    let failure: unknown;
+    try {
+      sha = commitCheckpoint(
+        job,
+        'feat: checkpoint path changes',
+        'session-paths',
+      );
+    } catch (error) {
+      failure = error;
+    }
+    assert.equal(
+      failure,
+      undefined,
+      'ordinary path changes commit successfully',
+    );
+    assert.match(sha ?? '', /^[0-9a-f]{40,64}$/u);
+    assert.equal(git(['status', '--porcelain']).length, 0);
+    assert.equal(git(['cat-file', '-e', 'HEAD^:README.md']) === '', true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint secret detections remain typed refusals', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-commit-secret-'));
+  const git = (args: string[]) => {
+    const result = spawnSync('git', ['-C', root, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  const job = { id: 'commit-secret', issue: 'commit-secret', worktree: root };
+  try {
+    git(['init', '-q', '--initial-branch=main']);
+    await writeFile(join(root, 'config.txt'), 'fixture\n');
+    git(['add', 'config.txt']);
+    git([
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      'commit',
+      '-qm',
+      'fixture',
+    ]);
+    await writeFile(
+      join(root, 'config.txt'),
+      'password = real-secret-value-123\n',
+    );
+    let failure: unknown;
+    try {
+      commitCheckpoint(job, 'feat: secret attempt', 'session-secret');
+    } catch (error) {
+      failure = error;
+    }
+    assert.equal(isCheckpointRefusal(failure), true);
+    assert.match((failure as Error).message, /secret pattern/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 

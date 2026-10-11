@@ -132,6 +132,55 @@ test('a capsule write from a stale epoch is rejected', async () => {
     assert.deepEqual(await writeCapsule(job, { ...capsule, epoch: 1 }, -1), {
       applied: false,
     });
+
+    const capsulePath = join(
+      worktree,
+      '.krn',
+      'runs',
+      'foreman',
+      job.id,
+      'capsule.json',
+    );
+    const original = await readFile(capsulePath, 'utf8');
+    for (const invalid of [
+      { ...capsule, epoch: 1, nextAction: 'step A\nforged field' },
+      {
+        ...capsule,
+        epoch: 1,
+        decisions: [
+          { date: '2026-10-11', source: 'test', text: 'x'.repeat(9000) },
+        ],
+      },
+    ]) {
+      let result: unknown;
+      try {
+        result = await relay.writeCapsule(job, invalid, 0);
+      } catch (error) {
+        result = error;
+      }
+      assert.equal(
+        typeof result === 'object' && result !== null && 'refused' in result,
+        true,
+        'invalid capsule writes return a typed refusal',
+      );
+      assert.equal(await readFile(capsulePath, 'utf8'), original);
+      assert.deepEqual(await relay.load(job, { revision: 'rev-1' }), capsule);
+    }
+    const growing = {
+      ...capsule,
+      epoch: 1,
+      decisions: Array.from({ length: 13 }, (_, index) => ({
+        date: '2026-10-11',
+        source: `session-${index}`,
+        text: `decision ${index}`,
+      })),
+    };
+    const bounded = await relay.writeCapsule(job, growing, 0);
+    assert.equal(bounded.applied, true);
+    if (bounded.applied) {
+      assert.equal(bounded.value.decisions.length, 12);
+      assert.equal(bounded.value.decisions[0]?.text, 'decision 1');
+    }
   } finally {
     await rm(worktree, { recursive: true, force: true });
   }

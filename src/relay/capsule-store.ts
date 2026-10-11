@@ -20,6 +20,7 @@ import { ensureProjectionDirectory, stateDirectory } from '../foreman/state.ts';
 import type { Contract } from '../ledger/index.ts';
 
 const MAX_PROJECTION_TOKENS = 2000;
+const MAX_DECISIONS = 12;
 
 function approximateTokenCount(text: string): number {
   return Math.ceil(text.length / 4);
@@ -45,9 +46,9 @@ const labels = [
 ] as const;
 
 const decisionSchema = z.object({
-  date: z.string().min(1),
-  source: z.string().min(1),
-  text: z.string().min(1),
+  date: z.string().min(1).max(64),
+  source: z.string().min(1).max(128),
+  text: z.string().min(1).max(256),
 });
 const capsuleSchema = z.object({
   jobId: z.string().min(1),
@@ -61,7 +62,9 @@ const capsuleSchema = z.object({
   nextAction: z.string().min(1),
   lease: z.enum(['active', 'checkpointed', 'ended']).default('ended'),
   blockers: z.array(z.string()),
-  decisions: z.array(decisionSchema),
+  decisions: z
+    .array(decisionSchema)
+    .transform((decisions) => decisions.slice(-MAX_DECISIONS)),
   rejectedApproaches: z.array(z.string()),
   references: z.array(z.string()),
   sessionId: z.string().optional(),
@@ -82,7 +85,17 @@ export type SessionEnd = {
 };
 export type Cas<T> =
   | { readonly applied: true; readonly value: T }
-  | { readonly applied: false };
+  | { readonly applied: false }
+  | {
+      readonly applied: false;
+      readonly refused: {
+        readonly kind:
+          | 'invalid_capsule'
+          | 'job_mismatch'
+          | 'invalid_projection';
+        readonly message: string;
+      };
+    };
 
 export function parseCapsule(input: unknown): Capsule {
   return capsuleSchema.parse(input);
@@ -128,7 +141,7 @@ function renderAbi(capsule: Capsule, expectedEpoch: number | null): string {
   return projection;
 }
 
-export function projectCapsule(job: Job, capsule: Capsule): void {
+function writeProjection(job: Job, rendered: string): void {
   const projection = capsulePath(job);
   const directory = ensureProjectionDirectory(job);
   if (realpathSync(directory) !== directory)
@@ -143,11 +156,15 @@ export function projectCapsule(job: Job, capsule: Capsule): void {
     0o600,
   );
   try {
-    writeFileSync(fd, renderAbi(capsule, null));
+    writeFileSync(fd, rendered);
   } finally {
     closeSync(fd);
   }
   renameSync(temporary, projection);
+}
+
+export function projectCapsule(job: Job, capsule: Capsule): void {
+  writeProjection(job, renderAbi(capsule, null));
 }
 
 function acquireLock(path: string): number | null {
@@ -196,9 +213,36 @@ export function writeCapsule(
   input: unknown,
   expectedEpoch: number | null,
 ): Promise<Cas<Capsule>> {
-  const capsule = capsuleSchema.parse(input);
+  const parsed = capsuleSchema.safeParse(input);
+  if (!parsed.success)
+    return Promise.resolve({
+      applied: false,
+      refused: {
+        kind: 'invalid_capsule',
+        message: parsed.error.message,
+      },
+    });
+  const capsule = parsed.data;
   if (capsule.jobId !== job.id || capsule.worktree !== job.worktree)
-    throw new Error('capsule does not belong to this job');
+    return Promise.resolve({
+      applied: false,
+      refused: {
+        kind: 'job_mismatch',
+        message: 'capsule does not belong to this job',
+      },
+    });
+  let projection: string;
+  try {
+    projection = renderAbi(capsule, null);
+  } catch (error) {
+    return Promise.resolve({
+      applied: false,
+      refused: {
+        kind: 'invalid_projection',
+        message: error instanceof Error ? error.message : String(error),
+      },
+    });
+  }
   const path = authoritativePath(job);
   const lock = `${path}.lock`;
   mkdirSync(stateDirectory(job), { recursive: true, mode: 0o700 });
@@ -226,7 +270,7 @@ export function writeCapsule(
       closeSync(fd);
     }
     renameSync(temporary, path);
-    projectCapsule(job, capsule);
+    writeProjection(job, projection);
     return Promise.resolve({ applied: true, value: capsule });
   } finally {
     closeSync(lockFd);

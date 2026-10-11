@@ -22,7 +22,9 @@ function inspect(root: string, path: string): void {
     path.split(/[\\/]/).includes('..') ||
     path === '.krn' ||
     path.startsWith('.krn/') ||
-    path.startsWith('.git') ||
+    path === '.git' ||
+    path.startsWith(`.git${sep}`) ||
+    path === '.gitmodules' ||
     path === '.github' ||
     path.startsWith('.github/')
   )
@@ -30,7 +32,13 @@ function inspect(root: string, path: string): void {
   const absolute = resolve(root, path);
   if (!absolute.startsWith(`${root}${sep}`))
     throw new Error('checkpoint refused: path escaped worktree');
-  const stat = lstatSync(absolute);
+  let stat: ReturnType<typeof lstatSync>;
+  try {
+    stat = lstatSync(absolute);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw error;
+  }
   if (stat.size > 1_000_000)
     throw new Error(`checkpoint refused: file exceeds 1 MB: ${path}`);
   if (stat.isSymbolicLink()) {
@@ -44,7 +52,7 @@ function inspect(root: string, path: string): void {
   } else if (stat.isFile()) {
     const content = readFileSync(absolute, 'utf8');
     if (
-      /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*[^\s"']{8,}/iu.test(
+      /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*(?!z\.string\b)(?:"[^"\r\n]{8,}"|'[^'\r\n]{8,}'|[^\s"']{8,})/iu.test(
         content,
       )
     )
