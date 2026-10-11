@@ -495,3 +495,22 @@ test('checkpoint accepts a non-secret Zod description', async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('checkpoint accepts non-secret Zod chained-call literals', async () => {
+  const { root, job } = await checkpointRepo();
+  try {
+    await writeFile(
+      join(root, 'schema.ts'),
+      "export const schema = z.object({ password: z.string().default('guest').catch('fallback').describe('User password') });\n",
+    );
+    assert.doesNotThrow(() =>
+      commitCheckpoint(
+        job,
+        'test: accept benign schema literals',
+        'session-benign-literal',
+      ),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

@@ -10,7 +10,6 @@ const secretPattern =
 const sensitiveZodProperty =
   /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*:\s*z\s*\./giu;
 const stringLiteralPattern = /(['"`])((?:\\.|(?!\1)[\s\S])*)\1/gu;
-const zodMethodPattern = /\.\s*([A-Za-z_$][A-Za-z\d_$]*)\s*\(/gu;
 
 function statusPaths(output: string): string[] {
   return output
@@ -64,16 +63,9 @@ function isSecretLikeLiteral(value: string): boolean {
 
 function hasSecretLiteral(expression: string): boolean {
   stringLiteralPattern.lastIndex = 0;
-  for (const literal of expression.matchAll(stringLiteralPattern)) {
-    const value = literal[2] ?? '';
-    if (isSecretLikeLiteral(value)) return true;
-    const prefix = expression.slice(0, literal.index ?? 0);
-    zodMethodPattern.lastIndex = 0;
-    const methods = [...prefix.matchAll(zodMethodPattern)];
-    const method = methods.at(-1)?.[1];
-    if (method !== 'describe') return true;
-  }
-  return false;
+  return [...expression.matchAll(stringLiteralPattern)].some((literal) =>
+    isSecretLikeLiteral(literal[2] ?? ''),
+  );
 }
 
 function containsSecret(content: string): boolean {
