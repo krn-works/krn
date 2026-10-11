@@ -33,6 +33,66 @@ test('red-first results retain the side and exact commit SHA', () => {
 
   assert.equal(result.side, 'base');
   assert.equal(result.sha, 'a'.repeat(40));
+  assert.throws(() =>
+    redFirstSchema.parse({ ...result, side: undefined, sha: undefined }),
+  );
+});
+
+test('legacy review records without red-first side and SHA still accept overrides', () => {
+  const { root, cleanup } = fixture();
+  try {
+    const headSha = git(root, 'rev-parse', 'HEAD');
+    const recordDirectory = join(root, '.krn', 'runs', 'review', headSha);
+    mkdirSync(recordDirectory, { recursive: true });
+    writeFileSync(
+      join(recordDirectory, 'record.json'),
+      `${JSON.stringify(
+        {
+          schemaVersion: 1,
+          headSha,
+          base: headSha,
+          createdAt: '2026-10-11T00:00:00.000Z',
+          panelVerdict: 'FAIL',
+          redFirst: [
+            {
+              path: 'test/legacy.test.ts',
+              classification: 'assertion',
+              exitCode: 1,
+              durationMs: 1,
+              outputSha256: 'b'.repeat(64),
+              summary: 'AssertionError',
+            },
+          ],
+          judges: [
+            {
+              state: 'complete',
+              role: 'adversarial',
+              verdict: 'FAIL',
+              findings: [],
+              sessionId: 'legacy-session',
+              finalMessage: 'FAIL',
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    let updated: ReturnType<typeof appendOverride> | undefined;
+    assert.doesNotThrow(() => {
+      updated = appendOverride(root, headSha, {
+        reason: 'accepted legacy evidence',
+        evidence: 'the existing record remains readable',
+      });
+    });
+
+    assert.equal(updated?.override?.reason, 'accepted legacy evidence');
+    assert.equal(updated?.redFirst[0]?.side, undefined);
+    assert.equal(updated?.redFirst[0]?.sha, undefined);
+  } finally {
+    cleanup();
+  }
 });
 
 function git(root: string, ...args: string[]): string {

@@ -16,6 +16,13 @@ export const redFirstSchema = z.object({
   summary: z.string().max(2000),
 });
 export type RedFirstResult = z.infer<typeof redFirstSchema>;
+const redFirstRecordSchema = redFirstSchema.extend({
+  side: z.enum(['base', 'head']).optional(),
+  sha: z
+    .string()
+    .regex(/^[a-f0-9]{40,64}$/iu)
+    .optional(),
+});
 
 export const findingSchema = z.object({
   severity: z.enum(['BLOCKING', 'NON_BLOCKING']),
@@ -69,7 +76,7 @@ export const reviewRecordSchema = z.object({
   base: z.string().min(1),
   createdAt: z.string().datetime(),
   panelVerdict: z.enum(['PASS', 'FAIL', 'INCOMPLETE']),
-  redFirst: z.array(redFirstSchema),
+  redFirst: z.array(redFirstRecordSchema),
   judges: z.array(judgeSchema).min(1),
   override: overrideSchema.optional(),
 });
