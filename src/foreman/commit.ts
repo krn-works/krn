@@ -15,6 +15,18 @@ function namePaths(output: string): string[] {
   return output.split('\0').filter(Boolean);
 }
 
+const sensitiveKey = '(?:api[_-]?key|access[_-]?token|secret|password)';
+const secretValuePattern = new RegExp(
+  `${sensitiveKey}\\s*[:=]\\s*(?:"[^"\\r\\n]{8,}"|'[^'\\r\\n]{8,}'|[^\\s"']{8,})`,
+  'iu',
+);
+const zodDefaultSecretPattern = new RegExp(
+  `${sensitiveKey}\\s*[:=]\\s*z\\.string\\(\\)(?:\\.(?:min|max|length)\\([^)]*\\))*\\.default\\(\\s*(['"])[^'"\\r\\n]{6,}\\1`,
+  'iu',
+);
+const zodStringExpression =
+  /z\.string\(\)(?:\.(?:min|max|length)\([^)]*\))*(?:\.default\(\s*(?:'[^']*'|"[^"]*")\s*\))?/giu;
+
 function inspect(root: string, path: string): void {
   if (
     !path ||
@@ -22,9 +34,9 @@ function inspect(root: string, path: string): void {
     path.split(/[\\/]/).includes('..') ||
     path === '.krn' ||
     path.startsWith('.krn/') ||
-    path === '.git' ||
-    path.startsWith(`.git${sep}`) ||
-    path === '.gitmodules' ||
+    (path.startsWith('.git') &&
+      path !== '.gitignore' &&
+      path !== '.gitattributes') ||
     path === '.github' ||
     path.startsWith('.github/')
   )
@@ -52,9 +64,9 @@ function inspect(root: string, path: string): void {
   } else if (stat.isFile()) {
     const content = readFileSync(absolute, 'utf8');
     if (
-      /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*(?!z\.string\b)(?:"[^"\r\n]{8,}"|'[^'\r\n]{8,}'|[^\s"']{8,})/iu.test(
-        content,
-      )
+      /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/iu.test(content) ||
+      secretValuePattern.test(content.replace(zodStringExpression, '')) ||
+      zodDefaultSecretPattern.test(content)
     )
       throw new Error(`checkpoint refused: secret pattern in ${path}`);
   }

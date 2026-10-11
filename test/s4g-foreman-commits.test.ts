@@ -340,6 +340,92 @@ test('checkpoint accepts deletions, Git metadata files, and Zod password schemas
   }
 });
 
+test('checkpoint refuses protected .gitconfig paths', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-commit-gitconfig-'));
+  const git = (args: string[]) => {
+    const result = spawnSync('git', ['-C', root, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  try {
+    git(['init', '-q', '--initial-branch=main']);
+    await writeFile(join(root, 'README.md'), 'fixture\n');
+    git(['add', 'README.md']);
+    git([
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      'commit',
+      '-qm',
+      'fixture',
+    ]);
+    await writeFile(join(root, '.gitconfig'), 'private\n');
+
+    let failure: unknown;
+    try {
+      commitCheckpoint(
+        { id: 'commit-gitconfig', issue: 'commit-gitconfig', worktree: root },
+        'feat: protected git config attempt',
+        'session-gitconfig',
+      );
+    } catch (error) {
+      failure = error;
+    }
+    assert.equal(isCheckpointRefusal(failure), true);
+    assert.match((failure as Error).message, /protected path \.gitconfig/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint scans literal defaults chained from Zod password schemas', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-commit-zod-default-'));
+  const git = (args: string[]) => {
+    const result = spawnSync('git', ['-C', root, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  const job = {
+    id: 'commit-zod-default',
+    issue: 'commit-zod-default',
+    worktree: root,
+  };
+  try {
+    git(['init', '-q', '--initial-branch=main']);
+    await writeFile(join(root, 'schema.ts'), 'const password = z.string();\n');
+    git(['add', 'schema.ts']);
+    git([
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      'commit',
+      '-qm',
+      'fixture',
+    ]);
+    await writeFile(
+      join(root, 'schema.ts'),
+      "const password = z.string().min(8).default('hunter2');\n",
+    );
+
+    let failure: unknown;
+    try {
+      commitCheckpoint(job, 'feat: schema default attempt', 'session-zod');
+    } catch (error) {
+      failure = error;
+    }
+    assert.equal(isCheckpointRefusal(failure), true);
+    assert.match((failure as Error).message, /secret pattern/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('checkpoint secret detections remain typed refusals', async () => {
   const root = await mkdtemp(join(tmpdir(), 'krn-commit-secret-'));
   const git = (args: string[]) => {
