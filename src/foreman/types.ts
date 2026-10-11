@@ -4,6 +4,7 @@ import type {
   ReviewSubmission,
   SubmissionReceipt,
   SubmissionReconciliation,
+  SubmissionWriteWindow,
   SubmitForReviewOptions,
   VerdictEvidence,
 } from '../ledger/index.ts';
@@ -194,6 +195,10 @@ export type Deps = {
       contractRevision: string,
     ): Promise<boolean>;
     submittedFor?(job: Job, sha: string): Promise<SubmissionReceipt | null>;
+    submissionWriteWindowFor?(
+      job: Job,
+      sha: string,
+    ): Promise<SubmissionWriteWindow | null>;
     submitted?(job: Job, sha: string, receipt: SubmissionReceipt): void;
     submissionReconciledFor?(
       job: Job,
@@ -209,6 +214,7 @@ export type Deps = {
       job: Job,
       sha: string,
       kind: 'review' | 'conflict_comment',
+      writeWindow?: SubmissionWriteWindow,
     ): void;
     readyForReview?(job: Job, sha: string): Promise<void>;
   };

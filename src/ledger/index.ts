@@ -21,18 +21,19 @@ const activitySchema = z.array(
     })
     .passthrough(),
 );
+const submissionWriteWindowSchema = z
+  .object({
+    startedAt: z.string().datetime({ offset: true }),
+    beforeActivityIds: z.array(z.string().min(1)),
+    commentHash: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();
 const submissionReceiptSchema = z
   .object({
     issueId: z.string().min(1),
     status: z.string().min(1),
     updatedAt: z.string().datetime({ offset: true }),
-    writeWindow: z
-      .object({
-        startedAt: z.string().datetime({ offset: true }),
-        beforeActivityIds: z.array(z.string().min(1)),
-        commentHash: z.string().regex(/^[a-f0-9]{64}$/),
-      })
-      .strict(),
+    writeWindow: submissionWriteWindowSchema,
   })
   .strict();
 const contractBlockSchema = z
@@ -92,8 +93,12 @@ export type SubmitForReviewOptions = Readonly<{
   signal?: AbortSignal;
   reconcile?: boolean;
   priorReceipt?: SubmissionReceipt;
+  priorWriteWindow?: SubmissionWriteWindow;
   session?: string;
-  onWriteStarted?: (kind: 'review' | 'conflict_comment') => void;
+  onWriteStarted?: (
+    kind: 'review' | 'conflict_comment',
+    writeWindow?: SubmissionWriteWindow,
+  ) => void;
   onSubmitted?: (receipt: SubmissionReceipt) => void;
   onReconciled?: (result: SubmissionReconciliation) => void;
 }>;
@@ -383,7 +388,10 @@ export function createLedger(options: LedgerOptions) {
     writtenCommentHash: string,
     events: readonly z.infer<typeof activitySchema>[number][],
     signal?: AbortSignal,
-    onWriteStarted?: (kind: 'review' | 'conflict_comment') => void,
+    onWriteStarted?: (
+      kind: 'review' | 'conflict_comment',
+      writeWindow?: SubmissionWriteWindow,
+    ) => void,
   ) {
     if (!session) throw new Error('Krn-Session is required to submit');
     const observed = events.length
@@ -432,24 +440,32 @@ export function createLedger(options: LedgerOptions) {
     job: Job,
     evidence: VerdictEvidence,
     session: string,
-    receipt: SubmissionReceipt,
+    receipt: SubmissionReceipt | undefined,
+    fallbackWriteWindow: SubmissionWriteWindow,
     signal?: AbortSignal,
+    onSubmitted?: (receipt: SubmissionReceipt) => void,
     onReconciled?: (result: SubmissionReconciliation) => void,
-    onWriteStarted?: (kind: 'review' | 'conflict_comment') => void,
+    onWriteStarted?: (
+      kind: 'review' | 'conflict_comment',
+      writeWindow?: SubmissionWriteWindow,
+    ) => void,
   ): Promise<ReviewSubmission> {
     const [afterIssue, afterActivity] = await Promise.all([
       readIssue(job.issue, signal),
       readActivity(job.issue, signal),
     ]);
     if (signal?.aborted) return 'stopped';
-    const beforeIds = new Set(receipt.writeWindow.beforeActivityIds);
+    const writeWindow = receipt?.writeWindow ?? fallbackWriteWindow;
+    const beforeIds = new Set(writeWindow.beforeActivityIds);
     const newEvents = afterActivity.filter((event) => !beforeIds.has(event.id));
-    const receiptAt = Date.parse(receipt.updatedAt);
-    const startedAt = Date.parse(receipt.writeWindow.startedAt);
+    // When the PATCH response is lost, use Paperclip's revision as the upper bound.
+    const writtenAt = receipt?.updatedAt ?? afterIssue.updatedAt;
+    const receiptAt = Date.parse(writtenAt);
+    const startedAt = Date.parse(writeWindow.startedAt);
     const ownCommentEvents = newEvents.filter(
       (event) =>
         /comment/iu.test(event.action) &&
-        eventCommentHash(event) === receipt.writeWindow.commentHash &&
+        eventCommentHash(event) === writeWindow.commentHash &&
         withinWriteWindow(event, startedAt, receiptAt),
     );
     const ownReviewEvents = newEvents.filter(
@@ -471,15 +487,15 @@ export function createLedger(options: LedgerOptions) {
       foreignEvents.length > 0 ||
       ownReviewEvents.length !== 1 ||
       ownCommentEvents.length !== 1 ||
-      afterIssue.updatedAt !== receipt.updatedAt
+      (receipt !== undefined && afterIssue.updatedAt !== receipt.updatedAt)
     ) {
       onReconciled?.('board_conflict');
       await reportBoardConflict(
         job.issue,
         evidence.sha,
         session,
-        receipt.updatedAt,
-        receipt.writeWindow.commentHash,
+        writtenAt,
+        writeWindow.commentHash,
         foreignEvents.length > 0 ? foreignEvents : newEvents,
         signal,
         onWriteStarted,
@@ -488,6 +504,13 @@ export function createLedger(options: LedgerOptions) {
       return 'board_conflict';
     }
     const result = afterIssue.status === 'in_review' ? 'submitted' : 'refused';
+    if (result === 'submitted' && receipt === undefined)
+      onSubmitted?.({
+        issueId: job.issue,
+        status: afterIssue.status,
+        updatedAt: afterIssue.updatedAt,
+        writeWindow,
+      });
     onReconciled?.(result);
     return result;
   }
@@ -544,6 +567,7 @@ export function createLedger(options: LedgerOptions) {
         signal,
         reconcile,
         priorReceipt,
+        priorWriteWindow,
         onWriteStarted,
         onSubmitted,
         onReconciled,
@@ -577,12 +601,30 @@ export function createLedger(options: LedgerOptions) {
       if (reconcile) {
         const parsedPrior = submissionReceiptSchema.safeParse(priorReceipt);
         if (
-          !parsedPrior.success ||
-          parsedPrior.data.issueId !== job.issue ||
-          parsedPrior.data.status !== 'in_review' ||
-          parsedPrior.data.writeWindow.commentHash !== commentHash ||
-          Date.parse(parsedPrior.data.writeWindow.startedAt) >
+          parsedPrior.success &&
+          parsedPrior.data.issueId === job.issue &&
+          parsedPrior.data.status === 'in_review' &&
+          parsedPrior.data.writeWindow.commentHash === commentHash &&
+          Date.parse(parsedPrior.data.writeWindow.startedAt) <=
             Date.parse(parsedPrior.data.updatedAt)
+        ) {
+          return reconcileSubmission(
+            job,
+            evidence,
+            session,
+            parsedPrior.data,
+            parsedPrior.data.writeWindow,
+            signal,
+            onSubmitted,
+            onReconciled,
+            onWriteStarted,
+          );
+        }
+        const parsedWriteWindow =
+          submissionWriteWindowSchema.safeParse(priorWriteWindow);
+        if (
+          !parsedWriteWindow.success ||
+          parsedWriteWindow.data.commentHash !== commentHash
         ) {
           onReconciled?.('refused');
           return 'refused';
@@ -591,8 +633,10 @@ export function createLedger(options: LedgerOptions) {
           job,
           evidence,
           session,
-          parsedPrior.data,
+          undefined,
+          parsedWriteWindow.data,
           signal,
+          onSubmitted,
           onReconciled,
           onWriteStarted,
         );
@@ -613,11 +657,17 @@ export function createLedger(options: LedgerOptions) {
       if (!fenced) return 'refused';
       if (fenced.updatedAt !== contract.revision || fenced.status === 'done')
         return 'board_changed';
+      const writeWindow: SubmissionWriteWindow = {
+        startedAt: fenced.updatedAt,
+        beforeActivityIds: beforeActivity.map((event) => event.id),
+        commentHash,
+      };
       let response: Response | undefined;
       let body: unknown;
       let errorBodyReadError: string | undefined;
       if (signal?.aborted) return 'stopped';
-      onWriteStarted?.('review');
+      // Persist before dispatch because Paperclip may apply a PATCH whose response is lost.
+      onWriteStarted?.('review', writeWindow);
       if (signal?.aborted) return 'stopped';
       if (transport) {
         body = await transport.updateIssue(job.issue, 'in_review', comment);
@@ -646,11 +696,7 @@ export function createLedger(options: LedgerOptions) {
         issueId: receipt.data.id,
         status: receipt.data.status,
         updatedAt: receipt.data.updatedAt,
-        writeWindow: {
-          startedAt: fenced.updatedAt,
-          beforeActivityIds: beforeActivity.map((event) => event.id),
-          commentHash,
-        },
+        writeWindow,
       };
       onSubmitted?.(submissionReceipt);
       if (signal?.aborted) return 'stopped';
@@ -659,7 +705,9 @@ export function createLedger(options: LedgerOptions) {
         evidence,
         session,
         submissionReceipt,
+        writeWindow,
         signal,
+        onSubmitted,
         onReconciled,
         onWriteStarted,
       );

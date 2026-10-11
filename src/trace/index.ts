@@ -20,6 +20,7 @@ import type { SessionEnd } from '../foreman/types.ts';
 import type {
   SubmissionReceipt,
   SubmissionReconciliation,
+  SubmissionWriteWindow,
 } from '../ledger/index.ts';
 import type { VerdictEvent } from '../verdict/index.ts';
 
@@ -56,18 +57,26 @@ const submissionReconciliationDataSchema = z.object({
   sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
   result: submissionReconciliationSchema,
 });
+const submissionWriteWindowSchema = z
+  .object({
+    startedAt: z.string().datetime({ offset: true }),
+    beforeActivityIds: z.array(z.string().min(1)),
+    commentHash: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict();
+const paperclipUpdateStartedDataSchema = z
+  .object({
+    sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
+    kind: z.enum(['review', 'conflict_comment']),
+    writeWindow: submissionWriteWindowSchema.optional(),
+  })
+  .strict();
 const submissionReceiptSchema = z
   .object({
     issueId: z.string().min(1),
     status: z.string().min(1),
     updatedAt: z.string().datetime({ offset: true }),
-    writeWindow: z
-      .object({
-        startedAt: z.string().datetime({ offset: true }),
-        beforeActivityIds: z.array(z.string().min(1)),
-        commentHash: z.string().regex(/^[a-f0-9]{64}$/),
-      })
-      .strict(),
+    writeWindow: submissionWriteWindowSchema,
   })
   .strict();
 const submittedDataSchema = z.object({
@@ -409,6 +418,23 @@ export async function submittedFor(
   return parsed.success ? parsed.data : null;
 }
 
+export async function submissionWriteWindowFor(
+  job: Job,
+  sha: string,
+): Promise<SubmissionWriteWindow | null> {
+  const event = events(job)
+    .filter(
+      (candidate) =>
+        candidate.kind === 'paperclip_update_started' &&
+        candidate.data.sha === sha &&
+        candidate.data.kind === 'review',
+    )
+    .at(-1);
+  if (!event) return null;
+  const parsed = paperclipUpdateStartedDataSchema.safeParse(event.data);
+  return parsed.success ? (parsed.data.writeWindow ?? null) : null;
+}
+
 export function submitted(
   job: Job,
   sha: string,
@@ -457,15 +483,18 @@ export function paperclipUpdateStarted(
   job: Job,
   sha: string,
   kind: 'review' | 'conflict_comment',
+  writeWindow?: SubmissionWriteWindow,
 ): void {
+  const data = paperclipUpdateStartedDataSchema.parse({
+    sha,
+    kind,
+    ...(writeWindow === undefined ? {} : { writeWindow }),
+  });
   append(
     job,
     `paperclip-update-started:${randomUUID()}`,
     'paperclip_update_started',
-    {
-      sha,
-      kind,
-    },
+    data,
   );
 }
 

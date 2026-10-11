@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -351,6 +352,200 @@ test('crash after PATCH receipt rechecks the persisted activity window before re
       'board_conflict',
     );
     assert.match(conflictComments[0] ?? '', /issue\.assigned/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('replay recovers an applied PATCH response loss from its persisted write window', async () => {
+  const root = await makeRepo();
+  const job = { ...jobBase, worktree: root };
+  recordRepo(job, root);
+  const hash = (value: string) =>
+    createHash('sha256').update(value).digest('hex');
+  const resultLines = checks
+    .map((check) => `- ${check.id}: pass; result sha256 ${check.sha256}`)
+    .join('\n');
+  const comment = [
+    'Krn-Session: session-7',
+    `Commit: ${sha}`,
+    'Checks:',
+    resultLines,
+    `Evidence SHA-256: ${hash(`${sha}\n${resultLines}`)}`,
+  ].join('\n');
+  const expectedWriteWindow = {
+    startedAt: serverBeforeAt,
+    beforeActivityIds: [],
+    commentHash: hash(comment),
+  };
+  let status = 'in_progress';
+  let updatedAt = serverBeforeAt;
+  let patchCalls = 0;
+  const activities: Array<Record<string, unknown>> = [];
+  const transport = {
+    readIssue: async () => boardIssue(status, updatedAt),
+    readActivity: async () => [...activities],
+    readComments: async () => [],
+    updateIssue: async (_issueId: string, nextStatus: string, body: string) => {
+      patchCalls += 1;
+      status = nextStatus;
+      updatedAt = serverReceiptAt;
+      // Paperclip applies the write, but the connection closes before its
+      // response reaches the ledger. Reverse order to avoid relying on feed order.
+      activities.push(
+        event('own-comment', 'issue.commented', serverReceiptAt, {
+          body,
+        }),
+        event('own-update', 'issue.updated', serverReceiptAt, {
+          changes: { status: { from: 'in_progress', to: 'in_review' } },
+        }),
+      );
+      throw new Error(
+        'simulated lost PATCH response after Paperclip applied it',
+      );
+    },
+  };
+  const ledger = createLedger({ session: 'session-7', transport });
+  let persistedWindow: typeof expectedWriteWindow | undefined;
+  const firstOptions = {
+    onWriteStarted: (
+      kind: 'review' | 'conflict_comment',
+      writeWindow?: typeof expectedWriteWindow,
+    ) => {
+      if (kind === 'review') persistedWindow = writeWindow;
+    },
+  } as unknown as Parameters<typeof ledger.submitForReview>[4];
+
+  try {
+    await assert.rejects(
+      ledger.submitForReview(
+        job,
+        contract,
+        { kind: 'verdict_pass', sha, checks },
+        sha,
+        firstOptions,
+      ),
+      /simulated lost PATCH response/u,
+    );
+    assert.deepEqual(
+      persistedWindow,
+      expectedWriteWindow,
+      'the write intent must retain the server-time reconciliation window before PATCH dispatch',
+    );
+
+    let recoveredReceipt: SubmissionReceipt | undefined;
+    let reconciliation: SubmissionReconciliation | undefined;
+    const replayOptions = {
+      reconcile: true,
+      priorWriteWindow: persistedWindow,
+      onSubmitted: (receipt: SubmissionReceipt) => {
+        recoveredReceipt = receipt;
+      },
+      onReconciled: (result: SubmissionReconciliation) => {
+        reconciliation = result;
+      },
+    } as unknown as Parameters<typeof ledger.submitForReview>[4];
+    const replay = await ledger.submitForReview(
+      job,
+      contract,
+      { kind: 'verdict_pass', sha, checks },
+      sha,
+      replayOptions,
+    );
+
+    assert.equal(replay, 'submitted');
+    assert.equal(reconciliation, 'submitted');
+    assert.equal(recoveredReceipt?.updatedAt, serverReceiptAt);
+    assert.deepEqual(recoveredReceipt?.writeWindow, expectedWriteWindow);
+    assert.equal(patchCalls, 1, 'replay must not send a second PATCH');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('foreman replay reloads write intent and records a recovered receipt after response loss', async () => {
+  const root = await makeRepo();
+  const job = { ...jobBase, worktree: root };
+  recordRepo(job, root);
+  let status = 'in_progress';
+  let updatedAt = serverBeforeAt;
+  let patchCalls = 0;
+  const activities: Array<Record<string, unknown>> = [];
+  const transport = {
+    readIssue: async () => boardIssue(status, updatedAt),
+    readActivity: async () => [...activities],
+    readComments: async () => [],
+    updateIssue: async (
+      _issueId: string,
+      nextStatus: string,
+      comment: string,
+    ) => {
+      patchCalls += 1;
+      status = nextStatus;
+      updatedAt = serverReceiptAt;
+      activities.push(
+        event('own-comment', 'issue.commented', serverReceiptAt, {
+          body: comment,
+        }),
+        event('own-update', 'issue.updated', serverReceiptAt, {
+          changes: { status: { from: 'in_progress', to: 'in_review' } },
+        }),
+      );
+      throw new Error(
+        'simulated lost PATCH response after Paperclip applied it',
+      );
+    },
+  };
+  const ledger = createLedger({ session: 'session-7', transport });
+  const stop = (
+    _job: typeof job,
+    state: 'human_decision',
+    reasons: readonly string[],
+  ) => ({ kind: 'stop', state, reasons }) as const;
+
+  try {
+    await assert.rejects(
+      reportPassingVerdict(job, contract, sha, checks, ledger, trace, stop),
+      /simulated lost PATCH response/u,
+    );
+    assert.equal(await trace.submittedFor(job, sha), null);
+    const persistedWindow = await trace.submissionWriteWindowFor(job, sha);
+    assert.ok(persistedWindow);
+    assert.equal(persistedWindow.startedAt, serverBeforeAt);
+    assert.deepEqual(persistedWindow.beforeActivityIds, []);
+    assert.match(persistedWindow.commentHash, /^[a-f0-9]{64}$/u);
+
+    const replay = await reportPassingVerdict(
+      job,
+      contract,
+      sha,
+      checks,
+      ledger,
+      trace,
+      stop,
+    );
+
+    assert.deepEqual(replay, {
+      kind: 'verdict_pass',
+      state: 'in_review',
+      sha,
+    });
+    const recoveredReceipt = await trace.submittedFor(job, sha);
+    assert.equal(recoveredReceipt?.updatedAt, serverReceiptAt);
+    assert.deepEqual(recoveredReceipt?.writeWindow, persistedWindow);
+    assert.equal(await trace.submissionReconciledFor(job, sha), 'submitted');
+    assert.equal(patchCalls, 1, 'replay must not send a second PATCH');
+    const events = await readFile(
+      join(root, '.krn', 'runs', 'foreman', job.id, 'trace.jsonl'),
+      'utf8',
+    );
+    const kinds = events
+      .trim()
+      .split('\n')
+      .map((line) => (JSON.parse(line) as { kind: string }).kind);
+    assert.ok(
+      kinds.indexOf('submitted') < kinds.indexOf('submission_reconciled'),
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }

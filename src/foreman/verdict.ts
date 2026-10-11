@@ -19,6 +19,7 @@ export async function reportPassingVerdict(
     | 'paperclipUpdateStarted'
     | 'submitIntent'
     | 'submittedFor'
+    | 'submissionWriteWindowFor'
     | 'submitted'
     | 'submissionReconciledFor'
     | 'submissionReconciled'
@@ -49,6 +50,11 @@ export async function reportPassingVerdict(
     ? ((await trace.submittedFor?.(job, sha)) ?? undefined)
     : undefined;
   if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
+  const priorWriteWindow =
+    reconcile && priorReceipt === undefined
+      ? ((await trace.submissionWriteWindowFor?.(job, sha)) ?? undefined)
+      : undefined;
+  if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
   let session: string | undefined;
   if (ledger.submissionEnabled === true) {
     try {
@@ -76,7 +82,9 @@ export async function reportPassingVerdict(
       ...(session === undefined ? {} : { session }),
       reconcile,
       ...(priorReceipt === undefined ? {} : { priorReceipt }),
-      onWriteStarted: (kind) => trace.paperclipUpdateStarted?.(job, sha, kind),
+      ...(priorWriteWindow === undefined ? {} : { priorWriteWindow }),
+      onWriteStarted: (kind, writeWindow) =>
+        trace.paperclipUpdateStarted?.(job, sha, kind, writeWindow),
       onSubmitted: (receipt) => trace.submitted?.(job, sha, receipt),
       onReconciled: (result) => trace.submissionReconciled?.(job, sha, result),
     },
