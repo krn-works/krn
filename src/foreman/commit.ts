@@ -25,7 +25,7 @@ const zodDefaultSecretPattern = new RegExp(
   'iu',
 );
 const zodStringExpression =
-  /z\.string\(\)(?:\.(?:min|max|length)\([^)]*\))*(?:\.default\(\s*(?:'[^']*'|"[^"]*")\s*\))?/giu;
+  /z\.string\(\)(?:\.(?:min|max|length)\([^)]*\))*(?:\.default\(\s*((?:'(?:\\.|[^'\\\r\n])*')|(?:"(?:\\.|[^"\\\r\n])*"))\s*\))?/giu;
 
 function inspect(root: string, path: string): void {
   if (
@@ -63,9 +63,13 @@ function inspect(root: string, path: string): void {
       throw new Error(`checkpoint refused: escaping symlink ${path}`);
   } else if (stat.isFile()) {
     const content = readFileSync(absolute, 'utf8');
+    const scannedContent = content.replace(
+      zodStringExpression,
+      (_expression, defaultLiteral: string | undefined) => defaultLiteral ?? '',
+    );
     if (
       /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/iu.test(content) ||
-      secretValuePattern.test(content.replace(zodStringExpression, '')) ||
+      secretValuePattern.test(scannedContent) ||
       zodDefaultSecretPattern.test(content)
     )
       throw new Error(`checkpoint refused: secret pattern in ${path}`);

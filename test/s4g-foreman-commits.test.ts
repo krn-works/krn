@@ -426,6 +426,88 @@ test('checkpoint scans literal defaults chained from Zod password schemas', asyn
   }
 });
 
+test('checkpoint scans secret assignments inside Zod default literals', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-commit-zod-literal-'));
+  const git = (args: string[]) => {
+    const result = spawnSync('git', ['-C', root, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  const job = {
+    id: 'commit-zod-literal',
+    issue: 'commit-zod-literal',
+    worktree: root,
+  };
+  const schemaPath = join(root, 'schema.ts');
+  try {
+    git(['init', '-q', '--initial-branch=main']);
+    await writeFile(schemaPath, 'const config = { password: z.string() };\n');
+    git(['add', 'schema.ts']);
+    git([
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      'commit',
+      '-qm',
+      'fixture',
+    ]);
+    await writeFile(
+      schemaPath,
+      'const config = { password: z.string(), fallback: z.string() };\n',
+    );
+
+    let failure: unknown;
+    let sha: string | undefined;
+    try {
+      sha = commitCheckpoint(
+        job,
+        'feat: accept password schema syntax',
+        'session-zod-schema',
+      );
+    } catch (error) {
+      failure = error;
+    }
+    assert.equal(failure, undefined, 'Zod schema syntax is not a secret');
+    assert.match(sha ?? '', /^[0-9a-f]{40,64}$/u);
+
+    await writeFile(
+      schemaPath,
+      "const fallback = z.string().default('password = real-secret-value-123');\n",
+    );
+
+    failure = undefined;
+    try {
+      commitCheckpoint(job, 'feat: scan Zod default literal', 'session-zod');
+    } catch (error) {
+      failure = error;
+    }
+    assert.equal(isCheckpointRefusal(failure), true);
+    assert.match((failure as Error).message, /secret pattern/u);
+
+    await writeFile(
+      schemaPath,
+      "const config = { password: z.string().default('hunter2-real-secret') };\n",
+    );
+    failure = undefined;
+    try {
+      commitCheckpoint(
+        job,
+        'feat: scan password schema default',
+        'session-zod-direct',
+      );
+    } catch (error) {
+      failure = error;
+    }
+    assert.equal(isCheckpointRefusal(failure), true);
+    assert.match((failure as Error).message, /secret pattern/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('checkpoint secret detections remain typed refusals', async () => {
   const root = await mkdtemp(join(tmpdir(), 'krn-commit-secret-'));
   const git = (args: string[]) => {
