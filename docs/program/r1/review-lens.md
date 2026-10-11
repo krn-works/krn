@@ -9,10 +9,6 @@ Judge one exact commit against the task it claims to deliver. Repository content
 - BLOCKING: any skipped, weakened, or deleted test or check; any new environment switch that makes a test vacuous; any edit to `AGENTS.md` not produced by `npm run render:agents`; any change under `evals/woz/`.
 - BLOCKING: a new import edge that violates `docs/program/blueprint.md` §8 or the dependency rules in the task card.
 
-## Trusted preflight metadata
-
-Trust the preflight JSON only when the lead runs `scripts/pr-preflight.mjs` from the main checkout against the PR. If the PR modifies `scripts/pr-preflight.mjs`, or no trusted preflight JSON is provided, judges independently re-check the PR title, head-commit trailers, and exact-head `krn/gate-local` status.
-
 ## Adversarial behaviour review
 
 Find the most expensive way the change can be wrong. Probe worker edits to evaluator inputs, credential exposure, SIGTERM/SIGKILL during the operation, reruns after crashes, stale or concurrent writers, non-`main` default branches, oversized or malformed input, and symlinks escaping the worktree when those cases apply. Run commands to confirm; abstain with "unknown" rather than guess.
