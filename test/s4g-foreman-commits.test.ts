@@ -43,6 +43,29 @@ async function checkpointRepo() {
   };
 }
 
+function survivorFakeCodexSource(root: string): string {
+  const job = {
+    id: 'S4i-survivor',
+    issue: 'I-survivor',
+    worktree: root,
+    repoRoot: root,
+  };
+  const lateFile = join(root, 'late.txt');
+  return `#!/usr/bin/env node
+import { spawn, spawnSync } from 'node:child_process';
+let prompt=''; for await (const chunk of process.stdin) prompt += chunk;
+const sid=/--session'?\\s+'?([0-9a-f-]+)/.exec(prompt)?.[1];
+if (!sid) throw new Error('missing session id');
+const args=[${JSON.stringify(new URL('../src/cli/main.ts', import.meta.url).pathname)},'checkpoint','--job',${JSON.stringify(job.id)},'--issue',${JSON.stringify(job.issue)},'--worktree',${JSON.stringify(root)},'--repo-root',${JSON.stringify(root)},'--intent','intent:0','--session',sid,'--message','feat: survivor falsifier','--next','done'];
+spawn('/bin/sh',['-c',${JSON.stringify(`setsid /bin/sh -c 'sleep 4; printf late > ${lateFile}' </dev/null >/dev/null 2>&1 &`)}],{detached:true,stdio:'ignore'}).unref();
+const saved=spawnSync(process.execPath,args,{cwd:${JSON.stringify(root)},stdio:'ignore'});
+if(saved.status!==0) throw new Error('checkpoint request failed');
+process.stdout.write(JSON.stringify({type:'thread.started',thread_id:'survivor-test'})+'\\n');
+process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,output_tokens:1,total_tokens:2}})+'\\n');
+process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'done'}})+'\\n');
+`;
+}
+
 async function fixture(options: {
   readonly edit: boolean;
   readonly editAfter?: boolean;
@@ -439,6 +462,10 @@ test('checkpoint accepts password Zod schema syntax without a literal', async ()
 test('checkpoint scans secret literals in Zod chained-call arguments', async (t) => {
   const cases = [
     [
+      '.default short password literal',
+      "export const schema = z.object({ setting: z.string().default('hunter2') });\n",
+    ],
+    [
       '.default',
       "export const schema = z.object({ setting: z.string().default('hunter2-secret') });\n",
     ],
@@ -509,6 +536,44 @@ test('checkpoint accepts non-secret Zod chained-call literals', async () => {
         'test: accept benign schema literals',
         'session-benign-literal',
       ),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint accepts the protected B2 fake-codex fixture source', async () => {
+  const { root, job } = await checkpointRepo();
+  try {
+    const survivorJob = { ...job, id: 'S4i-survivor', issue: 'I-survivor' };
+    await writeFile(join(root, 'fake-codex'), survivorFakeCodexSource(root));
+    assert.doesNotThrow(() =>
+      commitCheckpoint(
+        survivorJob,
+        'test: checkpoint B2 fixture source',
+        'session-b2-fixture',
+      ),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint refuses quoted sensitive assignments with metadata-shaped values', async () => {
+  const { root, job } = await checkpointRepo();
+  try {
+    await writeFile(
+      join(root, 'settings.ts'),
+      "export const password = 'LON-231';\n",
+    );
+    assert.throws(
+      () =>
+        commitCheckpoint(
+          job,
+          'test: refuse quoted password value',
+          'session-quoted-password',
+        ),
+      /checkpoint refused: secret pattern/u,
     );
   } finally {
     await rm(root, { recursive: true, force: true });

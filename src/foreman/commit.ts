@@ -10,6 +10,8 @@ const secretPattern =
 const sensitiveZodProperty =
   /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*:\s*z\s*\./giu;
 const stringLiteralPattern = /(['"`])((?:\\.|(?!\1)[\s\S])*)\1/gu;
+const quotedSensitiveAssignmentPattern =
+  /\b(?:api[_-]?key|access[_-]?token|secret|password)\b["']?\s*[:=]\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/giu;
 
 function statusPaths(output: string): string[] {
   return output
@@ -50,9 +52,26 @@ function expressionEnd(source: string, start: number): number {
   return source.length;
 }
 
-function isSecretLikeLiteral(value: string): boolean {
+function isStructuredMetadataLiteral(value: string): boolean {
+  return (
+    isAbsolute(value) ||
+    /^[A-Za-z]:[\\/]/u.test(value) ||
+    /^intent:\d+$/u.test(value) ||
+    /^[A-Z]{1,8}\d+[a-z]?-[A-Za-z0-9-]+$/u.test(value) ||
+    /^[A-Z]{2,8}-\d{1,8}$/u.test(value)
+  );
+}
+
+function isSecretLikeLiteral(
+  value: string,
+  scanStructuredMetadata = true,
+): boolean {
   if (secretPattern.test(value)) return true;
   const candidate = value.trim();
+  // Checkpointed source can contain paths and KRN control IDs with digits.
+  // Explicit credential matches above still win; schema literals stay strict.
+  if (scanStructuredMetadata && isStructuredMetadataLiteral(candidate))
+    return false;
   return (
     candidate.length >= 6 &&
     !/\s/u.test(candidate) &&
@@ -64,7 +83,14 @@ function isSecretLikeLiteral(value: string): boolean {
 function hasSecretLiteral(expression: string): boolean {
   stringLiteralPattern.lastIndex = 0;
   return [...expression.matchAll(stringLiteralPattern)].some((literal) =>
-    isSecretLikeLiteral(literal[2] ?? ''),
+    isSecretLikeLiteral(literal[2] ?? '', false),
+  );
+}
+
+function hasQuotedSensitiveAssignment(content: string): boolean {
+  quotedSensitiveAssignmentPattern.lastIndex = 0;
+  return [...content.matchAll(quotedSensitiveAssignmentPattern)].some(
+    (assignment) => isSecretLikeLiteral(assignment[2] ?? '', false),
   );
 }
 
@@ -78,6 +104,7 @@ function containsSecret(content: string): boolean {
   }
 
   if (secretPattern.test(content)) return true;
+  if (hasQuotedSensitiveAssignment(content)) return true;
   stringLiteralPattern.lastIndex = 0;
   return [...content.matchAll(stringLiteralPattern)].some((literal) =>
     isSecretLikeLiteral(literal[2] ?? ''),
