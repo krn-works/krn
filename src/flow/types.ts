@@ -4,7 +4,14 @@ import { z } from 'zod';
 export const roleSchema = z.enum(['standards', 'spec', 'adversarial']);
 export const panelRoles = roleSchema.options;
 export type ReviewRole = z.infer<typeof roleSchema>;
-export const reasoningEffortSchema = z.enum(['low', 'medium', 'high']);
+export const reasoningEffortSchema = z.enum([
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+]);
+export type ReviewReasoningEffort = z.infer<typeof reasoningEffortSchema>;
 
 export const redFirstSchema = z.object({
   path: z.string().min(1),

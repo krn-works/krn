@@ -4,7 +4,12 @@ import { resolve } from 'node:path';
 import { runReview } from './index.ts';
 import { appendOverride } from './record.ts';
 import { repoRoot, resolveCommit, validateSha } from './repository.ts';
-import { panelRoles, roleSchema } from './types.ts';
+import {
+  panelRoles,
+  type ReviewReasoningEffort,
+  reasoningEffortSchema,
+  roleSchema,
+} from './types.ts';
 
 export type ReviewCommandOutcome = 'PASS' | 'FAIL' | 'INCOMPLETE' | 'OVERRIDE';
 
@@ -30,6 +35,18 @@ function panelValue(args: readonly string[]): (typeof panelRoles)[number][] {
   const parsed = roleSchema.array().min(1).safeParse(roles);
   if (!parsed.success || new Set(roles).size !== roles.length)
     throw new ReviewUsageError('--panel must contain unique judge roles');
+  return parsed.data;
+}
+
+function reasoningEffortValue(args: readonly string[]): ReviewReasoningEffort {
+  if (!args.includes('--reasoning-effort')) return 'high';
+  const parsed = reasoningEffortSchema.safeParse(
+    value(args, '--reasoning-effort'),
+  );
+  if (!parsed.success)
+    throw new ReviewUsageError(
+      '--reasoning-effort must be one of low, medium, high, xhigh, max',
+    );
   return parsed.data;
 }
 
@@ -115,6 +132,7 @@ async function runReviewCommand(
   controller: AbortController,
   options: { readonly codexExecutable?: string },
 ): Promise<ReviewCommandOutcome> {
+  const reasoningEffort = reasoningEffortValue(args);
   const repo = value(args, '--repo');
   const headInput = value(args, '--head');
   if (args.includes('--override')) {
@@ -144,6 +162,7 @@ async function runReviewCommand(
     head,
     lens,
     panel,
+    reasoningEffort,
     signal: controller.signal,
     ...(options.codexExecutable
       ? { codexExecutable: options.codexExecutable }
