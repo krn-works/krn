@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -7,6 +8,59 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const cli = fileURLToPath(new URL('../src/cli/main.ts', import.meta.url));
+
+test('krn review maps a runtime failure to exit code 70', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-review-runtime-'));
+  try {
+    const lens = join(directory, 'lens.md');
+    await writeFile(lens, 'Review the change.\n');
+    const result = spawnSync(
+      process.execPath,
+      [
+        cli,
+        'review',
+        '--repo',
+        directory,
+        '--base',
+        'b'.repeat(40),
+        '--head',
+        'c'.repeat(40),
+        '--lens',
+        lens,
+      ],
+      { encoding: 'utf8' },
+    );
+
+    assert.equal(result.status, 70, result.stderr);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('review verdict and error exit codes are stable', async () => {
+  const mainSource = readFileSync(
+    new URL('../src/cli/main.ts', import.meta.url),
+    'utf8',
+  );
+  const flowSource = readFileSync(
+    new URL('../src/flow/cli.ts', import.meta.url),
+    'utf8',
+  );
+  assert.match(mainSource, /export function reviewOutcomeExitCode/u);
+  assert.match(flowSource, /export class ReviewUsageError/u);
+  const [{ reviewErrorExitCode, reviewOutcomeExitCode }, { ReviewUsageError }] =
+    await Promise.all([
+      import('../src/cli/main.ts'),
+      import('../src/flow/cli.ts'),
+    ]);
+
+  assert.equal(reviewOutcomeExitCode('PASS'), 0);
+  assert.equal(reviewOutcomeExitCode('FAIL'), 1);
+  assert.equal(reviewOutcomeExitCode('INCOMPLETE'), 2);
+  assert.equal(reviewOutcomeExitCode('OVERRIDE'), 0);
+  assert.equal(reviewErrorExitCode(new ReviewUsageError('bad arguments')), 64);
+  assert.equal(reviewErrorExitCode(new Error('runtime failure')), 70);
+});
 
 test('krn --version reports the package version', () => {
   const result = spawnSync(process.execPath, [cli, '--version'], {

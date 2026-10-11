@@ -9,8 +9,12 @@ import {
   realpathSync,
   rmdirSync,
   unlinkSync,
+  writeFileSync,
 } from 'node:fs';
-import { isAbsolute, join } from 'node:path';
+import { isAbsolute, join, matchesGlob } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { z } from 'zod';
+import { TEST_FILE_GLOB } from '../../scripts/test-suite.mjs';
 import type { Job } from '../core/index.ts';
 import { stateDirectory } from '../foreman/state.ts';
 import {
@@ -21,10 +25,80 @@ import {
 } from '../verdict/sandbox.ts';
 import { type RedFirstResult, redFirstSchema } from './types.ts';
 
-const testPath = /^test\/.+\.test\.(?:ts|js|mjs|cjs)$/u;
-const nodeResolutionFailure =
-  /\bERR_(?:MODULE_NOT_FOUND|PACKAGE_PATH_NOT_EXPORTED|PACKAGE_IMPORT_NOT_DEFINED|INVALID_MODULE_SPECIFIER|INVALID_PACKAGE_CONFIG|INVALID_PACKAGE_TARGET|UNSUPPORTED_DIR_IMPORT|UNSUPPORTED_RESOLVE_REQUEST|UNSUPPORTED_ESM_URL_SCHEME|UNKNOWN_FILE_EXTENSION|UNKNOWN_BUILTIN_MODULE|REQUIRE_ESM)\b|Cannot find (?:module|package)\b|Module not found\b|does not provide an export named|Named export .+ not found/u;
-const assertionFailure = /AssertionError|ERR_ASSERTION|assert\./u;
+const nodeResolutionCodes = new Set([
+  'ERR_MODULE_NOT_FOUND',
+  'MODULE_NOT_FOUND',
+  'ERR_PACKAGE_PATH_NOT_EXPORTED',
+  'ERR_PACKAGE_IMPORT_NOT_DEFINED',
+  'ERR_INVALID_MODULE_SPECIFIER',
+  'ERR_INVALID_PACKAGE_CONFIG',
+  'ERR_INVALID_PACKAGE_TARGET',
+  'ERR_UNSUPPORTED_DIR_IMPORT',
+  'ERR_UNSUPPORTED_RESOLVE_REQUEST',
+  'ERR_UNSUPPORTED_ESM_URL_SCHEME',
+  'ERR_UNKNOWN_FILE_EXTENSION',
+  'ERR_UNKNOWN_BUILTIN_MODULE',
+  'ERR_REQUIRE_ESM',
+  'ERR_MODULE_LINKING',
+]);
+const nodeTestReportSchema = z.object({
+  testFailure: z.boolean(),
+  errorCodes: z.array(z.string()),
+  causeCodes: z.array(z.string()),
+});
+
+// The reporter receives Node's structured test events, not candidate stdout.
+// Keep only failure metadata so arbitrary test output cannot become verdict data.
+const nodeTestReporter = `
+import { Transform } from 'node:stream';
+const knownCodes = new Set(${JSON.stringify([
+  ...nodeResolutionCodes,
+  'ERR_ASSERTION',
+  'ERR_TEST_FAILURE',
+])});
+let testFailure = false;
+const errorCodes = new Set();
+const causeCodes = new Set();
+export default new Transform({
+  writableObjectMode: true,
+  transform(event, _encoding, callback) {
+    if (event?.type === 'test:fail') {
+      testFailure = true;
+      const error = event.data?.details?.error;
+      const cause = error?.cause;
+      if (knownCodes.has(error?.code)) errorCodes.add(error.code);
+      if (cause && typeof cause === 'object') {
+        if (knownCodes.has(cause.code)) causeCodes.add(cause.code);
+      }
+    }
+    callback();
+  },
+  flush(callback) {
+    this.push(JSON.stringify({
+      testFailure,
+      errorCodes: [...errorCodes],
+      causeCodes: [...causeCodes],
+    }) + '\\n');
+    callback();
+  },
+});
+`;
+function nodeTestWrapper(testModulePath: string): string {
+  const testModuleUrl = pathToFileURL(testModulePath).href;
+  return `
+import { test } from 'node:test';
+// Keep the candidate path visible to tests that inspect argv[1].
+process.argv[1] = ${JSON.stringify(testModulePath)};
+try {
+  await import(${JSON.stringify(testModuleUrl)});
+} catch (error) {
+  const failure = error instanceof SyntaxError
+    ? Object.assign(new Error(error.message, { cause: error }), { code: 'ERR_MODULE_LINKING' })
+    : error;
+  test('candidate test module load', () => { throw failure; });
+}
+`;
+}
 
 export interface RedFirstReport {
   readonly baseSha: string;
@@ -119,8 +193,35 @@ function changedTestFiles(root: string, base: string, head: string): string[] {
     'test',
   ])
     .split('\n')
-    .filter((path) => path && testPath.test(path))
+    .filter((path) => path && matchesGlob(path, TEST_FILE_GLOB))
     .sort();
+}
+
+export function classifyNodeTestOutput(
+  exitCode: number | null,
+  output: string,
+): RedFirstResult['classification'] {
+  if (exitCode === 0) return 'pass';
+  let report: z.infer<typeof nodeTestReportSchema>;
+  try {
+    report = nodeTestReportSchema.parse(JSON.parse(output));
+  } catch {
+    return 'other';
+  }
+  if (
+    report.testFailure &&
+    (report.errorCodes.includes('ERR_ASSERTION') ||
+      report.causeCodes.includes('ERR_ASSERTION'))
+  )
+    return 'assertion';
+  if (
+    report.testFailure &&
+    [...report.errorCodes, ...report.causeCodes].some((code) =>
+      nodeResolutionCodes.has(code),
+    )
+  )
+    return 'procedural';
+  return 'other';
 }
 
 async function classifyTest(
@@ -138,16 +239,38 @@ async function classifyTest(
     issue: 'red-first',
     worktree: scratch,
   };
+  const reporterPath = join(scratch, `.krn-redfirst-reporter-${id}.mjs`);
+  const wrapperPath = join(scratch, `.krn-redfirst-wrapper-${id}.mjs`);
+  writeFileSync(reporterPath, nodeTestReporter, {
+    flag: 'wx',
+    mode: 0o400,
+  });
+  writeFileSync(wrapperPath, nodeTestWrapper(join(scratch, path)), {
+    flag: 'wx',
+    mode: 0o400,
+  });
   const evidence = await execute(
     root,
     scratch,
     job,
     id,
-    [process.execPath, '--test', path],
+    [
+      process.execPath,
+      '--test',
+      `--test-reporter=${reporterPath}`,
+      wrapperPath,
+    ],
     120000,
     sha,
     signal,
   );
+  for (const helper of [reporterPath, wrapperPath]) {
+    try {
+      unlinkSync(helper);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  }
   const diagnostics = join(stateDirectory(job), 'diagnostics');
   if (realpathSync(diagnostics) !== diagnostics)
     throw new Error('unsafe red-first diagnostic directory');
@@ -173,14 +296,7 @@ async function classifyTest(
         throw error;
     }
   }
-  const classification =
-    evidence.exitCode === 0
-      ? 'pass'
-      : nodeResolutionFailure.test(output)
-        ? 'procedural'
-        : assertionFailure.test(output)
-          ? 'assertion'
-          : 'other';
+  const classification = classifyNodeTestOutput(evidence.exitCode, output);
   return redFirstSchema.parse({
     path,
     side,
