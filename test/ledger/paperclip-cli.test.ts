@@ -121,6 +121,76 @@ test('readContract uses CLI JSON without KRN credentials and default reads never
   }
 });
 
+test('CLI reads parse stdout JSON when stderr contains a warning', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'CLI reads parse stdout JSON when stderr contains a warning',
+      ['systemdUserScope'],
+    )
+  )
+    return;
+  const fake = await fakeCli();
+  await writeFile(
+    fake.executable,
+    `#!/usr/bin/env node\nprocess.stderr.write('warning: deprecated option\\n');\nprocess.stdout.write(${JSON.stringify(JSON.stringify(issue))});\n`,
+  );
+  await chmod(fake.executable, 0o755);
+  try {
+    let value: unknown;
+    try {
+      value = await createPaperclipCliTransport({
+        executable: fake.executable,
+      }).readIssue('LON-200');
+    } catch {
+      value = undefined;
+    }
+    assert.equal(
+      (value as { id?: string } | undefined)?.id,
+      'LON-200',
+      'valid stdout JSON must be parsed despite a stderr warning',
+    );
+  } finally {
+    await rm(fake.directory, { recursive: true, force: true });
+  }
+});
+
+test('CLI failures include stderr details without forwarded credentials', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'CLI failures include stderr details without forwarded credentials',
+      ['systemdUserScope'],
+    )
+  )
+    return;
+  const fake = await fakeCli();
+  const token = 'paperclip-test-token-for-redaction';
+  const originalToken = process.env.PAPERCLIP_AUTH_TOKEN;
+  try {
+    process.env.PAPERCLIP_AUTH_TOKEN = token;
+    await writeFile(
+      fake.executable,
+      `#!/usr/bin/env node\nprocess.stderr.write('request failed with ${token}');\nprocess.exitCode = 2;\n`,
+    );
+    await chmod(fake.executable, 0o755);
+    let message = '';
+    try {
+      await createPaperclipCliTransport({
+        executable: fake.executable,
+      }).readIssue('LON-200');
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+    assert.match(message, /request failed/u);
+    assert.equal(message.includes(token), false);
+  } finally {
+    if (originalToken === undefined) delete process.env.PAPERCLIP_AUTH_TOKEN;
+    else process.env.PAPERCLIP_AUTH_TOKEN = originalToken;
+    await rm(fake.directory, { recursive: true, force: true });
+  }
+});
+
 test('CLI update carries status and comment in one argv-safe invocation', async (t) => {
   if (
     !requiresIsolation(
