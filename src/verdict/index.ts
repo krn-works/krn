@@ -168,7 +168,11 @@ export async function judge(
           checks: results,
           findings: failed
             .slice(0, 2)
-            .map((check) => `${check.id} exited ${check.exitCode}`),
+            .map((check) =>
+              check.exitCode === 124
+                ? `${check.id} timed out`
+                : `${check.id} exited ${check.exitCode}`,
+            ),
         }
       : { kind: 'pass', checks: results };
   } catch (error) {
