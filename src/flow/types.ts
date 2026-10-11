@@ -7,6 +7,8 @@ export type ReviewRole = z.infer<typeof roleSchema>;
 
 export const redFirstSchema = z.object({
   path: z.string().min(1),
+  side: z.enum(['base', 'head']),
+  sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
   classification: z.enum(['pass', 'assertion', 'procedural', 'other']),
   exitCode: z.number().int().nullable(),
   durationMs: z.number().int().nonnegative(),

@@ -48,7 +48,7 @@ export async function runReview(input: {
         sha,
         role,
         lens,
-        red.results,
+        red,
         input.timeoutMs ?? 600000,
         input.codexExecutable,
         input.signal,

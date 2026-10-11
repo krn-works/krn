@@ -14,13 +14,8 @@ import {
   type CodexSession,
   defaultCodexExecutable,
 } from '../hosts/codex.ts';
-import { git, temporaryDirectory } from './repository.ts';
-import {
-  findingSchema,
-  judgeSchema,
-  type RedFirstResult,
-  type ReviewRole,
-} from './types.ts';
+import { git, type RedFirstReport, temporaryDirectory } from './repository.ts';
+import { findingSchema, judgeSchema, type ReviewRole } from './types.ts';
 
 function readOnlyLauncher(parent: string, executable: string): string {
   const wrapper = join(parent, 'codex-readonly.mjs');
@@ -34,7 +29,7 @@ function makeBrief(
   role: ReviewRole,
   sha: string,
   lens: string,
-  red: readonly RedFirstResult[],
+  red: RedFirstReport,
 ): string {
   return [
     `You are the independent ${role} judge for repository commit ${sha}.`,
@@ -44,7 +39,8 @@ function makeBrief(
     'BLOCKING findings must be behaviour or acceptance defects, with a real path and line and the smallest fix. Style issues are NON_BLOCKING. PASS requires no BLOCKING findings.',
     `ROLE: ${role}`,
     `LENS:\n${lens}`,
-    `MECHANICAL RED-FIRST REPORT:\n${JSON.stringify(red)}`,
+    `MECHANICAL RED-FIRST REPORT — BASE ${red.baseSha}:\n${JSON.stringify(red.results.filter(({ side }) => side === 'base'))}`,
+    `MECHANICAL RED-FIRST REPORT — HEAD ${red.headSha}:\n${JSON.stringify(red.results.filter(({ side }) => side === 'head'))}`,
   ].join('\n\n');
 }
 
@@ -92,7 +88,7 @@ export async function judgeRole(
   sha: string,
   role: ReviewRole,
   lens: string,
-  red: readonly RedFirstResult[],
+  red: RedFirstReport,
   timeoutMs: number,
   executable = defaultCodexExecutable,
   signal?: AbortSignal,
