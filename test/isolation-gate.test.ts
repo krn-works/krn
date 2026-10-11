@@ -16,9 +16,7 @@ import {
   decideIsolation,
   type IsolationCapabilities,
   isolationSummary,
-  parseTapSummary,
   postGateStatusWhenClean,
-  testSuiteExitCode,
 } from '../scripts/isolation-gate.mjs';
 
 const unavailable: IsolationCapabilities = {
@@ -56,17 +54,6 @@ test('missing isolation in CI produces named skips and a skip summary', () => {
     ),
     0,
   );
-  assert.equal(
-    testSuiteExitCode(
-      0,
-      parseTapSummary(
-        'ok 1 - real verdict check # SKIP SKIP(isolation): real verdict check — missing systemd user scopes\n# tests 1\n# skipped 1\n# todo 0\n',
-      ),
-      false,
-      true,
-    ),
-    0,
-  );
 });
 
 test('missing isolation outside CI is a failure decision', () => {
@@ -83,60 +70,110 @@ test('missing isolation outside CI is a failure decision', () => {
         'Isolation requirements failed for real verdict check: missing systemd user scopes',
     },
   );
-  assert.equal(
-    testSuiteExitCode(
-      0,
-      parseTapSummary('# tests 1\n# skipped 0\n# todo 0\n'),
-      false,
-      false,
-    ),
-    0,
-  );
 });
 
-test('TAP exit policy rejects zero tests and unapproved CI skips or todos', () => {
-  assert.equal(
-    testSuiteExitCode(
-      0,
-      parseTapSummary('# tests 0\n# skipped 0\n# todo 0\n'),
-      false,
-      false,
-    ),
-    1,
-  );
-  assert.equal(
-    testSuiteExitCode(
-      0,
-      parseTapSummary(
-        'ok 1 - ordinary skip # SKIP not isolation\n# tests 1\n# skipped 1\n# todo 0\n',
-      ),
-      false,
-      true,
-    ),
-    1,
-  );
-  assert.equal(
-    testSuiteExitCode(
-      0,
-      parseTapSummary(
-        'ok 1 - ordinary todo # TODO\n# tests 1\n# skipped 0\n# todo 1\n',
-      ),
-      false,
-      true,
-    ),
-    1,
-  );
-  assert.equal(
-    testSuiteExitCode(
-      0,
-      parseTapSummary(
-        'ok 1 - ordinary skip # SKIP not isolation\n# tests 1\n# skipped 1\n# todo 0\n',
-      ),
-      false,
-      false,
-    ),
-    0,
-  );
+test('TAP exit policy rejects zero tests and unapproved CI skips or todos', async () => {
+  const directory = await mkdtemp(join(process.cwd(), 'test/suite-policy-'));
+  const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
+  const fixtures = [
+    {
+      filename: 'skip.test.mjs',
+      source:
+        "import { test } from 'node:test'; test('ordinary skip', (t) => t.skip('not isolation'));\n",
+    },
+    {
+      filename: 'todo.test.mjs',
+      source: "import { test } from 'node:test'; test.todo('ordinary todo');\n",
+    },
+    {
+      filename: 'passing.test.mjs',
+      source: "import { test } from 'node:test'; test('pass', () => {});\n",
+    },
+    {
+      filename: 'isolation.test.mjs',
+      source: `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('approved isolation skip', (t) => { if (!requiresIsolation(t, 'approved isolation skip', ['systemdUserScope'])) return; throw new Error('missing systemd capability was used'); });\n`,
+    },
+  ];
+
+  try {
+    const fixturePaths = new Map<string, string>();
+    for (const fixture of fixtures) {
+      const path = join(directory, fixture.filename);
+      await writeFile(path, fixture.source);
+      fixturePaths.set(fixture.filename, path);
+    }
+
+    const contextSkipPath = fixturePaths.get('skip.test.mjs');
+    const todoPath = fixturePaths.get('todo.test.mjs');
+    const passingPath = fixturePaths.get('passing.test.mjs');
+    const isolationPath = fixturePaths.get('isolation.test.mjs');
+    assert.ok(contextSkipPath);
+    assert.ok(todoPath);
+    assert.ok(passingPath);
+    assert.ok(isolationPath);
+
+    const zeroTests = runTestSuite([], directory, ciTestEnv());
+    const ciSkip = runTestSuite([contextSkipPath], directory, ciTestEnv());
+    const ciTodo = runTestSuite([todoPath], directory, ciTestEnv());
+    const localSkip = runTestSuite(
+      [contextSkipPath],
+      directory,
+      localTestEnv(),
+    );
+    const localPass = runTestSuite([passingPath], directory, localTestEnv());
+    const approvedIsolationSkip = runTestSuite(
+      [isolationPath],
+      directory,
+      ciTestEnv(),
+    );
+    const requiredZeroIsolationSkip = runTestSuite([isolationPath], directory, {
+      ...ciTestEnv(),
+      KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1',
+    });
+    const unexpected = [
+      ['zero tests must fail', zeroTests.status === 1],
+      ['CI context skip must fail', ciSkip.status === 1],
+      ['CI todo must fail', ciTodo.status === 1],
+      [
+        'non-CI skip is accepted without zero-skip policy',
+        localSkip.status === 0,
+      ],
+      ['non-CI passing suite is accepted', localPass.status === 0],
+      [
+        'approved CI isolation skip is accepted',
+        approvedIsolationSkip.status === 0,
+      ],
+      [
+        'zero-isolation requirement rejects approved skips',
+        requiredZeroIsolationSkip.status === 1 &&
+          /gate:local requires zero isolation skips/u.test(
+            requiredZeroIsolationSkip.stderr,
+          ),
+      ],
+    ].filter(([, accepted]) => !accepted);
+
+    assert.deepEqual(
+      unexpected,
+      [],
+      JSON.stringify({
+        zeroTests: { status: zeroTests.status, stdout: zeroTests.stdout },
+        ciSkip: { status: ciSkip.status, stdout: ciSkip.stdout },
+        ciTodo: { status: ciTodo.status, stdout: ciTodo.stdout },
+        localSkip: { status: localSkip.status, stdout: localSkip.stdout },
+        localPass: { status: localPass.status, stdout: localPass.stdout },
+        approvedIsolationSkip: {
+          status: approvedIsolationSkip.status,
+          stdout: approvedIsolationSkip.stdout,
+        },
+        requiredZeroIsolationSkip: {
+          status: requiredZeroIsolationSkip.status,
+          stderr: requiredZeroIsolationSkip.stderr,
+        },
+      }),
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test('requiresIsolation logs a named CI skip and fails when CI is absent', async () => {
@@ -245,6 +282,7 @@ test('test-suite rejects non-isolation skips and todos in CI', async () => {
   const results: {
     filename: string;
     result: SpawnSyncReturns<string>;
+    localResult: SpawnSyncReturns<string>;
     summary: RegExp;
   }[] = [];
   for (const fixture of fixtures) {
@@ -255,6 +293,7 @@ test('test-suite rejects non-isolation skips and todos in CI', async () => {
       results.push({
         filename: fixture.filename,
         result: runTestSuite([path], directory, ciTestEnv()),
+        localResult: runTestSuite([path], directory, localTestEnv()),
         summary: fixture.summary,
       });
     } finally {
@@ -281,6 +320,29 @@ test('test-suite rejects non-isolation skips and todos in CI', async () => {
       summary,
       `${filename} did not produce its TAP summary:\n${result.stdout}`,
     );
+  assert.deepEqual(
+    results
+      .filter(({ localResult }) => localResult.status !== 0)
+      .map(({ filename, localResult }) => ({
+        filename,
+        status: localResult.status,
+        stdout: localResult.stdout,
+        stderr: localResult.stderr,
+      })),
+    [],
+    'non-CI test-suite unexpectedly rejected a skip or todo without the zero-skip requirement',
+  );
+});
+
+test('CI explicitly enables the CI skip policy for the gate step', async () => {
+  const workflow = await readFile(
+    join(process.cwd(), '.github/workflows/ci.yml'),
+    'utf8',
+  );
+  assert.match(
+    workflow,
+    /- name: Run gate\n {8}env:\n {10}CI: 'true'\n {8}run: npm run gate/u,
+  );
 });
 
 test('test-suite reports approved isolation skip names in CI logs and summary', async () => {
@@ -301,20 +363,55 @@ test('test-suite reports approved isolation skip names in CI logs and summary', 
 
   try {
     const result = runTestSuite([fixture], directory, env);
-    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    assert.match(result.stdout, /^# skipped 1$/mu);
-    assert.match(
-      result.stdout,
-      /Isolation-dependent tests skipped: 1[\s\S]*reported isolation fixture/u,
+    const failures: string[] = [];
+    if (result.status !== 0)
+      failures.push(`CI-approved isolation skip exited ${result.status}`);
+    if (!/^# skipped 1$/mu.test(result.stdout))
+      failures.push('TAP did not report one skipped test');
+    if (
+      !/Isolation-dependent tests skipped: 1[\s\S]*reported isolation fixture/u.test(
+        result.stdout,
+      )
+    )
+      failures.push('CI log did not contain the isolation count and test name');
+
+    const summaryExists = await pathExists(stepSummary);
+    const summary = summaryExists ? await readFile(stepSummary, 'utf8') : '';
+    if (!summaryExists)
+      failures.push('CI test runner did not write GITHUB_STEP_SUMMARY');
+    if (
+      !/Isolation-dependent tests skipped: 1/u.test(summary) ||
+      !/reported isolation fixture/u.test(summary)
+    )
+      failures.push(
+        'GitHub step summary did not contain the isolation count and test name',
+      );
+
+    const requiredZeroSkipRun = runTestSuite([fixture], directory, {
+      ...env,
+      KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1',
+    });
+    if (
+      requiredZeroSkipRun.status !== 1 ||
+      !/gate:local requires zero isolation skips/u.test(
+        requiredZeroSkipRun.stderr,
+      )
+    )
+      failures.push('KRN_REQUIRE_ZERO_ISOLATION_SKIPS did not refuse the skip');
+
+    assert.deepEqual(
+      failures,
+      [],
+      JSON.stringify({
+        stdout: result.stdout,
+        stderr: result.stderr,
+        stepSummary: summary,
+        requiredZeroSkip: {
+          status: requiredZeroSkipRun.status,
+          stderr: requiredZeroSkipRun.stderr,
+        },
+      }),
     );
-    assert.equal(
-      await pathExists(stepSummary),
-      true,
-      'CI test runner did not write GITHUB_STEP_SUMMARY',
-    );
-    const summary = await readFile(stepSummary, 'utf8');
-    assert.match(summary, /Isolation-dependent tests skipped: 1/u);
-    assert.match(summary, /reported isolation fixture/u);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
@@ -392,6 +489,12 @@ function ciTestEnv(): NodeJS.ProcessEnv {
     KRN_SCOPE_PROBE: '1',
     KRN_ISOLATION_CAPABILITIES: JSON.stringify(unavailable),
   };
+}
+
+function localTestEnv(): NodeJS.ProcessEnv {
+  const env = ciTestEnv();
+  delete env.CI;
+  return env;
 }
 
 function runTestSuite(
@@ -579,17 +682,6 @@ test('gate-local refuses to post a status when any isolation test was skipped', 
   });
   assert.equal(accepted, false);
   assert.equal(posted, false);
-  assert.equal(
-    testSuiteExitCode(
-      0,
-      parseTapSummary(
-        'ok 1 - isolated test # SKIP SKIP(isolation): isolated test — missing bwrap user namespaces\n# tests 1\n# skipped 1\n# todo 0\n',
-      ),
-      true,
-      false,
-    ),
-    1,
-  );
 
   const failedGate = await postGateStatusWhenClean({
     exitCode: 1,
