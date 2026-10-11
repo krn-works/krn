@@ -18,7 +18,7 @@ const GIT_OVERRIDES = [
 ];
 const sha = z.string().regex(/^(?:[a-f\d]{40}|[a-f\d]{64})$/iu);
 const outputSha = z.string().trim().pipe(sha);
-const taskSchema = z.string().regex(/^(?:R1-\d+|none)$/u);
+const taskSchema = z.string().regex(/^(?:R1-\d+|LON-\d+|none)$/u);
 const text = z.string().trim().min(1);
 const argsSchema = z
   .object({
@@ -152,7 +152,7 @@ function paperclipTask(description) {
   if (lines.length !== 1)
     return err('Paperclip description must contain exactly one R1-task line');
   const value =
-    /^R1-task:[ \t]*(R1-\d+|none)(?:[ \t]+\([^\r\n]*\))?[ \t]*$/u.exec(
+    /^R1-task:[ \t]*(R1-\d+|LON-\d+|none)(?:[ \t]+\([^\r\n]*\))?[ \t]*$/u.exec(
       lines[0] ?? '',
     )?.[1];
   const parsed = taskSchema.safeParse(value);
@@ -170,6 +170,11 @@ function latestGateLocal(statuses) {
         (Date.parse(a.created_at ?? a.updated_at ?? '') || 0),
     )[0];
   return gate ? ok(gate) : err('exact-head krn/gate-local status is missing');
+}
+
+function hasZeroIsolationSkips(description) {
+  const counts = [...description.matchAll(/\b(\d+)\s+isolation skips\b/gu)];
+  return counts.length === 1 && Number(counts[0]?.[1]) === 0;
 }
 
 async function readPaperclipDescription(ticket) {
@@ -363,7 +368,7 @@ export async function runPreflight(input, dependencies = {}) {
           reasons.add('exact-head krn/gate-local status is not success');
         if (!creator)
           reasons.add('exact-head krn/gate-local status has no creator');
-        if (!status.description?.includes('0 isolation skips'))
+        if (!status.description || !hasZeroIsolationSkips(status.description))
           reasons.add(
             'exact-head krn/gate-local status does not report zero isolation skips',
           );
