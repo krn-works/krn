@@ -1,3 +1,13 @@
+import { z } from 'zod';
+
+const tapSummarySchema = z.object({
+  testCount: z.number().int().nonnegative().optional(),
+  skippedCount: z.number().int().nonnegative().optional(),
+  todoCount: z.number().int().nonnegative().optional(),
+  isolationSkipNames: z.array(z.string()),
+});
+const emptyTapSummary = { isolationSkipNames: [] };
+
 export function decideIsolation(testName, required, capabilities, isCI) {
   const labels = {
     bwrap: 'bwrap user namespaces',
@@ -18,17 +28,55 @@ export function decideIsolation(testName, required, capabilities, isCI) {
   };
 }
 
-export function isolationSummary(skipCount) {
-  return `Isolation-dependent tests skipped: ${skipCount}`;
+export function isolationSummary(skipNames) {
+  const lines = [`Isolation-dependent tests skipped: ${skipNames.length}`];
+  if (skipNames.length === 0) lines.push('Isolation skip names: none');
+  else {
+    lines.push('Isolation skip names:');
+    for (const name of skipNames) lines.push(`- ${name}`);
+  }
+  return lines.join('\n');
 }
 
 export function countIsolationSkips(output) {
-  return (output.match(/SKIP\(isolation\):/gu) ?? []).length;
+  return parseTapSummary(output).isolationSkipNames.length;
 }
 
-export function testSuiteExitCode(exitCode, skipCount, requireZeroSkips) {
+export function parseTapSummary(output) {
+  const capturedOutput = z.string().safeParse(output);
+  if (!capturedOutput.success) return emptyTapSummary;
+  const count = (name) => {
+    const matches = capturedOutput.data.matchAll(
+      new RegExp(`^# ${name} (\\d+)$`, 'gmu'),
+    );
+    const last = [...matches].at(-1);
+    return last ? Number(last[1]) : undefined;
+  };
+  const isolationSkipNames = [
+    ...capturedOutput.data.matchAll(
+      /^[ \t]*ok \d+ - (.*?) # SKIP SKIP\(isolation\):[^\r\n]*$/gmu,
+    ),
+  ].map((match) => match[1]);
+  const summary = tapSummarySchema.safeParse({
+    testCount: count('tests'),
+    skippedCount: count('skipped'),
+    todoCount: count('todo'),
+    isolationSkipNames,
+  });
+  return summary.success ? summary.data : emptyTapSummary;
+}
+
+export function testSuiteExitCode(exitCode, summary, requireZeroSkips, isCI) {
   if (exitCode !== 0) return exitCode || 1;
-  return requireZeroSkips && skipCount > 0 ? 1 : 0;
+  if (!Number.isInteger(summary.testCount) || summary.testCount === 0) return 1;
+  if (requireZeroSkips && summary.isolationSkipNames.length > 0) return 1;
+  if (
+    isCI &&
+    (summary.skippedCount !== summary.isolationSkipNames.length ||
+      summary.todoCount !== 0)
+  )
+    return 1;
+  return 0;
 }
 
 export async function postGateStatusWhenClean({ exitCode, skipCount, post }) {

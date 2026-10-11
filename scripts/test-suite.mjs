@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process';
 import { appendFile } from 'node:fs/promises';
 import {
-  countIsolationSkips,
   isolationSummary,
+  parseTapSummary,
   testSuiteExitCode,
 } from './isolation-gate.mjs';
 import {
@@ -72,40 +72,53 @@ child.once('error', (error) => {
   process.exitCode = 1;
 });
 child.once('close', async (code) => {
-  const skipCount = countIsolationSkips(stdout);
-  const summary = isolationSummary(skipCount);
-  const testCount = Number(stdout.match(/^# tests (\d+)$/mu)?.[1] ?? 0);
+  const testSummary = parseTapSummary(stdout);
+  const isolationSkipCount = testSummary.isolationSkipNames.length;
+  const summary = isolationSummary(testSummary.isolationSkipNames);
   process.stdout.write(`${summary}\n`);
-  if (
-    process.env.CI === 'true' &&
-    process.env.GITHUB_STEP_SUMMARY &&
-    process.env.KRN_SCOPE_PROBE !== '1'
-  ) {
+  if (process.env.CI === 'true' && process.env.GITHUB_STEP_SUMMARY) {
     const formatCapability = ({ available, reason }) =>
       available ? 'available' : `unavailable (${reason})`;
     const markdown = [
       '## CI test summary',
       '',
-      `- Tests: ${testCount}`,
-      `- ${summary}`,
+      `- Tests: ${testSummary.testCount ?? 0}`,
+      `- Isolation-dependent tests skipped: ${isolationSkipCount}`,
+      '- Isolation skip names:',
+      ...(testSummary.isolationSkipNames.length > 0
+        ? testSummary.isolationSkipNames.map(
+            (name) => `  - ${JSON.stringify(name)}`,
+          )
+        : ['  - none']),
       `- bwrap: ${formatCapability(capabilities.bwrap)}`,
       `- systemd user scopes: ${formatCapability(capabilities.systemdUserScope)}`,
       '',
     ].join('\n');
     await appendFile(process.env.GITHUB_STEP_SUMMARY, markdown);
   }
+  const isCI = process.env.CI === 'true';
+  const requireZeroSkips = process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS === '1';
+  if (code === 0 && !Number.isInteger(testSummary.testCount))
+    process.stderr.write('Test runner summary was missing; refusing success\n');
+  else if (code === 0 && testSummary.testCount === 0)
+    process.stderr.write('Test runner ran zero tests; refusing success\n');
+  if (
+    code === 0 &&
+    isCI &&
+    (testSummary.skippedCount !== isolationSkipCount ||
+      testSummary.todoCount !== 0)
+  )
+    process.stderr.write(
+      `CI test policy failed: TAP reports ${testSummary.skippedCount ?? 'unknown'} skipped, ${isolationSkipCount} approved isolation skips, and ${testSummary.todoCount ?? 'unknown'} todo tests\n`,
+    );
+  if (code === 0 && requireZeroSkips && isolationSkipCount > 0)
+    process.stderr.write(
+      `gate:local requires zero isolation skips; observed ${isolationSkipCount}\n`,
+    );
   const exitCode = forwardedSignal
     ? forwardedSignal === 'SIGINT'
       ? 130
       : 143
-    : testSuiteExitCode(
-        code ?? 1,
-        skipCount,
-        process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS === '1',
-      );
-  if (process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS === '1' && skipCount > 0)
-    process.stderr.write(
-      `gate:local requires zero isolation skips; observed ${skipCount}\n`,
-    );
+    : testSuiteExitCode(code ?? 1, testSummary, requireZeroSkips, isCI);
   process.exitCode = exitCode;
 });

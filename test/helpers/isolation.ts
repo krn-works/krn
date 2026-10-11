@@ -28,6 +28,6 @@ export function requiresIsolation(
   if (decision.kind === 'run') return true;
   if (decision.kind === 'fail') assert.fail(decision.message);
   process.stdout.write(`${decision.line}\n`);
-  context.skip('isolation capability unavailable');
+  context.skip(decision.line);
   return false;
 }

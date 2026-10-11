@@ -1,13 +1,22 @@
 import assert from 'node:assert/strict';
-import { spawn, spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { type SpawnSyncReturns, spawn, spawnSync } from 'node:child_process';
+import {
+  access,
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
+import { delimiter, join } from 'node:path';
 import { test } from 'node:test';
 import {
   countIsolationSkips,
   decideIsolation,
   type IsolationCapabilities,
   isolationSummary,
+  parseTapSummary,
   postGateStatusWhenClean,
   testSuiteExitCode,
 } from '../scripts/isolation-gate.mjs';
@@ -31,14 +40,33 @@ test('missing isolation in CI produces named skips and a skip summary', () => {
     kind: 'skip',
     line: 'SKIP(isolation): real verdict check — missing bwrap user namespaces, systemd user scopes',
   });
-  assert.equal(isolationSummary(2), 'Isolation-dependent tests skipped: 2');
+  assert.equal(
+    isolationSummary(['first isolation test', 'second isolation test']),
+    'Isolation-dependent tests skipped: 2\nIsolation skip names:\n- first isolation test\n- second isolation test',
+  );
   assert.equal(
     countIsolationSkips(
-      '# SKIP(isolation): real verdict check — missing bwrap user namespaces\n',
+      'ok 1 - real verdict check # SKIP SKIP(isolation): real verdict check — missing bwrap user namespaces\n',
     ),
     1,
   );
-  assert.equal(testSuiteExitCode(0, 2, false), 0);
+  assert.equal(
+    countIsolationSkips(
+      '# SKIP(isolation): printed text alone does not approve a skipped test\n',
+    ),
+    0,
+  );
+  assert.equal(
+    testSuiteExitCode(
+      0,
+      parseTapSummary(
+        'ok 1 - real verdict check # SKIP SKIP(isolation): real verdict check — missing systemd user scopes\n# tests 1\n# skipped 1\n# todo 0\n',
+      ),
+      false,
+      true,
+    ),
+    0,
+  );
 });
 
 test('missing isolation outside CI is a failure decision', () => {
@@ -55,7 +83,60 @@ test('missing isolation outside CI is a failure decision', () => {
         'Isolation requirements failed for real verdict check: missing systemd user scopes',
     },
   );
-  assert.equal(testSuiteExitCode(0, 0, false), 0);
+  assert.equal(
+    testSuiteExitCode(
+      0,
+      parseTapSummary('# tests 1\n# skipped 0\n# todo 0\n'),
+      false,
+      false,
+    ),
+    0,
+  );
+});
+
+test('TAP exit policy rejects zero tests and unapproved CI skips or todos', () => {
+  assert.equal(
+    testSuiteExitCode(
+      0,
+      parseTapSummary('# tests 0\n# skipped 0\n# todo 0\n'),
+      false,
+      false,
+    ),
+    1,
+  );
+  assert.equal(
+    testSuiteExitCode(
+      0,
+      parseTapSummary(
+        'ok 1 - ordinary skip # SKIP not isolation\n# tests 1\n# skipped 1\n# todo 0\n',
+      ),
+      false,
+      true,
+    ),
+    1,
+  );
+  assert.equal(
+    testSuiteExitCode(
+      0,
+      parseTapSummary(
+        'ok 1 - ordinary todo # TODO\n# tests 1\n# skipped 0\n# todo 1\n',
+      ),
+      false,
+      true,
+    ),
+    1,
+  );
+  assert.equal(
+    testSuiteExitCode(
+      0,
+      parseTapSummary(
+        'ok 1 - ordinary skip # SKIP not isolation\n# tests 1\n# skipped 1\n# todo 0\n',
+      ),
+      false,
+      false,
+    ),
+    0,
+  );
 });
 
 test('requiresIsolation logs a named CI skip and fails when CI is absent', async () => {
@@ -124,6 +205,274 @@ test('requiresIsolation logs a named CI skip and fails when CI is absent', async
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('test-suite rejects an empty test glob', async () => {
+  const directory = await mkdtemp(join(process.cwd(), 'test/empty-suite-'));
+  const result = runTestSuite([], directory, ciTestEnv());
+  try {
+    assert.equal(
+      result.status,
+      1,
+      `zero-test suite unexpectedly passed:\n${result.stdout}\n${result.stderr}`,
+    );
+    assert.match(result.stdout, /^# tests 0$/mu);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('test-suite rejects non-isolation skips and todos in CI', async () => {
+  const fixtures = [
+    {
+      filename: 'context-skip.test.mjs',
+      source:
+        "import { test } from 'node:test'; test('ordinary context skip', (t) => t.skip('not isolation'));\n",
+      summary: /^# skipped 1$/mu,
+    },
+    {
+      filename: 'option-skip.test.mjs',
+      source:
+        "import { test } from 'node:test'; test('ordinary option skip', { skip: true }, () => {});\n",
+      summary: /^# skipped 1$/mu,
+    },
+    {
+      filename: 'todo.test.mjs',
+      source: "import { test } from 'node:test'; test.todo('ordinary todo');\n",
+      summary: /^# todo 1$/mu,
+    },
+  ];
+
+  const results: {
+    filename: string;
+    result: SpawnSyncReturns<string>;
+    summary: RegExp;
+  }[] = [];
+  for (const fixture of fixtures) {
+    const directory = await mkdtemp(join(process.cwd(), 'test/non-isolation-'));
+    const path = join(directory, fixture.filename);
+    await writeFile(path, fixture.source);
+    try {
+      results.push({
+        filename: fixture.filename,
+        result: runTestSuite([path], directory, ciTestEnv()),
+        summary: fixture.summary,
+      });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+
+  const unexpectedlyAccepted = results.filter(
+    ({ result }) => result.status !== 1,
+  );
+  assert.deepEqual(
+    unexpectedlyAccepted.map(({ filename, result }) => ({
+      filename,
+      status: result.status,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    })),
+    [],
+    'CI accepted one or more non-isolation skips or todos',
+  );
+  for (const { filename, result, summary } of results)
+    assert.match(
+      result.stdout,
+      summary,
+      `${filename} did not produce its TAP summary:\n${result.stdout}`,
+    );
+});
+
+test('test-suite reports approved isolation skip names in CI logs and summary', async () => {
+  const directory = await mkdtemp(
+    join(process.cwd(), 'test/isolation-summary-'),
+  );
+  const fixture = join(directory, 'isolation.test.mjs');
+  const stepSummary = join(directory, 'summary.md');
+  const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
+  await writeFile(
+    fixture,
+    `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('reported isolation fixture', (t) => { if (!requiresIsolation(t, 'exact isolation fixture name', ['systemdUserScope'])) return; throw new Error('missing systemd capability was used'); });\n`,
+  );
+  const env = {
+    ...ciTestEnv(),
+    GITHUB_STEP_SUMMARY: stepSummary,
+  };
+
+  try {
+    const result = runTestSuite([fixture], directory, env);
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stdout, /^# skipped 1$/mu);
+    assert.match(
+      result.stdout,
+      /Isolation-dependent tests skipped: 1[\s\S]*reported isolation fixture/u,
+    );
+    assert.equal(
+      await pathExists(stepSummary),
+      true,
+      'CI test runner did not write GITHUB_STEP_SUMMARY',
+    );
+    const summary = await readFile(stepSummary, 'utf8');
+    assert.match(summary, /Isolation-dependent tests skipped: 1/u);
+    assert.match(summary, /reported isolation fixture/u);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('gate-local refuses tracked and untracked dirt before running the gate', async () => {
+  const results: {
+    dirtyPath: string;
+    result: SpawnSyncReturns<string>;
+    ranGate: boolean;
+  }[] = [];
+  for (const dirtyPath of ['tracked.txt', 'untracked.txt']) {
+    const fixture = await createGitFixture();
+    try {
+      await writeFile(join(fixture.directory, dirtyPath), 'dirty\n');
+      const result = runGateLocal(fixture);
+      results.push({
+        dirtyPath,
+        result,
+        ranGate: await pathExists(fixture.npmMarker),
+      });
+    } finally {
+      await rm(fixture.directory, { recursive: true, force: true });
+    }
+  }
+
+  const acceptedDirtyTrees = results.filter(
+    ({ result, ranGate }) =>
+      result.status !== 1 ||
+      ranGate ||
+      !/dirty worktree/iu.test(`${result.stdout}\n${result.stderr}`) ||
+      /Published krn\/gate-local/u.test(result.stdout),
+  );
+  assert.deepEqual(
+    acceptedDirtyTrees.map(({ dirtyPath, result, ranGate }) => ({
+      dirtyPath,
+      status: result.status,
+      ranGate,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    })),
+    [],
+    'gate-local ran or published from one or more dirty worktrees',
+  );
+});
+
+test('gate-local ignores ignored files when checking cleanliness', async () => {
+  const fixture = await createGitFixture({ ignoredPath: 'ignored.txt' });
+  try {
+    await writeFile(join(fixture.directory, 'ignored.txt'), 'ignored\n');
+    const result = runGateLocal(fixture);
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.equal(
+      await pathExists(fixture.npmMarker),
+      true,
+      `ignored files blocked a clean gate:\n${result.stdout}\n${result.stderr}`,
+    );
+    assert.doesNotMatch(
+      `${result.stdout}\n${result.stderr}`,
+      /dirty worktree/u,
+    );
+    assert.doesNotMatch(result.stdout, /Published krn\/gate-local/u);
+  } finally {
+    await rm(fixture.directory, { recursive: true, force: true });
+  }
+});
+
+function ciTestEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  delete env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS;
+  return {
+    ...env,
+    CI: 'true',
+    KRN_SCOPE_PROBE: '1',
+    KRN_ISOLATION_CAPABILITIES: JSON.stringify(unavailable),
+  };
+}
+
+function runTestSuite(
+  paths: string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+): SpawnSyncReturns<string> {
+  const wrapper = new URL('../scripts/test-suite.mjs', import.meta.url)
+    .pathname;
+  return spawnSync(process.execPath, [wrapper, ...paths], {
+    cwd,
+    encoding: 'utf8',
+    env,
+  });
+}
+
+async function createGitFixture(
+  options: { ignoredPath?: string } = {},
+): Promise<{
+  directory: string;
+  npmMarker: string;
+  path: string;
+}> {
+  const directory = await mkdtemp(join(process.cwd(), 'test/gate-local-'));
+  const bin = join(directory, 'bin');
+  const npmMarker = join(directory, 'npm-called');
+  await mkdir(bin);
+  await writeFile(
+    join(directory, '.gitignore'),
+    ['bin/', ...(options.ignoredPath ? [options.ignoredPath] : [])].join('\n') +
+      '\n',
+  );
+  await writeFile(join(directory, 'tracked.txt'), 'clean\n');
+  for (const args of [
+    ['init', '--quiet', '--initial-branch=main'],
+    ['config', 'user.name', 'LON-248 Test'],
+    ['config', 'user.email', 'lon-248@example.invalid'],
+    ['add', '.gitignore', 'tracked.txt'],
+    ['commit', '--quiet', '-m', 'fixture base'],
+  ]) {
+    const result = spawnSync('git', args, { cwd: directory, encoding: 'utf8' });
+    assert.equal(
+      result.status,
+      0,
+      `git ${args.join(' ')} failed: ${result.stderr}`,
+    );
+  }
+  const npm = join(bin, 'npm');
+  await writeFile(
+    npm,
+    `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(npmMarker)}, 'called');\nprocess.stdout.write('# tests 1\\nIsolation-dependent tests skipped: 1\\n');\n`,
+  );
+  await chmod(npm, 0o755);
+  return {
+    directory,
+    npmMarker,
+    path: `${bin}${delimiter}${process.env.PATH ?? ''}`,
+  };
+}
+
+function runGateLocal(fixture: {
+  directory: string;
+  path: string;
+}): SpawnSyncReturns<string> {
+  const gateLocal = new URL('../scripts/gate-local.mjs', import.meta.url)
+    .pathname;
+  return spawnSync(process.execPath, [gateLocal], {
+    cwd: fixture.directory,
+    encoding: 'utf8',
+    env: { ...process.env, PATH: fixture.path },
+  });
+}
+
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 for (const [signal, exitCode] of [
   ['SIGINT', 130],
@@ -230,7 +579,17 @@ test('gate-local refuses to post a status when any isolation test was skipped', 
   });
   assert.equal(accepted, false);
   assert.equal(posted, false);
-  assert.equal(testSuiteExitCode(0, 1, true), 1);
+  assert.equal(
+    testSuiteExitCode(
+      0,
+      parseTapSummary(
+        'ok 1 - isolated test # SKIP SKIP(isolation): isolated test — missing bwrap user namespaces\n# tests 1\n# skipped 1\n# todo 0\n',
+      ),
+      true,
+      false,
+    ),
+    1,
+  );
 
   const failedGate = await postGateStatusWhenClean({
     exitCode: 1,

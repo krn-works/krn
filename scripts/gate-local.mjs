@@ -1,9 +1,15 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { z } from 'zod';
 import { postGateStatusWhenClean } from './isolation-gate.mjs';
 
 const ghPath =
   '/home/krn/.local/share/mise/installs/gh/latest/gh_2.101.0_linux_amd64/bin/gh';
+const worktreeStatusResultSchema = z.object({
+  status: z.number().nullable(),
+  stdout: z.string(),
+  stderr: z.string(),
+});
 
 function readHead() {
   const result = spawnSync('git', ['rev-parse', 'HEAD'], {
@@ -14,6 +20,32 @@ function readHead() {
     return undefined;
   }
   return result.stdout.trim();
+}
+
+function requireCleanWorktree(phase) {
+  const parsedResult = worktreeStatusResultSchema.safeParse(
+    spawnSync('git', ['status', '--porcelain', '--untracked-files=all'], {
+      encoding: 'utf8',
+    }),
+  );
+  if (!parsedResult.success) {
+    process.stderr.write(
+      'git status returned an invalid process result; refusing to publish status\n',
+    );
+    return false;
+  }
+  const result = parsedResult.data;
+  if (result.status !== 0) {
+    process.stderr.write(result.stderr || 'Unable to read worktree status\n');
+    return false;
+  }
+  if (result.stdout.length > 0) {
+    process.stderr.write(
+      `Dirty worktree ${phase}; refusing to publish status\n`,
+    );
+    return false;
+  }
+  return true;
 }
 
 function runGate() {
@@ -43,6 +75,7 @@ function runGate() {
 async function main() {
   const head = readHead();
   if (!head) return 1;
+  if (!requireCleanWorktree('before running the local gate')) return 1;
   const gate = await runGate();
   const skipCount = Number(
     gate.output
@@ -64,6 +97,7 @@ async function main() {
     );
     return 1;
   }
+  if (!requireCleanWorktree('after the local gate')) return 1;
 
   const description = `Gate passed: ${testCount} tests, 0 isolation skips`;
   const posted = await postGateStatusWhenClean({
