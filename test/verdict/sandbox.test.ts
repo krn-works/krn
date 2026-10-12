@@ -21,6 +21,37 @@ import { judge } from '../../src/verdict/index.ts';
 import { MAX_CHECK_OUTPUT_BYTES } from '../../src/verdict/sandbox.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
+const sandboxSource = readFileSync(
+  new URL('../../src/verdict/sandbox.ts', import.meta.url),
+  'utf8',
+);
+
+test('every verdict teardown passes the owned .scope identity', () => {
+  const teardownTargets = [
+    ...sandboxSource.matchAll(/killAndVerifyScope\(root, busEnv, (\w+)\)/gu),
+  ].map(([, target]) => target);
+  assert.equal(teardownTargets.length, 4);
+  for (const target of teardownTargets) {
+    assert.equal(
+      target,
+      'scopeUnit',
+      `killAndVerifyScope receives ${target} instead of the owned .scope unit`,
+    );
+  }
+  assert.match(sandboxSource, /const scopeUnit = `\$\{unit\}\.scope`;/u);
+  const killTargets = [
+    ...sandboxSource.matchAll(/'--signal=SIGKILL',\s*(\w+)\]/gu),
+  ].map(([, target]) => target);
+  assert.deepEqual(killTargets, ['scopeUnit']);
+  const showTargets = [...sandboxSource.matchAll(/'show',\s*(\w+),/gu)].map(
+    ([, target]) => target,
+  );
+  assert.equal(showTargets.length, 3);
+  for (const target of showTargets) {
+    assert.equal(target, 'scopeUnit');
+  }
+});
+
 function fixture(argv: readonly string[], withLockfile = false) {
   const scratch = join(process.cwd(), '.krn', 'tmp');
   mkdirSync(scratch, { recursive: true });

@@ -316,11 +316,11 @@ function scopePids(controlGroup: string): number[] {
 async function killAndVerifyScope(
   root: string,
   busEnv: NodeJS.ProcessEnv,
-  unit: string,
+  scopeUnit: string,
 ): Promise<void> {
   const kill = await run(
     'systemctl',
-    ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', unit],
+    ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', scopeUnit],
     root,
     5000,
     busEnv,
@@ -333,7 +333,7 @@ async function killAndVerifyScope(
       [
         '--user',
         'show',
-        unit,
+        scopeUnit,
         '-p',
         'ActiveState',
         '-p',
@@ -371,7 +371,7 @@ async function killAndVerifyScope(
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 50));
   }
   throw new TeardownUnconfirmed(
-    `${unit} did not become inactive and empty: ${lastState}`,
+    `${scopeUnit} did not become inactive and empty: ${lastState}`,
   );
 }
 
@@ -390,6 +390,7 @@ async function runSandbox(
   outputExceeded: boolean;
 }> {
   const unit = `krn-check-${randomUUID()}`;
+  const scopeUnit = `${unit}.scope`;
   const home = '/tmp';
   const executable = argv[0];
   if (!executable) throw new Error('check argv is empty');
@@ -542,7 +543,7 @@ async function runSandbox(
       );
       const abort = () => {
         if (abortPromise) return abortPromise;
-        abortPromise = killAndVerifyScope(root, busEnv, unit).catch(
+        abortPromise = killAndVerifyScope(root, busEnv, scopeUnit).catch(
           (error: unknown) => {
             child.kill('SIGTERM');
             throw error instanceof TeardownUnconfirmed
@@ -580,19 +581,19 @@ async function runSandbox(
   const result = await resultPromise;
   if (abortPromise) await abortPromise;
   if (signal?.aborted) {
-    if (!abortPromise) await killAndVerifyScope(root, busEnv, unit);
+    if (!abortPromise) await killAndVerifyScope(root, busEnv, scopeUnit);
     throw new Error('stopped');
   }
-  if (result.status === 125) await killAndVerifyScope(root, busEnv, unit);
+  if (result.status === 125) await killAndVerifyScope(root, busEnv, scopeUnit);
   // biome-ignore format: Both systemd observations use the same scope identity.
-  const state = await run('systemctl', ['--user', 'show', unit, '-p', 'ActiveState', '--value'], root, 15000, busEnv);
+  const state = await run('systemctl', ['--user', 'show', scopeUnit, '-p', 'ActiveState', '--value'], root, 15000, busEnv);
   // biome-ignore format: Both systemd observations use the same scope identity.
-  const group = await run('systemctl', ['--user', 'show', unit, '-p', 'ControlGroup', '--value'], root, 15000, busEnv);
+  const group = await run('systemctl', ['--user', 'show', scopeUnit, '-p', 'ControlGroup', '--value'], root, 15000, busEnv);
   const cgroup = group.stdout.toString().trim();
   const processList = cgroup ? `/sys/fs/cgroup${cgroup}/cgroup.procs` : '';
   const survivors = processList ? readFileSync(processList, 'utf8').trim() : '';
   if (state.status !== 0 || group.status !== 0 || survivors) {
-    await killAndVerifyScope(root, busEnv, unit);
+    await killAndVerifyScope(root, busEnv, scopeUnit);
     throw new Error('check systemd scope did not become empty');
   }
   if (state.stdout.toString().trim() !== 'inactive')
