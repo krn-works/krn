@@ -10,13 +10,405 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, matchesGlob } from 'node:path';
 import { test } from 'node:test';
 import { runReview } from '../../src/flow/index.ts';
-import { parseJudgeResponse } from '../../src/flow/panel.ts';
+import { judgeRole, parseJudgeResponse } from '../../src/flow/panel.ts';
 import { appendOverride } from '../../src/flow/record.ts';
 import { redFirst } from '../../src/flow/repository.ts';
+import { redFirstSchema, reviewRecordSchema } from '../../src/flow/types.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+
+test('judge Codex sessions disable candidate project instructions', () => {
+  const panel = readFileSync(
+    new URL('../../src/flow/panel.ts', import.meta.url),
+    'utf8',
+  );
+  const codex = readFileSync(
+    new URL('../../src/hosts/codex.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.ok(
+    /disableProjectDocs:\s*true/u.test(panel),
+    'judgeRole must disable project-document loading',
+  );
+  assert.ok(
+    /project_doc_max_bytes=0/u.test(codex),
+    'CodexHost must pass the pinned project-doc suppression setting',
+  );
+});
+
+test('red-first classifies failures from Node test reporter metadata', () => {
+  const repository = readFileSync(
+    new URL('../../src/flow/repository.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.ok(
+    /test:fail/u.test(repository),
+    'red-first must inspect structured Node reporter failure events',
+  );
+  assert.ok(
+    /ERR_ASSERTION/u.test(repository),
+    'red-first must identify structured assertion error codes',
+  );
+  assert.doesNotMatch(repository, /assertionFailure\.test\(output\)/u);
+});
+
+test('Node reporter classification ignores assertion-looking output text', async () => {
+  const repository = readFileSync(
+    new URL('../../src/flow/repository.ts', import.meta.url),
+    'utf8',
+  );
+  assert.match(repository, /export function classifyNodeTestOutput/u);
+  const { classifyNodeTestOutput } = await import(
+    '../../src/flow/repository.ts'
+  );
+
+  const spoofedOutput = JSON.stringify({
+    testFailure: true,
+    errorCodes: ['ERR_TEST_FAILURE'],
+    causeCodes: [],
+  });
+  const assertionOutput = JSON.stringify({
+    testFailure: true,
+    errorCodes: ['ERR_TEST_FAILURE'],
+    causeCodes: ['ERR_ASSERTION'],
+  });
+  const resolutionOutput = JSON.stringify({
+    testFailure: true,
+    errorCodes: ['ERR_MODULE_NOT_FOUND'],
+    causeCodes: [],
+  });
+  const moduleLoadOutput = JSON.stringify({
+    testFailure: true,
+    errorCodes: ['ERR_TEST_FAILURE'],
+    causeCodes: ['ERR_MODULE_LINKING'],
+  });
+
+  assert.equal(classifyNodeTestOutput(1, spoofedOutput), 'other');
+  assert.equal(classifyNodeTestOutput(1, assertionOutput), 'assertion');
+  assert.equal(classifyNodeTestOutput(1, resolutionOutput), 'procedural');
+  assert.equal(classifyNodeTestOutput(1, moduleLoadOutput), 'procedural');
+  assert.equal(
+    classifyNodeTestOutput(
+      1,
+      JSON.stringify({
+        testFailure: true,
+        errorCodes: ['ERR_TEST_FAILURE'],
+        causeCodes: [],
+      }),
+    ),
+    'other',
+  );
+  assert.equal(classifyNodeTestOutput(0, spoofedOutput), 'pass');
+});
+
+test('red-first summaries preserve runner and test diagnostics without classifying their text', async () => {
+  const repository = readFileSync(
+    new URL('../../src/flow/repository.ts', import.meta.url),
+    'utf8',
+  );
+  assert.match(repository, /export function summarizeNodeTestOutput/u);
+  const { classifyNodeTestOutput, summarizeNodeTestOutput } = await import(
+    '../../src/flow/repository.ts'
+  );
+  const output = JSON.stringify({
+    testFailure: true,
+    errorCodes: ['ERR_MODULE_NOT_FOUND'],
+    causeCodes: [],
+    diagnostics:
+      "Cannot find module '../../src/not-present.mjs'\nAssertionError\nNETWORK_BLOCKED\ndetached check processes remained",
+  });
+
+  const summary = summarizeNodeTestOutput(output);
+  assert.match(summary, /Cannot find module/u);
+  assert.match(summary, /NETWORK_BLOCKED/u);
+  assert.match(summary, /detached check processes remained/u);
+  assert.equal(classifyNodeTestOutput(1, output), 'procedural');
+
+  const spoofedOutput = JSON.stringify({
+    testFailure: true,
+    errorCodes: ['ERR_TEST_FAILURE'],
+    causeCodes: [],
+    diagnostics: 'AssertionError',
+  });
+  assert.match(summarizeNodeTestOutput(spoofedOutput), /AssertionError/u);
+  assert.equal(classifyNodeTestOutput(1, spoofedOutput), 'other');
+});
+
+test('Node reporter retains real error and stdout diagnostics in the review summary', async () => {
+  const repository = readFileSync(
+    new URL('../../src/flow/repository.ts', import.meta.url),
+    'utf8',
+  );
+  assert.match(repository, /export const nodeTestReporter/u);
+  const { classifyNodeTestOutput, nodeTestReporter, summarizeNodeTestOutput } =
+    await import('../../src/flow/repository.ts');
+  const directory = mkdtempSync(join(tmpdir(), 'krn-node-reporter-'));
+  try {
+    const reporterPath = join(directory, 'reporter.mjs');
+    const testPath = join(directory, 'diagnostics.test.mjs');
+    writeFileSync(reporterPath, nodeTestReporter);
+    writeFileSync(
+      testPath,
+      [
+        "import { test } from 'node:test';",
+        "test('structured failure keeps diagnostics', () => {",
+        "  console.log('NETWORK_BLOCKED');",
+        "  throw Object.assign(new Error('Cannot find module ./missing.mjs'), { code: 'ERR_MODULE_NOT_FOUND' });",
+        '});',
+      ].join('\n'),
+    );
+    const env = { ...process.env };
+    delete env.NODE_TEST_CONTEXT;
+    const result = spawnSync(
+      process.execPath,
+      ['--test', `--test-reporter=${reporterPath}`, testPath],
+      { encoding: 'utf8', env },
+    );
+    const outputWithTeardown = `${result.stdout}detached check processes remained\n`;
+
+    assert.equal(result.status, 1, result.stderr);
+    assert.equal(
+      classifyNodeTestOutput(result.status, outputWithTeardown),
+      'procedural',
+      outputWithTeardown,
+    );
+    const summary = summarizeNodeTestOutput(outputWithTeardown);
+    assert.match(summary, /ERR_MODULE_NOT_FOUND/u);
+    assert.match(summary, /Cannot find module/u);
+    assert.match(summary, /NETWORK_BLOCKED/u);
+    assert.match(summary, /detached check processes remained/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('a complete panel FAIL cannot be hidden by an incomplete judge', () => {
+  assert.throws(() =>
+    reviewRecordSchema.parse({
+      schemaVersion: 1,
+      headSha: 'a'.repeat(40),
+      base: 'b'.repeat(40),
+      createdAt: '2026-10-11T00:00:00.000Z',
+      panelVerdict: 'INCOMPLETE',
+      redFirst: [],
+      judges: [
+        {
+          state: 'complete',
+          role: 'standards',
+          verdict: 'FAIL',
+          findings: [
+            {
+              severity: 'BLOCKING',
+              title: 'Failure',
+              path: 'src/example.ts',
+              line: 1,
+              defect: 'The required behavior is broken.',
+              fix: 'Restore the required behavior.',
+            },
+          ],
+          sessionId: 'judge-fail',
+          finalMessage: 'FAIL',
+        },
+        {
+          state: 'incomplete',
+          role: 'spec',
+          reason: 'nonzero_exit',
+          reasonKind: 'process_exit',
+          sessionId: 'judge-incomplete',
+          exitCode: 1,
+        },
+      ],
+    }),
+  );
+});
+
+test('panel aggregation gives complete FAIL and partial-panel precedence', async () => {
+  const flow = readFileSync(
+    new URL('../../src/flow/index.ts', import.meta.url),
+    'utf8',
+  );
+  assert.match(flow, /export function aggregatePanelVerdict/u);
+  const { aggregatePanelVerdict } = await import('../../src/flow/index.ts');
+
+  const failed = {
+    state: 'complete' as const,
+    role: 'standards' as const,
+    verdict: 'FAIL' as const,
+    findings: [],
+    sessionId: 'judge-fail',
+    finalMessage: 'FAIL',
+  };
+  const incomplete = {
+    state: 'incomplete' as const,
+    role: 'spec' as const,
+    reason: 'nonzero_exit' as const,
+    reasonKind: 'process_exit',
+    sessionId: 'judge-incomplete',
+    exitCode: 1,
+  };
+  const passed = {
+    state: 'complete' as const,
+    role: 'standards' as const,
+    verdict: 'PASS' as const,
+    findings: [],
+    sessionId: 'judge-pass',
+    finalMessage: 'PASS',
+  };
+
+  assert.equal(aggregatePanelVerdict([failed, incomplete], true), 'FAIL');
+  assert.equal(aggregatePanelVerdict([passed], true), 'INCOMPLETE');
+  assert.equal(aggregatePanelVerdict([passed], false), 'PASS');
+});
+
+test('review records retain provenance and reject PASS for a partial panel', () => {
+  const record = {
+    schemaVersion: 1 as const,
+    headSha: 'a'.repeat(40),
+    base: 'b'.repeat(40),
+    createdAt: '2026-10-11T00:00:00.000Z',
+    panelVerdict: 'INCOMPLETE' as const,
+    redFirst: [],
+    judges: [
+      {
+        state: 'complete' as const,
+        role: 'standards' as const,
+        verdict: 'PASS' as const,
+        findings: [],
+        sessionId: 'judge-pass',
+        finalMessage: 'PASS',
+        model: 'gpt-6-luna',
+        reasoningEffort: 'high' as const,
+      },
+    ],
+    lensSha256: 'd'.repeat(64),
+    panel: {
+      requestedRoles: ['standards'],
+      requiredRoles: ['standards', 'spec', 'adversarial'],
+      partial: true,
+    },
+    toolSha: 'c'.repeat(40),
+  };
+  const parsed = reviewRecordSchema.parse(record) as unknown as typeof record;
+
+  assert.equal(parsed.lensSha256, record.lensSha256);
+  assert.equal(parsed.judges[0]?.model, 'gpt-6-luna');
+  assert.equal(parsed.judges[0]?.reasoningEffort, 'high');
+  assert.deepEqual(parsed.panel, record.panel);
+  assert.equal(parsed.toolSha, record.toolSha);
+  assert.throws(() =>
+    reviewRecordSchema.parse({ ...record, panelVerdict: 'PASS' }),
+  );
+});
+
+test('judge brief names the exact base-to-head diff range', () => {
+  const panel = readFileSync(
+    new URL('../../src/flow/panel.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.ok(
+    /Review diff range: \$\{red\.baseSha\}\.\.\$\{red\.headSha\}/u.test(panel),
+    'judge brief must name BASE..HEAD explicitly',
+  );
+});
+
+test('red-first and the gate share the same test-file glob', () => {
+  const suite = readFileSync(
+    new URL('../../scripts/test-suite.mjs', import.meta.url),
+    'utf8',
+  );
+  const repository = readFileSync(
+    new URL('../../src/flow/repository.ts', import.meta.url),
+    'utf8',
+  );
+  const match = /export const TEST_FILE_GLOB = ['"]([^'"]+)['"]/u.exec(suite);
+
+  assert.ok(match, 'the gate must export its shared test-file glob');
+  const glob = match?.[1] ?? '';
+  assert.match(suite, /TEST_FILE_GLOB/u);
+  assert.match(repository, /TEST_FILE_GLOB/u);
+  assert.equal(matchesGlob('test/falsifier.test.mjs', glob), true);
+});
+
+test('red-first results retain the side and exact commit SHA', () => {
+  const result = redFirstSchema.parse({
+    path: 'test/example.test.ts',
+    side: 'base',
+    sha: 'a'.repeat(40),
+    classification: 'assertion',
+    exitCode: 1,
+    durationMs: 1,
+    outputSha256: 'b'.repeat(64),
+    summary: 'AssertionError',
+  });
+
+  assert.equal(result.side, 'base');
+  assert.equal(result.sha, 'a'.repeat(40));
+  assert.throws(() =>
+    redFirstSchema.parse({ ...result, side: undefined, sha: undefined }),
+  );
+});
+
+test('legacy review records without red-first side and SHA still accept overrides', () => {
+  const { root, cleanup } = fixture();
+  try {
+    const headSha = git(root, 'rev-parse', 'HEAD');
+    const recordDirectory = join(root, '.krn', 'runs', 'review', headSha);
+    mkdirSync(recordDirectory, { recursive: true });
+    writeFileSync(
+      join(recordDirectory, 'record.json'),
+      `${JSON.stringify(
+        {
+          schemaVersion: 1,
+          headSha,
+          base: headSha,
+          createdAt: '2026-10-11T00:00:00.000Z',
+          panelVerdict: 'FAIL',
+          redFirst: [
+            {
+              path: 'test/legacy.test.ts',
+              classification: 'assertion',
+              exitCode: 1,
+              durationMs: 1,
+              outputSha256: 'b'.repeat(64),
+              summary: 'AssertionError',
+            },
+          ],
+          judges: [
+            {
+              state: 'complete',
+              role: 'adversarial',
+              verdict: 'FAIL',
+              findings: [],
+              sessionId: 'legacy-session',
+              finalMessage: 'FAIL',
+            },
+          ],
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+    let updated: ReturnType<typeof appendOverride> | undefined;
+    assert.doesNotThrow(() => {
+      updated = appendOverride(root, headSha, {
+        reason: 'accepted legacy evidence',
+        evidence: 'the existing record remains readable',
+      });
+    });
+
+    assert.equal(updated?.override?.reason, 'accepted legacy evidence');
+    assert.equal(updated?.redFirst[0]?.side, undefined);
+    assert.equal(updated?.redFirst[0]?.sha, undefined);
+  } finally {
+    cleanup();
+  }
+});
 
 function git(root: string, ...args: string[]): string {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
@@ -46,9 +438,14 @@ function fakeCodex(
   directory: string,
   response: string,
   options: { readonly completeTurn?: boolean } = {},
-): { readonly executable: string; readonly argsFile: string } {
+): {
+  readonly executable: string;
+  readonly argsFile: string;
+  readonly promptFile: string;
+} {
   const executable = join(directory, 'fake-codex.mjs');
   const argsFile = join(directory, 'codex-args.json');
+  const promptFile = join(directory, 'codex-prompt.txt');
   const encoded = JSON.stringify(response);
   const completion =
     options.completeTurn === false
@@ -56,11 +453,51 @@ function fakeCodex(
       : "process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,output_tokens:1,total_tokens:2}})+'\\n');";
   writeFileSync(
     executable,
-    `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nlet prompt=''; for await (const chunk of process.stdin) prompt += chunk;\nwriteFileSync(${JSON.stringify(argsFile)}, JSON.stringify(process.argv.slice(2)));\nconst text=${encoded};\nprocess.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text}})+'\\n');\n${completion}\n`,
+    `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nlet prompt=''; for await (const chunk of process.stdin) prompt += chunk;\nwriteFileSync(${JSON.stringify(argsFile)}, JSON.stringify(process.argv.slice(2)));\nwriteFileSync(${JSON.stringify(promptFile)}, prompt);\nconst text=${encoded};\nprocess.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text}})+'\\n');\n${completion}\n`,
   );
   chmodSync(executable, 0o700);
-  return { executable, argsFile };
+  return { executable, argsFile, promptFile };
 }
+
+test('judgeRole launches Codex with high reasoning effort', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'judgeRole launches Codex with high reasoning effort',
+      ['systemdUserScope'],
+    )
+  )
+    return;
+  const { root, cleanup } = fixture();
+  try {
+    const sha = git(root, 'rev-parse', 'HEAD');
+    const fake = fakeCodex(root, '{"verdict":"PASS","findings":[]}');
+    const result = await judgeRole(
+      root,
+      sha,
+      'spec',
+      'Check acceptance.',
+      { baseSha: sha, headSha: sha, results: [] },
+      5000,
+      fake.executable,
+    );
+    assert.equal(result.state, 'complete');
+    assert.ok(
+      (JSON.parse(readFileSync(fake.argsFile, 'utf8')) as string[]).includes(
+        'model_reasoning_effort=high',
+      ),
+      'panel judges must use high Codex reasoning effort',
+    );
+    assert.ok(
+      (JSON.parse(readFileSync(fake.argsFile, 'utf8')) as string[]).includes(
+        'project_doc_max_bytes=0',
+      ),
+      'panel judges must not load project instructions from the candidate',
+    );
+  } finally {
+    cleanup();
+  }
+});
 
 test('mechanical red-first distinguishes assertion failures from missing imports', async (t) => {
   if (
@@ -80,6 +517,10 @@ test('mechanical red-first distinguishes assertion failures from missing imports
       "import assert from 'node:assert/strict'; import { test } from 'node:test'; test('assertion', () => assert.equal(1, 2));\n",
     );
     writeFileSync(
+      join(root, 'test', 'fake-assertion.test.mjs'),
+      "console.log('AssertionError'); process.exit(1);\n",
+    );
+    writeFileSync(
       join(root, 'test', 'import.test.ts'),
       "import '../src/missing-module.ts';\n",
     );
@@ -89,8 +530,19 @@ test('mechanical red-first distinguishes assertion failures from missing imports
     const report = await redFirst(root, base, head);
     assert.deepEqual(
       report.results.map(({ classification }) => classification),
-      ['assertion', 'procedural'],
+      ['assertion', 'other', 'procedural', 'assertion', 'other', 'procedural'],
       JSON.stringify(report.results),
+    );
+    assert.deepEqual(
+      report.results.map(({ side, sha }) => [side, sha]),
+      [
+        ['base', base],
+        ['base', base],
+        ['base', base],
+        ['head', head],
+        ['head', head],
+        ['head', head],
+      ],
     );
   } finally {
     cleanup();
@@ -161,10 +613,13 @@ test('red-first treats real Node resolution and linking errors as procedural', a
     const report = await redFirst(root, base, head);
     assert.deepEqual(
       report.results.map(({ classification }) => classification),
-      orderedFailures.map(() => 'procedural'),
+      [...orderedFailures, ...orderedFailures].map(() => 'procedural'),
       JSON.stringify(report.results),
     );
-    for (const [index, failure] of orderedFailures.entries())
+    for (const [index, failure] of [
+      ...orderedFailures,
+      ...orderedFailures,
+    ].entries())
       assert.match(report.results[index]?.summary ?? '', failure.message);
   } finally {
     cleanup();
@@ -372,6 +827,10 @@ test('panel launcher forces read-only and a lead override is appended after FAIL
       assert.equal(record.judges[0].verdict, 'FAIL');
     const args = JSON.parse(readFileSync(fake.argsFile, 'utf8')) as string[];
     assert.equal(args[args.indexOf('--sandbox') + 1], 'read-only');
+    const prompt = readFileSync(fake.promptFile, 'utf8');
+    assert.ok(prompt.includes(`MECHANICAL RED-FIRST REPORT — BASE ${base}`));
+    assert.ok(prompt.includes(`MECHANICAL RED-FIRST REPORT — HEAD ${head}`));
+    assert.ok(prompt.includes(`Review diff range: ${base}..${head}`));
     const updated = appendOverride(root, head, {
       reason: 'accepted residual risk',
       evidence: 'verified in the follow-up probe',

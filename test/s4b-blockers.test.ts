@@ -1320,15 +1320,18 @@ test('B5 trace stores only bounded session metadata and capsule ABI rejects newl
     assert.match(text, /"pgid":1234/);
     assert.match(text, /"sandbox":"workspace-write"/);
     const capsule = await relay.load(job, { revision: 'r1' });
-    assert.throws(
-      () =>
-        relay.writeCapsule(
-          job,
-          { ...capsule, epoch: 1, nextAction: 'step A\nforged field' },
-          0,
-        ),
-      /single-line/,
+    const capsulePath = join(root, '.krn/runs/foreman/B5/capsule.json');
+    const originalCapsule = await readFile(capsulePath, 'utf8');
+    assert.deepEqual(
+      await relay.writeCapsule(
+        job,
+        { ...capsule, epoch: 1, nextAction: 'step A\nforged field' },
+        0,
+      ),
+      { applied: false },
     );
+    assert.equal(await readFile(capsulePath, 'utf8'), originalCapsule);
+    assert.deepEqual(await relay.load(job, { revision: 'r1' }), capsule);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

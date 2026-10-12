@@ -10,10 +10,10 @@ not ok 1 - Codex worker does not receive board credentials
   error: |-
     Expected values to be strictly equal:
     + actual - expected
-    
+
     + 'sentinel-token'
     - undefined
-    
+
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   actual: 'sentinel-token'

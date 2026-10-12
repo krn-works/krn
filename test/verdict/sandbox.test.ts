@@ -8,8 +8,10 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { createConnection } from 'node:net';
 import { join } from 'node:path';
 import test from 'node:test';
 import { recordRepo } from '../../src/foreman/state.ts';
@@ -348,6 +350,227 @@ test('a successful check command returns zero', async (t) => {
       'pass',
       `${result.kind === 'pass' ? '' : result.findings.join('; ')} ${details}`,
     );
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('a check cannot connect to the host user bus', async (t) => {
+  if (
+    !requiresIsolation(t, 'a check cannot connect to the host user bus', [
+      'bwrap',
+      'systemdUserScope',
+    ])
+  )
+    return;
+  const bus = `/run/user/${process.getuid?.() ?? 0}/bus`;
+  const hostConnection = await new Promise<boolean>((resolve) => {
+    const socket = createConnection(bus);
+    socket.once('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once('error', () => resolve(false));
+    socket.setTimeout(1000, () => {
+      socket.destroy();
+      resolve(false);
+    });
+  });
+  assert.equal(
+    hostConnection,
+    true,
+    'host user bus must be connectable for this falsifier',
+  );
+  const f = fixture([
+    process.execPath,
+    '-e',
+    `const {createConnection}=require('node:net');const s=createConnection(${JSON.stringify(bus)});s.once('connect',()=>{s.destroy();process.exit(0)});s.once('error',()=>process.exit(1));s.setTimeout(1000,()=>{s.destroy();process.exit(1)});`,
+  ]);
+  try {
+    const result = await judge(
+      f.job,
+      f.sha,
+      f.base,
+      ['declared'],
+      async () => {},
+    );
+    assert.equal(
+      result.kind,
+      'fail',
+      'sandbox check unexpectedly connected to the host user bus',
+    );
+    assert.notEqual(result.checks[0]?.exitCode, 0);
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('a check cannot read a planted file outside its candidate copy', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'a check cannot read a planted file outside its candidate copy',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
+  const planted = join(
+    process.cwd(),
+    '.krn',
+    'tmp',
+    `krn-verdict-home-probe-${process.pid}`,
+  );
+  const content = `planted-${process.pid}`;
+  mkdirSync(join(process.cwd(), '.krn', 'tmp'), { recursive: true });
+  writeFileSync(planted, content, { flag: 'wx', mode: 0o600 });
+  assert.equal(
+    readFileSync(planted, 'utf8'),
+    content,
+    'host probe file must be readable',
+  );
+  const f = fixture([
+    process.execPath,
+    '-e',
+    `try{require('node:fs').readFileSync(${JSON.stringify(planted)});process.exit(0)}catch{process.exit(1)}`,
+  ]);
+  try {
+    const result = await judge(
+      f.job,
+      f.sha,
+      f.base,
+      ['declared'],
+      async () => {},
+    );
+    assert.equal(
+      result.kind,
+      'fail',
+      'sandbox check unexpectedly read a host file outside its candidate copy',
+    );
+    assert.notEqual(result.checks[0]?.exitCode, 0);
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+    rmSync(planted, { force: true });
+  }
+});
+
+test('candidate package manifests are not read through worktree symlinks', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'candidate package manifests are not read through worktree symlinks',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
+  const f = fixture(['/usr/bin/true'], true);
+  try {
+    rmSync(join(f.root, 'package.json'));
+    symlinkSync('missing-manifest-target.json', join(f.root, 'package.json'));
+    f.git(['add', 'package.json']);
+    f.git(['commit', '-qm', 'symlink package manifest']);
+    f.sha = f.git(['rev-parse', 'HEAD']);
+    const result = await judge(
+      f.job,
+      f.sha,
+      f.base,
+      ['declared'],
+      async () => {},
+    );
+    assert.equal(result.kind, 'refused');
+    assert.match(
+      result.findings.join(' '),
+      /package\.json must be a regular Git file/u,
+    );
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('candidate lockfiles are not read through worktree symlinks', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'candidate lockfiles are not read through worktree symlinks',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
+  const f = fixture(['/usr/bin/true'], true);
+  try {
+    rmSync(join(f.root, 'pnpm-lock.yaml'));
+    symlinkSync('missing-lockfile-target.yaml', join(f.root, 'pnpm-lock.yaml'));
+    f.git(['add', 'pnpm-lock.yaml']);
+    f.git(['commit', '-qm', 'symlink package lockfile']);
+    f.sha = f.git(['rev-parse', 'HEAD']);
+    const result = await judge(
+      f.job,
+      f.sha,
+      f.base,
+      ['declared'],
+      async () => {},
+    );
+    assert.equal(result.kind, 'refused');
+    assert.match(
+      result.findings.join(' '),
+      /pnpm-lock\.yaml must be a regular Git file/u,
+    );
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('candidate package manifests have a strict size cap', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'candidate package manifests have a strict size cap',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
+  const f = fixture(['/usr/bin/true'], true);
+  try {
+    writeFileSync(
+      join(f.root, 'package.json'),
+      Buffer.alloc(1024 * 1024 + 1, 0x20),
+    );
+    f.git(['add', 'package.json']);
+    f.git(['commit', '-qm', 'oversize package manifest']);
+    f.sha = f.git(['rev-parse', 'HEAD']);
+    const result = await judge(
+      f.job,
+      f.sha,
+      f.base,
+      ['declared'],
+      async () => {},
+    );
+    assert.equal(result.kind, 'refused');
+    assert.match(result.findings.join(' '), /size limit/u);
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('a check timeout is reported as a timeout', async (t) => {
+  if (
+    !requiresIsolation(t, 'a check timeout is reported as a timeout', [
+      'bwrap',
+      'systemdUserScope',
+    ])
+  )
+    return;
+  const f = fixture(['/usr/bin/sleep', '30']);
+  try {
+    const result = await judge(
+      f.job,
+      f.sha,
+      f.base,
+      ['declared'],
+      async () => {},
+    );
+    assert.equal(result.kind, 'fail');
+    assert.match(result.findings.join(' '), /timed out/iu);
+    assert.equal(result.checks[0]?.exitCode, 124);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }

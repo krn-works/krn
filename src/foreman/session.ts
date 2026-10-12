@@ -131,6 +131,7 @@ export async function runSession(
     session = await d.hosts.codex.start({
       cwd: job.worktree,
       model: 'gpt-6-luna',
+      reasoningEffort: 'high',
       prompt: d.relay.project(capsule, facts, contract),
       limits: d.budget.session,
       checkpoint: {

@@ -1,21 +1,41 @@
 // Compose red-first evidence, independent panel sessions, and their bound record.
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { judgeRole, ReviewAbortedError } from './panel.ts';
 import { writeReviewRecord } from './record.ts';
 import {
+  git,
   redFirst,
   repoRoot,
   resolveCommit,
   validateSha,
 } from './repository.ts';
 import {
+  type NewReviewRecord,
+  newReviewRecordSchema,
   panelRoles,
+  type ReviewReasoningEffort,
   type ReviewRecord,
   type ReviewRole,
-  reviewRecordSchema,
   roleSchema,
 } from './types.ts';
+
+export function aggregatePanelVerdict(
+  judges: readonly ReviewRecord['judges'][number][],
+  panelPartial: boolean,
+): ReviewRecord['panelVerdict'] {
+  if (
+    judges.some(
+      (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
+    )
+  )
+    return 'FAIL';
+  if (panelPartial || judges.some((judge) => judge.state === 'incomplete'))
+    return 'INCOMPLETE';
+  return 'PASS';
+}
 
 export async function runReview(input: {
   readonly repo: string;
@@ -23,11 +43,12 @@ export async function runReview(input: {
   readonly head: string;
   readonly lens: string;
   readonly panel?: readonly ReviewRole[];
+  readonly reasoningEffort?: ReviewReasoningEffort;
   readonly timeoutMs?: number;
   readonly signal?: AbortSignal;
   /** Test seam; the CLI always uses CodexHost's installed executable. */
   readonly codexExecutable?: string;
-}): Promise<ReviewRecord> {
+}): Promise<NewReviewRecord> {
   const root = repoRoot(input.repo);
   const sha = validateSha(root, input.head);
   const lens = readFileSync(resolve(input.lens), 'utf8');
@@ -39,6 +60,13 @@ export async function runReview(input: {
     throw new Error('--panel must contain unique judge roles');
   for (const role of panel) roleSchema.parse(role);
   const base = resolveCommit(root, input.base);
+  const panelPartial =
+    panel.length !== panelRoles.length ||
+    panelRoles.some((role) => !panel.includes(role));
+  const reasoningEffort = input.reasoningEffort ?? 'high';
+  const toolRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+  const toolSha = git(toolRoot, ['rev-parse', 'HEAD']);
+  const lensSha256 = createHash('sha256').update(lens, 'utf8').digest('hex');
   const red = await redFirst(root, base, sha, input.signal);
   const judges = [];
   for (const role of panel)
@@ -48,26 +76,28 @@ export async function runReview(input: {
         sha,
         role,
         lens,
-        red.results,
+        red,
         input.timeoutMs ?? 600000,
         input.codexExecutable,
         input.signal,
+        reasoningEffort,
       ),
     );
   await new Promise<void>((resolveTick) => setImmediate(resolveTick));
   if (input.signal?.aborted) throw new ReviewAbortedError();
-  const record = reviewRecordSchema.parse({
+  const record = newReviewRecordSchema.parse({
     schemaVersion: 1,
     headSha: sha,
     base,
     createdAt: new Date().toISOString(),
-    panelVerdict: judges.some((judge) => judge.state === 'incomplete')
-      ? 'INCOMPLETE'
-      : judges.some(
-            (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
-          )
-        ? 'FAIL'
-        : 'PASS',
+    panelVerdict: aggregatePanelVerdict(judges, panelPartial),
+    lensSha256,
+    panel: {
+      requestedRoles: [...panel],
+      requiredRoles: [...panelRoles],
+      partial: panelPartial,
+    },
+    toolSha,
     redFirst: red.results,
     judges,
   });

@@ -13,6 +13,35 @@ const MAX_OUTPUT_BYTES = 1024 * 1024;
 const PROCESS_GROUP_POLL_MS = 10;
 const BEST_EFFORT_REAP_MS = 500;
 
+function commandFailure(stderr: string, environment: NodeJS.ProcessEnv): Error {
+  let excerpt = stderr;
+  const credentials = Object.entries(environment)
+    .filter(
+      ([key, value]) =>
+        key.startsWith('PAPERCLIP_') && value !== undefined && value.length > 0,
+    )
+    .map(([, value]) => value)
+    .filter((value): value is string => value !== undefined)
+    .sort((left, right) => right.length - left.length);
+  for (const credential of credentials)
+    excerpt = excerpt.replaceAll(credential, '[REDACTED]');
+  excerpt = [...excerpt]
+    .map((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f)
+        ? ' '
+        : character;
+    })
+    .join('')
+    .trim()
+    .slice(0, 500);
+  return new Error(
+    excerpt
+      ? `Paperclip CLI command failed: ${excerpt}`
+      : 'Paperclip CLI command failed',
+  );
+}
+
 function cliEnvironment(): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {};
   for (const key of ['HOME', 'PATH']) {
@@ -64,7 +93,8 @@ function runPaperclip(
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     );
-    const chunks: Buffer[] = [];
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
     let outputBytes = 0;
     let settled = false;
     let stopping = false;
@@ -141,7 +171,7 @@ function runPaperclip(
       cleanup();
       reject(new Error('Paperclip CLI could not be started'));
     });
-    const collect = (chunk: Buffer) => {
+    const collect = (target: Buffer[]) => (chunk: Buffer) => {
       outputBytes += chunk.length;
       if (outputBytes > options.maxOutputBytes) {
         finishError(
@@ -149,10 +179,10 @@ function runPaperclip(
         );
         return;
       }
-      chunks.push(chunk);
+      target.push(chunk);
     };
-    child.stdout?.on('data', collect);
-    child.stderr?.on('data', collect);
+    child.stdout?.on('data', collect(stdoutChunks));
+    child.stderr?.on('data', collect(stderrChunks));
     timer = setTimeout(
       () =>
         finishError(`Paperclip CLI timed out after ${options.timeoutMs} ms`),
@@ -165,11 +195,18 @@ function runPaperclip(
       settled = true;
       cleanup();
       if (code !== 0) {
-        reject(new Error('Paperclip CLI command failed'));
+        reject(
+          commandFailure(
+            Buffer.concat(stderrChunks).toString('utf8'),
+            environment,
+          ),
+        );
         return;
       }
       try {
-        resolve(JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown);
+        resolve(
+          JSON.parse(Buffer.concat(stdoutChunks).toString('utf8')) as unknown,
+        );
       } catch {
         reject(new Error('Paperclip CLI returned invalid JSON'));
       }

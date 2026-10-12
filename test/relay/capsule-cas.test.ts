@@ -14,6 +14,34 @@ function git(root: string, args: string[]): string {
   return result.stdout.trim();
 }
 
+async function capsuleFixture() {
+  const worktree = await mkdtemp(join(tmpdir(), 'krn-relay-refusal-'));
+  const job = { id: 'LON-231', issue: 'issue-1', worktree, repoRoot: worktree };
+  const capsule = {
+    jobId: job.id,
+    issue: job.issue,
+    contractRevision: 'rev-1',
+    epoch: 0,
+    base: 'a'.repeat(40),
+    head: 'b'.repeat(40),
+    branch: 'feat/lon-231',
+    worktree,
+    nextAction: 'resume implementation',
+    lease: 'ended' as const,
+    blockers: [],
+    decisions: [],
+    rejectedApproaches: [],
+    references: [],
+  };
+  git(worktree, ['init', '-q', '--initial-branch=main']);
+  git(worktree, ['config', 'user.name', 'Relay Test']);
+  git(worktree, ['config', 'user.email', 'relay@example.invalid']);
+  await writeFile(join(worktree, '.gitignore'), '.krn/\n');
+  git(worktree, ['add', '.gitignore']);
+  git(worktree, ['commit', '-qm', 'fixture']);
+  return { capsule, job, worktree };
+}
+
 test('a capsule write from a stale epoch is rejected', async () => {
   const writeCapsule = Reflect.get(relay, 'writeCapsule') as
     | ((
@@ -175,5 +203,78 @@ test('a capsule session id is retained in resumable state evidence', async () =>
     );
   } finally {
     await rm(worktree, { recursive: true, force: true });
+  }
+});
+
+test('capsule projection refusals leave the last stored capsule loadable', async (t) => {
+  const candidates = [
+    {
+      name: 'a newline in a projected value is refused before rename',
+      update: (
+        capsule: Awaited<ReturnType<typeof capsuleFixture>>['capsule'],
+      ) => ({
+        ...capsule,
+        epoch: 1,
+        nextAction: 'first line\nsecond line',
+      }),
+    },
+    {
+      name: 'a projection over the token budget is refused before rename',
+      update: (
+        capsule: Awaited<ReturnType<typeof capsuleFixture>>['capsule'],
+      ) => ({
+        ...capsule,
+        epoch: 1,
+        decisions: [{ date: 'today', source: 'test', text: 'x'.repeat(9000) }],
+      }),
+    },
+    {
+      name: 'the decision list has a fixed write bound',
+      update: (
+        capsule: Awaited<ReturnType<typeof capsuleFixture>>['capsule'],
+      ) => ({
+        ...capsule,
+        epoch: 1,
+        decisions: Array.from({ length: 65 }, (_, index) => ({
+          date: 'today',
+          source: 'test',
+          text: `entry ${index}`,
+        })),
+      }),
+    },
+  ];
+
+  for (const candidate of candidates) {
+    await t.test(candidate.name, async () => {
+      const { capsule, job, worktree } = await capsuleFixture();
+      try {
+        assert.deepEqual(await relay.writeCapsule(job, capsule, null), {
+          applied: true,
+          value: capsule,
+        });
+        const capsulePath = join(
+          worktree,
+          '.krn',
+          'runs',
+          'foreman',
+          job.id,
+          'capsule.json',
+        );
+        const original = await readFile(capsulePath, 'utf8');
+        const result = await Promise.resolve()
+          .then(() => relay.writeCapsule(job, candidate.update(capsule), 0))
+          .then(
+            (value) => value,
+            (error: unknown) => ({
+              thrown: error instanceof Error ? error.message : String(error),
+            }),
+          );
+        assert.deepEqual(result, { applied: false });
+        assert.equal(await readFile(capsulePath, 'utf8'), original);
+        assert.deepEqual(await relay.load(job, { revision: 'rev-1' }), capsule);
+      } finally {
+        await rm(worktree, { recursive: true, force: true });
+      }
+    });
   }
 });
