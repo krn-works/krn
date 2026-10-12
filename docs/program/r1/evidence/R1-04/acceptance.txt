@@ -1,5 +1,6 @@
-task=R1-04 ticket=LON-216 captured=2026-10-12T16:01:20Z
+task=R1-04 ticket=LON-216 captured=2026-10-12T16:23:14Z
 evidence_head=6864201f02c0b3bf5fbab9ec4db23b7cfee503b9
+full_gate_head=f1e0f956ffd92f9b48fe106692625a0131677954
 measured_head=fe6959cc239c9895943d5a4ebdcd68c09b9d4119 merge_base=f714d7d2dc190658e18cfc30288816a57a1df895
 src_tree=90f93a909ac931104e5b203e6f410e137da005d1 test_tree=7e096f3b4720d6e78b71f0847f35250997457a48
 note: the measured_head and evidence_head have identical src and test trees; these tree SHAs bind the behavior and falsifier.
@@ -22,15 +23,26 @@ command=node --test test/hosts/codex-env.test.ts
 # fail 0
 # skipped 0
 
---- full gate-local at exact evidence_head 6864201f02c0b3bf5fbab9ec4db23b7cfee503b9 (exit=0) ---
+--- historical gate-local readback at 6864201f02c0b3bf5fbab9ec4db23b7cfee503b9 (exit=0) ---
 command=node scripts/gate-local.mjs
 # tests 195
 # pass 195
 # fail 0
 # skipped 0
 Isolation-dependent tests skipped: 0
-krn/gate-local=success; head=6864201f02c0b3bf5fbab9ec4db23b7cfee503b9; source=lead's current exact-head readback
-qualification: this readback predates the uncommitted evidence-only refresh; src and test trees are unchanged, so it validates the code at evidence_head but not the current documentation working tree. The lead will run gate-local on the resulting exact head.
+krn/gate-local=success; head=6864201f02c0b3bf5fbab9ec4db23b7cfee503b9; source=lead's exact-head readback; historical=true
+qualification: this historical gate-local readback predates the later evidence refresh now committed at full_gate_head; src and test trees are unchanged. The exact full npm run gate at full_gate_head is recorded below. This acceptance update is not in full_gate_head; the lead will rerun gate-local/review on the resulting exact head.
+
+--- exact-head full repository gate at f1e0f956ffd92f9b48fe106692625a0131677954 (exit=0) ---
+command=npm run gate
+# tests 195
+# pass 195
+# fail 0
+# skipped 0
+Isolation-dependent tests skipped: 0
+log=.krn/runs/r1/R1-04/replay-2026-10-12/gate-exact-head-f1e0f956ffd92f9b48fe106692625a0131677954.log
+log_consumer=PR #23 / LON-216 review
+log_supersede_when=later accepted R1-04 evidence binds replacement src or test tree hashes
 
 --- live Codex sandbox smoke on the measured source tree ---
 command=KRN_LIVE=1 npm run live:smoke
