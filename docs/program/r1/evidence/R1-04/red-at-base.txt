@@ -1,9 +1,10 @@
 base=f714d7d2dc190658e18cfc30288816a57a1df895
 candidate_head=fe6959cc239c9895943d5a4ebdcd68c09b9d4119
+evidence_head=6864201f02c0b3bf5fbab9ec4db23b7cfee503b9
 candidate_test_tree=7e096f3b4720d6e78b71f0847f35250997457a48
 mode=detached red-base worktree with candidate test file copied from candidate_head
 command=node --test test/hosts/codex-env.test.ts
 expected_exit=1
-observed: tests=1 pass=0 fail=1 skipped=0
+observed: tests=1 pass=0 fail=1 skipped=0; Isolation-dependent tests skipped=0
 failure: Codex worker does not receive board credentials; actual sentinel-token, expected undefined
 exit=1

@@ -1,6 +1,15 @@
-head=fe6959cc239c9895943d5a4ebdcd68c09b9d4119
+evidence_head=6864201f02c0b3bf5fbab9ec4db23b7cfee503b9
+measured_head=fe6959cc239c9895943d5a4ebdcd68c09b9d4119
 src_tree=90f93a909ac931104e5b203e6f410e137da005d1
 test_tree=7e096f3b4720d6e78b71f0847f35250997457a48
+note: evidence_head and measured_head have identical src and test trees.
+direct_command=node --test test/hosts/codex-env.test.ts
+direct_exit=0
+# tests 1
+# pass 1
+# fail 0
+# skipped 0
+--- focused suite runner ---
 command=node scripts/test-suite.mjs test/hosts/codex-env.test.ts
 expected_exit=0
 Isolation capability probe: bwrap=available; systemd user scope=available
