@@ -85,6 +85,11 @@ test('Wizard-of-Oz manifest seals packets, controls, and independent checks', ()
   }
 
   assert.equal(manifest.tasks.length, 6);
+  assert.deepEqual(
+    manifest.tasks.map((task) => task.id).sort(),
+    Object.keys(acceptedShasByTask).sort(),
+    'manifest must contain each required task ID exactly once',
+  );
   for (const task of manifest.tasks) {
     assert.equal(
       task.accepted_sha,
