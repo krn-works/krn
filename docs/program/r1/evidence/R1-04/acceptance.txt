@@ -1,23 +1,33 @@
-task=R1-04 ticket=LON-216 captured=2026-10-12T15:04:36Z
-measured_head=7d7a0b2d5192c68afbe11aa58b423734d3298dbc merge_base=f714d7d2dc190658e18cfc30288816a57a1df895
-src_tree=90f93a909ac931104e5b203e6f410e137da005d1 test_tree=3364a7134f1b29dc2ec9d24d4ae9654cb74c9120
-note: docs-only commits leave src/test trees unchanged; identical trees = identical code.
-Paperclip status=in_review updatedAt=2026-10-12T15:03:17.105Z; R1-task=R1-04; assignee=none; active_run=none.
+task=R1-04 ticket=LON-216 captured=2026-10-12T15:52:05Z
+measured_head=fe6959cc239c9895943d5a4ebdcd68c09b9d4119 merge_base=f714d7d2dc190658e18cfc30288816a57a1df895
+src_tree=90f93a909ac931104e5b203e6f410e137da005d1 test_tree=7e096f3b4720d6e78b71f0847f35250997457a48
+note: docs-only commits leave src/test trees unchanged; these trees bind the measured code and falsifier.
+Paperclip status=in_review updatedAt=2026-10-12T15:03:17.105Z; assignee=none; active_run=none; reviewAttention=stalled ("Issue is in review without a maintained action path.").
 
---- host gate on measured code (npm run gate:local; exact head 7d7a0b2) ---
+--- falsifier at current merge-base f714d7d, exact candidate test copied from measured_head (expected exit=1) ---
+command=node --test test/hosts/codex-env.test.ts
+# tests 1
+# pass 0
+# fail 1
+# skipped 0
+actual=sentinel-token; expected=undefined
+
+--- direct falsifier at measured_head fe6959c (exit=0) ---
+command=node --test test/hosts/codex-env.test.ts
+# tests 1
+# pass 1
+# fail 0
+# skipped 0
+
+--- full repository gate on the measured src/test trees (exit=0) ---
+command=npm run gate
 # tests 195
 # pass 195
 # fail 0
 # skipped 0
 Isolation-dependent tests skipped: 0
-GitHub krn/gate-local: success; description=Gate passed: 195 tests, 0 isolation skips
 
---- falsifier at current merge-base f714d7d, candidate test file overlaid (expected exit=1) ---
-test/hosts/codex-env.test.ts: Codex worker does not receive board credentials
-actual: sentinel-token; expected: undefined
-
---- falsifier at measured head 7d7a0b2 (exit=0) ---
-# tests 1
-# pass 1
-# fail 0
-# skipped 0
+--- live Codex sandbox smoke on the same source tree ---
+command=KRN_LIVE=1 npm run live:smoke
+first attempt: smoke_retry reported an uncommitted live-checkpoint.txt, then the run passed; session=c802e120-f0ad-44e5-a176-01b7efa33f67 commit=6e595e3d45c22cb86adc289de89ce2d2f4b97968.
+repeat attempt: failed at human_decision because the model wrote live-checkpoint.txt but returned agent_message without a checkpoint; no authentication failure was reported.
