@@ -80,6 +80,7 @@ test('resuming a ready_for_review checkpoint re-verdicts without starting a sess
     budget: { maxResets: 3, maxRepairs: 0, session: { timeoutMs: 1000 } },
     signal: new AbortController().signal,
     ledger: {
+      submissionEnabled: false,
       readContract: async () => ({
         issueId: job.issue,
         identifier: 'ready',
@@ -423,7 +424,12 @@ test('live submission takes Krn-Session from the verified commit trailer', async
           return 'submitted';
         },
       } as never,
-      {},
+      {
+        boardConflictFor: async () => null,
+        boardConflict: () => undefined,
+        conflictCommentFailed: () => undefined,
+        conflictCommentDelivered: () => undefined,
+      },
       (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
     );
     assert.equal(result.kind, 'verdict_pass');

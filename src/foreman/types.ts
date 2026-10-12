@@ -1,5 +1,7 @@
 import type { Job } from '../core/index.ts';
 import type {
+  BoardConflictRecord,
+  BoardConflictState,
   Contract,
   ReviewSubmission,
   SubmissionReceipt,
@@ -201,6 +203,13 @@ export type Deps = {
       kind: 'review' | 'conflict_comment',
     ): void;
     readyForReview?(job: Job, sha: string): Promise<void>;
+    boardConflictFor?(
+      job: Job,
+      sha: string,
+    ): Promise<BoardConflictState | null>;
+    boardConflict?(job: Job, sha: string, conflict: BoardConflictRecord): void;
+    conflictCommentFailed?(job: Job, sha: string): void;
+    conflictCommentDelivered?(job: Job, sha: string): void;
   };
   readonly hosts: {
     readonly codex: {

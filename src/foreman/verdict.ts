@@ -1,9 +1,5 @@
 // A completed checkpoint only advances with deterministic checks on its SHA. ADR 0001.
 import type { Job } from '../core/index.ts';
-import type {
-  BoardConflictRecord,
-  BoardConflictState,
-} from '../ledger/index.ts';
 import type { CheckEvidence } from '../verdict/index.ts';
 import { judge } from '../verdict/index.ts';
 import { git } from './git.ts';
@@ -24,19 +20,11 @@ export async function reportPassingVerdict(
     | 'submitIntent'
     | 'submittedFor'
     | 'submitted'
-  > & {
-    boardConflictFor?: (
-      job: Job,
-      sha: string,
-    ) => Promise<BoardConflictState | null>;
-    boardConflict?: (
-      job: Job,
-      sha: string,
-      conflict: BoardConflictRecord,
-    ) => void;
-    conflictCommentFailed?: (job: Job, sha: string) => void;
-    conflictCommentDelivered?: (job: Job, sha: string) => void;
-  },
+    | 'boardConflictFor'
+    | 'boardConflict'
+    | 'conflictCommentFailed'
+    | 'conflictCommentDelivered'
+  >,
   stop: Deps['stop'],
   signal?: AbortSignal,
 ): Promise<Outcome> {
@@ -74,6 +62,16 @@ export async function reportPassingVerdict(
         'verified commit is missing a valid Krn-Session trailer',
       ]);
   }
+  if (
+    ledger.submissionEnabled !== false &&
+    [
+      trace.boardConflictFor,
+      trace.boardConflict,
+      trace.conflictCommentFailed,
+      trace.conflictCommentDelivered,
+    ].some((callback) => typeof callback !== 'function')
+  )
+    return stop(job, 'human_decision', ['conflict persistence unavailable']);
   const submitted = await ledger.submitForReview(
     job,
     contract,

@@ -1,15 +1,20 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import type { Job } from '../../src/core/index.ts';
 import { reportPassingVerdict } from '../../src/foreman/verdict.ts';
 import {
+  type BoardConflictRecord,
+  type Contract,
   createLedger,
+  type LedgerTransport,
   type SubmissionReceipt,
+  type SubmitForReviewOptions,
+  type VerdictEvidence,
 } from '../../src/ledger/index.ts';
 import * as trace from '../../src/trace/index.ts';
 
@@ -204,6 +209,257 @@ function fixture(commentMode: 'fail' | 'lost') {
       failureReceipts,
     }),
   };
+}
+
+test('writable or unknown submissions fail closed without complete conflict persistence', async () => {
+  const root = await mkdtemp(
+    join(tmpdir(), 'krn-missing-conflict-persistence-'),
+  );
+  const git = (args: string[]) => {
+    const result = spawnSync('git', ['-C', root, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  try {
+    git(['init', '-q', '--initial-branch=main']);
+    await writeFile(join(root, 'README.md'), 'valid writable fixture\n');
+    git(['add', 'README.md']);
+    git([
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      'commit',
+      '-qm',
+      'test: valid writable fixture\n\nKrn-Session: session-write',
+    ]);
+    const validSha = git(['rev-parse', 'HEAD']);
+    const job: Job = {
+      id: 'missing-conflict-persistence',
+      issue: issueId,
+      worktree: root,
+    };
+    const contract: Contract = {
+      issueId,
+      identifier: issueId,
+      title: 'valid writable fixture',
+      description,
+      revision: '2026-10-12T18:00:00.000Z',
+      targetRepo: 'krn-works/krn',
+      checks: ['gate'],
+    };
+    const evidence: VerdictEvidence = {
+      kind: 'verdict_pass',
+      sha: validSha,
+      checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha256: resultHash }],
+    };
+    const observed: Array<Record<string, unknown>> = [];
+
+    for (const submissionEnabled of [true, undefined]) {
+      let boardWriteAttempts = 0;
+      const ledger = {
+        ...(submissionEnabled === undefined ? {} : { submissionEnabled }),
+        submitForReview: async (
+          _job: Job,
+          _contract: Contract,
+          receivedEvidence: VerdictEvidence,
+          recordedSha: string,
+          options?: SubmitForReviewOptions,
+        ) => {
+          assert.equal(receivedEvidence.sha, validSha);
+          assert.equal(recordedSha, validSha);
+          assert.equal(
+            options?.session,
+            submissionEnabled === true ? 'session-write' : undefined,
+          );
+          boardWriteAttempts += 1;
+          return 'submitted' as const;
+        },
+      };
+      const result = await reportPassingVerdict(
+        job,
+        contract,
+        validSha,
+        evidence.checks,
+        ledger,
+        {
+          readyForReview: async () => undefined,
+          paperclipUpdateStarted: () => undefined,
+          submitIntent: async () => true,
+          submittedFor: async () => null,
+          submitted: () => undefined,
+          boardConflictFor: async () => null,
+          boardConflict: () => undefined,
+          conflictCommentFailed: () => undefined,
+        },
+        (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
+      );
+      observed.push({
+        writeCapability:
+          submissionEnabled === undefined ? 'unknown' : submissionEnabled,
+        boardWriteAttempts,
+        result,
+      });
+    }
+
+    assert.deepEqual(observed, [
+      {
+        writeCapability: true,
+        boardWriteAttempts: 0,
+        result: {
+          kind: 'stop',
+          state: 'human_decision',
+          reasons: ['conflict persistence unavailable'],
+        },
+      },
+      {
+        writeCapability: 'unknown',
+        boardWriteAttempts: 0,
+        result: {
+          kind: 'stop',
+          state: 'human_decision',
+          reasons: ['conflict persistence unavailable'],
+        },
+      },
+    ]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+const partialCommentMetadataCases = [
+  ['nextCursor', { nextCursor: 'page-2' }],
+  ['unknown has_more metadata', { has_more: true }],
+] as const;
+
+async function replayWithPartialCommentMetadata(
+  metadata: Readonly<Record<string, unknown>>,
+) {
+  const job: Job = {
+    id: 'paginated-conflict-comment',
+    issue: issueId,
+    worktree: process.cwd(),
+  };
+  const contract: Contract = {
+    issueId,
+    identifier: issueId,
+    title: 'paginated conflict fixture',
+    description,
+    revision: '2026-10-12T18:00:00.000Z',
+    targetRepo: 'krn-works/krn',
+    checks: ['gate'],
+  };
+  const evidence: VerdictEvidence = {
+    kind: 'verdict_pass',
+    sha,
+    checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha256: resultHash }],
+  };
+  let status = 'in_progress';
+  let updatedAt = contract.revision;
+  let patchCount = 0;
+  let commentReadCount = 0;
+  let commentWriteCount = 0;
+  const laterPage: Array<{ body: string }> = [];
+  const activities: Array<Record<string, unknown>> = [];
+  const transport: LedgerTransport = {
+    readIssue: async () => ({
+      id: issueId,
+      title: contract.title,
+      description,
+      updatedAt,
+      status,
+    }),
+    readActivity: async () => activities,
+    readComments: async () => {
+      commentReadCount += 1;
+      if (commentReadCount === 1) return [];
+      return {
+        comments: [{ body: 'first page comment' }],
+        ...metadata,
+      };
+    },
+    postComment: async (_issue, body) => {
+      commentWriteCount += 1;
+      if (commentWriteCount === 1) {
+        laterPage.push({ body });
+        throw new Error('simulated accepted comment with lost response');
+      }
+      laterPage.push({ body });
+      return { id: 'duplicate-conflict-comment' };
+    },
+    updateIssue: async (_issue, nextStatus) => {
+      patchCount += 1;
+      const receiptAt = '2026-10-12T18:01:00.000Z';
+      updatedAt = '2026-10-12T18:01:00.002Z';
+      status = 'done';
+      activities.push({
+        id: 'human-status',
+        action: 'issue.updated',
+        entityId: issueId,
+        createdAt: updatedAt,
+        details: {
+          status: 'done',
+          changes: { status: { from: nextStatus, to: 'done' } },
+        },
+      });
+      return {
+        id: issueId,
+        title: contract.title,
+        description,
+        updatedAt: receiptAt,
+        status: 'in_review',
+      };
+    },
+  };
+  const ledger = createLedger({ session: 'session-replay', transport });
+  const conflicts: BoardConflictRecord[] = [];
+  let delivery: 'pending' | 'delivered' = 'pending';
+  let failures = 0;
+  const callbacks = {
+    onBoardConflict: (value: BoardConflictRecord) => {
+      conflicts.push(value);
+    },
+    onConflictCommentFailed: () => {
+      failures += 1;
+      delivery = 'pending';
+    },
+    onConflictCommentDelivered: () => {
+      delivery = 'delivered';
+    },
+  };
+
+  const first = await ledger.submitForReview(
+    job,
+    contract,
+    evidence,
+    sha,
+    callbacks,
+  );
+  assert.equal(first, 'board_conflict');
+  assert.equal(conflicts.length, 1);
+  const conflict = conflicts[0];
+  assert.ok(conflict);
+  assert.deepEqual(laterPage, [{ body: conflict.comment }]);
+  assert.equal(commentWriteCount, 1);
+  assert.equal(delivery, 'pending');
+
+  const replay = await ledger.submitForReview(job, contract, evidence, sha, {
+    ...callbacks,
+    boardConflict: conflict,
+  });
+  assert.equal(replay, 'board_conflict');
+  assert.equal(patchCount, 1);
+  assert.deepEqual(laterPage, [{ body: conflict.comment }]);
+  assert.equal(commentWriteCount, 1);
+  assert.equal(delivery, 'pending');
+  assert.equal(failures, 2);
+}
+
+for (const [metadataName, metadata] of partialCommentMetadataCases) {
+  test(`a partial comments page with ${metadataName} cannot duplicate a lost-response conflict comment`, () =>
+    replayWithPartialCommentMetadata(metadata));
 }
 
 test('same-SHA replay retries a failed conflict comment without another status PATCH', async () => {

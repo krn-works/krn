@@ -28,6 +28,15 @@ const commentListSchema = z.union([
     .object({ comments: z.array(z.object({ body: z.string() }).passthrough()) })
     .passthrough(),
 ]);
+const COMMENT_READ_METADATA_KEYS = new Set([
+  'nextCursor',
+  'nextPageToken',
+  'next',
+  'hasMore',
+  'hasNextPage',
+  'truncated',
+  'isTruncated',
+]);
 
 function latestKrnCommentSha(value: unknown): string | null {
   const list = Array.isArray(value)
@@ -213,6 +222,29 @@ function containsExactComment(
     ? parsed.data
     : parsed.data.comments;
   if (comments.some((comment) => comment.body === expected)) return true;
+  if (!Array.isArray(parsed.data)) {
+    const metadata = parsed.data as Record<string, unknown>;
+    const hasUnknownMetadata = Object.keys(metadata).some(
+      (key) => key !== 'comments' && !COMMENT_READ_METADATA_KEYS.has(key),
+    );
+    if (hasUnknownMetadata) return null;
+    const hasContinuation = ['nextCursor', 'nextPageToken', 'next'].some(
+      (key) =>
+        key in metadata && metadata[key] !== null && metadata[key] !== '',
+    );
+    const completenessFlags = [
+      'hasMore',
+      'hasNextPage',
+      'truncated',
+      'isTruncated',
+    ];
+    const hasUnknownOrIncompleteFlag = completenessFlags.some(
+      (key) =>
+        key in metadata &&
+        (typeof metadata[key] !== 'boolean' || metadata[key] === true),
+    );
+    if (hasContinuation || hasUnknownOrIncompleteFlag) return null;
+  }
   return comments.length >= MAX_COMMENT_READ ? null : false;
 }
 
