@@ -1,11 +1,15 @@
+base=f714d7d2dc190658e18cfc30288816a57a1df895
+test=7d7a0b2d5192c68afbe11aa58b423734d3298dbc:test/hosts/codex-env.test.ts
+command=node scripts/test-suite.mjs test/hosts/codex-env.test.ts
+expected_exit=1
 Isolation capability probe: bwrap=available; systemd user scope=available
 TAP version 13
 # Subtest: Codex worker does not receive board credentials
 not ok 1 - Codex worker does not receive board credentials
   ---
-  duration_ms: 221.964233
+  duration_ms: 236.294996
   type: 'test'
-  location: '/mnt/storage/coding/krn/active/krn/.krn/tmp/redfirst-R1-04/test/hosts/codex-env.test.ts:9:1'
+  location: '/mnt/storage/coding/krn/active/krn/.krn/worktrees/R1-04-red-base/test/hosts/codex-env.test.ts:9:1'
   failureType: 'testCodeFailure'
   error: |-
     Expected values to be strictly equal:
@@ -19,7 +23,7 @@ not ok 1 - Codex worker does not receive board credentials
   actual: 'sentinel-token'
   operator: 'strictEqual'
   stack: |-
-    TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/tmp/redfirst-R1-04/test/hosts/codex-env.test.ts:49:12)
+    TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/R1-04-red-base/test/hosts/codex-env.test.ts:49:12)
     async Test.run (node:internal/test_runner/test:1409:7)
     async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3)
   ...
@@ -31,6 +35,6 @@ not ok 1 - Codex worker does not receive board credentials
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 613.875881
+# duration_ms 628.796096
 Isolation-dependent tests skipped: 0
 exit=1
