@@ -17,7 +17,11 @@ import type { Job } from '../core/index.ts';
 import { readCheckpointRequest } from '../foreman/checkpoint-request.ts';
 import { stateDirectory } from '../foreman/state.ts';
 import type { SessionEnd } from '../foreman/types.ts';
-import type { SubmissionReceipt } from '../ledger/index.ts';
+import type {
+  BoardConflictRecord,
+  BoardConflictState,
+  SubmissionReceipt,
+} from '../ledger/index.ts';
 import type { VerdictEvent } from '../verdict/index.ts';
 
 type Event = {
@@ -44,6 +48,20 @@ const verdictDataSchema = z.object({
     }),
   ),
 });
+const boardConflictRecordSchema = z
+  .object({
+    issueId: z.string().min(1),
+    sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
+    comment: z.string().min(1),
+    commentHash: z.string().regex(/^[a-f0-9]{64}$/iu),
+  })
+  .strict();
+const boardConflictDataSchema = z
+  .object({
+    sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
+    conflict: boardConflictRecordSchema,
+  })
+  .strict();
 
 function file(job: Job): string {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(job.id) || job.id === '..')
@@ -391,6 +409,82 @@ export function submitted(
   receipt: SubmissionReceipt,
 ): void {
   append(job, `submitted:${sha}`, 'submitted', { sha, receipt });
+}
+
+export async function boardConflictFor(
+  job: Job,
+  sha: string,
+): Promise<BoardConflictState | null> {
+  const trace = events(job);
+  const event = trace.find(
+    (candidate) =>
+      candidate.kind === 'board_conflict' && candidate.data.sha === sha,
+  );
+  if (!event) return null;
+  const parsed = boardConflictDataSchema.safeParse(event.data);
+  if (
+    !parsed.success ||
+    parsed.data.conflict.sha !== sha ||
+    parsed.data.conflict.commentHash !==
+      createHash('sha256').update(parsed.data.conflict.comment).digest('hex')
+  )
+    throw new Error('invalid board conflict trace event');
+  const delivered = trace.some(
+    (candidate) =>
+      candidate.kind === 'conflict_comment_delivered' &&
+      candidate.data.sha === sha,
+  );
+  return {
+    conflict: parsed.data.conflict,
+    delivery: delivered ? 'delivered' : 'pending',
+  };
+}
+
+export function boardConflict(
+  job: Job,
+  sha: string,
+  conflict: BoardConflictRecord,
+): void {
+  const parsed = boardConflictRecordSchema.safeParse(conflict);
+  if (
+    !parsed.success ||
+    parsed.data.sha !== sha ||
+    parsed.data.commentHash !==
+      createHash('sha256').update(parsed.data.comment).digest('hex')
+  )
+    throw new Error('invalid board conflict receipt');
+  const key = `board-conflict:${sha}`;
+  const prior = events(job).find((event) => event.key === key);
+  if (prior) {
+    const priorData = boardConflictDataSchema.safeParse(prior.data);
+    if (
+      !priorData.success ||
+      JSON.stringify(priorData.data.conflict) !== JSON.stringify(parsed.data)
+    )
+      throw new Error('board conflict conflicts with the recorded SHA');
+    return;
+  }
+  append(job, key, 'board_conflict', { sha, conflict: parsed.data });
+}
+
+export function conflictCommentFailed(job: Job, sha: string): void {
+  append(
+    job,
+    `conflict-comment-failed:${sha}:${randomUUID()}`,
+    'conflict_comment_failed',
+    { sha },
+  );
+}
+
+export function conflictCommentDelivered(job: Job, sha: string): void {
+  if (!events(job).some((event) => event.key === `board-conflict:${sha}`))
+    throw new Error('cannot acknowledge an unrecorded board conflict comment');
+  append(
+    job,
+    `conflict-comment-delivered:${sha}`,
+    'conflict_comment_delivered',
+    { sha },
+  );
 }
 
 export async function stopped(job: Job, signal: string): Promise<void> {

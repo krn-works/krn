@@ -353,6 +353,40 @@ test('CLI submit reconciliation reads issue comments with JSON output', async (t
   }
 });
 
+test('CLI conflict comments do not include a status write', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'CLI conflict comments do not include a status write',
+      ['systemdUserScope'],
+    )
+  )
+    return;
+  const fake = await fakeCli();
+  await writeFile(
+    fake.executable,
+    `#!/usr/bin/env node\nconst fs = require('node:fs');\nfs.writeFileSync(${JSON.stringify(fake.capture)}, JSON.stringify(process.argv.slice(2)));\nprocess.stdout.write(${JSON.stringify(JSON.stringify(issue))});\n`,
+  );
+  await chmod(fake.executable, 0o755);
+  try {
+    const transport = createPaperclipCliTransport({
+      executable: fake.executable,
+    });
+    assert.equal(typeof transport.postComment, 'function');
+    await transport.postComment?.('LON-200', 'conflict explanation');
+    assert.deepEqual(JSON.parse(await readFile(fake.capture, 'utf8')), [
+      'issue',
+      'update',
+      'LON-200',
+      '--comment',
+      'conflict explanation',
+      '--json',
+    ]);
+  } finally {
+    await rm(fake.directory, { recursive: true, force: true });
+  }
+});
+
 test('CLI transport refuses oversized output and timed out commands', async (t) => {
   if (
     !requiresIsolation(

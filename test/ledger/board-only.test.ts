@@ -227,6 +227,7 @@ test('concurrent done is never overwritten by a second status write', async () =
         comments.push((JSON.parse(String(init.body)) as { body: string }).body);
         return response({ id: 'comment-1' }, 201);
       }
+      if (path.endsWith('/comments')) return response([]);
       if (init?.method === 'PATCH') {
         const body = JSON.parse(String(init.body)) as {
           status: string;

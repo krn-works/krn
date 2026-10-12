@@ -8,6 +8,7 @@ import type { CheckEvidence } from '../verdict/index.ts';
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const MAX_CONTRACT_DESCRIPTION_BYTES = 8 * 1024;
+const MAX_COMMENT_READ = 500;
 const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 
 const activitySchema = z.array(
@@ -21,6 +22,12 @@ const activitySchema = z.array(
     })
     .passthrough(),
 );
+const commentListSchema = z.union([
+  z.array(z.object({ body: z.string() }).passthrough()),
+  z
+    .object({ comments: z.array(z.object({ body: z.string() }).passthrough()) })
+    .passthrough(),
+]);
 
 function latestKrnCommentSha(value: unknown): string | null {
   const list = Array.isArray(value)
@@ -100,12 +107,26 @@ export type SubmissionReceipt = Readonly<{
   status: string;
   updatedAt: string;
 }>;
+export type BoardConflictRecord = Readonly<{
+  issueId: string;
+  sha: string;
+  comment: string;
+  commentHash: string;
+}>;
+export type BoardConflictState = Readonly<{
+  conflict: BoardConflictRecord;
+  delivery: 'pending' | 'delivered';
+}>;
 export type SubmitForReviewOptions = Readonly<{
   signal?: AbortSignal;
   reconcile?: boolean;
   session?: string;
   onWriteStarted?: (kind: 'review' | 'conflict_comment') => void;
   onSubmitted?: (receipt: SubmissionReceipt) => void;
+  boardConflict?: BoardConflictRecord;
+  onBoardConflict?: (conflict: BoardConflictRecord) => void;
+  onConflictCommentFailed?: () => void;
+  onConflictCommentDelivered?: () => void;
 }>;
 export type Ledger = ReturnType<typeof createLedger>;
 export type LedgerOptions = {
@@ -121,6 +142,7 @@ export type LedgerTransport = Readonly<{
   readIssue(issueId: string, signal?: AbortSignal): Promise<unknown>;
   readActivity(issueId: string, signal?: AbortSignal): Promise<unknown>;
   readComments(issueId: string, signal?: AbortSignal): Promise<unknown>;
+  postComment?(issueId: string, comment: string): Promise<unknown>;
   updateIssue(
     issueId: string,
     status: string,
@@ -180,6 +202,28 @@ function eventCommentHash(event: z.infer<typeof activitySchema>[number]) {
     activityCommentHash(event.details) ?? activityCommentHash(event as unknown)
   );
 }
+
+function containsExactComment(
+  value: unknown,
+  expected: string,
+): boolean | null {
+  const parsed = commentListSchema.safeParse(value);
+  if (!parsed.success) return null;
+  const comments = Array.isArray(parsed.data)
+    ? parsed.data
+    : parsed.data.comments;
+  if (comments.some((comment) => comment.body === expected)) return true;
+  return comments.length >= MAX_COMMENT_READ ? null : false;
+}
+
+const boardConflictSchema = z
+  .object({
+    issueId: z.string().min(1),
+    sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
+    comment: z.string().min(1),
+    commentHash: z.string().regex(/^[a-f0-9]{64}$/iu),
+  })
+  .strict();
 
 function activityStatus(event: z.infer<typeof activitySchema>[number]) {
   if (event.details?.status === 'in_review') return true;
@@ -369,6 +413,9 @@ export function createLedger(options: LedgerOptions) {
     events: readonly z.infer<typeof activitySchema>[number][],
     signal?: AbortSignal,
     onWriteStarted?: (kind: 'review' | 'conflict_comment') => void,
+    onBoardConflict?: (conflict: BoardConflictRecord) => void,
+    onConflictCommentFailed?: () => void,
+    onConflictCommentDelivered?: () => void,
   ) {
     if (!session) throw new Error('Krn-Session is required to submit');
     const observed = events.length
@@ -387,30 +434,83 @@ export function createLedger(options: LedgerOptions) {
       ...observed,
       'Human review is required; the ledger made no status correction.',
     ].join('\n');
-    if (transport) {
-      const current = await readIssue(issueId, signal);
-      if (signal?.aborted) return;
-      onWriteStarted?.('conflict_comment');
-      if (signal?.aborted) return;
-      await transport.updateIssue(issueId, current.status, comment);
-      if (signal?.aborted) return;
+    const conflict = boardConflictSchema.parse({
+      issueId,
+      sha,
+      comment,
+      commentHash: hash(comment),
+    });
+    onBoardConflict?.(conflict);
+    await deliverConflictComment(
+      conflict,
+      signal,
+      onWriteStarted,
+      onConflictCommentFailed,
+      onConflictCommentDelivered,
+    );
+  }
+
+  async function deliverConflictComment(
+    conflict: BoardConflictRecord,
+    signal: AbortSignal | undefined,
+    onWriteStarted?: (kind: 'review' | 'conflict_comment') => void,
+    onFailed?: () => void,
+    onDelivered?: () => void,
+  ): Promise<void> {
+    const parsed = boardConflictSchema.safeParse(conflict);
+    if (
+      !parsed.success ||
+      parsed.data.commentHash !== hash(parsed.data.comment)
+    )
+      throw new Error('invalid recorded board conflict');
+    if (signal?.aborted) return;
+
+    let present: boolean | null;
+    try {
+      present = containsExactComment(
+        await readComments(parsed.data.issueId, signal),
+        parsed.data.comment,
+      );
+    } catch {
+      present = null;
+    }
+    if (signal?.aborted) return;
+    if (present === true) {
+      onDelivered?.();
+      return;
+    }
+    if (present !== false) {
+      onFailed?.();
+      return;
+    }
+
+    onWriteStarted?.('conflict_comment');
+    try {
+      if (transport) {
+        if (!transport.postComment)
+          throw new Error('Paperclip transport cannot post a comment safely');
+        await transport.postComment(parsed.data.issueId, parsed.data.comment);
+      } else {
+        const { response } = await requestJson(
+          `${base}/api/issues/${parsed.data.issueId}/comments`,
+          {
+            method: 'POST',
+            redirect: 'error',
+            headers: { ...headers, 'content-type': 'application/json' },
+            body: JSON.stringify({ body: parsed.data.comment }),
+          },
+        );
+        if (!response.ok)
+          throw new Error(
+            `Paperclip conflict comment failed (${response.status})`,
+          );
+      }
+    } catch {
+      onFailed?.();
       return;
     }
     if (signal?.aborted) return;
-    onWriteStarted?.('conflict_comment');
-    if (signal?.aborted) return;
-    const { response } = await requestJson(
-      `${base}/api/issues/${issueId}/comments`,
-      {
-        method: 'POST',
-        redirect: 'error',
-        headers: { ...headers, 'content-type': 'application/json' },
-        body: JSON.stringify({ body: comment }),
-      },
-    );
-    if (signal?.aborted) return;
-    if (!response.ok)
-      throw new Error(`Paperclip conflict comment failed (${response.status})`);
+    onDelivered?.();
   }
 
   return {
@@ -469,6 +569,26 @@ export function createLedger(options: LedgerOptions) {
         evidence.sha !== recordedSha
       )
         return 'refused';
+      if (submitOptions.boardConflict !== undefined) {
+        const conflict = boardConflictSchema.safeParse(
+          submitOptions.boardConflict,
+        );
+        if (
+          !conflict.success ||
+          conflict.data.issueId !== job.issue ||
+          conflict.data.sha !== evidence.sha ||
+          conflict.data.commentHash !== hash(conflict.data.comment)
+        )
+          return 'refused';
+        await deliverConflictComment(
+          conflict.data,
+          signal,
+          onWriteStarted,
+          submitOptions.onConflictCommentFailed,
+          submitOptions.onConflictCommentDelivered,
+        );
+        return signal?.aborted ? 'stopped' : 'board_conflict';
+      }
       if (
         !session ||
         !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(session) ||
@@ -550,11 +670,6 @@ export function createLedger(options: LedgerOptions) {
       const receipt = parseIssue(body);
       if (!receipt.success || receipt.data.id !== job.issue)
         throw new Error('invalid Paperclip review receipt');
-      onSubmitted?.({
-        issueId: receipt.data.id,
-        status: receipt.data.status,
-        updatedAt: receipt.data.updatedAt,
-      });
       if (signal?.aborted) return 'stopped';
       const [afterIssue, afterActivity] = await Promise.all([
         readIssue(job.issue, signal),
@@ -603,11 +718,20 @@ export function createLedger(options: LedgerOptions) {
           foreignEvents.length > 0 ? foreignEvents : newEvents,
           signal,
           onWriteStarted,
+          submitOptions.onBoardConflict,
+          submitOptions.onConflictCommentFailed,
+          submitOptions.onConflictCommentDelivered,
         );
         if (signal?.aborted) return 'stopped';
         return 'board_conflict';
       }
-      return afterIssue.status === 'in_review' ? 'submitted' : 'refused';
+      if (afterIssue.status !== 'in_review') return 'refused';
+      onSubmitted?.({
+        issueId: receipt.data.id,
+        status: receipt.data.status,
+        updatedAt: receipt.data.updatedAt,
+      });
+      return 'submitted';
     },
   };
 }

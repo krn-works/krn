@@ -1,5 +1,9 @@
 // A completed checkpoint only advances with deterministic checks on its SHA. ADR 0001.
 import type { Job } from '../core/index.ts';
+import type {
+  BoardConflictRecord,
+  BoardConflictState,
+} from '../ledger/index.ts';
 import type { CheckEvidence } from '../verdict/index.ts';
 import { judge } from '../verdict/index.ts';
 import { git } from './git.ts';
@@ -20,11 +24,27 @@ export async function reportPassingVerdict(
     | 'submitIntent'
     | 'submittedFor'
     | 'submitted'
-  >,
+  > & {
+    boardConflictFor?: (
+      job: Job,
+      sha: string,
+    ) => Promise<BoardConflictState | null>;
+    boardConflict?: (
+      job: Job,
+      sha: string,
+      conflict: BoardConflictRecord,
+    ) => void;
+    conflictCommentFailed?: (job: Job, sha: string) => void;
+    conflictCommentDelivered?: (job: Job, sha: string) => void;
+  },
   stop: Deps['stop'],
   signal?: AbortSignal,
 ): Promise<Outcome> {
-  const prior = await trace.submittedFor?.(job, sha);
+  const savedConflict = (await trace.boardConflictFor?.(job, sha)) ?? null;
+  if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
+  if (savedConflict?.delivery === 'delivered')
+    return stop(job, 'human_decision', ['board_conflict']);
+  const prior = savedConflict ? null : await trace.submittedFor?.(job, sha);
   if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
   if (prior)
     return {
@@ -63,8 +83,15 @@ export async function reportPassingVerdict(
       ...(signal === undefined ? {} : { signal }),
       ...(session === undefined ? {} : { session }),
       reconcile,
+      ...(savedConflict === null
+        ? {}
+        : { boardConflict: savedConflict.conflict }),
       onWriteStarted: (kind) => trace.paperclipUpdateStarted?.(job, sha, kind),
       onSubmitted: (receipt) => trace.submitted?.(job, sha, receipt),
+      onBoardConflict: (conflict) => trace.boardConflict?.(job, sha, conflict),
+      onConflictCommentFailed: () => trace.conflictCommentFailed?.(job, sha),
+      onConflictCommentDelivered: () =>
+        trace.conflictCommentDelivered?.(job, sha),
     },
   );
   if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
