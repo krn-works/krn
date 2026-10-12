@@ -73,6 +73,8 @@ test('requiresIsolation logs a named CI skip and fails when CI is absent', async
   const baseEnv = { ...process.env };
   delete baseEnv.CI;
   delete baseEnv.NODE_TEST_CONTEXT;
+  // This child exercises isolation policy; the host-only strict flag stays outside it.
+  delete baseEnv.KRN_REQUIRE_ZERO_ISOLATION_SKIPS;
   const capabilities = JSON.stringify(unavailable);
   try {
     const ciRun = spawnSync(process.execPath, [wrapper, fixture], {
@@ -134,6 +136,8 @@ test('requiresIsolation accepts a real active CommonJS test context', async () =
     .pathname;
   const runnerEnv = { ...process.env };
   delete runnerEnv.NODE_TEST_CONTEXT;
+  // The host-only strict flag does not apply to this simulated CI runner.
+  delete runnerEnv.KRN_REQUIRE_ZERO_ISOLATION_SKIPS;
   runnerEnv.CI = 'true';
   runnerEnv.KRN_SCOPE_PROBE = '1';
   runnerEnv.KRN_ISOLATION_CAPABILITIES = JSON.stringify(unavailable);
