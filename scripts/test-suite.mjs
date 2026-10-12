@@ -14,6 +14,17 @@ import {
 
 export const TEST_FILE_GLOB = 'test/**/*.test.{ts,js,mjs,cjs}';
 
+function countSelectedTests(output) {
+  const subtests = [...output.matchAll(/^\s*# Subtest: (.+)$/gmu)].map(
+    (match) => match[1],
+  );
+  if (subtests.length === 0)
+    return Number(output.match(/^# tests (\d+)$/mu)?.[1] ?? 0);
+  return subtests.filter(
+    (name) => !/(?:^|[\\/])[^\\/]+\.test\.(?:ts|js|mjs|cjs)$/u.test(name),
+  ).length;
+}
+
 if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
@@ -31,6 +42,8 @@ if (
   const child = spawn(
     process.execPath,
     [
+      '--import',
+      fileURLToPath(new URL('../test/helpers/isolation.ts', import.meta.url)),
       '--test',
       '--test-concurrency=1',
       '--test-reporter=tap',
@@ -85,7 +98,9 @@ if (
   child.once('close', async (code) => {
     const skipCount = countIsolationSkips(stdout);
     const summary = isolationSummary(skipCount);
-    const testCount = Number(stdout.match(/^# tests (\d+)$/mu)?.[1] ?? 0);
+    const testCount = countSelectedTests(stdout);
+    const skippedCount = Number(stdout.match(/^# skipped (\d+)$/mu)?.[1] ?? 0);
+    const todoCount = Number(stdout.match(/^# todo (\d+)$/mu)?.[1] ?? 0);
     process.stdout.write(`${summary}\n`);
     if (
       process.env.CI === 'true' &&
@@ -114,6 +129,23 @@ if (
           skipCount,
           process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS === '1',
         );
+    const integrityFailures = [];
+    if (testCount === 0)
+      integrityFailures.push('test suite selected zero tests');
+    if (todoCount > 0)
+      integrityFailures.push(`test suite reported ${todoCount} todo tests`);
+    if (skippedCount !== skipCount)
+      integrityFailures.push(
+        `runner reported ${skippedCount} skipped tests but ${skipCount} isolation approvals`,
+      );
+    if (stdout.includes('UNAPPROVED_TEST_SKIP:'))
+      integrityFailures.push('test called skip outside requiresIsolation');
+    if (process.env.CI === 'true' && integrityFailures.length > 0) {
+      for (const failure of integrityFailures)
+        process.stderr.write(`gate: ${failure}\n`);
+      process.exitCode = 1;
+      return;
+    }
     if (process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS === '1' && skipCount > 0)
       process.stderr.write(
         `gate:local requires zero isolation skips; observed ${skipCount}\n`,

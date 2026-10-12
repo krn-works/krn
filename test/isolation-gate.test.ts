@@ -63,6 +63,8 @@ test('requiresIsolation logs a named CI skip and fails when CI is absent', async
   const directory = await mkdtemp(join(tempRoot, 'isolation-helper-'));
   const fixture = join(directory, 'requires-isolation.test.mjs');
   const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
+  const wrapper = new URL('../scripts/test-suite.mjs', import.meta.url)
+    .pathname;
   await writeFile(
     fixture,
     `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('rootless fixture', (t) => { if (!requiresIsolation(t, 'rootless fixture', ['systemdUserScope'])) return; throw new Error('missing systemd capability was used'); });\n`,
@@ -73,18 +75,15 @@ test('requiresIsolation logs a named CI skip and fails when CI is absent', async
   delete baseEnv.NODE_TEST_CONTEXT;
   const capabilities = JSON.stringify(unavailable);
   try {
-    const ciRun = spawnSync(
-      process.execPath,
-      ['--test', '--test-reporter=tap', fixture],
-      {
-        encoding: 'utf8',
-        env: {
-          ...baseEnv,
-          CI: 'true',
-          KRN_ISOLATION_CAPABILITIES: capabilities,
-        },
+    const ciRun = spawnSync(process.execPath, [wrapper, fixture], {
+      encoding: 'utf8',
+      env: {
+        ...baseEnv,
+        CI: 'true',
+        KRN_SCOPE_PROBE: '1',
+        KRN_ISOLATION_CAPABILITIES: capabilities,
       },
-    );
+    });
     assert.equal(
       ciRun.status,
       0,
@@ -107,19 +106,241 @@ test('requiresIsolation logs a named CI skip and fails when CI is absent', async
     assert.match(ciRun.stdout, /^# skipped 1$/mu);
     assert.equal(countIsolationSkips(ciRun.stdout), 1);
 
-    const localRun = spawnSync(
-      process.execPath,
-      ['--test', '--test-reporter=tap', fixture],
-      {
-        encoding: 'utf8',
-        env: { ...baseEnv, KRN_ISOLATION_CAPABILITIES: capabilities },
+    const localRun = spawnSync(process.execPath, [wrapper, fixture], {
+      encoding: 'utf8',
+      env: {
+        ...baseEnv,
+        KRN_SCOPE_PROBE: '1',
+        KRN_ISOLATION_CAPABILITIES: capabilities,
       },
-    );
+    });
     assert.equal(localRun.status, 1, localRun.stdout);
     assert.match(
       localRun.stdout,
       /Isolation requirements failed for rootless fixture: missing systemd user scopes/u,
     );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('requiresIsolation accepts a real active CommonJS test context', async () => {
+  const directory = await mkdtemp(
+    join(process.cwd(), 'test/isolation-cjs-context-'),
+  );
+  const fixture = join(directory, 'requires-isolation.test.cjs');
+  const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
+  const wrapper = new URL('../scripts/test-suite.mjs', import.meta.url)
+    .pathname;
+  const runnerEnv = { ...process.env };
+  delete runnerEnv.NODE_TEST_CONTEXT;
+  runnerEnv.CI = 'true';
+  runnerEnv.KRN_SCOPE_PROBE = '1';
+  runnerEnv.KRN_ISOLATION_CAPABILITIES = JSON.stringify(unavailable);
+
+  try {
+    await writeFile(
+      fixture,
+      `const { test } = require('node:test');\ntest('rootless CJS fixture', async (t) => { const { requiresIsolation } = await import(${JSON.stringify(helperUrl)}); if (!requiresIsolation(t, 'rootless CJS fixture', ['systemdUserScope'])) return; throw new Error('missing systemd capability was used'); });\n`,
+    );
+    const run = spawnSync(process.execPath, [wrapper, fixture], {
+      encoding: 'utf8',
+      env: runnerEnv,
+    });
+
+    assert.equal(
+      run.status,
+      0,
+      JSON.stringify({
+        error: run.error?.message,
+        stderr: run.stderr,
+        stdout: run.stdout,
+      }),
+    );
+    assert.equal(countIsolationSkips(run.stdout), 1, run.stdout);
+    assert.match(run.stdout, /^# skipped 1$/mu);
+    assert.match(
+      run.stdout,
+      /SKIP\(isolation\): rootless CJS fixture — missing systemd user scopes/u,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('test-mutated capabilities cannot approve an isolation skip', async () => {
+  const directory = await mkdtemp(
+    join(process.cwd(), 'test/isolation-env-mutation-'),
+  );
+  const fixture = join(directory, 'mutates-capabilities.test.mjs');
+  const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
+  const available: IsolationCapabilities = {
+    bwrap: { available: true, reason: 'available in runner' },
+    systemdUserScope: { available: true, reason: 'available in runner' },
+  };
+  const unavailableCapabilities: IsolationCapabilities = {
+    bwrap: { available: false, reason: 'mutated by test' },
+    systemdUserScope: {
+      available: false,
+      reason: 'mutated by test',
+    },
+  };
+
+  try {
+    await writeFile(
+      fixture,
+      `import { test } from 'node:test';\ntest('mutates inherited capabilities', async (t) => { process.env.KRN_ISOLATION_CAPABILITIES = ${JSON.stringify(JSON.stringify(unavailableCapabilities))}; const { requiresIsolation } = await import(${JSON.stringify(helperUrl)}); requiresIsolation(t, 'mutates inherited capabilities', ['systemdUserScope']); });\n`,
+    );
+
+    const wrapper = new URL('../scripts/test-suite.mjs', import.meta.url)
+      .pathname;
+    const runnerEnv = { ...process.env };
+    delete runnerEnv.NODE_TEST_CONTEXT;
+    const run = spawnSync(process.execPath, [wrapper, fixture], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: {
+        ...runnerEnv,
+        CI: 'true',
+        KRN_SCOPE_PROBE: '1',
+        KRN_ISOLATION_CAPABILITIES: JSON.stringify(available),
+      },
+    });
+
+    assert.equal(
+      run.status,
+      0,
+      JSON.stringify({ error: run.error?.message, stderr: run.stderr }),
+    );
+    assert.notEqual(
+      run.stdout,
+      '',
+      JSON.stringify({
+        status: run.status,
+        error: run.error?.message,
+        signal: run.signal,
+        stderr: run.stderr,
+      }),
+    );
+    assert.equal(countIsolationSkips(run.stdout), 0, run.stdout);
+    assert.match(run.stdout, /^# tests 1$/mu);
+    assert.match(run.stdout, /^# skipped 0$/mu);
+    assert.match(run.stdout, /Isolation-dependent tests skipped: 0/u);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('CI rejects reason-prefix, fake-context, and stale-context skip attacks', async () => {
+  const directory = await mkdtemp(
+    join(process.cwd(), 'test/isolation-skip-attacks-'),
+  );
+  const wrapper = new URL('../scripts/test-suite.mjs', import.meta.url)
+    .pathname;
+  const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
+  const runnerEnv = { ...process.env };
+  delete runnerEnv.NODE_TEST_CONTEXT;
+  const capabilities = JSON.stringify({
+    bwrap: { available: true, reason: 'available in runner' },
+    systemdUserScope: { available: true, reason: 'available in runner' },
+  });
+
+  const runFixture = async (filename: string, source: string) => {
+    const fixture = join(directory, filename);
+    await writeFile(fixture, source);
+    return spawnSync(process.execPath, [wrapper, fixture], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: {
+        ...runnerEnv,
+        CI: 'true',
+        KRN_SCOPE_PROBE: '1',
+        KRN_ISOLATION_CAPABILITIES: capabilities,
+      },
+    });
+  };
+
+  try {
+    const reasonPrefixRun = await runFixture(
+      'reason-prefix.test.mjs',
+      `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\nif (false) requiresIsolation(undefined, 'ordinary skip', []);\ntest('ordinary skip', (t) => t.skip('SKIP(isolation): forged without executing requiresIsolation'));\n`,
+    );
+    assert.equal(reasonPrefixRun.status, 1, reasonPrefixRun.stdout);
+    assert.match(reasonPrefixRun.stdout, /UNAPPROVED_TEST_SKIP:/u);
+    assert.match(
+      reasonPrefixRun.stderr,
+      /test called skip outside requiresIsolation/u,
+    );
+
+    const ordinarySkipRun = await runFixture(
+      'ordinary-skip.test.mjs',
+      `import { test } from 'node:test';\ntest('ordinary skip', (t) => t.skip('not an isolation skip'));\n`,
+    );
+    assert.equal(ordinarySkipRun.status, 1, ordinarySkipRun.stdout);
+    assert.match(ordinarySkipRun.stdout, /UNAPPROVED_TEST_SKIP:/u);
+    assert.match(
+      ordinarySkipRun.stderr,
+      /runner reported 1 skipped tests but 0 isolation approvals/u,
+    );
+
+    const fakeContextRun = await runFixture(
+      'fake-context.test.mjs',
+      `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('ordinary skip', (t) => { let reason; const fakeContext = { skip(value) { reason = value; } }; requiresIsolation(fakeContext, 'ordinary skip', ['systemdUserScope']); t.skip(reason); });\n`,
+    );
+    assert.equal(fakeContextRun.status, 1, fakeContextRun.stdout);
+    assert.match(
+      fakeContextRun.stdout,
+      /requiresIsolation must receive the active test context/u,
+    );
+
+    const staleContextRun = await runFixture(
+      'stale-context.test.mjs',
+      `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\nlet staleContext;\ntest('capture context', (t) => { staleContext = t; });\ntest('use stale context', () => requiresIsolation(staleContext, 'use stale context', ['systemdUserScope']));\n`,
+    );
+    assert.equal(staleContextRun.status, 1, staleContextRun.stdout);
+    assert.match(
+      staleContextRun.stdout,
+      /requiresIsolation must receive the active test context/u,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('CI rejects zero selected tests and todo tests', async () => {
+  const directory = await mkdtemp(
+    join(process.cwd(), 'test/isolation-selection-attacks-'),
+  );
+  const wrapper = new URL('../scripts/test-suite.mjs', import.meta.url)
+    .pathname;
+  const runnerEnv = { ...process.env };
+  delete runnerEnv.NODE_TEST_CONTEXT;
+  const runFixture = async (filename: string, source: string) => {
+    const fixture = join(directory, filename);
+    await writeFile(fixture, source);
+    return spawnSync(process.execPath, [wrapper, fixture], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: {
+        ...runnerEnv,
+        CI: 'true',
+        KRN_SCOPE_PROBE: '1',
+        KRN_ISOLATION_CAPABILITIES: JSON.stringify(unavailable),
+      },
+    });
+  };
+
+  try {
+    const emptyRun = await runFixture('empty.test.mjs', '');
+    assert.equal(emptyRun.status, 1, emptyRun.stdout);
+    assert.match(emptyRun.stderr, /test suite selected zero tests/u);
+
+    const todoRun = await runFixture(
+      'todo.test.mjs',
+      `import { test } from 'node:test';\ntest('deferred test', (t) => t.todo('not implemented'));\n`,
+    );
+    assert.equal(todoRun.status, 1, todoRun.stdout);
+    assert.match(todoRun.stderr, /test suite reported 1 todo tests/u);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
