@@ -3,21 +3,21 @@ import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { probeIsolationCapabilities } from '../../scripts/probe-isolation.mjs';
 import { CodexHost } from '../../src/hosts/codex.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
 test('Codex worker does not receive board credentials', async (t) => {
-  if (process.env.KRN_ISOLATION_CAPABILITIES) {
-    if (
-      !requiresIsolation(t, 'Codex worker does not receive board credentials', [
-        'systemdUserScope',
-      ])
-    )
-      return;
-  } else {
-    t.skip('systemd user scope capability probe is not available');
+  if (!process.env.KRN_ISOLATION_CAPABILITIES)
+    process.env.KRN_ISOLATION_CAPABILITIES = JSON.stringify(
+      probeIsolationCapabilities(),
+    );
+  if (
+    !requiresIsolation(t, 'Codex worker does not receive board credentials', [
+      'systemdUserScope',
+    ])
+  )
     return;
-  }
 
   const directory = await mkdtemp(join(tmpdir(), 'krn-codex-env-'));
   const envFile = join(directory, 'worker-env.json');
