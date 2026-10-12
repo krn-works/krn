@@ -5,11 +5,39 @@ import { realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-
+import {
+  type ReviewCommandOutcome,
+  ReviewUsageError,
+  reviewCommand,
+} from '../flow/cli.ts';
 import { dispatch } from './index.ts';
 
 const version = '0.1.0';
 const recursionFlag = 'KRN_FORWARDED';
+
+function canonical(path: string): string {
+  try {
+    return realpathSync(path);
+  } catch {
+    return resolve(path);
+  }
+}
+
+export function reviewOutcomeExitCode(outcome: ReviewCommandOutcome): number {
+  switch (outcome) {
+    case 'PASS':
+    case 'OVERRIDE':
+      return 0;
+    case 'FAIL':
+      return 1;
+    case 'INCOMPLETE':
+      return 2;
+  }
+}
+
+export function reviewErrorExitCode(error: unknown): number {
+  return error instanceof ReviewUsageError ? 64 : 70;
+}
 
 export function main(args = process.argv.slice(2)): void {
   if (args[0] === '--version') {
@@ -17,7 +45,21 @@ export function main(args = process.argv.slice(2)): void {
     return;
   }
 
-  if (['start', 'checkpoint', 'stop', 'review'].includes(args[0] ?? '')) {
+  if (args[0] === 'review') {
+    void reviewCommand(args.slice(1))
+      .then((outcome) => {
+        if (outcome) process.exitCode = reviewOutcomeExitCode(outcome);
+      })
+      .catch((error: unknown) => {
+        process.stderr.write(
+          `${error instanceof Error ? error.message : String(error)}\n`,
+        );
+        process.exitCode = reviewErrorExitCode(error);
+      });
+    return;
+  }
+
+  if (['start', 'checkpoint', 'stop'].includes(args[0] ?? '')) {
     void dispatch(args).catch((error: unknown) => {
       process.stderr.write(
         `${error instanceof Error ? error.message : String(error)}\n`,
@@ -30,14 +72,6 @@ export function main(args = process.argv.slice(2)): void {
   const legacyBin =
     process.env.KRN_LEGACY_ENTRY ||
     join(homedir(), '.codex/krn/current/scripts/krn.mjs');
-  const canonical = (path: string): string => {
-    try {
-      return realpathSync(path);
-    } catch {
-      return resolve(path);
-    }
-  };
-
   if (
     process.env[recursionFlag] === '1' ||
     canonical(legacyBin) === canonical(fileURLToPath(import.meta.url))
@@ -62,4 +96,9 @@ export function main(args = process.argv.slice(2)): void {
   });
 }
 
-main();
+const invokedFrom = process.argv[1];
+if (
+  invokedFrom &&
+  canonical(invokedFrom) === canonical(fileURLToPath(import.meta.url))
+)
+  main();

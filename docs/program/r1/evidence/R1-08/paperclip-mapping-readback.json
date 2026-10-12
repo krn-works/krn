@@ -1,0 +1,7 @@
+{
+  "readAt": "2026-10-10T15:13:41.493Z",
+  "identifier": "LON-217",
+  "status": "todo",
+  "title": "core: remove dead stubs and the duplicate Paperclip schema (R1-08)",
+  "r1TaskLine": "R1-task: R1-08"
+}

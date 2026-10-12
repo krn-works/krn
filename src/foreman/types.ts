@@ -207,6 +207,7 @@ export type Deps = {
       start(input: {
         readonly cwd: string;
         readonly model: 'gpt-6-luna';
+        readonly reasoningEffort?: 'low' | 'medium' | 'high';
         readonly prompt: string;
         readonly limits: Budget['session'];
         readonly checkpoint: {

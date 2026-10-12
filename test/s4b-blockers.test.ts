@@ -51,33 +51,46 @@ async function repoFixture(
   return root;
 }
 
-async function fakePaperclip(issue: string) {
-  const server = createServer((_request, response) => {
-    response.writeHead(200, { 'content-type': 'application/json' });
-    response.end(
-      JSON.stringify({
-        id: issue,
-        title: 'Fixture issue',
-        description: [
-          '```krn-contract',
-          JSON.stringify({
-            version: 1,
-            targetRepo: 'fixture/repo',
-            checks: ['gate'],
-          }),
-          '```',
-        ].join('\n'),
-        updatedAt: '2026-10-08T10:00:00.000Z',
-        status: 'in_progress',
-        assigneeAgentId: 'fixture-agent',
-      }),
-    );
+async function fakePaperclip(issue: string, responseDelayMs = 0) {
+  let delayedBootstrapIssueReads = responseDelayMs > 0 ? 2 : 0;
+  const server = createServer((request, response) => {
+    const delayResponse =
+      request.method === 'GET' &&
+      request.url === `/api/issues/${issue}` &&
+      delayedBootstrapIssueReads > 0;
+    if (delayResponse) delayedBootstrapIssueReads -= 1;
+    const respond = () => {
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(
+        JSON.stringify({
+          id: issue,
+          title: 'Fixture issue',
+          description: [
+            '```krn-contract',
+            JSON.stringify({
+              version: 1,
+              targetRepo: 'fixture/repo',
+              checks: ['gate'],
+            }),
+            '```',
+          ].join('\n'),
+          updatedAt: '2026-10-08T10:00:00.000Z',
+          status: 'in_progress',
+          assigneeAgentId: 'fixture-agent',
+        }),
+      );
+    };
+    if (delayResponse) setTimeout(respond, responseDelayMs);
+    else respond();
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address();
   assert.ok(address && typeof address !== 'string');
   return {
     apiUrl: `http://127.0.0.1:${address.port}`,
+    resetBootstrapIssueReadPair: () => {
+      delayedBootstrapIssueReads = responseDelayMs > 0 ? 2 : 0;
+    },
     close: () =>
       new Promise<void>((resolve, reject) =>
         server.close((error) => (error ? reject(error) : resolve())),
@@ -413,7 +426,7 @@ test('B2 a foreman SIGTERM cancels every detached session group and exits 130', 
   )
     return;
   const root = await repoFixture();
-  const paperclip = await fakePaperclip('I-2');
+  const paperclip = await fakePaperclip('I-2', 3200);
   const pidFile = join(root, 'pids');
   const childPidFile = join(root, 'child-pid');
   const escapedPidFile = join(root, 'escaped-pid');
@@ -447,6 +460,41 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
     );
   }
   const live = new URL('../scripts/live-l1.mjs', import.meta.url).pathname;
+  const waitForSessionStarted = async (
+    job: string,
+    process: ReturnType<typeof spawn>,
+  ) => {
+    let stdout = '';
+    let stderr = '';
+    process.stdout?.setEncoding('utf8').on('data', (chunk) => {
+      stdout += chunk;
+    });
+    process.stderr?.setEncoding('utf8').on('data', (chunk) => {
+      stderr += chunk;
+    });
+    const tracePath = join(root, `.krn/runs/foreman/${job}/trace.jsonl`);
+    const setupWaitMs = 20_000;
+    const setupDeadline = Date.now() + setupWaitMs;
+    let traceText = '';
+    let sessionStarted = false;
+    while (Date.now() < setupDeadline && !sessionStarted) {
+      traceText = await readFile(tracePath, 'utf8').catch(() => '');
+      sessionStarted = traceText.split('\n').some((line) => {
+        try {
+          return JSON.parse(line).kind === 'session_started';
+        } catch {
+          return false;
+        }
+      });
+      if (process.exitCode !== null) break;
+      if (!sessionStarted) await pause(20);
+    }
+    assert.ok(
+      sessionStarted,
+      `${job} foreman did not reach session_started within ${setupWaitMs}ms before PID readiness (exit=${process.exitCode}; stdout=${stdout}; stderr=${stderr}; trace=${traceText})`,
+    );
+  };
+  let timed: ReturnType<typeof spawn> | undefined;
   const foreman = spawn(
     process.execPath,
     [
@@ -471,10 +519,11 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
         KRN_PAPERCLIP_TOKEN: 'fixture-token',
         KRN_SESSION: 'fixture-session',
       },
-      stdio: 'ignore',
+      stdio: ['ignore', 'pipe', 'pipe'],
     },
   );
   try {
+    await waitForSessionStarted('B2-live', foreman);
     await waitFor(async () => {
       try {
         return (await readFile(pidFile, 'utf8')).trim() || undefined;
@@ -491,7 +540,8 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       .map(Number);
     for (const pid of pids) assert.equal(await isAlive(pid), false);
     await unlink(pidFile);
-    const timed = spawn(
+    paperclip.resetBootstrapIssueReadPair();
+    const timeoutForeman = spawn(
       process.execPath,
       [
         live,
@@ -516,9 +566,11 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
           KRN_PAPERCLIP_TOKEN: 'fixture-token',
           KRN_SESSION: 'fixture-session',
         },
-        stdio: 'ignore',
+        stdio: ['ignore', 'pipe', 'pipe'],
       },
     );
+    timed = timeoutForeman;
+    await waitForSessionStarted('B2-timeout', timeoutForeman);
     await waitFor(async () => {
       try {
         return (await readFile(pidFile, 'utf8')).trim() || undefined;
@@ -527,7 +579,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       }
     });
     assert.equal(
-      await new Promise((resolve) => timed.once('close', resolve)),
+      await new Promise((resolve) => timeoutForeman.once('close', resolve)),
       124,
     );
     for (const pid of (await readFile(pidFile, 'utf8'))
@@ -537,6 +589,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       assert.equal(await isAlive(pid), false);
   } finally {
     foreman.kill('SIGKILL');
+    if (timed?.exitCode === null) timed.kill('SIGKILL');
     try {
       for (const pid of (await readFile(pidFile, 'utf8'))
         .trim()
@@ -834,6 +887,9 @@ test('live SIGTERM during a real verdict waits for scope teardown before exit', 
   await mkdir(repoScratch, { recursive: true });
   const root = await repoFixture('.krn/\n', repoScratch);
   const fakeBin = await mkdtemp(join(tmpdir(), 'krn-s4b-verdict-bin-'));
+  const diagnosticScratch = await mkdtemp(
+    join(repoScratch, 'lon212-proof-sol2-'),
+  );
   const jobId = 'signal-during-verdict';
   const issue = 'I-VERDICT-STOP';
   const submitMarker = join(fakeBin, 'submit-called');
@@ -841,9 +897,12 @@ test('live SIGTERM during a real verdict waits for scope teardown before exit', 
   const fakePaperclip = join(fakeBin, 'paperclip');
   const fakeCodexPath = join(fakeBin, 'codex');
   const toolchain = await mkdtemp(join(repoScratch, 'krn-s4b-toolchain-'));
+  const scopeUnitMarker = join(toolchain, 'owned-scope-unit');
   const fakeMise = join(fakeBin, 'mise');
   const fakePnpm = join(toolchain, 'pnpm');
   const fakeSystemctl = join(toolchain, 'systemctl');
+  const fakeObserverSystemctl = join(diagnosticScratch, 'systemctl');
+  const fakeSystemdRun = join(toolchain, 'systemd-run');
   const storePath = join(toolchain, 'store', 'v11');
   await mkdir(storePath, { recursive: true });
   await writeFile(
@@ -907,6 +966,44 @@ case "$*" in *" kill "*) sleep 2; /usr/bin/systemctl "$@"; status=$?; touch ${JS
 exec /usr/bin/systemctl "$@"
 `,
   );
+  await writeFile(
+    fakeObserverSystemctl,
+    `#!/bin/sh
+case "$*" in
+  *" list-units "*--plain*)
+    index=0
+    while [ "$index" -lt 80 ]; do
+      printf 'krn-check-stale-lon212-%03d.scope loaded inactive dead simulated-stale-metadata\n' "$index"
+      index=$((index + 1))
+    done
+    /usr/bin/systemctl "$@"
+    exit $?
+    ;;
+  *" show krn-check-stale-lon212-"*) sleep 0.5 ;;
+esac
+exec /usr/bin/systemctl "$@"
+`,
+  );
+  await writeFile(
+    fakeSystemdRun,
+    `#!/bin/sh
+previous=''
+unit=''
+has_sleeping_check=0
+for argument do
+  if [ "$previous" = '--unit' ]; then
+    unit="$argument"
+  fi
+  if [ "$argument" = '/usr/bin/sleep' ]; then has_sleeping_check=1; fi
+  previous="$argument"
+done
+if [ -n "$unit" ] && [ "$has_sleeping_check" -eq 1 ]; then
+  case "$unit" in *.scope) ;; *) unit="$unit.scope" ;; esac
+  printf '%s\\n' "$unit" > ${JSON.stringify(scopeUnitMarker)}
+fi
+exec /usr/bin/systemd-run "$@"
+`,
+  );
   const contract = {
     version: 1,
     targetRepo: 'fixture/repo',
@@ -939,9 +1036,15 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
 `;
   await writeFile(fakeCodexPath, `#!/usr/bin/env node\n${fakeCodexBody}\n`);
   await Promise.all(
-    [fakePaperclip, fakeCodexPath, fakeMise, fakePnpm, fakeSystemctl].map(
-      (file) => chmod(file, 0o755),
-    ),
+    [
+      fakePaperclip,
+      fakeCodexPath,
+      fakeMise,
+      fakePnpm,
+      fakeSystemctl,
+      fakeObserverSystemctl,
+      fakeSystemdRun,
+    ].map((file) => chmod(file, 0o755)),
   );
   const live = new URL('../scripts/live-l1.mjs', import.meta.url).pathname;
   const runner = spawn(
@@ -951,7 +1054,7 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
       cwd: root,
       env: {
         ...process.env,
-        PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
+        PATH: `${diagnosticScratch}:${fakeBin}:${process.env.PATH ?? ''}`,
         KRN_LIVE: '1',
         KRN_CODEX_BIN: fakeCodexPath,
         KRN_SESSION: 'fixture-session',
@@ -976,32 +1079,17 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
   try {
     const deadline = Date.now() + 15000;
     while (Date.now() < deadline && !unit && runner.exitCode === null) {
-      const listed = spawnSync(
-        'systemctl',
-        [
-          '--user',
-          'list-units',
-          '--type=scope',
-          '--all',
-          '--no-legend',
-          '--plain',
-        ],
-        { encoding: 'utf8', env: systemdEnv },
-      );
-      const candidates = listed.stdout
-        .split('\n')
-        .map((line) => line.trim().split(/\s+/u)[0] ?? '')
-        .filter((name) => /^krn-check-[A-Za-z0-9-]+\.scope$/u.test(name));
-      for (const candidate of candidates) {
+      const candidate = (
+        await readFile(scopeUnitMarker, 'utf8').catch(() => '')
+      ).trim();
+      if (/^krn-check-[A-Za-z0-9-]+\.scope$/u.test(candidate)) {
         const state = spawnSync(
           'systemctl',
           ['--user', 'show', candidate, '-p', 'ActiveState', '--value'],
           { encoding: 'utf8', env: systemdEnv },
         );
-        if (state.stdout.trim() === 'active') {
+        if (state.status === 0 && state.stdout.trim() === 'active')
           unit = candidate;
-          break;
-        }
       }
       if (!unit) await pause(20);
     }
@@ -1028,7 +1116,7 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
     );
     assert.ok(
       unit,
-      `sleeping check never entered its systemd scope (runner exit=${runner.exitCode}; stdout=${stdout}; stderr=${stderr}; trace=${earlyTrace}; diagnostics=${diagnostics.join('---')})`,
+      `sleeping check never entered its systemd scope (owned unit=${await readFile(scopeUnitMarker, 'utf8').catch(() => '<missing>')}; runner exit=${runner.exitCode}; stdout=${stdout}; stderr=${stderr}; trace=${earlyTrace}; diagnostics=${diagnostics.join('---')})`,
     );
     const group = spawnSync(
       'systemctl',
@@ -1128,7 +1216,21 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
         } catch {}
       }
     }
+    const ownedUnit = await readFile(scopeUnitMarker, 'utf8').catch(() => '');
+    if (ownedUnit.trim())
+      spawnSync(
+        'systemctl',
+        [
+          '--user',
+          'kill',
+          '--kill-who=all',
+          '--signal=SIGKILL',
+          ownedUnit.trim(),
+        ],
+        { encoding: 'utf8', env: systemdEnv },
+      );
     await rm(fakeBin, { recursive: true, force: true });
+    await rm(diagnosticScratch, { recursive: true, force: true });
     await rm(toolchain, { recursive: true, force: true });
     await rm(root, { recursive: true, force: true });
   }
@@ -1218,15 +1320,18 @@ test('B5 trace stores only bounded session metadata and capsule ABI rejects newl
     assert.match(text, /"pgid":1234/);
     assert.match(text, /"sandbox":"workspace-write"/);
     const capsule = await relay.load(job, { revision: 'r1' });
-    assert.throws(
-      () =>
-        relay.writeCapsule(
-          job,
-          { ...capsule, epoch: 1, nextAction: 'step A\nforged field' },
-          0,
-        ),
-      /single-line/,
+    const capsulePath = join(root, '.krn/runs/foreman/B5/capsule.json');
+    const originalCapsule = await readFile(capsulePath, 'utf8');
+    assert.deepEqual(
+      await relay.writeCapsule(
+        job,
+        { ...capsule, epoch: 1, nextAction: 'step A\nforged field' },
+        0,
+      ),
+      { applied: false },
     );
+    assert.equal(await readFile(capsulePath, 'utf8'), originalCapsule);
+    assert.deepEqual(await relay.load(job, { revision: 'r1' }), capsule);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

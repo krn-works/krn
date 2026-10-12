@@ -6,17 +6,65 @@ import {
   mkdtemp,
   readdir,
   readFile,
+  rename,
   rm,
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { commitCheckpoint } from '../src/foreman/commit.ts';
 import { runJob } from '../src/foreman/run.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
 import { requiresIsolation } from './helpers/isolation.ts';
+
+async function checkpointRepo() {
+  const root = await mkdtemp(join(tmpdir(), 'krn-lon-231-'));
+  const runGit = (args: string[]) => {
+    const result = spawnSync('git', ['-C', root, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  runGit(['init', '-q', '--initial-branch=main']);
+  runGit(['config', 'user.name', 'LON-231 Test']);
+  runGit(['config', 'user.email', 'lon-231@example.invalid']);
+  await writeFile(join(root, '.gitignore'), '.krn/\n');
+  await writeFile(join(root, 'README.md'), 'fixture\n');
+  runGit(['add', '.gitignore', 'README.md']);
+  runGit(['commit', '-qm', 'fixture']);
+  return {
+    root,
+    git: runGit,
+    job: { id: 'LON-231', issue: 'LON-231', worktree: root },
+  };
+}
+
+function survivorFakeCodexSource(root: string): string {
+  const job = {
+    id: 'S4i-survivor',
+    issue: 'I-survivor',
+    worktree: root,
+    repoRoot: root,
+  };
+  const lateFile = join(root, 'late.txt');
+  return `#!/usr/bin/env node
+import { spawn, spawnSync } from 'node:child_process';
+let prompt=''; for await (const chunk of process.stdin) prompt += chunk;
+const sid=/--session'?\\s+'?([0-9a-f-]+)/.exec(prompt)?.[1];
+if (!sid) throw new Error('missing session id');
+const args=[${JSON.stringify(new URL('../src/cli/main.ts', import.meta.url).pathname)},'checkpoint','--job',${JSON.stringify(job.id)},'--issue',${JSON.stringify(job.issue)},'--worktree',${JSON.stringify(root)},'--repo-root',${JSON.stringify(root)},'--intent','intent:0','--session',sid,'--message','feat: survivor falsifier','--next','done'];
+spawn('/bin/sh',['-c',${JSON.stringify(`setsid /bin/sh -c 'sleep 4; printf late > ${lateFile}' </dev/null >/dev/null 2>&1 &`)}],{detached:true,stdio:'ignore'}).unref();
+const saved=spawnSync(process.execPath,args,{cwd:${JSON.stringify(root)},stdio:'ignore'});
+if(saved.status!==0) throw new Error('checkpoint request failed');
+process.stdout.write(JSON.stringify({type:'thread.started',thread_id:'survivor-test'})+'\\n');
+process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,output_tokens:1,total_tokens:2}})+'\\n');
+process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'done'}})+'\\n');
+`;
+}
 
 async function fixture(options: {
   readonly edit: boolean;
@@ -322,5 +370,212 @@ test('real CLI --next done records a verdict without opening another session', a
   } finally {
     await rm(root, { recursive: true, force: true });
     await rm(auxiliary, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint commits a deleted tracked file', async () => {
+  const { root, git, job } = await checkpointRepo();
+  try {
+    await rm(join(root, 'README.md'));
+    assert.doesNotThrow(() =>
+      commitCheckpoint(job, 'feat: delete tracked file', 'session-delete'),
+    );
+    assert.match(
+      git(['show', '--format=', '--name-status', 'HEAD']),
+      /^D\tREADME\.md$/u,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint commits a tracked rename', async () => {
+  const { root, git, job } = await checkpointRepo();
+  try {
+    await rename(join(root, 'README.md'), join(root, 'NOTES.md'));
+    assert.doesNotThrow(() =>
+      commitCheckpoint(job, 'docs: rename tracked file', 'session-rename'),
+    );
+    assert.deepEqual(
+      git(['show', '--no-renames', '--format=', '--name-status', 'HEAD'])
+        .split('\n')
+        .sort(),
+      ['A\tNOTES.md', 'D\tREADME.md'],
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint accepts .gitignore edits', async () => {
+  const { root, job } = await checkpointRepo();
+  try {
+    await writeFile(join(root, '.gitignore'), '.krn/\nprivate/\n');
+    assert.doesNotThrow(() =>
+      commitCheckpoint(job, 'chore: update ignore rules', 'session-ignore'),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint accepts .gitattributes edits', async () => {
+  const { root, job } = await checkpointRepo();
+  try {
+    await writeFile(join(root, '.gitattributes'), '* text=auto\n');
+    assert.doesNotThrow(() =>
+      commitCheckpoint(job, 'chore: add attributes', 'session-attributes'),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint continues to refuse .gitmodules', async () => {
+  const { root, job } = await checkpointRepo();
+  try {
+    await writeFile(join(root, '.gitmodules'), '[submodule "private"]\n');
+    assert.throws(
+      () => commitCheckpoint(job, 'chore: add submodule', 'session-modules'),
+      /checkpoint refused: protected path \.gitmodules/u,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint accepts password Zod schema syntax without a literal', async () => {
+  const { root, job } = await checkpointRepo();
+  try {
+    await writeFile(
+      join(root, 'schema.ts'),
+      'export const schema = z.object({ password: z.string().min(8) });\n',
+    );
+    assert.doesNotThrow(() =>
+      commitCheckpoint(job, 'test: describe password schema', 'session-schema'),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint scans secret literals in Zod chained-call arguments', async (t) => {
+  const cases = [
+    [
+      '.default short password literal',
+      "export const schema = z.object({ setting: z.string().default('hunter2') });\n",
+    ],
+    [
+      '.default',
+      "export const schema = z.object({ setting: z.string().default('hunter2-secret') });\n",
+    ],
+    [
+      '.default on a password schema',
+      "export const schema = z.object({ password: z.string().default('hunter2-secret') });\n",
+    ],
+    [
+      '.catch',
+      "export const schema = z.object({ setting: z.string().catch('hunter2-secret') });\n",
+    ],
+    [
+      '.describe',
+      "export const schema = z.object({ setting: z.string().describe('hunter2-secret') });\n",
+    ],
+  ] as const;
+
+  for (const [method, source] of cases) {
+    await t.test(`${method} literal is refused`, async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(join(root, 'schema.ts'), source);
+        assert.throws(
+          () =>
+            commitCheckpoint(
+              job,
+              'test: inspect schema literal',
+              'session-literal',
+            ),
+          /checkpoint refused: secret pattern/u,
+        );
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test('checkpoint accepts a non-secret Zod description', async () => {
+  const { root, job } = await checkpointRepo();
+  try {
+    await writeFile(
+      join(root, 'schema.ts'),
+      "export const schema = z.object({ password: z.string().describe('login field') });\n",
+    );
+    assert.doesNotThrow(() =>
+      commitCheckpoint(
+        job,
+        'test: describe password field',
+        'session-describe',
+      ),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint accepts non-secret Zod chained-call literals', async () => {
+  const { root, job } = await checkpointRepo();
+  try {
+    await writeFile(
+      join(root, 'schema.ts'),
+      "export const schema = z.object({ password: z.string().default('guest').catch('fallback').describe('User password') });\n",
+    );
+    assert.doesNotThrow(() =>
+      commitCheckpoint(
+        job,
+        'test: accept benign schema literals',
+        'session-benign-literal',
+      ),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint accepts the protected B2 fake-codex fixture source', async () => {
+  const { root, job } = await checkpointRepo();
+  try {
+    const survivorJob = { ...job, id: 'S4i-survivor', issue: 'I-survivor' };
+    await writeFile(join(root, 'fake-codex'), survivorFakeCodexSource(root));
+    assert.doesNotThrow(() =>
+      commitCheckpoint(
+        survivorJob,
+        'test: checkpoint B2 fixture source',
+        'session-b2-fixture',
+      ),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint refuses quoted sensitive assignments with metadata-shaped values', async () => {
+  const { root, job } = await checkpointRepo();
+  try {
+    await writeFile(
+      join(root, 'settings.ts'),
+      "export const password = 'LON-231';\n",
+    );
+    assert.throws(
+      () =>
+        commitCheckpoint(
+          job,
+          'test: refuse quoted password value',
+          'session-quoted-password',
+        ),
+      /checkpoint refused: secret pattern/u,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
