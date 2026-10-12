@@ -16,6 +16,7 @@ import {
   type NewReviewRecord,
   newReviewRecordSchema,
   panelRoles,
+  type ReviewReasoningEffort,
   type ReviewRecord,
   type ReviewRole,
   roleSchema,
@@ -42,6 +43,7 @@ export async function runReview(input: {
   readonly head: string;
   readonly lens: string;
   readonly panel?: readonly ReviewRole[];
+  readonly reasoningEffort?: ReviewReasoningEffort;
   readonly timeoutMs?: number;
   readonly signal?: AbortSignal;
   /** Test seam; the CLI always uses CodexHost's installed executable. */
@@ -61,6 +63,7 @@ export async function runReview(input: {
   const panelPartial =
     panel.length !== panelRoles.length ||
     panelRoles.some((role) => !panel.includes(role));
+  const reasoningEffort = input.reasoningEffort ?? 'high';
   const toolRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
   const toolSha = git(toolRoot, ['rev-parse', 'HEAD']);
   const lensSha256 = createHash('sha256').update(lens, 'utf8').digest('hex');
@@ -77,6 +80,7 @@ export async function runReview(input: {
         input.timeoutMs ?? 600000,
         input.codexExecutable,
         input.signal,
+        reasoningEffort,
       ),
     );
   await new Promise<void>((resolveTick) => setImmediate(resolveTick));

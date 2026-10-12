@@ -15,7 +15,12 @@ import {
   defaultCodexExecutable,
 } from '../hosts/codex.ts';
 import { git, type RedFirstReport, temporaryDirectory } from './repository.ts';
-import { findingSchema, judgeSchema, type ReviewRole } from './types.ts';
+import {
+  findingSchema,
+  judgeSchema,
+  type ReviewReasoningEffort,
+  type ReviewRole,
+} from './types.ts';
 
 function readOnlyLauncher(parent: string, executable: string): string {
   const wrapper = join(parent, 'codex-readonly.mjs');
@@ -93,6 +98,7 @@ export async function judgeRole(
   timeoutMs: number,
   executable = defaultCodexExecutable,
   signal?: AbortSignal,
+  reasoningEffort: ReviewReasoningEffort = 'high',
 ): Promise<z.infer<typeof judgeSchema>> {
   if (signal?.aborted) throw new ReviewAbortedError();
   const parent = mkdtempSync(join(temporaryDirectory(root), `judge-${role}-`));
@@ -111,7 +117,7 @@ export async function judgeRole(
       session = await host.start({
         cwd: scratch,
         model: 'gpt-6-luna',
-        reasoningEffort: 'high',
+        reasoningEffort,
         disableProjectDocs: true,
         prompt: makeBrief(role, sha, lens, red),
         limits: { timeoutMs },
@@ -143,7 +149,7 @@ export async function judgeRole(
           state: 'incomplete',
           role,
           model: 'gpt-6-luna',
-          reasoningEffort: 'high',
+          reasoningEffort,
           reason,
           reasonKind: response.reasonKind,
           sessionId: response.sessionId,
@@ -176,7 +182,7 @@ export async function judgeRole(
         state: 'complete',
         role,
         model: 'gpt-6-luna',
-        reasoningEffort: 'high',
+        reasoningEffort,
         ...verdict,
         sessionId: response.sessionId,
         finalMessage: response.finalMessage,

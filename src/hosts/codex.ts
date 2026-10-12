@@ -23,7 +23,7 @@ const tokenValue = z.number().int().nonnegative().safe();
 const namespaceCleanupGraceMs = 1000;
 
 export type CodexIsolationMode = 'pid_namespace' | 'systemd_scope';
-export type CodexReasoningEffort = 'low' | 'medium' | 'high';
+export type CodexReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 const namespaceWrapper = `
 let prompt = '';
 process.stdin.setEncoding('utf8').on('data', (chunk) => prompt += chunk).on('end', () => {
