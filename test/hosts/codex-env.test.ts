@@ -1,11 +1,28 @@
 import assert from 'node:assert/strict';
 import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { probeIsolationCapabilities } from '../../scripts/probe-isolation.mjs';
 import { CodexHost } from '../../src/hosts/codex.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+
+type IsolationCapabilityProbe = {
+  available: boolean;
+  reason: string;
+};
+
+type ProbeIsolationModule = {
+  probeIsolationCapabilities: () => {
+    bwrap: IsolationCapabilityProbe;
+    systemdUserScope: IsolationCapabilityProbe;
+  };
+};
+
+const require = createRequire(import.meta.url);
+const { probeIsolationCapabilities } = require(
+  '../../scripts/probe-isolation.mjs',
+) as ProbeIsolationModule;
 
 test('Codex worker does not receive board credentials', async (t) => {
   if (!process.env.KRN_ISOLATION_CAPABILITIES)
