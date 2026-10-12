@@ -20,9 +20,8 @@ type ProbeIsolationModule = {
 };
 
 const require = createRequire(import.meta.url);
-const { probeIsolationCapabilities } = require(
-  '../../scripts/probe-isolation.mjs',
-) as ProbeIsolationModule;
+const { probeIsolationCapabilities } =
+  require('../../scripts/probe-isolation.mjs') as ProbeIsolationModule;
 
 test('Codex worker does not receive board credentials', async (t) => {
   if (!process.env.KRN_ISOLATION_CAPABILITIES)
