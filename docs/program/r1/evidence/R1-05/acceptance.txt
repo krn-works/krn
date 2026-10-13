@@ -1,10 +1,10 @@
-captured=2026-10-13T19:59:38+02:00
-measured_head=d23bb219c6c4e6a451b5d7dc06f0cac5c47a58aa
-src_tree=4ef18577a96d874e0d9fd541a2db1891a3b09f46
-test_tree=8c3fe8bb6a188c46724ad8f8d04e25bda05c73cb
+captured=2026-10-13T20:19:00+02:00
+measured_head=b7f4b6a220a70971d08a4c884f45d3266d571517
+src_tree=430051b198796cf88473104104c5933c43bd9492
+test_tree=b91d0e8d48c90486b520ee333a9083cb787a365b
 note: src/test tree SHAs are unchanged by adding this evidence file; any later head with these trees has identical code.
 --- host gate (npm run gate) on measured_head, operator host
-# pass 224
+# pass 225
 # fail 0
 # skipped 0
 Isolation-dependent tests skipped: 0
@@ -17,3 +17,4 @@ panel round 2 fix: PATH pnpm fallback resolves to an absolute executable path.
 fixtures disable git gc/maintenance (detached-process panel finding); focused base-ref tests pass on host.
 origin/HEAD remote-only fallback covered.
 baseSha is the start-time merge-base of the checkout HEAD and the selected ref, resolved once before worktree creation; repoFacts requires it to remain an ancestor.
+worktree created from the captured checkout HEAD; pnpm PATH fallback has a focused falsifier (matching and mismatched versions, mise absent).
