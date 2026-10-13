@@ -23,6 +23,64 @@ function git(root: string, args: string[]): string {
   return result.stdout.trim();
 }
 
+function resolvesToCommit(root: string, ref: string): boolean {
+  return (
+    spawnSync(
+      'git',
+      [
+        '-C',
+        root,
+        'rev-parse',
+        '--verify',
+        '--quiet',
+        '--end-of-options',
+        `${ref}^{commit}`,
+      ],
+      { encoding: 'utf8' },
+    ).status === 0
+  );
+}
+
+export function resolveBaseRef(root: string, requested?: string): string {
+  const remoteHead = spawnSync(
+    'git',
+    [
+      '-C',
+      root,
+      'symbolic-ref',
+      '--quiet',
+      '--short',
+      'refs/remotes/origin/HEAD',
+    ],
+    { encoding: 'utf8' },
+  );
+  const currentBranch = spawnSync(
+    'git',
+    ['-C', root, 'branch', '--show-current'],
+    { encoding: 'utf8' },
+  );
+  if (requested) {
+    if (!resolvesToCommit(root, requested))
+      throw new Error(`base ref "${requested}" does not resolve to a commit`);
+    return requested;
+  }
+  if (remoteHead.status === 0) {
+    const remoteRef = remoteHead.stdout.trim();
+    const localRef = remoteRef.replace(/^origin\//u, '');
+    if (resolvesToCommit(root, localRef)) return localRef;
+    if (remoteRef !== localRef && resolvesToCommit(root, remoteRef))
+      return remoteRef;
+    throw new Error(`base ref "${localRef}" does not resolve to a commit`);
+  }
+  const branch = currentBranch.stdout.trim();
+  if (currentBranch.status === 0 && branch) {
+    if (!resolvesToCommit(root, branch))
+      throw new Error(`base ref "${branch}" does not resolve to a commit`);
+    return branch;
+  }
+  throw new Error('unable to resolve a base ref; specify one with --base');
+}
+
 function assertWorktreeParentInside(root: string, parent: string): void {
   const realRoot = realpathSync(root);
   const realParent = realpathSync(parent);
@@ -38,6 +96,30 @@ async function start(args: string[]): Promise<void> {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(id) || id === '..')
     throw new Error('invalid job id');
   const root = git(process.cwd(), ['rev-parse', '--show-toplevel']);
+  const baseRef = resolveBaseRef(
+    root,
+    args.includes('--base') ? value(args, '--base') : undefined,
+  );
+  const refSha = git(root, [
+    'rev-parse',
+    '--verify',
+    '--quiet',
+    '--end-of-options',
+    `${baseRef}^{commit}`,
+  ]);
+  const checkoutHead = git(root, ['rev-parse', 'HEAD']);
+  const baseResult = spawnSync(
+    'git',
+    ['-C', root, 'merge-base', checkoutHead, refSha],
+    { encoding: 'utf8' },
+  );
+  if (baseResult.status === 1)
+    throw new Error(
+      `base ref "${baseRef}" has no common ancestor with checkout HEAD`,
+    );
+  if (baseResult.status !== 0)
+    throw new Error(baseResult.stderr || 'unable to compute base merge-base');
+  const baseSha = baseResult.stdout.trim();
   const worktree = resolve(root, '.krn', 'worktrees', id);
   if (existsSync(dirname(worktree)))
     assertWorktreeParentInside(root, dirname(worktree));
@@ -56,7 +138,7 @@ async function start(args: string[]): Promise<void> {
   assertWorktreeParentInside(root, dirname(worktree));
   const result = spawnSync(
     'git',
-    ['-C', root, 'worktree', 'add', '-b', `krn/${id}`, worktree, 'HEAD'],
+    ['-C', root, 'worktree', 'add', '-b', `krn/${id}`, worktree, checkoutHead],
     { encoding: 'utf8' },
   );
   if (result.status !== 0)
@@ -76,7 +158,7 @@ async function start(args: string[]): Promise<void> {
     throw error;
   }
   const job: Job = { id, issue, worktree, repoRoot: root };
-  recordRepo(job, root);
+  recordRepo(job, root, baseRef, baseSha);
   await operatorStart(job, process.env.USER ?? 'local operator');
   process.stdout.write(`${JSON.stringify(job)}\n`);
 }

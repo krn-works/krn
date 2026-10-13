@@ -18,6 +18,11 @@ const recordSchema = z.object({
   repoRoot: z.string().min(1),
   gitDir: z.string().min(1),
   gitWorkTree: z.string().min(1),
+  baseRef: z.string().min(1).optional(),
+  baseSha: z
+    .string()
+    .regex(/^[0-9a-f]{40,64}$/iu)
+    .optional(),
 });
 export type RepoRecord = z.infer<typeof recordSchema>;
 
@@ -68,7 +73,14 @@ export function repoRecord(job: Job): RepoRecord {
   });
 }
 
-export function recordRepo(job: Job, root: string): RepoRecord {
+// start passes the merge-base of checkout HEAD and the selected ref,
+// captured before worktree creation.
+export function recordRepo(
+  job: Job,
+  root: string,
+  baseRef?: string,
+  baseSha?: string,
+): RepoRecord {
   const repoRoot = realpathSync(resolve(root));
   const result = spawnSync(
     'git',
@@ -82,10 +94,33 @@ export function recordRepo(job: Job, root: string): RepoRecord {
   const gitWorkTree = realpathSync(resolve(job.worktree));
   if (gitWorkTree !== resolve(job.worktree))
     throw new Error('worktree path is not canonical');
+  if (baseSha !== undefined && !/^[0-9a-f]{40,64}$/iu.test(baseSha))
+    throw new Error('base SHA must be 40 to 64 hexadecimal characters');
+  let recordedBaseSha = baseSha;
+  if (recordedBaseSha === undefined && baseRef !== undefined) {
+    const base = spawnSync(
+      'git',
+      [
+        '-C',
+        job.worktree,
+        'rev-parse',
+        '--verify',
+        '--quiet',
+        '--end-of-options',
+        `${baseRef}^{commit}`,
+      ],
+      { encoding: 'utf8' },
+    );
+    if (base.status !== 0)
+      throw new Error(`base ref "${baseRef}" does not resolve to a commit`);
+    recordedBaseSha = base.stdout.trim();
+  }
   const record = recordSchema.parse({
     repoRoot,
     gitDir: resolve(result.stdout.trim()),
     gitWorkTree,
+    ...(baseRef === undefined ? {} : { baseRef }),
+    ...(recordedBaseSha === undefined ? {} : { baseSha: recordedBaseSha }),
   });
   const directory = join(repoRoot, '.krn', 'runs', 'foreman', job.id);
   mkdirSync(directory, { recursive: true, mode: 0o700 });
