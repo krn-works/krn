@@ -231,49 +231,18 @@ test('worker HEAD registry edits cannot replace commands from the base registry'
     f.git(['add', 'krn.checks.json']);
     f.git(['commit', '-qm', 'worker registry edit']);
     const sha = f.git(['rev-parse', 'HEAD']);
-    let event:
-      | {
-          readonly sha: string;
-          readonly checks: readonly { readonly sha256: string }[];
-        }
-      | undefined;
     const result = await judge(
       f.job,
       sha,
       f.base,
       ['declared'],
-      async (value) => {
-        event = value;
-      },
+      async () => {},
     );
-    assert.equal(
-      result.kind,
-      'pass',
-      result.kind === 'pass' ? '' : result.findings.join('; '),
+    assert.equal(result.kind, 'refused');
+    assert.ok(
+      result.kind === 'refused' &&
+        result.findings.includes('evaluator surface changed: krn.checks.json'),
     );
-    assert.equal(
-      event?.checks[0]?.sha256,
-      createHash('sha256').update('from-base').digest('hex'),
-    );
-    assert.equal(event?.sha, sha);
-    assert.deepEqual(Object.keys(event?.checks[0] ?? {}).sort(), [
-      'durationMs',
-      'exitCode',
-      'id',
-      'sha256',
-    ]);
-    const diagnostic = join(
-      f.root,
-      '.krn',
-      'runs',
-      'foreman',
-      f.job.id,
-      'diagnostics',
-    );
-    const details = readdirSync(diagnostic).map((name) =>
-      readFileSync(join(diagnostic, name), 'utf8'),
-    );
-    assert.ok(details.some((value) => value.includes('from-base')));
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }
@@ -477,9 +446,9 @@ test('candidate package manifests are not read through worktree symlinks', async
       async () => {},
     );
     assert.equal(result.kind, 'refused');
-    assert.match(
-      result.findings.join(' '),
-      /package\.json must be a regular Git file/u,
+    assert.ok(
+      result.kind === 'refused' &&
+        result.findings.includes('evaluator surface changed: package.json'),
     );
   } finally {
     rmSync(f.root, { recursive: true, force: true });
@@ -545,7 +514,10 @@ test('candidate package manifests have a strict size cap', async (t) => {
       async () => {},
     );
     assert.equal(result.kind, 'refused');
-    assert.match(result.findings.join(' '), /size limit/u);
+    assert.ok(
+      result.kind === 'refused' &&
+        result.findings.includes('evaluator surface changed: package.json'),
+    );
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }

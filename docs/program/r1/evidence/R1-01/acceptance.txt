@@ -1,0 +1,15 @@
+captured=2026-10-13T16:29:14+02:00
+measured_head=99e80c468654ff275f90cacffdf0033d74c3000b
+src_tree=58e344a27641652b6a53caeb1f4632661ec00ad2
+test_tree=80e987bd41f1bdbfff6e622104b54a8e02ddf6a6
+note: src/test tree SHAs are unchanged by adding evidence files; any later head with these trees has identical code.
+--- host gate (npm run gate) on measured_head, operator host
+# pass 211
+# fail 0
+# skipped 0
+Isolation-dependent tests skipped: 0
+gate exit 0
+--- focused
+node --test test/verdict/evaluator-surface.test.ts: pass (13 tests) on 99e80c468654ff275f90cacffdf0033d74c3000b
+lead decisions 2026-10-13: root .npmrc is evaluator surface; test files protected on deletion only (card line held); src/verdict/** protected in this repo's registry.
+krn review panel on earlier heads: FAIL rounds recorded in .krn/runs/review (lead capsule); this evidence binds gate output to the exact src/test trees for the panel.

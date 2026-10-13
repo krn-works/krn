@@ -3,24 +3,34 @@ import { spawn } from 'node:child_process';
 import { dirname } from 'node:path';
 import { z } from 'zod';
 
-const registrySchema = z
+const checkSchema = z
   .object({
-    version: z.literal(1),
-    checks: z
-      .array(
-        z
-          .object({
-            id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/),
-            argv: z.array(z.string().min(1)).min(1).max(64),
-            timeoutMs: z.number().int().min(1000).max(600000),
-          })
-          .strict(),
-      )
-      .max(16),
+    id: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/),
+    argv: z.array(z.string().min(1)).min(1).max(64),
+    timeoutMs: z.number().int().min(1000).max(600000),
   })
   .strict();
 
-export type Check = z.infer<typeof registrySchema>['checks'][number];
+const registryV1Schema = z
+  .object({
+    version: z.literal(1),
+    checks: z.array(checkSchema).max(16),
+  })
+  .strict();
+const registryV2Schema = z
+  .object({
+    version: z.literal(2),
+    checks: z.array(checkSchema).max(16),
+    protected: z.array(z.string().min(1)).max(64),
+  })
+  .strict();
+const registrySchema = z.discriminatedUnion('version', [
+  registryV1Schema,
+  registryV2Schema,
+]);
+
+export type Check = z.infer<typeof checkSchema>;
+export type Registry = { checks: Check[]; protected: string[] };
 
 async function git(root: string, args: string[]): Promise<string> {
   const result = await new Promise<{
@@ -59,6 +69,18 @@ async function git(root: string, args: string[]): Promise<string> {
   return result.stdout.trim();
 }
 
+export async function resolveRegistry(
+  root: string,
+  base: string,
+): Promise<Registry> {
+  const raw = await git(root, ['show', `${base}:krn.checks.json`]);
+  const registry = registrySchema.parse(JSON.parse(raw));
+  return {
+    checks: registry.checks,
+    protected: registry.version === 2 ? registry.protected : [],
+  };
+}
+
 export async function resolveChecks(
   root: string,
   base: string,
@@ -67,8 +89,7 @@ export async function resolveChecks(
   if (!ids.length) throw new Error('zero declared checks');
   if (ids.length > 16 || new Set(ids).size !== ids.length)
     throw new Error('invalid check IDs');
-  const raw = await git(root, ['show', `${base}:krn.checks.json`]);
-  const registry = registrySchema.parse(JSON.parse(raw));
+  const registry = await resolveRegistry(root, base);
   const checks = new Map(registry.checks.map((check) => [check.id, check]));
   return ids.map((id) => {
     const check = checks.get(id);
