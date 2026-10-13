@@ -69,12 +69,49 @@ export function workerEnvironment(
   return env;
 }
 
-export const defaultCodexExecutable =
-  process.env.KRN_CODEX_BIN ??
-  join(
-    homedir(),
-    '.codex/packages/app-server-daemon/releases/0.160.0-x86_64-unknown-linux-musl/bin/codex',
-  );
+export function resolveCodexExecutable(home: string = homedir()): string {
+  const override = process.env.KRN_CODEX_BIN;
+  if (override) return override;
+
+  const releases = join(home, '.codex/packages/app-server-daemon/releases');
+  if (!existsSync(releases)) return 'codex';
+
+  const candidates = readdirSync(releases, { withFileTypes: true })
+    .filter(
+      (entry) =>
+        entry.isDirectory() &&
+        /^\d+\.\d+\.\d+-[0-9A-Za-z][0-9A-Za-z._-]*$/.test(entry.name),
+    )
+    .map((entry) => {
+      const match = /^(\d+)\.(\d+)\.(\d+)-[0-9A-Za-z][0-9A-Za-z._-]*$/.exec(
+        entry.name,
+      );
+      if (!match) return undefined;
+      const executable = join(releases, entry.name, 'bin/codex');
+      return existsSync(executable)
+        ? {
+            executable,
+            version: [
+              Number(match[1]),
+              Number(match[2]),
+              Number(match[3]),
+            ] as const,
+          }
+        : undefined;
+    })
+    .filter((candidate) => candidate !== undefined)
+    .sort((left, right) => {
+      return (
+        right.version[0] - left.version[0] ||
+        right.version[1] - left.version[1] ||
+        right.version[2] - left.version[2]
+      );
+    });
+
+  return candidates[0]?.executable ?? 'codex';
+}
+
+export const defaultCodexExecutable: string = resolveCodexExecutable();
 
 export type CodexUsage = {
   readonly inputTokens: number;
