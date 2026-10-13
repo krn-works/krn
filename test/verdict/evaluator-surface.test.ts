@@ -99,10 +99,9 @@ test('a package manifest symlink creates an evaluator surface finding', async ()
     rmSync(join(f.root, 'package.json'));
     symlinkSync('missing-package-target.json', join(f.root, 'package.json'));
     const candidateSha = commit(f, 'symlink package manifest');
-    assert.deepEqual(
-      await surfaceChanges(f.root, f.base, candidateSha, []),
-      ['evaluator surface changed: package.json'],
-    );
+    assert.deepEqual(await surfaceChanges(f.root, f.base, candidateSha, []), [
+      'evaluator surface changed: package.json',
+    ]);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }
@@ -116,10 +115,9 @@ test('an oversized package manifest creates an evaluator surface finding', async
       Buffer.alloc(1024 * 1024 + 1, 0x20),
     );
     const candidateSha = commit(f, 'oversize package manifest');
-    assert.deepEqual(
-      await surfaceChanges(f.root, f.base, candidateSha, []),
-      ['evaluator surface changed: package.json'],
-    );
+    assert.deepEqual(await surfaceChanges(f.root, f.base, candidateSha, []), [
+      'evaluator surface changed: package.json',
+    ]);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }
@@ -236,10 +234,9 @@ test('modifying an existing test creates an evaluator surface finding', async ()
     const testBase = commit(f, 'add existing test');
     writeFileSync(testPath, 'export const after = true;\n');
     const candidateSha = commit(f, 'modify existing test');
-    assert.deepEqual(
-      await surfaceChanges(f.root, testBase, candidateSha, []),
-      ['evaluator surface changed: test/foo.test.ts'],
-    );
+    assert.deepEqual(await surfaceChanges(f.root, testBase, candidateSha, []), [
+      'evaluator surface changed: test/foo.test.ts',
+    ]);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }
@@ -265,10 +262,9 @@ test('adding a root npmrc creates an evaluator surface finding', async () => {
   try {
     writeFileSync(join(f.root, '.npmrc'), 'ignore-scripts=true\n');
     const candidateSha = commit(f, 'add npmrc');
-    assert.deepEqual(
-      await surfaceChanges(f.root, f.base, candidateSha, []),
-      ['evaluator surface changed: .npmrc'],
-    );
+    assert.deepEqual(await surfaceChanges(f.root, f.base, candidateSha, []), [
+      'evaluator surface changed: .npmrc',
+    ]);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }
