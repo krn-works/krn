@@ -1,0 +1,14 @@
+captured=2026-10-13T14:59:14+02:00
+measured_head=e08520f2092aa5dd0d26c374c183692cc1ea2a8b
+src_tree=513c5db15cb62ab69408188ab8439b644e648d6f
+test_tree=e7e49c5a3efea95d0e0972acc80c9878338cdaf9
+note: src/test tree SHAs are unchanged by adding evidence files; any later head with these trees has identical code.
+--- host gate (npm run gate) on measured_head, operator host
+# pass 205
+# fail 0
+# skipped 0
+Isolation-dependent tests skipped: 0
+gate exit 0
+--- focused
+node --test test/verdict/evaluator-surface.test.ts: pass (7 tests) on measured_head
+krn review panel on earlier heads: FAIL rounds recorded in .krn/runs/review (lead capsule); this evidence binds gate output to the exact src/test trees for the panel.
