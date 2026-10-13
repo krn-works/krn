@@ -19,6 +19,10 @@ const recordSchema = z.object({
   gitDir: z.string().min(1),
   gitWorkTree: z.string().min(1),
   baseRef: z.string().min(1).optional(),
+  baseSha: z
+    .string()
+    .regex(/^[0-9a-f]{40,64}$/iu)
+    .optional(),
 });
 export type RepoRecord = z.infer<typeof recordSchema>;
 
@@ -87,11 +91,30 @@ export function recordRepo(
   const gitWorkTree = realpathSync(resolve(job.worktree));
   if (gitWorkTree !== resolve(job.worktree))
     throw new Error('worktree path is not canonical');
+  const base =
+    baseRef === undefined
+      ? undefined
+      : spawnSync(
+          'git',
+          [
+            '-C',
+            job.worktree,
+            'rev-parse',
+            '--verify',
+            '--quiet',
+            '--end-of-options',
+            `${baseRef}^{commit}`,
+          ],
+          { encoding: 'utf8' },
+        );
+  if (base && base.status !== 0)
+    throw new Error(`base ref "${baseRef}" does not resolve to a commit`);
   const record = recordSchema.parse({
     repoRoot,
     gitDir: resolve(result.stdout.trim()),
     gitWorkTree,
     ...(baseRef === undefined ? {} : { baseRef }),
+    ...(base === undefined ? {} : { baseSha: base.stdout.trim() }),
   });
   const directory = join(repoRoot, '.krn', 'runs', 'foreman', job.id);
   mkdirSync(directory, { recursive: true, mode: 0o700 });

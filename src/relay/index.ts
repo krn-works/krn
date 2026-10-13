@@ -98,15 +98,20 @@ export function repoFacts(job: Job): RepoFacts {
       branch: z.string().min(1),
     })
     .parse({ root, head, branch });
+  const record = repoRecord(job);
   const baseResult = git(job, [
     'merge-base',
     'HEAD',
-    repoRecord(job).baseRef ?? 'main',
+    record.baseSha ?? record.baseRef ?? 'main',
   ]);
   const base = z
     .string()
     .regex(/^[0-9a-f]{40,64}$/i)
     .parse(baseResult.trim());
+  if (record.baseSha && base !== record.baseSha)
+    throw new Error(
+      `recorded base SHA ${record.baseSha} is not an ancestor of HEAD (merge-base is ${base})`,
+    );
   const dirtyPaths = git(job, [
     'status',
     '--porcelain=v1',
