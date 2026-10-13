@@ -22,6 +22,8 @@
     "tsconfig.json",
     "biome.json",
     "spec/rules.json",
-    "test/helpers/**"
+    "test/helpers/**",
+    "test/**",
+    "evals/woz/**"
   ]
 }

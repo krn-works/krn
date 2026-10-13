@@ -12,7 +12,6 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { judge } from '../../src/verdict/index.ts';
 import { resolveChecks, resolveRegistry } from '../../src/verdict/registry.ts';
-import { evaluatorSurfaceChanges } from '../../src/verdict/surface.ts';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'krn-evaluator-surface-'));
@@ -26,6 +25,8 @@ function fixture() {
   git(['init', '-q']);
   git(['config', 'user.name', 'Fixture']);
   git(['config', 'user.email', 'fixture@example.invalid']);
+  git(['config', 'gc.auto', '0']);
+  git(['config', 'maintenance.auto', 'false']);
   writeFileSync(join(root, '.gitignore'), '.krn/\n');
   writeFileSync(
     join(root, 'package.json'),
@@ -86,6 +87,9 @@ test('a package manifest symlink creates an evaluator surface finding', async ()
     rmSync(join(f.root, 'package.json'));
     symlinkSync('missing-package-target.json', join(f.root, 'package.json'));
     const candidateSha = commit(f, 'symlink package manifest');
+    const { evaluatorSurfaceChanges } = await import(
+      '../../src/verdict/surface.ts'
+    );
     assert.deepEqual(
       await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
       ['evaluator surface changed: package.json'],
@@ -103,6 +107,9 @@ test('an oversized package manifest creates an evaluator surface finding', async
       Buffer.alloc(1024 * 1024 + 1, 0x20),
     );
     const candidateSha = commit(f, 'oversize package manifest');
+    const { evaluatorSurfaceChanges } = await import(
+      '../../src/verdict/surface.ts'
+    );
     assert.deepEqual(
       await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
       ['evaluator surface changed: package.json'],
@@ -186,6 +193,9 @@ test('judge does not refuse a source-only change for surface reasons', async () 
       'export const value = 1;\n',
     );
     const candidateSha = commit(f, 'add source');
+    const { evaluatorSurfaceChanges } = await import(
+      '../../src/verdict/surface.ts'
+    );
     assert.deepEqual(
       await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
       [],
