@@ -1,18 +1,19 @@
-captured=2026-10-13T21:48:01+02:00
-measured_head=c35c16111bfae3483eb914c9a38a58b340c625d7
-src_tree=87c29dd11913b36728666d237f675e0088d1b462
-test_tree=e515ba8fe4a4ab8775e25624f8e18f2a3d083874
+captured=2026-10-13T21:57:28+02:00
+measured_head=ec2add5e8cf3d82afb2fddd75297840c58d59ffe
+src_tree=1177a12214ff979c16f369f99d7e8d7dd367000e
+test_tree=4ec3e3633d39709dc8681f76123ee65acd744911
+model=gpt-6-luna
 evals_tree=7e3e3cc0311f73071d5f3b9d6115217bcfdd0a1a
 blueprint_blob=643ccb6ea840c8ab25163305354fef44b2e14ea3
 note: docs coverage is the blueprint blob; the evidence directory itself is excluded. src/test/evals tree SHAs are unchanged by adding evidence files under docs/program/r1/evidence/; any later head with these trees has identical code and data.
 --- host gate (npm run gate) on measured_head, operator host
-# pass 233
+# pass 234
 # fail 0
 # skipped 0
 Isolation-dependent tests skipped: 0
 gate exit 0
 trace append refuses symlinked trace paths; trace opened with O_NOFOLLOW and regular-file check; lead notes reject credential shapes before any write, including AWS/Google key shapes; counters typed as nonnegative integers or explicit unknown.
-Generic mixed-class token rule for notes: tokens must be >=20 chars and use >=3 character classes; SHA identifiers remain accepted.
+Notes use a >=20-character, two-class token rule with SHA/UUID/identifier exceptions; auth scheme patterns are case-insensitive.
 --- baseline
 lead_interventions=0 dla valid; source: .krn/runs/lead/b0/results.md (host readback)
 escaped_defects=null (brak danych w rekordzie)
