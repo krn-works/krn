@@ -2,7 +2,9 @@ captured=2026-10-13T21:02:43+02:00
 measured_head=0d65cda76a3c4f3ec9517797e970a34603e9856c
 src_tree=dae204465b004ae3ae3faf250c46b2ca57170b3f
 test_tree=6a98f13a4670380226b9254bc35fbe3f284d5446
-note: src/test tree SHAs are unchanged by adding evidence files; any later head with these trees has identical code.
+evals_tree=7e3e3cc0311f73071d5f3b9d6115217bcfdd0a1a
+docs_tree=7794e7f07fd74063085d307f3d8140fa637a1a24
+note: src/test/evals/docs tree SHAs are unchanged by adding evidence files under docs/program/r1/evidence/ (that directory is excluded from the claim); any later head with these trees has identical code and data.
 --- host gate (npm run gate) on measured_head, operator host
 # pass 229
 # fail 0
