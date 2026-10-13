@@ -1,0 +1,14 @@
+captured=2026-10-13T21:02:43+02:00
+measured_head=0d65cda76a3c4f3ec9517797e970a34603e9856c
+src_tree=dae204465b004ae3ae3faf250c46b2ca57170b3f
+test_tree=6a98f13a4670380226b9254bc35fbe3f284d5446
+note: src/test tree SHAs are unchanged by adding evidence files; any later head with these trees has identical code.
+--- host gate (npm run gate) on measured_head, operator host
+# pass 229
+# fail 0
+# skipped 0
+Isolation-dependent tests skipped: 0
+gate exit 0
+--- baseline
+lead_interventions=0 dla valid; source: .krn/runs/lead/b0/results.md (host readback)
+escaped_defects=null (brak danych w rekordzie)
