@@ -9,6 +9,10 @@ const metricSchema = z.union([
   z.string(),
   unknownMetricSchema,
 ]);
+const counterSchema = z.union([
+  z.number().int().nonnegative(),
+  unknownMetricSchema,
+]);
 
 const taskSchema = z.object({
   task: z.string().min(1),
@@ -26,8 +30,8 @@ const taskSchema = z.object({
   }),
   judge_rounds: metricSchema,
   outcome: z.string().min(1),
-  lead_interventions: metricSchema.optional(),
-  escaped_defects: metricSchema.optional(),
+  lead_interventions: counterSchema.optional(),
+  escaped_defects: counterSchema.optional(),
 });
 
 export const journeyBaselineSchema = z
@@ -80,9 +84,9 @@ export const journeyLiveSchema = z.object({
       job: z.string().min(1),
       interrupted_at_event: z.string().min(1),
       resumed_session_id: z.string().min(1),
-      lead_interventions: metricSchema,
+      lead_interventions: counterSchema,
       reconstruction_prompts: metricSchema,
-      escaped_defects: metricSchema,
+      escaped_defects: counterSchema,
       tokens: z.object({
         input: metricSchema,
         output: metricSchema,

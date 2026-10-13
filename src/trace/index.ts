@@ -3,7 +3,9 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
+  constants,
   existsSync,
+  fstatSync,
   fsyncSync,
   ftruncateSync,
   lstatSync,
@@ -135,8 +137,16 @@ function append(
   }
   const prior = events(job).find((event) => event.key === key);
   if (prior) return false;
-  const fd = openSync(path, 'a', 0o600);
+  const fd = openSync(
+    path,
+    constants.O_WRONLY |
+      constants.O_CREAT |
+      constants.O_APPEND |
+      (constants.O_NOFOLLOW ?? 0),
+    0o600,
+  );
   try {
+    if (!fstatSync(fd).isFile()) throw new Error('unsafe trace path');
     writeAllSync(
       fd,
       `${JSON.stringify({ id: randomUUID(), key, kind, at: new Date().toISOString(), data })}\n`,
@@ -455,6 +465,8 @@ export async function leadIntervention(
     /\b(?:ghp_|gho_|ghu_|ghs_|ghr_)/u.test(note) ||
     /\bgithub_pat_/u.test(note) ||
     /\bxox[baprs]-/u.test(note) ||
+    /(?:AKIA|ASIA)[0-9A-Z]{16}/u.test(note) ||
+    /AIza[0-9A-Za-z_-]{35}/u.test(note) ||
     /Bearer\s+\S+/u.test(note) ||
     /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/u.test(note) ||
     /(?:api[_-]?key|token|secret|password)\s*[:=]\s*\S+/iu.test(note)

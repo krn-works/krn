@@ -64,6 +64,27 @@ test('valid baseline rows require escaped_defects', () => {
   );
 });
 
+test('lead_interventions accepts counters and unknown values, but not strings', () => {
+  const withCount = { ...validTask, lead_interventions: 0 };
+  const withUnknown = { ...validTask, lead_interventions: unknown };
+  const withString = { ...validTask, lead_interventions: 'many' };
+
+  assert.equal(
+    journeyBaselineSchema.safeParse({
+      n: 3,
+      tasks: [withCount, withUnknown, withCount],
+    }).success,
+    true,
+  );
+  assert.equal(
+    journeyBaselineSchema.safeParse({
+      n: 3,
+      tasks: [validTask, validTask, withString],
+    }).success,
+    false,
+  );
+});
+
 test('tracked J1 baseline satisfies the B0 schema', async () => {
   const baseline = JSON.parse(
     await readFile(

@@ -164,7 +164,13 @@ test('lead intervention rejects credentials without writing trace events', async
     repoRoot: f.directory,
   };
   try {
-    for (const note of ['sk-test1234567890abcdef', 'token: abc']) {
+    for (const note of [
+      'sk-test1234567890abcdef',
+      'token: abc',
+      'AWS key AKIA1234567890ABCDEF',
+      'AWS session key ASIA1234567890ABCDEF',
+      'Google API key AIza0123456789abcdefghijklmnopqrstuvwxy',
+    ]) {
       await assert.rejects(leadIntervention(job, 'intervention', note), {
         message: 'lead intervention note must not contain credentials',
       });
