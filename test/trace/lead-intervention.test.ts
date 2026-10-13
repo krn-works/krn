@@ -174,9 +174,11 @@ test('lead intervention rejects credentials without writing trace events', async
         'Google API key AIza0123456789abcdefghijklmnopqrstuvwxy',
       ],
       ['Basic auth', 'Basic YWJjZGVmZ2hpamts'],
+      ['case-insensitive Bearer auth', 'bearer abc...'],
       ['GitLab token', `glpat-${'a'.repeat(20)}`],
       ['JWT', 'eyJabcdefgh.ijklmnop.qrstuvwx'],
       ['mixed-class token', 'aB123456789012345678'],
+      ['lowercase and digit token', 'abcdefghijklmnopqrst1234'],
     ] as const;
     const outcomes: string[] = [];
     for (const [label, note] of rejectedNotes) {
@@ -211,7 +213,31 @@ test('lead intervention accepts ordinary prose with a full commit SHA', async ()
     repoRoot: f.directory,
   };
   const note =
-    'Reviewed LON-269 and 1fe459533fb2b79469d33938e391701f89637fc5 after handoff';
+    'Reviewed LON-269, krn-LON-269-r1-06-metric and 1fe459533fb2b79469d33938e391701f89637fc5 after handoff';
+  try {
+    await leadIntervention(job, 'intervention', note);
+    const rows = (await readFile(trace, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    assert.equal(rows.length, 1);
+    assert.deepEqual(rows[0]?.data, { kind: 'intervention', note });
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('lead intervention accepts a UUID in ordinary prose', async () => {
+  const f = await fixture();
+  const jobId = `lead-intervention-uuid-${process.pid}`;
+  const trace = join(f.directory, '.krn/runs/foreman', jobId, 'trace.jsonl');
+  const job = {
+    id: jobId,
+    issue: 'LON-269',
+    worktree: f.directory,
+    repoRoot: f.directory,
+  };
+  const note = 'Resumed from checkpoint 550e8400-e29b-41d4-a716-446655440000';
   try {
     await leadIntervention(job, 'intervention', note);
     const rows = (await readFile(trace, 'utf8'))

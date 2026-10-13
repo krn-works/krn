@@ -458,14 +458,28 @@ const genericCredentialTokenClasses = [
   /[_+=/-]/u,
 ] as const;
 
+function isSafeGenericCredentialToken(token: string): boolean {
+  if (/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/iu.test(token)) return true;
+  if (
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu.test(
+      token,
+    )
+  )
+    return true;
+  return (
+    /^[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)+$/u.test(token) &&
+    token.split(/[-_]/u).some((segment) => /^[A-Za-z]+$/u.test(segment))
+  );
+}
+
 function containsGenericCredentialToken(note: string): boolean {
   return note.split(/\s+/u).some((token) => {
-    if (token.length < 20) return false;
+    if (token.length < 20 || isSafeGenericCredentialToken(token)) return false;
     let characterClasses = 0;
     for (const pattern of genericCredentialTokenClasses) {
       if (pattern.test(token)) characterClasses += 1;
     }
-    return characterClasses >= 3;
+    return characterClasses >= 2;
   });
 }
 
@@ -487,7 +501,7 @@ export async function leadIntervention(
     /AIza[0-9A-Za-z_-]{35}/u.test(note) ||
     /\bBasic\s+[A-Za-z0-9+/=]{16,}/iu.test(note) ||
     /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/u.test(note) ||
-    /Bearer\s+\S+/u.test(note) ||
+    /Bearer\s+\S+/iu.test(note) ||
     /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/u.test(note) ||
     /(?:api[_-]?key|token|secret|password)\s*[:=]\s*\S+/iu.test(note) ||
     containsGenericCredentialToken(note)
