@@ -153,6 +153,29 @@ test('trace append rejects a symlinked trace.jsonl', async () => {
   }
 });
 
+test('trace append rejects a symlinked state directory', async () => {
+  const f = await fixture();
+  const jobId = `lead-intervention-state-symlink-${process.pid}`;
+  const parent = join(f.directory, '.krn/runs/foreman');
+  const directory = join(parent, jobId);
+  const target = join(f.directory, 'outside-state');
+  const job = {
+    id: jobId,
+    issue: 'LON-269',
+    worktree: f.directory,
+    repoRoot: f.directory,
+  };
+  try {
+    await mkdir(parent, { recursive: true });
+    await mkdir(target);
+    await symlink(target, directory);
+    await assert.rejects(intent(job, 1), { message: 'unsafe trace path' });
+    assert.equal(existsSync(join(target, 'trace.jsonl')), false);
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
 test('lead intervention rejects credentials without writing trace events', async () => {
   const f = await fixture();
   const jobId = `lead-intervention-credentials-${process.pid}`;
@@ -165,7 +188,15 @@ test('lead intervention rejects credentials without writing trace events', async
   };
   try {
     const rejectedNotes = [
-      ['existing provider token', 'sk-test1234567890abcdef'],
+      ['Stripe live secret', 'sk_live_short'],
+      ['Stripe test secret', 'sk_test_short'],
+      ['Stripe restricted live key', 'rk_live_short'],
+      ['Stripe restricted test key', 'rk_test_short'],
+      ['Stripe publishable live key', 'pk_live_short'],
+      ['Stripe publishable test key', 'pk_test_short'],
+      ['Stripe webhook secret', 'whsec_short'],
+      ['generic sk dash prefix', 'sk-short'],
+      ['generic sk underscore prefix', 'sk_short'],
       ['existing key/value pattern', 'token: abc'],
       ['existing AWS key', 'AWS key AKIA1234567890ABCDEF'],
       ['existing AWS session key', 'AWS session key ASIA1234567890ABCDEF'],
@@ -179,6 +210,7 @@ test('lead intervention rejects credentials without writing trace events', async
       ['JWT', 'eyJabcdefgh.ijklmnop.qrstuvwx'],
       ['mixed-class token', 'aB123456789012345678'],
       ['lowercase and digit token', 'abcdefghijklmnopqrst1234'],
+      ['segmented mixed-class token', 'aaaa-bbbb-ccccdddd11112222'],
     ] as const;
     const outcomes: string[] = [];
     for (const [label, note] of rejectedNotes) {
@@ -213,7 +245,7 @@ test('lead intervention accepts ordinary prose with a full commit SHA', async ()
     repoRoot: f.directory,
   };
   const note =
-    'Reviewed LON-269, krn-LON-269-r1-06-metric and 1fe459533fb2b79469d33938e391701f89637fc5 after handoff';
+    'Reviewed LON-269 TASK-12345678901234567890 krn-LON-269-r1-06-metric 1fe459533fb2b79469d33938e391701f89637fc5 1fe459533fb2b79469d33938e391701f89637fc5a81e100d2bb9fa4a7e6f0c2f after handoff';
   try {
     await leadIntervention(job, 'intervention', note);
     const rows = (await readFile(trace, 'utf8'))

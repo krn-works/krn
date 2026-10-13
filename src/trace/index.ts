@@ -15,7 +15,7 @@ import {
   realpathSync,
   writeSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { z } from 'zod';
 import type { Job } from '../core/index.ts';
 import { readCheckpointRequest } from '../foreman/checkpoint-request.ts';
@@ -67,6 +67,41 @@ function writeAllSync(fd: number, value: string): void {
     const written = writeSync(fd, bytes, offset, bytes.length - offset);
     if (written < 1) throw new Error('trace write made no progress');
     offset += written;
+  }
+}
+
+function assertNoTraceSymlinks(directory: string, path: string): void {
+  const relativePath = relative(directory, path);
+  if (
+    !relativePath ||
+    relativePath === '..' ||
+    relativePath.startsWith(`..${sep}`) ||
+    isAbsolute(relativePath)
+  )
+    throw new Error('unsafe trace path');
+
+  const assertNotSymlink = (componentPath: string): void => {
+    try {
+      if (lstatSync(componentPath).isSymbolicLink())
+        throw new Error('unsafe trace path');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  };
+  const ancestors: string[] = [];
+  let ancestor = directory;
+  while (true) {
+    ancestors.unshift(ancestor);
+    const parent = dirname(ancestor);
+    if (parent === ancestor) break;
+    ancestor = parent;
+  }
+  for (const componentPath of ancestors) assertNotSymlink(componentPath);
+
+  let current = directory;
+  for (const component of relativePath.split(sep)) {
+    current = join(current, component);
+    assertNotSymlink(current);
   }
 }
 
@@ -130,13 +165,10 @@ function append(
   mkdirSync(directory, { recursive: true, mode: 0o700 });
   if (realpathSync(directory) !== directory)
     throw new Error('unsafe trace path');
-  try {
-    if (lstatSync(path).isSymbolicLink()) throw new Error('unsafe trace path');
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-  }
+  assertNoTraceSymlinks(directory, path);
   const prior = events(job).find((event) => event.key === key);
   if (prior) return false;
+  assertNoTraceSymlinks(directory, path);
   const fd = openSync(
     path,
     constants.O_WRONLY |
@@ -467,8 +499,8 @@ function isSafeGenericCredentialToken(token: string): boolean {
   )
     return true;
   return (
-    /^[A-Za-z0-9]+(?:[-_][A-Za-z0-9]+)+$/u.test(token) &&
-    token.split(/[-_]/u).some((segment) => /^[A-Za-z]+$/u.test(segment))
+    /^[A-Z]{2,}-\d+$/u.test(token) ||
+    /^krn-[A-Z]+-\d+(?:-[a-z0-9]+)*$/u.test(token)
   );
 }
 
@@ -493,7 +525,7 @@ export async function leadIntervention(
       'lead intervention note must be a single line of at most 200 characters',
     );
   if (
-    /\bsk-/u.test(note) ||
+    /\b(?:(?:sk|rk|pk)_(?:live|test)_|whsec_|sk[-_])/u.test(note) ||
     /\b(?:ghp_|gho_|ghu_|ghs_|ghr_|glpat-)/u.test(note) ||
     /\bgithub_pat_/u.test(note) ||
     /\bxox[baprs]-/u.test(note) ||
