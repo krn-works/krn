@@ -23,6 +23,24 @@ function git(root: string, args: string[]): string {
   return result.stdout.trim();
 }
 
+function resolvesToCommit(root: string, ref: string): boolean {
+  return (
+    spawnSync(
+      'git',
+      [
+        '-C',
+        root,
+        'rev-parse',
+        '--verify',
+        '--quiet',
+        '--end-of-options',
+        `${ref}^{commit}`,
+      ],
+      { encoding: 'utf8' },
+    ).status === 0
+  );
+}
+
 export function resolveBaseRef(root: string, requested?: string): string {
   const remoteHead = spawnSync(
     'git',
@@ -41,34 +59,26 @@ export function resolveBaseRef(root: string, requested?: string): string {
     ['-C', root, 'branch', '--show-current'],
     { encoding: 'utf8' },
   );
-  const candidates = [
-    ...(requested ? [requested] : []),
-    ...(remoteHead.status === 0
-      ? [remoteHead.stdout.trim().replace(/^origin\//u, '')]
-      : []),
-    ...(currentBranch.status === 0 && currentBranch.stdout.trim()
-      ? [currentBranch.stdout.trim()]
-      : []),
-  ];
-  const candidate = candidates[0];
-  if (!candidate)
-    throw new Error('unable to resolve a base ref; specify one with --base');
-  const commit = spawnSync(
-    'git',
-    [
-      '-C',
-      root,
-      'rev-parse',
-      '--verify',
-      '--quiet',
-      '--end-of-options',
-      `${candidate}^{commit}`,
-    ],
-    { encoding: 'utf8' },
-  );
-  if (commit.status !== 0)
-    throw new Error(`base ref "${candidate}" does not resolve to a commit`);
-  return candidate;
+  if (requested) {
+    if (!resolvesToCommit(root, requested))
+      throw new Error(`base ref "${requested}" does not resolve to a commit`);
+    return requested;
+  }
+  if (remoteHead.status === 0) {
+    const remoteRef = remoteHead.stdout.trim();
+    const localRef = remoteRef.replace(/^origin\//u, '');
+    if (resolvesToCommit(root, localRef)) return localRef;
+    if (remoteRef !== localRef && resolvesToCommit(root, remoteRef))
+      return remoteRef;
+    throw new Error(`base ref "${localRef}" does not resolve to a commit`);
+  }
+  const branch = currentBranch.stdout.trim();
+  if (currentBranch.status === 0 && branch) {
+    if (!resolvesToCommit(root, branch))
+      throw new Error(`base ref "${branch}" does not resolve to a commit`);
+    return branch;
+  }
+  throw new Error('unable to resolve a base ref; specify one with --base');
 }
 
 function assertWorktreeParentInside(root: string, parent: string): void {
