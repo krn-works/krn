@@ -1,0 +1,7 @@
+captured=2026-10-13T17:41:06+02:00
+measured_head=1f210a4d4548157bf60799b75969fd839728e0f7
+src_tree=2492137dcd0b818b3891180e00c6066585e80464
+test_tree=d73123fdef46ba671cca0391eea260e73fdeba4e
+note: src/test tree SHAs are unchanged by adding evidence files.
+--- host gate (npm run gate) on measured_head: # pass 218, # fail 0, isolation skips 0, exit 0
+--- focused: node --test test/verdict/tamper-canaries.test.ts: 7 pass; red-first: canary 6 failed by assertion before the content rule (findings []), canaries 1-5 and control passed at base.
