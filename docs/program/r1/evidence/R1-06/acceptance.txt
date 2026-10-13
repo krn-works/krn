@@ -14,3 +14,11 @@ gate exit 0
 --- baseline
 lead_interventions=0 dla valid; source: .krn/runs/lead/b0/results.md (host readback)
 escaped_defects=null (brak danych w rekordzie)
+
+--- baseline limitations (lead, 2026-10-13)
+B0 results.md (.krn/runs/lead/b0) reports no escaped-defect counts and zero lead interventions on all valid rows.
+escaped_defects therefore stays unknown at B0; the D1 escaped-defect clause is computable only from live
+journeyLiveSchema (schema 2) rows collected from R1-12 onward. With a zero B0 intervention baseline, the
+"30% lower" comparison cannot pass on interventions alone; D1 evaluation must report that clause as
+not-evaluable at B0 instead of treating B0 as a passing or failing denominator. B0 remains valid for
+operator_minutes, token, and outcome comparisons. No values were invented for this file.
