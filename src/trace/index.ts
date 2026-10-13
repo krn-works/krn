@@ -34,6 +34,22 @@ type Event = {
   readonly data: Record<string, unknown>;
 };
 
+type TraceFdPathVerification = 'verified' | 'unavailable' | 'mismatch';
+
+export function classifyTraceFdPathReadback(
+  actualPath: string | undefined,
+  errorCode: string | undefined,
+  expectedPath: string,
+): TraceFdPathVerification {
+  if (actualPath === expectedPath) return 'verified';
+  if (
+    actualPath === undefined &&
+    (errorCode === 'ENOENT' || errorCode === 'ENOTDIR')
+  )
+    return 'unavailable';
+  return 'mismatch';
+}
+
 const eventSchema = z.object({
   key: z.string(),
   kind: z.string(),
@@ -286,12 +302,18 @@ function openVerifiedTrace(path: string, flags: number, mode?: number): number {
   }
 
   let actualPath: string | undefined;
+  let readbackErrorCode: string | undefined;
   try {
     actualPath = readlinkSync(`/proc/self/fd/${fd}`);
-  } catch {
-    // A failed descriptor readback is treated like an escaped path below.
+  } catch (error) {
+    readbackErrorCode = (error as NodeJS.ErrnoException).code;
   }
-  if (actualPath !== resolve(path)) {
+  const pathVerification = classifyTraceFdPathReadback(
+    actualPath,
+    readbackErrorCode,
+    resolve(path),
+  );
+  if (pathVerification === 'mismatch') {
     let cleanupPath: string | undefined;
     let openedStats: ReturnType<typeof fstatSync> | undefined;
     if (createdByOpen) {

@@ -8,7 +8,11 @@ import test from 'node:test';
 import { Worker } from 'node:worker_threads';
 import type { Job } from '../../src/core/index.ts';
 import { stateDirectory } from '../../src/foreman/state.ts';
-import { hasVerdict, verdict } from '../../src/trace/index.ts';
+import {
+  classifyTraceFdPathReadback,
+  hasVerdict,
+  verdict,
+} from '../../src/trace/index.ts';
 import type { VerdictEvent } from '../../src/verdict/index.ts';
 
 async function fixture(): Promise<{
@@ -40,6 +44,30 @@ function event(sha: string, exitCode: number, checkSha: string): VerdictEvent {
     checks: [{ id: 'gate', exitCode, durationMs: 1, sha256: checkSha }],
   };
 }
+
+test('trace fd path readback distinguishes unavailable procfs from mismatch', () => {
+  const expectedPath = '/repo/.krn/runs/foreman/job/trace.jsonl';
+  assert.equal(
+    classifyTraceFdPathReadback(undefined, 'ENOENT', expectedPath),
+    'unavailable',
+  );
+  assert.equal(
+    classifyTraceFdPathReadback(undefined, 'ENOTDIR', expectedPath),
+    'unavailable',
+  );
+  assert.equal(
+    classifyTraceFdPathReadback(
+      '/outside/trace.jsonl',
+      undefined,
+      expectedPath,
+    ),
+    'mismatch',
+  );
+  assert.equal(
+    classifyTraceFdPathReadback(undefined, 'EACCES', expectedPath),
+    'mismatch',
+  );
+});
 
 test('trace recovers and reports an incomplete tail but rejects completed corruption', async () => {
   const f = await fixture();
