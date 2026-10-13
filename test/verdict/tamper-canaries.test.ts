@@ -5,7 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-function fixture() {
+function fixture(
+  initialTestSource = "import test from 'node:test';\ntest('baseline', () => {});\n",
+) {
   const root = mkdtempSync(join(tmpdir(), 'krn-tamper-canaries-'));
   const git = (args: string[]) => {
     const result = spawnSync('git', ['-C', root, ...args], {
@@ -33,10 +35,7 @@ function fixture() {
     }),
   );
   mkdirSync(join(root, 'test'), { recursive: true });
-  writeFileSync(
-    join(root, 'test', 'foo.test.ts'),
-    "import test from 'node:test';\ntest('baseline', () => {});\n",
-  );
+  writeFileSync(join(root, 'test', 'foo.test.ts'), initialTestSource);
   mkdirSync(join(root, '.github', 'workflows'), { recursive: true });
   writeFileSync(
     join(root, '.github', 'workflows', 'check.yml'),
@@ -181,6 +180,8 @@ test('canary 6 refuses each test-disabling token added to an existing test', asy
     ['test', '.only', '(', "'selected assertion', () => {});"].join(''),
     `test.skip
 ('x', () => {});`,
+    `test.skip /* c */ ('x', () => {});`,
+    `test.skip // c\n('x', () => {});`,
   ];
   for (const line of addedCases) {
     const f = fixture();
@@ -196,6 +197,36 @@ test('canary 6 refuses each test-disabling token added to an existing test', asy
     } finally {
       rmSync(f.root, { recursive: true, force: true });
     }
+  }
+
+  const f = fixture(
+    [
+      "import test from 'node:test';",
+      "test('baseline', {",
+      '  skip: false,',
+      '  timeout: 1000,',
+      '}, () => {});',
+      '',
+    ].join('\n'),
+  );
+  try {
+    writeFileSync(
+      join(f.root, 'test', 'foo.test.ts'),
+      [
+        "import test from 'node:test';",
+        "test('baseline', {",
+        '  skip: true,',
+        '  timeout: 1000,',
+        '}, () => {});',
+        '',
+      ].join('\n'),
+    );
+    const sha = commit(f, 'flip test skip option');
+    await assertRefusedWith(
+      'evaluator surface changed: test/foo.test.ts (test disabled)',
+    )(f, sha);
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
   }
 });
 

@@ -196,8 +196,11 @@ export async function evaluatorSurfaceChanges(
         .map(({ path }) => path),
     ),
   ];
-  const disabledTestToken =
-    /\.(?:skip|todo|only)\s*\(|\[\s*(['"])(?:skip|todo|only)\1\s*\]\s*\(|\{\s*skip\s*:\s*true\s*\}/u;
+  const testTokenSeparator = String.raw`(?:\s|/\*[\s\S]*?\*/|//[^\r\n]*(?:\r?\n|$))*`;
+  const disabledTestToken = new RegExp(
+    String.raw`(?:\.(?:skip|todo|only)|\[\s*(['"])(?:skip|todo|only)\1\s*\])${testTokenSeparator}\(|(?:^|\s|[,{])skip\s*:\s*true\b`,
+    'u',
+  );
   for (const path of testPaths) {
     const addedLines = await git(root, [
       'diff',
