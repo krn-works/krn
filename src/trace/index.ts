@@ -433,3 +433,18 @@ export async function operatorStart(job: Job, operator: string): Promise<void> {
 export async function operatorStop(job: Job, operator: string): Promise<void> {
   append(job, `operator-stop:${randomUUID()}`, 'operator_stop', { operator });
 }
+
+export async function leadIntervention(
+  job: Job,
+  kind: 'intervention' | 'reconstruction_prompt',
+  note: string,
+): Promise<void> {
+  if (!note || note.length > 200 || /[\r\n]/u.test(note))
+    throw new Error(
+      'lead intervention note must be a single line of at most 200 characters',
+    );
+  append(job, `lead-intervention:${randomUUID()}`, 'lead_intervention', {
+    kind,
+    note,
+  });
+}

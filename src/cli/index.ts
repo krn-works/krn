@@ -7,7 +7,11 @@ import type { Job } from '../core/index.ts';
 import { reviewCommand } from '../flow/cli.ts';
 import { writeCheckpointRequest } from '../foreman/checkpoint-request.ts';
 import { recordRepo } from '../foreman/state.ts';
-import { operatorStart, operatorStop } from '../trace/index.ts';
+import {
+  leadIntervention,
+  operatorStart,
+  operatorStop,
+} from '../trace/index.ts';
 
 function value(args: string[], flag: string): string {
   const index = args.indexOf(flag);
@@ -202,11 +206,31 @@ async function stop(
   } else await operatorStop(job, process.env.USER ?? 'local operator');
 }
 
+async function note(args: string[]): Promise<void> {
+  const cliKind = value(args, '--kind');
+  if (cliKind !== 'intervention' && cliKind !== 'reconstruction')
+    throw new Error('--kind must be intervention or reconstruction');
+  const job: Job = {
+    id: value(args, '--job'),
+    issue: value(args, '--issue'),
+    worktree: resolve(value(args, '--worktree')),
+    ...(args.includes('--repo-root')
+      ? { repoRoot: resolve(value(args, '--repo-root')) }
+      : {}),
+  };
+  await leadIntervention(
+    job,
+    cliKind === 'intervention' ? 'intervention' : 'reconstruction_prompt',
+    value(args, '--text'),
+  );
+}
+
 export async function dispatch(args: string[]): Promise<boolean> {
   const [command, ...options] = args;
   if (command === 'start') await start(options);
   else if (command === 'checkpoint' || command === 'stop')
     await stop(options, command);
+  else if (command === 'note') await note(options);
   else if (command === 'review') await reviewCommand(options);
   else return false;
   return true;

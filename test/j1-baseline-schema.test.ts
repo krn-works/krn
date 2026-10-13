@@ -15,6 +15,8 @@ const validTask = {
   tokens: { input: 1, cached_input: unknown, output: unknown },
   judge_rounds: unknown,
   outcome: 'completed',
+  lead_interventions: 2,
+  escaped_defects: 0,
 };
 
 test('B0 schema rejects fewer than three valid task rows', () => {
@@ -31,6 +33,32 @@ test('B0 schema rejects unlabeled task rows', () => {
     journeyBaselineSchema.safeParse({
       n: 3,
       tasks: [validTask, validTask, unlabeledTask],
+    }).success,
+    false,
+  );
+});
+
+test('valid baseline rows require lead_interventions', () => {
+  const {
+    lead_interventions: _leadInterventions,
+    ...withoutLeadInterventions
+  } = validTask;
+  assert.equal(
+    journeyBaselineSchema.safeParse({
+      n: 3,
+      tasks: [validTask, validTask, withoutLeadInterventions],
+    }).success,
+    false,
+  );
+});
+
+test('valid baseline rows require escaped_defects', () => {
+  const { escaped_defects: _escapedDefects, ...withoutEscapedDefects } =
+    validTask;
+  assert.equal(
+    journeyBaselineSchema.safeParse({
+      n: 3,
+      tasks: [validTask, validTask, withoutEscapedDefects],
     }).success,
     false,
   );
