@@ -70,7 +70,7 @@ export function workerEnvironment(
 }
 
 export function resolveCodexExecutable(home: string = homedir()): string {
-  const override = process.env.KRN_CODEX_EXECUTABLE;
+  const override = process.env.KRN_CODEX_BIN;
   if (override) return override;
 
   const releases = join(home, '.codex/packages/app-server-daemon/releases');

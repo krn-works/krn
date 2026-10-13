@@ -46,15 +46,15 @@ test('falls back to PATH when no Codex release is installed', async () => {
 });
 
 test('uses the operator executable override', () => {
-  const previous = process.env.KRN_CODEX_EXECUTABLE;
-  process.env.KRN_CODEX_EXECUTABLE = '/operator/bin/codex';
+  const previous = process.env.KRN_CODEX_BIN;
+  process.env.KRN_CODEX_BIN = '/operator/bin/codex';
   try {
     assert.equal(resolveCodexExecutable('/unused/home'), '/operator/bin/codex');
   } finally {
     if (previous === undefined) {
-      delete process.env.KRN_CODEX_EXECUTABLE;
+      delete process.env.KRN_CODEX_BIN;
     } else {
-      process.env.KRN_CODEX_EXECUTABLE = previous;
+      process.env.KRN_CODEX_BIN = previous;
     }
   }
 });
