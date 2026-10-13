@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { judge } from '../../src/verdict/index.ts';
-import { resolveChecks, resolveRegistry } from '../../src/verdict/registry.ts';
+import { resolveChecks } from '../../src/verdict/registry.ts';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'krn-evaluator-surface-'));
@@ -122,6 +122,7 @@ test('an oversized package manifest creates an evaluator surface finding', async
 test('judge accepts a v1 registry and a v2 registry with protected globs', async () => {
   const f = fixture();
   try {
+    const { resolveRegistry } = await import('../../src/verdict/registry.ts');
     const v2 = JSON.stringify({
       version: 2,
       checks: [{ id: 'check', argv: ['npm', 'run', 'check'], timeoutMs: 3000 }],
