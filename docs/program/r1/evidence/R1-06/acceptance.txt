@@ -1,13 +1,13 @@
-captured=2026-10-14T00:02:15+02:00
-measured_head=658a48fa2579b890a943e58fc5fd791e2040e271
-src_tree=d8b6f6957cb71e08c958d0e34c811d1db072ec32
-test_tree=273083c94ffb4683ba94ab49a1f8a145dc2b4089
+captured=2026-10-14T00:28:26+02:00
+measured_head=3b820aaab40f3e1b27174112334f2ba7566aee17
+src_tree=fe28f557d45f2912f5aed198241f6deea2a86b85
+test_tree=e0e33192e88dcaeec572546bedfb9c0998baf2b4
 model=gpt-6-luna
 evals_tree=7e3e3cc0311f73071d5f3b9d6115217bcfdd0a1a
 blueprint_blob=f3d81a850b43c6da35c60a513eafa923c1624869
 note: docs coverage is the blueprint blob; the evidence directory itself is excluded. src/test/evals tree SHAs are unchanged by adding evidence files under docs/program/r1/evidence/; any later head with these trees has identical code and data.
 --- host gate (npm run gate) on measured_head, operator host
-# pass 246
+# pass 247
 # fail 0
 # skipped 0
 Isolation-dependent tests skipped: 0
@@ -31,3 +31,4 @@ round10: gate-local success for 3b848fc3 (238 tests, 0 isolation skips); 40-hex 
 round11: gate-local success for da4badb8 (240 tests, 0 isolation skips); non-regular trace paths (FIFO) refused pre-open with O_NONBLOCK; raced outside creations removed only when empty and inode-verified.
 round12: gate-local success for bfbfc268d5b566535262a6e54afc1ccd856d6102 (243 tests, 0 isolation skips); state dirs created component-wise with rollback; trace files with nlink != 1 refused.
 round13: gate-local success for 658a48fa (246 tests, 0 isolation skips); live counters strict (counterSchema); krn note reads text from stdin, --text refused.
+round14 lead decision: documented --text contract kept; stdin alternative added with 8192-byte bound; credential filter applies before any record on both channels. gate-local success for 3b820aaab40f3e1b27174112334f2ba7566aee17 (247 tests).
