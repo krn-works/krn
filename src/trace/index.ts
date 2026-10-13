@@ -6,9 +6,11 @@ import {
   existsSync,
   fsyncSync,
   ftruncateSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readFileSync,
+  realpathSync,
   writeSync,
 } from 'node:fs';
 import { join } from 'node:path';
@@ -122,10 +124,15 @@ function append(
   data: Record<string, unknown>,
 ): boolean {
   const path = file(job);
-  mkdirSync(stateDirectory(job), {
-    recursive: true,
-    mode: 0o700,
-  });
+  const directory = stateDirectory(job);
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  if (realpathSync(directory) !== directory)
+    throw new Error('unsafe trace path');
+  try {
+    if (lstatSync(path).isSymbolicLink()) throw new Error('unsafe trace path');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
   const prior = events(job).find((event) => event.key === key);
   if (prior) return false;
   const fd = openSync(path, 'a', 0o600);
@@ -443,6 +450,16 @@ export async function leadIntervention(
     throw new Error(
       'lead intervention note must be a single line of at most 200 characters',
     );
+  if (
+    /\bsk-/u.test(note) ||
+    /\b(?:ghp_|gho_|ghu_|ghs_|ghr_)/u.test(note) ||
+    /\bgithub_pat_/u.test(note) ||
+    /\bxox[baprs]-/u.test(note) ||
+    /Bearer\s+\S+/u.test(note) ||
+    /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/u.test(note) ||
+    /(?:api[_-]?key|token|secret|password)\s*[:=]\s*\S+/iu.test(note)
+  )
+    throw new Error('lead intervention note must not contain credentials');
   append(job, `lead-intervention:${randomUUID()}`, 'lead_intervention', {
     kind,
     note,

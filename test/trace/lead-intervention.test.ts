@@ -1,11 +1,20 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { intent, leadIntervention } from '../../src/trace/index.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 
@@ -115,6 +124,52 @@ test('krn note rejects multiline or overlong notes', async () => {
       existsSync(join(f.directory, '.krn/runs/foreman', job, 'trace.jsonl')),
       false,
     );
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('trace append rejects a symlinked trace.jsonl', async () => {
+  const f = await fixture();
+  const jobId = `lead-intervention-symlink-${process.pid}`;
+  const directory = join(f.directory, '.krn/runs/foreman', jobId);
+  const trace = join(directory, 'trace.jsonl');
+  const target = join(f.directory, 'trace-target.jsonl');
+  const job = {
+    id: jobId,
+    issue: 'LON-269',
+    worktree: f.directory,
+    repoRoot: f.directory,
+  };
+  try {
+    await mkdir(directory, { recursive: true });
+    await writeFile(target, 'preserve this trace');
+    await symlink(target, trace);
+    await assert.rejects(intent(job, 1), { message: 'unsafe trace path' });
+    assert.equal((await lstat(trace)).isSymbolicLink(), true);
+    assert.equal(await readFile(target, 'utf8'), 'preserve this trace');
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('lead intervention rejects credentials without writing trace events', async () => {
+  const f = await fixture();
+  const jobId = `lead-intervention-credentials-${process.pid}`;
+  const trace = join(f.directory, '.krn/runs/foreman', jobId, 'trace.jsonl');
+  const job = {
+    id: jobId,
+    issue: 'LON-269',
+    worktree: f.directory,
+    repoRoot: f.directory,
+  };
+  try {
+    for (const note of ['sk-test1234567890abcdef', 'token: abc']) {
+      await assert.rejects(leadIntervention(job, 'intervention', note), {
+        message: 'lead intervention note must not contain credentials',
+      });
+    }
+    assert.equal(existsSync(trace), false);
   } finally {
     await rm(f.directory, { recursive: true, force: true });
   }
