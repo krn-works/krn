@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { judge } from '../../src/verdict/index.ts';
 import { resolveChecks } from '../../src/verdict/registry.ts';
+import { evaluatorSurfaceChanges } from '../../src/verdict/surface.ts';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'krn-evaluator-surface-'));
@@ -87,9 +88,6 @@ test('a package manifest symlink creates an evaluator surface finding', async ()
     rmSync(join(f.root, 'package.json'));
     symlinkSync('missing-package-target.json', join(f.root, 'package.json'));
     const candidateSha = commit(f, 'symlink package manifest');
-    const { evaluatorSurfaceChanges } = await import(
-      '../../src/verdict/surface.ts'
-    );
     assert.deepEqual(
       await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
       ['evaluator surface changed: package.json'],
@@ -107,9 +105,6 @@ test('an oversized package manifest creates an evaluator surface finding', async
       Buffer.alloc(1024 * 1024 + 1, 0x20),
     );
     const candidateSha = commit(f, 'oversize package manifest');
-    const { evaluatorSurfaceChanges } = await import(
-      '../../src/verdict/surface.ts'
-    );
     assert.deepEqual(
       await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
       ['evaluator surface changed: package.json'],
@@ -194,9 +189,6 @@ test('judge does not refuse a source-only change for surface reasons', async () 
       'export const value = 1;\n',
     );
     const candidateSha = commit(f, 'add source');
-    const { evaluatorSurfaceChanges } = await import(
-      '../../src/verdict/surface.ts'
-    );
     assert.deepEqual(
       await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
       [],
@@ -215,12 +207,56 @@ test('deleting a test with an accented name creates an evaluator surface finding
     const accentedBase = commit(f, 'add accented test');
     rmSync(testPath);
     const candidateSha = commit(f, 'delete accented test');
-    const { evaluatorSurfaceChanges } = await import(
-      '../../src/verdict/surface.ts'
-    );
     assert.deepEqual(
       await evaluatorSurfaceChanges(f.root, accentedBase, candidateSha, []),
       ['evaluator surface changed: test/zażółć.test.ts'],
+    );
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('modifying an existing test creates an evaluator surface finding', async () => {
+  const f = fixture();
+  try {
+    mkdirSync(join(f.root, 'test'));
+    const testPath = join(f.root, 'test', 'foo.test.ts');
+    writeFileSync(testPath, 'export const before = true;\n');
+    const testBase = commit(f, 'add existing test');
+    writeFileSync(testPath, 'export const after = true;\n');
+    const candidateSha = commit(f, 'modify existing test');
+    assert.deepEqual(
+      await evaluatorSurfaceChanges(f.root, testBase, candidateSha, []),
+      ['evaluator surface changed: test/foo.test.ts'],
+    );
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('adding a new test does not create a test surface finding', async () => {
+  const f = fixture();
+  try {
+    mkdirSync(join(f.root, 'tests'));
+    writeFileSync(join(f.root, 'tests', 'new.spec.ts'), 'export {};\n');
+    const candidateSha = commit(f, 'add new test');
+    assert.deepEqual(
+      await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
+      [],
+    );
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('adding a root npmrc creates an evaluator surface finding', async () => {
+  const f = fixture();
+  try {
+    writeFileSync(join(f.root, '.npmrc'), 'ignore-scripts=true\n');
+    const candidateSha = commit(f, 'add npmrc');
+    assert.deepEqual(
+      await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
+      ['evaluator surface changed: .npmrc'],
     );
   } finally {
     rmSync(f.root, { recursive: true, force: true });
