@@ -78,10 +78,14 @@ export function resolveCodexExecutable(home: string = homedir()): string {
 
   const candidates = readdirSync(releases, { withFileTypes: true })
     .filter(
-      (entry) => entry.isDirectory() && /^\d+\.\d+\.\d+-/.test(entry.name),
+      (entry) =>
+        entry.isDirectory() &&
+        /^\d+\.\d+\.\d+-[0-9A-Za-z][0-9A-Za-z.-]*$/.test(entry.name),
     )
     .map((entry) => {
-      const match = /^(\d+)\.(\d+)\.(\d+)-/.exec(entry.name);
+      const match = /^(\d+)\.(\d+)\.(\d+)-[0-9A-Za-z][0-9A-Za-z.-]*$/.exec(
+        entry.name,
+      );
       if (!match) return undefined;
       const executable = join(releases, entry.name, 'bin/codex');
       return existsSync(executable)

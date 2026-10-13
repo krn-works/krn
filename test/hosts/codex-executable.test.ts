@@ -16,17 +16,25 @@ test('resolves the highest installed Codex release', async () => {
     releases,
     '0.162.1-x86_64-unknown-linux-musl/bin/codex',
   );
+  const missingExecutable = join(
+    releases,
+    '0.200.0-x86_64-unknown-linux-musl/bin/codex',
+  );
+  const malformedExecutable = join(releases, '1.2.3.4-build/bin/codex');
   const junkExecutable = join(releases, 'nightly/bin/codex');
 
   try {
     await Promise.all([
       mkdir(join(oldExecutable, '..'), { recursive: true }),
       mkdir(join(newestExecutable, '..'), { recursive: true }),
+      mkdir(join(missingExecutable, '..'), { recursive: true }),
+      mkdir(join(malformedExecutable, '..'), { recursive: true }),
       mkdir(join(junkExecutable, '..'), { recursive: true }),
     ]);
     await Promise.all([
       writeFile(oldExecutable, ''),
       writeFile(newestExecutable, ''),
+      writeFile(malformedExecutable, ''),
       writeFile(junkExecutable, ''),
     ]);
 
