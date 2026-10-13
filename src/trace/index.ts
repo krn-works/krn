@@ -50,6 +50,12 @@ export function classifyTraceFdPathReadback(
   return 'mismatch';
 }
 
+export function traceFdPathVerificationDecision(
+  verification: TraceFdPathVerification,
+): 'ok' | 'refusal' {
+  return verification === 'verified' ? 'ok' : 'refusal';
+}
+
 const eventSchema = z.object({
   key: z.string(),
   kind: z.string(),
@@ -313,10 +319,10 @@ function openVerifiedTrace(path: string, flags: number, mode?: number): number {
     readbackErrorCode,
     resolve(path),
   );
-  if (pathVerification === 'mismatch') {
+  if (traceFdPathVerificationDecision(pathVerification) === 'refusal') {
     let cleanupPath: string | undefined;
     let openedStats: ReturnType<typeof fstatSync> | undefined;
-    if (createdByOpen) {
+    if (createdByOpen && pathVerification === 'mismatch') {
       try {
         openedStats = fstatSync(fd);
         if (openedStats.isFile() && openedStats.size === 0)

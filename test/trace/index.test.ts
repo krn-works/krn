@@ -11,6 +11,7 @@ import { stateDirectory } from '../../src/foreman/state.ts';
 import {
   classifyTraceFdPathReadback,
   hasVerdict,
+  traceFdPathVerificationDecision,
   verdict,
 } from '../../src/trace/index.ts';
 import type { VerdictEvent } from '../../src/verdict/index.ts';
@@ -45,28 +46,43 @@ function event(sha: string, exitCode: number, checkSha: string): VerdictEvent {
   };
 }
 
-test('trace fd path readback distinguishes unavailable procfs from mismatch', () => {
+test('trace fd path readback refuses unavailable procfs and mismatch', () => {
   const expectedPath = '/repo/.krn/runs/foreman/job/trace.jsonl';
-  assert.equal(
-    classifyTraceFdPathReadback(undefined, 'ENOENT', expectedPath),
-    'unavailable',
+  const unavailable = classifyTraceFdPathReadback(
+    undefined,
+    'ENOENT',
+    expectedPath,
   );
-  assert.equal(
-    classifyTraceFdPathReadback(undefined, 'ENOTDIR', expectedPath),
-    'unavailable',
+  assert.equal(unavailable, 'unavailable');
+  assert.equal(traceFdPathVerificationDecision(unavailable), 'refusal');
+  const unavailableParent = classifyTraceFdPathReadback(
+    undefined,
+    'ENOTDIR',
+    expectedPath,
   );
-  assert.equal(
-    classifyTraceFdPathReadback(
-      '/outside/trace.jsonl',
-      undefined,
-      expectedPath,
-    ),
-    'mismatch',
+  assert.equal(unavailableParent, 'unavailable');
+  assert.equal(traceFdPathVerificationDecision(unavailableParent), 'refusal');
+  const verified = classifyTraceFdPathReadback(
+    expectedPath,
+    undefined,
+    expectedPath,
   );
-  assert.equal(
-    classifyTraceFdPathReadback(undefined, 'EACCES', expectedPath),
-    'mismatch',
+  assert.equal(verified, 'verified');
+  assert.equal(traceFdPathVerificationDecision(verified), 'ok');
+  const mismatch = classifyTraceFdPathReadback(
+    '/outside/trace.jsonl',
+    undefined,
+    expectedPath,
   );
+  assert.equal(mismatch, 'mismatch');
+  assert.equal(traceFdPathVerificationDecision(mismatch), 'refusal');
+  const unreadable = classifyTraceFdPathReadback(
+    undefined,
+    'EACCES',
+    expectedPath,
+  );
+  assert.equal(unreadable, 'mismatch');
+  assert.equal(traceFdPathVerificationDecision(unreadable), 'refusal');
 });
 
 test('trace recovers and reports an incomplete tail but rejects completed corruption', async () => {
