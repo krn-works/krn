@@ -1,10 +1,10 @@
-captured=2026-10-13T19:13:28+02:00
-measured_head=82aef759b92cd6c8e4bee246f1d74b9ad6519c24
-src_tree=f4a3d02df8947b301ec2c3de7907eb9100f1ce3f
-test_tree=3de6ffb69bee94728c6aa8744ab437fc7d653524
+captured=2026-10-13T19:29:47+02:00
+measured_head=3898ddead7b6e097c8ff79d8e8a8d1222087618c
+src_tree=ba7a3ad8b6b3af1846fcd446f45b052b6c8dbd93
+test_tree=7cf48b5b6dba93aba21828fbcd84b606799ba29e
 note: src/test tree SHAs are unchanged by adding this evidence file; any later head with these trees has identical code.
 --- host gate (npm run gate) on measured_head, operator host
-# pass 221
+# pass 222
 # fail 0
 # skipped 0
 Isolation-dependent tests skipped: 0
@@ -15,3 +15,4 @@ independent judge Luna: REPLAY-WORTHY
 panel round 2 fix: PATH pnpm fallback resolves to an absolute executable path.
 fixtures disable git gc/maintenance (detached-process panel finding); focused base-ref tests pass on host.
 origin/HEAD remote-only fallback covered.
+baseSha pinned at start; repoFacts requires the pinned base to remain an ancestor of HEAD; relay->foreman/state import kept per card design (existing relay->foreman/git edge; extraction is R1-10) — lead decision.
