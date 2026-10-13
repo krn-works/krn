@@ -1,13 +1,13 @@
-captured=2026-10-13T23:10:42+02:00
-measured_head=3b848fc3300987c86b8d1d4042123edb594a7063
-src_tree=5a359a422b9ac571072ac9c62c917c2bceeedc7e
-test_tree=b12379c797ed5e3bb3958134c6997e6dd6a1f18e
+captured=2026-10-13T23:27:45+02:00
+measured_head=da4badb80f15ee2541211636ebfbfaea0a248450
+src_tree=21fba262e6e6d7f72a6e543c27951c107abffeaa
+test_tree=be28048713b7cb405c172323243d323caa841169
 model=gpt-6-luna
 evals_tree=7e3e3cc0311f73071d5f3b9d6115217bcfdd0a1a
 blueprint_blob=f3d81a850b43c6da35c60a513eafa923c1624869
 note: docs coverage is the blueprint blob; the evidence directory itself is excluded. src/test/evals tree SHAs are unchanged by adding evidence files under docs/program/r1/evidence/; any later head with these trees has identical code and data.
 --- host gate (npm run gate) on measured_head, operator host
-# pass 238
+# pass 240
 # fail 0
 # skipped 0
 Isolation-dependent tests skipped: 0
@@ -28,3 +28,4 @@ operator_minutes, token, and outcome comparisons. No values were invented for th
 round8: gate-local published success for 48896c33 (235 tests, 0 isolation skips); note filter covers Stripe sk_live_ shapes, narrowed identifier exceptions, symlinked trace parent refusal.
 round9: gate-local success for 648fee67 (237 tests, 0 isolation skips); falsifier is assertion-red at base cfa5484; trace fd verified via /proc/self/fd; D1 intervention clause not-evaluable at zero B0.
 round10: gate-local success for 3b848fc3 (238 tests, 0 isolation skips); 40-hex tokens rejected, short SHA allowed; trace writes contained in repoRoot state dir with pre-mkdir symlink refusal and /proc/self/fd proof.
+round11: gate-local success for da4badb8 (240 tests, 0 isolation skips); non-regular trace paths (FIFO) refused pre-open with O_NONBLOCK; raced outside creations removed only when empty and inode-verified.
