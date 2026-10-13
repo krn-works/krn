@@ -451,6 +451,24 @@ export async function operatorStop(job: Job, operator: string): Promise<void> {
   append(job, `operator-stop:${randomUUID()}`, 'operator_stop', { operator });
 }
 
+const genericCredentialTokenClasses = [
+  /[a-z]/u,
+  /[A-Z]/u,
+  /[0-9]/u,
+  /[_+=/-]/u,
+] as const;
+
+function containsGenericCredentialToken(note: string): boolean {
+  return note.split(/\s+/u).some((token) => {
+    if (token.length < 20) return false;
+    let characterClasses = 0;
+    for (const pattern of genericCredentialTokenClasses) {
+      if (pattern.test(token)) characterClasses += 1;
+    }
+    return characterClasses >= 3;
+  });
+}
+
 export async function leadIntervention(
   job: Job,
   kind: 'intervention' | 'reconstruction_prompt',
@@ -462,14 +480,17 @@ export async function leadIntervention(
     );
   if (
     /\bsk-/u.test(note) ||
-    /\b(?:ghp_|gho_|ghu_|ghs_|ghr_)/u.test(note) ||
+    /\b(?:ghp_|gho_|ghu_|ghs_|ghr_|glpat-)/u.test(note) ||
     /\bgithub_pat_/u.test(note) ||
     /\bxox[baprs]-/u.test(note) ||
     /(?:AKIA|ASIA)[0-9A-Z]{16}/u.test(note) ||
     /AIza[0-9A-Za-z_-]{35}/u.test(note) ||
+    /\bBasic\s+[A-Za-z0-9+/=]{16,}/iu.test(note) ||
+    /eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/u.test(note) ||
     /Bearer\s+\S+/u.test(note) ||
     /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/u.test(note) ||
-    /(?:api[_-]?key|token|secret|password)\s*[:=]\s*\S+/iu.test(note)
+    /(?:api[_-]?key|token|secret|password)\s*[:=]\s*\S+/iu.test(note) ||
+    containsGenericCredentialToken(note)
   )
     throw new Error('lead intervention note must not contain credentials');
   append(job, `lead-intervention:${randomUUID()}`, 'lead_intervention', {

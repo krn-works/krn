@@ -164,18 +164,62 @@ test('lead intervention rejects credentials without writing trace events', async
     repoRoot: f.directory,
   };
   try {
-    for (const note of [
-      'sk-test1234567890abcdef',
-      'token: abc',
-      'AWS key AKIA1234567890ABCDEF',
-      'AWS session key ASIA1234567890ABCDEF',
-      'Google API key AIza0123456789abcdefghijklmnopqrstuvwxy',
-    ]) {
-      await assert.rejects(leadIntervention(job, 'intervention', note), {
-        message: 'lead intervention note must not contain credentials',
-      });
+    const rejectedNotes = [
+      ['existing provider token', 'sk-test1234567890abcdef'],
+      ['existing key/value pattern', 'token: abc'],
+      ['existing AWS key', 'AWS key AKIA1234567890ABCDEF'],
+      ['existing AWS session key', 'AWS session key ASIA1234567890ABCDEF'],
+      [
+        'existing Google API key',
+        'Google API key AIza0123456789abcdefghijklmnopqrstuvwxy',
+      ],
+      ['Basic auth', 'Basic YWJjZGVmZ2hpamts'],
+      ['GitLab token', `glpat-${'a'.repeat(20)}`],
+      ['JWT', 'eyJabcdefgh.ijklmnop.qrstuvwx'],
+      ['mixed-class token', 'aB123456789012345678'],
+    ] as const;
+    const outcomes: string[] = [];
+    for (const [label, note] of rejectedNotes) {
+      try {
+        await leadIntervention(job, 'intervention', note);
+        outcomes.push(`${label}: accepted`);
+      } catch (error) {
+        outcomes.push(`${label}: ${(error as Error).message}`);
+      }
     }
+    assert.deepEqual(
+      outcomes,
+      rejectedNotes.map(
+        ([label]) =>
+          `${label}: lead intervention note must not contain credentials`,
+      ),
+    );
     assert.equal(existsSync(trace), false);
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('lead intervention accepts ordinary prose with a full commit SHA', async () => {
+  const f = await fixture();
+  const jobId = `lead-intervention-sha-${process.pid}`;
+  const trace = join(f.directory, '.krn/runs/foreman', jobId, 'trace.jsonl');
+  const job = {
+    id: jobId,
+    issue: 'LON-269',
+    worktree: f.directory,
+    repoRoot: f.directory,
+  };
+  const note =
+    'Reviewed LON-269 and 1fe459533fb2b79469d33938e391701f89637fc5 after handoff';
+  try {
+    await leadIntervention(job, 'intervention', note);
+    const rows = (await readFile(trace, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    assert.equal(rows.length, 1);
+    assert.deepEqual(rows[0]?.data, { kind: 'intervention', note });
   } finally {
     await rm(f.directory, { recursive: true, force: true });
   }
