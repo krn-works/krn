@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { judge } from '../../src/verdict/index.ts';
 import { evaluatorSurfaceChanges } from '../../src/verdict/surface.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'krn-evaluator-surface-'));
@@ -158,7 +159,15 @@ test('judge refuses an unparsable base registry', async () => {
   }
 });
 
-test('judge does not refuse a source-only change for surface reasons', async () => {
+test('judge does not refuse a source-only change for surface reasons', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'judge does not refuse a source-only change for surface reasons',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
   const f = fixture();
   try {
     mkdirSync(join(f.root, 'src'));
