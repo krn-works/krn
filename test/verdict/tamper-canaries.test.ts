@@ -169,7 +169,7 @@ test('canary 5 refuses a workflow edit', async () => {
 });
 
 test('canary 6 refuses each test-disabling token added to an existing test', async () => {
-  const addedLines = [
+  const addedCases = [
     ['test', '.skip', '(', "'disabled assertion', () => {});"].join(''),
     ['test(', "'disabled assertion', ", '{ skip:', ' true }, () => {});'].join(
       '',
@@ -179,8 +179,10 @@ test('canary 6 refuses each test-disabling token added to an existing test', asy
     ['test', '["', 'todo', '"](', "'unfinished assertion');"].join(''),
     ['test', '.todo', '(', "'unfinished assertion');"].join(''),
     ['test', '.only', '(', "'selected assertion', () => {});"].join(''),
+    `test.skip
+('x', () => {});`,
   ];
-  for (const line of addedLines) {
+  for (const line of addedCases) {
     const f = fixture();
     try {
       writeFileSync(

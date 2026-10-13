@@ -208,16 +208,12 @@ export async function evaluatorSurfaceChanges(
       '--',
       `:(literal)${path}`,
     ]);
-    if (
-      addedLines
-        .split('\n')
-        .some(
-          (line) =>
-            line.startsWith('+') &&
-            !line.startsWith('+++') &&
-            disabledTestToken.test(line.slice(1)),
-        )
-    )
+    const addedText = addedLines
+      .split('\n')
+      .filter((line) => line.startsWith('+') && !line.startsWith('+++'))
+      .map((line) => line.slice(1))
+      .join('\n');
+    if (disabledTestToken.test(addedText))
       findings.add(`evaluator surface changed: ${path} (test disabled)`);
   }
 
