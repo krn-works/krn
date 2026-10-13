@@ -205,3 +205,24 @@ test('judge does not refuse a source-only change for surface reasons', async () 
     rmSync(f.root, { recursive: true, force: true });
   }
 });
+
+test('deleting a test with an accented name creates an evaluator surface finding', async () => {
+  const f = fixture();
+  try {
+    mkdirSync(join(f.root, 'test'));
+    const testPath = join(f.root, 'test', 'zażółć.test.ts');
+    writeFileSync(testPath, 'export {};\n');
+    const accentedBase = commit(f, 'add accented test');
+    rmSync(testPath);
+    const candidateSha = commit(f, 'delete accented test');
+    const { evaluatorSurfaceChanges } = await import(
+      '../../src/verdict/surface.ts'
+    );
+    assert.deepEqual(
+      await evaluatorSurfaceChanges(f.root, accentedBase, candidateSha, []),
+      ['evaluator surface changed: test/zażółć.test.ts'],
+    );
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});

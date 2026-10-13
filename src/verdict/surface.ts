@@ -37,7 +37,7 @@ async function git(root: string, args: string[]): Promise<string> {
   });
   if (result.status !== 0)
     throw new Error(result.stderr || 'git command failed');
-  return result.stdout.trim();
+  return result.stdout.includes('\0') ? result.stdout : result.stdout.trim();
 }
 
 async function gitBlob(root: string, oid: string): Promise<string> {
@@ -138,17 +138,18 @@ export async function evaluatorSurfaceChanges(
   const diff = await git(root, [
     'diff',
     '--name-status',
+    '-z',
     '--no-renames',
     base,
     sha,
   ]);
-  const entries = diff
-    .split('\n')
-    .filter(Boolean)
-    .map((line) => {
-      const tab = line.indexOf('\t');
-      return { status: line.slice(0, tab), path: line.slice(tab + 1) };
-    });
+  const fields = diff.split('\0').filter(Boolean);
+  const entries: { status: string; path: string }[] = [];
+  for (let index = 0; index + 1 < fields.length; index += 2) {
+    const status = fields[index];
+    const path = fields[index + 1];
+    if (status && path) entries.push({ status, path });
+  }
   const findings = new Set<string>();
   for (const { status, path } of entries) {
     if (
