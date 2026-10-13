@@ -20,7 +20,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { z } from 'zod';
 import type { Job } from '../core/index.ts';
 import { readCheckpointRequest } from '../foreman/checkpoint-request.ts';
-import { stateDirectory } from '../foreman/state.ts';
+import { repoRecord, stateDirectory } from '../foreman/state.ts';
 import type { SessionEnd } from '../foreman/types.ts';
 import type { SubmissionReceipt } from '../ledger/index.ts';
 import type { VerdictEvent } from '../verdict/index.ts';
@@ -106,6 +106,76 @@ function assertNoTraceSymlinks(directory: string, path: string): void {
   }
 }
 
+function isWithinOrSame(root: string, path: string): boolean {
+  const relativePath = relative(root, path);
+  return (
+    relativePath === '' ||
+    (relativePath !== '..' &&
+      !relativePath.startsWith(`..${sep}`) &&
+      !isAbsolute(relativePath))
+  );
+}
+
+function nearestExistingRealpath(path: string): string {
+  let current = resolve(path);
+  while (true) {
+    try {
+      lstatSync(current);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
+        throw new Error('unsafe trace path');
+      const parent = dirname(current);
+      if (parent === current) throw new Error('unsafe trace path');
+      current = parent;
+      continue;
+    }
+    try {
+      return realpathSync(current);
+    } catch {
+      throw new Error('unsafe trace path');
+    }
+  }
+}
+
+function ensureTraceDirectory(
+  job: Job,
+  directory: string,
+  create: boolean,
+): boolean {
+  const repoRoot = realpathSync(repoRecord(job).repoRoot);
+  const expectedDirectory = resolve(directory);
+  if (
+    expectedDirectory === repoRoot ||
+    !isWithinOrSame(repoRoot, expectedDirectory)
+  )
+    throw new Error('unsafe trace path');
+
+  const nearest = nearestExistingRealpath(expectedDirectory);
+  if (!isWithinOrSame(repoRoot, nearest)) throw new Error('unsafe trace path');
+  assertNoTraceSymlinks(repoRoot, expectedDirectory);
+
+  if (create) mkdirSync(expectedDirectory, { recursive: true, mode: 0o700 });
+  else {
+    try {
+      lstatSync(expectedDirectory);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+      throw new Error('unsafe trace path');
+    }
+  }
+
+  let actualDirectory: string;
+  try {
+    actualDirectory = realpathSync(expectedDirectory);
+  } catch {
+    throw new Error('unsafe trace path');
+  }
+  if (actualDirectory !== expectedDirectory)
+    throw new Error('unsafe trace path');
+  assertNoTraceSymlinks(repoRoot, expectedDirectory);
+  return true;
+}
+
 function openVerifiedTrace(path: string, flags: number, mode?: number): number {
   let fd: number;
   try {
@@ -132,6 +202,9 @@ function openVerifiedTrace(path: string, flags: number, mode?: number): number {
 
 function events(job: Job): Event[] {
   const path = file(job);
+  const directory = dirname(path);
+  if (!ensureTraceDirectory(job, directory, false)) return [];
+  assertNoTraceSymlinks(directory, path);
   if (!existsSync(path)) return [];
   let contents: Buffer;
   try {
@@ -191,10 +264,8 @@ function append(
   data: Record<string, unknown>,
 ): boolean {
   const path = file(job);
-  const directory = stateDirectory(job);
-  mkdirSync(directory, { recursive: true, mode: 0o700 });
-  if (realpathSync(directory) !== directory)
-    throw new Error('unsafe trace path');
+  const directory = dirname(path);
+  ensureTraceDirectory(job, directory, true);
   assertNoTraceSymlinks(directory, path);
   const prior = events(job).find((event) => event.key === key);
   if (prior) return false;
@@ -518,7 +589,6 @@ const genericCredentialTokenClasses = [
 ] as const;
 
 function isSafeGenericCredentialToken(token: string): boolean {
-  if (/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/iu.test(token)) return true;
   if (
     /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu.test(
       token,

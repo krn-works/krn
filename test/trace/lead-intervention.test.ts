@@ -185,6 +185,28 @@ test('trace append rejects a symlinked state directory', async () => {
   }
 });
 
+test('trace append rejects a symlinked .krn before creating files outside the worktree', async () => {
+  const f = await fixture();
+  const jobId = `lead-intervention-krn-symlink-${process.pid}`;
+  const outside = await mkdtemp(join(tmpdir(), 'krn-trace-outside-'));
+  const job = {
+    id: jobId,
+    issue: 'LON-269',
+    worktree: f.directory,
+    repoRoot: f.directory,
+  };
+  try {
+    await symlink(outside, join(f.directory, '.krn'), 'dir');
+    await assert.rejects(trace.intent(job, 1), {
+      message: 'unsafe trace path',
+    });
+    assert.equal(existsSync(join(outside, 'runs')), false);
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
+
 test('trace append rejects a parent symlink installed between validation and open', async () => {
   const f = await fixture();
   const jobId = `lead-intervention-parent-race-${process.pid}`;
@@ -276,6 +298,7 @@ test('lead intervention rejects credentials without writing trace events', async
       ['mixed-class token', 'aB123456789012345678'],
       ['lowercase and digit token', 'abcdefghijklmnopqrst1234'],
       ['segmented mixed-class token', 'aaaa-bbbb-ccccdddd11112222'],
+      ['40-character hexadecimal token', 'a1'.repeat(20)],
     ] as const;
     const outcomes: string[] = [];
     for (const [label, note] of rejectedNotes) {
@@ -299,7 +322,7 @@ test('lead intervention rejects credentials without writing trace events', async
   }
 });
 
-test('lead intervention accepts ordinary prose with a full commit SHA', async () => {
+test('lead intervention accepts ordinary prose with short commit SHAs', async () => {
   const f = await fixture();
   const jobId = `lead-intervention-sha-${process.pid}`;
   const tracePath = join(
@@ -315,7 +338,7 @@ test('lead intervention accepts ordinary prose with a full commit SHA', async ()
     repoRoot: f.directory,
   };
   const note =
-    'Reviewed LON-269 TASK-12345678901234567890 krn-LON-269-r1-06-metric 1fe459533fb2b79469d33938e391701f89637fc5 1fe459533fb2b79469d33938e391701f89637fc5a81e100d2bb9fa4a7e6f0c2f after handoff';
+    'Reviewed LON-269 TASK-12345678901234567890 krn-LON-269-r1-06-metric 1fe45953 1fe459533fb2 after handoff';
   try {
     await trace.leadIntervention(job, 'intervention', note);
     const rows = (await readFile(tracePath, 'utf8'))
