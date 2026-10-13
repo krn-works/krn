@@ -1,6 +1,6 @@
 // Start creates the isolated job worktree; checkpoint persists before stopping its worker. ADR 0001.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, mkdirSync, readSync, realpathSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
 
 import type { Job } from '../core/index.ts';
@@ -18,6 +18,25 @@ function value(args: string[], flag: string): string {
   const result = index < 0 ? undefined : args[index + 1];
   if (!result || result.startsWith('--')) throw new Error(`missing ${flag}`);
   return result;
+}
+
+function readNoteStdin(): string {
+  const maximumBytes = 8192;
+  const chunks: Buffer[] = [];
+  let totalBytes = 0;
+  while (totalBytes < maximumBytes) {
+    const chunk = Buffer.alloc(Math.min(1024, maximumBytes - totalBytes));
+    const bytesRead = readSync(0, chunk, 0, chunk.length, null);
+    if (bytesRead === 0) break;
+    chunks.push(chunk.subarray(0, bytesRead));
+    totalBytes += bytesRead;
+  }
+  if (totalBytes === maximumBytes) {
+    const overflow = Buffer.alloc(1);
+    if (readSync(0, overflow, 0, 1, null) > 0)
+      throw new Error('note text exceeds 8192 bytes');
+  }
+  return Buffer.concat(chunks, totalBytes).toString('utf8');
 }
 
 function git(root: string, args: string[]): string {
@@ -207,11 +226,9 @@ async function stop(
 }
 
 async function note(args: string[]): Promise<void> {
-  if (args.includes('--text'))
-    throw new Error(
-      'note text must be provided on stdin; --text is not supported',
-    );
-  const text = readFileSync(0, 'utf8').trim();
+  const text = (
+    args.includes('--text') ? value(args, '--text') : readNoteStdin()
+  ).trim();
   const cliKind = value(args, '--kind');
   if (cliKind !== 'intervention' && cliKind !== 'reconstruction')
     throw new Error('--kind must be intervention or reconstruction');

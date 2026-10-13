@@ -44,6 +44,7 @@ function runNote(
   text: string,
   kind: 'intervention' | 'reconstruction' = 'intervention',
   includeTextFlag = false,
+  stdinText = includeTextFlag ? '' : text,
 ) {
   const args = [
     cli,
@@ -63,7 +64,7 @@ function runNote(
   return spawnSync(process.execPath, args, {
     cwd: directory,
     encoding: 'utf8',
-    input: includeTextFlag ? '' : text,
+    input: stdinText,
     env: {
       ...process.env,
       KRN_LEGACY_ENTRY: legacy,
@@ -133,7 +134,7 @@ test('krn note rejects multiline or overlong notes', async () => {
   }
 });
 
-test('krn note rejects --text and does not write a trace event', async () => {
+test('krn note records --text in trace.jsonl', async () => {
   const f = await fixture();
   const job = `lead-intervention-text-flag-${process.pid}`;
   const tracePath = join(f.directory, '.krn/runs/foreman', job, 'trace.jsonl');
@@ -142,12 +143,34 @@ test('krn note rejects --text and does not write a trace event', async () => {
       f.directory,
       f.legacy,
       job,
-      'this should not be recorded',
+      'this should be recorded',
       'intervention',
       true,
+      'this should not be recorded',
     );
+    assert.equal(result.status, 0, result.stderr);
+    const rows = (await readFile(tracePath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    assert.equal(rows.length, 1);
+    assert.deepEqual(rows[0]?.data, {
+      kind: 'intervention',
+      note: 'this should be recorded',
+    });
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('krn note rejects stdin larger than 8192 bytes without writing a trace event', async () => {
+  const f = await fixture();
+  const job = `lead-intervention-stdin-too-large-${process.pid}`;
+  const tracePath = join(f.directory, '.krn/runs/foreman', job, 'trace.jsonl');
+  try {
+    const result = runNote(f.directory, f.legacy, job, 'x'.repeat(8193));
     assert.equal(result.status, 64, result.stderr);
-    assert.match(result.stderr, /stdin/u);
+    assert.match(result.stderr, /note text exceeds 8192 bytes/u);
     assert.equal(existsSync(tracePath), false);
   } finally {
     await rm(f.directory, { recursive: true, force: true });
