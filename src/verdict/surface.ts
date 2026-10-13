@@ -197,7 +197,7 @@ export async function evaluatorSurfaceChanges(
     ),
   ];
   const disabledTestToken =
-    /\.skip\(|\{\s*skip:\s*true\s*\}|\.todo\(|test\.only\(/u;
+    /\.(?:skip|todo|only)\s*\(|\[\s*(['"])(?:skip|todo|only)\1\s*\]\s*\(|\{\s*skip\s*:\s*true\s*\}/u;
   for (const path of testPaths) {
     const addedLines = await git(root, [
       'diff',

@@ -174,6 +174,9 @@ test('canary 6 refuses each test-disabling token added to an existing test', asy
     ['test(', "'disabled assertion', ", '{ skip:', ' true }, () => {});'].join(
       '',
     ),
+    ['test', '.skip ', '(', "'disabled assertion', () => {});"].join(''),
+    ['test', "['", 'skip', "'](", "'disabled assertion', () => {});"].join(''),
+    ['test', '["', 'todo', '"](', "'unfinished assertion');"].join(''),
     ['test', '.todo', '(', "'unfinished assertion');"].join(''),
     ['test', '.only', '(', "'selected assertion', () => {});"].join(''),
   ];
@@ -185,9 +188,9 @@ test('canary 6 refuses each test-disabling token added to an existing test', asy
         `import test from 'node:test';\ntest('baseline', () => {});\n${line}\n`,
       );
       const sha = commit(f, 'disable an existing test');
-      assert.deepEqual(await surfaceChanges(f, sha), [
+      await assertRefusedWith(
         'evaluator surface changed: test/foo.test.ts (test disabled)',
-      ]);
+      )(f, sha);
     } finally {
       rmSync(f.root, { recursive: true, force: true });
     }
@@ -200,7 +203,7 @@ test('control allows a source change and a new passing test for surface', async 
     mkdirSync(join(f.root, 'src'));
     writeFileSync(
       join(f.root, 'src', 'feature.ts'),
-      'export const value = 1;\n',
+      'export const examples = ["test.skip (", "test[\'todo\']("];\n',
     );
     writeFileSync(
       join(f.root, 'test', 'new.test.ts'),
