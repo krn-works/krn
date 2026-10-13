@@ -1,6 +1,6 @@
-captured=2026-10-13T18:37:37+02:00
-measured_head=0ce3def5e5041087551a85db4b7c1064fee7e35c
-src_tree=69e96ec65e4bc78e4fe6886dbcf3f47141ffc6f9
+captured=2026-10-13T18:50:38+02:00
+measured_head=aef250ac63395acc8d5abde3a95142f846493225
+src_tree=1a85cd34e643072fc0a6ad7ce4540885b1332efa
 test_tree=22246a4d59489340b8f1126fec7fdf30355678fa
 note: src/test tree SHAs are unchanged by adding this evidence file; any later head with these trees has identical code.
 --- host gate (npm run gate) on measured_head, operator host
@@ -12,3 +12,4 @@ gate exit 0
 --- replay
 cherry-pick fd9d5c8 + 3d60c13 from LON-220 onto main 4c337a2; sandbox conflict resolved by preserving pnpmBinary(manager) + gitBlob and the pnpm fallback without mise.
 independent judge Luna: REPLAY-WORTHY
+panel round 2 fix: PATH pnpm fallback resolves to an absolute executable path.
