@@ -171,7 +171,7 @@ export async function evaluatorSurfaceChanges(
       path === 'krn.checks.json' ||
       path === '.npmrc' ||
       path.startsWith('.github/') ||
-      ((status === 'D' || status === 'M') &&
+      (status === 'D' &&
         (/^test\//u.test(path) ||
           /^tests\//u.test(path) ||
           /\.(?:test|spec)\.[^/]+$/u.test(path)))

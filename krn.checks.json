@@ -23,6 +23,7 @@
     "biome.json",
     "spec/rules.json",
     "test/helpers/**",
-    "evals/woz/**"
+    "evals/woz/**",
+    "src/verdict/**"
   ]
 }

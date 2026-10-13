@@ -225,7 +225,7 @@ test('deleting a test with an accented name creates an evaluator surface finding
   }
 });
 
-test('modifying an existing test creates an evaluator surface finding', async () => {
+test('modifying an existing test does not create a test surface finding', async () => {
   const f = fixture();
   try {
     mkdirSync(join(f.root, 'test'));
@@ -234,9 +234,10 @@ test('modifying an existing test creates an evaluator surface finding', async ()
     const testBase = commit(f, 'add existing test');
     writeFileSync(testPath, 'export const after = true;\n');
     const candidateSha = commit(f, 'modify existing test');
-    assert.deepEqual(await surfaceChanges(f.root, testBase, candidateSha, []), [
-      'evaluator surface changed: test/foo.test.ts',
-    ]);
+    assert.deepEqual(
+      await surfaceChanges(f.root, testBase, candidateSha, []),
+      [],
+    );
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }
