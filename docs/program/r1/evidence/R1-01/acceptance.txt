@@ -1,14 +1,15 @@
-captured=2026-10-13T15:10:21+02:00
-measured_head=a5f4379493f99681fa77e3b36a5cc45e0ac52d44
-src_tree=d0201a7a493f7e129a36cc81ac8b06ae319d6501
-test_tree=f2aac8771ee0adce8fc291730346d3858684f68e
+captured=2026-10-13T15:39:25+02:00
+measured_head=5fb2f3c3c63090d09f19b169d859ed712577f01a
+src_tree=3400cbdbfd80b978bac892a277f8472575162298
+test_tree=81a5575a5bf3fd1ec2c84dac21ad86474c8dcb1c
 note: src/test tree SHAs are unchanged by adding evidence files; any later head with these trees has identical code.
 --- host gate (npm run gate) on measured_head, operator host
-# pass 206
+# pass 209
 # fail 0
 # skipped 0
 Isolation-dependent tests skipped: 0
 gate exit 0
 --- focused
-node --test test/verdict/evaluator-surface.test.ts: pass (8 tests) on measured_head
+node --test test/verdict/evaluator-surface.test.ts: pass (11 tests) on measured_head
+panel-driven hardening beyond the card defaults (lead decision 2026-10-13): modified (M) test files and root .npmrc are evaluator surface; additions are not.
 krn review panel on earlier heads: FAIL rounds recorded in .krn/runs/review (lead capsule); this evidence binds gate output to the exact src/test trees for the panel.
