@@ -12,7 +12,18 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { judge } from '../../src/verdict/index.ts';
 import { resolveChecks } from '../../src/verdict/registry.ts';
-import { evaluatorSurfaceChanges } from '../../src/verdict/surface.ts';
+
+async function surfaceChanges(
+  root: string,
+  base: string,
+  sha: string,
+  globs: readonly string[],
+) {
+  const { evaluatorSurfaceChanges } = await import(
+    '../../src/verdict/surface.ts'
+  );
+  return evaluatorSurfaceChanges(root, base, sha, globs);
+}
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'krn-evaluator-surface-'));
@@ -89,7 +100,7 @@ test('a package manifest symlink creates an evaluator surface finding', async ()
     symlinkSync('missing-package-target.json', join(f.root, 'package.json'));
     const candidateSha = commit(f, 'symlink package manifest');
     assert.deepEqual(
-      await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
+      await surfaceChanges(f.root, f.base, candidateSha, []),
       ['evaluator surface changed: package.json'],
     );
   } finally {
@@ -106,7 +117,7 @@ test('an oversized package manifest creates an evaluator surface finding', async
     );
     const candidateSha = commit(f, 'oversize package manifest');
     assert.deepEqual(
-      await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
+      await surfaceChanges(f.root, f.base, candidateSha, []),
       ['evaluator surface changed: package.json'],
     );
   } finally {
@@ -190,7 +201,7 @@ test('judge does not refuse a source-only change for surface reasons', async () 
     );
     const candidateSha = commit(f, 'add source');
     assert.deepEqual(
-      await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
+      await surfaceChanges(f.root, f.base, candidateSha, []),
       [],
     );
   } finally {
@@ -208,7 +219,7 @@ test('deleting a test with an accented name creates an evaluator surface finding
     rmSync(testPath);
     const candidateSha = commit(f, 'delete accented test');
     assert.deepEqual(
-      await evaluatorSurfaceChanges(f.root, accentedBase, candidateSha, []),
+      await surfaceChanges(f.root, accentedBase, candidateSha, []),
       ['evaluator surface changed: test/zażółć.test.ts'],
     );
   } finally {
@@ -226,7 +237,7 @@ test('modifying an existing test creates an evaluator surface finding', async ()
     writeFileSync(testPath, 'export const after = true;\n');
     const candidateSha = commit(f, 'modify existing test');
     assert.deepEqual(
-      await evaluatorSurfaceChanges(f.root, testBase, candidateSha, []),
+      await surfaceChanges(f.root, testBase, candidateSha, []),
       ['evaluator surface changed: test/foo.test.ts'],
     );
   } finally {
@@ -241,7 +252,7 @@ test('adding a new test does not create a test surface finding', async () => {
     writeFileSync(join(f.root, 'tests', 'new.spec.ts'), 'export {};\n');
     const candidateSha = commit(f, 'add new test');
     assert.deepEqual(
-      await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
+      await surfaceChanges(f.root, f.base, candidateSha, []),
       [],
     );
   } finally {
@@ -255,8 +266,51 @@ test('adding a root npmrc creates an evaluator surface finding', async () => {
     writeFileSync(join(f.root, '.npmrc'), 'ignore-scripts=true\n');
     const candidateSha = commit(f, 'add npmrc');
     assert.deepEqual(
-      await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
+      await surfaceChanges(f.root, f.base, candidateSha, []),
       ['evaluator surface changed: .npmrc'],
+    );
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('protected **/ globs match root and nested files', async () => {
+  const f = fixture();
+  try {
+    mkdirSync(join(f.root, 'a', 'b'), { recursive: true });
+    writeFileSync(join(f.root, 'foo.ts'), 'export const before = 1;\n');
+    writeFileSync(
+      join(f.root, 'a', 'b', 'foo.ts'),
+      'export const before = 1;\n',
+    );
+    const globBase = commit(f, 'add files for protected glob');
+    writeFileSync(join(f.root, 'foo.ts'), 'export const after = 1;\n');
+    writeFileSync(
+      join(f.root, 'a', 'b', 'foo.ts'),
+      'export const after = 1;\n',
+    );
+    const candidateSha = commit(f, 'modify protected files');
+    assert.deepEqual(
+      await surfaceChanges(f.root, globBase, candidateSha, ['**/foo.ts']),
+      [
+        'evaluator surface changed: a/b/foo.ts',
+        'evaluator surface changed: foo.ts',
+      ],
+    );
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('protected trailing /** globs match files under the prefix', async () => {
+  const f = fixture();
+  try {
+    mkdirSync(join(f.root, 'test'));
+    writeFileSync(join(f.root, 'test', 'x.ts'), 'export {};\n');
+    const candidateSha = commit(f, 'add protected test file');
+    assert.deepEqual(
+      await surfaceChanges(f.root, f.base, candidateSha, ['test/**']),
+      ['evaluator surface changed: test/x.ts'],
     );
   } finally {
     rmSync(f.root, { recursive: true, force: true });

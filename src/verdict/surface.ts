@@ -70,10 +70,25 @@ function globMatches(pattern: string, path: string): boolean {
   let expression = '^';
   for (let index = 0; index < pattern.length; index += 1) {
     const character = pattern[index];
+    if (
+      character === '/' &&
+      pattern[index + 1] === '*' &&
+      pattern[index + 2] === '*' &&
+      index + 3 === pattern.length
+    ) {
+      expression += '(?:/.*)?';
+      index += 2;
+      continue;
+    }
     if (character === '*') {
       if (pattern[index + 1] === '*') {
-        expression += '.*';
-        index += 1;
+        if (pattern[index + 2] === '/') {
+          expression += '(?:.*/)?';
+          index += 2;
+        } else {
+          expression += '.*';
+          index += 1;
+        }
       } else {
         expression += '[^/]*';
       }
