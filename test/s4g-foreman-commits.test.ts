@@ -592,7 +592,8 @@ test('checkpoint refuses known token shapes inside template literals', async (t)
     ['Slack response token', ['xoxr-', '12345678-87654321-abcd'].join('')],
     ['Slack service token', ['xoxs-', '12345678-87654321-abcd'].join('')],
     ['AWS access key ID', ['AKIA', 'IOSFODNN7EXAMPLE'].join('')],
-    ['Bearer token', ['Bearer ', 'abcd1234-secret'].join('')],
+    ['lowercase Bearer token', ['bearer ', 'abcd1234-secret'].join('')],
+    ['uppercase Bearer token', ['BEARER ', 'abcd1234-secret'].join('')],
     [
       'JWT',
       [
@@ -675,7 +676,7 @@ test('checkpoint refuses quoted sensitive assignments with metadata-shaped value
   try {
     await writeFile(
       join(root, 'settings.ts'),
-      "export const password = 'LON-231';\n",
+      "export const password = 'LON-231-abc';\n",
     );
     assert.throws(
       () =>
@@ -686,6 +687,33 @@ test('checkpoint refuses quoted sensitive assignments with metadata-shaped value
         ),
       /checkpoint refused: secret pattern/u,
     );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint scans sensitive assignments in ordinary text configuration', async () => {
+  const { root, job } = await checkpointRepo();
+  const assignments = [
+    ['API_KEY=abc12345', 'API_KEY=abc12345'],
+    ["service_AUTH-KEY: 'abc12345'", "service_AUTH-KEY: 'abc12345'"],
+    ['DB_PASSWD="abc12345"', 'DB_PASSWD="abc12345"'],
+    ['client.private_key = `abc12345`', 'client.private_key = `abc12345`'],
+  ] as const;
+  try {
+    for (const [label, content] of assignments) {
+      await writeFile(join(root, 'settings.conf'), `${content}\n`);
+      assert.throws(
+        () =>
+          commitCheckpoint(
+            job,
+            'test: refuse sensitive text assignment',
+            'session-sensitive-text',
+          ),
+        /checkpoint refused: secret pattern/u,
+        label,
+      );
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -4,16 +4,16 @@ import { dirname, isAbsolute, resolve, sep } from 'node:path';
 import type { Job } from '../core/index.ts';
 import { git } from './git.ts';
 
-// The key-value matcher skips Zod schemas; their string arguments are checked below.
-const secretPattern =
-  /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----|(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*(?!z\s*\.\s*[A-Za-z_$][A-Za-z\d_$]*\s*\()[^\s"']{8,}/iu;
+// Zod property schemas need their chained-call literals checked separately.
+const privateKeyPattern = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/iu;
+const bearerTokenPattern = /\bBearer\s+\S+/iu;
 const knownTokenPattern =
-  /\b(?:gh[pousr]_[A-Za-z0-9]{8,}|github_pat_[A-Za-z0-9_]{8,}|sk-[A-Za-z0-9_-]{8,}|sk_(?:live|test)_[A-Za-z0-9_-]{4,}|xox[baprs]-[A-Za-z0-9-]{8,}|AKIA[0-9A-Z]{16}|Bearer\s+\S+|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/u;
+  /\b(?:gh[pousr]_[A-Za-z0-9]{8,}|github_pat_[A-Za-z0-9_]{8,}|sk-[A-Za-z0-9_-]{8,}|sk_(?:live|test)_[A-Za-z0-9_-]{4,}|xox[baprs]-[A-Za-z0-9-]{8,}|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/u;
 const sensitiveZodProperty =
-  /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*:\s*z\s*\./giu;
+  /(?:^|[^\w$])(?:["'`])?[\w.$-]*(?:password|passwd|secret|token|api[-_]?key|auth[-_]?key|private[-_]?key)[\w.$-]*(?:["'`])?\s*:\s*z\s*\./giu;
 const stringLiteralPattern = /(['"`])((?:\\.|(?!\1)[\s\S])*)\1/gu;
-const quotedSensitiveAssignmentPattern =
-  /\b(?:api[_-]?key|access[_-]?token|secret|password)\b["']?\s*[:=]\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/giu;
+const sensitiveAssignmentPattern =
+  /(?:^|[^\w$])(?:["'`])?[\w.$-]*(?:password|passwd|secret|token|api[-_]?key|auth[-_]?key|private[-_]?key)[\w.$-]*(?:["'`])?[ \t]*[:=][ \t]*/giu;
 
 function statusPaths(output: string): string[] {
   return output
@@ -55,7 +55,12 @@ function expressionEnd(source: string, start: number): number {
 }
 
 function isSecretLikeLiteral(value: string): boolean {
-  if (secretPattern.test(value) || knownTokenPattern.test(value)) return true;
+  if (
+    privateKeyPattern.test(value) ||
+    bearerTokenPattern.test(value) ||
+    knownTokenPattern.test(value)
+  )
+    return true;
   const candidate = value.trim();
   // This heuristic is called only for values attached to sensitive keys.
   return (
@@ -73,11 +78,40 @@ function hasSecretLiteral(expression: string): boolean {
   );
 }
 
-function hasQuotedSensitiveAssignment(content: string): boolean {
-  quotedSensitiveAssignmentPattern.lastIndex = 0;
-  return [...content.matchAll(quotedSensitiveAssignmentPattern)].some(
-    (assignment) => isSecretLikeLiteral(assignment[2] ?? ''),
-  );
+function assignedValue(source: string): string {
+  const value = source.trimStart();
+  const quote = value[0];
+  if (quote === "'" || quote === '"' || quote === '`') {
+    let escaped = false;
+    for (let index = 1; index < value.length; index++) {
+      const character = value[index];
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === quote) return value.slice(1, index);
+    }
+    return value.slice(1);
+  }
+  let end = 0;
+  while (
+    end < value.length &&
+    !/\s/u.test(value[end] ?? '') &&
+    !',;)}]'.includes(value[end] ?? '')
+  )
+    end++;
+  return value.slice(0, end);
+}
+
+function hasSensitiveAssignment(content: string): boolean {
+  sensitiveAssignmentPattern.lastIndex = 0;
+  for (const assignment of content.matchAll(sensitiveAssignmentPattern)) {
+    const start = (assignment.index ?? 0) + assignment[0].length;
+    const source = content.slice(start);
+    if (/^z\s*\.\s*[A-Za-z_$][A-Za-z\d_$]*\s*\(/u.test(source)) continue;
+    const value = assignedValue(source);
+    if (value.length >= 8 && /\p{L}/u.test(value) && /\p{N}/u.test(value))
+      return true;
+  }
+  return false;
 }
 
 function containsSecret(content: string): boolean {
@@ -89,9 +123,13 @@ function containsSecret(content: string): boolean {
     if (hasSecretLiteral(expression)) return true;
   }
 
-  if (secretPattern.test(content) || knownTokenPattern.test(content))
+  if (
+    privateKeyPattern.test(content) ||
+    bearerTokenPattern.test(content) ||
+    knownTokenPattern.test(content)
+  )
     return true;
-  if (hasQuotedSensitiveAssignment(content)) return true;
+  if (hasSensitiveAssignment(content)) return true;
   return false;
 }
 
