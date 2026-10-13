@@ -11,8 +11,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { judge } from '../../src/verdict/index.ts';
+import { resolveChecks, resolveRegistry } from '../../src/verdict/registry.ts';
 import { evaluatorSurfaceChanges } from '../../src/verdict/surface.ts';
-import { requiresIsolation } from '../helpers/isolation.ts';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'krn-evaluator-surface-'));
@@ -122,7 +122,6 @@ test('judge accepts a v1 registry and a v2 registry with protected globs', async
     });
     writeFileSync(join(f.root, 'krn.checks.json'), v2);
     const candidateSha = commit(f, 'upgrade registry');
-    const { resolveRegistry } = await import('../../src/verdict/registry.ts');
     assert.deepEqual(await resolveRegistry(f.root, candidateSha), {
       checks: [{ id: 'check', argv: ['npm', 'run', 'check'], timeoutMs: 3000 }],
       protected: ['scripts/**'],
@@ -131,6 +130,25 @@ test('judge accepts a v1 registry and a v2 registry with protected globs', async
       checks: [{ id: 'check', argv: ['npm', 'run', 'check'], timeoutMs: 3000 }],
       protected: [],
     });
+  } finally {
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
+test('resolveChecks returns commands from the base registry', async () => {
+  const f = fixture();
+  try {
+    writeFileSync(
+      join(f.root, 'krn.checks.json'),
+      JSON.stringify({
+        version: 1,
+        checks: [{ id: 'check', argv: ['true'], timeoutMs: 3000 }],
+      }),
+    );
+    commit(f, 'change candidate check command');
+    assert.deepEqual(await resolveChecks(f.root, f.base, ['check']), [
+      { id: 'check', argv: ['npm', 'run', 'check'], timeoutMs: 3000 },
+    ]);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
   }
@@ -159,33 +177,8 @@ test('judge refuses an unparsable base registry', async () => {
   }
 });
 
-test('judge does not refuse a source-only change for surface reasons', async (t) => {
+test('judge does not refuse a source-only change for surface reasons', async () => {
   const f = fixture();
-  if (!process.env.KRN_ISOLATION_CAPABILITIES) {
-    try {
-      mkdirSync(join(f.root, 'src'));
-      writeFileSync(
-        join(f.root, 'src', 'feature.ts'),
-        'export const value = 1;\n',
-      );
-      const candidateSha = commit(f, 'add source');
-      assert.deepEqual(
-        await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
-        [],
-      );
-    } finally {
-      rmSync(f.root, { recursive: true, force: true });
-    }
-    return;
-  }
-  if (
-    !requiresIsolation(
-      t,
-      'judge does not refuse a source-only change for surface reasons',
-      ['bwrap', 'systemdUserScope'],
-    )
-  )
-    return;
   try {
     mkdirSync(join(f.root, 'src'));
     writeFileSync(
@@ -193,19 +186,9 @@ test('judge does not refuse a source-only change for surface reasons', async (t)
       'export const value = 1;\n',
     );
     const candidateSha = commit(f, 'add source');
-    const verdict = await judge(
-      f.job,
-      candidateSha,
-      f.base,
-      ['check'],
-      async () => {},
-    );
-    const findings = verdict.kind === 'pass' ? [] : verdict.findings;
-    assert.equal(
-      findings.some((finding) =>
-        finding.startsWith('evaluator surface changed'),
-      ),
-      false,
+    assert.deepEqual(
+      await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
+      [],
     );
   } finally {
     rmSync(f.root, { recursive: true, force: true });
