@@ -20,6 +20,8 @@ test('repo facts use the recorded base of a master-default repository', async ()
   const root = await mkdtemp(join(tmpdir(), 'krn-base-ref-'));
   try {
     git(root, ['init', '-q', '--initial-branch=master']);
+    git(root, ['config', 'gc.auto', '0']);
+    git(root, ['config', 'maintenance.auto', 'false']);
     await writeFile(join(root, '.gitignore'), '.krn/\n');
     await writeFile(join(root, 'README.md'), 'initial commit\n');
     git(root, ['add', '.gitignore', 'README.md']);

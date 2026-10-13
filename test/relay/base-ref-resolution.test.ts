@@ -5,8 +5,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
-import { resolveBaseRef } from '../../src/cli/index.ts';
-
 function git(root: string, args: string[]): string {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
@@ -17,6 +15,8 @@ test('base ref resolution prefers --base, then origin/HEAD, then current branch'
   const root = await mkdtemp(join(tmpdir(), 'krn-base-order-'));
   try {
     git(root, ['init', '-q', '--initial-branch=master']);
+    git(root, ['config', 'gc.auto', '0']);
+    git(root, ['config', 'maintenance.auto', 'false']);
     await writeFile(join(root, '.gitignore'), '.krn/\n');
     await writeFile(join(root, 'README.md'), 'initial commit\n');
     git(root, ['add', '.gitignore', 'README.md']);
@@ -37,6 +37,7 @@ test('base ref resolution prefers --base, then origin/HEAD, then current branch'
       'refs/remotes/origin/trunk',
     ]);
 
+    const { resolveBaseRef } = await import('../../src/cli/index.ts');
     assert.equal(resolveBaseRef(root, 'master'), 'master');
     assert.equal(resolveBaseRef(root), 'trunk');
     git(root, ['symbolic-ref', '--delete', 'refs/remotes/origin/HEAD']);
