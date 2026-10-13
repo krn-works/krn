@@ -14,6 +14,7 @@ import {
   readFileSync,
   readlinkSync,
   realpathSync,
+  rmdirSync,
   unlinkSync,
   writeSync,
 } from 'node:fs';
@@ -155,26 +156,91 @@ function ensureTraceDirectory(
   if (!isWithinOrSame(repoRoot, nearest)) throw new Error('unsafe trace path');
   assertNoTraceSymlinks(repoRoot, expectedDirectory);
 
-  if (create) mkdirSync(expectedDirectory, { recursive: true, mode: 0o700 });
-  else {
+  const createdDirectories: Array<{
+    path: string;
+    dev?: number;
+    ino?: number;
+  }> = [];
+  try {
+    if (create) {
+      let current = repoRoot;
+      for (const component of relative(repoRoot, expectedDirectory).split(
+        sep,
+      )) {
+        current = join(current, component);
+        let createdDirectory:
+          | { path: string; dev?: number; ino?: number }
+          | undefined;
+        try {
+          lstatSync(current);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT')
+            throw new Error('unsafe trace path');
+          try {
+            mkdirSync(current, { mode: 0o700 });
+            createdDirectory = { path: current };
+            createdDirectories.push(createdDirectory);
+          } catch (mkdirError) {
+            if ((mkdirError as NodeJS.ErrnoException).code !== 'EEXIST')
+              throw new Error('unsafe trace path');
+          }
+        }
+
+        let stats: ReturnType<typeof lstatSync>;
+        try {
+          stats = lstatSync(current);
+        } catch {
+          throw new Error('unsafe trace path');
+        }
+        if (
+          createdDirectory &&
+          stats.isDirectory() &&
+          !stats.isSymbolicLink()
+        ) {
+          createdDirectory.dev = stats.dev;
+          createdDirectory.ino = stats.ino;
+        }
+        if (stats.isSymbolicLink() || !stats.isDirectory())
+          throw new Error('unsafe trace path');
+      }
+    } else {
+      try {
+        lstatSync(expectedDirectory);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+        throw new Error('unsafe trace path');
+      }
+    }
+
+    let actualDirectory: string;
     try {
-      lstatSync(expectedDirectory);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+      actualDirectory = realpathSync(expectedDirectory);
+    } catch {
       throw new Error('unsafe trace path');
     }
-  }
-
-  let actualDirectory: string;
-  try {
-    actualDirectory = realpathSync(expectedDirectory);
+    if (actualDirectory !== expectedDirectory)
+      throw new Error('unsafe trace path');
+    assertNoTraceSymlinks(repoRoot, expectedDirectory);
+    return true;
   } catch {
+    for (const createdDirectory of createdDirectories.reverse()) {
+      try {
+        const stats = lstatSync(createdDirectory.path);
+        if (
+          createdDirectory.dev !== undefined &&
+          createdDirectory.ino !== undefined &&
+          stats.isDirectory() &&
+          !stats.isSymbolicLink() &&
+          stats.dev === createdDirectory.dev &&
+          stats.ino === createdDirectory.ino
+        )
+          rmdirSync(createdDirectory.path);
+      } catch {
+        // Only empty directories created by this invocation are removed.
+      }
+    }
     throw new Error('unsafe trace path');
   }
-  if (actualDirectory !== expectedDirectory)
-    throw new Error('unsafe trace path');
-  assertNoTraceSymlinks(repoRoot, expectedDirectory);
-  return true;
 }
 
 function assertTraceFileIsRegularIfPresent(path: string): void {
@@ -185,7 +251,8 @@ function assertTraceFileIsRegularIfPresent(path: string): void {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
     throw error;
   }
-  if (!stats.isFile()) throw new Error('unsafe trace path');
+  if (!stats.isFile() || stats.nlink !== 1)
+    throw new Error('unsafe trace path');
 }
 
 function openTraceFile(path: string, flags: number, mode?: number): number {
@@ -257,7 +324,8 @@ function openVerifiedTrace(path: string, flags: number, mode?: number): number {
     }
     throw new Error('unsafe trace path');
   }
-  if (!fstatSync(fd).isFile()) {
+  const openedStats = fstatSync(fd);
+  if (!openedStats.isFile() || openedStats.nlink !== 1) {
     closeSync(fd);
     throw new Error('unsafe trace path');
   }

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import fs, { existsSync } from 'node:fs';
 import {
+  link,
   lstat,
   mkdir,
   mkdtemp,
@@ -181,6 +182,132 @@ test('trace append rejects a symlinked state directory', async () => {
     });
     assert.equal(existsSync(join(target, 'trace.jsonl')), false);
   } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('trace directory creation removes a directory created outside after a parent symlink race', async () => {
+  const f = await fixture();
+  const jobId = `lead-intervention-directory-race-${process.pid}`;
+  const parent = join(f.directory, '.krn/runs/foreman');
+  const parkedParent = join(
+    f.directory,
+    '.krn/runs',
+    `foreman-parked-${jobId}`,
+  );
+  const directory = join(parent, jobId);
+  const outside = await mkdtemp(join(tmpdir(), 'krn-trace-outside-'));
+  const job = {
+    id: jobId,
+    issue: 'LON-269',
+    worktree: f.directory,
+    repoRoot: f.directory,
+  };
+  const originalMkdirSync = fs.mkdirSync;
+  let replaced = false;
+  let parentParked = false;
+  let symlinkInstalled = false;
+  try {
+    fs.mkdirSync = new Proxy(originalMkdirSync, {
+      apply(mkdirDirectory, thisArg, args) {
+        if (!replaced && args[0] === directory) {
+          replaced = true;
+          fs.renameSync(parent, parkedParent);
+          parentParked = true;
+          fs.symlinkSync(outside, parent, 'dir');
+          symlinkInstalled = true;
+        }
+        return Reflect.apply(mkdirDirectory, thisArg, args);
+      },
+    });
+    syncBuiltinESMExports();
+
+    await assert.rejects(trace.intent(job, 1), {
+      message: 'unsafe trace path',
+    });
+    assert.equal(replaced, true);
+    assert.equal(existsSync(join(outside, jobId)), false);
+  } finally {
+    fs.mkdirSync = originalMkdirSync;
+    syncBuiltinESMExports();
+    if (symlinkInstalled) fs.unlinkSync(parent);
+    if (parentParked) fs.renameSync(parkedParent, parent);
+    await rm(outside, { recursive: true, force: true });
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('trace append rejects a hard-linked trace without changing its victim', async () => {
+  const f = await fixture();
+  const jobId = `lead-intervention-hardlink-${process.pid}`;
+  const directory = join(f.directory, '.krn/runs/foreman', jobId);
+  const tracePath = join(directory, 'trace.jsonl');
+  const victim = join(f.directory, 'victim.txt');
+  const job = {
+    id: jobId,
+    issue: 'LON-269',
+    worktree: f.directory,
+    repoRoot: f.directory,
+  };
+  try {
+    await mkdir(directory, { recursive: true });
+    await writeFile(victim, 'preserve this victim');
+    await link(victim, tracePath);
+
+    await assert.rejects(trace.intent(job, 1), {
+      message: 'unsafe trace path',
+    });
+    assert.equal(await readFile(victim, 'utf8'), 'preserve this victim');
+    assert.equal((await lstat(tracePath)).nlink, 2);
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('trace reads reject a hard link installed after path validation', async () => {
+  const f = await fixture();
+  const jobId = `lead-intervention-hardlink-race-${process.pid}`;
+  const tracePath = join(
+    f.directory,
+    '.krn/runs/foreman',
+    jobId,
+    'trace.jsonl',
+  );
+  const victim = join(f.directory, 'victim.txt');
+  const job = {
+    id: jobId,
+    issue: 'LON-269',
+    worktree: f.directory,
+    repoRoot: f.directory,
+  };
+  const originalOpenSync = fs.openSync;
+  let linked = false;
+  try {
+    await trace.intent(job, 1);
+    await writeFile(victim, 'preserve this victim');
+    fs.openSync = new Proxy(originalOpenSync, {
+      apply(open, thisArg, args) {
+        const isRead =
+          typeof args[1] === 'number' &&
+          (args[1] & (fs.constants.O_WRONLY | fs.constants.O_RDWR)) === 0;
+        if (!linked && args[0] === tracePath && isRead) {
+          linked = true;
+          fs.unlinkSync(tracePath);
+          fs.linkSync(victim, tracePath);
+        }
+        return Reflect.apply(open, thisArg, args);
+      },
+    });
+    syncBuiltinESMExports();
+
+    await assert.rejects(trace.hasVerdict(job, 'a'.repeat(40)), {
+      message: 'unsafe trace path',
+    });
+    assert.equal(linked, true);
+    assert.equal(await readFile(victim, 'utf8'), 'preserve this victim');
+  } finally {
+    fs.openSync = originalOpenSync;
+    syncBuiltinESMExports();
     await rm(f.directory, { recursive: true, force: true });
   }
 });
