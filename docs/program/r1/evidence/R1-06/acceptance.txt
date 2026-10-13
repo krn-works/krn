@@ -1,13 +1,13 @@
-captured=2026-10-13T23:27:45+02:00
-measured_head=da4badb80f15ee2541211636ebfbfaea0a248450
-src_tree=21fba262e6e6d7f72a6e543c27951c107abffeaa
-test_tree=be28048713b7cb405c172323243d323caa841169
+captured=2026-10-13T23:45:11+02:00
+measured_head=bfbfc268d5b566535262a6e54afc1ccd856d6102
+src_tree=fa02d4455fe54db30db71b2d6796ec3cd0c72fd0
+test_tree=a9d825746811ff4d05a5658d67ebf7e7532f1695
 model=gpt-6-luna
 evals_tree=7e3e3cc0311f73071d5f3b9d6115217bcfdd0a1a
 blueprint_blob=f3d81a850b43c6da35c60a513eafa923c1624869
 note: docs coverage is the blueprint blob; the evidence directory itself is excluded. src/test/evals tree SHAs are unchanged by adding evidence files under docs/program/r1/evidence/; any later head with these trees has identical code and data.
 --- host gate (npm run gate) on measured_head, operator host
-# pass 240
+# pass 243
 # fail 0
 # skipped 0
 Isolation-dependent tests skipped: 0
@@ -29,3 +29,4 @@ round8: gate-local published success for 48896c33 (235 tests, 0 isolation skips)
 round9: gate-local success for 648fee67 (237 tests, 0 isolation skips); falsifier is assertion-red at base cfa5484; trace fd verified via /proc/self/fd; D1 intervention clause not-evaluable at zero B0.
 round10: gate-local success for 3b848fc3 (238 tests, 0 isolation skips); 40-hex tokens rejected, short SHA allowed; trace writes contained in repoRoot state dir with pre-mkdir symlink refusal and /proc/self/fd proof.
 round11: gate-local success for da4badb8 (240 tests, 0 isolation skips); non-regular trace paths (FIFO) refused pre-open with O_NONBLOCK; raced outside creations removed only when empty and inode-verified.
+round12: gate-local success for bfbfc268d5b566535262a6e54afc1ccd856d6102 (243 tests, 0 isolation skips); state dirs created component-wise with rollback; trace files with nlink != 1 refused.
