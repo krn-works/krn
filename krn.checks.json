@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "checks": [
     {
       "id": "typecheck",
@@ -16,5 +16,12 @@
       "argv": ["npm", "run", "rules"],
       "timeoutMs": 600000
     }
+  ],
+  "protected": [
+    "scripts/**",
+    "tsconfig.json",
+    "biome.json",
+    "spec/rules.json",
+    "test/helpers/**"
   ]
 }

@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { Job } from '../core/index.ts';
-import { resolveChecks } from './registry.ts';
+import { type Registry, resolveChecks, resolveRegistry } from './registry.ts';
 import {
   addWorktree,
   cleanupWorktrees,
@@ -11,6 +11,7 @@ import {
   execute,
   TeardownUnconfirmed,
 } from './sandbox.ts';
+import { evaluatorSurfaceChanges } from './surface.ts';
 
 export type CheckEvidence = {
   readonly id: string;
@@ -102,6 +103,26 @@ export async function judge(
     };
   const before = await clean(job.worktree, sha);
   if (before) return { kind: 'refused', checks: [], findings: [before] };
+  let registry: Registry;
+  try {
+    registry = await resolveRegistry(root, base);
+  } catch (error) {
+    return {
+      kind: 'refused',
+      checks: [],
+      findings: [
+        `invalid base registry: ${error instanceof Error ? error.message : String(error)}`,
+      ],
+    };
+  }
+  const surfaceChanges = await evaluatorSurfaceChanges(
+    root,
+    base,
+    sha,
+    registry.protected,
+  );
+  if (surfaceChanges.length)
+    return { kind: 'refused', checks: [], findings: surfaceChanges };
   const copies: string[] = [];
   let teardownUnconfirmed = false;
   const localController = signal ? undefined : new AbortController();
