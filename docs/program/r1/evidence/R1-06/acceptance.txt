@@ -1,7 +1,7 @@
-captured=2026-10-14T01:01:53+02:00
-measured_head=09b847d5d4aabdcf36671115a13a00594a9228a3
+captured=2026-10-14T01:13:52+02:00
+measured_head=f8ffae48c1617d0c2c2d6096216af29b642eb76c
 src_tree=5663be2f485560f8ab67acc1b74ccd8045d3880d
-test_tree=516e884cc06603d85606016a0780197e4eb16655
+test_tree=9ad683c3501b002d072c6672eeb38e59386b80a7
 model=gpt-6-luna
 evals_tree=7e3e3cc0311f73071d5f3b9d6115217bcfdd0a1a
 blueprint_blob=f3d81a850b43c6da35c60a513eafa923c1624869
@@ -34,3 +34,4 @@ round13: gate-local success for 658a48fa (246 tests, 0 isolation skips); live co
 round14 lead decision: documented --text contract kept; stdin alternative added with 8192-byte bound; credential filter applies before any record on both channels. gate-local success for 3b820aaab40f3e1b27174112334f2ba7566aee17 (247 tests).
 round15: gate-local success for 79cee5f846b0b107d97f40202fd6bc0c9ec17019 (248 tests); fd path proof requires procfs only where present, other checks stay mandatory.
 round16 lead decision: KRN is Linux-only (systemd/bwrap/procfs platform contract); trace fd proof is fail-closed - unavailable procfs readback refuses. gate-local success for 09b847d5d4aabdcf36671115a13a00594a9228a3 (248 tests).
+round17: gate-local success for f8ffae48c1617d0c2c2d6096216af29b642eb76c (248 tests); baseline schema falsifier is assertion-red at base via namespace import.
