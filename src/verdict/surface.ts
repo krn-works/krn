@@ -99,6 +99,14 @@ function globMatches(pattern: string, path: string): boolean {
   return new RegExp(`${expression}$`, 'u').test(path);
 }
 
+function isTestPath(path: string): boolean {
+  return (
+    path.startsWith('test/') ||
+    path.startsWith('tests/') ||
+    /\.(?:test|spec)\.[^/]+$/u.test(path)
+  );
+}
+
 function scriptsFrom(raw: string): Record<string, string> {
   return packageSchema.parse(JSON.parse(raw)).scripts ?? {};
 }
@@ -179,6 +187,38 @@ export async function evaluatorSurfaceChanges(
       findings.add(`evaluator surface changed: ${path}`);
     if (protectedGlobs.some((pattern) => globMatches(pattern, path)))
       findings.add(`evaluator surface changed: ${path}`);
+  }
+
+  const testPaths = [
+    ...new Set(
+      entries
+        .filter(({ status, path }) => status !== 'D' && isTestPath(path))
+        .map(({ path }) => path),
+    ),
+  ];
+  const disabledTestToken =
+    /\.skip\(|\{\s*skip:\s*true\s*\}|\.todo\(|test\.only\(/u;
+  for (const path of testPaths) {
+    const addedLines = await git(root, [
+      'diff',
+      '-U0',
+      '--no-ext-diff',
+      base,
+      sha,
+      '--',
+      `:(literal)${path}`,
+    ]);
+    if (
+      addedLines
+        .split('\n')
+        .some(
+          (line) =>
+            line.startsWith('+') &&
+            !line.startsWith('+++') &&
+            disabledTestToken.test(line.slice(1)),
+        )
+    )
+      findings.add(`evaluator surface changed: ${path} (test disabled)`);
   }
 
   if (entries.some(({ path }) => path === 'package.json')) {
