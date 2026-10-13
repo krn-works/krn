@@ -1,16 +1,17 @@
-captured=2026-10-13T21:02:43+02:00
-measured_head=0d65cda76a3c4f3ec9517797e970a34603e9856c
-src_tree=dae204465b004ae3ae3faf250c46b2ca57170b3f
-test_tree=6a98f13a4670380226b9254bc35fbe3f284d5446
+captured=2026-10-13T21:23:21+02:00
+measured_head=36e49e1ddf6ed4d6850471753bd5f1c13fdc3064
+src_tree=27000d9dabc1fa5e1218da140b64483d9bc6f583
+test_tree=c9588493395624db94ff7ca4d290a57c23cc78ae
 evals_tree=7e3e3cc0311f73071d5f3b9d6115217bcfdd0a1a
 docs_tree=7794e7f07fd74063085d307f3d8140fa637a1a24
 note: src/test/evals/docs tree SHAs are unchanged by adding evidence files under docs/program/r1/evidence/ (that directory is excluded from the claim); any later head with these trees has identical code and data.
 --- host gate (npm run gate) on measured_head, operator host
-# pass 229
+# pass 231
 # fail 0
 # skipped 0
 Isolation-dependent tests skipped: 0
 gate exit 0
+trace append refuses symlinked trace paths; lead notes reject credential shapes before any write.
 --- baseline
 lead_interventions=0 dla valid; source: .krn/runs/lead/b0/results.md (host readback)
 escaped_defects=null (brak danych w rekordzie)
