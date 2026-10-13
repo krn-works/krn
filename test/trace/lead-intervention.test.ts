@@ -258,6 +258,56 @@ test('trace append rejects a parent symlink installed between validation and ope
   }
 });
 
+test('trace append removes a new empty file created outside after a parent symlink race', async () => {
+  const f = await fixture();
+  const jobId = `lead-intervention-parent-race-new-${process.pid}`;
+  const parent = join(f.directory, '.krn/runs/foreman');
+  const directory = join(parent, jobId);
+  const parkedDirectory = join(parent, `${jobId}-parked`);
+  const outside = await mkdtemp(join(tmpdir(), 'krn-trace-outside-'));
+  const tracePath = join(directory, 'trace.jsonl');
+  const target = join(outside, 'trace.jsonl');
+  const job = {
+    id: jobId,
+    issue: 'LON-269',
+    worktree: f.directory,
+    repoRoot: f.directory,
+  };
+  const originalOpenSync = fs.openSync;
+  let replaced = false;
+  let directoryParked = false;
+  let symlinkInstalled = false;
+  try {
+    await mkdir(directory, { recursive: true });
+    fs.openSync = new Proxy(originalOpenSync, {
+      apply(open, thisArg, args) {
+        if (!replaced && args[0] === tracePath) {
+          replaced = true;
+          fs.renameSync(directory, parkedDirectory);
+          directoryParked = true;
+          fs.symlinkSync(outside, directory, 'dir');
+          symlinkInstalled = true;
+        }
+        return Reflect.apply(open, thisArg, args);
+      },
+    });
+    syncBuiltinESMExports();
+
+    await assert.rejects(trace.intent(job, 1), {
+      message: 'unsafe trace path',
+    });
+    assert.equal(replaced, true);
+    assert.equal(existsSync(target), false);
+  } finally {
+    fs.openSync = originalOpenSync;
+    syncBuiltinESMExports();
+    if (symlinkInstalled) fs.unlinkSync(directory);
+    if (directoryParked) fs.renameSync(parkedDirectory, directory);
+    await rm(outside, { recursive: true, force: true });
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
 test('lead intervention rejects credentials without writing trace events', async () => {
   const f = await fixture();
   const jobId = `lead-intervention-credentials-${process.pid}`;

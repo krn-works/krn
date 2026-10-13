@@ -14,6 +14,7 @@ import {
   readFileSync,
   readlinkSync,
   realpathSync,
+  unlinkSync,
   writeSync,
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
@@ -176,24 +177,87 @@ function ensureTraceDirectory(
   return true;
 }
 
-function openVerifiedTrace(path: string, flags: number, mode?: number): number {
-  let fd: number;
+function assertTraceFileIsRegularIfPresent(path: string): void {
+  let stats: ReturnType<typeof lstatSync>;
   try {
-    fd = openSync(path, flags | (constants.O_NOFOLLOW ?? 0), mode);
+    stats = lstatSync(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw error;
+  }
+  if (!stats.isFile()) throw new Error('unsafe trace path');
+}
+
+function openTraceFile(path: string, flags: number, mode?: number): number {
+  assertTraceFileIsRegularIfPresent(path);
+  try {
+    return openSync(
+      path,
+      flags | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0),
+      mode,
+    );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ELOOP')
       throw new Error('unsafe trace path');
     throw error;
   }
+}
 
-  let actualPath: string;
+function openVerifiedTrace(path: string, flags: number, mode?: number): number {
+  let fd: number;
+  let createdByOpen = false;
+  if ((flags & constants.O_CREAT) !== 0) {
+    try {
+      fd = openTraceFile(path, flags | constants.O_EXCL, mode);
+      createdByOpen = true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      fd = openTraceFile(path, flags & ~constants.O_CREAT, mode);
+    }
+  } else {
+    fd = openTraceFile(path, flags);
+  }
+
+  let actualPath: string | undefined;
   try {
     actualPath = readlinkSync(`/proc/self/fd/${fd}`);
   } catch {
-    closeSync(fd);
-    throw new Error('unsafe trace path');
+    // A failed descriptor readback is treated like an escaped path below.
   }
   if (actualPath !== resolve(path)) {
+    let cleanupPath: string | undefined;
+    let openedStats: ReturnType<typeof fstatSync> | undefined;
+    if (createdByOpen) {
+      try {
+        openedStats = fstatSync(fd);
+        if (openedStats.isFile() && openedStats.size === 0)
+          cleanupPath = realpathSync(`/proc/self/fd/${fd}`);
+      } catch {
+        // Keep the refusal even if procfs cannot provide a cleanup path.
+      }
+    }
+    closeSync(fd);
+    if (
+      cleanupPath !== undefined &&
+      cleanupPath !== resolve(path) &&
+      openedStats !== undefined
+    ) {
+      try {
+        const currentStats = lstatSync(cleanupPath);
+        if (
+          currentStats.isFile() &&
+          currentStats.size === 0 &&
+          currentStats.dev === openedStats.dev &&
+          currentStats.ino === openedStats.ino
+        )
+          unlinkSync(cleanupPath);
+      } catch {
+        // The path is still rejected if cleanup is no longer possible.
+      }
+    }
+    throw new Error('unsafe trace path');
+  }
+  if (!fstatSync(fd).isFile()) {
     closeSync(fd);
     throw new Error('unsafe trace path');
   }
