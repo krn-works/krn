@@ -1,7 +1,7 @@
-captured=2026-10-13T18:50:38+02:00
-measured_head=aef250ac63395acc8d5abde3a95142f846493225
+captured=2026-10-13T19:03:49+02:00
+measured_head=6b847d7dc3188ab9e7017297ef9647abbdace280
 src_tree=1a85cd34e643072fc0a6ad7ce4540885b1332efa
-test_tree=22246a4d59489340b8f1126fec7fdf30355678fa
+test_tree=e1ea0044e5db966085caa3556f1420f765943573
 note: src/test tree SHAs are unchanged by adding this evidence file; any later head with these trees has identical code.
 --- host gate (npm run gate) on measured_head, operator host
 # pass 220
@@ -13,3 +13,4 @@ gate exit 0
 cherry-pick fd9d5c8 + 3d60c13 from LON-220 onto main 4c337a2; sandbox conflict resolved by preserving pnpmBinary(manager) + gitBlob and the pnpm fallback without mise.
 independent judge Luna: REPLAY-WORTHY
 panel round 2 fix: PATH pnpm fallback resolves to an absolute executable path.
+fixtures disable git gc/maintenance (detached-process panel finding); focused base-ref tests pass on host.
