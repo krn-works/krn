@@ -27,6 +27,11 @@
         "value": null,
         "reason": "judge round count is not reported in results.md"
       },
+      "lead_interventions": 0,
+      "escaped_defects": {
+        "value": null,
+        "reason": "B0 results.md does not report escaped defect counts"
+      },
       "outcome": "PARTIAL: full gate red at changes:check due stale Recall expectation, green-to-green red at base, and cross-commit predictions; six ahead and two behind main. Could not reconstruct Paperclip task record; npm ci was impossible because there was no lockfile."
     },
     {
@@ -61,6 +66,11 @@
         "value": null,
         "reason": "judge round count is not reported in results.md"
       },
+      "lead_interventions": 0,
+      "escaped_defects": {
+        "value": null,
+        "reason": "B0 results.md does not report escaped defect counts"
+      },
       "outcome": "DONE locally: gate exit 0 (998 library tests), read-cli 11/11, state check clean. Resumed from capsule; could not explain local tracking-ref drift."
     },
     {
@@ -88,6 +98,11 @@
       "judge_rounds": {
         "value": null,
         "reason": "judge round count is not reported in results.md"
+      },
+      "lead_interventions": 0,
+      "escaped_defects": {
+        "value": null,
+        "reason": "B0 results.md does not report escaped defect counts"
       },
       "outcome": "DONE locally: falsifier red-to-green, npm run check, 224 tests, test:ci 91. Resumed from capsule; Paperclip status was left backlog by instruction."
     },
@@ -123,6 +138,14 @@
       "judge_rounds": {
         "value": null,
         "reason": "judge round count is not reported in results.md"
+      },
+      "lead_interventions": {
+        "value": null,
+        "reason": "No host B0 results.md records are available under .krn/runs in this worktree"
+      },
+      "escaped_defects": {
+        "value": null,
+        "reason": "B0 results.md does not report escaped defect counts"
       },
       "outcome": "INVALID baseline: task already done; replacement selected as T3b."
     }

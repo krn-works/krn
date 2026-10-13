@@ -66,7 +66,9 @@ re-run, crash). Dane do decyzji o eksperymencie "tylko Luna" na G3.
    nieobliczalne).** Metryka główna: *zaakceptowane wyniki bez uciekających defektów*, raportowane z trzema licznikami na
    wynik: interwencje leada, prompty rekonstrukcyjne, tokeny. Kryterium zabicia (blueprint §12) v2: po 6 podróżach ramienia B
    rdzeń zostaje zamrożony, jeśli mediana interwencji leada na zaakceptowany wynik nie jest ≥30% niższa niż w B0 **albo**
-   wystąpi ≥1 uciekający defekt P0/P1. Minuty operatora pozostają metryką pomocniczą. Baseline B0 trzeba przeliczyć (R1-06).
+   wystąpi ≥1 uciekający defekt P0/P1. Klauzula interwencji jest oceniana tylko, gdy B0 `lead_interventions` > 0; przy zerowej
+   bazie raportuje się ją jako `not-evaluable` (bez PASS/FAIL), a D1 rozstrzygają pozostałe klauzule. Minuty operatora pozostają
+   metryką pomocniczą. Baseline B0 trzeba przeliczyć (R1-06).
 2. **D2 — limit WIP.** Żaden nowy moduł ani host, dopóki R1-01..R1-05 i L2 (R1-12) nie mają kryteriów wyjścia. Maks. 3 zadania
    implementacyjne naraz, rozłączne plikowo.
 3. **D3 — polityka powierzchni ewaluatora: odmowa.** Werdykt odmawia (`refused` → `human_decision`), gdy diff `base..sha`

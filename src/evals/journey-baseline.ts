@@ -9,6 +9,10 @@ const metricSchema = z.union([
   z.string(),
   unknownMetricSchema,
 ]);
+const counterSchema = z.union([
+  z.number().int().nonnegative(),
+  unknownMetricSchema,
+]);
 
 const taskSchema = z.object({
   task: z.string().min(1),
@@ -26,6 +30,8 @@ const taskSchema = z.object({
   }),
   judge_rounds: metricSchema,
   outcome: z.string().min(1),
+  lead_interventions: counterSchema.optional(),
+  escaped_defects: counterSchema.optional(),
 });
 
 export const journeyBaselineSchema = z
@@ -44,6 +50,20 @@ export const journeyBaselineSchema = z
     }
 
     baseline.tasks.forEach((task, index) => {
+      if (task.label === 'valid' && task.lead_interventions === undefined) {
+        context.addIssue({
+          code: 'custom',
+          message: 'valid task rows require lead_interventions',
+          path: ['tasks', index, 'lead_interventions'],
+        });
+      }
+      if (task.label === 'valid' && task.escaped_defects === undefined) {
+        context.addIssue({
+          code: 'custom',
+          message: 'valid task rows require escaped_defects',
+          path: ['tasks', index, 'escaped_defects'],
+        });
+      }
       if (task.label === 'invalid' && !task.reason) {
         context.addIssue({
           code: 'custom',
@@ -53,5 +73,29 @@ export const journeyBaselineSchema = z
       }
     });
   });
+
+export const journeyLiveSchema = z.object({
+  schema: z.literal(2),
+  records: z.array(
+    z.object({
+      issue: z.string().min(1),
+      repo: z.string().min(1),
+      commit: z.string().min(1),
+      job: z.string().min(1),
+      interrupted_at_event: z.string().min(1),
+      resumed_session_id: z.string().min(1),
+      lead_interventions: counterSchema,
+      reconstruction_prompts: counterSchema,
+      escaped_defects: counterSchema,
+      tokens: z.object({
+        input: counterSchema,
+        output: counterSchema,
+      }),
+      outcome: z.string().min(1),
+      limitations: z.array(z.string()),
+      evidence: z.array(z.string()),
+    }),
+  ),
+});
 
 export type JourneyBaseline = z.infer<typeof journeyBaselineSchema>;

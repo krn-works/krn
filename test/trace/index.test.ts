@@ -1,13 +1,19 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { appendFile, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { appendFile, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { Worker } from 'node:worker_threads';
 import type { Job } from '../../src/core/index.ts';
 import { stateDirectory } from '../../src/foreman/state.ts';
-import { hasVerdict, verdict } from '../../src/trace/index.ts';
+import {
+  classifyTraceFdPathReadback,
+  hasVerdict,
+  traceFdPathVerificationDecision,
+  verdict,
+} from '../../src/trace/index.ts';
 import type { VerdictEvent } from '../../src/verdict/index.ts';
 
 async function fixture(): Promise<{
@@ -39,6 +45,45 @@ function event(sha: string, exitCode: number, checkSha: string): VerdictEvent {
     checks: [{ id: 'gate', exitCode, durationMs: 1, sha256: checkSha }],
   };
 }
+
+test('trace fd path readback refuses unavailable procfs and mismatch', () => {
+  const expectedPath = '/repo/.krn/runs/foreman/job/trace.jsonl';
+  const unavailable = classifyTraceFdPathReadback(
+    undefined,
+    'ENOENT',
+    expectedPath,
+  );
+  assert.equal(unavailable, 'unavailable');
+  assert.equal(traceFdPathVerificationDecision(unavailable), 'refusal');
+  const unavailableParent = classifyTraceFdPathReadback(
+    undefined,
+    'ENOTDIR',
+    expectedPath,
+  );
+  assert.equal(unavailableParent, 'unavailable');
+  assert.equal(traceFdPathVerificationDecision(unavailableParent), 'refusal');
+  const verified = classifyTraceFdPathReadback(
+    expectedPath,
+    undefined,
+    expectedPath,
+  );
+  assert.equal(verified, 'verified');
+  assert.equal(traceFdPathVerificationDecision(verified), 'ok');
+  const mismatch = classifyTraceFdPathReadback(
+    '/outside/trace.jsonl',
+    undefined,
+    expectedPath,
+  );
+  assert.equal(mismatch, 'mismatch');
+  assert.equal(traceFdPathVerificationDecision(mismatch), 'refusal');
+  const unreadable = classifyTraceFdPathReadback(
+    undefined,
+    'EACCES',
+    expectedPath,
+  );
+  assert.equal(unreadable, 'mismatch');
+  assert.equal(traceFdPathVerificationDecision(unreadable), 'refusal');
+});
 
 test('trace recovers and reports an incomplete tail but rejects completed corruption', async () => {
   const f = await fixture();
@@ -117,6 +162,67 @@ test('trace records fail then pass at one SHA and deduplicates exact evidence', 
     assert.ok(rows.at(-1)?.data.checks.every((check) => check.exitCode === 0));
     assert.equal(failOnlyCountsAsPassing, false);
     assert.equal(await hasVerdict(f.job, sha), true);
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('trace rejects FIFO paths immediately for append and read', {
+  timeout: 5000,
+}, async () => {
+  const f = await fixture();
+  try {
+    await mkdir(dirname(f.tracePath), { recursive: true });
+    const fifo = spawnSync('mkfifo', [f.tracePath], { encoding: 'utf8' });
+    assert.equal(fifo.status, 0, fifo.stderr);
+
+    const moduleUrl = new URL('../../src/trace/index.ts', import.meta.url).href;
+    for (const operation of ['append', 'read'] as const) {
+      const worker = new Worker(
+        `
+            import { parentPort, workerData } from 'node:worker_threads';
+            const { hasVerdict, intent } = await import(workerData.moduleUrl);
+            try {
+              if (workerData.operation === 'append') await intent(workerData.job, 1);
+              else await hasVerdict(workerData.job, '${'a'.repeat(40)}');
+              parentPort.postMessage({ message: 'unexpected success' });
+            } catch (error) {
+              parentPort.postMessage({ message: error?.message });
+            }
+          `,
+        {
+          eval: true,
+          workerData: { moduleUrl, operation, job: f.job },
+        },
+      );
+      let timedOut = false;
+      try {
+        const result = await new Promise<{ message: string }>(
+          (resolve, reject) => {
+            const timer = setTimeout(() => {
+              timedOut = true;
+              reject(new Error(`${operation} hung while opening a FIFO`));
+            }, 1000);
+            worker.once('message', (value: { message: string }) => {
+              clearTimeout(timer);
+              resolve(value);
+            });
+            worker.once('error', (error) => {
+              clearTimeout(timer);
+              reject(error);
+            });
+          },
+        );
+        assert.deepEqual(result, { message: 'unsafe trace path' });
+      } finally {
+        if (timedOut) {
+          worker.unref();
+          void worker.terminate();
+        } else {
+          await worker.terminate();
+        }
+      }
+    }
   } finally {
     await rm(f.directory, { recursive: true, force: true });
   }
