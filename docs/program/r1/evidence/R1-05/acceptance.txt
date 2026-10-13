@@ -1,15 +1,16 @@
-captured=2026-10-13T19:29:47+02:00
-measured_head=3898ddead7b6e097c8ff79d8e8a8d1222087618c
-src_tree=ba7a3ad8b6b3af1846fcd446f45b052b6c8dbd93
-test_tree=7cf48b5b6dba93aba21828fbcd84b606799ba29e
+captured=2026-10-13T19:43:39+02:00
+measured_head=61791916e9cf2f4212fa43115c61ce367eb6b143
+src_tree=af95ac8f7616003a9830b44afae4c0a9dace2430
+test_tree=59a05e09fe5b70349cf4f1c4f75f6fde2e063dec
 note: src/test tree SHAs are unchanged by adding this evidence file; any later head with these trees has identical code.
 --- host gate (npm run gate) on measured_head, operator host
-# pass 222
+# pass 223
 # fail 0
 # skipped 0
 Isolation-dependent tests skipped: 0
 gate exit 0
 --- replay
+base ref+SHA resolved once before worktree creation (TOCTOU closed).
 cherry-pick fd9d5c8 + 3d60c13 from LON-220 onto main 4c337a2; sandbox conflict resolved by preserving pnpmBinary(manager) + gitBlob and the pnpm fallback without mise.
 independent judge Luna: REPLAY-WORTHY
 panel round 2 fix: PATH pnpm fallback resolves to an absolute executable path.
