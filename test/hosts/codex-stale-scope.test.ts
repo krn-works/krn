@@ -27,7 +27,7 @@ test('systemd scope ends after parent SIGKILL within timeout plus grace', async 
     | { readonly pid: number; readonly unit: string; readonly cgroup: string }
     | undefined;
   try {
-    const fake = await fakeCodex(directory);
+    const fake = await fakeCodex(directory, pidFile);
     const runner = await parentRunner(directory);
     const launched = launchParent(runner, fake, pidFile, sessionTimeoutMs);
     parent = launched.child;
@@ -69,9 +69,8 @@ test('a new host reaps an orphaned scope by prefix and owner metadata', async (t
   let scope:
     | { readonly pid: number; readonly unit: string; readonly cgroup: string }
     | undefined;
-  const priorPidFile = process.env.KRN_FAKE_PID_FILE;
   try {
-    const fake = await fakeCodex(directory);
+    const fake = await fakeCodex(directory, pidFile);
     const runner = await parentRunner(directory);
     const launched = launchParent(runner, fake, pidFile, 60_000);
     parent = launched.child;
@@ -82,8 +81,8 @@ test('a new host reaps an orphaned scope by prefix and owner metadata', async (t
     assert.equal(parent.kill('SIGKILL'), true);
     await closed;
 
-    delete process.env.KRN_FAKE_PID_FILE;
-    const host = new CodexHost({ executable: fake });
+    const completedFake = await fakeCodex(directory);
+    const host = new CodexHost({ executable: completedFake });
     const session = await host.start({
       cwd: directory,
       model: 'gpt-6-luna',
@@ -99,8 +98,6 @@ test('a new host reaps an orphaned scope by prefix and owner metadata', async (t
     assert.equal(scopeIsPopulated(scope.cgroup), false);
     assertScopeInactive(scope.unit);
   } finally {
-    if (priorPidFile === undefined) delete process.env.KRN_FAKE_PID_FILE;
-    else process.env.KRN_FAKE_PID_FILE = priorPidFile;
     if (parent?.exitCode === null && parent.signalCode === null)
       parent.kill('SIGKILL');
     if (scope) await killScope(scope.unit, scope.cgroup);
@@ -108,11 +105,14 @@ test('a new host reaps an orphaned scope by prefix and owner metadata', async (t
   }
 });
 
-async function fakeCodex(directory: string): Promise<string> {
+async function fakeCodex(directory: string, pidFile?: string): Promise<string> {
   const executable = join(directory, 'fake-codex.mjs');
+  const behavior = pidFile
+    ? `writeFileSync(${JSON.stringify(pidFile)},String(process.pid)); setInterval(()=>{},1000);`
+    : "process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'done'}})+'\\n'); process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,output_tokens:1,total_tokens:2}})+'\\n');";
   await writeFile(
     executable,
-    `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nif (process.env.KRN_FAKE_PID_FILE) { writeFileSync(process.env.KRN_FAKE_PID_FILE,String(process.pid)); setInterval(()=>{},1000); } else { process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'done'}})+'\\n'); process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,output_tokens:1,total_tokens:2}})+'\\n'); }\n`,
+    `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\n${behavior}\n`,
   );
   await chmod(executable, 0o700);
   return executable;
@@ -140,7 +140,6 @@ function launchParent(
     env: {
       ...systemdEnvironment(),
       KRN_FAKE_CODEX: fake,
-      KRN_FAKE_PID_FILE: pidFile,
       KRN_SCOPE_CWD: join(pidFile, '..'),
       KRN_PARENT_READY: ready,
       KRN_SESSION_TIMEOUT: String(timeoutMs),
