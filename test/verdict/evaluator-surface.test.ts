@@ -160,6 +160,24 @@ test('judge refuses an unparsable base registry', async () => {
 });
 
 test('judge does not refuse a source-only change for surface reasons', async (t) => {
+  const f = fixture();
+  if (!process.env.KRN_ISOLATION_CAPABILITIES) {
+    try {
+      mkdirSync(join(f.root, 'src'));
+      writeFileSync(
+        join(f.root, 'src', 'feature.ts'),
+        'export const value = 1;\n',
+      );
+      const candidateSha = commit(f, 'add source');
+      assert.deepEqual(
+        await evaluatorSurfaceChanges(f.root, f.base, candidateSha, []),
+        [],
+      );
+    } finally {
+      rmSync(f.root, { recursive: true, force: true });
+    }
+    return;
+  }
   if (
     !requiresIsolation(
       t,
@@ -168,7 +186,6 @@ test('judge does not refuse a source-only change for surface reasons', async (t)
     )
   )
     return;
-  const f = fixture();
   try {
     mkdirSync(join(f.root, 'src'));
     writeFileSync(
