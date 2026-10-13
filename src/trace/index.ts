@@ -12,10 +12,11 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  readlinkSync,
   realpathSync,
   writeSync,
 } from 'node:fs';
-import { dirname, isAbsolute, join, relative, sep } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { z } from 'zod';
 import type { Job } from '../core/index.ts';
 import { readCheckpointRequest } from '../foreman/checkpoint-request.ts';
@@ -105,12 +106,41 @@ function assertNoTraceSymlinks(directory: string, path: string): void {
   }
 }
 
+function openVerifiedTrace(path: string, flags: number, mode?: number): number {
+  let fd: number;
+  try {
+    fd = openSync(path, flags | (constants.O_NOFOLLOW ?? 0), mode);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ELOOP')
+      throw new Error('unsafe trace path');
+    throw error;
+  }
+
+  let actualPath: string;
+  try {
+    actualPath = readlinkSync(`/proc/self/fd/${fd}`);
+  } catch {
+    closeSync(fd);
+    throw new Error('unsafe trace path');
+  }
+  if (actualPath !== resolve(path)) {
+    closeSync(fd);
+    throw new Error('unsafe trace path');
+  }
+  return fd;
+}
+
 function events(job: Job): Event[] {
   const path = file(job);
   if (!existsSync(path)) return [];
   let contents: Buffer;
   try {
-    contents = readFileSync(path);
+    const fd = openVerifiedTrace(path, constants.O_RDONLY);
+    try {
+      contents = readFileSync(fd);
+    } finally {
+      closeSync(fd);
+    }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
     throw error;
@@ -132,7 +162,7 @@ function events(job: Job): Event[] {
   try {
     finalEvent = parseEvent(tail);
   } catch {
-    const fd = openSync(path, 'r+');
+    const fd = openVerifiedTrace(path, constants.O_RDWR);
     try {
       ftruncateSync(fd, completeLength);
       fsyncSync(fd);
@@ -143,7 +173,7 @@ function events(job: Job): Event[] {
     return result;
   }
 
-  const fd = openSync(path, 'a');
+  const fd = openVerifiedTrace(path, constants.O_WRONLY | constants.O_APPEND);
   try {
     writeAllSync(fd, '\n');
     fsyncSync(fd);
@@ -169,12 +199,9 @@ function append(
   const prior = events(job).find((event) => event.key === key);
   if (prior) return false;
   assertNoTraceSymlinks(directory, path);
-  const fd = openSync(
+  const fd = openVerifiedTrace(
     path,
-    constants.O_WRONLY |
-      constants.O_CREAT |
-      constants.O_APPEND |
-      (constants.O_NOFOLLOW ?? 0),
+    constants.O_WRONLY | constants.O_CREAT | constants.O_APPEND,
     0o600,
   );
   try {

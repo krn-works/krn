@@ -476,6 +476,8 @@ Wszystkie pozycje w tej sekcji to [POLICY], przyjęte 2026-10-07 i podlegające 
 defektów*, raportowane z trzema licznikami na wynik: interwencje leada, prompty rekonstrukcyjne, tokeny. Po 6 podróżach
 ramienia B rdzeń zostaje zamrożony, jeśli mediana interwencji leada na zaakceptowany wynik nie jest co najmniej 30% niższa
 niż w B0 **albo** wystąpi co najmniej 1 uciekający defekt P0/P1. Minuty operatora pozostają metryką pomocniczą.
+Klauzula interwencji jest oceniana tylko wtedy, gdy B0 `lead_interventions` > 0. Przy zerowej bazie raportuje się ją jako
+`not-evaluable` (bez PASS/FAIL), a D1 rozstrzygają pozostałe klauzule.
 
 | Ryzyko | Tripwire |
 |---|---|

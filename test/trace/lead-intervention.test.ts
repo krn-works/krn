@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import fs, { existsSync } from 'node:fs';
 import {
   lstat,
   mkdir,
@@ -10,11 +10,12 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises';
+import { syncBuiltinESMExports } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { intent, leadIntervention } from '../../src/trace/index.ts';
+import * as trace from '../../src/trace/index.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 
@@ -72,15 +73,19 @@ function runNote(
   );
 }
 
+test('trace namespace exposes leadIntervention before API calls', () => {
+  assert.equal(typeof trace.leadIntervention, 'function');
+});
+
 test('krn note records a lead intervention in trace.jsonl', async () => {
   const f = await fixture();
   const job = `lead-intervention-${process.pid}`;
-  const trace = join(f.directory, '.krn/runs/foreman', job, 'trace.jsonl');
+  const tracePath = join(f.directory, '.krn/runs/foreman', job, 'trace.jsonl');
   try {
     const result = runNote(f.directory, f.legacy, job, 'resumed after handoff');
     assert.equal(result.status, 0, result.stderr);
     assert.equal(
-      existsSync(trace),
+      existsSync(tracePath),
       true,
       'krn note must append an event instead of forwarding to legacy',
     );
@@ -92,7 +97,7 @@ test('krn note records a lead intervention in trace.jsonl', async () => {
       'reconstruction',
     );
     assert.equal(reconstructionResult.status, 0, reconstructionResult.stderr);
-    const rows = (await readFile(trace, 'utf8'))
+    const rows = (await readFile(tracePath, 'utf8'))
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line) as Record<string, unknown>);
@@ -133,7 +138,7 @@ test('trace append rejects a symlinked trace.jsonl', async () => {
   const f = await fixture();
   const jobId = `lead-intervention-symlink-${process.pid}`;
   const directory = join(f.directory, '.krn/runs/foreman', jobId);
-  const trace = join(directory, 'trace.jsonl');
+  const tracePath = join(directory, 'trace.jsonl');
   const target = join(f.directory, 'trace-target.jsonl');
   const job = {
     id: jobId,
@@ -144,9 +149,11 @@ test('trace append rejects a symlinked trace.jsonl', async () => {
   try {
     await mkdir(directory, { recursive: true });
     await writeFile(target, 'preserve this trace');
-    await symlink(target, trace);
-    await assert.rejects(intent(job, 1), { message: 'unsafe trace path' });
-    assert.equal((await lstat(trace)).isSymbolicLink(), true);
+    await symlink(target, tracePath);
+    await assert.rejects(trace.intent(job, 1), {
+      message: 'unsafe trace path',
+    });
+    assert.equal((await lstat(tracePath)).isSymbolicLink(), true);
     assert.equal(await readFile(target, 'utf8'), 'preserve this trace');
   } finally {
     await rm(f.directory, { recursive: true, force: true });
@@ -169,9 +176,62 @@ test('trace append rejects a symlinked state directory', async () => {
     await mkdir(parent, { recursive: true });
     await mkdir(target);
     await symlink(target, directory);
-    await assert.rejects(intent(job, 1), { message: 'unsafe trace path' });
+    await assert.rejects(trace.intent(job, 1), {
+      message: 'unsafe trace path',
+    });
     assert.equal(existsSync(join(target, 'trace.jsonl')), false);
   } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('trace append rejects a parent symlink installed between validation and open', async () => {
+  const f = await fixture();
+  const jobId = `lead-intervention-parent-race-${process.pid}`;
+  const parent = join(f.directory, '.krn/runs/foreman');
+  const directory = join(parent, jobId);
+  const parkedDirectory = join(parent, `${jobId}-parked`);
+  const outside = await mkdtemp(join(tmpdir(), 'krn-trace-outside-'));
+  const tracePath = join(directory, 'trace.jsonl');
+  const target = join(outside, 'trace.jsonl');
+  const job = {
+    id: jobId,
+    issue: 'LON-269',
+    worktree: f.directory,
+    repoRoot: f.directory,
+  };
+  const originalOpenSync = fs.openSync;
+  let replaced = false;
+  let directoryParked = false;
+  let symlinkInstalled = false;
+  try {
+    await mkdir(directory, { recursive: true });
+    await writeFile(target, 'preserve this trace');
+    fs.openSync = new Proxy(originalOpenSync, {
+      apply(open, thisArg, args) {
+        if (!replaced && args[0] === tracePath) {
+          replaced = true;
+          fs.renameSync(directory, parkedDirectory);
+          directoryParked = true;
+          fs.symlinkSync(outside, directory, 'dir');
+          symlinkInstalled = true;
+        }
+        return Reflect.apply(open, thisArg, args);
+      },
+    });
+    syncBuiltinESMExports();
+
+    await assert.rejects(trace.intent(job, 1), {
+      message: 'unsafe trace path',
+    });
+    assert.equal(replaced, true);
+    assert.equal(await readFile(target, 'utf8'), 'preserve this trace');
+  } finally {
+    fs.openSync = originalOpenSync;
+    syncBuiltinESMExports();
+    if (symlinkInstalled) fs.unlinkSync(directory);
+    if (directoryParked) fs.renameSync(parkedDirectory, directory);
+    await rm(outside, { recursive: true, force: true });
     await rm(f.directory, { recursive: true, force: true });
   }
 });
@@ -179,7 +239,12 @@ test('trace append rejects a symlinked state directory', async () => {
 test('lead intervention rejects credentials without writing trace events', async () => {
   const f = await fixture();
   const jobId = `lead-intervention-credentials-${process.pid}`;
-  const trace = join(f.directory, '.krn/runs/foreman', jobId, 'trace.jsonl');
+  const tracePath = join(
+    f.directory,
+    '.krn/runs/foreman',
+    jobId,
+    'trace.jsonl',
+  );
   const job = {
     id: jobId,
     issue: 'LON-269',
@@ -215,7 +280,7 @@ test('lead intervention rejects credentials without writing trace events', async
     const outcomes: string[] = [];
     for (const [label, note] of rejectedNotes) {
       try {
-        await leadIntervention(job, 'intervention', note);
+        await trace.leadIntervention(job, 'intervention', note);
         outcomes.push(`${label}: accepted`);
       } catch (error) {
         outcomes.push(`${label}: ${(error as Error).message}`);
@@ -228,7 +293,7 @@ test('lead intervention rejects credentials without writing trace events', async
           `${label}: lead intervention note must not contain credentials`,
       ),
     );
-    assert.equal(existsSync(trace), false);
+    assert.equal(existsSync(tracePath), false);
   } finally {
     await rm(f.directory, { recursive: true, force: true });
   }
@@ -237,7 +302,12 @@ test('lead intervention rejects credentials without writing trace events', async
 test('lead intervention accepts ordinary prose with a full commit SHA', async () => {
   const f = await fixture();
   const jobId = `lead-intervention-sha-${process.pid}`;
-  const trace = join(f.directory, '.krn/runs/foreman', jobId, 'trace.jsonl');
+  const tracePath = join(
+    f.directory,
+    '.krn/runs/foreman',
+    jobId,
+    'trace.jsonl',
+  );
   const job = {
     id: jobId,
     issue: 'LON-269',
@@ -247,8 +317,8 @@ test('lead intervention accepts ordinary prose with a full commit SHA', async ()
   const note =
     'Reviewed LON-269 TASK-12345678901234567890 krn-LON-269-r1-06-metric 1fe459533fb2b79469d33938e391701f89637fc5 1fe459533fb2b79469d33938e391701f89637fc5a81e100d2bb9fa4a7e6f0c2f after handoff';
   try {
-    await leadIntervention(job, 'intervention', note);
-    const rows = (await readFile(trace, 'utf8'))
+    await trace.leadIntervention(job, 'intervention', note);
+    const rows = (await readFile(tracePath, 'utf8'))
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line) as Record<string, unknown>);
@@ -262,7 +332,12 @@ test('lead intervention accepts ordinary prose with a full commit SHA', async ()
 test('lead intervention accepts a UUID in ordinary prose', async () => {
   const f = await fixture();
   const jobId = `lead-intervention-uuid-${process.pid}`;
-  const trace = join(f.directory, '.krn/runs/foreman', jobId, 'trace.jsonl');
+  const tracePath = join(
+    f.directory,
+    '.krn/runs/foreman',
+    jobId,
+    'trace.jsonl',
+  );
   const job = {
     id: jobId,
     issue: 'LON-269',
@@ -271,8 +346,8 @@ test('lead intervention accepts a UUID in ordinary prose', async () => {
   };
   const note = 'Resumed from checkpoint 550e8400-e29b-41d4-a716-446655440000';
   try {
-    await leadIntervention(job, 'intervention', note);
-    const rows = (await readFile(trace, 'utf8'))
+    await trace.leadIntervention(job, 'intervention', note);
+    const rows = (await readFile(tracePath, 'utf8'))
       .trim()
       .split('\n')
       .map((line) => JSON.parse(line) as Record<string, unknown>);
