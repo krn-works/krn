@@ -198,7 +198,7 @@ export async function evaluatorSurfaceChanges(
   ];
   const testTokenSeparator = String.raw`(?:\s|/\*[\s\S]*?\*/|//[^\r\n]*(?:\r?\n|$))*`;
   const disabledTestToken = new RegExp(
-    String.raw`(?:\.(?:skip|todo|only)|\[\s*(['"])(?:skip|todo|only)\1\s*\])${testTokenSeparator}\(|(?:^|\s|[,{])skip\s*:\s*true\b`,
+    String.raw`(?:\.(?:skip|todo|only)|\[\s*(['"])(?:skip|todo|only)\1\s*\])${testTokenSeparator}(?:\?\.)?${testTokenSeparator}\(|(?:^|\s|[,{])skip\s*:\s*true\b|\[\s*(['"])skip\2\s*\]${testTokenSeparator}:${testTokenSeparator}true\b`,
     'u',
   );
   for (const path of testPaths) {

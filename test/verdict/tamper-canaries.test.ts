@@ -174,6 +174,10 @@ test('canary 6 refuses each test-disabling token added to an existing test', asy
       '',
     ),
     ['test', '.skip ', '(', "'disabled assertion', () => {});"].join(''),
+    ['test', '.skip?.', '(', "'disabled assertion', () => {});"].join(''),
+    ['test', '.todo?.', '(', "'unfinished assertion');"].join(''),
+    ['test', '.only?.', '(', "'selected assertion', () => {});"].join(''),
+    `test.skip?. /* c */ ('x', () => {});`,
     ['test', "['", 'skip', "'](", "'disabled assertion', () => {});"].join(''),
     ['test', '["', 'todo', '"](', "'unfinished assertion');"].join(''),
     ['test', '.todo', '(', "'unfinished assertion');"].join(''),
@@ -182,6 +186,8 @@ test('canary 6 refuses each test-disabling token added to an existing test', asy
 ('x', () => {});`,
     `test.skip /* c */ ('x', () => {});`,
     `test.skip // c\n('x', () => {});`,
+    `test('disabled assertion', { ["skip"]: true }, () => {});`,
+    `test('disabled assertion', { ['skip']: true }, () => {});`,
   ];
   for (const line of addedCases) {
     const f = fixture();
