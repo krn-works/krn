@@ -2,9 +2,9 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 // biome-ignore format: These filesystem primitives form the sandbox's owned I/O surface.
-import { closeSync, constants, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeSync } from 'node:fs';
+import { accessSync, closeSync, constants, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, delimiter, dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import type { Job } from '../core/index.ts';
 import { stateDirectory } from '../foreman/state.ts';
@@ -111,11 +111,23 @@ async function pnpmBinary(manager: string): Promise<string> {
     result = await run('mise', ['where', manager], tmpdir(), 15000, { PATH: process.env.PATH, HOME: process.env.HOME });
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    const version = await run('pnpm', ['--version'], tmpdir(), 15000, {
+    const expectedVersion = manager.slice('pnpm@'.length);
+    const executable = process.env.PATH?.split(delimiter)
+      .map((directory) => resolve(directory || '.', 'pnpm'))
+      .find((candidate) => {
+        if (!existsSync(candidate)) return false;
+        try {
+          accessSync(candidate, constants.X_OK);
+          return true;
+        } catch {
+          return false;
+        }
+      });
+    if (!executable) throw new Error(`PATH pnpm must be ${expectedVersion}`);
+    const version = await run(executable, ['--version'], tmpdir(), 15000, {
       PATH: process.env.PATH,
       HOME: process.env.HOME,
     });
-    const expectedVersion = manager.slice('pnpm@'.length);
     if (
       version.status !== 0 ||
       version.stdout.toString().trim() !== expectedVersion
@@ -123,7 +135,7 @@ async function pnpmBinary(manager: string): Promise<string> {
       throw new Error(
         version.stderr.toString() || `PATH pnpm must be ${expectedVersion}`,
       );
-    return 'pnpm';
+    return executable;
   }
   const directory = result.stdout.toString().trim();
   if (result.status !== 0 || !directory)
