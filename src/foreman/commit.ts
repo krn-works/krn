@@ -6,7 +6,9 @@ import { git } from './git.ts';
 
 // The key-value matcher skips Zod schemas; their string arguments are checked below.
 const secretPattern =
-  /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*(?!z\s*\.\s*[A-Za-z_$][A-Za-z\d_$]*\s*\()[^\s"']{8,}/iu;
+  /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----|(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*(?!z\s*\.\s*[A-Za-z_$][A-Za-z\d_$]*\s*\()[^\s"']{8,}/iu;
+const knownTokenPattern =
+  /\b(?:gh[pousr]_[A-Za-z0-9]{8,}|github_pat_[A-Za-z0-9_]{8,}|sk-[A-Za-z0-9_-]{8,}|sk_(?:live|test)_[A-Za-z0-9_-]{4,}|xox[baprs]-[A-Za-z0-9-]{8,}|AKIA[0-9A-Z]{16}|Bearer\s+\S+|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/u;
 const sensitiveZodProperty =
   /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*:\s*z\s*\./giu;
 const stringLiteralPattern = /(['"`])((?:\\.|(?!\1)[\s\S])*)\1/gu;
@@ -52,26 +54,10 @@ function expressionEnd(source: string, start: number): number {
   return source.length;
 }
 
-function isStructuredMetadataLiteral(value: string): boolean {
-  return (
-    isAbsolute(value) ||
-    /^[A-Za-z]:[\\/]/u.test(value) ||
-    /^intent:\d+$/u.test(value) ||
-    /^[A-Z]{1,8}\d+[a-z]?-[A-Za-z0-9-]+$/u.test(value) ||
-    /^[A-Z]{2,8}-\d{1,8}$/u.test(value)
-  );
-}
-
-function isSecretLikeLiteral(
-  value: string,
-  scanStructuredMetadata = true,
-): boolean {
-  if (secretPattern.test(value)) return true;
+function isSecretLikeLiteral(value: string): boolean {
+  if (secretPattern.test(value) || knownTokenPattern.test(value)) return true;
   const candidate = value.trim();
-  // Checkpointed source can contain paths and KRN control IDs with digits.
-  // Explicit credential matches above still win; schema literals stay strict.
-  if (scanStructuredMetadata && isStructuredMetadataLiteral(candidate))
-    return false;
+  // This heuristic is called only for values attached to sensitive keys.
   return (
     candidate.length >= 6 &&
     !/\s/u.test(candidate) &&
@@ -83,14 +69,14 @@ function isSecretLikeLiteral(
 function hasSecretLiteral(expression: string): boolean {
   stringLiteralPattern.lastIndex = 0;
   return [...expression.matchAll(stringLiteralPattern)].some((literal) =>
-    isSecretLikeLiteral(literal[2] ?? '', false),
+    isSecretLikeLiteral(literal[2] ?? ''),
   );
 }
 
 function hasQuotedSensitiveAssignment(content: string): boolean {
   quotedSensitiveAssignmentPattern.lastIndex = 0;
   return [...content.matchAll(quotedSensitiveAssignmentPattern)].some(
-    (assignment) => isSecretLikeLiteral(assignment[2] ?? '', false),
+    (assignment) => isSecretLikeLiteral(assignment[2] ?? ''),
   );
 }
 
@@ -103,12 +89,10 @@ function containsSecret(content: string): boolean {
     if (hasSecretLiteral(expression)) return true;
   }
 
-  if (secretPattern.test(content)) return true;
+  if (secretPattern.test(content) || knownTokenPattern.test(content))
+    return true;
   if (hasQuotedSensitiveAssignment(content)) return true;
-  stringLiteralPattern.lastIndex = 0;
-  return [...content.matchAll(stringLiteralPattern)].some((literal) =>
-    isSecretLikeLiteral(literal[2] ?? ''),
-  );
+  return false;
 }
 
 function inspect(root: string, path: string): void {

@@ -13,12 +13,14 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { commitCheckpoint } from '../src/foreman/commit.ts';
+import * as checkpoint from '../src/foreman/commit.ts';
 import { runJob } from '../src/foreman/run.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
 import { requiresIsolation } from './helpers/isolation.ts';
+
+const commitCheckpoint = checkpoint.commitCheckpoint;
 
 async function checkpointRepo() {
   const root = await mkdtemp(join(tmpdir(), 'krn-lon-231-'));
@@ -459,15 +461,15 @@ test('checkpoint accepts password Zod schema syntax without a literal', async ()
   }
 });
 
-test('checkpoint scans secret literals in Zod chained-call arguments', async (t) => {
+test('checkpoint scans secret literals in sensitive Zod chained-call arguments', async (t) => {
   const cases = [
     [
       '.default short password literal',
-      "export const schema = z.object({ setting: z.string().default('hunter2') });\n",
+      "export const schema = z.object({ password: z.string().default('hunter2') });\n",
     ],
     [
       '.default',
-      "export const schema = z.object({ setting: z.string().default('hunter2-secret') });\n",
+      "export const schema = z.object({ apiKey: z.string().default('hunter2-secret') });\n",
     ],
     [
       '.default on a password schema',
@@ -475,11 +477,11 @@ test('checkpoint scans secret literals in Zod chained-call arguments', async (t)
     ],
     [
       '.catch',
-      "export const schema = z.object({ setting: z.string().catch('hunter2-secret') });\n",
+      "export const schema = z.object({ accessToken: z.string().catch('hunter2-secret') });\n",
     ],
     [
       '.describe',
-      "export const schema = z.object({ setting: z.string().describe('hunter2-secret') });\n",
+      "export const schema = z.object({ secret: z.string().describe('hunter2-secret') });\n",
     ],
   ] as const;
 
@@ -520,6 +522,115 @@ test('checkpoint accepts a non-secret Zod description', async () => {
     );
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint accepts ordinary literals with low-entropy-looking values', async () => {
+  const { root, job } = await checkpointRepo();
+  try {
+    await writeFile(
+      join(root, 'settings.ts'),
+      [
+        "const hash = 'sha256';",
+        "const encoding = 'base64';",
+        "const target = 'es2022';",
+        "const database = 'utf8mb4';",
+        "const label = 'hunter2-secret';",
+        'const schema = z.object({',
+        "  setting: z.string().default('hunter2-secret'),",
+        '});',
+        '',
+      ].join('\n'),
+    );
+    assert.doesNotThrow(() =>
+      commitCheckpoint(
+        job,
+        'test: accept ordinary literals',
+        'session-ordinary-literals',
+      ),
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint refuses known token shapes inside template literals', async (t) => {
+  const cases = [
+    [
+      'GitHub classic token',
+      ['ghp_', 'abcdefghijklmnopqrstuvwxyzABCDEF'].join(''),
+    ],
+    [
+      'GitHub OAuth token',
+      ['gho_', 'abcdefghijklmnopqrstuvwxyzABCDEF'].join(''),
+    ],
+    [
+      'GitHub user token',
+      ['ghu_', 'abcdefghijklmnopqrstuvwxyzABCDEF'].join(''),
+    ],
+    [
+      'GitHub server token',
+      ['ghs_', 'abcdefghijklmnopqrstuvwxyzABCDEF'].join(''),
+    ],
+    [
+      'GitHub refresh token',
+      ['ghr_', 'abcdefghijklmnopqrstuvwxyzABCDEF'].join(''),
+    ],
+    [
+      'GitHub fine-grained token',
+      ['github_pat_', '11AA_abcdefghijklmnopqrstuvwxyz'].join(''),
+    ],
+    [
+      'Stripe-style sk token',
+      ['sk-', 'proj-abcdefghijklmnopqrstuvwxyz'].join(''),
+    ],
+    ['Stripe live token', ['sk_live_', 'short'].join('')],
+    ['Stripe test token', ['sk_test_', 'short'].join('')],
+    ['Slack bot token', ['xoxb-', '12345678-87654321-abcd'].join('')],
+    ['Slack app token', ['xoxa-', '12345678-87654321-abcd'].join('')],
+    ['Slack user token', ['xoxp-', '12345678-87654321-abcd'].join('')],
+    ['Slack response token', ['xoxr-', '12345678-87654321-abcd'].join('')],
+    ['Slack service token', ['xoxs-', '12345678-87654321-abcd'].join('')],
+    ['AWS access key ID', ['AKIA', 'IOSFODNN7EXAMPLE'].join('')],
+    ['Bearer token', ['Bearer ', 'abcd1234-secret'].join('')],
+    [
+      'JWT',
+      [
+        'eyJ',
+        'hbGciOiJIUzI1NiJ9',
+        '.',
+        'eyJzdWIiOiIxMjMifQ',
+        '.',
+        'signature',
+      ].join(''),
+    ],
+    [
+      'PEM private key marker',
+      ['-----BEGIN ', 'OPENSSH PRIVATE KEY-----'].join(''),
+    ],
+  ] as const;
+
+  for (const [shape, token] of cases) {
+    await t.test(shape, async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(
+          join(root, 'settings.ts'),
+          `const token = \`${token}\`;\n`,
+        );
+        assert.throws(
+          () =>
+            checkpoint.commitCheckpoint(
+              job,
+              'test: refuse template token',
+              'session-template-token',
+            ),
+          /checkpoint refused: secret pattern/u,
+        );
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
   }
 });
 
