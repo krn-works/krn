@@ -80,10 +80,10 @@ export function resolveCodexExecutable(home: string = homedir()): string {
     .filter(
       (entry) =>
         entry.isDirectory() &&
-        /^\d+\.\d+\.\d+-[0-9A-Za-z][0-9A-Za-z.-]*$/.test(entry.name),
+        /^\d+\.\d+\.\d+-[0-9A-Za-z][0-9A-Za-z._-]*$/.test(entry.name),
     )
     .map((entry) => {
-      const match = /^(\d+)\.(\d+)\.(\d+)-[0-9A-Za-z][0-9A-Za-z.-]*$/.exec(
+      const match = /^(\d+)\.(\d+)\.(\d+)-[0-9A-Za-z][0-9A-Za-z._-]*$/.exec(
         entry.name,
       );
       if (!match) return undefined;
