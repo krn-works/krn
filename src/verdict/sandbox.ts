@@ -104,7 +104,7 @@ function sandboxEnv(extraPath?: string): NodeJS.ProcessEnv {
   return { PATH: [dirname(process.execPath), extraPath, '/usr/bin', '/bin'].filter((path): path is string => Boolean(path)).join(':'), LANG: 'C', LC_ALL: 'C', HOME: '/tmp/krn-home', TMPDIR: '/tmp/krn-home' };
 }
 
-async function pnpmBinary(manager: string): Promise<string> {
+export async function pnpmBinary(manager: string): Promise<string> {
   let result: CommandResult;
   try {
     // biome-ignore format: Toolchain lookup is one process boundary.
