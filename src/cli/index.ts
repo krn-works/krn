@@ -100,6 +100,13 @@ async function start(args: string[]): Promise<void> {
     root,
     args.includes('--base') ? value(args, '--base') : undefined,
   );
+  const baseSha = git(root, [
+    'rev-parse',
+    '--verify',
+    '--quiet',
+    '--end-of-options',
+    `${baseRef}^{commit}`,
+  ]);
   const worktree = resolve(root, '.krn', 'worktrees', id);
   if (existsSync(dirname(worktree)))
     assertWorktreeParentInside(root, dirname(worktree));
@@ -138,7 +145,7 @@ async function start(args: string[]): Promise<void> {
     throw error;
   }
   const job: Job = { id, issue, worktree, repoRoot: root };
-  recordRepo(job, root, baseRef);
+  recordRepo(job, root, baseRef, baseSha);
   await operatorStart(job, process.env.USER ?? 'local operator');
   process.stdout.write(`${JSON.stringify(job)}\n`);
 }

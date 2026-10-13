@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { recordRepo } from '../../src/foreman/state.ts';
 import { repoFacts } from '../../src/relay/index.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
@@ -15,6 +16,60 @@ function git(root: string, args: string[]): string {
   assert.equal(result.status, 0, result.stderr);
   return result.stdout.trim();
 }
+
+test('recordRepo persists the base SHA captured before its ref moves', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-base-ref-pin-'));
+  try {
+    git(root, ['init', '-q', '--initial-branch=master']);
+    git(root, ['config', 'gc.auto', '0']);
+    git(root, ['config', 'maintenance.auto', 'false']);
+    await writeFile(join(root, '.gitignore'), '.krn/\n');
+    await writeFile(join(root, 'README.md'), 'initial commit\n');
+    git(root, ['add', '.gitignore', 'README.md']);
+    git(root, [
+      '-c',
+      'user.name=Base Ref Test',
+      '-c',
+      'user.email=base-ref@example.invalid',
+      'commit',
+      '-qm',
+      'initial commit',
+    ]);
+    const capturedBaseSha = git(root, ['rev-parse', 'master']);
+    const worktree = join(root, '.krn', 'worktrees', 'j-pinned');
+    await mkdir(join(root, '.krn', 'worktrees'), { recursive: true });
+    git(root, ['worktree', 'add', '-b', 'krn/j-pinned', worktree, 'HEAD']);
+
+    await writeFile(join(root, 'advanced.txt'), 'advance master\n');
+    git(root, ['add', 'advanced.txt']);
+    git(root, [
+      '-c',
+      'user.name=Base Ref Test',
+      '-c',
+      'user.email=base-ref@example.invalid',
+      'commit',
+      '-qm',
+      'advance master',
+    ]);
+    assert.notEqual(git(root, ['rev-parse', 'master']), capturedBaseSha);
+
+    const record = recordRepo(
+      {
+        id: 'j-pinned',
+        issue: 'X',
+        worktree,
+        repoRoot: root,
+      },
+      root,
+      'master',
+      capturedBaseSha,
+    );
+    assert.equal(record.baseRef, 'master');
+    assert.equal(record.baseSha, capturedBaseSha);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test('repo facts use the recorded base SHA after the base ref changes', async () => {
   const root = await mkdtemp(join(tmpdir(), 'krn-base-ref-'));
