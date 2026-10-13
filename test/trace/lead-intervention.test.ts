@@ -43,35 +43,33 @@ function runNote(
   job: string,
   text: string,
   kind: 'intervention' | 'reconstruction' = 'intervention',
+  includeTextFlag = false,
 ) {
-  return spawnSync(
-    process.execPath,
-    [
-      cli,
-      'note',
-      '--job',
-      job,
-      '--issue',
-      'LON-269',
-      '--worktree',
-      directory,
-      '--repo-root',
-      directory,
-      '--kind',
-      kind,
-      '--text',
-      text,
-    ],
-    {
-      cwd: directory,
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        KRN_LEGACY_ENTRY: legacy,
-        KRN_FORWARDED: '',
-      },
+  const args = [
+    cli,
+    'note',
+    '--job',
+    job,
+    '--issue',
+    'LON-269',
+    '--worktree',
+    directory,
+    '--repo-root',
+    directory,
+    '--kind',
+    kind,
+  ];
+  if (includeTextFlag) args.push('--text', text);
+  return spawnSync(process.execPath, args, {
+    cwd: directory,
+    encoding: 'utf8',
+    input: includeTextFlag ? '' : text,
+    env: {
+      ...process.env,
+      KRN_LEGACY_ENTRY: legacy,
+      KRN_FORWARDED: '',
     },
-  );
+  });
 }
 
 test('trace namespace exposes leadIntervention before API calls', () => {
@@ -130,6 +128,41 @@ test('krn note rejects multiline or overlong notes', async () => {
       existsSync(join(f.directory, '.krn/runs/foreman', job, 'trace.jsonl')),
       false,
     );
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('krn note rejects --text and does not write a trace event', async () => {
+  const f = await fixture();
+  const job = `lead-intervention-text-flag-${process.pid}`;
+  const tracePath = join(f.directory, '.krn/runs/foreman', job, 'trace.jsonl');
+  try {
+    const result = runNote(
+      f.directory,
+      f.legacy,
+      job,
+      'this should not be recorded',
+      'intervention',
+      true,
+    );
+    assert.equal(result.status, 64, result.stderr);
+    assert.match(result.stderr, /stdin/u);
+    assert.equal(existsSync(tracePath), false);
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('krn note rejects credential text from stdin without writing a trace event', async () => {
+  const f = await fixture();
+  const job = `lead-intervention-stdin-credentials-${process.pid}`;
+  const tracePath = join(f.directory, '.krn/runs/foreman', job, 'trace.jsonl');
+  try {
+    const result = runNote(f.directory, f.legacy, job, 'token: abc');
+    assert.equal(result.status, 64, result.stderr);
+    assert.match(result.stderr, /must not contain credentials/u);
+    assert.equal(existsSync(tracePath), false);
   } finally {
     await rm(f.directory, { recursive: true, force: true });
   }

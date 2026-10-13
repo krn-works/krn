@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
-import { journeyBaselineSchema } from '../src/evals/journey-baseline.ts';
+import {
+  journeyBaselineSchema,
+  journeyLiveSchema,
+} from '../src/evals/journey-baseline.ts';
 
 const unknown = { value: null, reason: 'not recorded in results.md' };
 const validTask = {
@@ -17,6 +20,21 @@ const validTask = {
   outcome: 'completed',
   lead_interventions: 2,
   escaped_defects: 0,
+};
+const validLiveRecord = {
+  issue: 'LON-269',
+  repo: 'krn',
+  commit: 'd657fdf4',
+  job: 'job-1',
+  interrupted_at_event: 'event-1',
+  resumed_session_id: 'session-1',
+  lead_interventions: 0,
+  reconstruction_prompts: 1,
+  escaped_defects: 0,
+  tokens: { input: 2, output: 3 },
+  outcome: 'completed',
+  limitations: [],
+  evidence: [],
 };
 
 test('B0 schema rejects fewer than three valid task rows', () => {
@@ -93,4 +111,35 @@ test('tracked J1 baseline satisfies the B0 schema', async () => {
     ),
   );
   assert.equal(journeyBaselineSchema.safeParse(baseline).success, true);
+});
+
+test('live counters accept counts and unknown values, but reject strings', () => {
+  const parseLiveRecord = (record: unknown) =>
+    journeyLiveSchema.safeParse({ schema: 2, records: [record] }).success;
+  const withUnknown = {
+    ...validLiveRecord,
+    reconstruction_prompts: unknown,
+    tokens: { input: unknown, output: unknown },
+  };
+
+  assert.equal(parseLiveRecord(validLiveRecord), true);
+  assert.equal(parseLiveRecord(withUnknown), true);
+  assert.equal(
+    parseLiveRecord({ ...validLiveRecord, reconstruction_prompts: 'many' }),
+    false,
+  );
+  assert.equal(
+    parseLiveRecord({
+      ...validLiveRecord,
+      tokens: { ...validLiveRecord.tokens, input: 'many' },
+    }),
+    false,
+  );
+  assert.equal(
+    parseLiveRecord({
+      ...validLiveRecord,
+      tokens: { ...validLiveRecord.tokens, output: 'many' },
+    }),
+    false,
+  );
 });

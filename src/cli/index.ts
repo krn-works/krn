@@ -1,6 +1,6 @@
 // Start creates the isolated job worktree; checkpoint persists before stopping its worker. ADR 0001.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, realpathSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, resolve, sep } from 'node:path';
 
 import type { Job } from '../core/index.ts';
@@ -207,6 +207,11 @@ async function stop(
 }
 
 async function note(args: string[]): Promise<void> {
+  if (args.includes('--text'))
+    throw new Error(
+      'note text must be provided on stdin; --text is not supported',
+    );
+  const text = readFileSync(0, 'utf8').trim();
   const cliKind = value(args, '--kind');
   if (cliKind !== 'intervention' && cliKind !== 'reconstruction')
     throw new Error('--kind must be intervention or reconstruction');
@@ -221,7 +226,7 @@ async function note(args: string[]): Promise<void> {
   await leadIntervention(
     job,
     cliKind === 'intervention' ? 'intervention' : 'reconstruction_prompt',
-    value(args, '--text'),
+    text,
   );
 }
 
