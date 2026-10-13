@@ -1,13 +1,13 @@
-captured=2026-10-13T22:20:43+02:00
-measured_head=48896c33bcf482582e2a9e28e81541472469e07d
-src_tree=c1a65d2995d6b5419518ee6c575425a6ba7f0e35
-test_tree=54f31ef42e6815526c0267825ab86d091eda57c3
+captured=2026-10-13T22:43:43+02:00
+measured_head=648fee6778b19755776e3325c92e8d7dcaebdfa6
+src_tree=c4b25dc470f1dc9584cd58c083b0a56bd184a07c
+test_tree=0570bdafc509d870c67cfaf01872caec2aabdbf1
 model=gpt-6-luna
 evals_tree=7e3e3cc0311f73071d5f3b9d6115217bcfdd0a1a
 blueprint_blob=643ccb6ea840c8ab25163305354fef44b2e14ea3
 note: docs coverage is the blueprint blob; the evidence directory itself is excluded. src/test/evals tree SHAs are unchanged by adding evidence files under docs/program/r1/evidence/; any later head with these trees has identical code and data.
 --- host gate (npm run gate) on measured_head, operator host
-# pass 235
+# pass 237
 # fail 0
 # skipped 0
 Isolation-dependent tests skipped: 0
@@ -26,3 +26,4 @@ journeyLiveSchema (schema 2) rows collected from R1-12 onward. With a zero B0 in
 not-evaluable at B0 instead of treating B0 as a passing or failing denominator. B0 remains valid for
 operator_minutes, token, and outcome comparisons. No values were invented for this file.
 round8: gate-local published success for 48896c33 (235 tests, 0 isolation skips); note filter covers Stripe sk_live_ shapes, narrowed identifier exceptions, symlinked trace parent refusal.
+round9: gate-local success for 648fee67 (237 tests, 0 isolation skips); falsifier is assertion-red at base cfa5484; trace fd verified via /proc/self/fd; D1 intervention clause not-evaluable at zero B0.
