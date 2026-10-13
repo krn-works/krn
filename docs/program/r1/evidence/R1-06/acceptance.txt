@@ -1,13 +1,13 @@
-captured=2026-10-13T21:57:28+02:00
-measured_head=ec2add5e8cf3d82afb2fddd75297840c58d59ffe
-src_tree=1177a12214ff979c16f369f99d7e8d7dd367000e
-test_tree=4ec3e3633d39709dc8681f76123ee65acd744911
+captured=2026-10-13T22:20:43+02:00
+measured_head=48896c33bcf482582e2a9e28e81541472469e07d
+src_tree=c1a65d2995d6b5419518ee6c575425a6ba7f0e35
+test_tree=54f31ef42e6815526c0267825ab86d091eda57c3
 model=gpt-6-luna
 evals_tree=7e3e3cc0311f73071d5f3b9d6115217bcfdd0a1a
 blueprint_blob=643ccb6ea840c8ab25163305354fef44b2e14ea3
 note: docs coverage is the blueprint blob; the evidence directory itself is excluded. src/test/evals tree SHAs are unchanged by adding evidence files under docs/program/r1/evidence/; any later head with these trees has identical code and data.
 --- host gate (npm run gate) on measured_head, operator host
-# pass 234
+# pass 235
 # fail 0
 # skipped 0
 Isolation-dependent tests skipped: 0
@@ -25,3 +25,4 @@ journeyLiveSchema (schema 2) rows collected from R1-12 onward. With a zero B0 in
 "30% lower" comparison cannot pass on interventions alone; D1 evaluation must report that clause as
 not-evaluable at B0 instead of treating B0 as a passing or failing denominator. B0 remains valid for
 operator_minutes, token, and outcome comparisons. No values were invented for this file.
+round8: gate-local published success for 48896c33 (235 tests, 0 isolation skips); note filter covers Stripe sk_live_ shapes, narrowed identifier exceptions, symlinked trace parent refusal.
