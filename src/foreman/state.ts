@@ -73,6 +73,8 @@ export function repoRecord(job: Job): RepoRecord {
   });
 }
 
+// start passes the merge-base of checkout HEAD and the selected ref,
+// captured before worktree creation.
 export function recordRepo(
   job: Job,
   root: string,

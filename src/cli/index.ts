@@ -100,13 +100,26 @@ async function start(args: string[]): Promise<void> {
     root,
     args.includes('--base') ? value(args, '--base') : undefined,
   );
-  const baseSha = git(root, [
+  const refSha = git(root, [
     'rev-parse',
     '--verify',
     '--quiet',
     '--end-of-options',
     `${baseRef}^{commit}`,
   ]);
+  const checkoutHead = git(root, ['rev-parse', 'HEAD']);
+  const baseResult = spawnSync(
+    'git',
+    ['-C', root, 'merge-base', checkoutHead, refSha],
+    { encoding: 'utf8' },
+  );
+  if (baseResult.status === 1)
+    throw new Error(
+      `base ref "${baseRef}" has no common ancestor with checkout HEAD`,
+    );
+  if (baseResult.status !== 0)
+    throw new Error(baseResult.stderr || 'unable to compute base merge-base');
+  const baseSha = baseResult.stdout.trim();
   const worktree = resolve(root, '.krn', 'worktrees', id);
   if (existsSync(dirname(worktree)))
     assertWorktreeParentInside(root, dirname(worktree));
