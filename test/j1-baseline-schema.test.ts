@@ -1,10 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
-import {
-  journeyBaselineSchema,
-  journeyLiveSchema,
-} from '../src/evals/journey-baseline.ts';
+import * as journey from '../src/evals/journey-baseline.ts';
 
 const unknown = { value: null, reason: 'not recorded in results.md' };
 const validTask = {
@@ -39,8 +36,10 @@ const validLiveRecord = {
 
 test('B0 schema rejects fewer than three valid task rows', () => {
   assert.equal(
-    journeyBaselineSchema.safeParse({ n: 2, tasks: [validTask, validTask] })
-      .success,
+    journey.journeyBaselineSchema.safeParse({
+      n: 2,
+      tasks: [validTask, validTask],
+    }).success,
     false,
   );
 });
@@ -48,7 +47,7 @@ test('B0 schema rejects fewer than three valid task rows', () => {
 test('B0 schema rejects unlabeled task rows', () => {
   const { label: _label, ...unlabeledTask } = validTask;
   assert.equal(
-    journeyBaselineSchema.safeParse({
+    journey.journeyBaselineSchema.safeParse({
       n: 3,
       tasks: [validTask, validTask, unlabeledTask],
     }).success,
@@ -62,7 +61,7 @@ test('valid baseline rows require lead_interventions', () => {
     ...withoutLeadInterventions
   } = validTask;
   assert.equal(
-    journeyBaselineSchema.safeParse({
+    journey.journeyBaselineSchema.safeParse({
       n: 3,
       tasks: [validTask, validTask, withoutLeadInterventions],
     }).success,
@@ -74,7 +73,7 @@ test('valid baseline rows require escaped_defects', () => {
   const { escaped_defects: _escapedDefects, ...withoutEscapedDefects } =
     validTask;
   assert.equal(
-    journeyBaselineSchema.safeParse({
+    journey.journeyBaselineSchema.safeParse({
       n: 3,
       tasks: [validTask, validTask, withoutEscapedDefects],
     }).success,
@@ -88,14 +87,14 @@ test('lead_interventions accepts counters and unknown values, but not strings', 
   const withString = { ...validTask, lead_interventions: 'many' };
 
   assert.equal(
-    journeyBaselineSchema.safeParse({
+    journey.journeyBaselineSchema.safeParse({
       n: 3,
       tasks: [withCount, withUnknown, withCount],
     }).success,
     true,
   );
   assert.equal(
-    journeyBaselineSchema.safeParse({
+    journey.journeyBaselineSchema.safeParse({
       n: 3,
       tasks: [validTask, validTask, withString],
     }).success,
@@ -110,12 +109,15 @@ test('tracked J1 baseline satisfies the B0 schema', async () => {
       'utf8',
     ),
   );
-  assert.equal(journeyBaselineSchema.safeParse(baseline).success, true);
+  assert.equal(journey.journeyBaselineSchema.safeParse(baseline).success, true);
 });
 
 test('live counters accept counts and unknown values, but reject strings', () => {
+  assert.equal(typeof journey.journeyLiveSchema, 'object');
+
   const parseLiveRecord = (record: unknown) =>
-    journeyLiveSchema.safeParse({ schema: 2, records: [record] }).success;
+    journey.journeyLiveSchema.safeParse({ schema: 2, records: [record] })
+      .success;
   const withUnknown = {
     ...validLiveRecord,
     reconstruction_prompts: unknown,
