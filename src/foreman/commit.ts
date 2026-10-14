@@ -9,6 +9,16 @@ const privateKeyPattern = /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/iu;
 const bearerTokenPattern = /\bBearer\s+\S+/iu;
 const knownTokenPattern =
   /\b(?:gh[pousr]_[A-Za-z0-9]{8,}|github_pat_[A-Za-z0-9_]{8,}|sk-[A-Za-z0-9_-]{8,}|sk_(?:live|test)_[A-Za-z0-9_-]{4,}|xox[baprs]-[A-Za-z0-9-]{8,}|AKIA[0-9A-Z]{16}|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/u;
+// Explicit placeholder exceptions keep obvious examples and environment references usable.
+const sensitivePlaceholderValues = new Set([
+  'changeme',
+  'example',
+  'test',
+  'redacted',
+  'placeholder',
+]);
+const sensitivePlaceholderPattern =
+  /^(?:x{3,}|\$\{[^{}]+\}|<[^<>]+>|process\.env(?:\.[\w$]+)*)$/iu;
 const sensitiveZodProperty =
   /(?:^|[^\w$])(?:["'`])?[\w.$-]*(?:password|passwd|secret|token|api[-_]?key|auth[-_]?key|private[-_]?key)[\w.$-]*(?:["'`])?\s*:\s*z\s*\./giu;
 const stringLiteralPattern = /(['"`])((?:\\.|(?!\1)[\s\S])*)\1/gu;
@@ -92,13 +102,28 @@ function assignedValue(source: string): string {
     return value.slice(1);
   }
   let end = 0;
+  let interpolationDepth = 0;
   while (
     end < value.length &&
-    !/\s/u.test(value[end] ?? '') &&
-    !',;)}]'.includes(value[end] ?? '')
+    (interpolationDepth > 0 ||
+      (!/\s/u.test(value[end] ?? '') && !',;)}]'.includes(value[end] ?? '')))
   )
-    end++;
+    if (value[end] === '$' && value[end + 1] === '{') {
+      interpolationDepth++;
+      end += 2;
+    } else if (value[end] === '}' && interpolationDepth > 0) {
+      interpolationDepth--;
+      end++;
+    } else end++;
   return value.slice(0, end);
+}
+
+function isSensitivePlaceholder(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return (
+    sensitivePlaceholderValues.has(normalized) ||
+    sensitivePlaceholderPattern.test(value)
+  );
 }
 
 function hasSensitiveAssignment(content: string): boolean {
@@ -108,7 +133,11 @@ function hasSensitiveAssignment(content: string): boolean {
     const source = content.slice(start);
     if (/^z\s*\.\s*[A-Za-z_$][A-Za-z\d_$]*\s*\(/u.test(source)) continue;
     const value = assignedValue(source);
-    if (value.length >= 8 && /\p{L}/u.test(value) && /\p{N}/u.test(value))
+    if (
+      value.length >= 8 &&
+      !/\s/u.test(value) &&
+      !isSensitivePlaceholder(value)
+    )
       return true;
   }
   return false;

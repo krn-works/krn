@@ -695,6 +695,8 @@ test('checkpoint refuses quoted sensitive assignments with metadata-shaped value
 test('checkpoint scans sensitive assignments in ordinary text configuration', async () => {
   const { root, job } = await checkpointRepo();
   const assignments = [
+    ['single-class password value', 'password = abcdefgh'],
+    ['single-class numeric API key', 'api_key: 12345678'],
     ['API_KEY=abc12345', 'API_KEY=abc12345'],
     ["service_AUTH-KEY: 'abc12345'", "service_AUTH-KEY: 'abc12345'"],
     ['DB_PASSWD="abc12345"', 'DB_PASSWD="abc12345"'],
@@ -714,6 +716,25 @@ test('checkpoint scans sensitive assignments in ordinary text configuration', as
         label,
       );
     }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint accepts obvious sensitive placeholders and unrelated literals', async () => {
+  const { root, job } = await checkpointRepo();
+  try {
+    await writeFile(
+      join(root, 'settings.conf'),
+      "password = changeme\nconst digest = 'sha256';\n",
+    );
+    assert.doesNotThrow(() =>
+      commitCheckpoint(
+        job,
+        'test: accept placeholder and ordinary hash name',
+        'session-sensitive-placeholder',
+      ),
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
