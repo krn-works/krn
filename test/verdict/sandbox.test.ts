@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn, spawnSync } from 'node:child_process';
+import childProcess, { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   existsSync,
@@ -11,14 +11,15 @@ import {
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
 import { createConnection } from 'node:net';
 import { join } from 'node:path';
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import { recordRepo } from '../../src/foreman/state.ts';
 import type { Capsule, Deps } from '../../src/foreman/types.ts';
 import { verifyCheckpoint } from '../../src/foreman/verdict.ts';
 import { judge } from '../../src/verdict/index.ts';
-import { MAX_CHECK_OUTPUT_BYTES } from '../../src/verdict/sandbox.ts';
+import { execute, MAX_CHECK_OUTPUT_BYTES } from '../../src/verdict/sandbox.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
 function fixture(argv: readonly string[], withLockfile = false) {
@@ -843,3 +844,138 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     }
   });
 }
+
+test('cancellation accounts for the owned scope and all remaining check processes', async (t) => {
+  if (
+    !requiresIsolation(t, 'canonical scope cancellation', [
+      'bwrap',
+      'systemdUserScope',
+    ])
+  )
+    return;
+  const f = fixture(['/bin/sh', '-c', 'sleep 30 & wait']);
+  const controller = new AbortController();
+  const env = {
+    ...process.env,
+    XDG_RUNTIME_DIR:
+      process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.()}`,
+    DBUS_SESSION_BUS_ADDRESS:
+      process.env.DBUS_SESSION_BUS_ADDRESS ??
+      `unix:path=/run/user/${process.getuid?.()}/bus`,
+  };
+  let scope: string | undefined;
+  let execution: Promise<unknown> | undefined;
+  const originalSpawn = childProcess.spawn;
+  // Observe the actual created unit; dispatch every command to the real host.
+  const observer = mock.method(
+    childProcess,
+    'spawn',
+    (...args: Parameters<typeof spawn>) => {
+      if (args[0] === 'systemd-run' && Array.isArray(args[1])) {
+        const unit = args[1][args[1].indexOf('--unit') + 1];
+        assert.ok(unit);
+        scope = unit.endsWith('.scope') ? unit : `${unit}.scope`;
+      }
+      return originalSpawn(...args);
+    },
+  );
+  syncBuiltinESMExports();
+  const show = (unit: string) => {
+    const result = spawnSync(
+      'systemctl',
+      [
+        '--user',
+        'show',
+        unit,
+        '-p',
+        'ActiveState',
+        '-p',
+        'ControlGroup',
+        '--value',
+      ],
+      { env, encoding: 'utf8' },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const [state = '', group = ''] = result.stdout.trimEnd().split('\n');
+    let pids: string[] = [];
+    if (group) {
+      try {
+        pids = readFileSync(`/sys/fs/cgroup${group}/cgroup.procs`, 'utf8')
+          .trim()
+          .split(/\s+/u)
+          .filter(Boolean);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      }
+    }
+    return { state, pids };
+  };
+  try {
+    // Drain rejection during cleanup too, including assertion failures.
+    execution = execute(
+      f.root,
+      f.root,
+      f.job,
+      'declared',
+      ['/bin/sh', '-c', 'sleep 30 & wait'],
+      10000,
+      f.sha,
+      controller.signal,
+    ).catch((error: unknown) => error);
+    const deadline = Date.now() + 5000;
+    let activePids: string[] = [];
+    while (Date.now() < deadline) {
+      if (scope) {
+        const actual = show(scope);
+        if (actual.state === 'active' && actual.pids.length >= 3) {
+          activePids = actual.pids;
+          break;
+        }
+      }
+      await new Promise((done) => setTimeout(done, 20));
+    }
+    assert.ok(scope, 'must observe the scope created by this check');
+    assert.ok(
+      activePids.length >= 3,
+      'must observe wrapper, check and descendant in the owned cgroup',
+    );
+    assert.deepEqual(
+      show(scope.replace(/\.scope$/u, '.service')),
+      { state: 'inactive', pids: [] },
+      'absent .service differs from the active owned .scope',
+    );
+    controller.abort();
+    const stoppedBy = Date.now() + 1500;
+    while (Date.now() < stoppedBy) {
+      const actual = show(scope);
+      if (actual.state === 'inactive' && actual.pids.length === 0) break;
+      await new Promise((done) => setTimeout(done, 20));
+    }
+    assert.deepEqual(
+      show(scope),
+      { state: 'inactive', pids: [] },
+      'cancellation must kill and verify the owned .scope, not the absent .service',
+    );
+    for (const pid of activePids)
+      assert.equal(
+        existsSync(`/proc/${pid}`),
+        false,
+        `owned check PID ${pid} must be reaped`,
+      );
+    const result = await execution;
+    assert.ok(result instanceof Error);
+    assert.equal(result.message, 'stopped');
+  } finally {
+    if (scope)
+      spawnSync(
+        'systemctl',
+        ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', scope],
+        { env, stdio: 'ignore' },
+      );
+    controller.abort();
+    await execution;
+    observer.mock.restore();
+    syncBuiltinESMExports();
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});

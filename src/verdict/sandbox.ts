@@ -419,7 +419,7 @@ async function runSandbox(
   outputBytes: number;
   outputExceeded: boolean;
 }> {
-  const unit = `krn-check-${randomUUID()}`;
+  const unit = `krn-check-${randomUUID()}.scope`;
   const home = '/tmp';
   const executable = argv[0];
   if (!executable) throw new Error('check argv is empty');
