@@ -151,11 +151,23 @@ function inspect(root: string, path: string): void {
   }
 }
 
-export function commitCheckpoint(
+export type PreparedCheckpoint = {
+  readonly parent: string;
+  readonly tree: string;
+  readonly message: string;
+  readonly sessionId: string;
+};
+
+function checkpointCommitMessage(message: string, sessionId: string): string {
+  return `${message}\n\nKrn-Session: ${sessionId}`;
+}
+
+// Stage and inspect the worker changes; the returned identity is recorded before HEAD moves.
+export function prepareCheckpoint(
   job: Job,
   message: string,
   sessionId: string,
-): string {
+): PreparedCheckpoint {
   if (!message || message.length > 200 || /[\r\n]/.test(message))
     throw new Error('invalid checkpoint commit message');
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(sessionId))
@@ -178,11 +190,63 @@ export function commitCheckpoint(
   if (!staged.length)
     throw new Error('checkpoint refused: no changes to commit');
   for (const path of staged) inspect(root, path);
-  git(job, [
-    'commit',
-    '--no-verify',
+  return {
+    parent: git(job, ['rev-parse', '--verify', 'HEAD^{commit}']).trim(),
+    tree: git(job, ['write-tree']).trim(),
+    message,
+    sessionId,
+  };
+}
+
+// Create exactly the prepared commit and move HEAD only from its recorded parent.
+export function commitPrepared(job: Job, prepared: PreparedCheckpoint): string {
+  const sha = git(job, [
+    'commit-tree',
+    prepared.tree,
+    '-p',
+    prepared.parent,
     '-m',
-    `${message}\n\nKrn-Session: ${sessionId}`,
+    checkpointCommitMessage(prepared.message, prepared.sessionId),
+  ]).trim();
+  git(job, [
+    'update-ref',
+    '-m',
+    `krn checkpoint: ${prepared.message}`,
+    'HEAD',
+    sha,
+    prepared.parent,
   ]);
-  return git(job, ['rev-parse', 'HEAD']).trim();
+  return sha;
+}
+
+export function commitCheckpoint(
+  job: Job,
+  message: string,
+  sessionId: string,
+): string {
+  return commitPrepared(job, prepareCheckpoint(job, message, sessionId));
+}
+
+// Prove that HEAD is the prepared checkpoint commit rather than any other commit.
+export function preparedCommitMismatch(
+  job: Job,
+  prepared: PreparedCheckpoint,
+  head: string,
+): string | null {
+  const [sha, ...parents] = git(job, ['rev-list', '--parents', '-n', '1', head])
+    .trim()
+    .split(' ');
+  if (sha !== head) return 'HEAD is not a commit';
+  if (parents.length !== 1 || parents[0] !== prepared.parent)
+    return 'HEAD is not a single commit on the recorded parent';
+  if (git(job, ['rev-parse', `${head}^{tree}`]).trim() !== prepared.tree)
+    return 'HEAD tree differs from the recorded checkpoint tree';
+  const body = git(job, ['cat-file', 'commit', head]);
+  const recorded = body.slice(body.indexOf('\n\n') + 2);
+  if (
+    recorded !==
+    `${checkpointCommitMessage(prepared.message, prepared.sessionId)}\n`
+  )
+    return 'HEAD message differs from the recorded checkpoint message';
+  return null;
 }

@@ -91,6 +91,7 @@ test('SIGTERM during the pre-write activity read prevents the real ledger update
         checkpointRequest:async()=>({message:'feat: commit stop fixture',next:'done'}),
         checkpoint:async()=>undefined,
         commit:async()=>undefined,
+        commitIntent:async()=>undefined,
       },
       hosts:{
         codex:{

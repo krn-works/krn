@@ -1,5 +1,6 @@
 // Foreman owns the bounded J1 loop and its dependency contract. ADR 0001.
 import type { Job } from '../core/index.ts';
+import { recoverInterruptedCheckpoint } from './checkpoint.ts';
 import { recoverLease, runAttempt } from './session.ts';
 import { type Deps, type Outcome, validBudget } from './types.ts';
 import { verifyCheckpoint } from './verdict.ts';
@@ -13,6 +14,18 @@ export async function runJob(job: Job, d: Deps): Promise<Outcome> {
   const lease = await recoverLease(job, capsule, d);
   if (lease.outcome) return lease.outcome;
   capsule = lease.capsule;
+  const interrupted = await recoverInterruptedCheckpoint(
+    job,
+    capsule,
+    contract,
+    repairs,
+    d,
+  );
+  if (interrupted?.kind === 'outcome') return interrupted.outcome;
+  if (interrupted) {
+    capsule = interrupted.capsule;
+    if (interrupted.repaired) repairs += 1;
+  }
   if (
     capsule.nextAction === 'done' &&
     capsule.lease === 'checkpointed' &&

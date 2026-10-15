@@ -547,6 +547,95 @@ export async function commit(
   });
 }
 
+export async function commitIntent(
+  job: Job,
+  intentId: string,
+  sessionId: string,
+  prepared: {
+    readonly parent: string;
+    readonly tree: string;
+    readonly message: string;
+  },
+): Promise<void> {
+  if (
+    !/^[a-f0-9]{40,64}$/i.test(prepared.parent) ||
+    !/^[a-f0-9]{40,64}$/i.test(prepared.tree)
+  )
+    throw new Error('commit intent object ID is malformed');
+  const request = await checkpointRequest(job, intentId, sessionId);
+  if (!request || request.message !== prepared.message)
+    throw new Error(
+      'commit intent does not match the bound checkpoint request',
+    );
+  const key = `${intentId}:commit-intent:${sessionId}`;
+  const data = {
+    intent: intentId,
+    sessionId,
+    parent: prepared.parent,
+    tree: prepared.tree,
+    message: prepared.message,
+  };
+  const prior = events(job).find((event) => event.key === key);
+  if (prior) {
+    if (JSON.stringify(prior.data) !== JSON.stringify(data))
+      throw new Error('commit intent conflicts with the recorded intent');
+    return;
+  }
+  append(job, key, 'commit_intent', data);
+}
+
+// Foreman-written evidence for one session's checkpoint, read from the trace alone.
+export async function checkpointCommit(
+  job: Job,
+  sessionId: string,
+): Promise<{
+  readonly intent: string;
+  readonly parent: string;
+  readonly tree: string;
+  readonly message: string;
+  readonly next: string;
+  readonly sha?: string;
+} | null> {
+  const trace = events(job);
+  const started = trace.filter(
+    (event) =>
+      event.kind === 'session_started' && event.data.sessionId === sessionId,
+  );
+  if (started.length !== 1) return null;
+  const intentId = started[0]?.data.intent;
+  if (typeof intentId !== 'string') return null;
+  const find = (suffix: string) =>
+    trace.find((event) => event.key === `${intentId}:${suffix}:${sessionId}`);
+  const checkpointed = find('checkpoint');
+  const prepared = find('commit-intent');
+  const committed = find('commit');
+  const text = (value: unknown) =>
+    typeof value === 'string' ? value : undefined;
+  const message = text(prepared?.data.message);
+  const parent = text(prepared?.data.parent);
+  const tree = text(prepared?.data.tree);
+  const next = text(checkpointed?.data.next);
+  if (
+    !message ||
+    !parent ||
+    !tree ||
+    !next ||
+    text(checkpointed?.data.message) !== message ||
+    (committed && text(committed.data.message) !== message)
+  )
+    return null;
+  const sha = text(committed?.data.sha);
+  if (committed && !sha) return null;
+  return {
+    intent: intentId,
+    parent,
+    tree,
+    message,
+    next,
+    ...(sha === undefined ? {} : { sha }),
+  };
+}
+
 export async function hasCheckpoint(
   job: Job,
   intentId: string,

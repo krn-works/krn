@@ -11,6 +11,7 @@ import type { Contract } from '../ledger/index.ts';
 import {
   type Capsule,
   type Cas,
+  capsuleWriteRefusal,
   parseCapsule,
   projectCapsule,
   type RepoFacts,
@@ -260,22 +261,28 @@ export async function checkpoint(
     ],
     sessionId,
   });
+  const refusal = capsuleWriteRefusal(next);
+  if (refusal) throw new Error(`checkpoint refused: ${refusal}`);
   const saved = await storeCapsule(job, next, current.epoch);
   if (!saved.applied) throw new Error('checkpoint capsule CAS conflict');
   return next;
 }
 
-export async function recordCommit(
-  job: Job,
-  sessionId: string,
-  sha: string,
-  message: string,
-): Promise<Capsule> {
+function checkpointedCapsule(job: Job, sessionId: string): Capsule {
   const current = readCapsule(job);
   if (current?.sessionId !== sessionId || current.lease !== 'checkpointed')
     throw new Error('commit session is not bound to the checkpointed capsule');
-  const facts = repoFacts(job);
-  const next = parseCapsule({
+  return current;
+}
+
+function committedCapsule(
+  current: Capsule,
+  facts: RepoFacts,
+  sessionId: string,
+  sha: string,
+  message: string,
+): Capsule {
+  return parseCapsule({
     ...current,
     ...facts,
     epoch: current.epoch + 1,
@@ -288,6 +295,38 @@ export async function recordCommit(
       },
     ],
   });
+}
+
+// Refuse before HEAD moves when the commit record could not be stored afterwards.
+export function admitCommit(
+  job: Job,
+  sessionId: string,
+  message: string,
+): void {
+  const current = checkpointedCapsule(job, sessionId);
+  const facts = repoFacts(job);
+  // A commit ID has the repository's object-ID length; its value does not change the size.
+  const sha = '0'.repeat(facts.head.length);
+  const refusal = capsuleWriteRefusal(
+    committedCapsule(current, { ...facts, head: sha }, sessionId, sha, message),
+  );
+  if (refusal) throw new Error(`checkpoint refused: ${refusal}`);
+}
+
+export async function recordCommit(
+  job: Job,
+  sessionId: string,
+  sha: string,
+  message: string,
+): Promise<Capsule> {
+  const current = checkpointedCapsule(job, sessionId);
+  const next = committedCapsule(
+    current,
+    repoFacts(job),
+    sessionId,
+    sha,
+    message,
+  );
   const saved = await storeCapsule(job, next, current.epoch);
   if (!saved.applied) throw new Error('commit capsule CAS conflict');
   return next;

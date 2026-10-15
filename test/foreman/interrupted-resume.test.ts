@@ -111,6 +111,8 @@ test('resuming a ready_for_review checkpoint re-verdicts without starting a sess
       checkpoint: async () => undefined,
       checkpointRequest: async () => null,
       commit: async () => undefined,
+      commitIntent: async () => undefined,
+      checkpointCommit: async () => null,
       hasCheckpoint: async () => false,
       sessionEnd: async () => null,
       log: async () => undefined,
@@ -189,6 +191,7 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
         ({ epoch, head: git(['rev-parse', 'HEAD']) }) as Capsule,
       checkpoint: async () =>
         ({ epoch: ++epoch, head: git(['rev-parse', 'HEAD']) }) as Capsule,
+      admitCommit: () => undefined,
       recordCommit: async (_job, sessionId, sha) =>
         ({ epoch: ++epoch, head: sha, sessionId }) as Capsule,
       bindSession: async (_job, capsule, _sessionId) => ({
@@ -223,6 +226,8 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
         next: 'step B',
       }),
       commit: async () => undefined,
+      commitIntent: async () => undefined,
+      checkpointCommit: async () => null,
       hasCheckpoint: async (_job, _intent, sessionId) =>
         checkpointed && sessionId === 'session-1',
       sessionEnd: async () => null,
@@ -483,6 +488,8 @@ test('a concurrent run cannot replace the active capsule session', async () => {
       checkpoint: async () => undefined,
       checkpointRequest: async () => null,
       commit: async () => undefined,
+      commitIntent: async () => undefined,
+      checkpointCommit: async () => null,
       hasCheckpoint: async () => false,
       sessionEnd: async () => null,
       log: async () => undefined,

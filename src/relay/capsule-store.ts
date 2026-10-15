@@ -185,6 +185,25 @@ function acquireLock(path: string): number | null {
   return acquireLock(path);
 }
 
+// The one admission rule for new capsule writes, usable before an irreversible step.
+export function capsuleWriteRefusal(input: unknown): string | null {
+  const capsule = capsuleSchema.parse(input);
+  if (capsule.decisions.length > MAX_CAPSULE_DECISIONS)
+    return `capsule history exceeds ${MAX_CAPSULE_DECISIONS} decisions`;
+  try {
+    renderAbi(capsule, null);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message === 'capsule ABI values must be single-line' ||
+        error.message === 'capsule exceeds the 2k-token projection budget')
+    )
+      return error.message;
+    throw error;
+  }
+  return null;
+}
+
 export function readCapsule(job: Job): Capsule | null {
   try {
     return capsuleSchema.parse(
@@ -205,8 +224,7 @@ export function writeCapsule(
   if (capsule.jobId !== job.id || capsule.worktree !== job.worktree)
     throw new Error('capsule does not belong to this job');
   // Bound new writes while keeping the reader able to load older capsules.
-  if (capsule.decisions.length > MAX_CAPSULE_DECISIONS)
-    return Promise.resolve({ applied: false });
+  if (capsuleWriteRefusal(capsule)) return Promise.resolve({ applied: false });
   const path = authoritativePath(job);
   const lock = `${path}.lock`;
   mkdirSync(stateDirectory(job), { recursive: true, mode: 0o700 });
@@ -219,18 +237,7 @@ export function writeCapsule(
       capsule.epoch !== (expectedEpoch === null ? 0 : expectedEpoch + 1)
     )
       return Promise.resolve({ applied: false });
-    let projection: string;
-    try {
-      projection = renderAbi(capsule, null);
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.message === 'capsule ABI values must be single-line' ||
-          error.message === 'capsule exceeds the 2k-token projection budget')
-      )
-        return Promise.resolve({ applied: false });
-      throw error;
-    }
+    const projection = renderAbi(capsule, null);
     const temporary = `${path}.${process.pid}.${Date.now()}.tmp`;
     const fd = openSync(
       temporary,

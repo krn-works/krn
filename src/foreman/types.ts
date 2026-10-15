@@ -101,6 +101,7 @@ export type Deps = {
       next: string,
       decision?: string,
     ): Promise<Capsule>;
+    admitCommit(job: Job, sessionId: string, message: string): void;
     recordCommit(
       job: Job,
       sessionId: string,
@@ -159,6 +160,27 @@ export type Deps = {
       sha: string,
       message: string,
     ): Promise<void>;
+    commitIntent(
+      job: Job,
+      intent: string,
+      sessionId: string,
+      prepared: {
+        readonly parent: string;
+        readonly tree: string;
+        readonly message: string;
+      },
+    ): Promise<void>;
+    checkpointCommit(
+      job: Job,
+      sessionId: string,
+    ): Promise<{
+      readonly intent: string;
+      readonly parent: string;
+      readonly tree: string;
+      readonly message: string;
+      readonly next: string;
+      readonly sha?: string;
+    } | null>;
     hasCheckpoint(
       job: Job,
       intent: string,
