@@ -13,7 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { commitCheckpoint } from '../src/foreman/commit.ts';
+import { commitCheckpoint, prepareCheckpoint } from '../src/foreman/commit.ts';
 import { runJob } from '../src/foreman/run.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
@@ -577,5 +577,193 @@ test('checkpoint refuses quoted sensitive assignments with metadata-shaped value
     );
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint recognizes bounded credential shapes and preserves ordinary code literals', async (t) => {
+  async function assertSource(source: string, refused: boolean) {
+    const { root, job } = await checkpointRepo();
+    try {
+      await writeFile(join(root, 'candidate.ts'), source);
+      if (refused) {
+        assert.throws(
+          () =>
+            prepareCheckpoint(
+              job,
+              'test: inspect credential shape',
+              'session-shape',
+            ),
+          /checkpoint refused: secret pattern in candidate\.ts/u,
+        );
+      } else {
+        assert.doesNotThrow(() =>
+          prepareCheckpoint(
+            job,
+            'test: accept ordinary literal',
+            'session-ordinary',
+          ),
+        );
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+
+  const ordinaryLiterals = [
+    [
+      'full commit hash',
+      "const commit = '0123456789abcdef0123456789abcdef01234567';\n",
+    ],
+    ['model reference', "const model = 'gpt-6-luna';\n"],
+    ['version literal', "const version = 'v24.21.0';\n"],
+    [
+      'ordinary URL with port, version path, and query',
+      "const endpoint = 'https://api.example.test:8443/v2/models?region=west';\n",
+    ],
+    [
+      'empty credential-named query parameter',
+      "const endpoint = 'https://example.test/account?token=';\n",
+    ],
+  ] as const;
+  for (const [name, source] of ordinaryLiterals) {
+    await t.test(`accepts ${name}`, () => assertSource(source, false));
+  }
+
+  const sensitiveAssignments = [
+    [
+      'password assignment',
+      "export const password = 'plainalphabeticcredential';\n",
+    ],
+    [
+      'access-token assignment',
+      "export const accessToken = 'plainalphabeticcredential';\n",
+    ],
+  ] as const;
+  for (const [name, source] of sensitiveAssignments) {
+    await t.test(`refuses a nonempty quoted ${name}`, () =>
+      assertSource(source, true),
+    );
+  }
+
+  const structuralUrls = [
+    [
+      'userinfo',
+      "const endpoint = 'https://user:plaincredential@example.test/account';\n",
+    ],
+    [
+      'credential-named query parameter',
+      "const endpoint = 'https://example.test/account?refresh_token=plaincredential';\n",
+    ],
+  ] as const;
+  for (const [name, source] of structuralUrls) {
+    await t.test(`refuses URI ${name}`, () => assertSource(source, true));
+  }
+
+  const markers: readonly [string, string][] = [
+    ['private key', '-----BEGIN PRIVATE KEY-----'],
+    ['RSA private key', '-----BEGIN RSA PRIVATE KEY-----'],
+    ['OpenSSH private key', '-----BEGIN OPENSSH PRIVATE KEY BLOCK-----'],
+    ['generic sk token', `sk-${'a'.repeat(20)}`],
+    ['sk test token', `sk-test-${'a'.repeat(16)}`],
+    ['sk project token', `sk-proj-${'a'.repeat(16)}`],
+    ['sk live token', `sk-live-${'a'.repeat(16)}`],
+    ['sk ant token', `sk-ant-${'a'.repeat(16)}`],
+    ['sk ant api token', `sk-ant-api03-${'a'.repeat(16)}`],
+    ['sk underscore live token', `sk_live_${'a'.repeat(16)}`],
+    ['rk underscore live token', `rk_live_${'a'.repeat(16)}`],
+    ...['p', 'o', 'u', 's', 'r'].map((kind): [string, string] => [
+      `GitHub ${kind} token`,
+      `gh${kind}_${'a'.repeat(20)}`,
+    ]),
+    ['GitHub fine-grained token', `github_pat_${'a'.repeat(16)}`],
+    ['npm token', `npm_${'a'.repeat(36)}`],
+    ['AWS access key', `AKIA${'A'.repeat(16)}`],
+    ['AWS session key', `ASIA${'A'.repeat(16)}`],
+    ['Google API key', `AIza${'A'.repeat(35)}`],
+    ...['b', 'a', 'p', 'r', 's'].map((kind): [string, string] => [
+      `Slack ${kind} token`,
+      `xox${kind}-${'a'.repeat(10)}`,
+    ]),
+    ['JWT', 'eyJabcdefgh.abcdefgh.abcdefgh'],
+  ];
+  for (const [name, marker] of markers) {
+    await t.test(`refuses ${name} independent of source context`, () =>
+      assertSource(`// ordinary sample\nconst example = '${marker}';\n`, true),
+    );
+  }
+});
+
+test('checkpoint accepts ordinary token and working-directory bindings', async (t) => {
+  const cases = [
+    ['lexical token binding', "const token = 'EOF';\n"],
+    ['working-directory binding', "const pwd = '/tmp/work-123';\n"],
+  ] as const;
+
+  for (const [name, source] of cases) {
+    await t.test(name, async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(join(root, 'candidate.ts'), source);
+        assert.doesNotThrow(() =>
+          prepareCheckpoint(
+            job,
+            'test: accept ordinary binding',
+            'session-binding',
+          ),
+        );
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test('checkpoint preserves legacy Zod metadata and refuses Stripe test keys', async (t) => {
+  const cases = [
+    [
+      'accepts a Zod filesystem-path default',
+      "const value = z.string().default('/tmp/work-123');\n",
+      false,
+    ],
+    [
+      'accepts a Zod issue-code default',
+      "const value = z.string().default('LON-231');\n",
+      false,
+    ],
+    [
+      'refuses the Stripe test-key marker',
+      `const example = 'sk_test_${'a'.repeat(16)}';\n`,
+      true,
+    ],
+  ] as const;
+
+  for (const [name, source, refused] of cases) {
+    await t.test(name, async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(join(root, 'candidate.ts'), source);
+        if (refused) {
+          assert.throws(
+            () =>
+              prepareCheckpoint(
+                job,
+                'test: refuse Stripe test marker',
+                'session-stripe-test',
+              ),
+            /checkpoint refused: secret pattern in candidate\.ts/u,
+          );
+        } else {
+          assert.doesNotThrow(() =>
+            prepareCheckpoint(
+              job,
+              'test: preserve Zod metadata',
+              'session-zod-metadata',
+            ),
+          );
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
   }
 });

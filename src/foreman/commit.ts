@@ -2,6 +2,7 @@
 import { lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, resolve, sep } from 'node:path';
 import type { Job } from '../core/index.ts';
+import { credentialShapeKind } from './credential-shape.ts';
 import { git } from './git.ts';
 
 // The key-value matcher skips Zod schemas; their string arguments are checked below.
@@ -10,8 +11,8 @@ const secretPattern =
 const sensitiveZodProperty =
   /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*:\s*z\s*\./giu;
 const stringLiteralPattern = /(['"`])((?:\\.|(?!\1)[\s\S])*)\1/gu;
-const quotedSensitiveAssignmentPattern =
-  /\b(?:api[_-]?key|access[_-]?token|secret|password)\b["']?\s*[:=]\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/giu;
+const zodChainedLiteralPattern =
+  /\.(?:default|catch|describe)\s*\(\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/gu;
 
 function statusPaths(output: string): string[] {
   return output
@@ -62,14 +63,12 @@ function isStructuredMetadataLiteral(value: string): boolean {
   );
 }
 
-function isSecretLikeLiteral(
+function isLegacyZodSecretLiteral(
   value: string,
   scanStructuredMetadata = true,
 ): boolean {
   if (secretPattern.test(value)) return true;
   const candidate = value.trim();
-  // Checkpointed source can contain paths and KRN control IDs with digits.
-  // Explicit credential matches above still win; schema literals stay strict.
   if (scanStructuredMetadata && isStructuredMetadataLiteral(candidate))
     return false;
   return (
@@ -83,18 +82,26 @@ function isSecretLikeLiteral(
 function hasSecretLiteral(expression: string): boolean {
   stringLiteralPattern.lastIndex = 0;
   return [...expression.matchAll(stringLiteralPattern)].some((literal) =>
-    isSecretLikeLiteral(literal[2] ?? '', false),
+    isLegacyZodSecretLiteral(literal[2] ?? '', false),
   );
 }
 
-function hasQuotedSensitiveAssignment(content: string): boolean {
-  quotedSensitiveAssignmentPattern.lastIndex = 0;
-  return [...content.matchAll(quotedSensitiveAssignmentPattern)].some(
-    (assignment) => isSecretLikeLiteral(assignment[2] ?? '', false),
-  );
+function hasZodChainedSecretLiteral(content: string): boolean {
+  zodChainedLiteralPattern.lastIndex = 0;
+  return [...content.matchAll(zodChainedLiteralPattern)].some((literal) => {
+    const callStart = literal.index ?? 0;
+    const statementStart = content.lastIndexOf(';', callStart) + 1;
+    const statementPrefix = content.slice(statementStart, callStart);
+    return (
+      /\bz\.[A-Za-z_$][A-Za-z\d_$]*\s*\(/u.test(statementPrefix) &&
+      isLegacyZodSecretLiteral(literal[2] ?? '')
+    );
+  });
 }
 
 function containsSecret(content: string): boolean {
+  if (credentialShapeKind(content) !== null) return true;
+
   for (const property of content.matchAll(sensitiveZodProperty)) {
     const propertyStart = property.index ?? 0;
     const expressionStart = propertyStart + property[0].lastIndexOf('z');
@@ -104,11 +111,7 @@ function containsSecret(content: string): boolean {
   }
 
   if (secretPattern.test(content)) return true;
-  if (hasQuotedSensitiveAssignment(content)) return true;
-  stringLiteralPattern.lastIndex = 0;
-  return [...content.matchAll(stringLiteralPattern)].some((literal) =>
-    isSecretLikeLiteral(literal[2] ?? ''),
-  );
+  return hasZodChainedSecretLiteral(content);
 }
 
 function inspect(root: string, path: string): void {
