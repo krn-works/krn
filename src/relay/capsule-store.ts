@@ -66,6 +66,17 @@ const capsuleSchema = z.object({
   rejectedApproaches: z.array(z.string()),
   references: z.array(z.string()),
   sessionId: z.string().optional(),
+  pendingCheckpoint: z
+    .object({
+      intent: z
+        .string()
+        .max(32)
+        .regex(/^intent:\d+$/),
+      parent: z.string().regex(/^[a-f0-9]{40,64}$/),
+      sha: z.string().regex(/^[a-f0-9]{40,64}$/),
+      epoch: z.number().int().nonnegative(),
+    })
+    .optional(),
 });
 
 export type Capsule = z.infer<typeof capsuleSchema>;
@@ -196,6 +207,24 @@ export function readCapsule(job: Job): Capsule | null {
   }
 }
 
+// The exact same admission check is used for preflight and actual CAS writes.
+export function capsuleWriteRefusal(capsule: Capsule): string | null {
+  if (capsule.decisions.length > MAX_CAPSULE_DECISIONS)
+    return 'capsule exceeds the 64-decision history bound';
+  try {
+    renderAbi(capsule, null);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message === 'capsule ABI values must be single-line' ||
+        error.message === 'capsule exceeds the 2k-token projection budget')
+    )
+      return error.message;
+    throw error;
+  }
+  return null;
+}
+
 export function writeCapsule(
   job: Job,
   input: unknown,
@@ -205,8 +234,7 @@ export function writeCapsule(
   if (capsule.jobId !== job.id || capsule.worktree !== job.worktree)
     throw new Error('capsule does not belong to this job');
   // Bound new writes while keeping the reader able to load older capsules.
-  if (capsule.decisions.length > MAX_CAPSULE_DECISIONS)
-    return Promise.resolve({ applied: false });
+  if (capsuleWriteRefusal(capsule)) return Promise.resolve({ applied: false });
   const path = authoritativePath(job);
   const lock = `${path}.lock`;
   mkdirSync(stateDirectory(job), { recursive: true, mode: 0o700 });
@@ -219,18 +247,7 @@ export function writeCapsule(
       capsule.epoch !== (expectedEpoch === null ? 0 : expectedEpoch + 1)
     )
       return Promise.resolve({ applied: false });
-    let projection: string;
-    try {
-      projection = renderAbi(capsule, null);
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        (error.message === 'capsule ABI values must be single-line' ||
-          error.message === 'capsule exceeds the 2k-token projection budget')
-      )
-        return Promise.resolve({ applied: false });
-      throw error;
-    }
+    const projection = renderAbi(capsule, null);
     const temporary = `${path}.${process.pid}.${Date.now()}.tmp`;
     const fd = openSync(
       temporary,

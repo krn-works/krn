@@ -151,11 +151,11 @@ function inspect(root: string, path: string): void {
   }
 }
 
-export function commitCheckpoint(
+export function prepareCheckpoint(
   job: Job,
   message: string,
   sessionId: string,
-): string {
+): { readonly sha: string; readonly parent: string } {
   if (!message || message.length > 200 || /[\r\n]/.test(message))
     throw new Error('invalid checkpoint commit message');
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(sessionId))
@@ -178,11 +178,53 @@ export function commitCheckpoint(
   if (!staged.length)
     throw new Error('checkpoint refused: no changes to commit');
   for (const path of staged) inspect(root, path);
-  git(job, [
-    'commit',
-    '--no-verify',
+  const parent = git(job, ['rev-parse', 'HEAD']).trim();
+  const tree = git(job, ['write-tree']).trim();
+  const sha = git(job, [
+    'commit-tree',
+    tree,
+    '-p',
+    parent,
     '-m',
     `${message}\n\nKrn-Session: ${sessionId}`,
-  ]);
-  return git(job, ['rev-parse', 'HEAD']).trim();
+  ]).trim();
+  return { sha, parent };
+}
+
+// The prepared object is durable before the capsule CAS. Publishing moves only
+// the expected parent, so a crash cannot require constructing a second commit.
+export function publishCheckpoint(
+  job: Job,
+  sha: string,
+  parent: string,
+  message: string,
+  sessionId: string,
+): void {
+  const head = git(job, ['rev-parse', 'HEAD']).trim();
+  const expectedMessage = `${message}\n\nKrn-Session: ${sessionId}`;
+  if (
+    git(job, ['show', '-s', '--format=%P', sha]).trim() !== parent ||
+    git(job, ['show', '-s', '--format=%B', sha]).trim() !== expectedMessage ||
+    (head !== parent && head !== sha)
+  )
+    throw new Error('checkpoint refused: prepared commit anchors changed');
+  if (head === sha) return;
+  if (
+    git(job, ['write-tree']).trim() !==
+      git(job, ['rev-parse', `${sha}^{tree}`]).trim() ||
+    git(job, ['diff', '--name-only']).trim() ||
+    git(job, ['ls-files', '--others', '--exclude-standard']).trim()
+  )
+    throw new Error('checkpoint refused: prepared tree changed');
+  git(job, ['update-ref', '-m', 'foreman checkpoint', 'HEAD', sha, parent]);
+}
+
+export function commitCheckpoint(
+  job: Job,
+  message: string,
+  sessionId: string,
+): string {
+  const { sha, parent } = prepareCheckpoint(job, message, sessionId);
+  publishCheckpoint(job, sha, parent, message, sessionId);
+  return sha;
 }
