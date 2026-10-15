@@ -956,15 +956,22 @@ test('cancellation accounts for the owned scope and all remaining check processe
       { state: 'inactive', pids: [] },
       'cancellation must kill and verify the owned .scope, not the absent .service',
     );
+    const result = await execution;
+    assert.ok(result instanceof Error);
+    assert.equal(result.message, 'stopped');
+    // An empty cgroup can precede child close/reaping by a scheduler turn.
+    const reapedBy = Date.now() + 1500;
+    while (
+      activePids.some((pid) => existsSync(`/proc/${pid}`)) &&
+      Date.now() < reapedBy
+    )
+      await new Promise((done) => setTimeout(done, 20));
     for (const pid of activePids)
       assert.equal(
         existsSync(`/proc/${pid}`),
         false,
         `owned check PID ${pid} must be reaped`,
       );
-    const result = await execution;
-    assert.ok(result instanceof Error);
-    assert.equal(result.message, 'stopped');
   } finally {
     if (scope)
       spawnSync(
