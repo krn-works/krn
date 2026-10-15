@@ -470,6 +470,59 @@ test('prepareCheckpoint refuses high-confidence credential shapes in code contex
   }
 });
 
+test('prepareCheckpoint refuses supported credential marker families in ordinary code', async (t) => {
+  const payload = 'SYNTHETICa1'.repeat(4);
+  const cases = [
+    {
+      name: 'private-key block marker',
+      token: '-----BEGIN SYNTHETIC PRIVATE KEY BLOCK-----',
+    },
+    { name: 'Stripe project token', token: `sk-proj-${payload}` },
+    { name: 'Stripe live key', token: `sk_live_${payload}` },
+    { name: 'Stripe restricted live key', token: `rk_live_${payload}` },
+    { name: 'GitHub token', token: `ghp_${payload}` },
+    {
+      name: 'modern GitHub token',
+      token: `github_pat_${'SYNTHETIC_'.repeat(3)}`,
+    },
+    { name: 'npm token', token: `npm_${payload}` },
+    { name: 'AWS access key', token: `AKIA${'A1'.repeat(8)}` },
+    { name: 'AWS session key', token: `ASIA${'B2'.repeat(8)}` },
+    { name: 'Google API key', token: `AIza${'SYNTHETIC1'.repeat(3)}ABCDE` },
+    {
+      name: 'Slack bot token',
+      token: `xoxb-123456789012-123456789012-${'a1'.repeat(16)}`,
+    },
+    {
+      name: 'JWT',
+      token: `eyJ${'a1b2c3d4'.repeat(2)}.${'e5f6g7h8'.repeat(2)}.${'i9j0k1l2'.repeat(2)}`,
+    },
+  ] as const;
+
+  for (const { name, token } of cases) {
+    await t.test(name, async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(
+          join(root, 'case.ts'),
+          `const key = ${JSON.stringify(token)};\n`,
+        );
+        assert.throws(
+          () =>
+            prepareCheckpoint(
+              job,
+              'test: prepare synthetic source',
+              'session-synthetic',
+            ),
+          /checkpoint refused: secret pattern in case\.ts/u,
+        );
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
 test('checkpoint commits a deleted tracked file', async () => {
   const { root, git, job } = await checkpointRepo();
   try {

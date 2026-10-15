@@ -6,17 +6,24 @@ import { git } from './git.ts';
 
 // The key-value matcher skips Zod schemas; their string arguments are checked below.
 const secretPattern =
-  /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*(?!z\s*\.\s*[A-Za-z_$][A-Za-z\d_$]*\s*\()[^\s"']{8,}/iu;
+  /(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*(?!z\s*\.\s*[A-Za-z_$][A-Za-z\d_$]*\s*\()[^\s"']{8,}/iu;
 const sensitiveZodProperty =
   /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*:\s*z\s*\./giu;
 const stringLiteralPattern = /(['"`])((?:\\.|(?!\1)[\s\S])*)\1/gu;
 const zodChainedLiteralPattern =
   /\.(?:default|catch|describe)\s*\(\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/gu;
-// High-confidence credential shapes are checked regardless of code context.
+// Explicit marker families are checked globally; this is not an entropy/DLP scan.
 const highConfidenceCredentialPatterns = [
-  /\bsk-(?:(?:test|proj|live|ant(?:-api\d+)?)-[A-Za-z0-9_-]{16,}|[A-Za-z0-9]{20,})\b/iu,
-  /\bgh[pousr]_[A-Za-z0-9]{20,}\b/iu,
-];
+  /-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----/iu,
+  /\bsk-(?:(?:test|proj|live|ant(?:-api\d+)?)-[A-Za-z0-9_-]{16,}|[A-Za-z0-9]{20,})\b/u,
+  /\b(?:sk|rk)_live_[A-Za-z0-9]{16,}\b/u,
+  /\bgh[pousr]_[A-Za-z0-9]{20,}\b|\bgithub_pat_[A-Za-z0-9_]{16,}\b/u,
+  /\bnpm_[A-Za-z0-9]{36,}\b/u,
+  /\b(?:AKIA|ASIA)[A-Z0-9]{16}\b/u,
+  /\bAIza[A-Za-z0-9_-]{35}\b/u,
+  /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/u,
+  /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/u,
+] as const;
 const quotedSensitiveAssignmentPattern =
   /\b(?:api[_-]?key|access[_-]?token|secret|password)\b["']?\s*[:=]\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/giu;
 
@@ -101,6 +108,12 @@ function hasQuotedSensitiveAssignment(content: string): boolean {
   );
 }
 
+function hasHighConfidenceCredentialShape(content: string): boolean {
+  return highConfidenceCredentialPatterns.some((pattern) =>
+    pattern.test(content),
+  );
+}
+
 function hasZodChainedSecretLiteral(content: string): boolean {
   zodChainedLiteralPattern.lastIndex = 0;
   return [...content.matchAll(zodChainedLiteralPattern)].some((literal) => {
@@ -115,8 +128,7 @@ function hasZodChainedSecretLiteral(content: string): boolean {
 }
 
 function containsSecret(content: string): boolean {
-  if (highConfidenceCredentialPatterns.some((pattern) => pattern.test(content)))
-    return true;
+  if (hasHighConfidenceCredentialShape(content)) return true;
 
   for (const property of content.matchAll(sensitiveZodProperty)) {
     const propertyStart = property.index ?? 0;
