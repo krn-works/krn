@@ -13,7 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { commitCheckpoint } from '../src/foreman/commit.ts';
+import { commitCheckpoint, prepareCheckpoint } from '../src/foreman/commit.ts';
 import { runJob } from '../src/foreman/run.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
@@ -370,6 +370,103 @@ test('real CLI --next done records a verdict without opening another session', a
   } finally {
     await rm(root, { recursive: true, force: true });
     await rm(auxiliary, { recursive: true, force: true });
+  }
+});
+
+test('prepareCheckpoint accepts ordinary code literals across full changed files', async (t) => {
+  const cases = [
+    {
+      name: 'existing hash algorithm while another line changes',
+      before: "const hash = createHash('sha256');\nlet ready = false;\n",
+      after: "const hash = createHash('sha256');\nlet ready = true;\n",
+    },
+    {
+      name: 'new model label',
+      before: 'let ready = false;\n',
+      after: "let ready = true;\nconst model = 'gpt-6-luna';\n",
+    },
+    {
+      name: 'version-like code label',
+      before: 'let ready = false;\n',
+      after: "let ready = true;\nconst version = 'v1beta2';\n",
+    },
+  ] as const;
+
+  for (const { name, before, after } of cases) {
+    await t.test(name, async () => {
+      const { root, git, job } = await checkpointRepo();
+      try {
+        await writeFile(join(root, 'case.ts'), before);
+        git(['add', 'case.ts']);
+        git(['commit', '-qm', 'test: save synthetic source context']);
+        const parent = git(['rev-parse', 'HEAD']);
+        await writeFile(join(root, 'case.ts'), after);
+
+        const prepared = prepareCheckpoint(
+          job,
+          'test: prepare synthetic source',
+          'session-synthetic',
+        );
+        assert.equal(prepared.parent, parent);
+        assert.equal(git(['rev-parse', 'HEAD']), parent);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test('prepareCheckpoint refuses a directly assigned alphabetic password literal', async () => {
+  const { root, job } = await checkpointRepo();
+  try {
+    await writeFile(
+      join(root, 'settings.ts'),
+      "export const password = 'correcthorsebatterystaple';\n",
+    );
+    assert.throws(
+      () =>
+        prepareCheckpoint(
+          job,
+          'test: prepare synthetic source',
+          'session-synthetic',
+        ),
+      /checkpoint refused: secret pattern in settings\.ts/u,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('prepareCheckpoint refuses high-confidence credential shapes in code contexts', async (t) => {
+  const cases = [
+    {
+      name: 'sk-shaped model label',
+      source: `const model = 'sk-proj-SYNTHETICONLY${'a1'.repeat(20)}';\n`,
+    },
+    {
+      name: 'GitHub-shaped hash argument',
+      source: `const value = createHash('ghp_${'SYNTHETICONLYa1'.repeat(4)}');\n`,
+    },
+  ] as const;
+
+  for (const { name, source } of cases) {
+    await t.test(name, async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(join(root, 'case.ts'), source);
+        assert.throws(
+          () =>
+            prepareCheckpoint(
+              job,
+              'test: prepare synthetic source',
+              'session-synthetic',
+            ),
+          /checkpoint refused: secret pattern in case\.ts/u,
+        );
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
   }
 });
 

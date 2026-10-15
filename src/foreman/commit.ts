@@ -10,6 +10,13 @@ const secretPattern =
 const sensitiveZodProperty =
   /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*:\s*z\s*\./giu;
 const stringLiteralPattern = /(['"`])((?:\\.|(?!\1)[\s\S])*)\1/gu;
+const zodChainedLiteralPattern =
+  /\.(?:default|catch|describe)\s*\(\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/gu;
+// High-confidence credential shapes are checked regardless of code context.
+const highConfidenceCredentialPatterns = [
+  /\bsk-(?:(?:test|proj|live|ant(?:-api\d+)?)-[A-Za-z0-9_-]{16,}|[A-Za-z0-9]{20,})\b/iu,
+  /\bgh[pousr]_[A-Za-z0-9]{20,}\b/iu,
+];
 const quotedSensitiveAssignmentPattern =
   /\b(?:api[_-]?key|access[_-]?token|secret|password)\b["']?\s*[:=]\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/giu;
 
@@ -90,11 +97,27 @@ function hasSecretLiteral(expression: string): boolean {
 function hasQuotedSensitiveAssignment(content: string): boolean {
   quotedSensitiveAssignmentPattern.lastIndex = 0;
   return [...content.matchAll(quotedSensitiveAssignmentPattern)].some(
-    (assignment) => isSecretLikeLiteral(assignment[2] ?? '', false),
+    (assignment) => (assignment[2] ?? '').length > 0,
   );
 }
 
+function hasZodChainedSecretLiteral(content: string): boolean {
+  zodChainedLiteralPattern.lastIndex = 0;
+  return [...content.matchAll(zodChainedLiteralPattern)].some((literal) => {
+    const callStart = literal.index ?? 0;
+    const statementStart = content.lastIndexOf(';', callStart) + 1;
+    const statementPrefix = content.slice(statementStart, callStart);
+    return (
+      /\bz\.[A-Za-z_$][A-Za-z\d_$]*\s*\(/u.test(statementPrefix) &&
+      isSecretLikeLiteral(literal[2] ?? '')
+    );
+  });
+}
+
 function containsSecret(content: string): boolean {
+  if (highConfidenceCredentialPatterns.some((pattern) => pattern.test(content)))
+    return true;
+
   for (const property of content.matchAll(sensitiveZodProperty)) {
     const propertyStart = property.index ?? 0;
     const expressionStart = propertyStart + property[0].lastIndexOf('z');
@@ -105,10 +128,7 @@ function containsSecret(content: string): boolean {
 
   if (secretPattern.test(content)) return true;
   if (hasQuotedSensitiveAssignment(content)) return true;
-  stringLiteralPattern.lastIndex = 0;
-  return [...content.matchAll(stringLiteralPattern)].some((literal) =>
-    isSecretLikeLiteral(literal[2] ?? ''),
-  );
+  return hasZodChainedSecretLiteral(content);
 }
 
 function inspect(root: string, path: string): void {
