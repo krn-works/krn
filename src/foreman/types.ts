@@ -29,6 +29,14 @@ export type Capsule = {
   readonly rejectedApproaches: readonly string[];
   readonly references: readonly string[];
   readonly sessionId?: string | undefined;
+  readonly pendingCheckpoint?:
+    | {
+        readonly intent: string;
+        readonly parent: string;
+        readonly sha: string;
+        readonly epoch: number;
+      }
+    | undefined;
 };
 export type RepoFacts = {
   readonly base: string;
@@ -100,12 +108,19 @@ export type Deps = {
       message: string,
       next: string,
       decision?: string,
+      prepared?: {
+        readonly intent: string;
+        readonly parent: string;
+        readonly sha: string;
+        readonly expectedEpoch: number;
+      },
     ): Promise<Capsule>;
     recordCommit(
       job: Job,
       sessionId: string,
       sha: string,
       message: string,
+      expectedEpoch?: number,
     ): Promise<Capsule>;
     bindSession(
       job: Job,
@@ -113,7 +128,10 @@ export type Deps = {
       sessionId: string,
     ): Promise<Cas<Capsule>>;
     isCurrent(job: Job, epoch: number, sessionId: string): Promise<boolean>;
-    repoFacts(job: Job): RepoFacts | Promise<RepoFacts>;
+    repoFacts(
+      job: Job,
+      checkpointBase?: string,
+    ): RepoFacts | Promise<RepoFacts>;
     validate(capsule: Capsule, facts: RepoFacts): Validation;
     project(capsule: Capsule, facts: RepoFacts, contract: Contract): string;
     refreshCAS(

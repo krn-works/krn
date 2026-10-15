@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-
+import { finishCheckpoint } from '../../src/foreman/checkpoint.ts';
+import { writeCheckpointRequest } from '../../src/foreman/checkpoint-request.ts';
 import * as foreman from '../../src/foreman/index.ts';
 import { runJob } from '../../src/foreman/run.ts';
 import { recoverLease } from '../../src/foreman/session.ts';
+import { recordRepo } from '../../src/foreman/state.ts';
 import type { Capsule, Deps } from '../../src/foreman/types.ts';
 import { reportPassingVerdict } from '../../src/foreman/verdict.ts';
 import type {
@@ -16,6 +18,7 @@ import type {
   VerdictEvidence,
 } from '../../src/ledger/index.ts';
 import * as relay from '../../src/relay/index.ts';
+import * as diskTrace from '../../src/trace/index.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
 test('resuming a ready_for_review checkpoint re-verdicts without starting a session', async (t) => {
@@ -216,7 +219,7 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
       failure: async () => undefined,
       checkpoint: async () => {
         checkpointed = true;
-        epoch += 1;
+        // Trace appends events; only the relay advances the capsule epoch.
       },
       checkpointRequest: async () => ({
         message: 'feat: step A',
@@ -536,3 +539,501 @@ async function waitFor(read: () => boolean): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(read(), true, 'timed out waiting for the fake session to start');
 }
+
+// Batch02 exercises the real checkpoint, relay and trace against disk/Git.
+async function partialCheckpointFixture(
+  next = 'step B',
+  check = '/usr/bin/true',
+  message = 'feat: checkpoint step',
+) {
+  const scratch = join(process.cwd(), '.krn', 'tmp');
+  await mkdir(scratch, { recursive: true });
+  const worktree = await mkdtemp(join(scratch, 'partial-checkpoint-'));
+  const git = (args: string[]) => {
+    const result = spawnSync('git', ['-C', worktree, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  git(['init', '-q', '--initial-branch=main']);
+  git(['config', 'user.name', 'Fixture']);
+  git(['config', 'user.email', 'fixture@example.invalid']);
+  await writeFile(join(worktree, '.gitignore'), '.krn/\n');
+  await writeFile(
+    join(worktree, 'krn.checks.json'),
+    JSON.stringify({
+      version: 1,
+      checks: [{ id: 'declared', argv: [check], timeoutMs: 3000 }],
+    }),
+  );
+  git(['add', '.gitignore', 'krn.checks.json']);
+  git(['commit', '-qm', 'fixture']);
+  const job = {
+    id: 'partial',
+    issue: 'issue-partial',
+    worktree,
+    repoRoot: worktree,
+  };
+  const contract: Contract = {
+    issueId: job.issue,
+    identifier: 'partial',
+    title: 'partial',
+    description: 'partial',
+    revision: 'rev-1',
+    targetRepo: 'fixture/repo',
+    checks: ['declared'],
+  };
+  recordRepo(job, worktree, 'main', git(['rev-parse', 'HEAD']));
+  const initial = await relay.load(job, contract);
+  const intent = await diskTrace.intent(job, initial.epoch);
+  const bound = await relay.bindSession(job, initial, 'session-partial');
+  assert.equal(bound.applied, true);
+  if (!bound.applied) throw new Error('fixture bind failed');
+  await diskTrace.started(job, intent, 'session-partial');
+  writeCheckpointRequest(job, {
+    intent,
+    sessionId: 'session-partial',
+    message,
+    next,
+  });
+  await writeFile(join(worktree, 'change.txt'), 'worker change\n');
+  let starts = 0;
+  const d: Deps = {
+    budget: { maxResets: 0, maxRepairs: 0, session: { timeoutMs: 1000 } },
+    ledger: {
+      submissionEnabled: false,
+      readContract: async () => contract,
+      submitForReview: async () => 'ready_for_review',
+    },
+    relay,
+    trace: diskTrace,
+    hosts: {
+      codex: {
+        start: async () => {
+          starts++;
+          throw new Error('fake backend reached next action');
+        },
+      },
+      cancelTree: async () => undefined,
+    },
+    stop: (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
+  };
+  return {
+    worktree,
+    job,
+    contract,
+    intent,
+    capsule: bound.value,
+    d,
+    git,
+    starts: () => starts,
+  };
+}
+
+for (const boundary of [
+  'before trace.commit',
+  'before recordCommit',
+] as const) {
+  test(`partial checkpoint recovers ${boundary} without another commit`, async () => {
+    const f = await partialCheckpointFixture();
+    try {
+      const interrupted: Deps = {
+        ...f.d,
+        trace:
+          boundary === 'before trace.commit'
+            ? {
+                ...diskTrace,
+                commit: async () => {
+                  throw new Error('injected interruption');
+                },
+              }
+            : diskTrace,
+        relay:
+          boundary === 'before recordCommit'
+            ? {
+                ...relay,
+                recordCommit: async () => {
+                  throw new Error('injected interruption');
+                },
+              }
+            : relay,
+      };
+      await assert.rejects(
+        finishCheckpoint(f.job, f.capsule, f.intent, interrupted),
+        /injected interruption/,
+      );
+      const head = f.git(['rev-parse', 'HEAD']);
+      assert.notEqual(
+        head,
+        f.capsule.head,
+        'injection must follow the actual commit',
+      );
+      const resumedOutcome = await runJob(f.job, f.d);
+      const recovered = await relay.load(f.job, f.contract);
+      assert.equal(
+        recovered.head,
+        head,
+        `resume must reconcile the owned checkpoint: ${JSON.stringify(resumedOutcome)}`,
+      );
+      assert.equal(recovered.nextAction, 'step B');
+      assert.equal(f.starts(), 1, 'continue reaches the next worker action');
+      await runJob(f.job, f.d);
+      assert.equal(f.git(['rev-list', '--count', 'HEAD']), '2');
+      const events = (
+        await readFile(
+          join(f.worktree, '.krn/runs/foreman/partial/trace.jsonl'),
+          'utf8',
+        )
+      )
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      assert.equal(events.filter((event) => event.kind === 'commit').length, 1);
+    } finally {
+      await rm(f.worktree, { recursive: true, force: true });
+    }
+  });
+}
+
+for (const bound of ['history', 'projection'] as const) {
+  test(`checkpoint preflights completed capsule ${bound} before changing HEAD`, async () => {
+    const f = await partialCheckpointFixture();
+    try {
+      let full = {
+        ...f.capsule,
+        epoch: f.capsule.epoch + 1,
+        decisions:
+          bound === 'history'
+            ? Array.from({ length: 63 }, () => ({
+                date: 'd',
+                source: 's',
+                text: 'x',
+              }))
+            : [],
+        references: bound === 'projection' ? ['x'.repeat(6300)] : [],
+      };
+      // ABI is fixed at 8000 characters. Leave room for the request decision,
+      // but not for the additional foreman commit decision (no history trimming).
+      if (bound === 'projection') {
+        const projection = await readFile(
+          join(f.worktree, '.krn/runs/delivery-loop/partial/state.md'),
+          'utf8',
+        );
+        full = {
+          ...full,
+          references: ['x'.repeat(7860 - projection.length - 2)],
+        };
+      }
+      const saved = await relay.writeCapsule(f.job, full, f.capsule.epoch);
+      assert.equal(saved.applied, true, 'capacity fixture must persist');
+      const before = f.git(['rev-parse', 'HEAD']);
+      await assert.rejects(finishCheckpoint(f.job, full, f.intent, f.d));
+      assert.equal(
+        f.git(['rev-parse', 'HEAD']),
+        before,
+        'deterministic capsule refusal must precede HEAD change',
+      );
+    } finally {
+      await rm(f.worktree, { recursive: true, force: true });
+    }
+  });
+}
+
+for (const check of ['/usr/bin/true', '/usr/bin/false']) {
+  test(`recovered done checkpoint runs required verification (${check})`, async (t) => {
+    if (
+      !requiresIsolation(
+        t,
+        'recovered done checkpoint runs required verification',
+        ['bwrap', 'systemdUserScope'],
+      )
+    )
+      return;
+    const f = await partialCheckpointFixture('done', check);
+    try {
+      await assert.rejects(
+        finishCheckpoint(f.job, f.capsule, f.intent, {
+          ...f.d,
+          trace: {
+            ...diskTrace,
+            commit: async () => {
+              throw new Error('injected interruption');
+            },
+          },
+        }),
+        /injected interruption/,
+      );
+      const head = f.git(['rev-parse', 'HEAD']);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const outcome = await runJob(f.job, f.d);
+        assert.equal(
+          outcome.kind,
+          check === '/usr/bin/true' ? 'verdict_pass' : 'stop',
+          JSON.stringify(outcome),
+        );
+        assert.equal(f.starts(), 0, 'done must reach verdict without a worker');
+        assert.equal(f.git(['rev-parse', 'HEAD']), head);
+        assert.equal(f.git(['rev-list', '--count', 'HEAD']), '2');
+      }
+      const events = (
+        await readFile(
+          join(f.worktree, '.krn/runs/foreman/partial/trace.jsonl'),
+          'utf8',
+        )
+      )
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      const verdicts = events.filter((event) => event.kind === 'verdict');
+      assert.ok(verdicts.length > 0, 'required verifier executed');
+      assert.equal(
+        verdicts[0].data.checks[0].exitCode,
+        check === '/usr/bin/true' ? 0 : 1,
+      );
+    } finally {
+      await rm(f.worktree, { recursive: true, force: true });
+    }
+  });
+}
+
+// Worker messages are stored verbatim; leading whitespace must not strand pending state.
+for (const message of [' feat: leading space', '\tfeat: leading tab']) {
+  for (const boundary of [
+    'before trace.commit',
+    'before publication',
+  ] as const) {
+    test(`partial checkpoint with ${JSON.stringify(message)} recovers ${boundary}`, async () => {
+      const f = await partialCheckpointFixture(
+        'step B',
+        '/usr/bin/true',
+        message,
+      );
+      try {
+        const interruption = await finishCheckpoint(
+          f.job,
+          f.capsule,
+          f.intent,
+          {
+            ...f.d,
+            trace: {
+              ...diskTrace,
+              ...(boundary === 'before trace.commit'
+                ? {
+                    commit: async () => {
+                      throw new Error('injected interruption');
+                    },
+                  }
+                : {
+                    checkpoint: async () => {
+                      throw new Error('injected interruption');
+                    },
+                  }),
+            },
+          },
+        ).then(
+          () => undefined,
+          (error: unknown) => error,
+        );
+        assert.match(String(interruption), /injected interruption/);
+        const pending = (await relay.load(f.job, f.contract)).pendingCheckpoint;
+        assert.ok(pending);
+        await runJob(f.job, f.d);
+        const recovered = await relay.load(f.job, f.contract);
+        assert.equal(recovered.pendingCheckpoint, undefined);
+        assert.equal(recovered.head, pending.sha);
+        assert.equal(f.git(['rev-parse', 'HEAD']), pending.sha);
+        assert.equal(f.starts(), 1, 'continue reaches the next worker action');
+        const body = f.git(['cat-file', 'commit', pending.sha]);
+        assert.equal(
+          body.slice(body.indexOf('\n\n') + 2),
+          `${message}\n\nKrn-Session: session-partial`,
+        );
+        await runJob(f.job, f.d);
+        assert.equal(f.git(['rev-list', '--count', 'HEAD']), '2');
+        const events = (
+          await readFile(
+            join(f.worktree, '.krn/runs/foreman/partial/trace.jsonl'),
+            'utf8',
+          )
+        )
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line));
+        assert.deepEqual(
+          events
+            .filter((event) => event.kind === 'commit')
+            .map((event) => event.data.sha),
+          [pending.sha],
+        );
+      } finally {
+        await rm(f.worktree, { recursive: true, force: true });
+      }
+    });
+  }
+}
+
+test('pending checkpoint resumes after capsule CAS but before HEAD publication', async () => {
+  const f = await partialCheckpointFixture();
+  try {
+    await assert.rejects(
+      finishCheckpoint(f.job, f.capsule, f.intent, {
+        ...f.d,
+        trace: {
+          ...diskTrace,
+          checkpoint: async () => {
+            throw new Error('injected before publication');
+          },
+        },
+      }),
+      /injected before publication/,
+    );
+    assert.equal(f.git(['rev-parse', 'HEAD']), f.capsule.head);
+    const pending = await relay.load(f.job, f.contract);
+    assert.ok(pending.pendingCheckpoint);
+    await runJob(f.job, f.d);
+    assert.equal(
+      (await relay.load(f.job, f.contract)).head,
+      pending.pendingCheckpoint.sha,
+    );
+    assert.equal(f.git(['rev-list', '--count', 'HEAD']), '2');
+  } finally {
+    await rm(f.worktree, { recursive: true, force: true });
+  }
+});
+
+for (const mutation of [
+  'foreign HEAD',
+  'foreign sibling',
+  'wrong parent',
+  'wrong session',
+  'wrong intent',
+  'stale epoch',
+  'contract',
+  'branch',
+  'legacy ambiguity',
+  'CAS lock',
+] as const) {
+  test(`partial checkpoint fails closed on ${mutation}`, async () => {
+    const f = await partialCheckpointFixture();
+    try {
+      await assert.rejects(
+        finishCheckpoint(f.job, f.capsule, f.intent, {
+          ...f.d,
+          trace: {
+            ...diskTrace,
+            commit: async () => {
+              throw new Error('injected interruption');
+            },
+          },
+        }),
+        /injected interruption/,
+      );
+      const owned = await relay.load(f.job, f.contract);
+      const pending = owned.pendingCheckpoint;
+      assert.ok(pending);
+      const path = join(f.worktree, '.krn/runs/foreman/partial/capsule.json');
+      if (mutation === 'foreign HEAD') {
+        // Even the correct session/message is insufficient without the exact prepared object.
+        f.git([
+          'commit',
+          '--allow-empty',
+          '-qm',
+          'feat: checkpoint step\n\nKrn-Session: session-partial',
+        ]);
+      } else if (mutation === 'foreign sibling') {
+        await writeFile(join(f.worktree, 'foreign.txt'), 'foreign tree\n');
+        f.git(['add', 'foreign.txt']);
+        const sibling = f.git([
+          'commit-tree',
+          f.git(['write-tree']),
+          '-p',
+          f.capsule.head,
+          '-m',
+          'feat: checkpoint step\n\nKrn-Session: session-partial',
+        ]);
+        f.git(['update-ref', 'HEAD', sibling, pending.sha]);
+      } else if (mutation === 'branch') f.git(['checkout', '-qb', 'foreign']);
+      else if (mutation === 'CAS lock')
+        await writeFile(`${path}.lock`, `${process.pid}\n`);
+      else if (mutation === 'contract') {
+        await writeFile(
+          path,
+          JSON.stringify({ ...owned, contractRevision: 'foreign' }),
+        );
+      } else {
+        const changed = {
+          ...owned,
+          ...(mutation === 'wrong session'
+            ? { sessionId: 'foreign-session' }
+            : {}),
+          ...(mutation === 'wrong parent'
+            ? { head: f.git(['rev-parse', 'HEAD']) }
+            : {}),
+          ...(mutation === 'stale epoch' ? { epoch: owned.epoch + 1 } : {}),
+          ...(mutation === 'wrong intent'
+            ? { pendingCheckpoint: { ...pending, intent: 'intent:999' } }
+            : {}),
+          ...(mutation === 'legacy ambiguity'
+            ? { pendingCheckpoint: undefined }
+            : {}),
+        };
+        await writeFile(path, JSON.stringify(changed));
+      }
+      const before = await readFile(path, 'utf8');
+      const head = f.git(['rev-parse', 'HEAD']);
+      if (mutation === 'contract')
+        await assert.rejects(runJob(f.job, f.d), /contract revision is stale/);
+      else {
+        const outcome = await runJob(f.job, f.d);
+        assert.equal(outcome.kind, 'stop', JSON.stringify(outcome));
+        if (outcome.kind === 'stop') assert.ok(outcome.reasons.length > 0);
+      }
+      assert.equal(f.starts(), 0, 'ambiguous ownership cannot start a worker');
+      assert.equal(
+        await readFile(path, 'utf8'),
+        before,
+        'no overwrite on refusal',
+      );
+      assert.equal(
+        f.git(['rev-parse', 'HEAD']),
+        head,
+        'no new commit on refusal',
+      );
+    } finally {
+      await rm(f.worktree, { recursive: true, force: true });
+    }
+  });
+}
+
+test('checkpoint publication refuses ownership changed while recording trace', async () => {
+  const f = await partialCheckpointFixture();
+  try {
+    await assert.rejects(
+      finishCheckpoint(f.job, f.capsule, f.intent, {
+        ...f.d,
+        trace: {
+          ...diskTrace,
+          checkpoint: async (...args) => {
+            await diskTrace.checkpoint(...args);
+            const current = await relay.load(f.job, f.contract);
+            assert.equal(
+              (
+                await relay.writeCapsule(
+                  f.job,
+                  { ...current, epoch: current.epoch + 1 },
+                  current.epoch,
+                )
+              ).applied,
+              true,
+            );
+          },
+        },
+      }),
+      /ownership changed/,
+    );
+    assert.equal(f.git(['rev-parse', 'HEAD']), f.capsule.head);
+  } finally {
+    await rm(f.worktree, { recursive: true, force: true });
+  }
+});

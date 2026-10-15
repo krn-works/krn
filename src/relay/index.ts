@@ -11,6 +11,7 @@ import type { Contract } from '../ledger/index.ts';
 import {
   type Capsule,
   type Cas,
+  capsuleWriteRefusal,
   parseCapsule,
   projectCapsule,
   type RepoFacts,
@@ -81,7 +82,7 @@ export function repoReferences(job: Job): string[] {
   return references;
 }
 
-export function repoFacts(job: Job): RepoFacts {
+export function repoFacts(job: Job, checkpointBase?: string): RepoFacts {
   const [root, head, branch] = git(job, [
     'rev-parse',
     '--show-toplevel',
@@ -99,18 +100,23 @@ export function repoFacts(job: Job): RepoFacts {
     })
     .parse({ root, head, branch });
   const record = repoRecord(job);
+  if (checkpointBase !== undefined)
+    z.string()
+      .regex(/^[0-9a-f]{40,64}$/i)
+      .parse(checkpointBase);
+  const selectedBase = record.baseSha ?? checkpointBase;
   const baseResult = git(job, [
     'merge-base',
     'HEAD',
-    record.baseSha ?? record.baseRef ?? 'main',
+    selectedBase ?? record.baseRef ?? 'main',
   ]);
   const base = z
     .string()
     .regex(/^[0-9a-f]{40,64}$/i)
     .parse(baseResult.trim());
-  if (record.baseSha && base !== record.baseSha)
+  if (selectedBase && base !== selectedBase)
     throw new Error(
-      `recorded base SHA ${record.baseSha} is not an ancestor of HEAD (merge-base is ${base})`,
+      `recorded base SHA ${selectedBase} is not an ancestor of HEAD (merge-base is ${base})`,
     );
   const dirtyPaths = git(job, [
     'status',
@@ -170,7 +176,10 @@ export async function bindSession(
   capsule: Capsule,
   sessionId: string,
 ): Promise<Cas<Capsule>> {
-  if (capsule.sessionId && capsule.lease !== 'checkpointed')
+  if (
+    capsule.pendingCheckpoint ||
+    (capsule.sessionId && capsule.lease !== 'checkpointed')
+  )
     return { applied: false };
   const next = parseCapsule({
     ...capsule,
@@ -215,9 +224,30 @@ export async function checkpoint(
   message: string,
   nextAction: string,
   decision?: string,
+  prepared?: {
+    readonly intent: string;
+    readonly parent: string;
+    readonly sha: string;
+    readonly expectedEpoch: number;
+  },
 ): Promise<Capsule> {
   const current = readCapsule(job);
   if (!current) throw new Error('cannot checkpoint without a relay capsule');
+  if (
+    prepared &&
+    (current.epoch !== prepared.expectedEpoch ||
+      current.head !== prepared.parent)
+  )
+    throw new Error('checkpoint refused: capsule ownership changed');
+  if (prepared) {
+    const facts = repoFacts(job, current.base);
+    if (!validate(current, facts).ok || facts.base !== current.base)
+      throw new Error('checkpoint refused: repository anchors changed');
+    if (current.lease === 'checkpointed')
+      throw new Error(
+        'checkpoint refused: checkpoint already prepared or ambiguous',
+      );
+  }
   const priorRequest = [...current.decisions]
     .reverse()
     .find(
@@ -240,6 +270,16 @@ export async function checkpoint(
     ...current,
     epoch: current.epoch + 1,
     nextAction,
+    ...(prepared === undefined
+      ? {}
+      : {
+          pendingCheckpoint: {
+            intent: prepared.intent,
+            parent: prepared.parent,
+            sha: prepared.sha,
+            epoch: current.epoch + 1,
+          },
+        }),
     lease: 'checkpointed',
     decisions: [
       ...current.decisions,
@@ -260,25 +300,34 @@ export async function checkpoint(
     ],
     sessionId,
   });
+  if (prepared) {
+    const completed = committedCapsule(
+      next,
+      { ...repoFacts(job, current.base), head: prepared.sha },
+      sessionId,
+      prepared.sha,
+      message,
+    );
+    const refusal = capsuleWriteRefusal(next) ?? capsuleWriteRefusal(completed);
+    if (refusal) throw new Error(`checkpoint refused: ${refusal}`);
+  }
   const saved = await storeCapsule(job, next, current.epoch);
   if (!saved.applied) throw new Error('checkpoint capsule CAS conflict');
   return next;
 }
 
-export async function recordCommit(
-  job: Job,
+function committedCapsule(
+  current: Capsule,
+  facts: RepoFacts,
   sessionId: string,
   sha: string,
   message: string,
-): Promise<Capsule> {
-  const current = readCapsule(job);
-  if (current?.sessionId !== sessionId || current.lease !== 'checkpointed')
-    throw new Error('commit session is not bound to the checkpointed capsule');
-  const facts = repoFacts(job);
-  const next = parseCapsule({
+): Capsule {
+  return parseCapsule({
     ...current,
     ...facts,
     epoch: current.epoch + 1,
+    pendingCheckpoint: undefined,
     decisions: [
       ...current.decisions,
       {
@@ -288,6 +337,46 @@ export async function recordCommit(
       },
     ],
   });
+}
+
+export async function recordCommit(
+  job: Job,
+  sessionId: string,
+  sha: string,
+  message: string,
+  expectedEpoch?: number,
+): Promise<Capsule> {
+  const current = readCapsule(job);
+  if (
+    current?.sessionId !== sessionId ||
+    current.lease !== 'checkpointed' ||
+    (expectedEpoch !== undefined && current.epoch !== expectedEpoch)
+  )
+    throw new Error(
+      'commit session is not bound to the checkpointed capsule epoch',
+    );
+  const facts = repoFacts(
+    job,
+    current.pendingCheckpoint ? current.base : undefined,
+  );
+  if (
+    current.pendingCheckpoint &&
+    (facts.branch !== current.branch ||
+      facts.base !== current.base ||
+      facts.worktree !== current.worktree)
+  )
+    throw new Error('checkpoint repository anchors changed');
+  if (facts.head !== sha)
+    throw new Error('commit HEAD differs from checkpoint SHA');
+  const pending = current.pendingCheckpoint;
+  if (
+    pending &&
+    (pending.sha !== sha ||
+      pending.parent !== current.head ||
+      pending.epoch !== current.epoch)
+  )
+    throw new Error('checkpoint ownership changed');
+  const next = committedCapsule(current, facts, sessionId, sha, message);
   const saved = await storeCapsule(job, next, current.epoch);
   if (!saved.applied) throw new Error('commit capsule CAS conflict');
   return next;

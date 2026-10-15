@@ -98,3 +98,17 @@ re-run, crash). Dane do decyzji o eksperymencie "tylko Luna" na G3.
 5. **Wcześniejsze LON-y.** LON-205/206/211 zachowują wcześniejsze granty i materiały. Replay odbywa się ze świeżego main na osobnych branchach i nowych PR-ach pod tymi samymi LON; bez sync-merge. PR #8 z materialnymi zmianami WoZ zostaje poza R1; zachować dirty guard206 bez edycji i nie uruchamiać WoZ. PR #4 pozostaje propozycją P-006.
 6. **Mapowanie R1–LON.** Zadanie R1 mapuje się na issue Paperclip LON przez wiersz `R1-task: R1-xx` w opisie issue; odczyt mapowania zapisuje się jako dowód. Przypisanie issue do Paperclip assignee nie jest wymagane.
 7. **Dowody związane z drzewami `src/` i `test/`.** Dowody powiązane z SHA tych drzew są ważne dla każdego headu, którego drzewa są identyczne; sędzia weryfikuje zgodność przez `git rev-parse HEAD:src` i `git rev-parse HEAD:test` względem zapisanych wartości. Późniejszy commit zawierający wyłącznie dowody nie unieważnia tych dowodów. Sędzia może uruchomić dowolny test. Błąd wynikający wyłącznie z braku user scopes systemd lub bwrap w sandboksie przeglądu (błąd możliwości izolacji) nie jest defektem, jeśli status commitu `krn/gate-local` na dokładnym headzie ma stan success i zero pominięć izolacji. Sędzia sam weryfikuje ten status przez GitHub commit-status API (`repos/krn-works/krn/commits/<head>/statuses`: `context`, `state`, `creator`, `description`); gdy sandboks przeglądu nie ma sieci, dowodem jest zarchiwizowany przez leada odczyt API w `docs/program/r1/evidence/<task>/` (wraz z twórcą i znacznikiem czasu), a każda niezgodność SHA z headem jest BLOCKING.
+
+## Operator batch02 (2026-10-15, LON-275)
+
+[POLICY] Supervised bounded checkpoint recovery is authorized directly to the batch02 lead: one branch/worktree,
+implementation/tests, commits, push and one PR. No merge or author `krn/judge-*` publication; independent review is
+performed in a second instance. Full R1, live model sessions, external submission, host/CLI changes and other defects
+remain outside this grant. The operator prompt takes precedence over the Full R1 authorship route for this batch.
+
+[CODE] P-017 implements this contract through an optional authoritative pending checkpoint containing the exact prepared
+Git SHA, parent, intent and capsule epoch. The capsule/session/request and repository anchors must agree before HEAD
+publication or reconciliation. The existing capsule history and projection limits apply to the complete transition before
+HEAD changes. Legacy ambiguous HEAD remains fail-closed. A recovered `done` still runs deterministic verification;
+`continue` reaches the next worker action only after reconciliation. Source: checkpoint/relay implementation and the
+assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
