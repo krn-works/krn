@@ -292,9 +292,18 @@ export class CodexHost {
     );
     this.#sessions.set(id, running);
     child.once('close', () => this.#sessions.delete(id));
-    if (input.onStarted && !(await input.onStarted(id, child.pid, isolation))) {
-      await running.cancel();
-      throw new Error('session intent was already started');
+    if (input.onStarted) {
+      let accepted: boolean;
+      try {
+        accepted = await input.onStarted(id, child.pid, isolation);
+      } catch (error) {
+        await running.cancel();
+        throw error;
+      }
+      if (!accepted) {
+        await running.cancel();
+        throw new Error('session intent was already started');
+      }
     }
     if (child.stdin) {
       child.stdin.on('error', (error: NodeJS.ErrnoException) => {

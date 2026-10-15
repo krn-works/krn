@@ -7,6 +7,80 @@ import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
+test('onStarted rejection waits for the fake Codex process tree to stop', async (t) => {
+  const testName =
+    'onStarted rejection waits for the fake Codex process tree to stop';
+  if (!requiresIsolation(t, testName, ['systemdUserScope'])) return;
+  const hostModule = await import('../../src/hosts/codex.ts').catch(
+    () => undefined,
+  );
+  assert.ok(
+    hostModule && 'CodexHost' in hostModule,
+    'Codex host must expose cancellable sessions',
+  );
+
+  const directory = await mkdtemp(join(tmpdir(), 'krn-codex-onstarted-'));
+  const pidFile = join(directory, 'pids');
+  const executable = join(directory, 'fake-codex');
+  const host = new hostModule.CodexHost({ executable });
+  const callbackError = new Error('onStarted rejected');
+  let observedPids: number[] | undefined;
+  try {
+    await writeFile(
+      executable,
+      `#!/bin/sh\nprintf '%s\\n' "$$" > "${pidFile}"\n/bin/sleep 15 &\nprintf '%s\\n' "$!" >> "${pidFile}"\nwait\n`,
+    );
+    await chmod(executable, 0o755);
+
+    await assert.rejects(
+      host.start({
+        cwd: directory,
+        model: 'gpt-6-luna',
+        prompt: 'wait',
+        limits: { timeoutMs: 30_000 },
+        onStarted: async (_sessionId, _pgid, isolation) => {
+          assert.equal(isolation, 'systemd_scope');
+          const pids = await waitFor(async () => {
+            try {
+              const lines = (await readFile(pidFile, 'utf8'))
+                .trim()
+                .split('\n');
+              if (lines.length !== 2) return undefined;
+              const values = lines.map(Number);
+              return values.every((pid) => Number.isSafeInteger(pid) && pid > 0)
+                ? values
+                : undefined;
+            } catch {
+              return undefined;
+            }
+          });
+          observedPids = pids;
+          assert.deepEqual(
+            await Promise.all(pids.map(isAlive)),
+            [true, true],
+            'the launcher and descendant must exist before onStarted rejects',
+          );
+          throw callbackError;
+        },
+      }),
+      (error) => error === callbackError,
+    );
+
+    const pids = observedPids;
+    assert.ok(pids, 'onStarted must capture both fixture PIDs');
+    await waitFor(async () => {
+      const alive = await Promise.all(pids.map(isAlive));
+      return alive.every((running) => !running) ? alive : undefined;
+    }, 'CodexHost.start must reject only after both owned fixture processes stop');
+  } finally {
+    try {
+      await host.cancelAll();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  }
+});
+
 test('cancellation kills the Codex process tree and keeps the session identity', async (t) => {
   if (
     !requiresIsolation(
@@ -78,14 +152,17 @@ setInterval(() => {}, 1000);
   }
 });
 
-async function waitFor<T>(read: () => Promise<T | undefined>): Promise<T> {
+async function waitFor<T>(
+  read: () => Promise<T | undefined>,
+  timeoutMessage = 'timed out waiting for the fake Codex process tree',
+): Promise<T> {
   const deadline = Date.now() + 3000;
   while (Date.now() < deadline) {
     const value = await read();
     if (value !== undefined) return value;
     await delay(20);
   }
-  assert.fail('timed out waiting for the fake Codex process tree');
+  assert.fail(timeoutMessage);
 }
 
 async function isAlive(pid: number): Promise<boolean> {
