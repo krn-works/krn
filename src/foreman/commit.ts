@@ -186,9 +186,20 @@ export function prepareCheckpoint(
     '-p',
     parent,
     '-m',
-    `${message}\n\nKrn-Session: ${sessionId}`,
+    checkpointMessage(message, sessionId),
   ]).trim();
   return { sha, parent };
+}
+
+// commit-tree stores the message verbatim plus one newline; compare that body exactly.
+function checkpointMessage(message: string, sessionId: string): string {
+  return `${message}\n\nKrn-Session: ${sessionId}`;
+}
+
+function commitBody(job: Job, sha: string): string {
+  const object = git(job, ['cat-file', 'commit', sha]);
+  const separator = object.indexOf('\n\n');
+  return separator < 0 ? '' : object.slice(separator + 2);
 }
 
 // The prepared object is durable before the capsule CAS. Publishing moves only
@@ -201,10 +212,9 @@ export function publishCheckpoint(
   sessionId: string,
 ): void {
   const head = git(job, ['rev-parse', 'HEAD']).trim();
-  const expectedMessage = `${message}\n\nKrn-Session: ${sessionId}`;
   if (
     git(job, ['show', '-s', '--format=%P', sha]).trim() !== parent ||
-    git(job, ['show', '-s', '--format=%B', sha]).trim() !== expectedMessage ||
+    commitBody(job, sha) !== `${checkpointMessage(message, sessionId)}\n` ||
     (head !== parent && head !== sha)
   )
     throw new Error('checkpoint refused: prepared commit anchors changed');

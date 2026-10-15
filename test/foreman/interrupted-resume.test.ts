@@ -544,6 +544,7 @@ async function waitFor(read: () => boolean): Promise<void> {
 async function partialCheckpointFixture(
   next = 'step B',
   check = '/usr/bin/true',
+  message = 'feat: checkpoint step',
 ) {
   const scratch = join(process.cwd(), '.krn', 'tmp');
   await mkdir(scratch, { recursive: true });
@@ -593,7 +594,7 @@ async function partialCheckpointFixture(
   writeCheckpointRequest(job, {
     intent,
     sessionId: 'session-partial',
-    message: 'feat: checkpoint step',
+    message,
     next,
   });
   await writeFile(join(worktree, 'change.txt'), 'worker change\n');
@@ -794,6 +795,82 @@ for (const check of ['/usr/bin/true', '/usr/bin/false']) {
       await rm(f.worktree, { recursive: true, force: true });
     }
   });
+}
+
+// Worker messages are stored verbatim; leading whitespace must not strand pending state.
+for (const message of [' feat: leading space', '\tfeat: leading tab']) {
+  for (const boundary of [
+    'before trace.commit',
+    'before publication',
+  ] as const) {
+    test(`partial checkpoint with ${JSON.stringify(message)} recovers ${boundary}`, async () => {
+      const f = await partialCheckpointFixture(
+        'step B',
+        '/usr/bin/true',
+        message,
+      );
+      try {
+        const interruption = await finishCheckpoint(
+          f.job,
+          f.capsule,
+          f.intent,
+          {
+            ...f.d,
+            trace: {
+              ...diskTrace,
+              ...(boundary === 'before trace.commit'
+                ? {
+                    commit: async () => {
+                      throw new Error('injected interruption');
+                    },
+                  }
+                : {
+                    checkpoint: async () => {
+                      throw new Error('injected interruption');
+                    },
+                  }),
+            },
+          },
+        ).then(
+          () => undefined,
+          (error: unknown) => error,
+        );
+        assert.match(String(interruption), /injected interruption/);
+        const pending = (await relay.load(f.job, f.contract)).pendingCheckpoint;
+        assert.ok(pending);
+        await runJob(f.job, f.d);
+        const recovered = await relay.load(f.job, f.contract);
+        assert.equal(recovered.pendingCheckpoint, undefined);
+        assert.equal(recovered.head, pending.sha);
+        assert.equal(f.git(['rev-parse', 'HEAD']), pending.sha);
+        assert.equal(f.starts(), 1, 'continue reaches the next worker action');
+        const body = f.git(['cat-file', 'commit', pending.sha]);
+        assert.equal(
+          body.slice(body.indexOf('\n\n') + 2),
+          `${message}\n\nKrn-Session: session-partial`,
+        );
+        await runJob(f.job, f.d);
+        assert.equal(f.git(['rev-list', '--count', 'HEAD']), '2');
+        const events = (
+          await readFile(
+            join(f.worktree, '.krn/runs/foreman/partial/trace.jsonl'),
+            'utf8',
+          )
+        )
+          .trim()
+          .split('\n')
+          .map((line) => JSON.parse(line));
+        assert.deepEqual(
+          events
+            .filter((event) => event.kind === 'commit')
+            .map((event) => event.data.sha),
+          [pending.sha],
+        );
+      } finally {
+        await rm(f.worktree, { recursive: true, force: true });
+      }
+    });
+  }
 }
 
 test('pending checkpoint resumes after capsule CAS but before HEAD publication', async () => {
