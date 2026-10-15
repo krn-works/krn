@@ -358,7 +358,6 @@ class RunningSession {
   #malformed = false;
   #inputTokens = 0;
   #outputTokens = 0;
-  #totalTokens = 0;
   #overflow = false;
   #result?: Promise<CodexSessionResult>;
 
@@ -456,7 +455,7 @@ class RunningSession {
         usage: {
           inputTokens: this.#inputTokens,
           outputTokens: this.#outputTokens,
-          totalTokens: this.#totalTokens,
+          totalTokens: safeAdd(this.#inputTokens, this.#outputTokens),
         },
       };
     });
@@ -527,10 +526,6 @@ class RunningSession {
       this.#outputTokens = safeAdd(
         this.#outputTokens,
         tokenCount(usage.output_tokens),
-      );
-      this.#totalTokens = safeAdd(
-        this.#totalTokens,
-        tokenCount(usage.total_tokens),
       );
     }
   }
