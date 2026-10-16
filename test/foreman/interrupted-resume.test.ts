@@ -8,7 +8,7 @@ import { finishCheckpoint } from '../../src/foreman/checkpoint.ts';
 import { writeCheckpointRequest } from '../../src/foreman/checkpoint-request.ts';
 import * as foreman from '../../src/foreman/index.ts';
 import { runJob } from '../../src/foreman/run.ts';
-import { recoverLease } from '../../src/foreman/session.ts';
+import { recoverLease, runSession } from '../../src/foreman/session.ts';
 import { recordRepo } from '../../src/foreman/state.ts';
 import type { Capsule, Deps } from '../../src/foreman/types.ts';
 import { reportPassingVerdict } from '../../src/foreman/verdict.ts';
@@ -20,6 +20,215 @@ import type {
 import * as relay from '../../src/relay/index.ts';
 import * as diskTrace from '../../src/trace/index.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+
+test('failed startup releases only the positively cancelled bound capsule lease', async () => {
+  const scratch = join(process.cwd(), '.krn', 'tmp');
+  await mkdir(scratch, { recursive: true });
+  const worktree = await mkdtemp(join(scratch, 'startup-handback-'));
+  let worker: ReturnType<typeof spawn> | undefined;
+  const git = (args: string[]) => {
+    const result = spawnSync('git', ['-C', worktree, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  try {
+    git(['init', '-q', '--initial-branch=main']);
+    git(['config', 'user.name', 'Fixture']);
+    git(['config', 'user.email', 'fixture@example.invalid']);
+    await writeFile(join(worktree, '.gitignore'), '.krn/\n');
+    await writeFile(join(worktree, 'README.md'), 'fixture\n');
+    git(['add', '.gitignore', 'README.md']);
+    git(['commit', '-qm', 'fixture']);
+    const job = {
+      id: 'startup',
+      issue: 'issue-startup',
+      worktree,
+      repoRoot: worktree,
+    };
+    const contract: Contract = {
+      issueId: job.issue,
+      identifier: 'startup',
+      title: 'startup',
+      description: 'startup',
+      revision: 'rev-1',
+      targetRepo: 'fixture/repo',
+      checks: [],
+    };
+    recordRepo(job, worktree, 'main', git(['rev-parse', 'HEAD']));
+    const capsule = await relay.load(job, contract);
+    const d = {
+      budget: { session: { timeoutMs: 1000 } },
+      relay,
+      trace: { started: async () => false },
+      hosts: {
+        codex: {
+          start: async (input: {
+            onStarted: (id: string) => Promise<boolean>;
+          }) => {
+            worker = spawn(
+              process.execPath,
+              ['-e', 'setInterval(() => {}, 1000)'],
+              {
+                stdio: 'ignore',
+              },
+            );
+            await new Promise<void>((resolve, reject) => {
+              worker?.once('spawn', () => resolve());
+              worker?.once('error', reject);
+            });
+            const id = 'session-startup';
+            try {
+              await input.onStarted(id);
+              throw new Error('fixture expected onStarted rejection');
+            } catch (error) {
+              const stopped = new Promise<void>((resolve) =>
+                worker?.once('close', () => resolve()),
+              );
+              worker?.kill('SIGKILL');
+              await stopped;
+              const acknowledgement = Reflect.get(input, 'onStartCancelled');
+              if (typeof acknowledgement === 'function')
+                await acknowledgement(id);
+              throw error;
+            }
+          },
+        },
+      },
+    } as unknown as Deps;
+    const facts = relay.repoFacts(job, capsule.base);
+    await assert.rejects(
+      runSession(job, capsule, facts, contract, 'intent:0', d),
+      /already running/,
+    );
+    const after = await relay.load(job, contract);
+    assert.equal(after.lease, 'ended');
+    assert.equal(after.sessionId, undefined);
+    assert.equal(after.epoch, capsule.epoch + 2);
+    const retained = (value: Capsule) => ({
+      jobId: value.jobId,
+      issue: value.issue,
+      contractRevision: value.contractRevision,
+      base: value.base,
+      head: value.head,
+      branch: value.branch,
+      worktree: value.worktree,
+      nextAction: value.nextAction,
+      blockers: value.blockers,
+      decisions: value.decisions,
+      rejectedApproaches: value.rejectedApproaches,
+      references: value.references,
+      pendingCheckpoint: value.pendingCheckpoint,
+    });
+    assert.deepEqual(retained(after), retained(capsule));
+  } finally {
+    if (worker && worker.exitCode === null && worker.signalCode === null) {
+      worker.kill('SIGKILL');
+      await new Promise<void>((resolve) =>
+        worker?.once('close', () => resolve()),
+      );
+    }
+    await rm(worktree, { recursive: true, force: true });
+  }
+});
+
+test('startup lease handback refuses a different owner, epoch, or lease state', async () => {
+  const f = await partialCheckpointFixture();
+  try {
+    const active = await relay.load(f.job, f.contract);
+    assert.ok(active.sessionId);
+    assert.deepEqual(
+      await relay.releaseStartupLease(f.job, active, 'foreign-session'),
+      { applied: false },
+    );
+    assert.deepEqual(await relay.load(f.job, f.contract), active);
+    assert.deepEqual(
+      await relay.releaseStartupLease(
+        f.job,
+        { ...active, epoch: active.epoch - 1 },
+        active.sessionId,
+      ),
+      { applied: false },
+    );
+    assert.deepEqual(await relay.load(f.job, f.contract), active);
+
+    const ended = {
+      ...active,
+      epoch: active.epoch + 1,
+      lease: 'ended' as const,
+      sessionId: undefined,
+    };
+    const saved = await relay.writeCapsule(f.job, ended, active.epoch);
+    assert.equal(saved.applied, true);
+    assert.deepEqual(
+      await relay.releaseStartupLease(f.job, ended, active.sessionId),
+      { applied: false },
+    );
+    assert.deepEqual(
+      { ...(await relay.load(f.job, f.contract)), sessionId: undefined },
+      ended,
+    );
+  } finally {
+    await rm(f.worktree, { recursive: true, force: true });
+  }
+});
+
+test('startup rejection without a successful bind preserves the existing owner', async () => {
+  const f = await partialCheckpointFixture();
+  let worker: ReturnType<typeof spawn> | undefined;
+  try {
+    const before = await relay.load(f.job, f.contract);
+    const d: Deps = {
+      ...f.d,
+      hosts: {
+        ...f.d.hosts,
+        codex: {
+          start: async (input) => {
+            worker = spawn(
+              process.execPath,
+              ['-e', 'setInterval(() => {}, 1000)'],
+              {
+                stdio: 'ignore',
+              },
+            );
+            await new Promise<void>((resolve, reject) => {
+              worker?.once('spawn', () => resolve());
+              worker?.once('error', reject);
+            });
+            const id = 'foreign-startup-session';
+            try {
+              await input.onStarted(id);
+              throw new Error('fixture expected active owner refusal');
+            } catch (error) {
+              const stopped = new Promise<void>((resolve) =>
+                worker?.once('close', () => resolve()),
+              );
+              worker?.kill('SIGKILL');
+              await stopped;
+              await input.onStartCancelled?.(id);
+              throw error;
+            }
+          },
+        },
+      },
+    };
+    const facts = relay.repoFacts(f.job, before.base);
+    await assert.rejects(
+      runSession(f.job, before, facts, f.contract, 'intent:foreign', d),
+      /already running/,
+    );
+    assert.deepEqual(await relay.load(f.job, f.contract), before);
+  } finally {
+    if (worker && worker.exitCode === null && worker.signalCode === null) {
+      worker.kill('SIGKILL');
+      await new Promise<void>((resolve) =>
+        worker?.once('close', () => resolve()),
+      );
+    }
+    await rm(f.worktree, { recursive: true, force: true });
+  }
+});
 
 test('resuming a ready_for_review checkpoint re-verdicts without starting a session', async (t) => {
   if (
@@ -198,6 +407,7 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
         applied: true as const,
         value: { ...capsule, epoch: ++epoch, sessionId: _sessionId },
       }),
+      releaseStartupLease: async () => ({ applied: false as const }),
       isCurrent: async (_job, value) => value === epoch,
       repoFacts: async () => ({
         base: git(['rev-parse', 'HEAD']),

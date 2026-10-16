@@ -160,6 +160,7 @@ export type CodexStartInput = {
     pgid?: number,
     isolation?: CodexIsolationMode,
   ) => Promise<boolean>;
+  readonly onStartCancelled?: (sessionId: string) => Promise<void>;
 };
 
 export class CodexHost {
@@ -293,17 +294,19 @@ export class CodexHost {
     this.#sessions.set(id, running);
     child.once('close', () => this.#sessions.delete(id));
     if (input.onStarted) {
-      let accepted: boolean;
+      let accepted = false;
       try {
         accepted = await input.onStarted(id, child.pid, isolation);
       } catch (error) {
-        await running.cancel();
-        throw error;
+        await rejectStartedSession(running, id, error, input.onStartCancelled);
       }
-      if (!accepted) {
-        await running.cancel();
-        throw new Error('session intent was already started');
-      }
+      if (!accepted)
+        await rejectStartedSession(
+          running,
+          id,
+          new Error('session intent was already started'),
+          input.onStartCancelled,
+        );
     }
     if (child.stdin) {
       child.stdin.on('error', (error: NodeJS.ErrnoException) => {
@@ -337,6 +340,31 @@ export class CodexHost {
       [...this.#sessions.keys()].map((id) => this.cancelTree(id)),
     );
   }
+}
+
+async function rejectStartedSession(
+  running: RunningSession,
+  sessionId: string,
+  cause: unknown,
+  onStartCancelled?: (sessionId: string) => Promise<void>,
+): Promise<never> {
+  try {
+    await running.cancel();
+  } catch (cleanupError) {
+    throw new AggregateError(
+      [cause, cleanupError],
+      'Codex startup cancellation could not be verified',
+    );
+  }
+  try {
+    await onStartCancelled?.(sessionId);
+  } catch (handbackError) {
+    throw new AggregateError(
+      [cause, handbackError],
+      'Codex startup cancellation handback failed',
+    );
+  }
+  throw cause;
 }
 
 class RunningSession {
