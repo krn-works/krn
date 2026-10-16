@@ -670,6 +670,56 @@ test('checkpoint applies bounded sensitive-binding rules at the public prepare s
   );
 });
 
+test('checkpoint ignores C3 comment syntax but keeps marker scanning active', async (t) => {
+  const cases = [
+    [
+      'apostrophe in a line comment cannot hide a later sensitive binding',
+      "// don't\nconst password = 'abcdef';\n",
+      true,
+    ],
+    [
+      'a commented Zod method cannot invent a qualifying operator',
+      "export const schema = { password: z.string() /* .catch('abcdef') */ };\n",
+      false,
+    ],
+    [
+      'a marker in a comment remains visible to C1',
+      `// sample sk-proj-${'a'.repeat(16)}\nconst ordinary = true;\n`,
+      true,
+    ],
+  ] as const;
+
+  for (const [name, source, refused] of cases) {
+    await t.test(name, async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(join(root, 'candidate.ts'), source);
+        if (refused) {
+          assert.throws(
+            () =>
+              prepareCheckpoint(
+                job,
+                'test: inspect C3 comments',
+                'session-comment',
+              ),
+            /checkpoint refused: secret pattern in candidate\.ts/u,
+          );
+        } else {
+          assert.doesNotThrow(() =>
+            prepareCheckpoint(
+              job,
+              'test: ignore commented C3 operator',
+              'session-comment',
+            ),
+          );
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
 test('checkpoint scans every sensitive Zod fallback literal', async () => {
   const { root, job } = await checkpointRepo();
   try {

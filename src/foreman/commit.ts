@@ -25,6 +25,27 @@ function namePaths(output: string): string[] {
   return output.split('\0').filter(Boolean);
 }
 
+function skipComment(source: string, start: number, limit: number): number {
+  if (source[start] !== '/' || start + 1 >= limit) return start;
+  const marker = source[start + 1];
+  if (marker === '/') {
+    let index = start + 2;
+    while (index < limit && source[index] !== '\n' && source[index] !== '\r')
+      index++;
+    return index;
+  }
+  if (marker === '*') {
+    let index = start + 2;
+    while (
+      index + 1 < limit &&
+      !(source[index] === '*' && source[index + 1] === '/')
+    )
+      index++;
+    return index + 1 < limit ? index + 2 : limit;
+  }
+  return start;
+}
+
 function lineWindowEnd(source: string, nameEnd: number): number {
   const limit = Math.min(source.length, nameEnd + 80);
   for (let index = nameEnd; index < limit; index++) {
@@ -72,7 +93,9 @@ function quotedValueStart(
   while (index < windowEnd) {
     const character = source[index] ?? '';
     if (character === '\n' || character === '\r') return null;
-    if (WHITESPACE.test(character) || character === '(') index++;
+    const commentEnd = skipComment(source, index, windowEnd);
+    if (commentEnd !== index) index = commentEnd;
+    else if (WHITESPACE.test(character) || character === '(') index++;
     else break;
   }
   const character = source[index] ?? '';
@@ -123,7 +146,12 @@ function methodArgumentStart(
   if (!source.startsWith(method, index)) return null;
   let cursor = index + method.length;
   if (IDENTIFIER_CHARACTER.test(source[cursor] ?? '')) return null;
-  while (cursor < windowEnd && WHITESPACE.test(source[cursor] ?? '')) cursor++;
+  while (cursor < windowEnd) {
+    const commentEnd = skipComment(source, cursor, windowEnd);
+    if (commentEnd !== cursor) cursor = commentEnd;
+    else if (WHITESPACE.test(source[cursor] ?? '')) cursor++;
+    else break;
+  }
   return source[cursor] === '(' ? cursor + 1 : null;
 }
 
@@ -138,6 +166,11 @@ function scanRootMethodChain(
   let nestedObjectDepth = 0;
   while (index < windowEnd) {
     const character = source[index] ?? '';
+    const commentEnd = skipComment(source, index, windowEnd);
+    if (commentEnd !== index) {
+      index = commentEnd;
+      continue;
+    }
     if (character === "'" || character === '"' || character === '`') {
       index = skipQuotedWindow(source, index, windowEnd);
       continue;
@@ -201,7 +234,9 @@ function scanBoundExpression(
   while (index < windowEnd) {
     const character = source[index] ?? '';
     if (character === '\n' || character === '\r') return null;
-    if (WHITESPACE.test(character)) index++;
+    const commentEnd = skipComment(source, index, windowEnd);
+    if (commentEnd !== index) index = commentEnd;
+    else if (WHITESPACE.test(character)) index++;
     else if (character === '(') {
       parenthesisDepth++;
       index++;
@@ -221,13 +256,18 @@ function scanBoundExpression(
     )
       identifierEnd++;
     let afterIdentifier = identifierEnd;
-    while (
-      afterIdentifier < windowEnd &&
-      WHITESPACE.test(source[afterIdentifier] ?? '') &&
-      source[afterIdentifier] !== '\n' &&
-      source[afterIdentifier] !== '\r'
-    )
-      afterIdentifier++;
+    while (afterIdentifier < windowEnd) {
+      const characterAfterIdentifier = source[afterIdentifier] ?? '';
+      if (
+        characterAfterIdentifier === '\n' ||
+        characterAfterIdentifier === '\r'
+      )
+        break;
+      const commentEnd = skipComment(source, afterIdentifier, windowEnd);
+      if (commentEnd !== afterIdentifier) afterIdentifier = commentEnd;
+      else if (WHITESPACE.test(characterAfterIdentifier)) afterIdentifier++;
+      else break;
+    }
     if (
       source[afterIdentifier] === '=' &&
       isBindingEquals(source, afterIdentifier)
@@ -249,13 +289,14 @@ function scanBindingWindow(
   windowEnd: number,
 ): CredentialFinding | null {
   let index = start;
-  while (
-    index < windowEnd &&
-    WHITESPACE.test(source[index] ?? '') &&
-    source[index] !== '\n' &&
-    source[index] !== '\r'
-  )
-    index++;
+  while (index < windowEnd) {
+    const character = source[index] ?? '';
+    if (character === '\n' || character === '\r') break;
+    const commentEnd = skipComment(source, index, windowEnd);
+    if (commentEnd !== index) index = commentEnd;
+    else if (WHITESPACE.test(character)) index++;
+    else break;
+  }
 
   const character = source[index] ?? '';
   if (character === ':')
@@ -283,6 +324,13 @@ function sensitiveBindingFinding(source: string): CredentialFinding | null {
   let escaped = false;
   while (index < source.length) {
     const character = source[index] ?? '';
+    if (quote === null) {
+      const commentEnd = skipComment(source, index, source.length);
+      if (commentEnd !== index) {
+        index = commentEnd;
+        continue;
+      }
+    }
     if (quote !== null) {
       if (escaped) escaped = false;
       else if (character === '\\') escaped = true;
