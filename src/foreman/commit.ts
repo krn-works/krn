@@ -78,6 +78,8 @@ function readStaticLiteral(
       return { finding: null, end: index + 2 };
     if (character === '\\') {
       if (index + 1 >= limit) break;
+      if (WHITESPACE.test(source[index + 1] ?? ''))
+        return { finding: null, end: index + 2 };
       index += 2;
     } else index++;
   }

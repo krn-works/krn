@@ -720,6 +720,51 @@ test('checkpoint ignores C3 comment syntax but keeps marker scanning active', as
   }
 });
 
+test('checkpoint treats escaped whitespace as a C3 token boundary', async (t) => {
+  const cases = [
+    [
+      'escaped whitespace makes the sensitive literal nonstatic',
+      "const password = 'abc\\ def';\n",
+      false,
+    ],
+    [
+      'an escaped quote does not hide a sensitive literal',
+      "const password = 'abc\\'def';\n",
+      true,
+    ],
+  ] as const;
+
+  for (const [name, source, refused] of cases) {
+    await t.test(name, async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(join(root, 'candidate.ts'), source);
+        if (refused) {
+          assert.throws(
+            () =>
+              prepareCheckpoint(
+                job,
+                'test: inspect escaped C3 literal',
+                'session-escaped-literal',
+              ),
+            /checkpoint refused: secret pattern in candidate\.ts/u,
+          );
+        } else {
+          assert.doesNotThrow(() =>
+            prepareCheckpoint(
+              job,
+              'test: ignore escaped whitespace literal',
+              'session-escaped-space',
+            ),
+          );
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
 test('checkpoint scans every sensitive Zod fallback literal', async () => {
   const { root, job } = await checkpointRepo();
   try {
