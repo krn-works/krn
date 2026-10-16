@@ -542,6 +542,11 @@ test('checkpoint applies bounded sensitive-binding rules at the public prepare s
       true,
     ],
     [
+      'nonbinding sensitive use does not capture a later assignment',
+      "const ok = check(password) && (label = 'publicvalue');\n",
+      false,
+    ],
+    [
       'legacy unquoted guard retains its type-reference false positive',
       'export const schema = { password: PasswordInput };\n',
       true,
@@ -555,6 +560,16 @@ test('checkpoint applies bounded sensitive-binding rules at the public prepare s
       'describe is metadata rather than a binding',
       "const schema = z.object({ password: z.string().describe('hunter2-secret') });\n",
       false,
+    ],
+    [
+      'nested unrelated object fields are not password bindings',
+      "const schema = { password: { type: 'string' } };\n",
+      false,
+    ],
+    [
+      'nested sensitive names remain independently scanned',
+      "const schema = { password: { type: 'string', apiKey: 'abcdef' } };\n",
+      true,
     ],
     [
       'comma ends the sensitive fragment',

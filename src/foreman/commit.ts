@@ -127,43 +127,143 @@ function methodArgumentStart(
   return source[cursor] === '(' ? cursor + 1 : null;
 }
 
+function scanRootMethodChain(
+  source: string,
+  start: number,
+  windowEnd: number,
+  baseParenthesisDepth: number,
+): CredentialFinding | null {
+  let index = start;
+  let parenthesisDepth = baseParenthesisDepth;
+  let nestedObjectDepth = 0;
+  while (index < windowEnd) {
+    const character = source[index] ?? '';
+    if (character === "'" || character === '"' || character === '`') {
+      index = skipQuotedWindow(source, index, windowEnd);
+      continue;
+    }
+    if (character === '{') {
+      nestedObjectDepth++;
+      index++;
+      continue;
+    }
+    if (character === '}' && nestedObjectDepth > 0) {
+      nestedObjectDepth--;
+      index++;
+      continue;
+    }
+    if (nestedObjectDepth > 0) {
+      index++;
+      continue;
+    }
+    if (character === '(') {
+      parenthesisDepth++;
+      index++;
+      continue;
+    }
+    if (character === ')') {
+      if (parenthesisDepth === baseParenthesisDepth) return null;
+      parenthesisDepth--;
+      index++;
+      continue;
+    }
+    if (parenthesisDepth === baseParenthesisDepth) {
+      if (
+        character === '\n' ||
+        character === '\r' ||
+        character === ',' ||
+        character === ';' ||
+        character === '}'
+      )
+        break;
+      if (character === '.') {
+        const valueStart =
+          methodArgumentStart(source, index, '.default', windowEnd) ??
+          methodArgumentStart(source, index, '.catch', windowEnd);
+        if (valueStart !== null) {
+          const finding = findingAfterOperator(source, valueStart, windowEnd);
+          if (finding !== null) return finding;
+        }
+      }
+    }
+    index++;
+  }
+  return null;
+}
+
+function scanBoundExpression(
+  source: string,
+  start: number,
+  windowEnd: number,
+): CredentialFinding | null {
+  let index = start;
+  let parenthesisDepth = 0;
+  while (index < windowEnd) {
+    const character = source[index] ?? '';
+    if (character === '\n' || character === '\r') return null;
+    if (WHITESPACE.test(character)) index++;
+    else if (character === '(') {
+      parenthesisDepth++;
+      index++;
+    } else break;
+  }
+
+  const first = source[index] ?? '';
+  if (first === "'" || first === '"' || first === '`')
+    return readStaticLiteral(source, index).finding;
+  if (first === '{') return null;
+
+  if (/[A-Za-z_$]/u.test(first)) {
+    let identifierEnd = index + 1;
+    while (
+      identifierEnd < windowEnd &&
+      IDENTIFIER_CHARACTER.test(source[identifierEnd] ?? '')
+    )
+      identifierEnd++;
+    let afterIdentifier = identifierEnd;
+    while (
+      afterIdentifier < windowEnd &&
+      WHITESPACE.test(source[afterIdentifier] ?? '') &&
+      source[afterIdentifier] !== '\n' &&
+      source[afterIdentifier] !== '\r'
+    )
+      afterIdentifier++;
+    if (
+      source[afterIdentifier] === '=' &&
+      isBindingEquals(source, afterIdentifier)
+    ) {
+      const finding = findingAfterOperator(
+        source,
+        afterIdentifier + 1,
+        windowEnd,
+      );
+      if (finding !== null) return finding;
+    }
+  }
+  return scanRootMethodChain(source, index, windowEnd, parenthesisDepth);
+}
+
 function scanBindingWindow(
   source: string,
   start: number,
   windowEnd: number,
 ): CredentialFinding | null {
   let index = start;
-  while (index < windowEnd) {
-    const character = source[index] ?? '';
-    if (
-      character === '\n' ||
-      character === '\r' ||
-      character === ',' ||
-      character === ';'
-    )
-      break;
-    if (character === "'" || character === '"' || character === '`') {
-      index = skipQuotedWindow(source, index, windowEnd);
-      continue;
-    }
-
-    let valueStart: number | null = null;
-    if (
-      character === ':' ||
-      (character === '=' && isBindingEquals(source, index))
-    )
-      valueStart = index + 1;
-    else if (character === '.')
-      valueStart =
-        methodArgumentStart(source, index, '.default', windowEnd) ??
-        methodArgumentStart(source, index, '.catch', windowEnd);
-
-    if (valueStart !== null) {
-      const finding = findingAfterOperator(source, valueStart, windowEnd);
-      if (finding !== null) return finding;
-    }
+  while (
+    index < windowEnd &&
+    WHITESPACE.test(source[index] ?? '') &&
+    source[index] !== '\n' &&
+    source[index] !== '\r'
+  )
     index++;
-  }
+
+  const character = source[index] ?? '';
+  if (character === ':')
+    return scanBoundExpression(source, index + 1, windowEnd);
+  if (character === '=' && isBindingEquals(source, index))
+    return scanBoundExpression(source, index + 1, windowEnd);
+  if (character === '.')
+    return scanRootMethodChain(source, index, windowEnd, 0);
   return null;
 }
 
