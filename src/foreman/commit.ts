@@ -2,16 +2,17 @@
 import { lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, resolve, sep } from 'node:path';
 import type { Job } from '../core/index.ts';
+import { credentialShapeKind } from './credential-shape.ts';
 import { git } from './git.ts';
 
-// The key-value matcher skips Zod schemas; their string arguments are checked below.
+// C4 compatibility debt: the unquoted guard can also reject type references such as PasswordInput.
 const secretPattern =
   /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*(?!z\s*\.\s*[A-Za-z_$][A-Za-z\d_$]*\s*\()[^\s"']{8,}/iu;
-const sensitiveZodProperty =
-  /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*:\s*z\s*\./giu;
-const stringLiteralPattern = /(['"`])((?:\\.|(?!\1)[\s\S])*)\1/gu;
-const quotedSensitiveAssignmentPattern =
-  /\b(?:api[_-]?key|access[_-]?token|secret|password)\b["']?\s*[:=]\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/giu;
+const SENSITIVE_BINDING_NAME =
+  /\b(?:password|secret|api[_-]?key|access[_-]?token)\b/iuy;
+const IDENTIFIER_CHARACTER = /[A-Za-z0-9_$]/u;
+const WHITESPACE = /\s/u;
+type CredentialFinding = 'secret pattern' | 'analysis limit';
 
 function statusPaths(output: string): string[] {
   return output
@@ -24,91 +25,356 @@ function namePaths(output: string): string[] {
   return output.split('\0').filter(Boolean);
 }
 
-function expressionEnd(source: string, start: number): number {
+function skipComment(source: string, start: number, limit: number): number {
+  if (source[start] !== '/' || start + 1 >= limit) return start;
+  const marker = source[start + 1];
+  if (marker === '/') {
+    let index = start + 2;
+    while (index < limit && source[index] !== '\n' && source[index] !== '\r')
+      index++;
+    return index;
+  }
+  if (marker === '*') {
+    let index = start + 2;
+    while (
+      index + 1 < limit &&
+      !(source[index] === '*' && source[index + 1] === '/')
+    )
+      index++;
+    return index + 1 < limit ? index + 2 : limit;
+  }
+  return start;
+}
+
+function lineWindowEnd(source: string, nameEnd: number): number {
+  const limit = Math.min(source.length, nameEnd + 80);
+  for (let index = nameEnd; index < limit; index++) {
+    if (source[index] === '\n' || source[index] === '\r') return index;
+  }
+  return limit;
+}
+
+function readStaticLiteral(
+  source: string,
+  start: number,
+): { readonly finding: CredentialFinding | null; readonly end: number } {
+  const quote = source[start] ?? '';
+  const limit = Math.min(source.length, start + 256);
+  let index = start + 1;
+  while (index < limit) {
+    const character = source[index] ?? '';
+    if (character === quote)
+      return {
+        finding: index - start - 1 >= 6 ? 'secret pattern' : null,
+        end: index + 1,
+      };
+    if (WHITESPACE.test(character)) return { finding: null, end: index + 1 };
+    if (
+      quote === '`' &&
+      character === '$' &&
+      index + 1 < limit &&
+      source[index + 1] === '{'
+    )
+      return { finding: null, end: index + 2 };
+    if (character === '\\') {
+      if (index + 1 >= limit) break;
+      if (WHITESPACE.test(source[index + 1] ?? ''))
+        return { finding: null, end: index + 2 };
+      index += 2;
+    } else index++;
+  }
+  return { finding: 'analysis limit', end: limit };
+}
+
+function quotedValueStart(
+  source: string,
+  start: number,
+  windowEnd: number,
+): number | null {
+  let index = start;
+  while (index < windowEnd) {
+    const character = source[index] ?? '';
+    if (character === '\n' || character === '\r') return null;
+    const commentEnd = skipComment(source, index, windowEnd);
+    if (commentEnd !== index) index = commentEnd;
+    else if (WHITESPACE.test(character) || character === '(') index++;
+    else break;
+  }
+  const character = source[index] ?? '';
+  return character === "'" || character === '"' || character === '`'
+    ? index
+    : null;
+}
+
+function findingAfterOperator(
+  source: string,
+  start: number,
+  windowEnd: number,
+): CredentialFinding | null {
+  const valueStart = quotedValueStart(source, start, windowEnd);
+  return valueStart === null
+    ? null
+    : readStaticLiteral(source, valueStart).finding;
+}
+
+function skipQuotedWindow(
+  source: string,
+  start: number,
+  windowEnd: number,
+): number {
+  const quote = source[start] ?? '';
+  let index = start + 1;
+  while (index < windowEnd) {
+    const character = source[index] ?? '';
+    if (character === '\\') index += Math.min(2, windowEnd - index);
+    else if (character === quote) return index + 1;
+    else index++;
+  }
+  return windowEnd;
+}
+
+function isBindingEquals(source: string, index: number): boolean {
+  const previous = source[index - 1] ?? '';
+  const next = source[index + 1] ?? '';
+  return !/[=!<>+\-*%&|^]/u.test(previous) && next !== '=' && next !== '>';
+}
+
+function methodArgumentStart(
+  source: string,
+  index: number,
+  method: '.default' | '.catch',
+  windowEnd: number,
+): number | null {
+  if (!source.startsWith(method, index)) return null;
+  let cursor = index + method.length;
+  if (IDENTIFIER_CHARACTER.test(source[cursor] ?? '')) return null;
+  while (cursor < windowEnd) {
+    const commentEnd = skipComment(source, cursor, windowEnd);
+    if (commentEnd !== cursor) cursor = commentEnd;
+    else if (WHITESPACE.test(source[cursor] ?? '')) cursor++;
+    else break;
+  }
+  return source[cursor] === '(' ? cursor + 1 : null;
+}
+
+function scanRootMethodChain(
+  source: string,
+  start: number,
+  windowEnd: number,
+  baseParenthesisDepth: number,
+): CredentialFinding | null {
+  let index = start;
+  let parenthesisDepth = baseParenthesisDepth;
+  let nestedObjectDepth = 0;
+  while (index < windowEnd) {
+    const character = source[index] ?? '';
+    const commentEnd = skipComment(source, index, windowEnd);
+    if (commentEnd !== index) {
+      index = commentEnd;
+      continue;
+    }
+    if (character === "'" || character === '"' || character === '`') {
+      index = skipQuotedWindow(source, index, windowEnd);
+      continue;
+    }
+    if (character === '{') {
+      nestedObjectDepth++;
+      index++;
+      continue;
+    }
+    if (character === '}' && nestedObjectDepth > 0) {
+      nestedObjectDepth--;
+      index++;
+      continue;
+    }
+    if (nestedObjectDepth > 0) {
+      index++;
+      continue;
+    }
+    if (character === '(') {
+      parenthesisDepth++;
+      index++;
+      continue;
+    }
+    if (character === ')') {
+      if (parenthesisDepth === baseParenthesisDepth) return null;
+      parenthesisDepth--;
+      index++;
+      continue;
+    }
+    if (parenthesisDepth === baseParenthesisDepth) {
+      if (
+        character === '\n' ||
+        character === '\r' ||
+        character === ',' ||
+        character === ';' ||
+        character === '}'
+      )
+        break;
+      if (character === '.') {
+        const valueStart =
+          methodArgumentStart(source, index, '.default', windowEnd) ??
+          methodArgumentStart(source, index, '.catch', windowEnd);
+        if (valueStart !== null) {
+          const finding = findingAfterOperator(source, valueStart, windowEnd);
+          if (finding !== null) return finding;
+        }
+      }
+    }
+    index++;
+  }
+  return null;
+}
+
+function scanBoundExpression(
+  source: string,
+  start: number,
+  windowEnd: number,
+): CredentialFinding | null {
+  let index = start;
   let parenthesisDepth = 0;
+  while (index < windowEnd) {
+    const character = source[index] ?? '';
+    if (character === '\n' || character === '\r') return null;
+    const commentEnd = skipComment(source, index, windowEnd);
+    if (commentEnd !== index) index = commentEnd;
+    else if (WHITESPACE.test(character)) index++;
+    else if (character === '(') {
+      parenthesisDepth++;
+      index++;
+    } else break;
+  }
+
+  const first = source[index] ?? '';
+  if (first === "'" || first === '"' || first === '`')
+    return readStaticLiteral(source, index).finding;
+  if (first === '{') return null;
+
+  if (/[A-Za-z_$]/u.test(first)) {
+    let identifierEnd = index + 1;
+    while (
+      identifierEnd < windowEnd &&
+      IDENTIFIER_CHARACTER.test(source[identifierEnd] ?? '')
+    )
+      identifierEnd++;
+    let afterIdentifier = identifierEnd;
+    while (afterIdentifier < windowEnd) {
+      const characterAfterIdentifier = source[afterIdentifier] ?? '';
+      if (
+        characterAfterIdentifier === '\n' ||
+        characterAfterIdentifier === '\r'
+      )
+        break;
+      const commentEnd = skipComment(source, afterIdentifier, windowEnd);
+      if (commentEnd !== afterIdentifier) afterIdentifier = commentEnd;
+      else if (WHITESPACE.test(characterAfterIdentifier)) afterIdentifier++;
+      else break;
+    }
+    if (
+      source[afterIdentifier] === '=' &&
+      isBindingEquals(source, afterIdentifier)
+    ) {
+      const finding = findingAfterOperator(
+        source,
+        afterIdentifier + 1,
+        windowEnd,
+      );
+      if (finding !== null) return finding;
+    }
+  }
+  return scanRootMethodChain(source, index, windowEnd, parenthesisDepth);
+}
+
+function scanBindingWindow(
+  source: string,
+  start: number,
+  windowEnd: number,
+): CredentialFinding | null {
+  let index = start;
+  while (index < windowEnd) {
+    const character = source[index] ?? '';
+    if (character === '\n' || character === '\r') break;
+    const commentEnd = skipComment(source, index, windowEnd);
+    if (commentEnd !== index) index = commentEnd;
+    else if (WHITESPACE.test(character)) index++;
+    else break;
+  }
+
+  const character = source[index] ?? '';
+  if (character === ':')
+    return scanBoundExpression(source, index + 1, windowEnd);
+  if (character === '=' && isBindingEquals(source, index))
+    return scanBoundExpression(source, index + 1, windowEnd);
+  if (character === '.')
+    return scanRootMethodChain(source, index, windowEnd, 0);
+  return null;
+}
+
+function bindingFindingForName(
+  source: string,
+  nameEnd: number,
+): CredentialFinding | null {
+  const windowEnd = lineWindowEnd(source, nameEnd);
+  let start = nameEnd;
+  if (source[start] === "'" || source[start] === '"') start++;
+  return scanBindingWindow(source, start, windowEnd);
+}
+
+function sensitiveBindingFinding(source: string): CredentialFinding | null {
+  let index = 0;
   let quote: string | null = null;
   let escaped = false;
-  for (let index = start; index < source.length; index++) {
-    const character = source[index];
+  while (index < source.length) {
+    const character = source[index] ?? '';
+    if (quote === null) {
+      const commentEnd = skipComment(source, index, source.length);
+      if (commentEnd !== index) {
+        index = commentEnd;
+        continue;
+      }
+    }
     if (quote !== null) {
       if (escaped) escaped = false;
       else if (character === '\\') escaped = true;
       else if (character === quote) quote = null;
+      index++;
       continue;
     }
+
     if (character === "'" || character === '"' || character === '`') {
-      quote = character;
+      SENSITIVE_BINDING_NAME.lastIndex = index + 1;
+      const quotedName = SENSITIVE_BINDING_NAME.exec(source);
+      const quotedNameEnd = quotedName
+        ? index + 1 + quotedName[0].length
+        : index + 1;
+      if (quotedName && source[quotedNameEnd] === character) {
+        const finding = bindingFindingForName(source, quotedNameEnd);
+        if (finding !== null) return finding;
+        index = quotedNameEnd + 1;
+      } else {
+        quote = character;
+        index++;
+      }
       continue;
     }
-    if (character === '(') parenthesisDepth++;
-    else if (character === ')')
-      parenthesisDepth = Math.max(0, parenthesisDepth - 1);
-    else if (
-      parenthesisDepth === 0 &&
-      (character === ',' || character === '}' || character === ';')
-    )
-      return index;
+
+    SENSITIVE_BINDING_NAME.lastIndex = index;
+    const match = SENSITIVE_BINDING_NAME.exec(source);
+    if (match) {
+      const nameEnd = index + match[0].length;
+      const finding = bindingFindingForName(source, nameEnd);
+      if (finding !== null) return finding;
+      index = nameEnd;
+    } else index++;
   }
-  return source.length;
+  return null;
 }
 
-function isStructuredMetadataLiteral(value: string): boolean {
-  return (
-    isAbsolute(value) ||
-    /^[A-Za-z]:[\\/]/u.test(value) ||
-    /^intent:\d+$/u.test(value) ||
-    /^[A-Z]{1,8}\d+[a-z]?-[A-Za-z0-9-]+$/u.test(value) ||
-    /^[A-Z]{2,8}-\d{1,8}$/u.test(value)
-  );
-}
-
-function isSecretLikeLiteral(
-  value: string,
-  scanStructuredMetadata = true,
-): boolean {
-  if (secretPattern.test(value)) return true;
-  const candidate = value.trim();
-  // Checkpointed source can contain paths and KRN control IDs with digits.
-  // Explicit credential matches above still win; schema literals stay strict.
-  if (scanStructuredMetadata && isStructuredMetadataLiteral(candidate))
-    return false;
-  return (
-    candidate.length >= 6 &&
-    !/\s/u.test(candidate) &&
-    /[A-Za-z]/u.test(candidate) &&
-    /\d/u.test(candidate)
-  );
-}
-
-function hasSecretLiteral(expression: string): boolean {
-  stringLiteralPattern.lastIndex = 0;
-  return [...expression.matchAll(stringLiteralPattern)].some((literal) =>
-    isSecretLikeLiteral(literal[2] ?? '', false),
-  );
-}
-
-function hasQuotedSensitiveAssignment(content: string): boolean {
-  quotedSensitiveAssignmentPattern.lastIndex = 0;
-  return [...content.matchAll(quotedSensitiveAssignmentPattern)].some(
-    (assignment) => isSecretLikeLiteral(assignment[2] ?? '', false),
-  );
-}
-
-function containsSecret(content: string): boolean {
-  for (const property of content.matchAll(sensitiveZodProperty)) {
-    const propertyStart = property.index ?? 0;
-    const expressionStart = propertyStart + property[0].lastIndexOf('z');
-    const end = expressionEnd(content, expressionStart);
-    const expression = content.slice(expressionStart, end);
-    if (hasSecretLiteral(expression)) return true;
-  }
-
-  if (secretPattern.test(content)) return true;
-  if (hasQuotedSensitiveAssignment(content)) return true;
-  stringLiteralPattern.lastIndex = 0;
-  return [...content.matchAll(stringLiteralPattern)].some((literal) =>
-    isSecretLikeLiteral(literal[2] ?? ''),
-  );
+function contentFinding(content: string): CredentialFinding | null {
+  if (credentialShapeKind(content) !== null) return 'secret pattern';
+  const bindingFinding = sensitiveBindingFinding(content);
+  if (bindingFinding !== null) return bindingFinding;
+  return secretPattern.test(content) ? 'secret pattern' : null;
 }
 
 function inspect(root: string, path: string): void {
@@ -146,8 +412,9 @@ function inspect(root: string, path: string): void {
       throw new Error(`checkpoint refused: escaping symlink ${path}`);
   } else if (stat.isFile()) {
     const content = readFileSync(absolute, 'utf8');
-    if (containsSecret(content))
-      throw new Error(`checkpoint refused: secret pattern in ${path}`);
+    const finding = contentFinding(content);
+    if (finding !== null)
+      throw new Error(`checkpoint refused: ${finding} in ${path}`);
   }
 }
 

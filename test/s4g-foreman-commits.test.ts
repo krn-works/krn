@@ -13,7 +13,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { commitCheckpoint } from '../src/foreman/commit.ts';
+import { commitCheckpoint, prepareCheckpoint } from '../src/foreman/commit.ts';
 import { runJob } from '../src/foreman/run.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
@@ -459,48 +459,59 @@ test('checkpoint accepts password Zod schema syntax without a literal', async ()
   }
 });
 
-test('checkpoint scans secret literals in Zod chained-call arguments', async (t) => {
+test('checkpoint accepts nonsensitive Zod literals but still refuses paired markers', async (t) => {
   const cases = [
     [
-      '.default short password literal',
+      '.default short literal',
       "export const schema = z.object({ setting: z.string().default('hunter2') });\n",
     ],
     [
-      '.default',
+      '.default literal',
       "export const schema = z.object({ setting: z.string().default('hunter2-secret') });\n",
     ],
     [
-      '.default on a password schema',
-      "export const schema = z.object({ password: z.string().default('hunter2-secret') });\n",
-    ],
-    [
-      '.catch',
+      '.catch literal',
       "export const schema = z.object({ setting: z.string().catch('hunter2-secret') });\n",
     ],
     [
-      '.describe',
+      '.describe literal',
       "export const schema = z.object({ setting: z.string().describe('hunter2-secret') });\n",
     ],
   ] as const;
 
   for (const [method, source] of cases) {
-    await t.test(`${method} literal is refused`, async () => {
-      const { root, job } = await checkpointRepo();
-      try {
-        await writeFile(join(root, 'schema.ts'), source);
-        assert.throws(
-          () =>
-            commitCheckpoint(
+    await t.test(
+      `${method} is accepted and a marker in the same form is refused`,
+      async () => {
+        const { root, job } = await checkpointRepo();
+        try {
+          await writeFile(join(root, 'schema.ts'), source);
+          assert.doesNotThrow(() =>
+            prepareCheckpoint(
               job,
-              'test: inspect schema literal',
+              'test: accept ordinary schema literal',
               'session-literal',
             ),
-          /checkpoint refused: secret pattern/u,
-        );
-      } finally {
-        await rm(root, { recursive: true, force: true });
-      }
-    });
+          );
+          const marker = `sk-proj-${'a'.repeat(16)}`;
+          await writeFile(
+            join(root, 'schema.ts'),
+            source.replace(/hunter2(?:-secret)?/u, marker),
+          );
+          assert.throws(
+            () =>
+              prepareCheckpoint(
+                job,
+                'test: refuse marker in schema literal',
+                'session-marker',
+              ),
+            /checkpoint refused: secret pattern in schema\.ts/u,
+          );
+        } finally {
+          await rm(root, { recursive: true, force: true });
+        }
+      },
+    );
   }
 });
 
@@ -523,18 +534,264 @@ test('checkpoint accepts a non-secret Zod description', async () => {
   }
 });
 
-test('checkpoint accepts non-secret Zod chained-call literals', async () => {
+test('checkpoint applies bounded sensitive-binding rules at the public prepare seam', async (t) => {
+  const cases = [
+    [
+      'typed alphabetic literal binding',
+      "export const password: string = 'abcdef';\n",
+      true,
+    ],
+    [
+      'nonbinding sensitive use does not capture a later assignment',
+      "const ok = check(password) && (label = 'publicvalue');\n",
+      false,
+    ],
+    [
+      'legacy unquoted guard retains its type-reference false positive',
+      'export const schema = { password: PasswordInput };\n',
+      true,
+    ],
+    [
+      'default after describe inside wrappers',
+      "const schema = (z.object({ password: (z.string().describe('login field').default(('abcdef'))) }));\n",
+      true,
+    ],
+    [
+      'describe is metadata rather than a binding',
+      "const schema = z.object({ password: z.string().describe('hunter2-secret') });\n",
+      false,
+    ],
+    [
+      'nested unrelated object fields are not password bindings',
+      "const schema = { password: { type: 'string' } };\n",
+      false,
+    ],
+    [
+      'nested sensitive names remain independently scanned',
+      "const schema = { password: { type: 'string', apiKey: 'abcdef' } };\n",
+      true,
+    ],
+    [
+      'comma ends the sensitive fragment',
+      "const fields = { password: 'guest', other: 'hunter2-secret' };\n",
+      false,
+    ],
+    [
+      'value begins outside the 80-character same-line window',
+      `const password =${' '.repeat(81)}'abcdef';\n`,
+      false,
+    ],
+    [
+      'quoted key closing delimiter is separate from the value',
+      "const settings = { 'password': 'abcdef' };\n",
+      true,
+    ],
+    [
+      'template interpolation is not a static literal',
+      'const password = z.string().default(`abc${suffix}def`);\n',
+      false,
+    ],
+  ] as const;
+
+  for (const [name, source, refused] of cases) {
+    await t.test(name, async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(join(root, 'candidate.ts'), source);
+        if (refused) {
+          assert.throws(
+            () =>
+              prepareCheckpoint(
+                job,
+                'test: inspect sensitive binding',
+                'session-binding',
+              ),
+            /checkpoint refused: secret pattern in candidate\.ts/u,
+          );
+        } else {
+          assert.doesNotThrow(() =>
+            prepareCheckpoint(
+              job,
+              'test: accept nonbinding literal',
+              'session-nonbinding',
+            ),
+          );
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+
+  await t.test(
+    'overlong qualifying literal has an analysis-limit reason',
+    async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(
+          join(root, 'candidate.ts'),
+          `const password = '${'a'.repeat(300)};\n`,
+        );
+        assert.throws(
+          () =>
+            prepareCheckpoint(
+              job,
+              'test: bound literal analysis',
+              'session-limit',
+            ),
+          /checkpoint refused: analysis limit in candidate\.ts/u,
+        );
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  await t.test(
+    'an inspected whitespace prefix resolves the literal as nonstatic',
+    async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(
+          join(root, 'candidate.ts'),
+          `const password = '${'a'.repeat(40)} ${'a'.repeat(300)};\n`,
+        );
+        assert.doesNotThrow(() =>
+          prepareCheckpoint(
+            job,
+            'test: reject nonstatic literal shape',
+            'session-nonstatic',
+          ),
+        );
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+});
+
+test('checkpoint ignores C3 comment syntax but keeps marker scanning active', async (t) => {
+  const cases = [
+    [
+      'apostrophe in a line comment cannot hide a later sensitive binding',
+      "// don't\nconst password = 'abcdef';\n",
+      true,
+    ],
+    [
+      'a commented Zod method cannot invent a qualifying operator',
+      "export const schema = { password: z.string() /* .catch('abcdef') */ };\n",
+      false,
+    ],
+    [
+      'a marker in a comment remains visible to C1',
+      `// sample sk-proj-${'a'.repeat(16)}\nconst ordinary = true;\n`,
+      true,
+    ],
+  ] as const;
+
+  for (const [name, source, refused] of cases) {
+    await t.test(name, async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(join(root, 'candidate.ts'), source);
+        if (refused) {
+          assert.throws(
+            () =>
+              prepareCheckpoint(
+                job,
+                'test: inspect C3 comments',
+                'session-comment',
+              ),
+            /checkpoint refused: secret pattern in candidate\.ts/u,
+          );
+        } else {
+          assert.doesNotThrow(() =>
+            prepareCheckpoint(
+              job,
+              'test: ignore commented C3 operator',
+              'session-comment',
+            ),
+          );
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test('checkpoint treats escaped whitespace as a C3 token boundary', async (t) => {
+  const cases = [
+    [
+      'escaped whitespace makes the sensitive literal nonstatic',
+      "const password = 'abc\\ def';\n",
+      false,
+    ],
+    [
+      'an escaped quote does not hide a sensitive literal',
+      "const password = 'abc\\'def';\n",
+      true,
+    ],
+  ] as const;
+
+  for (const [name, source, refused] of cases) {
+    await t.test(name, async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(join(root, 'candidate.ts'), source);
+        if (refused) {
+          assert.throws(
+            () =>
+              prepareCheckpoint(
+                job,
+                'test: inspect escaped C3 literal',
+                'session-escaped-literal',
+              ),
+            /checkpoint refused: secret pattern in candidate\.ts/u,
+          );
+        } else {
+          assert.doesNotThrow(() =>
+            prepareCheckpoint(
+              job,
+              'test: ignore escaped whitespace literal',
+              'session-escaped-space',
+            ),
+          );
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test('checkpoint scans every sensitive Zod fallback literal', async () => {
   const { root, job } = await checkpointRepo();
   try {
+    const path = join(root, 'schema.ts');
     await writeFile(
-      join(root, 'schema.ts'),
+      path,
       "export const schema = z.object({ password: z.string().default('guest').catch('fallback').describe('User password') });\n",
     );
+    assert.throws(
+      () =>
+        prepareCheckpoint(
+          job,
+          'test: inspect sensitive fallback',
+          'session-fallback',
+        ),
+      /checkpoint refused: secret pattern in schema\.ts/u,
+    );
+
+    await writeFile(
+      path,
+      "export const schema = z.object({ password: z.string().default('guest').catch('guest').describe('User password') });\n",
+    );
     assert.doesNotThrow(() =>
-      commitCheckpoint(
+      prepareCheckpoint(
         job,
-        'test: accept benign schema literals',
-        'session-benign-literal',
+        'test: allow short sensitive defaults',
+        'session-short-default',
       ),
     );
   } finally {
@@ -577,5 +834,209 @@ test('checkpoint refuses quoted sensitive assignments with metadata-shaped value
     );
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('checkpoint recognizes bounded credential shapes and preserves ordinary code literals', async (t) => {
+  async function assertSource(source: string, refused: boolean) {
+    const { root, job } = await checkpointRepo();
+    try {
+      await writeFile(join(root, 'candidate.ts'), source);
+      if (refused) {
+        assert.throws(
+          () =>
+            prepareCheckpoint(
+              job,
+              'test: inspect credential shape',
+              'session-shape',
+            ),
+          /checkpoint refused: secret pattern in candidate\.ts/u,
+        );
+      } else {
+        assert.doesNotThrow(() =>
+          prepareCheckpoint(
+            job,
+            'test: accept ordinary literal',
+            'session-ordinary',
+          ),
+        );
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+
+  const ordinaryLiterals = [
+    [
+      'full commit hash',
+      "const commit = '0123456789abcdef0123456789abcdef01234567';\n",
+    ],
+    ['model reference', "const model = 'gpt-6-luna';\n"],
+    ['version literal', "const version = 'v24.21.0';\n"],
+    [
+      'ordinary URL with port, version path, and query',
+      "const endpoint = 'https://api.example.test:8443/v2/models?region=west';\n",
+    ],
+    [
+      'empty credential-named query parameter',
+      "const endpoint = 'https://example.test/account?token=';\n",
+    ],
+    [
+      'comparison is not a sensitive binding',
+      "const matches = password === 'hunter2-secret';\n",
+    ],
+    [
+      'inequality is not a sensitive binding',
+      "const differs = password !== 'hunter2-secret';\n",
+    ],
+    [
+      'relational comparison is not a sensitive binding',
+      "const ordered = password >= 'hunter2-secret';\n",
+    ],
+    [
+      'arrow token is not a sensitive binding',
+      "const check = password => 'hunter2-secret';\n",
+    ],
+  ] as const;
+  for (const [name, source] of ordinaryLiterals) {
+    await t.test(`accepts ${name}`, () => assertSource(source, false));
+  }
+
+  const sensitiveAssignments = [
+    [
+      'password assignment',
+      "export const password = 'plainalphabeticcredential';\n",
+    ],
+    [
+      'access-token assignment',
+      "export const accessToken = 'plainalphabeticcredential';\n",
+    ],
+  ] as const;
+  for (const [name, source] of sensitiveAssignments) {
+    await t.test(`refuses a nonempty quoted ${name}`, () =>
+      assertSource(source, true),
+    );
+  }
+
+  const structuralUrls = [
+    [
+      'userinfo',
+      "const endpoint = 'https://user:plaincredential@example.test/account';\n",
+    ],
+    [
+      'credential-named query parameter',
+      "const endpoint = 'https://example.test/account?refresh_token=plaincredential';\n",
+    ],
+  ] as const;
+  for (const [name, source] of structuralUrls) {
+    await t.test(`refuses URI ${name}`, () => assertSource(source, true));
+  }
+
+  const markers: readonly [string, string][] = [
+    ['private key', '-----BEGIN PRIVATE KEY-----'],
+    ['RSA private key', '-----BEGIN RSA PRIVATE KEY-----'],
+    ['OpenSSH private key', '-----BEGIN OPENSSH PRIVATE KEY BLOCK-----'],
+    ['generic sk token', `sk-${'a'.repeat(20)}`],
+    ['sk test token', `sk-test-${'a'.repeat(16)}`],
+    ['sk project token', `sk-proj-${'a'.repeat(16)}`],
+    ['sk live token', `sk-live-${'a'.repeat(16)}`],
+    ['sk ant token', `sk-ant-${'a'.repeat(16)}`],
+    ['sk ant api token', `sk-ant-api03-${'a'.repeat(16)}`],
+    ['sk underscore live token', `sk_live_${'a'.repeat(16)}`],
+    ['rk underscore live token', `rk_live_${'a'.repeat(16)}`],
+    ...['p', 'o', 'u', 's', 'r'].map((kind): [string, string] => [
+      `GitHub ${kind} token`,
+      `gh${kind}_${'a'.repeat(20)}`,
+    ]),
+    ['GitHub fine-grained token', `github_pat_${'a'.repeat(16)}`],
+    ['npm token', `npm_${'a'.repeat(36)}`],
+    ['AWS access key', `AKIA${'A'.repeat(16)}`],
+    ['AWS session key', `ASIA${'A'.repeat(16)}`],
+    ['Google API key', `AIza${'A'.repeat(35)}`],
+    ...['b', 'a', 'p', 'r', 's'].map((kind): [string, string] => [
+      `Slack ${kind} token`,
+      `xox${kind}-${'a'.repeat(10)}`,
+    ]),
+    ['JWT', 'eyJabcdefgh.abcdefgh.abcdefgh'],
+  ];
+  for (const [name, marker] of markers) {
+    await t.test(`refuses ${name} independent of source context`, () =>
+      assertSource(`// ordinary sample\nconst example = '${marker}';\n`, true),
+    );
+  }
+});
+
+test('checkpoint accepts ordinary token and working-directory bindings', async (t) => {
+  const cases = [
+    ['lexical token binding', "const token = 'EOF';\n"],
+    ['working-directory binding', "const pwd = '/tmp/work-123';\n"],
+  ] as const;
+
+  for (const [name, source] of cases) {
+    await t.test(name, async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(join(root, 'candidate.ts'), source);
+        assert.doesNotThrow(() =>
+          prepareCheckpoint(
+            job,
+            'test: accept ordinary binding',
+            'session-binding',
+          ),
+        );
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+});
+
+test('checkpoint preserves legacy Zod metadata and refuses Stripe test keys', async (t) => {
+  const cases = [
+    [
+      'accepts a Zod filesystem-path default',
+      "const value = z.string().default('/tmp/work-123');\n",
+      false,
+    ],
+    [
+      'accepts a Zod issue-code default',
+      "const value = z.string().default('LON-231');\n",
+      false,
+    ],
+    [
+      'refuses the Stripe test-key marker',
+      `const example = 'sk_test_${'a'.repeat(16)}';\n`,
+      true,
+    ],
+  ] as const;
+
+  for (const [name, source, refused] of cases) {
+    await t.test(name, async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(join(root, 'candidate.ts'), source);
+        if (refused) {
+          assert.throws(
+            () =>
+              prepareCheckpoint(
+                job,
+                'test: refuse Stripe test marker',
+                'session-stripe-test',
+              ),
+            /checkpoint refused: secret pattern in candidate\.ts/u,
+          );
+        } else {
+          assert.doesNotThrow(() =>
+            prepareCheckpoint(
+              job,
+              'test: preserve Zod metadata',
+              'session-zod-metadata',
+            ),
+          );
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
   }
 });
