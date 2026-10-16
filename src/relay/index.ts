@@ -190,6 +190,31 @@ export async function bindSession(
   return storeCapsule(job, next, capsule.epoch);
 }
 
+export async function releaseStartupLease(
+  job: Job,
+  bound: Capsule,
+  sessionId: string,
+): Promise<Cas<Capsule>> {
+  if (bound.jobId !== job.id || bound.worktree !== job.worktree)
+    return { applied: false };
+  const current = readCapsule(job);
+  if (
+    !current ||
+    current.epoch !== bound.epoch ||
+    current.sessionId !== sessionId ||
+    bound.sessionId !== sessionId ||
+    current.lease !== 'active'
+  )
+    return { applied: false };
+  const next = parseCapsule({
+    ...current,
+    epoch: current.epoch + 1,
+    lease: 'ended',
+    sessionId: undefined,
+  });
+  return storeCapsule(job, next, bound.epoch);
+}
+
 export async function refreshCAS(
   capsule: Capsule,
   facts: RepoFacts,

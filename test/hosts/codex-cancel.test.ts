@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -25,6 +32,7 @@ test('onStarted rejection waits for the fake Codex process tree to stop', async 
   const host = new hostModule.CodexHost({ executable });
   const callbackError = new Error('onStarted rejected');
   let observedPids: number[] | undefined;
+  let cancellationAcknowledged = false;
   try {
     await writeFile(
       executable,
@@ -32,13 +40,17 @@ test('onStarted rejection waits for the fake Codex process tree to stop', async 
     );
     await chmod(executable, 0o755);
 
-    await assert.rejects(
-      host.start({
+    const startInput = Object.assign(
+      {
         cwd: directory,
-        model: 'gpt-6-luna',
+        model: 'gpt-6-luna' as const,
         prompt: 'wait',
         limits: { timeoutMs: 30_000 },
-        onStarted: async (_sessionId, _pgid, isolation) => {
+        onStarted: async (
+          _sessionId: string,
+          _pgid?: number,
+          isolation?: string,
+        ) => {
           assert.equal(isolation, 'systemd_scope');
           const pids = await waitFor(async () => {
             try {
@@ -62,9 +74,29 @@ test('onStarted rejection waits for the fake Codex process tree to stop', async 
           );
           throw callbackError;
         },
-      }),
+      },
+      {
+        onStartCancelled: async (sessionId: string) => {
+          assert.ok(
+            sessionId,
+            'acknowledgement identifies the cancelled session',
+          );
+          const pids = observedPids;
+          assert.ok(pids, 'the owned fixture PIDs must be captured');
+          assert.deepEqual(
+            await Promise.all(pids.map(isAlive)),
+            [false, false],
+            'cancellation acknowledgement must follow verified process cleanup',
+          );
+          cancellationAcknowledged = true;
+        },
+      },
+    );
+    await assert.rejects(
+      host.start(startInput),
       (error) => error === callbackError,
     );
+    assert.equal(cancellationAcknowledged, true);
 
     const pids = observedPids;
     assert.ok(pids, 'onStarted must capture both fixture PIDs');
@@ -79,6 +111,123 @@ test('onStarted rejection waits for the fake Codex process tree to stop', async 
       await rm(directory, { recursive: true, force: true });
     }
   }
+});
+
+test('startup cancellation failure does not acknowledge lease handback', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'startup cancellation failure does not acknowledge lease handback',
+      ['systemdUserScope'],
+    )
+  )
+    return;
+  const hostModule = await import('../../src/hosts/codex.ts');
+  const directory = await mkdtemp(join(tmpdir(), 'krn-codex-cancel-failure-'));
+  const fakeBin = join(directory, 'bin');
+  const executable = join(directory, 'fake-codex');
+  const systemdRun = join(fakeBin, 'systemd-run');
+  const systemctl = join(fakeBin, 'systemctl');
+  const showMarker = join(directory, 'show-called');
+  const pidFile = join(directory, 'pids');
+  const host = new hostModule.CodexHost({ executable });
+  const callbackError = new Error('onStarted rejected');
+  const previousPath = process.env.PATH;
+  let pids: number[] | undefined;
+  let acknowledgements = 0;
+  try {
+    await mkdir(fakeBin);
+    await writeFile(
+      systemdRun,
+      `#!/bin/sh
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --unit) shift 2 ;;
+    --user|--scope|--quiet) shift ;;
+    --property=*) shift ;;
+    *) exec "$@" ;;
+  esac
+done
+exit 1
+`,
+    );
+    await writeFile(
+      systemctl,
+      `#!/bin/sh
+case "$*" in
+  *list-units*) printf "[]\\n" ;;
+  *" show "*)
+    if [ -e "${showMarker}" ]; then echo "unit not loaded" >&2; else : > "${showMarker}"; echo "fake verification unavailable" >&2; fi
+    exit 1 ;;
+  *) exit 0 ;;
+esac
+`,
+    );
+    await writeFile(
+      executable,
+      `#!/bin/sh
+printf '%s\\n' "$$" > "${pidFile}"
+/bin/sleep 30 &
+printf '%s\\n' "$!" >> "${pidFile}"
+wait
+`,
+    );
+    await Promise.all(
+      [systemdRun, systemctl, executable].map((path) => chmod(path, 0o755)),
+    );
+    process.env.PATH = `${fakeBin}${process.platform === 'win32' ? ';' : ':'}${previousPath ?? ''}`;
+    const startInput = Object.assign(
+      {
+        cwd: directory,
+        model: 'gpt-6-luna' as const,
+        prompt: 'wait',
+        limits: { timeoutMs: 30_000 },
+        onStarted: async () => {
+          pids = await waitFor(async () => {
+            try {
+              const values = (await readFile(pidFile, 'utf8'))
+                .trim()
+                .split('\n')
+                .map(Number);
+              return values.length === 2 && values.every((pid) => pid > 0)
+                ? values
+                : undefined;
+            } catch {
+              return undefined;
+            }
+          });
+          throw callbackError;
+        },
+      },
+      {
+        onStartCancelled: async () => {
+          acknowledgements += 1;
+        },
+      },
+    );
+    await assert.rejects(host.start(startInput), (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.equal(error.errors[0], callbackError);
+      assert.match(error.message, /cancellation could not be verified/);
+      return true;
+    });
+  } finally {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+    const ownedPids = pids;
+    if (ownedPids) {
+      for (const pid of ownedPids) {
+        try {
+          process.kill(pid, 'SIGKILL');
+        } catch {}
+      }
+      await waitFor(async () =>
+        (await Promise.all(ownedPids.map(isAlive))).every((alive) => !alive),
+      ).catch(() => undefined);
+    }
+    await rm(directory, { recursive: true, force: true });
+  }
+  assert.equal(acknowledgements, 0);
 });
 
 test('cancellation kills the Codex process tree and keeps the session identity', async (t) => {
@@ -119,12 +268,22 @@ setInterval(() => {}, 1000);
     await chmod(executable, 0o755);
 
     const host = new hostModule.CodexHost({ executable });
-    const session = await host.start({
-      cwd: directory,
-      model: 'gpt-6-luna',
-      prompt: 'wait',
-      limits: { timeoutMs: 10_000 },
-    });
+    let startupCancellationNotifications = 0;
+    const session = await host.start(
+      Object.assign(
+        {
+          cwd: directory,
+          model: 'gpt-6-luna' as const,
+          prompt: 'wait',
+          limits: { timeoutMs: 10_000 },
+        },
+        {
+          onStartCancelled: async () => {
+            startupCancellationNotifications += 1;
+          },
+        },
+      ),
+    );
     const identity = session.id;
     const pids = await waitFor(async () => {
       try {
@@ -136,6 +295,7 @@ setInterval(() => {}, 1000);
     });
 
     await host.cancelTree(identity);
+    assert.equal(startupCancellationNotifications, 0);
     const result = await session.wait();
     assert.equal(result.sessionId, identity);
     assert.equal(result.threadId, 'thread-123');

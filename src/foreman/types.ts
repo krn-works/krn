@@ -127,6 +127,11 @@ export type Deps = {
       capsule: Capsule,
       sessionId: string,
     ): Promise<Cas<Capsule>>;
+    releaseStartupLease(
+      job: Job,
+      bound: Capsule,
+      sessionId: string,
+    ): Promise<Cas<Capsule>>;
     isCurrent(job: Job, epoch: number, sessionId: string): Promise<boolean>;
     repoFacts(
       job: Job,
@@ -241,6 +246,7 @@ export type Deps = {
           pgid?: number,
           isolation?: 'pid_namespace' | 'systemd_scope',
         ) => Promise<boolean>;
+        readonly onStartCancelled?: (sessionId: string) => Promise<void>;
       }): Promise<Session>;
     };
     cancelTree(sessionId: string): Promise<void>;

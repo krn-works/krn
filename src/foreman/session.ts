@@ -127,6 +127,7 @@ export async function runSession(
 }> {
   let session: Session | undefined;
   let bound = capsule;
+  let startupBinding: Capsule | undefined;
   try {
     session = await d.hosts.codex.start({
       cwd: job.worktree,
@@ -152,9 +153,26 @@ export async function runSession(
         const result = await d.relay.bindSession(job, capsule, sessionId);
         if (!result.applied) throw new AlreadyRunning();
         bound = result.value;
+        startupBinding = result.value;
         if (!(await d.trace.started(job, intent, sessionId, pgid, isolation)))
           throw new AlreadyRunning();
         return true;
+      },
+      onStartCancelled: async (sessionId) => {
+        const owned = startupBinding;
+        if (!owned) return;
+        if (owned.sessionId !== sessionId)
+          throw new Error(
+            'startup cancellation session does not match bound lease',
+          );
+        const released = await d.relay.releaseStartupLease(
+          job,
+          owned,
+          sessionId,
+        );
+        if (!released.applied)
+          throw new Error('startup lease handback CAS conflict');
+        bound = released.value;
       },
     });
     const running = session;

@@ -126,3 +126,11 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 [POLICY] Exactly five existing test outcomes are authorized to change: (1) nonsensitive `.default('hunter2')`, (2) nonsensitive `.default('hunter2-secret')`, (3) nonsensitive `.catch('hunter2-secret')`, and (4) nonsensitive `.describe('hunter2-secret')` now pass, each paired with refusal when a real synthetic C1 marker occupies the same form; (5) `password` default `guest` followed by `.catch('fallback')` now refuses because the later eight-character fallback qualifies, paired with acceptance when that fallback is short. Other existing outcomes remain unchanged unless separately authorized.
 
 [POLICY] Differential proof compares only production C1 and C2 results against the frozen b954 SHA `b954079dc377010ad7e8d3736b81aa6d31ed2c9a` on deterministic short inputs (about 200 characters maximum) covering marker families, boundaries, separators, and URI cases. Long/adversarial inputs never reach the old oracle. Any C1/C2 discrepancy outside this contract requires returning to the operator; a different component may not mask a lost result.
+
+## Operator-approved LON-278 — startup lease handback (2026-10-16)
+
+[POLICY] The operator authorizes the bounded startup-handback implementation, focused tests and scope documentation. This is not code acceptance, review, full-R1 qualification, unattended confinement, installation authority or a general W2b crash-recovery decision. Do not wire live-l1 scope inference in this slice.
+
+[CODE] After CodexHost verifies cancellation of the exact owned process for an onStarted rejection or false result, an optional post-cancellation acknowledgement may let foreman release only the successfully bound active capsule lease. The relay transition must CAS the bound epoch and session identity, change only lease/session identity plus epoch, preserve all other capsule fields, and fail closed on cleanup or CAS errors. No acknowledgement follows unverified cleanup; ordinary successful starts are unchanged.
+
+[POLICY] Once an accepted-contract candidate passes all required exact-head gates, the lead merges without procedural reapproval. Stop and return for changed scope or rights, or missing required proof. This is a conditional integration mandate, not code approval or a waiver of independent exact-head review, CI, or main-CI readback.
