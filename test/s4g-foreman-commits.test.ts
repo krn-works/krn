@@ -459,48 +459,59 @@ test('checkpoint accepts password Zod schema syntax without a literal', async ()
   }
 });
 
-test('checkpoint scans secret literals in Zod chained-call arguments', async (t) => {
+test('checkpoint accepts nonsensitive Zod literals but still refuses paired markers', async (t) => {
   const cases = [
     [
-      '.default short password literal',
+      '.default short literal',
       "export const schema = z.object({ setting: z.string().default('hunter2') });\n",
     ],
     [
-      '.default',
+      '.default literal',
       "export const schema = z.object({ setting: z.string().default('hunter2-secret') });\n",
     ],
     [
-      '.default on a password schema',
-      "export const schema = z.object({ password: z.string().default('hunter2-secret') });\n",
-    ],
-    [
-      '.catch',
+      '.catch literal',
       "export const schema = z.object({ setting: z.string().catch('hunter2-secret') });\n",
     ],
     [
-      '.describe',
+      '.describe literal',
       "export const schema = z.object({ setting: z.string().describe('hunter2-secret') });\n",
     ],
   ] as const;
 
   for (const [method, source] of cases) {
-    await t.test(`${method} literal is refused`, async () => {
-      const { root, job } = await checkpointRepo();
-      try {
-        await writeFile(join(root, 'schema.ts'), source);
-        assert.throws(
-          () =>
-            commitCheckpoint(
+    await t.test(
+      `${method} is accepted and a marker in the same form is refused`,
+      async () => {
+        const { root, job } = await checkpointRepo();
+        try {
+          await writeFile(join(root, 'schema.ts'), source);
+          assert.doesNotThrow(() =>
+            prepareCheckpoint(
               job,
-              'test: inspect schema literal',
+              'test: accept ordinary schema literal',
               'session-literal',
             ),
-          /checkpoint refused: secret pattern/u,
-        );
-      } finally {
-        await rm(root, { recursive: true, force: true });
-      }
-    });
+          );
+          const marker = `sk-proj-${'a'.repeat(16)}`;
+          await writeFile(
+            join(root, 'schema.ts'),
+            source.replace(/hunter2(?:-secret)?/u, marker),
+          );
+          assert.throws(
+            () =>
+              prepareCheckpoint(
+                job,
+                'test: refuse marker in schema literal',
+                'session-marker',
+              ),
+            /checkpoint refused: secret pattern in schema\.ts/u,
+          );
+        } finally {
+          await rm(root, { recursive: true, force: true });
+        }
+      },
+    );
   }
 });
 
@@ -523,18 +534,154 @@ test('checkpoint accepts a non-secret Zod description', async () => {
   }
 });
 
-test('checkpoint accepts non-secret Zod chained-call literals', async () => {
+test('checkpoint applies bounded sensitive-binding rules at the public prepare seam', async (t) => {
+  const cases = [
+    [
+      'typed alphabetic literal binding',
+      "export const password: string = 'abcdef';\n",
+      true,
+    ],
+    [
+      'legacy unquoted guard retains its type-reference false positive',
+      'export const schema = { password: PasswordInput };\n',
+      true,
+    ],
+    [
+      'default after describe inside wrappers',
+      "const schema = (z.object({ password: (z.string().describe('login field').default(('abcdef'))) }));\n",
+      true,
+    ],
+    [
+      'describe is metadata rather than a binding',
+      "const schema = z.object({ password: z.string().describe('hunter2-secret') });\n",
+      false,
+    ],
+    [
+      'comma ends the sensitive fragment',
+      "const fields = { password: 'guest', other: 'hunter2-secret' };\n",
+      false,
+    ],
+    [
+      'value begins outside the 80-character same-line window',
+      `const password =${' '.repeat(81)}'abcdef';\n`,
+      false,
+    ],
+    [
+      'quoted key closing delimiter is separate from the value',
+      "const settings = { 'password': 'abcdef' };\n",
+      true,
+    ],
+    [
+      'template interpolation is not a static literal',
+      'const password = z.string().default(`abc${suffix}def`);\n',
+      false,
+    ],
+  ] as const;
+
+  for (const [name, source, refused] of cases) {
+    await t.test(name, async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(join(root, 'candidate.ts'), source);
+        if (refused) {
+          assert.throws(
+            () =>
+              prepareCheckpoint(
+                job,
+                'test: inspect sensitive binding',
+                'session-binding',
+              ),
+            /checkpoint refused: secret pattern in candidate\.ts/u,
+          );
+        } else {
+          assert.doesNotThrow(() =>
+            prepareCheckpoint(
+              job,
+              'test: accept nonbinding literal',
+              'session-nonbinding',
+            ),
+          );
+        }
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    });
+  }
+
+  await t.test(
+    'overlong qualifying literal has an analysis-limit reason',
+    async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(
+          join(root, 'candidate.ts'),
+          `const password = '${'a'.repeat(300)};\n`,
+        );
+        assert.throws(
+          () =>
+            prepareCheckpoint(
+              job,
+              'test: bound literal analysis',
+              'session-limit',
+            ),
+          /checkpoint refused: analysis limit in candidate\.ts/u,
+        );
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  await t.test(
+    'an inspected whitespace prefix resolves the literal as nonstatic',
+    async () => {
+      const { root, job } = await checkpointRepo();
+      try {
+        await writeFile(
+          join(root, 'candidate.ts'),
+          `const password = '${'a'.repeat(40)} ${'a'.repeat(300)};\n`,
+        );
+        assert.doesNotThrow(() =>
+          prepareCheckpoint(
+            job,
+            'test: reject nonstatic literal shape',
+            'session-nonstatic',
+          ),
+        );
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+});
+
+test('checkpoint scans every sensitive Zod fallback literal', async () => {
   const { root, job } = await checkpointRepo();
   try {
+    const path = join(root, 'schema.ts');
     await writeFile(
-      join(root, 'schema.ts'),
+      path,
       "export const schema = z.object({ password: z.string().default('guest').catch('fallback').describe('User password') });\n",
     );
+    assert.throws(
+      () =>
+        prepareCheckpoint(
+          job,
+          'test: inspect sensitive fallback',
+          'session-fallback',
+        ),
+      /checkpoint refused: secret pattern in schema\.ts/u,
+    );
+
+    await writeFile(
+      path,
+      "export const schema = z.object({ password: z.string().default('guest').catch('guest').describe('User password') });\n",
+    );
     assert.doesNotThrow(() =>
-      commitCheckpoint(
+      prepareCheckpoint(
         job,
-        'test: accept benign schema literals',
-        'session-benign-literal',
+        'test: allow short sensitive defaults',
+        'session-short-default',
       ),
     );
   } finally {
@@ -623,6 +770,22 @@ test('checkpoint recognizes bounded credential shapes and preserves ordinary cod
     [
       'empty credential-named query parameter',
       "const endpoint = 'https://example.test/account?token=';\n",
+    ],
+    [
+      'comparison is not a sensitive binding',
+      "const matches = password === 'hunter2-secret';\n",
+    ],
+    [
+      'inequality is not a sensitive binding',
+      "const differs = password !== 'hunter2-secret';\n",
+    ],
+    [
+      'relational comparison is not a sensitive binding',
+      "const ordered = password >= 'hunter2-secret';\n",
+    ],
+    [
+      'arrow token is not a sensitive binding',
+      "const check = password => 'hunter2-secret';\n",
     ],
   ] as const;
   for (const [name, source] of ordinaryLiterals) {

@@ -112,3 +112,17 @@ publication or reconciliation. The existing capsule history and projection limit
 HEAD changes. Legacy ambiguous HEAD remains fail-closed. A recovered `done` still runs deterministic verification;
 `continue` reaches the next worker action only after reconciliation. Source: checkpoint/relay implementation and the
 assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
+
+## Operator-approved A′ — LON-277 (2026-10-16)
+
+[POLICY] The operator approved A′ for implementation and test/documentation work only. This records scope, not code acceptance, review, merge, or access to secret values. The bounded checkpoint tripwire is not a TypeScript parser or complete DLP system.
+
+[CODE] C1 recognizes the published finite explicit credential-marker families anywhere in a file, independent of source context. C2 recognizes nonempty URI userinfo and nonempty credential-named query parameters while allowing ordinary hosts, ports, paths, versions, and metadata. C1 matching and C2 URI extraction must make monotonic, linear progress; do not add marker-value allowlists, context exemptions, metadata exceptions, generic entropy checks, or dependencies.
+
+[CODE] C3 is a bounded lexical heuristic for `password`, `secret`, `api[_-]?key`, and `access[_-]?token`: locate recognized `:`/`=` bindings or `.default(`/`.catch(` values within 80 characters on the same line; inspect every qualifying literal, each at most 256 characters. A qualifying literal is static, one token, non-whitespace, and at least six characters; digits are not required. Comparisons and `.describe` are not bindings. If a qualifying value cannot be resolved within the literal cap, refuse with a distinct analysis-limit reason. No full-language or semantic guarantee is claimed.
+
+[CODE] C4 deliberately retains the existing unquoted `secretPattern` guard. It can refuse nonsecret references such as `password: PasswordInput`; this remains documented compatibility debt, not evidence that a secret exists.
+
+[POLICY] Exactly five existing test outcomes are authorized to change: (1) nonsensitive `.default('hunter2')`, (2) nonsensitive `.default('hunter2-secret')`, (3) nonsensitive `.catch('hunter2-secret')`, and (4) nonsensitive `.describe('hunter2-secret')` now pass, each paired with refusal when a real synthetic C1 marker occupies the same form; (5) `password` default `guest` followed by `.catch('fallback')` now refuses because the later eight-character fallback qualifies, paired with acceptance when that fallback is short. Other existing outcomes remain unchanged unless separately authorized.
+
+[POLICY] Differential proof compares only production C1 and C2 results against the frozen b954 SHA `b954079dc377010ad7e8d3736b81aa6d31ed2c9a` on deterministic short inputs (about 200 characters maximum) covering marker families, boundaries, separators, and URI cases. Long/adversarial inputs never reach the old oracle. Any C1/C2 discrepancy outside this contract requires returning to the operator; a different component may not mask a lost result.

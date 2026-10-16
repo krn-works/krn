@@ -5,14 +5,14 @@ import type { Job } from '../core/index.ts';
 import { credentialShapeKind } from './credential-shape.ts';
 import { git } from './git.ts';
 
-// The key-value matcher skips Zod schemas; their string arguments are checked below.
+// C4 compatibility debt: the unquoted guard can also reject type references such as PasswordInput.
 const secretPattern =
   /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*(?!z\s*\.\s*[A-Za-z_$][A-Za-z\d_$]*\s*\()[^\s"']{8,}/iu;
-const sensitiveZodProperty =
-  /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*:\s*z\s*\./giu;
-const stringLiteralPattern = /(['"`])((?:\\.|(?!\1)[\s\S])*)\1/gu;
-const zodChainedLiteralPattern =
-  /\.(?:default|catch|describe)\s*\(\s*(['"`])((?:\\.|(?!\1)[\s\S])*)\1/gu;
+const SENSITIVE_BINDING_NAME =
+  /\b(?:password|secret|api[_-]?key|access[_-]?token)\b/iuy;
+const IDENTIFIER_CHARACTER = /[A-Za-z0-9_$]/u;
+const WHITESPACE = /\s/u;
+type CredentialFinding = 'secret pattern' | 'analysis limit';
 
 function statusPaths(output: string): string[] {
   return output
@@ -25,93 +25,206 @@ function namePaths(output: string): string[] {
   return output.split('\0').filter(Boolean);
 }
 
-function expressionEnd(source: string, start: number): number {
-  let parenthesisDepth = 0;
+function lineWindowEnd(source: string, nameEnd: number): number {
+  const limit = Math.min(source.length, nameEnd + 80);
+  for (let index = nameEnd; index < limit; index++) {
+    if (source[index] === '\n' || source[index] === '\r') return index;
+  }
+  return limit;
+}
+
+function readStaticLiteral(
+  source: string,
+  start: number,
+): { readonly finding: CredentialFinding | null; readonly end: number } {
+  const quote = source[start] ?? '';
+  const limit = Math.min(source.length, start + 256);
+  let index = start + 1;
+  while (index < limit) {
+    const character = source[index] ?? '';
+    if (character === quote)
+      return {
+        finding: index - start - 1 >= 6 ? 'secret pattern' : null,
+        end: index + 1,
+      };
+    if (WHITESPACE.test(character)) return { finding: null, end: index + 1 };
+    if (
+      quote === '`' &&
+      character === '$' &&
+      index + 1 < limit &&
+      source[index + 1] === '{'
+    )
+      return { finding: null, end: index + 2 };
+    if (character === '\\') {
+      if (index + 1 >= limit) break;
+      index += 2;
+    } else index++;
+  }
+  return { finding: 'analysis limit', end: limit };
+}
+
+function quotedValueStart(
+  source: string,
+  start: number,
+  windowEnd: number,
+): number | null {
+  let index = start;
+  while (index < windowEnd) {
+    const character = source[index] ?? '';
+    if (character === '\n' || character === '\r') return null;
+    if (WHITESPACE.test(character) || character === '(') index++;
+    else break;
+  }
+  const character = source[index] ?? '';
+  return character === "'" || character === '"' || character === '`'
+    ? index
+    : null;
+}
+
+function findingAfterOperator(
+  source: string,
+  start: number,
+  windowEnd: number,
+): CredentialFinding | null {
+  const valueStart = quotedValueStart(source, start, windowEnd);
+  return valueStart === null
+    ? null
+    : readStaticLiteral(source, valueStart).finding;
+}
+
+function skipQuotedWindow(
+  source: string,
+  start: number,
+  windowEnd: number,
+): number {
+  const quote = source[start] ?? '';
+  let index = start + 1;
+  while (index < windowEnd) {
+    const character = source[index] ?? '';
+    if (character === '\\') index += Math.min(2, windowEnd - index);
+    else if (character === quote) return index + 1;
+    else index++;
+  }
+  return windowEnd;
+}
+
+function isBindingEquals(source: string, index: number): boolean {
+  const previous = source[index - 1] ?? '';
+  const next = source[index + 1] ?? '';
+  return !/[=!<>+\-*%&|^]/u.test(previous) && next !== '=' && next !== '>';
+}
+
+function methodArgumentStart(
+  source: string,
+  index: number,
+  method: '.default' | '.catch',
+  windowEnd: number,
+): number | null {
+  if (!source.startsWith(method, index)) return null;
+  let cursor = index + method.length;
+  if (IDENTIFIER_CHARACTER.test(source[cursor] ?? '')) return null;
+  while (cursor < windowEnd && WHITESPACE.test(source[cursor] ?? '')) cursor++;
+  return source[cursor] === '(' ? cursor + 1 : null;
+}
+
+function scanBindingWindow(
+  source: string,
+  start: number,
+  windowEnd: number,
+): CredentialFinding | null {
+  let index = start;
+  while (index < windowEnd) {
+    const character = source[index] ?? '';
+    if (
+      character === '\n' ||
+      character === '\r' ||
+      character === ',' ||
+      character === ';'
+    )
+      break;
+    if (character === "'" || character === '"' || character === '`') {
+      index = skipQuotedWindow(source, index, windowEnd);
+      continue;
+    }
+
+    let valueStart: number | null = null;
+    if (
+      character === ':' ||
+      (character === '=' && isBindingEquals(source, index))
+    )
+      valueStart = index + 1;
+    else if (character === '.')
+      valueStart =
+        methodArgumentStart(source, index, '.default', windowEnd) ??
+        methodArgumentStart(source, index, '.catch', windowEnd);
+
+    if (valueStart !== null) {
+      const finding = findingAfterOperator(source, valueStart, windowEnd);
+      if (finding !== null) return finding;
+    }
+    index++;
+  }
+  return null;
+}
+
+function bindingFindingForName(
+  source: string,
+  nameEnd: number,
+): CredentialFinding | null {
+  const windowEnd = lineWindowEnd(source, nameEnd);
+  let start = nameEnd;
+  if (source[start] === "'" || source[start] === '"') start++;
+  return scanBindingWindow(source, start, windowEnd);
+}
+
+function sensitiveBindingFinding(source: string): CredentialFinding | null {
+  let index = 0;
   let quote: string | null = null;
   let escaped = false;
-  for (let index = start; index < source.length; index++) {
-    const character = source[index];
+  while (index < source.length) {
+    const character = source[index] ?? '';
     if (quote !== null) {
       if (escaped) escaped = false;
       else if (character === '\\') escaped = true;
       else if (character === quote) quote = null;
+      index++;
       continue;
     }
+
     if (character === "'" || character === '"' || character === '`') {
-      quote = character;
+      SENSITIVE_BINDING_NAME.lastIndex = index + 1;
+      const quotedName = SENSITIVE_BINDING_NAME.exec(source);
+      const quotedNameEnd = quotedName
+        ? index + 1 + quotedName[0].length
+        : index + 1;
+      if (quotedName && source[quotedNameEnd] === character) {
+        const finding = bindingFindingForName(source, quotedNameEnd);
+        if (finding !== null) return finding;
+        index = quotedNameEnd + 1;
+      } else {
+        quote = character;
+        index++;
+      }
       continue;
     }
-    if (character === '(') parenthesisDepth++;
-    else if (character === ')')
-      parenthesisDepth = Math.max(0, parenthesisDepth - 1);
-    else if (
-      parenthesisDepth === 0 &&
-      (character === ',' || character === '}' || character === ';')
-    )
-      return index;
+
+    SENSITIVE_BINDING_NAME.lastIndex = index;
+    const match = SENSITIVE_BINDING_NAME.exec(source);
+    if (match) {
+      const nameEnd = index + match[0].length;
+      const finding = bindingFindingForName(source, nameEnd);
+      if (finding !== null) return finding;
+      index = nameEnd;
+    } else index++;
   }
-  return source.length;
+  return null;
 }
 
-function isStructuredMetadataLiteral(value: string): boolean {
-  return (
-    isAbsolute(value) ||
-    /^[A-Za-z]:[\\/]/u.test(value) ||
-    /^intent:\d+$/u.test(value) ||
-    /^[A-Z]{1,8}\d+[a-z]?-[A-Za-z0-9-]+$/u.test(value) ||
-    /^[A-Z]{2,8}-\d{1,8}$/u.test(value)
-  );
-}
-
-function isLegacyZodSecretLiteral(
-  value: string,
-  scanStructuredMetadata = true,
-): boolean {
-  if (secretPattern.test(value)) return true;
-  const candidate = value.trim();
-  if (scanStructuredMetadata && isStructuredMetadataLiteral(candidate))
-    return false;
-  return (
-    candidate.length >= 6 &&
-    !/\s/u.test(candidate) &&
-    /[A-Za-z]/u.test(candidate) &&
-    /\d/u.test(candidate)
-  );
-}
-
-function hasSecretLiteral(expression: string): boolean {
-  stringLiteralPattern.lastIndex = 0;
-  return [...expression.matchAll(stringLiteralPattern)].some((literal) =>
-    isLegacyZodSecretLiteral(literal[2] ?? '', false),
-  );
-}
-
-function hasZodChainedSecretLiteral(content: string): boolean {
-  zodChainedLiteralPattern.lastIndex = 0;
-  return [...content.matchAll(zodChainedLiteralPattern)].some((literal) => {
-    const callStart = literal.index ?? 0;
-    const statementStart = content.lastIndexOf(';', callStart) + 1;
-    const statementPrefix = content.slice(statementStart, callStart);
-    return (
-      /\bz\.[A-Za-z_$][A-Za-z\d_$]*\s*\(/u.test(statementPrefix) &&
-      isLegacyZodSecretLiteral(literal[2] ?? '')
-    );
-  });
-}
-
-function containsSecret(content: string): boolean {
-  if (credentialShapeKind(content) !== null) return true;
-
-  for (const property of content.matchAll(sensitiveZodProperty)) {
-    const propertyStart = property.index ?? 0;
-    const expressionStart = propertyStart + property[0].lastIndexOf('z');
-    const end = expressionEnd(content, expressionStart);
-    const expression = content.slice(expressionStart, end);
-    if (hasSecretLiteral(expression)) return true;
-  }
-
-  if (secretPattern.test(content)) return true;
-  return hasZodChainedSecretLiteral(content);
+function contentFinding(content: string): CredentialFinding | null {
+  if (credentialShapeKind(content) !== null) return 'secret pattern';
+  const bindingFinding = sensitiveBindingFinding(content);
+  if (bindingFinding !== null) return bindingFinding;
+  return secretPattern.test(content) ? 'secret pattern' : null;
 }
 
 function inspect(root: string, path: string): void {
@@ -149,8 +262,9 @@ function inspect(root: string, path: string): void {
       throw new Error(`checkpoint refused: escaping symlink ${path}`);
   } else if (stat.isFile()) {
     const content = readFileSync(absolute, 'utf8');
-    if (containsSecret(content))
-      throw new Error(`checkpoint refused: secret pattern in ${path}`);
+    const finding = contentFinding(content);
+    if (finding !== null)
+      throw new Error(`checkpoint refused: ${finding} in ${path}`);
   }
 }
 
