@@ -296,6 +296,7 @@ async function classifyTest(
   scratch: string,
   side: 'base' | 'head',
   sha: string,
+  baseSha: string,
   path: string,
   signal?: AbortSignal,
 ): Promise<RedFirstResult> {
@@ -330,6 +331,7 @@ async function classifyTest(
     120000,
     sha,
     signal,
+    baseSha,
   );
   for (const helper of [reporterPath, wrapperPath]) {
     try {
@@ -400,7 +402,7 @@ export async function redFirst(
         await addWorktree(root, scratch, side === 'base' ? baseSha : head);
         if (side === 'base') git(scratch, ['checkout', head, '--', ...files]);
         results.push(
-          await classifyTest(root, scratch, side, sha, path, signal),
+          await classifyTest(root, scratch, side, sha, baseSha, path, signal),
         );
       }
     }
