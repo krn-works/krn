@@ -148,3 +148,9 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 [POLICY] The immutable trusted base selects the host package-manager executable and host-side store probe. Candidate package manifests, lockfiles, and application dependencies remain the inputs installed and checked inside the sandbox: do not substitute base dependencies or blanket-refuse manifest changes. Preserve the accepted LON-219/PR44 script, registry, protected-surface, regular-file, size, teardown, and honest-source controls.
 
 [POLICY] This is a bounded host tool-authority correction, not evidence that mise installs tools or that a pnpm exploit has run. Broader provenance security, provider trials, generic W2b recovery, CI changes, and global tool configuration are excluded. Scope acceptance does not approve unimplemented B runtime code or constitute Full R1 execution.
+
+## LON-286 — neutral host pnpm store discovery (2026-10-17)
+
+[POLICY] This bounded continuation of LON-284 isolates the immutable-base-selected pnpm host store query from mutable repository workspace configuration using a fresh owned standalone probe under validated repository state/tmp parents. Candidate workspace manifests, package manifests, lockfiles, and application dependencies remain legitimate sandboxed inputs; do not blanket-refuse workspace changes, replace candidate dependencies, or overlay candidate files. Preserve LON-219/PR44 script, registry, protected-surface, regular-file, size, teardown, and honest-source controls.
+
+[POLICY] The synthetic owned-canary observer establishes the targeted boundary only. It does not claim a real host-home/credential exploit, universal hostile-process qualification, Full R1 execution, or acceptance of the implementation. Production changes remain pending public assertion RED and subsequent proof.

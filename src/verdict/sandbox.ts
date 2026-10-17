@@ -2,7 +2,7 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 // biome-ignore format: These filesystem primitives form the sandbox's owned I/O surface.
-import { accessSync, closeSync, constants, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeSync } from 'node:fs';
+import { accessSync, closeSync, constants, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
@@ -146,16 +146,45 @@ export async function pnpmBinary(manager: string): Promise<string> {
 }
 
 async function pnpmStore(pnpm: string, cwd: string): Promise<string> {
-  const result = await run(pnpm, ['store', 'path'], cwd, 15000, {
-    PATH: process.env.PATH,
-    HOME: process.env.HOME,
-  });
-  const store = result.stdout.toString().trim();
-  if (result.status !== 0 || !store)
-    throw new Error(
-      result.stderr.toString() || 'cannot locate the pnpm content store',
+  const state = resolve(cwd, '.krn');
+  const directory = resolve(state, 'tmp');
+  mkdirSync(state, { recursive: true, mode: 0o700 });
+  if (realpathSync(state) !== state)
+    throw new Error('unsafe verdict state directory');
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  if (realpathSync(directory) !== directory)
+    throw new Error('unsafe verdict worktree directory');
+
+  const probe = mkdtempSync(join(directory, 'pnpm-store-probe-'));
+  try {
+    if (realpathSync(probe) !== probe)
+      throw new Error('unsafe pnpm store probe directory');
+    writeFileSync(
+      join(probe, 'package.json'),
+      '{"name":"krn-pnpm-store-probe","private":true}\n',
+      { flag: 'wx', mode: 0o600 },
     );
-  return store;
+    writeFileSync(join(probe, 'pnpm-workspace.yaml'), 'packages: []\n', {
+      flag: 'wx',
+      mode: 0o600,
+    });
+    writeFileSync(join(probe, '.npmrc'), '', {
+      flag: 'wx',
+      mode: 0o600,
+    });
+    const result = await run(pnpm, ['store', 'path'], probe, 15000, {
+      PATH: process.env.PATH,
+      HOME: process.env.HOME,
+    });
+    const store = result.stdout.toString().trim();
+    if (result.status !== 0 || !store)
+      throw new Error(
+        result.stderr.toString() || 'cannot locate the pnpm content store',
+      );
+    return resolve(probe, store);
+  } finally {
+    rmSync(probe, { recursive: true, force: true });
+  }
 }
 
 async function git(root: string, args: string[]): Promise<string> {
