@@ -9,10 +9,17 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { CodexHost } from '../../src/hosts/codex.ts';
+import {
+  codexScopeUnit,
+  processHasIdentity,
+  processStartTicks,
+  validateSystemdScopeRegistration,
+  waitForSystemdScopeRegistration,
+} from '../../src/hosts/systemd-scope.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
 const scopeEnvironment = () => ({
@@ -278,6 +285,177 @@ test('cancellation during onStarted cannot deliver a prompt or return a session'
   }
 });
 
+test('child exit during blocked onStarted remains cancellable and hands back the lease', async (t) => {
+  const testName =
+    'child exit during blocked onStarted remains cancellable and hands back the lease';
+  if (!requiresIsolation(t, testName, ['systemdUserScope'])) return;
+  const directory = await mkdtemp(join(tmpdir(), 'krn-codex-closed-callback-'));
+  const executable = join(directory, 'fake-codex');
+  const workerPidFile = join(directory, 'worker-pid');
+  const host = new CodexHost({ executable });
+  let enterCallback!: () => void;
+  let releaseCallback!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    enterCallback = resolve;
+  });
+  const callbackGate = new Promise<void>((resolve) => {
+    releaseCallback = resolve;
+  });
+  let workerIdentity: { pid: number; startTicks: string } | undefined;
+  let workerUnit: string | undefined;
+  let handbacks = 0;
+  try {
+    await writeFile(
+      executable,
+      `#!/bin/sh\nprintf '%s\\n' "$$" > ${JSON.stringify(workerPidFile)}\nexec /usr/bin/sleep 1.5\n`,
+    );
+    await chmod(executable, 0o755);
+    const starting = host.start({
+      cwd: directory,
+      model: 'gpt-6-luna',
+      prompt: 'must not arrive',
+      limits: { timeoutMs: 10_000 },
+      checkpoint: {
+        cli: 'unused',
+        job: 'closed-callback',
+        issue: 'closed-callback',
+        worktree: directory,
+        intent: 'intent:0',
+      },
+      onStarted: async (sessionId) => {
+        workerIdentity = await waitFor(async () => {
+          try {
+            const pid = Number((await readFile(workerPidFile, 'utf8')).trim());
+            const startTicks = processStartTicks(pid);
+            return startTicks ? { pid, startTicks } : undefined;
+          } catch {
+            return undefined;
+          }
+        });
+        workerUnit = codexScopeUnit('closed-callback', sessionId);
+        const membership = await readFile(
+          `/proc/${workerIdentity.pid}/cgroup`,
+          'utf8',
+        );
+        assert.ok(
+          membership
+            .split('\n')
+            .some((line) => line.endsWith(`/${workerUnit}`)),
+          'the exiting fixture must be inside its exact owned scope',
+        );
+        enterCallback();
+        await callbackGate;
+        return true;
+      },
+      onStartCancelled: async () => {
+        handbacks += 1;
+      },
+    });
+    const startingOutcome = starting.then(
+      (session) => ({ status: 'fulfilled' as const, session }),
+      (error: unknown) => ({ status: 'rejected' as const, error }),
+    );
+    await Promise.race([
+      entered,
+      delay(5000).then(() => assert.fail('onStarted never became eligible')),
+    ]);
+    const identity = workerIdentity;
+    const unit = workerUnit;
+    assert.ok(identity && unit, 'the owned worker identity must be captured');
+    await waitFor(async () =>
+      processHasIdentity(identity.pid, identity.startTicks) ? undefined : true,
+    );
+    await waitFor(async () => (systemdScopeInactive(unit) ? true : undefined));
+    await delay(1100);
+
+    // Keep the callback blocked until cancelAll has completed, matching the
+    // callback-gate contract while proving the worker itself already exited.
+    await host.cancelAll();
+    releaseCallback();
+    const settled = await Promise.race([
+      startingOutcome,
+      delay(4000).then(() => undefined),
+    ]);
+    assert.ok(settled, 'close-during-callback cancellation must be bounded');
+    if (settled.status !== 'rejected')
+      assert.fail('a closed, cancelled startup must not return a session');
+    assert.match(String(settled.error), /cancel/i);
+    assert.equal(
+      handbacks,
+      1,
+      'verified cleanup must hand back the bound lease',
+    );
+  } finally {
+    releaseCallback();
+    await host.cancelAll().catch(() => undefined);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('traversal ControlGroup cannot supply a registration proof', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-codex-traversal-'));
+  const fakeBin = join(directory, 'bin');
+  const systemctl = join(fakeBin, 'systemctl');
+  const responseMarker = join(directory, 'manager-response');
+  const unit = codexScopeUnit('traversal', 'session');
+  const previousPath = process.env.PATH;
+  const cgroupRoot = join(directory, 'owned-cgroup');
+  const target = join(cgroupRoot, unit);
+  const traversalPrefix = `/${relative('/sys/fs/cgroup', cgroupRoot)}`;
+  try {
+    await mkdir(target, { recursive: true });
+    await mkdir(fakeBin);
+    await writeFile(join(target, 'cgroup.procs'), `${process.pid}\n`);
+    await writeFile(
+      systemctl,
+      `#!/bin/sh\nunit=''\nprevious=''\nfor argument do\n  if [ "$previous" = '--value' ]; then unit="$argument"; fi\n  previous="$argument"\ndone\nif [ "$unit" = ${JSON.stringify(unit)} ]; then\n  : > ${JSON.stringify(responseMarker)}\n  printf 'active\\n%s/%s\\n' ${JSON.stringify(traversalPrefix)} "$unit"\n  exit 0\nfi\nexec /usr/bin/systemctl "$@"\n`,
+    );
+    await chmod(systemctl, 0o755);
+    process.env.PATH = `${fakeBin}:${previousPath ?? ''}`;
+
+    const startTicks = processStartTicks(process.pid);
+    assert.ok(startTicks, 'the owned canary process must have a live identity');
+    const structurallyValid = {
+      unit,
+      controlGroup: `/user.slice/user-${process.getuid?.() ?? 1000}.slice/user@${process.getuid?.() ?? 1000}.service/app.slice/${unit}`,
+      pid: process.pid,
+      startTicks,
+    };
+    assert.deepEqual(
+      validateSystemdScopeRegistration(structurallyValid, unit),
+      structurallyValid,
+      'valid structural manager paths remain accepted',
+    );
+    const traversalControlGroup = `${traversalPrefix}/${unit}`;
+    assert.equal(
+      resolve('/sys/fs/cgroup', traversalControlGroup.slice(1)),
+      target,
+      'the malformed manager path resolves only to the owned temp canary',
+    );
+    assert.equal(
+      (await readFile(join(target, 'cgroup.procs'), 'utf8')).trim(),
+      String(process.pid),
+      'the owned temp canary contains this live process',
+    );
+    await assert.rejects(
+      waitForSystemdScopeRegistration(unit, () => false),
+      /did not register a live process/u,
+      'an owned temp cgroup.procs outside the cgroup root is not proof',
+    );
+    assert.equal(
+      await readFile(responseMarker, 'utf8')
+        .then(() => true)
+        .catch(() => false),
+      true,
+      'the fake manager must return the malformed response',
+    );
+  } finally {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('cancelling a pending registration kills its owned launcher before callback or prompt', async (t) => {
   if (
     !requiresIsolation(
@@ -403,6 +581,15 @@ IFS= read -r prompt || true
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+function systemdScopeInactive(unit: string): boolean {
+  const shown = spawnSync(
+    '/usr/bin/systemctl',
+    ['--user', 'show', unit, '--property=ActiveState', '--value'],
+    { encoding: 'utf8', env: scopeEnvironment() },
+  );
+  return shown.status !== 0 || shown.stdout.trim() === 'inactive';
+}
 
 async function waitFor<T>(read: () => Promise<T | undefined>): Promise<T> {
   const deadline = Date.now() + 3000;

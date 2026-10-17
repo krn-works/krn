@@ -61,25 +61,34 @@ export function validateSystemdScopeRegistration(
 ): SystemdScopeRegistration | undefined {
   const parsed = registrationSchema.safeParse(value);
   if (!parsed.success || parsed.data.unit !== expectedUnit) return undefined;
-  if (!validControlGroup(parsed.data.controlGroup, expectedUnit))
+  if (!registrationCgroupPath(parsed.data.controlGroup, expectedUnit))
     return undefined;
   return parsed.data;
 }
 
-function validControlGroup(
+function registrationCgroupPath(
   controlGroup: string,
   expectedUnit: string,
-): boolean {
+): string | undefined {
   const components = controlGroup.split('/');
-  return (
-    controlGroup.startsWith('/') &&
-    !controlGroup.startsWith('//') &&
-    components.length > 1 &&
+  if (
+    !controlGroup.startsWith('/') ||
+    controlGroup.startsWith('//') ||
+    components.length <= 1 ||
     components
       .slice(1)
-      .every((component) => /^[A-Za-z0-9_.:@-]+$/u.test(component)) &&
-    basename(controlGroup) === expectedUnit
-  );
+      .some(
+        (component) =>
+          component === '.' ||
+          component === '..' ||
+          !/^[A-Za-z0-9_.:@-]+$/u.test(component),
+      ) ||
+    basename(controlGroup) !== expectedUnit
+  )
+    return undefined;
+  const cgroupRoot = '/sys/fs/cgroup';
+  const path = resolve(cgroupRoot, controlGroup.slice(1));
+  return path.startsWith(`${cgroupRoot}/`) ? path : undefined;
 }
 
 export async function waitForSystemdScopeRegistration(
@@ -168,8 +177,8 @@ function observeSystemdScopeRegistration(
     .split(/\r?\n/u);
   if (state !== 'active' && state !== 'activating' && state !== 'reloading')
     return undefined;
-  if (!validControlGroup(controlGroup, unit)) return undefined;
-  const cgroupPath = resolve('/sys/fs/cgroup', controlGroup.slice(1));
+  const cgroupPath = registrationCgroupPath(controlGroup, unit);
+  if (!cgroupPath) return undefined;
   let pids: number[];
   try {
     pids = readFileSync(join(cgroupPath, 'cgroup.procs'), 'utf8')

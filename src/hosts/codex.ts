@@ -299,65 +299,78 @@ export class CodexHost {
       reapedScopes,
     );
     this.#sessions.set(id, running);
-    child.once('close', () => this.#sessions.delete(id));
-    let registration: SystemdScopeRegistration | undefined;
-    if (scope) {
-      try {
-        registration = await waitForSystemdScopeRegistration(
-          scope,
-          () => running.cancelled || running.closed,
-        );
-      } catch (error) {
-        await rejectUnstartedSession(running, error);
+    let startupPending = true;
+    running.onClose(() => {
+      if (!startupPending) this.#sessions.delete(id);
+    });
+    try {
+      let registration: SystemdScopeRegistration | undefined;
+      if (scope) {
+        try {
+          registration = await waitForSystemdScopeRegistration(
+            scope,
+            () => running.cancelled || running.closed,
+          );
+        } catch (error) {
+          await rejectUnstartedSession(running, error);
+        }
       }
-    }
-    if (running.cancelled)
-      await rejectStartedSession(
-        running,
-        id,
-        new Error('Codex startup was cancelled'),
-        input.onStartCancelled,
-      );
-    if (input.onStarted) {
-      let accepted = false;
-      try {
-        accepted = await input.onStarted(
-          id,
-          child.pid,
-          isolation,
-          registration,
-        );
-      } catch (error) {
-        await rejectStartedSession(running, id, error, input.onStartCancelled);
-      }
-      if (!accepted)
+      if (running.cancelled)
         await rejectStartedSession(
           running,
           id,
-          new Error('session intent was already started'),
+          new Error('Codex startup was cancelled'),
           input.onStartCancelled,
         );
-    }
-    if (running.cancelled)
-      await rejectStartedSession(
-        running,
-        id,
-        new Error('Codex startup was cancelled'),
-        input.onStartCancelled,
+      if (input.onStarted) {
+        let accepted = false;
+        try {
+          accepted = await input.onStarted(
+            id,
+            child.pid,
+            isolation,
+            registration,
+          );
+        } catch (error) {
+          await rejectStartedSession(
+            running,
+            id,
+            error,
+            input.onStartCancelled,
+          );
+        }
+        if (!accepted)
+          await rejectStartedSession(
+            running,
+            id,
+            new Error('session intent was already started'),
+            input.onStartCancelled,
+          );
+      }
+      if (running.cancelled)
+        await rejectStartedSession(
+          running,
+          id,
+          new Error('Codex startup was cancelled'),
+          input.onStartCancelled,
+        );
+      if (child.stdin) {
+        child.stdin.on('error', (error: NodeJS.ErrnoException) => {
+          if (error.code !== 'EPIPE') child.kill('SIGTERM');
+        });
+        child.stdin.end(prompt);
+      }
+      const timer = setTimeout(
+        () => void this.cancelTree(id),
+        input.limits.timeoutMs,
       );
-    if (child.stdin) {
-      child.stdin.on('error', (error: NodeJS.ErrnoException) => {
-        if (error.code !== 'EPIPE') child.kill('SIGTERM');
-      });
-      child.stdin.end(prompt);
+      timer.unref();
+      running.onClose(() => clearTimeout(timer));
+      return { id, wait: () => running.wait() };
+    } finally {
+      startupPending = false;
+      if (running.cleanupComplete) this.#sessions.delete(id);
     }
-    const timer = setTimeout(
-      () => void this.cancelTree(id),
-      input.limits.timeoutMs,
-    );
-    timer.unref();
-    running.onClose(() => clearTimeout(timer));
-    return { id, wait: () => running.wait() };
   }
 
   async cancelTree(sessionId: string): Promise<void> {
@@ -439,6 +452,7 @@ class RunningSession {
   readonly #scopeEnvironment: NodeJS.ProcessEnv;
   #launcherStartTicks: string | undefined;
   #closed = false;
+  #cleanupComplete = false;
   #cancelled = false;
   #cancelPromise: Promise<void> | undefined;
   readonly #close: Promise<{
@@ -499,15 +513,18 @@ class RunningSession {
           if (this.#scope)
             await drainSystemdScope(this.#scope, this.#scopeEnvironment);
           if (this.#namespace) await waitForNamespaceExit(this.#namespace);
-          for (const listener of this.#closedListeners) listener();
           resolveClose({ code, signal });
         } catch (error) {
           rejectClose(error);
+        } finally {
+          this.#cleanupComplete = true;
+          for (const listener of this.#closedListeners) listener();
         }
       };
       child.once('close', (code, signal) => void finish(code, signal));
       child.once('error', () => void finish(null, null));
     });
+    void this.#close.catch(() => undefined);
     child.stdout
       ?.setEncoding('utf8')
       .on('data', (chunk: string) => this.consume(chunk));
@@ -530,6 +547,10 @@ class RunningSession {
 
   get closed(): boolean {
     return this.#closed;
+  }
+
+  get cleanupComplete(): boolean {
+    return this.#cleanupComplete;
   }
 
   wait(): Promise<CodexSessionResult> {
