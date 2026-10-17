@@ -675,7 +675,7 @@ test('the trusted base selects host pnpm while candidate dependencies remain ins
     [
       process.execPath,
       '-e',
-      `if(require('./node_modules/fixture-dependency/package.json').version!==${JSON.stringify(expectedDependencyVersion)})process.exit(1)`,
+      `const assert=require('node:assert/strict');const fs=require('node:fs');const manifest=JSON.parse(fs.readFileSync('package.json','utf8'));assert.equal(require('./node_modules/fixture-dependency/package.json').version,${JSON.stringify(expectedDependencyVersion)});if(manifest.name==='workspace-poison-fixture'){const workspace=fs.readFileSync('pnpm-workspace.yaml','utf8');assert.ok(workspace.includes("packages:\\n  - 'packages/*'\\n")&&workspace.includes('storeDir: '),'candidate workspace configuration was not preserved')}assert.equal(fs.existsSync('.krn/pnpm-store/HOST_CANARY'),false,'owned host canary appeared in staged .krn/pnpm-store')`,
     ],
     true,
   );
@@ -690,6 +690,9 @@ test('the trusted base selects host pnpm while candidate dependencies remain ins
     assert.notEqual(pnpmA, pnpmB);
     const hostAReceipt = join(state, 'host-a-used');
     const hostBCanary = join(state, 'host-b-canary');
+    const hostProbeCwds = join(state, 'host-probe-cwds');
+    const hostProbeFailure = join(state, 'host-probe-failure');
+    const workspaceCanaryStore = join(state, 'workspace-host-canary', 'store');
     mkdirSync(bin, { recursive: true, mode: 0o700 });
 
     const managerDirectories = new Map([
@@ -712,14 +715,37 @@ const path = require('node:path');
 const args = process.argv.slice(2);
 const storeArg = args.find((arg) => arg.startsWith('--store-dir='));
 if (!storeArg) fs.appendFileSync(${JSON.stringify(hostReceipt)}, args.join(' ') + '\\n');
+const workspaceStoreDir = () => {
+  let current = process.cwd();
+  for (;;) {
+    const marker = path.join(current, 'pnpm-workspace.yaml');
+    if (fs.existsSync(marker)) {
+      const content = fs.readFileSync(marker, 'utf8');
+      const configured = content.match(/^storeDir:\\s*(.+)$/m)?.[1];
+      return configured ? path.resolve(current, configured.trim()) : undefined;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return undefined;
+    current = parent;
+  }
+};
 if (args.length === 1 && args[0] === '--version') {
   process.stdout.write(${JSON.stringify(version)} + '\\n');
   process.exit(0);
 }
 if (args.includes('store') && args.includes('path')) {
-  const storePath = storeArg
-    ? path.join(storeArg.slice('--store-dir='.length), 'store')
-    : ${JSON.stringify(join(directory, 'store'))};
+  if (!storeArg) {
+    fs.appendFileSync(${JSON.stringify(hostProbeCwds)}, process.cwd() + '\\n');
+    if (fs.existsSync(${JSON.stringify(hostProbeFailure)})) {
+      process.stderr.write('forced fake host store probe failure');
+      process.exit(1);
+    }
+  }
+  const discoveredStoreDir = storeArg ? undefined : workspaceStoreDir();
+  const storeDir = storeArg
+    ? storeArg.slice('--store-dir='.length)
+    : discoveredStoreDir ?? ${JSON.stringify(join(directory, 'store'))};
+  const storePath = path.join(storeDir, 'v3');
   process.stdout.write(storePath + '\\n');
   process.exit(0);
 }
@@ -745,20 +771,40 @@ process.exit(2);
       [pnpmA, hostAReceipt, '9.9.0'],
       [pnpmB, hostBCanary, '10.0.0'],
     ] as const) {
-      mkdirSync(join(directory, 'store'), { recursive: true, mode: 0o700 });
+      mkdirSync(join(directory, 'store', 'v3'), {
+        recursive: true,
+        mode: 0o700,
+      });
       writeFileSync(join(directory, 'store', 'seed'), 'owned offline seed');
+      writeFileSync(
+        join(directory, 'store', 'v3', 'seed'),
+        'owned versioned offline seed',
+      );
       writeFileSync(
         join(directory, 'pnpm'),
         fakePnpm(directory, receipt, version),
         { mode: 0o700 },
       );
     }
+    mkdirSync(join(workspaceCanaryStore, 'v3'), {
+      recursive: true,
+      mode: 0o700,
+    });
+    writeFileSync(join(workspaceCanaryStore, 'HOST_CANARY'), 'owned canary');
+    writeFileSync(
+      join(workspaceCanaryStore, 'v3', 'seed'),
+      'owned canary versioned store',
+    );
     process.env.PATH = [bin, originalPath ?? ''].join(delimiter);
 
-    const packageManifest = (packageManager: string, dependency: string) =>
+    const packageManifest = (
+      packageManager: string,
+      dependency: string,
+      name = 'manager-selection-fixture',
+    ) =>
       `${JSON.stringify(
         {
-          name: 'manager-selection-fixture',
+          name,
           version: '1.0.0',
           packageManager,
           dependencies: { 'fixture-dependency': dependency },
@@ -875,6 +921,114 @@ test('candidate dependency is 0.0.2', () => {
         );
       }
     }
+
+    const workspaceConfig = `packages:\n  - 'packages/*'\nstoreDir: ${workspaceCanaryStore}\n`;
+    writeFileSync(
+      join(f.root, 'package.json'),
+      packageManifest(
+        managerB,
+        expectedDependencyVersion,
+        'workspace-poison-fixture',
+      ),
+    );
+    writeFileSync(
+      join(f.root, 'pnpm-lock.yaml'),
+      lockfile(expectedDependencyVersion),
+    );
+    writeFileSync(join(f.root, 'pnpm-workspace.yaml'), workspaceConfig);
+    f.git(['add', 'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml']);
+    f.git(['commit', '-qm', 'candidate workspace selects owned host canary']);
+    f.sha = f.git(['rev-parse', 'HEAD']);
+    rmSync(hostAReceipt, { force: true });
+    rmSync(hostBCanary, { force: true });
+    rmSync(hostProbeCwds, { force: true });
+    const workspacePoison = await judge(
+      f.job,
+      f.sha,
+      f.base,
+      ['declared'],
+      async () => {},
+    );
+    const diagnosticDirectory = join(
+      f.root,
+      '.krn',
+      'runs',
+      'foreman',
+      f.job.id,
+      'diagnostics',
+    );
+    const diagnostic = existsSync(diagnosticDirectory)
+      ? readdirSync(diagnosticDirectory)
+          .map((name) => readFileSync(join(diagnosticDirectory, name), 'utf8'))
+          .join('\n')
+      : '';
+    assert.equal(
+      workspacePoison.kind,
+      'pass',
+      `workspace-poison candidate must retain dependency 0.0.2 without staging HOST_CANARY: ${workspacePoison.kind === 'pass' ? '' : workspacePoison.findings.join('; ')}\n${diagnostic}`,
+    );
+    assert.equal(
+      existsSync(hostBCanary),
+      false,
+      'workspace-poison candidate must not run candidate manager B as a host tool',
+    );
+    assert.equal(
+      existsSync(hostAReceipt),
+      true,
+      'workspace-poison candidate must use trusted base manager A for host store discovery',
+    );
+    const successfulProbeCwds = readFileSync(hostProbeCwds, 'utf8')
+      .trim()
+      .split('\n');
+    assert.equal(successfulProbeCwds.length, 1);
+    const [successfulProbeCwd] = successfulProbeCwds;
+    assert.ok(successfulProbeCwd);
+    assert.ok(
+      successfulProbeCwd.startsWith(`${join(f.root, '.krn', 'tmp')}/`),
+      'host store query must use an owned probe under repository state/tmp',
+    );
+    assert.equal(
+      existsSync(successfulProbeCwd),
+      false,
+      'successful host store query must remove its private probe',
+    );
+
+    writeFileSync(hostProbeFailure, 'force host query error');
+    rmSync(hostProbeCwds, { force: true });
+    const failedHostProbe = await judge(
+      f.job,
+      f.sha,
+      f.base,
+      ['declared'],
+      async () => {},
+    );
+    assert.equal(
+      failedHostProbe.kind,
+      'refused',
+      JSON.stringify(failedHostProbe),
+    );
+    assert.ok(
+      failedHostProbe.kind === 'refused' &&
+        failedHostProbe.findings.some((finding) =>
+          finding.includes('forced fake host store probe failure'),
+        ),
+      'host query failure must remain visible after probe cleanup',
+    );
+    const failedProbeCwds = readFileSync(hostProbeCwds, 'utf8')
+      .trim()
+      .split('\n');
+    assert.equal(failedProbeCwds.length, 1);
+    const [failedProbeCwd] = failedProbeCwds;
+    assert.ok(failedProbeCwd);
+    assert.ok(
+      failedProbeCwd.startsWith(`${join(f.root, '.krn', 'tmp')}/`),
+      'failed host store query must use an owned probe under repository state/tmp',
+    );
+    assert.equal(
+      existsSync(failedProbeCwd),
+      false,
+      'failed host store query must remove its private probe',
+    );
   } finally {
     if (originalPath === undefined) delete process.env.PATH;
     else process.env.PATH = originalPath;
@@ -1010,8 +1164,10 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
         encoding: 'utf8',
       })
         .stdout.split('\n')
-        .find(
-          (line) => line.startsWith('worktree ') && line.includes('/verdict-'),
+        .find((line) =>
+          line.startsWith(
+            `worktree ${join(f.root, '.krn', 'tmp', 'verdict-')}`,
+          ),
         )
         ?.slice('worktree '.length);
     let checkWorktree: string | undefined;
