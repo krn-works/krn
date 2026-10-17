@@ -826,28 +826,37 @@ test('default systemd scope isolation reaps a setsid descendant', async (t) => {
     return;
   const root = await repoFixture();
   const pidFile = join(root, 'escaped-pid');
+  const workerFile = join(root, 'setsid-worker.cjs');
+  const executable = join(root, 'fake-codex.cjs');
   const previousIsolation = process.env.KRN_ISOLATION;
   delete process.env.KRN_ISOLATION;
-  const workerSource = [
-    "import { readFileSync, writeFileSync } from 'node:fs';",
-    "const ids=readFileSync('/proc/self/status','utf8').match(/^NSpid:\\s+(.+)$/m)[1].trim().split(/\\s+/);",
-    `writeFileSync(${JSON.stringify(pidFile)}, ids[0]);`,
-    'setInterval(()=>{},1000);',
-  ].join('');
-  const executable = await fakeCodex(
-    root,
-    `
-import { spawn } from 'node:child_process';
-const child=spawn('setsid',[process.execPath,'-e',${JSON.stringify(workerSource)}],{stdio:'ignore'});
-await new Promise(resolve=>child.once('spawn',resolve));
-process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:3,output_tokens:2,total_tokens:5}})+'\\n');
-setInterval(()=>{},1000);
-`,
-  );
   const job = { id: 'B2-fallback', issue: 'I-2', worktree: root };
-  const intent = await trace.intent(job, 0);
   const host = new CodexHost({ executable });
+  let ownedUnit: string | undefined;
+  let ownedControlGroup: string | undefined;
+  let pendingCancellation: Promise<void> | undefined;
   try {
+    const workerSource = [
+      "const { readFileSync, writeFileSync } = require('node:fs');",
+      "const ids=readFileSync('/proc/self/status','utf8').match(/^NSpid:\\s+(.+)$/m)[1].trim().split(/\\s+/);",
+      `writeFileSync(${JSON.stringify(pidFile)}, ids[0]);`,
+      'setInterval(()=>{},1000);',
+    ].join('');
+    await writeFile(workerFile, `${workerSource}\n`);
+    const executableSource = `
+const { spawn } = require('node:child_process');
+const child = spawn('setsid', [process.execPath, ${JSON.stringify(workerFile)}], { stdio: 'inherit' });
+child.once('error', (error) => { console.error(error); process.exitCode = 1; });
+child.once('spawn', () => {
+  process.stdout.write(JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 3, output_tokens: 2, total_tokens: 5 } }) + '\\n');
+  setInterval(() => {}, 1000);
+});
+`;
+    await writeFile(executable, `#!/usr/bin/env node\n${executableSource}`);
+    await Promise.all(
+      [workerFile, executable].map((path) => chmod(path, 0o755)),
+    );
+    const intent = await trace.intent(job, 0);
     const session = await host.start({
       cwd: root,
       model: 'gpt-6-luna',
@@ -860,8 +869,13 @@ setInterval(()=>{},1000);
         worktree: root,
         intent,
       },
-      onStarted: (id, pgid, isolation, registration) =>
-        trace.started(job, intent, id, pgid, isolation, registration),
+      onStarted: (id, pgid, isolation, registration) => {
+        assert.equal(isolation, 'systemd_scope');
+        assert.ok(registration, 'startup must provide the owned scope witness');
+        ownedUnit = registration.unit;
+        ownedControlGroup = registration.controlGroup;
+        return trace.started(job, intent, id, pgid, isolation, registration);
+      },
     });
     const pid = Number(
       await waitFor(async () => {
@@ -872,7 +886,38 @@ setInterval(()=>{},1000);
         }
       }),
     );
-    await host.cancelTree(session.id);
+    assert.ok(ownedUnit);
+    const controlGroup = ownedControlGroup;
+    assert.ok(controlGroup);
+    assert.equal(
+      await isAlive(pid),
+      true,
+      'the setsid descendant must be live',
+    );
+    const membership = await readFile(`/proc/${pid}/cgroup`, 'utf8');
+    assert.ok(
+      membership.split('\n').some((line) => line.endsWith(controlGroup)),
+      'the setsid descendant must remain in the exact owned systemd cgroup',
+    );
+
+    pendingCancellation = host.cancelTree(session.id);
+    let cancellationTimer: ReturnType<typeof setTimeout> | undefined;
+    let cancellationSettled: boolean;
+    try {
+      cancellationSettled = await Promise.race([
+        pendingCancellation.then(() => true),
+        new Promise<boolean>((resolve) => {
+          cancellationTimer = setTimeout(() => resolve(false), 5000);
+        }),
+      ]);
+    } finally {
+      if (cancellationTimer !== undefined) clearTimeout(cancellationTimer);
+    }
+    assert.equal(
+      cancellationSettled,
+      true,
+      'cancellation must drain the scope while the descendant holds inherited pipes',
+    );
     await session.wait();
     if (await isAlive(pid)) {
       const state = spawnSync(
@@ -898,9 +943,24 @@ setInterval(()=>{},1000);
   } finally {
     if (previousIsolation === undefined) delete process.env.KRN_ISOLATION;
     else process.env.KRN_ISOLATION = previousIsolation;
-    try {
-      process.kill(Number(await readFile(pidFile, 'utf8')), 'SIGKILL');
-    } catch {}
+    if (ownedUnit) {
+      const systemdEnv = {
+        ...process.env,
+        XDG_RUNTIME_DIR:
+          process.env.XDG_RUNTIME_DIR ??
+          `/run/user/${process.getuid?.() ?? 1000}`,
+        DBUS_SESSION_BUS_ADDRESS:
+          process.env.DBUS_SESSION_BUS_ADDRESS ??
+          `unix:path=/run/user/${process.getuid?.() ?? 1000}/bus`,
+      };
+      spawnSync(
+        '/usr/bin/systemctl',
+        ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', ownedUnit],
+        { encoding: 'utf8', env: systemdEnv },
+      );
+    }
+    await pendingCancellation?.catch(() => undefined);
+    await host.cancelAll().catch(() => undefined);
     await rm(root, { recursive: true, force: true });
   }
 });

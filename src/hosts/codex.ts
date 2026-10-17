@@ -24,6 +24,7 @@ import {
 
 const lineLimit = 256 * 1024;
 const killGraceMs = 1000;
+const transportCloseGraceMs = 3000;
 const codexRecord = z.record(z.string(), z.unknown());
 const tokenValue = z.number().int().nonnegative().safe();
 const namespaceCleanupGraceMs = 1000;
@@ -458,6 +459,11 @@ class RunningSession {
   #cleanupVerified = false;
   #cancelled = false;
   #cancelPromise: Promise<void> | undefined;
+  readonly #exit: Promise<{
+    readonly code: number | null;
+    readonly signal: NodeJS.Signals | null;
+  }>;
+  readonly #transportClose: Promise<void>;
   readonly #close: Promise<{
     readonly code: number | null;
     readonly signal: NodeJS.Signals | null;
@@ -499,11 +505,20 @@ class RunningSession {
     this.#scopeEnvironment = userManagerEnvironment();
     this.#launcherStartTicks =
       child.pid === undefined ? undefined : processStartTicks(child.pid);
-    child.once('spawn', () => {
-      if (child.pid !== undefined)
-        this.#launcherStartTicks = processStartTicks(child.pid);
+    let resolveExit!: (value: {
+      readonly code: number | null;
+      readonly signal: NodeJS.Signals | null;
+    }) => void;
+    this.#exit = new Promise((resolve) => {
+      resolveExit = resolve;
+    });
+    let resolveTransportClose!: () => void;
+    this.#transportClose = new Promise((resolve) => {
+      resolveTransportClose = resolve;
     });
     this.#close = new Promise((resolveClose, rejectClose) => {
+      let exitObserved = false;
+      let spawned = false;
       let finished = false;
       const finish = async (
         code: number | null,
@@ -512,10 +527,18 @@ class RunningSession {
         if (finished) return;
         finished = true;
         try {
-          this.#closed = true;
           if (this.#scope)
             await drainSystemdScope(this.#scope, this.#scopeEnvironment);
           if (this.#namespace) await waitForNamespaceExit(this.#namespace);
+          const transportClosed = await this.raceWithTimeout(
+            this.#transportClose.then(() => true),
+            transportCloseGraceMs,
+            false,
+          );
+          if (!transportClosed)
+            throw new Error(
+              `Codex transport did not close after cleanup for ${this.#id}`,
+            );
           this.#cleanupVerified = true;
           resolveClose({ code, signal });
         } catch (error) {
@@ -525,8 +548,29 @@ class RunningSession {
           for (const listener of this.#closedListeners) listener();
         }
       };
-      child.once('close', (code, signal) => void finish(code, signal));
-      child.once('error', () => void finish(null, null));
+      const observeExit = (
+        code: number | null,
+        signal: NodeJS.Signals | null,
+      ) => {
+        if (exitObserved) return;
+        exitObserved = true;
+        this.#closed = true;
+        resolveExit({ code, signal });
+        void finish(code, signal);
+      };
+      child.once('spawn', () => {
+        spawned = true;
+        if (child.pid !== undefined)
+          this.#launcherStartTicks = processStartTicks(child.pid);
+      });
+      child.once('exit', observeExit);
+      child.once('error', () => {
+        if (!spawned) observeExit(null, null);
+      });
+      child.once('close', (code, signal) => {
+        resolveTransportClose();
+        if (!exitObserved) observeExit(code, signal);
+      });
     });
     void this.#close.catch(() => undefined);
     child.stdout
@@ -690,26 +734,27 @@ class RunningSession {
       } catch (error) {
         failures.push(error);
       }
-      const closed = await Promise.race([
-        this.#close.then(
-          () => true,
-          () => true,
-        ),
-        new Promise<boolean>((resolve) =>
-          setTimeout(() => resolve(false), killGraceMs),
-        ),
-      ]);
-      if (!closed) {
+      let exited = await this.waitForLauncherExit();
+      if (!exited) {
         try {
           await this.signalOwnedLauncher('SIGKILL');
         } catch (error) {
           failures.push(error);
         }
+        exited = await this.waitForLauncherExit();
+        if (!exited)
+          failures.push(
+            new Error(
+              'Codex systemd-scope launcher did not exit after SIGKILL',
+            ),
+          );
       }
-      try {
-        await this.#close;
-      } catch (error) {
-        failures.push(error);
+      if (exited) {
+        try {
+          await this.#close;
+        } catch (error) {
+          failures.push(error);
+        }
       }
       if (failures.length)
         throw new AggregateError(
@@ -718,25 +763,47 @@ class RunningSession {
         );
       return;
     }
-    if (this.#child.exitCode !== null || this.#child.signalCode !== null) {
-      await this.#close;
-      return;
-    }
-    if (this.#isolation === 'pid_namespace' && this.#namespaceInitPid)
-      signalPid(this.#namespaceInitPid, 'SIGTERM');
-    else signalTree(this.#child, 'SIGTERM');
-    const closed = await Promise.race([
-      this.#close.then(() => true),
-      new Promise<boolean>((resolve) =>
-        setTimeout(() => resolve(false), killGraceMs),
-      ),
-    ]);
-    if (!closed) {
+    if (this.#child.exitCode === null && this.#child.signalCode === null) {
       if (this.#isolation === 'pid_namespace' && this.#namespaceInitPid)
-        signalPid(this.#namespaceInitPid, 'SIGKILL');
-      else signalTree(this.#child, 'SIGKILL');
+        signalPid(this.#namespaceInitPid, 'SIGTERM');
+      else signalTree(this.#child, 'SIGTERM');
+      let exited = await this.waitForLauncherExit();
+      if (!exited) {
+        if (this.#isolation === 'pid_namespace' && this.#namespaceInitPid)
+          signalPid(this.#namespaceInitPid, 'SIGKILL');
+        else signalTree(this.#child, 'SIGKILL');
+        exited = await this.waitForLauncherExit();
+        if (!exited)
+          throw new Error('Codex launcher did not exit after SIGKILL');
+      }
     }
     await this.#close;
+  }
+
+  private waitForLauncherExit(): Promise<boolean> {
+    return this.raceWithTimeout(
+      this.#exit.then(() => true),
+      killGraceMs,
+      false,
+    );
+  }
+
+  private async raceWithTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    timeoutValue: T,
+  ): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        promise,
+        new Promise<T>((resolve) => {
+          timer = setTimeout(() => resolve(timeoutValue), timeoutMs);
+        }),
+      ]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
+    }
   }
 
   private async signalOwnedLauncher(signal: NodeJS.Signals): Promise<void> {
