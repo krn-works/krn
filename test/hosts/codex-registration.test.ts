@@ -17,6 +17,7 @@ import {
   codexScopeUnit,
   processHasIdentity,
   processStartTicks,
+  systemdScopeActive,
   validateSystemdScopeRegistration,
   waitForSystemdScopeRegistration,
 } from '../../src/hosts/systemd-scope.ts';
@@ -388,6 +389,325 @@ test('child exit during blocked onStarted remains cancellable and hands back the
   } finally {
     releaseCallback();
     await host.cancelAll().catch(() => undefined);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('failed close verification retains an uncertain cancellation handle', async (t) => {
+  const testName =
+    'failed close verification retains an uncertain cancellation handle';
+  if (!requiresIsolation(t, testName, ['systemdUserScope'])) return;
+  const directory = await mkdtemp(join(tmpdir(), 'krn-codex-failed-drain-'));
+  const fakeBin = join(directory, 'bin');
+  const executable = join(directory, 'fake-codex');
+  const systemctl = join(fakeBin, 'systemctl');
+  const workerPidFile = join(directory, 'worker-pid');
+  const unitFile = join(directory, 'owned-unit');
+  const denyFile = join(directory, 'deny-owned-unit');
+  const previousPath = process.env.PATH;
+  const host = new CodexHost({ executable });
+  let workerIdentity: { pid: number; startTicks: string } | undefined;
+  let workerUnit: string | undefined;
+  let enterCallback!: () => void;
+  let releaseCallback!: () => void;
+  const entered = new Promise<void>((resolve) => {
+    enterCallback = resolve;
+  });
+  const callbackGate = new Promise<void>((resolve) => {
+    releaseCallback = resolve;
+  });
+  let handbacks = 0;
+  try {
+    await mkdir(fakeBin);
+    await writeFile(
+      executable,
+      `#!/bin/sh\nprintf '%s\\n' "$$" > ${JSON.stringify(workerPidFile)}\nexec /usr/bin/sleep 1.5\n`,
+    );
+    await writeFile(
+      systemctl,
+      `#!/bin/sh
+unit=''
+for argument do
+  case "$argument" in krn-*.scope) unit="$argument" ;; esac
+done
+if [ -f ${JSON.stringify(denyFile)} ] &&
+   [ "$unit" = "$(/usr/bin/cat ${JSON.stringify(unitFile)})" ]; then
+  printf 'synthetic manager verification failure\\n' >&2
+  exit 1
+fi
+exec /usr/bin/systemctl "$@"
+`,
+    );
+    await Promise.all(
+      [executable, systemctl].map((path) => chmod(path, 0o755)),
+    );
+    process.env.PATH = `${fakeBin}:${previousPath ?? ''}`;
+
+    const starting = host.start({
+      cwd: directory,
+      model: 'gpt-6-luna',
+      prompt: 'must not arrive',
+      limits: { timeoutMs: 10_000 },
+      checkpoint: {
+        cli: 'unused',
+        job: 'failed-drain',
+        issue: 'failed-drain',
+        worktree: directory,
+        intent: 'intent:0',
+      },
+      onStarted: async (sessionId) => {
+        workerUnit = codexScopeUnit('failed-drain', sessionId);
+        const pid = Number((await readFile(workerPidFile, 'utf8')).trim());
+        const startTicks = processStartTicks(pid);
+        assert.ok(startTicks, 'the owned fixture worker must be live');
+        workerIdentity = { pid, startTicks };
+        const membership = await readFile(`/proc/${pid}/cgroup`, 'utf8');
+        assert.ok(
+          membership
+            .split('\n')
+            .some((line) => line.endsWith(`/${workerUnit}`)),
+          'the worker must be physically registered in its exact owned scope',
+        );
+        await waitFor(async () =>
+          processHasIdentity(pid, startTicks) ? undefined : true,
+        );
+        await writeFile(unitFile, `${workerUnit}\n`);
+        await writeFile(denyFile, 'deny exact owned unit\n');
+        enterCallback();
+        await callbackGate;
+        throw new Error('injected onStarted failure after worker exit');
+      },
+      onStartCancelled: async () => {
+        handbacks += 1;
+      },
+    });
+    const startingOutcome = starting.then(
+      (session) => ({ status: 'fulfilled' as const, session }),
+      (error: unknown) => ({ status: 'rejected' as const, error }),
+    );
+    await Promise.race([
+      entered,
+      delay(5000).then(() => assert.fail('onStarted never reached its gate')),
+    ]);
+    releaseCallback();
+    const settled = await Promise.race([
+      startingOutcome,
+      delay(5000).then(() => undefined),
+    ]);
+    assert.ok(settled, 'failed cleanup must leave startup bounded');
+    if (settled.status !== 'rejected')
+      assert.fail('startup must reject when exact-unit drain is unverified');
+    assert.ok(
+      settled.error instanceof AggregateError,
+      'startup must report both callback and cleanup failure',
+    );
+    assert.equal(
+      handbacks,
+      0,
+      'an uncertain drain must not acknowledge lease handback',
+    );
+    await assert.rejects(
+      host.cancelAll(),
+      (error: unknown) => error instanceof AggregateError,
+      'a later cancellation must not become a successful no-op',
+    );
+  } finally {
+    releaseCallback();
+    await rm(denyFile, { force: true });
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+    if (
+      workerIdentity &&
+      processHasIdentity(workerIdentity.pid, workerIdentity.startTicks)
+    ) {
+      try {
+        process.kill(workerIdentity.pid, 'SIGKILL');
+      } catch {}
+    }
+    if (workerUnit) {
+      spawnSync(
+        '/usr/bin/systemctl',
+        ['--user', 'kill', '--kill-whom=all', '--signal=SIGKILL', workerUnit],
+        { encoding: 'utf8', env: scopeEnvironment() },
+      );
+    }
+    await host.cancelAll().catch(() => undefined);
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('transitional empty scope status remains unknown while known states classify', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-systemd-status-'));
+  const fakeBin = join(directory, 'bin');
+  const systemctl = join(fakeBin, 'systemctl');
+  const stateFile = join(directory, 'active-state');
+  const unit = 'krn-status-fixture.scope';
+  const previousPath = process.env.PATH;
+  try {
+    await mkdir(fakeBin);
+    await writeFile(
+      systemctl,
+      `#!/bin/sh
+unit=''
+for argument do
+  case "$argument" in krn-*.scope) unit="$argument" ;; esac
+done
+if [ "$unit" = ${JSON.stringify(unit)} ]; then
+  printf '%s\\n\\n' "$(/usr/bin/cat ${JSON.stringify(stateFile)})"
+  exit 0
+fi
+exec /usr/bin/systemctl "$@"
+`,
+    );
+    await chmod(systemctl, 0o755);
+    process.env.PATH = `${fakeBin}:${previousPath ?? ''}`;
+
+    await writeFile(stateFile, 'deactivating\n');
+    assert.equal(
+      systemdScopeActive(unit),
+      null,
+      'a transitional state without a cgroup is not proof of inactivity',
+    );
+    await writeFile(stateFile, 'inactive\n');
+    assert.equal(
+      systemdScopeActive(unit),
+      false,
+      'known inactive remains false',
+    );
+    await writeFile(stateFile, 'active\n');
+    assert.equal(systemdScopeActive(unit), true, 'known active remains true');
+    await writeFile(stateFile, 'failed\n');
+    assert.equal(
+      systemdScopeActive(unit),
+      false,
+      'failed with an empty cgroup remains a confirmed terminated state',
+    );
+  } finally {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('registration observer bounds synthetic cgroup membership bytes and PID scans', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-cgroup-budget-'));
+  const fakeBin = join(directory, 'bin');
+  const systemctl = join(fakeBin, 'systemctl');
+  const unit = 'krn-bounded-observer-fixture.scope';
+  const controlGroup = `/user.slice/user-${process.getuid?.() ?? 1000}.slice/user@${process.getuid?.() ?? 1000}.service/app.slice/${unit}`;
+  const previousPath = process.env.PATH;
+  try {
+    await mkdir(fakeBin);
+    await writeFile(
+      systemctl,
+      `#!/bin/sh
+unit=''
+for argument do
+  case "$argument" in krn-*.scope) unit="$argument" ;; esac
+done
+if [ "$unit" = ${JSON.stringify(unit)} ]; then
+  printf 'active\\n%s\\n' ${JSON.stringify(controlGroup)}
+  exit 0
+fi
+exec /usr/bin/systemctl "$@"
+`,
+    );
+    await chmod(systemctl, 0o755);
+    process.env.PATH = `${fakeBin}:${previousPath ?? ''}`;
+
+    const observerUrl = new URL(
+      '../../src/hosts/systemd-scope.ts',
+      import.meta.url,
+    ).href;
+    const childSource = `
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const observerUrl = ${JSON.stringify(observerUrl)};
+const virtualPath = ${JSON.stringify(`/sys/fs/cgroup${controlGroup}/cgroup.procs`)};
+const virtualFd = 2147483000;
+const stats = { membershipBytes: 0, pidStatReads: 0 };
+let membership = '';
+let virtualOffset = 0;
+const original = {
+  readFileSync: fs.readFileSync,
+  openSync: fs.openSync,
+  readSync: fs.readSync,
+  closeSync: fs.closeSync,
+};
+const pathText = (path) =>
+  typeof path === 'string' ? path : path.toString();
+fs.readFileSync = (path, options) => {
+  const filename = pathText(path);
+  if (filename === virtualPath) {
+    stats.membershipBytes += Buffer.byteLength(membership);
+    const encoding = typeof options === 'string' ? options : options?.encoding;
+    return encoding ? membership : Buffer.from(membership);
+  }
+  if (/^\\/proc\\/\\d+\\/stat$/u.test(filename)) stats.pidStatReads += 1;
+  return original.readFileSync(path, options);
+};
+fs.openSync = (path, ...args) => {
+  if (pathText(path) === virtualPath) {
+    virtualOffset = 0;
+    return virtualFd;
+  }
+  return original.openSync(path, ...args);
+};
+fs.readSync = (fd, buffer, offset, length, position) => {
+  if (fd !== virtualFd)
+    return original.readSync(fd, buffer, offset, length, position);
+  const bytes = Buffer.from(membership);
+  const start = position ?? virtualOffset;
+  const count = bytes.copy(
+    buffer,
+    offset,
+    start,
+    Math.min(start + length, bytes.length),
+  );
+  virtualOffset = start + count;
+  stats.membershipBytes += count;
+  return count;
+};
+fs.closeSync = (fd) => fd === virtualFd ? undefined : original.closeSync(fd);
+syncBuiltinESMExports();
+const { waitForSystemdScopeRegistration } = await import(observerUrl);
+const unit = ${JSON.stringify(unit)};
+const byteBudget = 16 * 1024 + 2;
+const pidBudget = 256;
+membership = Array.from({ length: 3000 }, () => '99999999').join('\\n') + '\\n' + process.pid + '\\n';
+const oversized = await waitForSystemdScopeRegistration(unit, () => stats.membershipBytes > 0)
+  .then(() => 'accepted', () => 'refused');
+if (oversized !== 'refused') throw new Error('oversized synthetic membership was accepted');
+if (stats.membershipBytes <= 0 || stats.membershipBytes > byteBudget)
+  throw new Error('membership read exceeded 16 KiB plus two overflow bytes: ' + stats.membershipBytes);
+if (stats.pidStatReads > pidBudget)
+  throw new Error('PID identity scan exceeded 256 candidates: ' + stats.pidStatReads);
+stats.membershipBytes = 0;
+stats.pidStatReads = 0;
+membership = process.pid + '\\n';
+const small = await waitForSystemdScopeRegistration(unit, () => false);
+if (small.pid !== process.pid || small.unit !== unit)
+  throw new Error('honest one-PID synthetic control was not supported');
+console.log(JSON.stringify({ oversized, smallPid: small.pid }));
+`;
+    const result = spawnSync(
+      process.execPath,
+      ['--input-type=module', '-e', childSource],
+      {
+        encoding: 'utf8',
+        env: { ...process.env, PATH: `${fakeBin}:${previousPath ?? ''}` },
+      },
+    );
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const outcome = JSON.parse(result.stdout) as {
+      readonly oversized: string;
+      readonly smallPid: number;
+    };
+    assert.equal(outcome.oversized, 'refused');
+    assert.ok(Number.isSafeInteger(outcome.smallPid) && outcome.smallPid > 0);
+  } finally {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
     await rm(directory, { recursive: true, force: true });
   }
 });

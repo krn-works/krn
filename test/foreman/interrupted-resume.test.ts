@@ -524,7 +524,7 @@ test('a dead scoped session without an end record is recovered as session_lost',
   };
   let recorded: readonly string[] | undefined;
   let registration: unknown;
-  let scopeActive = true;
+  let scopeActive: boolean | null = true;
   let refreshed:
     | { reasonKind: string; dirtyPaths?: readonly string[] }
     | undefined;
@@ -599,6 +599,24 @@ test('a dead scoped session without an end record is recovered as session_lost',
     pid: child.pid,
     startTicks: '12345',
   };
+  scopeActive = null;
+  const unknown = await recoverLease(job, capsule, d as never);
+  assert.deepEqual(unknown.outcome, {
+    kind: 'stop',
+    state: 'human_decision',
+    reasons: ['already running'],
+  });
+  assert.equal(
+    Boolean(recorded),
+    false,
+    'unknown scope status must not record session_lost',
+  );
+  assert.equal(
+    Boolean(refreshed),
+    false,
+    'unknown scope status must not advance recovery CAS',
+  );
+  scopeActive = false;
   const result = await recoverLease(job, capsule, d as never);
   assert.equal(result.outcome, undefined);
   assert.deepEqual(recorded, ['unfinished.ts']);

@@ -301,7 +301,8 @@ export class CodexHost {
     this.#sessions.set(id, running);
     let startupPending = true;
     running.onClose(() => {
-      if (!startupPending) this.#sessions.delete(id);
+      if (!startupPending && running.cleanupSettled && running.cleanupVerified)
+        this.#sessions.delete(id);
     });
     try {
       let registration: SystemdScopeRegistration | undefined;
@@ -369,7 +370,8 @@ export class CodexHost {
       return { id, wait: () => running.wait() };
     } finally {
       startupPending = false;
-      if (running.cleanupComplete) this.#sessions.delete(id);
+      if (running.cleanupSettled && running.cleanupVerified)
+        this.#sessions.delete(id);
     }
   }
 
@@ -452,7 +454,8 @@ class RunningSession {
   readonly #scopeEnvironment: NodeJS.ProcessEnv;
   #launcherStartTicks: string | undefined;
   #closed = false;
-  #cleanupComplete = false;
+  #cleanupSettled = false;
+  #cleanupVerified = false;
   #cancelled = false;
   #cancelPromise: Promise<void> | undefined;
   readonly #close: Promise<{
@@ -513,11 +516,12 @@ class RunningSession {
           if (this.#scope)
             await drainSystemdScope(this.#scope, this.#scopeEnvironment);
           if (this.#namespace) await waitForNamespaceExit(this.#namespace);
+          this.#cleanupVerified = true;
           resolveClose({ code, signal });
         } catch (error) {
           rejectClose(error);
         } finally {
-          this.#cleanupComplete = true;
+          this.#cleanupSettled = true;
           for (const listener of this.#closedListeners) listener();
         }
       };
@@ -549,8 +553,12 @@ class RunningSession {
     return this.#closed;
   }
 
-  get cleanupComplete(): boolean {
-    return this.#cleanupComplete;
+  get cleanupSettled(): boolean {
+    return this.#cleanupSettled;
+  }
+
+  get cleanupVerified(): boolean {
+    return this.#cleanupVerified;
   }
 
   wait(): Promise<CodexSessionResult> {
