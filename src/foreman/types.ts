@@ -1,4 +1,5 @@
 import type { Job } from '../core/index.ts';
+import type { SystemdScopeRegistration } from '../hosts/systemd-scope.ts';
 import type {
   Contract,
   ReviewSubmission,
@@ -157,6 +158,7 @@ export type Deps = {
       sessionId: string,
       pgid?: number,
       isolation?: 'pid_namespace' | 'systemd_scope',
+      registration?: SystemdScopeRegistration,
     ): Promise<boolean>;
     checkpoint(
       job: Job,
@@ -188,10 +190,10 @@ export type Deps = {
       sessionId: string,
     ): Promise<boolean>;
     sessionEnd(job: Job, sessionId: string): Promise<SessionEnd | null>;
-    sessionIsolation?(
+    sessionScopeRegistration?(
       job: Job,
       sessionId: string,
-    ): Promise<'pid_namespace' | 'systemd_scope' | null>;
+    ): Promise<SystemdScopeRegistration | null>;
     sessionLost?(
       job: Job,
       sessionId: string,
@@ -245,6 +247,7 @@ export type Deps = {
           sessionId: string,
           pgid?: number,
           isolation?: 'pid_namespace' | 'systemd_scope',
+          registration?: SystemdScopeRegistration,
         ) => Promise<boolean>;
         readonly onStartCancelled?: (sessionId: string) => Promise<void>;
       }): Promise<Session>;
@@ -253,6 +256,7 @@ export type Deps = {
     sessionScopeActive?(
       jobId: string,
       sessionId: string,
+      registration: SystemdScopeRegistration,
     ): boolean | null | Promise<boolean | null>;
   };
   readonly stop: (

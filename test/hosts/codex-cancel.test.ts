@@ -128,7 +128,7 @@ test('startup cancellation failure does not acknowledge lease handback', async (
   const executable = join(directory, 'fake-codex');
   const systemdRun = join(fakeBin, 'systemd-run');
   const systemctl = join(fakeBin, 'systemctl');
-  const showMarker = join(directory, 'show-called');
+  const callbackMarker = join(directory, 'callback-called');
   const pidFile = join(directory, 'pids');
   const host = new hostModule.CodexHost({ executable });
   const callbackError = new Error('onStarted rejected');
@@ -140,15 +140,7 @@ test('startup cancellation failure does not acknowledge lease handback', async (
     await writeFile(
       systemdRun,
       `#!/bin/sh
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    --unit) shift 2 ;;
-    --user|--scope|--quiet) shift ;;
-    --property=*) shift ;;
-    *) exec "$@" ;;
-  esac
-done
-exit 1
+exec /usr/bin/systemd-run "$@"
 `,
     );
     await writeFile(
@@ -157,9 +149,9 @@ exit 1
 case "$*" in
   *list-units*) printf "[]\\n" ;;
   *" show "*)
-    if [ -e "${showMarker}" ]; then echo "unit not loaded" >&2; else : > "${showMarker}"; echo "fake verification unavailable" >&2; fi
-    exit 1 ;;
-  *) exit 0 ;;
+    if [ -e "${callbackMarker}" ]; then echo "fake verification unavailable" >&2; exit 1; fi
+    exec /usr/bin/systemctl "$@" ;;
+  *) exec /usr/bin/systemctl "$@" ;;
 esac
 `,
     );
@@ -183,6 +175,7 @@ wait
         prompt: 'wait',
         limits: { timeoutMs: 30_000 },
         onStarted: async () => {
+          await writeFile(callbackMarker, 'called');
           pids = await waitFor(async () => {
             try {
               const values = (await readFile(pidFile, 'utf8'))
