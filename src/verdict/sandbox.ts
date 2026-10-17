@@ -170,6 +170,7 @@ async function gitBlob(
   sha: string,
   path: 'package.json' | 'pnpm-lock.yaml',
   limit: number,
+  source: 'candidate' | 'base' = 'candidate',
 ): Promise<Buffer | undefined> {
   const entry = await git(root, ['ls-tree', '-z', sha, '--', path]);
   if (!entry) return undefined;
@@ -182,7 +183,7 @@ async function gitBlob(
     !oid ||
     !['100644', '100755'].includes(mode ?? '')
   )
-    throw new Error(`candidate ${path} must be a regular Git file`);
+    throw new Error(`${source} ${path} must be a regular Git file`);
 
   const child = spawn('git', ['-C', root, 'cat-file', 'blob', oid], {
     cwd: root,
@@ -213,12 +214,12 @@ async function gitBlob(
       resolveStatus(code);
     });
   });
-  if (oversized) throw new Error(`candidate ${path} exceeds its size limit`);
+  if (oversized) throw new Error(`${source} ${path} exceeds its size limit`);
   if (status !== 0)
     throw new Error(
       stderr.trim()
-        ? `cannot read candidate ${path}`
-        : `git failed reading candidate ${path}`,
+        ? `cannot read ${source} ${path}`
+        : `git failed reading ${source} ${path}`,
     );
   return Buffer.concat(chunks, size);
 }
@@ -664,38 +665,62 @@ export async function execute(
   id: string,
   argv: readonly string[],
   timeoutMs: number,
-  sha: string,
-  signal?: AbortSignal,
+  candidateSha: string,
+  signal: AbortSignal | undefined,
+  baseSha: string,
 ): Promise<CheckEvidence> {
   const start = Date.now();
   const lockfile = await gitBlob(
     root,
-    sha,
+    candidateSha,
     'pnpm-lock.yaml',
     MAX_LOCKFILE_BYTES,
   );
   let pnpm = '';
   if (lockfile) {
-    const packageManifest = await gitBlob(
+    if (!baseSha)
+      throw new Error(
+        'trusted base SHA is required when the candidate has a lockfile',
+      );
+    const candidatePackageManifest = await gitBlob(
       root,
-      sha,
+      candidateSha,
       'package.json',
       MAX_PACKAGE_MANIFEST_BYTES,
     );
-    if (!packageManifest) throw new Error('candidate package.json is missing');
-    let manager: string;
+    if (!candidatePackageManifest)
+      throw new Error('candidate package.json is missing');
+    const basePackageManifest = await gitBlob(
+      root,
+      baseSha,
+      'package.json',
+      MAX_PACKAGE_MANIFEST_BYTES,
+      'base',
+    );
+    if (!basePackageManifest) throw new Error('base package.json is missing');
+    let baseManager: string;
     try {
-      const parsed = JSON.parse(packageManifest.toString('utf8')) as {
-        readonly packageManager?: unknown;
-      };
-      manager = z
+      const parsed: unknown = JSON.parse(basePackageManifest.toString('utf8'));
+      const packageManager =
+        typeof parsed === 'object' &&
+        parsed !== null &&
+        'packageManager' in parsed
+          ? parsed.packageManager
+          : undefined;
+      baseManager = z
         .string()
         .regex(/^pnpm@\d+\.\d+\.\d+$/u)
-        .parse(parsed.packageManager);
+        .parse(packageManager);
     } catch {
-      throw new Error('candidate package.json has an invalid packageManager');
+      throw new Error('base package.json has an invalid packageManager');
     }
-    pnpm = await pnpmBinary(manager);
+    try {
+      pnpm = await pnpmBinary(baseManager);
+    } catch (error) {
+      throw new Error(
+        `cannot resolve base manager ${baseManager}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
   }
   const localStore = join(copy, '.krn', 'pnpm-store');
   const pnpmPath = lockfile ? await pnpmStore(pnpm, root) : '';
@@ -763,7 +788,7 @@ export async function execute(
   const resultTail = 'tail' in result ? result.tail : Buffer.alloc(0);
   const outputHash =
     'sha256' in result ? result.sha256 : createHash('sha256').digest('hex');
-  addTail(resultTail, sha, id, job);
+  addTail(resultTail, candidateSha, id, job);
   return {
     id,
     exitCode: result.status ?? 1,

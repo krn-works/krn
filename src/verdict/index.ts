@@ -164,6 +164,7 @@ export async function judge(
           check.timeoutMs,
           sha,
           effectiveSignal,
+          base,
         ),
       );
     }

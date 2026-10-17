@@ -142,3 +142,9 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 [CODE] A registration witness identifies the generated job/session unit, its validated cgroup path, and a process PID/start-time identity observed live in that cgroup before callback/prompt eligibility. Host commands derive the unit from trusted job/session inputs; witness text is not command authority.
 
 [POLICY] Legacy or invalid proof remains `already running`; a positive witness may gate only the existing known-inactive scope recovery. W2b and broader crash recovery remain deferred. Pending-launch cancellation must terminate the exact owned launcher safely and verify closure plus exact-unit drain before acknowledging cleanup. Preserve PR58 bind-before-trace startup lease handback.
+
+## Operator-approved LON-284 — trusted evaluator tool selection (2026-10-17)
+
+[POLICY] The immutable trusted base selects the host package-manager executable and host-side store probe. Candidate package manifests, lockfiles, and application dependencies remain the inputs installed and checked inside the sandbox: do not substitute base dependencies or blanket-refuse manifest changes. Preserve the accepted LON-219/PR44 script, registry, protected-surface, regular-file, size, teardown, and honest-source controls.
+
+[POLICY] This is a bounded host tool-authority correction, not evidence that mise installs tools or that a pnpm exploit has run. Broader provenance security, provider trials, generic W2b recovery, CI changes, and global tool configuration are excluded. Scope acceptance does not approve unimplemented B runtime code or constitute Full R1 execution.

@@ -13,8 +13,9 @@ import {
 } from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 import { createConnection } from 'node:net';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import test, { mock } from 'node:test';
+import { redFirst } from '../../src/flow/repository.ts';
 import { recordRepo } from '../../src/foreman/state.ts';
 import type { Capsule, Deps } from '../../src/foreman/types.ts';
 import { verifyCheckpoint } from '../../src/foreman/verdict.ts';
@@ -660,6 +661,227 @@ test('locked dependencies install offline inside the detached copy', async (t) =
   }
 });
 
+test('the trusted base selects host pnpm while candidate dependencies remain installed', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'the trusted base selects host pnpm while candidate dependencies remain installed',
+      ['bwrap', 'systemdUserScope'],
+    )
+  )
+    return;
+  const expectedDependencyVersion = '0.0.2';
+  const f = fixture(
+    [
+      process.execPath,
+      '-e',
+      `if(require('./node_modules/fixture-dependency/package.json').version!==${JSON.stringify(expectedDependencyVersion)})process.exit(1)`,
+    ],
+    true,
+  );
+  const originalPath = process.env.PATH;
+  try {
+    const state = join(f.root, '.krn', 'tmp', 'manager-tool-fixture');
+    const bin = join(state, 'bin');
+    const managerA = 'pnpm@9.9.0';
+    const managerB = 'pnpm@10.0.0';
+    const pnpmA = join(state, 'pnpm-A');
+    const pnpmB = join(state, 'pnpm-B');
+    assert.notEqual(pnpmA, pnpmB);
+    const hostAReceipt = join(state, 'host-a-used');
+    const hostBCanary = join(state, 'host-b-canary');
+    mkdirSync(bin, { recursive: true, mode: 0o700 });
+
+    const managerDirectories = new Map([
+      [managerA, pnpmA],
+      [managerB, pnpmB],
+    ]);
+    const mise = join(bin, 'mise');
+    writeFileSync(
+      mise,
+      `#!/usr/bin/env node\nconst tools=${JSON.stringify(Object.fromEntries(managerDirectories))};\nconst [command,manager]=process.argv.slice(2);\nif(command!=='where'||typeof tools[manager]!=='string'){process.stderr.write('unknown fake manager');process.exit(1)}\nprocess.stdout.write(tools[manager]+'\\n');\n`,
+      { mode: 0o700 },
+    );
+    const fakePnpm = (
+      directory: string,
+      hostReceipt: string,
+      version: string,
+    ) => `#!/usr/bin/env node
+const fs = require('node:fs');
+const path = require('node:path');
+const args = process.argv.slice(2);
+const storeArg = args.find((arg) => arg.startsWith('--store-dir='));
+if (!storeArg) fs.appendFileSync(${JSON.stringify(hostReceipt)}, args.join(' ') + '\\n');
+if (args.length === 1 && args[0] === '--version') {
+  process.stdout.write(${JSON.stringify(version)} + '\\n');
+  process.exit(0);
+}
+if (args.includes('store') && args.includes('path')) {
+  const storePath = storeArg
+    ? path.join(storeArg.slice('--store-dir='.length), 'store')
+    : ${JSON.stringify(join(directory, 'store'))};
+  process.stdout.write(storePath + '\\n');
+  process.exit(0);
+}
+if (args.includes('install')) {
+  const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  const version = manifest.dependencies?.['fixture-dependency'];
+  const lockfile = fs.readFileSync('pnpm-lock.yaml', 'utf8');
+  if (typeof version !== 'string' || !lockfile.includes('version: ' + version)) {
+    process.stderr.write('candidate dependency and lockfile disagree');
+    process.exit(1);
+  }
+  fs.mkdirSync('node_modules/fixture-dependency', { recursive: true });
+  fs.writeFileSync(
+    path.join('node_modules/fixture-dependency', 'package.json'),
+    JSON.stringify({ name: 'fixture-dependency', version }),
+  );
+  process.exit(0);
+}
+process.stderr.write('unsupported fake pnpm invocation');
+process.exit(2);
+`;
+    for (const [directory, receipt, version] of [
+      [pnpmA, hostAReceipt, '9.9.0'],
+      [pnpmB, hostBCanary, '10.0.0'],
+    ] as const) {
+      mkdirSync(join(directory, 'store'), { recursive: true, mode: 0o700 });
+      writeFileSync(join(directory, 'store', 'seed'), 'owned offline seed');
+      writeFileSync(
+        join(directory, 'pnpm'),
+        fakePnpm(directory, receipt, version),
+        { mode: 0o700 },
+      );
+    }
+    process.env.PATH = [bin, originalPath ?? ''].join(delimiter);
+
+    const packageManifest = (packageManager: string, dependency: string) =>
+      `${JSON.stringify(
+        {
+          name: 'manager-selection-fixture',
+          version: '1.0.0',
+          packageManager,
+          dependencies: { 'fixture-dependency': dependency },
+        },
+        null,
+        2,
+      )}\n`;
+    const lockfile = (version: string) =>
+      `lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      fixture-dependency:\n        specifier: ${version}\n        version: ${version}\npackages:\n  fixture-dependency@${version}: {}\n`;
+
+    writeFileSync(
+      join(f.root, 'package.json'),
+      packageManifest(managerA, '0.0.1'),
+    );
+    writeFileSync(join(f.root, 'pnpm-lock.yaml'), lockfile('0.0.1'));
+    f.git(['add', 'package.json', 'pnpm-lock.yaml']);
+    f.git([
+      'commit',
+      '-qm',
+      'trusted base declares manager A and dependency 0.0.1',
+    ]);
+    f.base = f.git(['rev-parse', 'HEAD']);
+
+    for (const { packageManager, label } of [
+      { packageManager: managerA, label: 'honest manager-A candidate' },
+      { packageManager: managerB, label: 'manager-B candidate' },
+    ]) {
+      if (packageManager === managerB) {
+        mkdirSync(join(f.root, 'test'), { recursive: true });
+        writeFileSync(
+          join(f.root, 'test', 'dependency.test.mjs'),
+          `import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { test } from 'node:test';
+const require = createRequire(import.meta.url);
+test('candidate dependency is 0.0.2', () => {
+  assert.equal(
+    require('../node_modules/fixture-dependency/package.json').version,
+    '0.0.2',
+  );
+});
+`,
+        );
+      }
+      writeFileSync(
+        join(f.root, 'package.json'),
+        packageManifest(packageManager, expectedDependencyVersion),
+      );
+      writeFileSync(
+        join(f.root, 'pnpm-lock.yaml'),
+        lockfile(expectedDependencyVersion),
+      );
+      f.git([
+        'add',
+        'package.json',
+        'pnpm-lock.yaml',
+        ...(packageManager === managerB ? ['test/dependency.test.mjs'] : []),
+      ]);
+      f.git(['commit', '-qm', label]);
+      f.sha = f.git(['rev-parse', 'HEAD']);
+      rmSync(hostAReceipt, { force: true });
+      rmSync(hostBCanary, { force: true });
+
+      const result = await judge(
+        f.job,
+        f.sha,
+        f.base,
+        ['declared'],
+        async () => {},
+      );
+      assert.equal(
+        result.kind,
+        'pass',
+        `${label} must install/check its candidate dependency: ${result.kind === 'pass' ? '' : result.findings.join('; ')}`,
+      );
+      assert.equal(
+        existsSync(hostBCanary),
+        false,
+        `${label}: candidate manager B must not run as a host tool`,
+      );
+      assert.equal(
+        existsSync(hostAReceipt),
+        true,
+        `${label}: trusted base manager A must run the host store probe`,
+      );
+
+      if (packageManager === managerB) {
+        rmSync(hostAReceipt, { force: true });
+        rmSync(hostBCanary, { force: true });
+        const report = await redFirst(f.root, f.base, f.sha);
+        assert.deepEqual(
+          report.results.map(({ side, classification }) => [
+            side,
+            classification,
+          ]),
+          [
+            ['base', 'assertion'],
+            ['head', 'pass'],
+          ],
+          JSON.stringify(report.results),
+        );
+        assert.equal(
+          existsSync(hostBCanary),
+          false,
+          'red-first must not use candidate manager B as a host tool',
+        );
+        assert.equal(
+          readFileSync(hostAReceipt, 'utf8')
+            .trim()
+            .split('\n')
+            .filter((call) => call === 'store path').length,
+          2,
+          'red-first base and head checks must each probe trusted manager A',
+        );
+      }
+    }
+  } finally {
+    if (originalPath === undefined) delete process.env.PATH;
+    else process.env.PATH = originalPath;
+    rmSync(f.root, { recursive: true, force: true });
+  }
+});
+
 test('a detached background writer cannot produce a pass', async (t) => {
   if (
     !requiresIsolation(
@@ -921,6 +1143,7 @@ test('cancellation accounts for the owned scope and all remaining check processe
       10000,
       f.sha,
       controller.signal,
+      f.base,
     ).catch((error: unknown) => error);
     const deadline = Date.now() + 5000;
     let activePids: string[] = [];
