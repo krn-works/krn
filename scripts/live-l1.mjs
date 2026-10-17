@@ -210,7 +210,12 @@ const outcome = await runJob(job, {
       relay.project(capsule, facts, taskContract),
   },
   trace,
-  hosts: { codex: host, cancelTree: (sessionId) => host.cancelTree(sessionId) },
+  hosts: {
+    codex: host,
+    cancelTree: (sessionId) => host.cancelTree(sessionId),
+    sessionScopeActive: (jobId, sessionId, registration) =>
+      host.sessionScopeActive(jobId, sessionId, registration),
+  },
   stop: (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
 });
 clearTimeout(wallTimer);

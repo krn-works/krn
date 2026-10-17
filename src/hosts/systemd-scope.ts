@@ -1,7 +1,7 @@
 import { type SpawnOptions, spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { z } from 'zod';
 
 let scopesAvailableFor: string | undefined;
@@ -31,6 +31,175 @@ export type ReapedSystemdScope = {
   readonly ownerPid: number;
   readonly ownerStartTicks: string;
 };
+
+export type SystemdScopeRegistration = {
+  readonly unit: string;
+  readonly controlGroup: string;
+  readonly pid: number;
+  readonly startTicks: string;
+};
+
+const registrationSchema = z.object({
+  unit: z.string(),
+  controlGroup: z.string(),
+  pid: z.number().int().positive().safe(),
+  startTicks: z.string().regex(/^\d+$/u),
+});
+const registrationTimeoutMs = 5000;
+const registrationDrainQuietMs = 1000;
+
+export function codexScopeUnit(jobId: string, sessionId: string): string {
+  const job = jobId.replace(/[^A-Za-z0-9:_.-]/g, '-').slice(0, 80) || 'session';
+  if (!/^[A-Za-z0-9-]{1,128}$/u.test(sessionId))
+    throw new Error('invalid Codex session id');
+  return `krn-${job}-${sessionId}.scope`;
+}
+
+export function validateSystemdScopeRegistration(
+  value: unknown,
+  expectedUnit: string,
+): SystemdScopeRegistration | undefined {
+  const parsed = registrationSchema.safeParse(value);
+  if (!parsed.success || parsed.data.unit !== expectedUnit) return undefined;
+  if (!validControlGroup(parsed.data.controlGroup, expectedUnit))
+    return undefined;
+  return parsed.data;
+}
+
+function validControlGroup(
+  controlGroup: string,
+  expectedUnit: string,
+): boolean {
+  const components = controlGroup.split('/');
+  return (
+    controlGroup.startsWith('/') &&
+    !controlGroup.startsWith('//') &&
+    components.length > 1 &&
+    components
+      .slice(1)
+      .every((component) => /^[A-Za-z0-9_.:@-]+$/u.test(component)) &&
+    basename(controlGroup) === expectedUnit
+  );
+}
+
+export async function waitForSystemdScopeRegistration(
+  unit: string,
+  shouldStop: () => boolean,
+): Promise<SystemdScopeRegistration> {
+  const deadline = Date.now() + registrationTimeoutMs;
+  const env = userManagerEnvironment();
+  while (Date.now() < deadline) {
+    if (shouldStop())
+      throw new Error('Codex startup cancelled before registration');
+    const registration = observeSystemdScopeRegistration(unit, env);
+    if (registration) return registration;
+    await new Promise((done) => setTimeout(done, 20));
+  }
+  throw new Error(`systemd scope ${unit} did not register a live process`);
+}
+
+export async function drainSystemdScope(
+  unit: string,
+  env: NodeJS.ProcessEnv = userManagerEnvironment(),
+): Promise<void> {
+  const deadline = Date.now() + 7000;
+  let quietSince: number | undefined;
+  while (Date.now() < deadline) {
+    const active = systemdScopeActive(unit, env);
+    if (active === null)
+      throw new Error(`cannot verify systemd scope ${unit} drain state`);
+    if (active) {
+      quietSince = undefined;
+      await killAndVerifyScope(unit, env);
+    } else {
+      quietSince ??= Date.now();
+      if (Date.now() - quietSince >= registrationDrainQuietMs) return;
+    }
+    await new Promise((done) => setTimeout(done, 20));
+  }
+  throw new Error(`systemd scope ${unit} did not remain drained`);
+}
+
+export function processStartTicks(pid: number): string | undefined {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+    const fields = stat
+      .slice(stat.lastIndexOf(')') + 2)
+      .trim()
+      .split(/\s+/u);
+    return fields[19];
+  } catch {
+    return undefined;
+  }
+}
+
+export function processHasIdentity(pid: number, startTicks: string): boolean {
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+    const fields = stat
+      .slice(stat.lastIndexOf(')') + 2)
+      .trim()
+      .split(/\s+/u);
+    return fields[0] !== 'Z' && fields[0] !== 'X' && fields[19] === startTicks;
+  } catch {
+    return false;
+  }
+}
+
+function observeSystemdScopeRegistration(
+  unit: string,
+  env: NodeJS.ProcessEnv,
+): SystemdScopeRegistration | undefined {
+  const shown = spawnSync(
+    'systemctl',
+    [
+      '--user',
+      'show',
+      '--property=ActiveState',
+      '--property=ControlGroup',
+      '--value',
+      unit,
+    ],
+    { encoding: 'utf8', env, timeout: 1000 },
+  );
+  if (shown.error || shown.status !== 0) return undefined;
+  const [state = '', controlGroup = ''] = shown.stdout
+    .trimEnd()
+    .split(/\r?\n/u);
+  if (state !== 'active' && state !== 'activating' && state !== 'reloading')
+    return undefined;
+  if (!validControlGroup(controlGroup, unit)) return undefined;
+  const cgroupPath = resolve('/sys/fs/cgroup', controlGroup.slice(1));
+  let pids: number[];
+  try {
+    pids = readFileSync(join(cgroupPath, 'cgroup.procs'), 'utf8')
+      .trim()
+      .split(/\s+/u)
+      .filter(Boolean)
+      .map(Number)
+      .filter((pid) => Number.isSafeInteger(pid) && pid > 0);
+  } catch {
+    return undefined;
+  }
+  for (const pid of pids) {
+    const startTicks = processStartTicks(pid);
+    if (!startTicks || !processHasIdentity(pid, startTicks)) continue;
+    try {
+      const stillPresent = readFileSync(
+        join(cgroupPath, 'cgroup.procs'),
+        'utf8',
+      )
+        .trim()
+        .split(/\s+/u)
+        .includes(String(pid));
+      if (!stillPresent || !processHasIdentity(pid, startTicks)) continue;
+    } catch {
+      continue;
+    }
+    return { unit, controlGroup, pid, startTicks };
+  }
+  return undefined;
+}
 
 const ownerDescription = /^krn-codex-owner-v1:(\d+):(\d+):(\d+)$/u;
 const scopeListSchema = z.array(
@@ -104,30 +273,8 @@ export function codexScopeRuntimeProperties(
   ];
 }
 
-function processStartTicks(pid: number): string | undefined {
-  try {
-    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
-    const fields = stat
-      .slice(stat.lastIndexOf(')') + 2)
-      .trim()
-      .split(/\s+/u);
-    return fields[19];
-  } catch {
-    return undefined;
-  }
-}
-
 function ownerProcessIsAlive(pid: number, startTicks: string): boolean {
-  try {
-    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
-    const fields = stat
-      .slice(stat.lastIndexOf(')') + 2)
-      .trim()
-      .split(/\s+/u);
-    return fields[0] !== 'Z' && fields[0] !== 'X' && fields[19] === startTicks;
-  } catch {
-    return false;
-  }
+  return processHasIdentity(pid, startTicks);
 }
 
 export function assertSystemdUserScopesAvailable(

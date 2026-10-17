@@ -8,12 +8,18 @@ import { z } from 'zod';
 import {
   assertSystemdUserScopesAvailable,
   codexScopeRuntimeProperties,
-  killAndVerifyScope,
+  codexScopeUnit,
+  drainSystemdScope,
+  processHasIdentity,
+  processStartTicks,
   type ReapedSystemdScope,
   reapOrphanedCodexScopes,
+  type SystemdScopeRegistration,
   spawnSystemdScope,
   systemdScopeActive,
   userManagerEnvironment,
+  validateSystemdScopeRegistration,
+  waitForSystemdScopeRegistration,
 } from './systemd-scope.ts';
 
 const lineLimit = 256 * 1024;
@@ -159,6 +165,7 @@ export type CodexStartInput = {
     sessionId: string,
     pgid?: number,
     isolation?: CodexIsolationMode,
+    registration?: SystemdScopeRegistration,
   ) => Promise<boolean>;
   readonly onStartCancelled?: (sessionId: string) => Promise<void>;
 };
@@ -293,10 +300,33 @@ export class CodexHost {
     );
     this.#sessions.set(id, running);
     child.once('close', () => this.#sessions.delete(id));
+    let registration: SystemdScopeRegistration | undefined;
+    if (scope) {
+      try {
+        registration = await waitForSystemdScopeRegistration(
+          scope,
+          () => running.cancelled || running.closed,
+        );
+      } catch (error) {
+        await rejectUnstartedSession(running, error);
+      }
+    }
+    if (running.cancelled)
+      await rejectStartedSession(
+        running,
+        id,
+        new Error('Codex startup was cancelled'),
+        input.onStartCancelled,
+      );
     if (input.onStarted) {
       let accepted = false;
       try {
-        accepted = await input.onStarted(id, child.pid, isolation);
+        accepted = await input.onStarted(
+          id,
+          child.pid,
+          isolation,
+          registration,
+        );
       } catch (error) {
         await rejectStartedSession(running, id, error, input.onStartCancelled);
       }
@@ -308,6 +338,13 @@ export class CodexHost {
           input.onStartCancelled,
         );
     }
+    if (running.cancelled)
+      await rejectStartedSession(
+        running,
+        id,
+        new Error('Codex startup was cancelled'),
+        input.onStartCancelled,
+      );
     if (child.stdin) {
       child.stdin.on('error', (error: NodeJS.ErrnoException) => {
         if (error.code !== 'EPIPE') child.kill('SIGTERM');
@@ -328,11 +365,20 @@ export class CodexHost {
     if (running) await running.cancel();
   }
 
-  sessionScopeActive(jobId: string, sessionId: string): boolean | null {
-    const job =
-      jobId.replace(/[^A-Za-z0-9:_.-]/g, '-').slice(0, 80) || 'session';
-    if (!/^[A-Za-z0-9-]{1,128}$/.test(sessionId)) return null;
-    return systemdScopeActive(`krn-${job}-${sessionId}.scope`);
+  sessionScopeActive(
+    jobId: string,
+    sessionId: string,
+    registration: unknown,
+  ): boolean | null {
+    let expectedUnit: string;
+    try {
+      expectedUnit = codexScopeUnit(jobId, sessionId);
+    } catch {
+      return null;
+    }
+    if (!validateSystemdScopeRegistration(registration, expectedUnit))
+      return null;
+    return systemdScopeActive(expectedUnit);
   }
 
   async cancelAll(): Promise<void> {
@@ -340,6 +386,21 @@ export class CodexHost {
       [...this.#sessions.keys()].map((id) => this.cancelTree(id)),
     );
   }
+}
+
+async function rejectUnstartedSession(
+  running: RunningSession,
+  cause: unknown,
+): Promise<never> {
+  try {
+    await running.cancel();
+  } catch (cleanupError) {
+    throw new AggregateError(
+      [cause, cleanupError],
+      'Codex registration failure cleanup could not be verified',
+    );
+  }
+  throw cause;
 }
 
 async function rejectStartedSession(
@@ -376,6 +437,10 @@ class RunningSession {
   readonly #scope: string | undefined;
   readonly #reapedScopes: readonly ReapedSystemdScope[];
   readonly #scopeEnvironment: NodeJS.ProcessEnv;
+  #launcherStartTicks: string | undefined;
+  #closed = false;
+  #cancelled = false;
+  #cancelPromise: Promise<void> | undefined;
   readonly #close: Promise<{
     readonly code: number | null;
     readonly signal: NodeJS.Signals | null;
@@ -415,6 +480,12 @@ class RunningSession {
     this.#scope = scope;
     this.#reapedScopes = reapedScopes;
     this.#scopeEnvironment = userManagerEnvironment();
+    this.#launcherStartTicks =
+      child.pid === undefined ? undefined : processStartTicks(child.pid);
+    child.once('spawn', () => {
+      if (child.pid !== undefined)
+        this.#launcherStartTicks = processStartTicks(child.pid);
+    });
     this.#close = new Promise((resolveClose, rejectClose) => {
       let finished = false;
       const finish = async (
@@ -424,8 +495,9 @@ class RunningSession {
         if (finished) return;
         finished = true;
         try {
+          this.#closed = true;
           if (this.#scope)
-            await killAndVerifyScope(this.#scope, this.#scopeEnvironment);
+            await drainSystemdScope(this.#scope, this.#scopeEnvironment);
           if (this.#namespace) await waitForNamespaceExit(this.#namespace);
           for (const listener of this.#closedListeners) listener();
           resolveClose({ code, signal });
@@ -450,6 +522,14 @@ class RunningSession {
 
   onClose(listener: () => void): void {
     this.#closedListeners.push(listener);
+  }
+
+  get cancelled(): boolean {
+    return this.#cancelled;
+  }
+
+  get closed(): boolean {
+    return this.#closed;
   }
 
   wait(): Promise<CodexSessionResult> {
@@ -567,10 +647,46 @@ class RunningSession {
     }
   }
 
-  async cancel(): Promise<void> {
+  cancel(): Promise<void> {
+    this.#cancelled = true;
+    this.#cancelPromise ??= this.cancelOwnedProcesses();
+    return this.#cancelPromise;
+  }
+
+  private async cancelOwnedProcesses(): Promise<void> {
     if (this.#scope) {
-      await killAndVerifyScope(this.#scope, this.#scopeEnvironment);
-      await this.#close;
+      const failures: unknown[] = [];
+      try {
+        await this.signalOwnedLauncher('SIGTERM');
+      } catch (error) {
+        failures.push(error);
+      }
+      const closed = await Promise.race([
+        this.#close.then(
+          () => true,
+          () => true,
+        ),
+        new Promise<boolean>((resolve) =>
+          setTimeout(() => resolve(false), killGraceMs),
+        ),
+      ]);
+      if (!closed) {
+        try {
+          await this.signalOwnedLauncher('SIGKILL');
+        } catch (error) {
+          failures.push(error);
+        }
+      }
+      try {
+        await this.#close;
+      } catch (error) {
+        failures.push(error);
+      }
+      if (failures.length)
+        throw new AggregateError(
+          failures,
+          'Codex systemd-scope cancellation could not be verified',
+        );
       return;
     }
     if (this.#child.exitCode !== null || this.#child.signalCode !== null) {
@@ -592,6 +708,37 @@ class RunningSession {
       else signalTree(this.#child, 'SIGKILL');
     }
     await this.#close;
+  }
+
+  private async signalOwnedLauncher(signal: NodeJS.Signals): Promise<void> {
+    const pid = this.#child.pid;
+    if (pid === undefined || this.#closed) return;
+    const deadline = Date.now() + 500;
+    while (
+      !this.#launcherStartTicks &&
+      this.#child.exitCode === null &&
+      this.#child.signalCode === null &&
+      !this.#closed &&
+      Date.now() < deadline
+    )
+      await delay(10);
+    if (
+      this.#child.exitCode !== null ||
+      this.#child.signalCode !== null ||
+      this.#closed
+    )
+      return;
+    const startTicks = this.#launcherStartTicks;
+    if (!startTicks || !processHasIdentity(pid, startTicks))
+      throw new Error(
+        'Codex launcher process identity is unavailable or changed',
+      );
+    try {
+      if (process.platform !== 'win32') process.kill(-pid, signal);
+      else this.#child.kill(signal);
+    } catch (error) {
+      if (record(error).code !== 'ESRCH') throw error;
+    }
   }
 }
 
@@ -655,8 +802,7 @@ function detectIsolationMode(namespaceLauncher: string): CodexIsolationMode {
 
 function scopeName(input: CodexStartInput, sessionId: string): string {
   const raw = input.checkpoint?.job ?? basename(input.cwd);
-  const job = raw.replace(/[^A-Za-z0-9:_.-]/g, '-').slice(0, 80) || 'session';
-  return `krn-${job}-${sessionId}.scope`;
+  return codexScopeUnit(raw, sessionId);
 }
 
 async function namespaceIdentity(

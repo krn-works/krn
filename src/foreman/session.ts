@@ -149,12 +149,21 @@ export async function runSession(
             }),
         intent,
       },
-      onStarted: async (sessionId, pgid, isolation) => {
+      onStarted: async (sessionId, pgid, isolation, registration) => {
         const result = await d.relay.bindSession(job, capsule, sessionId);
         if (!result.applied) throw new AlreadyRunning();
         bound = result.value;
         startupBinding = result.value;
-        if (!(await d.trace.started(job, intent, sessionId, pgid, isolation)))
+        if (
+          !(await d.trace.started(
+            job,
+            intent,
+            sessionId,
+            pgid,
+            isolation,
+            registration,
+          ))
+        )
           throw new AlreadyRunning();
         return true;
       },
@@ -242,16 +251,18 @@ export async function recoverLease(
     return { capsule };
   const end = await d.trace.sessionEnd(job, capsule.sessionId);
   if (!end) {
-    const isolation = await d.trace.sessionIsolation?.(job, capsule.sessionId);
-    const scopeActive =
-      isolation === 'systemd_scope'
-        ? await d.hosts.sessionScopeActive?.(job.id, capsule.sessionId)
-        : null;
-    if (
-      isolation === 'systemd_scope' &&
-      scopeActive === false &&
-      d.trace.sessionLost
-    ) {
+    const registration = await d.trace.sessionScopeRegistration?.(
+      job,
+      capsule.sessionId,
+    );
+    const scopeActive = registration
+      ? await d.hosts.sessionScopeActive?.(
+          job.id,
+          capsule.sessionId,
+          registration,
+        )
+      : null;
+    if (registration && scopeActive === false && d.trace.sessionLost) {
       const facts = await d.relay.repoFacts(job);
       const lost = {
         reasonKind: 'session_lost',

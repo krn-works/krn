@@ -24,6 +24,11 @@ import type { Job } from '../core/index.ts';
 import { readCheckpointRequest } from '../foreman/checkpoint-request.ts';
 import { repoRecord, stateDirectory } from '../foreman/state.ts';
 import type { SessionEnd } from '../foreman/types.ts';
+import {
+  codexScopeUnit,
+  type SystemdScopeRegistration,
+  validateSystemdScopeRegistration,
+} from '../hosts/systemd-scope.ts';
 import type { SubmissionReceipt } from '../ledger/index.ts';
 import type { VerdictEvent } from '../verdict/index.ts';
 
@@ -460,18 +465,57 @@ export async function started(
   sessionId: string,
   pgid?: number,
   isolation?: 'pid_namespace' | 'systemd_scope',
+  registration?: SystemdScopeRegistration,
 ): Promise<boolean> {
+  let expectedUnit: string | undefined;
+  let scopeRegistration: SystemdScopeRegistration | undefined;
+  if (isolation === 'systemd_scope') {
+    try {
+      expectedUnit = codexScopeUnit(job.id, sessionId);
+    } catch {
+      throw new Error('invalid Codex scope registration identity');
+    }
+    scopeRegistration = validateSystemdScopeRegistration(
+      registration,
+      expectedUnit,
+    );
+    if (!scopeRegistration)
+      throw new Error('systemd scope registration witness is invalid');
+  } else if (registration !== undefined) {
+    throw new Error(
+      'systemd scope registration has no matching isolation mode',
+    );
+  }
   // Session starts are unique by opaque host identity, while the intent key fences retries.
   const prior = events(job).find(
     (event) => event.key === `${intentId}:session`,
   );
-  if (prior) return prior.data.sessionId === sessionId;
+  if (prior) {
+    if (prior.data.sessionId !== sessionId) return false;
+    if (scopeRegistration) {
+      const previous = validateSystemdScopeRegistration(
+        prior.data.scopeRegistration,
+        expectedUnit ?? '',
+      );
+      return (
+        prior.data.jobId === job.id &&
+        prior.data.isolation === 'systemd_scope' &&
+        previous !== undefined &&
+        previous.controlGroup === scopeRegistration.controlGroup &&
+        previous.pid === scopeRegistration.pid &&
+        previous.startTicks === scopeRegistration.startTicks
+      );
+    }
+    return true;
+  }
   append(job, `${intentId}:session`, 'session_started', {
     intent: intentId,
+    jobId: job.id,
     sessionId,
     ...(pgid === undefined ? {} : { pgid }),
     sandbox: 'workspace-write',
     isolation: isolation ?? 'unknown',
+    ...(scopeRegistration === undefined ? {} : { scopeRegistration }),
   });
   return true;
 }
@@ -577,18 +621,29 @@ export async function sessionEnd(
   return { ...parsed.data, claimsDone: completed };
 }
 
-export async function sessionIsolation(
+export async function sessionScopeRegistration(
   job: Job,
   sessionId: string,
-): Promise<'pid_namespace' | 'systemd_scope' | null> {
+): Promise<SystemdScopeRegistration | null> {
   const started = events(job).find(
     (event) =>
-      event.kind === 'session_started' && event.data.sessionId === sessionId,
+      event.kind === 'session_started' &&
+      event.data.jobId === job.id &&
+      event.data.sessionId === sessionId,
   );
-  return started?.data.isolation === 'systemd_scope' ||
-    started?.data.isolation === 'pid_namespace'
-    ? started.data.isolation
-    : null;
+  if (started?.data.isolation !== 'systemd_scope') return null;
+  let expectedUnit: string;
+  try {
+    expectedUnit = codexScopeUnit(job.id, sessionId);
+  } catch {
+    return null;
+  }
+  return (
+    validateSystemdScopeRegistration(
+      started.data.scopeRegistration,
+      expectedUnit,
+    ) ?? null
+  );
 }
 
 export async function sessionLost(

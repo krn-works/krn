@@ -134,3 +134,11 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 [CODE] After CodexHost verifies cancellation of the exact owned process for an onStarted rejection or false result, an optional post-cancellation acknowledgement may let foreman release only the successfully bound active capsule lease. The relay transition must CAS the bound epoch and session identity, change only lease/session identity plus epoch, preserve all other capsule fields, and fail closed on cleanup or CAS errors. No acknowledgement follows unverified cleanup; ordinary successful starts are unchanged.
 
 [POLICY] Once an accepted-contract candidate passes all required exact-head gates, the lead merges without procedural reapproval. Stop and return for changed scope or rights, or missing required proof. This is a conditional integration mandate, not code approval or a waiver of independent exact-head review, CI, or main-CI readback.
+
+## Operator-approved LON-283 — registered startup scope (2026-10-17)
+
+[POLICY] This is scope authorization only: add bounded positive systemd registration before the existing startup callback, persist validated evidence, fail closed for legacy/missing/malformed evidence on the existing inactive-scope recovery path, and wire the real live-l1 observer only behind that evidence. This is not code acceptance, a new generic recovery method, unattended confinement, or full-R1 authority.
+
+[CODE] A registration witness identifies the generated job/session unit, its validated cgroup path, and a process PID/start-time identity observed live in that cgroup before callback/prompt eligibility. Host commands derive the unit from trusted job/session inputs; witness text is not command authority.
+
+[POLICY] Legacy or invalid proof remains `already running`; a positive witness may gate only the existing known-inactive scope recovery. W2b and broader crash recovery remain deferred. Pending-launch cancellation must terminate the exact owned launcher safely and verify closure plus exact-unit drain before acknowledging cleanup. Preserve PR58 bind-before-trace startup lease handback.

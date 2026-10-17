@@ -495,6 +495,8 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
     );
   };
   let timed: ReturnType<typeof spawn> | undefined;
+  let crashed: ReturnType<typeof spawn> | undefined;
+  let resumed: ReturnType<typeof spawn> | undefined;
   const foreman = spawn(
     process.execPath,
     [
@@ -531,6 +533,54 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
         return undefined;
       }
     });
+    const liveTrace = (
+      await readFile(
+        join(root, '.krn/runs/foreman/B2-live/trace.jsonl'),
+        'utf8',
+      )
+    )
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+    const started = liveTrace.find((event) => event.kind === 'session_started');
+    assert.ok(started, 'actual live-l1 must persist session_started');
+    assert.equal(started.data.isolation, 'systemd_scope');
+    const registration = started.data.scopeRegistration as {
+      readonly unit: string;
+      readonly controlGroup: string;
+      readonly pid: number;
+      readonly startTicks: string;
+    };
+    assert.equal(
+      registration.unit,
+      `krn-B2-live-${started.data.sessionId}.scope`,
+    );
+    assert.equal(
+      registration.controlGroup.split('/').at(-1),
+      registration.unit,
+    );
+    assert.ok(Number.isSafeInteger(registration.pid) && registration.pid > 0);
+    assert.match(registration.startTicks, /^\d+$/u);
+    const cgroupPids = await readFile(
+      join(
+        '/sys/fs/cgroup',
+        registration.controlGroup.slice(1),
+        'cgroup.procs',
+      ),
+      'utf8',
+    );
+    assert.ok(cgroupPids.split(/\s+/u).includes(String(registration.pid)));
+    const processStat = await readFile(
+      `/proc/${registration.pid}/stat`,
+      'utf8',
+    );
+    assert.equal(
+      processStat
+        .slice(processStat.lastIndexOf(')') + 2)
+        .trim()
+        .split(/\s+/u)[19],
+      registration.startTicks,
+    );
     foreman.kill('SIGTERM');
     const code = await new Promise((resolve) => foreman.once('close', resolve));
     assert.equal(code, 130);
@@ -540,6 +590,157 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       .map(Number);
     for (const pid of pids) assert.equal(await isAlive(pid), false);
     await unlink(pidFile);
+    paperclip.resetBootstrapIssueReadPair();
+    crashed = spawn(
+      process.execPath,
+      [
+        live,
+        '--http',
+        '--repo',
+        root,
+        '--job',
+        'B2-crash-recovery',
+        '--issue',
+        'I-2',
+        '--prompt',
+        'hold',
+      ],
+      {
+        cwd: root,
+        env: {
+          ...process.env,
+          KRN_LIVE: '1',
+          KRN_CODEX_BIN: executable,
+          KRN_PAPERCLIP_API_URL: paperclip.apiUrl,
+          KRN_PAPERCLIP_TOKEN: 'fixture-token',
+          KRN_SESSION: 'fixture-session',
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
+    await waitForSessionStarted('B2-crash-recovery', crashed);
+    await waitFor(async () => {
+      try {
+        return (await readFile(pidFile, 'utf8')).trim() || undefined;
+      } catch {
+        return undefined;
+      }
+    });
+    const crashTracePath = join(
+      root,
+      '.krn/runs/foreman/B2-crash-recovery/trace.jsonl',
+    );
+    const crashEvents = (await readFile(crashTracePath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+    const crashStart = crashEvents.find(
+      (event) => event.kind === 'session_started',
+    );
+    assert.ok(crashStart?.data.scopeRegistration);
+    const deadScope = crashStart.data.scopeRegistration.unit as string;
+    crashed.kill('SIGKILL');
+    await new Promise((resolve) => crashed?.once('close', resolve));
+    const systemdEnv = {
+      ...process.env,
+      XDG_RUNTIME_DIR:
+        process.env.XDG_RUNTIME_DIR ??
+        `/run/user/${process.getuid?.() ?? 1000}`,
+      DBUS_SESSION_BUS_ADDRESS:
+        process.env.DBUS_SESSION_BUS_ADDRESS ??
+        `unix:path=/run/user/${process.getuid?.() ?? 1000}/bus`,
+    };
+    const drained = spawnSync(
+      '/usr/bin/systemctl',
+      ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', deadScope],
+      { encoding: 'utf8', env: systemdEnv },
+    );
+    assert.equal(drained.status, 0, drained.stderr);
+    await waitFor(async () => {
+      const pids = (await readFile(pidFile, 'utf8'))
+        .trim()
+        .split('\n')
+        .map(Number);
+      if ((await Promise.all(pids.map(isAlive))).some(Boolean))
+        return undefined;
+      const state = spawnSync(
+        '/usr/bin/systemctl',
+        ['--user', 'show', deadScope, '-p', 'ActiveState', '--value'],
+        { encoding: 'utf8', env: systemdEnv },
+      );
+      return state.status !== 0 || state.stdout.trim() === 'inactive'
+        ? 'drained'
+        : undefined;
+    });
+    await unlink(pidFile);
+    paperclip.resetBootstrapIssueReadPair();
+    resumed = spawn(
+      process.execPath,
+      [
+        live,
+        '--http',
+        '--repo',
+        root,
+        '--job',
+        'B2-crash-recovery',
+        '--issue',
+        'I-2',
+        '--prompt',
+        'hold',
+      ],
+      {
+        cwd: root,
+        env: {
+          ...process.env,
+          KRN_LIVE: '1',
+          KRN_CODEX_BIN: executable,
+          KRN_PAPERCLIP_API_URL: paperclip.apiUrl,
+          KRN_PAPERCLIP_TOKEN: 'fixture-token',
+          KRN_SESSION: 'fixture-session',
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
+    const recoveryDeadline = Date.now() + 20_000;
+    let recoveredEvents: Array<{
+      kind: string;
+      data: Record<string, unknown>;
+    }> = [];
+    while (Date.now() < recoveryDeadline && resumed.exitCode === null) {
+      const contents = await readFile(crashTracePath, 'utf8');
+      recoveredEvents = contents
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      if (
+        recoveredEvents.some((event) => event.kind === 'session_lost') &&
+        recoveredEvents.filter((event) => event.kind === 'session_started')
+          .length >= 2
+      )
+        break;
+      await pause(20);
+    }
+    assert.ok(
+      recoveredEvents.some((event) => event.kind === 'session_lost'),
+      'actual live-l1 must use the persisted witness to recover a drained scope',
+    );
+    assert.ok(
+      recoveredEvents.filter((event) => event.kind === 'session_started')
+        .length >= 2,
+      'witness-gated recovery must permit the next session after confirmed drain',
+    );
+    await waitFor(async () => {
+      try {
+        return (await readFile(pidFile, 'utf8')).trim() || undefined;
+      } catch {
+        return undefined;
+      }
+    });
+    resumed.kill('SIGTERM');
+    assert.equal(
+      await new Promise((resolve) => resumed?.once('close', resolve)),
+      130,
+    );
     paperclip.resetBootstrapIssueReadPair();
     const timeoutForeman = spawn(
       process.execPath,
@@ -589,6 +790,8 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       assert.equal(await isAlive(pid), false);
   } finally {
     foreman.kill('SIGKILL');
+    if (crashed?.exitCode === null) crashed.kill('SIGKILL');
+    if (resumed?.exitCode === null) resumed.kill('SIGKILL');
     if (timed?.exitCode === null) timed.kill('SIGKILL');
     try {
       for (const pid of (await readFile(pidFile, 'utf8'))
@@ -650,8 +853,15 @@ setInterval(()=>{},1000);
       model: 'gpt-6-luna',
       prompt: 'hold',
       limits: { timeoutMs: 10_000 },
-      onStarted: (id, pgid, isolation) =>
-        trace.started(job, intent, id, pgid, isolation),
+      checkpoint: {
+        cli: 'fixture',
+        job: job.id,
+        issue: job.issue,
+        worktree: root,
+        intent,
+      },
+      onStarted: (id, pgid, isolation, registration) =>
+        trace.started(job, intent, id, pgid, isolation, registration),
     });
     const pid = Number(
       await waitFor(async () => {
@@ -1404,7 +1614,15 @@ test('B7 codex command grants workspace write without the git common dir', async
       model: 'gpt-6-luna',
       prompt: 'work',
       limits: { timeoutMs: 10_000 },
-      onStarted: (id, pgid) => trace.started(job, intent, id, pgid),
+      checkpoint: {
+        cli: 'fixture',
+        job: job.id,
+        issue: job.issue,
+        worktree,
+        intent,
+      },
+      onStarted: (id, pgid, isolation, registration) =>
+        trace.started(job, intent, id, pgid, isolation, registration),
     });
     await session.wait();
     const args = JSON.parse(await readFile(argsFile, 'utf8')) as string[];

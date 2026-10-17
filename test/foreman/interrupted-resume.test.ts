@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  appendFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -9,7 +16,7 @@ import { writeCheckpointRequest } from '../../src/foreman/checkpoint-request.ts'
 import * as foreman from '../../src/foreman/index.ts';
 import { runJob } from '../../src/foreman/run.ts';
 import { recoverLease, runSession } from '../../src/foreman/session.ts';
-import { recordRepo } from '../../src/foreman/state.ts';
+import { recordRepo, stateDirectory } from '../../src/foreman/state.ts';
 import type { Capsule, Deps } from '../../src/foreman/types.ts';
 import { reportPassingVerdict } from '../../src/foreman/verdict.ts';
 import type {
@@ -516,6 +523,7 @@ test('a dead scoped session without an end record is recovered as session_lost',
     references: [],
   };
   let recorded: readonly string[] | undefined;
+  let registration: unknown;
   let scopeActive = true;
   let refreshed:
     | { reasonKind: string; dirtyPaths?: readonly string[] }
@@ -524,6 +532,7 @@ test('a dead scoped session without an end record is recovered as session_lost',
     trace: {
       sessionEnd: async () => null,
       sessionIsolation: async () => 'systemd_scope' as const,
+      sessionScopeRegistration: async () => registration,
       sessionLost: async (
         _job: typeof job,
         _session: string,
@@ -577,12 +586,148 @@ test('a dead scoped session without an end record is recovered as session_lost',
   child.kill('SIGKILL');
   await dead;
   scopeActive = false;
+  const legacy = await recoverLease(job, capsule, d as never);
+  assert.deepEqual(legacy.outcome, {
+    kind: 'stop',
+    state: 'human_decision',
+    reasons: ['already running'],
+  });
+  registration = {
+    unit: 'krn-lost-job-session-lost-fixture.scope',
+    controlGroup:
+      '/user.slice/user-1000.slice/user@1000.service/app.slice/krn-lost-job-session-lost-fixture.scope',
+    pid: child.pid,
+    startTicks: '12345',
+  };
   const result = await recoverLease(job, capsule, d as never);
   assert.equal(result.outcome, undefined);
   assert.deepEqual(recorded, ['unfinished.ts']);
   assert.equal(refreshed?.reasonKind, 'session_lost');
   assert.deepEqual(refreshed?.dirtyPaths, ['unfinished.ts']);
   assert.equal(result.capsule.lease, 'ended');
+});
+
+test('legacy persisted scoped session without registration proof stays already running', async () => {
+  const scratch = join(process.cwd(), '.krn', 'tmp');
+  await mkdir(scratch, { recursive: true });
+  const worktree = await mkdtemp(join(scratch, 'legacy-scope-proof-'));
+  const git = (args: string[]) => {
+    const result = spawnSync('git', ['-C', worktree, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  try {
+    git(['init', '-q', '--initial-branch=main']);
+    git(['config', 'user.name', 'Fixture']);
+    git(['config', 'user.email', 'fixture@example.invalid']);
+    await writeFile(join(worktree, '.gitignore'), '.krn/\n');
+    await writeFile(join(worktree, 'README.md'), 'fixture\n');
+    git(['add', '.gitignore', 'README.md']);
+    git(['commit', '-qm', 'fixture']);
+    const job = {
+      id: 'legacy-scope',
+      issue: 'issue-legacy-scope',
+      worktree,
+      repoRoot: worktree,
+    };
+    const contract: Contract = {
+      issueId: job.issue,
+      identifier: 'legacy-scope',
+      title: 'legacy scope',
+      description: 'legacy scope',
+      revision: 'rev-1',
+      targetRepo: 'fixture/repo',
+      checks: [],
+    };
+    recordRepo(job, worktree, 'main', git(['rev-parse', 'HEAD']));
+    const initial = await relay.load(job, contract);
+    const intent = await diskTrace.intent(job, initial.epoch);
+    const sessionId = 'legacy-session';
+    const bound = await relay.bindSession(job, initial, sessionId);
+    assert.equal(bound.applied, true);
+    if (!bound.applied) throw new Error('fixture bind failed');
+    await appendFile(
+      join(stateDirectory(job), 'trace.jsonl'),
+      `${JSON.stringify({
+        id: 'legacy-session-start',
+        key: `${intent}:session`,
+        kind: 'session_started',
+        at: new Date().toISOString(),
+        data: {
+          intent,
+          sessionId,
+          sandbox: 'workspace-write',
+          isolation: 'systemd_scope',
+        },
+      })}\n`,
+    );
+    let observerCalls = 0;
+    const d = {
+      relay,
+      trace: diskTrace,
+      hosts: {
+        sessionScopeActive: () => {
+          observerCalls += 1;
+          return false;
+        },
+      },
+      stop: (
+        _job: typeof job,
+        _state: 'human_decision',
+        reasons: readonly string[],
+      ) => ({
+        kind: 'stop' as const,
+        state: 'human_decision' as const,
+        reasons,
+      }),
+    };
+    const result = await recoverLease(job, bound.value, d as never);
+    assert.deepEqual(result.outcome, {
+      kind: 'stop',
+      state: 'human_decision',
+      reasons: ['already running'],
+    });
+    assert.deepEqual(await relay.load(job, contract), bound.value);
+    assert.equal(
+      observerCalls,
+      0,
+      'legacy data must not authorize a negative-scope observer',
+    );
+    const tracePath = join(stateDirectory(job), 'trace.jsonl');
+    const events = (await readFile(tracePath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+    const started = events.find((event) => event.kind === 'session_started');
+    assert.ok(started);
+    started.data.jobId = job.id;
+    started.data.scopeRegistration = {
+      unit: 'krn-foreign.scope',
+      controlGroup: '/user.slice/krn-foreign.scope',
+      pid: process.pid,
+      startTicks: 'not-a-process-identity',
+    };
+    await writeFile(
+      tracePath,
+      `${events.map((event) => JSON.stringify(event)).join('\n')}\n`,
+    );
+    const malformed = await recoverLease(job, bound.value, d as never);
+    assert.deepEqual(malformed.outcome, {
+      kind: 'stop',
+      state: 'human_decision',
+      reasons: ['already running'],
+    });
+    assert.equal(
+      observerCalls,
+      0,
+      'malformed persisted proof must remain unusable',
+    );
+    assert.deepEqual(await relay.load(job, contract), bound.value);
+  } finally {
+    await rm(worktree, { recursive: true, force: true });
+  }
 });
 
 test('live submission takes Krn-Session from the verified commit trailer', async () => {
