@@ -129,6 +129,7 @@ async function main() {
   let expectedFiles = [];
   let structuredSummaryWritten = false;
   let forwardedSignal;
+  let child;
   let exitCode = 1;
   const cleanupOwnedEvents = async () => {
     if (!eventDirectory) return undefined;
@@ -140,9 +141,33 @@ async function main() {
       return error;
     }
   };
+  const forwardSignal = (signal) => {
+    if (forwardedSignal) return;
+    forwardedSignal = signal;
+    const sendSignal = () => {
+      if (!child?.pid) return;
+      try {
+        if (process.platform === 'win32') child.kill(signal);
+        else process.kill(-child.pid, signal);
+      } catch (error) {
+        if (error?.code !== 'ESRCH')
+          process.stderr.write(
+            `Unable to forward ${signal} to test process group: ${error.message}\n`,
+          );
+      }
+    };
+    if (child?.pid) sendSignal();
+    else if (child) child.once('spawn', sendSignal);
+  };
+  process.once('SIGINT', () => forwardSignal('SIGINT'));
+  process.once('SIGTERM', () => forwardSignal('SIGTERM'));
 
   try {
-    if (strict) await assertPinnedNode();
+    if (strict) {
+      await assertPinnedNode();
+      if (forwardedSignal)
+        throw new Error('interrupted before test runner setup');
+    }
 
     if (strict && probeRequested)
       throw new Error('strict test mode refuses KRN_SCOPE_PROBE');
@@ -178,11 +203,17 @@ async function main() {
     if (strict) {
       const stateDirectory = join(process.cwd(), '.krn/tmp');
       await mkdir(stateDirectory, { recursive: true, mode: 0o700 });
+      if (forwardedSignal)
+        throw new Error('interrupted before test runner setup');
       eventDirectory = await mkdtemp(
         join(stateDirectory, 'strict-test-events-'),
       );
+      if (forwardedSignal)
+        throw new Error('interrupted before test runner setup');
       eventFile = join(eventDirectory, 'events.jsonl');
       await writeFile(eventFile, '', { mode: 0o600 });
+      if (forwardedSignal)
+        throw new Error('interrupted before test runner setup');
     }
 
     const runnerArgs = [
@@ -198,33 +229,15 @@ async function main() {
       );
     }
     runnerArgs.push(...runnerFiles);
+    if (forwardedSignal)
+      throw new Error('interrupted before test runner start');
 
-    const child = spawn(process.execPath, runnerArgs, {
+    child = spawn(process.execPath, runnerArgs, {
       detached: process.platform !== 'win32',
       env: childEnvironment(capabilities, strict, eventFile),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '';
-    const forwardSignal = (signal) => {
-      if (forwardedSignal) return;
-      forwardedSignal = signal;
-      const sendSignal = () => {
-        if (!child.pid) return;
-        try {
-          if (process.platform === 'win32') child.kill(signal);
-          else process.kill(-child.pid, signal);
-        } catch (error) {
-          if (error?.code !== 'ESRCH')
-            process.stderr.write(
-              `Unable to forward ${signal} to test process group: ${error.message}\n`,
-            );
-        }
-      };
-      if (child.pid) sendSignal();
-      else child.once('spawn', sendSignal);
-    };
-    process.once('SIGINT', () => forwardSignal('SIGINT'));
-    process.once('SIGTERM', () => forwardSignal('SIGTERM'));
     child.stdout.setEncoding('utf8').on('data', (chunk) => {
       stdout += chunk;
       process.stdout.write(chunk);

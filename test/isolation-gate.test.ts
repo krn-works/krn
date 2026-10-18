@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import {
+  access,
   mkdir,
   mkdtemp,
   readdir,
@@ -136,9 +137,15 @@ for (const [signal, exitCode] of [
   ['SIGINT', 130],
   ['SIGTERM', 143],
 ] as const) {
-  test(`${signal} of the test-suite wrapper stops its sleeping test child`, async () => {
+  test(`${signal} of the test-suite wrapper stops its sleeping test child`, async (t) => {
     await assertTestSuiteSignal(signal, exitCode, false);
     await assertTestSuiteSignal(signal, exitCode, true);
+    await t.test(
+      `${signal} during reporter setup is handled and cleaned`,
+      async () => {
+        await assertTestSuiteStartupSignal(signal, exitCode);
+      },
+    );
   });
 }
 
@@ -274,6 +281,147 @@ test('gate-local refuses to post a status when any isolation test was skipped', 
   assert.equal(failedGate, false);
   assert.equal(posted, false);
 });
+
+type StartupSignal = 'SIGINT' | 'SIGTERM';
+type StartupSignalExitCode = 130 | 143;
+
+async function assertTestSuiteStartupSignal(
+  signal: StartupSignal,
+  expectedExitCode: StartupSignalExitCode,
+): Promise<void> {
+  const repositoryStateRoot = join(process.cwd(), '.krn/tmp');
+  await mkdir(repositoryStateRoot, { recursive: true });
+  const fixture = await mkdtemp(
+    join(repositoryStateRoot, 'startup-signal-fixture-'),
+  );
+  const stateRoot = join(fixture, '.krn/tmp');
+  const testFile = join(fixture, 'startup.test.mjs');
+  const marker = join(fixture, 'test-ran');
+  const observer = join(fixture, 'signal-after-event-write.mjs');
+  const observerReceipt = join(fixture, 'observer-receipt');
+
+  try {
+    await mkdir(stateRoot, { recursive: true });
+    const nodeVersion = await readFile(
+      join(process.cwd(), '.node-version'),
+      'utf8',
+    );
+    await writeFile(join(fixture, '.node-version'), nodeVersion);
+    await writeFile(
+      testFile,
+      `import { writeFileSync } from 'node:fs';\nimport { test } from 'node:test';\ntest('must not execute after startup signal', () => writeFileSync(${JSON.stringify(marker)}, 'ran'));\n`,
+    );
+    await writeFile(
+      observer,
+      [
+        "import fs from 'node:fs/promises';",
+        "import { writeFileSync } from 'node:fs';",
+        "import { syncBuiltinESMExports } from 'node:module';",
+        'const originalWriteFile = fs.writeFile;',
+        'let signalSent = false;',
+        'fs.writeFile = async (...args) => {',
+        '  const [file] = args;',
+        '  const result = await originalWriteFile(...args);',
+        '  const target = String(file);',
+        "  if (!signalSent && target.includes('strict-test-events-') && target.endsWith('events.jsonl')) {",
+        '    signalSent = true;',
+        `    writeFileSync(${JSON.stringify(observerReceipt)}, 'event file written');`,
+        '    const signal = process.env.KRN_SETUP_SIGNAL;',
+        "    if (signal !== 'SIGINT' && signal !== 'SIGTERM') throw new Error('unexpected setup signal');",
+        '    process.kill(process.pid, signal);',
+        '    await new Promise((resolve) => setTimeout(resolve, 100));',
+        '  }',
+        '  return result;',
+        '};',
+        'syncBuiltinESMExports();',
+        '',
+      ].join('\n'),
+    );
+
+    const env: NodeJS.ProcessEnv = { ...process.env };
+    delete env.CI;
+    delete env.NODE_OPTIONS;
+    delete env.KRN_SCOPE_PROBE;
+    delete env.NODE_TEST_CONTEXT;
+    delete env.GITHUB_STEP_SUMMARY;
+    for (const key of Object.keys(env)) {
+      if (key.startsWith('NODE_TEST_')) delete env[key];
+    }
+    env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS = '1';
+    env.KRN_SETUP_SIGNAL = signal;
+
+    const wrapper = new URL('../scripts/test-suite.mjs', import.meta.url)
+      .pathname;
+    const result = spawnSync(
+      process.execPath,
+      ['--import', observer, wrapper, testFile],
+      {
+        cwd: fixture,
+        encoding: 'utf8',
+        env,
+        timeout: 30_000,
+      },
+    );
+    const details = `status=${result.status}, signal=${result.signal}\nstdout:\n${result.stdout}\nstderr:\n${result.stderr}`;
+    assert.equal(result.error, undefined, details);
+    assert.equal(
+      await fileExists(observerReceipt),
+      true,
+      `observer did not signal after writing the event file\n${details}`,
+    );
+    const startupSummaries =
+      result.stdout.match(/^KRN_TEST_SUMMARY_JSON=.*$/gmu) ?? [];
+    const startupSummaryLine = startupSummaries[0];
+    const startupFinalLine = result.stdout.trimEnd().split(/\r?\n/u).at(-1);
+    const startupSummaryIsFinal =
+      startupSummaries.length === 1 &&
+      startupSummaryLine !== undefined &&
+      startupFinalLine === startupSummaryLine;
+    const startupSummaryFailed =
+      startupSummaryLine !== undefined &&
+      startupSummaryIsFinal &&
+      startupSummaryLine.includes('"success":false');
+    const startupRunnerStarted = /^TAP version 13$/mu.test(result.stdout);
+    const startupTestRan = await fileExists(marker);
+    const startupEventDirectories = (await readdir(stateRoot)).filter((entry) =>
+      entry.startsWith('strict-test-events-'),
+    );
+    assert.deepEqual(
+      {
+        exitCode: result.status,
+        signal: result.signal,
+        summaryCount: startupSummaries.length,
+        summaryIsFinal: startupSummaryIsFinal,
+        summaryFailed: startupSummaryFailed,
+        runnerStarted: startupRunnerStarted,
+        testRan: startupTestRan,
+        remainingEventDirectories: startupEventDirectories,
+      },
+      {
+        exitCode: expectedExitCode,
+        signal: null,
+        summaryCount: 1,
+        summaryIsFinal: true,
+        summaryFailed: true,
+        runnerStarted: false,
+        testRan: false,
+        remainingEventDirectories: [],
+      },
+      details,
+    );
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
+  }
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function waitForFile(path: string): Promise<number> {
   const deadline = Date.now() + 5000;
