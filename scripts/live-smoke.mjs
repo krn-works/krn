@@ -30,7 +30,10 @@ if (
 
 export function createLiveSmokeLedger() {
   return {
-    readContract: async () => ({
+    readContract: async (issue) => ({
+      ...(issue === 'live-codex-checkpoint-smoke'
+        ? { identifier: issue, description: '' }
+        : {}),
       revision: 'live-smoke-checkpoint-v1',
       checks: ['checkpoint-file'],
     }),
