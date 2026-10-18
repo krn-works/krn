@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import {
   appendFile,
   mkdir,
@@ -221,6 +222,376 @@ test('job outcomes redact credentials and bound error messages', async () => {
     assert.ok(!JSON.stringify(outcomes).includes('secret-value-123'));
   } finally {
     await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('error type fields preserve standard names and omit credential-bearing custom names', async () => {
+  const f = await fixture();
+  const githubName = `ghp_${'A'.repeat(36)}`;
+  const awsName = `AKIA${'A'.repeat(16)}`;
+  try {
+    const githubError = new Error('ordinary GitHub failure');
+    githubError.name = githubName;
+    trace.jobOutcome(f.job, {
+      exitCode: 1,
+      signal: null,
+      cleanup: 'verified',
+      reason: 'runjob-error',
+      error: githubError,
+    });
+    trace.jobOutcome(f.job, {
+      exitCode: 1,
+      signal: null,
+      cleanup: 'verified',
+      reason: 'runjob-error',
+      error: new TypeError('ordinary public type'),
+    });
+    const awsError = new Error('ordinary AWS failure');
+    awsError.name = awsName;
+    await failure(f.job, 'error-type-redaction', awsError);
+
+    const rows = (await readFile(f.tracePath, 'utf8'))
+      .split('\n')
+      .filter(Boolean)
+      .map(
+        (line) =>
+          JSON.parse(line) as {
+            kind: string;
+            data: {
+              error?: { type: string; message: string };
+              errorType?: string;
+            };
+          },
+      );
+    const outcomes = rows.filter((row) => row.kind === 'job_outcome');
+    const failed = rows.find((row) => row.kind === 'failure');
+    assert.deepEqual(
+      outcomes.map((row) => row.data.error?.type),
+      ['Error', 'TypeError'],
+      'credential-shaped custom names must map to the fixed public fallback',
+    );
+    assert.equal(outcomes[0]?.data.error?.message, 'ordinary GitHub failure');
+    assert.equal(failed?.data.errorType, 'Error');
+    assert.ok(
+      !JSON.stringify(rows).includes(githubName),
+      'GitHub-shaped type must not be persisted',
+    );
+    assert.ok(
+      !JSON.stringify(rows).includes(awsName),
+      'AWS-shaped type must not be persisted',
+    );
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('concurrent trace.started callers return true only for the stored session row', {
+  timeout: 15_000,
+}, async () => {
+  const f = await fixture();
+  const barrier = join(f.directory, 'started-race');
+  await mkdir(barrier);
+  await mkdir(dirname(f.tracePath), { recursive: true });
+  const jobFile = join(barrier, 'job.json');
+  const preload = join(barrier, 'preload.mjs');
+  const child = join(barrier, 'started.mjs');
+  const traceUrl = new URL('../../src/trace/index.ts', import.meta.url).href;
+  await writeFile(jobFile, JSON.stringify(f.job));
+  await writeFile(
+    preload,
+    `
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const root = process.env.KRN_STARTED_RACE_DIR;
+const tracePath = process.env.KRN_STARTED_RACE_TRACE;
+const sessionId = process.env.KRN_STARTED_RACE_SESSION;
+const peer = sessionId === 'session-a' ? 'session-b' : 'session-a';
+const seen = root + '/' + sessionId + '-saw-empty';
+const peerSeen = root + '/' + peer + '-saw-empty';
+const exists = fs.existsSync;
+let paused = false;
+fs.existsSync = function (path, ...args) {
+  const found = exists.call(this, path, ...args);
+  if (!paused && String(path) === tracePath) {
+    paused = true;
+    fs.writeFileSync(seen, '1');
+    const cell = new Int32Array(new SharedArrayBuffer(4));
+    const until = Date.now() + 8000;
+    while (!exists.call(this, peerSeen)) {
+      if (Date.now() >= until)
+        throw new Error('started-race barrier timed out waiting for peer read');
+      Atomics.wait(cell, 0, 0, 5);
+    }
+  }
+  return found;
+};
+syncBuiltinESMExports();
+`,
+  );
+  await writeFile(
+    child,
+    `
+import { readFileSync } from 'node:fs';
+import { started } from ${JSON.stringify(traceUrl)};
+const job = JSON.parse(readFileSync(process.env.KRN_STARTED_RACE_JOB, 'utf8'));
+const sessionId = process.env.KRN_STARTED_RACE_SESSION;
+const accepted = await started(job, 'intent-race', sessionId);
+process.stdout.write(JSON.stringify({ sessionId, accepted }) + '\\n');
+`,
+  );
+
+  const run = (sessionId: string) =>
+    spawn(process.execPath, ['--import', preload, child], {
+      cwd: f.directory,
+      env: {
+        ...process.env,
+        KRN_STARTED_RACE_DIR: barrier,
+        KRN_STARTED_RACE_TRACE: f.tracePath,
+        KRN_STARTED_RACE_JOB: jobFile,
+        KRN_STARTED_RACE_SESSION: sessionId,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  const first = run('session-a');
+  const second = run('session-b');
+  const collect = (process: ReturnType<typeof spawn>) =>
+    new Promise<{
+      code: number | null;
+      stdout: string;
+      stderr: string;
+    }>((resolve) => {
+      let stdout = '';
+      let stderr = '';
+      process.stdout?.setEncoding('utf8').on('data', (chunk) => {
+        stdout += chunk;
+      });
+      process.stderr?.setEncoding('utf8').on('data', (chunk) => {
+        stderr += chunk;
+      });
+      process.once('close', (code) => resolve({ code, stdout, stderr }));
+    });
+  try {
+    const [firstResult, secondResult] = await Promise.all([
+      collect(first),
+      collect(second),
+    ]);
+    assert.equal(firstResult.code, 0, firstResult.stderr);
+    assert.equal(secondResult.code, 0, secondResult.stderr);
+    const results = [firstResult, secondResult].map(
+      (result) =>
+        JSON.parse(result.stdout.trim()) as {
+          sessionId: string;
+          accepted: boolean;
+        },
+    );
+    const rows = (await readFile(f.tracePath, 'utf8'))
+      .split('\n')
+      .filter(Boolean)
+      .map(
+        (line) =>
+          JSON.parse(line) as {
+            key: string;
+            kind: string;
+            data: { sessionId?: string };
+          },
+      );
+    const winner = rows.find((row) => row.key === 'intent-race:session');
+    assert.equal(winner?.kind, 'session_started');
+    assert.equal(
+      results.filter((result) => result.accepted).length,
+      1,
+      'exactly the caller whose immutable row won may report acceptance',
+    );
+    assert.deepEqual(
+      results
+        .filter((result) => result.accepted)
+        .map((result) => result.sessionId),
+      [winner?.data.sessionId],
+      'no caller may report a different session as durable',
+    );
+  } finally {
+    for (const process of [first, second]) {
+      if (process.exitCode === null && process.signalCode === null)
+        process.kill('SIGKILL');
+    }
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('trace appenders reclaim a real zombie owner and retain both rows', {
+  timeout: 15_000,
+}, async (t) => {
+  const scratch = join(process.cwd(), '.krn/tmp');
+  await mkdir(scratch, { recursive: true });
+  const directory = await mkdtemp(join(scratch, 'trace-zombie-owner-'));
+  const job: Job = {
+    id: `trace-zombie-${randomUUID()}`,
+    issue: 'LON-291',
+    worktree: directory,
+    repoRoot: directory,
+  };
+  const initialized = spawnSync('git', ['-C', directory, 'init', '--quiet'], {
+    encoding: 'utf8',
+  });
+  assert.equal(initialized.status, 0, initialized.stderr);
+  const tracePath = join(stateDirectory(job), 'trace.jsonl');
+  const parentScript = [
+    'import os, signal, time',
+    'pid = os.fork()',
+    'if pid == 0: os._exit(0)',
+    'def reap(_signum, _frame):',
+    '    os.waitpid(pid, 0)',
+    '    raise SystemExit(0)',
+    'signal.signal(signal.SIGTERM, reap)',
+    'print(pid, flush=True)',
+    'while True: time.sleep(0.05)',
+  ].join('\n');
+  const zombieParent = spawn('python3', ['-c', parentScript], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  let pidOutput = '';
+  let parentStderr = '';
+  zombieParent.stdout?.setEncoding('utf8').on('data', (chunk) => {
+    pidOutput += chunk;
+  });
+  zombieParent.stderr?.setEncoding('utf8').on('data', (chunk) => {
+    parentStderr += chunk;
+  });
+  const pidReady = new Promise<number>((resolve, reject) => {
+    const deadline = Date.now() + 5000;
+    const poll = () => {
+      const line = pidOutput.split('\n')[0];
+      if (line) {
+        resolve(Number(line));
+        return;
+      }
+      if (zombieParent.exitCode !== null || Date.now() >= deadline) {
+        reject(
+          new Error(
+            `zombie fixture parent did not publish PID: ${parentStderr}`,
+          ),
+        );
+        return;
+      }
+      setTimeout(poll, 10);
+    };
+    poll();
+  });
+  let zombiePid: number | undefined;
+  try {
+    zombiePid = await pidReady;
+    assert.ok(
+      zombiePid !== undefined &&
+        Number.isSafeInteger(zombiePid) &&
+        zombiePid > 0,
+    );
+    const ownerPid = zombiePid;
+    const statPath = `/proc/${ownerPid}/stat`;
+    const readIdentity = () => {
+      const raw = readFileSync(statPath, 'utf8');
+      const fields = raw
+        .slice(raw.lastIndexOf(')') + 2)
+        .trim()
+        .split(/\s+/u);
+      return { state: fields[0], startTicks: fields[19] };
+    };
+    const deadline = Date.now() + 3000;
+    let identity = readIdentity();
+    while (identity.state !== 'Z' && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      identity = readIdentity();
+    }
+    assert.equal(identity.state, 'Z', 'fixture child must be a real zombie');
+    assert.match(identity.startTicks ?? '', /^\d+$/u);
+    assert.doesNotThrow(() => process.kill(ownerPid, 0));
+    t.diagnostic(
+      `zombie owner pid=${ownerPid} startTicks=${identity.startTicks} procState=${identity.state}`,
+    );
+
+    const traceDirectory = dirname(tracePath);
+    await mkdir(traceDirectory, { recursive: true });
+    const lockPath = `${tracePath}.lock`;
+    await writeFile(
+      lockPath,
+      JSON.stringify({
+        pid: ownerPid,
+        startTicks: identity.startTicks,
+        token: randomUUID(),
+      }),
+    );
+    const barrier = join(directory, 'zombie-appenders');
+    await mkdir(barrier);
+    const jobFile = join(barrier, 'job.json');
+    const child = join(barrier, 'append.mjs');
+    await writeFile(jobFile, JSON.stringify(job));
+    const traceUrl = new URL('../../src/trace/index.ts', import.meta.url).href;
+    await writeFile(
+      child,
+      `
+import { readFileSync } from 'node:fs';
+import { verdict } from ${JSON.stringify(traceUrl)};
+const job = JSON.parse(readFileSync(process.env.KRN_ZOMBIE_JOB, 'utf8'));
+const sha = process.env.KRN_ZOMBIE_SHA;
+await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha256: sha.padEnd(64, '0').slice(0, 64) }] });
+`,
+    );
+    const run = (sha: string) =>
+      spawn(process.execPath, [child], {
+        cwd: directory,
+        env: {
+          ...process.env,
+          KRN_ZOMBIE_JOB: jobFile,
+          KRN_ZOMBIE_SHA: sha,
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    const first = run('a'.repeat(40));
+    const second = run('b'.repeat(40));
+    const collect = (process: ReturnType<typeof spawn>) =>
+      new Promise<{ code: number | null; stderr: string }>((resolve) => {
+        let stderr = '';
+        process.stderr?.setEncoding('utf8').on('data', (chunk) => {
+          stderr += chunk;
+        });
+        process.once('close', (code) => resolve({ code, stderr }));
+      });
+    try {
+      const [firstResult, secondResult] = await Promise.all([
+        collect(first),
+        collect(second),
+      ]);
+      assert.equal(firstResult.code, 0, firstResult.stderr);
+      assert.equal(secondResult.code, 0, secondResult.stderr);
+      const rows = (await readFile(tracePath, 'utf8'))
+        .split('\n')
+        .filter(Boolean)
+        .map((line) => JSON.parse(line) as { data: { sha?: string } });
+      assert.deepEqual(
+        rows.map((row) => row.data.sha).sort(),
+        ['a'.repeat(40), 'b'.repeat(40)],
+        'both independent appends must remain durable',
+      );
+      await assert.rejects(readFile(lockPath), { code: 'ENOENT' });
+      await assert.rejects(readFile(`${lockPath}.reclaim`), { code: 'ENOENT' });
+    } finally {
+      for (const process of [first, second]) {
+        if (process.exitCode === null && process.signalCode === null)
+          process.kill('SIGKILL');
+      }
+    }
+  } finally {
+    if (zombieParent.exitCode === null && zombieParent.signalCode === null) {
+      const closed = new Promise<void>((resolve) =>
+        zombieParent.once('close', () => resolve()),
+      );
+      zombieParent.kill('SIGTERM');
+      await closed;
+    }
+    if (zombiePid !== undefined)
+      assert.throws(() => readFileSync(`/proc/${zombiePid}/stat`), {
+        code: 'ENOENT',
+      });
+    await rm(directory, { recursive: true, force: true });
   }
 });
 

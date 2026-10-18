@@ -191,10 +191,18 @@ test('live-l1 records a bounded error outcome when runJob rejects', async () => 
   const jobId = 'outcome-error';
   const api = await liveIssue(issue);
   const job = { id: jobId, issue, worktree: root, repoRoot: root };
+  const maliciousName = `ghp_${'A'.repeat(36)}`;
+  const preload = join(root, 'malicious-error-name.mjs');
+  await writeFile(
+    preload,
+    `Object.defineProperty(Error.prototype, 'name', { configurable: true, get() { return ${JSON.stringify(maliciousName)}; } });\n`,
+  );
   let child: ReturnType<typeof spawn> | undefined;
   try {
     await relay.load(job, { revision: 'stale-contract-revision' });
-    child = startLive(root, jobId, issue, api.apiUrl);
+    child = startLive(root, jobId, issue, api.apiUrl, {
+      NODE_OPTIONS: `--import=${preload}`,
+    });
     const result = await collect(child);
     const tracePath = join(stateDirectory(job), 'trace.jsonl');
     const rows = (await readFile(tracePath, 'utf8').catch(() => ''))
@@ -205,6 +213,17 @@ test('live-l1 records a bounded error outcome when runJob rejects', async () => 
           JSON.parse(line) as { kind: string; data: Record<string, unknown> },
       );
     const outcome = rows.findLast((row) => row.kind === 'job_outcome');
+    const printedError = result.stdout
+      .trim()
+      .split('\n')
+      .map((line) => {
+        try {
+          return JSON.parse(line) as { error?: { type?: string } };
+        } catch {
+          return {};
+        }
+      })
+      .find((line) => line.error !== undefined)?.error;
     const checks = [
       { name: 'runJob error exits 1', pass: result.code === 1 },
       {
@@ -225,7 +244,19 @@ test('live-l1 records a bounded error outcome when runJob rejects', async () => 
         name: 'final trace outcome records the error',
         pass:
           outcome?.data.reason === 'runjob-error' &&
-          outcome.data.cleanup === 'verified',
+          outcome.data.cleanup === 'verified' &&
+          (outcome.data.error as { type?: string } | undefined)?.type ===
+            'Error',
+      },
+      {
+        name: 'live-l1 JSON uses the same safe error type',
+        pass: printedError?.type === 'Error',
+      },
+      {
+        name: 'credential-shaped type is absent from trace and stdout',
+        pass:
+          !JSON.stringify(rows).includes(maliciousName) &&
+          !result.stdout.includes(maliciousName),
       },
       {
         name: 'outcome does not contain a stack',
@@ -285,6 +316,62 @@ test('live-l1 reports setup errors without creating a job trace', async () => {
     if (child && child.exitCode === null && child.signalCode === null)
       child.kill('SIGKILL');
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('live-l1 reports a verified setup SIGTERM as stopped with exit 130', {
+  timeout: 20_000,
+}, async () => {
+  const root = await repoFixture();
+  const issue = 'I-OUTCOME-SETUP-STOP';
+  const jobId = 'outcome-setup-stop';
+  const api = await liveIssue(issue);
+  const scratch = join(process.cwd(), '.krn/tmp');
+  await mkdir(scratch, { recursive: true });
+  const fakeBin = await mkdtemp(join(scratch, 'live-setup-stop-bin-'));
+  const marker = join(fakeBin, 'check-ignore-started');
+  await writeFile(
+    join(fakeBin, 'git'),
+    `#!/bin/sh
+for arg in "$@"; do
+  if [ "$arg" = check-ignore ]; then
+    : > ${JSON.stringify(marker)}
+    exec /bin/sleep 120
+  fi
+done
+exec /usr/bin/git "$@"
+`,
+  );
+  await chmod(join(fakeBin, 'git'), 0o755);
+  let child: ReturnType<typeof spawn> | undefined;
+  try {
+    child = startLive(root, jobId, issue, api.apiUrl, {
+      PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
+    });
+    const resultPromise = collect(child);
+    await waitForFile(marker);
+    child.kill('SIGTERM');
+    const result = await resultPromise;
+    assert.equal(result.code, 130, `${result.stdout}\n${result.stderr}`);
+    const output = JSON.parse(result.stdout.trim()) as {
+      outcome: { kind: string; phase: string };
+      error: unknown;
+    };
+    assert.deepEqual(output.outcome, { kind: 'stopped', phase: 'setup' });
+    assert.equal(output.error, null);
+    await assert.rejects(
+      access(join(root, '.krn', 'runs', 'foreman', jobId)),
+      { code: 'ENOENT' },
+      'setup cancellation before job creation must not invent a durable job',
+    );
+  } finally {
+    if (child && child.exitCode === null && child.signalCode === null)
+      child.kill('SIGKILL');
+    await Promise.all([
+      api.close(),
+      rm(root, { recursive: true, force: true }),
+      rm(fakeBin, { recursive: true, force: true }),
+    ]);
   }
 });
 
@@ -395,6 +482,9 @@ while :; do /bin/sleep 1; done
     );
     await writeFile(failShow, '1');
     child.kill('SIGTERM');
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    if (child.exitCode === null && child.signalCode === null)
+      child.kill('SIGTERM');
     const result = await resultPromise;
     const rows = (await readFile(tracePath, 'utf8'))
       .split('\n')

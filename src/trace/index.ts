@@ -27,6 +27,7 @@ import { repoRecord, stateDirectory } from '../foreman/state.ts';
 import type { SessionEnd } from '../foreman/types.ts';
 import {
   codexScopeUnit,
+  processHasIdentity,
   processStartTicks,
   type SystemdScopeRegistration,
   validateSystemdScopeRegistration,
@@ -573,7 +574,7 @@ function lockOwnerIsLive(
   const ticks = processStartTicks(owner.pid);
   if (ticks === undefined) return undefined;
   if (ticks !== owner.startTicks) return false;
-  return true;
+  return processHasIdentity(owner.pid, owner.startTicks);
 }
 
 function createTraceLock(
@@ -819,28 +820,28 @@ export async function started(
     );
   }
   // Session starts are unique by opaque host identity, while the intent key fences retries.
-  const prior = events(job).find(
-    (event) => event.key === `${intentId}:session`,
-  );
+  const sessionKey = `${intentId}:session`;
+  const matchesSession = (event: Event): boolean => {
+    if (event.data.sessionId !== sessionId) return false;
+    if (!scopeRegistration) return true;
+    const previous = validateSystemdScopeRegistration(
+      event.data.scopeRegistration,
+      expectedUnit ?? '',
+    );
+    return (
+      event.data.jobId === job.id &&
+      event.data.isolation === 'systemd_scope' &&
+      previous !== undefined &&
+      previous.controlGroup === scopeRegistration.controlGroup &&
+      previous.pid === scopeRegistration.pid &&
+      previous.startTicks === scopeRegistration.startTicks
+    );
+  };
+  const prior = events(job).find((event) => event.key === sessionKey);
   if (prior) {
-    if (prior.data.sessionId !== sessionId) return false;
-    if (scopeRegistration) {
-      const previous = validateSystemdScopeRegistration(
-        prior.data.scopeRegistration,
-        expectedUnit ?? '',
-      );
-      return (
-        prior.data.jobId === job.id &&
-        prior.data.isolation === 'systemd_scope' &&
-        previous !== undefined &&
-        previous.controlGroup === scopeRegistration.controlGroup &&
-        previous.pid === scopeRegistration.pid &&
-        previous.startTicks === scopeRegistration.startTicks
-      );
-    }
-    return true;
+    return matchesSession(prior);
   }
-  append(job, `${intentId}:session`, 'session_started', {
+  const appended = append(job, sessionKey, 'session_started', {
     intent: intentId,
     jobId: job.id,
     sessionId,
@@ -849,7 +850,14 @@ export async function started(
     isolation: isolation ?? 'unknown',
     ...(scopeRegistration === undefined ? {} : { scopeRegistration }),
   });
-  return true;
+  if (appended) return true;
+  const winner = events(job).find((event) => event.key === sessionKey);
+  return (
+    winner?.kind === 'session_started' &&
+    winner.data.intent === intentId &&
+    winner.data.jobId === job.id &&
+    matchesSession(winner)
+  );
 }
 
 export async function checkpoint(
@@ -1019,7 +1027,7 @@ export async function failure(
   error: unknown,
 ): Promise<void> {
   append(job, `${intentId}:failure`, 'failure', {
-    errorType: error instanceof Error ? error.name : typeof error,
+    errorType: safeErrorType(error),
   });
 }
 
@@ -1201,9 +1209,49 @@ function containsInterventionCredential(note: string): boolean {
   );
 }
 
+const safeErrorTypes = new Set([
+  'AbortError',
+  'AggregateError',
+  'AssertionError',
+  'DOMException',
+  'Error',
+  'EvalError',
+  'RangeError',
+  'ReferenceError',
+  'SyntaxError',
+  'SystemError',
+  'TimeoutError',
+  'TypeError',
+  'URIError',
+  'bigint',
+  'boolean',
+  'function',
+  'number',
+  'object',
+  'string',
+  'symbol',
+  'undefined',
+]);
+
+export function safeErrorType(error: unknown): string {
+  let candidate: unknown;
+  try {
+    candidate = error instanceof Error ? error.name : typeof error;
+  } catch {
+    return 'Error';
+  }
+  if (
+    typeof candidate !== 'string' ||
+    !safeErrorTypes.has(candidate) ||
+    credentialShapeKind(candidate) !== null ||
+    containsInterventionCredential(candidate)
+  )
+    return 'Error';
+  return candidate;
+}
+
 function boundedError(error: unknown): { type: string; message: string } {
-  const rawType = error instanceof Error ? error.name : typeof error;
-  const type = rawType.replace(/[^A-Za-z0-9_.-]/gu, '').slice(0, 64) || 'Error';
+  const type = safeErrorType(error);
   const rawMessage = error instanceof Error ? error.message : String(error);
   const message =
     rawMessage.length > 4096

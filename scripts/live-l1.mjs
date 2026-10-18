@@ -13,6 +13,8 @@ import { createPaperclipCliTransport } from '../src/ledger/paperclip-cli.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
 
+let setupSignalOutcome;
+
 async function main() {
   let cancelPaperclip = async () => {};
   let host;
@@ -20,6 +22,8 @@ async function main() {
   let stopSignal;
   let stopPromise;
   let finalizing = false;
+  let setupComplete = false;
+  let jobCreationFinished = false;
   const stop = async (signal = 'SIGTERM') => {
     if (stopPromise) return stopPromise;
     if (finalizing) return [];
@@ -36,6 +40,25 @@ async function main() {
     process.on(signal, handler);
     return { signal, handler };
   });
+  setupSignalOutcome = async () => {
+    if (setupComplete || jobCreationFinished || !abortController.signal.aborted)
+      return false;
+    const settled = await (stopPromise ?? Promise.resolve([]));
+    const failed = settled.some((result) => result.status === 'rejected');
+    process.stdout.write(
+      `${JSON.stringify({
+        outcome: {
+          kind: failed ? 'error' : 'stopped',
+          phase: 'setup',
+        },
+        error: failed ? { type: 'CleanupError' } : null,
+      })}\n`,
+    );
+    for (const { signal: signalName, handler } of signals)
+      process.removeListener(signalName, handler);
+    process.exitCode = failed ? 1 : 130;
+    return true;
+  };
 
   if (process.env.KRN_LIVE !== '1') {
     process.stderr.write('Set KRN_LIVE=1 to start the L1 live foreman run.\n');
@@ -137,35 +160,15 @@ async function main() {
           transport: paperclipTransport,
         });
       })();
-  let contract;
-  let board;
-  try {
-    ({ contract, board } = await loadLiveContract(paperclip, issue, {
-      origin,
-      ...(revision === undefined ? {} : { revision }),
-    }));
-  } catch (error) {
-    if (abortController.signal.aborted) {
-      const settled = await stopPromise;
-      const failed = settled.some((result) => result.status === 'rejected');
-      process.stdout.write(
-        `${JSON.stringify({
-          outcome: { kind: 'stopped', phase: 'setup' },
-          error: null,
-        })}\n`,
-      );
-      for (const { signal: signalName, handler } of signals)
-        process.removeListener(signalName, handler);
-      process.exitCode = failed ? 1 : stopSignal === 'wall-timeout' ? 124 : 130;
-      return;
-    }
-    throw error;
-  }
+  const { contract, board } = await loadLiveContract(paperclip, issue, {
+    origin,
+    ...(revision === undefined ? {} : { revision }),
+  });
   const liveLedger = withLiveSubmissionGate(
     { ...paperclip, readContract: async () => contract },
     process.argv.includes('--submit'),
   );
-  const ignoredTrace = (root) =>
+  const ignoredTrace = (root, cancellable = true) =>
     command(
       'git',
       [
@@ -175,7 +178,7 @@ async function main() {
         '-q',
         `.krn/runs/foreman/${jobId}/trace.jsonl`,
       ],
-      { signal: abortController.signal },
+      cancellable ? { signal: abortController.signal } : {},
     );
   if ((await ignoredTrace(repo)).status !== 0)
     throw new Error(
@@ -192,13 +195,14 @@ async function main() {
     const started = await command(
       process.execPath,
       [cli, 'start', '--job', jobId, '--issue', issue],
-      { cwd: repo, signal: abortController.signal },
+      { cwd: repo },
     );
     if (started.status !== 0)
       throw new Error(started.stderr || 'job worktree creation failed');
     job = JSON.parse(started.stdout);
+    jobCreationFinished = true;
   }
-  const ignored = await ignoredTrace(job.worktree);
+  const ignored = await ignoredTrace(job.worktree, false);
   if (ignored.status !== 0)
     throw new Error(
       `job repository must ignore .krn/runs/foreman/${jobId}/trace.jsonl`,
@@ -212,6 +216,7 @@ async function main() {
   );
   if (!Number.isSafeInteger(wallTimeMs) || wallTimeMs <= 0)
     throw new Error('invalid live wall-time limit');
+  setupComplete = true;
   const wallTimer = setTimeout(() => void stop('wall-timeout'), wallTimeMs);
   let outcome;
   let runError;
@@ -333,7 +338,7 @@ async function main() {
       ...(runError
         ? {
             error: {
-              type: runError instanceof Error ? runError.name : 'Error',
+              type: trace.safeErrorType(runError),
             },
           }
         : {}),
@@ -343,7 +348,8 @@ async function main() {
   process.exitCode = exitCode;
 }
 
-main().catch(() => {
+main().catch(async () => {
+  if (await setupSignalOutcome?.()) return;
   process.stdout.write(
     `${JSON.stringify({
       outcome: { kind: 'error', phase: 'setup' },
