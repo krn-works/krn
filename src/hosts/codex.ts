@@ -368,7 +368,7 @@ export class CodexHost {
         child.stdin.end(prompt);
       }
       const timer = setTimeout(
-        () => void this.cancelTree(id),
+        () => void this.cancelTree(id).catch(() => undefined),
         input.limits.timeoutMs,
       );
       timer.unref();
@@ -614,7 +614,8 @@ class RunningSession {
   }
 
   wait(): Promise<CodexSessionResult> {
-    this.#result ??= this.#close.then(({ code, signal }) => {
+    this.#result ??= this.#close.then(async ({ code, signal }) => {
+      if (this.#cancelPromise) await this.#cancelPromise;
       if (this.#lineBuffer) this.consumeLine(this.#lineBuffer);
       const reasonKind = this.#overflow
         ? 'line_limit'
@@ -676,14 +677,14 @@ class RunningSession {
     }
     if (Buffer.byteLength(this.#lineBuffer) > lineLimit) {
       this.#overflow = true;
-      void this.cancel();
+      void this.cancel().catch(() => undefined);
     }
   }
 
   private consumeLine(line: string): void {
     if (Buffer.byteLength(line) > lineLimit) {
       this.#overflow = true;
-      void this.cancel();
+      void this.cancel().catch(() => undefined);
       return;
     }
     if (!line) return;
@@ -692,7 +693,7 @@ class RunningSession {
       event = record(JSON.parse(line) as unknown);
     } catch {
       this.#malformed = true;
-      void this.cancel();
+      void this.cancel().catch(() => undefined);
       return;
     }
     if (

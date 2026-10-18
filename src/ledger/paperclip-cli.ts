@@ -13,6 +13,13 @@ const MAX_OUTPUT_BYTES = 1024 * 1024;
 const PROCESS_GROUP_POLL_MS = 10;
 const BEST_EFFORT_REAP_MS = 500;
 
+class PaperclipScopeCleanupVerificationError extends Error {
+  constructor() {
+    super('Paperclip CLI scope could not be stopped and verified');
+    this.name = 'PaperclipScopeCleanupVerificationError';
+  }
+}
+
 function commandFailure(stderr: string, environment: NodeJS.ProcessEnv): Error {
   let excerpt = stderr;
   const credentials = Object.entries(environment)
@@ -141,9 +148,7 @@ function runPaperclip(
         try {
           await killAndVerifyScope(scope, scopeEnvironment);
         } catch {
-          cleanupError = new Error(
-            'Paperclip CLI scope could not be stopped and verified',
-          );
+          cleanupError = new PaperclipScopeCleanupVerificationError();
         }
         if (!settled) {
           settled = true;
@@ -261,6 +266,7 @@ export function createPaperclipCliTransport(
     throw new Error('invalid Paperclip CLI output limit');
   const resolvedIds = new Map<string, string>();
   const activeCalls = new Set<Promise<unknown>>();
+  const cleanupFailures = new Set<PaperclipScopeCleanupVerificationError>();
   function invoke(
     args: readonly string[],
     requestSignal?: AbortSignal,
@@ -291,6 +297,8 @@ export function createPaperclipCliTransport(
         return value;
       },
       (error: unknown) => {
+        if (error instanceof PaperclipScopeCleanupVerificationError)
+          cleanupFailures.add(error);
         activeCalls.delete(pending);
         throw error;
       },
@@ -299,7 +307,21 @@ export function createPaperclipCliTransport(
   return {
     async cancelAll() {
       stopController.abort();
-      await Promise.allSettled([...activeCalls]);
+      const snapshot = [...activeCalls];
+      const settled = await Promise.allSettled(snapshot);
+      const failures = new Set(cleanupFailures);
+      for (const result of settled) {
+        if (
+          result.status === 'rejected' &&
+          result.reason instanceof PaperclipScopeCleanupVerificationError
+        )
+          failures.add(result.reason);
+      }
+      if (failures.size)
+        throw new AggregateError(
+          [...failures],
+          'Paperclip CLI scope cancellation could not be verified',
+        );
     },
     async readIssue(issueId, signal) {
       validIssueId(issueId);

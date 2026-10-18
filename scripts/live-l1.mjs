@@ -220,6 +220,7 @@ async function main() {
   const wallTimer = setTimeout(() => void stop('wall-timeout'), wallTimeMs);
   let outcome;
   let runError;
+  let runJobRejected = false;
   try {
     outcome = await runJob(job, {
       budget: {
@@ -244,9 +245,15 @@ async function main() {
       stop: (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
     });
   } catch (error) {
+    runJobRejected = true;
     runError = error;
   }
   clearTimeout(wallTimer);
+  const reportedRunError = runJobRejected
+    ? runError === undefined
+      ? new Error('runJob rejected without an error value')
+      : runError
+    : undefined;
 
   const cleanupFailures = [];
   let stopSettled = false;
@@ -301,7 +308,7 @@ async function main() {
     : null;
   const reason = traceFailure
     ? 'trace-error'
-    : runError
+    : runJobRejected
       ? 'runjob-error'
       : cleanupUnconfirmed
         ? 'cleanup-unconfirmed'
@@ -310,8 +317,8 @@ async function main() {
           : abortController.signal.aborted || outcome?.kind === 'stop'
             ? 'stopped'
             : 'completed';
-  let exitCode = runError || cleanupUnconfirmed ? 1 : 0;
-  if (!runError && !cleanupUnconfirmed && abortController.signal.aborted)
+  let exitCode = runJobRejected || cleanupUnconfirmed ? 1 : 0;
+  if (!runJobRejected && !cleanupUnconfirmed && abortController.signal.aborted)
     exitCode = stopSignal === 'wall-timeout' ? 124 : 130;
   if (traceFailure) exitCode = 1;
   let outcomePersisted = true;
@@ -322,7 +329,7 @@ async function main() {
       cleanup: cleanupUnconfirmed ? 'unconfirmed' : 'verified',
       reason,
       ...(outcome?.kind === undefined ? {} : { outcomeKind: outcome.kind }),
-      ...(runError === undefined ? {} : { error: runError }),
+      ...(runJobRejected ? { error: reportedRunError } : {}),
     });
   } catch {
     outcomePersisted = false;
@@ -334,11 +341,11 @@ async function main() {
     `${JSON.stringify({
       job,
       board,
-      outcome: runError ? null : outcome,
-      ...(runError
+      outcome: runJobRejected ? null : outcome,
+      ...(runJobRejected
         ? {
             error: {
-              type: trace.safeErrorType(runError),
+              type: trace.safeErrorType(reportedRunError),
             },
           }
         : {}),

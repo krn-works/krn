@@ -1,5 +1,14 @@
 import assert from 'node:assert/strict';
-import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -525,5 +534,346 @@ test('aborting a CLI request kills and waits for its process group', async (t) =
       } catch {}
     }
     await rm(fake.directory, { recursive: true, force: true });
+  }
+});
+
+test('cancelAll retains physical scope failures after their calls leave the active set', {
+  timeout: 30_000,
+}, async (t) => {
+  const testName =
+    'cancelAll retains physical scope failures after their calls leave the active set';
+  if (!requiresIsolation(t, testName, ['systemdUserScope'])) return;
+  const directory = await mkdtemp(join(tmpdir(), 'krn-paperclip-cancel-all-'));
+  const fakeBin = join(directory, 'bin');
+  const executable = join(fakeBin, 'paperclip');
+  const systemdRun = join(fakeBin, 'systemd-run');
+  const systemctl = join(fakeBin, 'systemctl');
+  const unitsPath = join(directory, 'units');
+  const startedPath = join(directory, 'started.jsonl');
+  const failUnitPath = join(directory, 'fail-unit');
+  const failureLogPath = join(directory, 'failures');
+  const originalPath = process.env.PATH;
+  const systemdEnv = { ...process.env };
+  systemdEnv.XDG_RUNTIME_DIR ??= `/run/user/${process.getuid?.() ?? 1000}`;
+  systemdEnv.DBUS_SESSION_BUS_ADDRESS ??= `unix:path=${systemdEnv.XDG_RUNTIME_DIR}/bus`;
+  const identities: Array<{ pid: number; startTicks: string }> = [];
+  let units: string[] = [];
+  let transport: ReturnType<typeof createPaperclipCliTransport> | undefined;
+  let firstSignal: AbortController | undefined;
+  let requests: Promise<unknown>[] = [];
+  try {
+    await mkdir(fakeBin);
+    await writeFile(
+      executable,
+      `#!${process.execPath}
+import { appendFileSync, readFileSync } from 'node:fs';
+const fields = readFileSync('/proc/self/stat', 'utf8').slice(readFileSync('/proc/self/stat', 'utf8').lastIndexOf(')') + 2).trim().split(/\\s+/u);
+appendFileSync(${JSON.stringify(startedPath)}, JSON.stringify({ pid: process.pid, startTicks: fields[19], issue: process.argv[3] }) + '\\n');
+setInterval(() => {}, 1000);
+`,
+    );
+    await writeFile(
+      systemdRun,
+      `#!/bin/sh
+previous=""
+for arg in "$@"; do
+  if [ "$previous" = "--unit" ]; then
+    case "$arg" in krn-paperclip-*.scope) printf "%s\\n" "$arg" >> ${JSON.stringify(unitsPath)};; esac
+  fi
+  previous="$arg"
+done
+exec /usr/bin/systemd-run "$@"
+`,
+    );
+    await writeFile(
+      systemctl,
+      `#!/bin/sh
+if [ "$1" = "--user" ] && [ "$2" = "show" ]; then
+  for arg in "$@"; do case "$arg" in krn-paperclip-*.scope) unit="$arg";; esac; done
+  expected=$(cat ${JSON.stringify(failUnitPath)} 2>/dev/null)
+  if [ -n "$expected" ] && [ "$unit" = "$expected" ]; then
+    printf "%s\\n" "$unit" >> ${JSON.stringify(failureLogPath)}
+    printf "injected registered-scope verification failure\\n" >&2
+    exit 42
+  fi
+fi
+exec /usr/bin/systemctl "$@"
+`,
+    );
+    await Promise.all(
+      [executable, systemdRun, systemctl].map((path) => chmod(path, 0o755)),
+    );
+    process.env.PATH = `${fakeBin}:${originalPath ?? ''}`;
+
+    const activeTransport = createPaperclipCliTransport({
+      executable,
+      timeoutMs: 10_000,
+    });
+    transport = activeTransport;
+    const activeFirstSignal = new AbortController();
+    firstSignal = activeFirstSignal;
+    const firstCall = activeTransport.readIssue(
+      'LON-201',
+      activeFirstSignal.signal,
+    );
+    const secondCall = activeTransport.readIssue('LON-202');
+    const firstSettled = firstCall.then(
+      () => ({ ok: true as const }),
+      (error: unknown) => ({ ok: false as const, error }),
+    );
+    const secondSettled = secondCall.then(
+      () => ({ ok: true as const }),
+      (error: unknown) => ({ ok: false as const, error }),
+    );
+    requests = [firstSettled, secondSettled];
+    const deadline = Date.now() + 10_000;
+    let registrations: Array<{
+      unit: string;
+      pid: number;
+      startTicks: string;
+    }> = [];
+    while (Date.now() < deadline) {
+      const unitRows = (await readFile(unitsPath, 'utf8').catch(() => ''))
+        .trim()
+        .split(/\r?\n/u)
+        .filter(Boolean);
+      const startedRows = (await readFile(startedPath, 'utf8').catch(() => ''))
+        .trim()
+        .split(/\r?\n/u)
+        .filter(Boolean)
+        .map((row) => JSON.parse(row) as { pid: number; startTicks: string });
+      if (unitRows.length === 2 && startedRows.length === 2) {
+        const qualified: typeof registrations = [];
+        for (const unit of unitRows) {
+          const shown = spawnSync(
+            '/usr/bin/systemctl',
+            [
+              '--user',
+              'show',
+              '--property=ActiveState',
+              '--property=ControlGroup',
+              '--value',
+              unit,
+            ],
+            { encoding: 'utf8', timeout: 3000, env: systemdEnv },
+          );
+          const [active = '', controlGroup = ''] = shown.stdout
+            .trimEnd()
+            .split(/\r?\n/u);
+          if (
+            shown.status !== 0 ||
+            active !== 'active' ||
+            !controlGroup.startsWith('/') ||
+            !controlGroup.endsWith(unit)
+          )
+            continue;
+          const members = readFileSync(
+            join('/sys/fs/cgroup', controlGroup.slice(1), 'cgroup.procs'),
+            'utf8',
+          )
+            .trim()
+            .split(/\s+/u)
+            .map(Number);
+          const identity = startedRows.find(({ pid, startTicks }) => {
+            if (!members.includes(pid)) return false;
+            try {
+              const raw = readFileSync(`/proc/${pid}/stat`, 'utf8');
+              const fields = raw
+                .slice(raw.lastIndexOf(')') + 2)
+                .trim()
+                .split(/\s+/u);
+              return fields[19] === startTicks;
+            } catch {
+              return false;
+            }
+          });
+          if (identity) qualified.push({ unit, ...identity });
+        }
+        registrations = qualified;
+        if (registrations.length === 2) break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    if (registrations.length !== 2)
+      t.diagnostic(
+        JSON.stringify({
+          unitRows: (await readFile(unitsPath, 'utf8').catch(() => ''))
+            .trim()
+            .split(/\r?\n/u)
+            .filter(Boolean),
+          startedRows: (await readFile(startedPath, 'utf8').catch(() => ''))
+            .trim()
+            .split(/\r?\n/u)
+            .filter(Boolean),
+        }),
+      );
+    assert.equal(registrations.length, 2, 'both independent scopes register');
+    const firstRegistration = registrations[0];
+    assert.ok(firstRegistration);
+    units = registrations.map(({ unit }) => unit);
+    identities.push(
+      ...registrations.map(({ pid, startTicks }) => ({ pid, startTicks })),
+    );
+    const members = registrations.map(({ unit, pid, startTicks }) => {
+      const shown = spawnSync(
+        '/usr/bin/systemctl',
+        ['--user', 'show', '--property=ControlGroup', '--value', unit],
+        { encoding: 'utf8', timeout: 3000, env: systemdEnv },
+      );
+      assert.equal(shown.status, 0, shown.stderr);
+      const cgroup = join('/sys/fs/cgroup', shown.stdout.trim().slice(1));
+      const pids = readFileSync(join(cgroup, 'cgroup.procs'), 'utf8')
+        .trim()
+        .split(/\s+/u)
+        .map(Number);
+      const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+      const fields = stat
+        .slice(stat.lastIndexOf(')') + 2)
+        .trim()
+        .split(/\s+/u);
+      assert.equal(fields[19], startTicks);
+      assert.ok(pids.includes(pid), `${pid} belongs to ${unit}`);
+      return { unit, pid, startTicks, cgroup };
+    });
+
+    await writeFile(failUnitPath, `${firstRegistration.unit}\n`);
+    activeFirstSignal.abort();
+    const firstResult = await firstSettled;
+    assert.equal(firstResult.ok, false);
+    if (firstResult.ok)
+      assert.fail('injected cleanup failure must reject first call');
+    assert.match(
+      firstResult.error instanceof Error
+        ? firstResult.error.message
+        : String(firstResult.error),
+      /scope could not be stopped and verified/u,
+    );
+    assert.equal(
+      (await readFile(failureLogPath, 'utf8')).trim(),
+      firstRegistration.unit,
+      'only the first exact registered scope has a failed verification',
+    );
+
+    const cancelAll = activeTransport.cancelAll;
+    if (!cancelAll)
+      throw new Error('Paperclip transport must expose cancelAll');
+    await assert.rejects(
+      cancelAll.call(activeTransport),
+      (error) =>
+        error instanceof AggregateError &&
+        error.errors.length === 1 &&
+        error.errors[0] instanceof Error &&
+        /Paperclip CLI scope could not be stopped and verified/u.test(
+          error.errors[0].message,
+        ),
+    );
+    const secondResult = await secondSettled;
+    assert.equal(secondResult.ok, false);
+    if (secondResult.ok) assert.fail('cancelAll must abort second request');
+    assert.match(
+      secondResult.error instanceof Error
+        ? secondResult.error.message
+        : String(secondResult.error),
+      /request aborted/u,
+    );
+    t.diagnostic(
+      JSON.stringify({
+        registrations,
+        members,
+        injectedUnit: firstRegistration.unit,
+        cancelAllRetainedOneVerificationFailure: true,
+      }),
+    );
+  } finally {
+    if (originalPath === undefined) delete process.env.PATH;
+    else process.env.PATH = originalPath;
+    firstSignal?.abort();
+    if (transport?.cancelAll)
+      await transport.cancelAll().catch(() => undefined);
+    await Promise.all(requests);
+    units = (await readFile(unitsPath, 'utf8').catch(() => ''))
+      .trim()
+      .split(/\r?\n/u)
+      .filter(Boolean);
+    identities.splice(
+      0,
+      identities.length,
+      ...(await readFile(startedPath, 'utf8').catch(() => ''))
+        .trim()
+        .split(/\r?\n/u)
+        .filter(Boolean)
+        .map((row) => JSON.parse(row) as { pid: number; startTicks: string }),
+    );
+    for (const unit of units) {
+      spawnSync(
+        '/usr/bin/systemctl',
+        ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', unit],
+        { encoding: 'utf8', timeout: 5000, env: systemdEnv },
+      );
+      spawnSync('/usr/bin/systemctl', ['--user', 'stop', unit], {
+        encoding: 'utf8',
+        timeout: 5000,
+        env: systemdEnv,
+      });
+    }
+    const cleanupDeadline = Date.now() + 10_000;
+    let cleaned = false;
+    while (Date.now() < cleanupDeadline) {
+      cleaned =
+        units.every((unit) => {
+          const shown = spawnSync(
+            '/usr/bin/systemctl',
+            [
+              '--user',
+              'show',
+              '--property=ActiveState',
+              '--property=ControlGroup',
+              '--value',
+              unit,
+            ],
+            { encoding: 'utf8', timeout: 3000, env: systemdEnv },
+          );
+          if (shown.status !== 0) return true;
+          const [active = '', controlGroup = ''] = shown.stdout
+            .trimEnd()
+            .split(/\r?\n/u);
+          let pids: number[] = [];
+          if (controlGroup.startsWith('/'))
+            try {
+              pids = readFileSync(
+                join('/sys/fs/cgroup', controlGroup.slice(1), 'cgroup.procs'),
+                'utf8',
+              )
+                .trim()
+                .split(/\s+/u)
+                .filter(Boolean)
+                .map(Number);
+            } catch {}
+          return ['inactive', 'failed'].includes(active) && pids.length === 0;
+        }) &&
+        identities.every(({ pid, startTicks }) => {
+          try {
+            const raw = readFileSync(`/proc/${pid}/stat`, 'utf8');
+            const fields = raw
+              .slice(raw.lastIndexOf(')') + 2)
+              .trim()
+              .split(/\s+/u);
+            return (
+              fields[19] !== startTicks ||
+              fields[0] === 'Z' ||
+              fields[0] === 'X'
+            );
+          } catch {
+            return true;
+          }
+        });
+      if (cleaned) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    await rm(directory, { recursive: true, force: true });
+    assert.ok(
+      cleaned,
+      'all exact transient scopes and recorded processes stopped',
+    );
   }
 });
