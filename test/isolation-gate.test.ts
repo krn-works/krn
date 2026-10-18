@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import {
@@ -130,19 +137,28 @@ for (const [signal, exitCode] of [
   ['SIGTERM', 143],
 ] as const) {
   test(`${signal} of the test-suite wrapper stops its sleeping test child`, async () => {
-    await assertTestSuiteSignal(signal, exitCode);
+    await assertTestSuiteSignal(signal, exitCode, false);
+    await assertTestSuiteSignal(signal, exitCode, true);
   });
 }
 
 async function assertTestSuiteSignal(
   signal: NodeJS.Signals,
   expectedExitCode: number,
+  strictMode: boolean,
 ): Promise<void> {
   const directory = await mkdtemp(join(process.cwd(), 'test/wrapper-signal-'));
   const fixture = join(directory, 'sleeping.test.mjs');
   const pidFile = join(directory, 'child.pid');
   const wrapper = new URL('../scripts/test-suite.mjs', import.meta.url)
     .pathname;
+  const eventStateRoot = join(process.cwd(), '.krn/tmp');
+  await mkdir(eventStateRoot, { recursive: true });
+  const existingEventDirectories = new Set(
+    (await readdir(eventStateRoot)).filter((entry) =>
+      entry.startsWith('strict-test-events-'),
+    ),
+  );
   await writeFile(
     fixture,
     `import { spawn } from 'node:child_process';\nimport { writeFileSync } from 'node:fs';\nimport { test } from 'node:test';\ntest('sleeping test', async () => { const sleeper = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' }); writeFileSync(${JSON.stringify(pidFile)}, String(sleeper.pid)); await new Promise(() => {}); });\n`,
@@ -157,6 +173,9 @@ async function assertTestSuiteSignal(
   try {
     const wrapperEnv = { ...process.env };
     delete wrapperEnv.NODE_TEST_CONTEXT;
+    delete wrapperEnv.KRN_SCOPE_PROBE;
+    if (strictMode) wrapperEnv.KRN_REQUIRE_ZERO_ISOLATION_SKIPS = '1';
+    else delete wrapperEnv.KRN_REQUIRE_ZERO_ISOLATION_SKIPS;
     const runningWrapper = spawn(process.execPath, [wrapper, fixture], {
       cwd: process.cwd(),
       detached: true,
@@ -185,6 +204,19 @@ async function assertTestSuiteSignal(
     process.kill(wrapperPid, signal);
     const result = await exited;
     await waitForProcessExit(sleepingPid);
+    if (strictMode) {
+      assert.match(
+        output,
+        /^KRN_TEST_SUMMARY_JSON=.*"success":false/mu,
+        `${output}\n${errors}`,
+      );
+      const remainingEventDirectories = (await readdir(eventStateRoot)).filter(
+        (entry) =>
+          entry.startsWith('strict-test-events-') &&
+          !existingEventDirectories.has(entry),
+      );
+      assert.deepEqual(remainingEventDirectories, [], `${output}\n${errors}`);
+    }
     assert.deepEqual(
       {
         exitCode: result.code,

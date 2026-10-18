@@ -5,6 +5,7 @@ import {
   chmod,
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
   rm,
   symlink,
@@ -30,6 +31,7 @@ function fixtureEnv(): NodeJS.ProcessEnv {
   delete env.KRN_ISOLATION_CAPABILITIES;
   delete env.GITHUB_STEP_SUMMARY;
   delete env.KRN_FIXTURE_SUMMARY;
+  delete env.KRN_FIXTURE_TAP_TESTS;
   delete env.KRN_FIXTURE_DIRTIES;
   delete env.KRN_GATE_RAN;
   delete env.KRN_GH_BIN;
@@ -38,6 +40,112 @@ function fixtureEnv(): NodeJS.ProcessEnv {
   }
   env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS = '1';
   return env;
+}
+
+function nonStrictFixtureEnv(): NodeJS.ProcessEnv {
+  const env = fixtureEnv();
+  delete env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS;
+  return env;
+}
+
+const summaryPrefix = 'KRN_TEST_SUMMARY_JSON=';
+
+type StrictFixtureSummary = {
+  success: boolean;
+  counts: { tests: number };
+};
+
+function isStrictFixtureSummary(value: unknown): value is StrictFixtureSummary {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'success' in value &&
+    typeof value.success === 'boolean' &&
+    'counts' in value &&
+    typeof value.counts === 'object' &&
+    value.counts !== null &&
+    'tests' in value.counts &&
+    typeof value.counts.tests === 'number'
+  );
+}
+
+function strictSummary(result: ReturnType<typeof runNode>, scenario: string) {
+  const lines = result.stdout.match(/^KRN_TEST_SUMMARY_JSON=.*$/gmu) ?? [];
+  assert.equal(lines.length, 1, `${scenario}: ${resultDetails(result)}`);
+  const line = lines[0];
+  assert.ok(line, `${scenario}: missing structured summary`);
+  assert.equal(
+    result.stdout.trimEnd().split(/\r?\n/u).at(-1),
+    line,
+    `${scenario}: structured summary is not the final output line`,
+  );
+  const summary: unknown = JSON.parse(line.slice(summaryPrefix.length));
+  assert.ok(isStrictFixtureSummary(summary), `${scenario}: malformed summary`);
+  return summary;
+}
+
+function expectStrictRejected(
+  result: ReturnType<typeof runNode>,
+  scenario: string,
+  category: 'evidence' | 'wrapper',
+) {
+  expectRejected(result, scenario);
+  assert.equal(
+    strictSummary(result, scenario).success,
+    false,
+    resultDetails(result),
+  );
+  const reasonCategory =
+    category === 'evidence'
+      ? /^Strict test evidence rejected:/mu
+      : /^Test suite wrapper failed:/mu;
+  assert.match(
+    result.stderr,
+    reasonCategory,
+    `${scenario}: wrong rejection category\n${resultDetails(result)}`,
+  );
+}
+
+function expectStrictAccepted(
+  result: ReturnType<typeof runNode>,
+  scenario: string,
+) {
+  assert.equal(result.signal, null, `${scenario}: ${resultDetails(result)}`);
+  assert.equal(result.status, 0, `${scenario}: ${resultDetails(result)}`);
+  const summary = strictSummary(result, scenario);
+  assert.equal(summary.success, true, resultDetails(result));
+  return summary;
+}
+
+function expectNonStrictProbeRejected(
+  result: ReturnType<typeof runNode>,
+  scenario: string,
+) {
+  expectRejected(result, scenario);
+  assert.doesNotMatch(
+    result.stdout,
+    /^KRN_DISCOVERED=/mu,
+    resultDetails(result),
+  );
+  assert.doesNotMatch(
+    result.stdout,
+    /^KRN_TEST_SUMMARY_JSON=/mu,
+    resultDetails(result),
+  );
+  assert.match(
+    result.stderr,
+    /^Test suite wrapper failed:/mu,
+    resultDetails(result),
+  );
+}
+
+async function assertNoOwnedEventDirectories(project: string): Promise<void> {
+  const entries = await readdir(join(project, '.krn/tmp'));
+  assert.deepEqual(
+    entries.filter((entry) => entry.startsWith('strict-test-events-')),
+    [],
+    'strict event temp directories were not cleaned',
+  );
 }
 
 async function makeTempRoot(prefix: string): Promise<string> {
@@ -49,8 +157,12 @@ async function makeTempRoot(prefix: string): Promise<string> {
 async function makeProject(root: string, name: string): Promise<string> {
   const project = join(root, name);
   await mkdir(join(project, 'test'), { recursive: true });
-  await mkdir(join(project, '.krn'), { recursive: true });
-  await writeFile(join(project, '.node-version'), '24.21.0\n');
+  await mkdir(join(project, '.krn/tmp'), { recursive: true });
+  const nodeVersion = await readFile(
+    join(process.cwd(), '.node-version'),
+    'utf8',
+  );
+  await writeFile(join(project, '.node-version'), nodeVersion);
   return project;
 }
 
@@ -100,6 +212,7 @@ test('strict wrapper requires real native test evidence for every selected file'
       source?: string;
       args?: (file: string) => string[];
       accepted?: boolean;
+      rejection?: 'evidence' | 'wrapper';
     }> = [
       {
         name: 'a passing declared test remains accepted',
@@ -111,54 +224,71 @@ test('strict wrapper requires real native test evidence for every selected file'
         name: 'context skip is rejected',
         source:
           "import { test } from 'node:test'; test('context skip', (t) => t.skip('not available'));\n",
+        rejection: 'evidence',
       },
       {
         name: 'option skip is rejected',
         source:
           "import { test } from 'node:test'; test('option skip', { skip: 'not available' }, () => {});\n",
+        rejection: 'evidence',
       },
       {
         name: 'registration skip is rejected',
         source:
           "import { test } from 'node:test'; test.skip('registration skip', () => {});\n",
+        rejection: 'evidence',
       },
       {
         name: 'context todo is rejected',
         source:
           "import { test } from 'node:test'; test('context todo', (t) => t.todo('not implemented'));\n",
+        rejection: 'evidence',
       },
       {
         name: 'registration todo is rejected',
         source:
           "import { test } from 'node:test'; test.todo('registration todo', () => {});\n",
+        rejection: 'evidence',
       },
       {
         name: 'skipped suite is rejected even with zero summary skipped count',
         source:
           "import { describe, test } from 'node:test'; describe.skip('suite', () => test('nested', () => {}));\n",
+        rejection: 'evidence',
       },
       {
         name: 'nested skip is rejected when a sibling passes',
         source:
           "import { describe, test } from 'node:test'; describe('suite', () => { test('nested skip', { skip: true }, () => {}); test('real', () => {}); });\n",
+        rejection: 'evidence',
       },
-      { name: 'empty file implicit pass is rejected', source: '' },
+      {
+        name: 'empty file implicit pass is rejected',
+        source: '',
+        rejection: 'evidence',
+      },
       {
         name: 'early-exit implicit pass is rejected',
         source: 'process.exit(0);\n',
+        rejection: 'evidence',
       },
       {
         name: 'fake TAP totals cannot conceal a skipped test',
         source:
           "import { test } from 'node:test'; process.stdout.write('# tests 77\\n'); test('skipped', { skip: true }, () => {});\n",
+        rejection: 'evidence',
       },
       {
         name: 'runner filter arguments are rejected instead of accepting a partial run',
         source:
           "import { test } from 'node:test'; test('filtered out', () => {});\n",
         args: (file) => ['--test-name-pattern=never-matches', file],
+        rejection: 'wrapper',
       },
-      { name: 'default selection with no test files is rejected' },
+      {
+        name: 'default selection with no test files is rejected',
+        rejection: 'wrapper',
+      },
     ];
 
     for (const [index, scenario] of cases.entries()) {
@@ -179,13 +309,99 @@ test('strict wrapper requires real native test evidence for every selected file'
           fixtureEnv(),
         );
         if (scenario.accepted) {
-          assert.equal(result.signal, null, resultDetails(result));
-          assert.equal(result.status, 0, resultDetails(result));
+          expectStrictAccepted(result, scenario.name);
         } else {
-          expectRejected(result, scenario.name);
+          const rejection = scenario.rejection;
+          assert.ok(rejection);
+          expectStrictRejected(result, scenario.name, rejection);
         }
+        await assertNoOwnedEventDirectories(project);
       });
     }
+
+    await t.test(
+      'strict runner scrubs inherited NODE_TEST_CONTEXT and still runs the selected test',
+      async () => {
+        const project = await makeProject(root, 'inherited-context');
+        const marker = join(project, '.krn/tmp/ran');
+        const file = join(project, 'test/a.test.mjs');
+        await writeFile(
+          file,
+          `import { writeFileSync } from 'node:fs';\nimport { test } from 'node:test';\ntest('declared', () => writeFileSync(${JSON.stringify(marker)}, 'ran'));\n`,
+        );
+        const env = fixtureEnv();
+        env.NODE_TEST_CONTEXT = 'child';
+        const result = runNode(
+          process.execPath,
+          [testSuite, file],
+          project,
+          env,
+        );
+        const summary = expectStrictAccepted(result, 'scrubbed test context');
+        assert.equal(summary.counts.tests, 1);
+        assert.equal(await exists(marker), true);
+        await assertNoOwnedEventDirectories(project);
+      },
+    );
+
+    await t.test(
+      'strict probe with inherited context refuses without discovery or execution',
+      async () => {
+        const project = await makeProject(root, 'strict-probe-context');
+        const marker = join(project, '.krn/tmp/ran');
+        await writeFile(
+          join(project, 'test/a.test.mjs'),
+          `import { writeFileSync } from 'node:fs';\nimport { test } from 'node:test';\ntest('declared', () => writeFileSync(${JSON.stringify(marker)}, 'ran'));\n`,
+        );
+        const env = fixtureEnv();
+        env.KRN_SCOPE_PROBE = '1';
+        env.NODE_TEST_CONTEXT = 'child';
+        const result = runNode(process.execPath, [testSuite], project, env);
+        expectStrictRejected(
+          result,
+          'strict probe with inherited context',
+          'wrapper',
+        );
+        assert.doesNotMatch(result.stdout, /^KRN_DISCOVERED=/mu);
+        assert.equal(await exists(marker), false);
+        await assertNoOwnedEventDirectories(project);
+      },
+    );
+
+    await t.test(
+      'strict parent and non-strict nested probe discover without recursion',
+      async () => {
+        const project = await makeProject(root, 'nested-probe-chain');
+        const marker = join(project, '.krn/tmp/runs.log');
+        const file = join(project, 'test/a.test.mjs');
+        const source = [
+          "import assert from 'node:assert/strict';",
+          "import { appendFileSync } from 'node:fs';",
+          "import { spawnSync } from 'node:child_process';",
+          "import { test } from 'node:test';",
+          "test('nested probe is discovery-only', () => {",
+          String.raw`  appendFileSync(${JSON.stringify(marker)}, 'run\n');`,
+          '  assert.ok(process.env.NODE_TEST_CONTEXT);',
+          '  assert.equal(process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS, undefined);',
+          `  const probe = spawnSync(process.execPath, [${JSON.stringify(testSuite)}], { cwd: ${JSON.stringify(project)}, encoding: 'utf8', timeout: 10000, env: { ...process.env, KRN_SCOPE_PROBE: '1' } });`,
+          '  assert.equal(probe.error, undefined, probe.stderr);',
+          "  assert.equal(probe.status, 0, [probe.stdout, probe.stderr].join('\\n'));",
+          '  assert.match(probe.stdout, /^KRN_DISCOVERED=/mu);',
+          '  assert.doesNotMatch(probe.stdout, /^KRN_TEST_SUMMARY_JSON=/mu);',
+          '});',
+        ].join('\n');
+        await writeFile(file, source);
+        const result = runNode(
+          process.execPath,
+          [testSuite, file],
+          project,
+          fixtureEnv(),
+        );
+        expectStrictAccepted(result, 'nested discovery chain');
+        assert.equal(await readFile(marker, 'utf8'), 'run\n');
+        await assertNoOwnedEventDirectories(project);
+      },
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -209,10 +425,21 @@ test('scope probe discovers only project tests without recursively running them'
       `import { writeFileSync } from 'node:fs';\nimport { test } from 'node:test';\nwriteFileSync(${JSON.stringify(nestedMarker)}, 'ran');\ntest('nested test', () => {});\n`,
     );
 
+    const symlinkRootProject = await makeProject(root, 'symlink-root-project');
+    const symlinkTarget = join(symlinkRootProject, '.krn/worktrees/x');
+    const symlinkMarker = join(symlinkRootProject, '.krn/tmp/foreign-ran');
+    await mkdir(symlinkTarget, { recursive: true });
+    await writeFile(
+      join(symlinkTarget, 'foreign.test.mjs'),
+      `import { writeFileSync } from 'node:fs';\nimport { test } from 'node:test';\nwriteFileSync(${JSON.stringify(symlinkMarker)}, 'ran');\ntest('foreign', () => {});\n`,
+    );
+    await rm(join(symlinkRootProject, 'test'), { recursive: true });
+    await symlink(symlinkTarget, join(symlinkRootProject, 'test'), 'dir');
+
     await t.test(
       'child probe emits the exact project-only discovery and runs no tests',
       async () => {
-        const env = fixtureEnv();
+        const env = nonStrictFixtureEnv();
         env.KRN_SCOPE_PROBE = '1';
         env.NODE_TEST_CONTEXT = 'child';
         const result = runNode(process.execPath, [testSuite], project, env);
@@ -225,6 +452,7 @@ test('scope probe discovers only project tests without recursively running them'
         assert.deepEqual(JSON.parse(payload), [
           join(project, 'test/a.test.mjs'),
         ]);
+        assert.doesNotMatch(result.stdout, /^KRN_TEST_SUMMARY_JSON=/mu);
         assert.equal(
           await exists(projectMarker),
           false,
@@ -254,7 +482,7 @@ test('scope probe discovers only project tests without recursively running them'
           join(symlinkProject, 'test/foreign.test.mjs'),
         );
 
-        const env = fixtureEnv();
+        const env = nonStrictFixtureEnv();
         env.KRN_SCOPE_PROBE = '1';
         env.NODE_TEST_CONTEXT = 'child';
         const result = runNode(
@@ -263,26 +491,65 @@ test('scope probe discovers only project tests without recursively running them'
           symlinkProject,
           env,
         );
-        expectRejected(result, 'scope symlink outside test root');
+        expectNonStrictProbeRejected(result, 'scope symlink outside test root');
+      },
+    );
+
+    await t.test(
+      'non-strict probe refuses a symlinked project test root',
+      async () => {
+        const env = nonStrictFixtureEnv();
+        env.KRN_SCOPE_PROBE = '1';
+        env.NODE_TEST_CONTEXT = 'child';
+        const result = runNode(
+          process.execPath,
+          [testSuite],
+          symlinkRootProject,
+          env,
+        );
+        expectNonStrictProbeRejected(
+          result,
+          'symlinked project test root probe',
+        );
+        assert.equal(await exists(symlinkMarker), false);
+      },
+    );
+
+    await t.test(
+      'strict default selection refuses a symlinked project test root',
+      async () => {
+        const result = runNode(
+          process.execPath,
+          [testSuite],
+          symlinkRootProject,
+          fixtureEnv(),
+        );
+        expectStrictRejected(
+          result,
+          'symlinked project test root strict run',
+          'wrapper',
+        );
+        assert.equal(await exists(symlinkMarker), false);
+        await assertNoOwnedEventDirectories(symlinkRootProject);
       },
     );
 
     await t.test('empty discovery fails closed', async () => {
       const empty = await makeProject(root, 'empty-project');
-      const env = fixtureEnv();
+      const env = nonStrictFixtureEnv();
       env.KRN_SCOPE_PROBE = '1';
       env.NODE_TEST_CONTEXT = 'child';
       const result = runNode(process.execPath, [testSuite], empty, env);
-      expectRejected(result, 'empty scope discovery');
+      expectNonStrictProbeRejected(result, 'empty scope discovery');
     });
 
     await t.test(
-      'top-level probe flag without inherited test context is rejected',
+      'strict probe flag is refused without inherited test context',
       async () => {
         const env = fixtureEnv();
         env.KRN_SCOPE_PROBE = '1';
         const result = runNode(process.execPath, [testSuite], project, env);
-        expectRejected(result, 'top-level scope probe');
+        expectStrictRejected(result, 'top-level strict scope probe', 'wrapper');
       },
     );
   } finally {
@@ -296,7 +563,8 @@ test('gate-local publishes only a clean HEAD with complete structured evidence',
     const scenarios: Array<{
       name: string;
       dirty?: 'tracked' | 'untracked' | 'clean';
-      summary?: 'missing';
+      summary?: 'missing' | 'skip' | 'malformed-last';
+      tapCount?: number;
       dirties?: boolean;
     }> = [
       {
@@ -310,10 +578,19 @@ test('gate-local publishes only a clean HEAD with complete structured evidence',
       {
         name: 'clean structured-evidence control publishes exactly once',
         dirty: 'clean',
+        tapCount: 99,
       },
       {
         name: 'legacy TAP text without structured evidence refuses publication',
         summary: 'missing',
+      },
+      {
+        name: 'coherent structured skip summary refuses publication',
+        summary: 'skip',
+      },
+      {
+        name: 'malformed last summary overrides earlier valid summary',
+        summary: 'malformed-last',
       },
       {
         name: 'a gate that dirties the tree refuses publication',
@@ -340,6 +617,8 @@ test('gate-local publishes only a clean HEAD with complete structured evidence',
         env.KRN_GH_BIN = join(project, '.krn/tmp/fake-gh');
         env.KRN_GATE_RAN = gateRan;
         if (scenario.summary) env.KRN_FIXTURE_SUMMARY = scenario.summary;
+        if (scenario.tapCount)
+          env.KRN_FIXTURE_TAP_TESTS = String(scenario.tapCount);
         if (scenario.dirties) env.KRN_FIXTURE_DIRTIES = '1';
 
         const result = runNode(process.execPath, [gateLocal], project, env);
@@ -357,6 +636,12 @@ test('gate-local publishes only a clean HEAD with complete structured evidence',
           assert.ok(call);
           assert.ok(
             call.includes(`repos/krn-works/krn/statuses/${head}`),
+            call,
+          );
+          assert.ok(
+            call.includes(
+              'description=Gate passed: 1 tests, 0 isolation skips',
+            ),
             call,
           );
           return;
@@ -394,7 +679,11 @@ async function makeGitFixture(root: string, name: string): Promise<string> {
   const project = join(root, name);
   await mkdir(join(project, 'test'), { recursive: true });
   await mkdir(join(project, '.krn/tmp'), { recursive: true });
-  await writeFile(join(project, '.node-version'), '24.21.0\n');
+  const nodeVersion = await readFile(
+    join(process.cwd(), '.node-version'),
+    'utf8',
+  );
+  await writeFile(join(project, '.node-version'), nodeVersion);
   await writeFile(join(project, '.gitignore'), '.krn/\n');
   await writeFile(
     join(project, 'package.json'),
@@ -416,7 +705,7 @@ async function makeGitFixture(root: string, name: string): Promise<string> {
   );
   await writeFile(
     join(project, 'fake-gate.mjs'),
-    `import { appendFileSync, writeFileSync } from 'node:fs';\nappendFileSync(process.env.KRN_GATE_RAN, 'ran\\n');\nif (process.env.KRN_FIXTURE_DIRTIES === '1') writeFileSync('gate-created.txt', 'dirty\\n');\nconst counts = { tests: 1, passed: 1, failed: 0, skipped: 0, todo: 0, cancelled: 0 };\nconst summary = { version: 1, success: true, counts, files: [{ file: 'test/a.test.mjs', ...counts }] };\nconsole.log('# tests 1');\nconsole.log('Isolation-dependent tests skipped: 0');\nif (process.env.KRN_FIXTURE_SUMMARY !== 'missing') console.log('KRN_TEST_SUMMARY_JSON=' + JSON.stringify(summary));\n`,
+    `import { appendFileSync, writeFileSync } from 'node:fs';\nappendFileSync(process.env.KRN_GATE_RAN, 'ran\\n');\nif (process.env.KRN_FIXTURE_DIRTIES === '1') writeFileSync('gate-created.txt', 'dirty\\n');\nconst skipped = process.env.KRN_FIXTURE_SUMMARY === 'skip';\nconst counts = { tests: 1, passed: skipped ? 0 : 1, failed: 0, skipped: skipped ? 1 : 0, todo: 0, cancelled: 0 };\nconst summary = { version: 1, success: true, counts, files: [{ file: 'test/a.test.mjs', ...counts }] };\nconsole.log('# tests ' + (process.env.KRN_FIXTURE_TAP_TESTS || counts.tests));\nconsole.log('Isolation-dependent tests skipped: 0');\nif (process.env.KRN_FIXTURE_SUMMARY !== 'missing') { console.log('KRN_TEST_SUMMARY_JSON=' + JSON.stringify(summary)); if (process.env.KRN_FIXTURE_SUMMARY === 'malformed-last') console.log('KRN_TEST_SUMMARY_JSON={malformed'); }\n`,
   );
   const fakeGh = join(project, '.krn/tmp/fake-gh');
   const ghLog = join(project, '.krn/tmp/gh-calls.log');

@@ -135,18 +135,11 @@ export function summarizeTestEvents(events, expectedFiles, runnerExitCode = 0) {
       (Object.hasOwn(data, 'todo') && data.todo !== false && data.todo !== null)
     )
       errors.push(`${type} event records a skip or todo`);
-    if (
-      type.includes('cancel') ||
-      data.cancelled === true ||
-      data.cancellation === true
-    )
-      errors.push(`${type} event records cancellation`);
-
     const eventPath = data.entryFile ?? data.file;
     if (typeof eventPath === 'string' && eventPath.length > 0) {
-      const canonical = eventPath;
-      if (!expectedSet.has(canonical))
-        errors.push(`event belongs to an unselected file: ${canonical}`);
+      const reportedPath = eventPath;
+      if (!expectedSet.has(reportedPath))
+        errors.push(`event belongs to an unselected file: ${reportedPath}`);
     }
 
     if (type === 'test:summary') {

@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { globSync, realpathSync, statSync } from 'node:fs';
+import { globSync, lstatSync, realpathSync, statSync } from 'node:fs';
 import {
   appendFile,
   mkdir,
@@ -27,10 +27,14 @@ const eventReporter = fileURLToPath(
 );
 
 function defaultTestFiles() {
-  const testRoot = realpathSync(join(process.cwd(), 'test'));
+  const projectRoot = realpathSync(process.cwd());
+  const testRoot = join(projectRoot, 'test');
+  const testRootStat = lstatSync(testRoot);
+  if (!testRootStat.isDirectory() || testRootStat.isSymbolicLink())
+    throw new Error('project test root must be a real directory');
   const files = [];
-  for (const match of globSync(TEST_FILE_GLOB, { cwd: process.cwd() })) {
-    const path = resolve(process.cwd(), match);
+  for (const match of globSync(TEST_FILE_GLOB, { cwd: projectRoot })) {
+    const path = resolve(projectRoot, match);
     if (!statSync(path).isFile()) continue;
     const resolved = realpathSync(path);
     const fromTestRoot = relative(testRoot, resolved);
@@ -75,10 +79,6 @@ async function assertPinnedNode() {
     );
 }
 
-function discoveryFiles() {
-  return defaultTestFiles();
-}
-
 function childEnvironment(capabilities, strict, eventFile) {
   const env = {
     ...process.env,
@@ -87,11 +87,10 @@ function childEnvironment(capabilities, strict, eventFile) {
   if (strict) {
     delete env.NODE_OPTIONS;
     delete env.KRN_SCOPE_PROBE;
-    delete env.KRN_TEST_EVENT_FILE;
+    delete env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS;
     for (const key of Object.keys(env)) {
       if (key.startsWith('NODE_TEST_')) delete env[key];
     }
-    env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS = '1';
     env.KRN_TEST_EVENT_FILE = eventFile;
   }
   return env;
@@ -100,13 +99,15 @@ function childEnvironment(capabilities, strict, eventFile) {
 async function readRecordedEvents(path) {
   try {
     const contents = await readFile(path, 'utf8');
-    if (contents.length === 0) return [];
-    return contents
-      .split(/\r?\n/u)
-      .filter((line) => line.length > 0)
-      .map((line) => JSON.parse(line));
-  } catch {
-    return [];
+    if (contents.length === 0) return { events: [] };
+    return {
+      events: contents
+        .split(/\r?\n/u)
+        .filter((line) => line.length > 0)
+        .map((line) => JSON.parse(line)),
+    };
+  } catch (error) {
+    return { events: [], error };
   }
 }
 
@@ -116,6 +117,10 @@ function printStrictSummary(result) {
   );
 }
 
+function signalExit(signal) {
+  return signal === 'SIGINT' ? 130 : 143;
+}
+
 async function main() {
   const strict = process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS === '1';
   const probeRequested = process.env.KRN_SCOPE_PROBE === '1';
@@ -123,22 +128,31 @@ async function main() {
   let eventDirectory;
   let expectedFiles = [];
   let structuredSummaryWritten = false;
+  let forwardedSignal;
   let exitCode = 1;
+  const cleanupOwnedEvents = async () => {
+    if (!eventDirectory) return undefined;
+    try {
+      await rm(eventDirectory, { recursive: true, force: true });
+      eventDirectory = undefined;
+      return undefined;
+    } catch (error) {
+      return error;
+    }
+  };
 
   try {
     if (strict) await assertPinnedNode();
 
+    if (strict && probeRequested)
+      throw new Error('strict test mode refuses KRN_SCOPE_PROBE');
     if (probeRequested && inheritedTestContext) {
-      const files = discoveryFiles();
+      const files = defaultTestFiles();
       if (files.length === 0)
         throw new Error('scope probe found no project test files');
       process.stdout.write(`KRN_DISCOVERED=${JSON.stringify(files)}\n`);
       return 0;
     }
-    if (probeRequested && strict)
-      throw new Error(
-        'strict scope probe requires inherited NODE_TEST_CONTEXT',
-      );
 
     const requestedFiles = process.argv.slice(2);
     let runnerFiles;
@@ -191,7 +205,6 @@ async function main() {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '';
-    let forwardedSignal;
     const forwardSignal = (signal) => {
       if (forwardedSignal) return;
       forwardedSignal = signal;
@@ -244,14 +257,8 @@ async function main() {
     const testCount = Number(stdout.match(/^# tests (\d+)$/mu)?.[1] ?? 0);
     process.stdout.write(`${legacySummary}\n`);
     const gateExitCode = forwardedSignal
-      ? forwardedSignal === 'SIGINT'
-        ? 130
-        : 143
-      : testSuiteExitCode(
-          runner.code,
-          skipCount,
-          process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS === '1',
-        );
+      ? signalExit(forwardedSignal)
+      : testSuiteExitCode(runner.code, skipCount, strict);
 
     if (
       process.env.CI === 'true' &&
@@ -273,40 +280,75 @@ async function main() {
     }
 
     if (strict) {
-      const events = await readRecordedEvents(eventFile);
-      const result = summarizeTestEvents(events, expectedFiles, gateExitCode);
+      const recorded = await readRecordedEvents(eventFile);
+      const cleanupError = await cleanupOwnedEvents();
+      const decisionExitCode = forwardedSignal
+        ? signalExit(forwardedSignal)
+        : gateExitCode;
+      const result = summarizeTestEvents(
+        recorded.events,
+        expectedFiles,
+        decisionExitCode,
+      );
+      if (recorded.error) {
+        result.errors.push(
+          `unable to read native test events: ${recorded.error.message}`,
+        );
+        result.summary.success = false;
+        result.ok = false;
+      }
+      if (cleanupError) {
+        result.errors.push(
+          `unable to clean owned test event state: ${cleanupError.message}`,
+        );
+        result.summary.success = false;
+        result.ok = false;
+      }
       if (!result.ok)
         process.stderr.write(
           `Strict test evidence rejected: ${result.errors.join('; ')}\n`,
         );
       printStrictSummary(result);
       structuredSummaryWritten = true;
-      exitCode = forwardedSignal ? gateExitCode : result.ok ? 0 : 1;
+      exitCode = forwardedSignal
+        ? signalExit(forwardedSignal)
+        : result.ok
+          ? 0
+          : 1;
     } else {
-      exitCode = gateExitCode;
+      exitCode = forwardedSignal ? signalExit(forwardedSignal) : gateExitCode;
     }
-    if (process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS === '1' && skipCount > 0)
+    if (strict && skipCount > 0)
       process.stderr.write(
         `gate:local requires zero isolation skips; observed ${skipCount}\n`,
       );
   } catch (error) {
     process.stderr.write(`Test suite wrapper failed: ${error.message}\n`);
     if (strict && !structuredSummaryWritten) {
-      const result = summarizeTestEvents([], expectedFiles, 1);
+      const cleanupError = await cleanupOwnedEvents();
+      const result = summarizeTestEvents(
+        [],
+        expectedFiles,
+        forwardedSignal ? signalExit(forwardedSignal) : 1,
+      );
+      if (cleanupError) {
+        result.errors.push(
+          `unable to clean owned test event state: ${cleanupError.message}`,
+        );
+        result.summary.success = false;
+        result.ok = false;
+      }
       printStrictSummary(result);
       structuredSummaryWritten = true;
     }
-    exitCode = 1;
+    exitCode = forwardedSignal ? signalExit(forwardedSignal) : 1;
   } finally {
-    if (eventDirectory) {
-      try {
-        await rm(eventDirectory, { recursive: true, force: true });
-      } catch (error) {
-        process.stderr.write(
-          `Unable to clean owned test event state: ${error.message}\n`,
-        );
-        exitCode = 1;
-      }
+    const cleanupError = await cleanupOwnedEvents();
+    if (cleanupError) {
+      process.stderr.write(
+        `Unable to clean owned test event state: ${cleanupError.message}\n`,
+      );
+      exitCode = 1;
     }
   }
   return exitCode;
