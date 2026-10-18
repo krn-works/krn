@@ -102,6 +102,16 @@ const traceLockOwnerSchema = z.object({
   startTicks: z.string().regex(/^\d+$/u),
   token: z.string().uuid(),
 });
+type TraceLockOwnerObservation =
+  | { readonly kind: 'absent' }
+  | { readonly kind: 'publishing'; readonly dev: number; readonly ino: number }
+  | { readonly kind: 'invalid' }
+  | {
+      readonly kind: 'owner';
+      readonly owner: z.infer<typeof traceLockOwnerSchema>;
+      readonly dev: number;
+      readonly ino: number;
+    };
 const traceLockWaitMs = 3000;
 const traceLockPollMs = 10;
 const traceLockWaitCell = new Int32Array(new SharedArrayBuffer(4));
@@ -512,31 +522,39 @@ function assertTraceLockPath(path: string): void {
   }
 }
 
-function readTraceLockOwner(path: string):
-  | {
-      readonly owner: z.infer<typeof traceLockOwnerSchema>;
-      readonly dev: number;
-      readonly ino: number;
-    }
-  | undefined {
+function readTraceLockOwner(path: string): TraceLockOwnerObservation {
   let fd: number;
   try {
     fd = openVerifiedTrace(path, constants.O_RDONLY);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+      return { kind: 'absent' };
     throw error;
   }
   try {
     const stats = fstatSync(fd);
-    if (stats.size < 1 || stats.size > 1024)
-      throw new Error('invalid trace lock owner');
-    const parsed = traceLockOwnerSchema.safeParse(
-      JSON.parse(readFileSync(fd, 'utf8')) as unknown,
-    );
-    if (!parsed.success) throw new Error('invalid trace lock owner');
-    return { owner: parsed.data, dev: stats.dev, ino: stats.ino };
+    if (stats.size === 0)
+      return { kind: 'publishing', dev: stats.dev, ino: stats.ino };
+    if (stats.size > 1024) return { kind: 'invalid' };
+    try {
+      const parsed = traceLockOwnerSchema.safeParse(
+        JSON.parse(readFileSync(fd, 'utf8')) as unknown,
+      );
+      if (!parsed.success) return { kind: 'invalid' };
+      return {
+        kind: 'owner',
+        owner: parsed.data,
+        dev: stats.dev,
+        ino: stats.ino,
+      };
+    } catch {
+      // A writer may have been interrupted while publishing its short JSON
+      // owner. Acquisition retries within its existing bounded deadline, then
+      // refuses a persistent malformed file without attempting reclamation.
+      return { kind: 'invalid' };
+    }
   } catch {
-    throw new Error('invalid trace lock owner');
+    return { kind: 'invalid' };
   } finally {
     closeSync(fd);
   }
@@ -619,6 +637,7 @@ function removeTraceLockIfOwned(
   try {
     const current = readTraceLockOwner(path);
     if (
+      current.kind === 'owner' &&
       current?.owner.token === owner.token &&
       current.dev === identity.dev &&
       current.ino === identity.ino
@@ -655,7 +674,10 @@ function acquireTraceLock(directory: string, tracePath: string): () => void {
     }
 
     const observed = readTraceLockOwner(lockPath);
-    if (!observed) continue;
+    if (observed.kind !== 'owner') {
+      waitForTraceLock();
+      continue;
+    }
     const live = lockOwnerIsLive(observed.owner);
     if (live === undefined) throw new Error('cannot verify trace lock owner');
     if (live) {
@@ -680,7 +702,7 @@ function acquireTraceLock(directory: string, tracePath: string): () => void {
     try {
       const current = readTraceLockOwner(lockPath);
       if (
-        current &&
+        current.kind === 'owner' &&
         current.owner.token === observed.owner.token &&
         current.dev === observed.dev &&
         current.ino === observed.ino &&
@@ -697,6 +719,9 @@ function acquireTraceLock(directory: string, tracePath: string): () => void {
       return () => removeTraceLockIfOwned(lockPath, owner, identity);
     }
   }
+  const finalOwner = readTraceLockOwner(lockPath);
+  if (finalOwner.kind === 'invalid')
+    throw new Error('invalid trace lock owner');
   throw new Error('trace lock acquisition timed out');
 }
 

@@ -436,6 +436,177 @@ await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha
   }
 });
 
+test('trace appenders wait for primary lock owner publication before reading it', {
+  timeout: 15000,
+}, async () => {
+  const f = await fixture();
+  const barrier = join(f.directory, 'owner-publication');
+  await mkdir(barrier);
+  const lockPath = `${f.tracePath}.lock`;
+  const ownerSha = '1'.repeat(40);
+  const contenderSha = '2'.repeat(40);
+  const jobFile = join(barrier, 'job.json');
+  const preload = join(barrier, 'preload.mjs');
+  const child = join(barrier, 'append.mjs');
+  await writeFile(jobFile, JSON.stringify(f.job));
+  await writeFile(
+    preload,
+    `
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const root = process.env.KRN_TRACE_PUBLICATION_DIR;
+const lockPath = process.env.KRN_TRACE_PUBLICATION_LOCK;
+const waitFor = (name) => {
+  const cell = new Int32Array(new SharedArrayBuffer(4));
+  const until = Date.now() + 10000;
+  while (!fs.existsSync(root + '/' + name)) {
+    if (Date.now() >= until) throw new Error('publication barrier timeout: ' + name);
+    Atomics.wait(cell, 0, 0, 10);
+  }
+};
+if (process.env.KRN_TRACE_PUBLICATION_ROLE === 'owner') {
+  const write = fs.writeSync;
+  fs.writeSync = function (fd, ...args) {
+    try {
+      if (fs.readlinkSync('/proc/self/fd/' + fd) === lockPath) {
+        fs.writeFileSync(root + '/owner-reserved', '1');
+        waitFor('release-owner-write');
+      }
+    } catch (error) {
+      if (error?.message?.startsWith('publication barrier timeout:')) throw error;
+    }
+    return write.call(this, fd, ...args);
+  };
+} else {
+  const fstat = fs.fstatSync;
+  fs.fstatSync = function (fd, ...args) {
+    const stats = fstat.call(this, fd, ...args);
+    try {
+      if (stats.size === 0 && fs.readlinkSync('/proc/self/fd/' + fd) === lockPath)
+        fs.writeFileSync(root + '/contender-saw-empty', '1');
+    } catch {}
+    return stats;
+  };
+}
+syncBuiltinESMExports();
+`,
+  );
+  await writeFile(
+    child,
+    `
+import { readFileSync } from 'node:fs';
+const { verdict } = await import(${JSON.stringify(new URL('../../src/trace/index.ts', import.meta.url).href)});
+const job = JSON.parse(readFileSync(process.env.KRN_TRACE_PUBLICATION_JOB, 'utf8'));
+const sha = process.env.KRN_TRACE_PUBLICATION_SHA;
+await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha256: sha.padEnd(64, '0').slice(0, 64) }] });
+`,
+  );
+
+  const start = (role: 'owner' | 'contender', sha: string) =>
+    spawn(process.execPath, ['--import', preload, child], {
+      cwd: f.directory,
+      env: {
+        ...process.env,
+        KRN_TRACE_PUBLICATION_ROLE: role,
+        KRN_TRACE_PUBLICATION_DIR: barrier,
+        KRN_TRACE_PUBLICATION_LOCK: lockPath,
+        KRN_TRACE_PUBLICATION_JOB: jobFile,
+        KRN_TRACE_PUBLICATION_SHA: sha,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  const capture = (proc: ReturnType<typeof spawn>) =>
+    new Promise<{
+      code: number | null;
+      signal: NodeJS.Signals | null;
+      stderr: string;
+    }>((resolve) => {
+      let stderr = '';
+      proc.stderr?.setEncoding('utf8').on('data', (chunk) => {
+        stderr += chunk;
+      });
+      proc.once('close', (code, signal) => resolve({ code, signal, stderr }));
+    });
+  const waitFor = async (name: string, timeout = 8000) => {
+    const until = Date.now() + timeout;
+    while (Date.now() < until) {
+      try {
+        await readFile(join(barrier, name));
+        return true;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
+    return false;
+  };
+
+  const owner = start('owner', ownerSha);
+  const ownerResult = capture(owner);
+  let contender: ReturnType<typeof spawn> | undefined;
+  let contenderResult:
+    | Promise<{
+        code: number | null;
+        signal: NodeJS.Signals | null;
+        stderr: string;
+      }>
+    | undefined;
+  try {
+    assert.equal(
+      await waitFor('owner-reserved'),
+      true,
+      'first independent process created the lock before publishing owner bytes',
+    );
+    contender = start('contender', contenderSha);
+    contenderResult = capture(contender);
+    assert.equal(
+      await waitFor('contender-saw-empty'),
+      true,
+      'second independent process read the empty primary owner file',
+    );
+
+    let exitedBeforePublication = false;
+    const until = Date.now() + 300;
+    while (Date.now() < until) {
+      if (contender.exitCode !== null || contender.signalCode !== null) {
+        exitedBeforePublication = true;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+
+    await writeFile(join(barrier, 'release-owner-write'), '1');
+    const outcomes = await Promise.all([ownerResult, contenderResult]);
+    const [ownerOutcome, contenderOutcome] = outcomes;
+    assert.equal(
+      exitedBeforePublication,
+      false,
+      'contender must wait for lock owner publication instead of rejecting an in-progress lock',
+    );
+    assert.equal(ownerOutcome.code, 0, ownerOutcome.stderr);
+    assert.equal(contenderOutcome.code, 0, contenderOutcome.stderr);
+    const rows = (await readFile(f.tracePath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((row) => JSON.parse(row) as { data: { sha?: string } });
+    assert.ok(rows.some((row) => row.data.sha === ownerSha));
+    assert.ok(
+      rows.some((row) => row.data.sha === contenderSha),
+      'second append must survive publication of the first lock owner',
+    );
+  } finally {
+    await writeFile(join(barrier, 'release-owner-write'), '1').catch(() => {});
+    for (const proc of [owner, contender]) {
+      if (proc && proc.exitCode === null && proc.signalCode === null)
+        proc.kill('SIGKILL');
+    }
+    await Promise.allSettled([
+      ownerResult,
+      ...(contenderResult ? [contenderResult] : []),
+    ]);
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
 test('trace records fail then pass at one SHA and deduplicates exact evidence', async () => {
   const f = await fixture();
   const sha = 'd'.repeat(40);
@@ -502,6 +673,20 @@ test('trace lock bounds live and invalid owners and reclaims a dead owner', asyn
     assert.deepEqual(await readFile(f.tracePath), before);
 
     await unlink(lockPath);
+    await writeFile(lockPath, '');
+    const emptyStarted = Date.now();
+    await assert.rejects(
+      verdict(f.job, event('c'.repeat(40), 0, 'd'.repeat(64))),
+      /timed out/u,
+    );
+    assert.ok(
+      Date.now() - emptyStarted < 5000,
+      'an orphan empty primary lock must fail closed within the acquisition bound',
+    );
+    assert.deepEqual(await readFile(f.tracePath), before);
+    assert.deepEqual(await readFile(lockPath), Buffer.alloc(0));
+
+    await unlink(lockPath);
     await writeFile(
       lockPath,
       JSON.stringify({
@@ -525,6 +710,22 @@ test('trace lock bounds live and invalid owners and reclaims a dead owner', asyn
         token: randomUUID(),
       }),
     );
+    const deadOwner = await readFile(lockPath);
+    const reclaimerPath = `${lockPath}.reclaim`;
+    await writeFile(reclaimerPath, '');
+    const reclaimerStarted = Date.now();
+    await assert.rejects(
+      verdict(f.job, event('c'.repeat(40), 0, 'd'.repeat(64))),
+      /timed out/u,
+    );
+    assert.ok(
+      Date.now() - reclaimerStarted < 5000,
+      'an orphan reclaimer gate must fail closed within the acquisition bound',
+    );
+    assert.deepEqual(await readFile(f.tracePath), before);
+    assert.deepEqual(await readFile(lockPath), deadOwner);
+    assert.deepEqual(await readFile(reclaimerPath), Buffer.alloc(0));
+    await unlink(reclaimerPath);
     await verdict(f.job, event('c'.repeat(40), 0, 'd'.repeat(64)));
     assert.equal(await hasVerdict(f.job, 'c'.repeat(40)), true);
     await assert.rejects(readFile(lockPath), { code: 'ENOENT' });
