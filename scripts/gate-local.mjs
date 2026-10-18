@@ -5,6 +5,13 @@ import { validateTestSummary } from './test-summary-policy.mjs';
 
 const ghPath = process.env.KRN_GH_BIN ?? 'gh';
 const summaryPrefix = 'KRN_TEST_SUMMARY_JSON=';
+const gitContextKeys = [
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_COMMON_DIR',
+  'GIT_INDEX_FILE',
+  'GIT_OBJECT_DIRECTORY',
+];
 
 function readHead() {
   const result = spawnSync('git', ['rev-parse', 'HEAD'], {
@@ -88,6 +95,8 @@ function lastIsolationSkipCount(output) {
 }
 
 async function main() {
+  for (const key of gitContextKeys) delete process.env[key];
+
   const head = readHead();
   if (!head) return 1;
   if (!requireCleanTree('before the gate')) return 1;

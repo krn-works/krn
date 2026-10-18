@@ -22,6 +22,13 @@ const gateLocal = fileURLToPath(
   new URL('../scripts/gate-local.mjs', import.meta.url),
 );
 const timeout = 30_000;
+const gitContextKeys = [
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_COMMON_DIR',
+  'GIT_INDEX_FILE',
+  'GIT_OBJECT_DIRECTORY',
+] as const;
 
 function fixtureEnv(): NodeJS.ProcessEnv {
   const env = { ...process.env };
@@ -35,6 +42,8 @@ function fixtureEnv(): NodeJS.ProcessEnv {
   delete env.KRN_FIXTURE_DIRTIES;
   delete env.KRN_GATE_RAN;
   delete env.KRN_GH_BIN;
+  delete env.KRN_GATE_GIT_CONTEXT_LOG;
+  for (const key of gitContextKeys) delete env[key];
   for (const key of Object.keys(env)) {
     if (key.startsWith('NODE_TEST_')) delete env[key];
   }
@@ -566,6 +575,7 @@ test('gate-local publishes only a clean HEAD with complete structured evidence',
       summary?: 'missing' | 'skip' | 'malformed-last';
       tapCount?: number;
       dirties?: boolean;
+      gitRedirect?: 'hide-dirty' | 'foreign-head';
     }> = [
       {
         name: 'tracked changes refuse before running the gate',
@@ -596,6 +606,17 @@ test('gate-local publishes only a clean HEAD with complete structured evidence',
         name: 'a gate that dirties the tree refuses publication',
         dirties: true,
       },
+      {
+        name: 'Git redirection cannot hide actual checkout dirt',
+        dirty: 'untracked',
+        gitRedirect: 'hide-dirty',
+      },
+      {
+        name: 'clean publication uses actual HEAD and removes Git context from gate',
+        dirty: 'clean',
+        tapCount: 99,
+        gitRedirect: 'foreign-head',
+      },
     ];
 
     for (const [index, scenario] of scenarios.entries()) {
@@ -610,12 +631,49 @@ test('gate-local publishes only a clean HEAD with complete structured evidence',
         if (scenario.dirty === 'untracked')
           await writeFile(join(project, 'untracked.txt'), 'not ignored\n');
 
+        let foreignProject: string | undefined;
+        if (scenario.gitRedirect) {
+          foreignProject = await makeGitFixture(root, `foreign-${index}`);
+          assert.ok(foreignProject);
+          if (scenario.gitRedirect === 'foreign-head') {
+            await writeFile(
+              join(foreignProject, 'foreign-only.txt'),
+              'foreign\n',
+            );
+            git(foreignProject, ['add', '-A']);
+            git(foreignProject, ['commit', '--quiet', '-m', 'foreign head']);
+          }
+          assert.equal(
+            git(foreignProject, [
+              'status',
+              '--porcelain=v1',
+              '--untracked-files=all',
+            ]).stdout,
+            '',
+            'foreign repository must be clean before redirection',
+          );
+        }
+
         const head = git(project, ['rev-parse', 'HEAD']).stdout.trim();
+        const foreignHead = foreignProject
+          ? git(foreignProject, ['rev-parse', 'HEAD']).stdout.trim()
+          : undefined;
+        if (scenario.gitRedirect === 'foreign-head') {
+          assert.ok(foreignHead);
+          assert.notEqual(head, foreignHead);
+        }
         const gateRan = join(project, '.krn/tmp/gate-ran.log');
         const ghCalls = join(project, '.krn/tmp/gh-calls.log');
+        const gitContextLog = join(project, '.krn/tmp/gate-git-context.json');
         const env = fixtureEnv();
         env.KRN_GH_BIN = join(project, '.krn/tmp/fake-gh');
         env.KRN_GATE_RAN = gateRan;
+        env.KRN_GATE_GIT_CONTEXT_LOG = gitContextLog;
+        if (foreignProject) {
+          env.GIT_DIR = join(foreignProject, '.git');
+          env.GIT_WORK_TREE = foreignProject;
+          env.GIT_INDEX_FILE = join(foreignProject, '.git/index');
+        }
         if (scenario.summary) env.KRN_FIXTURE_SUMMARY = scenario.summary;
         if (scenario.tapCount)
           env.KRN_FIXTURE_TAP_TESTS = String(scenario.tapCount);
@@ -634,10 +692,25 @@ test('gate-local publishes only a clean HEAD with complete structured evidence',
           );
           const call = calls[0];
           assert.ok(call);
-          assert.ok(
-            call.includes(`repos/krn-works/krn/statuses/${head}`),
-            call,
-          );
+          if (scenario.gitRedirect === 'foreign-head') {
+            assert.deepEqual(
+              {
+                statusUsesActualHead: call.includes(
+                  `repos/krn-works/krn/statuses/${head}`,
+                ),
+                gateGitContext: JSON.parse(
+                  await readFile(gitContextLog, 'utf8'),
+                ),
+              },
+              { statusUsesActualHead: true, gateGitContext: [] },
+              call,
+            );
+          } else {
+            assert.ok(
+              call.includes(`repos/krn-works/krn/statuses/${head}`),
+              call,
+            );
+          }
           assert.ok(
             call.includes(
               'description=Gate passed: 1 tests, 0 isolation skips',
@@ -705,7 +778,7 @@ async function makeGitFixture(root: string, name: string): Promise<string> {
   );
   await writeFile(
     join(project, 'fake-gate.mjs'),
-    `import { appendFileSync, writeFileSync } from 'node:fs';\nappendFileSync(process.env.KRN_GATE_RAN, 'ran\\n');\nif (process.env.KRN_FIXTURE_DIRTIES === '1') writeFileSync('gate-created.txt', 'dirty\\n');\nconst skipped = process.env.KRN_FIXTURE_SUMMARY === 'skip';\nconst counts = { tests: 1, passed: skipped ? 0 : 1, failed: 0, skipped: skipped ? 1 : 0, todo: 0, cancelled: 0 };\nconst summary = { version: 1, success: true, counts, files: [{ file: 'test/a.test.mjs', ...counts }] };\nconsole.log('# tests ' + (process.env.KRN_FIXTURE_TAP_TESTS || counts.tests));\nconsole.log('Isolation-dependent tests skipped: 0');\nif (process.env.KRN_FIXTURE_SUMMARY !== 'missing') { console.log('KRN_TEST_SUMMARY_JSON=' + JSON.stringify(summary)); if (process.env.KRN_FIXTURE_SUMMARY === 'malformed-last') console.log('KRN_TEST_SUMMARY_JSON={malformed'); }\n`,
+    `import { appendFileSync, writeFileSync } from 'node:fs';\nappendFileSync(process.env.KRN_GATE_RAN, 'ran\\n');\nwriteFileSync(process.env.KRN_GATE_GIT_CONTEXT_LOG, JSON.stringify(['GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY'].filter((key) => process.env[key] !== undefined)));\nif (process.env.KRN_FIXTURE_DIRTIES === '1') writeFileSync('gate-created.txt', 'dirty\\n');\nconst skipped = process.env.KRN_FIXTURE_SUMMARY === 'skip';\nconst counts = { tests: 1, passed: skipped ? 0 : 1, failed: 0, skipped: skipped ? 1 : 0, todo: 0, cancelled: 0 };\nconst summary = { version: 1, success: true, counts, files: [{ file: 'test/a.test.mjs', ...counts }] };\nconsole.log('# tests ' + (process.env.KRN_FIXTURE_TAP_TESTS || counts.tests));\nconsole.log('Isolation-dependent tests skipped: 0');\nif (process.env.KRN_FIXTURE_SUMMARY !== 'missing') { console.log('KRN_TEST_SUMMARY_JSON=' + JSON.stringify(summary)); if (process.env.KRN_FIXTURE_SUMMARY === 'malformed-last') console.log('KRN_TEST_SUMMARY_JSON={malformed'); }\n`,
   );
   const fakeGh = join(project, '.krn/tmp/fake-gh');
   const ghLog = join(project, '.krn/tmp/gh-calls.log');
@@ -726,10 +799,15 @@ async function makeGitFixture(root: string, name: string): Promise<string> {
 }
 
 function git(cwd: string, args: string[]) {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    GIT_TERMINAL_PROMPT: '0',
+  };
+  for (const key of gitContextKeys) delete env[key];
   const result = spawnSync('git', args, {
     cwd,
     encoding: 'utf8',
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    env,
     timeout,
   });
   assert.equal(
