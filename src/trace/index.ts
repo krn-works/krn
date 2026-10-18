@@ -763,7 +763,19 @@ function append(
   try {
     const snapshot = readTrace(job);
     repairTraceTail(snapshot);
-    if (snapshot.events.some((event) => event.key === key)) return false;
+    if (snapshot.events.some((event) => event.key === key)) {
+      const fd = openVerifiedTrace(
+        path,
+        constants.O_WRONLY | constants.O_APPEND,
+      );
+      try {
+        if (!fstatSync(fd).isFile()) throw new Error('unsafe trace path');
+        fsyncSync(fd);
+      } finally {
+        closeSync(fd);
+      }
+      return false;
+    }
     assertNoTraceSymlinks(directory, path);
     const fd = openVerifiedTrace(
       path,
@@ -837,10 +849,6 @@ export async function started(
       previous.startTicks === scopeRegistration.startTicks
     );
   };
-  const prior = events(job).find((event) => event.key === sessionKey);
-  if (prior) {
-    return matchesSession(prior);
-  }
   const appended = append(job, sessionKey, 'session_started', {
     intent: intentId,
     jobId: job.id,

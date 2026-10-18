@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import {
   appendFile,
   mkdir,
@@ -293,55 +293,33 @@ test('concurrent trace.started callers return true only for the stored session r
   await mkdir(barrier);
   await mkdir(dirname(f.tracePath), { recursive: true });
   const jobFile = join(barrier, 'job.json');
-  const preload = join(barrier, 'preload.mjs');
   const child = join(barrier, 'started.mjs');
   const traceUrl = new URL('../../src/trace/index.ts', import.meta.url).href;
   await writeFile(jobFile, JSON.stringify(f.job));
   await writeFile(
-    preload,
-    `
-import fs from 'node:fs';
-import { syncBuiltinESMExports } from 'node:module';
-const root = process.env.KRN_STARTED_RACE_DIR;
-const tracePath = process.env.KRN_STARTED_RACE_TRACE;
-const sessionId = process.env.KRN_STARTED_RACE_SESSION;
-const peer = sessionId === 'session-a' ? 'session-b' : 'session-a';
-const seen = root + '/' + sessionId + '-saw-empty';
-const peerSeen = root + '/' + peer + '-saw-empty';
-const exists = fs.existsSync;
-let paused = false;
-fs.existsSync = function (path, ...args) {
-  const found = exists.call(this, path, ...args);
-  if (!paused && String(path) === tracePath) {
-    paused = true;
-    fs.writeFileSync(seen, '1');
-    const cell = new Int32Array(new SharedArrayBuffer(4));
-    const until = Date.now() + 8000;
-    while (!exists.call(this, peerSeen)) {
-      if (Date.now() >= until)
-        throw new Error('started-race barrier timed out waiting for peer read');
-      Atomics.wait(cell, 0, 0, 5);
-    }
-  }
-  return found;
-};
-syncBuiltinESMExports();
-`,
-  );
-  await writeFile(
     child,
     `
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { started } from ${JSON.stringify(traceUrl)};
 const job = JSON.parse(readFileSync(process.env.KRN_STARTED_RACE_JOB, 'utf8'));
 const sessionId = process.env.KRN_STARTED_RACE_SESSION;
+const root = process.env.KRN_STARTED_RACE_DIR;
+const peer = sessionId === 'session-a' ? 'session-b' : 'session-a';
+const ownReady = root + '/' + sessionId + '-ready';
+const peerReady = root + '/' + peer + '-ready';
+writeFileSync(ownReady, '1', { flag: 'wx' });
+const until = Date.now() + 8000;
+while (!existsSync(peerReady)) {
+  if (Date.now() >= until) throw new Error('started-race barrier timed out waiting for peer');
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
+}
 const accepted = await started(job, 'intent-race', sessionId);
 process.stdout.write(JSON.stringify({ sessionId, accepted }) + '\\n');
 `,
   );
 
   const run = (sessionId: string) =>
-    spawn(process.execPath, ['--import', preload, child], {
+    spawn(process.execPath, [child], {
       cwd: f.directory,
       env: {
         ...process.env,
@@ -414,6 +392,507 @@ process.stdout.write(JSON.stringify({ sessionId, accepted }) + '\\n');
       if (process.exitCode === null && process.signalCode === null)
         process.kill('SIGKILL');
     }
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('trace.started confirms duplicate rows under the owned append lock', {
+  timeout: 35_000,
+}, async (t) => {
+  const f = await fixture();
+  const directory = join(f.directory, 'started-durability');
+  await mkdir(directory);
+  const jobFile = join(directory, 'job.json');
+  const preloadFile = join(directory, 'preload.mjs');
+  const workerFile = join(directory, 'started.mjs');
+  const traceModuleUrl = new URL('../../src/trace/index.ts', import.meta.url)
+    .href;
+  await writeFile(jobFile, JSON.stringify(f.job));
+  await writeFile(
+    preloadFile,
+    `
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const tracePath = process.env.KRN_TRACE_DURABILITY_TRACE;
+const role = process.env.KRN_TRACE_DURABILITY_ROLE;
+const readyPath = process.env.KRN_TRACE_DURABILITY_READY;
+const releasePath = process.env.KRN_TRACE_DURABILITY_RELEASE;
+const fsyncSeenPath = process.env.KRN_TRACE_DURABILITY_FSYNC_SEEN;
+const originalFsyncSync = fs.fsyncSync;
+let intercepted = false;
+function startTicks(pid) {
+  const stat = fs.readFileSync('/proc/' + pid + '/stat', 'utf8');
+  const fields = stat.slice(stat.lastIndexOf(')') + 2).trim().split(/\\s+/u);
+  return fields[19];
+}
+function writeJson(path, value) {
+  fs.writeFileSync(path, JSON.stringify(value) + '\\n', { flag: 'wx', mode: 0o600 });
+}
+fs.fsyncSync = function (fd) {
+  let actualPath;
+  try { actualPath = fs.readlinkSync('/proc/' + process.pid + '/fd/' + fd); }
+  catch { return originalFsyncSync(fd); }
+  if (actualPath !== tracePath || intercepted)
+    return originalFsyncSync(fd);
+  intercepted = true;
+  if (role === 'owner-pause') {
+    const bytes = fs.readFileSync(tracePath);
+    const rows = bytes.toString('utf8').trimEnd().split('\\n').map((line) => JSON.parse(line));
+    const row = rows.find((event) => event.key === 'intent-durable:session');
+    if (!row || row.data.sessionId !== 'session-durable')
+      throw new Error('owned trace row was not visible at exact-fd fsync');
+    let lock = null;
+    try { lock = JSON.parse(fs.readFileSync(tracePath + '.lock', 'utf8')); }
+    catch (error) { if (error?.code !== 'ENOENT') throw error; }
+    writeJson(readyPath, {
+      pid: process.pid,
+      startTicks: startTicks(process.pid),
+      tracePath: actualPath,
+      traceBytes: bytes.length,
+      rowKey: row.key,
+      rowSessionId: row.data.sessionId,
+      lock,
+    });
+    const deadline = Date.now() + 12_000;
+    while (Date.now() < deadline) {
+      if (fs.existsSync(releasePath)) {
+        const release = JSON.parse(fs.readFileSync(releasePath, 'utf8'));
+        if (release.pid !== process.pid || release.startTicks !== startTicks(process.pid))
+          throw new Error('release marker did not identify the fsync owner');
+        const error = new Error('fixture-only trace fsync failure');
+        error.code = 'EIO';
+        throw error;
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+    }
+    throw new Error('timed out waiting for owned trace fsync release');
+  }
+  if (role === 'duplicate-fsync-eio') {
+    writeJson(fsyncSeenPath, {
+      pid: process.pid,
+      startTicks: startTicks(process.pid),
+      tracePath: actualPath,
+    });
+    const error = new Error('fixture-only duplicate trace fsync failure');
+    error.code = 'EIO';
+    throw error;
+  }
+  return originalFsyncSync(fd);
+};
+syncBuiltinESMExports();
+`,
+  );
+  await writeFile(
+    workerFile,
+    `
+import fs from 'node:fs';
+import { started } from ${JSON.stringify(traceModuleUrl)};
+const job = JSON.parse(fs.readFileSync(process.env.KRN_TRACE_DURABILITY_JOB, 'utf8'));
+function startTicks(pid) {
+  const stat = fs.readFileSync('/proc/' + pid + '/stat', 'utf8');
+  const fields = stat.slice(stat.lastIndexOf(')') + 2).trim().split(/\\s+/u);
+  return fields[19];
+}
+const identity = { pid: process.pid, startTicks: startTicks(process.pid) };
+fs.writeFileSync(process.env.KRN_TRACE_DURABILITY_CALL_READY, JSON.stringify(identity) + '\\n', { flag: 'wx', mode: 0o600 });
+const calledAtNs = process.hrtime.bigint().toString();
+let outcome;
+try {
+  outcome = { kind: 'resolved', accepted: await started(job, 'intent-durable', 'session-durable') };
+} catch (error) {
+  outcome = {
+    kind: 'rejected',
+    errorName: error instanceof Error ? error.name : typeof error,
+    errorCode: typeof error?.code === 'string' ? error.code : null,
+  };
+}
+fs.writeFileSync(process.env.KRN_TRACE_DURABILITY_RESULT, JSON.stringify({ ...identity, calledAtNs, returnedAtNs: process.hrtime.bigint().toString(), outcome }) + '\\n', { flag: 'wx', mode: 0o600 });
+`,
+  );
+
+  type ChildOutcome =
+    | {
+        kind: 'resolved';
+        accepted: boolean;
+      }
+    | {
+        kind: 'rejected';
+        errorName: string;
+        errorCode: string | null;
+      };
+  type ChildRecord = {
+    pid: number;
+    startTicks: string;
+    calledAtNs: string;
+    returnedAtNs: string;
+    outcome: ChildOutcome;
+  };
+  type WorkerProcess = {
+    readonly child: ReturnType<typeof spawn>;
+    readonly closed: Promise<{
+      readonly code: number | null;
+      readonly signal: NodeJS.Signals | null;
+    }>;
+    readonly stderr: () => string;
+  };
+
+  function processStartTicks(pid: number | undefined): string | undefined {
+    if (!pid) return undefined;
+    try {
+      const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+      return stat
+        .slice(stat.lastIndexOf(')') + 2)
+        .trim()
+        .split(/\s+/u)[19];
+    } catch {
+      return undefined;
+    }
+  }
+
+  async function waitForJson(
+    path: string,
+    timeoutMs: number,
+  ): Promise<Record<string, unknown> | undefined> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try {
+        return JSON.parse(readFileSync(path, 'utf8')) as Record<
+          string,
+          unknown
+        >;
+      } catch (error) {
+        if (
+          error instanceof SyntaxError ||
+          (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+        ) {
+          await new Promise((resolvePromise) => setTimeout(resolvePromise, 10));
+          continue;
+        }
+        throw error;
+      }
+    }
+    return undefined;
+  }
+
+  function launchWorker(
+    role: string,
+    tag: string,
+  ): {
+    readonly worker: WorkerProcess;
+    readonly callReady: string;
+    readonly result: string;
+    readonly ready: string;
+    readonly release: string;
+    readonly fsyncSeen: string;
+  } {
+    const callReady = join(directory, `${tag}.call-ready.json`);
+    const result = join(directory, `${tag}.result.json`);
+    const ready = join(directory, `${tag}.fsync-ready.json`);
+    const release = join(directory, `${tag}.fsync-release.json`);
+    const fsyncSeen = join(directory, `${tag}.fsync-seen.json`);
+    const child = spawn(
+      process.execPath,
+      ['--import', preloadFile, workerFile],
+      {
+        cwd: f.directory,
+        env: {
+          ...process.env,
+          KRN_TRACE_DURABILITY_TRACE: f.tracePath,
+          KRN_TRACE_DURABILITY_JOB: jobFile,
+          KRN_TRACE_DURABILITY_ROLE: role,
+          KRN_TRACE_DURABILITY_CALL_READY: callReady,
+          KRN_TRACE_DURABILITY_RESULT: result,
+          KRN_TRACE_DURABILITY_READY: ready,
+          KRN_TRACE_DURABILITY_RELEASE: release,
+          KRN_TRACE_DURABILITY_FSYNC_SEEN: fsyncSeen,
+        },
+        stdio: ['ignore', 'ignore', 'pipe'],
+      },
+    );
+    let stderr = '';
+    child.stderr?.setEncoding('utf8').on('data', (chunk: string) => {
+      stderr += chunk;
+    });
+    const closed = new Promise<{
+      readonly code: number | null;
+      readonly signal: NodeJS.Signals | null;
+    }>((resolvePromise) => {
+      child.once('close', (code, signal) => resolvePromise({ code, signal }));
+    });
+    const worker = {
+      child,
+      closed,
+      stderr: () => stderr,
+    };
+    return { worker, callReady, result, ready, release, fsyncSeen };
+  }
+
+  async function stopOwnedWorker(
+    worker: WorkerProcess | undefined,
+    identity: { readonly pid: number; readonly startTicks: string } | undefined,
+  ): Promise<void> {
+    if (!worker) return;
+    const waitForClose = () =>
+      Promise.race([
+        worker.closed.then(() => true),
+        new Promise<boolean>((resolvePromise) =>
+          setTimeout(() => resolvePromise(false), 1500),
+        ),
+      ]);
+    if (await waitForClose()) return;
+    if (
+      worker.child.exitCode === null &&
+      worker.child.signalCode === null &&
+      identity &&
+      worker.child.pid === identity.pid &&
+      processStartTicks(identity.pid) === identity.startTicks
+    ) {
+      worker.child.kill('SIGTERM');
+    }
+    if (
+      !(await waitForClose()) &&
+      worker.child.exitCode === null &&
+      worker.child.signalCode === null &&
+      identity &&
+      worker.child.pid === identity.pid &&
+      processStartTicks(identity.pid) === identity.startTicks
+    )
+      process.kill(identity.pid, 'SIGKILL');
+    if (worker.child.exitCode === null && worker.child.signalCode === null)
+      await worker.closed;
+  }
+
+  try {
+    await t.test(
+      'a same-session process waits for the owner fsync result',
+      async () => {
+        const owner = launchWorker('owner-pause', 'owner');
+        let waiter: ReturnType<typeof launchWorker> | undefined;
+        let ownerIdentity:
+          | { readonly pid: number; readonly startTicks: string }
+          | undefined;
+        let waiterIdentity:
+          | { readonly pid: number; readonly startTicks: string }
+          | undefined;
+        let waiterReturnedBeforeRelease = false;
+        try {
+          const ownerCallReady = await waitForJson(owner.callReady, 8000);
+          assert.ok(
+            ownerCallReady,
+            `owner did not register: ${owner.worker.stderr()}`,
+          );
+          ownerIdentity = {
+            pid: Number(ownerCallReady.pid),
+            startTicks: String(ownerCallReady.startTicks),
+          };
+          assert.equal(ownerIdentity.pid, owner.worker.child.pid);
+          assert.equal(
+            processStartTicks(ownerIdentity.pid),
+            ownerIdentity.startTicks,
+          );
+
+          const ownerReady = await waitForJson(owner.ready, 8000);
+          assert.ok(
+            ownerReady,
+            `owner did not reach exact trace fsync: ${owner.worker.stderr()}`,
+          );
+          assert.equal(Number(ownerReady.pid), ownerIdentity.pid);
+          assert.equal(String(ownerReady.startTicks), ownerIdentity.startTicks);
+          assert.equal(ownerReady.tracePath, f.tracePath);
+          assert.equal(
+            ownerReady.traceBytes && Number(ownerReady.traceBytes) > 0,
+            true,
+          );
+          assert.equal(ownerReady.rowKey, 'intent-durable:session');
+          assert.equal(ownerReady.rowSessionId, 'session-durable');
+          if (ownerReady.lock !== null) {
+            const ownerLock = ownerReady.lock as Record<string, unknown>;
+            assert.equal(Number(ownerLock.pid), ownerIdentity.pid);
+            assert.equal(
+              String(ownerLock.startTicks),
+              ownerIdentity.startTicks,
+            );
+          }
+
+          waiter = launchWorker('normal', 'waiter');
+          const waiterReady = await waitForJson(waiter.callReady, 8000);
+          assert.ok(
+            waiterReady,
+            `same-session caller did not register: ${waiter.worker.stderr()}`,
+          );
+          waiterIdentity = {
+            pid: Number(waiterReady.pid),
+            startTicks: String(waiterReady.startTicks),
+          };
+          assert.equal(waiterIdentity.pid, waiter.worker.child.pid);
+          assert.equal(
+            processStartTicks(waiterIdentity.pid),
+            waiterIdentity.startTicks,
+          );
+
+          const beforeRelease = await waitForJson(waiter.result, 600);
+          waiterReturnedBeforeRelease = beforeRelease !== undefined;
+          process.stdout.write(
+            `# trace.started live-owner observer ${JSON.stringify({ owner: ownerReady, waiter: waiterIdentity, waiterReturnedBeforeRelease: beforeRelease !== undefined })}\n`,
+          );
+        } finally {
+          if (ownerIdentity && !existsSync(owner.release)) {
+            writeFileSync(
+              owner.release,
+              `${JSON.stringify({
+                ...ownerIdentity,
+                releaseAtNs: process.hrtime.bigint().toString(),
+              })}\n`,
+              { flag: 'wx', mode: 0o600 },
+            );
+          }
+          const waiterReady = waiter
+            ? await waitForJson(waiter.callReady, 100)
+            : undefined;
+          waiterIdentity ??= waiterReady
+            ? {
+                pid: Number(waiterReady.pid),
+                startTicks: String(waiterReady.startTicks),
+              }
+            : undefined;
+          await Promise.all([
+            stopOwnedWorker(owner.worker, ownerIdentity),
+            stopOwnedWorker(waiter?.worker, waiterIdentity),
+          ]);
+        }
+
+        const ownerRecord = (await waitForJson(owner.result, 1000)) as
+          | ChildRecord
+          | undefined;
+        const waiterRecord = waiter
+          ? ((await waitForJson(waiter.result, 1000)) as
+              | ChildRecord
+              | undefined)
+          : undefined;
+        assert.ok(
+          ownerRecord,
+          `owner result missing: ${owner.worker.stderr()}`,
+        );
+        assert.ok(
+          waiterRecord,
+          `same-session result missing: ${waiter?.worker.stderr()}`,
+        );
+        assert.deepEqual(await owner.worker.closed, { code: 0, signal: null });
+        assert.deepEqual(await waiter?.worker.closed, {
+          code: 0,
+          signal: null,
+        });
+        assert.deepEqual(ownerRecord.outcome, {
+          kind: 'rejected',
+          errorName: 'Error',
+          errorCode: 'EIO',
+        });
+        assert.deepEqual(waiterRecord.outcome, {
+          kind: 'resolved',
+          accepted: true,
+        });
+        const releaseRecord = JSON.parse(
+          readFileSync(owner.release, 'utf8'),
+        ) as {
+          releaseAtNs: string;
+        };
+        assert.ok(
+          BigInt(waiterRecord.returnedAtNs) >=
+            BigInt(releaseRecord.releaseAtNs),
+          'the accepted same-session call must return after the owner fsync attempt is released',
+        );
+        assert.notEqual(
+          processStartTicks(ownerIdentity?.pid),
+          ownerIdentity?.startTicks,
+        );
+        assert.notEqual(
+          processStartTicks(waiterIdentity?.pid),
+          waiterIdentity?.startTicks,
+        );
+        assert.equal(existsSync(`${f.tracePath}.lock`), false);
+        assert.equal(
+          waiterReturnedBeforeRelease,
+          false,
+          'same-session acceptance must wait until the trace fd fsync resolves',
+        );
+      },
+    );
+
+    await t.test(
+      'a complete duplicate row must pass a locked fsync before acceptance',
+      async () => {
+        assert.equal(
+          await trace.started(f.job, 'intent-durable', 'session-durable'),
+          true,
+        );
+        const before = await readFile(f.tracePath);
+        const duplicate = launchWorker('duplicate-fsync-eio', 'duplicate');
+        let identity:
+          | { readonly pid: number; readonly startTicks: string }
+          | undefined;
+        let duplicateContract:
+          | {
+              readonly interceptedExactTraceFsync: boolean;
+              readonly outcome: unknown;
+            }
+          | undefined;
+        try {
+          const callReady = await waitForJson(duplicate.callReady, 8000);
+          assert.ok(
+            callReady,
+            `duplicate caller did not register: ${duplicate.worker.stderr()}`,
+          );
+          identity = {
+            pid: Number(callReady.pid),
+            startTicks: String(callReady.startTicks),
+          };
+          assert.equal(identity.pid, duplicate.worker.child.pid);
+          assert.equal(processStartTicks(identity.pid), identity.startTicks);
+          const duplicateResult = await waitForJson(duplicate.result, 8000);
+          assert.ok(
+            duplicateResult,
+            `duplicate caller did not return: ${duplicate.worker.stderr()}`,
+          );
+          const fsyncSeen = await waitForJson(duplicate.fsyncSeen, 1000);
+          process.stdout.write(
+            `# trace.started duplicate-fsync observer ${JSON.stringify({ pid: identity.pid, startTicks: identity.startTicks, interceptedExactTraceFsync: fsyncSeen !== undefined, result: duplicateResult })}\n`,
+          );
+          // Contract assertions run after cleanup and positive retry controls.
+          duplicateContract = {
+            interceptedExactTraceFsync: fsyncSeen !== undefined,
+            outcome: duplicateResult.outcome,
+          };
+        } finally {
+          await stopOwnedWorker(duplicate.worker, identity);
+        }
+        assert.deepEqual(await duplicate.worker.closed, {
+          code: 0,
+          signal: null,
+        });
+        assert.notEqual(processStartTicks(identity?.pid), identity?.startTicks);
+        assert.equal(existsSync(`${f.tracePath}.lock`), false);
+        assert.deepEqual(await readFile(f.tracePath), before);
+        assert.equal(
+          await trace.started(f.job, 'intent-durable', 'session-durable'),
+          true,
+          'a successful retry confirms durability and preserves normal duplicate acceptance',
+        );
+        assert.deepEqual(await readFile(f.tracePath), before);
+        assert.deepEqual(
+          duplicateContract,
+          {
+            interceptedExactTraceFsync: true,
+            outcome: {
+              kind: 'rejected',
+              errorName: 'Error',
+              errorCode: 'EIO',
+            },
+          },
+          'a duplicate must not be accepted until its exact trace fd fsync succeeds',
+        );
+      },
+    );
+  } finally {
     await rm(f.directory, { recursive: true, force: true });
   }
 });
