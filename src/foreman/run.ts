@@ -1,6 +1,7 @@
 // Foreman owns the bounded J1 loop and its dependency contract. ADR 0001.
 
 import type { Job } from '../core/index.ts';
+import { deliveryTrailers } from '../ledger/delivery.ts';
 import { finishCheckpoint } from './checkpoint.ts';
 import { recoverLease, runAttempt } from './session.ts';
 import { type Deps, type Outcome, validBudget } from './types.ts';
@@ -14,6 +15,11 @@ export async function runJob(job: Job, d: Deps): Promise<Outcome> {
   if (!validBudget(d))
     return d.stop(job, 'human_decision', ['invalid foreman budget']);
   const contract = await d.ledger.readContract(job.issue);
+  const delivery = deliveryTrailers(contract);
+  if (!delivery.ok)
+    return d.stop(job, 'human_decision', [
+      `delivery metadata refused: ${delivery.error}`,
+    ]);
   let capsule = await d.relay.load(job, contract);
   let repairs = 0;
   if (capsule.pendingCheckpoint) {
@@ -24,6 +30,7 @@ export async function runJob(job: Job, d: Deps): Promise<Outcome> {
           capsule,
           capsule.pendingCheckpoint.intent,
           d,
+          delivery.value,
         )
       ).capsule;
     } catch (error) {

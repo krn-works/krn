@@ -14,11 +14,14 @@ const description = [
   '```',
 ].join('\n');
 
-function issue(updatedAt = '2026-10-08T10:00:00.000Z') {
+function issue(
+  updatedAt = '2026-10-08T10:00:00.000Z',
+  issueDescription = description,
+) {
   return {
     id: issueId,
     title: 'Live contract fixture',
-    description,
+    description: issueDescription,
     updatedAt,
     status: 'in_progress',
     assigneeAgentId: 'agent-7',
@@ -114,6 +117,34 @@ test('contract targetRepo must match the origin remote', async () => {
     }),
     /targetRepo mismatch/u,
   );
+});
+
+test('loadLiveContract refuses duplicate R1-task declarations', async () => {
+  const duplicateDescription = [
+    'R1-task: none',
+    'R1-task: R1-23',
+    '',
+    '```krn-contract',
+    JSON.stringify({
+      version: 1,
+      targetRepo: 'krn-works/krn',
+      checks: ['gate'],
+    }),
+    '```',
+  ].join('\n');
+  const methods: string[] = [];
+  const ledger = paperclip(async (_input, init) => {
+    methods.push(init?.method ?? 'GET');
+    return response(issue('2026-10-08T10:00:00.000Z', duplicateDescription));
+  });
+
+  await assert.rejects(
+    loadLiveContract(ledger, issueId, {
+      origin: 'https://github.com/krn-works/krn.git',
+    }),
+    /R1-task/u,
+  );
+  assert.deepEqual(methods, ['GET', 'GET']);
 });
 
 test('a board change between contract and board reads refuses the run', async () => {

@@ -28,10 +28,15 @@ if (
   await runLiveSmoke();
 }
 
-export function createLiveSmokeLedger() {
+export function createLiveSmokeLedger(targetRepo = repositoryRoot) {
   return {
-    readContract: async () => ({
+    readContract: async (issue) => ({
+      issueId: issue,
+      identifier: issue,
+      title: `Live smoke contract for ${issue}`,
+      description: '',
       revision: 'live-smoke-checkpoint-v1',
+      targetRepo,
       checks: ['checkpoint-file'],
     }),
     submitForReview: async () => 'submitted',
@@ -136,7 +141,7 @@ async function runLiveSmoke() {
           maxRepairs: 0,
           session: { timeoutMs: 145_000 },
         },
-        ledger: createLiveSmokeLedger(),
+        ledger: createLiveSmokeLedger(cwd),
         relay: {
           ...relay,
           project: () =>

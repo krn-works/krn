@@ -1,10 +1,18 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { requiresIsolation } from './helpers/isolation.ts';
 
 const scriptPath = fileURLToPath(
   new URL('../scripts/pr-preflight.mjs', import.meta.url),
@@ -18,9 +26,12 @@ const gitOverrideKeys = [
 ] as const;
 
 type FixtureOptions = {
+  ticket?: string;
   title?: string;
-  r1TaskTrailer?: string;
-  paperclipTask?: string;
+  r1TaskTrailer?: string | null;
+  additionalR1TaskTrailers?: string[];
+  paperclipTask?: string | null;
+  paperclipDescription?: string;
   gateState?: string;
   gateDescription?: string;
   prBase?: string;
@@ -44,6 +55,7 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
   t.after(() => rm(directory, { recursive: true, force: true }));
   const repo = join(directory, 'repo');
   const outside = join(directory, 'unrelated-cwd');
+  const ticket = options.ticket ?? 'LON-230';
   await Promise.all([
     mkdir(join(repo, 'src'), { recursive: true }),
     mkdir(join(repo, 'test'), { recursive: true }),
@@ -67,18 +79,24 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
 
   await writeFile(join(repo, 'src', 'index.ts'), 'export const value = 2;\n');
   await git(repo, ['add', 'src']);
+  const taskTrailers = [
+    ...(options.r1TaskTrailer === null
+      ? []
+      : [`R1-task: ${options.r1TaskTrailer ?? 'none'}`]),
+    ...(options.additionalR1TaskTrailers ?? []),
+  ];
   await git(repo, [
     'commit',
     '--quiet',
     '-m',
-    options.title ?? 'feat(review): add preflight (LON-230)',
+    options.title ?? `feat(review): add preflight (${ticket})`,
     '-m',
-    `Ticket: LON-230\nR1-task: ${options.r1TaskTrailer ?? 'none'}`,
+    [`Ticket: ${ticket}`, ...taskTrailers].join('\n'),
   ]);
   const head = await git(repo, ['rev-parse', 'HEAD']);
   const srcTreeSha = await git(repo, ['rev-parse', `${head}:src`]);
   const testTreeSha = await git(repo, ['rev-parse', `${head}:test`]);
-  const title = options.title ?? 'feat(review): add preflight (LON-230)';
+  const title = options.title ?? `feat(review): add preflight (${ticket})`;
   const pull = {
     title,
     base: { sha: options.prBase ?? base },
@@ -103,19 +121,26 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
       updated_at: '2026-10-11T10:30:00Z',
     },
   ];
-  const description = [
-    `R1-task: ${options.paperclipTask ?? 'none'} (review-system reset fixture)`,
-    '',
-    '```krn-contract',
-    '{"version":1,"targetRepo":"krn-works/krn","checks":["typecheck","lint","rules"]}',
-    '```',
-  ].join('\n');
+  const description =
+    options.paperclipDescription ??
+    [
+      ...(options.paperclipTask === null
+        ? []
+        : [
+            `R1-task: ${options.paperclipTask ?? 'none'} (review-system reset fixture)`,
+          ]),
+      '',
+      '```krn-contract',
+      '{"version":1,"targetRepo":"krn-works/krn","checks":["typecheck","lint","rules"]}',
+      '```',
+    ].join('\n');
   return {
     directory,
     repo,
     outside,
     base,
     head,
+    ticket,
     srcTreeSha,
     testTreeSha,
     pull,
@@ -126,7 +151,7 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
 
 function runHarness(
   value: Awaited<ReturnType<typeof fixture>>,
-  options: { overrides?: boolean } = {},
+  options: { overrides?: boolean; paperclipBin?: string } = {},
 ) {
   const input = {
     repo: value.repo,
@@ -134,6 +159,9 @@ function runHarness(
     head: value.head,
     pr: 27,
   };
+  const paperclipDependency = options.paperclipBin
+    ? ''
+    : "readPaperclipDescription: async (ticket) => { calls.push(['paperclip', ticket]); return { ok: true, value: fixture.description }; },";
   const harness = `
     import { runPreflight } from ${JSON.stringify(scriptPath)};
     const fixture = ${JSON.stringify({
@@ -146,11 +174,27 @@ function runHarness(
     const report = await runPreflight(fixture.input, {
       readPull: async (...args) => { calls.push(['pull', ...args]); return { ok: true, value: fixture.pull }; },
       readStatuses: async (...args) => { calls.push(['statuses', ...args]); return { ok: true, value: fixture.statuses }; },
-      readPaperclipDescription: async (ticket) => { calls.push(['paperclip', ticket]); return { ok: true, value: fixture.description }; },
+      ${paperclipDependency}
     });
     process.stdout.write(JSON.stringify({ report, calls }) + '\\n');
   `;
   const env: NodeJS.ProcessEnv = { ...process.env };
+  if (options.paperclipBin) {
+    for (const key of gitOverrideKeys) delete env[key];
+    delete env.NODE_OPTIONS;
+    delete env.KRN_SCOPE_PROBE;
+    for (const key of Object.keys(env)) {
+      if (
+        key.startsWith('NODE_TEST_') ||
+        key.startsWith('PAPERCLIP_') ||
+        key.startsWith('KRN_PAPERCLIP_')
+      )
+        delete env[key];
+    }
+    env.PATH = env.PATH
+      ? `${options.paperclipBin}${delimiter}${env.PATH}`
+      : options.paperclipBin;
+  }
   if (options.overrides) {
     for (const key of gitOverrideKeys)
       env[key] = join(value.directory, `foreign-${key.toLowerCase()}`);
@@ -162,6 +206,44 @@ function runHarness(
     maxBuffer: 1024 * 1024,
     timeout: 30_000,
   });
+}
+
+async function fakePaperclip(
+  directory: string,
+  ticket: string,
+  issue: {
+    readonly id: string;
+    readonly identifier: string;
+    readonly title: string;
+    readonly description: string;
+    readonly updatedAt: string;
+    readonly status: string;
+  },
+) {
+  const bin = join(directory, 'fake-paperclip-bin');
+  await mkdir(bin, { recursive: true });
+  await writeFile(
+    join(bin, 'package.json'),
+    JSON.stringify({ type: 'commonjs' }),
+  );
+  const executable = join(bin, 'paperclip');
+  const calls = join(bin, 'calls.json');
+  const expectedArgs = ['issue', 'get', ticket, '--json'];
+  const source = [
+    `#!${process.execPath}`,
+    "const fs = require('node:fs');",
+    'const args = process.argv.slice(2);',
+    `if (JSON.stringify(args) !== ${JSON.stringify(JSON.stringify(expectedArgs))}) {`,
+    "  process.stderr.write('unexpected Paperclip CLI arguments');",
+    '  process.exit(2);',
+    '}',
+    `fs.writeFileSync(${JSON.stringify(calls)}, JSON.stringify(args));`,
+    `process.stdout.write(${JSON.stringify(JSON.stringify(issue))});`,
+    '',
+  ].join('\n');
+  await writeFile(executable, source);
+  await chmod(executable, 0o755);
+  return { bin, calls };
 }
 
 function parseHarness(result: ReturnType<typeof runHarness>) {
@@ -228,11 +310,69 @@ test('preflight returns the full title capture and rejects a mismatched Ticket t
   ]);
 });
 
-test('preflight rejects a Paperclip R1-task mismatch', async (t) => {
-  const value = await fixture(t, { paperclipTask: 'R1-15' });
-  const { report } = parseHarness(runHarness(value));
-  assert.equal(report.verdict, 'fail');
-  assert.ok(report.reasons.some((reason) => /R1-task/u.test(reason)));
+test('preflight pairs optional R1-task declarations and preserves fail-closed controls', async (t) => {
+  const scenarios: {
+    readonly name: string;
+    readonly options: FixtureOptions;
+    readonly verdict: 'pass' | 'fail';
+  }[] = [
+    {
+      name: 'matching declaration',
+      options: {},
+      verdict: 'pass',
+    },
+    {
+      name: 'mismatched declaration',
+      options: { paperclipTask: 'R1-15' },
+      verdict: 'fail',
+    },
+    {
+      name: 'omission on both sides',
+      options: { r1TaskTrailer: null, paperclipTask: null },
+      verdict: 'pass',
+    },
+    {
+      name: 'spurious trailer when declaration is omitted',
+      options: { paperclipTask: null },
+      verdict: 'fail',
+    },
+    {
+      name: 'missing trailer when declaration is present',
+      options: { r1TaskTrailer: null },
+      verdict: 'fail',
+    },
+    {
+      name: 'duplicate description declarations',
+      options: {
+        paperclipDescription: 'R1-task: none\nR1-task: R1-15',
+      },
+      verdict: 'fail',
+    },
+    {
+      name: 'malformed description declaration',
+      options: { paperclipDescription: 'R1-task: none trailing-value' },
+      verdict: 'fail',
+    },
+    {
+      name: 'duplicate commit trailers',
+      options: { additionalR1TaskTrailers: ['R1-task: none'] },
+      verdict: 'fail',
+    },
+    {
+      name: 'malformed commit trailer',
+      options: { r1TaskTrailer: 'none trailing-value' },
+      verdict: 'fail',
+    },
+  ];
+  for (const scenario of scenarios) {
+    await t.test(scenario.name, async (t) => {
+      const value = await fixture(t, scenario.options);
+      const { report } = parseHarness(runHarness(value));
+      assert.equal(report.verdict, scenario.verdict);
+      if (scenario.verdict === 'fail')
+        assert.ok(report.reasons.some((reason) => /R1-task/u.test(reason)));
+    });
+  }
 });
 
 test('preflight accepts matching LON task identifiers in trailer and Paperclip', async (t) => {
@@ -244,6 +384,22 @@ test('preflight accepts matching LON task identifiers in trailer and Paperclip',
   assert.equal(report.verdict, 'pass');
   assert.equal(report.r1TaskTrailer, 'LON-231');
   assert.equal(report.paperclipR1Task, 'LON-231');
+});
+
+test('preflight rejects zero and zero-padded Ticket numbers with matching inputs', async (t) => {
+  for (const ticket of ['LON-0', 'LON-001']) {
+    await t.test(ticket, async (t) => {
+      const value = await fixture(t, { ticket });
+      const { report } = parseHarness(runHarness(value));
+      assert.equal(report.verdict, 'fail');
+      assert.ok(
+        report.reasons.some((reason) =>
+          /PR title|Ticket trailer/u.test(reason),
+        ),
+        JSON.stringify(report.reasons),
+      );
+    });
+  }
 });
 
 test('preflight checks equality between valid LON task identifiers', async (t) => {
@@ -292,6 +448,124 @@ test('preflight rejects non-success and isolation-skipping gate-local statuses',
   assert.equal(tenSkipped.verdict, 'fail');
   assert.ok(
     tenSkipped.reasons.some((reason) => /zero isolation skips/u.test(reason)),
+  );
+});
+
+test('public preflight uses the default Paperclip description path without contract parsing', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'public preflight uses the default Paperclip description path without contract parsing',
+      ['systemdUserScope'],
+    )
+  )
+    return;
+  const value = await fixture(t);
+  const updatedAt = '2026-10-18T10:00:00.000Z';
+
+  const runSubtest = async (
+    name: string,
+    callback: () => Promise<void>,
+  ): Promise<void> => {
+    try {
+      await t.test(name, callback);
+    } catch {
+      // A failed child is already reported; continue so sibling fixtures execute.
+    }
+  };
+
+  await runSubtest(
+    'admits a short matching contract through the default transport',
+    async () => {
+      const issue = await fakePaperclip(value.directory, 'LON-230', {
+        id: 'LON-230',
+        identifier: 'LON-230',
+        title: 'Matching short execution contract',
+        description: value.description,
+        updatedAt,
+        status: 'in_progress',
+      });
+      const result = runHarness(value, { paperclipBin: issue.bin });
+      assert.equal(result.status, 0, result.stderr);
+      const { report, calls } = parseHarness(result);
+      assert.deepEqual(JSON.parse(await readFile(issue.calls, 'utf8')), [
+        'issue',
+        'get',
+        'LON-230',
+        '--json',
+      ]);
+      assert.deepEqual(calls, [
+        ['pull', value.repo, 'krn-works/krn', 27],
+        ['statuses', value.repo, 'krn-works/krn', value.head],
+      ]);
+      assert.equal(report.verdict, 'pass', JSON.stringify(report.reasons));
+      assert.deepEqual(report.reasons, []);
+    },
+  );
+
+  await runSubtest(
+    'admits the matching 9-KiB description without a contract block',
+    async () => {
+      const issue = await fakePaperclip(value.directory, 'LON-230', {
+        id: 'LON-230',
+        identifier: 'LON-230',
+        title: 'Long description without an execution contract',
+        description: [
+          'R1-task: none (long description fixture)',
+          '',
+          'x'.repeat(9 * 1024),
+        ].join('\n'),
+        updatedAt,
+        status: 'in_progress',
+      });
+      const result = runHarness(value, { paperclipBin: issue.bin });
+      assert.equal(result.status, 0, result.stderr);
+      const { report } = parseHarness(result);
+      assert.deepEqual(JSON.parse(await readFile(issue.calls, 'utf8')), [
+        'issue',
+        'get',
+        'LON-230',
+        '--json',
+      ]);
+      assert.equal(report.verdict, 'pass', JSON.stringify(report.reasons));
+      assert.deepEqual(report.reasons, []);
+    },
+  );
+
+  await runSubtest(
+    'refuses the small valid contract from a foreign issue identity',
+    async () => {
+      const issue = await fakePaperclip(value.directory, 'LON-230', {
+        id: 'paperclip-internal-foreign-id',
+        identifier: 'LON-999',
+        title: 'Foreign but coherent execution contract',
+        description: [
+          'R1-task: none (foreign issue fixture)',
+          '',
+          '```krn-contract',
+          '{"version":1,"targetRepo":"krn-works/krn","checks":["typecheck","lint","rules"]}',
+          '```',
+        ].join('\n'),
+        updatedAt,
+        status: 'in_progress',
+      });
+      const result = runHarness(value, { paperclipBin: issue.bin });
+      assert.equal(result.status, 0, result.stderr);
+      const { report } = parseHarness(result);
+      assert.deepEqual(JSON.parse(await readFile(issue.calls, 'utf8')), [
+        'issue',
+        'get',
+        'LON-230',
+        '--json',
+      ]);
+      assert.equal(report.verdict, 'fail');
+      assert.ok(
+        report.reasons.some((reason) =>
+          reason.startsWith('Paperclip issue LON-230 could not be read'),
+        ),
+        JSON.stringify(report.reasons),
+      );
+    },
   );
 });
 
