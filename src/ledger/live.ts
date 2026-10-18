@@ -1,4 +1,5 @@
 import type { Job } from '../core/index.ts';
+import { deliveryTrailers } from './delivery.ts';
 import type { Contract, Ledger, ReviewSubmission } from './index.ts';
 
 type LiveLedger = Pick<
@@ -25,6 +26,9 @@ export async function loadLiveContract(
     normalizeRepository(contract.targetRepo)
   )
     throw new Error('krn-contract targetRepo mismatch with origin remote');
+  const delivery = deliveryTrailers(contract);
+  if (!delivery.ok)
+    throw new Error(`delivery metadata refused: ${delivery.error}`);
   return { contract, board };
 }
 

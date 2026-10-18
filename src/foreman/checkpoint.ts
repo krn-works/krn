@@ -1,4 +1,5 @@
 import type { Job } from '../core/index.ts';
+import { type DeliveryTrailers, deliveryTrailers } from '../ledger/delivery.ts';
 import { prepareCheckpoint, publishCheckpoint } from './commit.ts';
 import type { Capsule, Contract, Deps, Outcome } from './types.ts';
 import { AbortBeforeCheckpoint } from './types.ts';
@@ -15,6 +16,7 @@ export async function finishCheckpoint(
   capsule: Capsule,
   intent: string,
   d: Deps,
+  trailers: DeliveryTrailers = {},
 ): Promise<{
   readonly capsule: Capsule;
   readonly sha: string;
@@ -29,7 +31,7 @@ export async function finishCheckpoint(
   if (!prepared) {
     // Close the await gap immediately before preparing a fresh checkpoint.
     if (d.signal?.aborted) throw new AbortBeforeCheckpoint();
-    const commit = prepareCheckpoint(job, request.message, sessionId);
+    const commit = prepareCheckpoint(job, request.message, sessionId, trailers);
     checkpointed = await d.relay.checkpoint(
       job,
       sessionId,
@@ -96,6 +98,7 @@ export async function finishCheckpoint(
     prepared.parent,
     request.message,
     sessionId,
+    trailers,
   );
   const sha = prepared.sha;
   await d.trace.commit(job, intent, sessionId, sha, request.message);
@@ -124,7 +127,15 @@ export async function checkpointStep(
     }
   | { readonly kind: 'outcome'; readonly outcome: Outcome }
 > {
-  const checkpoint = await finishCheckpoint(job, capsule, intent, d);
+  const delivery = deliveryTrailers(contract);
+  if (!delivery.ok) throw new Error(`checkpoint refused: ${delivery.error}`);
+  const checkpoint = await finishCheckpoint(
+    job,
+    capsule,
+    intent,
+    d,
+    delivery.value,
+  );
   if (!checkpoint.done)
     return { kind: 'continue', capsule: checkpoint.capsule, repaired: false };
   const result = await verifyCheckpoint(

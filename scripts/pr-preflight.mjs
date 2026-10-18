@@ -4,7 +4,8 @@ import { realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { createLedger } from '../src/ledger/index.ts';
+import { parsePaperclipIssue } from '../src/core/paperclip.ts';
+import { parseR1TaskLine } from '../src/ledger/delivery.ts';
 import { createPaperclipCliTransport } from '../src/ledger/paperclip-cli.ts';
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
@@ -151,10 +152,7 @@ function paperclipTask(description) {
     .filter((line) => line.startsWith('R1-task:'));
   if (lines.length !== 1)
     return err('Paperclip description must contain exactly one R1-task line');
-  const value =
-    /^R1-task:[ \t]*(R1-\d+|LON-\d+|none)(?:[ \t]+\([^\r\n]*\))?[ \t]*$/u.exec(
-      lines[0] ?? '',
-    )?.[1];
+  const value = parseR1TaskLine(lines[0] ?? '');
   const parsed = taskSchema.safeParse(value);
   return parsed.success
     ? ok(parsed.data)
@@ -180,15 +178,44 @@ function hasZeroIsolationSkips(description) {
 async function readPaperclipDescription(ticket) {
   const transport = createPaperclipCliTransport();
   try {
-    const ledger = createLedger({ session: '', transport });
-    return ok((await ledger.readContract(ticket)).description);
+    const issue = parsePaperclipIssue(await transport.readIssue(ticket));
+    if (!issue.ok)
+      return err(
+        `Paperclip issue ${ticket} could not be read: invalid issue response`,
+      );
+    if (issue.value.id !== ticket && issue.value.identifier !== ticket)
+      return err(
+        `Paperclip issue ${ticket} could not be read: issue identity mismatch`,
+      );
+    return ok(issue.value.description);
   } catch {
     return err(
-      `Paperclip issue ${ticket} could not be read through the ledger CLI`,
+      `Paperclip issue ${ticket} could not be read: Paperclip CLI read failed`,
     );
   } finally {
-    await transport.cancelAll().catch(() => {});
+    if (transport.cancelAll) await transport.cancelAll().catch(() => {});
   }
+}
+
+async function readPaperclipDescriptionValue(read, ticket, reasons) {
+  const fallback = `Paperclip issue ${ticket} could not be read through the ledger CLI`;
+  const safeFailures = new Set([
+    `Paperclip issue ${ticket} could not be read: invalid issue response`,
+    `Paperclip issue ${ticket} could not be read: issue identity mismatch`,
+    `Paperclip issue ${ticket} could not be read: Paperclip CLI read failed`,
+  ]);
+  let result;
+  try {
+    result = await read(ticket);
+  } catch {
+    reasons.add(fallback);
+    return;
+  }
+  if (result?.ok === false) {
+    reasons.add(safeFailures.has(result.error) ? result.error : fallback);
+    return;
+  }
+  return checked(result, z.string(), fallback, reasons);
 }
 
 export async function runPreflight(input, dependencies = {}) {
@@ -317,11 +344,9 @@ export async function runPreflight(input, dependencies = {}) {
           );
         const issueRead =
           dependencies.readPaperclipDescription ?? readPaperclipDescription;
-        const description = await readValue(
+        const description = await readPaperclipDescriptionValue(
           issueRead,
-          [ticket],
-          z.string(),
-          `Paperclip issue ${ticket} could not be read through the ledger CLI`,
+          ticket,
           reasons,
         );
         if (description !== undefined) {

@@ -2,6 +2,7 @@
 import { lstatSync, readFileSync, readlinkSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, resolve, sep } from 'node:path';
 import type { Job } from '../core/index.ts';
+import type { DeliveryTrailers } from '../ledger/delivery.ts';
 import { credentialShapeKind } from './credential-shape.ts';
 import { git } from './git.ts';
 
@@ -422,6 +423,7 @@ export function prepareCheckpoint(
   job: Job,
   message: string,
   sessionId: string,
+  trailers: DeliveryTrailers = {},
 ): { readonly sha: string; readonly parent: string } {
   if (!message || message.length > 200 || /[\r\n]/.test(message))
     throw new Error('invalid checkpoint commit message');
@@ -453,14 +455,21 @@ export function prepareCheckpoint(
     '-p',
     parent,
     '-m',
-    checkpointMessage(message, sessionId),
+    checkpointMessage(message, sessionId, trailers),
   ]).trim();
   return { sha, parent };
 }
 
 // commit-tree stores the message verbatim plus one newline; compare that body exactly.
-function checkpointMessage(message: string, sessionId: string): string {
-  return `${message}\n\nKrn-Session: ${sessionId}`;
+function checkpointMessage(
+  message: string,
+  sessionId: string,
+  trailers: DeliveryTrailers = {},
+): string {
+  const lines = [`Krn-Session: ${sessionId}`];
+  if (trailers.ticket) lines.push(`Ticket: ${trailers.ticket}`);
+  if (trailers.r1Task) lines.push(`R1-task: ${trailers.r1Task}`);
+  return `${message}\n\n${lines.join('\n')}`;
 }
 
 function commitBody(job: Job, sha: string): string {
@@ -477,11 +486,13 @@ export function publishCheckpoint(
   parent: string,
   message: string,
   sessionId: string,
+  trailers: DeliveryTrailers = {},
 ): void {
   const head = git(job, ['rev-parse', 'HEAD']).trim();
   if (
     git(job, ['show', '-s', '--format=%P', sha]).trim() !== parent ||
-    commitBody(job, sha) !== `${checkpointMessage(message, sessionId)}\n` ||
+    commitBody(job, sha) !==
+      `${checkpointMessage(message, sessionId, trailers)}\n` ||
     (head !== parent && head !== sha)
   )
     throw new Error('checkpoint refused: prepared commit anchors changed');
@@ -500,8 +511,9 @@ export function commitCheckpoint(
   job: Job,
   message: string,
   sessionId: string,
+  trailers: DeliveryTrailers = {},
 ): string {
-  const { sha, parent } = prepareCheckpoint(job, message, sessionId);
-  publishCheckpoint(job, sha, parent, message, sessionId);
+  const { sha, parent } = prepareCheckpoint(job, message, sessionId, trailers);
+  publishCheckpoint(job, sha, parent, message, sessionId, trailers);
   return sha;
 }
