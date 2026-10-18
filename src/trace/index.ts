@@ -22,10 +22,12 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { z } from 'zod';
 import type { Job } from '../core/index.ts';
 import { readCheckpointRequest } from '../foreman/checkpoint-request.ts';
+import { credentialShapeKind } from '../foreman/credential-shape.ts';
 import { repoRecord, stateDirectory } from '../foreman/state.ts';
 import type { SessionEnd } from '../foreman/types.ts';
 import {
   codexScopeUnit,
+  processStartTicks,
   type SystemdScopeRegistration,
   validateSystemdScopeRegistration,
 } from '../hosts/systemd-scope.ts';
@@ -78,6 +80,31 @@ const verdictDataSchema = z.object({
     }),
   ),
 });
+const jobOutcomeSchema = z.object({
+  exitCode: z.number().int().min(0).max(255),
+  signal: z.enum(['SIGINT', 'SIGTERM', 'SIGHUP', 'wall-timeout']).nullable(),
+  cleanup: z.enum(['verified', 'unconfirmed']),
+  reason: z.enum([
+    'completed',
+    'stopped',
+    'wall-timeout',
+    'runjob-error',
+    'cleanup-unconfirmed',
+    'trace-error',
+  ]),
+  outcomeKind: z.enum(['verdict_pass', 'review', 'stop', 'error']).optional(),
+  error: z
+    .object({ type: z.string().min(1).max(64), message: z.string().max(240) })
+    .optional(),
+});
+const traceLockOwnerSchema = z.object({
+  pid: z.number().int().positive(),
+  startTicks: z.string().regex(/^\d+$/u),
+  token: z.string().uuid(),
+});
+const traceLockWaitMs = 3000;
+const traceLockPollMs = 10;
+const traceLockWaitCell = new Int32Array(new SharedArrayBuffer(4));
 
 function file(job: Job): string {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(job.id) || job.id === '..')
@@ -365,12 +392,40 @@ function openVerifiedTrace(path: string, flags: number, mode?: number): number {
   return fd;
 }
 
-function events(job: Job): Event[] {
+type TraceSnapshot = {
+  readonly events: Event[];
+  readonly path: string;
+  readonly directory: string;
+  readonly bytes: Buffer;
+  readonly malformedTail: boolean;
+  readonly finalRowUnterminated: boolean;
+  readonly repairOffset: number;
+};
+
+function readTrace(job: Job): TraceSnapshot {
   const path = file(job);
   const directory = dirname(path);
-  if (!ensureTraceDirectory(job, directory, false)) return [];
+  if (!ensureTraceDirectory(job, directory, false))
+    return {
+      events: [],
+      path,
+      directory,
+      bytes: Buffer.alloc(0),
+      malformedTail: false,
+      finalRowUnterminated: false,
+      repairOffset: 0,
+    };
   assertNoTraceSymlinks(directory, path);
-  if (!existsSync(path)) return [];
+  if (!existsSync(path))
+    return {
+      events: [],
+      path,
+      directory,
+      bytes: Buffer.alloc(0),
+      malformedTail: false,
+      finalRowUnterminated: false,
+      repairOffset: 0,
+    };
   let contents: Buffer;
   try {
     const fd = openVerifiedTrace(path, constants.O_RDONLY);
@@ -380,46 +435,292 @@ function events(job: Job): Event[] {
       closeSync(fd);
     }
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT')
+      return {
+        events: [],
+        path,
+        directory,
+        bytes: Buffer.alloc(0),
+        malformedTail: false,
+        finalRowUnterminated: false,
+        repairOffset: 0,
+      };
     throw error;
   }
-  const terminated =
-    contents.length === 0 || contents[contents.length - 1] === 0x0a;
+  const terminated = contents.length === 0 || contents.at(-1) === 0x0a;
   const lastNewline = contents.lastIndexOf(0x0a);
-  const completeLength = terminated ? contents.length - 1 : lastNewline + 1;
+  const completeLength = terminated ? contents.length : lastNewline + 1;
   const result = contents
     .subarray(0, completeLength)
     .toString('utf8')
     .split('\n')
     .filter(Boolean)
     .map(parseEvent);
-  if (terminated || contents.length === 0) return result;
+  if (terminated || contents.length === 0)
+    return {
+      events: result,
+      path,
+      directory,
+      bytes: contents,
+      malformedTail: false,
+      finalRowUnterminated: false,
+      repairOffset: contents.length,
+    };
 
   const tail = contents.subarray(completeLength).toString('utf8');
-  let finalEvent: Event;
   try {
-    finalEvent = parseEvent(tail);
+    result.push(parseEvent(tail));
   } catch {
-    const fd = openVerifiedTrace(path, constants.O_RDWR);
+    console.warn('krn trace: discarded torn final trace line');
+    return {
+      events: result,
+      path,
+      directory,
+      bytes: contents,
+      malformedTail: true,
+      finalRowUnterminated: false,
+      repairOffset: completeLength,
+    };
+  }
+
+  return {
+    events: result,
+    path,
+    directory,
+    bytes: contents,
+    malformedTail: false,
+    finalRowUnterminated: true,
+    repairOffset: contents.length,
+  };
+}
+
+function events(job: Job): Event[] {
+  return readTrace(job).events;
+}
+
+function waitForTraceLock(): void {
+  Atomics.wait(traceLockWaitCell, 0, 0, traceLockPollMs);
+}
+
+function assertTraceLockPath(path: string): void {
+  try {
+    const stats = lstatSync(path);
+    if (!stats.isFile() || stats.nlink !== 1)
+      throw new Error('unsafe trace lock');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+}
+
+function readTraceLockOwner(path: string):
+  | {
+      readonly owner: z.infer<typeof traceLockOwnerSchema>;
+      readonly dev: number;
+      readonly ino: number;
+    }
+  | undefined {
+  let fd: number;
+  try {
+    fd = openVerifiedTrace(path, constants.O_RDONLY);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
+  try {
+    const stats = fstatSync(fd);
+    if (stats.size < 1 || stats.size > 1024)
+      throw new Error('invalid trace lock owner');
+    const parsed = traceLockOwnerSchema.safeParse(
+      JSON.parse(readFileSync(fd, 'utf8')) as unknown,
+    );
+    if (!parsed.success) throw new Error('invalid trace lock owner');
+    return { owner: parsed.data, dev: stats.dev, ino: stats.ino };
+  } catch {
+    throw new Error('invalid trace lock owner');
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function lockOwnerIsLive(
+  owner: z.infer<typeof traceLockOwnerSchema>,
+): boolean | undefined {
+  try {
+    process.kill(owner.pid, 0);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === 'ESRCH') return false;
+    if (code !== 'EPERM') return undefined;
+  }
+  const ticks = processStartTicks(owner.pid);
+  if (ticks === undefined) return undefined;
+  if (ticks !== owner.startTicks) return false;
+  return true;
+}
+
+function createTraceLock(
+  path: string,
+  owner: z.infer<typeof traceLockOwnerSchema>,
+): { readonly dev: number; readonly ino: number } {
+  const fd = openSync(
+    path,
+    constants.O_WRONLY |
+      constants.O_CREAT |
+      constants.O_EXCL |
+      (constants.O_NOFOLLOW ?? 0),
+    0o600,
+  );
+  let identity: { readonly dev: number; readonly ino: number } | undefined;
+  let completed = false;
+  try {
+    const stats = fstatSync(fd);
+    if (!stats.isFile() || stats.nlink !== 1)
+      throw new Error('unsafe trace lock');
+    const expectedPath = resolve(path);
+    let actualPath: string;
     try {
-      ftruncateSync(fd, completeLength);
+      actualPath = readlinkSync(`/proc/self/fd/${fd}`);
+    } catch {
+      throw new Error('unsafe trace lock');
+    }
+    if (actualPath !== expectedPath) throw new Error('unsafe trace lock');
+    identity = { dev: stats.dev, ino: stats.ino };
+    const bytes = Buffer.from(JSON.stringify(owner));
+    const written = writeSync(fd, bytes);
+    if (written !== bytes.length)
+      throw new Error('trace lock write was incomplete');
+    fsyncSync(fd);
+    completed = true;
+    return identity;
+  } finally {
+    closeSync(fd);
+    if (!completed && identity) {
+      try {
+        const current = lstatSync(path);
+        if (
+          current.isFile() &&
+          current.nlink === 1 &&
+          current.dev === identity.dev &&
+          current.ino === identity.ino
+        )
+          unlinkSync(path);
+      } catch {
+        // Failed lock creation leaves paths it cannot prove owned untouched.
+      }
+    }
+  }
+}
+
+function removeTraceLockIfOwned(
+  path: string,
+  owner: z.infer<typeof traceLockOwnerSchema>,
+  identity: { readonly dev: number; readonly ino: number },
+): void {
+  try {
+    const current = readTraceLockOwner(path);
+    if (
+      current?.owner.token === owner.token &&
+      current.dev === identity.dev &&
+      current.ino === identity.ino
+    )
+      unlinkSync(path);
+  } catch {
+    // Ownership is not established, so the path is left untouched.
+  }
+}
+
+function acquireTraceLock(directory: string, tracePath: string): () => void {
+  const lockPath = `${tracePath}.lock`;
+  const reclaimerPath = `${tracePath}.lock.reclaim`;
+  const startTicks = processStartTicks(process.pid);
+  if (!startTicks)
+    throw new Error('cannot establish trace lock owner identity');
+  const owner = { pid: process.pid, startTicks, token: randomUUID() };
+  const deadline = Date.now() + traceLockWaitMs;
+
+  while (Date.now() < deadline) {
+    assertNoTraceSymlinks(directory, lockPath);
+    assertNoTraceSymlinks(directory, reclaimerPath);
+    assertTraceLockPath(lockPath);
+    assertTraceLockPath(reclaimerPath);
+    if (existsSync(reclaimerPath)) {
+      waitForTraceLock();
+      continue;
+    }
+    try {
+      const identity = createTraceLock(lockPath, owner);
+      return () => removeTraceLockIfOwned(lockPath, owner, identity);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    }
+
+    const observed = readTraceLockOwner(lockPath);
+    if (!observed) continue;
+    const live = lockOwnerIsLive(observed.owner);
+    if (live === undefined) throw new Error('cannot verify trace lock owner');
+    if (live) {
+      waitForTraceLock();
+      continue;
+    }
+
+    // A single O_EXCL reclaimer gate serializes stale-owner removal. Every
+    // contender rereads the canonical owner after acquiring the gate, so one
+    // reclaimer cannot unlink a replacement writer's live lock.
+    let reclaimerIdentity: { readonly dev: number; readonly ino: number };
+    try {
+      reclaimerIdentity = createTraceLock(reclaimerPath, owner);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+        waitForTraceLock();
+        continue;
+      }
+      throw error;
+    }
+    let acquired: { readonly dev: number; readonly ino: number } | undefined;
+    try {
+      const current = readTraceLockOwner(lockPath);
+      if (
+        current &&
+        current.owner.token === observed.owner.token &&
+        current.dev === observed.dev &&
+        current.ino === observed.ino &&
+        lockOwnerIsLive(current.owner) === false
+      ) {
+        unlinkSync(lockPath);
+      }
+      if (!existsSync(lockPath)) acquired = createTraceLock(lockPath, owner);
+    } finally {
+      removeTraceLockIfOwned(reclaimerPath, owner, reclaimerIdentity);
+    }
+    if (acquired) {
+      const identity = acquired;
+      return () => removeTraceLockIfOwned(lockPath, owner, identity);
+    }
+  }
+  throw new Error('trace lock acquisition timed out');
+}
+
+function repairTraceTail(snapshot: TraceSnapshot): void {
+  if (snapshot.malformedTail) {
+    const fd = openVerifiedTrace(snapshot.path, constants.O_RDWR);
+    try {
+      ftruncateSync(fd, snapshot.repairOffset);
       fsyncSync(fd);
     } finally {
       closeSync(fd);
     }
-    console.warn('krn trace: discarded torn final trace line');
-    return result;
+  } else if (snapshot.finalRowUnterminated) {
+    const fd = openVerifiedTrace(
+      snapshot.path,
+      constants.O_WRONLY | constants.O_APPEND,
+    );
+    try {
+      writeAllSync(fd, '\n');
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
   }
-
-  const fd = openVerifiedTrace(path, constants.O_WRONLY | constants.O_APPEND);
-  try {
-    writeAllSync(fd, '\n');
-    fsyncSync(fd);
-  } finally {
-    closeSync(fd);
-  }
-  result.push(finalEvent);
-  return result;
 }
 
 function append(
@@ -432,25 +733,31 @@ function append(
   const directory = dirname(path);
   ensureTraceDirectory(job, directory, true);
   assertNoTraceSymlinks(directory, path);
-  const prior = events(job).find((event) => event.key === key);
-  if (prior) return false;
-  assertNoTraceSymlinks(directory, path);
-  const fd = openVerifiedTrace(
-    path,
-    constants.O_WRONLY | constants.O_CREAT | constants.O_APPEND,
-    0o600,
-  );
+  const releaseLock = acquireTraceLock(directory, path);
   try {
-    if (!fstatSync(fd).isFile()) throw new Error('unsafe trace path');
-    writeAllSync(
-      fd,
-      `${JSON.stringify({ id: randomUUID(), key, kind, at: new Date().toISOString(), data })}\n`,
+    const snapshot = readTrace(job);
+    repairTraceTail(snapshot);
+    if (snapshot.events.some((event) => event.key === key)) return false;
+    assertNoTraceSymlinks(directory, path);
+    const fd = openVerifiedTrace(
+      path,
+      constants.O_WRONLY | constants.O_CREAT | constants.O_APPEND,
+      0o600,
     );
-    fsyncSync(fd);
+    try {
+      if (!fstatSync(fd).isFile()) throw new Error('unsafe trace path');
+      writeAllSync(
+        fd,
+        `${JSON.stringify({ id: randomUUID(), key, kind, at: new Date().toISOString(), data })}\n`,
+      );
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
+    return true;
   } finally {
-    closeSync(fd);
+    releaseLock();
   }
-  return true;
 }
 
 export async function intent(job: Job, epoch: number): Promise<string> {
@@ -672,6 +979,7 @@ export async function log(
       signal: end.signal,
       threadId: end.threadId,
       usage: end.usage,
+      usageObservation: end.usageObservation,
       reasonKind: end.reasonKind,
       reasonSha256: end.reasonSha256,
       reasonLength: end.reasonLength,
@@ -768,6 +1076,30 @@ export async function teardownUnconfirmed(
   });
 }
 
+export function jobOutcome(
+  job: Job,
+  input: Omit<z.input<typeof jobOutcomeSchema>, 'error'> & {
+    readonly error?: unknown;
+  },
+): void {
+  const normalized = {
+    exitCode: input.exitCode,
+    signal: input.signal,
+    cleanup: input.cleanup,
+    reason: input.reason,
+    ...(input.outcomeKind === undefined
+      ? {}
+      : { outcomeKind: input.outcomeKind }),
+    ...(input.error === undefined ? {} : { error: boundedError(input.error) }),
+  };
+  append(
+    job,
+    `job-outcome:${randomUUID()}`,
+    'job_outcome',
+    jobOutcomeSchema.parse(normalized),
+  );
+}
+
 export function paperclipUpdateStarted(
   job: Job,
   sha: string,
@@ -827,16 +1159,8 @@ function containsGenericCredentialToken(note: string): boolean {
   });
 }
 
-export async function leadIntervention(
-  job: Job,
-  kind: 'intervention' | 'reconstruction_prompt',
-  note: string,
-): Promise<void> {
-  if (!note || note.length > 200 || /[\r\n]/u.test(note))
-    throw new Error(
-      'lead intervention note must be a single line of at most 200 characters',
-    );
-  if (
+function containsInterventionCredential(note: string): boolean {
+  return (
     /\b(?:(?:sk|rk|pk)_(?:live|test)_|whsec_|sk[-_])/u.test(note) ||
     /\b(?:ghp_|gho_|ghu_|ghs_|ghr_|glpat-)/u.test(note) ||
     /\bgithub_pat_/u.test(note) ||
@@ -849,6 +1173,38 @@ export async function leadIntervention(
     /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/u.test(note) ||
     /(?:api[_-]?key|token|secret|password)\s*[:=]\s*\S+/iu.test(note) ||
     containsGenericCredentialToken(note)
+  );
+}
+
+function boundedError(error: unknown): { type: string; message: string } {
+  const rawType = error instanceof Error ? error.name : typeof error;
+  const type = rawType.replace(/[^A-Za-z0-9_.-]/gu, '').slice(0, 64) || 'Error';
+  const rawMessage = error instanceof Error ? error.message : String(error);
+  const message =
+    rawMessage.length > 4096
+      ? 'message omitted'
+      : (() => {
+          const compact = rawMessage.replace(/\s+/gu, ' ').trim();
+          return credentialShapeKind(compact) ||
+            containsInterventionCredential(compact)
+            ? '[redacted]'
+            : compact.slice(0, 240);
+        })();
+  return { type, message };
+}
+
+export async function leadIntervention(
+  job: Job,
+  kind: 'intervention' | 'reconstruction_prompt',
+  note: string,
+): Promise<void> {
+  if (!note || note.length > 200 || /[\r\n]/u.test(note))
+    throw new Error(
+      'lead intervention note must be a single line of at most 200 characters',
+    );
+  if (
+    credentialShapeKind(note) !== null ||
+    containsInterventionCredential(note)
   )
     throw new Error('lead intervention note must not contain credentials');
   append(job, `lead-intervention:${randomUUID()}`, 'lead_intervention', {

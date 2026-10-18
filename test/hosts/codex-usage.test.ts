@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { stateDirectory } from '../../src/foreman/state.ts';
@@ -63,6 +70,49 @@ setImmediate(() => process.stdout.write(stream.slice(37)));
   }
 }
 
+async function interruptedStream(): Promise<CodexSessionResult> {
+  const scratch = join(process.cwd(), '.krn', 'tmp');
+  await mkdir(scratch, { recursive: true });
+  const root = await mkdtemp(join(scratch, 'codex-interrupted-'));
+  const marker = join(root, 'turn-started');
+  let host: CodexHost | undefined;
+  try {
+    const initialized = spawnSync('git', ['-C', root, 'init', '-q']);
+    assert.equal(initialized.status, 0);
+    const executable = join(root, 'fake-codex');
+    await writeFile(
+      executable,
+      `#!/usr/bin/env node\nprocess.stdout.write(JSON.stringify({type:'turn.started'})+'\\n');\nawait import('node:fs/promises').then(({writeFile})=>writeFile(${JSON.stringify(marker)},'started'));\nsetInterval(()=>{},1000);\n`,
+      { mode: 0o755 },
+    );
+    host = new CodexHost({ executable });
+    const session = await host.start({
+      cwd: root,
+      model: 'gpt-6-luna',
+      prompt: 'interrupted usage',
+      limits: { timeoutMs: 5000 },
+    });
+    const until = Date.now() + 4000;
+    while (Date.now() < until) {
+      try {
+        await access(marker);
+        break;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
+    await access(marker);
+    await host.cancelAll();
+    return await session.wait();
+  } finally {
+    try {
+      await host?.cancelAll();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  }
+}
+
 test('Codex protocol input12 output3 cached4 accounts for exactly15 tokens', async (t) => {
   if (!requiresIsolation(t, 'Codex protocol usage', ['systemdUserScope']))
     return;
@@ -83,6 +133,11 @@ test('Codex multiple turns accumulate usage and preserve totals in trace', async
       inputTokens: 20,
       outputTokens: 5,
       totalTokens: 25,
+    });
+    assert.deepEqual(Reflect.get(result, 'usageObservation'), {
+      turnsStarted: 2,
+      turnsCompleted: 2,
+      invalidFields: 0,
     });
     const job = {
       id: 'usage-fixture',
@@ -105,6 +160,11 @@ test('Codex multiple turns accumulate usage and preserve totals in trace', async
       outputTokens: 5,
       totalTokens: 25,
     });
+    assert.deepEqual(event.data.end.usageObservation, {
+      turnsStarted: 2,
+      turnsCompleted: 2,
+      invalidFields: 0,
+    });
   });
 });
 
@@ -112,22 +172,47 @@ test('Codex usage retains validation before adding protocol counts', async (t) =
   if (!requiresIsolation(t, 'Codex invalid usage', ['systemdUserScope']))
     return;
   const invalid = [-1, 0.5, '12', null, Number.MAX_SAFE_INTEGER + 1];
-  const lines = invalid.flatMap((value) => [
-    JSON.stringify({
-      type: 'turn.completed',
-      usage: { input_tokens: value, output_tokens: 2 },
-    }),
-    JSON.stringify({
-      type: 'turn.completed',
-      usage: { input_tokens: 3, output_tokens: value },
-    }),
-  ]);
+  const lines = invalid
+    .flatMap((value) => [
+      JSON.stringify({
+        type: 'turn.completed',
+        usage: { input_tokens: value, output_tokens: 2 },
+      }),
+      JSON.stringify({
+        type: 'turn.completed',
+        usage: { input_tokens: 3, output_tokens: value },
+      }),
+    ])
+    .concat([
+      JSON.stringify({ type: 'turn.completed' }),
+      JSON.stringify({ type: 'turn.completed', usage: {} }),
+    ]);
   await runStream(lines, async (result) => {
     assert.deepEqual(result.usage, {
       inputTokens: 15,
       outputTokens: 10,
       totalTokens: 25,
     });
+    assert.deepEqual(Reflect.get(result, 'usageObservation'), {
+      turnsStarted: 0,
+      turnsCompleted: 12,
+      invalidFields: 14,
+    });
+  });
+});
+
+test('started native turn interrupted before completion remains unmeasured', async (t) => {
+  if (
+    !requiresIsolation(t, 'Codex interrupted usage observation', [
+      'systemdUserScope',
+    ])
+  )
+    return;
+  const result = await interruptedStream();
+  assert.deepEqual(Reflect.get(result, 'usageObservation'), {
+    turnsStarted: 1,
+    turnsCompleted: 0,
+    invalidFields: 0,
   });
 });
 

@@ -1,15 +1,26 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { appendFile, mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import {
+  appendFile,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { Worker } from 'node:worker_threads';
 import type { Job } from '../../src/core/index.ts';
 import { stateDirectory } from '../../src/foreman/state.ts';
+import * as trace from '../../src/trace/index.ts';
 import {
   classifyTraceFdPathReadback,
+  failure,
   hasVerdict,
   traceFdPathVerificationDecision,
   verdict,
@@ -91,6 +102,7 @@ test('trace recovers and reports an incomplete tail but rejects completed corrup
   try {
     await verdict(f.job, event(sha, 0, 'b'.repeat(64)));
     await appendFile(f.tracePath, '{"key":"torn"');
+    const beforeRead = await readFile(f.tracePath);
 
     let readable = false;
     let diagnostic = '';
@@ -114,6 +126,11 @@ test('trace recovers and reports an incomplete tail but rejects completed corrup
       'a torn tail must not hide the durable verdict',
     );
     assert.match(diagnostic, /torn final trace line/u);
+    assert.deepEqual(
+      await readFile(f.tracePath),
+      beforeRead,
+      'reading a torn tail must leave every trace byte unchanged',
+    );
     await verdict(f.job, event('c'.repeat(40), 0, 'd'.repeat(64)));
 
     const later = JSON.stringify({
@@ -128,6 +145,293 @@ test('trace recovers and reports an incomplete tail but rejects completed corrup
     );
     await assert.rejects(hasVerdict(f.job, sha), SyntaxError);
   } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('trace reads a valid unterminated final row without adding bytes', async () => {
+  const f = await fixture();
+  const sha = 'a'.repeat(40);
+  try {
+    await verdict(f.job, event(sha, 0, 'b'.repeat(64)));
+    const bytes = await readFile(f.tracePath);
+    assert.equal(bytes.at(-1), 0x0a);
+    await writeFile(f.tracePath, bytes.subarray(0, -1));
+    const beforeRead = await readFile(f.tracePath);
+
+    assert.equal(await hasVerdict(f.job, sha), true);
+    assert.deepEqual(
+      await readFile(f.tracePath),
+      beforeRead,
+      'reading a valid unterminated row must not append a newline',
+    );
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('job outcomes redact credentials and bound error messages', async () => {
+  const f = await fixture();
+  type JobOutcomeWriter = (
+    job: Job,
+    input: {
+      exitCode: number;
+      signal: null;
+      cleanup: 'verified';
+      reason: 'runjob-error';
+      error: Error;
+    },
+  ) => void;
+  const writer = Reflect.get(trace, 'jobOutcome') as
+    | JobOutcomeWriter
+    | undefined;
+  try {
+    if (writer) {
+      writer(f.job, {
+        exitCode: 1,
+        signal: null,
+        cleanup: 'verified',
+        reason: 'runjob-error',
+        error: new Error('request failed with Bearer secret-value-123'),
+      });
+      writer(f.job, {
+        exitCode: 1,
+        signal: null,
+        cleanup: 'verified',
+        reason: 'runjob-error',
+        error: new Error('x'.repeat(600)),
+      });
+    } else {
+      await failure(f.job, 'outcome-redaction', new Error('probe'));
+    }
+    const rows = (await readFile(f.tracePath, 'utf8'))
+      .split('\n')
+      .filter(Boolean)
+      .map(
+        (line) =>
+          JSON.parse(line) as {
+            kind: string;
+            data: { error?: { message: string } };
+          },
+      );
+    const outcomes = rows.filter((row) => row.kind === 'job_outcome');
+    assert.equal(outcomes.length, 2, 'both final outcomes must be recorded');
+    assert.equal(outcomes[0]?.data.error?.message, '[redacted]');
+    assert.equal(outcomes[1]?.data.error?.message.length, 240);
+    assert.ok(!JSON.stringify(outcomes).includes('secret-value-123'));
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('independent trace appenders preserve events across a torn-tail repair', {
+  timeout: 15_000,
+}, async () => {
+  const f = await fixture();
+  const firstSha = 'a'.repeat(40);
+  const secondSha = 'b'.repeat(40);
+  const barrier = join(f.directory, 'barrier');
+  await mkdir(barrier);
+  await verdict(f.job, event('c'.repeat(40), 0, 'd'.repeat(64)));
+  await appendFile(f.tracePath, '{"key":"torn"');
+  const lockPath = `${f.tracePath}.lock`;
+  const deadPid = process.pid + 1_000_000_000;
+  await writeFile(
+    lockPath,
+    JSON.stringify({
+      pid: deadPid,
+      startTicks: '1',
+      token: randomUUID(),
+    }),
+  );
+
+  const preload = join(barrier, 'preload.mjs');
+  const child = join(barrier, 'child.mjs');
+  await writeFile(
+    preload,
+    `
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const role = process.env.KRN_TRACE_BARRIER_ROLE;
+const root = process.env.KRN_TRACE_BARRIER_DIR;
+const lockPath = process.env.KRN_TRACE_BARRIER_LOCK;
+const reclaimerPath = process.env.KRN_TRACE_BARRIER_RECLAIMER;
+const waitFor = (name, timeout = 8000) => {
+  const until = Date.now() + timeout;
+  while (!fs.existsSync(root + '/' + name)) {
+    if (Date.now() >= until) throw new Error('barrier timeout: ' + name);
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
+  }
+};
+if (role === 'first') {
+  const unlink = fs.unlinkSync;
+  fs.unlinkSync = function (path, ...args) {
+    if (String(path) === lockPath && fs.existsSync(reclaimerPath)) {
+      fs.writeFileSync(root + '/stale-reclaim-held', '1');
+      waitFor('release-stale-reclaim');
+    }
+    return unlink.call(this, path, ...args);
+  };
+  const original = fs.ftruncateSync;
+  fs.ftruncateSync = function (...args) {
+    fs.writeFileSync(root + '/first-repair', '1');
+    waitFor('release-first');
+    return original.apply(this, args);
+  };
+  const write = fs.writeSync;
+  fs.writeSync = function (...args) {
+    const value = Buffer.isBuffer(args[1]) ? args[1].toString() : String(args[1]);
+    const result = write.apply(this, args);
+    if (value.includes(process.env.KRN_TRACE_BARRIER_SHA)) {
+      fs.writeFileSync(root + '/first-row', '1');
+      waitFor('release-first-row');
+    }
+    return result;
+  };
+} else {
+  const exists = fs.existsSync;
+  fs.existsSync = function (path, ...args) {
+    const found = exists.call(this, path, ...args);
+    if (String(path) === reclaimerPath && found)
+      fs.writeFileSync(root + '/second-saw-reclaimer', '1');
+    return found;
+  };
+  const read = fs.readFileSync;
+  fs.readFileSync = function (path, ...args) {
+    const value = read.call(this, path, ...args);
+    if (typeof path === 'number') {
+      try {
+        if (fs.readlinkSync('/proc/self/fd/' + path) === lockPath)
+          fs.writeFileSync(root + '/second-saw-live-owner', '1');
+      } catch {}
+    }
+    return value;
+  };
+  const original = fs.ftruncateSync;
+  fs.ftruncateSync = function (...args) {
+    fs.writeFileSync(root + '/second-repair', '1');
+    waitFor('first-row');
+    return original.apply(this, args);
+  };
+}
+syncBuiltinESMExports();
+`,
+  );
+  await writeFile(
+    child,
+    `
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+const root = process.env.KRN_TRACE_BARRIER_DIR;
+const { verdict } = await import(${JSON.stringify(new URL('../../src/trace/index.ts', import.meta.url).href)});
+const job = JSON.parse(readFileSync(process.env.KRN_TRACE_BARRIER_JOB, 'utf8'));
+const sha = process.env.KRN_TRACE_BARRIER_SHA;
+if (process.env.KRN_TRACE_BARRIER_ROLE === 'second') {
+  writeFileSync(root + '/second-ready', '1');
+  const until = Date.now() + 8000;
+  while (!existsSync(root + '/start-second')) {
+    if (Date.now() >= until) throw new Error('barrier timeout: start-second');
+  }
+}
+await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha256: sha.padEnd(64, '0').slice(0, 64) }] });
+`,
+  );
+  const jobFile = join(barrier, 'job.json');
+  await writeFile(jobFile, JSON.stringify(f.job));
+
+  const start = (role: 'first' | 'second', sha: string) =>
+    spawn(process.execPath, ['--import', preload, child], {
+      cwd: f.directory,
+      env: {
+        ...process.env,
+        KRN_TRACE_BARRIER_ROLE: role,
+        KRN_TRACE_BARRIER_DIR: barrier,
+        KRN_TRACE_BARRIER_JOB: jobFile,
+        KRN_TRACE_BARRIER_SHA: sha,
+        KRN_TRACE_BARRIER_LOCK: lockPath,
+        KRN_TRACE_BARRIER_RECLAIMER: `${lockPath}.reclaim`,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  const waitFor = async (name: string, timeout = 8000) => {
+    const until = Date.now() + timeout;
+    while (Date.now() < until) {
+      try {
+        await readFile(join(barrier, name));
+        return true;
+      } catch {}
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    return false;
+  };
+  const first = start('first', firstSha);
+  let second: ReturnType<typeof spawn> | undefined;
+  try {
+    const staleReclaimerHeld = await waitFor('stale-reclaim-held', 500);
+    if (!staleReclaimerHeld)
+      assert.equal(
+        await waitFor('first-repair'),
+        true,
+        'first process reached repair',
+      );
+    second = start('second', secondSha);
+    assert.equal(
+      await waitFor('second-ready'),
+      true,
+      'second process initialized',
+    );
+    await writeFile(join(barrier, 'start-second'), '1');
+    if (staleReclaimerHeld) {
+      await waitFor('second-saw-reclaimer');
+      await writeFile(join(barrier, 'release-stale-reclaim'), '1');
+      assert.equal(
+        await waitFor('first-repair'),
+        true,
+        'first process reached repair',
+      );
+    }
+    const secondReachedRepair = await waitFor('second-repair', 2000);
+    // With serialization, the second writer cannot enter repair until the first
+    // releases the owned lock. This bounded release keeps the observer live.
+    await writeFile(join(barrier, 'release-first'), '1');
+    if (secondReachedRepair)
+      assert.equal(
+        await waitFor('first-row'),
+        true,
+        'first row passed the barrier',
+      );
+    if (staleReclaimerHeld) await waitFor('second-saw-live-owner');
+    await writeFile(join(barrier, 'release-first-row'), '1');
+    const close = (proc: ReturnType<typeof spawn>) =>
+      new Promise<{ code: number | null; stderr: string }>((resolve) => {
+        let stderr = '';
+        proc.stderr?.setEncoding('utf8').on('data', (chunk) => {
+          stderr += chunk;
+        });
+        proc.once('close', (code) => resolve({ code, stderr }));
+      });
+    const [firstResult, secondResult] = await Promise.all([
+      close(first),
+      close(second),
+    ]);
+    assert.equal(firstResult.code, 0, firstResult.stderr);
+    assert.equal(secondResult.code, 0, secondResult.stderr);
+    const rows = (await readFile(f.tracePath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((row) => JSON.parse(row) as { data: { sha?: string } });
+    assert.ok(
+      rows.some((row) => row.data.sha === firstSha),
+      'first append must survive',
+    );
+    assert.ok(
+      rows.some((row) => row.data.sha === secondSha),
+      'second append must survive',
+    );
+  } finally {
+    for (const process of [first, second]) {
+      if (process && process.exitCode === null && process.signalCode === null)
+        process.kill('SIGKILL');
+    }
     await rm(f.directory, { recursive: true, force: true });
   }
 });
@@ -162,6 +466,97 @@ test('trace records fail then pass at one SHA and deduplicates exact evidence', 
     assert.ok(rows.at(-1)?.data.checks.every((check) => check.exitCode === 0));
     assert.equal(failOnlyCountsAsPassing, false);
     assert.equal(await hasVerdict(f.job, sha), true);
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('trace lock bounds live and invalid owners and reclaims a dead owner', async () => {
+  const f = await fixture();
+  const lockPath = `${f.tracePath}.lock`;
+  const firstSha = 'a'.repeat(40);
+  const base = event(firstSha, 0, 'b'.repeat(64));
+  const selfStat = await readFile('/proc/self/stat', 'utf8');
+  const beforeStartTicks = selfStat
+    .slice(selfStat.lastIndexOf(')') + 2)
+    .trim()
+    .split(/\s+/u)[19];
+  assert.ok(beforeStartTicks);
+  try {
+    await verdict(f.job, base);
+    const before = await readFile(f.tracePath);
+    await writeFile(
+      lockPath,
+      JSON.stringify({
+        pid: process.pid,
+        startTicks: beforeStartTicks,
+        token: randomUUID(),
+      }),
+    );
+    const started = Date.now();
+    await assert.rejects(
+      verdict(f.job, event('c'.repeat(40), 0, 'd'.repeat(64))),
+      /timed out/u,
+    );
+    assert.ok(Date.now() - started < 5000, 'live lock refusal must be bounded');
+    assert.deepEqual(await readFile(f.tracePath), before);
+
+    await unlink(lockPath);
+    await writeFile(
+      lockPath,
+      JSON.stringify({
+        pid: 0,
+        startTicks: '1',
+        token: randomUUID(),
+      }),
+    );
+    await assert.rejects(
+      verdict(f.job, event('e'.repeat(40), 0, 'f'.repeat(64))),
+      /invalid trace lock owner/u,
+    );
+    assert.deepEqual(await readFile(f.tracePath), before);
+
+    await unlink(lockPath);
+    await writeFile(
+      lockPath,
+      JSON.stringify({
+        pid: 1_000_000_000,
+        startTicks: '1',
+        token: randomUUID(),
+      }),
+    );
+    await verdict(f.job, event('c'.repeat(40), 0, 'd'.repeat(64)));
+    assert.equal(await hasVerdict(f.job, 'c'.repeat(40)), true);
+    await assert.rejects(readFile(lockPath), { code: 'ENOENT' });
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('trace lock refuses symlinks and non-file paths without touching targets', async () => {
+  const f = await fixture();
+  const lockPath = `${f.tracePath}.lock`;
+  const target = join(f.directory, 'lock-target');
+  const sha = 'a'.repeat(40);
+  try {
+    await verdict(f.job, event(sha, 0, 'b'.repeat(64)));
+    const before = await readFile(f.tracePath);
+    await writeFile(target, 'unchanged');
+    await symlink(target, lockPath);
+    await assert.rejects(
+      verdict(f.job, event('c'.repeat(40), 0, 'd'.repeat(64))),
+      /unsafe trace path/u,
+    );
+    assert.equal(await readFile(target, 'utf8'), 'unchanged');
+    assert.deepEqual(await readFile(f.tracePath), before);
+
+    await unlink(lockPath);
+    await mkdir(lockPath);
+    await assert.rejects(
+      verdict(f.job, event('c'.repeat(40), 0, 'd'.repeat(64))),
+      /unsafe trace lock/u,
+    );
+    assert.deepEqual(await readFile(f.tracePath), before);
   } finally {
     await rm(f.directory, { recursive: true, force: true });
   }

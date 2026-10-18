@@ -138,6 +138,11 @@ export type CodexSessionResult = {
   readonly exitCode: number | null;
   readonly signal: NodeJS.Signals | null;
   readonly usage: CodexUsage;
+  readonly usageObservation: {
+    readonly turnsStarted: number;
+    readonly turnsCompleted: number;
+    readonly invalidFields: number;
+  };
 };
 
 export type CodexSession = {
@@ -483,6 +488,9 @@ class RunningSession {
   #malformed = false;
   #inputTokens = 0;
   #outputTokens = 0;
+  #turnsStarted = 0;
+  #turnsCompleted = 0;
+  #invalidUsageFields = 0;
   #overflow = false;
   #result?: Promise<CodexSessionResult>;
 
@@ -647,6 +655,11 @@ class RunningSession {
           outputTokens: this.#outputTokens,
           totalTokens: safeAdd(this.#inputTokens, this.#outputTokens),
         },
+        usageObservation: {
+          turnsStarted: this.#turnsStarted,
+          turnsCompleted: this.#turnsCompleted,
+          invalidFields: this.#invalidUsageFields,
+        },
       };
     });
     return this.#result;
@@ -689,6 +702,7 @@ class RunningSession {
     )
       this.#threadId = event.thread_id;
     if (event.type === 'turn.started') {
+      this.#turnsStarted = safeAdd(this.#turnsStarted, 1);
       this.#pendingTurnMessage = undefined;
       this.#completedTurnMessage = undefined;
     }
@@ -706,16 +720,23 @@ class RunningSession {
       }
     }
     if (event.type === 'turn.completed') {
+      this.#turnsCompleted = safeAdd(this.#turnsCompleted, 1);
       this.#completedTurnMessage = this.#pendingTurnMessage;
       this.#pendingTurnMessage = undefined;
       const usage = record(event.usage);
+      const inputTokens = tokenValue.safeParse(usage.input_tokens);
+      const outputTokens = tokenValue.safeParse(usage.output_tokens);
+      if (!inputTokens.success)
+        this.#invalidUsageFields = safeAdd(this.#invalidUsageFields, 1);
+      if (!outputTokens.success)
+        this.#invalidUsageFields = safeAdd(this.#invalidUsageFields, 1);
       this.#inputTokens = safeAdd(
         this.#inputTokens,
-        tokenCount(usage.input_tokens),
+        inputTokens.success ? inputTokens.data : 0,
       );
       this.#outputTokens = safeAdd(
         this.#outputTokens,
-        tokenCount(usage.output_tokens),
+        outputTokens.success ? outputTokens.data : 0,
       );
     }
   }
@@ -962,11 +983,6 @@ function delay(ms: number): Promise<void> {
 function record(value: unknown): Record<string, unknown> {
   const parsed = codexRecord.safeParse(value);
   return parsed.success ? parsed.data : {};
-}
-
-function tokenCount(value: unknown): number {
-  const parsed = tokenValue.safeParse(value);
-  return parsed.success ? parsed.data : 0;
 }
 
 function safeAdd(left: number, right: number): number {
