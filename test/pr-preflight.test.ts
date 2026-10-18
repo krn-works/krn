@@ -26,9 +26,12 @@ const gitOverrideKeys = [
 ] as const;
 
 type FixtureOptions = {
+  ticket?: string;
   title?: string;
-  r1TaskTrailer?: string;
-  paperclipTask?: string;
+  r1TaskTrailer?: string | null;
+  additionalR1TaskTrailers?: string[];
+  paperclipTask?: string | null;
+  paperclipDescription?: string;
   gateState?: string;
   gateDescription?: string;
   prBase?: string;
@@ -52,6 +55,7 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
   t.after(() => rm(directory, { recursive: true, force: true }));
   const repo = join(directory, 'repo');
   const outside = join(directory, 'unrelated-cwd');
+  const ticket = options.ticket ?? 'LON-230';
   await Promise.all([
     mkdir(join(repo, 'src'), { recursive: true }),
     mkdir(join(repo, 'test'), { recursive: true }),
@@ -75,18 +79,24 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
 
   await writeFile(join(repo, 'src', 'index.ts'), 'export const value = 2;\n');
   await git(repo, ['add', 'src']);
+  const taskTrailers = [
+    ...(options.r1TaskTrailer === null
+      ? []
+      : [`R1-task: ${options.r1TaskTrailer ?? 'none'}`]),
+    ...(options.additionalR1TaskTrailers ?? []),
+  ];
   await git(repo, [
     'commit',
     '--quiet',
     '-m',
-    options.title ?? 'feat(review): add preflight (LON-230)',
+    options.title ?? `feat(review): add preflight (${ticket})`,
     '-m',
-    `Ticket: LON-230\nR1-task: ${options.r1TaskTrailer ?? 'none'}`,
+    [`Ticket: ${ticket}`, ...taskTrailers].join('\n'),
   ]);
   const head = await git(repo, ['rev-parse', 'HEAD']);
   const srcTreeSha = await git(repo, ['rev-parse', `${head}:src`]);
   const testTreeSha = await git(repo, ['rev-parse', `${head}:test`]);
-  const title = options.title ?? 'feat(review): add preflight (LON-230)';
+  const title = options.title ?? `feat(review): add preflight (${ticket})`;
   const pull = {
     title,
     base: { sha: options.prBase ?? base },
@@ -111,19 +121,26 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
       updated_at: '2026-10-11T10:30:00Z',
     },
   ];
-  const description = [
-    `R1-task: ${options.paperclipTask ?? 'none'} (review-system reset fixture)`,
-    '',
-    '```krn-contract',
-    '{"version":1,"targetRepo":"krn-works/krn","checks":["typecheck","lint","rules"]}',
-    '```',
-  ].join('\n');
+  const description =
+    options.paperclipDescription ??
+    [
+      ...(options.paperclipTask === null
+        ? []
+        : [
+            `R1-task: ${options.paperclipTask ?? 'none'} (review-system reset fixture)`,
+          ]),
+      '',
+      '```krn-contract',
+      '{"version":1,"targetRepo":"krn-works/krn","checks":["typecheck","lint","rules"]}',
+      '```',
+    ].join('\n');
   return {
     directory,
     repo,
     outside,
     base,
     head,
+    ticket,
     srcTreeSha,
     testTreeSha,
     pull,
@@ -293,11 +310,69 @@ test('preflight returns the full title capture and rejects a mismatched Ticket t
   ]);
 });
 
-test('preflight rejects a Paperclip R1-task mismatch', async (t) => {
-  const value = await fixture(t, { paperclipTask: 'R1-15' });
-  const { report } = parseHarness(runHarness(value));
-  assert.equal(report.verdict, 'fail');
-  assert.ok(report.reasons.some((reason) => /R1-task/u.test(reason)));
+test('preflight pairs optional R1-task declarations and preserves fail-closed controls', async (t) => {
+  const scenarios: {
+    readonly name: string;
+    readonly options: FixtureOptions;
+    readonly verdict: 'pass' | 'fail';
+  }[] = [
+    {
+      name: 'matching declaration',
+      options: {},
+      verdict: 'pass',
+    },
+    {
+      name: 'mismatched declaration',
+      options: { paperclipTask: 'R1-15' },
+      verdict: 'fail',
+    },
+    {
+      name: 'omission on both sides',
+      options: { r1TaskTrailer: null, paperclipTask: null },
+      verdict: 'pass',
+    },
+    {
+      name: 'spurious trailer when declaration is omitted',
+      options: { paperclipTask: null },
+      verdict: 'fail',
+    },
+    {
+      name: 'missing trailer when declaration is present',
+      options: { r1TaskTrailer: null },
+      verdict: 'fail',
+    },
+    {
+      name: 'duplicate description declarations',
+      options: {
+        paperclipDescription: 'R1-task: none\nR1-task: R1-15',
+      },
+      verdict: 'fail',
+    },
+    {
+      name: 'malformed description declaration',
+      options: { paperclipDescription: 'R1-task: none trailing-value' },
+      verdict: 'fail',
+    },
+    {
+      name: 'duplicate commit trailers',
+      options: { additionalR1TaskTrailers: ['R1-task: none'] },
+      verdict: 'fail',
+    },
+    {
+      name: 'malformed commit trailer',
+      options: { r1TaskTrailer: 'none trailing-value' },
+      verdict: 'fail',
+    },
+  ];
+  for (const scenario of scenarios) {
+    await t.test(scenario.name, async (t) => {
+      const value = await fixture(t, scenario.options);
+      const { report } = parseHarness(runHarness(value));
+      assert.equal(report.verdict, scenario.verdict);
+      if (scenario.verdict === 'fail')
+        assert.ok(report.reasons.some((reason) => /R1-task/u.test(reason)));
+    });
+  }
 });
 
 test('preflight accepts matching LON task identifiers in trailer and Paperclip', async (t) => {
@@ -309,6 +384,22 @@ test('preflight accepts matching LON task identifiers in trailer and Paperclip',
   assert.equal(report.verdict, 'pass');
   assert.equal(report.r1TaskTrailer, 'LON-231');
   assert.equal(report.paperclipR1Task, 'LON-231');
+});
+
+test('preflight rejects zero and zero-padded Ticket numbers with matching inputs', async (t) => {
+  for (const ticket of ['LON-0', 'LON-001']) {
+    await t.test(ticket, async (t) => {
+      const value = await fixture(t, { ticket });
+      const { report } = parseHarness(runHarness(value));
+      assert.equal(report.verdict, 'fail');
+      assert.ok(
+        report.reasons.some((reason) =>
+          /PR title|Ticket trailer/u.test(reason),
+        ),
+        JSON.stringify(report.reasons),
+      );
+    });
+  }
 });
 
 test('preflight checks equality between valid LON task identifiers', async (t) => {

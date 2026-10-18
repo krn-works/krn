@@ -350,6 +350,78 @@ test('runJob commits contract-derived trailers and the public preflight admits t
   }
 });
 
+test('runJob and public preflight admit a contract with no R1-task declaration', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'runJob and public preflight admit a contract with no R1-task declaration',
+      ['systemdUserScope'],
+    )
+  )
+    return;
+  const description = 'Accepted issue with no R1-task declaration.';
+  const fixture = await integrationFixture({ description });
+  try {
+    const { deps } = fakeHostDeps(fixture, {
+      onFirstStart: async (input, sessionId) => {
+        await writeFile(
+          join(fixture.root, 'src', 'index.ts'),
+          'export const value = 2;\n',
+        );
+        writeCheckpointRequest(fixture.job, {
+          intent: input.checkpoint.intent,
+          sessionId,
+          message: 'Ticket: LON-999',
+          next: 'step B',
+        });
+      },
+    });
+    await runJob(fixture.job, deps);
+    const head = fixture.git(['rev-parse', 'HEAD']);
+    assert.notEqual(
+      head,
+      fixture.base,
+      'foreman must create a real checkpoint commit',
+    );
+    const body = fixture.git(['show', '-s', '--format=%B', head]);
+    const trailers = fixture.git(['interpret-trailers', '--parse'], body);
+    assert.deepEqual(trailers.split('\n'), [
+      'Krn-Session: session-delivery-1',
+      'Ticket: LON-901',
+    ]);
+
+    const fake = await writeFakePaperclip(fixture.root, {
+      id: 'LON-901',
+      identifier: 'LON-901',
+      title: 'Delivery fixture without R1-task',
+      description,
+      updatedAt: '2026-10-18T10:00:00.000Z',
+      status: 'in_progress',
+    });
+    const result = runPreflightWithDefaultPaperclip({
+      repo: fixture.root,
+      base: fixture.base,
+      head,
+      title: 'feat(fixture): deliver optional metadata (LON-901)',
+      paperclipBin: fake.bin,
+    });
+    const report = parsedReport(result);
+    assert.equal(report.verdict, 'pass', JSON.stringify(report.reasons));
+    assert.deepEqual(report.reasons, []);
+    assert.equal(report.ticket, 'LON-901');
+    assert.equal(report.r1TaskTrailer, undefined);
+    assert.equal(report.paperclipR1Task, undefined);
+    assert.deepEqual(JSON.parse(await readFile(fake.calls, 'utf8')), [
+      'issue',
+      'get',
+      'LON-901',
+      '--json',
+    ]);
+  } finally {
+    await rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
 test('duplicate and malformed R1-task declarations stop before relay, trace, host, or projection writes', async (t) => {
   for (const scenario of [
     {

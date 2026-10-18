@@ -5,7 +5,10 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { parsePaperclipIssue } from '../src/core/paperclip.ts';
-import { parseR1TaskLine } from '../src/ledger/delivery.ts';
+import {
+  parseDeliveryTicket,
+  parseR1TaskLine,
+} from '../src/ledger/delivery.ts';
 import { createPaperclipCliTransport } from '../src/ledger/paperclip-cli.ts';
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
@@ -20,6 +23,11 @@ const GIT_OVERRIDES = [
 const sha = z.string().regex(/^(?:[a-f\d]{40}|[a-f\d]{64})$/iu);
 const outputSha = z.string().trim().pipe(sha);
 const taskSchema = z.string().regex(/^(?:R1-\d+|LON-\d+|none)$/u);
+const ticketSchema = z
+  .string()
+  .refine(
+    (value) => value.startsWith('LON-') && parseDeliveryTicket(value) === value,
+  );
 const text = z.string().trim().min(1);
 const argsSchema = z
   .object({
@@ -129,17 +137,23 @@ function githubSlug(remote) {
 }
 
 function extractTicket(title) {
-  return /^[a-z][a-z\d-]*(?:\([^)]+\))?!?: .+ \((?<ticket>LON-\d+)\)$/u.exec(
-    title,
-  )?.groups?.ticket;
+  const ticket =
+    /^[a-z][a-z\d-]*(?:\([^)]+\))?!?: .+ \((?<ticket>LON-\d+)\)$/u.exec(title)
+      ?.groups?.ticket;
+  return ticket !== undefined && parseDeliveryTicket(ticket) === ticket
+    ? ticket
+    : undefined;
 }
 
-function trailer(lines, name, schema) {
+function trailer(lines, name, schema, optional = false) {
   const values = lines
     .filter((line) => line.startsWith(`${name}:`))
     .map((line) => line.slice(name.length + 1).trim());
-  if (values.length !== 1)
-    return err(`head commit must contain exactly one ${name} trailer`);
+  if (values.length > 1 || (!optional && values.length !== 1))
+    return err(
+      `head commit must contain ${optional ? 'at most one' : 'exactly one'} ${name} trailer`,
+    );
+  if (values.length === 0) return ok(undefined);
   const parsed = schema.safeParse(values[0]);
   return parsed.success
     ? ok(parsed.data)
@@ -150,8 +164,9 @@ function paperclipTask(description) {
   const lines = description
     .split(/\r?\n/u)
     .filter((line) => line.startsWith('R1-task:'));
-  if (lines.length !== 1)
-    return err('Paperclip description must contain exactly one R1-task line');
+  if (lines.length > 1)
+    return err('Paperclip description must contain at most one R1-task line');
+  if (lines.length === 0) return ok(undefined);
   const value = parseR1TaskLine(lines[0] ?? '');
   const parsed = taskSchema.safeParse(value);
   return parsed.success
@@ -306,14 +321,13 @@ export async function runPreflight(input, dependencies = {}) {
         message,
       ) ?? '';
     const lines = body.split(/\r?\n/u);
-    for (const [name, schema, field] of [
-      ['Ticket', z.string().regex(/^LON-\d+$/u), 'ticketTrailer'],
-      ['R1-task', taskSchema, 'r1TaskTrailer'],
-    ]) {
-      const value = trailer(lines, name, schema);
-      if (value.ok) report[field] = value.value;
-      else reasons.add(value.error);
-    }
+    const ticketTrailer = trailer(lines, 'Ticket', ticketSchema);
+    if (ticketTrailer.ok) report.ticketTrailer = ticketTrailer.value;
+    else reasons.add(ticketTrailer.error);
+    const r1TaskTrailer = trailer(lines, 'R1-task', taskSchema, true);
+    if (r1TaskTrailer.ok && r1TaskTrailer.value !== undefined)
+      report.r1TaskTrailer = r1TaskTrailer.value;
+    else if (!r1TaskTrailer.ok) reasons.add(r1TaskTrailer.error);
   }
 
   if (slug) {
@@ -352,11 +366,18 @@ export async function runPreflight(input, dependencies = {}) {
         if (description !== undefined) {
           const mapping = paperclipTask(description);
           if (mapping.ok) {
-            report.paperclipR1Task = mapping.value;
-            if (report.r1TaskTrailer !== mapping.value)
-              reasons.add(
-                'R1-task trailer must match the Paperclip description',
-              );
+            if (mapping.value === undefined) {
+              if (report.r1TaskTrailer !== undefined)
+                reasons.add(
+                  'R1-task trailer must be omitted when the Paperclip description has no R1-task line',
+                );
+            } else {
+              report.paperclipR1Task = mapping.value;
+              if (report.r1TaskTrailer !== mapping.value)
+                reasons.add(
+                  'R1-task trailer must match the Paperclip description',
+                );
+            }
           } else reasons.add(mapping.error);
         }
       }
