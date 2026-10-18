@@ -17,7 +17,7 @@ import * as foreman from '../../src/foreman/index.ts';
 import { runJob } from '../../src/foreman/run.ts';
 import { recoverLease, runSession } from '../../src/foreman/session.ts';
 import { recordRepo, stateDirectory } from '../../src/foreman/state.ts';
-import type { Capsule, Deps } from '../../src/foreman/types.ts';
+import type { Capsule, Deps, Outcome } from '../../src/foreman/types.ts';
 import { reportPassingVerdict } from '../../src/foreman/verdict.ts';
 import type {
   Contract,
@@ -913,6 +913,13 @@ async function waitFor(read: () => boolean): Promise<void> {
   assert.equal(read(), true, 'timed out waiting for the fake session to start');
 }
 
+async function conditionWithin(read: () => boolean): Promise<boolean> {
+  const deadline = Date.now() + 3000;
+  while (!read() && Date.now() < deadline)
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  return read();
+}
+
 // Batch02 exercises the real checkpoint, relay and trace against disk/Git.
 async function partialCheckpointFixture(
   next = 'step B',
@@ -1407,6 +1414,590 @@ test('checkpoint publication refuses ownership changed while recording trace', a
     );
     assert.equal(f.git(['rev-parse', 'HEAD']), f.capsule.head);
   } finally {
+    await rm(f.worktree, { recursive: true, force: true });
+  }
+});
+
+async function endPartialFixtureLease(
+  f: Awaited<ReturnType<typeof partialCheckpointFixture>>,
+): Promise<Capsule> {
+  const current = await relay.load(f.job, f.contract);
+  const ended = {
+    ...current,
+    epoch: current.epoch + 1,
+    lease: 'ended' as const,
+    sessionId: undefined,
+  };
+  const saved = await relay.writeCapsule(f.job, ended, current.epoch);
+  assert.equal(saved.applied, true, 'fixture lease must be released by CAS');
+  if (!saved.applied) throw new Error('fixture lease release CAS failed');
+  return saved.value;
+}
+
+test('an abort before an ordinary step creates no intent or session; live control still enters both', async () => {
+  for (const aborted of [false, true]) {
+    const f = await partialCheckpointFixture();
+    try {
+      const capsule = await endPartialFixtureLease(f);
+      const controller = new AbortController();
+      if (aborted) controller.abort('test abort');
+      let intents = 0;
+      let starts = 0;
+      const d: Deps = {
+        ...f.d,
+        signal: controller.signal,
+        trace: {
+          ...diskTrace,
+          intent: async (job, epoch) => {
+            intents += 1;
+            return diskTrace.intent(job, epoch);
+          },
+        },
+        hosts: {
+          ...f.d.hosts,
+          codex: {
+            start: async () => {
+              starts += 1;
+              throw new Error('controlled host-start boundary');
+            },
+          },
+        },
+      };
+      const outcome = await runJob(f.job, d);
+      assert.equal(outcome.kind, 'stop');
+      assert.deepEqual(
+        { intents, starts },
+        aborted ? { intents: 0, starts: 0 } : { intents: 1, starts: 1 },
+        'intent and host start must follow the abort fence',
+      );
+      assert.equal((await relay.load(f.job, f.contract)).epoch, capsule.epoch);
+    } finally {
+      await rm(f.worktree, { recursive: true, force: true });
+    }
+  }
+});
+
+test('an entry abort recovers a durable pending checkpoint before stopping without a worker', async () => {
+  const f = await partialCheckpointFixture();
+  try {
+    await assert.rejects(
+      finishCheckpoint(f.job, f.capsule, f.intent, {
+        ...f.d,
+        trace: {
+          ...diskTrace,
+          commit: async () => {
+            throw new Error('injected after checkpoint publication');
+          },
+        },
+      }),
+      /injected after checkpoint publication/,
+    );
+    const pending = (await relay.load(f.job, f.contract)).pendingCheckpoint;
+    assert.ok(pending, 'fixture must begin with a durable pending checkpoint');
+
+    const controller = new AbortController();
+    controller.abort('test abort');
+    const outcome = await runJob(f.job, { ...f.d, signal: controller.signal });
+    const recovered = await relay.load(f.job, f.contract);
+    assert.equal(outcome.kind, 'stop');
+    assert.equal(f.starts(), 0, 'recovery must not start the next worker');
+    assert.equal(recovered.pendingCheckpoint, undefined);
+    assert.equal(recovered.head, pending.sha);
+    assert.equal(f.git(['rev-parse', 'HEAD']), pending.sha);
+  } finally {
+    await rm(f.worktree, { recursive: true, force: true });
+  }
+});
+
+test('an abort before checkpoint entry preserves dirty work and records the ended lease', async () => {
+  const f = await partialCheckpointFixture();
+  try {
+    await endPartialFixtureLease(f);
+    const controller = new AbortController();
+    const before = f.git(['rev-parse', 'HEAD']);
+    let starts = 0;
+    let checkpointEntered = false;
+    const d: Deps = {
+      ...f.d,
+      signal: controller.signal,
+      trace: {
+        ...diskTrace,
+        checkpoint: async (...args) => {
+          checkpointEntered = true;
+          await diskTrace.checkpoint(...args);
+        },
+      },
+      hosts: {
+        ...f.d.hosts,
+        codex: {
+          start: async (input) => {
+            starts += 1;
+            const id = 'abort-before-checkpoint-session';
+            assert.equal(await input.onStarted(id), true);
+            writeCheckpointRequest(f.job, {
+              intent: input.checkpoint.intent,
+              sessionId: id,
+              message: 'feat: must not checkpoint after abort',
+              next: 'step B',
+            });
+            return {
+              id,
+              wait: async () => {
+                controller.abort('test abort before checkpoint entry');
+                return { reasonKind: 'interrupted', claimsDone: false };
+              },
+            };
+          },
+        },
+      },
+    };
+
+    const outcome = await runJob(f.job, d);
+    const stopped = await relay.load(f.job, f.contract);
+    const facts = relay.repoFacts(f.job, stopped.base);
+    assert.equal(outcome.kind, 'stop');
+    assert.equal(
+      f.git(['rev-parse', 'HEAD']),
+      before,
+      'abort must not create a commit',
+    );
+    assert.deepEqual(facts.dirtyPaths, ['change.txt']);
+    assert.deepEqual(stopped.blockers, [
+      'uncommitted_changes: reasonKind=interrupted; path=change.txt',
+    ]);
+    assert.match(
+      await readFile(
+        join(f.worktree, '.krn/runs/foreman/partial/trace.jsonl'),
+        'utf8',
+      ),
+      /"kind":"session_ended".*"reasonKind":"interrupted"/u,
+    );
+    if (outcome.kind === 'stop')
+      assert.deepEqual(outcome.reasons, [
+        'uncommitted_changes: reasonKind=interrupted; paths=change.txt',
+      ]);
+    assert.equal(stopped.lease, 'ended');
+    assert.equal(stopped.sessionId, undefined);
+    assert.equal(stopped.pendingCheckpoint, undefined);
+    assert.equal(
+      checkpointEntered,
+      false,
+      'abort must not enter a new checkpoint',
+    );
+    assert.equal(starts, 1, 'abort must prevent another worker');
+  } finally {
+    await rm(f.worktree, { recursive: true, force: true });
+  }
+});
+
+test('abort between checkpoint request validation and transaction entry prevents a fresh commit', async () => {
+  const f = await partialCheckpointFixture();
+  try {
+    await endPartialFixtureLease(f);
+    const controller = new AbortController();
+    const before = f.git(['rev-parse', 'HEAD']);
+    let abortRan = false;
+    let requestWasReturned = false;
+    let checkpointCalls = 0;
+    let checkpointSawAbort = false;
+    const d: Deps = {
+      ...f.d,
+      signal: controller.signal,
+      trace: {
+        ...diskTrace,
+        checkpointRequest: async (...args) => {
+          const request = await diskTrace.checkpointRequest(...args);
+          requestWasReturned = request !== null;
+          // A runs before the outer wrapper's continuation; B runs after its
+          // signal check but before finishCheckpoint resumes from its await.
+          queueMicrotask(() => {
+            queueMicrotask(() => {
+              abortRan = true;
+              controller.abort('abort between request check and transaction');
+            });
+          });
+          return request;
+        },
+      },
+      relay: {
+        ...f.d.relay,
+        checkpoint: async (...args) => {
+          checkpointCalls += 1;
+          checkpointSawAbort = controller.signal.aborted;
+          return relay.checkpoint(...args);
+        },
+      },
+      hosts: {
+        ...f.d.hosts,
+        codex: {
+          start: async (input) => {
+            const id = 'abort-checkpoint-entry-session';
+            assert.equal(await input.onStarted(id), true);
+            writeCheckpointRequest(f.job, {
+              intent: input.checkpoint.intent,
+              sessionId: id,
+              message: 'feat: abort checkpoint entry',
+              next: 'step B',
+            });
+            return {
+              id,
+              wait: async () => ({
+                reasonKind: 'interrupted',
+                claimsDone: false,
+              }),
+            };
+          },
+        },
+      },
+    };
+
+    const outcome = await runJob(f.job, d);
+    const after = await relay.load(f.job, f.contract);
+    const facts = relay.repoFacts(f.job, after.base);
+    assert.equal(outcome.kind, 'stop');
+    assert.equal(abortRan, true, 'the queued abort must execute');
+    assert.equal(
+      requestWasReturned,
+      true,
+      'use the persisted current-session request',
+    );
+    assert.equal(
+      checkpointCalls === 0 || checkpointSawAbort,
+      true,
+      'any fresh relay checkpoint entry must observe the abort state',
+    );
+    assert.deepEqual(
+      {
+        checkpointCalls,
+        head: f.git(['rev-parse', 'HEAD']),
+        dirtyPaths: facts.dirtyPaths,
+        lease: after.lease,
+        sessionId: after.sessionId,
+        blockers: after.blockers,
+      },
+      {
+        checkpointCalls: 0,
+        head: before,
+        dirtyPaths: ['change.txt'],
+        lease: 'ended',
+        sessionId: undefined,
+        blockers: [
+          'uncommitted_changes: reasonKind=interrupted; path=change.txt',
+        ],
+      },
+      'abort after request validation must fence prepare/relay checkpoint entry and preserve dirty facts',
+    );
+  } finally {
+    await rm(f.worktree, { recursive: true, force: true });
+  }
+});
+
+test('an abort after checkpoint transaction entry finishes its owned commit but starts no next worker', async () => {
+  const f = await partialCheckpointFixture();
+  try {
+    await endPartialFixtureLease(f);
+    const controller = new AbortController();
+    const before = f.git(['rev-parse', 'HEAD']);
+    let starts = 0;
+    let checkpointEntered = false;
+    const d: Deps = {
+      ...f.d,
+      budget: { ...f.d.budget, maxResets: 1 },
+      signal: controller.signal,
+      trace: {
+        ...diskTrace,
+        checkpoint: async (...args) => {
+          await diskTrace.checkpoint(...args);
+          checkpointEntered = true;
+          controller.abort('test abort inside checkpoint transaction');
+        },
+      },
+      hosts: {
+        ...f.d.hosts,
+        codex: {
+          start: async (input) => {
+            starts += 1;
+            if (starts > 1) throw new Error('unexpected next worker');
+            const id = 'abort-during-checkpoint-session';
+            assert.equal(await input.onStarted(id), true);
+            writeCheckpointRequest(f.job, {
+              intent: input.checkpoint.intent,
+              sessionId: id,
+              message: 'feat: finish entered checkpoint',
+              next: 'step B',
+            });
+            return {
+              id,
+              wait: async () => ({ reasonKind: 'exit', claimsDone: false }),
+            };
+          },
+        },
+      },
+    };
+
+    const outcome = await runJob(f.job, d);
+    const completed = await relay.load(f.job, f.contract);
+    assert.equal(outcome.kind, 'stop');
+    assert.equal(
+      checkpointEntered,
+      true,
+      'test must reach the entered transaction hook',
+    );
+    assert.notEqual(f.git(['rev-parse', 'HEAD']), before);
+    assert.equal(completed.head, f.git(['rev-parse', 'HEAD']));
+    assert.equal(completed.pendingCheckpoint, undefined);
+    assert.equal(completed.lease, 'checkpointed');
+    assert.equal(
+      starts,
+      1,
+      'completed transaction must not start another worker',
+    );
+  } finally {
+    await rm(f.worktree, { recursive: true, force: true });
+  }
+});
+
+test('abort while a session is active awaits foreman-owned cleanup and preserves dirty work', async () => {
+  const f = await partialCheckpointFixture();
+  let releaseCleanup!: () => void;
+  let releaseSession!: () => void;
+  let running: Promise<Outcome> | undefined;
+  try {
+    await endPartialFixtureLease(f);
+    const controller = new AbortController();
+    const cleanupGate = new Promise<void>((resolve) => {
+      releaseCleanup = resolve;
+    });
+    const sessionGate = new Promise<void>((resolve) => {
+      releaseSession = resolve;
+    });
+    let waitEntered = false;
+    let cleanupComplete = false;
+    let cancelCalls = 0;
+    let settled = false;
+    const d: Deps = {
+      ...f.d,
+      signal: controller.signal,
+      hosts: {
+        ...f.d.hosts,
+        codex: {
+          start: async (input) => {
+            const id = 'active-abort-session';
+            assert.equal(await input.onStarted(id), true);
+            return {
+              id,
+              wait: async () => {
+                waitEntered = true;
+                await sessionGate;
+                return { reasonKind: 'interrupted', claimsDone: false };
+              },
+            };
+          },
+        },
+        cancelTree: async (sessionId) => {
+          assert.equal(sessionId, 'active-abort-session');
+          cancelCalls += 1;
+          await cleanupGate;
+          cleanupComplete = true;
+          releaseSession();
+        },
+      },
+    };
+
+    const before = f.git(['rev-parse', 'HEAD']);
+    running = runJob(f.job, d);
+    void running.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+    assert.equal(
+      await conditionWithin(() => waitEntered),
+      true,
+      'session must reach its owned wait before abort',
+    );
+    controller.abort('test abort during active session');
+    assert.equal(
+      await conditionWithin(() => cancelCalls > 0),
+      true,
+      'foreman must cancel the active owned session',
+    );
+    assert.equal(settled, false, 'foreman must await physical cleanup');
+    assert.equal((await relay.load(f.job, f.contract)).lease, 'active');
+    releaseCleanup();
+    const outcome = await running;
+    const stopped = await relay.load(f.job, f.contract);
+    assert.equal(outcome.kind, 'stop');
+    assert.equal(cancelCalls, 1);
+    assert.equal(cleanupComplete, true);
+    assert.equal(f.git(['rev-parse', 'HEAD']), before);
+    assert.deepEqual(relay.repoFacts(f.job, stopped.base).dirtyPaths, [
+      'change.txt',
+    ]);
+    assert.deepEqual(stopped.blockers, [
+      'uncommitted_changes: reasonKind=interrupted; path=change.txt',
+    ]);
+    assert.match(
+      await readFile(
+        join(f.worktree, '.krn/runs/foreman/partial/trace.jsonl'),
+        'utf8',
+      ),
+      /"kind":"session_ended".*"reasonKind":"interrupted"/u,
+    );
+    if (outcome.kind === 'stop')
+      assert.deepEqual(outcome.reasons, [
+        'uncommitted_changes: reasonKind=interrupted; paths=change.txt',
+      ]);
+    assert.equal(stopped.lease, 'ended');
+    assert.equal(stopped.sessionId, undefined);
+  } finally {
+    releaseCleanup?.();
+    releaseSession?.();
+    await running?.catch(() => undefined);
+    await rm(f.worktree, { recursive: true, force: true });
+  }
+});
+
+test('abort during async startup trace cancels, waits for cleanup, then CAS-hands back before prompt eligibility', async () => {
+  const f = await partialCheckpointFixture();
+  let releaseTrace!: () => void;
+  let releaseCleanup!: () => void;
+  let running: Promise<Outcome> | undefined;
+  try {
+    await endPartialFixtureLease(f);
+    const controller = new AbortController();
+    const traceGate = new Promise<void>((resolve) => {
+      releaseTrace = resolve;
+    });
+    const cleanupGate = new Promise<void>((resolve) => {
+      releaseCleanup = resolve;
+    });
+    let cleanupComplete = false;
+    let traceCallbackEntered = false;
+    const cleanupDone = cleanupGate.then(() => {
+      cleanupComplete = true;
+    });
+    let cleanupWaitStarted = false;
+    let cancelled = false;
+    let cancelCalls = 0;
+    let promptEligible = false;
+    let handbackAfterCleanup = false;
+    let settled = false;
+    const d: Deps = {
+      ...f.d,
+      signal: controller.signal,
+      trace: {
+        ...diskTrace,
+        started: async (...args) => {
+          const accepted = await diskTrace.started(...args);
+          traceCallbackEntered = true;
+          await traceGate;
+          return accepted;
+        },
+      },
+      hosts: {
+        ...f.d.hosts,
+        codex: {
+          start: async (input) => {
+            const id = 'startup-abort-session';
+            let accepted: boolean;
+            try {
+              accepted = await input.onStarted(id);
+            } catch (error) {
+              if (!cancelled) throw error;
+              cleanupWaitStarted = true;
+              await cleanupDone;
+              handbackAfterCleanup = cleanupComplete;
+              await input.onStartCancelled?.(id);
+              throw error;
+            }
+            if (cancelled || !accepted) {
+              cleanupWaitStarted = true;
+              await cleanupDone;
+              handbackAfterCleanup = cleanupComplete;
+              await input.onStartCancelled?.(id);
+              throw new Error(
+                accepted
+                  ? 'Codex startup was cancelled'
+                  : 'session intent was already started',
+              );
+            }
+            promptEligible = true;
+            return {
+              id,
+              wait: async () => ({ reasonKind: 'exit', claimsDone: false }),
+            };
+          },
+        },
+        cancelTree: async (sessionId) => {
+          assert.equal(sessionId, 'startup-abort-session');
+          cancelCalls += 1;
+          cancelled = true;
+          await cleanupDone;
+        },
+      },
+    };
+
+    running = runJob(f.job, d);
+    void running.then(
+      () => {
+        settled = true;
+      },
+      () => {
+        settled = true;
+      },
+    );
+    assert.equal(
+      await conditionWithin(() => traceCallbackEntered),
+      true,
+      'startup must reach the pending trace callback',
+    );
+    const bound = await relay.load(f.job, f.contract);
+    assert.equal(
+      bound.lease,
+      'active',
+      'binding must precede the pending trace callback',
+    );
+    assert.equal(bound.sessionId, 'startup-abort-session');
+    controller.abort('test abort during startup callback');
+    assert.equal(
+      await conditionWithin(() => cancelCalls > 0),
+      true,
+      'foreman must cancel while the startup callback is pending',
+    );
+    assert.equal(
+      promptEligible,
+      false,
+      'aborted startup must not make a prompt eligible',
+    );
+    releaseTrace();
+    assert.equal(
+      await conditionWithin(() => cleanupWaitStarted),
+      true,
+      'host must await physical cleanup before lease handback',
+    );
+    assert.equal(
+      settled,
+      false,
+      'foreman must await physical cleanup before stopping',
+    );
+    assert.equal((await relay.load(f.job, f.contract)).lease, 'active');
+    releaseCleanup();
+    const outcome = await running;
+    const handedBack = await relay.load(f.job, f.contract);
+    assert.equal(outcome.kind, 'stop');
+    assert.equal(promptEligible, false);
+    assert.equal(cleanupComplete, true);
+    assert.equal(handbackAfterCleanup, true);
+    assert.equal(handedBack.lease, 'ended');
+    assert.equal(handedBack.sessionId, undefined);
+  } finally {
+    releaseTrace?.();
+    releaseCleanup?.();
+    await running?.catch(() => undefined);
     await rm(f.worktree, { recursive: true, force: true });
   }
 });

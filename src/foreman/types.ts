@@ -63,6 +63,12 @@ export type SessionEnd = {
 };
 export type SessionResult = SessionEnd & { readonly finalMessage?: string };
 export type Session = { readonly id: string; wait(): Promise<SessionResult> };
+
+export class AbortBeforeCheckpoint extends Error {
+  constructor() {
+    super('foreman aborted before checkpoint transaction entry');
+  }
+}
 export type Outcome =
   | {
       readonly kind: 'verdict_pass';

@@ -1,6 +1,7 @@
 import type { Job } from '../core/index.ts';
 import { prepareCheckpoint, publishCheckpoint } from './commit.ts';
 import type { Capsule, Contract, Deps, Outcome } from './types.ts';
+import { AbortBeforeCheckpoint } from './types.ts';
 import { verifyCheckpoint } from './verdict.ts';
 
 export function isCheckpointRefusal(error: unknown): error is Error {
@@ -26,6 +27,8 @@ export async function finishCheckpoint(
   let prepared = capsule.pendingCheckpoint;
   let checkpointed = capsule;
   if (!prepared) {
+    // Close the await gap immediately before preparing a fresh checkpoint.
+    if (d.signal?.aborted) throw new AbortBeforeCheckpoint();
     const commit = prepareCheckpoint(job, request.message, sessionId);
     checkpointed = await d.relay.checkpoint(
       job,
