@@ -1590,6 +1590,108 @@ test('an abort before checkpoint entry preserves dirty work and records the ende
   }
 });
 
+test('abort between checkpoint request validation and transaction entry prevents a fresh commit', async () => {
+  const f = await partialCheckpointFixture();
+  try {
+    await endPartialFixtureLease(f);
+    const controller = new AbortController();
+    const before = f.git(['rev-parse', 'HEAD']);
+    let abortRan = false;
+    let requestWasReturned = false;
+    let checkpointCalls = 0;
+    let checkpointSawAbort = false;
+    const d: Deps = {
+      ...f.d,
+      signal: controller.signal,
+      trace: {
+        ...diskTrace,
+        checkpointRequest: async (...args) => {
+          const request = await diskTrace.checkpointRequest(...args);
+          requestWasReturned = request !== null;
+          // A runs before the outer wrapper's continuation; B runs after its
+          // signal check but before finishCheckpoint resumes from its await.
+          queueMicrotask(() => {
+            queueMicrotask(() => {
+              abortRan = true;
+              controller.abort('abort between request check and transaction');
+            });
+          });
+          return request;
+        },
+      },
+      relay: {
+        ...f.d.relay,
+        checkpoint: async (...args) => {
+          checkpointCalls += 1;
+          checkpointSawAbort = controller.signal.aborted;
+          return relay.checkpoint(...args);
+        },
+      },
+      hosts: {
+        ...f.d.hosts,
+        codex: {
+          start: async (input) => {
+            const id = 'abort-checkpoint-entry-session';
+            assert.equal(await input.onStarted(id), true);
+            writeCheckpointRequest(f.job, {
+              intent: input.checkpoint.intent,
+              sessionId: id,
+              message: 'feat: abort checkpoint entry',
+              next: 'step B',
+            });
+            return {
+              id,
+              wait: async () => ({
+                reasonKind: 'interrupted',
+                claimsDone: false,
+              }),
+            };
+          },
+        },
+      },
+    };
+
+    const outcome = await runJob(f.job, d);
+    const after = await relay.load(f.job, f.contract);
+    const facts = relay.repoFacts(f.job, after.base);
+    assert.equal(outcome.kind, 'stop');
+    assert.equal(abortRan, true, 'the queued abort must execute');
+    assert.equal(
+      requestWasReturned,
+      true,
+      'use the persisted current-session request',
+    );
+    assert.equal(
+      checkpointCalls === 0 || checkpointSawAbort,
+      true,
+      'any fresh relay checkpoint entry must observe the abort state',
+    );
+    assert.deepEqual(
+      {
+        checkpointCalls,
+        head: f.git(['rev-parse', 'HEAD']),
+        dirtyPaths: facts.dirtyPaths,
+        lease: after.lease,
+        sessionId: after.sessionId,
+        blockers: after.blockers,
+      },
+      {
+        checkpointCalls: 0,
+        head: before,
+        dirtyPaths: ['change.txt'],
+        lease: 'ended',
+        sessionId: undefined,
+        blockers: [
+          'uncommitted_changes: reasonKind=interrupted; path=change.txt',
+        ],
+      },
+      'abort after request validation must fence prepare/relay checkpoint entry and preserve dirty facts',
+    );
+  } finally {
+    await rm(f.worktree, { recursive: true, force: true });
+  }
+});
+
 test('an abort after checkpoint transaction entry finishes its owned commit but starts no next worker', async () => {
   const f = await partialCheckpointFixture();
   try {

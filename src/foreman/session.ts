@@ -16,6 +16,7 @@ import type {
   Session,
   SessionEnd,
 } from './types.ts';
+import { AbortBeforeCheckpoint } from './types.ts';
 
 export class AlreadyRunning extends Error {
   constructor() {
@@ -24,7 +25,6 @@ export class AlreadyRunning extends Error {
 }
 
 class ForemanAborted extends Error {}
-class AbortedBeforeCheckpoint extends Error {}
 
 export function endOutcome(
   job: Job,
@@ -114,7 +114,7 @@ export async function runAttempt(
             requestIntent,
             sessionId,
           );
-          if (d.signal?.aborted) throw new AbortedBeforeCheckpoint();
+          if (d.signal?.aborted) throw new AbortBeforeCheckpoint();
           return request;
         },
       },
@@ -129,7 +129,7 @@ export async function runAttempt(
         checkpointDeps,
       );
     } catch (error) {
-      if (error instanceof AbortedBeforeCheckpoint)
+      if (error instanceof AbortBeforeCheckpoint)
         return { kind: 'outcome', outcome: await finishSession(job, run, d) };
       throw error;
     }
