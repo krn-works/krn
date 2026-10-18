@@ -147,17 +147,23 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 
 [POLICY] The immutable trusted base selects the host package-manager executable and host-side store probe. Candidate package manifests, lockfiles, and application dependencies remain the inputs installed and checked inside the sandbox: do not substitute base dependencies or blanket-refuse manifest changes. Preserve the accepted LON-219/PR44 script, registry, protected-surface, regular-file, size, teardown, and honest-source controls.
 
-[POLICY] This is a bounded host tool-authority correction, not evidence that mise installs tools or that a pnpm exploit has run. Broader provenance security, provider trials, generic W2b recovery, CI changes, and global tool configuration are excluded. Scope acceptance does not approve unimplemented B runtime code or constitute Full R1 execution.
+[POLICY] This is a bounded host tool-authority correction, not evidence that mise installs tools or that a pnpm exploit has run. Broader provenance security, provider trials, generic W2b recovery, CI changes, and global tool configuration are excluded. Scope acceptance does not constitute Full R1 execution.
+
+[CODE] The bounded implementation was accepted and merged as PR #60. This status does not relabel or replace the original proof record.
 
 ## LON-286 — neutral host pnpm store discovery (2026-10-17)
 
 [POLICY] This bounded continuation of LON-284 isolates the immutable-base-selected pnpm host store query from mutable repository workspace configuration using a fresh owned standalone probe under validated repository state/tmp parents. Candidate workspace manifests, package manifests, lockfiles, and application dependencies remain legitimate sandboxed inputs; do not blanket-refuse workspace changes, replace candidate dependencies, or overlay candidate files. Preserve LON-219/PR44 script, registry, protected-surface, regular-file, size, teardown, and honest-source controls.
 
-[POLICY] The synthetic owned-canary observer establishes the targeted boundary only. It does not claim a real host-home/credential exploit, universal hostile-process qualification, Full R1 execution, or acceptance of the implementation. Production changes remain pending public assertion RED and subsequent proof.
+[POLICY] The synthetic owned-canary observer establishes the targeted boundary only. It does not claim a real host-home/credential exploit, universal hostile-process qualification, or Full R1 execution.
+
+[CODE] The bounded implementation was accepted and merged as PR #61. This status does not relabel or replace the original proof record.
 
 ## Operator-approved S1 — foreman abort fencing (2026-10-18, LON-287)
 
-[POLICY] This records accepted S1 source scope, not implementation acceptance, review, or unconditional merge approval. The previously authorized conditional integration/publication mandate remains subject to all required exact-head proof; this source author does not exercise publication authority. This does not grant Full R1 qualification, provider access, host/relay/trace API changes, or generic checkpoint recovery. Implementation acceptance and final review remain pending.
+[POLICY] This records accepted S1 source scope, not unconditional merge approval. The previously authorized conditional integration/publication mandate remains subject to all required exact-head proof; this source author does not exercise publication authority. This does not grant Full R1 qualification, provider access, host/relay/trace API changes, or generic checkpoint recovery.
+
+[CODE] The S1 implementation was accepted and merged as PR #62. This status does not relabel or replace the original proof record.
 
 [EMPIRICAL] On unchanged head `cc355e70dbbbdc317b75e5bc2466d2eacda4cbe5`, the named microtask-race test failed with one assertion and zero isolation skips: `relay.checkpoint` was entered after abort, HEAD changed, the lease remained checkpointed, and dirty work disappeared.
 
@@ -168,3 +174,17 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 [CODE] Foreman owns cancellation for a running session and must await physical cleanup/error evidence before returning a normal stopped outcome. During asynchronous `onStarted` binding/trace work, abort must make the prompt ineligible and preserve binding-before-trace plus the existing post-cleanup CAS lease handback. Cleanup uncertainty, trace errors, and CAS conflicts remain observable failures, never clean stopped acknowledgements. CodexHost's maintained cancellation owner remains authoritative; do not add a second process controller.
 
 [CODE] The public proof seam is `runJob`, using existing disk/Git checkpoint, relay, trace, host-ownership, and fixture helpers where relevant. Keep non-abort, ordinary startup, cleanup/CAS, dirty-state, and interrupted-checkpoint controls meaningful. No provider calls, board writes, generic W2b recovery, CLI-stop annotation expansion, or host/relay/trace API changes are included. No checkpoint API or recovery method is added; the synchronous fresh-entry guard above is the only checkpoint-source exception.
+
+## Operator-authorized LON-289 — strict host test evidence (2026-10-18)
+
+[POLICY] This authorization is limited to the local host gate. Strict test mode, pinned to the repository `.node-version`, succeeds only when the explicit file selection or complete project test glob is nonempty, every selected file has real native declared-test evidence, and all tests pass with no skip, todo, cancellation, failure, or incomplete/malformed evidence. The strict child boundary removes inherited `NODE_OPTIONS` and `NODE_TEST_*` variables. Ordinary non-strict CI behavior and existing isolation-capability handling remain unchanged.
+
+[CODE] A native event reporter records only bounded test event fields under an owned `.krn/tmp` directory; it does not patch Node internals. A version-1 `KRN_TEST_SUMMARY_JSON` contains `success`, global `counts` (`tests`, `passed`, `failed`, `skipped`, `todo`, `cancelled`), and matching per-file counts. Counts must cohere, and every selected file must show positive real declared-test coverage. The local status publisher requires the last structured summary to validate, clean tracked and nonignored untracked state both before and after the gate, and unchanged HEAD. It retains the existing `N tests, 0 isolation skips` description.
+
+[CODE] `KRN_SCOPE_PROBE=1` is discovery-only when inherited `NODE_TEST_CONTEXT` exists: it emits sorted absolute project test paths as `KRN_DISCOVERED` JSON, runs no tests, and fails on empty discovery. A strict top-level probe request without inherited test context fails closed. Tests remain cooperative same-UID evidence; this design does not claim protection from a deliberate same-UID event or summary forger.
+
+[POLICY] LON-264's CI-mode skip-authenticity residual remains open. This work does not change CI authenticity, evaluator isolation, hosts, or broader delivery architecture. LON-288 remains the orchestration mandate: lead-owned proof and publication, independent exact-head review and required CI remain binding; this authorization gives the source author no publication authority.
+
+[EMPIRICAL] At unchanged production base `73d5141e312b5af1ce05679c356924afb1771977`, the lead recorded assertion-based RED for the new regression file: exit 1, 24 tests including three group parents, 22 failures, two passing controls, and zero isolation skips. These actual assertion failures with passing controls are valid RED evidence when bound to the exact base and `src`/`test` tree identities; this RED evidence does not establish GREEN or implementation acceptance.
+
+[POLICY] D7 — lead-owned host RED/GREEN proof is the runtime authority. The lead binds assertion-based RED on the unchanged base and GREEN on the exact implementation head to their respective `src` and `test` tree identities. Those bound runtime transcripts qualify as RED/GREEN evidence; a mechanical or invalid red-first run (including setup failures, missing imports, or changed/unbound trees) does not. A nonpassing implementation head is not GREEN. Independent judges assess the transcripts; the lead does not self-judge. Implementation acceptance remains pending all required exact-head gates.

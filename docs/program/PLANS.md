@@ -23,6 +23,7 @@ plan text goes into the pull request body under "ExecPlan" so the decision log s
 - The plan never weakens, deletes, or skips an existing test, check, or acceptance criterion to reach green. If an existing
   test is wrong, the plan says why, with evidence, and the change gets an independent review.
 - Every implementation passes `npm run gate` (KRN-07) before review.
+- The strict local host-gate status requires a coherent final version-1 `KRN_TEST_SUMMARY_JSON`, positive declared-test coverage for every selected file, zero failures/skips/todos/cancellations, and clean unchanged HEAD before and after the gate; TAP totals are display-only evidence.
 
 ## Living sections (mandatory)
 
