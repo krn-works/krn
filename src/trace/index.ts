@@ -42,6 +42,22 @@ type Event = {
   readonly data: Record<string, unknown>;
 };
 
+export type ReadonlyTraceEvent = Readonly<{
+  key: string;
+  kind: string;
+  at: string;
+  data: Readonly<Record<string, unknown>>;
+}>;
+
+export type ReadonlyTraceSnapshot = Readonly<{
+  jobId: string;
+  events: readonly ReadonlyTraceEvent[];
+  sha256: string;
+  byteLength: number;
+  malformedTail: boolean;
+  finalRowUnterminated: boolean;
+}>;
+
 type TraceFdPathVerification = 'verified' | 'unavailable' | 'mismatch';
 
 export function classifyTraceFdPathReadback(
@@ -207,12 +223,22 @@ function nearestExistingRealpath(path: string): string {
   }
 }
 
-function ensureTraceDirectory(
-  job: Job,
+function ensureTraceDirectoryAtRoot(
+  repositoryRoot: string,
   directory: string,
   create: boolean,
 ): boolean {
-  const repoRoot = realpathSync(repoRecord(job).repoRoot);
+  const repoRoot = realpathSync(repositoryRoot);
+  if (repoRoot !== resolve(repositoryRoot))
+    throw new Error('unsafe trace path');
+  let rootStats: ReturnType<typeof lstatSync>;
+  try {
+    rootStats = lstatSync(repoRoot);
+  } catch {
+    throw new Error('unsafe trace path');
+  }
+  if (rootStats.isSymbolicLink() || !rootStats.isDirectory())
+    throw new Error('unsafe trace path');
   const expectedDirectory = resolve(directory);
   if (
     expectedDirectory === repoRoot ||
@@ -309,6 +335,18 @@ function ensureTraceDirectory(
     }
     throw new Error('unsafe trace path');
   }
+}
+
+function ensureTraceDirectory(
+  job: Job,
+  directory: string,
+  create: boolean,
+): boolean {
+  return ensureTraceDirectoryAtRoot(
+    repoRecord(job).repoRoot,
+    directory,
+    create,
+  );
 }
 
 function assertTraceFileIsRegularIfPresent(path: string): void {
@@ -453,49 +491,52 @@ type TraceSnapshot = {
   readonly repairOffset: number;
 };
 
-function readTrace(job: Job): TraceSnapshot {
-  const path = file(job);
+function emptyTraceSnapshot(path: string, directory: string): TraceSnapshot {
+  return {
+    events: [],
+    path,
+    directory,
+    bytes: Buffer.alloc(0),
+    malformedTail: false,
+    finalRowUnterminated: false,
+    repairOffset: 0,
+  };
+}
+
+function readTraceContents(
+  path: string,
+  ensureDirectory: () => boolean,
+  requireStableRead: boolean,
+): TraceSnapshot {
   const directory = dirname(path);
-  if (!ensureTraceDirectory(job, directory, false))
-    return {
-      events: [],
-      path,
-      directory,
-      bytes: Buffer.alloc(0),
-      malformedTail: false,
-      finalRowUnterminated: false,
-      repairOffset: 0,
-    };
+  if (!ensureDirectory()) return emptyTraceSnapshot(path, directory);
   assertNoTraceSymlinks(directory, path);
-  if (!existsSync(path))
-    return {
-      events: [],
-      path,
-      directory,
-      bytes: Buffer.alloc(0),
-      malformedTail: false,
-      finalRowUnterminated: false,
-      repairOffset: 0,
-    };
+  if (!existsSync(path)) return emptyTraceSnapshot(path, directory);
   let contents: Buffer;
   try {
     const fd = openVerifiedTrace(path, constants.O_RDONLY);
     try {
-      contents = readFileSync(fd);
+      if (requireStableRead) {
+        const before = fstatSync(fd);
+        contents = readFileSync(fd);
+        const after = fstatSync(fd);
+        if (
+          before.dev !== after.dev ||
+          before.ino !== after.ino ||
+          before.size !== after.size ||
+          before.mtimeMs !== after.mtimeMs ||
+          before.ctimeMs !== after.ctimeMs
+        )
+          throw new Error('trace changed while reading');
+      } else {
+        contents = readFileSync(fd);
+      }
     } finally {
       closeSync(fd);
     }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT')
-      return {
-        events: [],
-        path,
-        directory,
-        bytes: Buffer.alloc(0),
-        malformedTail: false,
-        finalRowUnterminated: false,
-        repairOffset: 0,
-      };
+      return emptyTraceSnapshot(path, directory);
     throw error;
   }
   const terminated = contents.length === 0 || contents.at(-1) === 0x0a;
@@ -543,6 +584,83 @@ function readTrace(job: Job): TraceSnapshot {
     finalRowUnterminated: true,
     repairOffset: contents.length,
   };
+}
+
+function readTrace(job: Job): TraceSnapshot {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(job.id) || job.id === '..')
+    throw new Error('invalid trace job id');
+  const repositoryRoot = realpathSync(repoRecord(job).repoRoot);
+  const path = join(
+    repositoryRoot,
+    '.krn',
+    'runs',
+    'foreman',
+    job.id,
+    'trace.jsonl',
+  );
+  const directory = dirname(path);
+  return readTraceContents(
+    path,
+    () => ensureTraceDirectoryAtRoot(repositoryRoot, directory, false),
+    false,
+  );
+}
+
+function assertNoTraceWriterLocks(directory: string, tracePath: string): void {
+  for (const lockPath of [`${tracePath}.lock`, `${tracePath}.lock.reclaim`]) {
+    assertNoTraceSymlinks(directory, lockPath);
+    const observed = readTraceLockOwner(lockPath);
+    if (observed.kind !== 'absent')
+      throw new Error('trace is locked or its lock owner is invalid');
+  }
+}
+
+export function readTraceSnapshot(
+  repoRoot: string,
+  jobId: string,
+): ReadonlyTraceSnapshot {
+  if (
+    !isAbsolute(repoRoot) ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(jobId)
+  )
+    throw new Error('invalid trace snapshot location');
+  const repositoryRoot = resolve(repoRoot);
+  const repositoryRootStats = lstatSync(repositoryRoot);
+  if (
+    repositoryRootStats.isSymbolicLink() ||
+    !repositoryRootStats.isDirectory() ||
+    realpathSync(repositoryRoot) !== repositoryRoot
+  )
+    throw new Error('unsafe trace path');
+  const path = join(
+    repositoryRoot,
+    '.krn',
+    'runs',
+    'foreman',
+    jobId,
+    'trace.jsonl',
+  );
+  const directory = dirname(path);
+  assertNoTraceWriterLocks(directory, path);
+  const snapshot = readTraceContents(
+    path,
+    () => ensureTraceDirectoryAtRoot(repositoryRoot, directory, false),
+    true,
+  );
+  assertNoTraceWriterLocks(directory, path);
+  const immutableEvents = Object.freeze(
+    snapshot.events.map((event) =>
+      Object.freeze({ ...event, data: Object.freeze(event.data) }),
+    ),
+  );
+  return Object.freeze({
+    jobId,
+    events: immutableEvents,
+    sha256: createHash('sha256').update(snapshot.bytes).digest('hex'),
+    byteLength: snapshot.bytes.length,
+    malformedTail: snapshot.malformedTail,
+    finalRowUnterminated: snapshot.finalRowUnterminated,
+  });
 }
 
 function events(job: Job): Event[] {

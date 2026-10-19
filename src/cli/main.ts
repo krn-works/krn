@@ -10,7 +10,7 @@ import {
   ReviewUsageError,
   reviewCommand,
 } from '../flow/cli.ts';
-import { dispatch } from './index.ts';
+import { dispatch, reportJourneyCommand } from './index.ts';
 
 const version = '0.1.0';
 const recursionFlag = 'KRN_FORWARDED';
@@ -56,6 +56,11 @@ export function main(args = process.argv.slice(2)): void {
         );
         process.exitCode = reviewErrorExitCode(error);
       });
+    return;
+  }
+
+  if (args[0] === 'report' && args[1] === 'journey') {
+    process.exitCode = reportJourneyCommand(args.slice(1));
     return;
   }
 

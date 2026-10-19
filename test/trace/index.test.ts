@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
   constants,
@@ -43,6 +43,7 @@ import {
   classifyTraceFdPathReadback,
   failure,
   hasVerdict,
+  readTraceSnapshot,
   traceFdPathVerificationDecision,
   verdict,
 } from '../../src/trace/index.ts';
@@ -186,6 +187,113 @@ test('trace reads a valid unterminated final row without adding bytes', async ()
       beforeRead,
       'reading a valid unterminated row must not append a newline',
     );
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('public snapshot hashes exact tail bytes and refuses unsafe or locked paths without writes', async () => {
+  const f = await fixture();
+  const directory = dirname(f.tracePath);
+  const first = JSON.stringify({
+    key: 'snapshot-first',
+    kind: 'session_started',
+    at: '2026-10-19T00:00:00.000Z',
+    data: { intent: 'intent:1', sessionId: 'snapshot-session' },
+  });
+  const final = JSON.stringify({
+    key: 'snapshot-final',
+    kind: 'session_ended',
+    at: '2026-10-19T00:00:01.000Z',
+    data: { intent: 'intent:1', sessionId: 'snapshot-session', end: {} },
+  });
+  try {
+    await mkdir(directory, { recursive: true });
+    const cases = [
+      {
+        name: 'parseable unterminated row',
+        bytes: Buffer.from(`${first}\n${final}`),
+        malformedTail: false,
+        finalRowUnterminated: true,
+        eventCount: 2,
+      },
+      {
+        name: 'malformed torn tail',
+        bytes: Buffer.from(`${first}\n{"key":"broken","kind":}`),
+        malformedTail: true,
+        finalRowUnterminated: false,
+        eventCount: 1,
+      },
+    ];
+    for (const scenario of cases) {
+      await writeFile(f.tracePath, scenario.bytes);
+      const before = await readFile(f.tracePath);
+      const snapshot = readTraceSnapshot(f.directory, f.job.id);
+      assert.equal(
+        snapshot.sha256,
+        createHash('sha256').update(before).digest('hex'),
+      );
+      assert.equal(snapshot.byteLength, before.length);
+      assert.equal(
+        snapshot.malformedTail,
+        scenario.malformedTail,
+        scenario.name,
+      );
+      assert.equal(
+        snapshot.finalRowUnterminated,
+        scenario.finalRowUnterminated,
+        scenario.name,
+      );
+      assert.equal(snapshot.events.length, scenario.eventCount, scenario.name);
+      assert.deepEqual(await readFile(f.tracePath), before, scenario.name);
+    }
+
+    const lockBytes = (startTicks: string) =>
+      JSON.stringify({ pid: process.pid, startTicks, token: randomUUID() });
+    const currentTicks = processStartTicks(process.pid);
+    assert.ok(currentTicks);
+    const lockCases = [
+      {
+        name: 'active primary lock',
+        path: `${f.tracePath}.lock`,
+        ticks: currentTicks,
+      },
+      {
+        name: 'orphan reclaimer lock',
+        path: `${f.tracePath}.lock.reclaim`,
+        ticks: '0',
+      },
+    ];
+    const traceBeforeLocks = await readFile(f.tracePath);
+    for (const lockCase of lockCases) {
+      const bytes = lockBytes(lockCase.ticks);
+      await writeFile(lockCase.path, bytes, { flag: 'wx' });
+      assert.throws(
+        () => readTraceSnapshot(f.directory, f.job.id),
+        /trace is locked/u,
+        lockCase.name,
+      );
+      assert.deepEqual(await readFile(lockCase.path), Buffer.from(bytes));
+      assert.deepEqual(await readFile(f.tracePath), traceBeforeLocks);
+      await rm(lockCase.path);
+    }
+
+    const outside = join(f.directory, 'outside-trace.jsonl');
+    await writeFile(outside, final);
+    await rm(f.tracePath);
+    await symlink(outside, f.tracePath);
+    const outsideBefore = await readFile(outside);
+    assert.throws(
+      () => readTraceSnapshot(f.directory, f.job.id),
+      /unsafe trace path/u,
+    );
+    assert.deepEqual(await readFile(outside), outsideBefore);
+
+    const missingId = `missing-${randomUUID()}`;
+    const missingDirectory = join(f.directory, '.krn/runs/foreman', missingId);
+    const empty = readTraceSnapshot(f.directory, missingId);
+    assert.deepEqual(empty.events, []);
+    assert.equal(existsSync(missingDirectory), false);
   } finally {
     await rm(f.directory, { recursive: true, force: true });
   }

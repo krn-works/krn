@@ -1,9 +1,16 @@
 // Start creates the isolated job worktree; checkpoint persists before stopping its worker. ADR 0001.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readSync, realpathSync } from 'node:fs';
-import { dirname, resolve, sep } from 'node:path';
+import {
+  existsSync,
+  mkdirSync,
+  readSync,
+  realpathSync,
+  statSync,
+} from 'node:fs';
+import { dirname, isAbsolute, resolve, sep } from 'node:path';
 
 import type { Job } from '../core/index.ts';
+import { deriveJourneyReport, refusalReport } from '../evals/journey.ts';
 import { reviewCommand } from '../flow/cli.ts';
 import { writeCheckpointRequest } from '../foreman/checkpoint-request.ts';
 import { recordRepo } from '../foreman/state.ts';
@@ -11,6 +18,7 @@ import {
   leadIntervention,
   operatorStart,
   operatorStop,
+  readTraceSnapshot,
 } from '../trace/index.ts';
 
 function value(args: string[], flag: string): string {
@@ -256,4 +264,93 @@ export async function dispatch(args: string[]): Promise<boolean> {
   else if (command === 'review') await reviewCommand(options);
   else return false;
   return true;
+}
+
+function journeyArgs(
+  args: string[],
+): { repoRoot: string; jobId: string } | null {
+  if (args[0] !== 'journey') return null;
+  const values = new Map<string, string>();
+  for (let index = 1; index < args.length; index += 2) {
+    const flag = args[index];
+    const value = args[index + 1];
+    if (
+      (flag !== '--repo' && flag !== '--job') ||
+      !value ||
+      value.startsWith('--') ||
+      values.has(flag)
+    )
+      return null;
+    values.set(flag, value);
+  }
+  const repoRoot = values.get('--repo');
+  const jobId = values.get('--job');
+  if (!repoRoot || !jobId || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(jobId))
+    return null;
+  return { repoRoot, jobId };
+}
+
+function reportGitFacts(repoRoot: string): {
+  readonly headSha: string;
+  readonly isDirty: boolean;
+} | null {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('GIT_')) delete env[key];
+  }
+  env.GIT_OPTIONAL_LOCKS = '0';
+  env.GIT_CONFIG_NOSYSTEM = '1';
+  env.GIT_CONFIG_GLOBAL = '/dev/null';
+  const run = (args: string[]) =>
+    spawnSync(
+      'git',
+      [
+        '-C',
+        repoRoot,
+        '-c',
+        'core.fsmonitor=false',
+        '-c',
+        'core.untrackedCache=false',
+        ...args,
+      ],
+      { encoding: 'utf8', env, maxBuffer: 1024 * 1024 },
+    );
+  const topLevel = run(['rev-parse', '--show-toplevel']);
+  if (
+    topLevel.status !== 0 ||
+    realpathSync(topLevel.stdout.trim()) !== repoRoot
+  )
+    return null;
+  const head = run(['rev-parse', '--verify', 'HEAD']);
+  if (head.status !== 0 || !/^[a-f0-9]{40,64}$/iu.test(head.stdout.trim()))
+    return null;
+  const status = run(['status', '--porcelain=v1', '--untracked-files=normal']);
+  if (status.status !== 0) return null;
+  return { headSha: head.stdout.trim(), isDirty: status.stdout.length > 0 };
+}
+
+export function reportJourneyCommand(args: string[]): number {
+  let report = refusalReport('invalid_arguments');
+  const input = journeyArgs(args);
+  if (input) {
+    try {
+      if (!isAbsolute(input.repoRoot)) throw new Error('invalid root');
+      const repoRoot = realpathSync(input.repoRoot);
+      if (!statSync(repoRoot).isDirectory()) throw new Error('invalid root');
+      const gitFacts = reportGitFacts(repoRoot);
+      if (!gitFacts) report = refusalReport('git_unavailable');
+      else {
+        try {
+          const snapshot = readTraceSnapshot(repoRoot, input.jobId);
+          report = deriveJourneyReport(snapshot, gitFacts);
+        } catch {
+          report = refusalReport('trace_unavailable');
+        }
+      }
+    } catch {
+      report = refusalReport('invalid_arguments');
+    }
+  }
+  process.stdout.write(`${JSON.stringify(report)}\n`);
+  return report.kind === 'journey' ? 0 : 1;
 }
