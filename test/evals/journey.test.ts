@@ -388,6 +388,52 @@ test('journey refuses a teardown-unconfirmed event even without an outcome row',
     assert.equal(teardown.code, 'cleanup_unconfirmed');
 });
 
+test('journey refuses any cleanup-unconfirmed outcome reason', () => {
+  const input = [
+    row('job-outcome:cleanup-reason', 'job_outcome', {
+      exitCode: 1,
+      signal: null,
+      cleanup: 'verified',
+      reason: 'cleanup-unconfirmed',
+      outcomeKind: 'error',
+    }),
+    ...events(),
+  ];
+  const result = deriveJourneyReport(snapshot(input), gitFacts);
+  assert.equal(result.kind, 'refusal');
+  if (result.kind === 'refusal')
+    assert.equal(result.code, 'cleanup_unconfirmed');
+});
+
+test('malformed session starts make aggregate usage unknown without hiding valid sessions', () => {
+  const valid = events().filter(
+    (event) =>
+      !event.key.startsWith('intent:1') &&
+      event.key !== 'job-outcome:stop' &&
+      !event.key.startsWith('operator-') &&
+      !event.key.startsWith('lead-intervention:'),
+  );
+  const input = [
+    row('malformed-start', 'session_started', {
+      intent: 'intent:bad',
+      jobId: 'journey-job',
+      sessionId: '',
+    }),
+    ...valid,
+  ];
+  const result = deriveJourneyReport(snapshot(input), gitFacts);
+  assert.equal(result.kind, 'refusal');
+  if (result.kind !== 'refusal') return;
+  assert.equal(result.code, 'invalid_event_data');
+  assert.equal(result.facts.usage.totalTokens, null);
+  assert.deepEqual(result.facts.usage.unknownSessions, ['event-1']);
+  const observed = result.facts.sessions.find(
+    (session) => session.sessionId === 'resumed-session',
+  );
+  assert.equal(observed?.usageMeasured, true);
+  assert.equal(observed?.usage.totalTokens, 3);
+});
+
 test('journey refuses session and intent activity left after the final outcome', () => {
   const trailingEvents: TraceEvent[] = [
     row('intent:late', 'intent', { jobId: 'journey-job', epoch: 3 }),

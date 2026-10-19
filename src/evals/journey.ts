@@ -318,18 +318,21 @@ function matchingSession(
   );
 }
 
-function observeUsage(sessions: readonly Session[]): {
+function observeUsage(
+  sessions: readonly Session[],
+  malformedStartMarkers: readonly string[],
+): {
   totalTokens: number | null;
   unknownSessions: string[];
   unknownReason?: NonNullable<JourneyFacts['usage']['unknownReason']>;
   affectedSessions?: string[];
 } {
-  const unknownSessions: string[] = [];
+  const unknownSessions = [...malformedStartMarkers];
   const stoppedSessions: string[] = [];
   const saturatedSessions: string[] = [];
   const sessionOverflowSessions: string[] = [];
   const measuredSessions: string[] = [];
-  const incompleteSessions: string[] = [];
+  const incompleteSessions = [...malformedStartMarkers];
   let total = 0n;
   for (const session of sessions) {
     if (!session.usageMeasured || session.tokenTotal === undefined) {
@@ -633,6 +636,7 @@ export function deriveJourneyReport(
   const events = snapshot.events;
   const outcomes: Outcome[] = [];
   const sessions: Session[] = [];
+  const malformedStartMarkers: string[] = [];
   let invalidData = false;
 
   for (const [index, event] of events.entries()) {
@@ -654,6 +658,7 @@ export function deriveJourneyReport(
       matchingSession(sessions, intent, sessionId)
     ) {
       invalidData = true;
+      malformedStartMarkers.push(`event-${index + 1}`);
       continue;
     }
     sessions.push({
@@ -734,7 +739,7 @@ export function deriveJourneyReport(
     session.tokenTotal = evaluation.total;
   }
 
-  const usage = observeUsage(sessions);
+  const usage = observeUsage(sessions, malformedStartMarkers);
   const operatorWindow = observeOperatorWindow(events);
   const facts: JourneyFacts = {
     ...initialFacts,
@@ -773,7 +778,11 @@ export function deriveJourneyReport(
   }
   checks.push({ id: 'job-outcome', ok: true });
   if (
-    outcomes.some((outcome) => outcome.cleanup !== 'verified') ||
+    outcomes.some(
+      (outcome) =>
+        outcome.cleanup !== 'verified' ||
+        outcome.reason === 'cleanup-unconfirmed',
+    ) ||
     events.some((event) => event.kind === 'teardown_unconfirmed')
   ) {
     checks.push({ id: 'cleanup', ok: false });

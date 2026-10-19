@@ -299,6 +299,35 @@ test('public snapshot hashes exact tail bytes and refuses unsafe or locked paths
   }
 });
 
+test('public snapshot bounds bytes and nonempty rows before parsing', async () => {
+  const f = await fixture();
+  try {
+    await mkdir(dirname(f.tracePath), { recursive: true });
+    const results: string[] = [];
+    await writeFile(f.tracePath, Buffer.alloc(33_554_433, 0x20));
+    try {
+      readTraceSnapshot(f.directory, f.job.id);
+      results.push('accepted oversized bytes');
+    } catch (error) {
+      results.push(error instanceof Error ? error.message : 'unknown error');
+    }
+
+    await writeFile(f.tracePath, '{}\n'.repeat(100_001));
+    try {
+      readTraceSnapshot(f.directory, f.job.id);
+      results.push('accepted oversized rows');
+    } catch (error) {
+      results.push(error instanceof Error ? error.message : 'unknown error');
+    }
+    assert.deepEqual(results, [
+      'trace snapshot exceeds byte limit',
+      'trace snapshot exceeds event limit',
+    ]);
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
 test('job outcomes redact credentials and bound error messages', async () => {
   const f = await fixture();
   type JobOutcomeWriter = (

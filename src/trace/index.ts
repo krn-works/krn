@@ -13,6 +13,7 @@ import {
   openSync,
   readFileSync,
   readlinkSync,
+  readSync,
   realpathSync,
   rmdirSync,
   unlinkSync,
@@ -143,6 +144,8 @@ type TraceLockOwnerObservation =
 
 class UnlinkedTraceLockObservationError extends Error {}
 const traceLockWaitMs = 3000;
+const traceSnapshotMaxBytes = 33_554_432;
+const traceSnapshotMaxRows = 100_000;
 const traceLockPollMs = 10;
 const traceLockWaitCell = new Int32Array(new SharedArrayBuffer(4));
 
@@ -513,10 +516,36 @@ function emptyTraceSnapshot(path: string, directory: string): TraceSnapshot {
   };
 }
 
+function readSnapshotBytes(fd: number, size: number): Buffer {
+  const bytes = Buffer.allocUnsafe(size);
+  let offset = 0;
+  while (offset < size) {
+    const count = readSync(fd, bytes, offset, size - offset, null);
+    if (count === 0) throw new Error('trace changed while reading');
+    offset += count;
+  }
+  return bytes;
+}
+
+function assertSnapshotRowLimit(bytes: Buffer, maxRows: number): void {
+  let rows = 0;
+  let rowHasBytes = false;
+  for (const byte of bytes) {
+    if (byte === 0x0a) {
+      if (rowHasBytes) rows += 1;
+      rowHasBytes = false;
+    } else rowHasBytes = true;
+    if (rows > maxRows) throw new Error('trace snapshot exceeds event limit');
+  }
+  if (rowHasBytes && rows === maxRows)
+    throw new Error('trace snapshot exceeds event limit');
+}
+
 function readTraceContents(
   path: string,
   ensureDirectory: () => boolean,
   requireStableRead: boolean,
+  snapshotLimits?: Readonly<{ maxBytes: number; maxRows: number }>,
 ): TraceSnapshot {
   const directory = dirname(path);
   if (!ensureDirectory()) return emptyTraceSnapshot(path, directory);
@@ -528,8 +557,14 @@ function readTraceContents(
     try {
       if (requireStableRead) {
         const before = fstatSync(fd);
-        contents = readFileSync(fd);
+        if (snapshotLimits && before.size > snapshotLimits.maxBytes)
+          throw new Error('trace snapshot exceeds byte limit');
+        contents = snapshotLimits
+          ? readSnapshotBytes(fd, before.size)
+          : readFileSync(fd);
         const after = fstatSync(fd);
+        if (snapshotLimits && after.size > snapshotLimits.maxBytes)
+          throw new Error('trace snapshot exceeds byte limit');
         if (
           before.dev !== after.dev ||
           before.ino !== after.ino ||
@@ -549,6 +584,7 @@ function readTraceContents(
       return emptyTraceSnapshot(path, directory);
     throw error;
   }
+  if (snapshotLimits) assertSnapshotRowLimit(contents, snapshotLimits.maxRows);
   const terminated = contents.length === 0 || contents.at(-1) === 0x0a;
   const lastNewline = contents.lastIndexOf(0x0a);
   const completeLength = terminated ? contents.length : lastNewline + 1;
@@ -656,6 +692,7 @@ export function readTraceSnapshot(
     path,
     () => ensureTraceDirectoryAtRoot(repositoryRoot, directory, false),
     true,
+    { maxBytes: traceSnapshotMaxBytes, maxRows: traceSnapshotMaxRows },
   );
   assertNoTraceWriterLocks(directory, path);
   const immutableEvents = Object.freeze(

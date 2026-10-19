@@ -296,6 +296,26 @@ function journeyArgs(
   return { repoRoot, jobId };
 }
 
+function noConfiguredContentFilters(
+  run: (args: string[]) => {
+    status: number | null;
+    stdout: string;
+    stderr: string;
+  },
+): boolean {
+  const filters = run([
+    'config',
+    '--null',
+    '--get-regexp',
+    '^filter\\..*\\.(clean|process)$',
+  ]);
+  return (
+    filters.status === 1 &&
+    filters.stdout.length === 0 &&
+    filters.stderr.length === 0
+  );
+}
+
 function reportGitFacts(
   repoRoot: string,
   context: ReturnType<typeof readTraceRepoContext>,
@@ -324,8 +344,69 @@ function reportGitFacts(
       ],
       { encoding: 'utf8', env, maxBuffer: 1024 * 1024 },
     );
+  const topLevel = rootRun(['rev-parse', '--show-toplevel']);
+  if (topLevel.status !== 0) return null;
+  try {
+    if (realpathSync(topLevel.stdout.trim()) !== repoRoot) return null;
+  } catch {
+    return null;
+  }
+  const commonDirectory = rootRun([
+    'rev-parse',
+    '--path-format=absolute',
+    '--git-common-dir',
+  ]);
+  if (commonDirectory.status !== 0) return null;
+  let pinnedCommonDirectory: string;
+  let pinnedGitDirectory: string;
+  try {
+    pinnedCommonDirectory = realpathSync(commonDirectory.stdout.trim());
+    if (!statSync(pinnedCommonDirectory).isDirectory()) return null;
+  } catch {
+    return null;
+  }
+  const gitDirectory = rootRun([
+    'rev-parse',
+    '--path-format=absolute',
+    '--absolute-git-dir',
+  ]);
+  if (gitDirectory.status !== 0) return null;
+  try {
+    pinnedGitDirectory = realpathSync(gitDirectory.stdout.trim());
+    if (!statSync(pinnedGitDirectory).isDirectory()) return null;
+  } catch {
+    return null;
+  }
+  const pinnedRootRun = (args: string[]) =>
+    spawnSync(
+      'git',
+      [
+        '--git-dir',
+        pinnedGitDirectory,
+        '--work-tree',
+        repoRoot,
+        '-c',
+        'core.fsmonitor=false',
+        '-c',
+        'core.untrackedCache=false',
+        ...args,
+      ],
+      { encoding: 'utf8', env, maxBuffer: 1024 * 1024 },
+    );
+  const pinnedCommon = pinnedRootRun([
+    'rev-parse',
+    '--path-format=absolute',
+    '--git-common-dir',
+  ]);
+  if (pinnedCommon.status !== 0) return null;
+  try {
+    if (realpathSync(pinnedCommon.stdout.trim()) !== pinnedCommonDirectory)
+      return null;
+  } catch {
+    return null;
+  }
+
   let worktreeFd: number | undefined;
-  let worktree = repoRoot;
   if (context) {
     try {
       if (
@@ -336,7 +417,12 @@ function reportGitFacts(
         !statSync(context.gitWorkTree).isDirectory()
       )
         return null;
-      const registrations = rootRun(['worktree', 'list', '--porcelain', '-z']);
+      const registrations = pinnedRootRun([
+        'worktree',
+        'list',
+        '--porcelain',
+        '-z',
+      ]);
       if (registrations.status !== 0) return null;
       const registered = registrations.stdout
         .split('\0')
@@ -354,12 +440,14 @@ function reportGitFacts(
       if (!stats.isDirectory()) return null;
       if (readlinkSync(`/proc/self/fd/${worktreeFd}`) !== context.gitWorkTree)
         return null;
-      worktree = `/proc/self/fd/3`;
+      const worktree = '/proc/self/fd/3';
       const descriptorRun = (args: string[]) =>
         spawnSync(
           'git',
           [
-            '-C',
+            '--git-dir',
+            context.gitDir,
+            '--work-tree',
             worktree,
             '-c',
             'core.fsmonitor=false',
@@ -374,13 +462,39 @@ function reportGitFacts(
             stdio: ['ignore', 'pipe', 'pipe', worktreeFd],
           },
         );
-      const actualGitDir = descriptorRun(['rev-parse', '--absolute-git-dir']);
+      const worktreeTopLevel = descriptorRun(['rev-parse', '--show-toplevel']);
+      if (
+        worktreeTopLevel.status !== 0 ||
+        realpathSync(worktreeTopLevel.stdout.trim()) !== context.gitWorkTree
+      )
+        return null;
+      const actualGitDir = descriptorRun([
+        'rev-parse',
+        '--path-format=absolute',
+        '--absolute-git-dir',
+      ]);
       if (
         actualGitDir.status !== 0 ||
         realpathSync(actualGitDir.stdout.trim()) !== context.gitDir
       )
         return null;
-      const rechecked = rootRun(['worktree', 'list', '--porcelain', '-z']);
+      const actualCommonDirectory = descriptorRun([
+        'rev-parse',
+        '--path-format=absolute',
+        '--git-common-dir',
+      ]);
+      if (
+        actualCommonDirectory.status !== 0 ||
+        realpathSync(actualCommonDirectory.stdout.trim()) !==
+          pinnedCommonDirectory
+      )
+        return null;
+      const rechecked = pinnedRootRun([
+        'worktree',
+        'list',
+        '--porcelain',
+        '-z',
+      ]);
       if (
         rechecked.status !== 0 ||
         !rechecked.stdout
@@ -389,6 +503,11 @@ function reportGitFacts(
           .some(
             (field) => field.slice('worktree '.length) === context.gitWorkTree,
           )
+      )
+        return null;
+      if (
+        !noConfiguredContentFilters(pinnedRootRun) ||
+        !noConfiguredContentFilters(descriptorRun)
       )
         return null;
       const head = descriptorRun(['rev-parse', '--verify', 'HEAD']);
@@ -408,16 +527,11 @@ function reportGitFacts(
     }
   }
 
-  const topLevel = rootRun(['rev-parse', '--show-toplevel']);
-  if (
-    topLevel.status !== 0 ||
-    realpathSync(topLevel.stdout.trim()) !== repoRoot
-  )
-    return null;
-  const head = rootRun(['rev-parse', '--verify', 'HEAD']);
+  if (!noConfiguredContentFilters(pinnedRootRun)) return null;
+  const head = pinnedRootRun(['rev-parse', '--verify', 'HEAD']);
   if (head.status !== 0 || !/^[a-f0-9]{40,64}$/iu.test(head.stdout.trim()))
     return null;
-  const status = rootRun([
+  const status = pinnedRootRun([
     'status',
     '--porcelain=v1',
     '--untracked-files=normal',

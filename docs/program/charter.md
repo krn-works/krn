@@ -292,3 +292,15 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 [CODE] If the per-job `repo.json` exists, read it via the existing verified no-follow trace boundary, validate canonical anchors, confirm its worktree appears in the explicit repository's read-only `git worktree list`, and read job HEAD/status through an opened read-only directory descriptor. Invalid, foreign, or symlinked descriptors refuse. If no descriptor exists, use only the explicit `--repo` context. Do not create descriptors, rediscover with `repoRecord`, update the index, import relay, or write repository state.
 
 [POLICY] This is not a claim of an actual model journey or supervised trial. The current accepted operating boundary remains default `systemd_scope` with deliberate SIGTERM supervision; automatic SIGKILL, orphan-reclaim recovery, `--submit`, Full R1, and unattended support remain unclaimed. Preserve all earlier FAIL records. Completion requires frozen assertion RED/GREEN, one full gate at a committed fixed point, independent review, and root-owned lifecycle disposition.
+
+## LON-292 S3b repair2 snapshot and Git read boundaries (2026-10-19)
+
+[POLICY] The root authorized exactly the second and final bounded S3b source repair under the existing LON-288 completion mandate. This records scope only; it is not a new operator reply, a FAIL override, implementation acceptance, review authority, publication authority, or a third-repair waiver. Preserve the b5, 163, and f8 evidence and all prior review dispositions.
+
+[CODE] In both raw-trace and descriptor-backed reporting, require `--repo` to resolve to its canonical Git top level. Verify the common Git directory, confirm the descriptor worktree belongs to that shared repository, and keep later worktree queries bound to the verified Git directory and opened worktree. Refuse configured clean or process filters before dirty-state collection; never report an unverified dirty state.
+
+[CODE] Treat `reason: cleanup-unconfirmed` as cleanup uncertainty on every outcome even if its cleanup field says verified. If any `session_started` row is malformed, keep valid per-session observations but make the aggregate token total unknown and include a bounded event marker without copying the malformed identifier. Preserve the `invalid_event_data` refusal.
+
+[CODE] Bound only the public `readTraceSnapshot` read to 33,554,432 bytes and 100,000 nonempty rows. Check size before allocation, keep reads bounded if the opened file grows, and count rows before parsing event objects. Exceeding either limit yields the existing `trace_unavailable` CLI refusal without partial journey or hash claims. Preserve exact under-limit bytes, torn-tail behavior, no-follow checks, lock checks, and the separate unbounded writer/recovery readers.
+
+[POLICY] Proof, local commit, the one final full gate, and independent exact-head review remain required. No S5 trial, `--submit`, host/relay/producer change, or broader recovery claim is included.
