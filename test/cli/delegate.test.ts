@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { watch } from 'node:fs';
 import {
+  access,
   chmod,
   mkdir,
   mkdtemp,
@@ -790,6 +791,91 @@ test('delegate preflight interruption terminates and joins its Git child', async
       );
     }
     await rm(wrapperDir, { recursive: true, force: true });
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('delegate ignores inherited Git index overrides for input admission', async () => {
+  const { repo } = await createTrackedFixture();
+  const priorIndex = process.env.GIT_INDEX_FILE;
+  try {
+    const input = join(repo, 'alternate-index-only.txt');
+    const alternateIndex = join(repo, '.git', 'delegate-alternate.index');
+    await writeFile(input, 'current tracked-worktree fixture\n');
+    await writeFile(
+      alternateIndex,
+      await readFile(join(repo, '.git', 'index')),
+    );
+    const indexed = spawnSync(
+      'git',
+      ['-C', repo, 'add', '--', 'alternate-index-only.txt'],
+      {
+        encoding: 'utf8',
+        env: { ...process.env, GIT_INDEX_FILE: alternateIndex },
+      },
+    );
+    assert.equal(indexed.status, 0, indexed.stderr);
+
+    process.env.GIT_INDEX_FILE = alternateIndex;
+    const results = join(repo, '.krn', 'tmp', 'delegation', 'alternate-index');
+    let starts = 0;
+    await assert.rejects(
+      dispatch(argsFor(repo, input, results, ['TASK']), {
+        delegate: {
+          host: {
+            start: async () => {
+              starts += 1;
+              return {
+                id: 'alternate-index-worker',
+                wait: async () =>
+                  completedSession('alternate-index-worker', 'done'),
+              };
+            },
+            cancelTree: async () => undefined,
+          },
+          write: () => undefined,
+        },
+      }),
+      /--input must be a tracked repository file/u,
+    );
+    assert.equal(starts, 0);
+    await assert.rejects(access(results), { code: 'ENOENT' });
+  } finally {
+    if (priorIndex === undefined) delete process.env.GIT_INDEX_FILE;
+    else process.env.GIT_INDEX_FILE = priorIndex;
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('delegate rejects duplicate canonical inputs before creating group state', async () => {
+  const { repo, input } = await createTrackedFixture();
+  try {
+    const results = join(repo, '.krn', 'tmp', 'delegation', 'duplicate-input');
+    const args = argsFor(repo, input, results, ['TASK']);
+    args.splice(args.indexOf('--results'), 0, '--input', `${repo}/./input.txt`);
+    let starts = 0;
+    await assert.rejects(
+      dispatch(args, {
+        delegate: {
+          host: {
+            start: async () => {
+              starts += 1;
+              return {
+                id: 'duplicate-input-worker',
+                wait: async () =>
+                  completedSession('duplicate-input-worker', 'done'),
+              };
+            },
+            cancelTree: async () => undefined,
+          },
+          write: () => undefined,
+        },
+      }),
+      /unique after canonical resolution/u,
+    );
+    assert.equal(starts, 0);
+    await assert.rejects(access(results), { code: 'ENOENT' });
+  } finally {
     await rm(repo, { recursive: true, force: true });
   }
 });

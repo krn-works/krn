@@ -177,6 +177,16 @@ type GitResult = {
   readonly stderr: string;
 };
 
+function gitEnvironment(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('GIT_')) delete env[key];
+  }
+  env.GIT_OPTIONAL_LOCKS = '0';
+  env.GIT_NO_LAZY_FETCH = '1';
+  return env;
+}
+
 function signalGitTree(
   child: ReturnType<typeof spawn>,
   signal: NodeJS.Signals,
@@ -199,11 +209,7 @@ async function git(
     throw new GitCommandError('repository preflight interrupted', 'aborted');
   const child = spawn('git', ['-C', root, ...args], {
     detached: process.platform !== 'win32',
-    env: {
-      ...process.env,
-      GIT_OPTIONAL_LOCKS: '0',
-      GIT_NO_LAZY_FETCH: '1',
-    },
+    env: gitEnvironment(),
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let stdoutBytes = 0;
@@ -374,6 +380,7 @@ async function validateRepo(
     throw new Error('--repo must be the canonical repository root');
   let totalBytes = 0;
   const inputs: { path: string; content: string }[] = [];
+  const canonicalInputs = new Set<string>();
   for (const input of request.inputs) {
     if (signal?.aborted)
       throw new GitCommandError('repository preflight interrupted', 'aborted');
@@ -383,6 +390,11 @@ async function validateRepo(
     const path = await realpath(candidate);
     if (!inside(repo, path))
       throw new Error('--input must resolve inside --repo');
+    if (canonicalInputs.has(path))
+      throw new Error(
+        '--input paths must be unique after canonical resolution',
+      );
+    canonicalInputs.add(path);
     const pathFromRepo = relative(repo, path);
     const segments = pathFromRepo.split(sep);
     if (segments.some((part) => ['.git', '.krn', '.codex'].includes(part)))
