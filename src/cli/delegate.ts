@@ -6,6 +6,7 @@ import {
   readFile,
   realpath,
   rename,
+  unlink,
   writeFile,
 } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
@@ -30,7 +31,9 @@ export type DelegateWorkerResult = {
   readonly id: string;
   readonly brief: string;
   readonly status: DelegateStatus;
-  readonly resultFile: string;
+  readonly resultFile?: string;
+  readonly resultPersisted: boolean;
+  readonly resultPersistenceErrorType?: string;
   readonly finalText?: string;
   readonly exitCode?: number | null;
   readonly signal?: NodeJS.Signals | null;
@@ -41,6 +44,8 @@ export type DelegateGroupResult = {
   readonly kind: 'delegate_group';
   readonly resultsDirectory: string;
   readonly workers: readonly DelegateWorkerResult[];
+  readonly manifestPersisted: boolean;
+  readonly manifestPersistenceErrorType?: string;
 };
 
 type ParsedRequest = {
@@ -268,12 +273,17 @@ async function ensurePrivateResultsDirectory(
 
 async function atomicJson(path: string, value: unknown): Promise<void> {
   const temporary = `${path}.${randomUUID()}.tmp`;
-  await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, {
-    encoding: 'utf8',
-    mode: 0o600,
-    flag: 'wx',
-  });
-  await rename(temporary, path);
+  try {
+    await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, {
+      encoding: 'utf8',
+      mode: 0o600,
+      flag: 'wx',
+    });
+    await rename(temporary, path);
+  } catch (error) {
+    await unlink(temporary).catch(() => undefined);
+    throw error;
+  }
 }
 
 function errorType(error: unknown): string {
@@ -311,19 +321,27 @@ async function executeWorker(
   let sessionId: string | undefined;
   let cancelPromise: Promise<void> | undefined;
   let cancelFailure: unknown;
+  const startupController = new AbortController();
   const cancel = () => {
-    if (!sessionId) return;
-    cancelPromise ??= host.cancelTree(sessionId).catch((error: unknown) => {
-      cancelFailure = error;
-    });
+    startupController.abort();
+    if (sessionId)
+      cancelPromise ??= host.cancelTree(sessionId).catch((error: unknown) => {
+        cancelFailure = error;
+      });
   };
-  if (signal?.aborted) return { id, brief, status: 'cancelled', resultFile };
+  if (signal?.aborted)
+    return {
+      id,
+      brief,
+      status: 'cancelled',
+      resultFile,
+      resultPersisted: false,
+    };
 
   const timeout = setTimeout(() => {
     timedOut = true;
     cancel();
   }, request.timeoutMs);
-  timeout.unref();
   signal?.addEventListener('abort', cancel);
   try {
     await mkdir(workspace, { recursive: true, mode: 0o700 });
@@ -342,6 +360,7 @@ async function executeWorker(
       reasoningEffort: 'high',
       disableProjectDocs: true,
       sandbox: 'read-only',
+      signal: startupController.signal,
       prompt: promptFor(brief, inputFiles),
       limits: { timeoutMs: request.timeoutMs },
     });
@@ -355,6 +374,7 @@ async function executeWorker(
         brief,
         status: 'failed',
         resultFile,
+        resultPersisted: false,
         errorType: errorType(cancelFailure),
       };
     }
@@ -365,6 +385,7 @@ async function executeWorker(
         brief,
         status: 'timeout',
         resultFile,
+        resultPersisted: false,
         ...(finalText === undefined ? {} : { finalText }),
         exitCode: result.exitCode,
         signal: result.signal,
@@ -375,6 +396,7 @@ async function executeWorker(
         brief,
         status: 'cancelled',
         resultFile,
+        resultPersisted: false,
         ...(finalText === undefined ? {} : { finalText }),
         exitCode: result.exitCode,
         signal: result.signal,
@@ -385,6 +407,7 @@ async function executeWorker(
         brief,
         status: 'failed',
         resultFile,
+        resultPersisted: false,
         ...(finalText === undefined ? {} : { finalText }),
         exitCode: result.exitCode,
         signal: result.signal,
@@ -394,6 +417,7 @@ async function executeWorker(
       brief,
       status: 'completed',
       resultFile,
+      resultPersisted: false,
       finalText,
       exitCode: result.exitCode,
       signal: result.signal,
@@ -406,6 +430,7 @@ async function executeWorker(
         brief,
         status: 'failed',
         resultFile,
+        resultPersisted: false,
         errorType: errorType(cancelFailure),
       };
     if (timedOut)
@@ -414,6 +439,7 @@ async function executeWorker(
         brief,
         status: 'timeout',
         resultFile,
+        resultPersisted: false,
         errorType: errorType(error),
       };
     if (signal?.aborted)
@@ -422,6 +448,7 @@ async function executeWorker(
         brief,
         status: 'cancelled',
         resultFile,
+        resultPersisted: false,
         errorType: errorType(error),
       };
     return {
@@ -429,6 +456,7 @@ async function executeWorker(
       brief,
       status: 'failed',
       resultFile,
+      resultPersisted: false,
       errorType: errorType(error),
     };
   } finally {
@@ -464,13 +492,17 @@ export async function delegateCommand(
         validated.inputs,
       );
       try {
-        await atomicJson(result.resultFile, result);
-        workers[index] = result;
+        if (!result.resultFile)
+          throw new Error('worker result path is missing before persistence');
+        const persisted = { ...result, resultPersisted: true };
+        await atomicJson(result.resultFile, persisted);
+        workers[index] = persisted;
       } catch (error) {
+        const { resultFile: _resultFile, ...unpersisted } = result;
         workers[index] = {
-          ...result,
-          status: 'failed',
-          errorType: errorType(error),
+          ...unpersisted,
+          resultPersisted: false,
+          resultPersistenceErrorType: errorType(error),
         };
       }
     }
@@ -478,23 +510,29 @@ export async function delegateCommand(
   await Promise.all(
     Array.from({ length: request.concurrency }, () => runSlot()),
   );
-  const group: DelegateGroupResult = {
+  let group: DelegateGroupResult = {
     kind: 'delegate_group',
     resultsDirectory,
     workers,
+    manifestPersisted: true,
   };
-  let groupWriteFailed = false;
   try {
     await atomicJson(join(resultsDirectory, 'group.json'), group);
-  } catch {
-    // The stdout result remains truthful about the failed worker files or group manifest.
-    groupWriteFailed = true;
+  } catch (error) {
+    group = {
+      ...group,
+      manifestPersisted: false,
+      manifestPersistenceErrorType: errorType(error),
+    };
   }
   (runtime.write ?? ((text) => process.stdout.write(text)))(
     `${JSON.stringify(group)}\n`,
   );
   const exitCode =
-    groupWriteFailed || workers.some((worker) => worker.status === 'failed')
+    !group.manifestPersisted ||
+    workers.some(
+      (worker) => worker.status === 'failed' || !worker.resultPersisted,
+    )
       ? 1
       : workers.some((worker) => worker.status === 'timeout')
         ? 124

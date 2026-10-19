@@ -88,6 +88,45 @@ test('CodexHost launches an explicitly read-only bounded session', async (t) => 
   }
 });
 
+test('CodexHost abort signal cancels its owned process tree', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'CodexHost abort signal cancels its owned process tree',
+      ['systemdUserScope'],
+    )
+  )
+    return;
+  const directory = await mkdtemp(join(tmpdir(), 'krn-codex-abort-'));
+  try {
+    const initialized = spawnSync('git', ['-C', directory, 'init', '-q']);
+    assert.equal(initialized.status, 0);
+    const executable = join(directory, 'fake-codex');
+    await writeFile(
+      executable,
+      '#!/usr/bin/env node\nsetInterval(() => {}, 1000);\n',
+    );
+    await chmod(executable, 0o755);
+
+    const controller = new AbortController();
+    const host = new CodexHost({ executable });
+    const session = await host.start({
+      cwd: directory,
+      model: 'gpt-6-luna',
+      prompt: 'Hold until cancelled',
+      signal: controller.signal,
+      limits: { timeoutMs: 5000 },
+    });
+    controller.abort();
+    const result = await session.wait();
+    assert.equal(result.claimsDone, false);
+    assert.notEqual(result.exitCode, 0);
+    assert.ok(result.signal || result.exitCode !== null);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('an empty Codex final message is not a completed claim', async (t) => {
   if (
     !requiresIsolation(

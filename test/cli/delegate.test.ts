@@ -166,9 +166,11 @@ test('delegate emits one persisted group result only after every worker complete
         await readFile(worker.resultFile, 'utf8'),
       ) as {
         readonly status: string;
+        readonly resultPersisted: boolean;
         readonly finalText?: string;
       };
       assert.equal(persisted.status, worker.status);
+      assert.equal(persisted.resultPersisted, true);
       assert.equal(persisted.finalText, worker.finalText);
     }
     assert.equal(output.trimEnd().split('\n').length, 1);
@@ -292,6 +294,88 @@ test('delegate keeps timeout distinct from caller cancellation and waits for cle
   }
 });
 
+test('delegate cancels and joins a pending host startup at its deadline', async () => {
+  const { repo, input } = await createTrackedFixture();
+  try {
+    const results = join(repo, '.krn', 'tmp', 'delegation', 'startup-timeout');
+    const cancellationObserved = deferred<void>();
+    const cleanupSettled = deferred<void>();
+    let invocationDone = false;
+    let returnedSession = false;
+    let exitCode: number | undefined;
+    const invocation = dispatch(
+      argsFor(repo, input, results, ['TASK'], '1000'),
+      {
+        delegate: {
+          write: () => undefined,
+          setExitCode: (code) => {
+            exitCode = code;
+          },
+          host: {
+            start: async (request: { readonly signal?: AbortSignal }) => {
+              await new Promise<never>((_resolve, reject) => {
+                request.signal?.addEventListener(
+                  'abort',
+                  () => {
+                    cancellationObserved.resolve();
+                    setTimeout(() => {
+                      cleanupSettled.resolve();
+                      reject(
+                        new Error('startup cancellation cleanup complete'),
+                      );
+                    }, 30);
+                  },
+                  { once: true },
+                );
+              });
+              returnedSession = true;
+              throw new Error('unreachable');
+            },
+            cancelTree: async () => undefined,
+          },
+        },
+      },
+    ).finally(() => {
+      invocationDone = true;
+    });
+    await Promise.race([
+      cancellationObserved.promise,
+      new Promise<void>((_resolve, reject) => {
+        setTimeout(
+          () =>
+            reject(new Error('deadline never reached startup cancellation')),
+          1500,
+        );
+      }),
+    ]);
+    assert.equal(
+      invocationDone,
+      false,
+      'the aggregate waits for start cleanup acknowledgement',
+    );
+    await cleanupSettled.promise;
+    await invocation;
+    assert.equal(invocationDone, true);
+    assert.equal(exitCode, 124);
+    assert.equal(
+      returnedSession,
+      false,
+      'an aborted startup cannot return a late session',
+    );
+    const group = JSON.parse(
+      await readFile(join(results, 'group.json'), 'utf8'),
+    ) as {
+      readonly workers: readonly { readonly status: string }[];
+    };
+    assert.deepEqual(
+      group.workers.map(({ status }) => status),
+      ['timeout'],
+    );
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test('delegate refuses untracked inputs before starting any worker', async () => {
   const { repo } = await createTrackedFixture();
   try {
@@ -362,6 +446,126 @@ test('delegate records a nonzero worker exit as failed even with final text', as
     };
     assert.equal(persisted.status, 'failed');
     assert.equal(persisted.finalText, 'untrusted final text');
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('delegate reports an unpersisted worker result without claiming its file exists', async () => {
+  const { repo, input } = await createTrackedFixture();
+  try {
+    const results = join(
+      repo,
+      '.krn',
+      'tmp',
+      'delegation',
+      'worker-write-failure',
+    );
+    const blockedResultPath = join(results, 'worker-1.json');
+    let output = '';
+    let exitCode: number | undefined;
+    await dispatch(argsFor(repo, input, results, ['TASK']), {
+      delegate: {
+        write: (text) => {
+          output += text;
+        },
+        setExitCode: (code) => {
+          exitCode = code;
+        },
+        host: {
+          start: async () => {
+            await mkdir(blockedResultPath);
+            return {
+              id: 'persist-failure-worker',
+              wait: async () =>
+                completedSession('persist-failure-worker', 'full result'),
+            };
+          },
+          cancelTree: async () => undefined,
+        },
+      },
+    });
+    const group = JSON.parse(output) as {
+      readonly manifestPersisted: boolean;
+      readonly workers: readonly {
+        readonly status: string;
+        readonly resultPersisted: boolean;
+        readonly resultPersistenceErrorType?: string;
+        readonly resultFile?: string;
+        readonly finalText?: string;
+      }[];
+    };
+    assert.equal(exitCode, 1);
+    assert.equal(group.manifestPersisted, true);
+    assert.equal(group.workers[0]?.status, 'completed');
+    assert.equal(group.workers[0]?.resultPersisted, false);
+    assert.equal(group.workers[0]?.resultFile, undefined);
+    assert.equal(group.workers[0]?.resultPersistenceErrorType, 'Error');
+    assert.equal(group.workers[0]?.finalText, 'full result');
+    assert.equal(
+      (await readFile(join(results, 'group.json'), 'utf8')).includes(
+        '"manifestPersisted": true',
+      ),
+      true,
+    );
+    await assert.rejects(readFile(blockedResultPath, 'utf8'), {
+      code: 'EISDIR',
+    });
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('delegate reports an unpersisted group manifest in its final aggregate', async () => {
+  const { repo, input } = await createTrackedFixture();
+  try {
+    const results = join(
+      repo,
+      '.krn',
+      'tmp',
+      'delegation',
+      'manifest-write-failure',
+    );
+    const blockedManifestPath = join(results, 'group.json');
+    let output = '';
+    let exitCode: number | undefined;
+    await dispatch(argsFor(repo, input, results, ['TASK']), {
+      delegate: {
+        write: (text) => {
+          output += text;
+        },
+        setExitCode: (code) => {
+          exitCode = code;
+        },
+        host: {
+          start: async () => {
+            await mkdir(blockedManifestPath);
+            return {
+              id: 'manifest-failure-worker',
+              wait: async () =>
+                completedSession('manifest-failure-worker', 'full result'),
+            };
+          },
+          cancelTree: async () => undefined,
+        },
+      },
+    });
+    const group = JSON.parse(output) as {
+      readonly manifestPersisted: boolean;
+      readonly manifestPersistenceErrorType?: string;
+      readonly workers: readonly {
+        readonly resultPersisted: boolean;
+        readonly resultFile?: string;
+      }[];
+    };
+    assert.equal(exitCode, 1);
+    assert.equal(group.manifestPersisted, false);
+    assert.equal(group.manifestPersistenceErrorType, 'Error');
+    assert.equal(group.workers[0]?.resultPersisted, true);
+    assert.ok(group.workers[0]?.resultFile);
+    await assert.rejects(readFile(blockedManifestPath, 'utf8'), {
+      code: 'EISDIR',
+    });
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
