@@ -54,8 +54,30 @@ type SessionFact = Readonly<{
   exitCode?: number | null;
   signal?: string | null;
   reasonKind?: string;
+  usage: SessionUsageFact;
   usageMeasured: boolean;
+  usageReason?: SessionUsageReason;
 }>;
+
+type SessionUsageFact = Readonly<{
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  observation?: Readonly<{
+    turnsStarted?: number;
+    turnsCompleted?: number;
+    invalidFields?: number;
+  }>;
+}>;
+
+type SessionUsageReason =
+  | 'stopped_run'
+  | 'missing_outcome'
+  | 'session_unended'
+  | 'incomplete_observation'
+  | 'invalid_usage'
+  | 'session_total_overflow'
+  | 'session_counter_saturated';
 
 export type JourneyFacts = Readonly<{
   jobId: string;
@@ -72,6 +94,14 @@ export type JourneyFacts = Readonly<{
   usage: Readonly<{
     totalTokens: number | null;
     unknownSessions: readonly string[];
+    unknownReason?:
+      | 'stopped_run'
+      | 'incomplete_observation'
+      | 'session_total_overflow'
+      | 'session_counter_saturated'
+      | 'aggregate_overflow'
+      | 'no_sessions';
+    affectedSessions?: readonly string[];
   }>;
   operatorWindow: Readonly<{
     closedWindows: number | null;
@@ -114,8 +144,20 @@ type Session = {
   exitCode?: number | null;
   signal?: string | null;
   reasonKind?: string;
+  usage: SessionUsageFact;
   usageMeasured: boolean;
+  usageReason?: SessionUsageReason;
   tokenTotal?: number;
+  runOutcome?: Outcome;
+  usageEvaluation?: UsageEvaluation;
+};
+type UsageEvaluation = {
+  facts: SessionUsageFact;
+  total?: number;
+  reason?: Exclude<
+    SessionUsageReason,
+    'stopped_run' | 'missing_outcome' | 'session_unended'
+  >;
 };
 type Completion = Readonly<{
   intent: string;
@@ -177,7 +219,11 @@ function baseFacts(
     sessions: [],
     interruption: null,
     resumed: null,
-    usage: { totalTokens: null, unknownSessions: [] },
+    usage: {
+      totalTokens: null,
+      unknownSessions: [],
+      unknownReason: 'no_sessions',
+    },
     operatorWindow: {
       closedWindows: null,
       interventions: null,
@@ -275,16 +321,60 @@ function matchingSession(
 function observeUsage(sessions: readonly Session[]): {
   totalTokens: number | null;
   unknownSessions: string[];
+  unknownReason?: NonNullable<JourneyFacts['usage']['unknownReason']>;
+  affectedSessions?: string[];
 } {
   const unknownSessions: string[] = [];
+  const stoppedSessions: string[] = [];
+  const saturatedSessions: string[] = [];
+  const sessionOverflowSessions: string[] = [];
+  const measuredSessions: string[] = [];
+  const incompleteSessions: string[] = [];
   let total = 0n;
   for (const session of sessions) {
     if (!session.usageMeasured || session.tokenTotal === undefined) {
       unknownSessions.push(session.sessionId);
+      if (session.usageReason === 'stopped_run')
+        stoppedSessions.push(session.sessionId);
+      else if (session.usageReason === 'session_counter_saturated')
+        saturatedSessions.push(session.sessionId);
+      else if (session.usageReason === 'session_total_overflow')
+        sessionOverflowSessions.push(session.sessionId);
+      else incompleteSessions.push(session.sessionId);
       continue;
     }
+    measuredSessions.push(session.sessionId);
     total += BigInt(session.tokenTotal);
-    if (total > maxSafe) total = maxSafe;
+  }
+  if (total > maxSafe)
+    return {
+      totalTokens: null,
+      unknownSessions,
+      unknownReason: 'aggregate_overflow',
+      affectedSessions: [...new Set(measuredSessions)],
+    };
+  if (unknownSessions.length > 0) {
+    const reason = saturatedSessions.length
+      ? 'session_counter_saturated'
+      : sessionOverflowSessions.length
+        ? 'session_total_overflow'
+        : stoppedSessions.length
+          ? 'stopped_run'
+          : 'incomplete_observation';
+    const affectedSessions =
+      saturatedSessions.length > 0
+        ? saturatedSessions
+        : sessionOverflowSessions.length > 0
+          ? sessionOverflowSessions
+          : reason === 'stopped_run'
+            ? stoppedSessions
+            : incompleteSessions;
+    return {
+      totalTokens: null,
+      unknownSessions,
+      unknownReason: reason,
+      affectedSessions,
+    };
   }
   return {
     totalTokens:
@@ -292,6 +382,7 @@ function observeUsage(sessions: readonly Session[]): {
         ? Number(total)
         : null,
     unknownSessions,
+    ...(sessions.length === 0 ? { unknownReason: 'no_sessions' as const } : {}),
   };
 }
 
@@ -360,7 +451,9 @@ function observeOperatorWindow(events: readonly ReadonlyTraceEvent[]): {
 function isVerifiedStop(outcome: Outcome): boolean {
   return (
     (outcome.reason === 'stopped' &&
-      outcome.signal === 'SIGTERM' &&
+      (outcome.signal === 'SIGINT' ||
+        outcome.signal === 'SIGTERM' ||
+        outcome.signal === 'SIGHUP') &&
       outcome.exitCode === 130) ||
     (outcome.reason === 'wall-timeout' &&
       outcome.signal === 'wall-timeout' &&
@@ -368,24 +461,70 @@ function isVerifiedStop(outcome: Outcome): boolean {
   );
 }
 
-function validUsage(end: Record<string, unknown>): number | undefined {
+function safeCounter(value: unknown): number | undefined {
+  return isSafeCounter(value) ? value : undefined;
+}
+
+function usageFacts(end: Record<string, unknown>): UsageEvaluation {
   const usage = end.usage;
   const observation = end.usageObservation;
-  if (!isRecord(usage) || !isRecord(observation)) return undefined;
+  const inputTokens = isRecord(usage)
+    ? safeCounter(usage.inputTokens)
+    : undefined;
+  const outputTokens = isRecord(usage)
+    ? safeCounter(usage.outputTokens)
+    : undefined;
+  const totalTokens = isRecord(usage)
+    ? safeCounter(usage.totalTokens)
+    : undefined;
+  const turnsStarted = isRecord(observation)
+    ? safeCounter(observation.turnsStarted)
+    : undefined;
+  const turnsCompleted = isRecord(observation)
+    ? safeCounter(observation.turnsCompleted)
+    : undefined;
+  const invalidFields = isRecord(observation)
+    ? safeCounter(observation.invalidFields)
+    : undefined;
+  const observationFacts = {
+    ...(turnsStarted === undefined ? {} : { turnsStarted }),
+    ...(turnsCompleted === undefined ? {} : { turnsCompleted }),
+    ...(invalidFields === undefined ? {} : { invalidFields }),
+  };
+  const facts: SessionUsageFact = {
+    ...(inputTokens === undefined ? {} : { inputTokens }),
+    ...(outputTokens === undefined ? {} : { outputTokens }),
+    ...(totalTokens === undefined ? {} : { totalTokens }),
+    ...(Object.keys(observationFacts).length === 0
+      ? {}
+      : { observation: observationFacts }),
+  };
   if (
-    !isSafeCounter(usage.inputTokens) ||
-    !isSafeCounter(usage.outputTokens) ||
-    !isSafeCounter(usage.totalTokens) ||
-    !isSafeCounter(observation.turnsStarted) ||
-    !isSafeCounter(observation.turnsCompleted) ||
-    !isSafeCounter(observation.invalidFields) ||
-    observation.invalidFields !== 0 ||
-    observation.turnsStarted !== observation.turnsCompleted
+    inputTokens === undefined ||
+    outputTokens === undefined ||
+    totalTokens === undefined ||
+    turnsStarted === undefined ||
+    turnsCompleted === undefined ||
+    invalidFields === undefined
   )
-    return undefined;
-  const sum = BigInt(usage.inputTokens) + BigInt(usage.outputTokens);
-  const expected = sum > maxSafe ? Number(maxSafe) : Number(sum);
-  return usage.totalTokens === expected ? usage.totalTokens : undefined;
+    return { facts, reason: 'invalid_usage' };
+  if (invalidFields !== 0 || turnsStarted !== turnsCompleted)
+    return { facts, reason: 'incomplete_observation' };
+  const sum = BigInt(inputTokens) + BigInt(outputTokens);
+  if (sum > maxSafe) return { facts, reason: 'session_total_overflow' };
+  if (
+    [
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      turnsStarted,
+      turnsCompleted,
+      invalidFields,
+    ].some((counter) => counter === Number.MAX_SAFE_INTEGER)
+  )
+    return { facts, reason: 'session_counter_saturated' };
+  if (totalTokens !== Number(sum)) return { facts, reason: 'invalid_usage' };
+  return { facts, total: totalTokens };
 }
 
 function getCompletion(
@@ -399,7 +538,7 @@ function getCompletion(
     if (session.startedIndex <= stopIndex || session.endedIndex === undefined)
       continue;
     const endIndex = session.endedIndex;
-    if (session.exitCode !== 0 || session.signal !== null) continue;
+    if (endIndex >= finalOutcomeIndex) continue;
     const checkpoint = events.findIndex(
       (event, index) =>
         index > endIndex &&
@@ -434,6 +573,50 @@ function getCompletion(
     });
   }
   return candidates.at(-1);
+}
+
+function isJourneyWork(event: ReadonlyTraceEvent): boolean {
+  return (
+    event.kind === 'intent' ||
+    event.kind === 'session_started' ||
+    event.kind === 'session_ended' ||
+    event.kind === 'session_lost' ||
+    event.kind === 'checkpoint' ||
+    event.kind === 'commit'
+  );
+}
+
+function isCompletedOutcome(outcome: Outcome): boolean {
+  return (
+    outcome.reason === 'completed' &&
+    outcome.exitCode === 0 &&
+    outcome.signal === null &&
+    outcome.cleanup === 'verified'
+  );
+}
+
+function completionIsCovered(
+  completion: Completion,
+  outcomes: readonly Outcome[],
+  finalOutcome: Outcome,
+  events: readonly ReadonlyTraceEvent[],
+): boolean {
+  const owningOutcome = completion.session.runOutcome;
+  if (!owningOutcome || !isCompletedOutcome(owningOutcome)) return false;
+  if (owningOutcome.index > finalOutcome.index) return false;
+  if (
+    events
+      .slice(owningOutcome.index + 1, finalOutcome.index)
+      .some(isJourneyWork)
+  )
+    return false;
+  return outcomes
+    .filter(
+      (outcome) =>
+        outcome.index > owningOutcome.index &&
+        outcome.index <= finalOutcome.index,
+    )
+    .every(isCompletedOutcome);
 }
 
 export function deriveJourneyReport(
@@ -479,6 +662,7 @@ export function deriveJourneyReport(
       jobId,
       startedIndex: index,
       startedAt: event.at,
+      usage: {},
       usageMeasured: false,
     });
   }
@@ -513,11 +697,41 @@ export function deriveJourneyReport(
     session.exitCode = end.exitCode;
     session.signal = end.signal;
     session.reasonKind = end.reasonKind;
-    const usageTotal = validUsage(end);
-    if (usageTotal !== undefined) {
-      session.usageMeasured = true;
-      session.tokenTotal = usageTotal;
+    session.usageEvaluation = usageFacts(end);
+    session.usage = session.usageEvaluation.facts;
+  }
+
+  for (const session of sessions) {
+    const runOutcome = outcomes.find(
+      (outcome) => outcome.index > session.startedIndex,
+    );
+    if (runOutcome) session.runOutcome = runOutcome;
+    if (
+      session.runOutcome &&
+      session.endedIndex !== undefined &&
+      session.endedIndex > session.runOutcome.index
+    ) {
+      invalidData = true;
     }
+    if (session.endedIndex === undefined) {
+      session.usageReason = 'session_unended';
+      continue;
+    }
+    if (!session.runOutcome) {
+      session.usageReason = 'missing_outcome';
+      continue;
+    }
+    if (isVerifiedStop(session.runOutcome)) {
+      session.usageReason = 'stopped_run';
+      continue;
+    }
+    const evaluation = session.usageEvaluation;
+    if (!evaluation || evaluation.total === undefined) {
+      session.usageReason = evaluation?.reason ?? 'invalid_usage';
+      continue;
+    }
+    session.usageMeasured = true;
+    session.tokenTotal = evaluation.total;
   }
 
   const usage = observeUsage(sessions);
@@ -535,7 +749,11 @@ export function deriveJourneyReport(
       ...(session.reasonKind === undefined
         ? {}
         : { reasonKind: session.reasonKind }),
+      usage: session.usage,
       usageMeasured: session.usageMeasured,
+      ...(session.usageReason === undefined
+        ? {}
+        : { usageReason: session.usageReason }),
     })),
     usage,
     operatorWindow,
@@ -554,35 +772,46 @@ export function deriveJourneyReport(
     return refusal('missing_job_outcome', facts, checks);
   }
   checks.push({ id: 'job-outcome', ok: true });
-  if (outcomes.some((outcome) => outcome.cleanup !== 'verified')) {
+  if (
+    outcomes.some((outcome) => outcome.cleanup !== 'verified') ||
+    events.some((event) => event.kind === 'teardown_unconfirmed')
+  ) {
     checks.push({ id: 'cleanup', ok: false });
     return refusal('cleanup_unconfirmed', facts, checks);
   }
   checks.push({ id: 'cleanup', ok: true });
 
   const finalOutcome = outcomes.at(-1);
-  if (
-    finalOutcome?.reason !== 'completed' ||
-    finalOutcome?.exitCode !== 0 ||
-    finalOutcome?.signal !== null
-  ) {
+  if (!finalOutcome || !isCompletedOutcome(finalOutcome)) {
+    checks.push({ id: 'final-outcome', ok: false });
+    return refusal('incomplete_final_outcome', facts, checks);
+  }
+  if (events.slice(finalOutcome.index + 1).some(isJourneyWork)) {
     checks.push({ id: 'final-outcome', ok: false });
     return refusal('incomplete_final_outcome', facts, checks);
   }
   checks.push({ id: 'final-outcome', ok: true });
 
-  const stop = outcomes.find(
-    (outcome) => outcome.index < finalOutcome.index && isVerifiedStop(outcome),
-  );
+  const stop = outcomes
+    .filter(
+      (outcome) =>
+        outcome.index < finalOutcome.index && isVerifiedStop(outcome),
+    )
+    .at(-1);
   if (!stop) {
     checks.push({ id: 'interruption', ok: false });
     return refusal('missing_interruption', facts, checks);
   }
+  const previousOutcome = outcomes
+    .filter((outcome) => outcome.index < stop.index)
+    .at(-1);
   const interruptedSession = sessions.find(
     (session) =>
+      session.startedIndex > (previousOutcome?.index ?? -1) &&
+      session.startedIndex < stop.index &&
       session.endedIndex !== undefined &&
       session.endedIndex < stop.index &&
-      session.signal === 'SIGTERM',
+      session.runOutcome?.index === stop.index,
   );
   if (!interruptedSession) {
     checks.push({ id: 'interruption', ok: false });
@@ -622,6 +851,15 @@ export function deriveJourneyReport(
       checks,
     );
   }
+  if (
+    !completionIsCovered(completion, outcomes, finalOutcome, events) ||
+    events
+      .slice(completion.commitIndex + 1, finalOutcome.index)
+      .some(isJourneyWork)
+  ) {
+    checks.push({ id: 'final-outcome', ok: false });
+    return refusal('missing_resumed_completion', facts, checks);
+  }
   const completedFacts: CompletedJourneyFacts = {
     ...facts,
     resumed: {
@@ -633,7 +871,7 @@ export function deriveJourneyReport(
   };
   checks.push({ id: 'resumed-completion', ok: true });
   checks.push({ id: 'commit', ok: true });
-  if (gitFacts.headSha !== completion.commitSha) {
+  if (gitFacts.headSha?.toLowerCase() !== completion.commitSha.toLowerCase()) {
     checks.push({ id: 'head-match', ok: false });
     return refusal('head_mismatch', completedFacts, checks);
   }

@@ -58,6 +58,16 @@ export type ReadonlyTraceSnapshot = Readonly<{
   finalRowUnterminated: boolean;
 }>;
 
+const readonlyRepoContextSchema = z.object({
+  repoRoot: z.string().min(1),
+  gitDir: z.string().min(1),
+  gitWorkTree: z.string().min(1),
+});
+
+export type ReadonlyTraceRepoContext = Readonly<
+  z.infer<typeof readonlyRepoContextSchema>
+>;
+
 type TraceFdPathVerification = 'verified' | 'unavailable' | 'mismatch';
 
 export function classifyTraceFdPathReadback(
@@ -661,6 +671,73 @@ export function readTraceSnapshot(
     malformedTail: snapshot.malformedTail,
     finalRowUnterminated: snapshot.finalRowUnterminated,
   });
+}
+
+export function readTraceRepoContext(
+  repoRoot: string,
+  jobId: string,
+): ReadonlyTraceRepoContext | null {
+  if (
+    !isAbsolute(repoRoot) ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(jobId)
+  )
+    throw new Error('invalid trace repository context location');
+  const repositoryRoot = resolve(repoRoot);
+  const rootStats = lstatSync(repositoryRoot);
+  if (
+    rootStats.isSymbolicLink() ||
+    !rootStats.isDirectory() ||
+    realpathSync(repositoryRoot) !== repositoryRoot
+  )
+    throw new Error('unsafe trace path');
+  const path = join(
+    repositoryRoot,
+    '.krn',
+    'runs',
+    'foreman',
+    jobId,
+    'repo.json',
+  );
+  const directory = dirname(path);
+  if (!ensureTraceDirectoryAtRoot(repositoryRoot, directory, false))
+    return null;
+  assertNoTraceSymlinks(directory, path);
+  let fd: number;
+  try {
+    fd = openVerifiedTrace(path, constants.O_RDONLY);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw error;
+  }
+  try {
+    const before = fstatSync(fd);
+    if (before.size > 16 * 1024) throw new Error('invalid repo descriptor');
+    const contents = readFileSync(fd, 'utf8');
+    const after = fstatSync(fd);
+    if (
+      before.dev !== after.dev ||
+      before.ino !== after.ino ||
+      before.size !== after.size ||
+      before.mtimeMs !== after.mtimeMs ||
+      before.ctimeMs !== after.ctimeMs
+    )
+      throw new Error('repo descriptor changed while reading');
+    const parsed = readonlyRepoContextSchema.parse(
+      JSON.parse(contents) as unknown,
+    );
+    if (
+      !isAbsolute(parsed.repoRoot) ||
+      !isAbsolute(parsed.gitDir) ||
+      !isAbsolute(parsed.gitWorkTree) ||
+      resolve(parsed.repoRoot) !== parsed.repoRoot ||
+      resolve(parsed.gitDir) !== parsed.gitDir ||
+      resolve(parsed.gitWorkTree) !== parsed.gitWorkTree
+    )
+      throw new Error('invalid repo descriptor paths');
+    return Object.freeze(parsed);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 function events(job: Job): Event[] {

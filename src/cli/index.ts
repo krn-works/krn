@@ -1,8 +1,13 @@
 // Start creates the isolated job worktree; checkpoint persists before stopping its worker. ADR 0001.
 import { spawnSync } from 'node:child_process';
 import {
+  closeSync,
+  constants,
   existsSync,
+  fstatSync,
   mkdirSync,
+  openSync,
+  readlinkSync,
   readSync,
   realpathSync,
   statSync,
@@ -18,6 +23,7 @@ import {
   leadIntervention,
   operatorStart,
   operatorStop,
+  readTraceRepoContext,
   readTraceSnapshot,
 } from '../trace/index.ts';
 
@@ -290,7 +296,10 @@ function journeyArgs(
   return { repoRoot, jobId };
 }
 
-function reportGitFacts(repoRoot: string): {
+function reportGitFacts(
+  repoRoot: string,
+  context: ReturnType<typeof readTraceRepoContext>,
+): {
   readonly headSha: string;
   readonly isDirty: boolean;
 } | null {
@@ -301,7 +310,7 @@ function reportGitFacts(repoRoot: string): {
   env.GIT_OPTIONAL_LOCKS = '0';
   env.GIT_CONFIG_NOSYSTEM = '1';
   env.GIT_CONFIG_GLOBAL = '/dev/null';
-  const run = (args: string[]) =>
+  const rootRun = (args: string[]) =>
     spawnSync(
       'git',
       [
@@ -315,16 +324,104 @@ function reportGitFacts(repoRoot: string): {
       ],
       { encoding: 'utf8', env, maxBuffer: 1024 * 1024 },
     );
-  const topLevel = run(['rev-parse', '--show-toplevel']);
+  let worktreeFd: number | undefined;
+  let worktree = repoRoot;
+  if (context) {
+    try {
+      if (
+        context.repoRoot !== repoRoot ||
+        realpathSync(context.repoRoot) !== repoRoot ||
+        realpathSync(context.gitWorkTree) !== context.gitWorkTree ||
+        realpathSync(context.gitDir) !== context.gitDir ||
+        !statSync(context.gitWorkTree).isDirectory()
+      )
+        return null;
+      const registrations = rootRun(['worktree', 'list', '--porcelain', '-z']);
+      if (registrations.status !== 0) return null;
+      const registered = registrations.stdout
+        .split('\0')
+        .filter((field) => field.startsWith('worktree '))
+        .map((field) => field.slice('worktree '.length));
+      if (!registered.includes(context.gitWorkTree)) return null;
+
+      worktreeFd = openSync(
+        context.gitWorkTree,
+        constants.O_RDONLY |
+          (constants.O_DIRECTORY ?? 0) |
+          (constants.O_NOFOLLOW ?? 0),
+      );
+      const stats = fstatSync(worktreeFd);
+      if (!stats.isDirectory()) return null;
+      if (readlinkSync(`/proc/self/fd/${worktreeFd}`) !== context.gitWorkTree)
+        return null;
+      worktree = `/proc/self/fd/3`;
+      const descriptorRun = (args: string[]) =>
+        spawnSync(
+          'git',
+          [
+            '-C',
+            worktree,
+            '-c',
+            'core.fsmonitor=false',
+            '-c',
+            'core.untrackedCache=false',
+            ...args,
+          ],
+          {
+            encoding: 'utf8',
+            env,
+            maxBuffer: 1024 * 1024,
+            stdio: ['ignore', 'pipe', 'pipe', worktreeFd],
+          },
+        );
+      const actualGitDir = descriptorRun(['rev-parse', '--absolute-git-dir']);
+      if (
+        actualGitDir.status !== 0 ||
+        realpathSync(actualGitDir.stdout.trim()) !== context.gitDir
+      )
+        return null;
+      const rechecked = rootRun(['worktree', 'list', '--porcelain', '-z']);
+      if (
+        rechecked.status !== 0 ||
+        !rechecked.stdout
+          .split('\0')
+          .filter((field) => field.startsWith('worktree '))
+          .some(
+            (field) => field.slice('worktree '.length) === context.gitWorkTree,
+          )
+      )
+        return null;
+      const head = descriptorRun(['rev-parse', '--verify', 'HEAD']);
+      if (head.status !== 0 || !/^[a-f0-9]{40,64}$/iu.test(head.stdout.trim()))
+        return null;
+      const status = descriptorRun([
+        'status',
+        '--porcelain=v1',
+        '--untracked-files=normal',
+      ]);
+      if (status.status !== 0) return null;
+      return { headSha: head.stdout.trim(), isDirty: status.stdout.length > 0 };
+    } catch {
+      return null;
+    } finally {
+      if (worktreeFd !== undefined) closeSync(worktreeFd);
+    }
+  }
+
+  const topLevel = rootRun(['rev-parse', '--show-toplevel']);
   if (
     topLevel.status !== 0 ||
     realpathSync(topLevel.stdout.trim()) !== repoRoot
   )
     return null;
-  const head = run(['rev-parse', '--verify', 'HEAD']);
+  const head = rootRun(['rev-parse', '--verify', 'HEAD']);
   if (head.status !== 0 || !/^[a-f0-9]{40,64}$/iu.test(head.stdout.trim()))
     return null;
-  const status = run(['status', '--porcelain=v1', '--untracked-files=normal']);
+  const status = rootRun([
+    'status',
+    '--porcelain=v1',
+    '--untracked-files=normal',
+  ]);
   if (status.status !== 0) return null;
   return { headSha: head.stdout.trim(), isDirty: status.stdout.length > 0 };
 }
@@ -333,22 +430,35 @@ export function reportJourneyCommand(args: string[]): number {
   let report = refusalReport('invalid_arguments');
   const input = journeyArgs(args);
   if (input) {
+    let repoRoot: string;
     try {
       if (!isAbsolute(input.repoRoot)) throw new Error('invalid root');
-      const repoRoot = realpathSync(input.repoRoot);
+      repoRoot = realpathSync(input.repoRoot);
       if (!statSync(repoRoot).isDirectory()) throw new Error('invalid root');
-      const gitFacts = reportGitFacts(repoRoot);
-      if (!gitFacts) report = refusalReport('git_unavailable');
-      else {
-        try {
-          const snapshot = readTraceSnapshot(repoRoot, input.jobId);
-          report = deriveJourneyReport(snapshot, gitFacts);
-        } catch {
-          report = refusalReport('trace_unavailable');
-        }
-      }
     } catch {
-      report = refusalReport('invalid_arguments');
+      process.stdout.write(
+        `${JSON.stringify(refusalReport('invalid_arguments'))}\n`,
+      );
+      return 1;
+    }
+    let context: ReturnType<typeof readTraceRepoContext> = null;
+    let contextReadFailed = false;
+    try {
+      context = readTraceRepoContext(repoRoot, input.jobId);
+    } catch {
+      contextReadFailed = true;
+    }
+    const gitFacts = contextReadFailed
+      ? null
+      : reportGitFacts(repoRoot, context);
+    if (!gitFacts) report = refusalReport('git_unavailable');
+    else {
+      try {
+        const snapshot = readTraceSnapshot(repoRoot, input.jobId);
+        report = deriveJourneyReport(snapshot, gitFacts);
+      } catch {
+        report = refusalReport('trace_unavailable');
+      }
     }
   }
   process.stdout.write(`${JSON.stringify(report)}\n`);
