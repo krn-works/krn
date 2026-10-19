@@ -757,7 +757,13 @@ function acquireTraceLock(directory: string, tracePath: string): () => void {
       ) {
         unlinkSync(lockPath);
       }
-      if (!existsSync(lockPath)) acquired = createTraceLock(lockPath, owner);
+      if (!existsSync(lockPath)) {
+        try {
+          acquired = createTraceLock(lockPath, owner);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+        }
+      }
     } finally {
       removeTraceLockIfOwned(reclaimerPath, owner, reclaimerIdentity);
     }
@@ -1311,7 +1317,8 @@ function boundedError(error: unknown): { type: string; message: string } {
     let rawMessage = fallbackMessage;
     try {
       if (error instanceof Error) {
-        if (typeof error.message === 'string') rawMessage = error.message;
+        const candidateMessage: unknown = error.message;
+        if (typeof candidateMessage === 'string') rawMessage = candidateMessage;
       } else if (
         error === null ||
         (typeof error !== 'object' && typeof error !== 'function')

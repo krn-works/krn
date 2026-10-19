@@ -262,3 +262,21 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 [CODE] The correction is limited to `src/trace/index.ts` and one deterministic public-API two-process falsifier in `test/trace/index.test.ts`. Only a read-only primary-lock observation with the exact expected path (or exact deleted suffix) and a regular open fd proven by `fstat` to have link count zero is classified as a transient unlink; only `readTraceLockOwner` consumes this private state. The existing bounded acquisition loop then retries. Trace files, unavailable procfs, wrong paths, symlinks, hardlinks, nonregular files, and all other mismatches retain fail-closed behavior. No public API, framework, dependency, host, live, session/checkpoint, namespace, or orphan-recovery changes are authorized.
 
 [POLICY] Opus returned only a quota/session-limit error for a targeted design call; no review or advice was obtained. Frozen assertion RED on unchanged `c83e80eed372a76a95a6a52068889989f8524407`, same-observer GREEN, local commit, and one final full gate are required. Fresh independent review, strict local gate, CI, and publication remain pending; the source author may not self-review or publish.
+
+## LON-291 error snapshot and lock-observer coverage (2026-10-19)
+
+[POLICY] The prior repair limits remain consumed and prior FAIL findings remain binding. The root interprets the existing continuous-completion mandate to authorize a narrow bounded completion of the accepted durable error-outcome contract and coverage of the already-shipped lock-disappearance behavior. This is not a new operator reply, general waiver, or review/publication grant.
+
+[CODE] Snapshot `Error.message` exactly once before type checking and normalization so a changing getter cannot substitute unscanned text. Keep the existing safe type allowlist, ordinary message behavior, credential redaction, and bounded fallback. The public lock observer table covers both verified unlink timings and preserves refusal for hardlink, symlink replacement, and non-suffix rename. This slice does not change lock runtime.
+
+[POLICY] The author must retain the frozen assertion RED on unchanged b6, identical GREEN after the source correction, the real lock-fd and child-identity receipts, and a local commit. Independent review and required gates remain separate; the author has no self-review or publication authority.
+
+## LON-291 stale-reclaimer EEXIST correction (2026-10-19)
+
+[POLICY] The previous bounded interpretations and repair limits remain consumed; earlier FAIL findings remain binding. After empirical confirmation of the same loss race on b6 and its immediate parent, the root interprets the existing continuous-completion mandate to authorize exactly one narrow stale-reclaimer correction. This is not a new operator reply, general repair waiver, review grant, or publication grant.
+
+[EMPIRICAL] The frozen public two-process falsifier uses a real stale-owner process whose PID and start ticks are sampled while live and verified gone before the lock record is written. B observes the reclaimer absent and pauses. A removes the verified stale primary lock under its own reclaimer and pauses after observing absence. B then performs a real O_EXCL primary-lock create and pauses before fsync; A's primary create receives real EEXIST. Unchanged b6 rejects A and leaves only B's row. The race also occurred on the direct parent, so it predates b6. Evidence is retained under `.krn/tmp/continuous-delivery/s3a/reclaimer-completion/`.
+
+[CODE] Only `EEXIST` from the primary-lock create after the stale-owner absence check is retried. The existing reclaimer is released in its existing `finally`, then the existing bounded loop proceeds. Other create errors propagate, and the stale-owner identity comparison, reclaimer ownership checks, path validation, and lock safety controls remain unchanged.
+
+[POLICY] Require the same frozen assertion observer to fail on unchanged b6 and pass after this correction, with both public verdict calls resolving, both immutable rows durable, actual PIDs quiescent, and both lock paths absent. Run one full repository gate after all focused proof and local commits. Independent review and publication remain separate; the author may not self-review or publish.
