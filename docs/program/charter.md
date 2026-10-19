@@ -304,3 +304,11 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 [CODE] Bound only the public `readTraceSnapshot` read to 33,554,432 bytes and 100,000 nonempty rows. Check size before allocation, keep reads bounded if the opened file grows, and count rows before parsing event objects. Exceeding either limit yields the existing `trace_unavailable` CLI refusal without partial journey or hash claims. Preserve exact under-limit bytes, torn-tail behavior, no-follow checks, lock checks, and the separate unbounded writer/recovery readers.
 
 [POLICY] Proof, local commit, the one final full gate, and independent exact-head review remain required. No S5 trial, `--submit`, host/relay/producer change, or broader recovery claim is included.
+
+## LON-292 linked-worktree Git binding correction (2026-10-19)
+
+[EMPIRICAL] The independent equal-HEAD/disjoint-index public CLI falsifier on `393f99b1ea6794f34e6bc4884425d81fa975a0be` showed that a registered worktree descriptor could name the root Git directory and report the root index's staged state as the job worktree's dirty state. The correct per-worktree Git directory reported the worktree clean. The root and worktree index bytes were unchanged by both reads.
+
+[POLICY] Although both recorded repair rounds are consumed, the root interprets the existing continuous-completion mandate and operator grant to authorize exactly this narrow Git-binding correction. This is not a new operator reply, a general repair waiver, or an override of the prior FAIL. The correction independently discovers the Git directory from the already opened worktree fd with inherited `GIT_*` context cleared, verifies it against the descriptor, and uses only that verified directory for subsequent queries. Other S3b contracts remain unchanged.
+
+[POLICY] The frozen public CLI observer must show assertion RED on unchanged `393f99b1ea6794f34e6bc4884425d81fa975a0be` and GREEN on the corrected head. A local commit and one final full gate are required. Independent exact-head proof, review, CI, and lifecycle disposition remain with root; the author has no publication or self-review authority.

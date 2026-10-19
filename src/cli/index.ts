@@ -441,12 +441,70 @@ function reportGitFacts(
       if (readlinkSync(`/proc/self/fd/${worktreeFd}`) !== context.gitWorkTree)
         return null;
       const worktree = '/proc/self/fd/3';
+      const discoverWorktreeRun = (args: string[]) =>
+        spawnSync(
+          'git',
+          [
+            '-C',
+            worktree,
+            '-c',
+            'core.fsmonitor=false',
+            '-c',
+            'core.untrackedCache=false',
+            ...args,
+          ],
+          {
+            encoding: 'utf8',
+            env,
+            maxBuffer: 1024 * 1024,
+            stdio: ['ignore', 'pipe', 'pipe', worktreeFd],
+          },
+        );
+      const discoveredTopLevel = discoverWorktreeRun([
+        'rev-parse',
+        '--show-toplevel',
+      ]);
+      if (
+        discoveredTopLevel.status !== 0 ||
+        realpathSync(discoveredTopLevel.stdout.trim()) !== context.gitWorkTree
+      )
+        return null;
+      const discoveredGitDir = discoverWorktreeRun([
+        'rev-parse',
+        '--path-format=absolute',
+        '--absolute-git-dir',
+      ]);
+      if (discoveredGitDir.status !== 0) return null;
+      let pinnedWorktreeGitDirectory: string;
+      try {
+        pinnedWorktreeGitDirectory = realpathSync(
+          discoveredGitDir.stdout.trim(),
+        );
+        if (
+          pinnedWorktreeGitDirectory !== context.gitDir ||
+          !statSync(pinnedWorktreeGitDirectory).isDirectory()
+        )
+          return null;
+      } catch {
+        return null;
+      }
+      const discoveredCommonDirectory = discoverWorktreeRun([
+        'rev-parse',
+        '--path-format=absolute',
+        '--git-common-dir',
+      ]);
+      if (
+        discoveredCommonDirectory.status !== 0 ||
+        realpathSync(discoveredCommonDirectory.stdout.trim()) !==
+          pinnedCommonDirectory
+      )
+        return null;
       const descriptorRun = (args: string[]) =>
         spawnSync(
           'git',
           [
             '--git-dir',
-            context.gitDir,
+            pinnedWorktreeGitDirectory,
             '--work-tree',
             worktree,
             '-c',
