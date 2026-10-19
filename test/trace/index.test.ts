@@ -1390,16 +1390,27 @@ await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha
     }
     return false;
   };
+  const waitForFirstPhase = async () => {
+    const until = Date.now() + 8000;
+    while (Date.now() < until) {
+      if (existsSync(join(barrier, 'stale-reclaim-held')))
+        return 'stale-reclaim-held' as const;
+      if (existsSync(join(barrier, 'first-repair')))
+        return 'first-repair' as const;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    return undefined;
+  };
   const first = start('first', firstSha);
   let second: ReturnType<typeof spawn> | undefined;
   try {
-    const staleReclaimerHeld = await waitFor('stale-reclaim-held', 500);
-    if (!staleReclaimerHeld)
-      assert.equal(
-        await waitFor('first-repair'),
-        true,
-        'first process reached repair',
-      );
+    const firstPhase = await waitForFirstPhase();
+    assert.notEqual(
+      firstPhase,
+      undefined,
+      'first process reached startup phase',
+    );
+    const staleReclaimerHeld = firstPhase === 'stale-reclaim-held';
     second = start('second', secondSha);
     assert.equal(
       await waitFor('second-ready'),

@@ -280,3 +280,11 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 [CODE] Only `EEXIST` from the primary-lock create after the stale-owner absence check is retried. The existing reclaimer is released in its existing `finally`, then the existing bounded loop proceeds. Other create errors propagate, and the stale-owner identity comparison, reclaimer ownership checks, path validation, and lock safety controls remain unchanged.
 
 [POLICY] Require the same frozen assertion observer to fail on unchanged b6 and pass after this correction, with both public verdict calls resolving, both immutable rows durable, actual PIDs quiescent, and both lock paths absent. Run one full repository gate after all focused proof and local commits. Independent review and publication remain separate; the author may not self-review or publish.
+
+## LON-294 trace startup verifier prerequisite (2026-10-19)
+
+[EMPIRICAL] The unchanged existing torn-tail two-process test passed with no first-child startup delay and failed its `first process reached repair` assertion with the frozen 750 ms delay on accepted base `b5cccd1b75a6582614bfb7781243eda730e2531f`. The test block is byte-identical to the S3b observer. This reproduces a verifier race independently; the causal relation to wider S3b candidate schedules remains unproven.
+
+[CODE] The existing observer waits under its original eight-second readiness deadline for either the stale-reclaimer-held or first-repair marker, then chooses its synchronization branch from the marker observed. Its trace/event assertions, process cleanup, readiness limits, and 15-second test timeout remain in force. No runtime code or additional test case is in scope.
+
+[POLICY] Preserve the frozen preload and delay parameters for before/after proof, retain the branch and evidence for root/LON-288/LON-292 until whole-outcome closeout and explicit disposition, and leave acceptance, independent review, board, and publication to root.
