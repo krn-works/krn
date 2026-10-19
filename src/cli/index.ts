@@ -296,23 +296,23 @@ function journeyArgs(
   return { repoRoot, jobId };
 }
 
-function noConfiguredContentFilters(
+function noConfiguredContentSources(
   run: (args: string[]) => {
     status: number | null;
     stdout: string;
     stderr: string;
   },
 ): boolean {
-  const filters = run([
+  const sources = run([
     'config',
     '--null',
     '--get-regexp',
-    '^filter\\..*\\.(clean|process)$',
+    '(^filter\\..*\\.(clean|process)$|^extensions\\.partialclone$|^remote\\..*\\.promisor$)',
   ]);
   return (
-    filters.status === 1 &&
-    filters.stdout.length === 0 &&
-    filters.stderr.length === 0
+    sources.status === 1 &&
+    sources.stdout.length === 0 &&
+    sources.stderr.length === 0
   );
 }
 
@@ -344,6 +344,7 @@ function reportGitFacts(
     if (key.startsWith('GIT_')) delete env[key];
   }
   env.GIT_OPTIONAL_LOCKS = '0';
+  env.GIT_NO_LAZY_FETCH = '1';
   env.GIT_CONFIG_NOSYSTEM = '1';
   env.GIT_CONFIG_GLOBAL = '/dev/null';
   const rootRun = (args: string[]) =>
@@ -580,8 +581,8 @@ function reportGitFacts(
       )
         return null;
       if (
-        !noConfiguredContentFilters(pinnedRootRun) ||
-        !noConfiguredContentFilters(descriptorRun)
+        !noConfiguredContentSources(pinnedRootRun) ||
+        !noConfiguredContentSources(descriptorRun)
       )
         return null;
       const head = descriptorRun(['rev-parse', '--verify', 'HEAD']);
@@ -602,7 +603,7 @@ function reportGitFacts(
     }
   }
 
-  if (!noConfiguredContentFilters(pinnedRootRun)) return null;
+  if (!noConfiguredContentSources(pinnedRootRun)) return null;
   const head = pinnedRootRun(['rev-parse', '--verify', 'HEAD']);
   if (head.status !== 0 || !/^[a-f0-9]{40,64}$/iu.test(head.stdout.trim()))
     return null;

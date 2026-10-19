@@ -6,6 +6,7 @@ import {
   readdirSync,
   readFileSync,
   readlinkSync,
+  renameSync,
   statSync,
   utimesSync,
 } from 'node:fs';
@@ -17,6 +18,184 @@ import { fileURLToPath } from 'node:url';
 import { recordRepo } from '../src/foreman/state.ts';
 
 const cli = fileURLToPath(new URL('../src/cli/main.ts', import.meta.url));
+
+test('cli-lazy-fetch-canary refuses configured transports without repository writes', async (t) => {
+  // Consumer: root/LON-292/LON-288; retain fixtures until outcome closeout and explicit disposition.
+  const directory = await mkdtemp(join(tmpdir(), 'krn-cli-lazy-fetch-'));
+  const observations = [];
+  for (const descriptor of [false, true]) {
+    for (const config of [
+      'partialClone',
+      'promisor',
+      'both',
+      ...(descriptor ? ['worktreePromisor'] : []),
+    ]) {
+      const name = `${descriptor ? 'descriptor' : 'raw'}-${config}`;
+      const repo = join(directory, name);
+      await mkdir(repo);
+      fixtureGit(repo, 'init', '--quiet');
+      fixtureGit(repo, 'config', 'user.name', 'KRN lazy-fetch fixture');
+      fixtureGit(repo, 'config', 'user.email', 'lazy-fetch@example.invalid');
+      await writeFile(join(repo, '.gitignore'), '.krn/\n');
+      await writeFile(join(repo, 'file.txt'), 'harmless lazy-fetch fixture\n');
+      fixtureGit(repo, 'add', '.gitignore', 'file.txt');
+      fixtureGit(repo, 'commit', '-qm', 'create full-clone fixture');
+      const head = fixtureGit(repo, 'rev-parse', 'HEAD');
+      const tree = fixtureGit(repo, 'rev-parse', 'HEAD^{tree}');
+      const jobId = `lazy-fetch-${name}`;
+      let worktree = repo;
+      if (descriptor) {
+        worktree = join(repo, '.krn/worktrees', jobId);
+        fixtureGit(
+          repo,
+          'worktree',
+          'add',
+          '--quiet',
+          '-b',
+          jobId,
+          worktree,
+          head,
+        );
+        recordRepo(
+          { id: jobId, issue: 'LON-292', repoRoot: repo, worktree },
+          repo,
+        );
+      }
+      const traceDirectory = join(repo, '.krn/runs/foreman', jobId);
+      await mkdir(traceDirectory, { recursive: true });
+      const trace = join(traceDirectory, 'trace.jsonl');
+      await writeFile(trace, journeyEvents(jobId, head));
+      const descriptorPath = join(traceDirectory, 'repo.json');
+      const indices = [join(repo, '.git/index')];
+      if (descriptor)
+        indices.push(
+          join(
+            fixtureGit(worktree, 'rev-parse', '--absolute-git-dir'),
+            'index',
+          ),
+        );
+      const snapshot = () => [
+        readFileSync(trace),
+        existsSync(descriptorPath) ? readFileSync(descriptorPath) : null,
+        ...indices.map((index) => readFileSync(index)),
+      ];
+      const before = snapshot();
+      const script = join(directory, `${name}-transport.sh`);
+      const marker = `${script}.marker`;
+      await writeFile(
+        script,
+        '#!/bin/sh\nprintf called >> "$0.marker"\nexit 1\n',
+      );
+      const run = (phase: string) => {
+        const result = spawnSync(
+          process.execPath,
+          [cli, 'report', 'journey', '--repo', repo, '--job', jobId],
+          {
+            encoding: 'utf8',
+            env: { ...cleanGitEnvironment(), GIT_NO_LAZY_FETCH: '0' },
+            timeout: 10000,
+          },
+        );
+        const report = JSON.parse(result.stdout) as {
+          kind: string;
+          code?: string;
+          repo?: { headSha: string; isDirty: boolean };
+        };
+        t.diagnostic(
+          JSON.stringify({
+            name,
+            phase,
+            fixture: directory,
+            exit: result.status,
+            signal: result.signal,
+            stdout: result.stdout,
+            stderr: result.stderr,
+            transportRan: existsSync(marker),
+          }),
+        );
+        assert.deepEqual(
+          snapshot(),
+          before,
+          `${name}/${phase}: trace, descriptor and index bytes`,
+        );
+        return {
+          name,
+          phase,
+          exit: result.status,
+          kind: report.kind,
+          code: report.code,
+          transportRan: existsSync(marker),
+        };
+      };
+      // This positive control has neither partial-clone nor promisor configuration.
+      assert.deepEqual(run('full-clone'), {
+        name,
+        phase: 'full-clone',
+        exit: 0,
+        kind: 'journey',
+        code: undefined,
+        transportRan: false,
+      });
+      fixtureGit(repo, 'config', 'core.repositoryformatversion', '1');
+      fixtureGit(
+        repo,
+        'config',
+        'remote.CanaryCase.url',
+        'ssh://canary.invalid/x',
+      );
+      fixtureGit(repo, 'config', 'core.sshCommand', `/bin/sh ${script}`);
+      if (config === 'partialClone' || config === 'both')
+        fixtureGit(repo, 'config', 'Extensions.PartialClone', 'CanaryCase');
+      if (config === 'promisor' || config === 'both')
+        fixtureGit(repo, 'config', 'Remote.CanaryCase.Promisor', 'true');
+      if (config === 'worktreePromisor') {
+        fixtureGit(repo, 'config', 'extensions.worktreeConfig', 'true');
+        fixtureGit(
+          worktree,
+          'config',
+          '--worktree',
+          'Remote.CanaryCase.Promisor',
+          'true',
+        );
+      }
+      observations.push(run('all-objects-present'));
+      const object = join(
+        repo,
+        '.git/objects',
+        tree.slice(0, 2),
+        tree.slice(2),
+      );
+      const held = join(directory, `${name}-held-tree-object`);
+      const objectBytes = readFileSync(object);
+      renameSync(object, held);
+      try {
+        observations.push(run('missing-tree'));
+      } finally {
+        renameSync(held, object);
+      }
+      assert.deepEqual(
+        readFileSync(object),
+        objectBytes,
+        `${name}: restored tree object`,
+      );
+    }
+  }
+  assert.deepEqual(
+    observations.filter((observation) => observation.transportRan),
+    [],
+    'report must never execute a configured local transport, even with a missing tree',
+  );
+  assert.deepEqual(
+    observations,
+    observations.map((observation) => ({
+      ...observation,
+      exit: 1,
+      kind: 'refusal',
+      code: 'git_unavailable',
+      transportRan: false,
+    })),
+  );
+});
 
 test('krn review maps invalid argument values to exit code 64', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'krn-review-invalid-'));
