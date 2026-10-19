@@ -41,7 +41,47 @@ test('CodexHost defaults to high reasoning effort for bounded shell work', async
       args.includes('model_reasoning_effort=high'),
       'CodexHost must default to high reasoning effort',
     );
+    assert.equal(args[args.indexOf('--sandbox') + 1], 'workspace-write');
     assert.equal(result.finalMessage, 'ready');
+    assert.equal(result.claimsDone, true);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('CodexHost launches an explicitly read-only bounded session', async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'CodexHost launches an explicitly read-only bounded session',
+      ['systemdUserScope'],
+    )
+  )
+    return;
+  const directory = await mkdtemp(join(tmpdir(), 'krn-codex-read-only-'));
+  try {
+    const initialized = spawnSync('git', ['-C', directory, 'init', '-q']);
+    assert.equal(initialized.status, 0);
+    const argsFile = join(directory, 'args.json');
+    const executable = join(directory, 'fake-codex');
+    await writeFile(
+      executable,
+      `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(argsFile)}, JSON.stringify(process.argv.slice(2)));\nprocess.stdout.write(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'read-only result' } }) + '\\n');\nprocess.stdout.write(JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } }) + '\\n');\n`,
+    );
+    await chmod(executable, 0o755);
+
+    const host = new CodexHost({ executable });
+    const session = await host.start({
+      cwd: directory,
+      model: 'gpt-6-luna',
+      prompt: 'Report a result',
+      sandbox: 'read-only',
+      limits: { timeoutMs: 5000 },
+    });
+    const result = await session.wait();
+    const args: string[] = JSON.parse(await readFile(argsFile, 'utf8'));
+    assert.equal(args[args.indexOf('--sandbox') + 1], 'read-only');
+    assert.equal(result.finalMessage, 'read-only result');
     assert.equal(result.claimsDone, true);
   } finally {
     await rm(directory, { recursive: true, force: true });

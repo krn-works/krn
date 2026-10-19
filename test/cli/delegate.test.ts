@@ -1,0 +1,368 @@
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { watch } from 'node:fs';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import test from 'node:test';
+import { dispatch } from '../../src/cli/index.ts';
+import type { CodexSessionResult } from '../../src/hosts/codex.ts';
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((complete) => {
+    resolve = complete;
+  });
+  return { promise, resolve };
+}
+
+async function createTrackedFixture(): Promise<{
+  readonly repo: string;
+  readonly input: string;
+}> {
+  const repo = await mkdtemp(join(tmpdir(), 'krn-delegate-group-'));
+  const input = join(repo, 'input.txt');
+  await mkdir(join(repo, '.krn', 'tmp'), { recursive: true });
+  await writeFile(join(repo, '.gitignore'), '.krn/\n');
+  await writeFile(input, 'public fixture input\n');
+  const git = (...args: string[]) => {
+    const result = spawnSync('git', ['-C', repo, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  git('init', '--quiet');
+  git('config', 'user.name', 'KRN delegate test');
+  git('config', 'user.email', 'delegate@example.invalid');
+  git('add', '.gitignore', 'input.txt');
+  git('commit', '-qm', 'create tracked input fixture');
+  return { repo, input };
+}
+
+function argsFor(
+  repo: string,
+  input: string,
+  results: string,
+  briefs: readonly string[],
+  timeoutMs = '10000',
+): string[] {
+  return [
+    'delegate',
+    '--repo',
+    repo,
+    '--input',
+    input,
+    '--results',
+    results,
+    ...briefs.flatMap((brief) => ['--brief', brief]),
+    '--timeout-ms',
+    timeoutMs,
+    '--concurrency',
+    String(briefs.length),
+  ];
+}
+
+function completedSession(
+  sessionId: string,
+  finalMessage: string,
+): CodexSessionResult {
+  return {
+    sessionId,
+    reasonKind: 'agent_message',
+    reasonSha256: '0'.repeat(64),
+    reasonLength: Buffer.byteLength(finalMessage),
+    claimsDone: true,
+    finalMessage,
+    exitCode: 0,
+    signal: null,
+    usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+    usageObservation: { turnsStarted: 1, turnsCompleted: 1, invalidFields: 0 },
+  };
+}
+
+test('delegate emits one persisted group result only after every worker completes', async () => {
+  const { repo, input } = await createTrackedFixture();
+  try {
+    const results = join(repo, '.krn', 'tmp', 'delegation', 'group-one');
+    const sessions = [
+      deferred<CodexSessionResult>(),
+      deferred<CodexSessionResult>(),
+    ];
+    const starts = [deferred<void>(), deferred<void>()];
+    let output = '';
+    let invocationDone = false;
+    const invocation = dispatch(
+      argsFor(repo, input, results, ['TASK A', 'TASK B']),
+      {
+        delegate: {
+          signal: new AbortController().signal,
+          write: (value: string) => {
+            output += value;
+          },
+          host: {
+            start: async (request: { prompt: string }) => {
+              const index = request.prompt.includes('TASK A') ? 0 : 1;
+              const session = sessions[index];
+              if (!session) throw new Error('fake worker was not configured');
+              starts[index]?.resolve();
+              return {
+                id: `worker-${index}`,
+                wait: () => session.promise,
+              };
+            },
+            cancelTree: async () => undefined,
+          },
+        },
+      },
+    ).then((handled) => {
+      invocationDone = true;
+      return handled;
+    });
+
+    await Promise.race([
+      Promise.all(starts.map((start) => start.promise)),
+      invocation.then((handled) => {
+        assert.equal(handled, true, 'delegate must be a KRN command');
+        assert.fail('delegate returned before starting the selected group');
+      }),
+    ]);
+    assert.equal(invocationDone, false);
+    assert.equal(output, '', 'no progress or partial result is emitted');
+
+    const firstPersisted = new Promise<void>((resolve) => {
+      const watcher = watch(results, (_event, name) => {
+        if (name?.toString() === 'worker-1.json') {
+          watcher.close();
+          resolve();
+        }
+      });
+    });
+    sessions[0]?.resolve(completedSession('worker-0', 'Full result A'));
+    await firstPersisted;
+    assert.equal(invocationDone, false);
+    assert.equal(output, '', 'the group waits for the second worker');
+
+    sessions[1]?.resolve(completedSession('worker-1', 'Full result B'));
+    assert.equal(await invocation, true);
+    assert.equal(output.endsWith('\n'), true);
+    const aggregate = JSON.parse(output) as {
+      readonly workers: readonly {
+        readonly status: string;
+        readonly finalText?: string;
+        readonly resultFile: string;
+      }[];
+    };
+    assert.equal(aggregate.workers.length, 2);
+    assert.deepEqual(
+      aggregate.workers.map(({ status, finalText }) => [status, finalText]),
+      [
+        ['completed', 'Full result A'],
+        ['completed', 'Full result B'],
+      ],
+    );
+    for (const worker of aggregate.workers) {
+      const persisted = JSON.parse(
+        await readFile(worker.resultFile, 'utf8'),
+      ) as {
+        readonly status: string;
+        readonly finalText?: string;
+      };
+      assert.equal(persisted.status, worker.status);
+      assert.equal(persisted.finalText, worker.finalText);
+    }
+    assert.equal(output.trimEnd().split('\n').length, 1);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('delegate cancels an owned worker on caller interruption and persists cancelled state', async () => {
+  const { repo, input } = await createTrackedFixture();
+  try {
+    const results = join(repo, '.krn', 'tmp', 'delegation', 'cancelled');
+    const started = deferred<void>();
+    const interrupted = deferred<CodexSessionResult>();
+    const controller = new AbortController();
+    let cancelCalls = 0;
+    const invocation = dispatch(argsFor(repo, input, results, ['TASK']), {
+      delegate: {
+        signal: controller.signal,
+        write: () => undefined,
+        host: {
+          start: async () => {
+            started.resolve();
+            return { id: 'owned-worker', wait: () => interrupted.promise };
+          },
+          cancelTree: async () => {
+            cancelCalls += 1;
+            interrupted.resolve({
+              claimsDone: false,
+              exitCode: null,
+              signal: 'SIGTERM',
+              usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+              usageObservation: {
+                turnsStarted: 1,
+                turnsCompleted: 0,
+                invalidFields: 0,
+              },
+              sessionId: 'owned-worker',
+              reasonKind: 'process_exit',
+              reasonSha256: '0'.repeat(64),
+              reasonLength: 0,
+            });
+          },
+        },
+      },
+    });
+    await started.promise;
+    controller.abort();
+    assert.equal(await invocation, true);
+    assert.equal(cancelCalls, 1);
+    const aggregate = JSON.parse(
+      await readFile(join(results, 'group.json'), 'utf8'),
+    ) as {
+      readonly workers: readonly { readonly status: string }[];
+    };
+    assert.deepEqual(
+      aggregate.workers.map(({ status }) => status),
+      ['cancelled'],
+    );
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('delegate keeps timeout distinct from caller cancellation and waits for cleanup', async () => {
+  const { repo, input } = await createTrackedFixture();
+  try {
+    const results = join(repo, '.krn', 'tmp', 'delegation', 'timed-out');
+    const started = deferred<void>();
+    const cancellation = deferred<void>();
+    const timedOut = deferred<CodexSessionResult>();
+    let cancelCalls = 0;
+    const invocation = dispatch(
+      argsFor(repo, input, results, ['TASK'], '1000'),
+      {
+        delegate: {
+          write: () => undefined,
+          host: {
+            start: async () => {
+              started.resolve();
+              return { id: 'timed-worker', wait: () => timedOut.promise };
+            },
+            cancelTree: async () => {
+              cancelCalls += 1;
+              timedOut.resolve({
+                claimsDone: false,
+                exitCode: null,
+                signal: 'SIGTERM',
+                usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+                usageObservation: {
+                  turnsStarted: 1,
+                  turnsCompleted: 0,
+                  invalidFields: 0,
+                },
+                sessionId: 'timed-worker',
+                reasonKind: 'process_exit',
+                reasonSha256: '0'.repeat(64),
+                reasonLength: 0,
+              });
+              cancellation.resolve();
+            },
+          },
+        },
+      },
+    );
+    await started.promise;
+    await cancellation.promise;
+    assert.equal(await invocation, true);
+    assert.equal(cancelCalls, 1);
+    const aggregate = JSON.parse(
+      await readFile(join(results, 'group.json'), 'utf8'),
+    ) as {
+      readonly workers: readonly { readonly status: string }[];
+    };
+    assert.deepEqual(
+      aggregate.workers.map(({ status }) => status),
+      ['timeout'],
+    );
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('delegate refuses untracked inputs before starting any worker', async () => {
+  const { repo } = await createTrackedFixture();
+  try {
+    const privateInput = join(repo, 'private-session.txt');
+    const results = join(repo, '.krn', 'tmp', 'delegation', 'private-input');
+    await writeFile(privateInput, 'private fixture data\n');
+    let starts = 0;
+    await assert.rejects(
+      dispatch(argsFor(repo, privateInput, results, ['TASK']), {
+        delegate: {
+          host: {
+            start: async () => {
+              starts += 1;
+              throw new Error('unreachable');
+            },
+            cancelTree: async () => undefined,
+          },
+          write: () => undefined,
+        },
+      }),
+      /--input must be a tracked repository file/u,
+    );
+    assert.equal(starts, 0);
+    await assert.rejects(readFile(join(results, 'group.json')));
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('delegate records a nonzero worker exit as failed even with final text', async () => {
+  const { repo, input } = await createTrackedFixture();
+  try {
+    const results = join(repo, '.krn', 'tmp', 'delegation', 'failed');
+    let output = '';
+    let exitCode: number | undefined;
+    const failed = completedSession('failed-worker', 'untrusted final text');
+    const invocation = await dispatch(argsFor(repo, input, results, ['TASK']), {
+      delegate: {
+        write: (text) => {
+          output += text;
+        },
+        setExitCode: (code) => {
+          exitCode = code;
+        },
+        host: {
+          start: async () => ({
+            id: failed.sessionId,
+            wait: async () => ({ ...failed, exitCode: 17 }),
+          }),
+          cancelTree: async () => undefined,
+        },
+      },
+    });
+    assert.equal(invocation, true);
+    assert.equal(exitCode, 1);
+    const aggregate = JSON.parse(output) as {
+      readonly workers: readonly { readonly status: string }[];
+    };
+    assert.deepEqual(
+      aggregate.workers.map(({ status }) => status),
+      ['failed'],
+    );
+    const persisted = JSON.parse(
+      await readFile(join(results, 'worker-1.json'), 'utf8'),
+    ) as {
+      readonly status: string;
+      readonly finalText?: string;
+    };
+    assert.equal(persisted.status, 'failed');
+    assert.equal(persisted.finalText, 'untrusted final text');
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});

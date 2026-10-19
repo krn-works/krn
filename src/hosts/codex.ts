@@ -155,6 +155,7 @@ export type CodexStartInput = {
   readonly model: 'gpt-6-luna';
   readonly reasoningEffort?: CodexReasoningEffort;
   readonly disableProjectDocs?: boolean;
+  readonly sandbox?: 'read-only' | 'workspace-write';
   readonly prompt: string;
   readonly limits: { readonly timeoutMs: number };
   readonly checkpoint?: {
@@ -236,7 +237,7 @@ export class CodexHost {
       `model_reasoning_effort=${input.reasoningEffort ?? 'high'}`,
       ...(input.disableProjectDocs ? ['-c', 'project_doc_max_bytes=0'] : []),
       '--sandbox',
-      'workspace-write',
+      input.sandbox ?? 'workspace-write',
       '--cd',
       input.cwd,
       ...(input.checkpoint && existsSync(join(input.cwd, '.krn'))

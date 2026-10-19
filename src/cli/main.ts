@@ -64,6 +64,32 @@ export function main(args = process.argv.slice(2)): void {
     return;
   }
 
+  if (args[0] === 'delegate') {
+    const controller = new AbortController();
+    const interrupt = () => controller.abort();
+    process.on('SIGINT', interrupt);
+    process.on('SIGTERM', interrupt);
+    void dispatch(args, {
+      delegate: {
+        signal: controller.signal,
+        setExitCode: (code) => {
+          process.exitCode = code;
+        },
+      },
+    })
+      .catch((error: unknown) => {
+        process.stderr.write(
+          `${error instanceof Error ? error.message : String(error)}\n`,
+        );
+        process.exitCode = 64;
+      })
+      .finally(() => {
+        process.removeListener('SIGINT', interrupt);
+        process.removeListener('SIGTERM', interrupt);
+      });
+    return;
+  }
+
   if (['start', 'checkpoint', 'stop', 'note'].includes(args[0] ?? '')) {
     void dispatch(args).catch((error: unknown) => {
       process.stderr.write(
