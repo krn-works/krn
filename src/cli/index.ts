@@ -316,6 +316,22 @@ function noConfiguredContentFilters(
   );
 }
 
+function noIndexedGitlinks(
+  run: (args: string[]) => {
+    status: number | null;
+    stdout: string;
+    stderr: string;
+  },
+): boolean {
+  // Read only the pinned index; status can execute filters inside gitlinks.
+  const entries = run(['ls-files', '--stage', '-z']);
+  return (
+    entries.status === 0 &&
+    entries.stderr.length === 0 &&
+    !entries.stdout.split('\0').some((entry) => entry.startsWith('160000 '))
+  );
+}
+
 function reportGitFacts(
   repoRoot: string,
   context: ReturnType<typeof readTraceRepoContext>,
@@ -571,6 +587,7 @@ function reportGitFacts(
       const head = descriptorRun(['rev-parse', '--verify', 'HEAD']);
       if (head.status !== 0 || !/^[a-f0-9]{40,64}$/iu.test(head.stdout.trim()))
         return null;
+      if (!noIndexedGitlinks(descriptorRun)) return null;
       const status = descriptorRun([
         'status',
         '--porcelain=v1',
@@ -589,6 +606,7 @@ function reportGitFacts(
   const head = pinnedRootRun(['rev-parse', '--verify', 'HEAD']);
   if (head.status !== 0 || !/^[a-f0-9]{40,64}$/iu.test(head.stdout.trim()))
     return null;
+  if (!noIndexedGitlinks(pinnedRootRun)) return null;
   const status = pinnedRootRun([
     'status',
     '--porcelain=v1',

@@ -1212,3 +1212,124 @@ test('krn report journey refuses foreign and symlinked repository descriptors', 
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('cli-submodule-filter-canary refuses gitlinks before local submodule filters', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-cli-submodule-'));
+  try {
+    const seed = join(directory, 'seed');
+    await mkdir(seed);
+    fixtureGit(seed, 'init', '--quiet');
+    fixtureGit(seed, 'config', 'user.name', 'KRN canary');
+    fixtureGit(seed, 'config', 'user.email', 'canary@example.invalid');
+    await writeFile(
+      join(seed, '.gitattributes'),
+      'filtered.txt filter=canary\n',
+    );
+    await writeFile(join(seed, 'filtered.txt'), 'aaaa\n');
+    fixtureGit(seed, 'add', '.gitattributes', 'filtered.txt');
+    fixtureGit(seed, 'commit', '-qm', 'create harmless local seed');
+    const observations = [];
+    for (const descriptor of [false, true]) {
+      const name = descriptor ? 'descriptor' : 'raw';
+      const repo = join(directory, name);
+      await mkdir(repo);
+      fixtureGit(repo, 'init', '--quiet');
+      fixtureGit(repo, 'config', 'user.name', 'KRN canary');
+      fixtureGit(repo, 'config', 'user.email', 'canary@example.invalid');
+      await writeFile(join(repo, '.gitignore'), '.krn/\n');
+      fixtureGit(
+        repo,
+        '-c',
+        'protocol.file.allow=always',
+        'submodule',
+        'add',
+        '--quiet',
+        seed,
+        'local',
+      );
+      fixtureGit(repo, 'add', '.gitignore', '.gitmodules', 'local');
+      fixtureGit(repo, 'commit', '-qm', 'create local submodule fixture');
+      const head = fixtureGit(repo, 'rev-parse', 'HEAD');
+      const jobId = `submodule-${name}`;
+      let worktree = repo;
+      if (descriptor) {
+        worktree = join(repo, '.krn/worktrees', jobId);
+        fixtureGit(
+          repo,
+          'worktree',
+          'add',
+          '--quiet',
+          '-b',
+          jobId,
+          worktree,
+          head,
+        );
+        fixtureGit(
+          worktree,
+          '-c',
+          'protocol.file.allow=always',
+          'submodule',
+          'update',
+          '--init',
+          '--quiet',
+        );
+        recordRepo(
+          { id: jobId, issue: 'LON-292', repoRoot: repo, worktree },
+          repo,
+        );
+      }
+      const submodule = join(worktree, 'local');
+      const canary = join(directory, `${name}-called`);
+      const script = join(directory, `${name}-filter.sh`);
+      await writeFile(script, `#!/bin/sh\nprintf called >> '${canary}'\ncat\n`);
+      fixtureGit(
+        submodule,
+        'config',
+        'filter.canary.clean',
+        `/bin/sh ${script}`,
+      );
+      fixtureGit(submodule, 'config', 'filter.canary.required', 'true');
+      await writeFile(
+        join(submodule, 'filtered.txt'),
+        'changed harmless fixture\n',
+      );
+      const traceDirectory = join(repo, '.krn/runs/foreman', jobId);
+      await mkdir(traceDirectory, { recursive: true });
+      await writeFile(
+        join(traceDirectory, 'trace.jsonl'),
+        journeyEvents(jobId, head),
+      );
+      const result = spawnSync(
+        process.execPath,
+        [cli, 'report', 'journey', '--repo', repo, '--job', jobId],
+        {
+          encoding: 'utf8',
+          env: cleanGitEnvironment(),
+        },
+      );
+      const report = JSON.parse(result.stdout) as {
+        kind: string;
+        code?: string;
+      };
+      observations.push({
+        name,
+        exit: result.status,
+        kind: report.kind,
+        code: report.code,
+        filterRan: existsSync(canary),
+      });
+    }
+    assert.deepEqual(
+      observations,
+      ['raw', 'descriptor'].map((name) => ({
+        name,
+        exit: 1,
+        kind: 'refusal',
+        code: 'git_unavailable',
+        filterRan: false,
+      })),
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

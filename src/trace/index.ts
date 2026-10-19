@@ -749,7 +749,7 @@ export function readTraceRepoContext(
   try {
     const before = fstatSync(fd);
     if (before.size > 16 * 1024) throw new Error('invalid repo descriptor');
-    const contents = readFileSync(fd, 'utf8');
+    const contents = readSnapshotBytes(fd, before.size).toString('utf8');
     const after = fstatSync(fd);
     if (
       before.dev !== after.dev ||

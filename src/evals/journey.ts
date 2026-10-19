@@ -139,6 +139,8 @@ type Session = {
   readonly jobId: string;
   readonly startedIndex: number;
   readonly startedAt: string;
+  readonly doneCheckpoints: number[];
+  readonly commits: number[];
   endedIndex?: number;
   endedAt?: string;
   exitCode?: number | null;
@@ -308,14 +310,14 @@ function parseOutcome(
   };
 }
 
+type SessionIndex = Map<string, Map<string, Session>>;
+
 function matchingSession(
-  sessions: readonly Session[],
+  sessions: SessionIndex,
   intent: string,
   sessionId: string,
 ): Session | undefined {
-  return sessions.find(
-    (session) => session.intent === intent && session.sessionId === sessionId,
-  );
+  return sessions.get(intent)?.get(sessionId);
 }
 
 function observeUsage(
@@ -394,12 +396,18 @@ function observeOperatorWindow(events: readonly ReadonlyTraceEvent[]): {
   interventions: number | null;
   reconstructionPrompts: number | null;
 } {
-  const open = new Map<string, number>();
-  const windows: Array<readonly [number, number]> = [];
+  const open = new Set<string>();
+  let closedWindows = 0;
+  let interventions = 0;
+  let reconstructionPrompts = 0;
   let valid = true;
-  for (let index = 0; index < events.length; index += 1) {
-    const event = events[index];
-    if (!event) continue;
+  for (const event of events) {
+    if (event.kind === 'lead_intervention' && open.size > 0) {
+      if (event.data.kind === 'intervention') interventions += 1;
+      else if (event.data.kind === 'reconstruction_prompt')
+        reconstructionPrompts += 1;
+      else valid = false;
+    }
     if (event.kind !== 'operator_start' && event.kind !== 'operator_stop')
       continue;
     const operator = event.data.operator;
@@ -409,46 +417,19 @@ function observeOperatorWindow(events: readonly ReadonlyTraceEvent[]): {
     }
     if (event.kind === 'operator_start') {
       if (open.has(operator)) valid = false;
-      else open.set(operator, index);
+      else open.add(operator);
       continue;
     }
-    const start = open.get(operator);
-    if (start === undefined) valid = false;
-    else {
-      windows.push([start, index]);
-      open.delete(operator);
-    }
+    if (!open.delete(operator)) valid = false;
+    else closedWindows += 1;
   }
-  if (!valid || open.size > 0 || windows.length === 0)
+  if (!valid || open.size > 0 || closedWindows === 0)
     return {
       closedWindows: null,
       interventions: null,
       reconstructionPrompts: null,
     };
-
-  let interventions = 0;
-  let reconstructionPrompts = 0;
-  for (const [index, event] of events.entries()) {
-    if (
-      !windows.some(([start, stop]) => index > start && index < stop) ||
-      event.kind !== 'lead_intervention'
-    )
-      continue;
-    if (event.data.kind === 'intervention') interventions += 1;
-    else if (event.data.kind === 'reconstruction_prompt')
-      reconstructionPrompts += 1;
-    else
-      return {
-        closedWindows: null,
-        interventions: null,
-        reconstructionPrompts: null,
-      };
-  }
-  return {
-    closedWindows: windows.length,
-    interventions,
-    reconstructionPrompts,
-  };
+  return { closedWindows, interventions, reconstructionPrompts };
 }
 
 function isVerifiedStop(outcome: Outcome): boolean {
@@ -530,42 +511,41 @@ function usageFacts(end: Record<string, unknown>): UsageEvaluation {
   return { facts, total: totalTokens };
 }
 
+// Event indexes are appended in trace order. Return the first strict successor.
+function firstIndexAfter(
+  indexes: readonly number[],
+  after: number,
+): number | undefined {
+  let low = 0;
+  let high = indexes.length;
+  while (low < high) {
+    const middle = Math.floor((low + high) / 2);
+    const index = indexes[middle];
+    if (index !== undefined && index <= after) low = middle + 1;
+    else high = middle;
+  }
+  return indexes[low];
+}
+
 function getCompletion(
   events: readonly ReadonlyTraceEvent[],
   sessions: readonly Session[],
   stopIndex: number,
   finalOutcomeIndex: number,
 ): Completion | undefined {
-  const candidates: Completion[] = [];
+  let completion: Completion | undefined;
   for (const session of sessions) {
     if (session.startedIndex <= stopIndex || session.endedIndex === undefined)
       continue;
     const endIndex = session.endedIndex;
     if (endIndex >= finalOutcomeIndex) continue;
-    const checkpoint = events.findIndex(
-      (event, index) =>
-        index > endIndex &&
-        index < finalOutcomeIndex &&
-        event.kind === 'checkpoint' &&
-        event.data.intent === session.intent &&
-        event.data.sessionId === session.sessionId &&
-        event.data.next === 'done',
-    );
-    if (checkpoint < 0) continue;
-    const commitIndex = events.findIndex(
-      (event, index) =>
-        index > checkpoint &&
-        index < finalOutcomeIndex &&
-        event.kind === 'commit' &&
-        event.data.intent === session.intent &&
-        event.data.sessionId === session.sessionId &&
-        typeof event.data.sha === 'string' &&
-        /^[a-f0-9]{40,64}$/iu.test(event.data.sha),
-    );
-    if (commitIndex < 0) continue;
+    const checkpoint = firstIndexAfter(session.doneCheckpoints, endIndex);
+    if (checkpoint === undefined || checkpoint >= finalOutcomeIndex) continue;
+    const commitIndex = firstIndexAfter(session.commits, checkpoint);
+    if (commitIndex === undefined || commitIndex >= finalOutcomeIndex) continue;
     const commit = events[commitIndex];
     if (!commit || typeof commit.data.sha !== 'string') continue;
-    candidates.push({
+    completion = {
       intent: session.intent,
       sessionId: session.sessionId,
       commitSha: commit.data.sha,
@@ -573,9 +553,9 @@ function getCompletion(
       endIndex,
       checkpointIndex: checkpoint,
       commitIndex,
-    });
+    };
   }
-  return candidates.at(-1);
+  return completion;
 }
 
 function isJourneyWork(event: ReadonlyTraceEvent): boolean {
@@ -636,6 +616,7 @@ export function deriveJourneyReport(
   const events = snapshot.events;
   const outcomes: Outcome[] = [];
   const sessions: Session[] = [];
+  const sessionIndex: SessionIndex = new Map();
   const malformedStartMarkers: string[] = [];
   let invalidData = false;
 
@@ -655,24 +636,49 @@ export function deriveJourneyReport(
       sessionId.length === 0 ||
       !isJobId(jobId) ||
       jobId !== snapshot.jobId ||
-      matchingSession(sessions, intent, sessionId)
+      matchingSession(sessionIndex, intent, sessionId)
     ) {
       invalidData = true;
       malformedStartMarkers.push(`event-${index + 1}`);
       continue;
     }
-    sessions.push({
+    const session: Session = {
       intent,
       sessionId,
       jobId,
       startedIndex: index,
       startedAt: event.at,
+      doneCheckpoints: [],
+      commits: [],
       usage: {},
       usageMeasured: false,
-    });
+    };
+    sessions.push(session);
+    let bySessionId = sessionIndex.get(intent);
+    if (!bySessionId) {
+      bySessionId = new Map();
+      sessionIndex.set(intent, bySessionId);
+    }
+    bySessionId.set(sessionId, session);
   }
 
   for (const [index, event] of events.entries()) {
+    if (event.kind === 'checkpoint' || event.kind === 'commit') {
+      const { intent, sessionId } = event.data;
+      if (typeof intent === 'string' && typeof sessionId === 'string') {
+        const session = matchingSession(sessionIndex, intent, sessionId);
+        if (session) {
+          if (event.kind === 'checkpoint' && event.data.next === 'done')
+            session.doneCheckpoints.push(index);
+          else if (
+            event.kind === 'commit' &&
+            typeof event.data.sha === 'string' &&
+            /^[a-f0-9]{40,64}$/iu.test(event.data.sha)
+          )
+            session.commits.push(index);
+        }
+      }
+    }
     if (event.kind !== 'session_ended') continue;
     const intent = event.data.intent;
     const sessionId = event.data.sessionId;
@@ -680,7 +686,7 @@ export function deriveJourneyReport(
       invalidData = true;
       continue;
     }
-    const session = matchingSession(sessions, intent, sessionId);
+    const session = matchingSession(sessionIndex, intent, sessionId);
     const end = event.data.end;
     if (
       !session ||
@@ -706,10 +712,16 @@ export function deriveJourneyReport(
     session.usage = session.usageEvaluation.facts;
   }
 
+  let outcomeCursor = 0;
   for (const session of sessions) {
-    const runOutcome = outcomes.find(
-      (outcome) => outcome.index > session.startedIndex,
-    );
+    // Sessions and outcomes retain event order; never borrow an earlier outcome.
+    while (
+      outcomeCursor < outcomes.length &&
+      (outcomes[outcomeCursor]?.index ?? Number.POSITIVE_INFINITY) <=
+        session.startedIndex
+    )
+      outcomeCursor += 1;
+    const runOutcome = outcomes[outcomeCursor];
     if (runOutcome) session.runOutcome = runOutcome;
     if (
       session.runOutcome &&
@@ -839,15 +851,12 @@ export function deriveJourneyReport(
       (session) =>
         session.startedIndex > stop.index && session.endedIndex !== undefined,
     );
-    const hasDone = resumedSessions.some((session) =>
-      events.some(
-        (event, index) =>
-          index > (session.endedIndex ?? Number.MAX_SAFE_INTEGER) &&
-          event.kind === 'checkpoint' &&
-          event.data.intent === session.intent &&
-          event.data.sessionId === session.sessionId &&
-          event.data.next === 'done',
-      ),
+    const hasDone = resumedSessions.some(
+      (session) =>
+        firstIndexAfter(
+          session.doneCheckpoints,
+          session.endedIndex ?? Number.MAX_SAFE_INTEGER,
+        ) !== undefined,
     );
     checks.push({
       id: 'resumed-completion',
