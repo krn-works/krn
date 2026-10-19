@@ -730,9 +730,7 @@ test('krn report journey reads HEAD from the registered job worktree', async () 
   }
 });
 
-test(
-  'krn report journey binds Git facts to the descriptor worktree index',
-  async () => {
+test('krn report journey binds Git facts to the descriptor worktree index', async () => {
   const directory = await mkdtemp(
     join(tmpdir(), 'krn-cli-journey-git-binding-'),
   );
@@ -772,10 +770,7 @@ test(
     );
     assert.equal(rootHead, worktreeHead);
 
-    await writeFile(
-      join(repo, 'root-index-only.txt'),
-      'staged in root only\n',
-    );
+    await writeFile(join(repo, 'root-index-only.txt'), 'staged in root only\n');
     fixtureGit(repo, 'add', 'root-index-only.txt');
     assert.equal(
       fixtureGit(repo, 'status', '--porcelain=v1'),
@@ -807,7 +802,9 @@ test(
     );
     recordRepo(correctJob, repo, 'krn/journey-git-binding', rootHead);
 
-    const wrongTraceBytes = Buffer.from(journeyEvents(wrongJobId, worktreeHead));
+    const wrongTraceBytes = Buffer.from(
+      journeyEvents(wrongJobId, worktreeHead),
+    );
     const correctTraceBytes = Buffer.from(
       journeyEvents(correctJobId, worktreeHead),
     );
@@ -881,9 +878,8 @@ test(
         },
         unchanged: {
           rootIndex: readFileSync(rootIndexPath).equals(rootIndexBytes),
-          worktreeIndex: readFileSync(worktreeIndexPath).equals(
-            worktreeIndexBytes,
-          ),
+          worktreeIndex:
+            readFileSync(worktreeIndexPath).equals(worktreeIndexBytes),
           wrongTrace: readFileSync(
             join(repo, '.krn/runs/foreman', wrongJobId, 'trace.jsonl'),
           ).equals(wrongTraceBytes),
@@ -928,8 +924,7 @@ test(
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
-  },
-);
+});
 
 test('krn report journey refuses a registered descriptor under a non-root explicit path', async () => {
   const directory = await mkdtemp(
