@@ -65,6 +65,11 @@ test('review command passes selected reasoning effort to each judge', async (t) 
         exitCode: 0,
         signal: null,
         usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 },
+        usageObservation: {
+          turnsStarted: 1,
+          turnsCompleted: 1,
+          invalidFields: 0,
+        },
       }),
     };
   };

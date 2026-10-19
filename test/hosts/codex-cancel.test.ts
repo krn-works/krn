@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   chmod,
   mkdir,
@@ -9,9 +9,10 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
+import { pathToFileURL } from 'node:url';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
 test('onStarted rejection waits for the fake Codex process tree to stop', async (t) => {
@@ -221,6 +222,277 @@ wait
     await rm(directory, { recursive: true, force: true });
   }
   assert.equal(acknowledgements, 0);
+});
+
+test('timeout cleanup verification failure reaches wait without an unhandled rejection', {
+  timeout: 20_000,
+}, async (t) => {
+  if (
+    !requiresIsolation(
+      t,
+      'timeout cleanup verification failure reaches wait without an unhandled rejection',
+      ['systemdUserScope'],
+    )
+  )
+    return;
+  const directory = await mkdtemp(join(tmpdir(), 'krn-codex-timeout-cleanup-'));
+  const fakeBin = join(directory, 'bin');
+  const executable = join(directory, 'fake-codex');
+  const systemctl = join(fakeBin, 'systemctl');
+  const registrationPath = join(directory, 'registration.json');
+  const waitPath = join(directory, 'wait.json');
+  const failUnit = join(directory, 'fail-unit');
+  const failureLog = join(directory, 'show-failures');
+  const systemdEnv = { ...process.env };
+  systemdEnv.XDG_RUNTIME_DIR ??= `/run/user/${process.getuid?.() ?? 1000}`;
+  systemdEnv.DBUS_SESSION_BUS_ADDRESS ??= `unix:path=${systemdEnv.XDG_RUNTIME_DIR}/bus`;
+  const childModuleUrl = pathToFileURL(
+    join(process.cwd(), 'src/hosts/codex.ts'),
+  ).href;
+  let registration:
+    | {
+        sessionId: string;
+        isolation: string;
+        unit: string;
+        controlGroup: string;
+        pid: number;
+        startTicks: string;
+        processState: string;
+      }
+    | undefined;
+  try {
+    await mkdir(fakeBin);
+    await writeFile(
+      executable,
+      `#!${process.execPath}\nsetInterval(() => {}, 1000);\n`,
+    );
+    await writeFile(
+      systemctl,
+      `#!/bin/sh
+if [ "$1" = "--user" ] && [ "$2" = "show" ]; then
+  for arg in "$@"; do case "$arg" in krn-*.scope) unit="$arg";; esac; done
+  expected=$(cat "$KRN_F2_FAIL_UNIT_FILE" 2>/dev/null)
+  if [ -n "$expected" ] && [ "$unit" = "$expected" ]; then
+    printf "%s\\n" "$unit" >> "$KRN_F2_FAILURE_LOG"
+    printf "injected registered-scope verification failure\\n" >&2
+    exit 42
+  fi
+fi
+exec /usr/bin/systemctl "$@"
+`,
+    );
+    await Promise.all(
+      [executable, systemctl].map((path) => chmod(path, 0o755)),
+    );
+    const childSource = `
+import { readFileSync, writeFileSync } from 'node:fs';
+const { CodexHost } = await import(process.env.KRN_F2_MODULE_URL);
+const host = new CodexHost({ executable: process.env.KRN_F2_CODEX });
+const session = await host.start({
+  cwd: process.env.KRN_F2_CWD,
+  model: 'gpt-6-luna',
+  prompt: 'hold until timeout cancellation',
+  limits: { timeoutMs: 650 },
+  onStarted: async (sessionId, _pid, isolation, registration) => {
+    if (isolation !== 'systemd_scope' || !registration) throw new Error('scope registration missing');
+    const raw = readFileSync('/proc/' + registration.pid + '/stat', 'utf8');
+    const fields = raw.slice(raw.lastIndexOf(')') + 2).trim().split(/\\s+/u);
+    const members = readFileSync('/sys/fs/cgroup/' + registration.controlGroup.slice(1) + '/cgroup.procs', 'utf8').trim().split(/\\s+/u).map(Number);
+    if (fields[19] !== registration.startTicks || !members.includes(registration.pid)) throw new Error('registered process identity not in cgroup');
+    writeFileSync(process.env.KRN_F2_REGISTRATION_FILE, JSON.stringify({sessionId, isolation, ...registration, processState: fields[0]}));
+    writeFileSync(process.env.KRN_F2_FAIL_UNIT_FILE, registration.unit + '\\n');
+    return true;
+  },
+});
+const outcome = await session.wait().then(
+  (result) => ({kind: 'resolved', result}),
+  (error) => ({kind: 'rejected', errorName: error?.name ?? typeof error, errorMessage: String(error?.message ?? error)}),
+);
+writeFileSync(process.env.KRN_F2_WAIT_FILE, JSON.stringify(outcome));
+process.stdout.write('WAIT_RESULT ' + JSON.stringify(outcome) + '\\n');
+await new Promise((resolve) => setTimeout(resolve, 800));
+`;
+    const childEnv = {
+      ...systemdEnv,
+      KRN_F2_MODULE_URL: childModuleUrl,
+      KRN_F2_CODEX: executable,
+      KRN_F2_CWD: directory,
+      KRN_F2_REGISTRATION_FILE: registrationPath,
+      KRN_F2_WAIT_FILE: waitPath,
+      KRN_F2_FAIL_UNIT_FILE: failUnit,
+      KRN_F2_FAILURE_LOG: failureLog,
+      PATH: `${fakeBin}${delimiter}${process.env.PATH ?? ''}`,
+    };
+    const child = spawn(
+      process.execPath,
+      ['--input-type=module', '-e', childSource],
+      {
+        cwd: process.cwd(),
+        env: childEnv,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+      stderr += chunk;
+    });
+    const closePromise = new Promise<{
+      code: number | null;
+      signal: NodeJS.Signals | null;
+    }>((resolve) => {
+      child.once('close', (code, signal) => resolve({ code, signal }));
+    });
+    let timedOut = false;
+    const watchdog = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGTERM');
+    }, 18_000);
+    const close = await closePromise;
+    clearTimeout(watchdog);
+    registration = await readFile(registrationPath, 'utf8')
+      .then((raw) => JSON.parse(raw) as NonNullable<typeof registration>)
+      .catch(() => undefined);
+    const waitResult = await readFile(waitPath, 'utf8')
+      .then(
+        (raw) =>
+          JSON.parse(raw) as {
+            kind: string;
+            errorName?: string;
+            errorMessage?: string;
+          },
+      )
+      .catch(() => undefined);
+    const injectedFailures = (
+      await readFile(failureLog, 'utf8').catch(() => '')
+    )
+      .trim()
+      .split(/\r?\n/u)
+      .filter(Boolean);
+    t.diagnostic(
+      JSON.stringify({
+        close,
+        timedOut,
+        registration,
+        waitResult,
+        injectedFailures,
+        stdout,
+        stderr,
+      }),
+    );
+    assert.equal(timedOut, false);
+    assert.ok(
+      registration,
+      'the actual test-owned systemd scope registration was recorded',
+    );
+    const verifiedRegistration = registration;
+    assert.equal(verifiedRegistration.isolation, 'systemd_scope');
+    assert.equal(close.signal, null);
+    assert.equal(
+      close.code,
+      0,
+      `cancellation must be joined rather than crash Node: ${stderr}`,
+    );
+    assert.equal(waitResult?.kind, 'rejected');
+    assert.deepEqual(injectedFailures, [verifiedRegistration.unit]);
+    assert.ok(
+      Number.isSafeInteger(verifiedRegistration.pid) &&
+        verifiedRegistration.pid > 0,
+    );
+    assert.match(verifiedRegistration.startTicks, /^\d+$/u);
+    assert.ok(!['Z', 'X'].includes(verifiedRegistration.processState));
+  } finally {
+    const ownedRegistration = registration;
+    if (ownedRegistration) {
+      spawnSync(
+        '/usr/bin/systemctl',
+        [
+          '--user',
+          'kill',
+          '--kill-who=all',
+          '--signal=SIGKILL',
+          ownedRegistration.unit,
+        ],
+        { encoding: 'utf8', timeout: 5000, env: systemdEnv },
+      );
+      spawnSync(
+        '/usr/bin/systemctl',
+        ['--user', 'stop', ownedRegistration.unit],
+        {
+          encoding: 'utf8',
+          timeout: 5000,
+          env: systemdEnv,
+        },
+      );
+      const physicalCleanup = await waitFor(async () => {
+        const stat = await readFile(
+          `/proc/${ownedRegistration.pid}/stat`,
+          'utf8',
+        )
+          .then((raw) => {
+            const fields = raw
+              .slice(raw.lastIndexOf(')') + 2)
+              .trim()
+              .split(/\s+/u);
+            return { state: fields[0], startTicks: fields[19] };
+          })
+          .catch(() => undefined);
+        const shown = spawnSync(
+          '/usr/bin/systemctl',
+          [
+            '--user',
+            'show',
+            '--property=ActiveState',
+            '--property=ControlGroup',
+            '--value',
+            ownedRegistration.unit,
+          ],
+          { encoding: 'utf8', timeout: 5000, env: systemdEnv },
+        );
+        const [active = '', controlGroup = ''] = shown.stdout
+          .trimEnd()
+          .split(/\r?\n/u);
+        const members = controlGroup.startsWith('/')
+          ? await readFile(
+              join('/sys/fs/cgroup', controlGroup.slice(1), 'cgroup.procs'),
+              'utf8',
+            )
+              .then((raw) => raw.trim().split(/\s+/u).filter(Boolean))
+              .catch(() => [])
+          : [];
+        const processGone =
+          !stat ||
+          stat.startTicks !== ownedRegistration.startTicks ||
+          stat.state === 'Z' ||
+          stat.state === 'X';
+        const scopeGone =
+          shown.status !== 0 ||
+          (['inactive', 'failed'].includes(active) && members.length === 0);
+        return processGone && scopeGone
+          ? {
+              unit: ownedRegistration.unit,
+              pid: ownedRegistration.pid,
+              processGone,
+              scopeGone,
+            }
+          : undefined;
+      }, 'the exact registered Codex scope and PID must be physically gone');
+      t.diagnostic(
+        JSON.stringify({
+          result: 'F2_VERIFIED',
+          registration: ownedRegistration,
+          injectedFailures: (await readFile(failureLog, 'utf8'))
+            .trim()
+            .split(/\r?\n/u),
+          physicalCleanup,
+        }),
+      );
+    }
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test('cancellation kills the Codex process tree and keeps the session identity', async (t) => {

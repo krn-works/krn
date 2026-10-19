@@ -60,6 +60,11 @@ export type SessionEnd = {
     readonly outputTokens: number;
     readonly totalTokens: number;
   };
+  readonly usageObservation?: {
+    readonly turnsStarted: number;
+    readonly turnsCompleted: number;
+    readonly invalidFields: number;
+  };
 };
 export type SessionResult = SessionEnd & { readonly finalMessage?: string };
 export type Session = { readonly id: string; wait(): Promise<SessionResult> };
