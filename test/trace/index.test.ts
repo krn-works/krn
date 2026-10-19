@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync,
   constants,
@@ -43,6 +43,7 @@ import {
   classifyTraceFdPathReadback,
   failure,
   hasVerdict,
+  readTraceSnapshot,
   traceFdPathVerificationDecision,
   verdict,
 } from '../../src/trace/index.ts';
@@ -186,6 +187,142 @@ test('trace reads a valid unterminated final row without adding bytes', async ()
       beforeRead,
       'reading a valid unterminated row must not append a newline',
     );
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('public snapshot hashes exact tail bytes and refuses unsafe or locked paths without writes', async () => {
+  const f = await fixture();
+  const directory = dirname(f.tracePath);
+  const first = JSON.stringify({
+    key: 'snapshot-first',
+    kind: 'session_started',
+    at: '2026-10-19T00:00:00.000Z',
+    data: { intent: 'intent:1', sessionId: 'snapshot-session' },
+  });
+  const final = JSON.stringify({
+    key: 'snapshot-final',
+    kind: 'session_ended',
+    at: '2026-10-19T00:00:01.000Z',
+    data: { intent: 'intent:1', sessionId: 'snapshot-session', end: {} },
+  });
+  try {
+    await mkdir(directory, { recursive: true });
+    const cases = [
+      {
+        name: 'parseable unterminated row',
+        bytes: Buffer.from(`${first}\n${final}`),
+        malformedTail: false,
+        finalRowUnterminated: true,
+        eventCount: 2,
+      },
+      {
+        name: 'malformed torn tail',
+        bytes: Buffer.from(`${first}\n{"key":"broken","kind":}`),
+        malformedTail: true,
+        finalRowUnterminated: false,
+        eventCount: 1,
+      },
+    ];
+    for (const scenario of cases) {
+      await writeFile(f.tracePath, scenario.bytes);
+      const before = await readFile(f.tracePath);
+      const snapshot = readTraceSnapshot(f.directory, f.job.id);
+      assert.equal(
+        snapshot.sha256,
+        createHash('sha256').update(before).digest('hex'),
+      );
+      assert.equal(snapshot.byteLength, before.length);
+      assert.equal(
+        snapshot.malformedTail,
+        scenario.malformedTail,
+        scenario.name,
+      );
+      assert.equal(
+        snapshot.finalRowUnterminated,
+        scenario.finalRowUnterminated,
+        scenario.name,
+      );
+      assert.equal(snapshot.events.length, scenario.eventCount, scenario.name);
+      assert.deepEqual(await readFile(f.tracePath), before, scenario.name);
+    }
+
+    const lockBytes = (startTicks: string) =>
+      JSON.stringify({ pid: process.pid, startTicks, token: randomUUID() });
+    const currentTicks = processStartTicks(process.pid);
+    assert.ok(currentTicks);
+    const lockCases = [
+      {
+        name: 'active primary lock',
+        path: `${f.tracePath}.lock`,
+        ticks: currentTicks,
+      },
+      {
+        name: 'orphan reclaimer lock',
+        path: `${f.tracePath}.lock.reclaim`,
+        ticks: '0',
+      },
+    ];
+    const traceBeforeLocks = await readFile(f.tracePath);
+    for (const lockCase of lockCases) {
+      const bytes = lockBytes(lockCase.ticks);
+      await writeFile(lockCase.path, bytes, { flag: 'wx' });
+      assert.throws(
+        () => readTraceSnapshot(f.directory, f.job.id),
+        /trace is locked/u,
+        lockCase.name,
+      );
+      assert.deepEqual(await readFile(lockCase.path), Buffer.from(bytes));
+      assert.deepEqual(await readFile(f.tracePath), traceBeforeLocks);
+      await rm(lockCase.path);
+    }
+
+    const outside = join(f.directory, 'outside-trace.jsonl');
+    await writeFile(outside, final);
+    await rm(f.tracePath);
+    await symlink(outside, f.tracePath);
+    const outsideBefore = await readFile(outside);
+    assert.throws(
+      () => readTraceSnapshot(f.directory, f.job.id),
+      /unsafe trace path/u,
+    );
+    assert.deepEqual(await readFile(outside), outsideBefore);
+
+    const missingId = `missing-${randomUUID()}`;
+    const missingDirectory = join(f.directory, '.krn/runs/foreman', missingId);
+    const empty = readTraceSnapshot(f.directory, missingId);
+    assert.deepEqual(empty.events, []);
+    assert.equal(existsSync(missingDirectory), false);
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('public snapshot bounds bytes and nonempty rows before parsing', async () => {
+  const f = await fixture();
+  try {
+    await mkdir(dirname(f.tracePath), { recursive: true });
+    const results: string[] = [];
+    await writeFile(f.tracePath, Buffer.alloc(33_554_433, 0x20));
+    try {
+      readTraceSnapshot(f.directory, f.job.id);
+      results.push('accepted oversized bytes');
+    } catch (error) {
+      results.push(error instanceof Error ? error.message : 'unknown error');
+    }
+
+    await writeFile(f.tracePath, '{}\n'.repeat(100_001));
+    try {
+      readTraceSnapshot(f.directory, f.job.id);
+      results.push('accepted oversized rows');
+    } catch (error) {
+      results.push(error instanceof Error ? error.message : 'unknown error');
+    }
+    assert.deepEqual(results, [
+      'trace snapshot exceeds byte limit',
+      'trace snapshot exceeds event limit',
+    ]);
   } finally {
     await rm(f.directory, { recursive: true, force: true });
   }
@@ -3330,6 +3467,139 @@ test('trace rejects FIFO paths immediately for append and read', {
         }
       }
     }
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('trace-descriptor-fd-io-bound caps actual native reads during growth', async () => {
+  const f = await fixture();
+  try {
+    const descriptorPath = join(dirname(f.tracePath), 'repo.json');
+    await mkdir(dirname(descriptorPath), { recursive: true });
+    const descriptor = {
+      repoRoot: f.directory,
+      gitDir: join(f.directory, '.git'),
+      gitWorkTree: f.directory,
+    };
+    await writeFile(descriptorPath, JSON.stringify(descriptor));
+    const script = `
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+import { readTraceRepoContext } from './src/trace/index.ts';
+const [root, job, path] = process.argv.slice(1);
+const stable = readTraceRepoContext(root, job);
+const identity = fs.statSync(path, { bigint: true });
+const nativeStat = fs.fstatSync;
+const nativeRead = fs.readSync;
+const nativeReadFile = fs.readFileSync;
+let grew = false;
+let bytes = 0;
+let maxReadBuffer = 0;
+let insideReadFile = false;
+const target = fd => {
+  if (typeof fd !== 'number') return false;
+  const stats = nativeStat(fd, { bigint: true });
+  return stats.dev === identity.dev && stats.ino === identity.ino;
+};
+const growBeforeRead = fd => {
+  if (grew || !target(fd)) return;
+  const appendFd = fs.openSync(path, fs.constants.O_WRONLY | fs.constants.O_APPEND);
+  try {
+    if (!target(appendFd)) throw new Error('observer append identity changed');
+    const extra = Buffer.alloc(65_536, 0x20);
+    if (fs.writeSync(appendFd, extra) !== extra.length) throw new Error('short observer append');
+    grew = true;
+  } finally {
+    fs.closeSync(appendFd);
+  }
+};
+fs.readSync = function(fd, ...args) {
+  const measured = target(fd) && !insideReadFile;
+  if (measured) {
+    growBeforeRead(fd);
+    maxReadBuffer = Math.max(maxReadBuffer, args[0].byteLength);
+  }
+  const count = nativeRead.call(this, fd, ...args);
+  if (measured) bytes += count;
+  return count;
+};
+fs.readFileSync = function(fd, ...args) {
+  const measured = target(fd);
+  if (measured) {
+    growBeforeRead(fd);
+    insideReadFile = true;
+  }
+  try {
+    const result = nativeReadFile.call(this, fd, ...args);
+    if (measured) {
+      const size = typeof result === 'string' ? Buffer.byteLength(result) : result.length;
+      bytes += size;
+      maxReadBuffer = Math.max(maxReadBuffer, size);
+    }
+    return result;
+  } finally {
+    if (measured) insideReadFile = false;
+  }
+};
+syncBuiltinESMExports();
+let refused = false;
+let error = null;
+try {
+  readTraceRepoContext(root, job);
+} catch (caught) {
+  refused = true;
+  error = caught.message;
+}
+console.log(JSON.stringify({ stable, grew, bytes, maxReadBuffer, refused, error }));
+`;
+    const result = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        script,
+        f.directory,
+        f.job.id,
+        descriptorPath,
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const observed = JSON.parse(result.stdout) as {
+      stable: typeof descriptor;
+      grew: boolean;
+      bytes: number;
+      maxReadBuffer: number;
+      refused: boolean;
+      error: string | null;
+    };
+    assert.deepEqual(
+      observed.stable,
+      descriptor,
+      'stable valid descriptor control',
+    );
+    assert.equal(
+      observed.grew,
+      true,
+      'fixture grew immediately before native descriptor I/O',
+    );
+    assert.equal(observed.refused, true, 'changed descriptor refuses');
+    assert.match(
+      observed.error ?? '',
+      /changed while reading|invalid repo descriptor/u,
+    );
+    assert.ok(
+      observed.bytes <= 16_384,
+      `native descriptor I/O read ${observed.bytes} bytes`,
+    );
+    assert.ok(
+      observed.maxReadBuffer <= 16_384,
+      `descriptor native read allocation exceeded 16,384-byte cap: ${observed.maxReadBuffer}`,
+    );
   } finally {
     await rm(f.directory, { recursive: true, force: true });
   }

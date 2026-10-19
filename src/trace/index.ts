@@ -13,6 +13,7 @@ import {
   openSync,
   readFileSync,
   readlinkSync,
+  readSync,
   realpathSync,
   rmdirSync,
   unlinkSync,
@@ -41,6 +42,32 @@ type Event = {
   readonly at: string;
   readonly data: Record<string, unknown>;
 };
+
+export type ReadonlyTraceEvent = Readonly<{
+  key: string;
+  kind: string;
+  at: string;
+  data: Readonly<Record<string, unknown>>;
+}>;
+
+export type ReadonlyTraceSnapshot = Readonly<{
+  jobId: string;
+  events: readonly ReadonlyTraceEvent[];
+  sha256: string;
+  byteLength: number;
+  malformedTail: boolean;
+  finalRowUnterminated: boolean;
+}>;
+
+const readonlyRepoContextSchema = z.object({
+  repoRoot: z.string().min(1),
+  gitDir: z.string().min(1),
+  gitWorkTree: z.string().min(1),
+});
+
+export type ReadonlyTraceRepoContext = Readonly<
+  z.infer<typeof readonlyRepoContextSchema>
+>;
 
 type TraceFdPathVerification = 'verified' | 'unavailable' | 'mismatch';
 
@@ -117,6 +144,8 @@ type TraceLockOwnerObservation =
 
 class UnlinkedTraceLockObservationError extends Error {}
 const traceLockWaitMs = 3000;
+const traceSnapshotMaxBytes = 33_554_432;
+const traceSnapshotMaxRows = 100_000;
 const traceLockPollMs = 10;
 const traceLockWaitCell = new Int32Array(new SharedArrayBuffer(4));
 
@@ -207,12 +236,22 @@ function nearestExistingRealpath(path: string): string {
   }
 }
 
-function ensureTraceDirectory(
-  job: Job,
+function ensureTraceDirectoryAtRoot(
+  repositoryRoot: string,
   directory: string,
   create: boolean,
 ): boolean {
-  const repoRoot = realpathSync(repoRecord(job).repoRoot);
+  const repoRoot = realpathSync(repositoryRoot);
+  if (repoRoot !== resolve(repositoryRoot))
+    throw new Error('unsafe trace path');
+  let rootStats: ReturnType<typeof lstatSync>;
+  try {
+    rootStats = lstatSync(repoRoot);
+  } catch {
+    throw new Error('unsafe trace path');
+  }
+  if (rootStats.isSymbolicLink() || !rootStats.isDirectory())
+    throw new Error('unsafe trace path');
   const expectedDirectory = resolve(directory);
   if (
     expectedDirectory === repoRoot ||
@@ -309,6 +348,18 @@ function ensureTraceDirectory(
     }
     throw new Error('unsafe trace path');
   }
+}
+
+function ensureTraceDirectory(
+  job: Job,
+  directory: string,
+  create: boolean,
+): boolean {
+  return ensureTraceDirectoryAtRoot(
+    repoRecord(job).repoRoot,
+    directory,
+    create,
+  );
 }
 
 function assertTraceFileIsRegularIfPresent(path: string): void {
@@ -453,51 +504,87 @@ type TraceSnapshot = {
   readonly repairOffset: number;
 };
 
-function readTrace(job: Job): TraceSnapshot {
-  const path = file(job);
+function emptyTraceSnapshot(path: string, directory: string): TraceSnapshot {
+  return {
+    events: [],
+    path,
+    directory,
+    bytes: Buffer.alloc(0),
+    malformedTail: false,
+    finalRowUnterminated: false,
+    repairOffset: 0,
+  };
+}
+
+function readSnapshotBytes(fd: number, size: number): Buffer {
+  const bytes = Buffer.allocUnsafe(size);
+  let offset = 0;
+  while (offset < size) {
+    const count = readSync(fd, bytes, offset, size - offset, null);
+    if (count === 0) throw new Error('trace changed while reading');
+    offset += count;
+  }
+  return bytes;
+}
+
+function assertSnapshotRowLimit(bytes: Buffer, maxRows: number): void {
+  let rows = 0;
+  let rowHasBytes = false;
+  for (const byte of bytes) {
+    if (byte === 0x0a) {
+      if (rowHasBytes) rows += 1;
+      rowHasBytes = false;
+    } else rowHasBytes = true;
+    if (rows > maxRows) throw new Error('trace snapshot exceeds event limit');
+  }
+  if (rowHasBytes && rows === maxRows)
+    throw new Error('trace snapshot exceeds event limit');
+}
+
+function readTraceContents(
+  path: string,
+  ensureDirectory: () => boolean,
+  requireStableRead: boolean,
+  snapshotLimits?: Readonly<{ maxBytes: number; maxRows: number }>,
+): TraceSnapshot {
   const directory = dirname(path);
-  if (!ensureTraceDirectory(job, directory, false))
-    return {
-      events: [],
-      path,
-      directory,
-      bytes: Buffer.alloc(0),
-      malformedTail: false,
-      finalRowUnterminated: false,
-      repairOffset: 0,
-    };
+  if (!ensureDirectory()) return emptyTraceSnapshot(path, directory);
   assertNoTraceSymlinks(directory, path);
-  if (!existsSync(path))
-    return {
-      events: [],
-      path,
-      directory,
-      bytes: Buffer.alloc(0),
-      malformedTail: false,
-      finalRowUnterminated: false,
-      repairOffset: 0,
-    };
+  if (!existsSync(path)) return emptyTraceSnapshot(path, directory);
   let contents: Buffer;
   try {
     const fd = openVerifiedTrace(path, constants.O_RDONLY);
     try {
-      contents = readFileSync(fd);
+      if (requireStableRead) {
+        const before = fstatSync(fd);
+        if (snapshotLimits && before.size > snapshotLimits.maxBytes)
+          throw new Error('trace snapshot exceeds byte limit');
+        contents = snapshotLimits
+          ? readSnapshotBytes(fd, before.size)
+          : readFileSync(fd);
+        const after = fstatSync(fd);
+        if (snapshotLimits && after.size > snapshotLimits.maxBytes)
+          throw new Error('trace snapshot exceeds byte limit');
+        if (
+          before.dev !== after.dev ||
+          before.ino !== after.ino ||
+          before.size !== after.size ||
+          before.mtimeMs !== after.mtimeMs ||
+          before.ctimeMs !== after.ctimeMs
+        )
+          throw new Error('trace changed while reading');
+      } else {
+        contents = readFileSync(fd);
+      }
     } finally {
       closeSync(fd);
     }
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT')
-      return {
-        events: [],
-        path,
-        directory,
-        bytes: Buffer.alloc(0),
-        malformedTail: false,
-        finalRowUnterminated: false,
-        repairOffset: 0,
-      };
+      return emptyTraceSnapshot(path, directory);
     throw error;
   }
+  if (snapshotLimits) assertSnapshotRowLimit(contents, snapshotLimits.maxRows);
   const terminated = contents.length === 0 || contents.at(-1) === 0x0a;
   const lastNewline = contents.lastIndexOf(0x0a);
   const completeLength = terminated ? contents.length : lastNewline + 1;
@@ -543,6 +630,151 @@ function readTrace(job: Job): TraceSnapshot {
     finalRowUnterminated: true,
     repairOffset: contents.length,
   };
+}
+
+function readTrace(job: Job): TraceSnapshot {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(job.id) || job.id === '..')
+    throw new Error('invalid trace job id');
+  const repositoryRoot = realpathSync(repoRecord(job).repoRoot);
+  const path = join(
+    repositoryRoot,
+    '.krn',
+    'runs',
+    'foreman',
+    job.id,
+    'trace.jsonl',
+  );
+  const directory = dirname(path);
+  return readTraceContents(
+    path,
+    () => ensureTraceDirectoryAtRoot(repositoryRoot, directory, false),
+    false,
+  );
+}
+
+function assertNoTraceWriterLocks(directory: string, tracePath: string): void {
+  for (const lockPath of [`${tracePath}.lock`, `${tracePath}.lock.reclaim`]) {
+    assertNoTraceSymlinks(directory, lockPath);
+    const observed = readTraceLockOwner(lockPath);
+    if (observed.kind !== 'absent')
+      throw new Error('trace is locked or its lock owner is invalid');
+  }
+}
+
+export function readTraceSnapshot(
+  repoRoot: string,
+  jobId: string,
+): ReadonlyTraceSnapshot {
+  if (
+    !isAbsolute(repoRoot) ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(jobId)
+  )
+    throw new Error('invalid trace snapshot location');
+  const repositoryRoot = resolve(repoRoot);
+  const repositoryRootStats = lstatSync(repositoryRoot);
+  if (
+    repositoryRootStats.isSymbolicLink() ||
+    !repositoryRootStats.isDirectory() ||
+    realpathSync(repositoryRoot) !== repositoryRoot
+  )
+    throw new Error('unsafe trace path');
+  const path = join(
+    repositoryRoot,
+    '.krn',
+    'runs',
+    'foreman',
+    jobId,
+    'trace.jsonl',
+  );
+  const directory = dirname(path);
+  assertNoTraceWriterLocks(directory, path);
+  const snapshot = readTraceContents(
+    path,
+    () => ensureTraceDirectoryAtRoot(repositoryRoot, directory, false),
+    true,
+    { maxBytes: traceSnapshotMaxBytes, maxRows: traceSnapshotMaxRows },
+  );
+  assertNoTraceWriterLocks(directory, path);
+  const immutableEvents = Object.freeze(
+    snapshot.events.map((event) =>
+      Object.freeze({ ...event, data: Object.freeze(event.data) }),
+    ),
+  );
+  return Object.freeze({
+    jobId,
+    events: immutableEvents,
+    sha256: createHash('sha256').update(snapshot.bytes).digest('hex'),
+    byteLength: snapshot.bytes.length,
+    malformedTail: snapshot.malformedTail,
+    finalRowUnterminated: snapshot.finalRowUnterminated,
+  });
+}
+
+export function readTraceRepoContext(
+  repoRoot: string,
+  jobId: string,
+): ReadonlyTraceRepoContext | null {
+  if (
+    !isAbsolute(repoRoot) ||
+    !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(jobId)
+  )
+    throw new Error('invalid trace repository context location');
+  const repositoryRoot = resolve(repoRoot);
+  const rootStats = lstatSync(repositoryRoot);
+  if (
+    rootStats.isSymbolicLink() ||
+    !rootStats.isDirectory() ||
+    realpathSync(repositoryRoot) !== repositoryRoot
+  )
+    throw new Error('unsafe trace path');
+  const path = join(
+    repositoryRoot,
+    '.krn',
+    'runs',
+    'foreman',
+    jobId,
+    'repo.json',
+  );
+  const directory = dirname(path);
+  if (!ensureTraceDirectoryAtRoot(repositoryRoot, directory, false))
+    return null;
+  assertNoTraceSymlinks(directory, path);
+  let fd: number;
+  try {
+    fd = openVerifiedTrace(path, constants.O_RDONLY);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw error;
+  }
+  try {
+    const before = fstatSync(fd);
+    if (before.size > 16 * 1024) throw new Error('invalid repo descriptor');
+    const contents = readSnapshotBytes(fd, before.size).toString('utf8');
+    const after = fstatSync(fd);
+    if (
+      before.dev !== after.dev ||
+      before.ino !== after.ino ||
+      before.size !== after.size ||
+      before.mtimeMs !== after.mtimeMs ||
+      before.ctimeMs !== after.ctimeMs
+    )
+      throw new Error('repo descriptor changed while reading');
+    const parsed = readonlyRepoContextSchema.parse(
+      JSON.parse(contents) as unknown,
+    );
+    if (
+      !isAbsolute(parsed.repoRoot) ||
+      !isAbsolute(parsed.gitDir) ||
+      !isAbsolute(parsed.gitWorkTree) ||
+      resolve(parsed.repoRoot) !== parsed.repoRoot ||
+      resolve(parsed.gitDir) !== parsed.gitDir ||
+      resolve(parsed.gitWorkTree) !== parsed.gitWorkTree
+    )
+      throw new Error('invalid repo descriptor paths');
+    return Object.freeze(parsed);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 function events(job: Job): Event[] {

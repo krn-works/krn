@@ -281,6 +281,54 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 
 [POLICY] Require the same frozen assertion observer to fail on unchanged b6 and pass after this correction, with both public verdict calls resolving, both immutable rows durable, actual PIDs quiescent, and both lock paths absent. Run one full repository gate after all focused proof and local commits. Independent review and publication remain separate; the author may not self-review or publish.
 
+## LON-292 S3b repair1 outcome correlation and usage integrity (2026-10-19)
+
+[POLICY] After the first complete S3b panel returned FAIL and independent public-producer falsifiers confirmed the gaps, the root interprets the existing continuous-completion mandate to authorize one bounded repair round, first of at most two post-review repairs. This is not a new operator reply, a general repair waiver, an override of any FAIL, or authority to review, publish, submit, or activate a trial. The accepted change is limited to the existing trace/evaluator/CLI seams, their focused tests, and this disposition.
+
+[CODE] Correlate each session with the first later job outcome, select the latest supported stop before the final completed outcome, and require a started-and-ended session from that stop's own run. Supported producer stops remain SIGINT/SIGTERM/SIGHUP with exit 130 or wall-timeout with exit 124. Preserve the recorded signal, reason kind, nullable session exit, and process result; do not invent an `interrupted` reason or require session exit 130. Durable done checkpoint plus commit and a verified completed/0/null job outcome establish completion independently of the host process exit. A cleanup-unconfirmed event/outcome or intent/session/checkpoint/commit activity after the final outcome is a typed refusal; a delayed operator-window close remains allowed.
+
+[CODE] A stopped run, unended session, incomplete/invalid observation, saturated counter, per-session total overflow, or aggregate overflow never contributes a known total. Preserve each session's safely representable observed token/turn counters; keep an exact representable aggregate, including zero, only when every started session has a complete valid observation and every session total and aggregate fit safely. On overflow, return null with a bounded reason and affected session IDs; never clamp. Compare commit and HEAD SHA values case-insensitively while preserving observed spelling. Existing null-HEAD refusal and closed-window counting semantics remain.
+
+[CODE] If the per-job `repo.json` exists, read it via the existing verified no-follow trace boundary, validate canonical anchors, confirm its worktree appears in the explicit repository's read-only `git worktree list`, and read job HEAD/status through an opened read-only directory descriptor. Invalid, foreign, or symlinked descriptors refuse. If no descriptor exists, use only the explicit `--repo` context. Do not create descriptors, rediscover with `repoRecord`, update the index, import relay, or write repository state.
+
+[POLICY] This is not a claim of an actual model journey or supervised trial. The current accepted operating boundary remains default `systemd_scope` with deliberate SIGTERM supervision; automatic SIGKILL, orphan-reclaim recovery, `--submit`, Full R1, and unattended support remain unclaimed. Preserve all earlier FAIL records. Completion requires frozen assertion RED/GREEN, one full gate at a committed fixed point, independent review, and root-owned lifecycle disposition.
+
+## LON-292 S3b repair2 snapshot and Git read boundaries (2026-10-19)
+
+[POLICY] The root authorized exactly the second and final bounded S3b source repair under the existing LON-288 completion mandate. This records scope only; it is not a new operator reply, a FAIL override, implementation acceptance, review authority, publication authority, or a third-repair waiver. Preserve the b5, 163, and f8 evidence and all prior review dispositions.
+
+[CODE] In both raw-trace and descriptor-backed reporting, require `--repo` to resolve to its canonical Git top level. Verify the common Git directory, confirm the descriptor worktree belongs to that shared repository, and keep later worktree queries bound to the verified Git directory and opened worktree. Refuse configured clean or process filters before dirty-state collection; never report an unverified dirty state.
+
+[CODE] Treat `reason: cleanup-unconfirmed` as cleanup uncertainty on every outcome even if its cleanup field says verified. If any `session_started` row is malformed, keep valid per-session observations but make the aggregate token total unknown and include a bounded event marker without copying the malformed identifier. Preserve the `invalid_event_data` refusal.
+
+[CODE] Bound only the public `readTraceSnapshot` read to 33,554,432 bytes and 100,000 nonempty rows. Check size before allocation, keep reads bounded if the opened file grows, and count rows before parsing event objects. Exceeding either limit yields the existing `trace_unavailable` CLI refusal without partial journey or hash claims. Preserve exact under-limit bytes, torn-tail behavior, no-follow checks, lock checks, and the separate unbounded writer/recovery readers.
+
+[POLICY] Proof, local commit, the one final full gate, and independent exact-head review remain required. No S5 trial, `--submit`, host/relay/producer change, or broader recovery claim is included.
+
+## LON-292 linked-worktree Git binding correction (2026-10-19)
+
+[EMPIRICAL] The independent equal-HEAD/disjoint-index public CLI falsifier on `393f99b1ea6794f34e6bc4884425d81fa975a0be` showed that a registered worktree descriptor could name the root Git directory and report the root index's staged state as the job worktree's dirty state. The correct per-worktree Git directory reported the worktree clean. The root and worktree index bytes were unchanged by both reads.
+
+[POLICY] Although both recorded repair rounds are consumed, the root interprets the existing continuous-completion mandate and operator grant to authorize exactly this narrow Git-binding correction. This is not a new operator reply, a general repair waiver, or an override of the prior FAIL. The correction independently discovers the Git directory from the already opened worktree fd with inherited `GIT_*` context cleared, verifies it against the descriptor, and uses only that verified directory for subsequent queries. Other S3b contracts remain unchanged.
+
+[POLICY] The frozen public CLI observer must show assertion RED on unchanged `393f99b1ea6794f34e6bc4884425d81fa975a0be` and GREEN on the corrected head. A local commit and one final full gate are required. Independent exact-head proof, review, CI, and lifecycle disposition remain with root; the author has no publication or self-review authority.
+
+## LON-292 bounded boundary/performance completion (2026-10-19)
+
+[POLICY] Both original repair rounds remain consumed. Root interprets the standing higher-priority LON-288 completion mandate and existing grant to authorize one bounded correction of the independently diagnosed boundaries. This records root's interpretation, not a new operator scope reply, further repair waiver, FAIL override, or implementation acceptance. The actual operator reply was only “Tak — Sol 6.1 do tej implementacji”: gpt-6.1-sol/high authors this implementation; Opus remains review-only and independent judge policy is unchanged.
+
+[CODE] Before either report status query, refuse an index containing any mode-160000 gitlink using built-in read-only Git index data in the already verified context. Bound repo.json allocation and actual fd I/O to its checked size within 16,384 bytes, retaining no-follow, identity/stability and refusal checks. Replace repeated session matching, outcome association, completion/fallback and operator-window membership scans with local indexes/cursors; preserve event order, first-match, invalid-data, completion and usage semantics. Writer/recovery readers and snapshot limits remain unchanged.
+
+[POLICY] Require both frozen public observers to fail by intended assertions on unchanged 22ac and pass unchanged after correction, existing semantic tests and type/format checks, local Conventional Commit and one final strict full gate. Small same-fixture benchmark timings are attributed evidence only. Prior gate success remains historical and the native panel FAIL remains binding. Root owns independent exact-head proof, required judges/CI, acceptance and publication; author has local commit only. No trial, provider, host, dependency, or publication grant is added.
+
+## LON-292 operator-authorized lazy-fetch correction (2026-10-19)
+
+[POLICY] The actual operator reply “Tak — jedna runda, Sol 6.1 (zalecane)” explicitly grants one additional bounded lazy-fetch correction by gpt-6.1-sol/high, one public CLI RED/GREEN observer, this scope clarification, one final strict gate, fresh independent review and CI. Both ordinary repair rounds and prior separately bounded completions remain consumed. This is one new explicit exception, not unlimited repairs, a FAIL override or acceptance. Opus remains review-only and independent judges remain gpt-6-luna/xhigh. No further source repair is authorized after a fresh review failure.
+
+[POLICY] The originally named `src/evals/journey.ts` evaluator is permitted; “no new module” forbids additional modules beyond that named evaluator and existing CLI/trace seams. Do not modify or relocate it in this correction. Preserve all historical FAIL records, including the c1 Standards FAIL; this clarification changes no verdict.
+
+[CODE] After scrubbing inherited Git variables, set `GIT_NO_LAZY_FETCH=1`. Before report HEAD/status queries, conservatively refuse any `extensions.partialClone` or `remote.*.promisor` configuration through the existing built-in read-only config guard, including complete promisor repositories. Preserve content-filter refusal, fd-pinned registration/Git binding and index-gitlink checks. Limit tracked edits to `src/cli/index.ts`, one parameterized observer in existing `test/cli.test.ts`, this charter and P-039 in the proposal registry. Root retains independent exact-head proof, review, CI, lifecycle, acceptance and conditional publication; the author has only implementation/local-commit authority. Cooperative supervision is not qualified unattended confinement.
+
 ## LON-294 trace startup verifier prerequisite (2026-10-19)
 
 [EMPIRICAL] The unchanged existing torn-tail two-process test passed with no first-child startup delay and failed its `first process reached repair` assertion with the frozen 750 ms delay on accepted base `b5cccd1b75a6582614bfb7781243eda730e2531f`. The test block is byte-identical to the S3b observer. This reproduces a verifier race independently; the causal relation to wider S3b candidate schedules remains unproven.
@@ -288,3 +336,5 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 [CODE] The existing observer waits under its original eight-second readiness deadline for either the stale-reclaimer-held or first-repair marker, then chooses its synchronization branch from the marker observed. Its trace/event assertions, process cleanup, readiness limits, and 15-second test timeout remain in force. No runtime code or additional test case is in scope.
 
 [POLICY] Preserve the frozen preload and delay parameters for before/after proof, retain the branch and evidence for root/LON-288/LON-292 until whole-outcome closeout and explicit disposition, and leave acceptance, independent review, board, and publication to root.
+
+[EMPIRICAL] Root accepted LON-294 after PR #66 merged normally as `ba77ba1a60aab4f149df106809fdc1da74fc425e` with the reviewed tree preserved. The strict local gate passed 453 tests without skips; all three independent Luna/xhigh roles, exact-head statuses, admission and required head/main CI passed. Board acceptance was read back on 2026-10-19. Its test-only correction is integrated into S3b without further runtime changes.

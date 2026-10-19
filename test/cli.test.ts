@@ -1,13 +1,201 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  renameSync,
+  statSync,
+  utimesSync,
+} from 'node:fs';
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { recordRepo } from '../src/foreman/state.ts';
 
 const cli = fileURLToPath(new URL('../src/cli/main.ts', import.meta.url));
+
+test('cli-lazy-fetch-canary refuses configured transports without repository writes', async (t) => {
+  // Consumer: root/LON-292/LON-288; retain fixtures until outcome closeout and explicit disposition.
+  const directory = await mkdtemp(join(tmpdir(), 'krn-cli-lazy-fetch-'));
+  const observations = [];
+  for (const descriptor of [false, true]) {
+    for (const config of [
+      'partialClone',
+      'promisor',
+      'both',
+      ...(descriptor ? ['worktreePromisor'] : []),
+    ]) {
+      const name = `${descriptor ? 'descriptor' : 'raw'}-${config}`;
+      const repo = join(directory, name);
+      await mkdir(repo);
+      fixtureGit(repo, 'init', '--quiet');
+      fixtureGit(repo, 'config', 'user.name', 'KRN lazy-fetch fixture');
+      fixtureGit(repo, 'config', 'user.email', 'lazy-fetch@example.invalid');
+      await writeFile(join(repo, '.gitignore'), '.krn/\n');
+      await writeFile(join(repo, 'file.txt'), 'harmless lazy-fetch fixture\n');
+      fixtureGit(repo, 'add', '.gitignore', 'file.txt');
+      fixtureGit(repo, 'commit', '-qm', 'create full-clone fixture');
+      const head = fixtureGit(repo, 'rev-parse', 'HEAD');
+      const tree = fixtureGit(repo, 'rev-parse', 'HEAD^{tree}');
+      const jobId = `lazy-fetch-${name}`;
+      let worktree = repo;
+      if (descriptor) {
+        worktree = join(repo, '.krn/worktrees', jobId);
+        fixtureGit(
+          repo,
+          'worktree',
+          'add',
+          '--quiet',
+          '-b',
+          jobId,
+          worktree,
+          head,
+        );
+        recordRepo(
+          { id: jobId, issue: 'LON-292', repoRoot: repo, worktree },
+          repo,
+        );
+      }
+      const traceDirectory = join(repo, '.krn/runs/foreman', jobId);
+      await mkdir(traceDirectory, { recursive: true });
+      const trace = join(traceDirectory, 'trace.jsonl');
+      await writeFile(trace, journeyEvents(jobId, head));
+      const descriptorPath = join(traceDirectory, 'repo.json');
+      const indices = [join(repo, '.git/index')];
+      if (descriptor)
+        indices.push(
+          join(
+            fixtureGit(worktree, 'rev-parse', '--absolute-git-dir'),
+            'index',
+          ),
+        );
+      const snapshot = () => [
+        readFileSync(trace),
+        existsSync(descriptorPath) ? readFileSync(descriptorPath) : null,
+        ...indices.map((index) => readFileSync(index)),
+      ];
+      const before = snapshot();
+      const script = join(directory, `${name}-transport.sh`);
+      const marker = `${script}.marker`;
+      await writeFile(
+        script,
+        '#!/bin/sh\nprintf called >> "$0.marker"\nexit 1\n',
+      );
+      const run = (phase: string) => {
+        const result = spawnSync(
+          process.execPath,
+          [cli, 'report', 'journey', '--repo', repo, '--job', jobId],
+          {
+            encoding: 'utf8',
+            env: { ...cleanGitEnvironment(), GIT_NO_LAZY_FETCH: '0' },
+            timeout: 10000,
+          },
+        );
+        const report = JSON.parse(result.stdout) as {
+          kind: string;
+          code?: string;
+          repo?: { headSha: string; isDirty: boolean };
+        };
+        t.diagnostic(
+          JSON.stringify({
+            name,
+            phase,
+            fixture: directory,
+            exit: result.status,
+            signal: result.signal,
+            stdout: result.stdout,
+            stderr: result.stderr,
+            transportRan: existsSync(marker),
+          }),
+        );
+        assert.deepEqual(
+          snapshot(),
+          before,
+          `${name}/${phase}: trace, descriptor and index bytes`,
+        );
+        return {
+          name,
+          phase,
+          exit: result.status,
+          kind: report.kind,
+          code: report.code,
+          transportRan: existsSync(marker),
+        };
+      };
+      // This positive control has neither partial-clone nor promisor configuration.
+      assert.deepEqual(run('full-clone'), {
+        name,
+        phase: 'full-clone',
+        exit: 0,
+        kind: 'journey',
+        code: undefined,
+        transportRan: false,
+      });
+      fixtureGit(repo, 'config', 'core.repositoryformatversion', '1');
+      fixtureGit(
+        repo,
+        'config',
+        'remote.CanaryCase.url',
+        'ssh://canary.invalid/x',
+      );
+      fixtureGit(repo, 'config', 'core.sshCommand', `/bin/sh ${script}`);
+      if (config === 'partialClone' || config === 'both')
+        fixtureGit(repo, 'config', 'Extensions.PartialClone', 'CanaryCase');
+      if (config === 'promisor' || config === 'both')
+        fixtureGit(repo, 'config', 'Remote.CanaryCase.Promisor', 'true');
+      if (config === 'worktreePromisor') {
+        fixtureGit(repo, 'config', 'extensions.worktreeConfig', 'true');
+        fixtureGit(
+          worktree,
+          'config',
+          '--worktree',
+          'Remote.CanaryCase.Promisor',
+          'true',
+        );
+      }
+      observations.push(run('all-objects-present'));
+      const object = join(
+        repo,
+        '.git/objects',
+        tree.slice(0, 2),
+        tree.slice(2),
+      );
+      const held = join(directory, `${name}-held-tree-object`);
+      const objectBytes = readFileSync(object);
+      renameSync(object, held);
+      try {
+        observations.push(run('missing-tree'));
+      } finally {
+        renameSync(held, object);
+      }
+      assert.deepEqual(
+        readFileSync(object),
+        objectBytes,
+        `${name}: restored tree object`,
+      );
+    }
+  }
+  assert.deepEqual(
+    observations.filter((observation) => observation.transportRan),
+    [],
+    'report must never execute a configured local transport, even with a missing tree',
+  );
+  assert.deepEqual(
+    observations,
+    observations.map((observation) => ({
+      ...observation,
+      exit: 1,
+      kind: 'refusal',
+      code: 'git_unavailable',
+      transportRan: false,
+    })),
+  );
+});
 
 test('krn review maps invalid argument values to exit code 64', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'krn-review-invalid-'));
@@ -229,6 +417,1097 @@ test('realpath recursion guard blocks a symlink to the CLI itself', async () => 
     });
     assert.equal(result.status, 70);
     assert.match(result.stderr, /recursion blocked/u);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+function cleanGitEnvironment(): NodeJS.ProcessEnv {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')),
+  );
+}
+
+function fixtureGit(root: string, ...args: string[]): string {
+  const result = spawnSync('git', ['-C', root, ...args], {
+    encoding: 'utf8',
+    env: { ...cleanGitEnvironment(), GIT_OPTIONAL_LOCKS: '0' },
+  });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout.trim();
+}
+
+function fileTreeSnapshot(root: string): Array<[string, string]> | null {
+  if (!existsSync(root)) return null;
+  const files: Array<[string, string]> = [];
+  const visit = (directory: string, prefix: string) => {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort(
+      (left, right) => left.name.localeCompare(right.name),
+    )) {
+      const path = join(directory, entry.name);
+      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isSymbolicLink())
+        files.push([relative, `symlink:${readlinkSync(path)}`]);
+      else if (entry.isDirectory()) visit(path, relative);
+      else if (entry.isFile())
+        files.push([
+          relative,
+          createHash('sha256').update(readFileSync(path)).digest('hex'),
+        ]);
+      else files.push([relative, 'special-file']);
+    }
+  };
+  visit(root, '');
+  return files;
+}
+
+function journeyEvents(jobId: string, headSha: string): string {
+  const rows = [
+    {
+      id: 'intent-one',
+      key: 'intent:1',
+      kind: 'intent',
+      at: '2026-10-19T00:00:00.000Z',
+      data: { jobId, epoch: 1 },
+    },
+    {
+      id: 'started-one',
+      key: 'intent:1:session',
+      kind: 'session_started',
+      at: '2026-10-19T00:00:01.000Z',
+      data: {
+        intent: 'intent:1',
+        jobId,
+        sessionId: 'interrupted-session',
+        isolation: 'systemd_scope',
+      },
+    },
+    {
+      id: 'ended-one',
+      key: 'intent:1:ended:interrupted-session',
+      kind: 'session_ended',
+      at: '2026-10-19T00:00:02.000Z',
+      data: {
+        intent: 'intent:1',
+        sessionId: 'interrupted-session',
+        end: {
+          exitCode: null,
+          signal: 'SIGTERM',
+          reasonKind: 'process_exit',
+          claimsDone: false,
+          usage: { inputTokens: 8, outputTokens: 2, totalTokens: 10 },
+          usageObservation: {
+            turnsStarted: 1,
+            turnsCompleted: 0,
+            invalidFields: 0,
+          },
+        },
+      },
+    },
+    {
+      id: 'outcome-stop',
+      key: 'job-outcome:00000000-0000-4000-8000-000000000001',
+      kind: 'job_outcome',
+      at: '2026-10-19T00:00:03.000Z',
+      data: {
+        exitCode: 130,
+        signal: 'SIGTERM',
+        cleanup: 'verified',
+        reason: 'stopped',
+        outcomeKind: 'stop',
+      },
+    },
+    {
+      id: 'operator-start',
+      key: 'operator-start:1',
+      kind: 'operator_start',
+      at: '2026-10-19T00:00:04.000Z',
+      data: { operator: 'lead' },
+    },
+    {
+      id: 'intervention',
+      key: 'lead-intervention:1',
+      kind: 'lead_intervention',
+      at: '2026-10-19T00:00:05.000Z',
+      data: { kind: 'intervention', note: 'bounded intervention' },
+    },
+    {
+      id: 'reconstruction',
+      key: 'lead-intervention:2',
+      kind: 'lead_intervention',
+      at: '2026-10-19T00:00:06.000Z',
+      data: { kind: 'reconstruction_prompt', note: 'bounded reconstruction' },
+    },
+    {
+      id: 'operator-stop',
+      key: 'operator-stop:1',
+      kind: 'operator_stop',
+      at: '2026-10-19T00:00:07.000Z',
+      data: { operator: 'lead' },
+    },
+    {
+      id: 'intent-two',
+      key: 'intent:2',
+      kind: 'intent',
+      at: '2026-10-19T00:00:08.000Z',
+      data: { jobId, epoch: 2 },
+    },
+    {
+      id: 'started-two',
+      key: 'intent:2:session',
+      kind: 'session_started',
+      at: '2026-10-19T00:00:09.000Z',
+      data: {
+        intent: 'intent:2',
+        jobId,
+        sessionId: 'resumed-session',
+        isolation: 'systemd_scope',
+      },
+    },
+    {
+      id: 'ended-two',
+      key: 'intent:2:ended:resumed-session',
+      kind: 'session_ended',
+      at: '2026-10-19T00:00:10.000Z',
+      data: {
+        intent: 'intent:2',
+        sessionId: 'resumed-session',
+        end: {
+          exitCode: 0,
+          signal: null,
+          reasonKind: 'exit',
+          claimsDone: true,
+          usage: { inputTokens: 2, outputTokens: 3, totalTokens: 5 },
+          usageObservation: {
+            turnsStarted: 1,
+            turnsCompleted: 1,
+            invalidFields: 0,
+          },
+        },
+      },
+    },
+    {
+      id: 'checkpoint-two',
+      key: 'intent:2:checkpoint:resumed-session',
+      kind: 'checkpoint',
+      at: '2026-10-19T00:00:11.000Z',
+      data: {
+        intent: 'intent:2',
+        sessionId: 'resumed-session',
+        message: 'finished',
+        next: 'done',
+      },
+    },
+    {
+      id: 'commit-two',
+      key: 'intent:2:commit:resumed-session',
+      kind: 'commit',
+      at: '2026-10-19T00:00:12.000Z',
+      data: {
+        intent: 'intent:2',
+        sessionId: 'resumed-session',
+        sha: headSha,
+        message: 'feat: finish journey',
+      },
+    },
+    {
+      id: 'outcome-complete',
+      key: 'job-outcome:00000000-0000-4000-8000-000000000002',
+      kind: 'job_outcome',
+      at: '2026-10-19T00:00:13.000Z',
+      data: {
+        exitCode: 0,
+        signal: null,
+        cleanup: 'verified',
+        reason: 'completed',
+        outcomeKind: 'review',
+      },
+    },
+  ];
+  return `${rows.map((event) => JSON.stringify(event)).join('\n')}\n`;
+}
+
+test('krn report journey emits honest resumed facts without repository writes', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-cli-journey-'));
+  const repo = join(directory, 'repo');
+  const jobId = 'journey-cli-test';
+  const jobDirectory = join(repo, '.krn/runs/foreman', jobId);
+  const silentLegacy = join(directory, 'silent-legacy.mjs');
+  const hostileConfig = join(directory, 'hostile.gitconfig');
+  const fsmonitor = join(directory, 'fsmonitor-probe');
+  const fsmonitorMarker = join(directory, 'fsmonitor-ran');
+  const foreignIndex = join(directory, 'foreign-index');
+  try {
+    await mkdir(repo, { recursive: true });
+    fixtureGit(repo, 'init', '--quiet');
+    fixtureGit(repo, 'config', 'user.name', 'KRN journey fixture');
+    fixtureGit(repo, 'config', 'user.email', 'journey@example.invalid');
+    await writeFile(join(repo, '.gitignore'), '.krn/\n');
+    await writeFile(join(repo, 'README.md'), 'journey fixture\n');
+    fixtureGit(repo, 'add', '.gitignore', 'README.md');
+    fixtureGit(repo, 'commit', '-qm', 'create journey fixture');
+    const headSha = fixtureGit(repo, 'rev-parse', 'HEAD');
+    const indexPath = join(
+      repo,
+      fixtureGit(repo, 'rev-parse', '--git-path', 'index'),
+    );
+
+    await mkdir(jobDirectory, { recursive: true });
+    const traceBytes = Buffer.from(journeyEvents(jobId, headSha));
+    const tracePath = join(jobDirectory, 'trace.jsonl');
+    await writeFile(tracePath, traceBytes);
+    const staleJobId = 'journey-uncertain-test';
+    const staleJobDirectory = join(repo, '.krn/runs/foreman', staleJobId);
+    await mkdir(staleJobDirectory, { recursive: true });
+    await writeFile(
+      join(staleJobDirectory, 'trace.jsonl'),
+      `${JSON.stringify({
+        id: 'unconfirmed',
+        key: 'job-outcome:00000000-0000-4000-8000-000000000003',
+        kind: 'job_outcome',
+        at: '2026-10-19T00:00:00.000Z',
+        data: {
+          exitCode: 1,
+          signal: null,
+          cleanup: 'unconfirmed',
+          reason: 'cleanup-unconfirmed',
+        },
+      })}\n`,
+    );
+    await writeFile(silentLegacy, 'process.exitCode = 0;\n');
+    await writeFile(
+      fsmonitor,
+      `#!/bin/sh\nprintf invoked > '${fsmonitorMarker}'\nexit 0\n`,
+      { mode: 0o755 },
+    );
+    await writeFile(hostileConfig, `[core]\n\tfsmonitor = ${fsmonitor}\n`);
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      KRN_LEGACY_ENTRY: silentLegacy,
+      KRN_FORWARDED: '',
+      GIT_DIR: join(directory, 'foreign-git-dir'),
+      GIT_WORK_TREE: join(directory, 'foreign-work-tree'),
+      GIT_COMMON_DIR: join(directory, 'foreign-common-dir'),
+      GIT_INDEX_FILE: foreignIndex,
+      GIT_OBJECT_DIRECTORY: join(directory, 'foreign-objects'),
+      GIT_ALTERNATE_OBJECT_DIRECTORIES: join(directory, 'foreign-alternates'),
+      GIT_CEILING_DIRECTORIES: directory,
+      GIT_OPTIONAL_LOCKS: '1',
+      GIT_CONFIG_GLOBAL: hostileConfig,
+      GIT_CONFIG_NOSYSTEM: '0',
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'core.fsmonitor',
+      GIT_CONFIG_VALUE_0: fsmonitor,
+    };
+    const runsRoot = join(repo, '.krn/runs');
+    const beforeRuns = fileTreeSnapshot(runsRoot);
+    const beforeIndexBytes = readFileSync(indexPath);
+    const beforeIndexStat = statSync(indexPath);
+    const runCli = (job: string) =>
+      spawnSync(
+        process.execPath,
+        [cli, 'report', 'journey', '--repo', repo, '--job', job],
+        { encoding: 'utf8', env },
+      );
+
+    const journey = runCli(jobId);
+    assert.equal(journey.status, 0, journey.stderr);
+    assert.match(
+      journey.stdout,
+      /\S/u,
+      'report journey must be recognized instead of silently forwarded',
+    );
+    const report = JSON.parse(journey.stdout) as {
+      kind: string;
+      facts: {
+        trace: { sha256: string };
+        git: { headSha: string; isDirty: boolean };
+        resumed: { sessionId: string; commitSha: string };
+        usage: { totalTokens: number | null; unknownSessions: string[] };
+        operatorWindow: {
+          interventions: number | null;
+          reconstructionPrompts: number | null;
+        };
+      };
+      checks: unknown[];
+    };
+    assert.equal(report.kind, 'journey');
+    assert.equal(
+      report.facts.trace.sha256,
+      createHash('sha256').update(traceBytes).digest('hex'),
+    );
+    assert.equal(report.facts.git.headSha, headSha);
+    assert.equal(report.facts.git.isDirty, false);
+    assert.equal(report.facts.resumed.sessionId, 'resumed-session');
+    assert.equal(report.facts.resumed.commitSha, headSha);
+    assert.equal(report.facts.usage.totalTokens, null);
+    assert.deepEqual(report.facts.usage.unknownSessions, [
+      'interrupted-session',
+    ]);
+    assert.equal(report.facts.operatorWindow.interventions, 1);
+    assert.equal(report.facts.operatorWindow.reconstructionPrompts, 1);
+    assert.ok(Array.isArray(report.checks));
+
+    const refusal = runCli(staleJobId);
+    assert.equal(refusal.status, 1);
+    assert.match(refusal.stdout, /\S/u);
+    const refused = JSON.parse(refusal.stdout) as {
+      kind: string;
+      code: string;
+      facts: { git: { headSha: string } };
+    };
+    assert.equal(refused.kind, 'refusal');
+    assert.equal(refused.code, 'cleanup_unconfirmed');
+    assert.equal(refused.facts.git.headSha, headSha);
+
+    assert.deepEqual(fileTreeSnapshot(runsRoot), beforeRuns);
+    assert.deepEqual(readFileSync(tracePath), traceBytes);
+    assert.deepEqual(readFileSync(indexPath), beforeIndexBytes);
+    const afterIndexStat = statSync(indexPath);
+    assert.equal(afterIndexStat.dev, beforeIndexStat.dev);
+    assert.equal(afterIndexStat.ino, beforeIndexStat.ino);
+    assert.equal(afterIndexStat.size, beforeIndexStat.size);
+    assert.equal(afterIndexStat.mtimeMs, beforeIndexStat.mtimeMs);
+    assert.equal(existsSync(foreignIndex), false);
+    assert.equal(existsSync(fsmonitorMarker), false);
+    assert.equal(
+      existsSync(join(repo, '.krn/runs/delivery-loop', jobId)),
+      false,
+    );
+    assert.equal(existsSync(join(jobDirectory, 'capsule.json')), false);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('krn report journey reads HEAD from the registered job worktree', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-cli-journey-worktree-'));
+  const repo = join(directory, 'repo');
+  const jobId = 'journey-worktree-test';
+  const jobWorktree = join(repo, '.krn/worktrees', jobId);
+  const jobDirectory = join(repo, '.krn/runs/foreman', jobId);
+  try {
+    await mkdir(repo, { recursive: true });
+    fixtureGit(repo, 'init', '--quiet');
+    fixtureGit(repo, 'config', 'user.name', 'KRN journey fixture');
+    fixtureGit(repo, 'config', 'user.email', 'journey@example.invalid');
+    await writeFile(join(repo, '.gitignore'), '.krn/\n');
+    await writeFile(join(repo, 'README.md'), 'main checkout\n');
+    fixtureGit(repo, 'add', '.gitignore', 'README.md');
+    fixtureGit(repo, 'commit', '-qm', 'create main journey fixture');
+    const mainHead = fixtureGit(repo, 'rev-parse', 'HEAD');
+
+    fixtureGit(
+      repo,
+      'worktree',
+      'add',
+      '--quiet',
+      '-b',
+      `krn/${jobId}`,
+      jobWorktree,
+      mainHead,
+    );
+    fixtureGit(jobWorktree, 'config', 'user.name', 'KRN job fixture');
+    fixtureGit(jobWorktree, 'config', 'user.email', 'job@example.invalid');
+    await writeFile(join(jobWorktree, 'README.md'), 'job worktree commit\n');
+    fixtureGit(jobWorktree, 'add', 'README.md');
+    fixtureGit(jobWorktree, 'commit', '-qm', 'commit in job worktree');
+    const jobHead = fixtureGit(jobWorktree, 'rev-parse', 'HEAD');
+    assert.notEqual(jobHead, mainHead);
+
+    const record = recordRepo(
+      { id: jobId, issue: 'LON-292', worktree: jobWorktree, repoRoot: repo },
+      repo,
+      `krn/${jobId}`,
+      mainHead,
+    );
+    assert.equal(record.gitWorkTree, jobWorktree);
+    await writeFile(join(jobWorktree, 'README.md'), 'job worktree dirty\n');
+    await mkdir(jobDirectory, { recursive: true });
+    const rows = journeyEvents(jobId, jobHead)
+      .trimEnd()
+      .split('\n')
+      .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const interruptedEnd = rows.find(
+      (event) => event.kind === 'session_ended' && event.id === 'ended-one',
+    );
+    assert.ok(interruptedEnd);
+    const end = interruptedEnd.data as {
+      end: {
+        reasonKind: string;
+        usageObservation: { turnsStarted: number; turnsCompleted: number };
+      };
+    };
+    end.end.reasonKind = 'process_exit';
+    end.end.usageObservation.turnsCompleted = 0;
+    const traceBytes = Buffer.from(
+      `${rows.map((event) => JSON.stringify(event)).join('\n')}\n`,
+    );
+    const tracePath = join(jobDirectory, 'trace.jsonl');
+    await writeFile(tracePath, traceBytes);
+
+    const indexPath = join(
+      repo,
+      fixtureGit(repo, 'rev-parse', '--git-path', 'index'),
+    );
+    const beforeIndex = readFileSync(indexPath);
+    const beforeIndexStat = statSync(indexPath);
+    const jobIndexPath = fixtureGit(
+      jobWorktree,
+      'rev-parse',
+      '--path-format=absolute',
+      '--git-path',
+      'index',
+    );
+    const beforeJobIndex = readFileSync(jobIndexPath);
+    const beforeJobIndexStat = statSync(jobIndexPath);
+    const runsRoot = join(repo, '.krn/runs');
+    const beforeRuns = fileTreeSnapshot(runsRoot);
+    const result = spawnSync(
+      process.execPath,
+      [cli, 'report', 'journey', '--repo', repo, '--job', jobId],
+      { encoding: 'utf8', env: cleanGitEnvironment() },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    const report = JSON.parse(result.stdout) as {
+      kind: string;
+      facts: {
+        git: { headSha: string; isDirty: boolean };
+        resumed: { commitSha: string };
+        usage: { totalTokens: number | null; unknownSessions: string[] };
+      };
+    };
+    assert.equal(report.kind, 'journey');
+    assert.equal(report.facts.git.headSha, jobHead);
+    assert.equal(report.facts.git.isDirty, true);
+    assert.equal(report.facts.resumed.commitSha, jobHead);
+    assert.equal(report.facts.usage.totalTokens, null);
+    assert.deepEqual(report.facts.usage.unknownSessions, [
+      'interrupted-session',
+    ]);
+    assert.deepEqual(readFileSync(tracePath), traceBytes);
+    assert.deepEqual(
+      readFileSync(join(jobDirectory, 'repo.json')),
+      Buffer.from(JSON.stringify(record)),
+    );
+    assert.deepEqual(fileTreeSnapshot(runsRoot), beforeRuns);
+    assert.deepEqual(readFileSync(indexPath), beforeIndex);
+    assert.deepEqual(readFileSync(jobIndexPath), beforeJobIndex);
+    const afterIndexStat = statSync(indexPath);
+    assert.equal(afterIndexStat.dev, beforeIndexStat.dev);
+    assert.equal(afterIndexStat.ino, beforeIndexStat.ino);
+    assert.equal(afterIndexStat.size, beforeIndexStat.size);
+    assert.equal(afterIndexStat.mtimeMs, beforeIndexStat.mtimeMs);
+    const afterJobIndexStat = statSync(jobIndexPath);
+    assert.equal(afterJobIndexStat.dev, beforeJobIndexStat.dev);
+    assert.equal(afterJobIndexStat.ino, beforeJobIndexStat.ino);
+    assert.equal(afterJobIndexStat.size, beforeJobIndexStat.size);
+    assert.equal(afterJobIndexStat.mtimeMs, beforeJobIndexStat.mtimeMs);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('krn report journey binds Git facts to the descriptor worktree index', async () => {
+  const directory = await mkdtemp(
+    join(tmpdir(), 'krn-cli-journey-git-binding-'),
+  );
+  const repo = join(directory, 'repo');
+  const worktree = join(repo, '.krn/worktrees/registered');
+  const wrongJobId = 'journey-wrong-git-binding';
+  const correctJobId = 'journey-correct-git-binding';
+  try {
+    await mkdir(repo, { recursive: true });
+    fixtureGit(repo, 'init', '--quiet');
+    fixtureGit(repo, 'config', 'user.name', 'KRN Git binding fixture');
+    fixtureGit(repo, 'config', 'user.email', 'git-binding@example.invalid');
+    await writeFile(join(repo, '.gitignore'), '.krn/\n');
+    await writeFile(
+      join(repo, 'README.md'),
+      'equal HEAD Git binding fixture\n',
+    );
+    fixtureGit(repo, 'add', '.gitignore', 'README.md');
+    fixtureGit(repo, 'commit', '-qm', 'create Git binding fixture');
+    const rootHead = fixtureGit(repo, 'rev-parse', 'HEAD');
+    fixtureGit(
+      repo,
+      'worktree',
+      'add',
+      '--quiet',
+      '-b',
+      'krn/journey-git-binding',
+      worktree,
+      rootHead,
+    );
+    const worktreeHead = fixtureGit(worktree, 'rev-parse', 'HEAD');
+    const rootGitDir = fixtureGit(
+      repo,
+      'rev-parse',
+      '--path-format=absolute',
+      '--absolute-git-dir',
+    );
+    assert.equal(rootHead, worktreeHead);
+
+    await writeFile(join(repo, 'root-index-only.txt'), 'staged in root only\n');
+    fixtureGit(repo, 'add', 'root-index-only.txt');
+    assert.equal(
+      fixtureGit(repo, 'status', '--porcelain=v1'),
+      'A  root-index-only.txt',
+    );
+    assert.equal(fixtureGit(worktree, 'status', '--porcelain=v1'), '');
+
+    const wrongJob = {
+      id: wrongJobId,
+      issue: 'LON-292',
+      worktree,
+      repoRoot: repo,
+    };
+    const correctJob = {
+      id: correctJobId,
+      issue: 'LON-292',
+      worktree,
+      repoRoot: repo,
+    };
+    const wrongDescriptor = recordRepo(
+      wrongJob,
+      repo,
+      'krn/journey-git-binding',
+      rootHead,
+    );
+    await writeFile(
+      join(repo, '.krn/runs/foreman', wrongJobId, 'repo.json'),
+      JSON.stringify({ ...wrongDescriptor, gitDir: rootGitDir }),
+    );
+    recordRepo(correctJob, repo, 'krn/journey-git-binding', rootHead);
+
+    const wrongTraceBytes = Buffer.from(
+      journeyEvents(wrongJobId, worktreeHead),
+    );
+    const correctTraceBytes = Buffer.from(
+      journeyEvents(correctJobId, worktreeHead),
+    );
+    await writeFile(
+      join(repo, '.krn/runs/foreman', wrongJobId, 'trace.jsonl'),
+      wrongTraceBytes,
+    );
+    await writeFile(
+      join(repo, '.krn/runs/foreman', correctJobId, 'trace.jsonl'),
+      correctTraceBytes,
+    );
+
+    const rootIndexPath = fixtureGit(
+      repo,
+      'rev-parse',
+      '--path-format=absolute',
+      '--git-path',
+      'index',
+    );
+    const worktreeIndexPath = fixtureGit(
+      worktree,
+      'rev-parse',
+      '--path-format=absolute',
+      '--git-path',
+      'index',
+    );
+    const rootIndexBytes = readFileSync(rootIndexPath);
+    const worktreeIndexBytes = readFileSync(worktreeIndexPath);
+    const wrongDescriptorBytes = readFileSync(
+      join(repo, '.krn/runs/foreman', wrongJobId, 'repo.json'),
+    );
+    const correctDescriptorBytes = readFileSync(
+      join(repo, '.krn/runs/foreman', correctJobId, 'repo.json'),
+    );
+    const runCli = (jobId: string) =>
+      spawnSync(
+        process.execPath,
+        [cli, 'report', 'journey', '--repo', repo, '--job', jobId],
+        { encoding: 'utf8', env: cleanGitEnvironment() },
+      );
+    const wrongResult = runCli(wrongJobId);
+    const correctResult = runCli(correctJobId);
+    const wrong = JSON.parse(wrongResult.stdout) as {
+      kind: string;
+      code?: string;
+      facts: { git: { headSha: string | null; isDirty: boolean | null } };
+    };
+    const correct = JSON.parse(correctResult.stdout) as {
+      kind: string;
+      code?: string;
+      facts: { git: { headSha: string | null; isDirty: boolean | null } };
+    };
+
+    assert.deepEqual(
+      {
+        equalHeads: rootHead === worktreeHead,
+        rootStatus: fixtureGit(repo, 'status', '--porcelain=v1'),
+        worktreeStatus: fixtureGit(worktree, 'status', '--porcelain=v1'),
+        wrongDescriptor: {
+          exit: wrongResult.status,
+          kind: wrong.kind,
+          code: wrong.code ?? null,
+          headSha: wrong.facts.git.headSha,
+          isDirty: wrong.facts.git.isDirty,
+        },
+        correctDescriptor: {
+          exit: correctResult.status,
+          kind: correct.kind,
+          headSha: correct.facts.git.headSha,
+          isDirty: correct.facts.git.isDirty,
+        },
+        unchanged: {
+          rootIndex: readFileSync(rootIndexPath).equals(rootIndexBytes),
+          worktreeIndex:
+            readFileSync(worktreeIndexPath).equals(worktreeIndexBytes),
+          wrongTrace: readFileSync(
+            join(repo, '.krn/runs/foreman', wrongJobId, 'trace.jsonl'),
+          ).equals(wrongTraceBytes),
+          correctTrace: readFileSync(
+            join(repo, '.krn/runs/foreman', correctJobId, 'trace.jsonl'),
+          ).equals(correctTraceBytes),
+          wrongDescriptor: readFileSync(
+            join(repo, '.krn/runs/foreman', wrongJobId, 'repo.json'),
+          ).equals(wrongDescriptorBytes),
+          correctDescriptor: readFileSync(
+            join(repo, '.krn/runs/foreman', correctJobId, 'repo.json'),
+          ).equals(correctDescriptorBytes),
+        },
+      },
+      {
+        equalHeads: true,
+        rootStatus: 'A  root-index-only.txt',
+        worktreeStatus: '',
+        wrongDescriptor: {
+          exit: 1,
+          kind: 'refusal',
+          code: 'git_unavailable',
+          headSha: null,
+          isDirty: null,
+        },
+        correctDescriptor: {
+          exit: 0,
+          kind: 'journey',
+          headSha: worktreeHead,
+          isDirty: false,
+        },
+        unchanged: {
+          rootIndex: true,
+          worktreeIndex: true,
+          wrongTrace: true,
+          correctTrace: true,
+          wrongDescriptor: true,
+          correctDescriptor: true,
+        },
+      },
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('krn report journey refuses a registered descriptor under a non-root explicit path', async () => {
+  const directory = await mkdtemp(
+    join(tmpdir(), 'krn-cli-journey-nested-root-'),
+  );
+  const repo = join(directory, 'repo');
+  const nested = join(repo, 'sub');
+  const jobId = 'journey-nested-explicit-root';
+  const jobWorktree = join(repo, '.krn/worktrees', jobId);
+  try {
+    await mkdir(repo, { recursive: true });
+    fixtureGit(repo, 'init', '--quiet');
+    fixtureGit(repo, 'config', 'user.name', 'KRN nested-root fixture');
+    fixtureGit(repo, 'config', 'user.email', 'nested-root@example.invalid');
+    await writeFile(join(repo, '.gitignore'), '.krn/\n');
+    await writeFile(join(repo, 'README.md'), 'nested-root fixture\n');
+    fixtureGit(repo, 'add', '.gitignore', 'README.md');
+    fixtureGit(repo, 'commit', '-qm', 'create nested-root fixture');
+    const rootHead = fixtureGit(repo, 'rev-parse', 'HEAD');
+    await mkdir(nested, { recursive: true });
+    fixtureGit(
+      repo,
+      'worktree',
+      'add',
+      '--quiet',
+      '-b',
+      `krn/${jobId}`,
+      jobWorktree,
+      rootHead,
+    );
+    const jobHead = fixtureGit(jobWorktree, 'rev-parse', 'HEAD');
+    recordRepo(
+      { id: jobId, issue: 'LON-292', worktree: jobWorktree, repoRoot: nested },
+      nested,
+    );
+    const jobDirectory = join(nested, '.krn/runs/foreman', jobId);
+    await mkdir(jobDirectory, { recursive: true });
+    const traceBytes = Buffer.from(journeyEvents(jobId, jobHead));
+    await writeFile(join(jobDirectory, 'trace.jsonl'), traceBytes);
+
+    const result = spawnSync(
+      process.execPath,
+      [cli, 'report', 'journey', '--repo', nested, '--job', jobId],
+      { encoding: 'utf8', env: cleanGitEnvironment() },
+    );
+    assert.equal(result.status, 1, result.stderr);
+    const report = JSON.parse(result.stdout) as {
+      kind: string;
+      code: string;
+      facts: { git: { headSha: string | null; isDirty: boolean | null } };
+    };
+    assert.equal(report.kind, 'refusal');
+    assert.equal(report.code, 'git_unavailable');
+    assert.deepEqual(report.facts.git, { headSha: null, isDirty: null });
+    assert.deepEqual(
+      readFileSync(join(jobDirectory, 'trace.jsonl')),
+      traceBytes,
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('krn report journey refuses configured clean filters before dirty-state reads', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-cli-journey-filter-'));
+  try {
+    const observations: Array<{
+      name: string;
+      status: number | null;
+      kind: string;
+      code: string | undefined;
+      filterRan: boolean;
+    }> = [];
+    for (const useDescriptor of [false, true]) {
+      const name = useDescriptor ? 'registered' : 'raw';
+      const repo = join(directory, name);
+      const jobId = `journey-filter-${name}`;
+      const jobWorktree = join(repo, '.krn/worktrees', jobId);
+      const canary = join(directory, `${name}-filter-ran`);
+      const filterScript = join(directory, `${name}-filter.sh`);
+      const filteredFile = join(
+        useDescriptor ? jobWorktree : repo,
+        'filtered.txt',
+      );
+      await mkdir(repo, { recursive: true });
+      fixtureGit(repo, 'init', '--quiet');
+      fixtureGit(repo, 'config', 'user.name', 'KRN clean-filter fixture');
+      fixtureGit(repo, 'config', 'user.email', 'filter@example.invalid');
+      await writeFile(join(repo, '.gitignore'), '.krn/\n');
+      await writeFile(
+        join(repo, '.gitattributes'),
+        'filtered.txt filter=canary\n',
+      );
+      await writeFile(join(repo, 'filtered.txt'), 'aaaa\n');
+      await writeFile(join(repo, 'README.md'), 'clean-filter fixture\n');
+      fixtureGit(
+        repo,
+        'add',
+        '.gitignore',
+        '.gitattributes',
+        'filtered.txt',
+        'README.md',
+      );
+      fixtureGit(repo, 'commit', '-qm', 'create clean-filter fixture');
+      const rootHead = fixtureGit(repo, 'rev-parse', 'HEAD');
+      let statusRoot = repo;
+      if (useDescriptor) {
+        fixtureGit(
+          repo,
+          'worktree',
+          'add',
+          '--quiet',
+          '-b',
+          `krn/${jobId}`,
+          jobWorktree,
+          rootHead,
+        );
+        fixtureGit(repo, 'config', 'extensions.worktreeConfig', 'true');
+        statusRoot = jobWorktree;
+      }
+      await writeFile(
+        filterScript,
+        `#!/bin/sh\nprintf called >> '${canary}'\ncat\n`,
+        { mode: 0o700 },
+      );
+      fixtureGit(statusRoot, 'config', 'core.checkStat', 'minimal');
+      if (useDescriptor) {
+        fixtureGit(
+          statusRoot,
+          'config',
+          '--worktree',
+          'filter.canary.process',
+          `/bin/sh ${filterScript}`,
+        );
+        fixtureGit(
+          statusRoot,
+          'config',
+          '--worktree',
+          'filter.canary.required',
+          'true',
+        );
+      } else {
+        fixtureGit(
+          statusRoot,
+          'config',
+          'filter.canary.clean',
+          `/bin/sh ${filterScript}`,
+        );
+        fixtureGit(statusRoot, 'config', 'filter.canary.required', 'true');
+      }
+      const jobHead = fixtureGit(statusRoot, 'rev-parse', 'HEAD');
+      if (useDescriptor)
+        recordRepo(
+          {
+            id: jobId,
+            issue: 'LON-292',
+            worktree: jobWorktree,
+            repoRoot: repo,
+          },
+          repo,
+        );
+      const traceDirectory = join(repo, '.krn/runs/foreman', jobId);
+      await mkdir(traceDirectory, { recursive: true });
+      await writeFile(
+        join(traceDirectory, 'trace.jsonl'),
+        journeyEvents(jobId, jobHead),
+      );
+      const indexDebug = fixtureGit(
+        statusRoot,
+        'ls-files',
+        '--debug',
+        'filtered.txt',
+      );
+      const indexedSeconds = /\n\s*mtime: (\d+):\d+/u.exec(indexDebug)?.[1];
+      assert.ok(indexedSeconds, indexDebug);
+      await writeFile(filteredFile, 'bbbb\n');
+      const matchingSecond = new Date(Number(indexedSeconds) * 1000);
+      utimesSync(filteredFile, matchingSecond, matchingSecond);
+
+      const result = spawnSync(
+        process.execPath,
+        [cli, 'report', 'journey', '--repo', repo, '--job', jobId],
+        { encoding: 'utf8', env: cleanGitEnvironment() },
+      );
+      const report = JSON.parse(result.stdout) as {
+        kind: string;
+        code?: string;
+      };
+      observations.push({
+        name,
+        status: result.status,
+        kind: report.kind,
+        code: report.code,
+        filterRan: existsSync(canary),
+      });
+    }
+    assert.deepEqual(observations, [
+      {
+        name: 'raw',
+        status: 1,
+        kind: 'refusal',
+        code: 'git_unavailable',
+        filterRan: false,
+      },
+      {
+        name: 'registered',
+        status: 1,
+        kind: 'refusal',
+        code: 'git_unavailable',
+        filterRan: false,
+      },
+    ]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('krn report journey refuses foreign and symlinked repository descriptors', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-cli-journey-record-'));
+  const repo = join(directory, 'repo');
+  const foreignJob = 'journey-foreign-record';
+  const symlinkJob = 'journey-symlink-record';
+  const externalRecord = join(directory, 'external-repo-record.json');
+  try {
+    await mkdir(repo, { recursive: true });
+    fixtureGit(repo, 'init', '--quiet');
+    fixtureGit(repo, 'config', 'user.name', 'KRN descriptor fixture');
+    fixtureGit(repo, 'config', 'user.email', 'record@example.invalid');
+    await writeFile(join(repo, '.gitignore'), '.krn/\n');
+    await writeFile(join(repo, 'README.md'), 'descriptor fixture\n');
+    fixtureGit(repo, 'add', '.gitignore', 'README.md');
+    fixtureGit(repo, 'commit', '-qm', 'create descriptor fixture');
+    fixtureGit(repo, 'rev-parse', 'HEAD');
+
+    const foreignDirectory = join(repo, '.krn/runs/foreman', foreignJob);
+    await mkdir(foreignDirectory, { recursive: true });
+    const foreignBytes = Buffer.from(
+      JSON.stringify({
+        repoRoot: join(directory, 'foreign-root'),
+        gitDir: join(directory, 'foreign-root/.git'),
+        gitWorkTree: join(directory, 'foreign-root/worktree'),
+      }),
+    );
+    await writeFile(join(foreignDirectory, 'repo.json'), foreignBytes);
+
+    const symlinkDirectory = join(repo, '.krn/runs/foreman', symlinkJob);
+    await mkdir(symlinkDirectory, { recursive: true });
+    const externalBytes = Buffer.from(
+      JSON.stringify({
+        repoRoot: repo,
+        gitDir: join(repo, '.git'),
+        gitWorkTree: repo,
+      }),
+    );
+    await writeFile(externalRecord, externalBytes);
+    await symlink(externalRecord, join(symlinkDirectory, 'repo.json'));
+    const beforeRuns = fileTreeSnapshot(join(repo, '.krn/runs'));
+
+    const runCli = (jobId: string) =>
+      spawnSync(
+        process.execPath,
+        [cli, 'report', 'journey', '--repo', repo, '--job', jobId],
+        { encoding: 'utf8', env: cleanGitEnvironment() },
+      );
+    const foreign = runCli(foreignJob);
+    const symlinked = runCli(symlinkJob);
+    const reports = [foreign, symlinked].map((result) => {
+      assert.equal(result.status, 1, result.stderr);
+      return JSON.parse(result.stdout) as { kind: string; code: string };
+    });
+    assert.deepEqual(
+      reports.map(({ kind, code }) => ({ kind, code })),
+      [
+        { kind: 'refusal', code: 'git_unavailable' },
+        { kind: 'refusal', code: 'git_unavailable' },
+      ],
+    );
+    assert.deepEqual(
+      readFileSync(join(foreignDirectory, 'repo.json')),
+      foreignBytes,
+    );
+    assert.deepEqual(readFileSync(externalRecord), externalBytes);
+    assert.deepEqual(fileTreeSnapshot(join(repo, '.krn/runs')), beforeRuns);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('cli-submodule-filter-canary refuses gitlinks before local submodule filters', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'krn-cli-submodule-'));
+  try {
+    const seed = join(directory, 'seed');
+    await mkdir(seed);
+    fixtureGit(seed, 'init', '--quiet');
+    fixtureGit(seed, 'config', 'user.name', 'KRN canary');
+    fixtureGit(seed, 'config', 'user.email', 'canary@example.invalid');
+    await writeFile(
+      join(seed, '.gitattributes'),
+      'filtered.txt filter=canary\n',
+    );
+    await writeFile(join(seed, 'filtered.txt'), 'aaaa\n');
+    fixtureGit(seed, 'add', '.gitattributes', 'filtered.txt');
+    fixtureGit(seed, 'commit', '-qm', 'create harmless local seed');
+    const observations = [];
+    for (const descriptor of [false, true]) {
+      const name = descriptor ? 'descriptor' : 'raw';
+      const repo = join(directory, name);
+      await mkdir(repo);
+      fixtureGit(repo, 'init', '--quiet');
+      fixtureGit(repo, 'config', 'user.name', 'KRN canary');
+      fixtureGit(repo, 'config', 'user.email', 'canary@example.invalid');
+      await writeFile(join(repo, '.gitignore'), '.krn/\n');
+      fixtureGit(
+        repo,
+        '-c',
+        'protocol.file.allow=always',
+        'submodule',
+        'add',
+        '--quiet',
+        seed,
+        'local',
+      );
+      fixtureGit(repo, 'add', '.gitignore', '.gitmodules', 'local');
+      fixtureGit(repo, 'commit', '-qm', 'create local submodule fixture');
+      const head = fixtureGit(repo, 'rev-parse', 'HEAD');
+      const jobId = `submodule-${name}`;
+      let worktree = repo;
+      if (descriptor) {
+        worktree = join(repo, '.krn/worktrees', jobId);
+        fixtureGit(
+          repo,
+          'worktree',
+          'add',
+          '--quiet',
+          '-b',
+          jobId,
+          worktree,
+          head,
+        );
+        fixtureGit(
+          worktree,
+          '-c',
+          'protocol.file.allow=always',
+          'submodule',
+          'update',
+          '--init',
+          '--quiet',
+        );
+        recordRepo(
+          { id: jobId, issue: 'LON-292', repoRoot: repo, worktree },
+          repo,
+        );
+      }
+      const submodule = join(worktree, 'local');
+      const canary = join(directory, `${name}-called`);
+      const script = join(directory, `${name}-filter.sh`);
+      await writeFile(script, `#!/bin/sh\nprintf called >> '${canary}'\ncat\n`);
+      fixtureGit(
+        submodule,
+        'config',
+        'filter.canary.clean',
+        `/bin/sh ${script}`,
+      );
+      fixtureGit(submodule, 'config', 'filter.canary.required', 'true');
+      await writeFile(
+        join(submodule, 'filtered.txt'),
+        'changed harmless fixture\n',
+      );
+      const traceDirectory = join(repo, '.krn/runs/foreman', jobId);
+      await mkdir(traceDirectory, { recursive: true });
+      await writeFile(
+        join(traceDirectory, 'trace.jsonl'),
+        journeyEvents(jobId, head),
+      );
+      const result = spawnSync(
+        process.execPath,
+        [cli, 'report', 'journey', '--repo', repo, '--job', jobId],
+        {
+          encoding: 'utf8',
+          env: cleanGitEnvironment(),
+        },
+      );
+      const report = JSON.parse(result.stdout) as {
+        kind: string;
+        code?: string;
+      };
+      observations.push({
+        name,
+        exit: result.status,
+        kind: report.kind,
+        code: report.code,
+        filterRan: existsSync(canary),
+      });
+    }
+    assert.deepEqual(
+      observations,
+      ['raw', 'descriptor'].map((name) => ({
+        name,
+        exit: 1,
+        kind: 'refusal',
+        code: 'git_unavailable',
+        filterRan: false,
+      })),
+    );
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
