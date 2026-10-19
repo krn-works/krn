@@ -1,9 +1,10 @@
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { constants as fsConstants } from 'node:fs';
 import {
   lstat,
   mkdir,
-  readFile,
+  open,
   realpath,
   rename,
   unlink,
@@ -21,6 +22,10 @@ const maxInputs = 16;
 const maxBriefBytes = 8192;
 const maxInputBytes = 2 * 1024 * 1024;
 const maxTotalInputBytes = 8 * 1024 * 1024;
+const maxGitOutputBytes = 64 * 1024;
+const gitCommandTimeoutMs = 5000;
+const gitTerminateGraceMs = 250;
+const inputReadChunkBytes = 64 * 1024;
 const minTimeoutMs = 1000;
 const maxTimeoutMs = 30 * 60 * 1000;
 const maxConcurrency = 4;
@@ -153,21 +158,206 @@ function inside(parent: string, child: string): boolean {
   );
 }
 
-function git(root: string, args: string[]): string {
-  const result = spawnSync('git', ['-C', root, ...args], {
-    encoding: 'utf8',
+class GitCommandError extends Error {
+  readonly kind: 'timeout' | 'aborted' | 'output_limit' | 'spawn';
+
+  constructor(
+    message: string,
+    kind: 'timeout' | 'aborted' | 'output_limit' | 'spawn',
+  ) {
+    super(message);
+    this.name = 'GitCommandError';
+    this.kind = kind;
+  }
+}
+
+type GitResult = {
+  readonly status: number | null;
+  readonly stdout: string;
+  readonly stderr: string;
+};
+
+function signalGitTree(
+  child: ReturnType<typeof spawn>,
+  signal: NodeJS.Signals,
+): void {
+  try {
+    if (process.platform !== 'win32' && child.pid !== undefined)
+      process.kill(-child.pid, signal);
+    else child.kill(signal);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
+  }
+}
+
+async function git(
+  root: string,
+  args: string[],
+  signal?: AbortSignal,
+): Promise<GitResult> {
+  if (signal?.aborted)
+    throw new GitCommandError('repository preflight interrupted', 'aborted');
+  const child = spawn('git', ['-C', root, ...args], {
+    detached: process.platform !== 'win32',
     env: {
       ...process.env,
       GIT_OPTIONAL_LOCKS: '0',
       GIT_NO_LAZY_FETCH: '1',
     },
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
-  if (result.status !== 0 || result.stderr)
-    throw new Error('repository input validation failed');
-  return result.stdout.trim();
+  let stdoutBytes = 0;
+  let stderrBytes = 0;
+  const stdout: Buffer[] = [];
+  const stderr: Buffer[] = [];
+  let failure: GitCommandError | undefined;
+  let spawnFailure: Error | undefined;
+  const closed = new Promise<{
+    readonly status: number | null;
+    readonly signal: NodeJS.Signals | null;
+  }>((resolve) => {
+    child.once('close', (status, childSignal) =>
+      resolve({ status, signal: childSignal }),
+    );
+  });
+  let stopPromise: Promise<void> | undefined;
+  const stop = (): Promise<void> => {
+    if (stopPromise) return stopPromise;
+    stopPromise = (async () => {
+      signalGitTree(child, 'SIGTERM');
+      const stopped = await new Promise<boolean>((resolve) => {
+        const grace = setTimeout(() => resolve(false), gitTerminateGraceMs);
+        void closed.then(() => {
+          clearTimeout(grace);
+          resolve(true);
+        });
+      });
+      if (!stopped) signalGitTree(child, 'SIGKILL');
+      await closed;
+    })();
+    return stopPromise;
+  };
+  const onAbort = () => {
+    failure ??= new GitCommandError(
+      'repository preflight interrupted',
+      'aborted',
+    );
+    void stop();
+  };
+  const timeout = setTimeout(() => {
+    failure ??= new GitCommandError(
+      'repository preflight Git command timed out',
+      'timeout',
+    );
+    void stop();
+  }, gitCommandTimeoutMs);
+  signal?.addEventListener('abort', onAbort, { once: true });
+  child.once('error', (error) => {
+    spawnFailure = error;
+  });
+  child.stdout.on('data', (chunk: Buffer) => {
+    stdoutBytes += chunk.byteLength;
+    if (stdoutBytes > maxGitOutputBytes) {
+      failure ??= new GitCommandError(
+        'repository preflight Git output exceeded its limit',
+        'output_limit',
+      );
+      void stop();
+    } else stdout.push(chunk);
+  });
+  child.stderr.on('data', (chunk: Buffer) => {
+    stderrBytes += chunk.byteLength;
+    if (stderrBytes > maxGitOutputBytes) {
+      failure ??= new GitCommandError(
+        'repository preflight Git output exceeded its limit',
+        'output_limit',
+      );
+      void stop();
+    } else stderr.push(chunk);
+  });
+  if (signal?.aborted) onAbort();
+  const result = await closed;
+  clearTimeout(timeout);
+  signal?.removeEventListener('abort', onAbort);
+  if (stopPromise) await stopPromise;
+  if (failure) throw failure;
+  if (spawnFailure)
+    throw new GitCommandError(
+      `unable to run repository preflight: ${spawnFailure.message}`,
+      'spawn',
+    );
+  return {
+    status: result.status,
+    stdout: Buffer.concat(stdout).toString('utf8'),
+    stderr: Buffer.concat(stderr).toString('utf8'),
+  };
 }
 
-async function validateRepo(request: ParsedRequest): Promise<{
+function sameFile(
+  left: { readonly dev: number | bigint; readonly ino: number | bigint },
+  right: { readonly dev: number | bigint; readonly ino: number | bigint },
+): boolean {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
+async function ensurePinnedPath(
+  candidate: string,
+  canonicalPath: string,
+  repo: string,
+  pinned: { readonly dev: number | bigint; readonly ino: number | bigint },
+): Promise<void> {
+  const current = await lstat(candidate);
+  const currentPath = await realpath(candidate);
+  if (
+    !current.isFile() ||
+    current.isSymbolicLink() ||
+    !sameFile(current, pinned) ||
+    currentPath !== canonicalPath ||
+    !inside(repo, currentPath)
+  )
+    throw new Error('--input changed during bounded repository preflight');
+}
+
+async function readBoundedText(
+  handle: Awaited<ReturnType<typeof open>>,
+  initial: { readonly dev: number | bigint; readonly ino: number | bigint },
+  byteLimit: number,
+  signal?: AbortSignal,
+): Promise<{ readonly content: string; readonly bytes: number }> {
+  const chunks: Buffer[] = [];
+  let bytes = 0;
+  for (;;) {
+    if (signal?.aborted)
+      throw new GitCommandError('repository preflight interrupted', 'aborted');
+    const buffer = Buffer.alloc(
+      Math.min(inputReadChunkBytes, byteLimit - bytes + 1),
+    );
+    const { bytesRead } = await handle.read(buffer, 0, buffer.byteLength, null);
+    if (bytesRead === 0) break;
+    bytes += bytesRead;
+    if (bytes > byteLimit)
+      throw new Error('delegated inputs exceed the bounded size limit');
+    chunks.push(buffer.subarray(0, bytesRead));
+  }
+  const after = await handle.stat();
+  if (!after.isFile() || !sameFile(after, initial) || after.size !== bytes)
+    throw new Error('--input changed while bounded contents were read');
+  try {
+    return {
+      content: new TextDecoder('utf-8', { fatal: true }).decode(
+        Buffer.concat(chunks, bytes),
+      ),
+      bytes,
+    };
+  } catch {
+    throw new Error('--input must be UTF-8 text');
+  }
+}
+
+async function validateRepo(
+  request: ParsedRequest,
+  signal?: AbortSignal,
+): Promise<{
   readonly repo: string;
   readonly inputs: readonly {
     readonly path: string;
@@ -175,11 +365,18 @@ async function validateRepo(request: ParsedRequest): Promise<{
   }[];
 }> {
   const repo = await realpath(request.repo);
-  if ((await realpath(git(repo, ['rev-parse', '--show-toplevel']))) !== repo)
+  const rootResult = await git(repo, ['rev-parse', '--show-toplevel'], signal);
+  if (
+    rootResult.status !== 0 ||
+    rootResult.stderr ||
+    (await realpath(rootResult.stdout.trim())) !== repo
+  )
     throw new Error('--repo must be the canonical repository root');
   let totalBytes = 0;
   const inputs: { path: string; content: string }[] = [];
   for (const input of request.inputs) {
+    if (signal?.aborted)
+      throw new GitCommandError('repository preflight interrupted', 'aborted');
     const candidate = resolve(repo, input);
     if (!inside(repo, candidate))
       throw new Error('--input must be inside --repo');
@@ -193,29 +390,59 @@ async function validateRepo(request: ParsedRequest): Promise<{
     const info = await lstat(candidate);
     if (!info.isFile() || info.isSymbolicLink())
       throw new Error('--input must be a regular nonsymlink file');
-    const tracked = spawnSync(
-      'git',
-      ['-C', repo, 'ls-files', '--error-unmatch', '--', pathFromRepo],
-      {
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          GIT_OPTIONAL_LOCKS: '0',
-          GIT_NO_LAZY_FETCH: '1',
-        },
-      },
+    if (!fsConstants.O_NOFOLLOW)
+      throw new Error('this platform cannot pin delegated input files safely');
+    const handle = await open(
+      candidate,
+      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
     );
-    if (tracked.status !== 0 || tracked.stderr)
-      throw new Error('--input must be a tracked repository file');
-    if (
-      info.size > maxInputBytes ||
-      totalBytes + info.size > maxTotalInputBytes
-    )
-      throw new Error('delegated inputs exceed the bounded size limit');
-    const content = await readFile(path, 'utf8');
-    if (content.includes('\0')) throw new Error('--input must be UTF-8 text');
-    totalBytes += Buffer.byteLength(content);
-    inputs.push({ path: pathFromRepo, content });
+    try {
+      const pinned = await handle.stat();
+      if (!pinned.isFile() || !sameFile(pinned, info))
+        throw new Error('--input changed while it was opened');
+      await ensurePinnedPath(candidate, path, repo, pinned);
+      if (
+        pinned.size > maxInputBytes ||
+        totalBytes + pinned.size > maxTotalInputBytes
+      )
+        throw new Error('delegated inputs exceed the bounded size limit');
+      const tracked = await git(
+        repo,
+        [
+          '--literal-pathspecs',
+          'ls-files',
+          '-z',
+          '--error-unmatch',
+          '--',
+          pathFromRepo,
+        ],
+        signal,
+      );
+      if (
+        tracked.status !== 0 ||
+        tracked.stderr ||
+        !tracked.stdout.split('\0').includes(pathFromRepo)
+      )
+        throw new Error('--input must be a tracked repository file');
+      await ensurePinnedPath(candidate, path, repo, pinned);
+      const remainingBytes = Math.min(
+        maxInputBytes,
+        maxTotalInputBytes - totalBytes,
+      );
+      const read = await readBoundedText(
+        handle,
+        pinned,
+        remainingBytes,
+        signal,
+      );
+      if (read.content.includes('\0'))
+        throw new Error('--input must be UTF-8 text');
+      await ensurePinnedPath(candidate, path, repo, pinned);
+      totalBytes += read.bytes;
+      inputs.push({ path: pathFromRepo, content: read.content });
+    } finally {
+      await handle.close();
+    }
   }
   return { repo, inputs };
 }
@@ -223,20 +450,19 @@ async function validateRepo(request: ParsedRequest): Promise<{
 async function ensurePrivateResultsDirectory(
   repo: string,
   requested: string,
+  signal?: AbortSignal,
 ): Promise<string> {
   const base = join(repo, '.krn', 'tmp');
   if (!inside(base, requested))
     throw new Error('--results must be a new directory under <repo>/.krn/tmp');
-  const ignored = spawnSync(
-    'git',
-    ['-C', repo, 'check-ignore', '-q', '.krn/tmp'],
-    {
-      encoding: 'utf8',
-      env: { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_NO_LAZY_FETCH: '1' },
-    },
-  );
-  if (ignored.status !== 0) throw new Error('repository must ignore .krn/tmp');
+  const ignored = await git(repo, ['check-ignore', '-q', '.krn/tmp'], signal);
+  if (ignored.status !== 0 || ignored.stderr)
+    throw new Error('repository must ignore .krn/tmp');
+  if (signal?.aborted)
+    throw new GitCommandError('repository preflight interrupted', 'aborted');
   for (const directory of [join(repo, '.krn'), base]) {
+    if (signal?.aborted)
+      throw new GitCommandError('repository preflight interrupted', 'aborted');
     try {
       await mkdir(directory, { mode: 0o700 });
     } catch (error) {
@@ -254,6 +480,8 @@ async function ensurePrivateResultsDirectory(
     );
   let current = base;
   for (const [index, part] of parts.entries()) {
+    if (signal?.aborted)
+      throw new GitCommandError('repository preflight interrupted', 'aborted');
     current = join(current, part);
     try {
       await mkdir(current, { mode: 0o700 });
@@ -470,11 +698,14 @@ export async function delegateCommand(
   runtime: DelegateRuntime = {},
 ): Promise<DelegateGroupResult> {
   const request = parseRequest(args);
-  const validated = await validateRepo(request);
+  const validated = await validateRepo(request, runtime.signal);
   const resultsDirectory = await ensurePrivateResultsDirectory(
     validated.repo,
     request.results,
+    runtime.signal,
   );
+  if (runtime.signal?.aborted)
+    throw new GitCommandError('repository preflight interrupted', 'aborted');
   const host = runtime.host ?? new CodexHost();
   let nextIndex = 0;
   const workers: DelegateWorkerResult[] = new Array(request.briefs.length);

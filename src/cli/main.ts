@@ -81,7 +81,7 @@ export function main(args = process.argv.slice(2)): void {
         process.stderr.write(
           `${error instanceof Error ? error.message : String(error)}\n`,
         );
-        process.exitCode = 64;
+        process.exitCode = controller.signal.aborted ? 130 : 64;
       })
       .finally(() => {
         process.removeListener('SIGINT', interrupt);

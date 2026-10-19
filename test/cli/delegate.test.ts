@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { watch } from 'node:fs';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -567,6 +574,222 @@ test('delegate reports an unpersisted group manifest in its final aggregate', as
       code: 'EISDIR',
     });
   } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('delegate rejects a literal wildcard filename that is not tracked', async () => {
+  const { repo } = await createTrackedFixture();
+  try {
+    const wildcardInput = join(repo, 'input*');
+    await writeFile(wildcardInput, 'untracked wildcard fixture\n');
+    let starts = 0;
+    await assert.rejects(
+      dispatch(
+        argsFor(
+          repo,
+          wildcardInput,
+          join(repo, '.krn', 'tmp', 'delegation', 'literal-wildcard'),
+          ['TASK'],
+        ),
+        {
+          delegate: {
+            host: {
+              start: async () => {
+                starts += 1;
+                throw new Error('unreachable');
+              },
+              cancelTree: async () => undefined,
+            },
+            write: () => undefined,
+          },
+        },
+      ),
+      /--input must be a tracked repository file/u,
+    );
+    assert.equal(starts, 0);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('delegate never reads a pathname replaced after input validation', async () => {
+  const { repo, input } = await createTrackedFixture();
+  const wrapperDir = await mkdtemp(join(tmpdir(), 'krn-delegate-git-'));
+  const priorPath = process.env.PATH;
+  try {
+    const secret = join(repo, 'secret.txt');
+    await writeFile(secret, 'private swap marker\n');
+    const realGit = spawnSync('which', ['git'], {
+      encoding: 'utf8',
+    }).stdout.trim();
+    const wrapper = join(wrapperDir, 'git');
+    await writeFile(
+      wrapper,
+      `#!${process.execPath}\nimport { spawnSync } from 'node:child_process';\nimport { unlinkSync, symlinkSync } from 'node:fs';\nconst args = process.argv.slice(2);\nif (args.includes('ls-files')) { unlinkSync(${JSON.stringify(input)}); symlinkSync(${JSON.stringify(secret)}, ${JSON.stringify(input)}); }\nconst child = spawnSync(${JSON.stringify(realGit)}, args, { stdio: 'inherit' });\nprocess.exitCode = child.status ?? 1;\n`,
+    );
+    await chmod(wrapper, 0o700);
+    process.env.PATH = `${wrapperDir}:${priorPath ?? ''}`;
+    let starts = 0;
+    await assert.rejects(
+      dispatch(
+        argsFor(
+          repo,
+          input,
+          join(repo, '.krn', 'tmp', 'delegation', 'symlink-race'),
+          ['TASK'],
+        ),
+        {
+          delegate: {
+            host: {
+              start: async () => {
+                starts += 1;
+                throw new Error('unreachable');
+              },
+              cancelTree: async () => undefined,
+            },
+            write: () => undefined,
+          },
+        },
+      ),
+      /input changed during bounded repository preflight/u,
+    );
+    assert.equal(starts, 0);
+  } finally {
+    process.env.PATH = priorPath;
+    await rm(wrapperDir, { recursive: true, force: true });
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('delegate bounds bytes actually read when a validated file grows', async () => {
+  const { repo, input } = await createTrackedFixture();
+  const wrapperDir = await mkdtemp(join(tmpdir(), 'krn-delegate-git-'));
+  const priorPath = process.env.PATH;
+  try {
+    const realGit = spawnSync('which', ['git'], {
+      encoding: 'utf8',
+    }).stdout.trim();
+    const wrapper = join(wrapperDir, 'git');
+    await writeFile(
+      wrapper,
+      `#!${process.execPath}\nimport { spawnSync } from 'node:child_process';\nimport { writeFileSync } from 'node:fs';\nconst args = process.argv.slice(2);\nif (args.includes('ls-files')) writeFileSync(${JSON.stringify(input)}, 'x'.repeat(2 * 1024 * 1024 + 1));\nconst child = spawnSync(${JSON.stringify(realGit)}, args, { stdio: 'inherit' });\nprocess.exitCode = child.status ?? 1;\n`,
+    );
+    await chmod(wrapper, 0o700);
+    process.env.PATH = `${wrapperDir}:${priorPath ?? ''}`;
+    let starts = 0;
+    await assert.rejects(
+      dispatch(
+        argsFor(
+          repo,
+          input,
+          join(repo, '.krn', 'tmp', 'delegation', 'growth-race'),
+          ['TASK'],
+        ),
+        {
+          delegate: {
+            host: {
+              start: async () => {
+                starts += 1;
+                return {
+                  id: 'growth-worker',
+                  wait: async () => completedSession('growth-worker', 'done'),
+                };
+              },
+              cancelTree: async () => undefined,
+            },
+            write: () => undefined,
+          },
+        },
+      ),
+      /bounded size limit/u,
+    );
+    assert.equal(starts, 0);
+  } finally {
+    process.env.PATH = priorPath;
+    await rm(wrapperDir, { recursive: true, force: true });
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('delegate preflight interruption terminates and joins its Git child', async () => {
+  const { repo, input } = await createTrackedFixture();
+  const wrapperDir = await mkdtemp(join(tmpdir(), 'krn-delegate-git-'));
+  let child: ReturnType<typeof spawn> | undefined;
+  try {
+    const marker = join(wrapperDir, 'started');
+    const realGit = spawnSync('which', ['git'], {
+      encoding: 'utf8',
+    }).stdout.trim();
+    const wrapper = join(wrapperDir, 'git');
+    await writeFile(
+      wrapper,
+      `#!/bin/sh\nprintf started > ${JSON.stringify(marker)}\n/usr/bin/sleep 3\nexec ${JSON.stringify(realGit)} "$@"\n`,
+    );
+    await chmod(wrapper, 0o700);
+    const cli = new URL('../../src/cli/main.ts', import.meta.url);
+    let stdout = '';
+    let stderr = '';
+    const command = spawn(
+      process.execPath,
+      [
+        cli.pathname,
+        ...argsFor(
+          repo,
+          input,
+          join(repo, '.krn', 'tmp', 'delegation', 'interrupted-preflight'),
+          ['TASK'],
+        ),
+      ],
+      {
+        env: {
+          ...process.env,
+          PATH: `${wrapperDir}:${process.env.PATH ?? ''}`,
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
+    child = command;
+    command.stdout.setEncoding('utf8').on('data', (value: string) => {
+      stdout += value;
+    });
+    command.stderr.setEncoding('utf8').on('data', (value: string) => {
+      stderr += value;
+    });
+    const started = new Promise<void>((resolve, reject) => {
+      const watcher = watch(wrapperDir, (_event, name) => {
+        if (name?.toString() === 'started') {
+          watcher.close();
+          resolve();
+        }
+      });
+      watcher.once('error', reject);
+    });
+    const closed = new Promise<{
+      code: number | null;
+      signal: NodeJS.Signals | null;
+    }>((resolve) =>
+      command.once('close', (code, signal) => resolve({ code, signal })),
+    );
+    await started;
+    const interruptedAt = Date.now();
+    command.kill('SIGINT');
+    const result = await closed;
+    assert.equal(result.code, 130, `stdout=${stdout}\nstderr=${stderr}`);
+    assert.equal(stdout, '', 'preflight interruption emits no group result');
+    assert.match(stderr, /repository preflight interrupted/u);
+    assert.ok(
+      Date.now() - interruptedAt < 1000,
+      'preflight waits for child termination promptly',
+    );
+  } finally {
+    if (child && child.exitCode === null && child.signalCode === null) {
+      child.kill('SIGKILL');
+      await new Promise<void>((resolve) =>
+        child?.once('close', () => resolve()),
+      );
+    }
+    await rm(wrapperDir, { recursive: true, force: true });
     await rm(repo, { recursive: true, force: true });
   }
 });
