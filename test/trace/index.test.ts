@@ -285,6 +285,85 @@ test('error type fields preserve standard names and omit credential-bearing cust
   }
 });
 
+test('job outcomes persist a bounded safe fallback for unprintable rejection values', async () => {
+  const f = await fixture();
+  const noPrototype: unknown = Object.create(null);
+  const throwingCoercion = Object.defineProperty({}, Symbol.toPrimitive, {
+    get() {
+      throw new Error('private-coercion-value');
+    },
+  });
+  const throwingInspection = new Proxy(
+    {},
+    {
+      getPrototypeOf() {
+        throw new Error('private-inspection-value');
+      },
+    },
+  );
+  const errors: unknown[] = [
+    noPrototype,
+    throwingCoercion,
+    throwingInspection,
+    new Error('request failed with Bearer private-message-value'),
+    new TypeError('ordinary public failure'),
+  ];
+  const rejectedWrites: unknown[] = [];
+  try {
+    for (const error of errors) {
+      try {
+        trace.jobOutcome(f.job, {
+          exitCode: 1,
+          signal: null,
+          cleanup: 'verified',
+          reason: 'runjob-error',
+          error,
+        });
+      } catch (writeError) {
+        rejectedWrites.push(writeError);
+      }
+    }
+
+    const rows = (await readFile(f.tracePath, 'utf8'))
+      .split('\n')
+      .filter(Boolean)
+      .map(
+        (line) =>
+          JSON.parse(line) as {
+            kind: string;
+            data: { error?: { type: string; message: string } };
+          },
+      );
+    const outcomes = rows.filter((row) => row.kind === 'job_outcome');
+    assert.equal(
+      rejectedWrites.length,
+      0,
+      'unprintable rejection values must not prevent outcome persistence',
+    );
+    assert.equal(outcomes.length, errors.length);
+    assert.deepEqual(
+      outcomes.map((row) => row.data.error?.type),
+      ['object', 'object', 'Error', 'Error', 'TypeError'],
+    );
+    assert.deepEqual(
+      outcomes.map((row) => row.data.error?.message),
+      [
+        'Error details unavailable',
+        'Error details unavailable',
+        'Error details unavailable',
+        '[redacted]',
+        'ordinary public failure',
+      ],
+    );
+    assert.ok(
+      !JSON.stringify(outcomes).includes('private-'),
+      'rejected object internals and credential-bearing diagnostics must not leak',
+    );
+  } finally {
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
 test('concurrent trace.started callers return true only for the stored session row', {
   timeout: 15_000,
 }, async () => {

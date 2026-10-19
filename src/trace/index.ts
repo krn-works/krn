@@ -1259,19 +1259,33 @@ export function safeErrorType(error: unknown): string {
 }
 
 function boundedError(error: unknown): { type: string; message: string } {
-  const type = safeErrorType(error);
-  const rawMessage = error instanceof Error ? error.message : String(error);
-  const message =
-    rawMessage.length > 4096
-      ? 'message omitted'
-      : (() => {
-          const compact = rawMessage.replace(/\s+/gu, ' ').trim();
-          return credentialShapeKind(compact) ||
-            containsInterventionCredential(compact)
-            ? '[redacted]'
-            : compact.slice(0, 240);
-        })();
-  return { type, message };
+  const fallbackMessage = 'Error details unavailable';
+  try {
+    const type = safeErrorType(error);
+    let rawMessage = fallbackMessage;
+    try {
+      if (error instanceof Error) {
+        if (typeof error.message === 'string') rawMessage = error.message;
+      } else if (
+        error === null ||
+        (typeof error !== 'object' && typeof error !== 'function')
+      ) {
+        rawMessage = String(error);
+      }
+    } catch {
+      rawMessage = fallbackMessage;
+    }
+
+    if (rawMessage.length > 4096) return { type, message: 'message omitted' };
+    const compact = rawMessage.replace(/\s+/gu, ' ').trim();
+    const message =
+      credentialShapeKind(compact) || containsInterventionCredential(compact)
+        ? '[redacted]'
+        : compact.slice(0, 240);
+    return { type, message };
+  } catch {
+    return { type: 'Error', message: fallbackMessage };
+  }
 }
 
 export async function leadIntervention(
