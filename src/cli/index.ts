@@ -26,6 +26,7 @@ import {
   readTraceRepoContext,
   readTraceSnapshot,
 } from '../trace/index.ts';
+import { type DelegateRuntime, delegateCommand } from './delegate.ts';
 
 function value(args: string[], flag: string): string {
   const index = args.indexOf(flag);
@@ -261,13 +262,21 @@ async function note(args: string[]): Promise<void> {
   );
 }
 
-export async function dispatch(args: string[]): Promise<boolean> {
+export async function dispatch(
+  args: string[],
+  runtime: { readonly delegate?: DelegateRuntime } = {},
+): Promise<boolean> {
   const [command, ...options] = args;
   if (command === 'start') await start(options);
   else if (command === 'checkpoint' || command === 'stop')
     await stop(options, command);
   else if (command === 'note') await note(options);
   else if (command === 'review') await reviewCommand(options);
+  else if (command === 'delegate')
+    await delegateCommand(options, {
+      ...runtime.delegate,
+      write: runtime.delegate?.write ?? ((text) => process.stdout.write(text)),
+    });
   else return false;
   return true;
 }

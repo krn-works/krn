@@ -155,6 +155,8 @@ export type CodexStartInput = {
   readonly model: 'gpt-6-luna';
   readonly reasoningEffort?: CodexReasoningEffort;
   readonly disableProjectDocs?: boolean;
+  readonly sandbox?: 'read-only' | 'workspace-write';
+  readonly signal?: AbortSignal;
   readonly prompt: string;
   readonly limits: { readonly timeoutMs: number };
   readonly checkpoint?: {
@@ -193,12 +195,16 @@ export class CodexHost {
   }
 
   async start(input: CodexStartInput): Promise<CodexSession> {
+    if (input.signal?.aborted)
+      throw new Error('Codex startup was cancelled before launch');
     const id = randomUUID();
     const isolation =
       this.#isolationMode ?? detectIsolationMode(this.#namespaceLauncher);
     this.#isolationMode = isolation;
     const reapedScopes =
       isolation === 'systemd_scope' ? await reapOrphanedCodexScopes() : [];
+    if (input.signal?.aborted)
+      throw new Error('Codex startup was cancelled before launch');
     const scope =
       isolation === 'systemd_scope' ? scopeName(input, id) : undefined;
     const checkpoint = input.checkpoint
@@ -236,7 +242,7 @@ export class CodexHost {
       `model_reasoning_effort=${input.reasoningEffort ?? 'high'}`,
       ...(input.disableProjectDocs ? ['-c', 'project_doc_max_bytes=0'] : []),
       '--sandbox',
-      'workspace-write',
+      input.sandbox ?? 'workspace-write',
       '--cd',
       input.cwd,
       ...(input.checkpoint && existsSync(join(input.cwd, '.krn'))
@@ -283,34 +289,37 @@ export class CodexHost {
             stdio: 'pipe',
             env: workerEnvironment(),
           });
-    let namespace:
-      | { readonly identity: string; readonly initPid: number }
-      | undefined;
-    try {
-      namespace =
-        isolation === 'pid_namespace'
-          ? await namespaceIdentity(child.pid)
-          : undefined;
-    } catch (error) {
-      child.kill('SIGKILL');
-      throw error;
-    }
     const running = new RunningSession(
       id,
       child,
       isolation,
-      namespace?.identity,
-      namespace?.initPid,
+      undefined,
+      undefined,
       scope,
       reapedScopes,
     );
     this.#sessions.set(id, running);
+    const onAbort = () => void running.cancel().catch(() => undefined);
+    input.signal?.addEventListener('abort', onAbort, { once: true });
+    if (input.signal?.aborted) onAbort();
     let startupPending = true;
     running.onClose(() => {
+      input.signal?.removeEventListener('abort', onAbort);
       if (!startupPending && running.cleanupSettled && running.cleanupVerified)
         this.#sessions.delete(id);
     });
     try {
+      if (isolation === 'pid_namespace') {
+        try {
+          const namespace = await namespaceIdentity(
+            child.pid,
+            () => running.cancelled || running.closed,
+          );
+          running.setNamespace(namespace.identity, namespace.initPid);
+        } catch (error) {
+          await rejectUnstartedSession(running, error);
+        }
+      }
       let registration: SystemdScopeRegistration | undefined;
       if (scope) {
         try {
@@ -376,6 +385,7 @@ export class CodexHost {
       return { id, wait: () => running.wait() };
     } finally {
       startupPending = false;
+      if (running.closed) input.signal?.removeEventListener('abort', onAbort);
       if (running.cleanupSettled && running.cleanupVerified)
         this.#sessions.delete(id);
     }
@@ -453,8 +463,8 @@ class RunningSession {
   readonly #id: string;
   readonly #child: ChildProcess;
   readonly #isolation: CodexIsolationMode;
-  readonly #namespace: string | undefined;
-  readonly #namespaceInitPid: number | undefined;
+  #namespace: string | undefined;
+  #namespaceInitPid: number | undefined;
   readonly #scope: string | undefined;
   readonly #reapedScopes: readonly ReapedSystemdScope[];
   readonly #scopeEnvironment: NodeJS.ProcessEnv;
@@ -595,6 +605,13 @@ class RunningSession {
 
   onClose(listener: () => void): void {
     this.#closedListeners.push(listener);
+  }
+
+  setNamespace(namespace: string, initPid: number): void {
+    if (this.#closed)
+      throw new Error('Codex process exited before namespace setup');
+    this.#namespace = namespace;
+    this.#namespaceInitPid = initPid;
   }
 
   get cancelled(): boolean {
@@ -925,11 +942,13 @@ function scopeName(input: CodexStartInput, sessionId: string): string {
 
 async function namespaceIdentity(
   parentPid: number | undefined,
+  shouldStop: () => boolean,
 ): Promise<{ readonly identity: string; readonly initPid: number }> {
   if (parentPid === undefined)
     throw new Error('namespace launcher pid is unavailable');
   const deadline = Date.now() + 3000;
   while (Date.now() < deadline) {
+    if (shouldStop()) throw new Error('Codex startup was cancelled');
     try {
       const child = readFileSync(
         `/proc/${parentPid}/task/${parentPid}/children`,
