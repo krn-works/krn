@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  readFileSync,
+  readlinkSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import {
   appendFile,
   mkdir,
@@ -18,6 +24,10 @@ import test from 'node:test';
 import { Worker } from 'node:worker_threads';
 import type { Job } from '../../src/core/index.ts';
 import { stateDirectory } from '../../src/foreman/state.ts';
+import {
+  processHasIdentity,
+  processStartTicks,
+} from '../../src/hosts/systemd-scope.ts';
 import * as trace from '../../src/trace/index.ts';
 import {
   classifyTraceFdPathReadback,
@@ -1532,6 +1542,483 @@ await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha
       ownerResult,
       ...(contenderResult ? [contenderResult] : []),
     ]);
+    await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('trace lock observer retries after the verified owner unlinks an opened lock', {
+  timeout: 30000,
+}, async () => {
+  const f = await fixture();
+  const barrier = join(f.directory, 'lock-disappearance');
+  await mkdir(barrier);
+  const lockPath = `${f.tracePath}.lock`;
+  const ownerSha = '3'.repeat(40);
+  const contenderSha = '4'.repeat(40);
+  const jobFile = join(barrier, 'job.json');
+  const preload = join(barrier, 'preload.cjs');
+  const worker = join(barrier, 'append.mjs');
+  const moduleUrl = new URL('../../src/trace/index.ts', import.meta.url).href;
+  await writeFile(jobFile, JSON.stringify(f.job));
+  await writeFile(
+    preload,
+    `
+const fs = require('node:fs');
+const path = require('node:path');
+const { syncBuiltinESMExports } = require('node:module');
+const originals = {
+  closeSync: fs.closeSync,
+  fstatSync: fs.fstatSync,
+  fsyncSync: fs.fsyncSync,
+  openSync: fs.openSync,
+  readFileSync: fs.readFileSync,
+  readlinkSync: fs.readlinkSync,
+  statSync: fs.statSync,
+  writeFileSync: fs.writeFileSync,
+};
+const root = process.env.KRN_TRACE_UNLINK_ROOT;
+const lockPath = process.env.KRN_TRACE_UNLINK_LOCK;
+const tracePath = process.env.KRN_TRACE_UNLINK_TRACE;
+const role = process.env.KRN_TRACE_UNLINK_ROLE;
+function startTicks(pid = process.pid) {
+  const stat = originals.readFileSync('/proc/' + pid + '/stat', 'utf8');
+  return stat.slice(stat.lastIndexOf(')') + 2).trim().split(/\\s+/u)[19];
+}
+function writeMarker(name, value) {
+  originals.writeFileSync(
+    path.join(root, name),
+    JSON.stringify(value) + '\\n',
+    { flag: 'wx', mode: 0o600 },
+  );
+}
+function waitForMarker(name) {
+  const marker = path.join(root, name);
+  const deadline = Date.now() + 12000;
+  const cell = new Int32Array(new SharedArrayBuffer(4));
+  while (Date.now() < deadline) {
+    try {
+      return JSON.parse(originals.readFileSync(marker, 'utf8'));
+    } catch (error) {
+      if (error?.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error;
+    }
+    Atomics.wait(cell, 0, 0, 10);
+  }
+  throw new Error('lock unlink barrier timed out: ' + name);
+}
+let ownerPaused = false;
+fs.fsyncSync = function (fd) {
+  let actualPath;
+  try {
+    actualPath = originals.readlinkSync('/proc/' + process.pid + '/fd/' + fd);
+  } catch {
+    return originals.fsyncSync.call(this, fd);
+  }
+  if (role === 'owner' && actualPath === tracePath && !ownerPaused) {
+    ownerPaused = true;
+    const traceStats = originals.fstatSync(fd);
+    const traceBytes = originals.readFileSync(tracePath, 'utf8');
+    const lockStats = originals.statSync(lockPath);
+    const lockOwner = JSON.parse(originals.readFileSync(lockPath, 'utf8'));
+    const identity = { pid: process.pid, startTicks: startTicks() };
+    writeMarker('owner-fsync-paused.json', {
+      ...identity,
+      fd,
+      traceFdPath: actualPath,
+      traceStats: { dev: traceStats.dev, ino: traceStats.ino, size: traceStats.size },
+      ownerRowVisible: traceBytes.includes('"sha":"${ownerSha}"'),
+      lockStats: { dev: lockStats.dev, ino: lockStats.ino, nlink: lockStats.nlink },
+      lockOwner,
+    });
+    const release = waitForMarker('release-owner-fsync.json');
+    if (release.pid !== identity.pid || release.startTicks !== identity.startTicks)
+      throw new Error('owner release identity mismatch');
+  }
+  return originals.fsyncSync.call(this, fd);
+};
+let contenderPaused = false;
+fs.openSync = function (pathArg, flags, ...rest) {
+  const fd = originals.openSync.call(this, pathArg, flags, ...rest);
+  if (
+    role !== 'contender' ||
+    path.resolve(String(pathArg)) !== path.resolve(lockPath) ||
+    typeof flags !== 'number' ||
+    (flags & fs.constants.O_ACCMODE) !== fs.constants.O_RDONLY ||
+    contenderPaused
+  )
+    return fd;
+  contenderPaused = true;
+  const stats = originals.fstatSync(fd);
+  const actualPath = originals.readlinkSync('/proc/' + process.pid + '/fd/' + fd);
+  const identity = { pid: process.pid, startTicks: startTicks() };
+  if (!stats.isFile() || stats.nlink !== 1 || actualPath !== lockPath) {
+    originals.closeSync(fd);
+    throw new Error('contender did not open the existing owned lock safely');
+  }
+  writeMarker('contender-lock-opened.json', {
+    ...identity,
+    fd,
+    flags,
+    accessMode: flags & fs.constants.O_ACCMODE,
+    noFollow: (flags & (fs.constants.O_NOFOLLOW || 0)) !== 0,
+    nonBlock: (flags & (fs.constants.O_NONBLOCK || 0)) !== 0,
+    actualPath,
+    stats: { dev: stats.dev, ino: stats.ino, nlink: stats.nlink, size: stats.size },
+  });
+  const release = waitForMarker('release-contender-open.json');
+  if (release.pid !== identity.pid || release.startTicks !== identity.startTicks)
+    throw new Error('contender release identity mismatch');
+  const after = originals.fstatSync(fd);
+  const afterPath = originals.readlinkSync('/proc/' + process.pid + '/fd/' + fd);
+  writeMarker('contender-lock-after-unlink.json', {
+    ...identity,
+    fd,
+    actualPath: afterPath,
+    stats: { dev: after.dev, ino: after.ino, nlink: after.nlink, size: after.size },
+  });
+  return fd;
+};
+syncBuiltinESMExports();
+`,
+  );
+  await writeFile(
+    worker,
+    `
+import { readFileSync, writeFileSync } from 'node:fs';
+const root = process.env.KRN_TRACE_UNLINK_ROOT;
+const role = process.env.KRN_TRACE_UNLINK_ROLE;
+const job = JSON.parse(readFileSync(process.env.KRN_TRACE_UNLINK_JOB, 'utf8'));
+const identity = { pid: process.pid, startTicks: readFileSync('/proc/' + process.pid + '/stat', 'utf8').slice(readFileSync('/proc/' + process.pid + '/stat', 'utf8').lastIndexOf(')') + 2).trim().split(/\\s+/u)[19] };
+writeFileSync(root + '/' + role + '-ready.json', JSON.stringify(identity), { flag: 'wx', mode: 0o600 });
+let outcome;
+try {
+  const { verdict } = await import(${JSON.stringify(moduleUrl)});
+  const sha = role === 'owner' ? '${ownerSha}' : '${contenderSha}';
+  await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha256: sha.padEnd(64, '0') }] });
+  outcome = { kind: 'resolved' };
+} catch (error) {
+  outcome = { kind: 'rejected', name: error instanceof Error ? error.name : typeof error, message: error instanceof Error ? error.message : 'non-Error rejection' };
+}
+writeFileSync(root + '/' + role + '-result.json', JSON.stringify({ ...identity, outcome }), { flag: 'wx', mode: 0o600 });
+`,
+  );
+
+  type ChildRecord = {
+    role: 'owner' | 'contender';
+    child: ReturnType<typeof spawn>;
+    identity?: { pid: number; startTicks: string };
+    stdout: string;
+    stderr: string;
+    spawned: Promise<void>;
+    closed: Promise<{
+      code: number | null;
+      signal: NodeJS.Signals | null;
+      stdout: string;
+      stderr: string;
+    }>;
+  };
+  const children: ChildRecord[] = [];
+  const start = (role: ChildRecord['role']): ChildRecord => {
+    const child = spawn(process.execPath, ['--require', preload, worker], {
+      cwd: f.directory,
+      env: {
+        ...process.env,
+        KRN_TRACE_UNLINK_ROOT: barrier,
+        KRN_TRACE_UNLINK_LOCK: lockPath,
+        KRN_TRACE_UNLINK_TRACE: f.tracePath,
+        KRN_TRACE_UNLINK_ROLE: role,
+        KRN_TRACE_UNLINK_JOB: jobFile,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const record: ChildRecord = {
+      role,
+      child,
+      stdout: '',
+      stderr: '',
+      spawned: Promise.resolve(),
+      closed: Promise.resolve({
+        code: null,
+        signal: null,
+        stdout: '',
+        stderr: '',
+      }),
+    };
+    child.stdout?.setEncoding('utf8').on('data', (chunk: string) => {
+      record.stdout += chunk;
+    });
+    child.stderr?.setEncoding('utf8').on('data', (chunk: string) => {
+      record.stderr += chunk;
+    });
+    record.spawned = new Promise((resolve) => {
+      child.once('spawn', () => {
+        if (child.pid) {
+          const startTicks = processStartTicks(child.pid);
+          if (startTicks) record.identity = { pid: child.pid, startTicks };
+        }
+        resolve();
+      });
+      child.once('error', () => resolve());
+    });
+    record.closed = new Promise((resolve) => {
+      child.once('close', (code, signal) =>
+        resolve({ code, signal, stdout: record.stdout, stderr: record.stderr }),
+      );
+    });
+    children.push(record);
+    return record;
+  };
+  const waitFor = async (name: string, timeoutMs = 10000) => {
+    const path = join(barrier, name);
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      try {
+        return JSON.parse(await readFile(path, 'utf8')) as Record<
+          string,
+          unknown
+        >;
+      } catch (error) {
+        if (
+          (error as NodeJS.ErrnoException).code !== 'ENOENT' &&
+          !(error instanceof SyntaxError)
+        )
+          throw error;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
+    return undefined;
+  };
+  const release = async (name: string, child: ChildRecord | undefined) => {
+    try {
+      await writeFile(
+        join(barrier, name),
+        JSON.stringify(child?.identity ?? { pid: 0, startTicks: '0' }),
+        { flag: 'wx', mode: 0o600 },
+      );
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    }
+  };
+  const waitForClose = async (record: ChildRecord, timeoutMs: number) => {
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<false>((resolve) => {
+      timer = setTimeout(() => resolve(false), timeoutMs);
+    });
+    const result = await Promise.race([
+      record.closed.then(() => true),
+      timeout,
+    ]);
+    if (timer) clearTimeout(timer);
+    return result;
+  };
+
+  let owner: ChildRecord | undefined;
+  let contender: ChildRecord | undefined;
+  try {
+    owner = start('owner');
+    await owner.spawned;
+    assert.ok(
+      owner.identity,
+      `owner spawn identity unavailable; stderr=${owner.stderr}`,
+    );
+    const ownerReady = await waitFor('owner-ready.json');
+    assert.deepEqual(
+      ownerReady,
+      owner.identity,
+      'owner fixture process identity changed',
+    );
+    const paused = await waitFor('owner-fsync-paused.json');
+    assert.ok(paused, 'owner did not pause before the real trace fsync');
+    assert.equal(paused.pid, owner.identity.pid);
+    assert.equal(paused.startTicks, owner.identity.startTicks);
+    assert.equal(paused.traceFdPath, f.tracePath);
+    assert.equal(paused.ownerRowVisible, true);
+    const pausedLockStats = paused.lockStats as {
+      dev: number;
+      ino: number;
+      nlink: number;
+    };
+    assert.equal(pausedLockStats.nlink, 1);
+
+    contender = start('contender');
+    await contender.spawned;
+    assert.ok(
+      contender.identity,
+      `contender spawn identity unavailable; stderr=${contender.stderr}`,
+    );
+    const contenderReady = await waitFor('contender-ready.json');
+    assert.deepEqual(
+      contenderReady,
+      contender.identity,
+      'contender fixture process identity changed',
+    );
+    const opened = await waitFor('contender-lock-opened.json');
+    assert.ok(opened, 'contender did not open the existing primary lock');
+    assert.equal(opened.pid, contender.identity.pid);
+    assert.equal(opened.startTicks, contender.identity.startTicks);
+    assert.equal(opened.accessMode, 0);
+    assert.equal(opened.noFollow, true);
+    assert.equal(opened.nonBlock, true);
+    assert.equal(opened.actualPath, lockPath);
+    const openedStats = opened.stats as {
+      dev: number;
+      ino: number;
+      nlink: number;
+    };
+    assert.equal(openedStats.dev, pausedLockStats.dev);
+    assert.equal(openedStats.ino, pausedLockStats.ino);
+    assert.equal(openedStats.nlink, 1);
+
+    await release('release-owner-fsync.json', owner);
+    const ownerClosed = await owner.closed;
+    const fdPath = `/proc/${contender.identity.pid}/fd/${String(opened.fd)}`;
+    const deletedPath = readlinkSync(fdPath);
+    const deletedStats = statSync(fdPath);
+    assert.equal(ownerClosed.code, 0, `owner stderr=${ownerClosed.stderr}`);
+    assert.equal(ownerClosed.signal, null);
+    assert.equal(
+      existsSync(lockPath),
+      false,
+      'owner did not remove its exact primary lock',
+    );
+    assert.equal(deletedPath, `${lockPath} (deleted)`);
+    assert.equal(deletedStats.dev, openedStats.dev);
+    assert.equal(deletedStats.ino, openedStats.ino);
+    assert.equal(deletedStats.nlink, 0);
+
+    await release('release-contender-open.json', contender);
+    const contenderClosed = await contender.closed;
+    const resumed = await waitFor('contender-lock-after-unlink.json');
+    assert.ok(
+      resumed,
+      'contender did not record its open fd after owner unlink',
+    );
+    assert.equal(resumed.pid, contender.identity.pid);
+    assert.equal(resumed.startTicks, contender.identity.startTicks);
+    assert.equal(resumed.fd, opened.fd);
+    assert.equal(resumed.actualPath, deletedPath);
+    const resumedStats = resumed.stats as {
+      dev: number;
+      ino: number;
+      nlink: number;
+    };
+    assert.equal(resumedStats.dev, openedStats.dev);
+    assert.equal(resumedStats.ino, openedStats.ino);
+    assert.equal(resumedStats.nlink, 0);
+    assert.equal(
+      contenderClosed.code,
+      0,
+      `contender stderr=${contenderClosed.stderr}`,
+    );
+    assert.equal(contenderClosed.signal, null);
+
+    const ownerResult = JSON.parse(
+      await readFile(join(barrier, 'owner-result.json'), 'utf8'),
+    ) as { outcome: { kind: string }; pid: number; startTicks: string };
+    const contenderResult = JSON.parse(
+      await readFile(join(barrier, 'contender-result.json'), 'utf8'),
+    ) as {
+      outcome: { kind: string; message?: string };
+      pid: number;
+      startTicks: string;
+    };
+    const rows = (await readFile(f.tracePath, 'utf8'))
+      .trim()
+      .split('\n')
+      .map(
+        (line) => JSON.parse(line) as { kind: string; data: { sha?: string } },
+      );
+    const ownerGone = !processHasIdentity(
+      owner.identity.pid,
+      owner.identity.startTicks,
+    );
+    const contenderGone = !processHasIdentity(
+      contender.identity.pid,
+      contender.identity.startTicks,
+    );
+    const evidence = {
+      owner: {
+        identity: owner.identity,
+        close: ownerClosed,
+        result: ownerResult,
+        fsyncPaused: paused,
+        identityGoneAfterClose: ownerGone,
+      },
+      contender: {
+        identity: contender.identity,
+        close: contenderClosed,
+        result: contenderResult,
+        lockOpened: opened,
+        fdAfterOwnerUnlink: {
+          path: deletedPath,
+          dev: deletedStats.dev,
+          ino: deletedStats.ino,
+          nlink: deletedStats.nlink,
+        },
+        resumed,
+        identityGoneAfterClose: contenderGone,
+      },
+      rows,
+      lockAbsent: !existsSync(lockPath),
+      reclaimerAbsent: !existsSync(`${lockPath}.reclaim`),
+    };
+    const evidencePath = process.env.KRN_TRACE_UNLINK_EVIDENCE;
+    if (evidencePath)
+      await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, {
+        flag: 'wx',
+        mode: 0o600,
+      });
+
+    assert.deepEqual(
+      ownerResult.outcome,
+      { kind: 'resolved' },
+      `owner result=${JSON.stringify(ownerResult)} stderr=${ownerClosed.stderr}`,
+    );
+    assert.deepEqual(
+      contenderResult.outcome,
+      { kind: 'resolved' },
+      `contender result=${JSON.stringify(contenderResult)} stderr=${contenderClosed.stderr}`,
+    );
+    assert.equal(
+      rows.length,
+      2,
+      `expected both intact rows, got ${JSON.stringify(rows)}`,
+    );
+    assert.deepEqual(
+      rows.map((row) => row.data.sha).sort(),
+      [ownerSha, contenderSha].sort(),
+    );
+    assert.ok(rows.every((row) => row.kind === 'verdict'));
+    assert.equal(evidence.lockAbsent, true);
+    assert.equal(evidence.reclaimerAbsent, true);
+    assert.equal(
+      ownerGone,
+      true,
+      `owner identity remained after close: ${JSON.stringify(owner.identity)}`,
+    );
+    assert.equal(
+      contenderGone,
+      true,
+      `contender identity remained after close: ${JSON.stringify(contender.identity)}`,
+    );
+  } finally {
+    await release('release-owner-fsync.json', owner);
+    await release('release-contender-open.json', contender);
+    await Promise.all(children.map((child) => child.spawned));
+    for (const child of children) {
+      if (await waitForClose(child, 1200)) continue;
+      if (
+        child.identity &&
+        processHasIdentity(child.identity.pid, child.identity.startTicks)
+      )
+        child.child.kill('SIGTERM');
+      if (await waitForClose(child, 1200)) continue;
+      if (
+        child.identity &&
+        processHasIdentity(child.identity.pid, child.identity.startTicks)
+      )
+        child.child.kill('SIGKILL');
+      await child.closed;
+    }
     await rm(f.directory, { recursive: true, force: true });
   }
 });

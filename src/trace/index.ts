@@ -105,6 +105,7 @@ const traceLockOwnerSchema = z.object({
 });
 type TraceLockOwnerObservation =
   | { readonly kind: 'absent' }
+  | { readonly kind: 'unlinked' }
   | { readonly kind: 'publishing'; readonly dev: number; readonly ino: number }
   | { readonly kind: 'invalid' }
   | {
@@ -113,6 +114,8 @@ type TraceLockOwnerObservation =
       readonly dev: number;
       readonly ino: number;
     };
+
+class UnlinkedTraceLockObservationError extends Error {}
 const traceLockWaitMs = 3000;
 const traceLockPollMs = 10;
 const traceLockWaitCell = new Int32Array(new SharedArrayBuffer(4));
@@ -335,7 +338,12 @@ function openTraceFile(path: string, flags: number, mode?: number): number {
   }
 }
 
-function openVerifiedTrace(path: string, flags: number, mode?: number): number {
+function openVerifiedTrace(
+  path: string,
+  flags: number,
+  mode?: number,
+  allowUnlinkedLockObservation = false,
+): number {
   let fd: number;
   let createdByOpen = false;
   if ((flags & constants.O_CREAT) !== 0) {
@@ -363,6 +371,26 @@ function openVerifiedTrace(path: string, flags: number, mode?: number): number {
     resolve(path),
   );
   if (traceFdPathVerificationDecision(pathVerification) === 'refusal') {
+    if (
+      allowUnlinkedLockObservation &&
+      path.endsWith('.lock') &&
+      flags === constants.O_RDONLY &&
+      pathVerification === 'mismatch' &&
+      actualPath === `${resolve(path)} (deleted)`
+    ) {
+      let unlinkedStats: ReturnType<typeof fstatSync> | undefined;
+      try {
+        unlinkedStats = fstatSync(fd);
+      } catch {
+        // An unreadable descriptor retains the normal fail-closed path below.
+      }
+      if (unlinkedStats?.isFile() && unlinkedStats.nlink === 0) {
+        closeSync(fd);
+        throw new UnlinkedTraceLockObservationError(
+          'verified trace lock was unlinked after open',
+        );
+      }
+    }
     let cleanupPath: string | undefined;
     let openedStats: ReturnType<typeof fstatSync> | undefined;
     if (createdByOpen && pathVerification === 'mismatch') {
@@ -396,6 +424,18 @@ function openVerifiedTrace(path: string, flags: number, mode?: number): number {
     throw new Error('unsafe trace path');
   }
   const openedStats = fstatSync(fd);
+  if (
+    allowUnlinkedLockObservation &&
+    path.endsWith('.lock') &&
+    flags === constants.O_RDONLY &&
+    openedStats.isFile() &&
+    openedStats.nlink === 0
+  ) {
+    closeSync(fd);
+    throw new UnlinkedTraceLockObservationError(
+      'verified trace lock was unlinked after open',
+    );
+  }
   if (!openedStats.isFile() || openedStats.nlink !== 1) {
     closeSync(fd);
     throw new Error('unsafe trace path');
@@ -526,8 +566,10 @@ function assertTraceLockPath(path: string): void {
 function readTraceLockOwner(path: string): TraceLockOwnerObservation {
   let fd: number;
   try {
-    fd = openVerifiedTrace(path, constants.O_RDONLY);
+    fd = openVerifiedTrace(path, constants.O_RDONLY, undefined, true);
   } catch (error) {
+    if (error instanceof UnlinkedTraceLockObservationError)
+      return { kind: 'unlinked' };
     if ((error as NodeJS.ErrnoException).code === 'ENOENT')
       return { kind: 'absent' };
     throw error;
@@ -675,6 +717,10 @@ function acquireTraceLock(directory: string, tracePath: string): () => void {
     }
 
     const observed = readTraceLockOwner(lockPath);
+    if (observed.kind === 'unlinked') {
+      waitForTraceLock();
+      continue;
+    }
     if (observed.kind !== 'owner') {
       waitForTraceLock();
       continue;
