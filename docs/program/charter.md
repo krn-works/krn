@@ -328,3 +328,13 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 [POLICY] The originally named `src/evals/journey.ts` evaluator is permitted; “no new module” forbids additional modules beyond that named evaluator and existing CLI/trace seams. Do not modify or relocate it in this correction. Preserve all historical FAIL records, including the c1 Standards FAIL; this clarification changes no verdict.
 
 [CODE] After scrubbing inherited Git variables, set `GIT_NO_LAZY_FETCH=1`. Before report HEAD/status queries, conservatively refuse any `extensions.partialClone` or `remote.*.promisor` configuration through the existing built-in read-only config guard, including complete promisor repositories. Preserve content-filter refusal, fd-pinned registration/Git binding and index-gitlink checks. Limit tracked edits to `src/cli/index.ts`, one parameterized observer in existing `test/cli.test.ts`, this charter and P-039 in the proposal registry. Root retains independent exact-head proof, review, CI, lifecycle, acceptance and conditional publication; the author has only implementation/local-commit authority. Cooperative supervision is not qualified unattended confinement.
+
+## LON-294 trace startup verifier prerequisite (2026-10-19)
+
+[EMPIRICAL] The unchanged existing torn-tail two-process test passed with no first-child startup delay and failed its `first process reached repair` assertion with the frozen 750 ms delay on accepted base `b5cccd1b75a6582614bfb7781243eda730e2531f`. The test block is byte-identical to the S3b observer. This reproduces a verifier race independently; the causal relation to wider S3b candidate schedules remains unproven.
+
+[CODE] The existing observer waits under its original eight-second readiness deadline for either the stale-reclaimer-held or first-repair marker, then chooses its synchronization branch from the marker observed. Its trace/event assertions, process cleanup, readiness limits, and 15-second test timeout remain in force. No runtime code or additional test case is in scope.
+
+[POLICY] Preserve the frozen preload and delay parameters for before/after proof, retain the branch and evidence for root/LON-288/LON-292 until whole-outcome closeout and explicit disposition, and leave acceptance, independent review, board, and publication to root.
+
+[EMPIRICAL] Root accepted LON-294 after PR #66 merged normally as `ba77ba1a60aab4f149df106809fdc1da74fc425e` with the reviewed tree preserved. The strict local gate passed 453 tests without skips; all three independent Luna/xhigh roles, exact-head statuses, admission and required head/main CI passed. Board acceptance was read back on 2026-10-19. Its test-only correction is integrated into S3b without further runtime changes.
