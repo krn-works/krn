@@ -4,6 +4,7 @@ import {
   chmod,
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
   rm,
   stat,
@@ -88,6 +89,64 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   });
 }
 
+test('live smoke retains its private fixture and reports it after failure', async (t) => {
+  if (
+    !requiresIsolation(t, 'live smoke retains failure evidence', [
+      'systemdUserScope',
+    ])
+  )
+    return;
+  const fixtureRoot = join(repoRoot, '.krn', 'tmp');
+  await mkdir(fixtureRoot, { recursive: true });
+  const fixture = await mkdtemp(join(fixtureRoot, 'krn-smoke-failure-test-'));
+  const executable = join(fixture, 'fake-codex');
+  await writeFile(
+    executable,
+    '#!/bin/sh\necho deliberate-smoke-failure >&2\nexit 9\n',
+  );
+  await chmod(executable, 0o755);
+  try {
+    const child = spawn(process.execPath, [smokeScript], {
+      env: {
+        ...process.env,
+        KRN_LIVE: '1',
+        KRN_LIVE_CODEX_EXECUTABLE: executable,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const [stdout, stderr, exit] = await Promise.all([
+      collect(child.stdout),
+      collect(child.stderr),
+      waitForExit(child),
+    ]);
+    assert.notEqual(exit.code, 0);
+    const artifact = stderr
+      .match(/Failure evidence retained at: (.+)/u)?.[1]
+      ?.trim();
+    assert.ok(artifact, stderr);
+    assert.equal(await exists(artifact), true);
+    assert.doesNotMatch(stdout, /Live Codex sandbox checkpoint smoke passed/u);
+    const jobId = (
+      await readdir(join(artifact, '.krn', 'runs', 'foreman'))
+    ).find((name) => name.startsWith('smoke-'));
+    assert.ok(jobId);
+    assert.match(
+      await readFile(
+        join(artifact, '.krn', 'runs', 'foreman', jobId, 'trace.jsonl'),
+        'utf8',
+      ),
+      /"kind":"failure"/u,
+    );
+    assert.match(
+      await readFile(join(artifact, 'README.md'), 'utf8'),
+      /live checkpoint smoke/u,
+    );
+    await rm(artifact, { recursive: true, force: true });
+  } finally {
+    await rm(fixture, { recursive: true, force: true });
+  }
+});
+
 async function waitFor<T>(read: () => Promise<T | undefined>): Promise<T> {
   const deadline = Date.now() + 5000;
   while (Date.now() < deadline) {
@@ -111,6 +170,13 @@ async function waitForExit(
       resolveExit({ code, signal: signal as NodeJS.Signals | null });
     });
   });
+}
+
+async function collect(stream: NodeJS.ReadableStream | null): Promise<string> {
+  if (!stream) return '';
+  let value = '';
+  for await (const chunk of stream) value += String(chunk);
+  return value;
 }
 
 async function exists(path: string | undefined): Promise<boolean> {
