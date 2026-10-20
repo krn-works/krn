@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -93,7 +93,9 @@ for (const required of [
 ])
   assert.ok(aliases.includes(required), `missing native alias: ${required}`);
 
-test('public registration alias graph rejects forged skips and preserves honest controls', async (t) => {
+test('public registration alias graph rejects forged skips and preserves honest controls', {
+  concurrency: 2,
+}, async (t) => {
   const stateRoot = join(process.cwd(), '.krn/tmp');
   await mkdir(stateRoot, { recursive: true });
   const directory = await mkdtemp(join(stateRoot, 'registration-aliases-'));
@@ -101,37 +103,54 @@ test('public registration alias graph rejects forged skips and preserves honest 
   const run = async (source) => {
     const fixture = join(directory, `${sequence++}.test.mjs`);
     await writeFile(fixture, source);
-    const result = spawnSync(process.execPath, [wrapper, fixture], {
+    const child = spawn(process.execPath, [wrapper, fixture], {
       cwd: process.cwd(),
       env: environment,
-      encoding: 'utf8',
       timeout: 30_000,
+    });
+    const stdout = [];
+    const stderr = [];
+    let error;
+    child.stdout.on('data', (chunk) => stdout.push(chunk));
+    child.stderr.on('data', (chunk) => stderr.push(chunk));
+    child.on('error', (cause) => {
+      error = cause;
+    });
+    const result = await new Promise((resolve) => {
+      child.on('close', (status, signal) => {
+        resolve({
+          status,
+          signal,
+          error,
+          stdout: Buffer.concat(stdout).toString(),
+          stderr: Buffer.concat(stderr).toString(),
+        });
+      });
     });
     assert.equal(result.error, undefined, result.error?.message);
     assert.equal(result.signal, null, result.stderr);
     return result;
   };
+  const cases = [];
+  const add = (name, fn) => cases.push(t.test(name, fn));
   try {
     for (const [loader, prelude] of Object.entries(loaders)) {
       for (const alias of aliases) {
-        await t.test(
-          `${loader} ${alias} rejects registration skip`,
-          async () => {
-            const result = await run(
-              `${prelude}\n${alias}('forged registration', { skip: 'SKIP(isolation): forged registration' }, () => {});`,
-            );
-            const details = `${result.stdout}\n${result.stderr}`;
-            assert.equal(result.status, 1, details);
-            assert.match(result.stdout, /^# skipped 0$/mu, details);
-            assert.match(
-              result.stdout,
-              /Registration-level (?:skips|todo).*not permitted/u,
-              details,
-            );
-          },
-        );
+        add(`${loader} ${alias} rejects registration skip`, async () => {
+          const result = await run(
+            `${prelude}\n${alias}('forged registration', { skip: 'SKIP(isolation): forged registration' }, () => {});`,
+          );
+          const details = `${result.stdout}\n${result.stderr}`;
+          assert.equal(result.status, 1, details);
+          assert.match(result.stdout, /^# skipped 0$/mu, details);
+          assert.match(
+            result.stdout,
+            /Registration-level (?:skips|todo).*not permitted/u,
+            details,
+          );
+        });
       }
-      await t.test(
+      add(
         `${loader} honest callback, suite, hook and static controls`,
         async () => {
           const result = await run(`${prelude}
@@ -187,7 +206,7 @@ api.it.expectFailure('honest expected failure', (context) => {
       );
       for (const root of ['api.it', 'api.suite']) {
         for (const variant of ['only', 'expectFailure']) {
-          await t.test(
+          add(
             root === 'api.it' && variant === 'only'
               ? `${loader} reflected aliases reject forged skips`
               : `${loader} reflected ${root}.${variant} rejects forged skip`,
@@ -208,6 +227,7 @@ Object.getOwnPropertyDescriptor(${root}, '${variant}').value('forged reflected r
       }
     }
   } finally {
+    await Promise.all(cases.map((result) => result.catch(() => undefined)));
     await rm(directory, { recursive: true, force: true });
   }
 });
