@@ -42,6 +42,10 @@ export type DelegateWorkerResult = {
   readonly finalText?: string;
   readonly exitCode?: number | null;
   readonly signal?: NodeJS.Signals | null;
+  readonly sessionId?: string;
+  readonly reasonKind?: string;
+  readonly reasonSha256?: string;
+  readonly reasonLength?: number;
   readonly errorType?: string;
 };
 
@@ -607,6 +611,12 @@ async function executeWorker(
     sessionId = session.id;
     if (signal?.aborted || timedOut) cancel();
     const result = await session.wait();
+    const hostSummary = {
+      sessionId: result.sessionId,
+      reasonKind: result.reasonKind,
+      reasonSha256: result.reasonSha256,
+      reasonLength: result.reasonLength,
+    };
     await cancelPromise;
     if (cancelFailure) {
       return {
@@ -616,6 +626,7 @@ async function executeWorker(
         resultFile,
         resultPersisted: false,
         errorType: errorType(cancelFailure),
+        ...hostSummary,
       };
     }
     const finalText = result.finalMessage;
@@ -629,6 +640,7 @@ async function executeWorker(
         ...(finalText === undefined ? {} : { finalText }),
         exitCode: result.exitCode,
         signal: result.signal,
+        ...hostSummary,
       };
     if (signal?.aborted)
       return {
@@ -640,6 +652,7 @@ async function executeWorker(
         ...(finalText === undefined ? {} : { finalText }),
         exitCode: result.exitCode,
         signal: result.signal,
+        ...hostSummary,
       };
     if (result.exitCode !== 0 || !result.claimsDone || !finalText?.trim())
       return {
@@ -651,6 +664,7 @@ async function executeWorker(
         ...(finalText === undefined ? {} : { finalText }),
         exitCode: result.exitCode,
         signal: result.signal,
+        ...hostSummary,
       };
     return {
       id,
@@ -661,6 +675,7 @@ async function executeWorker(
       finalText,
       exitCode: result.exitCode,
       signal: result.signal,
+      ...hostSummary,
     };
   } catch (error) {
     await cancelPromise;
