@@ -25,7 +25,7 @@ import type { Job } from '../core/index.ts';
 import { readCheckpointRequest } from '../foreman/checkpoint-request.ts';
 import { credentialShapeKind } from '../foreman/credential-shape.ts';
 import { repoRecord, stateDirectory } from '../foreman/state.ts';
-import type { SessionEnd } from '../foreman/types.ts';
+import type { SessionEnd, SubmissionPersistence } from '../foreman/types.ts';
 import {
   codexScopeUnit,
   processHasIdentity,
@@ -33,7 +33,11 @@ import {
   type SystemdScopeRegistration,
   validateSystemdScopeRegistration,
 } from '../hosts/systemd-scope.ts';
-import type { SubmissionReceipt } from '../ledger/index.ts';
+import type {
+  ConflictCommentDelivery,
+  ReviewSubmission,
+  SubmissionReceipt,
+} from '../ledger/index.ts';
 import type { VerdictEvent } from '../verdict/index.ts';
 
 type Event = {
@@ -1388,6 +1392,161 @@ export function submitted(
   append(job, `submitted:${sha}`, 'submitted', { sha, receipt });
 }
 
+export async function submissionWindowFor(
+  job: Job,
+  sha: string,
+): Promise<readonly string[] | null> {
+  if (!/^[a-f0-9]{40,64}$/iu.test(sha))
+    throw new Error('commit SHA is malformed');
+  const event = events(job).find(
+    (candidate) =>
+      candidate.kind === 'submission_window' && candidate.data.sha === sha,
+  );
+  if (!event) return null;
+  const parsed = z
+    .object({
+      sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
+      eventIds: z.array(z.string().min(1)).max(20_000),
+    })
+    .safeParse(event.data);
+  if (!parsed.success || parsed.data.sha !== sha)
+    throw new Error('persisted submission window is invalid');
+  return parsed.data.eventIds;
+}
+
+export function submissionWindow(
+  job: Job,
+  sha: string,
+  eventIds: readonly string[],
+): void {
+  if (!/^[a-f0-9]{40,64}$/iu.test(sha))
+    throw new Error('commit SHA is malformed');
+  if (
+    eventIds.length > 20_000 ||
+    eventIds.some((eventId) => typeof eventId !== 'string' || !eventId)
+  )
+    throw new Error('submission window is invalid');
+  const key = `submission-window:${sha}`;
+  const prior = events(job).find((event) => event.key === key);
+  if (prior) {
+    const parsed = z
+      .object({
+        sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
+        eventIds: z.array(z.string().min(1)).max(20_000),
+      })
+      .safeParse(prior.data);
+    if (
+      !parsed.success ||
+      parsed.data.sha !== sha ||
+      JSON.stringify(parsed.data.eventIds) !== JSON.stringify(eventIds)
+    )
+      throw new Error('persisted submission window conflicts');
+    return;
+  }
+  append(job, key, 'submission_window', { sha, eventIds });
+}
+
+export async function submissionReconciliationFor(
+  job: Job,
+  sha: string,
+): Promise<ReviewSubmission | null> {
+  if (!/^[a-f0-9]{40,64}$/iu.test(sha))
+    throw new Error('commit SHA is malformed');
+  const event = events(job)
+    .filter(
+      (candidate) =>
+        candidate.kind === 'submission_reconciliation' &&
+        candidate.data.sha === sha,
+    )
+    .at(-1);
+  if (!event) return null;
+  const parsed = z
+    .object({
+      sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
+      result: z.enum([
+        'submitted',
+        'ready_for_review',
+        'stopped',
+        'refused',
+        'board_changed',
+        'board_conflict',
+      ]),
+    })
+    .safeParse(event.data);
+  if (!parsed.success || parsed.data.sha !== sha)
+    throw new Error('persisted submission reconciliation is invalid');
+  return parsed.data.result;
+}
+
+export function submissionReconciliation(
+  job: Job,
+  sha: string,
+  result: ReviewSubmission,
+): void {
+  if (!/^[a-f0-9]{40,64}$/iu.test(sha))
+    throw new Error('commit SHA is malformed');
+  append(
+    job,
+    `submission-reconciliation:${sha}:${randomUUID()}`,
+    'submission_reconciliation',
+    { sha, result },
+  );
+}
+
+export async function conflictCommentFor(
+  job: Job,
+  sha: string,
+): Promise<ConflictCommentDelivery | null> {
+  if (!/^[a-f0-9]{40,64}$/iu.test(sha))
+    throw new Error('commit SHA is malformed');
+  const event = events(job)
+    .filter(
+      (candidate) =>
+        candidate.kind === 'conflict_comment_delivery' &&
+        candidate.data.sha === sha,
+    )
+    .at(-1);
+  if (!event) return null;
+  const parsed = z
+    .object({
+      sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
+      state: z.enum(['pending', 'delivered']),
+      body: z.string().min(1),
+      sha256: z.string().regex(/^[a-f0-9]{64}$/iu),
+    })
+    .safeParse(event.data);
+  if (
+    !parsed.success ||
+    parsed.data.sha !== sha ||
+    createHash('sha256').update(parsed.data.body).digest('hex') !==
+      parsed.data.sha256
+  )
+    throw new Error('persisted conflict comment delivery is invalid');
+  return {
+    state: parsed.data.state,
+    body: parsed.data.body,
+    sha256: parsed.data.sha256,
+  };
+}
+
+export function conflictComment(
+  job: Job,
+  sha: string,
+  delivery: ConflictCommentDelivery,
+): void {
+  if (
+    !/^[a-f0-9]{40,64}$/iu.test(sha) ||
+    createHash('sha256').update(delivery.body).digest('hex') !== delivery.sha256
+  )
+    throw new Error('conflict comment delivery is invalid');
+  append(
+    job,
+    `conflict-comment:${sha}:${delivery.sha256}:${delivery.state}`,
+    'conflict_comment_delivery',
+    { sha, ...delivery },
+  );
+}
+
 export async function stopped(job: Job, signal: string): Promise<void> {
   append(job, `stopped:${randomUUID()}`, 'stopped', { signal });
 }
@@ -1440,6 +1599,19 @@ export function paperclipUpdateStarted(
     },
   );
 }
+
+export const submissionPersistence = {
+  submitIntent,
+  submittedFor,
+  submitted,
+  submissionWindowFor,
+  submissionWindow,
+  submissionReconciliationFor,
+  submissionReconciliation,
+  conflictCommentFor,
+  conflictComment,
+  paperclipUpdateStarted,
+} satisfies SubmissionPersistence;
 
 export async function readyForReview(job: Job, sha: string): Promise<void> {
   append(job, `ready-for-review:${sha}`, 'ready_for_review', { sha });

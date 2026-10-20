@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   appendFile,
   mkdir,
@@ -772,7 +773,13 @@ test('live submission takes Krn-Session from the verified commit trailer', async
     ]);
     const sha = git(['rev-parse', 'HEAD']);
     const job = { id: 'session-job', issue: 'I-SESSION', worktree: root };
+    recordRepo(job, root, 'main', sha);
     let supplied: string | undefined;
+    const receipt = {
+      issueId: job.issue,
+      status: 'in_review',
+      updatedAt: '2026-10-08T10:00:00.000Z',
+    };
     const result = await reportPassingVerdict(
       job,
       {
@@ -796,14 +803,171 @@ test('live submission takes Krn-Session from the verified commit trailer', async
           options?: SubmitForReviewOptions,
         ) => {
           supplied = options?.session;
+          options?.onSubmissionWindow?.(['baseline-event']);
+          options?.onSubmitted?.(receipt);
+          options?.onReconciliation?.('submitted');
+          return 'submitted';
+        },
+      } as never,
+      diskTrace,
+      (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
+    );
+    assert.equal(result.kind, 'verdict_pass');
+    assert.equal(supplied, 'trailer-session');
+    assert.deepEqual(await diskTrace.submittedFor(job, sha), receipt);
+    assert.deepEqual(await diskTrace.submissionWindowFor(job, sha), [
+      'baseline-event',
+    ]);
+    assert.equal(
+      await diskTrace.submissionReconciliationFor(job, sha),
+      'submitted',
+    );
+    const body = 'synthetic conflict comment body';
+    const pending = {
+      state: 'pending' as const,
+      body,
+      sha256: createHash('sha256').update(body).digest('hex'),
+    };
+    diskTrace.submissionReconciliation(job, sha, 'board_conflict');
+    diskTrace.conflictComment(job, sha, pending);
+    assert.equal(
+      await diskTrace.submissionReconciliationFor(job, sha),
+      'board_conflict',
+    );
+    assert.deepEqual(await diskTrace.conflictCommentFor(job, sha), pending);
+    diskTrace.conflictComment(job, sha, { ...pending, state: 'delivered' });
+    assert.deepEqual(await diskTrace.conflictCommentFor(job, sha), {
+      ...pending,
+      state: 'delivered',
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('writable submission fails closed when owned persistence is unavailable', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-session-no-trace-'));
+  const git = (args: string[]) => {
+    const result = spawnSync('git', ['-C', root, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  try {
+    git(['init', '-q', '--initial-branch=main']);
+    await writeFile(join(root, 'README.md'), 'fixture\n');
+    git(['add', 'README.md']);
+    git([
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      'commit',
+      '-qm',
+      'test: verified commit\n\nKrn-Session: trailer-session',
+    ]);
+    const sha = git(['rev-parse', 'HEAD']);
+    const job = { id: 'session-job', issue: 'I-SESSION', worktree: root };
+    let writes = 0;
+    const outcome = await reportPassingVerdict(
+      job,
+      {
+        issueId: job.issue,
+        identifier: job.issue,
+        title: 'test',
+        description: 'test',
+        revision: 'rev',
+        targetRepo: 'fixture/repo',
+        checks: [],
+      },
+      sha,
+      [],
+      {
+        submissionEnabled: true,
+        submitForReview: async () => {
+          writes += 1;
           return 'submitted';
         },
       } as never,
       {},
       (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
     );
-    assert.equal(result.kind, 'verdict_pass');
-    assert.equal(supplied, 'trailer-session');
+    assert.deepEqual(outcome, {
+      kind: 'stop',
+      state: 'human_decision',
+      reasons: ['submission persistence unavailable'],
+    });
+    assert.equal(writes, 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only submission keeps a persisted board conflict visible', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-session-read-only-conflict-'));
+  const git = (args: string[]) => {
+    const result = spawnSync('git', ['-C', root, ...args], {
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  try {
+    git(['init', '-q', '--initial-branch=main']);
+    await writeFile(join(root, 'README.md'), 'fixture\n');
+    git(['add', 'README.md']);
+    git([
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      'commit',
+      '-qm',
+      'test: verified commit\n\nKrn-Session: trailer-session',
+    ]);
+    const sha = git(['rev-parse', 'HEAD']);
+    const job = { id: 'session-job', issue: 'I-SESSION', worktree: root };
+    let writes = 0;
+    const outcome = await reportPassingVerdict(
+      job,
+      {
+        issueId: job.issue,
+        identifier: job.issue,
+        title: 'test',
+        description: 'test',
+        revision: 'rev',
+        targetRepo: 'fixture/repo',
+        checks: [],
+      },
+      sha,
+      [],
+      {
+        submissionEnabled: false,
+        submitForReview: async () => {
+          writes += 1;
+          return 'ready_for_review';
+        },
+      } as never,
+      {
+        submissionPersistence: {
+          ...diskTrace.submissionPersistence,
+          submittedFor: async () => ({
+            issueId: job.issue,
+            status: 'in_review',
+            updatedAt: '2026-10-08T10:00:00.000Z',
+          }),
+          submissionReconciliationFor: async () => 'board_conflict',
+        },
+      } as never,
+      (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
+    );
+    assert.deepEqual(outcome, {
+      kind: 'stop',
+      state: 'human_decision',
+      reasons: ['board_conflict'],
+    });
+    assert.equal(writes, 0);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
