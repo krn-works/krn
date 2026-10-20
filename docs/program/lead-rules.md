@@ -37,3 +37,9 @@ When the lead proposes a change, record the suggestion in the proposal registry 
 ## Change host infrastructure
 
 Before changing host infrastructure, identify the cause from the relevant logs and capture the current state. Make only the action covered by a recorded grant, then capture and read back the resulting state. Stop if the cause, grant scope, or safe readback is missing.
+
+## Scope, evidence, and delivery
+
+For work spanning sessions, pull requests, or modules, keep the living plan required by [`PLANS.md`](PLANS.md); read back current task, authority, checkout, base/head, and dirty ownership before using a handoff. Preserve the charter → ADR → `AGENTS.md` → skill → plan → working-notes precedence, label evidence claims, and keep proposals in the registry until accepted decisions reach the charter and their durable owner.
+
+One writer owns each outcome. For authorized delivery, use an owned branch and PR; reuse recorded publication grants without repeated prompts. A publication command must be gated on a successful actual preflight exit, and its `Ticket:` and `Change-contract:` Git trailers belong in one contiguous trailer block. Required reviews, checks, CI, merge readback, and branch/worktree disposition remain with their named owners. Stop at scope, authority, capability, or required-check gaps; preserve failures and report the next lawful action. Roll back only task-owned changes under recorded authority.
