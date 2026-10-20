@@ -8,3 +8,7 @@ This directory preserves the pre-registered input material for KRN's A/B/C/R eva
 - **R:** Opus without a packet, as the reference arm.
 
 Do not edit `prereg.md` after the first run.
+
+## Input status versus experiment runs (2026-10-20)
+
+This directory contains preregistered inputs, not proof that A/B/C/R ran. The product ADR's proposed thresholds conflict with the frozen [`prereg.md`](prereg.md); resolve that conflict before the first run, with no post-result threshold change. See the [current roadmap](../../docs/program/roadmap-2026-10-20.md) for authority boundaries, dependencies, and required result evidence.

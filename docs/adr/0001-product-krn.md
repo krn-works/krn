@@ -36,3 +36,7 @@ in `spec/rules.json` and generate `AGENTS.md`.
 The module exports are deliberately small stubs. J1 implementation and
 behavioral qualification remain future work. Type-only Node definitions are a
 development dependency so the strict check can describe Node APIs.
+
+## Implementation follow-up (2026-10-20)
+
+[CODE] The repository now contains a working TypeScript package and CLI; the opening scaffold description is historical. Current executable entry and supported commands are indexed in [README](../../README.md). Unknown commands use `KRN_LEGACY_ENTRY` (default `~/.codex/krn/current/scripts/krn.mjs`), rather than the historical `KRN_LEGACY_BIN` variable recorded in this ADR’s decision block. This follow-up records implementation readback without changing the ADR's accepted single-package decision. Current inter-module dependencies and proposed refactoring are in [architecture](../architecture.md).

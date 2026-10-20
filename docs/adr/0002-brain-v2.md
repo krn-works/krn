@@ -254,3 +254,12 @@ evidence for the Luna-to-Opus claim; the experiment is the required test.
   domains before the Wizard-of-Oz gate.
 - Treating any copyright basis, detector threshold, judge result, or benchmark
   as a substitute for operator review or applicable rights.
+
+## Current proposal status (2026-10-20)
+
+This ADR remains proposed for E3 design and does not establish memory implementation or benefit. The frozen [WoZ preregistration](../../evals/woz/prereg.md) contains thresholds that conflict with the thresholds proposed here. Under KRN source precedence, resolve the protocol explicitly before any run; do not alter the preregistration after seeing results. The current dependency map, accepted GLOBAL ADR 0008/0009 target and evidence gaps are recorded in the [roadmap](../program/roadmap-2026-10-20.md). No status or threshold is changed by this note.
+
+
+## Uzupełnienie stanu (2026-10-20)
+
+GLOBAL `krn.memory/v1` CLI/store and typed event foundations already exist in the installed compatibility release; Product `src/memory/` is absent, which is a dispatcher/ownership boundary, not evidence of no KRN memory. Readback marks LON-128/130/131/132/133 and 127/139–142 `done`, LON-129 paired real-task utility `backlog`, LON-134 binding `blocked`, and 135/136/137 retirement `backlog`. These statuses do not qualify behavior or utility. This proposed Product v2 WoZ protocol remains separate from the adopted GLOBAL v1 target and from LON-129; it does not block every v1 memory use. Its existing threshold conflict with frozen preregistration remains unresolved and must be adjudicated before that WoZ run. This status note changes no threshold, ADR status, implementation state, or acceptance. See the [2026-10-20 audit](../program/audit-2026-10-20.md) and [canonical-plan supplement](../program/roadmap-2026-10-20.md).

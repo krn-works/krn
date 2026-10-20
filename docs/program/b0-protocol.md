@@ -1,3 +1,5 @@
+> **Historical protocol snapshot (2026-10-07).** Preserve its experiment design and dated limits. It is not current live authority; see [current roadmap](roadmap-2026-10-20.md) for current evidence and unresolved gates.
+
 # B0 — baseline protocol (arm A = today's method), 2026-10-07
 Tasks (operator: "1 + 2 + LON, lead picks"):
 - T1 krn-codex-skills: lessons removal M-8 (scripts/lib/lessons, Recall: hook obligation, config/AGENTS.md + delivery-loop references, docs). Scope: that repo only, branch+PR, Luna judges. Budget: 2 worker sessions + 2 repairs.
