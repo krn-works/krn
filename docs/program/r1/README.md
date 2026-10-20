@@ -1,3 +1,5 @@
+> **Historical and inactive runbook.** This records the original R1 roles, admission contract, and bounded grants. W0 and FullR1 are currently inactive; this runbook does not activate them. For current roles and status, see [CONTEXT.md](../../../CONTEXT.md). The dated role and grant clauses below remain historical evidence.
+
 # R1 — long-running delivery run (orchestrator runbook)
 
 R1 turns the 2026-10-10 audit ([audit](../audit-2026-10-10.md)) into merged, verified changes. The full run has a 7.5-hour

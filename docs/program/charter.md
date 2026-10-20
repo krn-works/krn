@@ -1,3 +1,5 @@
+> **Historical program record (started 2026-10-07).** The original owner and discovery sequence below describe that dated program plan; they are not current operating instructions. For current roles and status, see [CONTEXT.md](../../CONTEXT.md). Dated decisions, grants, limits, and evidence in this charter remain intact historical records.
+
 # Program KRN A–Z (start 2026-10-07)
 
 Owner: lead (Claude Opus 5.5). Operator: Korneliusz (weto, nazwa produktu finalnie, granty).
@@ -338,3 +340,8 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 [POLICY] Preserve the frozen preload and delay parameters for before/after proof, retain the branch and evidence for root/LON-288/LON-292 until whole-outcome closeout and explicit disposition, and leave acceptance, independent review, board, and publication to root.
 
 [EMPIRICAL] Root accepted LON-294 after PR #66 merged normally as `ba77ba1a60aab4f149df106809fdc1da74fc425e` with the reviewed tree preserved. The strict local gate passed 453 tests without skips; all three independent Luna/xhigh roles, exact-head statuses, admission and required head/main CI passed. Board acceptance was read back on 2026-10-19. Its test-only correction is integrated into S3b without further runtime changes.
+
+
+## Documentation status pointer (2026-10-20)
+
+[POLICY] Under the standing documentation cleanup request, this scope-only disposition uses repository-root [`CONTEXT.md`](../../CONTEXT.md) as the single concise current program orientation. The opening owner and stages above, the R1 runbook, and the E1 plan are historical records whose dated bodies remain intact. This pointer does not amend original grants or exhausted repair exceptions, claim pending work complete, or activate W0, FullR1, S5, or semantic memory. Paperclip remains the live status and acceptance owner. See proposal [P-042](proposals.md#proposal-registry).
