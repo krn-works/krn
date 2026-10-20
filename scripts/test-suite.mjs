@@ -25,6 +25,9 @@ export const TEST_FILE_GLOB = 'test/**/*.test.{ts,js,mjs,cjs}';
 const eventReporter = fileURLToPath(
   new URL('./test-events-reporter.mjs', import.meta.url),
 );
+const isolationGate = fileURLToPath(
+  new URL('./isolation-gate.mjs', import.meta.url),
+);
 
 function defaultTestFiles() {
   const projectRoot = realpathSync(process.cwd());
@@ -83,7 +86,9 @@ function childEnvironment(capabilities, strict, eventFile) {
   const env = {
     ...process.env,
     KRN_ISOLATION_CAPABILITIES: JSON.stringify(capabilities),
+    KRN_ISOLATION_GATE_PRELOAD: '1',
   };
+  delete env.KRN_ISOLATION_APPROVAL_TOKEN;
   if (strict) {
     delete env.NODE_OPTIONS;
     delete env.KRN_SCOPE_PROBE;
@@ -217,6 +222,8 @@ async function main() {
     }
 
     const runnerArgs = [
+      '--import',
+      isolationGate,
       '--test',
       '--test-concurrency=1',
       '--test-reporter=tap',

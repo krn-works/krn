@@ -1,33 +1,37 @@
-import assert from 'node:assert/strict';
 import type { TestContext } from 'node:test';
-import {
-  decideIsolation,
-  type IsolationCapabilities,
-  type IsolationCapability,
-} from '../../scripts/isolation-gate.mjs';
+import type { IsolationCapability } from '../../scripts/isolation-gate.mjs';
+
+type RunnerApi = {
+  requiresIsolation: (
+    context: TestContext,
+    testName: string,
+    required: readonly IsolationCapability[],
+  ) => boolean;
+};
+
+function isRunnerApi(value: unknown): value is RunnerApi {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'requiresIsolation' in value &&
+    typeof value.requiresIsolation === 'function'
+  );
+}
+
+function getRunnerApi(value: unknown): RunnerApi {
+  if (!isRunnerApi(value))
+    throw new Error('test-suite isolation approval preloader did not run');
+  return value;
+}
+
+const runnerApi = getRunnerApi(
+  Reflect.get(globalThis, Symbol.for('krn.isolation-gate.runtime-api')),
+);
 
 export function requiresIsolation(
   context: TestContext,
   testName: string,
   required: readonly IsolationCapability[],
 ): boolean {
-  const raw = process.env.KRN_ISOLATION_CAPABILITIES;
-  assert.ok(raw, 'isolation capability probe did not run');
-  let capabilities: IsolationCapabilities;
-  try {
-    capabilities = JSON.parse(raw) as IsolationCapabilities;
-  } catch {
-    assert.fail('isolation capability probe returned invalid JSON');
-  }
-  const decision = decideIsolation(
-    testName,
-    required,
-    capabilities,
-    process.env.CI === 'true',
-  );
-  if (decision.kind === 'run') return true;
-  if (decision.kind === 'fail') assert.fail(decision.message);
-  process.stdout.write(`${decision.line}\n`);
-  context.skip('isolation capability unavailable');
-  return false;
+  return runnerApi.requiresIsolation(context, testName, required);
 }
