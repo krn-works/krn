@@ -1,3 +1,5 @@
+> **Historical plan snapshot, not live status.** The sequence and acceptance language below preserve the E1 plan as written; they do not report current completion or authorize execution. For the current frontier, see [CONTEXT.md](../../CONTEXT.md). Keep the plan's original evidence and authority history intact.
+
 # E1 / J1 worker plan
 
 **Outcome:** prove that a real, interrupted J1 task resumes in a fresh foreman-started Luna `codex exec` session, then build the board/verdict path and run the first `in_review` pilot. Keep operator minutes, tokens, and limitations in the evidence. No Pi/Claude host, second tracker, merge/acceptance, memory-event capture, or broad KRN work in this outcome.
