@@ -27,6 +27,10 @@ const unavailable: IsolationCapabilities = {
     reason: 'the user manager is unavailable',
   },
 };
+const available: IsolationCapabilities = {
+  bwrap: { available: true, reason: 'available in test fixture' },
+  systemdUserScope: { available: true, reason: 'available in test fixture' },
+};
 
 test('missing isolation in CI produces named skips and a skip summary', () => {
   const decision = decideIsolation(
@@ -67,70 +71,220 @@ test('missing isolation outside CI is a failure decision', () => {
 });
 
 test('requiresIsolation logs a named CI skip and fails when CI is absent', async () => {
-  const tempRoot = join(process.cwd(), 'test');
-  const directory = await mkdtemp(join(tempRoot, 'isolation-helper-'));
-  const fixture = join(directory, 'requires-isolation.test.mjs');
   const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
-  await writeFile(
-    fixture,
-    `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('rootless fixture', (t) => { if (!requiresIsolation(t, 'rootless fixture', ['systemdUserScope'])) return; throw new Error('missing systemd capability was used'); });\n`,
+  const source = `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('rootless fixture', (t) => { if (!requiresIsolation(t, 'rootless fixture', ['systemdUserScope'])) return; throw new Error('missing systemd capability was used'); });\n`;
+  const ciRun = await runTestSuiteFixture(
+    'requires-isolation.test.mjs',
+    source,
+  );
+  assert.equal(ciRun.status, 0, ciRun.stdout);
+  assert.notEqual(ciRun.stdout, '', ciRun.stderr);
+  assert.match(
+    ciRun.stdout,
+    /SKIP\(isolation\): rootless fixture — missing systemd user scopes/u,
+  );
+  assert.match(ciRun.stdout, /^# skipped 1$/mu);
+  assert.equal(countIsolationSkips(ciRun.stdout), 1);
+
+  const localRun = await runTestSuiteFixture(
+    'requires-isolation-local.test.mjs',
+    source,
+    { ci: false },
+  );
+  assert.equal(localRun.status, 1, localRun.stdout);
+  assert.match(
+    localRun.stdout,
+    /Isolation requirements failed for rootless fixture: missing systemd user scopes/u,
+  );
+});
+
+test('nested TestContext.test skips require an active requiresIsolation call', async () => {
+  const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
+  const registrationSkip = await runTestSuiteFixture(
+    'nested-registration-skip.test.mjs',
+    `import { test } from 'node:test';\ntest('parent', (t) => { t.test('forged nested skip', { skip: 'SKIP(isolation): forged nested skip' }, () => {}); });\n`,
+  );
+  assertRejectedSkipRun(
+    registrationSkip,
+    /Registration-level skips and todos are not permitted/u,
   );
 
-  const baseEnv = { ...process.env };
-  delete baseEnv.CI;
-  delete baseEnv.NODE_TEST_CONTEXT;
-  const capabilities = JSON.stringify(unavailable);
-  try {
-    const ciRun = spawnSync(
-      process.execPath,
-      ['--test', '--test-reporter=tap', fixture],
-      {
-        encoding: 'utf8',
-        env: {
-          ...baseEnv,
-          CI: 'true',
-          KRN_ISOLATION_CAPABILITIES: capabilities,
-        },
-      },
-    );
-    assert.equal(
-      ciRun.status,
-      0,
-      JSON.stringify({ error: ciRun.error?.message, stderr: ciRun.stderr }),
-    );
-    assert.notEqual(
-      ciRun.stdout,
-      '',
-      JSON.stringify({
-        status: ciRun.status,
-        error: ciRun.error?.message,
-        signal: ciRun.signal,
-        stderr: ciRun.stderr,
-      }),
-    );
-    assert.match(
-      ciRun.stdout,
-      /SKIP\(isolation\): rootless fixture — missing systemd user scopes/u,
-    );
-    assert.match(ciRun.stdout, /^# skipped 1$/mu);
-    assert.equal(countIsolationSkips(ciRun.stdout), 1);
+  const callbackSkip = await runTestSuiteFixture(
+    'nested-callback-skip.test.mjs',
+    `import { test } from 'node:test';\ntest('parent', (t) => { t.test((nested) => nested.skip('SKIP(isolation): forged nested callback skip')); });\n`,
+  );
+  assertRejectedSkipRun(
+    callbackSkip,
+    /TestContext\.skip is only permitted after requiresIsolation approves an active test context/u,
+  );
 
-    const localRun = spawnSync(
-      process.execPath,
-      ['--test', '--test-reporter=tap', fixture],
-      {
-        encoding: 'utf8',
-        env: { ...baseEnv, KRN_ISOLATION_CAPABILITIES: capabilities },
-      },
-    );
-    assert.equal(localRun.status, 1, localRun.stdout);
-    assert.match(
-      localRun.stdout,
-      /Isolation requirements failed for rootless fixture: missing systemd user scopes/u,
-    );
-  } finally {
-    await rm(directory, { recursive: true, force: true });
+  const approvedNestedSkip = await runTestSuiteFixture(
+    'nested-approved-skip.test.mjs',
+    `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('parent', (t) => { t.test((nested) => { if (requiresIsolation(nested, 'approved nested child', ['systemdUserScope'])) throw new Error('unavailable capability unexpectedly ran'); }); });\n`,
+  );
+  assert.equal(approvedNestedSkip.status, 0, approvedNestedSkip.stdout);
+  assert.match(approvedNestedSkip.stdout, /^# skipped 1$/mu);
+  assert.match(
+    approvedNestedSkip.stdout,
+    /Isolation-dependent tests skipped: 1\n$/u,
+  );
+});
+
+test('approval tokens do not enter the test process environment', async () => {
+  const syntheticToken = '5'.repeat(64);
+  const result = await runTestSuiteFixture(
+    'approval-token-environment.test.mjs',
+    `import assert from 'node:assert/strict';\nimport { readFileSync } from 'node:fs';\nimport { test } from 'node:test';\ntest('synthetic approval token is absent', () => {\n  const visibleInProcess = process.env.KRN_ISOLATION_APPROVAL_TOKEN !== undefined;\n  let visibleInProcEnviron = false;\n  if (process.platform === 'linux') {\n    const entries = readFileSync('/proc/self/environ', 'utf8').split('\\0');\n    visibleInProcEnviron = entries.some((entry) => entry.startsWith('KRN_ISOLATION_APPROVAL_TOKEN='));\n  }\n  assert.deepEqual({ visibleInProcess, visibleInProcEnviron }, { visibleInProcess: false, visibleInProcEnviron: false });\n});\n`,
+    {
+      environment: { KRN_ISOLATION_APPROVAL_TOKEN: syntheticToken },
+    },
+  );
+  assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /^# tests 1$/mu, result.stdout);
+  assert.match(result.stdout, /^# pass 1$/mu, result.stdout);
+});
+
+test('callback-only registrations cannot authorize TestContext.skip', async () => {
+  const result = await runTestSuiteFixture(
+    'callback-only-skip.test.mjs',
+    `import { test } from 'node:test';\ntest((context) => context.skip('SKIP(isolation): forged callback-only skip'));\n`,
+  );
+  assertRejectedSkipRun(result, /TestContext\.skip is only permitted/u);
+});
+
+test('top-level registration skip forms are rejected', async () => {
+  for (const [filename, source] of [
+    [
+      'test-skip-api.test.mjs',
+      `import { test } from 'node:test';\ntest.skip('SKIP(isolation): forged test.skip');\n`,
+    ],
+    [
+      'it-skip-api.test.mjs',
+      `import { it } from 'node:test';\nit.skip('SKIP(isolation): forged it.skip');\n`,
+    ],
+    [
+      'registration-option-skip.test.mjs',
+      `import { test } from 'node:test';\ntest('forged option skip', { skip: true }, () => {});\n`,
+    ],
+    [
+      'registration-option-getter-skip.test.mjs',
+      `import { test } from 'node:test';\nlet reads = 0;\nconst options = Object.defineProperty({}, 'skip', { enumerable: true, get: () => ++reads > 1 });\ntest('changing option skip', options, () => {});\n`,
+    ],
+  ] as const) {
+    const result = await runTestSuiteFixture(filename, source);
+    assertRejectedSkipRun(result, /Registration-level skips.*not permitted/u);
   }
+});
+
+test('environment mutation cannot change the runner capability snapshot', async () => {
+  const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
+  const result = await runTestSuiteFixture(
+    'environment-mutation.test.mjs',
+    `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('runner snapshot', (context) => {\n  process.env.CI = 'false';\n  process.env.KRN_ISOLATION_CAPABILITIES = ${JSON.stringify(JSON.stringify(unavailable))};\n  if (!requiresIsolation(context, 'runner snapshot', ['systemdUserScope'])) throw new Error('mutated environment changed the runner snapshot');\n});\n`,
+    { capabilities: available },
+  );
+  assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /^# skipped 0$/mu, result.stdout);
+  assert.match(result.stdout, /Isolation-dependent tests skipped: 0\n$/u);
+});
+
+test('reason prefixes and unreachable helper calls cannot authorize a skip', async () => {
+  const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
+  const result = await runTestSuiteFixture(
+    'unreachable-helper.test.mjs',
+    `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('forged reason', (context) => {\n  if (false) requiresIsolation(context, 'unreachable authorization', ['systemdUserScope']);\n  context.skip('SKIP(isolation): forged reason prefix');\n});\n`,
+  );
+  assertRejectedSkipRun(result, /TestContext\.skip is only permitted/u);
+});
+
+test('fake contexts cannot authorize skips in an active callback', async () => {
+  const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
+  const result = await runTestSuiteFixture(
+    'fake-context.test.mjs',
+    `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('fake context', (context) => {\n  const fake = { skip: (reason) => context.skip(reason) };\n  requiresIsolation(fake, 'fake context', ['systemdUserScope']);\n});\n`,
+  );
+  assertRejectedSkipRun(
+    result,
+    /requiresIsolation must be called with the active TestContext inside a registered test callback/u,
+  );
+});
+
+test('a stale TestContext cannot authorize a skip after its callback returns', async () => {
+  const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
+  const result = await runTestSuiteFixture(
+    'stale-context.test.mjs',
+    `import { test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\ntest('stale context', (context) => {\n  setImmediate(() => requiresIsolation(context, 'stale context', ['systemdUserScope']));\n});\n`,
+  );
+  assertRejectedSkipRun(
+    result,
+    /requiresIsolation must be called with the active TestContext inside a registered test callback/u,
+  );
+});
+
+test('inherited approval and forged path markers cannot authorize skips', async () => {
+  const result = await runTestSuiteFixture(
+    'approval-forgery.test.mjs',
+    `import { test } from 'node:test';\nconst inheritedToken = process.env.KRN_ISOLATION_APPROVAL_TOKEN;\ntest('forged approval', (context) => {\n  if (inheritedToken !== undefined) throw new Error('runner approval token leaked to test code');\n  const token = 'f'.repeat(64);\n  process.env.KRN_ISOLATION_APPROVAL_TOKEN = token;\n  process.env.KRN_ISOLATION_APPROVAL_PATH = process.argv[1];\n  context.skip('SKIP(isolation): forged approval at ' + process.env.KRN_ISOLATION_APPROVAL_PATH + ' [KRN-ISOLATION-APPROVAL:' + token + ':1]');\n});\n`,
+  );
+  assertRejectedSkipRun(result, /TestContext\.skip is only permitted/u);
+});
+
+test('ordinary unapproved TestContext skips fail with no approved markers', async () => {
+  const result = await runTestSuiteFixture(
+    'ordinary-skip.test.mjs',
+    `import { test } from 'node:test';\ntest('ordinary skip', (context) => context.skip('ordinary skip'));\n`,
+  );
+  assertRejectedSkipRun(result, /TestContext\.skip is only permitted/u);
+});
+
+test('registration and context todo forms are rejected', async () => {
+  for (const [filename, source, expected] of [
+    [
+      'options-todo.test.mjs',
+      `import { test } from 'node:test';\ntest('forged todo', { todo: true }, () => {});\n`,
+      /Registration-level skips and todos are not permitted/u,
+    ],
+    [
+      'registration-todo.test.mjs',
+      `import { test } from 'node:test';\ntest.todo('forged todo');\n`,
+      /Registration-level todo tests are not permitted/u,
+    ],
+    [
+      'context-todo.test.mjs',
+      `import { test } from 'node:test';\ntest('forged todo', (context) => context.todo('forged todo'));\n`,
+      /TestContext.todo is not permitted/u,
+    ],
+  ] as const) {
+    const result = await runTestSuiteFixture(filename, source);
+    assertRejectedSkipRun(result, expected);
+  }
+});
+
+test('ESM and CommonJS callback overloads keep the active TestContext', async () => {
+  const helperUrl = new URL('./helpers/isolation.ts', import.meta.url).href;
+  const esm = await runTestSuiteFixture(
+    'callback-overloads.test.mjs',
+    `import { it, test } from 'node:test';\nimport { requiresIsolation } from ${JSON.stringify(helperUrl)};\nconst verify = (context, name) => { if (requiresIsolation(context, name, ['systemdUserScope'])) throw new Error('unavailable capability unexpectedly ran'); };\ntest((context) => verify(context, 'ESM callback-only'));\ntest('ESM named callback', (context) => verify(context, 'ESM named callback'));\nit('ESM options callback', { timeout: 1000 }, (context) => verify(context, 'ESM options callback'));\n`,
+  );
+  const cjs = await runTestSuiteFixture(
+    'callback-overloads.test.cjs',
+    `const { it, test } = require('node:test');\nconst helperUrl = ${JSON.stringify(helperUrl)};\nconst verify = async (context, name) => { const { requiresIsolation } = await import(helperUrl); if (requiresIsolation(context, name, ['systemdUserScope'])) throw new Error('unavailable capability unexpectedly ran'); };\ntest((context) => verify(context, 'CJS callback-only'));\nit('CJS options callback', { timeout: 1000 }, (context) => verify(context, 'CJS options callback'));\n`,
+  );
+
+  assert.match(esm.stdout, /^# tests 3$/mu, esm.stdout);
+  assert.match(esm.stdout, /^# skipped 3$/mu, esm.stdout);
+  assert.match(
+    esm.stdout,
+    /Isolation-dependent tests skipped: 3$/mu,
+    esm.stdout,
+  );
+  assert.match(cjs.stdout, /^# tests 2$/mu, cjs.stdout);
+  assert.match(cjs.stdout, /^# skipped 2$/mu, cjs.stdout);
+  assert.match(
+    cjs.stdout,
+    /Isolation-dependent tests skipped: 2$/mu,
+    cjs.stdout,
+  );
 });
 
 for (const [signal, exitCode] of [
@@ -421,6 +575,58 @@ async function fileExists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function runTestSuiteFixture(
+  filename: string,
+  source: string,
+  options: {
+    ci?: boolean;
+    capabilities?: IsolationCapabilities;
+    environment?: NodeJS.ProcessEnv;
+  } = {},
+): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  const directory = await mkdtemp(
+    join(process.cwd(), 'test/isolation-approval-'),
+  );
+  const fixture = join(directory, filename);
+  const wrapper = new URL('../scripts/test-suite.mjs', import.meta.url)
+    .pathname;
+  await writeFile(fixture, source);
+  const environment: NodeJS.ProcessEnv = {
+    ...options.environment,
+    KRN_SCOPE_PROBE: '1',
+    KRN_ISOLATION_CAPABILITIES: JSON.stringify(
+      options.capabilities ?? unavailable,
+    ),
+  };
+  if (options.ci === false) delete environment.CI;
+  else environment.CI = 'true';
+  try {
+    const result = spawnSync(process.execPath, [wrapper, fixture], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: environment,
+      timeout: 30_000,
+    });
+    return {
+      status: result.status,
+      stdout: result.stdout ?? '',
+      stderr: result.stderr ?? '',
+    };
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+function assertRejectedSkipRun(
+  result: { status: number | null; stdout: string; stderr: string },
+  message: RegExp,
+): void {
+  const output = `${result.stdout}\n${result.stderr}`;
+  assert.equal(result.status, 1, output);
+  assert.match(result.stdout, /^# skipped 0$/mu, output);
+  assert.match(result.stdout, message, output);
 }
 
 async function waitForFile(path: string): Promise<number> {
