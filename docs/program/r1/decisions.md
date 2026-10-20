@@ -1,3 +1,5 @@
+> **Historical decision-queue snapshot.** Current open decisions/status must be read from Paperclip and charter; see [audit](../audit-2026-10-20.md) and [roadmap](../roadmap-2026-10-20.md).
+
 # R1 operator decision queue
 
 This is the seed decision-queue snapshot from the R1 package merge, not a live decision queue. Do not append per-run

@@ -1,3 +1,5 @@
+> **Historical progress snapshot.** This is not live status; refresh from Paperclip. Current readback: [audit](../audit-2026-10-20.md), [roadmap](../roadmap-2026-10-20.md).
+
 # R1 progress log
 
 Seed/historical snapshot of the R1 package merge. This file is not a live progress log and receives no per-transition

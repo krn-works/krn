@@ -1,3 +1,5 @@
+> **Historical target snapshot (2026-10-07).** Current implementation and proposed architecture follow-up: [architecture](../architecture.md); current stage proofs and limits: [roadmap](roadmap-2026-10-20.md). The dated design and original rationale below remain intact.
+
 # Blueprint v4: program KRN A–Z (redakcja, 2026-10-07)
 
 **Wejście.** Synteza v3, raport J3 fidelity-Luna i decyzje operatora z `charter.md` (2026-10-07). Dodatkowo sprawdziłem ręcznie trzy rzeczy: `~/.local/bin/krn` wskazuje na

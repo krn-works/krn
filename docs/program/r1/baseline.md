@@ -1,3 +1,5 @@
+> **Historical measurement snapshot (2026-10-10).** Current status and later evidence are in [audit](../audit-2026-10-20.md) and [roadmap](../roadmap-2026-10-20.md).
+
 # R1 measured baseline
 
 Evidence below is from the tracked copies in `docs/program/r1/evidence/R1-00/` unless stated otherwise. File SHA-256 values and capture timestamps are listed at the end. Measurements are bounded to the recorded captures (2026-10-10).

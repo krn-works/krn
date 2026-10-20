@@ -1,3 +1,5 @@
+> **Current readback pointer (2026-10-20).** This plan preserves the original E1 S1–S8 sequence; it is distinct from later S1 abort/S2 metadata/S3 trace tasks. E1 operational exit remains unproven. See [current audit](audit-2026-10-20.md) and [roadmap](roadmap-2026-10-20.md).
+
 > **Historical plan snapshot, not live status.** The sequence and acceptance language below preserve the E1 plan as written; they do not report current completion or authorize execution. For the current frontier, see [CONTEXT.md](../../CONTEXT.md). Keep the plan's original evidence and authority history intact.
 
 # E1 / J1 worker plan

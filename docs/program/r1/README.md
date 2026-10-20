@@ -1,3 +1,7 @@
+> **Historical example warning (2026-10-20).** The older `Change-contract: docs/<named-readback>:green->green` examples below are preserved runbook snapshots, not executable checker bindings. Do not copy them into a current change contract; consult the current canonical checker interface and use a supported executable check. No old proof is rewritten by this note.
+
+> **Current readback pointer (2026-10-20).** This runbook and its grants remain historical/inactive. Current product status and proof debt are in [audit](../audit-2026-10-20.md) and [roadmap](../roadmap-2026-10-20.md). Do not infer live authorization from this file.
+
 > **Historical and inactive runbook.** This records the original R1 roles, admission contract, and bounded grants. W0 and FullR1 are currently inactive; this runbook does not activate them. For current roles and status, see [CONTEXT.md](../../../CONTEXT.md). The dated role and grant clauses below remain historical evidence.
 
 # R1 — long-running delivery run (orchestrator runbook)

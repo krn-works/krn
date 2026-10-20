@@ -1,3 +1,5 @@
+> **Historical synthesis (2026-10-07).** Current implementation and proposed architecture follow-up: [architecture](../architecture.md); current stage proofs and limits: [roadmap](roadmap-2026-10-20.md). The dated synthesis below remains intact.
+
 # Synteza v3: program KRN A–Z (architekt syntezy, 2026-10-07)
 
 **Wejście.** v2 wraz z ocenami J2 (Sol 6/10, Luna 6/10), raporty R10 (Karpathy) i R11 (język instrukcji) oraz decyzje
