@@ -217,9 +217,14 @@ test('CLI update carries status and comment in one argv-safe invocation', async 
   await chmod(fake.executable, 0o755);
   try {
     const comment = 'review $HOME; $(must stay one argument)';
-    const receipt = await createPaperclipCliTransport({
+    const transport = createPaperclipCliTransport({
       executable: fake.executable,
-    }).updateIssue('LON-200', 'in_review', comment);
+    });
+    const receipt = await transport.updateIssue(
+      'LON-200',
+      'in_review',
+      comment,
+    );
     assert.equal((receipt as { id: string }).id, 'LON-200');
     const args = JSON.parse(await readFile(fake.capture, 'utf8')) as string[];
     assert.deepEqual(args, [
@@ -228,6 +233,19 @@ test('CLI update carries status and comment in one argv-safe invocation', async 
       'LON-200',
       '--status',
       'in_review',
+      '--comment',
+      comment,
+      '--json',
+    ]);
+    assert.ok(transport.createComment);
+    await transport.createComment('LON-200', comment);
+    const commentArgs = JSON.parse(
+      await readFile(fake.capture, 'utf8'),
+    ) as string[];
+    assert.deepEqual(commentArgs, [
+      'issue',
+      'update',
+      'LON-200',
       '--comment',
       comment,
       '--json',

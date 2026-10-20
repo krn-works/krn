@@ -3,7 +3,32 @@ import type { Job } from '../core/index.ts';
 import type { CheckEvidence } from '../verdict/index.ts';
 import { judge } from '../verdict/index.ts';
 import { git } from './git.ts';
-import type { Capsule, Contract, Deps, Outcome } from './types.ts';
+import type {
+  Capsule,
+  Contract,
+  Deps,
+  Outcome,
+  SubmissionPersistence,
+} from './types.ts';
+
+function isSubmissionPersistence(
+  value: unknown,
+): value is SubmissionPersistence {
+  if (typeof value !== 'object' || value === null) return false;
+  const record = value as Record<string, unknown>;
+  return [
+    'submitIntent',
+    'submittedFor',
+    'submitted',
+    'submissionWindowFor',
+    'submissionWindow',
+    'submissionReconciliationFor',
+    'submissionReconciliation',
+    'conflictCommentFor',
+    'conflictComment',
+    'paperclipUpdateStarted',
+  ].every((name) => typeof record[name] === 'function');
+}
 
 export async function reportPassingVerdict(
   job: Job,
@@ -13,20 +38,28 @@ export async function reportPassingVerdict(
   ledger: Pick<Deps['ledger'], 'submitForReview'> & {
     readonly submissionEnabled?: boolean;
   },
-  trace: Pick<
-    Deps['trace'],
-    | 'readyForReview'
-    | 'paperclipUpdateStarted'
-    | 'submitIntent'
-    | 'submittedFor'
-    | 'submitted'
-  >,
+  trace: Pick<Deps['trace'], 'readyForReview' | 'submissionPersistence'>,
   stop: Deps['stop'],
   signal?: AbortSignal,
 ): Promise<Outcome> {
-  const prior = await trace.submittedFor?.(job, sha);
+  const persistenceValue: unknown = trace.submissionPersistence;
+  const persistence = isSubmissionPersistence(persistenceValue)
+    ? persistenceValue
+    : undefined;
+  if (persistenceValue !== undefined && persistence === undefined)
+    return stop(job, 'human_decision', ['submission persistence unavailable']);
+  if (ledger.submissionEnabled === true && !persistence)
+    return stop(job, 'human_decision', ['submission persistence unavailable']);
+  const priorReconciliation =
+    (await persistence?.submissionReconciliationFor(job, sha)) ?? null;
+  const prior = (await persistence?.submittedFor(job, sha)) ?? null;
   if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
-  if (prior)
+  if (
+    priorReconciliation === 'board_conflict' &&
+    ledger.submissionEnabled !== true
+  )
+    return stop(job, 'human_decision', ['board_conflict']);
+  if (prior && ledger.submissionEnabled !== true)
     return {
       kind: 'verdict_pass',
       state: prior.status === 'in_review' ? 'in_review' : 'ready_for_review',
@@ -35,7 +68,18 @@ export async function reportPassingVerdict(
   const reconcile =
     ledger.submissionEnabled === false
       ? false
-      : ((await trace.submitIntent?.(job, sha, contract.revision)) ?? false);
+      : persistence !== undefined &&
+        (prior !== null ||
+          (await persistence.submitIntent(job, sha, contract.revision)));
+  if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
+  const priorWindowEventIds =
+    ledger.submissionEnabled === true
+      ? ((await persistence?.submissionWindowFor(job, sha)) ?? null)
+      : null;
+  const priorConflictComment =
+    ledger.submissionEnabled === true
+      ? ((await persistence?.conflictCommentFor(job, sha)) ?? null)
+      : null;
   if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);
   let session: string | undefined;
   if (ledger.submissionEnabled === true) {
@@ -63,8 +107,25 @@ export async function reportPassingVerdict(
       ...(signal === undefined ? {} : { signal }),
       ...(session === undefined ? {} : { session }),
       reconcile,
-      onWriteStarted: (kind) => trace.paperclipUpdateStarted?.(job, sha, kind),
-      onSubmitted: (receipt) => trace.submitted?.(job, sha, receipt),
+      onWriteStarted: (kind) =>
+        persistence?.paperclipUpdateStarted(job, sha, kind),
+      onSubmitted: (receipt) => persistence?.submitted(job, sha, receipt),
+      ...(ledger.submissionEnabled !== true
+        ? {}
+        : {
+            priorReceipt: prior,
+            priorReconciliation,
+            priorWindowEventIds,
+            priorConflictComment,
+            onSubmissionWindow: (eventIds: readonly string[]) =>
+              persistence?.submissionWindow(job, sha, eventIds),
+            onReconciliation: (
+              result: import('../ledger/index.ts').ReviewSubmission,
+            ) => persistence?.submissionReconciliation(job, sha, result),
+            onConflictComment: (
+              delivery: import('../ledger/index.ts').ConflictCommentDelivery,
+            ) => persistence?.conflictComment(job, sha, delivery),
+          }),
     },
   );
   if (signal?.aborted) return stop(job, 'human_decision', ['stopped']);

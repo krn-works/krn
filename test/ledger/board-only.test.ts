@@ -118,6 +118,42 @@ test('readContract refuses descriptions larger than 8 KB', async () => {
   await assert.rejects(ledger.readContract(job.issue), /8 KB/u);
 });
 
+test('failed Paperclip responses check status before bounded error-body reads', async () => {
+  let statusChecked = false;
+  let bodyReads = 0;
+  let cancelled = false;
+  const body = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      controller.enqueue(new Uint8Array(8193));
+    },
+    cancel() {
+      cancelled = true;
+    },
+  });
+  const failure = {
+    get ok() {
+      statusChecked = true;
+      return false;
+    },
+    status: 502,
+    get body() {
+      assert.equal(statusChecked, true);
+      bodyReads += 1;
+      return body;
+    },
+  } as unknown as Response;
+  const ledger = createLedger({
+    apiUrl: 'http://paperclip.test',
+    token: 'fixture-token',
+    session: 'session-7',
+    fetch: async () => failure,
+  });
+
+  await assert.rejects(ledger.readContract(job.issue), /502/u);
+  assert.equal(bodyReads, 1);
+  assert.equal(cancelled, true);
+});
+
 test('oversized Paperclip responses are refused before parsing', async () => {
   const ledger = createLedger({
     apiUrl: 'http://paperclip.test',
@@ -279,6 +315,209 @@ test('concurrent done is never overwritten by a second status write', async () =
   assert.match(comments[0] ?? '', /issue.updated at 2026-10-08T10:00:00.003Z/);
   assert.match(comments[0] ?? '', /"to":"done"/);
   assert.equal(status, 'done');
+});
+
+function replayFixture(
+  mode:
+    | 'crash-before-reconcile'
+    | 'comment-rejected'
+    | 'comment-response-lost'
+    | 'comment-rejected-pagination-ambiguous',
+) {
+  const activities: Array<Record<string, unknown>> = [];
+  const comments: Array<{ body: string; createdAt: string }> = [];
+  let status = 'in_progress';
+  let updatedAt = '2026-10-08T10:00:00.000Z';
+  let activityReads = 0;
+  let reviewWrites = 0;
+  let conflictWrites = 0;
+  const ledger = createLedger({
+    session: 'session-7',
+    transport: {
+      readIssue: async () => ({ ...issue(updatedAt, status) }),
+      readActivity: async () => {
+        activityReads += 1;
+        if (mode === 'crash-before-reconcile' && activityReads === 2)
+          throw new Error('simulated crash after the durable PATCH receipt');
+        return activities;
+      },
+      readComments: async () =>
+        mode === 'comment-rejected-pagination-ambiguous'
+          ? { comments, nextCursor: 'page-2' }
+          : comments,
+      createComment: async (_issueId, comment) => {
+        conflictWrites += 1;
+        if (
+          (mode === 'comment-rejected' ||
+            mode === 'comment-rejected-pagination-ambiguous') &&
+          conflictWrites === 1
+        )
+          throw new Error('simulated definite comment rejection');
+        if (mode === 'comment-response-lost' && conflictWrites === 1) {
+          comments.push({ body: comment, createdAt: new Date().toISOString() });
+          throw new Error('simulated accepted comment with lost response');
+        }
+        comments.push({ body: comment, createdAt: new Date().toISOString() });
+        return { id: `conflict-${conflictWrites}` };
+      },
+      updateIssue: async (_issueId, nextStatus, comment) => {
+        reviewWrites += 1;
+        status = nextStatus;
+        updatedAt = new Date().toISOString();
+        const createdAt = updatedAt;
+        comments.push({ body: comment, createdAt });
+        activities.push(
+          {
+            id: `review-status-${reviewWrites}`,
+            action: 'issue.updated',
+            entityId: job.issue,
+            createdAt,
+            details: { status: 'in_review' },
+          },
+          {
+            id: `review-comment-${reviewWrites}`,
+            action: 'comment.created',
+            entityId: job.issue,
+            createdAt,
+            details: { body: comment },
+          },
+        );
+        if (mode !== 'crash-before-reconcile')
+          activities.push({
+            id: `foreign-comment-${reviewWrites}`,
+            action: 'comment.created',
+            entityId: job.issue,
+            createdAt,
+            details: { body: 'human activity after the review PATCH' },
+          });
+        return issue(updatedAt, status);
+      },
+    },
+  });
+  return {
+    ledger,
+    activities,
+    comments,
+    counts: () => ({ reviewWrites, conflictWrites }),
+    addForeignActivity() {
+      activities.push({
+        id: 'foreign-after-receipt',
+        action: 'comment.created',
+        entityId: job.issue,
+        createdAt: new Date().toISOString(),
+        details: { body: 'human activity after the review PATCH' },
+      });
+    },
+  };
+}
+
+test('same-SHA replay reconciles foreign activity after a persisted PATCH receipt', async () => {
+  const fixture = replayFixture('crash-before-reconcile');
+  const contract = await fixture.ledger.readContract(job.issue);
+  const receipts: unknown[] = [];
+  await assert.rejects(
+    fixture.ledger.submitForReview(job, contract, evidence(), sha, {
+      onSubmitted: (receipt) => receipts.push(receipt),
+    }),
+    /simulated crash/u,
+  );
+  assert.equal(receipts.length, 1, 'the PATCH receipt was already observed');
+  fixture.addForeignActivity();
+
+  const replay = await fixture.ledger.submitForReview(
+    job,
+    contract,
+    evidence(),
+    sha,
+    { reconcile: true },
+  );
+
+  assert.equal(replay, 'board_conflict');
+  assert.deepEqual(fixture.counts(), { reviewWrites: 1, conflictWrites: 1 });
+  assert.equal(
+    fixture.comments.filter((comment) =>
+      comment.body.includes('Board conflict after'),
+    ).length,
+    1,
+  );
+});
+
+test('same-SHA replay retries a definitely rejected conflict comment without another PATCH', async () => {
+  const fixture = replayFixture('comment-rejected');
+  const contract = await fixture.ledger.readContract(job.issue);
+  await assert.rejects(
+    fixture.ledger.submitForReview(job, contract, evidence(), sha),
+    /definite comment rejection/u,
+  );
+
+  const replay = await fixture.ledger.submitForReview(
+    job,
+    contract,
+    evidence(),
+    sha,
+    { reconcile: true },
+  );
+
+  assert.equal(replay, 'board_conflict');
+  assert.deepEqual(fixture.counts(), { reviewWrites: 1, conflictWrites: 2 });
+  assert.equal(
+    fixture.comments.filter((comment) =>
+      comment.body.includes('Board conflict after'),
+    ).length,
+    1,
+  );
+});
+
+test('same-SHA replay detects an accepted conflict comment after its response is lost', async () => {
+  const fixture = replayFixture('comment-response-lost');
+  const contract = await fixture.ledger.readContract(job.issue);
+  await assert.rejects(
+    fixture.ledger.submitForReview(job, contract, evidence(), sha),
+    /lost response/u,
+  );
+
+  const replay = await fixture.ledger.submitForReview(
+    job,
+    contract,
+    evidence(),
+    sha,
+    { reconcile: true },
+  );
+
+  assert.equal(replay, 'board_conflict');
+  assert.deepEqual(fixture.counts(), { reviewWrites: 1, conflictWrites: 1 });
+  assert.equal(
+    fixture.comments.filter((comment) =>
+      comment.body.includes('Board conflict after'),
+    ).length,
+    1,
+  );
+});
+
+test('ambiguous comment pagination leaves conflict delivery pending without another write', async () => {
+  const fixture = replayFixture('comment-rejected-pagination-ambiguous');
+  const contract = await fixture.ledger.readContract(job.issue);
+  await assert.rejects(
+    fixture.ledger.submitForReview(job, contract, evidence(), sha),
+    /definite comment rejection/u,
+  );
+
+  const replay = await fixture.ledger.submitForReview(
+    job,
+    contract,
+    evidence(),
+    sha,
+    { reconcile: true },
+  );
+
+  assert.equal(replay, 'board_conflict');
+  assert.deepEqual(fixture.counts(), { reviewWrites: 1, conflictWrites: 1 });
+  assert.equal(
+    fixture.comments.filter((comment) =>
+      comment.body.includes('Board conflict after'),
+    ).length,
+    0,
+  );
 });
 
 test('submission requires a verdict pass bound to the recorded SHA', async () => {

@@ -1,6 +1,7 @@
 import type { Job } from '../core/index.ts';
 import type { SystemdScopeRegistration } from '../hosts/systemd-scope.ts';
 import type {
+  ConflictCommentDelivery,
   Contract,
   ReviewSubmission,
   SubmissionReceipt,
@@ -97,6 +98,41 @@ export type Budget = {
   readonly maxRepairs: number;
   readonly session: { readonly timeoutMs: number };
 };
+
+export type SubmissionPersistence = Readonly<{
+  submitIntent(
+    job: Job,
+    sha: string,
+    contractRevision: string,
+  ): Promise<boolean>;
+  submittedFor(job: Job, sha: string): Promise<SubmissionReceipt | null>;
+  submitted(job: Job, sha: string, receipt: SubmissionReceipt): void;
+  submissionWindowFor(job: Job, sha: string): Promise<readonly string[] | null>;
+  submissionWindow(job: Job, sha: string, eventIds: readonly string[]): void;
+  submissionReconciliationFor(
+    job: Job,
+    sha: string,
+  ): Promise<ReviewSubmission | null>;
+  submissionReconciliation(
+    job: Job,
+    sha: string,
+    result: ReviewSubmission,
+  ): void;
+  conflictCommentFor(
+    job: Job,
+    sha: string,
+  ): Promise<ConflictCommentDelivery | null>;
+  conflictComment(
+    job: Job,
+    sha: string,
+    delivery: ConflictCommentDelivery,
+  ): void;
+  paperclipUpdateStarted(
+    job: Job,
+    sha: string,
+    kind: 'review' | 'conflict_comment',
+  ): void;
+}>;
 
 export type Deps = {
   readonly signal?: AbortSignal;
@@ -223,19 +259,8 @@ export type Deps = {
       event: import('../verdict/index.ts').VerdictEvent,
     ): Promise<void>;
     hasVerdict?(job: Job, sha: string): Promise<boolean>;
-    submitIntent?(
-      job: Job,
-      sha: string,
-      contractRevision: string,
-    ): Promise<boolean>;
-    submittedFor?(job: Job, sha: string): Promise<SubmissionReceipt | null>;
-    submitted?(job: Job, sha: string, receipt: SubmissionReceipt): void;
+    submissionPersistence?: SubmissionPersistence;
     stopped?(job: Job, signal: string): Promise<void>;
-    paperclipUpdateStarted?(
-      job: Job,
-      sha: string,
-      kind: 'review' | 'conflict_comment',
-    ): void;
     readyForReview?(job: Job, sha: string): Promise<void>;
   };
   readonly hosts: {
