@@ -43,7 +43,7 @@
     },
     {
       "id": "KRN-09",
-      "trigger": "the lead performs repository delivery work",
+      "trigger": "the lead works in this repository",
       "action": "the lead MUST follow `docs/program/lead-rules.md` for evidence, proposals, handoffs, and delivery",
       "owner": "lead",
       "enforcement": {
