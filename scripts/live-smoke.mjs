@@ -1,17 +1,28 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { constants } from 'node:fs';
 import {
+  access,
   mkdir,
   mkdtemp,
   readdir,
   readFile,
   rm,
+  stat,
   writeFile,
 } from 'node:fs/promises';
-import { basename, dirname, join, resolve } from 'node:path';
+import {
+  basename,
+  delimiter,
+  dirname,
+  isAbsolute,
+  join,
+  resolve,
+  sep,
+} from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runJob } from '../src/foreman/run.ts';
-import { CodexHost, defaultCodexExecutable } from '../src/hosts/codex.ts';
+import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
 
@@ -44,8 +55,10 @@ export function createLiveSmokeLedger(targetRepo = repositoryRoot) {
 }
 
 async function runLiveSmoke() {
-  const executable =
-    process.env.KRN_LIVE_CODEX_EXECUTABLE ?? defaultCodexExecutable;
+  const executable = await resolveLiveCodexExecutable(
+    process.env.KRN_LIVE_CODEX_EXECUTABLE,
+    process.env.PATH,
+  );
   const tmpRoot = join(repositoryRoot, '.krn', 'tmp');
   await mkdir(tmpRoot, { recursive: true });
   const cwd = await mkdtemp(join(tmpRoot, 'krn-codex-live-smoke-'));
@@ -60,6 +73,10 @@ async function runLiveSmoke() {
   const host = new CodexHost({ executable });
   let terminationSignal;
   let cancellation;
+  let retainFixture = false;
+  let runFailure;
+  let cleanupFailure;
+  let cancelled = false;
 
   const handleSignal = (signal) => {
     if (terminationSignal) return;
@@ -161,108 +178,179 @@ async function runLiveSmoke() {
     if (terminationSignal) {
       await cancellation;
       process.exitCode = terminationSignal === 'SIGINT' ? 130 : 143;
-      return;
+      cancelled = true;
     }
 
-    const readEvents = async (attemptJob) => {
-      const file = join(
-        cwd,
-        '.krn',
-        'runs',
-        'foreman',
-        attemptJob.id,
-        'trace.jsonl',
-      );
-      return readFile(file, 'utf8')
-        .then((value) =>
-          value
-            .trim()
-            .split('\n')
-            .filter(Boolean)
-            .map((line) => JSON.parse(line)),
-        )
-        .catch(() => []);
-    };
-    let events = await readEvents(job);
-    const endedWithoutCheckpoint =
-      events.some((event) => event.kind === 'session_ended') &&
-      !events.some((event) => event.kind === 'checkpoint');
-    let smokeRetryReason;
-    if (endedWithoutCheckpoint) {
-      smokeRetryReason =
-        outcome.kind === 'stop'
-          ? outcome.reasons.join('; ') || 'session ended without checkpoint'
-          : 'session ended without checkpoint';
-      process.stdout.write(`smoke_retry: ${smokeRetryReason}\n`);
-      job = makeJob(`${jobId}-retry`);
-      outcome = await runSmokeSession(job);
-      events = await readEvents(job);
-    }
+    if (!cancelled) {
+      const readEvents = async (attemptJob) => {
+        const file = join(
+          cwd,
+          '.krn',
+          'runs',
+          'foreman',
+          attemptJob.id,
+          'trace.jsonl',
+        );
+        return readFile(file, 'utf8')
+          .then((value) =>
+            value
+              .trim()
+              .split('\n')
+              .filter(Boolean)
+              .map((line) => JSON.parse(line)),
+          )
+          .catch(() => []);
+      };
+      let events = await readEvents(job);
+      const endedWithoutCheckpoint =
+        events.some((event) => event.kind === 'session_ended') &&
+        !events.some((event) => event.kind === 'checkpoint');
+      let smokeRetryReason;
+      if (endedWithoutCheckpoint) {
+        smokeRetryReason =
+          outcome.kind === 'stop'
+            ? outcome.reasons.join('; ') || 'session ended without checkpoint'
+            : 'session ended without checkpoint';
+        process.stdout.write(`smoke_retry: ${smokeRetryReason}\n`);
+        job = makeJob(`${jobId}-retry`);
+        outcome = await runSmokeSession(job);
+        events = await readEvents(job);
+      }
 
-    const diagnostics = await readdir(
-      join(cwd, '.krn', 'runs', 'foreman', job.id, 'diagnostics'),
-    )
-      .then((files) =>
-        Promise.all(
-          files.map((file) =>
-            readFile(
-              join(cwd, '.krn', 'runs', 'foreman', job.id, 'diagnostics', file),
-              'utf8',
+      const diagnostics = await readdir(
+        join(cwd, '.krn', 'runs', 'foreman', job.id, 'diagnostics'),
+      )
+        .then((files) =>
+          Promise.all(
+            files.map((file) =>
+              readFile(
+                join(
+                  cwd,
+                  '.krn',
+                  'runs',
+                  'foreman',
+                  job.id,
+                  'diagnostics',
+                  file,
+                ),
+                'utf8',
+              ),
             ),
           ),
-        ),
-      )
-      .then((files) => files.join('\n'))
-      .catch(() => '');
-    const finalMessage = await readFile(
-      join(cwd, '.krn', 'runs', 'foreman', job.id, 'reason.txt'),
-      'utf8',
-    ).catch(() => '');
-    assert.equal(
-      outcome.kind,
-      'verdict_pass',
-      `foreman did not record a positive verdict: ${JSON.stringify(outcome)}\n${diagnostics}\n${finalMessage}`,
-    );
-    assert.equal(
-      outcome.sha,
-      git(['rev-parse', 'HEAD']),
-      'verdict SHA differs from HEAD',
-    );
-    assert.equal(
-      git(['status', '--porcelain=v1', '--untracked-files=all']),
-      '',
-      'live smoke repo was dirty after the sandbox verdict',
-    );
-    assert.equal(
-      (await readFile(join(cwd, 'live-checkpoint.txt'), 'utf8')).replace(
-        /\r?\n$/u,
+        )
+        .then((files) => files.join('\n'))
+        .catch(() => '');
+      const finalMessage = await readFile(
+        join(cwd, '.krn', 'runs', 'foreman', job.id, 'reason.txt'),
+        'utf8',
+      ).catch(() => '');
+      assert.equal(
+        outcome.kind,
+        'verdict_pass',
+        `foreman did not record a positive verdict: ${JSON.stringify(outcome)}\n${diagnostics}\n${finalMessage}`,
+      );
+      assert.equal(
+        outcome.sha,
+        git(['rev-parse', 'HEAD']),
+        'verdict SHA differs from HEAD',
+      );
+      assert.equal(
+        git(['status', '--porcelain=v1', '--untracked-files=all']),
         '',
-      ),
-      'checkpoint reached',
-      'Codex did not create the requested checkpoint file',
-    );
-    const checkpoint = events.find((event) => event.kind === 'checkpoint');
-    const commit = events.find((event) => event.kind === 'commit');
-    assert.ok(checkpoint, 'Codex did not run the printed checkpoint command');
-    assert.ok(commit, 'foreman did not record the checkpoint commit');
-    assert.equal(commit.data.sessionId, checkpoint.data.sessionId);
-    assert.equal(commit.data.message, 'feat: live sandbox checkpoint');
-    assert.equal(commit.data.sha, git(['rev-parse', 'HEAD']));
-    assert.equal(
-      git(['log', '-1', '--format=%s']),
-      'feat: live sandbox checkpoint',
-    );
-    process.stdout.write(
-      `Live Codex sandbox checkpoint smoke passed: session=${commit.data.sessionId} commit=${commit.data.sha}\n`,
-    );
+        'live smoke repo was dirty after the sandbox verdict',
+      );
+      assert.equal(
+        (await readFile(join(cwd, 'live-checkpoint.txt'), 'utf8')).replace(
+          /\r?\n$/u,
+          '',
+        ),
+        'checkpoint reached',
+        'Codex did not create the requested checkpoint file',
+      );
+      const checkpoint = events.find((event) => event.kind === 'checkpoint');
+      const commit = events.find((event) => event.kind === 'commit');
+      assert.ok(checkpoint, 'Codex did not run the printed checkpoint command');
+      assert.ok(commit, 'foreman did not record the checkpoint commit');
+      assert.equal(commit.data.sessionId, checkpoint.data.sessionId);
+      assert.equal(commit.data.message, 'feat: live sandbox checkpoint');
+      assert.equal(commit.data.sha, git(['rev-parse', 'HEAD']));
+      assert.equal(
+        git(['log', '-1', '--format=%s']),
+        'feat: live sandbox checkpoint',
+      );
+      process.stdout.write(
+        `Live Codex sandbox checkpoint smoke passed: session=${commit.data.sessionId} commit=${commit.data.sha}\n`,
+      );
+    }
+  } catch (error) {
+    runFailure = error;
+    retainFixture = !terminationSignal;
   } finally {
     process.removeListener('SIGTERM', onSigterm);
     process.removeListener('SIGINT', onSigint);
     try {
       await host.cancelAll();
       await cancellation;
-    } finally {
-      await rm(cwd, { recursive: true, force: true });
+    } catch (error) {
+      cleanupFailure = error;
+      retainFixture = !terminationSignal;
+    }
+    try {
+      if (terminationSignal || !retainFixture)
+        await rm(cwd, { recursive: true, force: true });
+      else process.stderr.write(`Failure evidence retained at: ${cwd}\n`);
+    } catch (error) {
+      cleanupFailure = cleanupFailure
+        ? new AggregateError([cleanupFailure, error], 'smoke cleanup failed')
+        : error;
+      retainFixture = !terminationSignal;
+      if (retainFixture)
+        process.stderr.write(`Failure evidence retained at: ${cwd}\n`);
     }
   }
+  if (runFailure && cleanupFailure)
+    throw new AggregateError(
+      [runFailure, cleanupFailure],
+      'smoke and cleanup failed',
+    );
+  if (runFailure) throw runFailure;
+  if (cleanupFailure) throw cleanupFailure;
+  if (cancelled) return;
+}
+
+export async function resolveLiveCodexExecutable(
+  explicit,
+  pathValue = process.env.PATH,
+) {
+  const hasExplicit = explicit !== undefined;
+  const pathLike =
+    hasExplicit && (isAbsolute(explicit) || explicit.includes(sep));
+  const name = hasExplicit ? explicit : 'codex';
+  const candidates = pathLike
+    ? [resolve(explicit)]
+    : (pathValue ?? '')
+        .split(delimiter)
+        .map((directory) => join(directory || process.cwd(), name));
+  for (const candidate of candidates) {
+    try {
+      const [details] = await Promise.all([
+        stat(candidate),
+        access(candidate, constants.X_OK),
+      ]);
+      if (details.isFile()) return resolve(candidate);
+    } catch {
+      // Continue PATH lookup; an explicit candidate gets actionable guidance below.
+    }
+  }
+  const selection = hasExplicit
+    ? `KRN_LIVE_CODEX_EXECUTABLE=${explicit}`
+    : 'codex on the caller PATH';
+  const guidance = hasExplicit
+    ? pathLike
+      ? 'Set KRN_LIVE_CODEX_EXECUTABLE to an executable Codex binary.'
+      : `Set KRN_LIVE_CODEX_EXECUTABLE to an executable Codex binary, or add ${explicit} to PATH.`
+    : 'Set KRN_LIVE_CODEX_EXECUTABLE to an executable Codex binary, or add codex to PATH.';
+  throw new Error(
+    `Live smoke cannot use ${selection}: no executable file was found. ${guidance} No fixture or provider session was started.`,
+  );
 }
