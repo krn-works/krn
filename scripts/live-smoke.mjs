@@ -11,7 +11,15 @@ import {
   stat,
   writeFile,
 } from 'node:fs/promises';
-import { basename, delimiter, dirname, join, resolve } from 'node:path';
+import {
+  basename,
+  delimiter,
+  dirname,
+  isAbsolute,
+  join,
+  resolve,
+  sep,
+} from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runJob } from '../src/foreman/run.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
@@ -315,11 +323,14 @@ export async function resolveLiveCodexExecutable(
   pathValue = process.env.PATH,
 ) {
   const hasExplicit = explicit !== undefined;
-  const candidates = hasExplicit
+  const pathLike =
+    hasExplicit && (isAbsolute(explicit) || explicit.includes(sep));
+  const name = hasExplicit ? explicit : 'codex';
+  const candidates = pathLike
     ? [resolve(explicit)]
     : (pathValue ?? '')
         .split(delimiter)
-        .map((directory) => join(directory || process.cwd(), 'codex'));
+        .map((directory) => join(directory || process.cwd(), name));
   for (const candidate of candidates) {
     try {
       const [details] = await Promise.all([
@@ -334,7 +345,12 @@ export async function resolveLiveCodexExecutable(
   const selection = hasExplicit
     ? `KRN_LIVE_CODEX_EXECUTABLE=${explicit}`
     : 'codex on the caller PATH';
+  const guidance = hasExplicit
+    ? pathLike
+      ? 'Set KRN_LIVE_CODEX_EXECUTABLE to an executable Codex binary.'
+      : `Set KRN_LIVE_CODEX_EXECUTABLE to an executable Codex binary, or add ${explicit} to PATH.`
+    : 'Set KRN_LIVE_CODEX_EXECUTABLE to an executable Codex binary, or add codex to PATH.';
   throw new Error(
-    `Live smoke cannot use ${selection}: no executable file was found. Set KRN_LIVE_CODEX_EXECUTABLE to an executable Codex binary, or add codex to PATH. No fixture or provider session was started.`,
+    `Live smoke cannot use ${selection}: no executable file was found. ${guidance} No fixture or provider session was started.`,
   );
 }
