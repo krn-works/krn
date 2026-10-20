@@ -459,6 +459,67 @@ test('delegate records a nonzero worker exit as failed even with final text', as
   }
 });
 
+test('delegate preserves bounded host identity and termination summary for an external SIGTERM', async () => {
+  const { repo, input } = await createTrackedFixture();
+  try {
+    const results = join(repo, '.krn', 'tmp', 'delegation', 'external-sigterm');
+    const sessionId = 'session-sigterm-123';
+    let output = '';
+    let exitCode: number | undefined;
+    await dispatch(argsFor(repo, input, results, ['TASK']), {
+      delegate: {
+        signal: new AbortController().signal,
+        write: (text) => {
+          output += text;
+        },
+        setExitCode: (code) => {
+          exitCode = code;
+        },
+        host: {
+          start: async () => ({
+            id: 'worker-handle-123',
+            wait: async () => ({
+              sessionId,
+              reasonKind: 'process_exit',
+              reasonSha256: 'a'.repeat(64),
+              reasonLength: 0,
+              claimsDone: false,
+              exitCode: null,
+              signal: 'SIGTERM',
+              usage: { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+              usageObservation: {
+                turnsStarted: 1,
+                turnsCompleted: 0,
+                invalidFields: 0,
+              },
+            }),
+          }),
+          cancelTree: async () => undefined,
+        },
+      },
+    });
+
+    const group = JSON.parse(output) as {
+      readonly workers: readonly Record<string, unknown>[];
+    };
+    const worker = group.workers[0];
+    assert.equal(exitCode, 1);
+    assert.equal(worker?.status, 'failed');
+    assert.equal(worker?.signal, 'SIGTERM');
+    assert.equal(worker?.sessionId, sessionId);
+    assert.equal(worker?.reasonKind, 'process_exit');
+    assert.equal(worker?.reasonSha256, 'a'.repeat(64));
+    assert.equal(worker?.reasonLength, 0);
+    assert.equal(JSON.stringify(worker).includes('stderr'), false);
+    const persisted = JSON.parse(
+      await readFile(join(results, 'worker-1.json'), 'utf8'),
+    ) as Record<string, unknown>;
+    assert.deepEqual(persisted, worker);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test('delegate reports an unpersisted worker result without claiming its file exists', async () => {
   const { repo, input } = await createTrackedFixture();
   try {
