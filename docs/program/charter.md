@@ -425,3 +425,10 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 ## Wznowienie dostawy dokumentacji i naprawa powiązania (2026-10-20)
 
 [POLICY] Operator polecił kontynuować realizację od bieżącego stanu, dostarczyć przygotowaną dokumentację, następnie małą mierzalną optymalizację P-053 oraz własne procedury i rzeczywistą dostawę KRN przez KRN. Po ujawnieniu braku wykonywalnego powiązania walidatora lekcji wybrał „Przygotuj osobny, minimalny zakres naprawy powiązania walidatora przed publikacją całej paczki 20 dokumentów”. P-054/LON-311 posiada ten warunek wstępny w GLOBAL. Nie powtarzać korekty bajtów LON-309 ani ukończonych dowodów LON-282/308/306; zachować ich historię. Zmiana nie obejmuje instalacji, konfiguracji hosta, aktywacji pamięci ani uchylenia bramek publikacji.
+
+
+## Ograniczony eksperyment P-053 / LON-312 (2026-10-20)
+
+[POLICY] Root realizuje priorytet operatora małym zakresem w istniejącym obserwatorze aliasów: najwyżej dwa równoległe procesy fixture, przy szeregowym runnerze plików. Zakres nie usuwa testów i nie zmienia produkcyjnego wrappera, progów ani bramek. OpenClaw test-audit stanowi źródło do oceny kosztu i pozostających kontraktów; szeroka kampania pozostaje odłożona.
+
+[EMPIRICAL] Lokalna para Node 24.21.0: 110,72 s → 46,73 s przy tych samych 283 przypadkach i zerowych błędach/pominięciach/anulowaniach/todo. Potwierdzono identyczność literałów fixture, prawdziwy FAIL przy celowo błędnej asercji oraz kod 143 i zniknięcie wszystkich odnotowanych własnych procesów przy SIGTERM dwóch aktywnych fixture. Jest to wynik ograniczonego eksperymentu, nie ogólna obietnica CI ani akceptacja PR. LON-312/P-053 posiada wynik, dalsze oceny i publikację; obecne wymagania akceptacji pozostają w mocy.
