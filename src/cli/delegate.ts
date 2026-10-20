@@ -611,6 +611,12 @@ async function executeWorker(
     sessionId = session.id;
     if (signal?.aborted || timedOut) cancel();
     const result = await session.wait();
+    const hostSummary = {
+      sessionId: result.sessionId,
+      reasonKind: result.reasonKind,
+      reasonSha256: result.reasonSha256,
+      reasonLength: result.reasonLength,
+    };
     await cancelPromise;
     if (cancelFailure) {
       return {
@@ -620,15 +626,10 @@ async function executeWorker(
         resultFile,
         resultPersisted: false,
         errorType: errorType(cancelFailure),
+        ...hostSummary,
       };
     }
     const finalText = result.finalMessage;
-    const hostSummary = {
-      sessionId: result.sessionId,
-      reasonKind: result.reasonKind,
-      reasonSha256: result.reasonSha256,
-      reasonLength: result.reasonLength,
-    };
     if (timedOut)
       return {
         id,
