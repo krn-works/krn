@@ -38,7 +38,7 @@ After the admission Goal returns READY and that result is read back in the lifec
       mapping before authoring.
     - Worker brief: docs/program/r1/worker-brief.md ; judge lens: docs/program/r1/review-lens.md
     - Decisions and grants: docs/program/charter.md (operator decisions), docs/program/proposals.md
-    - Evidence base: docs/program/audit-2026-10-10.md ; repo rules: AGENTS.md ; methods: docs/program/lead-rules.md
+    - Evidence base: docs/archive/audit-2026-10-10.md ; repo rules: AGENTS.md ; methods: docs/program/lead-rules.md
     - Paperclip is the sole live control plane for goals, tasks, assignments, statuses and eligible PR-backed acceptance,
       under ADR 0007. Use only the authorized lead administration path. Workers and live runs do not write to Paperclip.
     - The lead writes only the transient lifecycle capsule among run-state documents:
