@@ -63,7 +63,7 @@ blokerów, które wszystkie przepuściły. Zmiana: brief sędziego wymaga ataku 
 re-run, crash). Dane do decyzji o eksperymencie "tylko Luna" na G3.
 
 ## Decyzje operatora 2026-10-10 (audyt produktu i przebieg R1)
-Źródło: [audyt 2026-10-10](audit-2026-10-10.md); operator przyjął rekomendacje w sesji Claude Code 2026-10-10.
+Źródło: [audyt 2026-10-10](../archive/audit-2026-10-10.md); operator przyjął rekomendacje w sesji Claude Code 2026-10-10.
 1. **D1 — metryka główna v2 (zastępuje „minuty operatora” jako metrykę główną; baseline minut = 0, więc kryterium −30% było
    nieobliczalne).** Metryka główna: *zaakceptowane wyniki bez uciekających defektów*, raportowane z trzema licznikami na
    wynik: interwencje leada, prompty rekonstrukcyjne, tokeny. Kryterium zabicia (blueprint §12) v2: po 6 podróżach ramienia B
@@ -438,6 +438,20 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 ## Ograniczony zakres A1: natywna procedura Product KRN (2026-10-20)
 
 [POLICY] P-052 pozostaje propozycją dla szerszej migracji produktu. Ten wpis zapisuje wyłącznie przyznany zakres A1: utworzyć jedną krótką procedurę `krn-delivery` w repo Product KRN, zachować metody i wymagania leada w ich istniejącym ownerze oraz ustawić pierwsze rzeczywiste, nadzorowane użycie jako następny bounded slice. Pojedyncze legalne zadanie nie wymaga najpierw migracji pełnej pamięci, LON-209 ani pełnego przeniesienia CLI. Paperclip nadal posiada status i akceptację, natywny host pętlę model–narzędzia, a repozytorium trwałą wiedzę i własne kontrole. Ten zakres nie akceptuje szerszej architektury, nie kwalifikuje hosta/izolacji, nie aktywuje instalacji ani nie ustanawia wyniku A2; proof, niezależny review, bramki i publikacja zachowują dotychczasowych właścicieli.
+
+## Decyzje operatora — kierunek programu (2026-10-21, LON-319)
+
+[POLICY] Operator zatwierdził kierunek planu v2: jeden lead Opus oraz wielu workerów i sędziów Codex.
+
+[POLICY] Kierunek migracji to KRN-native tracker w stylu beads, nie GitHub Issues ani Beads. Przełączenie odbywa się projekt po projekcie, z zachowaniem historii; Paperclip pozostaje archiwum.
+
+[POLICY] Operator nie jest warstwą pośrednią: lead akceptuje PR po dowodach wymaganych przez ADR 0007. Operator zatwierdza wyłącznie klasy hostowe, bezpieczeństwa i nieodwracalne. Ten model acceptance zaczyna obowiązywać po wymaganej zmianie ADR 0007 przez ADR 0012.
+
+[POLICY] Incydent `2deba216` (merge PR #419 bez `Change-contract`) zostaje zachowany jako incydent; nie przepisuje się historii.
+
+[POLICY] Pomysł zawsze działającego agenta w F6 zostaje jawnie porzucony.
+
+Źródło decyzji: LON-319. [Plan v2](plan-2026-10-21.md). Working evidence znajduje się w ignorowanym rekordzie runu leada; nie zastępuje trwałych rekordów ani nie rozszerza zakresu decyzji.
 
 ## LON-316 accepted P-056 repair scope (2026-10-21)
 

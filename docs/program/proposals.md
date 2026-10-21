@@ -1,11 +1,11 @@
 # Proposal registry
 
 Lead proposals that are not yet operator decisions (KRN-16). Accepted items move to [the charter](charter.md) and to the
-durable source that owns them. Status: `proposed` | `accepted` | `rejected` | `superseded`.
+durable source that owns them. Status: `proposed` | `in progress` | `accepted` | `rejected` | `superseded`.
 
 | ID | Date | Source | Proposal | Status |
 |---|---|---|---|---|
-| P-001 | 2026-10-10 | [audit](audit-2026-10-10.md) D1 | Primary metric v2 and kill criterion v2 | accepted (charter 2026-10-10 §1) |
+| P-001 | 2026-10-10 | [audit](../archive/audit-2026-10-10.md) D1 | Primary metric v2 and kill criterion v2 | accepted (charter 2026-10-10 §1) |
 | P-002 | 2026-10-10 | audit D2 | WIP limit until evaluator, env and L2 exit criteria are met | accepted (charter 2026-10-10 §2) |
 | P-003 | 2026-10-10 | audit D3 | Evaluator-surface refusal policy | accepted (charter 2026-10-10 §3) |
 | P-004 | 2026-10-10 | audit D4 | One non-Luna judge in the judge-calibration experiment only | proposed |
@@ -59,6 +59,9 @@ durable source that owns them. Status: `proposed` | `accepted` | `rejected` | `s
 | P-055 | 2026-10-20 | [native-harness-plan-20261020](roadmap-2026-10-20.md) and scoped A1 task | Add one Product-owned native `krn-delivery` procedure and consolidate KRN-09–20 instruction ownership through the existing lead methods; update existing GLOBAL canonical owners with the bounded first use | proposed (A1 procedure and ordering only; broader runtime/public-contract/release migration remains proposed) |
 | P-056 | 2026-10-21 | Operator “Go on wtf” / “łataj te problemy”; first real LON-315 KRN run | Repair only the trusted npm runtime visibility needed by existing base-declared checks; keep fail-closed isolation and preserve the stopped A2 attempt | accepted (scope only; implementation proof, independent review, gates and delivery remain open; no host change or A2 acceptance) |
 | P-057 | 2026-10-21 | Operator mandate to begin implementing the skills/memory research plan; root-selected LON-143 slice | Add atomic cursor advancement to the existing SQLite memory event store, preserving legacy insertion behavior and privacy boundaries; document the offline LON-144 consumer seam | accepted (bounded scope only; implementation proof, independent review, GLOBAL gates and delivery remain open; no capture or memory promotion) |
+| P-058 | 2026-10-21 | LON-319; plan v2 | ADR 0011: KRN-native `krn work` ledger, after a bounded reuse decision on the existing `krn task` code (schema/ABI, dependencies, migration, recovery), with SQLite claims/fencing and JSONL Git history; per-project cutover preserves history, Paperclip becomes read-only archive | proposed |
+| P-059 | 2026-10-21 | LON-319; plan v2 | ADR 0012: delegated acceptance; lead accepts PRs after ADR 0007 evidence, with operator approval reserved for host, security, and irreversible classes; effective after ADR 0012 amends ADR 0007 | proposed |
+| P-060 | 2026-10-21 | LON-319; GLOBAL `feat/krn-ship-20261021` | Make `krn ship` the mandatory merge path (F1a), enforcing exact-SHA evidence, changes check, gate/CI and preflight before merge | in progress |
 
 ## P-051 — User-expanded documentation and migration plan (2026-10-20)
 

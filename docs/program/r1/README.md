@@ -6,7 +6,7 @@
 
 # R1 — long-running delivery run (orchestrator runbook)
 
-R1 turns the 2026-10-10 audit ([audit](../audit-2026-10-10.md)) into merged, verified changes. The full run has a 7.5-hour
+R1 turns the 2026-10-10 audit ([audit](../../archive/audit-2026-10-10.md)) into merged, verified changes. The full run has a 7.5-hour
 wall limit, starting only when admission is complete and the run is explicitly launched READY. No native Goal token budget
 is set for this run, so there is no percentage-based token stop. The orchestrator is Sol 6.1 at xHigh reasoning; workers
 and independent judges are Luna (charter 2026-10-10 §4). All local Node/npm commands use the pinned Node 24.21.0 executable; do not rely on shims or package-manager bootstraps. This file is the run's operating contract. The task list is

@@ -1,4 +1,4 @@
-> **Historical synthesis (2026-10-07).** Current implementation and proposed architecture follow-up: [architecture](../architecture.md); current stage proofs and limits: [roadmap](roadmap-2026-10-20.md). The dated synthesis below remains intact.
+> **Historical synthesis (2026-10-07).** Current implementation and proposed architecture follow-up: [architecture](../architecture.md); current stage proofs and limits: [roadmap](../program/roadmap-2026-10-20.md). The dated synthesis below remains intact.
 
 # Synteza v3: program KRN A–Z (architekt syntezy, 2026-10-07)
 
