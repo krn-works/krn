@@ -2,7 +2,7 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 // biome-ignore format: These filesystem primitives form the sandbox's owned I/O surface.
-import { accessSync, closeSync, constants, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync, writeSync } from 'node:fs';
+import { accessSync, closeSync, constants, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
@@ -267,6 +267,74 @@ function sandboxDirectories(paths: readonly string[]): string[] {
   );
 }
 
+type ReadOnlyMount = { source: string; target: string };
+
+function trustedNpmMount(
+  nodeDirectory: string,
+  argv: readonly string[],
+): ReadOnlyMount | undefined {
+  const wrapper = join(nodeDirectory, 'npm');
+  if (argv[0] !== 'npm' && argv[0] !== wrapper) return undefined;
+
+  try {
+    const nodePrefix = realpathSync(resolve(nodeDirectory, '..'));
+    if (realpathSync(nodeDirectory) !== resolve(nodeDirectory))
+      throw new Error('pinned Node bin directory is not canonical');
+    const wrapperInfo = lstatSync(wrapper);
+    if (!wrapperInfo.isFile() && !wrapperInfo.isSymbolicLink())
+      throw new Error('npm wrapper is not a file');
+    const wrapperTarget = realpathSync(wrapper);
+    if (
+      wrapperTarget !== nodePrefix &&
+      !wrapperTarget.startsWith(`${nodePrefix}/`)
+    )
+      throw new Error('npm wrapper escapes the pinned Node prefix');
+
+    const target = resolve(nodePrefix, 'lib/node_modules/npm');
+    const targetInfo = lstatSync(target);
+    if (!targetInfo.isDirectory() && !targetInfo.isSymbolicLink())
+      throw new Error('npm runtime package is not a directory');
+    const source = realpathSync(target);
+    if (source === nodePrefix || !source.startsWith(`${nodePrefix}/`))
+      throw new Error('npm runtime package escapes the pinned Node prefix');
+    if (!statSync(source).isDirectory())
+      throw new Error('npm runtime package target is not a directory');
+
+    const manifestPath = join(source, 'package.json');
+    const manifestInfo = lstatSync(manifestPath);
+    if (
+      !manifestInfo.isFile() ||
+      manifestInfo.size > MAX_PACKAGE_MANIFEST_BYTES
+    )
+      throw new Error('npm runtime manifest is not a bounded regular file');
+    const manifest: unknown = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    if (
+      typeof manifest !== 'object' ||
+      manifest === null ||
+      !('name' in manifest) ||
+      manifest.name !== 'npm'
+    )
+      throw new Error('pinned runtime package is not npm');
+
+    const cli = realpathSync(join(source, 'bin/npm-cli.js'));
+    if (
+      (cli !== source && !cli.startsWith(`${source}/`)) ||
+      !statSync(cli).isFile()
+    )
+      throw new Error('npm CLI entry escapes its runtime package');
+    if (
+      wrapperInfo.isSymbolicLink() &&
+      wrapperTarget !== source &&
+      !wrapperTarget.startsWith(`${source}/`)
+    )
+      throw new Error('npm wrapper symlink does not target its package');
+
+    return { source, target };
+  } catch {
+    throw new Error('cannot resolve the trusted npm runtime for pinned Node');
+  }
+}
+
 async function registeredWorktrees(root: string): Promise<string[]> {
   const result = await run(
     'git',
@@ -462,8 +530,10 @@ async function runSandbox(
       ),
     ),
   ];
+  const npmMount = trustedNpmMount(nodeDirectory, argv);
   const directories = sandboxDirectories([
     ...toolDirectories,
+    ...(npmMount ? [npmMount.target] : []),
     copy,
     '/dev',
     '/proc',
@@ -524,6 +594,7 @@ async function runSandbox(
       directory,
       directory,
     ]),
+    ...(npmMount ? ['--ro-bind', npmMount.source, npmMount.target] : []),
     '--size',
     '67108864',
     '--tmpfs',
