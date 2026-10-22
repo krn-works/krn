@@ -872,7 +872,7 @@ test('checkpoint recognizes bounded credential shapes and preserves ordinary cod
       "const commit = '0123456789abcdef0123456789abcdef01234567';\n",
     ],
     ['model reference', "const model = 'gpt-6-luna';\n"],
-    ['version literal', "const version = 'v24.21.0';\n"],
+    ['version literal', "const version = 'v24.22.1';\n"],
     [
       'ordinary URL with port, version path, and query',
       "const endpoint = 'https://api.example.test:8443/v2/models?region=west';\n",
