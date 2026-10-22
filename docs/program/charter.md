@@ -1,4 +1,4 @@
-> **Historical program record (started 2026-10-07).** The original owner and discovery sequence below describe that dated program plan; they are not current operating instructions. For current roles and status, see [CONTEXT.md](../../CONTEXT.md). Dated decisions, grants, limits, and evidence in this charter remain intact historical records.
+> **This program outline, started 2026-10-07, is historical; its dated decisions and grants remain binding until superseded, and [CONTEXT.md](../../CONTEXT.md) has current roles and status.**
 
 # Program KRN A–Z (start 2026-10-07)
 
@@ -460,3 +460,17 @@ assertion-based disk/Git tests in `test/foreman/interrupted-resume.test.ts`.
 ## LON-143 bounded memory cursor scope (2026-10-21)
 
 [POLICY] Under the operator's mandate to begin implementing the skills/memory research direction, root selected the existing SQLite event-store cursor slice. Scope is limited to optional atomic event/cursor ingestion, its one focused SQLite falsifier, the A4 API contract, and this intake record. Existing `insertEvents(events)` behavior remains available unchanged. LON-144's offline observe seam is the intended consumer. This does not authorize live collection, automatic capture, CLI/runtime wiring, a second store, host/store defaults, corpus reads, memory activation, privacy qualification, or promotion. Root owns independent exact-head review, required GLOBAL gates, publication and acceptance; preserve the evidence through LON-143/144 and explicit whole-outcome disposition.
+
+## Decyzje operatora — zasady programu i granty (2026-10-22)
+
+[POLICY] Program-level design requires 2–3 independent Opus lenses. Operator: “ja już dawno wymagałem żebyś oddelegował opusiątkaa 5.5”.
+
+[POLICY] The lead may accept PR work once the required gates are green; the operator is not an intermediary. Operator: “ja w sumie nie chcę w większości być w ogóle warstwą pomiędzy”. This supersedes the 2026-10-21 condition that deferred this acceptance model until ADR 0012.
+
+[POLICY] Hygiene disposition: delete merged branches and worktrees; preserve unmerged PR branches with an archive tag before deleting the branch and its worktree. Operator: “Zależy nam na maksymalnym porządku”.
+
+[POLICY] After creating an archive tag, the lead may rebase or use force-with-lease on its own unmerged PR branches. Operator: “tylko Ty tu pracujesz jak cos, nikt inny xD”.
+
+[POLICY] Operator: “no to musisz to wszystko stary ustawic, tak, zapieczetowac i zainstalować”. The lead's plan is to apply sealing and installation of GLOBAL releases at milestone boundaries; the operator accepted the plan: “Szefie ja to wszystko akceptuję”.
+
+[POLICY] Enable Wakatime in every profile. Operator: “na pewno musi zostać ogarnięte! jak to było wyłączone to się bardzo bardzo wkurwię”.

@@ -16,7 +16,7 @@ Use `git ls-files --others --ignored --exclude-standard --directory` when you ne
 
 ## Resolve sources and verify claims
 
-For decisions, use this order: operator charter, ADR, repository `AGENTS.md`, skill, plan, then working notes. Report a conflict to the owner rather than choosing silently. A proposal is not an accepted decision.
+For decisions, use this precedence: current operator message > latest dated charter decision > ADR > repo `AGENTS.md` > GLOBAL contract > skills > plan > notes. Report a conflict to the owner rather than choosing silently. A proposal is not an accepted decision.
 
 Start verification with the cheapest signal that could disprove the claim. Read current Git or API state before running a focused test; use a judge after deterministic checks, and a milestone review after those. Read back facts copied from old handoffs or plans before acting. Mark facts stale when the readback differs.
 
@@ -26,7 +26,7 @@ Label analysis claims by evidence class: `[CODE]`, `[VENDOR]`, `[EMPIRICAL]`, `[
 
 ## Stop at gaps and wait for work
 
-At the first missing tool or capability, stop dependent work. Diagnose the gap and present one decision with a recommended path; do not build a chain of alternate tools or unapproved workarounds.
+When a KRN tool is missing or broken, if the fix is reversible and inside the current grant, delegate it as the next slice and report; otherwise stop with one decision.
 
 After launching a background task group, issue one blocking wait for the entire group. Do not poll or send progress messages while it runs. Resume when the wait returns a result or a real blocker or decision needs attention. If the wait command reaches its time limit, repeat that same wait without an interim status message.
 
@@ -40,6 +40,6 @@ Before changing host infrastructure, identify the cause from the relevant logs a
 
 ## Scope, evidence, and delivery
 
-For work spanning sessions, pull requests, or modules, keep the living plan required by [`PLANS.md`](PLANS.md); read back current task, authority, checkout, base/head, and dirty ownership before using a handoff. Preserve the charter → ADR → `AGENTS.md` → skill → plan → working-notes precedence, label evidence claims, and keep proposals in the registry until accepted decisions reach the charter and their durable owner.
+For work spanning sessions, pull requests, or modules, keep the living plan required by [`PLANS.md`](PLANS.md); read back current task, authority, checkout, base/head, and dirty ownership before using a handoff. Preserve the source precedence above, label evidence claims, and keep proposals in the registry until accepted decisions reach the charter and their durable owner.
 
-One writer owns each outcome. For authorized delivery, use an owned branch and PR; reuse recorded publication grants without repeated prompts. An authorized push and draft Product PR supply the existing-PR input required by `scripts/pr-preflight.mjs`; marking the PR ready or merging it must depend on the actual preflight command returning exit 0. The `Ticket:` and `Change-contract:` Git trailers belong in one contiguous trailer block. Required reviews, checks, CI, merge readback, and branch/worktree disposition remain with their named owners. Stop at scope, authority, capability, or required-check gaps; preserve failures and report the next lawful action. Roll back only task-owned changes under recorded authority.
+One writer owns each outcome. For authorized delivery, use an owned branch and PR; reuse recorded publication grants without repeated prompts. An authorized push and draft Product PR supply the existing-PR input required by `scripts/pr-preflight.mjs`; marking the PR ready or merging it must depend on the actual preflight command returning exit 0. The `Ticket:` and `Change-contract:` Git trailers belong in one contiguous trailer block. Required reviews, checks, CI, merge readback, and branch/worktree disposition remain with their named owners. Preserve the source precedence above; at scope, authority, capability, or required-check gaps, preserve failures and report the next lawful action. Roll back only task-owned changes under recorded authority.
