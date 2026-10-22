@@ -20,6 +20,10 @@ import { CodexHost } from '../src/hosts/codex.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
 import { requiresIsolation } from './helpers/isolation.ts';
+import {
+  SPAWNED_PROCESS_WAIT_MS,
+  testTimeoutFor,
+} from './support/process-wait.ts';
 
 async function repoFixture(
   ignore = '.krn/\n',
@@ -255,7 +259,9 @@ test('start refuses a worktrees symlink that escapes the target repo', async () 
   }
 });
 
-test('B1 foreman waits for a checkpointing tool session to die before retrying', async (t) => {
+test('B1 foreman waits for a checkpointing tool session to die before retrying', {
+  timeout: testTimeoutFor(2),
+}, async (t) => {
   if (
     !requiresIsolation(
       t,
@@ -287,7 +293,7 @@ const allPidsFile = ${JSON.stringify(join(outside, 'all-pids'))};
 let count = 0; try { count = Number((await import('node:fs')).readFileSync(countFile, 'utf8')); } catch {}
 count++; writeFileSync(countFile, String(count));
 await new Promise(resolve => escaped.once('spawn', resolve));
-let escapedHostPid; for(let i=0;i<100&&!escapedHostPid;i++){try{escapedHostPid=Number(readFileSync(${JSON.stringify(escapedPidFile)},'utf8'))}catch{} if(!escapedHostPid) await new Promise(r=>setTimeout(r,10))}
+let escapedHostPid; const escapedPidDeadline=Date.now()+${SPAWNED_PROCESS_WAIT_MS}; while(Date.now()<escapedPidDeadline&&!escapedHostPid){try{escapedHostPid=Number(readFileSync(${JSON.stringify(escapedPidFile)},'utf8'))}catch{} if(!escapedHostPid) await new Promise(r=>setTimeout(r,10))}
 const hostPid=Number(readFileSync('/proc/self/status','utf8').match(/^NSpid:\\s+(\\d+)/m)[1]);
 appendFileSync(allPidsFile, hostPid+'\\n'+escapedHostPid+'\\n');
 process.stdout.write(JSON.stringify({type:'thread.started',thread_id:'t'+count})+'\\n');
@@ -416,7 +422,9 @@ if (count === 1) {
   }
 });
 
-test('B2 a foreman SIGTERM cancels every detached session group and exits 130', async (t) => {
+test('B2 a foreman SIGTERM cancels every detached session group and exits 130', {
+  timeout: testTimeoutFor(12),
+}, async (t) => {
   if (
     !requiresIsolation(
       t,
@@ -443,7 +451,7 @@ test('B2 a foreman SIGTERM cancels every detached session group and exits 130', 
 import { spawn } from 'node:child_process'; import { writeFileSync } from 'node:fs';
 const child=spawn(process.execPath,['-e',${JSON.stringify(workerSource(childPidFile))}],{stdio:'ignore'});
 const escaped=spawn('setsid',[process.execPath,'-e',${JSON.stringify(workerSource(escapedPidFile))}],{stdio:'ignore'});
-const waitPid=async(path)=>{for(let i=0;i<200;i++){try{return Number((await import('node:fs')).readFileSync(path,'utf8'))}catch{} await new Promise(r=>setTimeout(r,10))} throw new Error('child pid unavailable')};
+const waitPid=async(path)=>{const deadline=Date.now()+${SPAWNED_PROCESS_WAIT_MS}; while(Date.now()<deadline){try{return Number((await import('node:fs')).readFileSync(path,'utf8'))}catch{} await new Promise(r=>setTimeout(r,10))} throw new Error('child pid unavailable')};
 await Promise.all([new Promise(r=>child.once('spawn',r)),new Promise(r=>escaped.once('spawn',r))]);
 const hostPid=Number((await import('node:fs')).readFileSync('/proc/self/status','utf8').match(/^NSpid:\\s+(\\d+)/m)[1]);
 writeFileSync(${JSON.stringify(pidFile)},[hostPid,await waitPid(${JSON.stringify(childPidFile)}),await waitPid(${JSON.stringify(escapedPidFile)})].join('\\n'));
@@ -473,7 +481,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       stderr += chunk;
     });
     const tracePath = join(root, `.krn/runs/foreman/${job}/trace.jsonl`);
-    const setupWaitMs = 20_000;
+    const setupWaitMs = SPAWNED_PROCESS_WAIT_MS;
     const setupDeadline = Date.now() + setupWaitMs;
     let traceText = '';
     let sessionStarted = false;
@@ -701,7 +709,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
         stdio: ['ignore', 'pipe', 'pipe'],
       },
     );
-    const recoveryDeadline = Date.now() + 20_000;
+    const recoveryDeadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
     let recoveredEvents: Array<{
       kind: string;
       data: Record<string, unknown>;
@@ -815,7 +823,9 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
   }
 });
 
-test('default systemd scope isolation reaps a setsid descendant', async (t) => {
+test('default systemd scope isolation reaps a setsid descendant', {
+  timeout: testTimeoutFor(1),
+}, async (t) => {
   if (
     !requiresIsolation(
       t,
@@ -1055,7 +1065,9 @@ test('B3 live uses the requested repo and resumes an existing job by id', async 
   }
 });
 
-test('live SIGTERM reaps every Paperclip CLI group during contract loading', async (t) => {
+test('live SIGTERM reaps every Paperclip CLI group during contract loading', {
+  timeout: testTimeoutFor(1),
+}, async (t) => {
   if (
     !requiresIsolation(
       t,
@@ -1144,7 +1156,9 @@ test('live SIGTERM reaps every Paperclip CLI group during contract loading', asy
   }
 });
 
-test('live SIGTERM during a real verdict waits for scope teardown before exit', async (t) => {
+test('live SIGTERM during a real verdict waits for scope teardown before exit', {
+  timeout: testTimeoutFor(2),
+}, async (t) => {
   if (
     !requiresIsolation(
       t,
@@ -1347,7 +1361,7 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
       `unix:path=/run/user/${process.getuid?.() ?? 1000}/bus`,
   };
   try {
-    const deadline = Date.now() + 15000;
+    const deadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
     while (Date.now() < deadline && !unit && runner.exitCode === null) {
       const candidate = (
         await readFile(scopeUnitMarker, 'utf8').catch(() => '')
@@ -1399,7 +1413,7 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
       group.stdout.trim().replace(/^\/+/, ''),
     );
     const pidsPath = join(cgroupPath, 'cgroup.procs');
-    const pidsDeadline = Date.now() + 3000;
+    const pidsDeadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
     while (Date.now() < pidsDeadline && scopePids.length === 0) {
       try {
         scopePids = (await readFile(pidsPath, 'utf8'))
@@ -1711,7 +1725,7 @@ async function isAlive(pid: number): Promise<boolean> {
 async function waitFor(
   read: () => Promise<string | undefined>,
 ): Promise<string> {
-  const deadline = Date.now() + 3000;
+  const deadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
   while (Date.now() < deadline) {
     const value = await read();
     if (value) return value;

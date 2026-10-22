@@ -19,6 +19,10 @@ import {
 } from '../../src/ledger/live.ts';
 import { createPaperclipCliTransport } from '../../src/ledger/paperclip-cli.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+import {
+  SPAWNED_PROCESS_WAIT_MS,
+  testTimeoutFor,
+} from '../support/process-wait.ts';
 
 const issue = {
   id: 'ca71eba4-3f82-4a19-acc8-7bbae1315e58',
@@ -39,7 +43,7 @@ async function fakeCli() {
 }
 
 async function waitForPidGone(pid: number): Promise<void> {
-  const deadline = Date.now() + 1000;
+  const deadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
   while (Date.now() < deadline) {
     try {
       process.kill(pid, 0);
@@ -380,7 +384,9 @@ test('CLI submit reconciliation reads issue comments with JSON output', async (t
   }
 });
 
-test('CLI transport refuses oversized output and timed out commands', async (t) => {
+test('CLI transport refuses oversized output and timed out commands', {
+  timeout: testTimeoutFor(1),
+}, async (t) => {
   if (
     !requiresIsolation(
       t,
@@ -434,7 +440,9 @@ test('CLI transport refuses oversized output and timed out commands', async (t) 
   }
 });
 
-test('timeout returns promptly when a setsid descendant holds CLI pipes', async (t) => {
+test('timeout returns promptly when a setsid descendant holds CLI pipes', {
+  timeout: testTimeoutFor(1),
+}, async (t) => {
   if (
     !requiresIsolation(
       t,
@@ -507,7 +515,9 @@ test('Paperclip CLI refuses to launch when systemd user scopes are unavailable',
   }
 });
 
-test('aborting a CLI request kills and waits for its process group', async (t) => {
+test('aborting a CLI request kills and waits for its process group', {
+  timeout: testTimeoutFor(2),
+}, async (t) => {
   if (
     !requiresIsolation(
       t,
@@ -530,11 +540,8 @@ test('aborting a CLI request kills and waits for its process group', async (t) =
       timeoutMs: 5_000,
       signal: controller.signal,
     }).readIssue('LON-200');
-    for (
-      let attempt = 0;
-      attempt < 100 && descendantPid === undefined;
-      attempt++
-    ) {
+    const deadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
+    while (Date.now() < deadline && descendantPid === undefined) {
       try {
         descendantPid = Number(await readFile(fake.capture, 'utf8'));
       } catch {
@@ -556,7 +563,7 @@ test('aborting a CLI request kills and waits for its process group', async (t) =
 });
 
 test('cancelAll retains physical scope failures after their calls leave the active set', {
-  timeout: 30_000,
+  timeout: testTimeoutFor(2),
 }, async (t) => {
   const testName =
     'cancelAll retains physical scope failures after their calls leave the active set';
@@ -644,7 +651,7 @@ exec /usr/bin/systemctl "$@"
       (error: unknown) => ({ ok: false as const, error }),
     );
     requests = [firstSettled, secondSettled];
-    const deadline = Date.now() + 10_000;
+    const deadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
     let registrations: Array<{
       unit: string;
       pid: number;
@@ -834,7 +841,7 @@ exec /usr/bin/systemctl "$@"
         env: systemdEnv,
       });
     }
-    const cleanupDeadline = Date.now() + 10_000;
+    const cleanupDeadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
     let cleaned = false;
     while (Date.now() < cleanupDeadline) {
       cleaned =

@@ -14,6 +14,10 @@ import { stateDirectory } from '../../src/foreman/state.ts';
 import { CodexHost, type CodexSessionResult } from '../../src/hosts/codex.ts';
 import * as trace from '../../src/trace/index.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+import {
+  SPAWNED_PROCESS_WAIT_MS,
+  testTimeoutFor,
+} from '../support/process-wait.ts';
 
 // Synthetic complete ThreadEvent/Usage shapes from Codex rust-v0.162.1:
 // https://github.com/openai/codex/blob/rust-v0.162.1/sdk/typescript/src/events.ts
@@ -92,7 +96,7 @@ async function interruptedStream(): Promise<CodexSessionResult> {
       prompt: 'interrupted usage',
       limits: { timeoutMs: 5000 },
     });
-    const until = Date.now() + 4000;
+    const until = Date.now() + SPAWNED_PROCESS_WAIT_MS;
     while (Date.now() < until) {
       try {
         await access(marker);
@@ -201,7 +205,9 @@ test('Codex usage retains validation before adding protocol counts', async (t) =
   });
 });
 
-test('started native turn interrupted before completion remains unmeasured', async (t) => {
+test('started native turn interrupted before completion remains unmeasured', {
+  timeout: testTimeoutFor(1),
+}, async (t) => {
   if (
     !requiresIsolation(t, 'Codex interrupted usage observation', [
       'systemdUserScope',

@@ -14,12 +14,18 @@ import { join, resolve, sep } from 'node:path';
 import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { requiresIsolation } from './helpers/isolation.ts';
+import {
+  SPAWNED_PROCESS_WAIT_MS,
+  testTimeoutFor,
+} from './support/process-wait.ts';
 
 const repoRoot = resolve(import.meta.dirname, '..');
 const smokeScript = join(repoRoot, 'scripts/live-smoke.mjs');
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
-  test(`live smoke cleans up its session and repo on ${signal}`, async (t) => {
+  test(`live smoke cleans up its session and repo on ${signal}`, {
+    timeout: testTimeoutFor(1),
+  }, async (t) => {
     if (
       !requiresIsolation(
         t,
@@ -148,7 +154,7 @@ test('live smoke retains its private fixture and reports it after failure', asyn
 });
 
 async function waitFor<T>(read: () => Promise<T | undefined>): Promise<T> {
-  const deadline = Date.now() + 5000;
+  const deadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
   while (Date.now() < deadline) {
     const value = await read();
     if (value !== undefined) return value;
