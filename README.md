@@ -4,7 +4,7 @@ KRN łączy repozytorium, task, checkpoint, dowód i dostarczenie wokół natywn
 
 ## Product i przygotowanie
 
-Uruchamiaj Product przez przypięty Node **24.21.0**, np. `node src/cli/main.ts`. Zainstalowane `krn` pozostaje bez zmian i nadal wskazuje na GLOBAL compatibility release z przypięcia `0606e4145a2fd1937a6108c76089f219a4617546`; to odrębne od Product entry. Przygotowanie repo używa pnpm **12.10.1**: `pnpm install --frozen-lockfile` (w tej pracy nie wykonywano instalacji). Nie jest to instrukcja instalowania hosta ani globalnego CLI.
+Uruchamiaj Product przez przypięty Node **24.22.1**, np. `node src/cli/main.ts`. Zainstalowane `krn` pozostaje bez zmian i nadal wskazuje na GLOBAL compatibility release z przypięcia `0606e4145a2fd1937a6108c76089f219a4617546`; to odrębne od Product entry. Przygotowanie repo używa pnpm **12.10.1**: `pnpm install --frozen-lockfile` (w tej pracy nie wykonywano instalacji). Nie jest to instrukcja instalowania hosta ani globalnego CLI.
 
 `start` tworzy lub zapisuje job worktree; samo nie implementuje ani nie dostarcza zmiany. `checkpoint` zapisuje żądanie w mailboxie. Istniejąca, opt-in ścieżka live konsumuje checkpoint, wykonuje commit i wymagane checki:
 
