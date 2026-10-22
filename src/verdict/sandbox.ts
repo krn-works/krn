@@ -14,6 +14,12 @@ export const MAX_CHECK_OUTPUT_BYTES = 8 * 1024 * 1024;
 const MAX_PACKAGE_MANIFEST_BYTES = 1024 * 1024;
 const MAX_LOCKFILE_BYTES = 16 * 1024 * 1024;
 const OUTPUT_TAIL_BYTES = 2 * 1024;
+const MISE_LOCATION_ENVIRONMENT_KEYS = [
+  'MISE_DATA_DIR',
+  'MISE_CONFIG_DIR',
+  'MISE_CACHE_DIR',
+  'MISE_STATE_DIR',
+] as const;
 
 class OutputCapture {
   readonly #hash = createHash('sha256');
@@ -107,8 +113,21 @@ function sandboxEnv(extraPath?: string): NodeJS.ProcessEnv {
 export async function pnpmBinary(manager: string): Promise<string> {
   let result: CommandResult;
   try {
-    // biome-ignore format: Toolchain lookup is one process boundary.
-    result = await run('mise', ['where', manager], tmpdir(), 15000, { PATH: process.env.PATH, HOME: process.env.HOME });
+    const miseEnvironment: NodeJS.ProcessEnv = {
+      PATH: process.env.PATH,
+      HOME: process.env.HOME,
+    };
+    for (const key of MISE_LOCATION_ENVIRONMENT_KEYS) {
+      const value = process.env[key];
+      if (value !== undefined) miseEnvironment[key] = value;
+    }
+    result = await run(
+      'mise',
+      ['where', manager],
+      tmpdir(),
+      15000,
+      miseEnvironment,
+    );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     const expectedVersion = manager.slice('pnpm@'.length);
@@ -145,7 +164,7 @@ export async function pnpmBinary(manager: string): Promise<string> {
   return executable;
 }
 
-async function pnpmStore(pnpm: string, cwd: string): Promise<string> {
+export async function pnpmStore(pnpm: string, cwd: string): Promise<string> {
   const state = resolve(cwd, '.krn');
   const directory = resolve(state, 'tmp');
   mkdirSync(state, { recursive: true, mode: 0o700 });
@@ -172,10 +191,19 @@ async function pnpmStore(pnpm: string, cwd: string): Promise<string> {
       flag: 'wx',
       mode: 0o600,
     });
-    const result = await run(pnpm, ['store', 'path'], probe, 15000, {
+    const pnpmEnvironment: NodeJS.ProcessEnv = {
       PATH: process.env.PATH,
       HOME: process.env.HOME,
-    });
+    };
+    if (process.env.pnpm_config_store_dir !== undefined)
+      pnpmEnvironment.pnpm_config_store_dir = process.env.pnpm_config_store_dir;
+    const result = await run(
+      pnpm,
+      ['store', 'path'],
+      probe,
+      15000,
+      pnpmEnvironment,
+    );
     const store = result.stdout.toString().trim();
     if (result.status !== 0 || !store)
       throw new Error(
