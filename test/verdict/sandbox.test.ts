@@ -22,6 +22,10 @@ import { verifyCheckpoint } from '../../src/foreman/verdict.ts';
 import { judge } from '../../src/verdict/index.ts';
 import { execute, MAX_CHECK_OUTPUT_BYTES } from '../../src/verdict/sandbox.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+import {
+  SPAWNED_PROCESS_WAIT_MS,
+  testTimeoutFor,
+} from '../support/process-wait.ts';
 
 function fixture(argv: readonly string[], withLockfile = false) {
   const scratch = join(process.cwd(), '.krn', 'tmp');
@@ -1129,7 +1133,9 @@ test('moving the worker HEAD during checks is refused', async (t) => {
 });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
-  test(`${signal} during a verdict removes its registered check worktree`, async (t) => {
+  test(`${signal} during a verdict removes its registered check worktree`, {
+    timeout: testTimeoutFor(1),
+  }, async (t) => {
     if (
       !requiresIsolation(
         t,
@@ -1183,16 +1189,22 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
       );
       child.kill(signal);
       await new Promise<void>((resolve) => child.once('exit', () => resolve()));
+      const cleanupDeadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
+      let remainingWorktree = registered();
+      while (remainingWorktree !== undefined && Date.now() < cleanupDeadline) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        remainingWorktree = registered();
+      }
+      assert.equal(
+        remainingWorktree,
+        undefined,
+        `${signal} left a registered check worktree`,
+      );
       const worktrees = spawnSync(
         'git',
         ['-C', f.root, 'worktree', 'list', '--porcelain'],
         { encoding: 'utf8' },
       ).stdout;
-      assert.equal(
-        registered(),
-        undefined,
-        `${signal} left a registered check worktree`,
-      );
       assert.ok(
         worktrees.includes(staleDecoy),
         'verdict cleanup pruned an unrelated stale worktree',
