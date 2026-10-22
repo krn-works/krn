@@ -32,6 +32,8 @@ export function reviewOutcomeExitCode(outcome: ReviewCommandOutcome): number {
       return 1;
     case 'INCOMPLETE':
       return 2;
+    case 'PREPASS_BLOCKING':
+      return 3;
   }
 }
 

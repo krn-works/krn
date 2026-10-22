@@ -11,7 +11,12 @@ import {
   roleSchema,
 } from './types.ts';
 
-export type ReviewCommandOutcome = 'PASS' | 'FAIL' | 'INCOMPLETE' | 'OVERRIDE';
+export type ReviewCommandOutcome =
+  | 'PASS'
+  | 'FAIL'
+  | 'INCOMPLETE'
+  | 'OVERRIDE'
+  | 'PREPASS_BLOCKING';
 
 export class ReviewUsageError extends Error {
   constructor(message: string) {
@@ -105,6 +110,35 @@ function reviewLens(input: string): string {
   return path;
 }
 
+function reviewChecklist(args: readonly string[]): string | undefined {
+  const prepass = args.includes('--prepass');
+  const hasChecklist = args.includes('--checklist');
+  if (!prepass) {
+    if (hasChecklist)
+      throw new ReviewUsageError('--checklist requires --prepass');
+    return undefined;
+  }
+  const path = resolve(value(args, '--checklist'));
+  let contents: string;
+  try {
+    if (!statSync(path).isFile())
+      throw new ReviewUsageError('--checklist must name a regular file');
+    contents = readFileSync(path, 'utf8');
+  } catch (error) {
+    if (error instanceof ReviewUsageError) throw error;
+    throw new ReviewUsageError(
+      `--checklist cannot be read: ${errorMessage(error)}`,
+    );
+  }
+  if (!contents.trim() || contents.includes('\0'))
+    throw new ReviewUsageError(
+      '--checklist must be a non-empty plain-text list',
+    );
+  if (Buffer.byteLength(contents) > 32 * 1024)
+    throw new ReviewUsageError('--checklist file exceeds 32 KB');
+  return contents;
+}
+
 export async function reviewCommand(
   args: readonly string[],
   options: { readonly codexExecutable?: string } = {},
@@ -152,6 +186,7 @@ async function runReviewCommand(
     throw new ReviewUsageError('--host currently supports codex only');
   const baseInput = value(args, '--base');
   const lens = reviewLens(value(args, '--lens'));
+  const checklist = reviewChecklist(args);
   const panel = args.includes('--panel') ? panelValue(args) : [...panelRoles];
   const root = reviewRepository(repo);
   const base = reviewCommit(root, baseInput, '--base');
@@ -163,11 +198,18 @@ async function runReviewCommand(
     lens,
     panel,
     reasoningEffort,
+    ...(checklist === undefined ? {} : { prepassChecklist: checklist }),
     signal: controller.signal,
     ...(options.codexExecutable
       ? { codexExecutable: options.codexExecutable }
       : {}),
   });
+  if (record.panelVerdict === undefined) {
+    process.stdout.write(
+      `${JSON.stringify({ headSha: record.headSha, prepass: record.prepass, record: resolve(repo, '.krn', 'runs', 'review', record.headSha, 'record.json') })}\n`,
+    );
+    return 'PREPASS_BLOCKING';
+  }
   process.stdout.write(
     `${JSON.stringify({ headSha: record.headSha, panelVerdict: record.panelVerdict, record: resolve(repo, '.krn', 'runs', 'review', record.headSha, 'record.json'), judges: record.judges })}\n`,
   );

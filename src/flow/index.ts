@@ -25,7 +25,7 @@ import {
 export function aggregatePanelVerdict(
   judges: readonly ReviewRecord['judges'][number][],
   panelPartial: boolean,
-): ReviewRecord['panelVerdict'] {
+): NonNullable<ReviewRecord['panelVerdict']> {
   if (
     judges.some(
       (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
@@ -37,12 +37,33 @@ export function aggregatePanelVerdict(
   return 'PASS';
 }
 
+function recordedPrepass(
+  judge: Awaited<ReturnType<typeof judgeRole>>,
+): NonNullable<ReviewRecord['prepass']> {
+  const metadata = {
+    sessionId: judge.sessionId,
+    ...(judge.model === undefined ? {} : { model: judge.model }),
+    ...(judge.reasoningEffort === undefined
+      ? {}
+      : { reasoningEffort: judge.reasoningEffort }),
+  };
+  if (judge.state === 'complete')
+    return { state: 'complete', findings: judge.findings, ...metadata };
+  return {
+    state: 'incomplete',
+    findings: [],
+    reason: judge.reason,
+    ...metadata,
+  };
+}
+
 export async function runReview(input: {
   readonly repo: string;
   readonly base: string;
   readonly head: string;
   readonly lens: string;
   readonly panel?: readonly ReviewRole[];
+  readonly prepassChecklist?: string;
   readonly reasoningEffort?: ReviewReasoningEffort;
   readonly timeoutMs?: number;
   readonly signal?: AbortSignal;
@@ -68,6 +89,42 @@ export async function runReview(input: {
   const toolSha = git(toolRoot, ['rev-parse', 'HEAD']);
   const lensSha256 = createHash('sha256').update(lens, 'utf8').digest('hex');
   const red = await redFirst(root, base, sha, input.signal);
+  let prepass: NonNullable<ReviewRecord['prepass']> | undefined;
+  if (input.prepassChecklist !== undefined) {
+    const judge = await judgeRole(
+      root,
+      sha,
+      'adversarial',
+      lens,
+      red,
+      input.timeoutMs ?? 600000,
+      input.codexExecutable,
+      input.signal,
+      reasoningEffort,
+      input.prepassChecklist,
+    );
+    prepass = recordedPrepass(judge);
+    if (
+      prepass.state === 'complete' &&
+      prepass.findings.some((finding) => finding.severity === 'BLOCKING')
+    ) {
+      await new Promise<void>((resolveTick) => setImmediate(resolveTick));
+      if (input.signal?.aborted) throw new ReviewAbortedError();
+      const record = newReviewRecordSchema.parse({
+        schemaVersion: 1,
+        headSha: sha,
+        base,
+        createdAt: new Date().toISOString(),
+        lensSha256,
+        toolSha,
+        redFirst: red.results,
+        judges: [],
+        prepass,
+      });
+      writeReviewRecord(root, record);
+      return record;
+    }
+  }
   const judges = [];
   for (const role of panel)
     judges.push(
@@ -100,6 +157,7 @@ export async function runReview(input: {
     toolSha,
     redFirst: red.results,
     judges,
+    ...(prepass === undefined ? {} : { prepass }),
   });
   writeReviewRecord(root, record);
   return record;

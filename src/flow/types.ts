@@ -40,6 +40,21 @@ export const findingSchema = z.object({
   defect: z.string().min(1).max(2000),
   fix: z.string().min(1).max(1000),
 });
+const prepassRecordSchema = z.object({
+  state: z.enum(['complete', 'incomplete']),
+  findings: z.array(findingSchema),
+  sessionId: z.string().min(1),
+  model: z.string().min(1).optional(),
+  reasoningEffort: reasoningEffortSchema.optional(),
+  reason: z
+    .enum([
+      'turn_incomplete',
+      'nonzero_exit',
+      'empty_final_message',
+      'invalid_verdict',
+    ])
+    .optional(),
+});
 const reapedScopeSchema = z.object({
   unit: z.string().min(1),
   ownerPid: z.number().int().positive(),
@@ -106,9 +121,10 @@ const reviewRecordBaseSchema = z.object({
   headSha: commitShaSchema,
   base: z.string().min(1),
   createdAt: z.string().datetime(),
-  panelVerdict: z.enum(['PASS', 'FAIL', 'INCOMPLETE']),
+  panelVerdict: z.enum(['PASS', 'FAIL', 'INCOMPLETE']).optional(),
   redFirst: z.array(redFirstRecordSchema),
-  judges: z.array(judgeSchema).min(1),
+  judges: z.array(judgeSchema),
+  prepass: prepassRecordSchema.optional(),
 });
 function reviewRecordInvariants(
   record: z.infer<typeof reviewRecordBaseSchema> & {
@@ -116,6 +132,36 @@ function reviewRecordInvariants(
   },
   context: z.RefinementCtx,
 ): void {
+  const prepassHasBlocking =
+    record.prepass?.state === 'complete' &&
+    record.prepass.findings.some((finding) => finding.severity === 'BLOCKING');
+  if (record.panelVerdict === undefined) {
+    if (!prepassHasBlocking)
+      context.addIssue({
+        code: 'custom',
+        path: ['panelVerdict'],
+        message: 'a missing panel verdict requires a blocking prepass finding',
+      });
+    if (record.judges.length !== 0 || record.panel !== undefined)
+      context.addIssue({
+        code: 'custom',
+        path: ['judges'],
+        message: 'a blocking prepass record cannot contain panel evidence',
+      });
+    return;
+  }
+  if (prepassHasBlocking)
+    context.addIssue({
+      code: 'custom',
+      path: ['panelVerdict'],
+      message: 'a blocking prepass must stop before a panel verdict',
+    });
+  if (record.judges.length === 0)
+    context.addIssue({
+      code: 'custom',
+      path: ['judges'],
+      message: 'a panel verdict requires recorded panel judges',
+    });
   const hasFailure = record.judges.some(
     (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
   );
@@ -181,11 +227,19 @@ const reviewRecordMetadataShape = {
 export const reviewRecordSchema = reviewRecordBaseSchema
   .extend(reviewRecordMetadataShape)
   .superRefine(reviewRecordInvariants);
-export const newReviewRecordSchema = reviewRecordSchema.safeExtend({
-  judges: z.array(recordedJudgeSchema).min(1),
-  lensSha256: sha256Schema,
-  panel: panelCompositionSchema,
-  toolSha: commitShaSchema,
-});
+export const newReviewRecordSchema = reviewRecordSchema
+  .safeExtend({
+    judges: z.array(recordedJudgeSchema),
+    lensSha256: sha256Schema,
+    toolSha: commitShaSchema,
+  })
+  .superRefine((record, context) => {
+    if (record.panelVerdict !== undefined && record.panel === undefined)
+      context.addIssue({
+        code: 'custom',
+        path: ['panel'],
+        message: 'a new panel record must include its role composition',
+      });
+  });
 export type ReviewRecord = z.infer<typeof reviewRecordSchema>;
 export type NewReviewRecord = z.infer<typeof newReviewRecordSchema>;
