@@ -1,5 +1,11 @@
-import { spawn } from 'node:child_process';
-import { globSync, lstatSync, realpathSync, statSync } from 'node:fs';
+import { spawn, spawnSync } from 'node:child_process';
+import {
+  globSync,
+  lstatSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+} from 'node:fs';
 import {
   appendFile,
   mkdir,
@@ -8,6 +14,7 @@ import {
   rm,
   writeFile,
 } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -16,10 +23,14 @@ import {
   testSuiteExitCode,
 } from './isolation-gate.mjs';
 import {
+  configuredTestShardCount,
+  mergeTestShardResults,
+  planTestShards,
+} from './lib/test-shards.mjs';
+import {
   formatIsolationProbe,
   probeIsolationCapabilities,
 } from './probe-isolation.mjs';
-import { summarizeTestEvents } from './test-summary-policy.mjs';
 
 export const TEST_FILE_GLOB = 'test/**/*.test.{ts,js,mjs,cjs}';
 const eventReporter = fileURLToPath(
@@ -28,6 +39,34 @@ const eventReporter = fileURLToPath(
 const isolationGate = fileURLToPath(
   new URL('./isolation-gate.mjs', import.meta.url),
 );
+const childEnvironmentAllowlist = new Set([
+  'CI',
+  // Host systemd-scope tests need the host user's runtime and D-Bus endpoints.
+  'DBUS_SESSION_BUS_ADDRESS',
+  'GITHUB_STEP_SUMMARY',
+  'HOME',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'LC_MESSAGES',
+  'LOGNAME',
+  'NODE_OPTIONS',
+  'PATH',
+  'SHELL',
+  'TERM',
+  'USER',
+  'XDG_CACHE_HOME',
+  'XDG_CONFIG_HOME',
+  'XDG_DATA_HOME',
+  'XDG_RUNTIME_DIR',
+  'XDG_STATE_HOME',
+]);
+const childEnvironmentAllowlistPrefixes = ['KRN_', 'MISE_', 'PAPERCLIP_'];
+const childEnvironmentDenylist = new Set([
+  'KRN_ISOLATION_APPROVAL_TOKEN',
+  'KRN_TEST_SHARDS',
+  'KRN_TEST_EVENT_FILE',
+]);
 
 function defaultTestFiles() {
   const projectRoot = realpathSync(process.cwd());
@@ -82,13 +121,100 @@ async function assertPinnedNode() {
     );
 }
 
-function childEnvironment(capabilities, strict, eventFile) {
+function parentMiseDataDirectory() {
+  if (process.env.MISE_DATA_DIR) return process.env.MISE_DATA_DIR;
+  const parentHome = process.env.HOME || homedir();
+  const parentDataHome =
+    process.env.XDG_DATA_HOME || join(parentHome, '.local', 'share');
+  return resolve(parentDataHome, 'mise');
+}
+
+function parentPnpmStoreDirectory() {
+  const configuredStoreDirectory = process.env.pnpm_config_store_dir;
+  if (configuredStoreDirectory !== undefined && configuredStoreDirectory !== '')
+    return resolve(process.cwd(), configuredStoreDirectory);
+
+  try {
+    const manifest = JSON.parse(
+      readFileSync(resolve(process.cwd(), 'package.json'), 'utf8'),
+    );
+    const manager = manifest?.packageManager;
+    if (typeof manager !== 'string' || !/^pnpm@\d+\.\d+\.\d+$/u.test(manager))
+      throw new Error('package.json has an invalid packageManager');
+
+    const where = spawnSync('mise', ['where', manager], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: process.env,
+      timeout: 15_000,
+    });
+    const managerDirectory = where.status === 0 ? where.stdout.trim() : '';
+    if (!managerDirectory)
+      throw new Error(
+        where.error?.message ||
+          where.stderr.trim() ||
+          `mise where ${manager} failed`,
+      );
+
+    const pnpm = join(managerDirectory, 'pnpm');
+    const result = spawnSync(pnpm, ['store', 'path'], {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      env: process.env,
+      timeout: 15_000,
+    });
+    const reportedStoreDirectory =
+      result.status === 0 ? result.stdout.trim() : '';
+    if (!reportedStoreDirectory)
+      throw new Error(
+        result.error?.message ||
+          result.stderr.trim() ||
+          `${manager} store path failed`,
+      );
+    return resolve(process.cwd(), reportedStoreDirectory);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    process.stderr.write(
+      `Warning: unable to resolve the parent pnpm store; shards will not receive pnpm_config_store_dir (${detail})\n`,
+    );
+    return undefined;
+  }
+}
+
+function childEnvironment(
+  capabilities,
+  strict,
+  eventFile,
+  workerDirectory,
+  pnpmStoreDirectory,
+) {
+  const home = join(workerDirectory, 'home');
+  const temp = join(workerDirectory, 'tmp');
   const env = {
-    ...process.env,
+    ...Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([key]) =>
+          (childEnvironmentAllowlist.has(key) ||
+            childEnvironmentAllowlistPrefixes.some((prefix) =>
+              key.startsWith(prefix),
+            )) &&
+          !childEnvironmentDenylist.has(key),
+      ),
+    ),
+    HOME: home,
+    TMP: temp,
+    TEMP: temp,
+    TMPDIR: temp,
+    XDG_CACHE_HOME: join(home, '.cache'),
+    XDG_CONFIG_HOME: join(home, '.config'),
+    XDG_DATA_HOME: join(home, '.local', 'share'),
+    XDG_STATE_HOME: join(home, '.local', 'state'),
+    MISE_DATA_DIR: parentMiseDataDirectory(),
     KRN_ISOLATION_CAPABILITIES: JSON.stringify(capabilities),
     KRN_ISOLATION_GATE_PRELOAD: '1',
   };
-  delete env.KRN_ISOLATION_APPROVAL_TOKEN;
+  if (pnpmStoreDirectory !== undefined)
+    env.pnpm_config_store_dir = pnpmStoreDirectory;
   if (strict) {
     delete env.NODE_OPTIONS;
     delete env.KRN_SCOPE_PROBE;
@@ -126,43 +252,210 @@ function signalExit(signal) {
   return signal === 'SIGINT' ? 130 : 143;
 }
 
+async function runTestGroup({
+  files,
+  runnerArguments = files,
+  index,
+  strict,
+  capabilities,
+  stateDirectory,
+  runDirectory,
+  pnpmStoreDirectory,
+  activeChildren,
+  getForwardedSignal,
+}) {
+  let eventDirectory;
+  let eventFile;
+  let child;
+  let stdout = '';
+  let stderr = '';
+  let setupError;
+  let runnerExitCode = 1;
+  let events = [];
+  const workerDirectory = join(
+    runDirectory,
+    `worker-${String(index + 1).padStart(3, '0')}`,
+  );
+
+  try {
+    await mkdir(workerDirectory, { recursive: true, mode: 0o700 });
+    await mkdir(join(workerDirectory, 'home'), {
+      recursive: true,
+      mode: 0o700,
+    });
+    const workerTmpDirectory = join(workerDirectory, 'tmp');
+    await mkdir(workerTmpDirectory, { recursive: true, mode: 0o700 });
+    // Keep temporary fixture scripts from inheriting the repository's
+    // "type": "module" package scope. An unspecified type lets Node infer
+    // each extensionless fixture's format from its syntax.
+    await writeFile(
+      join(workerTmpDirectory, 'package.json'),
+      '{"private":true}\n',
+      { mode: 0o600 },
+    );
+    if (strict) {
+      eventDirectory = await mkdtemp(
+        join(stateDirectory, 'strict-test-events-'),
+      );
+      eventFile = join(eventDirectory, 'events.jsonl');
+      await writeFile(eventFile, '', { mode: 0o600 });
+    }
+    if (getForwardedSignal())
+      throw new Error('interrupted before test runner start');
+
+    const runnerArgs = [
+      '--import',
+      isolationGate,
+      '--test',
+      '--test-concurrency=1',
+      '--test-reporter=tap',
+    ];
+    if (strict) {
+      runnerArgs.push(
+        '--test-reporter-destination=stdout',
+        `--test-reporter=${eventReporter}`,
+        '--test-reporter-destination=stderr',
+      );
+    }
+    runnerArgs.push(...runnerArguments);
+    child = spawn(process.execPath, runnerArgs, {
+      detached: process.platform !== 'win32',
+      env: childEnvironment(
+        capabilities,
+        strict,
+        eventFile,
+        workerDirectory,
+        pnpmStoreDirectory,
+      ),
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    activeChildren.add(child);
+    child.once('spawn', () => {
+      const signal = getForwardedSignal();
+      if (signal) {
+        try {
+          if (process.platform === 'win32') child.kill(signal);
+          else process.kill(-child.pid, signal);
+        } catch (error) {
+          if (error?.code !== 'ESRCH')
+            stderr += `Unable to forward ${signal} to test process group: ${error.message}\n`;
+        }
+      }
+    });
+    child.stdout.setEncoding('utf8').on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.setEncoding('utf8').on('data', (chunk) => {
+      stderr += chunk;
+    });
+
+    runnerExitCode = await new Promise((resolveRunner) => {
+      let settled = false;
+      child.once('error', (error) => {
+        stderr += `Unable to start Node test runner: ${error.message}\n`;
+        if (!settled) {
+          settled = true;
+          resolveRunner(1);
+        }
+      });
+      child.once('close', (code) => {
+        activeChildren.delete(child);
+        if (!settled) {
+          settled = true;
+          resolveRunner(code ?? 1);
+        }
+      });
+    });
+    const signal = getForwardedSignal();
+    if (signal) runnerExitCode = signalExit(signal);
+
+    if (strict && eventFile) {
+      const recorded = await readRecordedEvents(eventFile);
+      events = recorded.events;
+      if (recorded.error)
+        setupError = `unable to read native test events: ${recorded.error.message}`;
+    }
+  } catch (error) {
+    setupError = error.message;
+    const signal = getForwardedSignal();
+    runnerExitCode = signal ? signalExit(signal) : 1;
+  } finally {
+    if (child && activeChildren.has(child) && child.exitCode !== null)
+      activeChildren.delete(child);
+    if (eventDirectory) {
+      try {
+        await rm(eventDirectory, { recursive: true, force: true });
+      } catch (error) {
+        setupError = [
+          setupError,
+          `unable to clean event state: ${error.message}`,
+        ]
+          .filter(Boolean)
+          .join('; ');
+      }
+    }
+  }
+
+  const tapCounts = [...stdout.matchAll(/^# tests (\d+)$/gmu)];
+  const nativeTestCount =
+    tapCounts.length === 1 ? Number(tapCounts[0][1]) : undefined;
+  if (strict && nativeTestCount === undefined)
+    setupError = [setupError, 'native TAP summary is missing or duplicated']
+      .filter(Boolean)
+      .join('; ');
+
+  return {
+    events,
+    runnerExitCode,
+    nativeTestCount,
+    ...(setupError ? { error: setupError } : {}),
+    stdout,
+    stderr,
+  };
+}
+
+function defaultCapabilities() {
+  const inherited =
+    process.env.KRN_SCOPE_PROBE === '1' &&
+    process.env.KRN_ISOLATION_CAPABILITIES
+      ? JSON.parse(process.env.KRN_ISOLATION_CAPABILITIES)
+      : undefined;
+  const capabilities = inherited ?? probeIsolationCapabilities();
+  if (!inherited)
+    process.stdout.write(`${formatIsolationProbe(capabilities)}\n`);
+  return capabilities;
+}
+
 async function main() {
   const strict = process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS === '1';
   const probeRequested = process.env.KRN_SCOPE_PROBE === '1';
   const inheritedTestContext = Boolean(process.env.NODE_TEST_CONTEXT);
-  let eventDirectory;
+  const activeChildren = new Set();
+  let runDirectory;
+  let stateDirectory;
   let expectedFiles = [];
   let structuredSummaryWritten = false;
   let forwardedSignal;
-  let child;
   let exitCode = 1;
-  const cleanupOwnedEvents = async () => {
-    if (!eventDirectory) return undefined;
-    try {
-      await rm(eventDirectory, { recursive: true, force: true });
-      eventDirectory = undefined;
-      return undefined;
-    } catch (error) {
-      return error;
-    }
-  };
   const forwardSignal = (signal) => {
     if (forwardedSignal) return;
     forwardedSignal = signal;
-    const sendSignal = () => {
-      if (!child?.pid) return;
-      try {
-        if (process.platform === 'win32') child.kill(signal);
-        else process.kill(-child.pid, signal);
-      } catch (error) {
-        if (error?.code !== 'ESRCH')
-          process.stderr.write(
-            `Unable to forward ${signal} to test process group: ${error.message}\n`,
-          );
-      }
-    };
-    if (child?.pid) sendSignal();
-    else if (child) child.once('spawn', sendSignal);
+    for (const child of activeChildren) {
+      const sendSignal = () => {
+        if (!child.pid) return;
+        try {
+          if (process.platform === 'win32') child.kill(signal);
+          else process.kill(-child.pid, signal);
+        } catch (error) {
+          if (error?.code !== 'ESRCH')
+            process.stderr.write(
+              `Unable to forward ${signal} to test process group: ${error.message}\n`,
+            );
+        }
+      };
+      if (child.pid) sendSignal();
+      else child.once('spawn', sendSignal);
+    }
   };
   process.once('SIGINT', () => forwardSignal('SIGINT'));
   process.once('SIGTERM', () => forwardSignal('SIGTERM'));
@@ -185,100 +478,113 @@ async function main() {
     }
 
     const requestedFiles = process.argv.slice(2);
-    let runnerFiles;
+    let runnerArguments;
     if (strict) {
       expectedFiles = strictTestFiles(requestedFiles);
       if (expectedFiles.length === 0)
         throw new Error('strict test selection contains no files');
-      runnerFiles = expectedFiles;
+      runnerArguments = expectedFiles;
+    } else if (
+      requestedFiles.some((argument) => /^(?:-|.*[*?{}])/u.test(argument))
+    ) {
+      runnerArguments = requestedFiles;
     } else {
-      runnerFiles =
-        requestedFiles.length > 0 ? requestedFiles : [TEST_FILE_GLOB];
+      expectedFiles = strictTestFiles(requestedFiles);
+      if (expectedFiles.length === 0)
+        throw new Error('test selection contains no files');
+      runnerArguments = expectedFiles;
     }
 
-    const inheritedCapabilities =
-      probeRequested && process.env.KRN_ISOLATION_CAPABILITIES
-        ? JSON.parse(process.env.KRN_ISOLATION_CAPABILITIES)
-        : undefined;
-    const capabilities = inheritedCapabilities ?? probeIsolationCapabilities();
-    if (!inheritedCapabilities)
-      process.stdout.write(`${formatIsolationProbe(capabilities)}\n`);
+    const capabilities = defaultCapabilities();
+    stateDirectory = join(process.cwd(), '.krn/tmp');
+    await mkdir(stateDirectory, { recursive: true, mode: 0o700 });
+    runDirectory = await mkdtemp(join(stateDirectory, 'test-suite-run-'));
 
-    let eventFile;
-    if (strict) {
-      const stateDirectory = join(process.cwd(), '.krn/tmp');
-      await mkdir(stateDirectory, { recursive: true, mode: 0o700 });
-      if (forwardedSignal)
-        throw new Error('interrupted before test runner setup');
-      eventDirectory = await mkdtemp(
-        join(stateDirectory, 'strict-test-events-'),
+    let groups;
+    if (expectedFiles.length === 0) {
+      groups = [{ files: [], runnerArguments }];
+    } else {
+      const requestedShards = configuredTestShardCount(
+        process.env.KRN_TEST_SHARDS,
       );
-      if (forwardedSignal)
-        throw new Error('interrupted before test runner setup');
-      eventFile = join(eventDirectory, 'events.jsonl');
-      await writeFile(eventFile, '', { mode: 0o600 });
-      if (forwardedSignal)
-        throw new Error('interrupted before test runner setup');
-    }
-
-    const runnerArgs = [
-      '--import',
-      isolationGate,
-      '--test',
-      '--test-concurrency=1',
-      '--test-reporter=tap',
-    ];
-    if (strict) {
-      runnerArgs.push(
-        '--test-reporter-destination=stdout',
-        `--test-reporter=${eventReporter}`,
-        '--test-reporter-destination=stderr',
+      const plan = planTestShards(expectedFiles, requestedShards);
+      process.stdout.write(
+        `Test shard plan: K=${requestedShards}; ${requestedShards === 1 ? 'serial group=1' : `parallel groups=${plan.shards.length}`}; final serial files=${plan.serialFiles.length}\n`,
       );
+      if (requestedShards === 1) {
+        const serialRun = [...plan.shards.flat(), ...plan.serialFiles];
+        groups = serialRun.length > 0 ? [{ files: serialRun }] : [];
+      } else {
+        groups = plan.shards.map((files) => ({ files }));
+        if (plan.serialFiles.length > 0)
+          groups.push({ files: plan.serialFiles, finalSerial: true });
+      }
     }
-    runnerArgs.push(...runnerFiles);
-    if (forwardedSignal)
-      throw new Error('interrupted before test runner start');
 
-    child = spawn(process.execPath, runnerArgs, {
-      detached: process.platform !== 'win32',
-      env: childEnvironment(capabilities, strict, eventFile),
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    let results = [];
+    if (groups.length > 0) {
+      const pnpmStoreDirectory = parentPnpmStoreDirectory();
+      const parallelCount = groups.at(-1)?.finalSerial
+        ? groups.length - 1
+        : groups.length;
+      const parallelGroups = groups.slice(0, parallelCount);
+      const serialGroups = groups.slice(parallelCount);
+      results = await Promise.all(
+        parallelGroups.map((group, index) =>
+          runTestGroup({
+            ...group,
+            index,
+            strict,
+            capabilities,
+            stateDirectory,
+            runDirectory,
+            pnpmStoreDirectory,
+            activeChildren,
+            getForwardedSignal: () => forwardedSignal,
+          }),
+        ),
+      );
+      if (!forwardedSignal) {
+        for (const [serialIndex, group] of serialGroups.entries()) {
+          const result = await runTestGroup({
+            ...group,
+            index: parallelGroups.length + serialIndex,
+            strict,
+            capabilities,
+            stateDirectory,
+            runDirectory,
+            pnpmStoreDirectory,
+            activeChildren,
+            getForwardedSignal: () => forwardedSignal,
+          });
+          results.push(result);
+        }
+      }
+    }
+
+    let cleanupError;
+    try {
+      await rm(runDirectory, { recursive: true, force: true });
+      runDirectory = undefined;
+    } catch (error) {
+      cleanupError = `unable to clean shard state: ${error.message}`;
+    }
+
     let stdout = '';
-    child.stdout.setEncoding('utf8').on('data', (chunk) => {
-      stdout += chunk;
-      process.stdout.write(chunk);
-    });
-    child.stderr.setEncoding('utf8').on('data', (chunk) => {
-      process.stderr.write(chunk);
-    });
-
-    const runner = await new Promise((resolveRunner) => {
-      let settled = false;
-      child.once('error', (error) => {
-        process.stderr.write(
-          `Unable to start Node test runner: ${error.message}\n`,
-        );
-        if (!settled) {
-          settled = true;
-          resolveRunner({ code: 1 });
-        }
-      });
-      child.once('close', (code) => {
-        if (!settled) {
-          settled = true;
-          resolveRunner({ code: code ?? 1 });
-        }
-      });
-    });
-
+    for (const result of results) {
+      stdout += result.stdout;
+      process.stdout.write(result.stdout);
+      if (result.stderr) process.stderr.write(result.stderr);
+    }
     const skipCount = countIsolationSkips(stdout);
+    const testCount = results.reduce(
+      (total, result) => total + (result.nativeTestCount ?? 0),
+      0,
+    );
+    process.stdout.write(`# tests ${testCount}\n`);
     const legacySummary = isolationSummary(skipCount);
-    const testCount = Number(stdout.match(/^# tests (\d+)$/mu)?.[1] ?? 0);
     process.stdout.write(`${legacySummary}\n`);
-    const gateExitCode = forwardedSignal
-      ? signalExit(forwardedSignal)
-      : testSuiteExitCode(runner.code, skipCount, strict);
+    if (cleanupError) process.stderr.write(`${cleanupError}\n`);
 
     if (
       process.env.CI === 'true' &&
@@ -299,28 +605,18 @@ async function main() {
       await appendFile(process.env.GITHUB_STEP_SUMMARY, markdown);
     }
 
+    const gateExitCode = forwardedSignal
+      ? signalExit(forwardedSignal)
+      : results.every((result) => result.runnerExitCode === 0) && !cleanupError
+        ? 0
+        : 1;
+
     if (strict) {
-      const recorded = await readRecordedEvents(eventFile);
-      const cleanupError = await cleanupOwnedEvents();
-      const decisionExitCode = forwardedSignal
-        ? signalExit(forwardedSignal)
-        : gateExitCode;
-      const result = summarizeTestEvents(
-        recorded.events,
-        expectedFiles,
-        decisionExitCode,
-      );
-      if (recorded.error) {
-        result.errors.push(
-          `unable to read native test events: ${recorded.error.message}`,
-        );
-        result.summary.success = false;
-        result.ok = false;
-      }
+      const result = mergeTestShardResults(results, expectedFiles, {
+        expectedTestCount: testCount,
+      });
       if (cleanupError) {
-        result.errors.push(
-          `unable to clean owned test event state: ${cleanupError.message}`,
-        );
+        result.errors.push(cleanupError);
         result.summary.success = false;
         result.ok = false;
       }
@@ -332,7 +628,7 @@ async function main() {
       structuredSummaryWritten = true;
       exitCode = forwardedSignal
         ? signalExit(forwardedSignal)
-        : result.ok
+        : result.ok && testSuiteExitCode(gateExitCode, skipCount, true) === 0
           ? 0
           : 1;
     } else {
@@ -344,31 +640,33 @@ async function main() {
       );
   } catch (error) {
     process.stderr.write(`Test suite wrapper failed: ${error.message}\n`);
-    if (strict && !structuredSummaryWritten) {
-      const cleanupError = await cleanupOwnedEvents();
-      const result = summarizeTestEvents(
-        [],
-        expectedFiles,
-        forwardedSignal ? signalExit(forwardedSignal) : 1,
-      );
-      if (cleanupError) {
-        result.errors.push(
-          `unable to clean owned test event state: ${cleanupError.message}`,
+    if (runDirectory) {
+      try {
+        await rm(runDirectory, { recursive: true, force: true });
+        runDirectory = undefined;
+      } catch (cleanupError) {
+        process.stderr.write(
+          `Unable to clean shard state: ${cleanupError.message}\n`,
         );
-        result.summary.success = false;
-        result.ok = false;
       }
+    }
+    if (strict && !structuredSummaryWritten) {
+      const result = mergeTestShardResults([], expectedFiles);
+      result.errors.push(error.message);
+      result.summary.success = false;
+      result.ok = false;
       printStrictSummary(result);
       structuredSummaryWritten = true;
     }
     exitCode = forwardedSignal ? signalExit(forwardedSignal) : 1;
   } finally {
-    const cleanupError = await cleanupOwnedEvents();
-    if (cleanupError) {
-      process.stderr.write(
-        `Unable to clean owned test event state: ${cleanupError.message}\n`,
-      );
-      exitCode = 1;
+    if (runDirectory) {
+      try {
+        await rm(runDirectory, { recursive: true, force: true });
+      } catch (error) {
+        process.stderr.write(`Unable to clean shard state: ${error.message}\n`);
+        exitCode = 1;
+      }
     }
   }
   return exitCode;
