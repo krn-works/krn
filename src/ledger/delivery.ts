@@ -7,16 +7,18 @@ export type DeliveryTrailers = Readonly<{
 }>;
 
 const ticketPattern = /^[A-Z][A-Z0-9]*-[1-9]\d*$/u;
-const r1TaskLinePattern =
+const workReferenceLinePattern =
   /^R1-task:[ \t]*([A-Za-z0-9][A-Za-z0-9._-]{0,63})(?:[ \t]+\([^\r\n]*\))?[ \t]*$/u;
 
 export function parseDeliveryTicket(value: string): string | undefined {
   return ticketPattern.test(value) ? value : undefined;
 }
 
-export function parseR1TaskLine(line: string): string | undefined {
-  return r1TaskLinePattern.exec(line)?.[1];
+export function parseWorkReference(line: string): string | undefined {
+  return workReferenceLinePattern.exec(line)?.[1];
 }
+
+export const parseR1TaskLine = parseWorkReference;
 
 export function deliveryTrailers(
   contract: Pick<Contract, 'identifier' | 'description'>,
@@ -34,7 +36,7 @@ export function deliveryTrailers(
   }
 
   if (taskLines.length === 1) {
-    const r1Task = parseR1TaskLine(taskLines[0] ?? '');
+    const r1Task = parseWorkReference(taskLines[0] ?? '');
     if (r1Task === undefined)
       return { ok: false, error: 'malformed R1-task line' };
     trailers.r1Task = r1Task;

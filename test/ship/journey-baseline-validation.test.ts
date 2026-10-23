@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
-import * as journey from '../src/evals/journey-baseline.ts';
+import * as journey from '../../src/evals/journey-baseline.ts';
 
 const unknown = { value: null, reason: 'not recorded in results.md' };
 const validTask = {
@@ -105,7 +105,7 @@ test('lead_interventions accepts counters and unknown values, but not strings', 
 test('tracked J1 baseline satisfies the B0 schema', async () => {
   const baseline = JSON.parse(
     await readFile(
-      new URL('../evals/journeys/j1-baseline.json', import.meta.url),
+      new URL('../../evals/journeys/j1-baseline.json', import.meta.url),
       'utf8',
     ),
   );

@@ -13,12 +13,15 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { commitCheckpoint, prepareCheckpoint } from '../src/foreman/commit.ts';
-import { runJob } from '../src/foreman/run.ts';
-import { CodexHost } from '../src/hosts/codex.ts';
-import * as relay from '../src/relay/index.ts';
-import * as trace from '../src/trace/index.ts';
-import { requiresIsolation } from './helpers/isolation.ts';
+import {
+  commitCheckpoint,
+  prepareCheckpoint,
+} from '../../src/foreman/commit.ts';
+import { runJob } from '../../src/foreman/run.ts';
+import { CodexHost } from '../../src/hosts/codex.ts';
+import * as relay from '../../src/relay/index.ts';
+import * as trace from '../../src/trace/index.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
 async function checkpointRepo() {
   const root = await mkdtemp(join(tmpdir(), 'krn-lon-231-'));
@@ -56,7 +59,7 @@ import { spawn, spawnSync } from 'node:child_process';
 let prompt=''; for await (const chunk of process.stdin) prompt += chunk;
 const sid=/--session'?\\s+'?([0-9a-f-]+)/.exec(prompt)?.[1];
 if (!sid) throw new Error('missing session id');
-const args=[${JSON.stringify(new URL('../src/cli/main.ts', import.meta.url).pathname)},'checkpoint','--job',${JSON.stringify(job.id)},'--issue',${JSON.stringify(job.issue)},'--worktree',${JSON.stringify(root)},'--repo-root',${JSON.stringify(root)},'--intent','intent:0','--session',sid,'--message','feat: survivor falsifier','--next','done'];
+const args=[${JSON.stringify(new URL('../../src/cli/main.ts', import.meta.url).pathname)},'checkpoint','--job',${JSON.stringify(job.id)},'--issue',${JSON.stringify(job.issue)},'--worktree',${JSON.stringify(root)},'--repo-root',${JSON.stringify(root)},'--intent','intent:0','--session',sid,'--message','feat: survivor falsifier','--next','done'];
 spawn('/bin/sh',['-c',${JSON.stringify(`setsid /bin/sh -c 'sleep 4; printf late > ${lateFile}' </dev/null >/dev/null 2>&1 &`)}],{detached:true,stdio:'ignore'}).unref();
 const saved=spawnSync(process.execPath,args,{cwd:${JSON.stringify(root)},stdio:'ignore'});
 if(saved.status!==0) throw new Error('checkpoint request failed');
@@ -112,7 +115,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
 let prompt=''; for await (const chunk of process.stdin) prompt += chunk;
 const root=${JSON.stringify(root)};
-const cli=${JSON.stringify(new URL('../src/cli/main.ts', import.meta.url).pathname)};
+const cli=${JSON.stringify(new URL('../../src/cli/main.ts', import.meta.url).pathname)};
 const countPath=${JSON.stringify(join(auxiliary, 'calls'))};
 let count=0; try { count=Number(readFileSync(countPath,'utf8')); } catch {}
 count++; writeFileSync(countPath,String(count));
@@ -233,7 +236,7 @@ test('checkpoint CLI records its request when git execution is forbidden', async
     const request = spawnSync(
       process.execPath,
       [
-        new URL('../src/cli/main.ts', import.meta.url).pathname,
+        new URL('../../src/cli/main.ts', import.meta.url).pathname,
         'checkpoint',
         '--job',
         'S4h',

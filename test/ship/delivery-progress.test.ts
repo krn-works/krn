@@ -11,13 +11,13 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { runJob } from '../src/foreman/run.ts';
-import { runSession } from '../src/foreman/session.ts';
-import type { Capsule, Contract, Deps } from '../src/foreman/types.ts';
-import * as relay from '../src/relay/index.ts';
-import { requiresIsolation } from './helpers/isolation.ts';
+import { runJob } from '../../src/foreman/run.ts';
+import { runSession } from '../../src/foreman/session.ts';
+import type { Capsule, Contract, Deps } from '../../src/foreman/types.ts';
+import * as relay from '../../src/relay/index.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
-const cli = new URL('../src/cli/main.ts', import.meta.url).pathname;
+const cli = new URL('../../src/cli/main.ts', import.meta.url).pathname;
 
 function git(root: string, args: string[]): string {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
@@ -60,7 +60,7 @@ test('checkpoint instruction is imperative and its filled command executes', asy
     git(root, ['config', 'user.email', 'test@example.invalid']);
     const { chmodSync } = await import('node:fs');
     chmodSync(executable, 0o755);
-    const { CodexHost } = await import('../src/hosts/codex.ts');
+    const { CodexHost } = await import('../../src/hosts/codex.ts');
     const host = new CodexHost({
       executable,
       namespaceLauncher: 'missing-unshare',
@@ -86,7 +86,7 @@ test('checkpoint instruction is imperative and its filled command executes', asy
         const capsule = await relay.load(job, { revision: 'r1' });
         const bound = await relay.bindSession(job, capsule, session);
         assert.equal(bound.applied, true);
-        const { intent, started } = await import('../src/trace/index.ts');
+        const { intent, started } = await import('../../src/trace/index.ts');
         const intentId = await intent(job, 0);
         assert.equal(intentId, 'intent:0');
         assert.equal(await started(job, intentId, session), true);
@@ -133,7 +133,7 @@ test('checkpoint instruction is imperative and its filled command executes', asy
       encoding: 'utf8',
     });
     assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-    const { checkpointRequest } = await import('../src/trace/index.ts');
+    const { checkpointRequest } = await import('../../src/trace/index.ts');
     assert.deepEqual(await checkpointRequest(job, 'intent:0', startedSession), {
       message: 'feat: save step one',
       next: 'continue with step two',
