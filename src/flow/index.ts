@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { acquireHostLock } from './host-lock.ts';
 import { judgeRole, ReviewAbortedError } from './panel.ts';
 import { writeReviewRecord } from './record.ts';
 import {
@@ -67,6 +68,7 @@ export async function runReview(input: {
   readonly reasoningEffort?: ReviewReasoningEffort;
   readonly timeoutMs?: number;
   readonly signal?: AbortSignal;
+  readonly hostLock?: string;
   /** Test seam; the CLI always uses CodexHost's installed executable. */
   readonly codexExecutable?: string;
 }): Promise<NewReviewRecord> {
@@ -88,7 +90,18 @@ export async function runReview(input: {
   const toolRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
   const toolSha = git(toolRoot, ['rev-parse', 'HEAD']);
   const lensSha256 = createHash('sha256').update(lens, 'utf8').digest('hex');
-  const red = await redFirst(root, base, sha, input.signal);
+  const hostLock =
+    input.hostLock === undefined
+      ? undefined
+      : await acquireHostLock(input.hostLock, input.signal);
+  let red: Awaited<ReturnType<typeof redFirst>>;
+  try {
+    hostLock?.assertHeld();
+    red = await redFirst(root, base, sha, hostLock?.signal ?? input.signal);
+    hostLock?.assertHeld();
+  } finally {
+    await hostLock?.release();
+  }
   let prepass: NonNullable<ReviewRecord['prepass']> | undefined;
   if (input.prepassChecklist !== undefined) {
     const judge = await judgeRole(

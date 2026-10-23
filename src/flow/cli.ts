@@ -1,6 +1,7 @@
 // Parse the explicit local review command and print its exact SHA-bound result.
 import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { validateHostLockPath } from './host-lock.ts';
 import { runReview } from './index.ts';
 import { appendOverride } from './record.ts';
 import { repoRoot, resolveCommit, validateSha } from './repository.ts';
@@ -139,6 +140,17 @@ function reviewChecklist(args: readonly string[]): string | undefined {
   return contents;
 }
 
+function reviewHostLock(args: readonly string[]): string | undefined {
+  if (!args.includes('--host-lock')) return undefined;
+  const path = value(args, '--host-lock');
+  try {
+    validateHostLockPath(path);
+  } catch (error) {
+    throw new ReviewUsageError(errorMessage(error));
+  }
+  return path;
+}
+
 export async function reviewCommand(
   args: readonly string[],
   options: { readonly codexExecutable?: string } = {},
@@ -166,6 +178,14 @@ async function runReviewCommand(
   controller: AbortController,
   options: { readonly codexExecutable?: string },
 ): Promise<ReviewCommandOutcome> {
+  // Keep the lock path explicit on the CLI instead of accepting an env alias.
+  if (process.env.KRN_REVIEW_HOST_LOCK !== undefined)
+    throw new ReviewUsageError(
+      'KRN_REVIEW_HOST_LOCK is unsupported; pass the path with --host-lock',
+    );
+  // An override skips red-first, so a host lock would have no work to guard.
+  if (args.includes('--override') && args.includes('--host-lock'))
+    throw new ReviewUsageError('--host-lock cannot be used with --override');
   const reasoningEffort = reasoningEffortValue(args);
   const repo = value(args, '--repo');
   const headInput = value(args, '--head');
@@ -187,6 +207,7 @@ async function runReviewCommand(
   const baseInput = value(args, '--base');
   const lens = reviewLens(value(args, '--lens'));
   const checklist = reviewChecklist(args);
+  const hostLock = reviewHostLock(args);
   const panel = args.includes('--panel') ? panelValue(args) : [...panelRoles];
   const root = reviewRepository(repo);
   const base = reviewCommit(root, baseInput, '--base');
@@ -199,6 +220,7 @@ async function runReviewCommand(
     panel,
     reasoningEffort,
     ...(checklist === undefined ? {} : { prepassChecklist: checklist }),
+    ...(hostLock === undefined ? {} : { hostLock }),
     signal: controller.signal,
     ...(options.codexExecutable
       ? { codexExecutable: options.codexExecutable }
