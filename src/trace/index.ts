@@ -39,6 +39,7 @@ import type {
   SubmissionReceipt,
 } from '../ledger/index.ts';
 import type { VerdictEvent } from '../verdict/index.ts';
+import { TRACE_LOCK_WAIT_MS } from './lock-wait.ts';
 
 type Event = {
   readonly key: string;
@@ -147,7 +148,7 @@ type TraceLockOwnerObservation =
     };
 
 class UnlinkedTraceLockObservationError extends Error {}
-const traceLockWaitMs = 3000;
+const traceLockWaitMs = TRACE_LOCK_WAIT_MS;
 const traceSnapshotMaxBytes = 33_554_432;
 const traceSnapshotMaxRows = 100_000;
 const traceLockPollMs = 10;
@@ -657,6 +658,7 @@ function readTrace(job: Job): TraceSnapshot {
 }
 
 function assertNoTraceWriterLocks(directory: string, tracePath: string): void {
+  assertTraceFileIsRegularIfPresent(tracePath);
   for (const lockPath of [`${tracePath}.lock`, `${tracePath}.lock.reclaim`]) {
     assertNoTraceSymlinks(directory, lockPath);
     const observed = readTraceLockOwner(lockPath);
@@ -859,6 +861,7 @@ function createTraceLock(
   path: string,
   owner: z.infer<typeof traceLockOwnerSchema>,
 ): { readonly dev: number; readonly ino: number } {
+  assertTraceLockPath(path);
   const fd = openSync(
     path,
     constants.O_WRONLY |
@@ -930,6 +933,7 @@ function removeTraceLockIfOwned(
 function acquireTraceLock(directory: string, tracePath: string): () => void {
   const lockPath = `${tracePath}.lock`;
   const reclaimerPath = `${tracePath}.lock.reclaim`;
+  assertTraceFileIsRegularIfPresent(tracePath);
   const startTicks = processStartTicks(process.pid);
   if (!startTicks)
     throw new Error('cannot establish trace lock owner identity');
@@ -964,6 +968,8 @@ function acquireTraceLock(directory: string, tracePath: string): () => void {
     const live = lockOwnerIsLive(observed.owner);
     if (live === undefined) throw new Error('cannot verify trace lock owner');
     if (live) {
+      // Continue observing the same process identity while it publishes or
+      // fsyncs the trace; the shared deadline still bounds a stuck live owner.
       waitForTraceLock();
       continue;
     }
