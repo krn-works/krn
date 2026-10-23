@@ -22,6 +22,10 @@ import {
   waitForSystemdScopeRegistration,
 } from '../../src/hosts/systemd-scope.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+import {
+  SPAWNED_PROCESS_WAIT_MS,
+  testTimeoutFor,
+} from '../support/process-wait.ts';
 
 const scopeEnvironment = () => ({
   ...process.env,
@@ -32,7 +36,9 @@ const scopeEnvironment = () => ({
     `unix:path=/run/user/${process.getuid?.() ?? 1000}/bus`,
 });
 
-test('Codex onStarted waits for observed registration and persists live identity', async (t) => {
+test('Codex onStarted waits for observed registration and persists live identity', {
+  timeout: testTimeoutFor(1),
+}, async (t) => {
   if (
     !requiresIsolation(
       t,
@@ -66,7 +72,7 @@ for argument do
   previous="$argument"
 done
 case "$unit" in
-  krn-registration-*) /usr/bin/sleep 0.4; : > ${JSON.stringify(launchMarker)} ;;
+  krn-registration-*) : > ${JSON.stringify(launchMarker)} ;;
 esac
 exec /usr/bin/systemd-run "$@"
 `,
@@ -196,7 +202,9 @@ IFS= read -r prompt || true
   }
 });
 
-test('cancellation during onStarted cannot deliver a prompt or return a session', async (t) => {
+test('cancellation during onStarted cannot deliver a prompt or return a session', {
+  timeout: testTimeoutFor(2),
+}, async (t) => {
   if (
     !requiresIsolation(
       t,
@@ -209,11 +217,8 @@ test('cancellation during onStarted cannot deliver a prompt or return a session'
   const executable = join(directory, 'fake-codex');
   const promptMarker = join(directory, 'prompt-delivered');
   const host = new CodexHost({ executable });
-  let enterCallback!: () => void;
+  let callbackEntered = false;
   let releaseCallback!: () => void;
-  const entered = new Promise<void>((resolve) => {
-    enterCallback = resolve;
-  });
   const callbackGate = new Promise<void>((resolve) => {
     releaseCallback = resolve;
   });
@@ -237,7 +242,7 @@ test('cancellation during onStarted cannot deliver a prompt or return a session'
         intent: 'intent:0',
       },
       onStarted: async () => {
-        enterCallback();
+        callbackEntered = true;
         await callbackGate;
         return true;
       },
@@ -249,17 +254,22 @@ test('cancellation during onStarted cannot deliver a prompt or return a session'
       (session) => ({ status: 'fulfilled' as const, session }),
       (error: unknown) => ({ status: 'rejected' as const, error }),
     );
-    await Promise.race([
-      entered,
-      delay(5000).then(() => assert.fail('onStarted never became eligible')),
-    ]);
+    let settledOutcome: Awaited<typeof startingOutcome> | undefined;
+    void startingOutcome.then((outcome) => {
+      settledOutcome = outcome;
+    });
+    await waitFor(
+      async () => (callbackEntered ? true : undefined),
+      waitDeadline(),
+      'onStarted never became eligible',
+    );
     await host.cancelAll();
     releaseCallback();
-    const settled = await Promise.race([
-      startingOutcome,
-      delay(4000).then(() => undefined),
-    ]);
-    assert.ok(settled, 'callback cancellation must remain bounded');
+    const settled = await waitFor(
+      async () => settledOutcome,
+      waitDeadline(),
+      'callback cancellation did not settle startup',
+    );
     if (settled.status !== 'rejected')
       assert.fail('cancelled startup must not return a session');
     assert.match(
@@ -286,7 +296,9 @@ test('cancellation during onStarted cannot deliver a prompt or return a session'
   }
 });
 
-test('child exit during blocked onStarted remains cancellable and hands back the lease', async (t) => {
+test('child exit during blocked onStarted remains cancellable and hands back the lease', {
+  timeout: testTimeoutFor(5),
+}, async (t) => {
   const testName =
     'child exit during blocked onStarted remains cancellable and hands back the lease';
   if (!requiresIsolation(t, testName, ['systemdUserScope'])) return;
@@ -294,11 +306,8 @@ test('child exit during blocked onStarted remains cancellable and hands back the
   const executable = join(directory, 'fake-codex');
   const workerPidFile = join(directory, 'worker-pid');
   const host = new CodexHost({ executable });
-  let enterCallback!: () => void;
+  let callbackEntered = false;
   let releaseCallback!: () => void;
-  const entered = new Promise<void>((resolve) => {
-    enterCallback = resolve;
-  });
   const callbackGate = new Promise<void>((resolve) => {
     releaseCallback = resolve;
   });
@@ -308,7 +317,7 @@ test('child exit during blocked onStarted remains cancellable and hands back the
   try {
     await writeFile(
       executable,
-      `#!/bin/sh\nprintf '%s\\n' "$$" > ${JSON.stringify(workerPidFile)}\nexec /usr/bin/sleep 1.5\n`,
+      `#!/bin/sh\nprintf '%s\\n' "$$" > ${JSON.stringify(workerPidFile)}\nexec /usr/bin/cat\n`,
     );
     await chmod(executable, 0o755);
     const starting = host.start({
@@ -324,15 +333,21 @@ test('child exit during blocked onStarted remains cancellable and hands back the
         intent: 'intent:0',
       },
       onStarted: async (sessionId) => {
-        workerIdentity = await waitFor(async () => {
-          try {
-            const pid = Number((await readFile(workerPidFile, 'utf8')).trim());
-            const startTicks = processStartTicks(pid);
-            return startTicks ? { pid, startTicks } : undefined;
-          } catch {
-            return undefined;
-          }
-        });
+        workerIdentity = await waitFor(
+          async () => {
+            try {
+              const pid = Number(
+                (await readFile(workerPidFile, 'utf8')).trim(),
+              );
+              const startTicks = processStartTicks(pid);
+              return startTicks ? { pid, startTicks } : undefined;
+            } catch {
+              return undefined;
+            }
+          },
+          waitDeadline(),
+          'the owned Codex worker identity was not observed',
+        );
         workerUnit = codexScopeUnit('closed-callback', sessionId);
         const membership = await readFile(
           `/proc/${workerIdentity.pid}/cgroup`,
@@ -344,7 +359,7 @@ test('child exit during blocked onStarted remains cancellable and hands back the
             .some((line) => line.endsWith(`/${workerUnit}`)),
           'the exiting fixture must be inside its exact owned scope',
         );
-        enterCallback();
+        callbackEntered = true;
         await callbackGate;
         return true;
       },
@@ -356,28 +371,42 @@ test('child exit during blocked onStarted remains cancellable and hands back the
       (session) => ({ status: 'fulfilled' as const, session }),
       (error: unknown) => ({ status: 'rejected' as const, error }),
     );
-    await Promise.race([
-      entered,
-      delay(5000).then(() => assert.fail('onStarted never became eligible')),
-    ]);
+    let settledOutcome: Awaited<typeof startingOutcome> | undefined;
+    void startingOutcome.then((outcome) => {
+      settledOutcome = outcome;
+    });
+    await waitFor(
+      async () => (callbackEntered ? true : undefined),
+      waitDeadline(),
+      'onStarted never became eligible',
+    );
     const identity = workerIdentity;
     const unit = workerUnit;
     assert.ok(identity && unit, 'the owned worker identity must be captured');
-    await waitFor(async () =>
-      processHasIdentity(identity.pid, identity.startTicks) ? undefined : true,
+    terminateFixtureWorker(identity.pid, identity.startTicks);
+    await waitFor(
+      async () =>
+        processHasIdentity(identity.pid, identity.startTicks)
+          ? undefined
+          : true,
+      waitDeadline(),
+      'the owned worker did not exit after the test released it',
     );
-    await waitFor(async () => (systemdScopeInactive(unit) ? true : undefined));
-    await delay(1100);
+    await waitFor(
+      async () => (systemdScopeInactive(unit) ? true : undefined),
+      waitDeadline(),
+      'the exact worker scope did not become inactive',
+    );
 
     // Keep the callback blocked until cancelAll has completed, matching the
     // callback-gate contract while proving the worker itself already exited.
     await host.cancelAll();
     releaseCallback();
-    const settled = await Promise.race([
-      startingOutcome,
-      delay(4000).then(() => undefined),
-    ]);
-    assert.ok(settled, 'close-during-callback cancellation must be bounded');
+    const settled = await waitFor(
+      async () => settledOutcome,
+      waitDeadline(),
+      'close-during-callback cancellation did not settle startup',
+    );
     if (settled.status !== 'rejected')
       assert.fail('a closed, cancelled startup must not return a session');
     assert.match(String(settled.error), /cancel/i);
@@ -393,7 +422,9 @@ test('child exit during blocked onStarted remains cancellable and hands back the
   }
 });
 
-test('failed close verification retains an uncertain cancellation handle', async (t) => {
+test('failed close verification retains an uncertain cancellation handle', {
+  timeout: testTimeoutFor(3),
+}, async (t) => {
   const testName =
     'failed close verification retains an uncertain cancellation handle';
   if (!requiresIsolation(t, testName, ['systemdUserScope'])) return;
@@ -408,11 +439,8 @@ test('failed close verification retains an uncertain cancellation handle', async
   const host = new CodexHost({ executable });
   let workerIdentity: { pid: number; startTicks: string } | undefined;
   let workerUnit: string | undefined;
-  let enterCallback!: () => void;
+  let callbackEntered = false;
   let releaseCallback!: () => void;
-  const entered = new Promise<void>((resolve) => {
-    enterCallback = resolve;
-  });
   const callbackGate = new Promise<void>((resolve) => {
     releaseCallback = resolve;
   });
@@ -421,7 +449,7 @@ test('failed close verification retains an uncertain cancellation handle', async
     await mkdir(fakeBin);
     await writeFile(
       executable,
-      `#!/bin/sh\nprintf '%s\\n' "$$" > ${JSON.stringify(workerPidFile)}\nexec /usr/bin/sleep 1.5\n`,
+      `#!/bin/sh\nprintf '%s\\n' "$$" > ${JSON.stringify(workerPidFile)}\nexec /usr/bin/cat\n`,
     );
     await writeFile(
       systemctl,
@@ -468,12 +496,15 @@ exec /usr/bin/systemctl "$@"
             .some((line) => line.endsWith(`/${workerUnit}`)),
           'the worker must be physically registered in its exact owned scope',
         );
-        await waitFor(async () =>
-          processHasIdentity(pid, startTicks) ? undefined : true,
+        terminateFixtureWorker(pid, startTicks);
+        await waitFor(
+          async () => (processHasIdentity(pid, startTicks) ? undefined : true),
+          waitDeadline(),
+          'the owned worker did not exit after the test released it',
         );
         await writeFile(unitFile, `${workerUnit}\n`);
         await writeFile(denyFile, 'deny exact owned unit\n');
-        enterCallback();
+        callbackEntered = true;
         await callbackGate;
         throw new Error('injected onStarted failure after worker exit');
       },
@@ -485,16 +516,21 @@ exec /usr/bin/systemctl "$@"
       (session) => ({ status: 'fulfilled' as const, session }),
       (error: unknown) => ({ status: 'rejected' as const, error }),
     );
-    await Promise.race([
-      entered,
-      delay(5000).then(() => assert.fail('onStarted never reached its gate')),
-    ]);
+    let settledOutcome: Awaited<typeof startingOutcome> | undefined;
+    void startingOutcome.then((outcome) => {
+      settledOutcome = outcome;
+    });
+    await waitFor(
+      async () => (callbackEntered ? true : undefined),
+      waitDeadline(),
+      'onStarted never reached its gate',
+    );
     releaseCallback();
-    const settled = await Promise.race([
-      startingOutcome,
-      delay(5000).then(() => undefined),
-    ]);
-    assert.ok(settled, 'failed cleanup must leave startup bounded');
+    const settled = await waitFor(
+      async () => settledOutcome,
+      waitDeadline(),
+      'failed cleanup did not settle startup',
+    );
     if (settled.status !== 'rejected')
       assert.fail('startup must reject when exact-unit drain is unverified');
     assert.ok(
@@ -776,7 +812,9 @@ test('traversal ControlGroup cannot supply a registration proof', async () => {
   }
 });
 
-test('cancelling a pending registration kills its owned launcher before callback or prompt', async (t) => {
+test('cancelling a pending registration kills its owned launcher before callback or prompt', {
+  timeout: testTimeoutFor(2),
+}, async (t) => {
   if (
     !requiresIsolation(
       t,
@@ -809,7 +847,7 @@ for argument do
   previous="$argument"
 done
 case "$unit" in
-  krn-pending-*) echo "$$" > ${JSON.stringify(launcherMarker)}; echo "$unit" > ${JSON.stringify(unitMarker)}; exec /usr/bin/sleep 30 ;;
+  krn-pending-*) echo "$$" > ${JSON.stringify(launcherMarker)}; echo "$unit" > ${JSON.stringify(unitMarker)}; exec /usr/bin/cat ;;
 esac
 exec /usr/bin/systemd-run "$@"
 `,
@@ -847,20 +885,33 @@ IFS= read -r prompt || true
         (session) => session.wait(),
         (error: unknown) => Promise.reject(error),
       );
-    launcherPid = await waitFor(async () => {
-      try {
-        const pid = Number((await readFile(launcherMarker, 'utf8')).trim());
-        return Number.isSafeInteger(pid) && pid > 0 ? pid : undefined;
-      } catch {
-        return undefined;
-      }
-    });
+    launcherPid = await waitFor(
+      async () => {
+        try {
+          const pid = Number((await readFile(launcherMarker, 'utf8')).trim());
+          return Number.isSafeInteger(pid) && pid > 0 ? pid : undefined;
+        } catch {
+          return undefined;
+        }
+      },
+      waitDeadline(),
+      'owned systemd-run launcher was not observed',
+    );
     launchedUnit = (await readFile(unitMarker, 'utf8')).trim();
-    const settled = await Promise.race([
-      Promise.allSettled([starting, host.cancelAll()]),
-      delay(4000).then(() => undefined),
-    ]);
-    assert.ok(settled, 'pending-launch cancellation must be bounded');
+    let settledOutcome:
+      | [
+          PromiseSettledResult<Awaited<typeof starting>>,
+          PromiseSettledResult<void>,
+        ]
+      | undefined;
+    void Promise.allSettled([starting, host.cancelAll()]).then((outcome) => {
+      settledOutcome = outcome;
+    });
+    const settled = await waitFor(
+      async () => settledOutcome,
+      waitDeadline(),
+      'pending-launch cancellation did not settle',
+    );
     const [startResult] = settled;
     assert.equal(
       startResult.status,
@@ -911,14 +962,30 @@ function systemdScopeInactive(unit: string): boolean {
   return shown.status !== 0 || shown.stdout.trim() === 'inactive';
 }
 
-async function waitFor<T>(read: () => Promise<T | undefined>): Promise<T> {
-  const deadline = Date.now() + 3000;
+function waitDeadline(): number {
+  return Date.now() + SPAWNED_PROCESS_WAIT_MS;
+}
+
+async function waitFor<T>(
+  read: () => T | undefined | Promise<T | undefined>,
+  deadline: number,
+  timeoutMessage: string,
+): Promise<T> {
   while (Date.now() < deadline) {
     const value = await read();
     if (value !== undefined) return value;
     await delay(20);
   }
-  assert.fail('timed out waiting for owned systemd-run launcher');
+  assert.fail(timeoutMessage);
+}
+
+function terminateFixtureWorker(pid: number, startTicks: string): void {
+  if (!processHasIdentity(pid, startTicks)) return;
+  try {
+    process.kill(pid, 'SIGTERM');
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
+  }
 }
 
 async function processIsAlive(pid: number): Promise<boolean> {
