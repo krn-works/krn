@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 const repositoryRoot = fileURLToPath(new URL('../..', import.meta.url));
 const phaseOrSliceToken =
-  /(?:^|[\/._-])(?:s\d+[a-z]?|j\d+|r\d+|f\d+(?:s\d+)?|n\d+|l\d+|b\d+|LON-\d+)(?=$|[\/._-])/iu;
+  /(?:^|[/._-])(?:s\d+[a-z]?|j\d+|r\d+|f\d+(?:s\d+)?|n\d+|l\d+|b\d+|LON-\d+)(?=$|[/._-])/iu;
 
 function forbiddenPaths(paths) {
   return paths.filter((path) => phaseOrSliceToken.test(path)).sort();
@@ -14,7 +14,17 @@ function forbiddenPaths(paths) {
 function trackedCodePaths() {
   const revision = process.env.KRN_PATH_GUARD_REVISION;
   const args = revision
-    ? ['ls-tree', '-r', '--name-only', '-z', revision, '--', 'scripts', 'src', 'test']
+    ? [
+        'ls-tree',
+        '-r',
+        '--name-only',
+        '-z',
+        revision,
+        '--',
+        'scripts',
+        'src',
+        'test',
+      ]
     : ['ls-files', '-z', '--', 'scripts', 'src', 'test'];
   return execFileSync('git', args, {
     cwd: repositoryRoot,

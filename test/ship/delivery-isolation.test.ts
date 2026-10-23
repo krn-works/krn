@@ -467,7 +467,8 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       'CodexHost.cancelAll is required by the foreman signal handler',
     );
   }
-  const live = new URL('../../scripts/delivery-live.mjs', import.meta.url).pathname;
+  const live = new URL('../../scripts/delivery-live.mjs', import.meta.url)
+    .pathname;
   const waitForSessionStarted = async (
     job: string,
     process: ReturnType<typeof spawn>,
@@ -1000,7 +1001,8 @@ test('B3 live uses the requested repo and resumes an existing job by id', async 
         const child = spawn(
           process.execPath,
           [
-            new URL('../../scripts/delivery-live.mjs', import.meta.url).pathname,
+            new URL('../../scripts/delivery-live.mjs', import.meta.url)
+              .pathname,
             ...args,
             ...extra,
           ],
@@ -1086,7 +1088,8 @@ test('live SIGTERM reaps every Paperclip CLI group during contract loading', {
     `#!/usr/bin/env node\nconst fs = require('node:fs');\nconst { spawn } = require('node:child_process');\nconst child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });\nfs.appendFileSync(process.env.PAPERCLIP_TEST_PID_FILE, String(child.pid) + '\\n');\nsetInterval(() => {}, 1000);\n`,
   );
   await chmod(executable, 0o755);
-  const script = new URL('../../scripts/delivery-live.mjs', import.meta.url).pathname;
+  const script = new URL('../../scripts/delivery-live.mjs', import.meta.url)
+    .pathname;
   const live = spawn(
     process.execPath,
     [
@@ -1330,7 +1333,8 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
       fakeSystemdRun,
     ].map((file) => chmod(file, 0o755)),
   );
-  const live = new URL('../../scripts/delivery-live.mjs', import.meta.url).pathname;
+  const live = new URL('../../scripts/delivery-live.mjs', import.meta.url)
+    .pathname;
   const runner = spawn(
     process.execPath,
     [live, '--submit', '--repo', root, '--job', jobId, '--issue', issue],

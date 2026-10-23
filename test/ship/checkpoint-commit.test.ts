@@ -13,7 +13,10 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { commitCheckpoint, prepareCheckpoint } from '../../src/foreman/commit.ts';
+import {
+  commitCheckpoint,
+  prepareCheckpoint,
+} from '../../src/foreman/commit.ts';
 import { runJob } from '../../src/foreman/run.ts';
 import { CodexHost } from '../../src/hosts/codex.ts';
 import * as relay from '../../src/relay/index.ts';
