@@ -12,7 +12,7 @@ readback below.
 **[CODE: GLOBAL ADR 0007]** ADR 0007 made Paperclip the shared tracker. The
 operator now wants KRN's own tracker and intends to leave Paperclip. The
 accepted direction and sequencing are recorded in
-[plan F4/F5](../program/plan-2026-10-21.md); this ADR fixes the target design
+[plan F4/F5](../program/PLAN.md); this ADR fixes the target design
 before implementation.
 
 The decision owner is the KRN lead; project operators own individual cutovers.
@@ -24,8 +24,8 @@ proof. The independent Opus comparison was commissioned by the operator; its
 findings are summarized in the 2026-10-22 task brief and were not re-audited
 for this ADR.
 
-The consumers are GLOBAL `krn work`, `krn ship`, Product delivery
-orchestration, and the successor to ADR 0009. This ADR partially supersedes
+The consumers are Global KRN's `krn work` and `krn ship`, planned Product
+delivery orchestration, and the successor to ADR 0009. This ADR partially supersedes
 [GLOBAL ADR 0007](https://github.com/krn-works/krn-codex-skills/blob/0606e4145a2fd1937a6108c76089f219a4617546/docs/adr/0007-paperclip-control-plane.md)'s
 Paperclip tracker default only for each project after its explicit cutover.
 ADR 0007's PR acceptance and delivery requirements remain in force. Memory
@@ -70,14 +70,16 @@ with a stable JSON contract and an event stream with a sequence cursor, so a
 future `krn work serve` server/UI can use the same core without duplicating
 logic.
 
-For PR work, `krn ship` is the only path to `done`. S4 binds the task and
+For PR work, Global KRN's `krn ship` is the only path to `done`. S4 binds the task and
 claim epoch in the delivery record, closes idempotently by `(task, merge)`,
 and reads back main CI. The tracker stores digests and links to ship evidence
 rather than duplicating its record; task status alone is not merge
 acceptance.
 
-Product orchestration (`krn deliver`, plan F4) consumes the tracker through a
-`WorkTransport` behind the existing `LedgerTransport` seam in
+The proposed Product `krn deliver` command is not implemented in
+`src/cli/main.ts` and currently falls through to Global forwarding. When
+implemented, it is designed to consume the tracker through a `WorkTransport`
+behind the existing `LedgerTransport` seam in
 [`src/ledger/index.ts`](../../src/ledger/index.ts#L202-L215). S8 adds task
 links to memory events only through a successor to ADR 0009.
 
@@ -127,7 +129,7 @@ lacks contract, conflict-scope, and evidence semantics.
 | Tracker fragmentation from per-repository stores | Use one host-level store partitioned by `project`. |
 | Sandbox workers cannot safely share the DB | Workers never write the store; only the lead/loop writes. |
 | Backup/sync regresses from Git refs | S2 exports hash-chained events and journals them on `refs/krn/work-journal`; verify replay and restore. |
-| Agents ignore the tracker | `krn work next --json` is the single entry point; `krn ship` is the done path (S4). |
+| Agents ignore the tracker | `krn work next --json` is the single entry point; Global KRN's `krn ship` is the done path (S4). |
 | Two sources of truth during transition | Paperclip stays authoritative until each project cuts over; do not mirror writes. |
 | Tracker sprawl | Require a complete contract before ready (otherwise `draft`); require typed drop dispositions. |
 | Duplication with ship records and memory events | Store evidence digests/links; S8 memory events cite task IDs instead of copying tracker records. |
@@ -138,18 +140,18 @@ lacks contract, conflict-scope, and evidence semantics.
    selection, create/show/ready/claim commands, and `next --json`.
 2. **S2 — Journal and restore:** hash-chained events on
    `refs/krn/work-journal`, deterministic export, verify, and restore.
-3. **S3 — Resolve:** add `krn work resolve` to ship, PR preflight, and changes
+3. **S3 — Resolve:** add `krn work resolve` to Global `krn ship`, PR preflight, and changes
    flows so `Ticket:` trailers remain usable.
 4. **S4 — Ship closure:** bind task and epoch to the delivery record; idempotent
    close by task and merge; read back main CI.
-5. **S5 — WorkTransport:** adapt Product `krn deliver` through the existing
+5. **S5 — WorkTransport:** adapt the planned Product `krn deliver` command through the existing
    `LedgerTransport` seam.
 6. **S6 — Paperclip importer:** fingerprinted dry-run and apply.
 7. **S7 — Project cutover:** cut over one project at a time, keep Paperclip
    read-only, rehearse rollback, then remove superseded legacy code.
 8. **S8 — Memory successor:** link task identity into memory events under a
    successor to ADR 0009.
-9. **S9 — Harness tasks:** create harness work from closed tasks.
+9. **S9 — Agent harness work:** create harness-specific work from closed tasks.
 
 ## Consequences
 

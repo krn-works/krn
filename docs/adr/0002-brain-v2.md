@@ -14,9 +14,8 @@ KRN needs durable, reusable knowledge for standards, procedures, course
 distillations, decisions, patterns, pitfalls, preferences, project and host
 facts, and examples. Continuity capsules remain task handoff state; they are
 not the authority for reusable knowledge. Each client must have an isolated
-brain repository. The operator selected a temporal brain, rights-aware
-distillation, and operator-controlled promotion in the charter and product
-spine.
+brain repository. The proposed Product design considers a temporal brain,
+rights-aware distillation, and operator-controlled promotion.
 
 R13 recommends Git-versioned semantic records with a rebuildable local SQLite
 FTS5 index, and separates event capture from reviewed knowledge. The pinned
@@ -28,9 +27,9 @@ found no local evidence that retrieval improves model quality: the inspected
 
 This ADR separates selected **POLICY** from **Evidence** and **Hypothesis**.
 Design rules below do not assert copyright clearance or measured quality gains.
-Its source basis is the lead's `product-spine.md` §4, `reports/R13-memory-brain.md`,
-the 2026-10-08 operator decisions in `charter.md`, and the pinned
-`krn-memory` `SCHEMA.md` and `PROMOTION.md`.
+Its source basis is the lead's `product-spine.md` §4,
+`reports/R13-memory-brain.md`, the operator direction recorded on 2026-10-08,
+and the pinned `krn-memory` `SCHEMA.md` and `PROMOTION.md`.
 
 ## Decision
 
@@ -255,11 +254,13 @@ evidence for the Luna-to-Opus claim; the experiment is the required test.
 - Treating any copyright basis, detector threshold, judge result, or benchmark
   as a substitute for operator review or applicable rights.
 
-## Current proposal status (2026-10-20)
+## Proposal status
 
-This ADR remains proposed for E3 design and does not establish memory implementation or benefit. The frozen [WoZ preregistration](../../evals/woz/prereg.md) contains thresholds that conflict with the thresholds proposed here. Under KRN source precedence, resolve the protocol explicitly before any run; do not alter the preregistration after seeing results. The current dependency map, accepted GLOBAL ADR 0008/0009 target and evidence gaps are recorded in the [roadmap](../program/roadmap-2026-10-20.md). No status or threshold is changed by this note.
+This ADR remains proposed for E3 design and establishes neither implementation nor benefit. Any future evaluation needs a current task, an approved protocol, and a preregistration before results are observed.
 
 
-## Uzupełnienie stanu (2026-10-20)
+## Current status
 
-GLOBAL `krn.memory/v1` CLI/store and typed event foundations already exist in the installed compatibility release; Product `src/memory/` is absent, which is a dispatcher/ownership boundary, not evidence of no KRN memory. Readback marks LON-128/130/131/132/133 and 127/139–142 `done`, LON-129 paired real-task utility `backlog`, LON-134 binding `blocked`, and 135/136/137 retirement `backlog`. These statuses do not qualify behavior or utility. This proposed Product v2 WoZ protocol remains separate from the adopted GLOBAL v1 target and from LON-129; it does not block every v1 memory use. Its existing threshold conflict with frozen preregistration remains unresolved and must be adjudicated before that WoZ run. This status note changes no threshold, ADR status, implementation state, or acceptance. See the [2026-10-20 audit](../program/audit-2026-10-20.md) and [canonical-plan supplement](../program/roadmap-2026-10-20.md).
+Current Product or Global memory implementation, task status, and utility are
+not asserted by this ADR. Its proposed Product v2 design does not change the
+separate Global memory decision.
