@@ -21,5 +21,5 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 - For work spanning sessions, PRs, or modules, maintain a living plan using [`PLANS.md`](PLANS.md). Read back the task, authority, checkout, base/head, and dirty-file ownership before a handoff.
 - Use one writer per outcome. Preserve unrelated work and use only the authorized paths and delivery route.
 - Run the cheapest relevant falsifier, then the required repository checks. Do not claim acceptance from a successful command alone.
-- Follow the repository's PR policy. Exact-head independent reviews and required CI must pass before merge. Use Conventional Commits for authored commits, PR titles, and squash subjects.
+- Follow the repository workflow for PR policy, exact-head independent reviews, required CI, and Conventional Commits.
 - Do not send messages to external services without explicit authorization. Do not perform host, production, install/seal, hook-trust, or other irreversible actions without their separate grant.
