@@ -52,6 +52,18 @@
         "deadline": "2026-12-31"
       },
       "rationale": "Lead methods have one durable owner."
+    },
+    {
+      "id": "KRN-10",
+      "trigger": "an agent works in this repository",
+      "action": "the agent MUST follow `docs/program/repository-workflow.md` for the local KRN delivery process and terminal PR closeout",
+      "owner": "all KRN roles",
+      "enforcement": {
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
+      },
+      "rationale": "Product owns the KRN process followed by its agents across harnesses."
     }
   ]
 }
