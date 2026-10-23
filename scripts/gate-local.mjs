@@ -5,6 +5,7 @@ import { validateTestSummary } from './test-summary-policy.mjs';
 
 const ghPath = process.env.KRN_GH_BIN ?? 'gh';
 const summaryPrefix = 'KRN_TEST_SUMMARY_JSON=';
+const statusRetryBackoffsMs = [2_000, 8_000];
 const gitContextKeys = [
   'GIT_DIR',
   'GIT_WORK_TREE',
@@ -94,6 +95,21 @@ function lastIsolationSkipCount(output) {
   return Number(matches.at(-1)?.[1] ?? Number.NaN);
 }
 
+function isTransientStatusFailure(result) {
+  if (result.status === null || result.status === 0) return false;
+  const stderr = result.stderr ?? '';
+  if (/\bHTTP(?:\/\d+(?:\.\d+)?)?\s+4\d{2}\b/iu.test(stderr)) return false;
+  return (
+    /\bnetwork\b|\btimeout\b|\btimed out\b|\bconnection (?:reset|refused)\b|\bi\/o timeout\b|\beof\b|\bsecondary rate limit\b/iu.test(
+      stderr,
+    ) || /\bHTTP(?:\/\d+(?:\.\d+)?)?\s+5\d{2}\b/iu.test(stderr)
+  );
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 async function main() {
   for (const key of gitContextKeys) delete process.env[key];
 
@@ -133,25 +149,31 @@ async function main() {
     exitCode: gate.exitCode,
     skipCount: isolationSkipCount,
     post: async () => {
-      const result = spawnSync(
-        ghPath,
-        [
-          'api',
-          `repos/krn-works/krn/statuses/${head}`,
-          '-f',
-          'state=success',
-          '-f',
-          'context=krn/gate-local',
-          '-f',
-          `description=${description}`,
-        ],
-        { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
-      );
-      if (result.status !== 0) {
-        process.stderr.write(
-          result.stderr || 'Unable to post gate-local status\n',
-        );
-        throw new Error('Unable to post gate-local status');
+      const args = [
+        'api',
+        `repos/krn-works/krn/statuses/${head}`,
+        '-f',
+        'state=success',
+        '-f',
+        'context=krn/gate-local',
+        '-f',
+        `description=${description}`,
+      ];
+      for (let attempt = 0; ; attempt += 1) {
+        const result = spawnSync(ghPath, args, {
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+        if (result.status === 0) break;
+
+        const backoff = statusRetryBackoffsMs[attempt];
+        if (!isTransientStatusFailure(result) || backoff === undefined) {
+          process.stderr.write(
+            result.stderr || 'Unable to post gate-local status\n',
+          );
+          throw new Error('Unable to post gate-local status');
+        }
+        await wait(backoff);
       }
       process.stdout.write(
         `Published krn/gate-local success for ${head}: ${description}\n`,
