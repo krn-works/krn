@@ -4,8 +4,9 @@ Date: 2026-10-22
 
 ## Status
 
-Accepted design; implementation and project cutovers require the slices and
-readback below.
+Superseded by ADR 0014 D8.
+
+This ADR remains the historical record of the former host-SQLite design; ADR 0014 D8 replaces its active tracker decision and cutover path.
 
 ## Context
 

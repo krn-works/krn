@@ -24,11 +24,11 @@
     },
     {
       "id": "KRN-07",
-      "trigger": "a change is ready for integration",
-      "action": "the author MUST pass `npm run gate`",
+      "trigger": "review is complete and a change is ready for integration",
+      "action": "the author MUST pass `npm run gate:local`",
       "owner": "author",
-      "enforcement": { "kind": "gate", "check": "npm run gate" },
-      "rationale": "The gate checks types, style, tests, and generated rules."
+      "enforcement": { "kind": "gate", "check": "npm run gate:local" },
+      "rationale": "Product runs its full local gate after review; CI runs the same steps."
     },
     {
       "id": "KRN-08",
@@ -63,7 +63,7 @@
         "check": "manual review",
         "deadline": "2026-12-31"
       },
-      "rationale": "Product owns the KRN process followed by its agents across harnesses."
+      "rationale": "KRN process belongs only in repositories that explicitly adopt it; the global contract stays universal and minimal."
     }
   ]
 }
