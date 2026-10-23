@@ -1,5 +1,0 @@
-# tests 126
-# pass 126
-# fail 0
-# skipped 0
-Isolation-dependent tests skipped: 0

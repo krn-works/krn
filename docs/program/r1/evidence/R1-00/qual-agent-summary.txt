@@ -1,3 +1,0 @@
-command: /usr/bin/bash -lc 'python3 /mnt/storage/coding/krn/active/krn/.krn/runs/r1/LON-214/confine/observer.py' exit 0
-KRN_CONFINE_JSON={"envSecretsAbsent":["GH_PAGER"],"insideWrite":true,"mainCheckoutWriteDenied":true,"otherWorktreeWriteDenied":true,"outsideSentinelWriteDenied":true,"scopeMatched":true,"secretPathsHidden":{"/home/krn/.config/gh":true,"/home/krn/.config/krn":true,"/home/krn/.config/paperclip":true,"/home/krn/.local/share/krn":true,"/home/krn/.local/state/krn":true,"/home/krn/.paperclip":true},"tmpPrivate":true}
-turn.completed usage {"input_tokens": 36792, "cached_input_tokens": 28160, "cache_write_input_tokens": 0, "output_tokens": 195, "reasoning_output_tokens": 0}

@@ -28,16 +28,17 @@ and path-anchored lessons made mid-plan consolidation costly. These are
 observations from the synthesis, not new measurements in this ADR.
 
 **[POLICY]** The target is one repository with Product as its home. The
-GLOBAL harness (skills, `AGENTS.md`, hooks, and installer) becomes a package
-that is installed only from a sealed release. Moving code before the active
+Global KRN compatibility package (skills, `AGENTS.md`, hooks, and installer)
+is installed only from a sealed release. Moving code before the active
 plan's qualification and tracker cutover would add one-way-door work.
 
 ## Decision
 
 [POLICY] Keep code in its current repository for now. Fix the identified
 friction in place: N10 export pin at ship; N11 test discovery after the
-in-flight branches merge; N12 gate queue; Product merges through `krn ship`,
-with `pr-preflight` as a pre-merge step and `pdeliver.sh` retired;
+in-flight branches merge; N12 gate queue; Global KRN's `krn ship`, reached
+through Product's KRN-06 forwarder, performs merges; keep `pr-preflight` as a
+pre-merge requirement and retire `pdeliver.sh`;
 decide one Node line for both repositories (open decision); complete the
 P-052 caller inventory. This does not authorize moving code between
 repositories.
@@ -68,8 +69,8 @@ no authority to perform those actions.
 
 ## Consequences
 
-**[POLICY]** Product remains the eventual repository home, and the harness
-remains a package boundary until a measured trigger fires. The in-place
+**[POLICY]** Product remains the eventual repository home, and the Global KRN
+package remains a compatibility boundary until a measured trigger fires. The in-place
 changes address current delivery friction without an early code move. The
 explicit forwarder exit and dead-code disposition prevent the temporary
 seam and obsolete tracker/gateway from becoming part of the target by

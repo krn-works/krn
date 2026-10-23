@@ -1,45 +1,25 @@
-# Lead methods
+# Lead rules
 
-This procedure expands the always-loaded lead rules in [`AGENTS.md`](../../AGENTS.md). The charter and repository records are the durable sources; ignored session files are working evidence only.
+Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 
-## Find ignored state
+## Sources and evidence
 
-When a needed file may be ignored, inspect the repository with:
+- Resolve conflicts in this order: current operator instruction, accepted ADR or repository rule, `AGENTS.md`, this guide, then plans and run evidence. A proposal does not change an accepted decision.
+- Read current Git and control-plane state before acting on a plan or handoff. Paperclip owns live task status until a project's explicit cutover under ADR 0011.
+- Start with the cheapest signal that could disprove a claim. Compare failures with the base before attributing them to a change.
+- Label claims `[CODE]`, `[VENDOR]`, `[EMPIRICAL]`, `[OURS-EVIDENCE]`, `[HYPOTHESIS]`, or `[POLICY]`; cite a source location where available.
+- Read ignored state only when needed. Use `git status --ignored --short`, `git check-ignore -v <path>`, and `rg --no-ignore --hidden` to establish its location; verify its claims in tracked sources or current state.
 
-```sh
-git status --ignored --short
-git check-ignore -v <path>
-rg --no-ignore --hidden '<pattern>' <directory>
-```
+## Proposals and decisions
 
-Use `git ls-files --others --ignored --exclude-standard --directory` when you need a listing of untracked ignored paths. A normal `rg` search omits ignored files, so no result is not proof that a file is absent. Read an ignored file as evidence, then verify its claims in tracked sources or current repository state before treating them as durable facts.
+- Record unresolved proposals in [`proposals.md`](proposals.md) with a date, status, and source. Keep the register limited to proposals referenced by a current ADR or plan.
+- Put accepted architectural decisions in ADRs and operational rules in their owning source, such as `spec/rules.json`. Update proposal status when its decision is recorded.
+- Plans describe sequence; they do not create tasks, acceptance, or authority.
 
-## Resolve sources and verify claims
+## Scope and delivery
 
-For decisions, use this precedence: current operator message > latest dated charter decision > ADR > repo `AGENTS.md` > GLOBAL contract > skills > plan > notes. Report a conflict to the owner rather than choosing silently. A proposal is not an accepted decision.
-
-Start verification with the cheapest signal that could disprove the claim. Read current Git or API state before running a focused test; use a judge after deterministic checks, and a milestone review after those. Read back facts copied from old handoffs or plans before acting. Mark facts stale when the readback differs.
-
-When a check fails on a slice, compare the failing file or test with the merge-base. If the same failure exists at the base, report it as pre-existing and keep it separate from the slice diagnosis.
-
-Label analysis claims by evidence class: `[CODE]`, `[VENDOR]`, `[EMPIRICAL]`, `[OURS-EVIDENCE]`, `[HYPOTHESIS]`, or `[POLICY]`. Include a source location or link when one is available; say when evidence is unavailable.
-
-## Stop at gaps and wait for work
-
-When a KRN tool is missing or broken, if the fix is reversible and inside the current grant, delegate it as the next slice and report; otherwise stop with one decision.
-
-After launching a background task group, issue one blocking wait for the entire group. Do not poll or send progress messages while it runs. Resume when the wait returns a result or a real blocker or decision needs attention. If the wait command reaches its time limit, repeat that same wait without an interim status message.
-
-## Record proposals and decisions
-
-When the lead proposes a change, record the suggestion in the proposal registry with a date, status, and source. When the lead records a decision, put it in the charter. Keep accepted, rejected, or superseded decision status visible; when a decision is accepted, update the durable repository source that owns it, such as an ADR or `spec/rules.json`.
-
-## Change host infrastructure
-
-Before changing host infrastructure, identify the cause from the relevant logs and capture the current state. Make only the action covered by a recorded grant, then capture and read back the resulting state. Stop if the cause, grant scope, or safe readback is missing.
-
-## Scope, evidence, and delivery
-
-For work spanning sessions, pull requests, or modules, keep the living plan required by [`PLANS.md`](PLANS.md); read back current task, authority, checkout, base/head, and dirty ownership before using a handoff. Preserve the source precedence above, label evidence claims, and keep proposals in the registry until accepted decisions reach the charter and their durable owner.
-
-One writer owns each outcome. For authorized delivery, use an owned branch and PR; reuse recorded publication grants without repeated prompts. An authorized push and draft Product PR supply the existing-PR input required by `scripts/pr-preflight.mjs`; marking the PR ready or merging it must depend on the actual preflight command returning exit 0. The `Ticket:` and `Change-contract:` Git trailers belong in one contiguous trailer block. Required reviews, checks, CI, merge readback, and branch/worktree disposition remain with their named owners. Preserve the source precedence above; at scope, authority, capability, or required-check gaps, preserve failures and report the next lawful action. Roll back only task-owned changes under recorded authority.
+- For work spanning sessions, PRs, or modules, maintain a living plan using [`PLANS.md`](PLANS.md). Read back the task, authority, checkout, base/head, and dirty-file ownership before a handoff.
+- Use one writer per outcome. Preserve unrelated work and use only the authorized paths and delivery route.
+- Run the cheapest relevant falsifier, then the required repository checks. Do not claim acceptance from a successful command alone.
+- Follow the repository's PR policy. Exact-head independent reviews and required CI must pass before merge. Use Conventional Commits for authored commits, PR titles, and squash subjects.
+- Do not send messages to external services without explicit authorization. Do not perform host, production, install/seal, hook-trust, or other irreversible actions without their separate grant.
