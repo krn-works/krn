@@ -1,0 +1,35 @@
+# 14. Operator decisions of 2026-10-23
+
+Date: 2026-10-23
+
+## Status
+
+Accepted. This is the single durable Product record for operator decisions D1–D19 from 2026-10-22/23. Operator quotes are reproduced verbatim where the register recorded them. It records decisions, not implementation or task acceptance. The GLOBAL repository has a separate consistency sweep.
+
+## Decisions
+
+| ID | Decision | Operator quote from register | Supersedes |
+|---|---|---|---|
+| D1 | KRN is the software delivery layer above agent harnesses, never a harness; an agent is a model plus its harness. | “użyj odpowiedniego słownictwa, że krn to nie harness” | The KRN terminology in `README.md` and `CONTEXT.md` before this ADR. |
+| D2 | KRN is the product for fast, low-noise software creation with agents; measure its delivery by merges per lane-hour, review rounds, conflicts, and flaky stalls. | “krn to ma być … zminimalizować szum, konflikty, flaky” | No prior Product decision; establishes the product purpose and benchmark. |
+| D3 | Work on one thing at a time, avoid scattered functionality, and finish each thing properly. | “skupić się na ogarnianiu rzeczy jedna po drugiej” | No prior Product decision; establishes focus for sequencing work. |
+| D4 | Keep one repository as the target: Product is home, and GLOBAL folds in when ADR 0013's measured trigger fires. | No direct quote recorded in the source register. | Confirms ADR 0013's repository target and measured trigger. |
+| D5 | Name work by role and purpose, never phase, slice, ticket, round, date, or version; use deep modules with small interfaces and substantial work. | “nazwy nie mogą się wiązać z tym kiedy coś robisz, tylko według tego czym realnie jest” | Phase, slice, and date naming guidance in `docs/program/repository-workflow.md` and phase-coded plan headings. |
+| D6 | Keep `AGENTS.md` as the sole instruction source, make every `CLAUDE.md` its symlink, and keep Codex standards and paths under `.agents/skills`. | No direct quote recorded in the source register. | Any competing repository instruction source; confirms the existing `CLAUDE.md` symlink arrangement. |
+| D7 | Keep global `AGENTS.md` to about 16 universal safety and collaboration lines; KRN process lives only in repositories that explicitly adopt KRN, and non-adopters get no KRN context, onboarding, CLI, or tracker calls. | No direct quote recorded in the source register. | Any global-contract placement of KRN process; narrows this repository's KRN-10 rationale to adopted repositories. |
+| D8 | Replace Paperclip, the legacy Git-ref `krn task` queue, and host-SQLite `krn work` with one Git-backed in-repository `krn task` tracker using JSONL/files, a rebuildable local index, dependencies, ready, and claim; import records, then remove Paperclip everywhere, and add no Paperclip dependencies. | “nie chcemy paperclip, skoro mamy własny krn work/krn task”; “zadania podróżowały z repo” | ADR 0011's host-SQLite design and per-project cutovers, plus the Paperclip control-plane parts of GLOBAL ADR 0007. The tracker implementation is a later slice. |
+| D9 | Remove the `krn_pretooluse.py` and `destructive_guard.py` parser guard; use Codex sandbox/approvals, Claude Code sandbox/permissions, and server-side branch protection as safety boundaries. | “ten hook powodował więcej szkód niż potencjalnych blokad” | The shell-parsing safety policy for the named PreToolUse guard. |
+| D10 | Deterministic checks block; parallel LLM judges return all findings in one pass, with `BLOCKING` only for material defects and a reproduction preferred; allow at most two rounds, then the lead decides. | No direct quote recorded in the source register. | GLOBAL ADR 0007 review and judge-blocking policy where it conflicts with this review model. |
+| D11 | Run cheap preflight (types, lint, documentation-reading tests, test-impact review, and contracts) before review; after review Product runs `gate:local`, GLOBAL does not run a full local gate, and CI runs the same steps. | No direct quote recorded in the source register. | Earlier Product gate/review ordering and any expectation that GLOBAL runs its full local gate. |
+| D12 | Fix flaky tests instead of retrying; permit one recorded retry only for untouched files while a fix is pending. Use private temp directories, condition waits with deadlines, and no wall-clock assertions. | No direct quote recorded in the source register. | Any general flaky-test retry policy; establishes the limited retry exception. |
+| D13 | Workers fork and flush: each fix round uses a fresh session and one-page handoff; `--resume` is only for interrupted runs and is refused above 500k tokens. Universal hygiene belongs in the worker wrapper and KRN conventions in KRN repositories. | No direct quote recorded in the source register. | Any long-lived worker-round or general resume practice that conflicts with this contract. |
+| D14 | Put lessons where executors read them: mechanical checks first, repository `AGENTS.md` second, and lead memory only for operator preferences and decisions. | No direct quote recorded in the source register. | The standalone workflow-lessons source and any lesson storage outside those executor-facing locations. |
+| D15 | Turn regressions into expected behavior or mechanical rules for code invariants; do not add lint that pins implementation technique. | No direct quote recorded in the source register. | Any technique-pinning lint policy; establishes how regressions become expectations. |
+| D16 | Keep backups temporary: back up, edit, verify, and delete in the same step; host migrations may keep one during the observation window. | No direct quote recorded in the source register. | Any general persistent-backup practice; sets the host-migration exception. |
+| D17 | Keep repositories private, all rights reserved, and unpublished. | No direct quote recorded in the source register. | Any public-release or publication assumption; aligns with the repository license. |
+| D18 | Route models with luna as default, sol for hard refactors, Claude Haiku/Sonnet/Opus subagents by task type, and two or three Opus lenses for program decisions. | No direct quote recorded in the source register. | No prior Product routing decision; establishes model routing. |
+| D19 | Keep only the minimal true documentation set; delete outdated docs because Git history is the archive, and let current code plus passing tests outrank stale instructions. | No direct quote recorded in the source register. | The former documentation-retention and stale-instruction precedence expressed in this repository's docs. |
+
+## Scope
+
+This ADR supersedes the cited portions of earlier Product and GLOBAL decisions only. In particular, D8 supersedes ADR 0011 and GLOBAL ADR 0007's Paperclip control-plane parts; D10–D11 supersede conflicting GLOBAL ADR 0007 review and gate-order parts. Other GLOBAL ADR 0007 requirements remain only where they do not conflict with D1–D19. Product's separate implementation and import work does not authorize host-side Paperclip archive or other irreversible actions.

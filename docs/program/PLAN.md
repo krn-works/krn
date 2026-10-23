@@ -1,65 +1,55 @@
 # KRN delivery plan
 
-This plan records program sequence and exit conditions. It is not live task status, acceptance, or authority. Paperclip owns task status until an explicit per-project cutover under [ADR 0011](../adr/0011-krn-work-tracker.md).
+This plan records program sequence and exit conditions. It is not task status, acceptance, or authority. Product's selected in-repository `krn task` tracker is the task-status source under [ADR 0014 D8](../adr/0014-operator-decisions-2026-10-23.md); Paperclip is legacy and will be removed everywhere after import.
 
 ## Scope and decision owners
 
-The sequence covers delivery flow, gate quality, and memory. Product and Global KRN remain separate until the measured trigger in [ADR 0013](../adr/0013-repository-consolidation.md). Read live work status from Paperclip; do not infer it from phase descriptions here.
+The sequence covers delivery flow, gate quality, and memory. Product and Global KRN remain separate until the measured trigger in [ADR 0013](../adr/0013-repository-consolidation.md). Work one accepted outcome at a time and name work by its role and purpose, not by phase, slice, ticket, round, date, or version.
 
-After the evidence required by Global ADR 0007 and all required gates pass, the lead may accept eligible PR work. The operator retains approval for host, security, and irreversible actions. This records the 2026-10-22 decision; ADR 0012 is not an acceptance prerequisite.
+Apply [ADR 0014 D10–D11](../adr/0014-operator-decisions-2026-10-23.md): run cheap preflight (types, lint, documentation-reading tests, test-impact review, and contracts) before review; run independent judges in parallel; have each judge report all findings in one pass, blocking only for material defects and preferably with a reproduction; allow at most two rounds, then let the lead decide. Product's `npm run gate:local` runs after review. CI runs the same steps. The operator retains approval for host, security, and irreversible actions.
 
-## Phases and exit checks
+## Sequence and exit checks
 
-### F0 — Scope and hygiene
+### Scope and hygiene
 
-Keep one current sequence, use the live control plane for task status, and limit work to the accepted streams.
+Keep one current sequence, use the selected in-repository tracker for task status when implemented, and limit work to accepted outcomes. Outdated instructions lose to current code and passing tests.
 
-**Exit:** active work has an owner and control-plane record; stale plans and snapshots do not act as status sources.
+**Exit:** active work has a role owner and tracker record; stale plans and snapshots do not act as status sources.
 
-### F1 — One merge path and delivery record
+### One merge path and delivery record
 
-**F1a:** Keep Global KRN's `krn ship` as the only merge path. Product has no `ship` handler; KRN-06 forwards it to Global, which performs the merge. The planned path must invoke Product preflight, which is not yet wired to `ship`, alongside exact-head evidence, changes check, gate, and CI.
+Keep Global KRN's `krn ship` as the only merge path. Product has no `ship` handler; KRN-06 forwards it to Global, which performs the merge. Before review, Product runs its cheap preflight. After review, Product runs `npm run gate:local`; CI runs the same steps. The delivery record binds base/head, checks, independent exact-head reviews, CI, merge SHA, and main CI.
 
-**Exit:** a focused falsifier shows that Global `krn ship` cannot bypass the required evidence, and the Global path invokes the required Product preflight.
+**Exit:** a focused falsifier shows that Global `krn ship` cannot bypass required evidence, and one delivery record contains all required review, gate, and CI evidence.
 
-**F1b:** Record base/head, falsifier results, checks, reviews, CI, merge SHA, and main CI for each PR. Review all material findings in one complete pass.
+### Qualified worker environment
 
-**Exit:** one delivery record contains the required evidence and review returns a complete finding set.
-
-### F2 — Qualified worker environment
-
-Qualify the worker environment on a real task. It must support required tests and commits in its own worktree without access to secrets or the host.
+Qualify the worker environment on a real task. It must support required tests and commits in its own worktree without access to secrets or the host. Each fix round uses a fresh session and a one-page handoff; resume only interrupted runs and refuse resume above 500k tokens. Fix flaky tests; allow one recorded retry only for untouched files while a fix is pending.
 
 **Exit:** observed qualification proves the required capabilities and confinement.
 
-### F3 — Product delivery flow
+### Product delivery flow
 
-Run one real delivery through Product `krn delegate` and `krn review` while Paperclip remains the control plane. Use the result to identify runtime boundary gaps; do not infer broader ownership migration from one delivery.
+Run one real delivery through Product `krn delegate` and `krn review`. Use `krn task` as the selected status source when implemented; record a missing command as an implementation gap, not a reason to return to Paperclip. Use the delivery to identify runtime boundary gaps without inferring broader ownership migration from one delivery.
 
-**Exit:** one real delivery completes through both commands with the required independent exact-head reviews and gates.
+**Exit:** one real delivery completes through both commands with parallel independent exact-head reviews, the required gates, and CI.
 
-### F4 — Planned Product `krn work` pilot, no cutover
+### In-repository task tracker
 
-Product does not yet implement `work`; KRN-06 currently forwards it to Global KRN. Add and pilot the accepted tracker design in ADR 0011 while Paperclip remains authoritative. Include the selected task commands and one CLI falsifier.
+Implement the accepted D8 design: tasks as Git-backed JSONL/files, a rebuildable local index, dependencies, ready/claim, and one `krn task` command. Replace both the legacy Git-ref `krn task` queue and host-SQLite `krn work`. Import existing Paperclip records, then remove Paperclip everywhere; add no new Paperclip dependencies.
 
-**Exit:** the pilot meets ADR 0011 and its falsifier passes. This phase does not cut over a project.
+**Exit:** the in-repository tracker passes its focused CLI falsifier, import is verified, and Paperclip has been removed after import. No per-project cutover is part of this decision.
 
-### F5 — Per-project Paperclip cutover
+### Reviewed memory loop
 
-Cut over one project at a time. Verify acceptance parity, history export and restore, rollback, and every active consumer. Do not mirror writes; keep Paperclip read-only after cutover.
+Capture only approved delivery fields as evidence. Review episodes, reusable lessons, and any rule or check as separate steps. Measure review rounds and delivery incidents. The proposed always-on agent is dropped. Put lessons where the executor reads them: mechanical checks first, repository `AGENTS.md` second, and lead memory only for operator preferences and decisions.
 
-**Exit:** one project passes those checks and its live status owner is read back after cutover.
-
-### F6 — Reviewed memory loop
-
-Capture only approved delivery fields as evidence. Review episodes, reusable lessons, and any rule or check as separate steps. Measure review rounds and delivery incidents. The proposed always-on agent is dropped.
-
-**Exit:** capture is explicit, each promotion step has review evidence, and the outcome measures are recorded.
+**Exit:** capture is explicit, each promotion step has review evidence, and outcome measures are recorded.
 
 ## Open items
 
-- **P-052:** complete the caller inventory under ADR 0013 before any runtime or repository ownership migration.
-- **P-060:** refresh its live status from Paperclip before acting; this plan does not assert a current status.
+- **P-052:** complete the caller inventory under ADR 0013 before runtime or repository ownership migration; include the legacy Git-ref task queue and Paperclip gateway.
+- **P-060:** verify the proposed `krn ship` path and Product preflight integration from code and CI before acting; Paperclip is not a status source.
 - Consolidation starts only if an ADR 0013 trigger is observed over its specified ten-PR sample.
 
 See [proposal register](proposals.md), [lead rules](lead-rules.md), and [ADR index](../adr/README.md).
