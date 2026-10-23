@@ -15,22 +15,22 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
-import { writeCheckpointRequest } from '../src/foreman/checkpoint-request.ts';
-import { commitCheckpoint } from '../src/foreman/commit.ts';
-import { runJob } from '../src/foreman/run.ts';
-import { runSession } from '../src/foreman/session.ts';
-import { recordRepo } from '../src/foreman/state.ts';
+import { writeCheckpointRequest } from '../../src/foreman/checkpoint-request.ts';
+import { commitCheckpoint } from '../../src/foreman/commit.ts';
+import { runJob } from '../../src/foreman/run.ts';
+import { runSession } from '../../src/foreman/session.ts';
+import { recordRepo } from '../../src/foreman/state.ts';
 import type {
   Capsule,
   Contract,
   Deps,
   RepoFacts,
-} from '../src/foreman/types.ts';
-import { CodexHost } from '../src/hosts/codex.ts';
-import * as relay from '../src/relay/index.ts';
-import * as trace from '../src/trace/index.ts';
-import { judge } from '../src/verdict/index.ts';
-import { requiresIsolation } from './helpers/isolation.ts';
+} from '../../src/foreman/types.ts';
+import { CodexHost } from '../../src/hosts/codex.ts';
+import * as relay from '../../src/relay/index.ts';
+import * as trace from '../../src/trace/index.ts';
+import { judge } from '../../src/verdict/index.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
 
 function git(root: string, args: string[]): string {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
@@ -427,7 +427,7 @@ test('B3 end without a checkpoint reports dirty paths as uncommitted changes', a
       };
     },
   } as unknown as Deps;
-  const { finishSession } = await import('../src/foreman/session.ts');
+  const { finishSession } = await import('../../src/foreman/session.ts');
   await finishSession(
     job,
     { capsule, end: { reasonKind: 'exit', claimsDone: false } },
@@ -455,7 +455,7 @@ test('B3 a worker completion message alone never sets claimsDone', async (t) => 
       `#!/usr/bin/env node\nprocess.stdin.resume(); process.stdin.on('end', () => { process.stdout.write(JSON.stringify({type:'thread.started',thread_id:'t1'})+'\\n'); process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'done'}})+'\\n'); });\n`,
     );
     chmodSync(executable, 0o755);
-    const { CodexHost } = await import('../src/hosts/codex.ts');
+    const { CodexHost } = await import('../../src/hosts/codex.ts');
     const host = new CodexHost({
       executable,
       namespaceLauncher: 'missing-unshare',
@@ -539,7 +539,7 @@ import { spawn, spawnSync } from 'node:child_process';
 let prompt=''; for await (const chunk of process.stdin) prompt += chunk;
 const sid=/--session'?\\s+'?([0-9a-f-]+)/.exec(prompt)?.[1];
 if (!sid) throw new Error('missing session id');
-const args=[${JSON.stringify(new URL('../src/cli/main.ts', import.meta.url).pathname)},'checkpoint','--job',${JSON.stringify(job.id)},'--issue',${JSON.stringify(job.issue)},'--worktree',${JSON.stringify(root)},'--repo-root',${JSON.stringify(root)},'--intent','intent:0','--session',sid,'--message','feat: survivor falsifier','--next','done'];
+const args=[${JSON.stringify(new URL('../../src/cli/main.ts', import.meta.url).pathname)},'checkpoint','--job',${JSON.stringify(job.id)},'--issue',${JSON.stringify(job.issue)},'--worktree',${JSON.stringify(root)},'--repo-root',${JSON.stringify(root)},'--intent','intent:0','--session',sid,'--message','feat: survivor falsifier','--next','done'];
 spawn('/bin/sh',['-c',${JSON.stringify(`setsid /bin/sh -c 'sleep 4; printf late > ${lateFile}' </dev/null >/dev/null 2>&1 &`)}],{detached:true,stdio:'ignore'}).unref();
 const saved=spawnSync(process.execPath,args,{cwd:${JSON.stringify(root)},stdio:'ignore'});
 if(saved.status!==0) throw new Error('checkpoint request failed');

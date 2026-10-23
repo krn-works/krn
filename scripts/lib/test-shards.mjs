@@ -23,7 +23,7 @@ export const SERIAL_TEST_REASONS = Object.freeze({
     'checks repo-global strict-test-events-* directory deltas while child wrappers start and exit',
   'test/ledger/paperclip-cli.test.ts':
     'contains a 450ms timeout assertion and live process-group/systemd-scope cleanup checks',
-  'test/s4b-blockers.test.ts':
+  'test/ship/delivery-isolation.test.ts':
     'contains a 15s B1 cancellation bound and live process-tree/scope teardown checks; K=4 load observed 18.1s against the assertion',
   'test/trace/index.test.ts':
     'trace lock refusal and reclaimer assertions require completion within five seconds, which is sensitive to parallel shard CPU load',

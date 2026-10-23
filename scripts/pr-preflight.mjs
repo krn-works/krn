@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { parsePaperclipIssue } from '../src/core/paperclip.ts';
 import {
   parseDeliveryTicket,
-  parseR1TaskLine,
+  parseWorkReference,
 } from '../src/ledger/delivery.ts';
 import { createPaperclipCliTransport } from '../src/ledger/paperclip-cli.ts';
 
@@ -167,7 +167,7 @@ function paperclipTask(description) {
   if (lines.length > 1)
     return err('Paperclip description must contain at most one R1-task line');
   if (lines.length === 0) return ok(undefined);
-  const value = parseR1TaskLine(lines[0] ?? '');
+  const value = parseWorkReference(lines[0] ?? '');
   const parsed = taskSchema.safeParse(value);
   return parsed.success
     ? ok(parsed.data)

@@ -6,7 +6,7 @@ import { credentialShapeKind } from '../../src/foreman/credential-shape.ts';
 import {
   b954HasExplicitCredentialMarker,
   b954UrlCredentialKind,
-} from '../fixtures/credential-shape-b954.ts';
+} from '../ship/fixtures/credential-shape-oracle.ts';
 
 const markerFixtures: readonly (readonly [string, string])[] = [
   ['private key', '-----BEGIN PRIVATE KEY-----'],

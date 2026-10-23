@@ -16,14 +16,14 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { CodexHost } from '../src/hosts/codex.ts';
-import * as relay from '../src/relay/index.ts';
-import * as trace from '../src/trace/index.ts';
-import { requiresIsolation } from './helpers/isolation.ts';
+import { CodexHost } from '../../src/hosts/codex.ts';
+import * as relay from '../../src/relay/index.ts';
+import * as trace from '../../src/trace/index.ts';
+import { requiresIsolation } from '../helpers/isolation.ts';
 import {
   SPAWNED_PROCESS_WAIT_MS,
   testTimeoutFor,
-} from './support/process-wait.ts';
+} from '../support/process-wait.ts';
 
 async function repoFixture(
   ignore = '.krn/\n',
@@ -113,7 +113,7 @@ const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 test('start stores jobs inside the repo without creating a sibling folder', async () => {
   const root = await repoFixture('.krn/\n');
-  const cli = new URL('../src/cli/main.ts', import.meta.url).pathname;
+  const cli = new URL('../../src/cli/main.ts', import.meta.url).pathname;
   const run = (repo: string, id: string) =>
     spawnSync(
       process.execPath,
@@ -150,7 +150,7 @@ test('start stores jobs inside the repo without creating a sibling folder', asyn
 
 test('start accepts ignored .krn contents with a runs gitignore exception', async () => {
   const root = await repoFixture('/.krn/*/*\n!/.krn/runs/.gitignore\n');
-  const cli = new URL('../src/cli/main.ts', import.meta.url).pathname;
+  const cli = new URL('../../src/cli/main.ts', import.meta.url).pathname;
   const jobId = 'S4d-contents-ignored';
   await mkdir(join(root, '.krn', 'runs'), { recursive: true });
   await writeFile(join(root, '.krn', 'runs', '.gitignore'), '');
@@ -201,7 +201,7 @@ test('start accepts ignored .krn contents with a runs gitignore exception', asyn
 
 test('start refuses when the target repo does not ignore .krn', async () => {
   const root = await repoFixture('');
-  const cli = new URL('../src/cli/main.ts', import.meta.url).pathname;
+  const cli = new URL('../../src/cli/main.ts', import.meta.url).pathname;
   try {
     const result = spawnSync(
       process.execPath,
@@ -225,7 +225,7 @@ test('start refuses a worktrees symlink that escapes the target repo', async () 
   const external = await mkdtemp(join(tmpdir(), 'krn-s4c-external-'));
   const id = 'S4c-symlink';
   const externalWorktree = join(external, id);
-  const cli = new URL('../src/cli/main.ts', import.meta.url).pathname;
+  const cli = new URL('../../src/cli/main.ts', import.meta.url).pathname;
   await mkdir(join(root, '.krn'), { recursive: true });
   await symlink(external, join(root, '.krn', 'worktrees'), 'dir');
   try {
@@ -303,7 +303,7 @@ if (count === 1) {
   writeFileSync(${JSON.stringify(pidFile)}, hostPid+'\\n'+escapedHostPid);
   let prompt=''; for await (const chunk of process.stdin) prompt += chunk;
   const match = /--session'?\\s+'?([0-9a-f-]+)/.exec(prompt); const sid=match[1];
-  const args = [${JSON.stringify(new URL('../src/cli/main.ts', import.meta.url).pathname)}, 'checkpoint','--job','B1','--issue','I-1','--worktree',${JSON.stringify(root)},'--intent','intent:0','--session',sid,'--message','feat: step A','--next','step B'];
+  const args = [${JSON.stringify(new URL('../../src/cli/main.ts', import.meta.url).pathname)}, 'checkpoint','--job','B1','--issue','I-1','--worktree',${JSON.stringify(root)},'--intent','intent:0','--session',sid,'--message','feat: step A','--next','step B'];
   const shell = spawn('setsid', ['bash','-c', "node " + args.map((x)=>JSON.stringify(x)).join(' ')], {stdio:'ignore'});
   await new Promise(r=>setTimeout(r, 120000));
 } else {
@@ -317,7 +317,7 @@ if (count === 1) {
     ...relay,
     project: () => 'checkpoint test',
   };
-  const { runJob } = await import('../src/foreman/run.ts');
+  const { runJob } = await import('../../src/foreman/run.ts');
   const cancelled: string[] = [];
   const started: string[] = [];
   try {
@@ -467,7 +467,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       'CodexHost.cancelAll is required by the foreman signal handler',
     );
   }
-  const live = new URL('../scripts/live-l1.mjs', import.meta.url).pathname;
+  const live = new URL('../../scripts/delivery-live.mjs', import.meta.url).pathname;
   const waitForSessionStarted = async (
     job: string,
     process: ReturnType<typeof spawn>,
@@ -1000,12 +1000,12 @@ test('B3 live uses the requested repo and resumes an existing job by id', async 
         const child = spawn(
           process.execPath,
           [
-            new URL('../scripts/live-l1.mjs', import.meta.url).pathname,
+            new URL('../../scripts/delivery-live.mjs', import.meta.url).pathname,
             ...args,
             ...extra,
           ],
           {
-            cwd: new URL('..', import.meta.url).pathname,
+            cwd: new URL('../..', import.meta.url).pathname,
             env: {
               ...process.env,
               HOME: fakeHome,
@@ -1040,7 +1040,7 @@ test('B3 live uses the requested repo and resumes an existing job by id', async 
       job.worktree,
     );
   } finally {
-    const packageRoot = new URL('..', import.meta.url).pathname.replace(
+    const packageRoot = new URL('../..', import.meta.url).pathname.replace(
       /\/$/,
       '',
     );
@@ -1086,7 +1086,7 @@ test('live SIGTERM reaps every Paperclip CLI group during contract loading', {
     `#!/usr/bin/env node\nconst fs = require('node:fs');\nconst { spawn } = require('node:child_process');\nconst child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });\nfs.appendFileSync(process.env.PAPERCLIP_TEST_PID_FILE, String(child.pid) + '\\n');\nsetInterval(() => {}, 1000);\n`,
   );
   await chmod(executable, 0o755);
-  const script = new URL('../scripts/live-l1.mjs', import.meta.url).pathname;
+  const script = new URL('../../scripts/delivery-live.mjs', import.meta.url).pathname;
   const live = spawn(
     process.execPath,
     [
@@ -1101,7 +1101,7 @@ test('live SIGTERM reaps every Paperclip CLI group during contract loading', {
       'hold during contract read',
     ],
     {
-      cwd: new URL('..', import.meta.url).pathname,
+      cwd: new URL('../..', import.meta.url).pathname,
       env: {
         ...process.env,
         PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
@@ -1309,7 +1309,7 @@ import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 let prompt=''; for await(const chunk of process.stdin) prompt+=chunk;
 const root=${JSON.stringify(join(root, '.krn', 'worktrees', jobId))};
-const cli=${JSON.stringify(new URL('../src/cli/main.ts', import.meta.url).pathname)};
+const cli=${JSON.stringify(new URL('../../src/cli/main.ts', import.meta.url).pathname)};
 const sid=/--session'?\\s+'?([0-9a-f-]+)/.exec(prompt)?.[1];
 if(!sid) throw new Error('missing foreman session id');
 writeFileSync(root+'/worker-change.txt','checkpoint change\\n');
@@ -1330,7 +1330,7 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
       fakeSystemdRun,
     ].map((file) => chmod(file, 0o755)),
   );
-  const live = new URL('../scripts/live-l1.mjs', import.meta.url).pathname;
+  const live = new URL('../../scripts/delivery-live.mjs', import.meta.url).pathname;
   const runner = spawn(
     process.execPath,
     [live, '--submit', '--repo', root, '--job', jobId, '--issue', issue],
@@ -1529,7 +1529,7 @@ test('B4 checkpoint preserves worker action and decisions beside lease state', a
     const bound = await relay.bindSession(job, capsule, 'session-4');
     assert.equal(bound.applied, true);
     await trace.started(job, intent, 'session-4');
-    const cli = new URL('../src/cli/main.ts', import.meta.url).pathname;
+    const cli = new URL('../../src/cli/main.ts', import.meta.url).pathname;
     const args = [
       cli,
       'checkpoint',

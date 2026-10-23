@@ -118,7 +118,7 @@ function startLive(
   apiUrl: string,
   extraEnv: Record<string, string> = {},
 ) {
-  const script = new URL('../../scripts/live-l1.mjs', import.meta.url).pathname;
+  const script = new URL('../../scripts/delivery-live.mjs', import.meta.url).pathname;
   return spawn(
     process.execPath,
     [
@@ -155,7 +155,7 @@ function startLiveWithPaperclipCli(
   issue: string,
   extraEnv: Record<string, string>,
 ) {
-  const script = new URL('../../scripts/live-l1.mjs', import.meta.url).pathname;
+  const script = new URL('../../scripts/delivery-live.mjs', import.meta.url).pathname;
   return spawn(
     process.execPath,
     [script, '--repo', root, '--job', jobId, '--issue', issue],
@@ -885,7 +885,7 @@ test('live-l1 records a bounded error outcome when runJob rejects', async () => 
 test('live-l1 reports setup errors without creating a job trace', async () => {
   const root = await repoFixture();
   const jobId = 'outcome-setup-error';
-  const script = new URL('../../scripts/live-l1.mjs', import.meta.url).pathname;
+  const script = new URL('../../scripts/delivery-live.mjs', import.meta.url).pathname;
   let child: ReturnType<typeof spawn> | undefined;
   try {
     child = spawn(

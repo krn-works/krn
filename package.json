@@ -15,7 +15,7 @@
     "check": "tsc --noEmit",
     "lint": "biome check .",
     "test": "node scripts/test-suite.mjs",
-    "live": "node scripts/live-l1.mjs",
+    "live": "node scripts/delivery-live.mjs",
     "live:smoke": "node scripts/live-smoke.mjs",
     "render:agents": "node scripts/render-agents.ts --write",
     "rules": "node scripts/render-agents.ts --check",
