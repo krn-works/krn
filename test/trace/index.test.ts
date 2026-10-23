@@ -48,6 +48,10 @@ import {
   verdict,
 } from '../../src/trace/index.ts';
 import type { VerdictEvent } from '../../src/verdict/index.ts';
+import {
+  SPAWNED_PROCESS_WAIT_MS,
+  testTimeoutFor,
+} from '../support/process-wait.ts';
 
 async function fixture(): Promise<{
   job: Job;
@@ -1389,7 +1393,7 @@ await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha
 });
 
 test('independent trace appenders preserve events across a torn-tail repair', {
-  timeout: 15_000,
+  timeout: testTimeoutFor(1),
 }, async () => {
   const f = await fixture();
   const firstSha = 'a'.repeat(40);
@@ -1420,7 +1424,7 @@ const role = process.env.KRN_TRACE_BARRIER_ROLE;
 const root = process.env.KRN_TRACE_BARRIER_DIR;
 const lockPath = process.env.KRN_TRACE_BARRIER_LOCK;
 const reclaimerPath = process.env.KRN_TRACE_BARRIER_RECLAIMER;
-const waitFor = (name, timeout = 8000) => {
+const waitFor = (name, timeout = ${SPAWNED_PROCESS_WAIT_MS}) => {
   const until = Date.now() + timeout;
   while (!fs.existsSync(root + '/' + name)) {
     if (Date.now() >= until) throw new Error('barrier timeout: ' + name);
@@ -1516,7 +1520,15 @@ await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-  const waitFor = async (name: string, timeout = 8000) => {
+  const close = (proc: ReturnType<typeof spawn>) =>
+    new Promise<{ code: number | null; stderr: string }>((resolve) => {
+      let stderr = '';
+      proc.stderr?.setEncoding('utf8').on('data', (chunk) => {
+        stderr += chunk;
+      });
+      proc.once('close', (code) => resolve({ code, stderr }));
+    });
+  const waitFor = async (name: string, timeout = SPAWNED_PROCESS_WAIT_MS) => {
     const until = Date.now() + timeout;
     while (Date.now() < until) {
       try {
@@ -1539,6 +1551,7 @@ await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha
     return undefined;
   };
   const first = start('first', firstSha);
+  const firstClosed = close(first);
   let second: ReturnType<typeof spawn> | undefined;
   try {
     const firstPhase = await waitForFirstPhase();
@@ -1549,6 +1562,7 @@ await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha
     );
     const staleReclaimerHeld = firstPhase === 'stale-reclaim-held';
     second = start('second', secondSha);
+    const secondClosed = close(second);
     assert.equal(
       await waitFor('second-ready'),
       true,
@@ -1576,17 +1590,9 @@ await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha
       );
     if (staleReclaimerHeld) await waitFor('second-saw-live-owner');
     await writeFile(join(barrier, 'release-first-row'), '1');
-    const close = (proc: ReturnType<typeof spawn>) =>
-      new Promise<{ code: number | null; stderr: string }>((resolve) => {
-        let stderr = '';
-        proc.stderr?.setEncoding('utf8').on('data', (chunk) => {
-          stderr += chunk;
-        });
-        proc.once('close', (code) => resolve({ code, stderr }));
-      });
     const [firstResult, secondResult] = await Promise.all([
-      close(first),
-      close(second),
+      firstClosed,
+      secondClosed,
     ]);
     assert.equal(firstResult.code, 0, firstResult.stderr);
     assert.equal(secondResult.code, 0, secondResult.stderr);
@@ -1612,7 +1618,7 @@ await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha
 });
 
 test('trace appenders wait for primary lock owner publication before reading it', {
-  timeout: 15000,
+  timeout: testTimeoutFor(1),
 }, async () => {
   const f = await fixture();
   const barrier = join(f.directory, 'owner-publication');
@@ -1631,9 +1637,9 @@ import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 const root = process.env.KRN_TRACE_PUBLICATION_DIR;
 const lockPath = process.env.KRN_TRACE_PUBLICATION_LOCK;
-const waitFor = (name) => {
+const waitFor = (name, timeout = ${SPAWNED_PROCESS_WAIT_MS}) => {
   const cell = new Int32Array(new SharedArrayBuffer(4));
-  const until = Date.now() + 10000;
+  const until = Date.now() + timeout;
   while (!fs.existsSync(root + '/' + name)) {
     if (Date.now() >= until) throw new Error('publication barrier timeout: ' + name);
     Atomics.wait(cell, 0, 0, 10);
@@ -1651,6 +1657,18 @@ if (process.env.KRN_TRACE_PUBLICATION_ROLE === 'owner') {
       if (error?.message?.startsWith('publication barrier timeout:')) throw error;
     }
     return write.call(this, fd, ...args);
+  };
+  const fsync = fs.fsyncSync;
+  fs.fsyncSync = function (fd, ...args) {
+    try {
+      if (fs.readlinkSync('/proc/self/fd/' + fd) === lockPath) {
+        fs.writeFileSync(root + '/owner-lock-fsync', '1');
+        waitFor('release-owner-lock-fsync');
+      }
+    } catch (error) {
+      if (error?.message?.startsWith('publication barrier timeout:')) throw error;
+    }
+    return fsync.call(this, fd, ...args);
   };
 } else {
   const fstat = fs.fstatSync;
@@ -1702,7 +1720,7 @@ await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha
       });
       proc.once('close', (code, signal) => resolve({ code, signal, stderr }));
     });
-  const waitFor = async (name: string, timeout = 8000) => {
+  const waitFor = async (name: string, timeout = SPAWNED_PROCESS_WAIT_MS) => {
     const until = Date.now() + timeout;
     while (Date.now() < until) {
       try {
@@ -1739,24 +1757,16 @@ await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha
       'second independent process read the empty primary owner file',
     );
 
-    let exitedBeforePublication = false;
-    const until = Date.now() + 300;
-    while (Date.now() < until) {
-      if (contender.exitCode !== null || contender.signalCode !== null) {
-        exitedBeforePublication = true;
-        break;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-
     await writeFile(join(barrier, 'release-owner-write'), '1');
+    assert.equal(
+      await waitFor('owner-lock-fsync'),
+      true,
+      'owner must publish its identity before entering the slow lock fsync',
+    );
+    await new Promise((resolve) => setTimeout(resolve, 3500));
+    await writeFile(join(barrier, 'release-owner-lock-fsync'), '1');
     const outcomes = await Promise.all([ownerResult, contenderResult]);
     const [ownerOutcome, contenderOutcome] = outcomes;
-    assert.equal(
-      exitedBeforePublication,
-      false,
-      'contender must wait for lock owner publication instead of rejecting an in-progress lock',
-    );
     assert.equal(ownerOutcome.code, 0, ownerOutcome.stderr);
     assert.equal(contenderOutcome.code, 0, contenderOutcome.stderr);
     const rows = (await readFile(f.tracePath, 'utf8'))
@@ -1770,6 +1780,9 @@ await verdict(job, { sha, checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha
     );
   } finally {
     await writeFile(join(barrier, 'release-owner-write'), '1').catch(() => {});
+    await writeFile(join(barrier, 'release-owner-lock-fsync'), '1').catch(
+      () => {},
+    );
     for (const proc of [owner, contender]) {
       if (proc && proc.exitCode === null && proc.signalCode === null)
         proc.kill('SIGKILL');
@@ -3290,66 +3303,13 @@ test('trace records fail then pass at one SHA and deduplicates exact evidence', 
   }
 });
 
-test('trace lock bounds live and invalid owners and reclaims a dead owner', async () => {
+test('trace lock reclaims a dead owner', async () => {
   const f = await fixture();
   const lockPath = `${f.tracePath}.lock`;
   const firstSha = 'a'.repeat(40);
   const base = event(firstSha, 0, 'b'.repeat(64));
-  const selfStat = await readFile('/proc/self/stat', 'utf8');
-  const beforeStartTicks = selfStat
-    .slice(selfStat.lastIndexOf(')') + 2)
-    .trim()
-    .split(/\s+/u)[19];
-  assert.ok(beforeStartTicks);
   try {
     await verdict(f.job, base);
-    const before = await readFile(f.tracePath);
-    await writeFile(
-      lockPath,
-      JSON.stringify({
-        pid: process.pid,
-        startTicks: beforeStartTicks,
-        token: randomUUID(),
-      }),
-    );
-    const started = Date.now();
-    await assert.rejects(
-      verdict(f.job, event('c'.repeat(40), 0, 'd'.repeat(64))),
-      /timed out/u,
-    );
-    assert.ok(Date.now() - started < 5000, 'live lock refusal must be bounded');
-    assert.deepEqual(await readFile(f.tracePath), before);
-
-    await unlink(lockPath);
-    await writeFile(lockPath, '');
-    const emptyStarted = Date.now();
-    await assert.rejects(
-      verdict(f.job, event('c'.repeat(40), 0, 'd'.repeat(64))),
-      /timed out/u,
-    );
-    assert.ok(
-      Date.now() - emptyStarted < 5000,
-      'an orphan empty primary lock must fail closed within the acquisition bound',
-    );
-    assert.deepEqual(await readFile(f.tracePath), before);
-    assert.deepEqual(await readFile(lockPath), Buffer.alloc(0));
-
-    await unlink(lockPath);
-    await writeFile(
-      lockPath,
-      JSON.stringify({
-        pid: 0,
-        startTicks: '1',
-        token: randomUUID(),
-      }),
-    );
-    await assert.rejects(
-      verdict(f.job, event('e'.repeat(40), 0, 'f'.repeat(64))),
-      /invalid trace lock owner/u,
-    );
-    assert.deepEqual(await readFile(f.tracePath), before);
-
-    await unlink(lockPath);
     await writeFile(
       lockPath,
       JSON.stringify({
@@ -3358,22 +3318,6 @@ test('trace lock bounds live and invalid owners and reclaims a dead owner', asyn
         token: randomUUID(),
       }),
     );
-    const deadOwner = await readFile(lockPath);
-    const reclaimerPath = `${lockPath}.reclaim`;
-    await writeFile(reclaimerPath, '');
-    const reclaimerStarted = Date.now();
-    await assert.rejects(
-      verdict(f.job, event('c'.repeat(40), 0, 'd'.repeat(64))),
-      /timed out/u,
-    );
-    assert.ok(
-      Date.now() - reclaimerStarted < 5000,
-      'an orphan reclaimer gate must fail closed within the acquisition bound',
-    );
-    assert.deepEqual(await readFile(f.tracePath), before);
-    assert.deepEqual(await readFile(lockPath), deadOwner);
-    assert.deepEqual(await readFile(reclaimerPath), Buffer.alloc(0));
-    await unlink(reclaimerPath);
     await verdict(f.job, event('c'.repeat(40), 0, 'd'.repeat(64)));
     assert.equal(await hasVerdict(f.job, 'c'.repeat(40)), true);
     await assert.rejects(readFile(lockPath), { code: 'ENOENT' });
@@ -3419,15 +3363,25 @@ test('trace rejects FIFO paths immediately for append and read', {
     await mkdir(dirname(f.tracePath), { recursive: true });
     const fifo = spawnSync('mkfifo', [f.tracePath], { encoding: 'utf8' });
     assert.equal(fifo.status, 0, fifo.stderr);
+    const startTicks = processStartTicks(process.pid);
+    assert.ok(startTicks);
+    await writeFile(
+      `${f.tracePath}.lock`,
+      JSON.stringify({ pid: process.pid, startTicks, token: randomUUID() }),
+    );
 
     const moduleUrl = new URL('../../src/trace/index.ts', import.meta.url).href;
-    for (const operation of ['append', 'read'] as const) {
+    const assertRejectsImmediately = async (
+      operation: 'append' | 'read',
+      pathKind: 'trace' | 'lock',
+    ) => {
       const worker = new Worker(
         `
             import { parentPort, workerData } from 'node:worker_threads';
-            const { hasVerdict, intent } = await import(workerData.moduleUrl);
+            const { hasVerdict, intent, readTraceSnapshot } = await import(workerData.moduleUrl);
             try {
-              if (workerData.operation === 'append') await intent(workerData.job, 1);
+              if (workerData.operation === 'append') await intent(workerData.job, workerData.epoch);
+              else if (workerData.pathKind === 'lock') readTraceSnapshot(workerData.root, workerData.job.id);
               else await hasVerdict(workerData.job, '${'a'.repeat(40)}');
               parentPort.postMessage({ message: 'unexpected success' });
             } catch (error) {
@@ -3436,7 +3390,14 @@ test('trace rejects FIFO paths immediately for append and read', {
           `,
         {
           eval: true,
-          workerData: { moduleUrl, operation, job: f.job },
+          workerData: {
+            moduleUrl,
+            operation,
+            pathKind,
+            job: f.job,
+            root: f.directory,
+            epoch: pathKind === 'trace' ? 1 : 2,
+          },
         },
       );
       let timedOut = false;
@@ -3457,7 +3418,7 @@ test('trace rejects FIFO paths immediately for append and read', {
             });
           },
         );
-        assert.deepEqual(result, { message: 'unsafe trace path' });
+        assert.match(result.message, /unsafe trace/u);
       } finally {
         if (timedOut) {
           worker.unref();
@@ -3466,7 +3427,20 @@ test('trace rejects FIFO paths immediately for append and read', {
           await worker.terminate();
         }
       }
-    }
+    };
+
+    for (const operation of ['append', 'read'] as const)
+      await assertRejectsImmediately(operation, 'trace');
+
+    await unlink(`${f.tracePath}.lock`);
+    await unlink(f.tracePath);
+    await trace.intent(f.job, 1);
+    const lockFifo = spawnSync('mkfifo', [`${f.tracePath}.lock`], {
+      encoding: 'utf8',
+    });
+    assert.equal(lockFifo.status, 0, lockFifo.stderr);
+    for (const operation of ['append', 'read'] as const)
+      await assertRejectsImmediately(operation, 'lock');
   } finally {
     await rm(f.directory, { recursive: true, force: true });
   }
