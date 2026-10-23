@@ -57,6 +57,26 @@ function recordedPrepass(
   };
 }
 
+function recordedRejectedJudge(
+  role: ReviewRole,
+  reasoningEffort: ReviewReasoningEffort,
+  error: unknown,
+): NewReviewRecord['judges'][number] {
+  const message =
+    error instanceof Error ? error.message || error.name : String(error);
+  return {
+    state: 'incomplete',
+    role,
+    model: 'gpt-6-luna',
+    reasoningEffort,
+    reason: 'nonzero_exit',
+    reasonKind: 'process_exit',
+    sessionId: `startup-failed-${role}`,
+    exitCode: null,
+    finalMessage: message.slice(0, 12000),
+  };
+}
+
 export async function runReview(input: {
   readonly repo: string;
   readonly base: string;
@@ -125,10 +145,9 @@ export async function runReview(input: {
       return record;
     }
   }
-  const judges = [];
-  for (const role of panel)
-    judges.push(
-      await judgeRole(
+  const settledJudges = await Promise.allSettled(
+    panel.map((role) =>
+      judgeRole(
         root,
         sha,
         role,
@@ -139,9 +158,17 @@ export async function runReview(input: {
         input.signal,
         reasoningEffort,
       ),
-    );
+    ),
+  );
   await new Promise<void>((resolveTick) => setImmediate(resolveTick));
   if (input.signal?.aborted) throw new ReviewAbortedError();
+  const judges = settledJudges.map((result, index) => {
+    const role = panel[index];
+    if (role === undefined) throw new Error('panel judge role is missing');
+    if (result.status === 'rejected')
+      return recordedRejectedJudge(role, reasoningEffort, result.reason);
+    return result.value;
+  });
   const record = newReviewRecordSchema.parse({
     schemaVersion: 1,
     headSha: sha,
