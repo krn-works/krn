@@ -5,6 +5,7 @@ import { existsSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 import { z } from 'zod';
+import { CodexJsonlReader } from './codex-jsonl.ts';
 import {
   assertSystemdUserScopesAvailable,
   codexScopeRuntimeProperties,
@@ -22,7 +23,6 @@ import {
   waitForSystemdScopeRegistration,
 } from './systemd-scope.ts';
 
-const lineLimit = 256 * 1024;
 const killGraceMs = 1000;
 const transportCloseGraceMs = 3000;
 const codexRecord = z.record(z.string(), z.unknown());
@@ -484,7 +484,7 @@ class RunningSession {
     readonly signal: NodeJS.Signals | null;
   }>;
   readonly #closedListeners: (() => void)[] = [];
-  #lineBuffer = '';
+  readonly #lineReader: CodexJsonlReader;
   #threadId: string | undefined;
   #finalMessage: { hash: string; length: number; text: string } | undefined;
   #pendingTurnMessage:
@@ -501,7 +501,6 @@ class RunningSession {
   #turnsStarted = 0;
   #turnsCompleted = 0;
   #invalidUsageFields = 0;
-  #overflow = false;
   #result?: Promise<CodexSessionResult>;
 
   constructor(
@@ -521,6 +520,7 @@ class RunningSession {
     this.#scope = scope;
     this.#reapedScopes = reapedScopes;
     this.#scopeEnvironment = userManagerEnvironment();
+    this.#lineReader = new CodexJsonlReader((line) => this.consumeLine(line));
     this.#launcherStartTicks =
       child.pid === undefined ? undefined : processStartTicks(child.pid);
     let resolveExit!: (value: {
@@ -633,24 +633,28 @@ class RunningSession {
   wait(): Promise<CodexSessionResult> {
     this.#result ??= this.#close.then(async ({ code, signal }) => {
       if (this.#cancelPromise) await this.#cancelPromise;
-      if (this.#lineBuffer) this.consumeLine(this.#lineBuffer);
-      const reasonKind = this.#overflow
+      this.#lineReader.finish();
+      const finalLineLimited =
+        this.#lineReader.oversizedLineCount > 0 &&
+        this.#finalMessage === undefined;
+      const finalMessage = this.#finalMessage;
+      const reasonKind = finalLineLimited
         ? 'line_limit'
         : this.#malformed
           ? 'malformed_jsonl'
-          : this.#finalMessage
+          : finalMessage
             ? 'agent_message'
             : this.#stderrLength
               ? 'stderr'
               : code === 0
                 ? 'exit'
                 : 'process_exit';
-      const reason = this.#overflow
+      const reason = finalLineLimited
         ? {
             hash: createHash('sha256').update('line_limit').digest('hex'),
             length: 10,
           }
-        : (this.#finalMessage ?? {
+        : (finalMessage ?? {
             hash: this.#stderrHash.digest('hex'),
             length: Math.min(this.#stderrLength, Number.MAX_SAFE_INTEGER),
           });
@@ -661,11 +665,13 @@ class RunningSession {
         reasonSha256: reason.hash,
         reasonLength: reason.length,
         claimsDone:
-          code === 0 && Boolean(this.#completedTurnMessage?.text.trim()),
+          !finalLineLimited &&
+          code === 0 &&
+          Boolean(this.#completedTurnMessage?.text.trim()),
         reapedScopes: this.#reapedScopes,
-        ...(this.#finalMessage === undefined
+        ...(finalMessage === undefined
           ? {}
-          : { finalMessage: this.#finalMessage.text }),
+          : { finalMessage: finalMessage.text }),
         exitCode: code,
         signal,
         usage: {
@@ -684,26 +690,10 @@ class RunningSession {
   }
 
   private consume(chunk: string): void {
-    this.#lineBuffer += chunk;
-    for (;;) {
-      const newline = this.#lineBuffer.indexOf('\n');
-      if (newline < 0) break;
-      const line = this.#lineBuffer.slice(0, newline).replace(/\r$/, '');
-      this.#lineBuffer = this.#lineBuffer.slice(newline + 1);
-      this.consumeLine(line);
-    }
-    if (Buffer.byteLength(this.#lineBuffer) > lineLimit) {
-      this.#overflow = true;
-      void this.cancel().catch(() => undefined);
-    }
+    this.#lineReader.consume(chunk);
   }
 
   private consumeLine(line: string): void {
-    if (Buffer.byteLength(line) > lineLimit) {
-      this.#overflow = true;
-      void this.cancel().catch(() => undefined);
-      return;
-    }
     if (!line) return;
     let event: Record<string, unknown>;
     try {
