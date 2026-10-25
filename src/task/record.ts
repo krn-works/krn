@@ -115,7 +115,9 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
     text =
       typeof contents === 'string'
         ? contents
-        : new TextDecoder('utf-8', { fatal: true }).decode(contents);
+        : new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+            contents,
+          );
   } catch {
     return {
       findings: ['file is not valid UTF-8'],
@@ -125,6 +127,9 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
     };
   }
 
+  const hasBom = text.startsWith('\uFEFF');
+  if (hasBom) findings.push('file starts with a byte order mark');
+
   if (/^(?:<{7,}|={7,}|>{7,}|\|{7,})(?: |$)/mu.test(text))
     findings.push('contains Git conflict markers');
   if (text.includes('\r'))
@@ -133,7 +138,7 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
 
   let value: unknown;
   try {
-    value = JSON.parse(text);
+    value = JSON.parse(hasBom ? text.slice(1) : text);
   } catch {
     findings.push('invalid JSON');
     return {

@@ -153,7 +153,19 @@ function scanTaskDirectory(root: string): {
     if (ref !== undefined && !ids.has(ref))
       findings.push(`${reference.path}: unknown resolution ref "${ref}"`);
   }
-  findings.push(...findCycles(records));
+  const graph = new Map<TaskId, Set<TaskId>>();
+  for (const reference of references) {
+    if (reference.id === undefined || !isTaskId(reference.id)) continue;
+    let dependencies = graph.get(reference.id);
+    if (dependencies === undefined) {
+      dependencies = new Set<TaskId>();
+      graph.set(reference.id, dependencies);
+    }
+    for (const dependency of reference.after) {
+      if (isTaskId(dependency)) dependencies.add(dependency);
+    }
+  }
+  findings.push(...findCycles(graph));
   return { findings, records };
 }
 
@@ -206,7 +218,7 @@ export function createTask(
       body: [...(input.body ?? [])],
     };
     try {
-      atomicWrite(directory, path, serializeTask(record), true);
+      atomicWrite(root, path, serializeTask(record), true);
       return record;
     } catch (error) {
       if (isAlreadyExists(error)) continue;
@@ -240,11 +252,7 @@ export function closeTask(
     status: 'closed',
     resolution,
   };
-  atomicWrite(
-    join(root, 'tasks'),
-    join(root, 'tasks', `${id}.json`),
-    serializeTask(closed),
-  );
+  atomicWrite(root, join(root, 'tasks', `${id}.json`), serializeTask(closed));
   return closed;
 }
 
@@ -275,11 +283,7 @@ export function changeDependency(
   } else after = record.after.filter((candidate) => candidate !== dependency);
 
   const updated: TaskRecord = { ...record, after };
-  atomicWrite(
-    join(root, 'tasks'),
-    join(root, 'tasks', `${id}.json`),
-    serializeTask(updated),
-  );
+  atomicWrite(root, join(root, 'tasks', `${id}.json`), serializeTask(updated));
   return updated;
 }
 
@@ -319,11 +323,13 @@ function existsInOriginMain(root: string, id: TaskId): boolean {
 }
 
 function atomicWrite(
-  directory: string,
+  root: string,
   target: string,
   contents: string,
   create = false,
 ): void {
+  const directory = join(root, '.krn', 'tmp', 'task-write');
+  mkdirSync(directory, { recursive: true });
   const temporary = join(directory, `.${basename(target)}.${randomUUID()}.tmp`);
   let descriptor: number | undefined;
   try {
@@ -342,19 +348,38 @@ function atomicWrite(
   }
 }
 
-function findCycles(records: Map<TaskId, TaskRecord>): string[] {
+function findCycles(graph: Map<TaskId, Set<TaskId>>): string[] {
   const findings: string[] = [];
   const state = new Map<TaskId, 0 | 1 | 2>();
   const stack: TaskId[] = [];
   const reported = new Set<string>();
 
-  const visit = (id: TaskId) => {
-    state.set(id, 1);
-    stack.push(id);
-    for (const dependency of records.get(id)?.after ?? []) {
-      if (!records.has(dependency)) continue;
+  const positions = new Map<TaskId, number>();
+  for (const start of graph.keys()) {
+    if (state.get(start) !== undefined) continue;
+    const frames: Array<{
+      id: TaskId;
+      dependencies: TaskId[];
+      next: number;
+    }> = [{ id: start, dependencies: [...(graph.get(start) ?? [])], next: 0 }];
+    state.set(start, 1);
+    positions.set(start, 0);
+    stack.push(start);
+    while (frames.length > 0) {
+      const frame = frames[frames.length - 1];
+      if (frame === undefined) break;
+      if (frame.next >= frame.dependencies.length) {
+        frames.pop();
+        stack.pop();
+        positions.delete(frame.id);
+        state.set(frame.id, 2);
+        continue;
+      }
+      const dependency = frame.dependencies[frame.next];
+      frame.next += 1;
+      if (dependency === undefined || !graph.has(dependency)) continue;
       if (state.get(dependency) === 1) {
-        const cycle = stack.slice(stack.indexOf(dependency));
+        const cycle = stack.slice(positions.get(dependency) ?? 0);
         const key = normalizeCycle(cycle);
         if (!reported.has(key)) {
           reported.add(key);
@@ -362,23 +387,28 @@ function findCycles(records: Map<TaskId, TaskRecord>): string[] {
             `tasks: dependency cycle ${[...cycle, dependency].join(' -> ')}`,
           );
         }
-      } else if (state.get(dependency) !== 2) visit(dependency);
+      } else if (state.get(dependency) !== 2) {
+        positions.set(dependency, stack.length);
+        stack.push(dependency);
+        state.set(dependency, 1);
+        frames.push({
+          id: dependency,
+          dependencies: [...(graph.get(dependency) ?? [])],
+          next: 0,
+        });
+      }
     }
-    stack.pop();
-    state.set(id, 2);
-  };
-
-  for (const id of records.keys()) {
-    if (state.get(id) === undefined) visit(id);
   }
   return findings;
 }
 
 function normalizeCycle(cycle: TaskId[]): string {
-  const rotations = cycle.map((_, index) =>
-    [...cycle.slice(index), ...cycle.slice(0, index)].join('\0'),
-  );
-  return rotations.sort(compare)[0] ?? '';
+  if (cycle.length === 0) return '';
+  let first = 0;
+  for (let index = 1; index < cycle.length; index += 1) {
+    if (compare(cycle[index] ?? '', cycle[first] ?? '') < 0) first = index;
+  }
+  return [...cycle.slice(first), ...cycle.slice(0, first)].join('\0');
 }
 
 function reaches(
@@ -393,7 +423,8 @@ function reaches(
     if (current === undefined || visited.has(current)) continue;
     if (current === target) return true;
     visited.add(current);
-    pending.push(...(index.get(current)?.after ?? []));
+    for (const dependency of index.get(current)?.after ?? [])
+      pending.push(dependency);
   }
   return false;
 }

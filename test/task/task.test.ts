@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -15,7 +15,7 @@ import { checkTaskDirectory, createTask } from '../../src/task/store.ts';
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 const scratch = resolve(
   process.cwd(),
-  '.krn/runs/claude-task-records-fix/scratch',
+  '.krn/runs/claude-task-records-fix2/scratch',
 );
 
 const validTask: TaskRecord = {
@@ -404,6 +404,91 @@ test('task check detects dependency cycles of length two and three', async () =>
   }
 });
 
+test('task check reports a UTF-8 BOM while preserving canonical byte checks', async () => {
+  const repo = await tempRepo('bom-');
+  try {
+    const tasks = join(repo, 'tasks');
+    await mkdir(tasks, { recursive: true });
+    await writeFile(
+      join(tasks, 'T-1.json'),
+      Buffer.concat([
+        Buffer.from([0xef, 0xbb, 0xbf]),
+        Buffer.from(serializeTask(validTask)),
+      ]),
+    );
+    const findings = checkTaskDirectory(repo).join('\n');
+    assert.match(findings, /file starts with a byte order mark/u);
+    assert.match(findings, /file does not use canonical task serialization/u);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('task check finds cycles through records with other validation errors', async () => {
+  const repo = await tempRepo('partial-cycle-');
+  try {
+    await writeTask(repo, { ...validTask, id: 'T-1' });
+    const partial = {
+      ...validTask,
+      id: 'T-1',
+      after: ['T-2'],
+    };
+    const { body: _body, ...partialWithoutBody } = partial;
+    await writeFile(
+      join(repo, 'tasks', 'A-alias.json'),
+      `${JSON.stringify(partialWithoutBody, null, 2)}\n`,
+    );
+    await writeTask(repo, { ...validTask, id: 'T-2', after: ['T-1'] });
+    const findings = checkTaskDirectory(repo).join('\n');
+    assert.match(findings, /missing key "body"/u);
+    assert.match(findings, /filename does not match id "T-1"/u);
+    assert.match(findings, /dependency cycle T-1 -> T-2 -> T-1/u);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('task check handles a 20,000 task dependency chain iteratively', async () => {
+  const repo = await tempRepo('long-chain-');
+  try {
+    const tasks = join(repo, 'tasks');
+    await mkdir(tasks, { recursive: true });
+    for (let index = 0; index < 20_000; index += 1) {
+      const id = `T-${String(index).padStart(5, '0')}`;
+      const after =
+        index === 19_999 ? [] : [`T-${String(index + 1).padStart(5, '0')}`];
+      await writeFile(
+        join(tasks, `${id}.json`),
+        serializeTask({ ...validTask, id, after }),
+      );
+    }
+    const result = runCli(repo, ['check']);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, 'Task data is valid.\n');
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('concurrent task creates use unique ids and leave no check findings', async () => {
+  const repo = await tempRepo('concurrent-create-');
+  try {
+    const results = await Promise.all(
+      Array.from({ length: 20 }, (_, index) =>
+        runCliAsync(repo, ['create', '--title', `Concurrent ${index}`]),
+      ),
+    );
+    for (const result of results) assert.equal(result.status, 0, result.stderr);
+    const ids = results.map((result) => result.stdout.trim());
+    assert.equal(new Set(ids).size, 20);
+    assert.ok(existsSync(join(repo, '.krn', 'tmp', 'task-write')));
+    const check = runCli(repo, ['check']);
+    assert.equal(check.status, 0, check.stderr);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test('task filenames and resolution refs are checked against their records', async () => {
   const repo = await tempRepo('filename-ref-');
   try {
@@ -669,6 +754,34 @@ function runCli(
     stdout: result.stdout.toString(),
     stderr: result.stderr.toString(),
   };
+}
+
+function runCliAsync(
+  cwd: string,
+  args: string[],
+): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  const environment = {
+    ...cleanGitEnvironment(),
+    KRN_HOOK_NOGIT_TMPDIR: '/mnt/storage',
+  };
+  return new Promise((resolveResult) => {
+    const child = spawn(process.execPath, [cli, 'task', ...args], {
+      cwd,
+      env: environment,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8').on('data', (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.setEncoding('utf8').on('data', (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on('close', (status) => {
+      resolveResult({ status, stdout, stderr });
+    });
+  });
 }
 
 function git(root: string, ...args: string[]): string {
