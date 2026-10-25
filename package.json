@@ -19,7 +19,7 @@
     "live:smoke": "node scripts/live-smoke.mjs",
     "render:agents": "node scripts/render-agents.ts --write",
     "rules": "node scripts/render-agents.ts --check",
-    "gate": "npm run check && npm run lint && npm test && npm run rules",
+    "gate": "npm run check && npm run lint && npm test && node src/cli/main.ts task check && npm run rules",
     "gate:local": "node scripts/gate-local.mjs"
   },
   "devDependencies": {

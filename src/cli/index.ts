@@ -19,6 +19,7 @@ import { deriveJourneyReport, refusalReport } from '../evals/journey.ts';
 import { reviewCommand } from '../flow/cli.ts';
 import { writeCheckpointRequest } from '../foreman/checkpoint-request.ts';
 import { recordRepo } from '../foreman/state.ts';
+import { taskCommand } from '../task/cli.ts';
 import {
   leadIntervention,
   operatorStart,
@@ -277,6 +278,7 @@ export async function dispatch(
       ...runtime.delegate,
       write: runtime.delegate?.write ?? ((text) => process.stdout.write(text)),
     });
+  else if (command === 'task') taskCommand(options);
   else return false;
   return true;
 }

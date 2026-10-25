@@ -10,6 +10,7 @@ import {
   ReviewUsageError,
   reviewCommand,
 } from '../flow/cli.ts';
+import { TaskCommandError } from '../task/record.ts';
 import { dispatch, reportJourneyCommand } from './index.ts';
 
 const version = '0.1.0';
@@ -92,12 +93,13 @@ export function main(args = process.argv.slice(2)): void {
     return;
   }
 
-  if (['start', 'checkpoint', 'stop', 'note'].includes(args[0] ?? '')) {
+  if (['start', 'checkpoint', 'stop', 'note', 'task'].includes(args[0] ?? '')) {
     void dispatch(args).catch((error: unknown) => {
       process.stderr.write(
         `${error instanceof Error ? error.message : String(error)}\n`,
       );
-      process.exitCode = 64;
+      process.exitCode =
+        error instanceof TaskCommandError ? error.exitCode : 64;
     });
     return;
   }
