@@ -655,9 +655,16 @@ test('task commands resolve the current repository from subdirectories and linke
 });
 
 test('task commands outside a Git repository use exit code 64', async () => {
-  const result = runCli('/mnt/storage', ['list']);
-  assert.equal(result.status, 64, JSON.stringify(result));
-  assert.match(result.stderr, /inside a git repository/u);
+  const directory = await tempDirectory('outside-git-');
+  try {
+    const result = runCli(directory, ['list'], undefined, undefined, {
+      GIT_CEILING_DIRECTORIES: dirname(directory),
+    });
+    assert.equal(result.status, 64, JSON.stringify(result));
+    assert.match(result.stderr, /inside a git repository/u);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
 
 test('task create reads body paragraphs from a file and stdin', async () => {
@@ -736,11 +743,13 @@ function runCli(
   args: string[],
   legacy?: string,
   input?: string,
+  childEnvironment: NodeJS.ProcessEnv = {},
 ): { status: number | null; stdout: string; stderr: string } {
   const environment = {
     ...cleanGitEnvironment(),
-    KRN_HOOK_NOGIT_TMPDIR: '/mnt/storage',
+    KRN_HOOK_NOGIT_TMPDIR: process.env.KRN_HOOK_NOGIT_TMPDIR ?? scratch,
     ...(legacy === undefined ? {} : { KRN_LEGACY_ENTRY: legacy }),
+    ...childEnvironment,
   };
   const result = spawnSync(process.execPath, [cli, 'task', ...args], {
     cwd,
@@ -762,7 +771,7 @@ function runCliAsync(
 ): Promise<{ status: number | null; stdout: string; stderr: string }> {
   const environment = {
     ...cleanGitEnvironment(),
-    KRN_HOOK_NOGIT_TMPDIR: '/mnt/storage',
+    KRN_HOOK_NOGIT_TMPDIR: process.env.KRN_HOOK_NOGIT_TMPDIR ?? scratch,
   };
   return new Promise((resolveResult) => {
     const child = spawn(process.execPath, [cli, 'task', ...args], {
