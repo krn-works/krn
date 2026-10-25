@@ -84,6 +84,13 @@ function scanTaskDirectory(root: string): {
 
   const findings: string[] = [];
   const records = new Map<TaskId, TaskRecord>();
+  const ids = new Set<TaskId>();
+  const references: Array<{
+    path: string;
+    id: string | undefined;
+    after: string[];
+    resolutionRef: string | undefined;
+  }> = [];
   let entries: Dirent<string>[];
   try {
     entries = readdirSync(directory, { withFileTypes: true });
@@ -117,28 +124,34 @@ function scanTaskDirectory(root: string): {
     const parsed = parseTaskDocument(contents);
     for (const finding of parsed.findings)
       findings.push(`${relativePath}: ${finding}`);
+    if (parsed.id !== undefined) {
+      if (entry.name !== `${parsed.id}.json`)
+        findings.push(
+          `${relativePath}: filename does not match id "${parsed.id}"`,
+        );
+      if (isTaskId(parsed.id)) ids.add(parsed.id);
+    }
+    references.push({
+      path: relativePath,
+      id: parsed.id,
+      after: parsed.afterReferences,
+      resolutionRef: parsed.resolutionReference,
+    });
     if (parsed.record === undefined) continue;
 
-    const expectedName = `${parsed.record.id}.json`;
-    if (entry.name !== expectedName)
-      findings.push(
-        `${relativePath}: filename does not match id "${parsed.record.id}"`,
-      );
     records.set(parsed.record.id, parsed.record);
   }
 
-  for (const record of records.values()) {
-    for (const dependency of record.after) {
-      if (dependency === record.id)
-        findings.push(`tasks/${record.id}.json: task cannot depend on itself`);
-      if (!records.has(dependency))
-        findings.push(
-          `tasks/${record.id}.json: unknown after task "${dependency}"`,
-        );
+  for (const reference of references) {
+    for (const dependency of reference.after) {
+      if (dependency === reference.id)
+        findings.push(`${reference.path}: task cannot depend on itself`);
+      if (!ids.has(dependency))
+        findings.push(`${reference.path}: unknown after task "${dependency}"`);
     }
-    const ref = record.resolution?.ref;
-    if (ref !== null && ref !== undefined && !records.has(ref))
-      findings.push(`tasks/${record.id}.json: unknown resolution ref "${ref}"`);
+    const ref = reference.resolutionRef;
+    if (ref !== undefined && !ids.has(ref))
+      findings.push(`${reference.path}: unknown resolution ref "${ref}"`);
   }
   findings.push(...findCycles(records));
   return { findings, records };

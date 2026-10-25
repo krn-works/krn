@@ -40,6 +40,9 @@ export interface TaskRecord {
 export interface ParsedTask {
   record?: TaskRecord;
   findings: string[];
+  id: string | undefined;
+  afterReferences: string[];
+  resolutionReference: string | undefined;
 }
 
 export class TaskUsageError extends Error {
@@ -114,10 +117,15 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
         ? contents
         : new TextDecoder('utf-8', { fatal: true }).decode(contents);
   } catch {
-    return { findings: ['file is not valid UTF-8'] };
+    return {
+      findings: ['file is not valid UTF-8'],
+      id: undefined,
+      afterReferences: [],
+      resolutionReference: undefined,
+    };
   }
 
-  if (/^(?:<{7}|={7}|>{7})(?: |$)/mu.test(text))
+  if (/^(?:<{7,}|={7,}|>{7,}|\|{7,})(?: |$)/mu.test(text))
     findings.push('contains Git conflict markers');
   if (text.includes('\r'))
     findings.push('contains CR characters; tasks require LF');
@@ -128,15 +136,41 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
     value = JSON.parse(text);
   } catch {
     findings.push('invalid JSON');
-    return { findings };
+    return {
+      findings,
+      id: undefined,
+      afterReferences: [],
+      resolutionReference: undefined,
+    };
   }
 
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
     findings.push('record must be a JSON object');
-    return { findings };
+    return {
+      findings,
+      id: undefined,
+      afterReferences: [],
+      resolutionReference: undefined,
+    };
   }
 
   const object = value as Record<string, unknown>;
+  const id = typeof object.id === 'string' ? object.id : undefined;
+  const afterReferences = Array.isArray(object.after)
+    ? object.after.filter(
+        (reference): reference is string => typeof reference === 'string',
+      )
+    : [];
+  const resolutionObject =
+    object.resolution !== null &&
+    typeof object.resolution === 'object' &&
+    !Array.isArray(object.resolution)
+      ? (object.resolution as Record<string, unknown>)
+      : undefined;
+  const resolutionReference =
+    typeof resolutionObject?.ref === 'string'
+      ? resolutionObject.ref
+      : undefined;
   const actualKeys = Object.keys(object);
   for (const key of taskKeys) {
     if (!(key in object)) findings.push(`missing key "${key}"`);
@@ -151,7 +185,6 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
   )
     findings.push('wrong top-level key order');
 
-  const id = typeof object.id === 'string' ? object.id : undefined;
   if (id === undefined) findings.push('"id" must be a string');
   else if (!isTaskId(id)) findings.push('"id" is not a valid task id');
 
@@ -238,7 +271,9 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
   if (record !== undefined && serializeTask(record) !== text)
     findings.push('file does not use canonical task serialization');
 
-  return record === undefined ? { findings } : { record, findings };
+  return record === undefined
+    ? { findings, id, afterReferences, resolutionReference }
+    : { record, findings, id, afterReferences, resolutionReference };
 }
 
 function parseResolution(

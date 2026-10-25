@@ -13,7 +13,10 @@ import {
 import { checkTaskDirectory, createTask } from '../../src/task/store.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
-const scratch = resolve(process.cwd(), '.krn/runs/claude-task-records/scratch');
+const scratch = resolve(
+  process.cwd(),
+  '.krn/runs/claude-task-records-fix/scratch',
+);
 
 const validTask: TaskRecord = {
   id: 'T-1',
@@ -179,6 +182,79 @@ test('task check reports every finding in the directory', async () => {
     assert.match(result.stderr, /tasks\/README\.txt: non-JSON file/u);
     assert.match(result.stderr, /tasks\/broken\.json: invalid JSON/u);
     assert.match(result.stderr, /tasks\/T-1\.json: contains CR characters/u);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('task check detects extended Git conflict markers', () => {
+  for (const marker of [
+    '<<<<<<<< HEAD',
+    '||||||| base',
+    '=======',
+    '>>>>>>> theirs',
+  ]) {
+    const parsed = parseTaskDocument(`${marker}\n${serializeTask(validTask)}`);
+    assert.ok(
+      parsed.findings.includes('contains Git conflict markers'),
+      `${marker}: ${parsed.findings.join('\n')}`,
+    );
+  }
+  const malformedMarker = parseTaskDocument(
+    `<<<<<<<suffix\n${serializeTask(validTask)}`,
+  );
+  assert.ok(
+    !malformedMarker.findings.includes('contains Git conflict markers'),
+  );
+});
+
+test('task check checks filenames and references in partial records', async () => {
+  const repo = await tempRepo('partial-records-');
+  try {
+    const tasks = join(repo, 'tasks');
+    await mkdir(tasks, { recursive: true });
+
+    const partial = {
+      ...validTask,
+      id: 'T_1',
+      status: 'closed',
+      resolution: { kind: 'duplicate', ref: 'T-10', note: '' },
+      after: ['T-9'],
+    };
+    const { body: _body, ...withoutBody } = partial;
+    await writeFile(
+      join(tasks, 'wrong-name.json'),
+      `${JSON.stringify(withoutBody, null, 2)}\n`,
+    );
+
+    const partialTarget = { ...validTask, id: 'T-8' };
+    const { body: _targetBody, ...targetWithoutBody } = partialTarget;
+    await writeFile(
+      join(tasks, 'T-8.json'),
+      `${JSON.stringify(targetWithoutBody, null, 2)}\n`,
+    );
+    await writeTask(repo, { ...validTask, id: 'T-2', after: ['T-8'] });
+    await writeTask(repo, {
+      ...validTask,
+      id: 'T-3',
+      status: 'closed',
+      resolution: { kind: 'duplicate', ref: 'T-8', note: '' },
+    });
+
+    const findings = checkTaskDirectory(repo).join('\n');
+    assert.match(findings, /missing key "body"/u);
+    assert.match(findings, /filename does not match id "T_1"/u);
+    assert.match(findings, /unknown after task "T-9"/u);
+    assert.match(findings, /unknown resolution ref "T-10"/u);
+    assert.doesNotMatch(
+      findings,
+      /unknown (?:after task|resolution ref) "T-8"/u,
+    );
+
+    const list = runCli(repo, ['list', '--json']);
+    const show = runCli(repo, ['show', 'T-8', '--json']);
+    assert.equal(list.status, 65, list.stderr);
+    assert.equal(show.status, 65, show.stderr);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
