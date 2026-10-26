@@ -12,6 +12,17 @@ const forbiddenRoots = [
   `${slash}run${slash}user${slash}`,
   `${slash}tmp${slash}claude-`,
 ];
+const literalPathBoundaries = new Set([
+  '=',
+  ':',
+  '(',
+  ',',
+  '[',
+  '{',
+  "'",
+  '"',
+  '`',
+]);
 const hostPathAllowlist = new Map([
   [
     'scripts/probe-isolation.mjs',
@@ -90,8 +101,30 @@ function forbiddenRootMatches(value) {
         root !== `${slash}home${slash}krn` ||
         next === undefined ||
         next === slash
-      )
-        matches.push({ offset, root });
+      ) {
+        const prefix = value.slice(0, offset);
+        const previous = value[offset - 1];
+        const startsFileUrlPath = /(?:^|[\s=:(,[{'"`])file:\/\/$/iu.test(
+          prefix,
+        );
+        const followsScpRemote =
+          previous === ':' &&
+          /(?:^|[\s=([{,'"`])(?:[A-Za-z0-9._-]+@)?[A-Za-z0-9][A-Za-z0-9._-]*:$/u.test(
+            prefix,
+          );
+        const startsAtBoundary =
+          offset === 0 ||
+          /\s/u.test(previous) ||
+          literalPathBoundaries.has(previous);
+
+        if (
+          startsFileUrlPath ||
+          (!followsScpRemote &&
+            startsAtBoundary &&
+            !(previous === ':' && prefix.endsWith('://')))
+        )
+          matches.push({ offset, root });
+      }
       offset = value.indexOf(root, offset + root.length);
     }
   }
@@ -250,18 +283,62 @@ test('tracked test, script, and source literals avoid host-specific paths', () =
   }
 });
 
-test('recognizes a host-root fixture and ignores synthetic worker paths', () => {
-  const forbiddenFixture = [`${slash}mnt`, `storage${slash}x`].join(slash);
-  const allowedFixture = [`${slash}home`, 'worker'].join(slash);
-  const forbiddenSource = `const path = ${JSON.stringify(forbiddenFixture)};`;
-  const allowedSource = `const home = ${JSON.stringify(allowedFixture)};`;
+function hostPath(...parts) {
+  return `${slash}${parts.join(slash)}`;
+}
 
-  assert.equal(forbiddenFixture, `${slash}mnt${slash}storage${slash}x`);
-  assert.equal(allowedFixture, `${slash}home${slash}worker`);
-  assert.deepEqual(literalPathLines(forbiddenSource), [1]);
-  assert.deepEqual(literalPathLines(allowedSource), []);
+test('flags an absolute host path at the start of a string literal', () => {
+  const source = JSON.stringify(hostPath('mnt', 'storage', 'x'));
+  assert.deepEqual(literalPathLines(source), [1]);
+});
 
-  const multilineTemplate = `const path = \`sample\n${forbiddenFixture}\`;`;
-  assert.deepEqual(literalPathLines(multilineTemplate), [2]);
-  assert.deepEqual(literalPathLines(`// ${forbiddenFixture}`), []);
+test('flags an absolute host path after whitespace in template text', () => {
+  const source = ['const command = `cd ', hostPath('mnt', 'x'), '`;'].join('');
+  assert.deepEqual(literalPathLines(source), [1]);
+});
+
+test('flags an absolute host path after an assignment separator', () => {
+  const source = JSON.stringify(`PATH=${hostPath('home', 'krn', 'bin')}`);
+  assert.deepEqual(literalPathLines(source), [1]);
+});
+
+test('flags an absolute host path in a quoted root option', () => {
+  const value = `--root=${hostPath('run', 'user', '1000')}`;
+  assert.deepEqual(literalPathLines(JSON.stringify(value)), [1]);
+});
+
+test('ignores a path in a URL authority', () => {
+  const value = `https:${slash}${slash}fixture.invalid${hostPath('mnt', 'data')}`;
+  assert.deepEqual(literalPathLines(JSON.stringify(value)), []);
+});
+
+test('flags a host path in a file URL with an empty authority', () => {
+  const value = `file:${slash}${slash}${hostPath('mnt', 'x')}`;
+  assert.deepEqual(literalPathLines(JSON.stringify(value)), [1]);
+});
+
+test('ignores an absolute path in an scp-style Git remote', () => {
+  const value = `git@host:${hostPath('mnt', 'x')}`;
+  assert.deepEqual(literalPathLines(JSON.stringify(value)), []);
+});
+
+test('ignores the synthetic worker home path', () => {
+  assert.deepEqual(
+    literalPathLines(JSON.stringify(hostPath('home', 'worker'))),
+    [],
+  );
+});
+
+test('ignores host paths in comments', () => {
+  const comment = `// ${hostPath('mnt', 'storage', 'x')}`;
+  assert.deepEqual(literalPathLines(comment), []);
+});
+
+test('flags an absolute host path after whitespace in multiline template text', () => {
+  const source = [
+    'const command = `sample\n',
+    hostPath('mnt', 'storage', 'x'),
+    '`;',
+  ].join('');
+  assert.deepEqual(literalPathLines(source), [2]);
 });
