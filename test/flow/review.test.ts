@@ -18,6 +18,7 @@ import { appendOverride } from '../../src/flow/record.ts';
 import { redFirst } from '../../src/flow/repository.ts';
 import { redFirstSchema, reviewRecordSchema } from '../../src/flow/types.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+import { systemdEnvironment as createSystemdEnvironment } from '../helpers/systemd-environment.ts';
 
 test('judge Codex sessions disable candidate project instructions', () => {
   const panel = readFileSync(
@@ -1071,15 +1072,7 @@ function assertScopeIsEmpty(unit: string, cgroup: string): void {
 }
 
 function systemdEnvironment(): NodeJS.ProcessEnv {
-  const uid = process.getuid?.();
-  if (uid === undefined) return process.env;
-  const runtime = process.env.XDG_RUNTIME_DIR ?? `/run/user/${uid}`;
-  return {
-    ...process.env,
-    XDG_RUNTIME_DIR: runtime,
-    DBUS_SESSION_BUS_ADDRESS:
-      process.env.DBUS_SESSION_BUS_ADDRESS ?? `unix:path=${runtime}/bus`,
-  };
+  return createSystemdEnvironment();
 }
 
 function scopeIsPopulated(cgroup: string | undefined): boolean {

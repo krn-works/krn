@@ -16,6 +16,7 @@ import test from 'node:test';
 import { stateDirectory } from '../../src/foreman/state.ts';
 import * as relay from '../../src/relay/index.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+import { systemdEnvironment as createSystemdEnvironment } from '../helpers/systemd-environment.ts';
 
 async function repoFixture(): Promise<string> {
   const scratch = join(process.cwd(), '.krn/tmp');
@@ -202,10 +203,7 @@ function procIdentity(pid: number): ProcIdentity | undefined {
 }
 
 function systemdEnvironment(): NodeJS.ProcessEnv {
-  const env = { ...process.env };
-  env.XDG_RUNTIME_DIR ??= `/run/user/${process.getuid?.() ?? 1000}`;
-  env.DBUS_SESSION_BUS_ADDRESS ??= `unix:path=${env.XDG_RUNTIME_DIR}/bus`;
-  return env;
+  return createSystemdEnvironment();
 }
 
 function paperclipUnitSnapshot(unit: string) {
