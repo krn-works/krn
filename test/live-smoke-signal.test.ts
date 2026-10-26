@@ -151,10 +151,17 @@ test('live smoke retains its private fixture and reports it after failure', {
     assert.ok(artifact, stderr);
     assert.equal(await exists(artifact), true);
     assert.doesNotMatch(stdout, /Live Codex sandbox checkpoint smoke passed/u);
-    const jobId = (
+    const smokeAttempts = (
       await readdir(join(artifact, '.krn', 'runs', 'foreman'))
-    ).find((name) => name.startsWith('smoke-'));
-    assert.ok(jobId);
+    )
+      .filter((name) => name.startsWith('smoke-'))
+      .sort();
+    const firstAttempt = smokeAttempts[0];
+    assert.ok(firstAttempt);
+    // A session without a checkpoint creates a retry; inspect the final attempt.
+    const jobId = smokeAttempts.includes(`${firstAttempt}-retry`)
+      ? `${firstAttempt}-retry`
+      : firstAttempt;
     assert.match(
       await readFile(
         join(artifact, '.krn', 'runs', 'foreman', jobId, 'trace.jsonl'),
