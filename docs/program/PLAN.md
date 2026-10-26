@@ -1,6 +1,6 @@
 # KRN delivery plan
 
-This plan records program sequence and exit conditions. It is not task status, acceptance, or authority. Product's selected in-repository `krn task` tracker is the task-status source under [ADR 0014 D8](../adr/0014-operator-decisions-2026-10-23.md); no legacy board data is imported, and its Product integration is removed.
+This plan records program sequence and exit conditions. It is not task status, acceptance, or authority. Product's shipped in-repository `krn task` tracker is the task-status source under [ADR 0015](../adr/0015-repository-task-tracker.md). Product's Paperclip integration is removed (#109), no legacy board data is imported, and GLOBAL's Paperclip removal remains backlog work.
 
 ## Scope and decision owners
 
@@ -36,9 +36,9 @@ Run one real delivery through Product `krn delegate` and `krn review`. Use `krn 
 
 ### In-repository task tracker
 
-The accepted D8 design and ADR 0015 use committed `tasks/<id>.json` records, dependencies, readiness, claiming, and one `krn task` command. This replaces the legacy Git-ref task queue and host-SQLite `krn work`. No import: the former board integration is removed from Product. Host service and data are outside this repository change.
+Product's shipped tracker uses committed `tasks/<id>.json` records, dependencies, readiness, claims, and one `krn task` command with create, show, list, ready, claim, release, close, dep, edit, and check verbs. `--json` returns an `ok` envelope. The lead manages readiness, claims, releases, and closure; workers receive their task id in the brief and use it in commit titles and the `Ticket:` trailer. No Paperclip or legacy queue data is imported. Product Paperclip integration was removed in #109, and GLOBAL forwards `krn task` to Product (#457, #459); the remaining tracker-related work is removing Paperclip from GLOBAL.
 
-**Exit:** the in-repository tracker passes its focused CLI falsifier, and the removed integration has no repository code or dependencies, with no data import. No per-project cutover is part of this decision.
+**Exit:** Product tracker behavior and forwarding are shipped; the remaining GLOBAL Paperclip removal is tracked in `tasks/` and does not require a data import or per-project cutover.
 
 ### Reviewed memory loop
 

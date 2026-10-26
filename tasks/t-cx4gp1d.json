@@ -1,0 +1,13 @@
+{
+  "id": "t-cx4gp1d",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 1,
+  "title": "Make concurrency tests load resilient",
+  "after": [],
+  "body": [
+    "Replace time-based waits with condition waits bounded by deadlines in GLOBAL `test/host-lock.test.mjs` for the unflocked inherited descriptor, descendants keeping the lock, and nested run, and in Product `test/verdict/sandbox.test.ts` SIGTERM/SIGINT verdict tests, `test/flow/review-parallel.test.ts`, and `test/hosts/codex-registration.test.ts` registration and `onStarted` gates. The observed host-lock failures are listed in `.krn/runs/claude-tracker-format/flaky-observed.md`.",
+    "Acceptance: each test waits for its required condition, uses no fixed sleep or elapsed-time assertion, and passes under concurrent load."
+  ]
+}

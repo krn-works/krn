@@ -1,0 +1,12 @@
+{
+  "id": "t-q85meb0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 1,
+  "title": "Reduce gate test time",
+  "after": [],
+  "body": [
+    "Set `NODE_COMPILE_CACHE` in `scripts/test-suite.mjs`, fix the five slowest tests, and print the ten slowest tests in the gate summary. Acceptance: measure gate wall time before and after under the same conditions, report the comparison, and keep the existing gate results."
+  ]
+}

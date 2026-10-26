@@ -1,0 +1,12 @@
+{
+  "id": "t-yxxfg7k",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 1,
+  "title": "Remove Paperclip from GLOBAL",
+  "after": [],
+  "body": [
+    "Remove the remaining Paperclip integration from GLOBAL's tracked code and package inputs. Acceptance: no GLOBAL code, dependencies, registrations, or tests retain the integration; leave host service state untouched and import no data."
+  ]
+}

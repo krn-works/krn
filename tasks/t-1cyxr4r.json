@@ -1,0 +1,12 @@
+{
+  "id": "t-1cyxr4r",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 3,
+  "title": "Return structured judge output",
+  "after": [],
+  "body": [
+    "Have judges return structured output through `--output-schema`. The measured gain is small (1/405); retain that baseline when assessing the change. Acceptance: the schema is applied to judge results and measured output validates against it."
+  ]
+}

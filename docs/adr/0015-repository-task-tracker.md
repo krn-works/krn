@@ -4,13 +4,16 @@ Date: 2026-10-25
 
 ## Status
 
-Accepted.
+Accepted. Supersedes the import clauses of [ADR 0013](0013-repository-consolidation.md) and [ADR 0014 D8](0014-operator-decisions-2026-10-23.md) by operator decision of 2026-10-26 (“Oki spoko”): do not import Paperclip or legacy queue records.
 
 ## Context
 
 ADR 0014 D8 selected one Git-backed task tracker because tasks must travel with
 their repository. The tracker replaces the legacy Git-ref `krn task` queue and
-the host-SQLite `krn work` design recorded in ADR 0011. The format lenses
+the host-SQLite `krn work` design recorded in ADR 0011. Paperclip is removed
+from Product in #109; its code remains in GLOBAL for separate backlog work.
+The tracker starts empty: no Paperclip or legacy queue records are imported.
+The format lenses
 recommended a file per task: independent task creation remains mergeable, while
 edits to the same task remain visible as Git conflicts instead of silently
 losing an update.
@@ -19,10 +22,11 @@ losing an update.
 
 Store each durable task as `tasks/<id>.json` in the repository worktree. Use
 canonical UTF-8 JSON with LF, a trailing newline, fixed key order, and sorted,
-unique dependencies. Imported IDs remain unchanged; new IDs use `t-` followed
-by seven lower-case Crockford base32 characters. Compute the task index in
-memory for each command. `krn task check` validates task files and references
+unique dependencies. New IDs use `t-` followed by seven lower-case Crockford
+base32 characters. Compute the task index in memory for each command.
+`krn task check` validates task files and references
 and runs in the Product gate.
+Task files are formatted only by `krn task`.
 
 Records contain open or closed status, typed closure resolution, creation date,
 priority, title, blocking `after` dependencies, and paragraph body text. Ready
@@ -53,24 +57,31 @@ require Linux and a live lock blocks for at most two seconds before returning
 exit code 75. Read-only `ready` and `show` commands do not lock or remove
 expired claims.
 
-## Consequences and delivery sequence
+## Routing
+
+The installer-owned GLOBAL `~/.local/bin/krn` forwards `krn task …` to the
+Product executable configured by `KRN_PRODUCT_ENTRY` or
+`~/.config/krn/product-entry` (GLOBAL #457, #459). On the host, that entry
+points to Product `bin/krn`, which runs the Node version pinned in
+`.node-version`.
+
+## Consequences and delivery
 
 The format lens's merge table found that separate files keep unrelated task
 changes mergeable and make an identical-ID add/add collision visible. A check
 is needed because Git can still merge independent field edits into a
-semantically invalid record. The task CLI provides create, show, list, edit,
-close, dep, ready, claim, release, and check commands. Readiness is read-only
-and never removes expired claims.
+semantically invalid record. The shipped CLI provides create, show, list,
+ready, claim, release, close, dep, edit, and check. With `--json`, successful
+commands return an object with `ok: true` and command-specific fields; failures
+return `ok: false`, a numeric `code`, an `error` message, and optional
+`findings`.
+The lead manages task status with `ready`, `claim`, `release`, and `close`.
+Workers receive the task id in their brief, never claim tracker work, and use
+the id in commit titles and the `Ticket:` trailer. The delivering PR closes the
+task. Readiness is read-only and never removes expired claims.
 
-1. Task records and validation (merged in #102).
-2. Readiness and claims.
-3. Connect PR preflight to `tasks/` instead of Paperclip.
-4. Update GLOBAL forwarding to Product `krn task` under install/seal grant.
-5. Remove the legacy queue and `krn work`; preserve legacy refs as a Git bundle
-   under `.krn/archive` without importing them.
-6. Remove Paperclip from Product.
-7. Remove Paperclip from GLOBAL under its separate host-service grant.
-
-The tracker starts empty. Do not import Paperclip records or legacy queue
-records; Paperclip data on the host remains untouched unless the operator gives
-a separate grant.
+Product forwarding and tracker commands are shipped; per-task claim mutations
+use a Linux abstract Unix socket held for the full inspect, mutation, and
+publish operation. The kernel releases the lock on process exit (#110).
+GLOBAL Paperclip removal remains in the backlog under its separate host-service
+grant. Paperclip data on the host remains untouched.

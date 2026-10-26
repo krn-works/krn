@@ -1,0 +1,12 @@
+{
+  "id": "t-jrrq0js",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 2,
+  "title": "Return exit 70 for internal CLI errors",
+  "after": [],
+  "body": [
+    "Update `src/cli/main.ts` so unexpected internal errors exit 70 while usage errors continue to exit 64. Acceptance: executable CLI coverage distinguishes internal failures from invalid usage and asserts both exit codes."
+  ]
+}

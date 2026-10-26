@@ -1,0 +1,12 @@
+{
+  "id": "t-00q1ymn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 2,
+  "title": "Limit second review to prior findings",
+  "after": [],
+  "body": [
+    "Change `krn review` so round two verifies only findings from the previous round; new findings are advisory unless they expose a regression. Acceptance: tests cover resolution, recurrence, regression, and newly raised advisory findings."
+  ]
+}

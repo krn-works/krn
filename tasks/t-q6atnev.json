@@ -1,0 +1,12 @@
+{
+  "id": "t-q6atnev",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 2,
+  "title": "Extend the host-path guard",
+  "after": [],
+  "body": [
+    "Scan `bin/` and `evals/` with the host-path guard and fix its lexer so regex literals containing `//` are not parsed as line comments. Acceptance: fixtures cover regex literals and both added path roots without hiding real host-path violations."
+  ]
+}
