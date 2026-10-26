@@ -1,0 +1,12 @@
+{
+  "id": "t-q1s5t58",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 3,
+  "title": "Close cross-repository tasks by rule",
+  "after": [],
+  "body": [
+    "GLOBAL has no tracker, so work done in GLOBAL is tracked by a Product task, and the task can only be closed by a separate Product PR after the GLOBAL merge (e.g. t-yxxfg7k). Decide and document one rule for cross-repository tasks: which PR closes the task, and which `Ticket:` value GLOBAL commits carry (today `LON-319`).\nAcceptance: the rule is documented in the repository workflow and the tracker or preflight enforces it."
+  ]
+}

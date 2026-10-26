@@ -1,0 +1,12 @@
+{
+  "id": "t-y7dfa22",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 3,
+  "title": "Capture Product error envelopes verbatim in GLOBAL fixtures",
+  "after": [],
+  "body": [
+    "GLOBAL fixtures for `{ok:false}` task output exit 0, which Product never does (`src/task/cli.ts:89-108`): `test/hooks-guard.test.mjs:1452`, `test/opencode/krn-adapter.test.mjs:164`, `test/lane/publication-gate.test.mjs:20`, `test/lane/runner-contract.test.mjs` (review N7, KRN-12).\nAcceptance: error fixtures are verbatim Product captures with their real exit codes, and consumers are tested on them."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-2xz9md3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 3,
+  "title": "Match ADR 0015 claim expiry to the code",
+  "after": [],
+  "body": [
+    "ADR 0015:43-45 says a claim depends on the worktree task file only when it exists there, while `src/task/claims.ts:429` expires the claim when the file is missing (review A6); the lock is per network namespace (N8). Decide which is intended and make the ADR and code agree.\nAcceptance: ADR text and an executable test state the same expiry rule."
+  ]
+}

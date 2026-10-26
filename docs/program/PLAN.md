@@ -1,6 +1,6 @@
 # KRN delivery plan
 
-This plan records program sequence and exit conditions. It is not task status, acceptance, or authority. Product's shipped in-repository `krn task` tracker is the task-status source under [ADR 0015](../adr/0015-repository-task-tracker.md). Product's Paperclip integration is removed (#109), no legacy board data is imported, and GLOBAL's Paperclip removal remains backlog work.
+This plan records program sequence and exit conditions. It is not task status, acceptance, or authority. Product's shipped in-repository `krn task` tracker is the task-status source under [ADR 0015](../adr/0015-repository-task-tracker.md). Paperclip integration was removed from Product in #109 and from GLOBAL in krn-works/krn-codex-skills #461 (merge 26446dd5); no legacy board data is imported. The only remaining Paperclip item is the host service and data; they remain untouched pending a separate operator decision and grant.
 
 ## Scope and decision owners
 
@@ -36,9 +36,9 @@ Run one real delivery through Product `krn delegate` and `krn review`. Use `krn 
 
 ### In-repository task tracker
 
-Product's shipped tracker uses committed `tasks/<id>.json` records, dependencies, readiness, claims, and one `krn task` command with create, show, list, ready, claim, release, close, dep, edit, and check verbs. `--json` returns an `ok` envelope. The lead manages readiness, claims, releases, and closure; workers receive their task id in the brief and use it in commit titles and the `Ticket:` trailer. No Paperclip or legacy queue data is imported. Product Paperclip integration was removed in #109, and GLOBAL forwards `krn task` to Product (#457, #459); the remaining tracker-related work is removing Paperclip from GLOBAL.
+Product's shipped tracker uses committed `tasks/<id>.json` records, dependencies, readiness, claims, and one `krn task` command with create, show, list, ready, claim, release, close, dep, edit, and check verbs. `--json` returns an `ok` envelope. The lead manages readiness, claims, releases, and closure; workers receive their task id in the brief and use it in commit titles and the `Ticket:` trailer. No Paperclip or legacy queue data is imported. Product Paperclip integration was removed in #109, GLOBAL's was removed in krn-works/krn-codex-skills #461 (merge 26446dd5), and GLOBAL forwards `krn task` to Product (#457, #459).
 
-**Exit:** Product tracker behavior and forwarding are shipped; the remaining GLOBAL Paperclip removal is tracked in `tasks/` and does not require a data import or per-project cutover.
+**Exit: met.** Product tracker behavior and forwarding are shipped, and GLOBAL's Paperclip integration was removed in krn-works/krn-codex-skills #461 (merge 26446dd5). No Paperclip or legacy queue data is imported.
 
 ### Reviewed memory loop
 

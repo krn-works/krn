@@ -1,0 +1,12 @@
+{
+  "id": "t-g95ba61",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 3,
+  "title": "Classify delegate input races as usage errors",
+  "after": [],
+  "body": [
+    "Review round 2 of PR #112 (`.krn/runs/claude-cli-exit-codes/deliver/review-c224a121.log`) found that `delegate` path checks after the first catch blocks (`lstat` at `src/cli/delegate.ts:429`, `ensurePinnedPath` realpath/lstat at `:328`) let `ENOENT`/`ENOTDIR`/`ELOOP` from a concurrently removed `--input` escape as host errors (exit 70 instead of 64), and that worker host failures become a `failed` result with exit 1 (`:720`, `:798`) — pre-existing behaviour.\nAcceptance: every user-path syscall in delegate preflight maps those codes to usage exit 64 with a test that removes the input between checks; decide and document whether worker host failures stay results (exit 1) or exit 70."
+  ]
+}

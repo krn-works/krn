@@ -10,8 +10,9 @@ Accepted. Supersedes the import clauses of [ADR 0013](0013-repository-consolidat
 
 ADR 0014 D8 selected one Git-backed task tracker because tasks must travel with
 their repository. The tracker replaces the legacy Git-ref `krn task` queue and
-the host-SQLite `krn work` design recorded in ADR 0011. Paperclip is removed
-from Product in #109; its code remains in GLOBAL for separate backlog work.
+the host-SQLite `krn work` design recorded in ADR 0011. Paperclip integration
+was removed from Product in #109 and from GLOBAL in krn-works/krn-codex-skills #461
+(merge 26446dd5).
 The tracker starts empty: no Paperclip or legacy queue records are imported.
 The format lenses
 recommended a file per task: independent task creation remains mergeable, while
@@ -84,5 +85,6 @@ task. Readiness is read-only and never removes expired claims.
 Product forwarding and tracker commands are shipped; per-task claim mutations
 use a Linux abstract Unix socket held for the full inspect, mutation, and
 publish operation. The kernel releases the lock on process exit (#110).
-GLOBAL Paperclip removal remains in the backlog under its separate host-service
-grant. Paperclip data on the host remains untouched.
+GLOBAL's Paperclip integration was removed in krn-works/krn-codex-skills #461
+(merge 26446dd5). The only remaining Paperclip item is the host service and
+data; they remain untouched pending a separate operator decision and grant.

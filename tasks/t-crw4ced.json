@@ -1,0 +1,12 @@
+{
+  "id": "t-crw4ced",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 3,
+  "title": "Read the default branch in the tracker",
+  "after": [],
+  "body": [
+    "The tracker hard-codes `origin/main` (`src/task/store.ts:313-316`, `src/task/claims.ts:550`), so in a `master` repository the closed-in-origin claim condition is silently skipped (review A8).\nAcceptance: the tracker resolves `origin/HEAD` (or the configured default branch) and tests cover a `master` repository."
+  ]
+}

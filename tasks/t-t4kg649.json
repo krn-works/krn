@@ -1,0 +1,12 @@
+{
+  "id": "t-t4kg649",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 1,
+  "title": "Test the claim race deterministically",
+  "after": [],
+  "body": [
+    "The claim race test in `test/task/claim-lock.test.ts:23-86` passes on the pre-lock base (4/4 runs, `.krn/runs/independent-review-followup/report.md` N1), so it does not guard the double-winner race fixed in #110. Add a deterministic interleaving test: patch the rename seam (e.g. `syncBuiltinESMExports`) or an inspect hook so the expired-claim race is forced without timing; pattern in `.krn/runs/independent-review-followup/artifacts/b1-deterministic-base.mjs`.\nAcceptance: the test fails on 06126f7 every run and passes on the head, with no sleeps or timing assertions."
+  ]
+}

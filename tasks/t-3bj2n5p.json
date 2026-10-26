@@ -1,0 +1,12 @@
+{
+  "id": "t-3bj2n5p",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 3,
+  "title": "Bound task id length in task check",
+  "after": [],
+  "body": [
+    "Task ids of 209+ characters make `claim` fail with ENAMETOOLONG (staged file name over 255 bytes) while `task check` accepts them (review N9). Generated ids have 9 characters.\nAcceptance: `task check` and every command reject ids above a documented bound with exit 65 or 64, and a test covers the bound."
+  ]
+}
