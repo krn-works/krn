@@ -12,6 +12,7 @@ import * as relay from '../../src/relay/index.ts';
 import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
 import * as trace from '../../src/trace/index.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+import { gateCheck, writeReviewEvidence } from '../helpers/ship-evidence.ts';
 
 const gitContextKeys = [
   'GIT_DIR',
@@ -180,6 +181,7 @@ function runPreflight(input: {
     const report = await runPreflight(input, {
       readPull: async () => ({ ok: true, value: pull }),
       readStatuses: async () => ({ ok: true, value: statuses }),
+      readCheckRuns: async () => ({ ok: true, value: ${JSON.stringify([gateCheck()])} }),
     });
     process.stdout.write(JSON.stringify(report) + '\\n');
   `;
@@ -273,6 +275,7 @@ test('runJob commits contract-derived trailers and the public preflight admits t
       'R1-task: none',
     ]);
 
+    await writeReviewEvidence(fixture.root, fixture.base, head);
     const result = runPreflight({
       repo: fixture.root,
       base: fixture.base,
@@ -341,6 +344,7 @@ test('runJob and public preflight admit a contract with no R1-task declaration',
       'Ticket: LON-901',
     ]);
 
+    await writeReviewEvidence(fixture.root, fixture.base, head);
     const result = runPreflight({
       repo: fixture.root,
       base: fixture.base,

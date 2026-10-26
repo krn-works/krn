@@ -1,12 +1,25 @@
 // PR admission reads are pinned to the supplied repository and exact head; no Git writes occur.
 import { spawnSync } from 'node:child_process';
-import { realpathSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import {
+  closeSync,
+  constants,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readSync,
+  realpathSync,
+} from 'node:fs';
+import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import { newReviewRecordSchema } from '../src/flow/types.ts';
 import { isTaskId, parseTaskDocument } from '../src/task/record.ts';
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
+const MAX_REVIEW_BYTES = 1024 * 1024;
+const MAX_CHECK_RUN_PAGES = 10;
+const CHECK_RUN_PAGE_SIZE = 100;
 const TIMEOUT_MS = 15_000;
 const GIT_OVERRIDES = [
   'GIT_DIR',
@@ -42,6 +55,21 @@ const statusesSchema = z.array(
     updated_at: z.string().datetime({ offset: true }).optional(),
   }),
 );
+const checkRunsSchema = z.array(
+  z.object({
+    id: z.number().int().positive(),
+    name: z.string().min(1),
+    app: z.object({ slug: z.string() }).nullable(),
+    status: z.string().min(1),
+    conclusion: z.string().nullable(),
+    html_url: z.string().url(),
+    created_at: z.string().datetime({ offset: true }),
+  }),
+);
+const checkRunPageSchema = z.object({
+  total_count: z.number().int().nonnegative(),
+  check_runs: checkRunsSchema.max(CHECK_RUN_PAGE_SIZE),
+});
 const ok = (value) => ({ ok: true, value });
 const err = (error) => ({ ok: false, error });
 
@@ -127,6 +155,30 @@ function ghJson(repo, resource) {
   }
 }
 
+function readCheckRuns(repo, slug, head) {
+  const runs = [];
+  for (let page = 1; page <= MAX_CHECK_RUN_PAGES; page += 1) {
+    const result = ghJson(
+      repo,
+      `repos/${slug}/commits/${head}/check-runs?filter=all&per_page=${CHECK_RUN_PAGE_SIZE}&page=${page}`,
+    );
+    const parsed = result.ok
+      ? checkRunPageSchema.safeParse(result.value)
+      : undefined;
+    if (!parsed?.success) return err('invalid check-run page');
+    const { total_count: total, check_runs: current } = parsed.data;
+    if (total > MAX_CHECK_RUN_PAGES * CHECK_RUN_PAGE_SIZE)
+      return err('check-run pagination bound exceeded');
+    runs.push(...current);
+    if (current.length < CHECK_RUN_PAGE_SIZE)
+      return runs.length >= total
+        ? ok(runs)
+        : err('incomplete check-run pagination');
+    if (runs.length >= total) return ok(runs);
+  }
+  return err('check-run pagination bound exceeded');
+}
+
 async function readValue(read, args, schema, reason, reasons) {
   try {
     const result = await read(...args);
@@ -178,6 +230,171 @@ function latestGateLocal(statuses) {
 function hasZeroIsolationSkips(description) {
   const counts = [...description.matchAll(/\b(\d+)\s+isolation skips\b/gu)];
   return counts.length === 1 && Number(counts[0]?.[1]) === 0;
+}
+
+// Mirror record.ts's realpath/regular-file boundary, with bounded reads.
+// JSON.parse rejects BOM; CRLF is valid JSON. Hash the original bytes in both cases.
+function readReviewBytes(root, head) {
+  let directory = root;
+  for (const part of ['.krn', 'runs', 'review', head]) {
+    directory = join(directory, part);
+    let stat;
+    try {
+      stat = lstatSync(directory);
+    } catch (error) {
+      if (error.code === 'ENOENT') return ok(undefined);
+      return err('review record directory could not be read');
+    }
+    if (!stat.isDirectory() || realpathSync(directory) !== directory)
+      return err(
+        'review record directory is unsafe (symlink or non-directory)',
+      );
+  }
+  const path = join(directory, 'record.json');
+  let descriptor;
+  try {
+    const stat = lstatSync(path);
+    if (!stat.isFile() || stat.isSymbolicLink())
+      return err('review record must be a regular file without symlinks');
+    if (stat.size > MAX_REVIEW_BYTES)
+      return err('review record exceeds the 1 MiB size bound');
+    descriptor = openSync(
+      path,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
+    const opened = fstatSync(descriptor);
+    if (!opened.isFile() || opened.dev !== stat.dev || opened.ino !== stat.ino)
+      return err('review record must remain the same regular file');
+    if (opened.size > MAX_REVIEW_BYTES)
+      return err('review record exceeds the 1 MiB size bound');
+    const bytes = Buffer.alloc(MAX_REVIEW_BYTES + 1);
+    let length = 0;
+    while (length < bytes.length) {
+      const count = readSync(
+        descriptor,
+        bytes,
+        length,
+        bytes.length - length,
+        null,
+      );
+      if (count === 0) break;
+      length += count;
+    }
+    if (length > MAX_REVIEW_BYTES)
+      return err('review record exceeds the 1 MiB size bound');
+    return ok({ path, bytes: bytes.subarray(0, length) });
+  } catch (error) {
+    if (error.code === 'ENOENT') return ok(undefined);
+    return err('review record could not be read safely');
+  } finally {
+    if (descriptor !== undefined) closeSync(descriptor);
+  }
+}
+
+function reviewEvidence(repo, input, reasons) {
+  const worktrees = readGit(
+    repo,
+    ['worktree', 'list', '--porcelain', '-z'],
+    text,
+    'registered review worktrees could not be read',
+    reasons,
+  );
+  const roots = new Set([repo]);
+  for (const field of worktrees?.split('\0') ?? []) {
+    if (field.startsWith('worktree '))
+      roots.add(field.slice('worktree '.length));
+  }
+  const records = [];
+  for (const root of roots) {
+    const path = join(
+      root,
+      '.krn',
+      'runs',
+      'review',
+      input.head,
+      'record.json',
+    );
+    let found;
+    try {
+      found = readReviewBytes(root, input.head);
+    } catch {
+      found = err('review record directory could not be read safely');
+    }
+    if (!found.ok) {
+      reasons.add(`${found.error}: ${path}`);
+      continue;
+    }
+    if (!found.value) continue;
+    const { bytes } = found.value;
+    const evidence = {
+      path,
+      sha256: createHash('sha256').update(bytes).digest('hex'),
+    };
+    records.push(evidence);
+    let json;
+    try {
+      json = JSON.parse(bytes.toString('utf8'));
+    } catch {
+      reasons.add(`review record is not valid JSON: ${path}`);
+      continue;
+    }
+    const parsed = newReviewRecordSchema.safeParse(json);
+    if (!parsed.success) {
+      reasons.add(`review record does not satisfy the strict schema: ${path}`);
+      continue;
+    }
+    const record = parsed.data;
+    Object.assign(evidence, {
+      headSha: record.headSha,
+      base: record.base,
+      panelVerdict: record.panelVerdict,
+      verdict: record.panelVerdict,
+      panel: record.panel,
+      judges: record.judges.map(({ role, state, verdict, model }) => ({
+        role,
+        state,
+        verdict,
+        model,
+      })),
+      lensSha256: record.lensSha256,
+      toolSha: record.toolSha,
+      redFirstCount: record.redFirst.length,
+      ...(record.override ? { override: record.override } : {}),
+    });
+    if (record.headSha.toLowerCase() !== input.head.toLowerCase())
+      reasons.add(`review record head does not match the exact head: ${path}`);
+    if (!sha.safeParse(record.base).success) {
+      reasons.add(`review base must be a full commit ID: ${path}`);
+    } else {
+      for (const [name, commit] of [
+        ['base', input.base],
+        ['head', input.head],
+      ]) {
+        if (!git(repo, ['merge-base', '--is-ancestor', record.base, commit]).ok)
+          reasons.add(`review base must be an ancestor of --${name}: ${path}`);
+      }
+    }
+    const hasFailure = record.judges.some(
+      (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
+    );
+    if (record.override) {
+      if (!hasFailure)
+        reasons.add(`review override requires a complete FAIL: ${path}`);
+      else evidence.verdict = 'overridden';
+    } else if (
+      record.panelVerdict !== 'PASS' ||
+      record.panel?.partial !== false ||
+      !record.judges.every(
+        (judge) => judge.state === 'complete' && judge.verdict === 'PASS',
+      )
+    ) {
+      reasons.add(
+        `review panel is ${record.panelVerdict ?? 'INCOMPLETE'} without override: ${path}`,
+      );
+    }
+  }
+  if (records.length === 0) reasons.add('exact-head review record is missing');
+  return records;
 }
 
 export async function runPreflight(input, dependencies = {}) {
@@ -273,6 +490,8 @@ export async function runPreflight(input, dependencies = {}) {
     else reasons.add(ticketTrailer.error);
   }
 
+  report.reviewRecords = reviewEvidence(repo, input, reasons);
+
   if (slug) {
     const pullRead =
       dependencies.readPull ??
@@ -355,6 +574,38 @@ export async function runPreflight(input, dependencies = {}) {
         if (!status.description || !hasZeroIsolationSkips(status.description))
           reasons.add(
             'exact-head krn/gate-local status does not report zero isolation skips',
+          );
+      }
+    }
+
+    const checkRuns = await readValue(
+      dependencies.readCheckRuns ?? readCheckRuns,
+      [repo, slug, input.head],
+      checkRunsSchema,
+      'GitHub head check-runs could not be read',
+      reasons,
+    );
+    if (checkRuns) {
+      const gate = checkRuns
+        .filter(
+          (check) =>
+            check.name === 'gate' && check.app?.slug === 'github-actions',
+        )
+        .sort(
+          (a, b) =>
+            Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id,
+        )[0];
+      if (!gate) reasons.add('exact-head Actions gate check-run is missing');
+      else {
+        report.gateCheckRun = {
+          id: gate.id,
+          url: gate.html_url,
+          status: gate.status,
+          conclusion: gate.conclusion,
+        };
+        if (gate.status !== 'completed' || gate.conclusion !== 'success')
+          reasons.add(
+            'latest exact-head Actions gate check-run is not completed/success',
           );
       }
     }

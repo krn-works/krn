@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { gateCheck, writeReviewEvidence } from './helpers/ship-evidence.ts';
 
 const scriptPath = fileURLToPath(
   new URL('../scripts/pr-preflight.mjs', import.meta.url),
@@ -118,6 +119,7 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
     [`Ticket: ${ticket}`, ...taskTrailers].join('\n'),
   ]);
   const head = await git(repo, ['rev-parse', 'HEAD']);
+  await writeReviewEvidence(repo, base, head);
   const srcTreeSha = await git(repo, ['rev-parse', `${head}:src`]);
   const testTreeSha = await git(repo, ['rev-parse', `${head}:test`]);
   const title = options.title ?? `feat(review): add preflight (${ticket})`;
@@ -182,11 +184,13 @@ function runHarness(
       input,
       pull: value.pull,
       statuses: value.statuses,
+      checks: [gateCheck()],
     })};
     const calls = [];
     const report = await runPreflight(fixture.input, {
       readPull: async (...args) => { calls.push(['pull', ...args]); return { ok: true, value: fixture.pull }; },
       readStatuses: async (...args) => { calls.push(['statuses', ...args]); return { ok: true, value: fixture.statuses }; },
+      readCheckRuns: async (...args) => { calls.push(['checks', ...args]); return { ok: true, value: fixture.checks }; },
     });
     process.stdout.write(JSON.stringify({ report, calls }) + '\\n');
   `;
@@ -244,6 +248,7 @@ test('a PR whose ticket is a committed task at head passes', async (t) => {
   assert.deepEqual(calls, [
     ['pull', value.repo, 'krn-works/krn', 27],
     ['statuses', value.repo, 'krn-works/krn', value.head],
+    ['checks', value.repo, 'krn-works/krn', value.head],
   ]);
 });
 
@@ -304,6 +309,7 @@ test('preflight returns the title capture and rejects a mismatched Ticket traile
   assert.deepEqual(calls, [
     ['pull', value.repo, 'krn-works/krn', 27],
     ['statuses', value.repo, 'krn-works/krn', value.head],
+    ['checks', value.repo, 'krn-works/krn', value.head],
   ]);
 });
 
