@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -8,7 +9,7 @@ import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 const scratch =
-  '/mnt/storage/coding/krn/active/krn/.krn/runs/claude-task-ergonomics-fix/scratch';
+  process.env.KRN_TASK_TEST_TMPDIR ?? join(tmpdir(), 'krn-task-ergonomics');
 
 test('task quickstart and each verb help give agents usable examples', async () => {
   const repo = await tempRepo('help-');
@@ -434,8 +435,7 @@ function runCli(repo: string, args: string[]) {
     encoding: 'utf8',
     env: {
       ...cleanGitEnvironment(),
-      KRN_HOOK_NOGIT_TMPDIR:
-        process.env.KRN_HOOK_NOGIT_TMPDIR ?? '/mnt/storage',
+      KRN_HOOK_NOGIT_TMPDIR: process.env.KRN_HOOK_NOGIT_TMPDIR ?? scratch,
     },
     timeout: 10_000,
   });
