@@ -12,7 +12,27 @@ while [[ -L "$source_path" ]]; do
 done
 
 root=$(cd -P "$(dirname "$source_path")/.." >/dev/null 2>&1 && pwd)
-version=$(<"$root/.node-version")
+if [[ ! -f "$root/.node-version" ]]; then
+  printf 'krn: invalid .node-version: expected one Node version (for example 24.22.1).\n' >&2
+  exit 65
+fi
+
+version_lines=()
+mapfile -t version_lines < "$root/.node-version"
+if [[ ${#version_lines[@]} -ne 1 ]]; then
+  printf 'krn: invalid .node-version: expected one Node version (for example 24.22.1).\n' >&2
+  exit 65
+fi
+
+version=${version_lines[0]}
+version=${version#$'\xef\xbb\xbf'}
+version=${version#"${version%%[!$' \t\r']*}"}
+version=${version%"${version##*[!$' \t\r']}"}
+if [[ ! "$version" =~ ^v?([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+  printf 'krn: invalid .node-version: expected one Node version (for example 24.22.1).\n' >&2
+  exit 65
+fi
+version=${BASH_REMATCH[1]}
 node=${MISE_DATA_DIR:-$HOME/.local/share/mise}/installs/node/$version/bin/node
 
 if [[ ! -x "$node" ]]; then
