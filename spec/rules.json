@@ -64,6 +64,28 @@
         "deadline": "2026-12-31"
       },
       "rationale": "KRN process belongs only in repositories that explicitly adopt it; the global contract stays universal and minimal."
+    },
+    {
+      "id": "KRN-11",
+      "trigger": "a work item is managed",
+      "action": "the lead MUST manage task status in `tasks/<id>.json` with `krn task` (`ready`, `claim`, `release`, `close`); workers MUST NOT mutate tracker state, must receive the task id in their brief, and MUST use it in commit titles and the `Ticket:` trailer",
+      "owner": "lead",
+      "enforcement": {
+        "kind": "test",
+        "check": "repository rules document task delivery and receiver proof"
+      },
+      "rationale": "Work status travels with the repository and delivery remains traceable to its task."
+    },
+    {
+      "id": "KRN-12",
+      "trigger": "code is integrated or forwarded",
+      "action": "the author MUST test every integration or forward against its real receiver or a verbatim capture of its output",
+      "owner": "author",
+      "enforcement": {
+        "kind": "test",
+        "check": "repository rules document task delivery and receiver proof"
+      },
+      "rationale": "Receiver-boundary evidence verifies integration and forwarding contracts."
     }
   ]
 }

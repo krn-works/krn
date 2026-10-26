@@ -1,0 +1,12 @@
+{
+  "id": "t-bydred9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 2,
+  "title": "Measure unknown-command forwarding overhead",
+  "after": [],
+  "body": [
+    "Measure the overhead of forwarding an unknown command to its configured legacy entry. Acceptance: a repeatable measurement against the real receiver shows forwarding overhead at or below 100 ms."
+  ]
+}

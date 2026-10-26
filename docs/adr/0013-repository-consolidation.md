@@ -53,8 +53,9 @@ with the same change.
 
 The P-052 inventory must assign a disposition to active callers of the legacy
 Git-ref `krn task` queue and Paperclip gateway. The tracker decision in ADR
-0014 D8 selects a Git-backed in-repository successor; import existing records
-before removing Paperclip everywhere, and add no new Paperclip dependencies.
+0014 D8 selects a Git-backed in-repository successor; [ADR 0015](0015-repository-task-tracker.md)
+supersedes its import clauses: no existing records are imported before
+removing Paperclip everywhere, and no new Paperclip dependencies are added.
 Delete other legacy code only when the inventory confirms it has no active
 caller.
 
@@ -65,8 +66,8 @@ more than 30% of outcomes touch both repositories; repo-boundary work
 exceeds two lead-hours per PR; or Product delivery shows that `delegate` or `review` needs
 GLOBAL internals beyond the seam. Schedule consolidation after worker
 environment qualification and when the measured trigger fires, with all
-branches merged or archived. Tracker import and Paperclip removal follow ADR
-0014 D8; no per-project Paperclip cutover is required.
+branches merged or archived. Tracker and Paperclip removal follow ADR 0015;
+no per-project Paperclip cutover or data import is required.
 
 [POLICY] When triggered, the operator's one-way-door decisions are: re-seal
 from the new source, `krn install apply`, hook re-trust, rewrite of
@@ -92,8 +93,8 @@ external landscape, and devil's advocate.
 **[DOC: ignored working evidence pointer `.krn/runs/claude-docs-consolidation-20261022/synthesis.md`]**
 The task-run synthesis is the content source. Its full record is the ignored
 working evidence pointer cited under Context. The delivery plan records
-worker qualification and delivery sequencing; tracker implementation,
-import, and Paperclip removal follow ADR 0014 D8.
+worker qualification and delivery sequencing; the tracker implementation and
+Paperclip removal follow ADR 0015, with no data import.
 
 **[DOC]** [P-052](../program/proposals.md)
 owns the caller inventory; this ADR fixes the repository target and trigger.

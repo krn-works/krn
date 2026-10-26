@@ -11,8 +11,25 @@ const script = fileURLToPath(
 );
 const registry = fileURLToPath(new URL('../spec/rules.json', import.meta.url));
 const agents = fileURLToPath(new URL('../AGENTS.md', import.meta.url));
+const biomeConfig = fileURLToPath(new URL('../biome.json', import.meta.url));
 const tests = fileURLToPath(new URL('../test/', import.meta.url));
 const packageFile = fileURLToPath(new URL('../package.json', import.meta.url));
+
+test('repository rules document task delivery and receiver proof', async () => {
+  const source = await readFile(agents, 'utf8');
+  assert.match(
+    source,
+    /^- \*\*KRN-11\*\* .*lead MUST manage task status in `tasks\/<id>\.json` with `krn task`.*`ready`.*`claim`.*`release`.*`close`.*workers MUST NOT mutate tracker state.*task id in their brief.*commit titles.*`Ticket:` trailer.*\(owner: lead;.*$/mu,
+  );
+  assert.match(
+    source,
+    /^- \*\*KRN-12\*\* .*every integration or forward.*real receiver.*verbatim capture of its output.*$/mu,
+  );
+  const biome = JSON.parse(await readFile(biomeConfig, 'utf8')) as {
+    files: { includes: string[] };
+  };
+  assert.ok(biome.files.includes.includes('!tasks/**'));
+});
 
 async function fixture(): Promise<{
   directory: string;

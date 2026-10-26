@@ -1,0 +1,14 @@
+{
+  "id": "t-7zm0211",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 2,
+  "title": "Run the local gate in the CI image",
+  "after": [
+    "t-q85meb0"
+  ],
+  "body": [
+    "Run `npm run gate:local` inside the same image used by CI so local and CI checks use one environment. Acceptance: the CI job invokes the local gate in its image and records the same required steps."
+  ]
+}

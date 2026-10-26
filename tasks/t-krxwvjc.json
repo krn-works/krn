@@ -1,0 +1,12 @@
+{
+  "id": "t-krxwvjc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 2,
+  "title": "Document the live delivery contract",
+  "after": [],
+  "body": [
+    "Document the live delivery `--contract` option and let the delivery ticket parser accept `t-` task ids after Paperclip removal. Acceptance: docs describe the contract and tests show a `t-` id is accepted by the parser."
+  ]
+}

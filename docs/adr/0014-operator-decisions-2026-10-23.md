@@ -30,6 +30,8 @@ Accepted. This is the single durable Product record for operator decisions D1–
 | D18 | Route models with luna as default, sol for hard refactors, Claude Haiku/Sonnet/Opus subagents by task type, and two or three Opus lenses for program decisions. | No direct quote recorded in the source register. | No prior Product routing decision; establishes model routing. |
 | D19 | Keep only the minimal true documentation set; delete outdated docs because Git history is the archive, and let current code plus passing tests outrank stale instructions. | No direct quote recorded in the source register. | The former documentation-retention and stale-instruction precedence expressed in this repository's docs. |
 
+**D8 amendment (operator 2026-10-26):** [ADR 0015](0015-repository-task-tracker.md) supersedes D8's import clause; no Paperclip or legacy queue records are imported.
+
 ## Scope
 
-This ADR supersedes the cited portions of earlier Product and GLOBAL decisions only. In particular, D8 supersedes ADR 0011 and GLOBAL ADR 0007's Paperclip control-plane parts; D10–D11 supersede conflicting GLOBAL ADR 0007 review and gate-order parts. Other GLOBAL ADR 0007 requirements remain only where they do not conflict with D1–D19. Product's separate implementation and import work does not authorize host-side Paperclip archive or other irreversible actions.
+This ADR supersedes the cited portions of earlier Product and GLOBAL decisions only. In particular, D8 supersedes ADR 0011 and GLOBAL ADR 0007's Paperclip control-plane parts; D10–D11 supersede conflicting GLOBAL ADR 0007 review and gate-order parts. Other GLOBAL ADR 0007 requirements remain only where they do not conflict with D1–D19. Product's separate implementation work does not authorize host-side Paperclip archive or other irreversible actions.

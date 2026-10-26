@@ -1,0 +1,12 @@
+{
+  "id": "t-1j1gxdd",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 3,
+  "title": "Accept CRLF in the Node version file",
+  "after": [],
+  "body": [
+    "Make `bin/krn` tolerate CRLF line endings in `.node-version`. Acceptance: a CRLF fixture resolves and runs the pinned Node version successfully."
+  ]
+}

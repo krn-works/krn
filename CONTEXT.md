@@ -11,7 +11,7 @@
 
 ## Current control plane
 
-The in-repository `krn task` tracker is the task-status source. Its committed `tasks/<id>.json` records support dependencies, readiness, and claiming. It replaces the legacy Git-ref task queue and host-SQLite `krn work`; no legacy board data is imported. The former board integration is removed from Product. Local `krn review` records and git history provide review and delivery evidence; no board publication replaces them. ADR 0014 D8 and ADR 0015 record the tracker decision; ADR 0013 keeps Product as the target home and Global as a compatibility boundary until its measured consolidation trigger fires.
+The in-repository `krn task` tracker is the task-status source. Its committed `tasks/<id>.json` records support dependencies, readiness, and claiming. It replaces the legacy Git-ref task queue and host-SQLite `krn work`; no Paperclip or legacy queue data is imported. Paperclip was removed from Product in #109; GLOBAL still has Paperclip code in the backlog. The installer-owned GLOBAL `~/.local/bin/krn` forwards `krn task …` to Product through `KRN_PRODUCT_ENTRY` or `~/.config/krn/product-entry` (#457, #459). Local `krn review` records and git history provide review and delivery evidence; no board publication replaces them. ADR 0014 D8 and ADR 0015 record the tracker decision; ADR 0013 keeps Product as the target home and Global as a compatibility boundary until its measured consolidation trigger fires.
 
 The [plan](docs/program/PLAN.md) records sequence, not task status or additional authority. Read tracker status from `krn task`.
 

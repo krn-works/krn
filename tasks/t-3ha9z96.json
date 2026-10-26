@@ -1,0 +1,13 @@
+{
+  "id": "t-3ha9z96",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 2,
+  "title": "Move worker lessons into checks and AGENTS",
+  "after": [],
+  "body": [
+    "Review the lead memory under D14 and move worker-relevant lessons into mechanical checks first and `AGENTS.md` second: module registration, host paths, real-receiver tests, frozen observers and squash, and fix-round observer files.",
+    "Acceptance: each lesson has an executor-facing check or instruction, and the lead memory retains only operator preferences and decisions."
+  ]
+}

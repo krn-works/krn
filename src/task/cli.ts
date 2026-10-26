@@ -37,12 +37,13 @@ interface CommandOutput {
 
 const quickstart = [
   'krn task — agent quickstart',
-  'Loop: krn task ready → krn task claim --next --actor NAME → work in a worktree → close in the delivering PR.',
+  'Lead runs the loop: krn task ready → krn task claim --next --actor lead → work in a worktree → krn task release ID or krn task close ID --as done in the delivering PR.',
+  'Workers receive the task id in their brief and do not mutate tracker state.',
   'Records: tasks/<id>.json (tracked); claims: .krn/task-claims/<id>.json (ignored, shared from the main checkout).',
   'Exit codes: 0 success; 64 usage; 65 invalid task data; 75 held claim or no ready task.',
   '',
   'krn task ready',
-  'krn task claim --next --actor worker',
+  'krn task claim --next --actor lead',
   'krn task show t-a1b2c3d',
   'krn task list --status all',
   'krn task create --title "Add a task" --priority 1 --body-file -',
@@ -62,7 +63,7 @@ const verbHelp: Record<string, string> = {
   ready:
     'krn task ready [--limit N] [--explain ID] [--json]\nList ready tasks or explain one task. Example: krn task ready --explain t-a1b2c3d --json',
   claim:
-    'krn task claim ID --actor NAME [--worktree PATH] [--reason TEXT] [--takeover --reason TEXT] [--json]\nOr use --next instead of ID. Example: krn task claim --next --actor worker --json',
+    'krn task claim ID --actor NAME [--worktree PATH] [--reason TEXT] [--takeover --reason TEXT] [--json]\nOr use --next instead of ID. Example: krn task claim --next --actor lead --json',
   release:
     'krn task release ID [--json]\nRelease a task claim. Example: krn task release t-a1b2c3d --json',
   close:

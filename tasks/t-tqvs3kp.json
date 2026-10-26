@@ -1,0 +1,12 @@
+{
+  "id": "t-tqvs3kp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 1,
+  "title": "Remove the PreToolUse parser guard",
+  "after": [],
+  "body": [
+    "Remove `krn_pretooluse.py`, `destructive_guard.py`, and their registration and tests from GLOBAL, following ADR 0014 D9. Keep safety at the Codex and Claude sandbox and permission boundaries and server-side branch protection. Acceptance: no parser guard or registration remains, and focused checks pass."
+  ]
+}
