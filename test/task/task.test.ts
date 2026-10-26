@@ -13,10 +13,7 @@ import {
 import { checkTaskDirectory, createTask } from '../../src/task/store.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
-const scratch = resolve(
-  process.cwd(),
-  '.krn/runs/claude-task-records-fix2/scratch',
-);
+const scratch = resolve(process.cwd(), '.krn/runs/claude-claim-lock/scratch');
 
 const validTask: TaskRecord = {
   id: 'T-1',

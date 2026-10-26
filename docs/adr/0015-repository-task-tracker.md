@@ -44,6 +44,15 @@ are treated as live and reported, so only `release` or a reasoned `--takeover`
 removes them. A live claim blocks another claim with exit code 75; takeover
 requires a reason.
 
+Every claim mutation, including expired-claim removal, takeover, and release,
+holds a Linux abstract-namespace Unix socket named from the main checkout's
+real path and task id for the full inspect, mutation, and publish operation.
+The kernel releases the name on process exit, including `SIGKILL`, so this
+single-host tracker needs no lock files or stale-lock recovery; claim mutations
+require Linux and a live lock blocks for at most two seconds before returning
+exit code 75. Read-only `ready` and `show` commands do not lock or remove
+expired claims.
+
 ## Consequences and delivery sequence
 
 The format lens's merge table found that separate files keep unrelated task
