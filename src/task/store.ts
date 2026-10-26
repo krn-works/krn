@@ -1,22 +1,14 @@
 import { spawnSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
 import {
-  closeSync,
   type Dirent,
   existsSync,
-  fsyncSync,
-  linkSync,
   lstatSync,
   mkdirSync,
-  openSync,
   readdirSync,
   readFileSync,
-  renameSync,
   type Stats,
-  unlinkSync,
-  writeFileSync,
 } from 'node:fs';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 import {
   createTaskId,
   isTaskId,
@@ -29,6 +21,7 @@ import {
   type TaskStatus,
   TaskUsageError,
 } from './record.ts';
+import { atomicWrite } from './staged-write.ts';
 
 export interface NewTask {
   title: string;
@@ -218,7 +211,7 @@ export function createTask(
       body: [...(input.body ?? [])],
     };
     try {
-      atomicWrite(root, path, serializeTask(record), true);
+      atomicWrite(root, path, serializeTask(record));
       return record;
     } catch (error) {
       if (isAlreadyExists(error)) continue;
@@ -252,7 +245,12 @@ export function closeTask(
     status: 'closed',
     resolution,
   };
-  atomicWrite(root, join(root, 'tasks', `${id}.json`), serializeTask(closed));
+  atomicWrite(
+    root,
+    join(root, 'tasks', `${id}.json`),
+    serializeTask(closed),
+    true,
+  );
   return closed;
 }
 
@@ -283,7 +281,12 @@ export function changeDependency(
   } else after = record.after.filter((candidate) => candidate !== dependency);
 
   const updated: TaskRecord = { ...record, after };
-  atomicWrite(root, join(root, 'tasks', `${id}.json`), serializeTask(updated));
+  atomicWrite(
+    root,
+    join(root, 'tasks', `${id}.json`),
+    serializeTask(updated),
+    true,
+  );
   return updated;
 }
 
@@ -320,32 +323,6 @@ function existsInOriginMain(root: string, id: TaskId): boolean {
     { encoding: 'utf8' },
   );
   return object.status === 0;
-}
-
-function atomicWrite(
-  root: string,
-  target: string,
-  contents: string,
-  create = false,
-): void {
-  const directory = join(root, '.krn', 'tmp', 'task-write');
-  mkdirSync(directory, { recursive: true });
-  const temporary = join(directory, `.${basename(target)}.${randomUUID()}.tmp`);
-  let descriptor: number | undefined;
-  try {
-    descriptor = openSync(temporary, 'wx', 0o666);
-    writeFileSync(descriptor, contents, 'utf8');
-    fsyncSync(descriptor);
-    closeSync(descriptor);
-    descriptor = undefined;
-    if (create) {
-      linkSync(temporary, target);
-      unlinkSync(temporary);
-    } else renameSync(temporary, target);
-  } finally {
-    if (descriptor !== undefined) closeSync(descriptor);
-    if (existsSync(temporary)) unlinkSync(temporary);
-  }
 }
 
 function findCycles(graph: Map<TaskId, Set<TaskId>>): string[] {

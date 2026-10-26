@@ -1,19 +1,12 @@
 import { spawnSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
 import {
-  closeSync,
-  existsSync,
-  fsyncSync,
   linkSync,
-  mkdirSync,
-  openSync,
   readFileSync,
   realpathSync,
   renameSync,
   unlinkSync,
-  writeFileSync,
 } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import {
   parseTaskDocument,
   TaskCommandError,
@@ -22,6 +15,13 @@ import {
   type TaskRecord,
   TaskUsageError,
 } from './record.ts';
+import {
+  atomicWrite,
+  discardStagedWrite,
+  publishStagedWrite,
+  stageWrite,
+  uniqueStagingPath,
+} from './staged-write.ts';
 import { getTask, loadTaskIndex, repositoryRoot } from './store.ts';
 
 export const claimKeys = [
@@ -46,8 +46,33 @@ export interface TaskClaim {
 
 export interface ClaimInspection {
   state: ClaimState;
+  reason: string;
   claim?: Partial<TaskClaim>;
   findings: string[];
+}
+
+export interface ClaimGitProbe {
+  status: number | null;
+  error?: Error;
+  stdout: Buffer;
+}
+
+export interface ClaimLivenessProbes {
+  resolveWorktree(path: string): string;
+  worktreeList(root: string): ClaimGitProbe;
+  branchRef(root: string, branch: string): ClaimGitProbe;
+  taskFile(root: string, id: TaskId): Buffer;
+  originRef(root: string): ClaimGitProbe;
+  originTask(root: string, id: TaskId): ClaimGitProbe;
+}
+
+export interface ClaimTaskHooks {
+  afterInspect?: (inspection: ClaimInspection) => void;
+}
+
+interface ClaimSnapshot {
+  inspection: ClaimInspection;
+  bytes?: Buffer;
 }
 
 export interface ReadyTasks {
@@ -109,30 +134,49 @@ export function inspectClaim(root: string, id: TaskId): ClaimInspection {
 }
 
 function inspectClaimAt(mainRoot: string, id: TaskId): ClaimInspection {
+  return inspectClaimSnapshotAt(mainRoot, id).inspection;
+}
+
+function inspectClaimSnapshotAt(mainRoot: string, id: TaskId): ClaimSnapshot {
   const path = claimPath(mainRoot, id);
   let bytes: Buffer;
   try {
     bytes = readFileSync(path);
   } catch (error) {
-    if (isMissing(error)) return { state: 'none', findings: [] };
+    if (isMissing(error))
+      return {
+        inspection: { state: 'none', reason: 'none', findings: [] },
+      };
     return {
-      state: 'corrupt',
-      findings: ['unable to read claim file'],
+      inspection: {
+        state: 'corrupt',
+        reason: 'corrupt',
+        findings: ['unable to read claim file'],
+      },
     };
   }
 
   const parsed = parseClaim(bytes, id);
   if (parsed.findings.length > 0)
     return {
-      state: 'corrupt',
-      ...(parsed.claim === undefined ? {} : { claim: parsed.claim }),
-      findings: parsed.findings,
+      bytes,
+      inspection: {
+        state: 'corrupt',
+        reason: 'corrupt',
+        ...(parsed.claim === undefined ? {} : { claim: parsed.claim }),
+        findings: parsed.findings,
+      },
     };
   const claim = parsed.claim as TaskClaim;
+  const liveness = claimLiveness(mainRoot, claim);
   return {
-    state: claimIsLive(mainRoot, claim) ? 'live' : 'expired',
-    claim,
-    findings: [],
+    bytes,
+    inspection: {
+      state: liveness.state,
+      reason: liveness.reason,
+      claim,
+      findings: [],
+    },
   };
 }
 
@@ -140,6 +184,7 @@ export function claimTask(
   root: string,
   id: TaskId,
   options: ClaimOptions,
+  hooks: ClaimTaskHooks = {},
 ): ClaimResult {
   const worktreeRoot = resolveClaimWorktree(root, options.worktree);
   const branch = currentBranch(worktreeRoot);
@@ -150,17 +195,8 @@ export function claimTask(
 
   const mainRoot = mainCheckoutRoot(worktreeRoot);
   const path = claimPath(mainRoot, id);
-  const current = inspectClaimAt(mainRoot, id);
   let previous: ClaimInspection | undefined;
   let removedExpired: ClaimInspection | undefined;
-  if (current.state === 'live' || current.state === 'corrupt') {
-    if (!options.takeover) throw heldClaimError(current);
-    previous = current;
-  } else if (current.state === 'expired') {
-    removedExpired = current;
-    removeClaim(path);
-  }
-
   const claim: TaskClaim = {
     id,
     actor: options.actor,
@@ -169,23 +205,63 @@ export function claimTask(
     claimed: new Date().toISOString(),
     reason: options.reason ?? null,
   };
-  try {
-    writeClaim(
-      mainRoot,
-      path,
-      serializeClaim(claim),
-      options.takeover === true && previous !== undefined,
-    );
-  } catch (error) {
-    if (isAlreadyExists(error)) {
-      const raced = inspectClaim(worktreeRoot, id);
-      if (
-        options.takeover &&
-        (raced.state === 'live' || raced.state === 'corrupt')
-      ) {
-        writeClaim(mainRoot, path, serializeClaim(claim), true);
-      } else throw heldClaimError(raced);
-    } else throw error;
+  const serialized = serializeClaim(claim);
+  let takeoverRetries = 0;
+  let expiredRetries = 0;
+
+  while (true) {
+    const snapshot = inspectClaimSnapshotAt(mainRoot, id);
+    const current = snapshot.inspection;
+    hooks.afterInspect?.(current);
+
+    if (current.state === 'live' || current.state === 'corrupt') {
+      if (!options.takeover) throw heldClaimError(current);
+      if (snapshot.bytes === undefined) throw heldClaimError(current);
+      const outcome = compareAndReplaceClaim(
+        mainRoot,
+        path,
+        snapshot.bytes,
+        serialized,
+      );
+      if (outcome === 'replaced') {
+        previous = current;
+        break;
+      }
+      if (takeoverRetries === 0) {
+        takeoverRetries += 1;
+        continue;
+      }
+      throw claimChangedError('while taking over');
+    }
+
+    if (current.state === 'expired') {
+      if (snapshot.bytes === undefined)
+        throw claimChangedError('while removing an expired claim');
+      const outcome = compareAndRemoveClaim(mainRoot, path, snapshot.bytes);
+      if (outcome === 'removed') {
+        removedExpired = current;
+        break;
+      }
+      if (outcome === 'missing' && expiredRetries === 0) {
+        expiredRetries += 1;
+        continue;
+      }
+      if (outcome === 'changed')
+        throw heldClaimError(inspectClaimAt(mainRoot, id));
+      throw claimChangedError('while removing an expired claim');
+    }
+
+    break;
+  }
+
+  if (previous === undefined) {
+    try {
+      atomicWrite(mainRoot, path, serialized);
+    } catch (error) {
+      if (isAlreadyExists(error))
+        throw heldClaimError(inspectClaimAt(mainRoot, id));
+      throw error;
+    }
   }
   return {
     id,
@@ -216,13 +292,23 @@ export function claimNext(
   throw new TaskCommandError('no ready tasks are available to claim', 75);
 }
 
-export function releaseClaim(root: string, id: TaskId): ClaimInspection {
+export function releaseClaim(
+  root: string,
+  id: TaskId,
+  hooks: ClaimTaskHooks = {},
+): ClaimInspection {
   const mainRoot = mainCheckoutRoot(root);
   const path = claimPath(mainRoot, id);
-  const current = inspectClaimAt(mainRoot, id);
+  const snapshot = inspectClaimSnapshotAt(mainRoot, id);
+  const current = snapshot.inspection;
+  hooks.afterInspect?.(current);
   if (current.state === 'none')
     throw new TaskDataError([`task ${id} has no claim to release`]);
-  removeClaim(path);
+  if (snapshot.bytes === undefined) throw claimChangedError('while releasing');
+  const outcome = compareAndRemoveClaim(mainRoot, path, snapshot.bytes);
+  if (outcome === 'missing')
+    throw new TaskDataError([`task ${id} has no claim to release`]);
+  if (outcome === 'changed') throw claimChangedError('while releasing');
   return current;
 }
 
@@ -239,7 +325,7 @@ export function serializeClaim(claim: TaskClaim): string {
 }
 
 export function formatClaim(inspection: ClaimInspection): string[] {
-  const lines = [`Claim: ${inspection.state}`];
+  const lines = [`Claim: ${inspection.reason}`];
   const claim = inspection.claim;
   if (claim !== undefined) {
     if (typeof claim.actor === 'string') lines.push(`Actor: ${claim.actor}`);
@@ -356,75 +442,111 @@ function parseClaim(
   return { claim, findings };
 }
 
-function claimIsLive(mainRoot: string, claim: TaskClaim): boolean {
+export function claimLiveness(
+  mainRoot: string,
+  claim: TaskClaim,
+  probes: ClaimLivenessProbes = defaultClaimLivenessProbes(),
+): { state: 'live' | 'expired'; reason: string } {
   let worktree: string;
   try {
-    worktree = realpathSync(claim.worktree);
-  } catch {
-    return false;
-  }
-  const registered = registeredWorktrees(mainRoot);
-  if (!registered.has(worktree)) return false;
-  if (!branchExists(mainRoot, claim.branch)) return false;
-  if (!taskOpenInWorktree(worktree, claim.id)) return false;
-  const origin = taskInOriginMain(mainRoot, claim.id);
-  return !origin.present || origin.open;
-}
-
-function taskOpenInWorktree(root: string, id: TaskId): boolean {
-  let bytes: Buffer;
-  try {
-    bytes = readFileSync(join(root, 'tasks', `${id}.json`));
+    worktree = probes.resolveWorktree(claim.worktree);
   } catch (error) {
-    return isMissing(error);
+    if (isMissing(error)) return expired('worktree path is missing');
+    return live();
   }
-  const parsed = parseTaskDocument(bytes);
-  return (
-    parsed.findings.length === 0 &&
-    parsed.record?.id === id &&
-    parsed.record.status === 'open'
-  );
+
+  const listed = probes.worktreeList(mainRoot);
+  if (!probeSucceeded(listed)) return live();
+  let registered: Set<string>;
+  try {
+    registered = registeredWorktrees(listed.stdout);
+  } catch {
+    return live();
+  }
+  if (!registered.has(worktree)) return expired('worktree is not registered');
+
+  const branch = probes.branchRef(mainRoot, claim.branch);
+  if (probeSucceeded(branch)) {
+    // The branch exists; continue checking the task.
+  } else if (branch.error === undefined && branch.status === 1) {
+    return expired(`branch ${claim.branch} does not exist`);
+  } else return live();
+
+  let localTask: Buffer;
+  try {
+    localTask = probes.taskFile(worktree, claim.id);
+  } catch (error) {
+    if (isMissing(error)) return expired('task file is missing from worktree');
+    return live();
+  }
+  const localParsed = parseTaskDocument(localTask);
+  if (
+    localParsed.findings.length === 0 &&
+    localParsed.record?.id === claim.id
+  ) {
+    if (localParsed.record.status === 'closed')
+      return expired('task is closed in worktree');
+    if (localParsed.record.status !== 'open') return live();
+  } else return live();
+
+  const originRef = probes.originRef(mainRoot);
+  if (!probeSucceeded(originRef)) return live();
+  const originTask = probes.originTask(mainRoot, claim.id);
+  if (!probeSucceeded(originTask)) return live();
+  const originParsed = parseTaskDocument(originTask.stdout);
+  if (
+    originParsed.findings.length === 0 &&
+    originParsed.record?.id === claim.id &&
+    originParsed.record.status === 'closed'
+  )
+    return expired('task is closed in origin/main');
+  return live();
 }
 
-function taskInOriginMain(
-  root: string,
-  id: TaskId,
-): { present: false } | { present: true; open: boolean } {
-  const origin = spawnSync('git', [
-    '-C',
-    root,
-    'rev-parse',
-    '--verify',
-    '--quiet',
-    'origin/main^{commit}',
-  ]);
-  if (origin.status !== 0 || origin.error !== undefined)
-    return { present: false };
-  const exists = spawnSync('git', [
-    '-C',
-    root,
-    'cat-file',
-    '-e',
-    `origin/main:tasks/${id}.json`,
-  ]);
-  if (exists.status !== 0 || exists.error !== undefined)
-    return { present: false };
-  const result = spawnSync('git', [
-    '-C',
-    root,
-    'show',
-    `origin/main:tasks/${id}.json`,
-  ]);
-  if (result.status !== 0 || result.error !== undefined)
-    return { present: true, open: false };
-  const parsed = parseTaskDocument(result.stdout as Buffer);
+function defaultClaimLivenessProbes(): ClaimLivenessProbes {
   return {
-    present: true,
-    open:
-      parsed.findings.length === 0 &&
-      parsed.record?.id === id &&
-      parsed.record.status === 'open',
+    resolveWorktree: (path) => realpathSync(path),
+    worktreeList: (root) =>
+      gitProbe(root, ['worktree', 'list', '--porcelain', '-z']),
+    branchRef: (root, branch) =>
+      gitProbe(root, [
+        'show-ref',
+        '--verify',
+        '--quiet',
+        `refs/heads/${branch}`,
+      ]),
+    taskFile: (root, id) => readFileSync(join(root, 'tasks', `${id}.json`)),
+    originRef: (root) =>
+      gitProbe(root, [
+        'rev-parse',
+        '--verify',
+        '--quiet',
+        'origin/main^{commit}',
+      ]),
+    originTask: (root, id) =>
+      gitProbe(root, ['show', `origin/main:tasks/${id}.json`]),
   };
+}
+
+function gitProbe(root: string, args: string[]): ClaimGitProbe {
+  const result = spawnSync('git', ['-C', root, ...args]);
+  return {
+    status: result.status,
+    ...(result.error === undefined ? {} : { error: result.error }),
+    stdout: Buffer.isBuffer(result.stdout) ? result.stdout : Buffer.alloc(0),
+  };
+}
+
+function probeSucceeded(probe: ClaimGitProbe): boolean {
+  return probe.status === 0 && probe.error === undefined;
+}
+
+function live(): { state: 'live'; reason: string } {
+  return { state: 'live', reason: 'live' };
+}
+
+function expired(evidence: string): { state: 'expired'; reason: string } {
+  return { state: 'expired', reason: `expired: ${evidence}` };
 }
 
 function assertDependenciesDone(root: string, task: TaskRecord): void {
@@ -448,7 +570,16 @@ function resolveClaimWorktree(root: string, path?: string): string {
   } catch {
     throw new TaskUsageError(`claim worktree does not exist: ${candidate}`);
   }
-  if (!registeredWorktrees(root).has(canonical))
+  const listing = defaultClaimLivenessProbes().worktreeList(root);
+  if (!probeSucceeded(listing))
+    throw new TaskUsageError(`claim worktree is not registered: ${canonical}`);
+  let registered: Set<string>;
+  try {
+    registered = registeredWorktrees(listing.stdout);
+  } catch {
+    throw new TaskUsageError(`claim worktree is not registered: ${canonical}`);
+  }
+  if (!registered.has(canonical))
     throw new TaskUsageError(`claim worktree is not registered: ${canonical}`);
   return canonical;
 }
@@ -467,39 +598,14 @@ function currentBranch(root: string): string {
   return branch;
 }
 
-function registeredWorktrees(root: string): Set<string> {
-  const result = spawnSync('git', [
-    '-C',
-    root,
-    'worktree',
-    'list',
-    '--porcelain',
-    '-z',
-  ]);
-  if (result.status !== 0 || result.error !== undefined) return new Set();
+function registeredWorktrees(output: Buffer): Set<string> {
   const paths = new Set<string>();
-  for (const field of (result.stdout as Buffer).toString('utf8').split('\0')) {
+  for (const field of output.toString('utf8').split('\0')) {
     if (!field.startsWith('worktree ')) continue;
     const path = field.slice('worktree '.length);
-    try {
-      paths.add(realpathSync(path));
-    } catch {
-      paths.add(resolve(path));
-    }
+    paths.add(realpathSync(path));
   }
   return paths;
-}
-
-function branchExists(root: string, branch: string): boolean {
-  const result = spawnSync('git', [
-    '-C',
-    root,
-    'show-ref',
-    '--verify',
-    '--quiet',
-    `refs/heads/${branch}`,
-  ]);
-  return result.status === 0;
 }
 
 function mainCheckoutRoot(root: string): string {
@@ -521,40 +627,91 @@ function claimPath(mainRoot: string, id: TaskId): string {
   return join(mainRoot, '.krn', 'task-claims', `${id}.json`);
 }
 
-function writeClaim(
+type CompareAndRemoveResult = 'removed' | 'missing' | 'changed';
+
+type CompareAndReplaceResult = 'replaced' | 'missing' | 'changed';
+
+function compareAndRemoveClaim(
   mainRoot: string,
   target: string,
-  contents: string,
-  replace: boolean,
-): void {
-  const staging = join(mainRoot, '.krn', 'tmp', 'task-write');
-  mkdirSync(staging, { recursive: true });
-  mkdirSync(dirname(target), { recursive: true });
-  const temporary = join(staging, `.${basename(target)}.${randomUUID()}.tmp`);
-  let descriptor: number | undefined;
+  inspected: Buffer,
+): CompareAndRemoveResult {
+  const moved = moveClaimToStaging(mainRoot, target);
+  if (moved === undefined) return 'missing';
+  let current: Buffer;
   try {
-    descriptor = openSync(temporary, 'wx', 0o666);
-    writeFileSync(descriptor, contents, 'utf8');
-    fsyncSync(descriptor);
-    closeSync(descriptor);
-    descriptor = undefined;
-    if (replace) renameSync(temporary, target);
-    else {
-      linkSync(temporary, target);
-      unlinkSync(temporary);
+    current = readFileSync(moved);
+  } catch (error) {
+    restoreClaim(moved, target);
+    throw error;
+  }
+  if (!current.equals(inspected)) {
+    restoreClaim(moved, target);
+    return 'changed';
+  }
+  unlinkSync(moved);
+  return 'removed';
+}
+
+function compareAndReplaceClaim(
+  mainRoot: string,
+  target: string,
+  inspected: Buffer,
+  contents: string,
+): CompareAndReplaceResult {
+  const staged = stageWrite(mainRoot, target, contents);
+  try {
+    const moved = moveClaimToStaging(mainRoot, target);
+    if (moved === undefined) return 'missing';
+    let current: Buffer;
+    try {
+      current = readFileSync(moved);
+    } catch (error) {
+      restoreClaim(moved, target);
+      throw error;
     }
+    if (!current.equals(inspected)) {
+      restoreClaim(moved, target);
+      return 'changed';
+    }
+    try {
+      publishStagedWrite(staged, target);
+    } catch (error) {
+      restoreClaim(moved, target);
+      if (isAlreadyExists(error)) return 'changed';
+      throw error;
+    }
+    unlinkSync(moved);
+    return 'replaced';
   } finally {
-    if (descriptor !== undefined) closeSync(descriptor);
-    if (existsSync(temporary)) unlinkSync(temporary);
+    discardStagedWrite(staged);
   }
 }
 
-function removeClaim(path: string): void {
+function moveClaimToStaging(
+  mainRoot: string,
+  target: string,
+): string | undefined {
+  const moved = uniqueStagingPath(mainRoot, target);
   try {
-    unlinkSync(path);
+    renameSync(target, moved);
+    return moved;
   } catch (error) {
-    if (!isMissing(error)) throw error;
+    if (isMissing(error)) return undefined;
+    throw error;
   }
+}
+
+function restoreClaim(moved: string, target: string): boolean {
+  try {
+    linkSync(moved, target);
+  } catch (error) {
+    if (!isAlreadyExists(error)) throw error;
+    unlinkSync(moved);
+    return false;
+  }
+  unlinkSync(moved);
+  return true;
 }
 
 function heldClaimError(inspection: ClaimInspection): TaskCommandError {
@@ -562,6 +719,10 @@ function heldClaimError(inspection: ClaimInspection): TaskCommandError {
     `task is held by ${claimHolder(inspection)}${inspection.findings.length > 0 ? `; claim findings: ${inspection.findings.join('; ')}` : ''}`,
     75,
   );
+}
+
+function claimChangedError(action: string): TaskCommandError {
+  return new TaskCommandError(`task claim changed ${action}`, 75);
 }
 
 function isCanonicalUtc(value: string): boolean {

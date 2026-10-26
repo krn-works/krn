@@ -5,10 +5,23 @@ import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
+import {
+  type ClaimGitProbe,
+  type ClaimLivenessProbes,
+  claimLiveness,
+  claimTask,
+  releaseClaim,
+  type TaskClaim,
+} from '../../src/task/claims.ts';
+import {
+  serializeTask,
+  TaskCommandError,
+  type TaskId,
+  type TaskRecord,
+} from '../../src/task/record.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
-const scratch = join(process.cwd(), '.krn/runs/claude-task-claims/scratch');
+const scratch = join(process.cwd(), '.krn/runs/claude-task-claims-fix/scratch');
 
 test('claim --next claims a ready task and ready omits it', async () => {
   const repo = await tempRepo('claim-ready-');
@@ -133,6 +146,7 @@ test('ready excludes live claims and show reports the claim', async () => {
     const show = runCli(repo, ['show', 'T-1', '--json']);
     assert.equal(show.status, 0, show.stderr);
     assert.equal(JSON.parse(show.stdout).claim.state, 'live');
+    assert.equal(JSON.parse(show.stdout).claim.reason, 'live');
     assert.equal(JSON.parse(show.stdout).claim.holder.actor, 'worker');
     assert.equal(git(repo, 'status', '--porcelain'), '');
   } finally {
@@ -156,6 +170,10 @@ test('ready includes expired claims without deleting or rewriting them', async (
     assert.equal(
       JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout).claim.state,
       'expired',
+    );
+    assert.equal(
+      JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout).claim.reason,
+      'expired: worktree path is missing',
     );
     assert.equal(runCli(repo, ['release', 'T-1']).status, 0);
     assert.equal(existsSync(claimFile), false);
@@ -272,9 +290,12 @@ test('removing a worktree expires its claim and makes the task ready', async () 
     const claim = runCli(linked, ['claim', 'T-1', '--actor', 'worker']);
     assert.equal(claim.status, 0, claim.stderr);
     git(repo, 'worktree', 'remove', '--force', linked);
-    assert.equal(
-      JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout).claim.state,
-      'expired',
+    const show = JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout);
+    assert.equal(show.claim.state, 'expired');
+    assert.equal(show.claim.reason, 'expired: worktree path is missing');
+    assert.match(
+      runCli(repo, ['show', 'T-1']).stdout,
+      /Claim: expired: worktree path is missing/u,
     );
     assert.deepEqual(readyIds(runCli(repo, ['ready', '--json'])), ['T-1']);
   } finally {
@@ -295,6 +316,10 @@ test('deleting a claim branch expires its claim', async () => {
     assert.equal(
       JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout).claim.state,
       'expired',
+    );
+    assert.equal(
+      JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout).claim.reason,
+      'expired: branch claim-branch-deleted-branch does not exist',
     );
   } finally {
     removeWorktree(repo, linked);
@@ -317,13 +342,17 @@ test('closing the task in its claiming worktree expires the claim', async () => 
       JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout).claim.state,
       'expired',
     );
+    assert.equal(
+      JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout).claim.reason,
+      'expired: task is closed in worktree',
+    );
   } finally {
     removeWorktree(repo, linked);
     await rm(repo, { recursive: true, force: true });
   }
 });
 
-test('a task absent from the claiming worktree does not expire an open origin claim', async () => {
+test('deleting the task file from the claiming worktree expires its claim', async () => {
   const repo = await fixtureRepo('claim-local-missing-', [task('T-1')]);
   const linked = join(dirname(repo), 'claim-local-missing-linked');
   try {
@@ -335,7 +364,11 @@ test('a task absent from the claiming worktree does not expire an open origin cl
     await rm(join(linked, 'tasks', 'T-1.json'));
     const show = runCli(repo, ['show', 'T-1', '--json']);
     assert.equal(show.status, 0, show.stderr);
-    assert.equal(JSON.parse(show.stdout).claim.state, 'live');
+    assert.equal(JSON.parse(show.stdout).claim.state, 'expired');
+    assert.equal(
+      JSON.parse(show.stdout).claim.reason,
+      'expired: task file is missing from worktree',
+    );
   } finally {
     removeWorktree(repo, linked);
     await rm(repo, { recursive: true, force: true });
@@ -356,10 +389,9 @@ test('closing the task on origin main expires the linked worktree claim', async 
     git(repo, 'add', 'tasks/T-1.json');
     git(repo, 'commit', '-qm', 'close task on origin main');
     git(repo, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
-    assert.equal(
-      JSON.parse(runCli(linked, ['show', 'T-1', '--json']).stdout).claim.state,
-      'expired',
-    );
+    const show = JSON.parse(runCli(linked, ['show', 'T-1', '--json']).stdout);
+    assert.equal(show.claim.state, 'expired');
+    assert.equal(show.claim.reason, 'expired: task is closed in origin/main');
   } finally {
     removeWorktree(repo, linked);
     await rm(repo, { recursive: true, force: true });
@@ -389,6 +421,7 @@ test('corrupt claims fail safe, report all findings, and release clears them', a
     const show = runCli(repo, ['show', 'T-1', '--json']);
     assert.equal(show.status, 0, show.stderr);
     assert.equal(JSON.parse(show.stdout).claim.state, 'corrupt');
+    assert.equal(JSON.parse(show.stdout).claim.reason, 'corrupt');
     assert.deepEqual(JSON.parse(show.stdout).claim.findings, [
       'file starts with a byte order mark',
       'wrong top-level key order',
@@ -594,6 +627,312 @@ test('claiming after expiry removes and reports the prior claim', async () => {
     await rm(repo, { recursive: true, force: true });
   }
 });
+
+test('expired claim compare-and-remove preserves a concurrent winner', async () => {
+  const repo = await fixtureRepo('claim-expired-race-', [task('T-1')]);
+  const stale = join(dirname(repo), 'claim-expired-race-stale');
+  const first = join(dirname(repo), 'claim-expired-race-first');
+  const second = join(dirname(repo), 'claim-expired-race-second');
+  try {
+    addWorktree(repo, stale, 'claim-expired-race-stale-branch');
+    assert.equal(runCli(stale, ['claim', 'T-1', '--actor', 'stale']).status, 0);
+    git(stale, 'switch', '--quiet', '--detach', 'HEAD');
+    git(repo, 'branch', '-D', 'claim-expired-race-stale-branch');
+    addWorktree(repo, first, 'claim-expired-race-first-branch');
+    addWorktree(repo, second, 'claim-expired-race-second-branch');
+
+    let nested: ReturnType<typeof claimTask> | undefined;
+    let interleaved = false;
+    assert.throws(
+      () =>
+        claimTask(
+          first,
+          'T-1' as TaskId,
+          { actor: 'first' },
+          {
+            afterInspect: () => {
+              if (interleaved) return;
+              interleaved = true;
+              nested = claimTask(second, 'T-1' as TaskId, {
+                actor: 'second',
+              });
+            },
+          },
+        ),
+      (error: unknown) =>
+        error instanceof TaskCommandError && error.exitCode === 75,
+    );
+    assert.equal(nested?.id, 'T-1');
+    const show = JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout);
+    assert.equal(show.claim.state, 'live');
+    assert.equal(show.claim.holder.actor, 'second');
+  } finally {
+    removeWorktree(repo, stale);
+    removeWorktree(repo, first);
+    removeWorktree(repo, second);
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('expired claim has one winner across two worktrees and twenty claimers', async () => {
+  const repo = await fixtureRepo('claim-expired-stress-', [task('T-1')]);
+  const stale = join(dirname(repo), 'claim-expired-stress-stale');
+  const first = join(dirname(repo), 'claim-expired-stress-first');
+  const second = join(dirname(repo), 'claim-expired-stress-second');
+  try {
+    addWorktree(repo, stale, 'claim-expired-stress-stale-branch');
+    assert.equal(runCli(stale, ['claim', 'T-1', '--actor', 'stale']).status, 0);
+    git(stale, 'switch', '--quiet', '--detach', 'HEAD');
+    git(repo, 'branch', '-D', 'claim-expired-stress-stale-branch');
+    addWorktree(repo, first, 'claim-expired-stress-first-branch');
+    addWorktree(repo, second, 'claim-expired-stress-second-branch');
+
+    const results = await Promise.all(
+      Array.from({ length: 20 }, (_, index) =>
+        runCliAsync(index % 2 === 0 ? first : second, [
+          'claim',
+          'T-1',
+          '--actor',
+          `worker-${index}`,
+        ]),
+      ),
+    );
+    const winners = results.filter((result) => result.status === 0);
+    assert.equal(winners.length, 1);
+    assert.equal(results.filter((result) => result.status === 75).length, 19);
+    assert.equal(git(repo, 'status', '--porcelain'), '');
+  } finally {
+    removeWorktree(repo, stale);
+    removeWorktree(repo, first);
+    removeWorktree(repo, second);
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('takeover retries after a compare mismatch and reports the inspected holder', async () => {
+  const repo = await fixtureRepo('claim-takeover-race-', [task('T-1')]);
+  try {
+    assert.equal(
+      runCli(repo, ['claim', 'T-1', '--actor', 'initial']).status,
+      0,
+    );
+    let interleaved = false;
+    const takeover = claimTask(
+      repo,
+      'T-1' as TaskId,
+      { actor: 'final', reason: 'final takeover', takeover: true },
+      {
+        afterInspect: () => {
+          if (interleaved) return;
+          interleaved = true;
+          claimTask(repo, 'T-1' as TaskId, {
+            actor: 'middle',
+            reason: 'interleaving takeover',
+            takeover: true,
+          });
+        },
+      },
+    );
+    assert.equal(takeover.previous?.claim?.actor, 'middle');
+    const show = JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout);
+    assert.equal(show.claim.holder.actor, 'final');
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('release compare-and-remove leaves a concurrent takeover in place', async () => {
+  const repo = await fixtureRepo('claim-release-race-', [task('T-1')]);
+  try {
+    assert.equal(
+      runCli(repo, ['claim', 'T-1', '--actor', 'initial']).status,
+      0,
+    );
+    let interleaved = false;
+    assert.throws(
+      () =>
+        releaseClaim(repo, 'T-1' as TaskId, {
+          afterInspect: () => {
+            if (interleaved) return;
+            interleaved = true;
+            claimTask(repo, 'T-1' as TaskId, {
+              actor: 'newer',
+              reason: 'concurrent replacement',
+              takeover: true,
+            });
+          },
+        }),
+      (error: unknown) =>
+        error instanceof TaskCommandError && error.exitCode === 75,
+    );
+    const show = JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout);
+    assert.equal(show.claim.holder.actor, 'newer');
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('claim liveness expires only on positive evidence', () => {
+  const closedLocal = serializeTask(
+    task('T-1', {
+      status: 'closed',
+      resolution: { kind: 'done', ref: null, note: '' },
+    }),
+  );
+  const probes = baseLivenessProbes();
+  const missingWorktree = claimLiveness('/main', livenessClaim(), {
+    ...probes,
+    resolveWorktree: () => {
+      throw codedError('ENOENT');
+    },
+  });
+  assert.equal(missingWorktree.reason, 'expired: worktree path is missing');
+
+  const unregistered = claimLiveness('/main', livenessClaim(), {
+    ...probes,
+    worktreeList: () => gitProbe(0, Buffer.from('worktree /\0')),
+  });
+  assert.equal(unregistered.reason, 'expired: worktree is not registered');
+
+  const missingBranch = claimLiveness('/main', livenessClaim(), {
+    ...probes,
+    branchRef: () => gitProbe(1),
+  });
+  assert.equal(missingBranch.reason, 'expired: branch worker does not exist');
+
+  const missingLocalTask = claimLiveness('/main', livenessClaim(), {
+    ...probes,
+    taskFile: () => {
+      throw codedError('ENOENT');
+    },
+  });
+  assert.equal(
+    missingLocalTask.reason,
+    'expired: task file is missing from worktree',
+  );
+
+  const closedLocalTask = claimLiveness('/main', livenessClaim(), {
+    ...probes,
+    taskFile: () => Buffer.from(closedLocal),
+  });
+  assert.equal(closedLocalTask.reason, 'expired: task is closed in worktree');
+
+  const closedOriginTask = claimLiveness('/main', livenessClaim(), {
+    ...probes,
+    originTask: () => gitProbe(0, Buffer.from(closedLocal)),
+  });
+  assert.equal(
+    closedOriginTask.reason,
+    'expired: task is closed in origin/main',
+  );
+});
+
+test('claim liveness keeps unknown and failed probes live', () => {
+  const probes = baseLivenessProbes();
+  const cases: Array<[string, Partial<ClaimLivenessProbes>]> = [
+    [
+      'worktree resolution error',
+      {
+        resolveWorktree: () => {
+          throw codedError('EACCES');
+        },
+      },
+    ],
+    ['failed worktree list', { worktreeList: () => gitProbe(2) }],
+    [
+      'worktree list spawn error',
+      {
+        worktreeList: () => gitProbe(null, Buffer.alloc(0), new Error('spawn')),
+      },
+    ],
+    [
+      'unresolvable path in worktree list',
+      {
+        worktreeList: () =>
+          gitProbe(
+            0,
+            Buffer.from('worktree /nonexistent/krn-worktree-entry\0'),
+          ),
+      },
+    ],
+    ['branch probe status other than one', { branchRef: () => gitProbe(2) }],
+    [
+      'branch probe spawn error',
+      { branchRef: () => gitProbe(null, Buffer.alloc(0), new Error('spawn')) },
+    ],
+    [
+      'branch status one with a spawn error',
+      { branchRef: () => gitProbe(1, Buffer.alloc(0), new Error('spawn')) },
+    ],
+    [
+      'unparseable local task',
+      { taskFile: () => Buffer.from('<<<<<<< conflict\n') },
+    ],
+    ['origin ref not found', { originRef: () => gitProbe(1) }],
+    [
+      'origin ref spawn error',
+      { originRef: () => gitProbe(null, Buffer.alloc(0), new Error('spawn')) },
+    ],
+    ['origin task absent or unreadable', { originTask: () => gitProbe(1) }],
+    ['origin task other failure', { originTask: () => gitProbe(128) }],
+    [
+      'origin task spawn error',
+      { originTask: () => gitProbe(null, Buffer.alloc(0), new Error('spawn')) },
+    ],
+    [
+      'unparseable origin task',
+      { originTask: () => gitProbe(0, Buffer.from('<<<<<<< conflict\n')) },
+    ],
+  ];
+
+  for (const [name, overrides] of cases) {
+    const result = claimLiveness('/main', livenessClaim(), {
+      ...probes,
+      ...overrides,
+    });
+    assert.equal(result.state, 'live', name);
+    assert.equal(result.reason, 'live', name);
+  }
+});
+
+function livenessClaim(): TaskClaim {
+  return {
+    id: 'T-1' as TaskId,
+    actor: 'worker',
+    worktree: process.cwd(),
+    branch: 'worker',
+    claimed: '2026-10-26T00:00:00.000Z',
+    reason: null,
+  };
+}
+
+function baseLivenessProbes(): ClaimLivenessProbes {
+  const openTask = Buffer.from(serializeTask(task('T-1')));
+  return {
+    resolveWorktree: () => process.cwd(),
+    worktreeList: () => gitProbe(0, Buffer.from(`worktree ${process.cwd()}\0`)),
+    branchRef: () => gitProbe(0),
+    taskFile: () => openTask,
+    originRef: () => gitProbe(0),
+    originTask: () => gitProbe(0, openTask),
+  };
+}
+
+function gitProbe(
+  status: number | null,
+  stdout = Buffer.alloc(0),
+  error?: Error,
+): ClaimGitProbe {
+  return {
+    status,
+    ...(error === undefined ? {} : { error }),
+    stdout,
+  };
+}
+
+function codedError(code: string): Error {
+  return Object.assign(new Error(code), { code });
+}
 
 async function tempRepo(prefix: string): Promise<string> {
   await mkdir(scratch, { recursive: true });

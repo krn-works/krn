@@ -123,6 +123,7 @@ function show(args: string[]): string {
         task: record,
         claim: {
           state: claim.state,
+          reason: claim.reason,
           holder: claim.claim ?? null,
           findings: claim.findings,
         },
