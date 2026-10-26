@@ -69,6 +69,7 @@ export interface ClaimLivenessProbes {
 
 export interface ClaimTaskHooks {
   afterInspect?: (inspection: ClaimInspection) => void;
+  afterTakeoverStage?: (inspection: ClaimInspection) => void;
 }
 
 interface ClaimFileIdentity {
@@ -231,7 +232,6 @@ export function claimTask(
     reason: options.reason ?? null,
   };
   const serialized = serializeClaim(claim);
-  let takeoverRetries = 0;
   let expiredRetries = 0;
 
   while (true) {
@@ -247,16 +247,16 @@ export function claimTask(
         path,
         snapshot,
         serialized,
+        () => hooks.afterTakeoverStage?.(current),
       );
       if (outcome === 'replaced') {
         previous = current;
         break;
       }
-      if (takeoverRetries === 0) {
-        takeoverRetries += 1;
-        continue;
-      }
-      throw claimChangedError('while taking over');
+      throw takeoverChangedError(
+        inspectClaimAt(mainRoot, id),
+        outcome === 'occupied',
+      );
     }
 
     if (current.state === 'expired') {
@@ -655,7 +655,7 @@ function claimPath(mainRoot: string, id: TaskId): string {
 
 type CompareAndRemoveResult = 'removed' | 'missing' | 'changed';
 
-type CompareAndReplaceResult = 'replaced' | 'missing' | 'changed';
+type CompareAndReplaceResult = 'replaced' | 'missing' | 'changed' | 'occupied';
 
 function compareAndRemoveClaim(
   mainRoot: string,
@@ -677,6 +677,7 @@ function compareAndReplaceClaim(
   target: string,
   inspected: ClaimSnapshot,
   contents: string,
+  afterStage?: () => void,
 ): CompareAndReplaceResult {
   const staged = stageWrite(mainRoot, target, contents);
   try {
@@ -686,11 +687,15 @@ function compareAndReplaceClaim(
       restoreClaim(moved, target);
       return 'changed';
     }
+    afterStage?.();
     try {
       publishStagedWrite(staged, target);
     } catch (error) {
+      if (isAlreadyExists(error)) {
+        unlinkSync(moved);
+        return 'occupied';
+      }
       restoreClaim(moved, target);
-      if (isAlreadyExists(error)) return 'changed';
       throw error;
     }
     unlinkSync(moved);
@@ -777,6 +782,20 @@ function heldClaimError(inspection: ClaimInspection): TaskCommandError {
 
 function claimChangedError(action: string): TaskCommandError {
   return new TaskCommandError(`task claim changed ${action}`, 75);
+}
+
+function takeoverChangedError(
+  inspection: ClaimInspection,
+  inspectedClaimRemoved: boolean,
+): TaskCommandError {
+  const status =
+    inspection.state === 'none'
+      ? 'the task is now unclaimed'
+      : `the task is now held by ${claimHolder(inspection)}`;
+  return new TaskCommandError(
+    `task takeover could not replace the inspected claim; ${status}${inspectedClaimRemoved ? '; the inspected claim was removed' : ''}${inspection.findings.length > 0 ? `; claim findings: ${inspection.findings.join('; ')}` : ''}`,
+    75,
+  );
 }
 
 function isCanonicalUtc(value: string): boolean {

@@ -37,7 +37,7 @@ import {
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 const scratch = join(
   process.cwd(),
-  '.krn/runs/claude-task-claims-fix2/scratch',
+  '.krn/runs/claude-task-claims-fix3/scratch',
 );
 
 test('claim --next claims a ready task and ready omits it', async () => {
@@ -781,33 +781,46 @@ test('expired claim has one winner across two worktrees and twenty claimers', as
   }
 });
 
-test('takeover retries after a compare mismatch and reports the inspected holder', async () => {
+test('takeover leaves a newly linked claim untouched when publishing conflicts', async () => {
   const repo = await fixtureRepo('claim-takeover-race-', [task('T-1')]);
   try {
     assert.equal(
       runCli(repo, ['claim', 'T-1', '--actor', 'initial']).status,
       0,
     );
-    let interleaved = false;
-    const takeover = claimTask(
-      repo,
-      'T-1' as TaskId,
-      { actor: 'final', reason: 'final takeover', takeover: true },
-      {
-        afterInspect: () => {
-          if (interleaved) return;
-          interleaved = true;
-          claimTask(repo, 'T-1' as TaskId, {
-            actor: 'middle',
-            reason: 'interleaving takeover',
-            takeover: true,
-          });
-        },
+    let plainClaimed = false;
+    assert.throws(
+      () =>
+        claimTask(
+          repo,
+          'T-1' as TaskId,
+          { actor: 'takeover', reason: 'takeover request', takeover: true },
+          {
+            afterTakeoverStage: () => {
+              const plain = claimTask(repo, 'T-1' as TaskId, {
+                actor: 'plain',
+              });
+              plainClaimed = plain.id === 'T-1';
+            },
+          },
+        ),
+      (error: unknown) => {
+        assert.ok(error instanceof TaskCommandError);
+        assert.equal(error.exitCode, 75);
+        assert.match(error.message, /actor plain/u);
+        assert.match(error.message, /inspected claim was removed/u);
+        return true;
       },
     );
-    assert.equal(takeover.previous?.claim?.actor, 'middle');
+    assert.equal(plainClaimed, true);
+    const claimFiles = await readdir(join(repo, '.krn', 'task-claims'));
+    assert.deepEqual(claimFiles, ['T-1.json']);
+    const saved = JSON.parse(
+      readFileSync(join(repo, '.krn', 'task-claims', 'T-1.json'), 'utf8'),
+    );
+    assert.equal(saved.actor, 'plain');
     const show = JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout);
-    assert.equal(show.claim.holder.actor, 'final');
+    assert.equal(show.claim.holder.actor, 'plain');
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
@@ -879,7 +892,7 @@ test('release preserves a same-byte claim replaced after inspection', async () =
   }
 });
 
-test('takeover stops when the inspected claim identity keeps changing', async () => {
+test('takeover stops when the inspected claim identity changes', async () => {
   const repo = await fixtureRepo('claim-takeover-identity-race-', [
     task('T-1'),
   ]);
@@ -916,7 +929,7 @@ test('takeover stops when the inspected claim identity keeps changing', async ()
         error instanceof TaskCommandError && error.exitCode === 75,
     );
 
-    assert.equal(inspections, 2);
+    assert.equal(inspections, 1);
     assert.ok(latestIdentity);
     assert.equal(lstatSync(claimPath).ino, latestIdentity.ino);
     assert.deepEqual(readFileSync(claimPath), sameBytes);
