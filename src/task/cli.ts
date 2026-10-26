@@ -1,7 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import {
-  serializeTask,
+  claimHolder,
+  claimNext,
+  claimTask,
+  formatClaim,
+  inspectClaim,
+  readyTasks,
+  releaseClaim,
+} from './claims.ts';
+import {
   TaskCommandError,
   TaskDataError,
   type TaskId,
@@ -48,7 +56,12 @@ function execute(args: string[]): string {
   if (command === 'list') return list(options);
   if (command === 'close') return close(options);
   if (command === 'dep') return dependency(options);
-  throw usage('usage: krn task create|show|list|close|dep|check');
+  if (command === 'ready') return ready(options);
+  if (command === 'claim') return claim(options);
+  if (command === 'release') return release(options);
+  throw usage(
+    'usage: krn task create|show|list|ready|claim|release|close|dep|check',
+  );
 }
 
 function create(args: string[]): string {
@@ -101,8 +114,120 @@ function show(args: string[]): string {
     else throw usage(`unexpected show argument "${option}"`);
   }
   if (id === undefined) throw usage('usage: krn task show ID [--json]');
-  const record = getTask(repositoryRoot(), requireId(id));
-  return json ? serializeTask(record) : formatTask(record);
+  const root = repositoryRoot();
+  const record = getTask(root, requireId(id));
+  const claim = inspectClaim(root, record.id);
+  if (json)
+    return `${JSON.stringify(
+      {
+        task: record,
+        claim: {
+          state: claim.state,
+          holder: claim.claim ?? null,
+          findings: claim.findings,
+        },
+      },
+      null,
+      2,
+    )}\n`;
+  return `${formatTask(record)}${formatClaim(claim).join('\n')}\n`;
+}
+
+function ready(args: string[]): string {
+  let json = false;
+  let limit: number | undefined;
+  for (let index = 0; index < args.length; index += 1) {
+    const option = args[index];
+    if (option === '--json') {
+      if (json) throw usage('--json may be supplied once');
+      json = true;
+    } else if (option === '--limit') {
+      if (limit !== undefined) throw usage('--limit may be supplied once');
+      const value = nextValue(args, index++, option);
+      if (
+        !/^\d+$/u.test(value) ||
+        !Number.isSafeInteger(Number(value)) ||
+        Number(value) < 1
+      )
+        throw usage('--limit must be a positive integer');
+      limit = Number(value);
+    } else throw usage(`unknown ready option "${option}"`);
+  }
+  const result = readyTasks(repositoryRoot(), limit);
+  for (const finding of result.findings)
+    process.stderr.write(
+      `task-claims/${finding.id}.json is corrupt: ${finding.findings.join('; ')}\n`,
+    );
+  return json
+    ? `${JSON.stringify(result.tasks, null, 2)}\n`
+    : result.tasks.map(formatTask).join('');
+}
+
+function claim(args: string[]): string {
+  let next = false;
+  let takeover = false;
+  let id: string | undefined;
+  let actor: string | undefined;
+  let reason: string | undefined;
+  let worktree: string | undefined;
+  for (let index = 0; index < args.length; index += 1) {
+    const option = args[index];
+    if (option === undefined) continue;
+    if (option === '--next') {
+      if (next) throw usage('--next may be supplied once');
+      next = true;
+    } else if (option === '--takeover') {
+      if (takeover) throw usage('--takeover may be supplied once');
+      takeover = true;
+    } else if (option === '--actor') {
+      if (actor !== undefined) throw usage('--actor may be supplied once');
+      actor = nextValue(args, index++, option);
+    } else if (option === '--reason') {
+      if (reason !== undefined) throw usage('--reason may be supplied once');
+      reason = nextValue(args, index++, option);
+    } else if (option === '--worktree') {
+      if (worktree !== undefined)
+        throw usage('--worktree may be supplied once');
+      worktree = nextValue(args, index++, option);
+    } else if (id === undefined && !option.startsWith('--')) id = option;
+    else throw usage(`unexpected claim argument "${option}"`);
+  }
+  if (actor === undefined || actor.trim() === '')
+    throw usage('claim requires --actor A');
+  if (takeover && (reason === undefined || reason.trim() === ''))
+    throw usage('--takeover requires --reason R');
+  if (next && id !== undefined) throw usage('claim --next does not take an ID');
+  if (!next && id === undefined)
+    throw usage('usage: krn task claim ID --actor A | --next --actor A');
+  if (next && takeover) throw usage('--takeover requires a task ID');
+
+  const root = repositoryRoot();
+  const options = {
+    actor,
+    ...(reason === undefined ? {} : { reason }),
+    ...(worktree === undefined ? {} : { worktree }),
+    ...(takeover ? { takeover: true } : {}),
+  };
+  const result = next
+    ? claimNext(root, options)
+    : claimTask(root, requireId(id ?? ''), options);
+  if (result.removedExpired !== undefined)
+    process.stderr.write(
+      `Expired claim for ${result.id} was removed (${claimHolder(result.removedExpired)}).\n`,
+    );
+  const lines: string[] = [];
+  if (result.previous !== undefined)
+    lines.push(`Previous holder: ${claimHolder(result.previous)}`);
+  lines.push(result.id);
+  return `${lines.join('\n')}\n`;
+}
+
+function release(args: string[]): string {
+  if (args.length !== 1 || args[0] === undefined)
+    throw usage('usage: krn task release ID');
+  const id = requireId(args[0]);
+  releaseClaim(repositoryRoot(), id);
+  return `${id}\n`;
 }
 
 function list(args: string[]): string {

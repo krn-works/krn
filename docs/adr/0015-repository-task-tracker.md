@@ -25,19 +25,43 @@ memory for each command. `krn task check` validates task files and references
 and runs in the Product gate.
 
 Records contain open or closed status, typed closure resolution, creation date,
-priority, title, blocking `after` dependencies, and paragraph body text. Claims
-and other volatile coordination state stay outside tracked task records and
-are deferred to a later change.
+priority, title, blocking `after` dependencies, and paragraph body text. Ready
+tasks are open, have every `after` dependency closed as `done`, and have no live
+claim. Order them by ascending priority, creation date, then id. Closing a
+dependency as `dropped`, `duplicate`, or `superseded` does not unblock it.
 
-## Consequences and sequence
+Claims stay outside tracked task records, in
+`.krn/task-claims/<id>.json` under the main checkout shared by linked
+worktrees. Each canonical claim records its id, actor, real worktree path,
+branch, UTC claim time, and optional reason. Create claims by staging under the
+main checkout's `.krn/tmp/task-write/` and using an exclusive hard link; never
+stage files inside the claim directory. A claim is live only while its worktree
+exists and is registered, its branch still exists, and the task remains open
+in the worktree when its task file exists there and in `origin/main` when that
+ref contains the task.
+Claims outside those conditions are expired. Corrupt or unreadable claim files
+are treated as live and reported, so only `release` or a reasoned `--takeover`
+removes them. A live claim blocks another claim with exit code 75; takeover
+requires a reason.
+
+## Consequences and delivery sequence
 
 The format lens's merge table found that separate files keep unrelated task
 changes mergeable and make an identical-ID add/add collision visible. A check
 is needed because Git can still merge independent field edits into a
-semantically invalid record. This change supplies the record model, CRUD and
-dependency CLI, and validation; it does not add readiness or claims.
+semantically invalid record. The task CLI provides record operations,
+dependency management, readiness, claiming, release, and validation. Readiness
+is read-only and never removes expired claims.
 
-Remaining sequence: add ready and claim; import Paperclip records; commit the
-imported data; connect PR preflight; import the legacy queue; update GLOBAL
-forwarding; remove the legacy queue and `krn work`; then remove Paperclip from
-Product and GLOBAL under their respective delivery authority.
+1. Task records and validation (merged in #102).
+2. Readiness and claims.
+3. Connect PR preflight to `tasks/` instead of Paperclip.
+4. Update GLOBAL forwarding to Product `krn task` under install/seal grant.
+5. Remove the legacy queue and `krn work`; preserve legacy refs as a Git bundle
+   under `.krn/archive` without importing them.
+6. Remove Paperclip from Product.
+7. Remove Paperclip from GLOBAL under its separate host-service grant.
+
+The tracker starts empty. Do not import Paperclip records or legacy queue
+records; Paperclip data on the host remains untouched unless the operator gives
+a separate grant.
