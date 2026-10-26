@@ -103,11 +103,7 @@ function forbiddenRootMatches(value) {
           );
         const followsNameCharacter = /[A-Za-z0-9._~%-]/u.test(previous ?? '');
 
-        if (
-          !followsNameCharacter &&
-          !followsNonFileUrl &&
-          !followsScpRemote
-        )
+        if (!followsNameCharacter && !followsNonFileUrl && !followsScpRemote)
           matches.push({ offset, root });
       }
       offset = value.indexOf(root, offset + root.length);
