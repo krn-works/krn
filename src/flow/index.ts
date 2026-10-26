@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { judgeRole, ReviewAbortedError } from './panel.ts';
+import { loadPriorReview } from './prior.ts';
 import { writeReviewRecord } from './record.ts';
 import {
   git,
@@ -84,6 +85,7 @@ export async function runReview(input: {
   readonly lens: string;
   readonly panel?: readonly ReviewRole[];
   readonly prepassChecklist?: string;
+  readonly priorRecord?: string;
   readonly reasoningEffort?: ReviewReasoningEffort;
   readonly timeoutMs?: number;
   readonly signal?: AbortSignal;
@@ -101,6 +103,10 @@ export async function runReview(input: {
     throw new Error('--panel must contain unique judge roles');
   for (const role of panel) roleSchema.parse(role);
   const base = resolveCommit(root, input.base);
+  const prior =
+    input.priorRecord === undefined
+      ? undefined
+      : loadPriorReview(root, sha, input.priorRecord);
   const panelPartial =
     panel.length !== panelRoles.length ||
     panelRoles.some((role) => !panel.includes(role));
@@ -110,7 +116,7 @@ export async function runReview(input: {
   const lensSha256 = createHash('sha256').update(lens, 'utf8').digest('hex');
   const red = await redFirst(root, base, sha, input.signal);
   let prepass: NonNullable<ReviewRecord['prepass']> | undefined;
-  if (input.prepassChecklist !== undefined) {
+  if (input.prepassChecklist !== undefined && prior === undefined) {
     const judge = await judgeRole(
       root,
       sha,
@@ -157,6 +163,8 @@ export async function runReview(input: {
         input.codexExecutable,
         input.signal,
         reasoningEffort,
+        prior === undefined ? undefined : input.prepassChecklist,
+        prior,
       ),
     ),
   );
@@ -185,6 +193,7 @@ export async function runReview(input: {
     redFirst: red.results,
     judges,
     ...(prepass === undefined ? {} : { prepass }),
+    ...(prior === undefined ? {} : { prior }),
   });
   writeReviewRecord(root, record);
   return record;
