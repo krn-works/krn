@@ -1,7 +1,11 @@
 {
   "id": "t-1j1gxdd",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": ""
+  },
   "created": "2026-10-26",
   "priority": 3,
   "title": "Accept CRLF in the Node version file",
