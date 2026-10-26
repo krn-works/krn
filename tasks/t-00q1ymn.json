@@ -1,7 +1,11 @@
 {
   "id": "t-00q1ymn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": ""
+  },
   "created": "2026-10-26",
   "priority": 2,
   "title": "Limit second review to prior findings",
