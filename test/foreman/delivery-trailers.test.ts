@@ -1,15 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import {
-  access,
-  chmod,
-  mkdir,
-  mkdtemp,
-  readFile,
-  rm,
-  writeFile,
-} from 'node:fs/promises';
-import { delimiter, join } from 'node:path';
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { writeCheckpointRequest } from '../../src/foreman/checkpoint-request.ts';
@@ -17,6 +9,7 @@ import { runJob } from '../../src/foreman/run.ts';
 import { recordRepo } from '../../src/foreman/state.ts';
 import type { Contract, Deps } from '../../src/foreman/types.ts';
 import * as relay from '../../src/relay/index.ts';
+import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
 import * as trace from '../../src/trace/index.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
@@ -161,49 +154,11 @@ function fakeHostDeps(
   return { deps, starts: () => starts };
 }
 
-async function writeFakePaperclip(
-  directory: string,
-  issue: {
-    readonly id: string;
-    readonly identifier: string;
-    readonly title: string;
-    readonly description: string;
-    readonly updatedAt: string;
-    readonly status: string;
-  },
-) {
-  const bin = join(directory, 'fake-paperclip-bin');
-  await mkdir(bin, { recursive: true });
-  await writeFile(
-    join(bin, 'package.json'),
-    JSON.stringify({ type: 'commonjs' }),
-  );
-  const executable = join(bin, 'paperclip');
-  const calls = join(bin, 'calls.json');
-  const expectedArgs = ['issue', 'get', issue.identifier, '--json'];
-  const source = [
-    `#!${process.execPath}`,
-    "const fs = require('node:fs');",
-    'const args = process.argv.slice(2);',
-    `if (JSON.stringify(args) !== ${JSON.stringify(JSON.stringify(expectedArgs))}) {`,
-    "  process.stderr.write('unexpected Paperclip CLI arguments');",
-    '  process.exit(2);',
-    '}',
-    `fs.writeFileSync(${JSON.stringify(calls)}, JSON.stringify(args));`,
-    `process.stdout.write(${JSON.stringify(JSON.stringify(issue))});`,
-    '',
-  ].join('\n');
-  await writeFile(executable, source);
-  await chmod(executable, 0o755);
-  return { bin, calls };
-}
-
-function runPreflightWithDefaultPaperclip(input: {
+function runPreflight(input: {
   readonly repo: string;
   readonly base: string;
   readonly head: string;
   readonly title: string;
-  readonly paperclipBin: string;
 }) {
   const harness = `
     import { runPreflight } from ${JSON.stringify(preflightPath)};
@@ -241,9 +196,6 @@ function runPreflightWithDefaultPaperclip(input: {
     )
       delete env[key];
   }
-  env.PATH = env.PATH
-    ? `${input.paperclipBin}${delimiter}${env.PATH}`
-    : input.paperclipBin;
   return spawnSync(process.execPath, ['--input-type=module', '-e', harness], {
     cwd: input.repo,
     env,
@@ -253,9 +205,7 @@ function runPreflightWithDefaultPaperclip(input: {
   });
 }
 
-function parsedReport(
-  result: ReturnType<typeof runPreflightWithDefaultPaperclip>,
-) {
+function parsedReport(result: ReturnType<typeof runPreflight>) {
   assert.equal(result.error, undefined, result.error?.message);
   assert.equal(result.status, 0, result.stderr);
   assert.ok(result.stdout, `expected preflight JSON; stderr: ${result.stderr}`);
@@ -263,8 +213,6 @@ function parsedReport(
     verdict: 'pass' | 'fail';
     reasons: string[];
     ticket?: string;
-    r1TaskTrailer?: string;
-    paperclipR1Task?: string;
   };
 }
 
@@ -295,6 +243,19 @@ test('runJob commits contract-derived trailers and the public preflight admits t
           join(fixture.root, 'src', 'index.ts'),
           'export const value = 2;\n',
         );
+        const tasks = join(fixture.root, 'tasks');
+        await mkdir(tasks, { recursive: true });
+        const record: TaskRecord = {
+          id: 'LON-901',
+          status: 'open',
+          resolution: null,
+          created: '2026-10-26',
+          priority: 1,
+          title: 'Delivery metadata fixture',
+          after: [],
+          body: [],
+        };
+        await writeFile(join(tasks, 'LON-901.json'), serializeTask(record));
         writeCheckpointRequest(fixture.job, {
           intent: input.checkpoint.intent,
           sessionId,
@@ -318,33 +279,16 @@ test('runJob commits contract-derived trailers and the public preflight admits t
       'R1-task: none',
     ]);
 
-    const fake = await writeFakePaperclip(fixture.root, {
-      id: 'LON-901',
-      identifier: 'LON-901',
-      title: 'Delivery fixture',
-      description: 'R1-task: none (accepted contract annotation)',
-      updatedAt: '2026-10-18T10:00:00.000Z',
-      status: 'in_progress',
-    });
-    const result = runPreflightWithDefaultPaperclip({
+    const result = runPreflight({
       repo: fixture.root,
       base: fixture.base,
       head,
       title: 'feat(fixture): deliver contract metadata (LON-901)',
-      paperclipBin: fake.bin,
     });
     const report = parsedReport(result);
     assert.equal(report.verdict, 'pass', JSON.stringify(report.reasons));
     assert.deepEqual(report.reasons, []);
     assert.equal(report.ticket, 'LON-901');
-    assert.equal(report.r1TaskTrailer, 'none');
-    assert.equal(report.paperclipR1Task, 'none');
-    assert.deepEqual(JSON.parse(await readFile(fake.calls, 'utf8')), [
-      'issue',
-      'get',
-      'LON-901',
-      '--json',
-    ]);
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
   }
@@ -368,6 +312,19 @@ test('runJob and public preflight admit a contract with no R1-task declaration',
           join(fixture.root, 'src', 'index.ts'),
           'export const value = 2;\n',
         );
+        const tasks = join(fixture.root, 'tasks');
+        await mkdir(tasks, { recursive: true });
+        const record: TaskRecord = {
+          id: 'LON-901',
+          status: 'open',
+          resolution: null,
+          created: '2026-10-26',
+          priority: 1,
+          title: 'Delivery metadata fixture',
+          after: [],
+          body: [],
+        };
+        await writeFile(join(tasks, 'LON-901.json'), serializeTask(record));
         writeCheckpointRequest(fixture.job, {
           intent: input.checkpoint.intent,
           sessionId,
@@ -390,33 +347,16 @@ test('runJob and public preflight admit a contract with no R1-task declaration',
       'Ticket: LON-901',
     ]);
 
-    const fake = await writeFakePaperclip(fixture.root, {
-      id: 'LON-901',
-      identifier: 'LON-901',
-      title: 'Delivery fixture without R1-task',
-      description,
-      updatedAt: '2026-10-18T10:00:00.000Z',
-      status: 'in_progress',
-    });
-    const result = runPreflightWithDefaultPaperclip({
+    const result = runPreflight({
       repo: fixture.root,
       base: fixture.base,
       head,
       title: 'feat(fixture): deliver optional metadata (LON-901)',
-      paperclipBin: fake.bin,
     });
     const report = parsedReport(result);
     assert.equal(report.verdict, 'pass', JSON.stringify(report.reasons));
     assert.deepEqual(report.reasons, []);
     assert.equal(report.ticket, 'LON-901');
-    assert.equal(report.r1TaskTrailer, undefined);
-    assert.equal(report.paperclipR1Task, undefined);
-    assert.deepEqual(JSON.parse(await readFile(fake.calls, 'utf8')), [
-      'issue',
-      'get',
-      'LON-901',
-      '--json',
-    ]);
   } finally {
     await rm(fixture.root, { recursive: true, force: true });
   }
