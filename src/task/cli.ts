@@ -185,10 +185,12 @@ function show(args: string[], json: boolean): CommandOutput {
   const id = requireId(args[0]);
   const record = getTask(root, id);
   const claim = inspectClaim(root, record.id);
+  const details = showDetails(root, record);
   if (json)
     return result(
       {
         task: record,
+        ...details,
         claim: {
           state: claim.state,
           reason: claim.reason,
@@ -196,10 +198,10 @@ function show(args: string[], json: boolean): CommandOutput {
           findings: claim.findings,
         },
       },
-      formatShow(root, record, claim),
+      formatShow(record, details, claim),
       true,
     );
-  return result({ task: record }, formatShow(root, record, claim), false);
+  return result({ task: record }, formatShow(record, details, claim), false);
 }
 
 function ready(args: string[], json: boolean): CommandOutput {
@@ -250,7 +252,7 @@ function ready(args: string[], json: boolean): CommandOutput {
       tasks: readyResult.tasks,
       findings: readyResult.findings,
     },
-    readyResult.tasks.map(formatListTask).join(''),
+    readyResult.tasks.map((task) => formatTask(task)).join(''),
     json,
   );
 }
@@ -499,23 +501,66 @@ function nextValue(args: string[], index: number, option: string): string {
 }
 
 function formatShow(
-  root: string,
   task: TaskRecord,
+  details: ShowDetails,
   claim: ReturnType<typeof inspectClaim>,
 ): string {
+  const blocking = details.blockers
+    .filter((dependency) => dependency.blocking)
+    .map(formatBlocker);
+  return `${formatTask(task, [
+    `Blockers: ${blocking.length === 0 ? 'none' : blocking.join(', ')}`,
+    `Dependents: ${details.dependents.length === 0 ? 'none' : details.dependents.join(', ')}`,
+  ])}${formatClaim(claim).join('\n')}\n`;
+}
+
+interface TaskBlocker {
+  id: TaskId;
+  status: TaskStatus | 'missing';
+  resolution: TaskResolution['kind'] | null;
+  blocking: boolean;
+}
+
+interface ShowDetails {
+  blockers: TaskBlocker[];
+  dependents: TaskId[];
+}
+
+function showDetails(root: string, task: TaskRecord): ShowDetails {
   const records = listTasks(root, 'all');
   const byId = new Map(records.map((record) => [record.id, record]));
-  const blockers = dependencyBlockers(task, byId);
+  const blockers = task.after.map((id): TaskBlocker => {
+    const dependency = byId.get(id);
+    const blocking =
+      dependency?.status !== 'closed' || dependency.resolution?.kind !== 'done';
+    return {
+      id,
+      status: dependency?.status ?? 'missing',
+      resolution: dependency?.resolution?.kind ?? null,
+      blocking,
+    };
+  });
   const dependents = records
     .filter((record) => record.after.includes(task.id))
-    .map((record) => record.id);
+    .map((record) => record.id)
+    .sort();
+  return { blockers, dependents };
+}
+
+function formatBlocker(dependency: TaskBlocker): string {
+  if (dependency.status === 'missing') return `${dependency.id} (missing)`;
+  if (dependency.status === 'open') return `${dependency.id} (open)`;
+  return `${dependency.id} (closed as ${dependency.resolution ?? 'unknown'})`;
+}
+
+function formatTask(task: TaskRecord, extraLines: string[] = []): string {
   const lines = [
-    `${task.id}  P${task.priority}  ${task.status}  ${task.title}`,
+    `${task.id} ${task.title}`,
+    `Status: ${task.status}`,
+    `Priority: ${task.priority}`,
     `Created: ${task.created}`,
     `After: ${task.after.length === 0 ? '—' : task.after.join(', ')}`,
-    `Blockers: ${blockers.length === 0 ? 'none' : blockers.join(', ')}`,
-    `Dependents: ${dependents.length === 0 ? 'none' : dependents.join(', ')}`,
-    ...formatClaim(claim),
+    ...extraLines,
   ];
   if (task.resolution !== null) {
     lines.push(
@@ -524,7 +569,7 @@ function formatShow(
     if (task.resolution.note !== '')
       lines.push(`Note: ${task.resolution.note}`);
   }
-  if (task.body.length > 0) lines.push('', ...task.body);
+  if (task.body.length > 0) lines.push('', ...task.body, '');
   return `${lines.join('\n')}\n`;
 }
 

@@ -8,7 +8,7 @@ import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 const scratch =
-  '/mnt/storage/coding/krn/active/krn/.krn/runs/claude-task-ergonomics/scratch';
+  '/mnt/storage/coding/krn/active/krn/.krn/runs/claude-task-ergonomics-fix/scratch';
 
 test('task quickstart and each verb help give agents usable examples', async () => {
   const repo = await tempRepo('help-');
@@ -271,8 +271,20 @@ test('text show explains blockers and dependents, while list uses one line per t
   try {
     const shown = runCli(repo, ['show', 'T-2']);
     assert.equal(shown.status, 0, shown.stderr);
+    assert.equal(
+      shown.stdout,
+      'T-2 Task T-2\nStatus: open\nPriority: 2\nCreated: 2026-10-26\nAfter: T-1\nBlockers: T-1 (open)\nDependents: T-3\nClaim: none\n',
+    );
     assert.match(shown.stdout, /Blockers: T-1 \(open\)/u);
     assert.match(shown.stdout, /Dependents: T-3/u);
+
+    const shownJson = runCli(repo, ['show', 'T-2', '--json']);
+    const summary = successJson(shownJson, 'task');
+    assert.deepEqual(summary.blockers, [
+      { id: 'T-1', status: 'open', resolution: null, blocking: true },
+    ]);
+    assert.deepEqual(summary.dependents, ['T-3']);
+    assert.equal((summary.claim as { state: string }).state, 'none');
 
     const listed = runCli(repo, ['list', '--status', 'all']);
     assert.equal(listed.status, 0, listed.stderr);
@@ -285,6 +297,50 @@ test('text show explains blockers and dependents, while list uses one line per t
     assert.match(
       lines[1] ?? '',
       /^T-2 {2}P2 {2}open {2}Task T-2 {2}\[after: T-1\]$/u,
+    );
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('show JSON sorts dependents and marks completed dependencies nonblocking', async () => {
+  const repo = await fixtureRepo('show-dependency-summary-', [
+    task('T-1'),
+    task('T-2', { after: ['T-1'] }),
+    task('T-3', { after: ['T-2'], priority: 3 }),
+    task('T-4', { after: ['T-2'], priority: 0 }),
+    task('T-5', {
+      status: 'closed',
+      resolution: { kind: 'done', ref: null, note: '' },
+    }),
+    task('T-6', { after: ['T-5'] }),
+  ]);
+  try {
+    const shown = runCli(repo, ['show', 'T-2', '--json']);
+    const summary = successJson(shown, 'task');
+    assert.deepEqual(summary.dependents, ['T-3', 'T-4']);
+
+    const completedDependency = runCli(repo, ['show', 'T-6', '--json']);
+    assert.deepEqual(successJson(completedDependency, 'task').blockers, [
+      { id: 'T-5', status: 'closed', resolution: 'done', blocking: false },
+    ]);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('ready text keeps the detailed task format with created date and body', async () => {
+  const record = task('T-1', {
+    created: '2026-10-25',
+    body: ['Detailed task body.'],
+  });
+  const repo = await fixtureRepo('ready-text-', [record]);
+  try {
+    const ready = runCli(repo, ['ready']);
+    assert.equal(ready.status, 0, ready.stderr);
+    assert.equal(
+      ready.stdout,
+      'T-1 Task T-1\nStatus: open\nPriority: 2\nCreated: 2026-10-25\nAfter: —\n\nDetailed task body.\n\n',
     );
   } finally {
     await rm(repo, { recursive: true, force: true });
