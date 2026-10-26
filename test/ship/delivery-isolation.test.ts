@@ -3,6 +3,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import {
   chmod,
+  cp,
   mkdir,
   mkdtemp,
   readdir,
@@ -14,7 +15,7 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
+import test, { after } from 'node:test';
 import { CodexHost } from '../../src/hosts/codex.ts';
 import * as relay from '../../src/relay/index.ts';
 import * as trace from '../../src/trace/index.ts';
@@ -26,11 +27,8 @@ import {
   testTimeoutFor,
 } from '../support/process-wait.ts';
 
-async function repoFixture(
-  ignore = '.krn/\n',
-  parent = tmpdir(),
-): Promise<string> {
-  const root = await mkdtemp(join(parent, 'krn-s4b-'));
+async function repositorySeed(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), 'krn-delivery-repo-seed-'));
   const git = (args: string[]) => {
     const result = spawnSync('git', ['-C', root, ...args], {
       encoding: 'utf8',
@@ -38,7 +36,7 @@ async function repoFixture(
     assert.equal(result.status, 0, result.stderr);
   };
   git(['init', '-q', '--initial-branch=main']);
-  await writeFile(join(root, '.gitignore'), ignore);
+  await writeFile(join(root, '.gitignore'), '.krn/\n');
   await writeFile(join(root, 'README.md'), 'fixture\n');
   git(['add', '.gitignore', 'README.md']);
   git([
@@ -53,6 +51,33 @@ async function repoFixture(
   git(['config', 'user.name', 'Fixture']);
   git(['config', 'user.email', 'fixture@example.invalid']);
   git(['remote', 'add', 'origin', 'https://github.com/fixture/repo.git']);
+  return root;
+}
+
+let seed: Promise<string> | undefined;
+after(async () => {
+  if (seed) await rm(await seed, { recursive: true, force: true });
+});
+
+async function repoFixture(
+  ignore = '.krn/\n',
+  parent = tmpdir(),
+): Promise<string> {
+  seed ??= repositorySeed();
+  const root = await mkdtemp(join(parent, 'krn-s4b-'));
+  // Copies have independent object databases, refs and indexes. Keeping the
+  // initial Git setup once per file also leaves the real checkpoint/kill path
+  // (including its cancellation grace) intact.
+  await cp(await seed, root, { recursive: true });
+  if (ignore !== '.krn/\n') {
+    await writeFile(join(root, '.gitignore'), ignore);
+    const result = spawnSync(
+      'git',
+      ['-C', root, 'commit', '-qam', 'fixture ignore'],
+      { encoding: 'utf8' },
+    );
+    assert.equal(result.status, 0, result.stderr);
+  }
   return root;
 }
 
@@ -350,7 +375,7 @@ if (count === 1) {
       .trim()
       .split('\n')
       .map(Number);
-    for (const pid of pids) assert.equal(await isAlive(pid), false);
+    await waitForProcessesToExit(pids);
     assert.equal(
       existsSync(join(outside, 'escaped-alive-before-second')),
       false,
@@ -540,11 +565,11 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
     foreman.kill('SIGTERM');
     const code = await new Promise((resolve) => foreman.once('close', resolve));
     assert.equal(code, 130);
-    const pids = (await readFile(pidFile, 'utf8'))
+    const sigtermPids = (await readFile(pidFile, 'utf8'))
       .trim()
       .split('\n')
       .map(Number);
-    for (const pid of pids) assert.equal(await isAlive(pid), false);
+    await waitForProcessesToExit(sigtermPids);
     await unlink(pidFile);
     crashed = spawn(
       process.execPath,
@@ -725,11 +750,11 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       await new Promise((resolve) => timeoutForeman.once('close', resolve)),
       124,
     );
-    for (const pid of (await readFile(pidFile, 'utf8'))
+    const timeoutPids = (await readFile(pidFile, 'utf8'))
       .trim()
       .split('\n')
-      .map(Number))
-      assert.equal(await isAlive(pid), false);
+      .map(Number);
+    await waitForProcessesToExit(timeoutPids);
   } finally {
     foreman.kill('SIGKILL');
     if (crashed?.exitCode === null) crashed.kill('SIGKILL');
@@ -862,14 +887,7 @@ child.once('spawn', () => {
       'cancellation must drain the scope while the descendant holds inherited pipes',
     );
     await session.wait();
-    if (await isAlive(pid)) {
-      const state = spawnSync(
-        'ps',
-        ['-o', 'pid,ppid,pgid,sid,stat,args', '-p', String(pid)],
-        { encoding: 'utf8' },
-      );
-      assert.fail(`fallback left descendant ${pid} alive: ${state.stdout}`);
-    }
+    await waitForProcessesToExit([pid]);
     const events = (
       await readFile(
         join(root, '.krn/runs/foreman/B2-fallback/trace.jsonl'),
@@ -1263,10 +1281,7 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
       false,
       'SIGTERM must prevent local review readiness',
     );
-    assert.ok(
-      (await Promise.all(scopePids.map(isAlive))).every((alive) => !alive),
-      'scope PIDs survived live-l1',
-    );
+    await waitForProcessesToExit(scopePids);
     const after = spawnSync(
       'systemctl',
       ['--user', 'show', unit, '-p', 'ActiveState', '--value'],
@@ -1540,6 +1555,25 @@ test('B7 codex command grants workspace write without the git common dir', async
 });
 
 async function isAlive(pid: number): Promise<boolean> {
+  if (process.platform === 'linux') {
+    try {
+      const stat = await readFile(`/proc/${pid}/stat`, 'utf8');
+      const state = stat
+        .slice(stat.lastIndexOf(')') + 2)
+        .trim()
+        .split(/\s+/u)[0];
+      if (state === 'Z') return false;
+    } catch (error) {
+      if (
+        error !== null &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      )
+        return false;
+    }
+  }
+
   try {
     process.kill(pid, 0);
     return true;
@@ -1548,8 +1582,19 @@ async function isAlive(pid: number): Promise<boolean> {
   }
 }
 
+async function waitForProcessesToExit(pids: number[]): Promise<void> {
+  await waitFor(
+    async () =>
+      (await Promise.all(pids.map(isAlive))).every((alive) => !alive)
+        ? 'exited'
+        : undefined,
+    'timed out waiting for processes to exit',
+  );
+}
+
 async function waitFor(
   read: () => Promise<string | undefined>,
+  timeoutMessage = 'timed out waiting for fake process',
 ): Promise<string> {
   const deadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
   while (Date.now() < deadline) {
@@ -1557,7 +1602,7 @@ async function waitFor(
     if (value) return value;
     await pause(20);
   }
-  assert.fail('timed out waiting for fake process');
+  assert.fail(timeoutMessage);
 }
 
 async function runIsolatedCheckpoint(

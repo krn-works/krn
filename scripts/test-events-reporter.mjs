@@ -30,8 +30,13 @@ function eventRecord(event) {
   ]) {
     if (Object.hasOwn(data, key)) retained[key] = data[key];
   }
-  if (data.details && typeof data.details.type === 'string')
-    retained.details = { type: data.details.type };
+  if (data.details && typeof data.details === 'object') {
+    retained.details = {};
+    for (const key of ['type', 'duration_ms']) {
+      if (Object.hasOwn(data.details, key))
+        retained.details[key] = data.details[key];
+    }
+  }
   if (data.counts && typeof data.counts === 'object') {
     retained.counts = {};
     for (const field of countFields) {
