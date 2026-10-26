@@ -23,13 +23,13 @@ const require = createRequire(import.meta.url);
 const { probeIsolationCapabilities } =
   require('../../scripts/probe-isolation.mjs') as ProbeIsolationModule;
 
-test('Codex worker does not receive board credentials', async (t) => {
+test('Codex worker does not receive service credentials', async (t) => {
   if (!process.env.KRN_ISOLATION_CAPABILITIES)
     process.env.KRN_ISOLATION_CAPABILITIES = JSON.stringify(
       probeIsolationCapabilities(),
     );
   if (
-    !requiresIsolation(t, 'Codex worker does not receive board credentials', [
+    !requiresIsolation(t, 'Codex worker does not receive service credentials', [
       'systemdUserScope',
     ])
   )
@@ -39,11 +39,11 @@ test('Codex worker does not receive board credentials', async (t) => {
   const envFile = join(directory, 'worker-env.json');
   const executable = join(directory, 'fake-codex');
   const previous = {
-    KRN_PAPERCLIP_TOKEN: process.env.KRN_PAPERCLIP_TOKEN,
-    PAPERCLIP_API_KEY: process.env.PAPERCLIP_API_KEY,
+    KRN_SERVICE_TOKEN: process.env.KRN_SERVICE_TOKEN,
+    SERVICE_API_KEY: process.env.SERVICE_API_KEY,
   };
-  process.env.KRN_PAPERCLIP_TOKEN = 'sentinel-token';
-  process.env.PAPERCLIP_API_KEY = 'sentinel-key';
+  process.env.KRN_SERVICE_TOKEN = 'sentinel-token';
+  process.env.SERVICE_API_KEY = 'sentinel-key';
   try {
     await writeFile(
       executable,
@@ -62,18 +62,18 @@ test('Codex worker does not receive board credentials', async (t) => {
       string,
       string
     >;
-    assert.equal(workerEnv.KRN_PAPERCLIP_TOKEN, undefined);
-    assert.equal(workerEnv.PAPERCLIP_API_KEY, undefined);
+    assert.equal(workerEnv.KRN_SERVICE_TOKEN, undefined);
+    assert.equal(workerEnv.SERVICE_API_KEY, undefined);
     assert.ok(workerEnv.HOME);
     assert.ok(workerEnv.PATH);
     assert.equal(result.finalMessage, 'ready');
   } finally {
-    if (previous.KRN_PAPERCLIP_TOKEN === undefined)
-      delete process.env.KRN_PAPERCLIP_TOKEN;
-    else process.env.KRN_PAPERCLIP_TOKEN = previous.KRN_PAPERCLIP_TOKEN;
-    if (previous.PAPERCLIP_API_KEY === undefined)
-      delete process.env.PAPERCLIP_API_KEY;
-    else process.env.PAPERCLIP_API_KEY = previous.PAPERCLIP_API_KEY;
+    if (previous.KRN_SERVICE_TOKEN === undefined)
+      delete process.env.KRN_SERVICE_TOKEN;
+    else process.env.KRN_SERVICE_TOKEN = previous.KRN_SERVICE_TOKEN;
+    if (previous.SERVICE_API_KEY === undefined)
+      delete process.env.SERVICE_API_KEY;
+    else process.env.SERVICE_API_KEY = previous.SERVICE_API_KEY;
     await rm(directory, { recursive: true, force: true });
   }
 });

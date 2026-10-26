@@ -61,7 +61,7 @@ const childEnvironmentAllowlist = new Set([
   'XDG_RUNTIME_DIR',
   'XDG_STATE_HOME',
 ]);
-const childEnvironmentAllowlistPrefixes = ['KRN_', 'MISE_', 'PAPERCLIP_'];
+const childEnvironmentAllowlistPrefixes = ['KRN_', 'MISE_'];
 const childEnvironmentDenylist = new Set([
   'KRN_ISOLATION_APPROVAL_TOKEN',
   'KRN_TEST_SHARDS',

@@ -18,7 +18,7 @@ import { test } from 'node:test';
 const smokeModulePath = new URL('../scripts/live-smoke.mjs', import.meta.url)
   .href;
 
-test('live smoke ledger stub implements the foreman submission contract', async () => {
+test('live smoke ledger stub implements the foreman local contract', async () => {
   const { createLiveSmokeLedger } = (await import(smokeModulePath)) as {
     createLiveSmokeLedger(targetRepo?: string): {
       readContract(issue: string): Promise<{
@@ -30,11 +30,9 @@ test('live smoke ledger stub implements the foreman submission contract', async 
         targetRepo: string;
         checks: readonly string[];
       }>;
-      submitForReview(): Promise<string>;
     };
   };
   const ledger = createLiveSmokeLedger('smoke-target');
-  assert.equal(typeof ledger.submitForReview, 'function');
   assert.deepEqual(await ledger.readContract('smoke-issue'), {
     issueId: 'smoke-issue',
     identifier: 'smoke-issue',
@@ -44,7 +42,6 @@ test('live smoke ledger stub implements the foreman submission contract', async 
     targetRepo: 'smoke-target',
     checks: ['checkpoint-file'],
   });
-  assert.equal(await ledger.submitForReview(), 'submitted');
 });
 
 test('live smoke requires a selected executable before creating a fixture', async () => {

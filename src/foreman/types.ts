@@ -1,13 +1,6 @@
 import type { Job } from '../core/index.ts';
 import type { SystemdScopeRegistration } from '../hosts/systemd-scope.ts';
-import type {
-  ConflictCommentDelivery,
-  Contract,
-  ReviewSubmission,
-  SubmissionReceipt,
-  SubmitForReviewOptions,
-  VerdictEvidence,
-} from '../ledger/index.ts';
+import type { Contract } from '../ledger/index.ts';
 
 export type { Contract } from '../ledger/index.ts';
 export type Capsule = {
@@ -78,7 +71,7 @@ export class AbortBeforeCheckpoint extends Error {
 export type Outcome =
   | {
       readonly kind: 'verdict_pass';
-      readonly state: 'in_review' | 'ready_for_review';
+      readonly state: 'ready_for_review';
       readonly sha: string;
     }
   | { readonly kind: 'review'; readonly head: string }
@@ -99,54 +92,11 @@ export type Budget = {
   readonly session: { readonly timeoutMs: number };
 };
 
-export type SubmissionPersistence = Readonly<{
-  submitIntent(
-    job: Job,
-    sha: string,
-    contractRevision: string,
-  ): Promise<boolean>;
-  submittedFor(job: Job, sha: string): Promise<SubmissionReceipt | null>;
-  submitted(job: Job, sha: string, receipt: SubmissionReceipt): void;
-  submissionWindowFor(job: Job, sha: string): Promise<readonly string[] | null>;
-  submissionWindow(job: Job, sha: string, eventIds: readonly string[]): void;
-  submissionReconciliationFor(
-    job: Job,
-    sha: string,
-  ): Promise<ReviewSubmission | null>;
-  submissionReconciliation(
-    job: Job,
-    sha: string,
-    result: ReviewSubmission,
-  ): void;
-  conflictCommentFor(
-    job: Job,
-    sha: string,
-  ): Promise<ConflictCommentDelivery | null>;
-  conflictComment(
-    job: Job,
-    sha: string,
-    delivery: ConflictCommentDelivery,
-  ): void;
-  paperclipUpdateStarted(
-    job: Job,
-    sha: string,
-    kind: 'review' | 'conflict_comment',
-  ): void;
-}>;
-
 export type Deps = {
   readonly signal?: AbortSignal;
   readonly budget: Budget;
   readonly ledger: {
-    readonly submissionEnabled?: boolean;
     readContract(issue: string): Promise<Contract>;
-    submitForReview(
-      job: Job,
-      contract: Contract,
-      evidence: VerdictEvidence,
-      recordedSha: string,
-      options?: SubmitForReviewOptions,
-    ): Promise<ReviewSubmission>;
   };
   readonly relay: {
     load(job: Job, contract: Contract): Promise<Capsule>;
@@ -259,7 +209,6 @@ export type Deps = {
       event: import('../verdict/index.ts').VerdictEvent,
     ): Promise<void>;
     hasVerdict?(job: Job, sha: string): Promise<boolean>;
-    submissionPersistence?: SubmissionPersistence;
     stopped?(job: Job, signal: string): Promise<void>;
     readyForReview?(job: Job, sha: string): Promise<void>;
   };

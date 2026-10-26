@@ -148,7 +148,6 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
         targetRepo: 'fixture/repo',
         checks: ['always'],
       }),
-      submitForReview: async () => 'submitted',
     },
     relay,
     trace,
@@ -362,7 +361,7 @@ test('real CLI --next done records a verdict without opening another session', a
       outcome,
       {
         kind: 'verdict_pass',
-        state: 'in_review',
+        state: 'ready_for_review',
         sha: spawnSync('git', ['-C', root, 'rev-parse', 'HEAD'], {
           encoding: 'utf8',
         }).stdout.trim(),

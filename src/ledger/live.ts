@@ -1,49 +1,45 @@
-import type { Job } from '../core/index.ts';
+import { readFile } from 'node:fs/promises';
+import { z } from 'zod';
 import { deliveryTrailers } from './delivery.ts';
-import type { Contract, Ledger, ReviewSubmission } from './index.ts';
+import type { Contract } from './index.ts';
 
-type LiveLedger = Pick<
-  Ledger,
-  'readContract' | 'readBoard' | 'submitForReview'
-> & { readonly submissionEnabled?: boolean };
+const contractSchema = z
+  .object({
+    issueId: z.string().min(1),
+    identifier: z.string().min(1),
+    title: z.string().min(1),
+    description: z.string().max(8 * 1024),
+    revision: z.string().min(1),
+    targetRepo: z.string().min(1),
+    checks: z
+      .array(z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u))
+      .min(1)
+      .max(16),
+  })
+  .strict()
+  .refine((value) => new Set(value.checks).size === value.checks.length);
 
 export async function loadLiveContract(
-  ledger: Pick<Ledger, 'readContract' | 'readBoard'>,
+  path: string,
   issue: string,
   options: { readonly origin: string; readonly revision?: string },
-) {
-  const job: Job = { id: 'live', issue, worktree: process.cwd() };
-  const [contract, board] = await Promise.all([
-    ledger.readContract(issue),
-    ledger.readBoard(job),
-  ]);
-  if (contract.revision !== board.updatedAt)
-    throw new Error('Paperclip board changed while loading contract');
-  if (options.revision && options.revision !== board.updatedAt)
-    throw new Error('--revision mismatch with Paperclip board revision');
+): Promise<Contract> {
+  const contract = contractSchema.parse(
+    JSON.parse(await readFile(path, 'utf8')),
+  );
+  if (contract.issueId !== issue)
+    throw new Error('contract issueId mismatch with --issue');
+  if (options.revision && options.revision !== contract.revision)
+    throw new Error('--revision mismatch with local contract revision');
   if (
     repositoryFromRemote(options.origin) !==
     normalizeRepository(contract.targetRepo)
   )
-    throw new Error('krn-contract targetRepo mismatch with origin remote');
+    throw new Error('contract targetRepo mismatch with origin remote');
   const delivery = deliveryTrailers(contract);
   if (!delivery.ok)
     throw new Error(`delivery metadata refused: ${delivery.error}`);
-  return { contract, board };
-}
-
-export function withLiveSubmissionGate(
-  ledger: LiveLedger,
-  submit: boolean,
-): LiveLedger & { readonly submissionEnabled: boolean } {
-  return {
-    ...ledger,
-    submissionEnabled: submit,
-    submitForReview: (...args): Promise<ReviewSubmission> =>
-      submit
-        ? ledger.submitForReview(...args)
-        : Promise.resolve('ready_for_review'),
-  };
+  return contract;
 }
 
 function normalizeRepository(value: string): string {
@@ -62,5 +58,3 @@ function repositoryFromRemote(remote: string): string {
     throw new Error('unable to parse origin remote owner/repository');
   return normalizeRepository(match[1]);
 }
-
-export type { Contract };

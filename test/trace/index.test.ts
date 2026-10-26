@@ -3356,7 +3356,7 @@ test('trace lock refuses symlinks and non-file paths without touching targets', 
 });
 
 test('trace rejects FIFO paths immediately for append and read', {
-  timeout: 5000,
+  timeout: testTimeoutFor(4),
 }, async () => {
   const f = await fixture();
   try {
@@ -3379,6 +3379,8 @@ test('trace rejects FIFO paths immediately for append and read', {
         `
             import { parentPort, workerData } from 'node:worker_threads';
             const { hasVerdict, intent, readTraceSnapshot } = await import(workerData.moduleUrl);
+            parentPort.postMessage({ ready: true });
+            await new Promise((resolve) => parentPort.once('message', resolve));
             try {
               if (workerData.operation === 'append') await intent(workerData.job, workerData.epoch);
               else if (workerData.pathKind === 'lock') readTraceSnapshot(workerData.root, workerData.job.id);
@@ -3402,6 +3404,23 @@ test('trace rejects FIFO paths immediately for append and read', {
       );
       let timedOut = false;
       try {
+        await new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            timedOut = true;
+            reject(new Error('FIFO worker did not become ready'));
+          }, SPAWNED_PROCESS_WAIT_MS);
+          const onError = (error: Error) => {
+            clearTimeout(timer);
+            reject(error);
+          };
+          worker.once('error', onError);
+          worker.once('message', (value: { ready?: boolean }) => {
+            clearTimeout(timer);
+            worker.removeListener('error', onError);
+            if (value.ready === true) resolve();
+            else reject(new Error('FIFO worker sent an invalid ready signal'));
+          });
+        });
         const result = await new Promise<{ message: string }>(
           (resolve, reject) => {
             const timer = setTimeout(() => {
@@ -3416,6 +3435,7 @@ test('trace rejects FIFO paths immediately for append and read', {
               clearTimeout(timer);
               reject(error);
             });
+            worker.postMessage('run');
           },
         );
         assert.match(result.message, /unsafe trace/u);

@@ -129,7 +129,6 @@ function fakeHostDeps(
     },
     ledger: {
       readContract: async () => fixture.contract,
-      submitForReview: async () => 'ready_for_review',
     },
     relay,
     trace: options.traceOverride ?? trace,
@@ -189,12 +188,7 @@ function runPreflight(input: {
   delete env.NODE_OPTIONS;
   delete env.KRN_SCOPE_PROBE;
   for (const key of Object.keys(env)) {
-    if (
-      key.startsWith('NODE_TEST_') ||
-      key.startsWith('PAPERCLIP_') ||
-      key.startsWith('KRN_PAPERCLIP_')
-    )
-      delete env[key];
+    if (key.startsWith('NODE_TEST_')) delete env[key];
   }
   return spawnSync(process.execPath, ['--input-type=module', '-e', harness], {
     cwd: input.repo,

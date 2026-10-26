@@ -6,14 +6,14 @@
 - **Agent:** a model running through a harness.
 - **KRN:** the product for fast, low-noise software creation with agents. It is a software delivery layer above agent harnesses and is never called a harness. KRN measures its own delivery by merges per lane-hour, review rounds, conflicts, and flaky stalls.
 - **Host:** owns model sessions, tool execution, and host permissions.
-- **Product KRN:** owns this TypeScript CLI and runtime. It implements `--version`, `review`, `delegate`, `report journey`, `start`, `checkpoint`, `stop`, and `note`. Unknown commands are forwarded under KRN-06; Product does not implement merge.
+- **Product KRN:** owns this TypeScript CLI and runtime. It implements `--version`, `task`, `review`, `delegate`, `report journey`, `start`, `checkpoint`, `stop`, and `note`. Unknown commands are forwarded under KRN-06; Product does not implement merge.
 - **Global KRN package:** owns the compatibility CLI, skills, hooks, and installer. The package boundary remains until the measured trigger in ADR 0013.
 
 ## Current control plane
 
-The in-repository `krn task` tracker is the selected task-status source: Git-backed JSONL or files, a rebuildable local index, dependencies, readiness, and claiming. Its implementation is a later slice; it replaces the legacy Git-ref `krn task` queue and host-SQLite `krn work`. Paperclip is legacy and will be removed everywhere after import. Do not add Paperclip dependencies. ADR 0014 D8 records the decision; ADR 0013 keeps Product as the target home and Global as a compatibility boundary until its measured consolidation trigger fires.
+The in-repository `krn task` tracker is the task-status source. Its committed `tasks/<id>.json` records support dependencies, readiness, and claiming. It replaces the legacy Git-ref task queue and host-SQLite `krn work`; no legacy board data is imported. The former board integration is removed from Product. Local `krn review` records and git history provide review and delivery evidence; no board publication replaces them. ADR 0014 D8 and ADR 0015 record the tracker decision; ADR 0013 keeps Product as the target home and Global as a compatibility boundary until its measured consolidation trigger fires.
 
-The [plan](docs/program/PLAN.md) records sequence, not task status or additional authority. Read tracker status from `krn task` when implemented; until then, treat the missing command as an implementation gap, not a reason to return to Paperclip.
+The [plan](docs/program/PLAN.md) records sequence, not task status or additional authority. Read tracker status from `krn task`.
 
 ## Durable state
 
