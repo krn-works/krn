@@ -162,12 +162,29 @@ test('live smoke retains its private fixture and reports it after failure', {
     const jobId = smokeAttempts.includes(`${firstAttempt}-retry`)
       ? `${firstAttempt}-retry`
       : firstAttempt;
-    assert.match(
-      await readFile(
-        join(artifact, '.krn', 'runs', 'foreman', jobId, 'trace.jsonl'),
-        'utf8',
-      ),
-      /"kind":"failure"/u,
+    const trace = await readFile(
+      join(artifact, '.krn', 'runs', 'foreman', jobId, 'trace.jsonl'),
+      'utf8',
+    );
+    const events = trace
+      .trim()
+      .split('\n')
+      .map(
+        (line) =>
+          JSON.parse(line) as {
+            kind: string;
+            data: { sessionId?: string; end?: { exitCode?: number } };
+          },
+      );
+    const started = events.filter((event) => event.kind === 'session_started');
+    const ended = events.filter((event) => event.kind === 'session_ended');
+    assert.equal(started.length, 1);
+    assert.equal(ended.length, 1);
+    assert.equal(started[0]?.data.sessionId, ended[0]?.data.sessionId);
+    assert.equal(ended[0]?.data.end?.exitCode, 9);
+    assert.equal(
+      events.some((event) => event.kind === 'checkpoint'),
+      false,
     );
     assert.match(
       await readFile(join(artifact, 'README.md'), 'utf8'),
