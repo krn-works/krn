@@ -98,7 +98,7 @@ export async function dispatch(
     });
   } else if (command === 'task') {
     const { taskCommand } = await import('../task/cli.ts');
-    taskCommand(options);
+    await taskCommand(options);
   } else return false;
   return true;
 }

@@ -73,13 +73,13 @@ const verbHelp: Record<string, string> = {
     'krn task check [--json]\nValidate task records and references. Example: krn task check --json',
 };
 
-export function taskCommand(args: string[]): void {
+export async function taskCommand(args: string[]): Promise<void> {
   const json = args.includes('--json');
   try {
     if (args.filter((argument) => argument === '--json').length > 1)
       throw usage('--json may be supplied once');
     const commandArgs = args.filter((argument) => argument !== '--json');
-    const result = execute(commandArgs, json);
+    const result = await execute(commandArgs, json);
     process.stdout.write(
       result.json
         ? `${JSON.stringify({ ok: true, ...result.value }, null, 2)}\n`
@@ -108,7 +108,7 @@ export function taskCommand(args: string[]): void {
   }
 }
 
-function execute(args: string[], json: boolean): CommandOutput {
+async function execute(args: string[], json: boolean): Promise<CommandOutput> {
   const [command, ...options] = args;
   if (command === undefined || command === 'help' || command === '--help')
     return { text: `${quickstart}\n`, value: {}, json: false };
@@ -257,7 +257,7 @@ function ready(args: string[], json: boolean): CommandOutput {
   );
 }
 
-function claim(args: string[], json: boolean): CommandOutput {
+async function claim(args: string[], json: boolean): Promise<CommandOutput> {
   let next = false;
   let takeover = false;
   let id: string | undefined;
@@ -303,8 +303,8 @@ function claim(args: string[], json: boolean): CommandOutput {
     ...(takeover ? { takeover: true } : {}),
   };
   const claimed = next
-    ? claimNext(root, options)
-    : claimTask(root, requireId(id ?? ''), options);
+    ? await claimNext(root, options)
+    : await claimTask(root, requireId(id ?? ''), options);
   const inspection = inspectClaim(root, claimed.id);
   const lines: string[] = [];
   if (claimed.removedExpired !== undefined)
@@ -321,11 +321,11 @@ function claim(args: string[], json: boolean): CommandOutput {
   );
 }
 
-function release(args: string[], json: boolean): CommandOutput {
+async function release(args: string[], json: boolean): Promise<CommandOutput> {
   if (args.length !== 1 || args[0] === undefined)
     throw usage('usage: krn task release ID [--json]');
   const id = requireId(args[0]);
-  releaseClaim(repositoryRoot(), id);
+  await releaseClaim(repositoryRoot(), id);
   return result({ claim: null }, `${id}\n`, json);
 }
 

@@ -1,20 +1,15 @@
 import { spawnSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import {
-  closeSync,
-  fstatSync,
-  fsyncSync,
   lstatSync,
-  mkdirSync,
-  openSync,
   readFileSync,
   realpathSync,
-  renameSync,
   unlinkSync,
-  writeFileSync,
+  writeSync,
 } from 'node:fs';
-import { hostname } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { createServer, type Server } from 'node:net';
+import { dirname, join, resolve } from 'node:path';
+import { performance } from 'node:perf_hooks';
 import {
   parseTaskDocument,
   TaskCommandError,
@@ -66,16 +61,6 @@ export interface ClaimLivenessProbes {
   taskFile(root: string, id: TaskId): Buffer;
   originRef(root: string): ClaimGitProbe;
   originTask(root: string, id: TaskId): ClaimGitProbe;
-}
-
-interface FileIdentity {
-  dev: bigint;
-  ino: bigint;
-}
-
-interface TaskLock {
-  path: string;
-  identity: FileIdentity;
 }
 
 export interface ReadyTasks {
@@ -179,11 +164,11 @@ function inspectClaimAt(mainRoot: string, id: TaskId): ClaimInspection {
   };
 }
 
-export function claimTask(
+export async function claimTask(
   root: string,
   id: TaskId,
   options: ClaimOptions,
-): ClaimResult {
+): Promise<ClaimResult> {
   const worktreeRoot = resolveClaimWorktree(root, options.worktree);
   const branch = currentBranch(worktreeRoot);
   const task = getTask(worktreeRoot, id);
@@ -231,17 +216,17 @@ export function claimTask(
   });
 }
 
-export function claimNext(
+export async function claimNext(
   root: string,
   options: ClaimOptions,
   limit?: number,
-): ClaimResult {
+): Promise<ClaimResult> {
   const worktreeRoot = resolveClaimWorktree(root, options.worktree);
   currentBranch(worktreeRoot);
   const candidates = readyTasks(worktreeRoot, limit).tasks;
   for (const candidate of candidates) {
     try {
-      return claimTask(worktreeRoot, candidate.id, {
+      return await claimTask(worktreeRoot, candidate.id, {
         ...options,
         worktree: worktreeRoot,
       });
@@ -256,7 +241,10 @@ export function claimNext(
   throw new TaskCommandError('no ready tasks are available to claim', 75);
 }
 
-export function releaseClaim(root: string, id: TaskId): ClaimInspection {
+export async function releaseClaim(
+  root: string,
+  id: TaskId,
+): Promise<ClaimInspection> {
   const mainRoot = mainCheckoutRoot(root);
   const path = claimPath(mainRoot, id);
   return withTaskLock(mainRoot, id, () => {
@@ -589,147 +577,75 @@ function claimPath(mainRoot: string, id: TaskId): string {
   return join(mainRoot, '.krn', 'task-claims', `${id}.json`);
 }
 
-function withTaskLock<T>(mainRoot: string, id: TaskId, operation: () => T): T {
-  const lock = acquireTaskLock(mainRoot, id);
+async function withTaskLock<T>(
+  mainRoot: string,
+  id: TaskId,
+  operation: () => T | Promise<T>,
+): Promise<T> {
+  const lock = await acquireTaskLock(mainRoot, id);
   try {
-    return operation();
+    await holdTaskLockForTest();
+    return await operation();
   } finally {
-    releaseTaskLock(lock);
+    await releaseTaskLock(lock);
   }
 }
 
-function acquireTaskLock(mainRoot: string, id: TaskId): TaskLock {
-  const directory = join(mainRoot, '.krn', 'tmp', 'task-locks');
-  const path = join(directory, `${id}.lock`);
-  mkdirSync(directory, { recursive: true });
-  const localHostname = hostname();
-  const deadline = Date.now() + 2_000;
-  const waitCell = new Int32Array(new SharedArrayBuffer(4));
+async function acquireTaskLock(mainRoot: string, id: TaskId): Promise<Server> {
+  if (process.platform !== 'linux')
+    throw new TaskUsageError('claim locking requires Linux');
 
+  const address = `\0krn-task-lock:${createHash('sha256').update(mainRoot).digest('hex')}:${id}`;
+  if (address.length > 107)
+    throw new TaskUsageError('task id is too long for claim locking');
+
+  const deadline = performance.now() + 2_000;
   while (true) {
-    let descriptor: number;
     try {
-      descriptor = openSync(path, 'wx', 0o600);
+      return await listenForTaskLock(address);
     } catch (error) {
-      if (!isAlreadyExists(error)) throw error;
-      if (removeStaleTaskLock(path, localHostname)) continue;
-      const remaining = deadline - Date.now();
+      if (errorCode(error) !== 'EADDRINUSE') throw error;
+      const remaining = deadline - performance.now();
       if (remaining <= 0) throw new TaskCommandError('task claim is busy', 75);
-      Atomics.wait(waitCell, 0, 0, Math.min(25, remaining));
-      continue;
+      await wait(Math.min(25, remaining));
     }
-
-    let identity: FileIdentity | undefined;
-    try {
-      const stat = fstatSync(descriptor, { bigint: true });
-      identity = { dev: stat.dev, ino: stat.ino };
-      writeFileSync(
-        descriptor,
-        `${JSON.stringify({
-          pid: process.pid,
-          hostname: localHostname,
-          acquired: new Date().toISOString(),
-        })}\n`,
-      );
-      fsyncSync(descriptor);
-    } catch (error) {
-      closeSync(descriptor);
-      if (identity === undefined) {
-        try {
-          unlinkSync(path);
-        } catch (cleanupError) {
-          if (!isMissing(cleanupError)) throw cleanupError;
-        }
-      } else {
-        unlinkFileIfSame(path, identity);
-      }
-      throw error;
-    }
-    closeSync(descriptor);
-    if (identity === undefined)
-      throw new Error('task lock identity is missing');
-    return { path, identity };
   }
 }
 
-function releaseTaskLock(lock: TaskLock): void {
-  unlinkFileIfSame(lock.path, lock.identity);
+function listenForTaskLock(address: string): Promise<Server> {
+  const server = createServer();
+  return new Promise((resolve, reject) => {
+    const onError = (error: Error) => {
+      server.removeListener('error', onError);
+      reject(error);
+    };
+    server.once('error', onError);
+    server.listen(address, () => {
+      server.removeListener('error', onError);
+      resolve(server);
+    });
+  });
 }
 
-function unlinkFileIfSame(path: string, identity: FileIdentity): void {
-  try {
-    if (sameFileIdentity(fileIdentity(path), identity)) unlinkSync(path);
-  } catch (error) {
-    if (!isMissing(error)) throw error;
-  }
+async function releaseTaskLock(server: Server): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
 }
 
-function fileIdentity(path: string): FileIdentity {
-  const stat = lstatSync(path, { bigint: true });
-  return { dev: stat.dev, ino: stat.ino };
+async function holdTaskLockForTest(): Promise<void> {
+  if (process.env.NODE_ENV !== 'test') return;
+  const descriptor = Number(process.env.KRN_TASK_LOCK_HOLD_FD);
+  if (!Number.isSafeInteger(descriptor) || descriptor < 3) return;
+  writeSync(descriptor, 'locked\n');
+  await new Promise<void>(() => {});
 }
 
-function sameFileIdentity(left: FileIdentity, right: FileIdentity): boolean {
-  return left.dev === right.dev && left.ino === right.ino;
-}
-
-function removeStaleTaskLock(path: string, localHostname: string): boolean {
-  let identity: FileIdentity;
-  let contents: string;
-  try {
-    identity = fileIdentity(path);
-    contents = readFileSync(path, 'utf8');
-  } catch (error) {
-    return isMissing(error);
-  }
-
-  if (!isDeadLocalLock(contents, localHostname)) return false;
-  try {
-    if (!sameFileIdentity(fileIdentity(path), identity)) return false;
-  } catch (error) {
-    return isMissing(error);
-  }
-
-  const stalePath = join(
-    dirname(path),
-    `.${basename(path)}.${randomUUID()}.stale`,
-  );
-  try {
-    renameSync(path, stalePath);
-  } catch (error) {
-    return isMissing(error);
-  }
-  unlinkSync(stalePath);
-  return true;
-}
-
-function isDeadLocalLock(contents: string, localHostname: string): boolean {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(contents);
-  } catch {
-    return false;
-  }
-  if (
-    parsed === null ||
-    typeof parsed !== 'object' ||
-    !('pid' in parsed) ||
-    !('hostname' in parsed) ||
-    !('acquired' in parsed) ||
-    typeof parsed.pid !== 'number' ||
-    !Number.isInteger(parsed.pid) ||
-    parsed.pid <= 0 ||
-    parsed.hostname !== localHostname ||
-    typeof parsed.acquired !== 'string'
-  )
-    return false;
-
-  try {
-    process.kill(parsed.pid, 0);
-    return false;
-  } catch (error) {
-    return errorCode(error) === 'ESRCH';
-  }
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function heldClaimError(inspection: ClaimInspection): TaskCommandError {
