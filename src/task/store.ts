@@ -30,6 +30,14 @@ export interface NewTask {
   body?: string[];
 }
 
+export interface EditTask {
+  title?: string;
+  priority?: number;
+  body?: string[];
+  appendBody?: string[];
+  reopen?: boolean;
+}
+
 export interface TaskStoreOptions {
   makeId?: () => TaskId;
 }
@@ -254,6 +262,54 @@ export function closeTask(
   return closed;
 }
 
+export function editTask(
+  root: string,
+  id: TaskId,
+  input: EditTask,
+): TaskRecord {
+  const index = loadTaskIndex(root);
+  const record = index.get(id);
+  if (record === undefined)
+    throw new TaskDataError([`tasks/${id}.json: task does not exist`]);
+  if (record.status === 'closed' && input.reopen !== true)
+    throw new TaskDataError([
+      `tasks/${id}.json: task is closed; use --reopen to edit it`,
+    ]);
+
+  const findings = validateTaskFields(input);
+  if (findings.length > 0) throw new TaskDataError(findings);
+
+  const hasFieldChange =
+    input.title !== undefined ||
+    input.priority !== undefined ||
+    input.body !== undefined ||
+    (input.appendBody?.length ?? 0) > 0;
+  if (!hasFieldChange && !(input.reopen === true && record.status === 'closed'))
+    throw new TaskUsageError('task edit requires at least one change');
+
+  const updated: TaskRecord = {
+    ...record,
+    ...(input.title === undefined ? {} : { title: input.title }),
+    ...(input.priority === undefined ? {} : { priority: input.priority }),
+    ...(input.body === undefined
+      ? {}
+      : { body: [...input.body, ...(input.appendBody ?? [])] }),
+    ...(input.body === undefined && input.appendBody !== undefined
+      ? { body: [...record.body, ...input.appendBody] }
+      : {}),
+    ...(record.status === 'closed' && input.reopen === true
+      ? { status: 'open' as const, resolution: null }
+      : {}),
+  };
+  atomicWrite(
+    root,
+    join(root, 'tasks', `${id}.json`),
+    serializeTask(updated),
+    true,
+  );
+  return updated;
+}
+
 export function changeDependency(
   root: string,
   id: TaskId,
@@ -291,16 +347,7 @@ export function changeDependency(
 }
 
 function validateNewTask(input: NewTask, index: Map<TaskId, TaskRecord>): void {
-  const findings: string[] = [];
-  if (input.title.trim().length === 0) findings.push('title must not be empty');
-  if (/[\r\n]/u.test(input.title)) findings.push('title must be a single line');
-  if (
-    input.priority !== undefined &&
-    (!Number.isInteger(input.priority) ||
-      input.priority < 0 ||
-      input.priority > 3)
-  )
-    findings.push('priority must be an integer between 0 and 3');
+  const findings = validateTaskFields(input);
   for (const dependency of input.after ?? []) {
     if (!isTaskId(dependency))
       findings.push(`invalid after task id "${dependency}"`);
@@ -308,6 +355,25 @@ function validateNewTask(input: NewTask, index: Map<TaskId, TaskRecord>): void {
       findings.push(`after task "${dependency}" does not exist`);
   }
   if (findings.length > 0) throw new TaskDataError(findings);
+}
+
+function validateTaskFields(input: {
+  title?: string;
+  priority?: number;
+}): string[] {
+  const findings: string[] = [];
+  if (input.title !== undefined && input.title.trim().length === 0)
+    findings.push('title must not be empty');
+  if (input.title !== undefined && /[\r\n]/u.test(input.title))
+    findings.push('title must be a single line');
+  if (
+    input.priority !== undefined &&
+    (!Number.isInteger(input.priority) ||
+      input.priority < 0 ||
+      input.priority > 3)
+  )
+    findings.push('priority must be an integer between 0 and 3');
+  return findings;
 }
 
 function existsInOriginMain(root: string, id: TaskId): boolean {

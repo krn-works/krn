@@ -150,7 +150,10 @@ test('task list keeps its JSON output through the CLI', async (t) => {
           { cwd: repo, encoding: 'utf8', env },
         );
         assert.equal(result.status, 0, result.stderr);
-        assert.equal(result.stdout, `${JSON.stringify([task], null, 2)}\n`);
+        assert.equal(
+          result.stdout,
+          `${JSON.stringify({ ok: true, tasks: [task] }, null, 2)}\n`,
+        );
         assert.equal(result.stderr, '');
 
         const emptyResult = spawnSync(
@@ -159,7 +162,10 @@ test('task list keeps its JSON output through the CLI', async (t) => {
           { cwd: emptyRepo, encoding: 'utf8', env },
         );
         assert.equal(emptyResult.status, 0, emptyResult.stderr);
-        assert.equal(emptyResult.stdout, '[]\n');
+        assert.equal(
+          emptyResult.stdout,
+          `${JSON.stringify({ ok: true, tasks: [] }, null, 2)}\n`,
+        );
         assert.equal(emptyResult.stderr, '');
       });
     }

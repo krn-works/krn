@@ -53,7 +53,7 @@ test('claim --next claims a ready task and ready omits it', async () => {
 
     const ready = runCli(repo, ['ready', '--json']);
     assert.equal(ready.status, 0, ready.stderr);
-    assert.deepEqual(JSON.parse(ready.stdout), []);
+    assert.deepEqual(JSON.parse(ready.stdout).tasks, []);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
@@ -446,7 +446,7 @@ test('corrupt claims fail safe, report all findings, and release clears them', a
       '"reason" must be a string or null',
     ]);
     const ready = runCli(repo, ['ready', '--json']);
-    assert.deepEqual(JSON.parse(ready.stdout), []);
+    assert.deepEqual(JSON.parse(ready.stdout).tasks, []);
     assert.match(ready.stderr, /"actor" must be a string/u);
     const release = runCli(repo, ['release', 'T-1']);
     assert.equal(release.status, 0, release.stderr);
@@ -478,7 +478,7 @@ test('unreadable claims stay live and can be released or taken over', {
 
     const ready = runCli(repo, ['ready', '--json']);
     assert.equal(ready.status, 0, ready.stderr);
-    assert.deepEqual(JSON.parse(ready.stdout), []);
+    assert.deepEqual(JSON.parse(ready.stdout).tasks, []);
     assert.match(ready.stderr, /unable to read claim file/u);
 
     const blocked = runCli(repo, ['claim', 'T-1', '--actor', 'blocked']);
@@ -1147,7 +1147,9 @@ function task(id: string, overrides: Partial<TaskRecord> = {}): TaskRecord {
 
 function readyIds(result: CliResult): string[] {
   assert.equal(result.status, 0, result.stderr);
-  return (JSON.parse(result.stdout) as TaskRecord[]).map((record) => record.id);
+  return (JSON.parse(result.stdout).tasks as TaskRecord[]).map(
+    (record) => record.id,
+  );
 }
 
 function addWorktree(root: string, path: string, branch: string): void {
