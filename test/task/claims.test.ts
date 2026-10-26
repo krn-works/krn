@@ -1,7 +1,21 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
-import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
+import {
+  existsSync,
+  lstatSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs';
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readdir,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -21,7 +35,10 @@ import {
 } from '../../src/task/record.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
-const scratch = join(process.cwd(), '.krn/runs/claude-task-claims-fix/scratch');
+const scratch = join(
+  process.cwd(),
+  '.krn/runs/claude-task-claims-fix2/scratch',
+);
 
 test('claim --next claims a ready task and ready omits it', async () => {
   const repo = await tempRepo('claim-ready-');
@@ -440,6 +457,61 @@ test('corrupt claims fail safe, report all findings, and release clears them', a
   }
 });
 
+test('unreadable claims stay live and can be released or taken over', {
+  skip:
+    process.getuid?.() === 0
+      ? 'chmod 000 does not make files unreadable when running as root'
+      : false,
+}, async () => {
+  const repo = await fixtureRepo('claim-unreadable-', [
+    task('T-1'),
+    task('T-2'),
+  ]);
+  try {
+    for (const id of ['T-1', 'T-2']) {
+      assert.equal(
+        runCli(repo, ['claim', id, '--actor', `original-${id}`]).status,
+        0,
+      );
+      await chmod(join(repo, '.krn', 'task-claims', `${id}.json`), 0o000);
+    }
+
+    const ready = runCli(repo, ['ready', '--json']);
+    assert.equal(ready.status, 0, ready.stderr);
+    assert.deepEqual(JSON.parse(ready.stdout), []);
+    assert.match(ready.stderr, /unable to read claim file/u);
+
+    const blocked = runCli(repo, ['claim', 'T-1', '--actor', 'blocked']);
+    assert.equal(blocked.status, 75);
+    assert.match(blocked.stderr, /unable to read claim file/u);
+
+    const released = runCli(repo, ['release', 'T-1']);
+    assert.equal(released.status, 0, released.stderr);
+    assert.equal(
+      existsSync(join(repo, '.krn', 'task-claims', 'T-1.json')),
+      false,
+    );
+
+    const takeover = runCli(repo, [
+      'claim',
+      'T-2',
+      '--actor',
+      'replacement',
+      '--takeover',
+      '--reason',
+      'replace unreadable claim',
+    ]);
+    assert.equal(takeover.status, 0, takeover.stderr);
+    const replacement = JSON.parse(
+      readFileSync(join(repo, '.krn', 'task-claims', 'T-2.json'), 'utf8'),
+    );
+    assert.equal(replacement.actor, 'replacement');
+    assert.equal(replacement.reason, 'replace unreadable claim');
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test('claim rejects unknown, closed, and dependency-blocked tasks', async () => {
   const repo = await fixtureRepo('claim-invalid-task-', [
     task('T-1', {
@@ -767,6 +839,87 @@ test('release compare-and-remove leaves a concurrent takeover in place', async (
     );
     const show = JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout);
     assert.equal(show.claim.holder.actor, 'newer');
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('release preserves a same-byte claim replaced after inspection', async () => {
+  const repo = await fixtureRepo('claim-release-identity-race-', [task('T-1')]);
+  const claimPath = join(repo, '.krn', 'task-claims', 'T-1.json');
+  const previousPath = join(repo, '.krn', 'task-claims', 'T-1.previous.json');
+  try {
+    assert.equal(runCli(repo, ['claim', 'T-1', '--actor', 'worker']).status, 0);
+    const originalBytes = readFileSync(claimPath);
+    const inspectedIdentity = lstatSync(claimPath, { bigint: true });
+    let replacementInstalled = false;
+
+    assert.throws(
+      () =>
+        releaseClaim(repo, 'T-1' as TaskId, {
+          afterInspect: () => {
+            if (replacementInstalled) return;
+            replacementInstalled = true;
+            renameSync(claimPath, previousPath);
+            writeFileSync(claimPath, originalBytes);
+          },
+        }),
+      (error: unknown) =>
+        error instanceof TaskCommandError && error.exitCode === 75,
+    );
+
+    assert.equal(replacementInstalled, true);
+    assert.deepEqual(readFileSync(claimPath), originalBytes);
+    assert.notEqual(
+      lstatSync(claimPath, { bigint: true }).ino,
+      inspectedIdentity.ino,
+    );
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('takeover stops when the inspected claim identity keeps changing', async () => {
+  const repo = await fixtureRepo('claim-takeover-identity-race-', [
+    task('T-1'),
+  ]);
+  const claimPath = join(repo, '.krn', 'task-claims', 'T-1.json');
+  let replacedPath = join(repo, '.krn', 'task-claims', 'T-1.previous-1.json');
+  try {
+    assert.equal(runCli(repo, ['claim', 'T-1', '--actor', 'worker']).status, 0);
+    const sameBytes = readFileSync(claimPath);
+    let latestIdentity: ReturnType<typeof lstatSync> | undefined;
+    let inspections = 0;
+
+    assert.throws(
+      () =>
+        claimTask(
+          repo,
+          'T-1' as TaskId,
+          { actor: 'takeover', reason: 'identity race', takeover: true },
+          {
+            afterInspect: () => {
+              inspections += 1;
+              renameSync(claimPath, replacedPath);
+              writeFileSync(claimPath, sameBytes);
+              latestIdentity = lstatSync(claimPath);
+              replacedPath = join(
+                repo,
+                '.krn',
+                'task-claims',
+                `T-1.previous-${inspections + 1}.json`,
+              );
+            },
+          },
+        ),
+      (error: unknown) =>
+        error instanceof TaskCommandError && error.exitCode === 75,
+    );
+
+    assert.equal(inspections, 2);
+    assert.ok(latestIdentity);
+    assert.equal(lstatSync(claimPath).ino, latestIdentity.ino);
+    assert.deepEqual(readFileSync(claimPath), sameBytes);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import {
   linkSync,
+  lstatSync,
   readFileSync,
   realpathSync,
   renameSync,
@@ -70,8 +71,16 @@ export interface ClaimTaskHooks {
   afterInspect?: (inspection: ClaimInspection) => void;
 }
 
+interface ClaimFileIdentity {
+  dev: bigint;
+  ino: bigint;
+  size: bigint;
+  mtimeNs: bigint;
+}
+
 interface ClaimSnapshot {
   inspection: ClaimInspection;
+  identity?: ClaimFileIdentity;
   bytes?: Buffer;
 }
 
@@ -139,15 +148,29 @@ function inspectClaimAt(mainRoot: string, id: TaskId): ClaimInspection {
 
 function inspectClaimSnapshotAt(mainRoot: string, id: TaskId): ClaimSnapshot {
   const path = claimPath(mainRoot, id);
-  let bytes: Buffer;
+  let identity: ClaimFileIdentity;
   try {
-    bytes = readFileSync(path);
+    identity = claimFileIdentity(path);
   } catch (error) {
     if (isMissing(error))
       return {
         inspection: { state: 'none', reason: 'none', findings: [] },
       };
     return {
+      inspection: {
+        state: 'corrupt',
+        reason: 'corrupt',
+        findings: ['unable to inspect claim file'],
+      },
+    };
+  }
+
+  let bytes: Buffer;
+  try {
+    bytes = readFileSync(path);
+  } catch (error) {
+    return {
+      identity,
       inspection: {
         state: 'corrupt',
         reason: 'corrupt',
@@ -159,6 +182,7 @@ function inspectClaimSnapshotAt(mainRoot: string, id: TaskId): ClaimSnapshot {
   const parsed = parseClaim(bytes, id);
   if (parsed.findings.length > 0)
     return {
+      identity,
       bytes,
       inspection: {
         state: 'corrupt',
@@ -170,6 +194,7 @@ function inspectClaimSnapshotAt(mainRoot: string, id: TaskId): ClaimSnapshot {
   const claim = parsed.claim as TaskClaim;
   const liveness = claimLiveness(mainRoot, claim);
   return {
+    identity,
     bytes,
     inspection: {
       state: liveness.state,
@@ -216,11 +241,11 @@ export function claimTask(
 
     if (current.state === 'live' || current.state === 'corrupt') {
       if (!options.takeover) throw heldClaimError(current);
-      if (snapshot.bytes === undefined) throw heldClaimError(current);
+      if (snapshot.identity === undefined) throw heldClaimError(current);
       const outcome = compareAndReplaceClaim(
         mainRoot,
         path,
-        snapshot.bytes,
+        snapshot,
         serialized,
       );
       if (outcome === 'replaced') {
@@ -235,9 +260,9 @@ export function claimTask(
     }
 
     if (current.state === 'expired') {
-      if (snapshot.bytes === undefined)
+      if (snapshot.identity === undefined)
         throw claimChangedError('while removing an expired claim');
-      const outcome = compareAndRemoveClaim(mainRoot, path, snapshot.bytes);
+      const outcome = compareAndRemoveClaim(mainRoot, path, snapshot);
       if (outcome === 'removed') {
         removedExpired = current;
         break;
@@ -304,8 +329,9 @@ export function releaseClaim(
   hooks.afterInspect?.(current);
   if (current.state === 'none')
     throw new TaskDataError([`task ${id} has no claim to release`]);
-  if (snapshot.bytes === undefined) throw claimChangedError('while releasing');
-  const outcome = compareAndRemoveClaim(mainRoot, path, snapshot.bytes);
+  if (snapshot.identity === undefined)
+    throw claimChangedError('while releasing');
+  const outcome = compareAndRemoveClaim(mainRoot, path, snapshot);
   if (outcome === 'missing')
     throw new TaskDataError([`task ${id} has no claim to release`]);
   if (outcome === 'changed') throw claimChangedError('while releasing');
@@ -634,18 +660,11 @@ type CompareAndReplaceResult = 'replaced' | 'missing' | 'changed';
 function compareAndRemoveClaim(
   mainRoot: string,
   target: string,
-  inspected: Buffer,
+  inspected: ClaimSnapshot,
 ): CompareAndRemoveResult {
   const moved = moveClaimToStaging(mainRoot, target);
   if (moved === undefined) return 'missing';
-  let current: Buffer;
-  try {
-    current = readFileSync(moved);
-  } catch (error) {
-    restoreClaim(moved, target);
-    throw error;
-  }
-  if (!current.equals(inspected)) {
+  if (!claimSnapshotStillMatches(moved, inspected)) {
     restoreClaim(moved, target);
     return 'changed';
   }
@@ -656,21 +675,14 @@ function compareAndRemoveClaim(
 function compareAndReplaceClaim(
   mainRoot: string,
   target: string,
-  inspected: Buffer,
+  inspected: ClaimSnapshot,
   contents: string,
 ): CompareAndReplaceResult {
   const staged = stageWrite(mainRoot, target, contents);
   try {
     const moved = moveClaimToStaging(mainRoot, target);
     if (moved === undefined) return 'missing';
-    let current: Buffer;
-    try {
-      current = readFileSync(moved);
-    } catch (error) {
-      restoreClaim(moved, target);
-      throw error;
-    }
-    if (!current.equals(inspected)) {
+    if (!claimSnapshotStillMatches(moved, inspected)) {
       restoreClaim(moved, target);
       return 'changed';
     }
@@ -686,6 +698,48 @@ function compareAndReplaceClaim(
   } finally {
     discardStagedWrite(staged);
   }
+}
+
+function claimSnapshotStillMatches(
+  moved: string,
+  inspected: ClaimSnapshot,
+): boolean {
+  if (inspected.identity === undefined) return false;
+  let currentIdentity: ClaimFileIdentity;
+  try {
+    currentIdentity = claimFileIdentity(moved);
+  } catch {
+    return false;
+  }
+  if (!sameClaimIdentity(currentIdentity, inspected.identity)) return false;
+  if (inspected.bytes === undefined) return true;
+  try {
+    return readFileSync(moved).equals(inspected.bytes);
+  } catch {
+    return false;
+  }
+}
+
+function claimFileIdentity(path: string): ClaimFileIdentity {
+  const stat = lstatSync(path, { bigint: true });
+  return {
+    dev: stat.dev,
+    ino: stat.ino,
+    size: stat.size,
+    mtimeNs: stat.mtimeNs,
+  };
+}
+
+function sameClaimIdentity(
+  left: ClaimFileIdentity,
+  right: ClaimFileIdentity,
+): boolean {
+  return (
+    left.dev === right.dev &&
+    left.ino === right.ino &&
+    left.size === right.size &&
+    left.mtimeNs === right.mtimeNs
+  );
 }
 
 function moveClaimToStaging(
