@@ -97,13 +97,8 @@ export async function dispatch(
       write: runtime.delegate?.write ?? ((text) => process.stdout.write(text)),
     });
   } else if (command === 'task') {
-    if (options[0] === 'list') {
-      const { taskListCommand } = await import('./task-list.ts');
-      await taskListCommand(options.slice(1));
-    } else {
-      const { taskCommand } = await import('../task/cli.ts');
-      taskCommand(options);
-    }
+    const { taskCommand } = await import('../task/cli.ts');
+    taskCommand(options);
   } else return false;
   return true;
 }

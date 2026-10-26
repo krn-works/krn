@@ -32,11 +32,6 @@ async function reportJourney(args: string[]): Promise<void> {
   process.exitCode = reportJourneyCommand(args);
 }
 
-async function taskList(args: string[]): Promise<void> {
-  const { taskListCommand } = await import('./task-list.ts');
-  await taskListCommand(args);
-}
-
 async function forward(args: string[]): Promise<void> {
   if (process.env[recursionFlag] === '1') {
     process.stderr.write('Legacy forwarding recursion blocked.\n');
@@ -155,16 +150,6 @@ export function main(args = process.argv.slice(2)): void {
         process.removeListener('SIGINT', interrupt);
         process.removeListener('SIGTERM', interrupt);
       });
-    return;
-  }
-
-  if (args[0] === 'task' && args[1] === 'list') {
-    void taskList(args.slice(2)).catch((error: unknown) => {
-      process.stderr.write(
-        `${error instanceof Error ? error.message : String(error)}\n`,
-      );
-      process.exitCode = taskErrorExitCode(error);
-    });
     return;
   }
 
