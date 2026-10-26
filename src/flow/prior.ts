@@ -84,6 +84,10 @@ export function loadPriorReview(
       `does not match the review record schema: ${parsed.error.message}`,
     );
   const record = parsed.data;
+  if (record.prior !== undefined)
+    throw new PriorRecordError(
+      'is already a second-round record; after two rounds the lead decides (override)',
+    );
   let priorHead: string;
   let currentHead: string;
   let paths: string[];

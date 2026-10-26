@@ -516,6 +516,10 @@ test('prior record input errors are usage errors before judges start', async (t)
     ['schema-invalid', /schema/iu],
     ['same head', /different.*head/iu],
     ['PASS record', /FAIL/iu],
+    [
+      'second-round record',
+      /already a second-round record; after two rounds the lead decides \(override\)/u,
+    ],
   ] as const;
   for (const [kind, message] of cases) {
     await t.test(kind, async (t) => {
@@ -566,6 +570,44 @@ test('prior record input errors are usage errors before judges start', async (t)
               ...judge,
               verdict: 'PASS',
               findings: [],
+            })),
+          }),
+        );
+      if (kind === 'second-round record')
+        writeFileSync(
+          f.priorPath,
+          JSON.stringify({
+            ...f.priorRecord,
+            panelVerdict: 'FAIL',
+            prior: {
+              headSha: f.base,
+              recordSha256: 'a'.repeat(64),
+              findings: [
+                { ...blocking, role: 'standards' },
+                { ...blocking, role: 'spec', title: 'Negative input fails' },
+              ],
+              changedPaths: ['src.ts'],
+            },
+            judges: panelRoles.map((role, index) => ({
+              state: 'complete',
+              role,
+              verdict: index === 0 ? 'FAIL' : 'PASS',
+              declaredVerdict: index === 0 ? 'FAIL' : 'PASS',
+              findings: [],
+              prior: [
+                {
+                  index: 0,
+                  status: index === 0 ? 'UNRESOLVED' : 'RESOLVED',
+                  evidence: 'Review evidence for the first finding.',
+                },
+                {
+                  index: 1,
+                  status: 'RESOLVED',
+                  evidence: 'Review evidence for the second finding.',
+                },
+              ],
+              sessionId: `second-${role}`,
+              finalMessage: 'Second-round evidence',
             })),
           }),
         );
