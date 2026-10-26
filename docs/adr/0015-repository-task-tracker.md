@@ -44,6 +44,14 @@ are treated as live and reported, so only `release` or a reasoned `--takeover`
 removes them. A live claim blocks another claim with exit code 75; takeover
 requires a reason.
 
+Every claim mutation, including expired-claim removal, takeover, and release,
+holds an exclusive lock at `.krn/tmp/task-locks/<id>.lock` in the main checkout.
+The lock records the local pid, hostname, and acquisition time. A lock is stale
+only when its hostname matches and its pid is confirmed absent; stale locks are
+renamed to a unique path and unlinked. A live or unverifiable lock blocks for
+at most two seconds, then returns exit code 75. Read-only `ready` and `show`
+commands do not lock or remove expired claims.
+
 ## Consequences and delivery sequence
 
 The format lens's merge table found that separate files keep unrelated task

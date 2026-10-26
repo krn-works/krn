@@ -1,13 +1,20 @@
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import {
-  linkSync,
+  closeSync,
+  fstatSync,
+  fsyncSync,
   lstatSync,
+  mkdirSync,
+  openSync,
   readFileSync,
   realpathSync,
   renameSync,
   unlinkSync,
+  writeFileSync,
 } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { hostname } from 'node:os';
+import { basename, dirname, join, resolve } from 'node:path';
 import {
   parseTaskDocument,
   TaskCommandError,
@@ -16,14 +23,8 @@ import {
   type TaskRecord,
   TaskUsageError,
 } from './record.ts';
-import {
-  atomicWrite,
-  discardStagedWrite,
-  publishStagedWrite,
-  stageWrite,
-  uniqueStagingPath,
-} from './staged-write.ts';
-import { getTask, loadTaskIndex, repositoryRoot } from './store.ts';
+import { atomicWrite } from './staged-write.ts';
+import { getTask, loadTaskIndex } from './store.ts';
 
 export const claimKeys = [
   'id',
@@ -67,22 +68,14 @@ export interface ClaimLivenessProbes {
   originTask(root: string, id: TaskId): ClaimGitProbe;
 }
 
-export interface ClaimTaskHooks {
-  afterInspect?: (inspection: ClaimInspection) => void;
-  afterTakeoverStage?: (inspection: ClaimInspection) => void;
-}
-
-interface ClaimFileIdentity {
+interface FileIdentity {
   dev: bigint;
   ino: bigint;
-  size: bigint;
-  mtimeNs: bigint;
 }
 
-interface ClaimSnapshot {
-  inspection: ClaimInspection;
-  identity?: ClaimFileIdentity;
-  bytes?: Buffer;
+interface TaskLock {
+  path: string;
+  identity: FileIdentity;
 }
 
 export interface ReadyTasks {
@@ -144,65 +137,45 @@ export function inspectClaim(root: string, id: TaskId): ClaimInspection {
 }
 
 function inspectClaimAt(mainRoot: string, id: TaskId): ClaimInspection {
-  return inspectClaimSnapshotAt(mainRoot, id).inspection;
-}
-
-function inspectClaimSnapshotAt(mainRoot: string, id: TaskId): ClaimSnapshot {
   const path = claimPath(mainRoot, id);
-  let identity: ClaimFileIdentity;
   try {
-    identity = claimFileIdentity(path);
+    lstatSync(path);
   } catch (error) {
     if (isMissing(error))
-      return {
-        inspection: { state: 'none', reason: 'none', findings: [] },
-      };
+      return { state: 'none', reason: 'none', findings: [] };
     return {
-      inspection: {
-        state: 'corrupt',
-        reason: 'corrupt',
-        findings: ['unable to inspect claim file'],
-      },
+      state: 'corrupt',
+      reason: 'corrupt',
+      findings: ['unable to inspect claim file'],
     };
   }
 
   let bytes: Buffer;
   try {
     bytes = readFileSync(path);
-  } catch (error) {
+  } catch {
     return {
-      identity,
-      inspection: {
-        state: 'corrupt',
-        reason: 'corrupt',
-        findings: ['unable to read claim file'],
-      },
+      state: 'corrupt',
+      reason: 'corrupt',
+      findings: ['unable to read claim file'],
     };
   }
 
   const parsed = parseClaim(bytes, id);
   if (parsed.findings.length > 0)
     return {
-      identity,
-      bytes,
-      inspection: {
-        state: 'corrupt',
-        reason: 'corrupt',
-        ...(parsed.claim === undefined ? {} : { claim: parsed.claim }),
-        findings: parsed.findings,
-      },
+      state: 'corrupt',
+      reason: 'corrupt',
+      ...(parsed.claim === undefined ? {} : { claim: parsed.claim }),
+      findings: parsed.findings,
     };
   const claim = parsed.claim as TaskClaim;
   const liveness = claimLiveness(mainRoot, claim);
   return {
-    identity,
-    bytes,
-    inspection: {
-      state: liveness.state,
-      reason: liveness.reason,
-      claim,
-      findings: [],
-    },
+    state: liveness.state,
+    reason: liveness.reason,
+    claim,
+    findings: [],
   };
 }
 
@@ -210,7 +183,6 @@ export function claimTask(
   root: string,
   id: TaskId,
   options: ClaimOptions,
-  hooks: ClaimTaskHooks = {},
 ): ClaimResult {
   const worktreeRoot = resolveClaimWorktree(root, options.worktree);
   const branch = currentBranch(worktreeRoot);
@@ -221,65 +193,33 @@ export function claimTask(
 
   const mainRoot = mainCheckoutRoot(worktreeRoot);
   const path = claimPath(mainRoot, id);
-  let previous: ClaimInspection | undefined;
-  let removedExpired: ClaimInspection | undefined;
-  const claim: TaskClaim = {
-    id,
-    actor: options.actor,
-    worktree: realpathSync(worktreeRoot),
-    branch,
-    claimed: new Date().toISOString(),
-    reason: options.reason ?? null,
-  };
-  const serialized = serializeClaim(claim);
-  let expiredRetries = 0;
-
-  while (true) {
-    const snapshot = inspectClaimSnapshotAt(mainRoot, id);
-    const current = snapshot.inspection;
-    hooks.afterInspect?.(current);
-
+  return withTaskLock(mainRoot, id, () => {
+    const current = inspectClaimAt(mainRoot, id);
+    const claim: TaskClaim = {
+      id,
+      actor: options.actor,
+      worktree: realpathSync(worktreeRoot),
+      branch,
+      claimed: new Date().toISOString(),
+      reason: options.reason ?? null,
+    };
+    const serialized = serializeClaim(claim);
     if (current.state === 'live' || current.state === 'corrupt') {
       if (!options.takeover) throw heldClaimError(current);
-      if (snapshot.identity === undefined) throw heldClaimError(current);
-      const outcome = compareAndReplaceClaim(
-        mainRoot,
-        path,
-        snapshot,
-        serialized,
-        () => hooks.afterTakeoverStage?.(current),
-      );
-      if (outcome === 'replaced') {
-        previous = current;
-        break;
-      }
-      throw takeoverChangedError(
-        inspectClaimAt(mainRoot, id),
-        outcome === 'occupied',
-      );
+      atomicWrite(mainRoot, path, serialized, true);
+      return { id, previous: current };
     }
 
+    let removedExpired: ClaimInspection | undefined;
     if (current.state === 'expired') {
-      if (snapshot.identity === undefined)
-        throw claimChangedError('while removing an expired claim');
-      const outcome = compareAndRemoveClaim(mainRoot, path, snapshot);
-      if (outcome === 'removed') {
-        removedExpired = current;
-        break;
+      try {
+        unlinkSync(path);
+      } catch (error) {
+        if (!isMissing(error)) throw error;
       }
-      if (outcome === 'missing' && expiredRetries === 0) {
-        expiredRetries += 1;
-        continue;
-      }
-      if (outcome === 'changed')
-        throw heldClaimError(inspectClaimAt(mainRoot, id));
-      throw claimChangedError('while removing an expired claim');
+      removedExpired = current;
     }
 
-    break;
-  }
-
-  if (previous === undefined) {
     try {
       atomicWrite(mainRoot, path, serialized);
     } catch (error) {
@@ -287,12 +227,8 @@ export function claimTask(
         throw heldClaimError(inspectClaimAt(mainRoot, id));
       throw error;
     }
-  }
-  return {
-    id,
-    ...(previous === undefined ? {} : { previous }),
-    ...(removedExpired === undefined ? {} : { removedExpired }),
-  };
+    return { id, ...(removedExpired === undefined ? {} : { removedExpired }) };
+  });
 }
 
 export function claimNext(
@@ -310,32 +246,32 @@ export function claimNext(
         worktree: worktreeRoot,
       });
     } catch (error) {
-      if (error instanceof TaskCommandError && error.exitCode === 75) continue;
+      if (error instanceof TaskCommandError && error.exitCode === 75) {
+        if (error.message.includes('claim is busy')) throw error;
+        continue;
+      }
       throw error;
     }
   }
   throw new TaskCommandError('no ready tasks are available to claim', 75);
 }
 
-export function releaseClaim(
-  root: string,
-  id: TaskId,
-  hooks: ClaimTaskHooks = {},
-): ClaimInspection {
+export function releaseClaim(root: string, id: TaskId): ClaimInspection {
   const mainRoot = mainCheckoutRoot(root);
   const path = claimPath(mainRoot, id);
-  const snapshot = inspectClaimSnapshotAt(mainRoot, id);
-  const current = snapshot.inspection;
-  hooks.afterInspect?.(current);
-  if (current.state === 'none')
-    throw new TaskDataError([`task ${id} has no claim to release`]);
-  if (snapshot.identity === undefined)
-    throw claimChangedError('while releasing');
-  const outcome = compareAndRemoveClaim(mainRoot, path, snapshot);
-  if (outcome === 'missing')
-    throw new TaskDataError([`task ${id} has no claim to release`]);
-  if (outcome === 'changed') throw claimChangedError('while releasing');
-  return current;
+  return withTaskLock(mainRoot, id, () => {
+    const current = inspectClaimAt(mainRoot, id);
+    if (current.state === 'none')
+      throw new TaskDataError([`task ${id} has no claim to release`]);
+    try {
+      unlinkSync(path);
+    } catch (error) {
+      if (isMissing(error))
+        throw new TaskDataError([`task ${id} has no claim to release`]);
+      throw error;
+    }
+    return current;
+  });
 }
 
 export function serializeClaim(claim: TaskClaim): string {
@@ -653,147 +589,152 @@ function claimPath(mainRoot: string, id: TaskId): string {
   return join(mainRoot, '.krn', 'task-claims', `${id}.json`);
 }
 
-type CompareAndRemoveResult = 'removed' | 'missing' | 'changed';
-
-type CompareAndReplaceResult = 'replaced' | 'missing' | 'changed' | 'occupied';
-
-function compareAndRemoveClaim(
-  mainRoot: string,
-  target: string,
-  inspected: ClaimSnapshot,
-): CompareAndRemoveResult {
-  const moved = moveClaimToStaging(mainRoot, target);
-  if (moved === undefined) return 'missing';
-  if (!claimSnapshotStillMatches(moved, inspected)) {
-    restoreClaim(moved, target);
-    return 'changed';
+function withTaskLock<T>(mainRoot: string, id: TaskId, operation: () => T): T {
+  const lock = acquireTaskLock(mainRoot, id);
+  try {
+    return operation();
+  } finally {
+    releaseTaskLock(lock);
   }
-  unlinkSync(moved);
-  return 'removed';
 }
 
-function compareAndReplaceClaim(
-  mainRoot: string,
-  target: string,
-  inspected: ClaimSnapshot,
-  contents: string,
-  afterStage?: () => void,
-): CompareAndReplaceResult {
-  const staged = stageWrite(mainRoot, target, contents);
-  try {
-    const moved = moveClaimToStaging(mainRoot, target);
-    if (moved === undefined) return 'missing';
-    if (!claimSnapshotStillMatches(moved, inspected)) {
-      restoreClaim(moved, target);
-      return 'changed';
-    }
-    afterStage?.();
+function acquireTaskLock(mainRoot: string, id: TaskId): TaskLock {
+  const directory = join(mainRoot, '.krn', 'tmp', 'task-locks');
+  const path = join(directory, `${id}.lock`);
+  mkdirSync(directory, { recursive: true });
+  const localHostname = hostname();
+  const deadline = Date.now() + 2_000;
+  const waitCell = new Int32Array(new SharedArrayBuffer(4));
+
+  while (true) {
+    let descriptor: number;
     try {
-      publishStagedWrite(staged, target);
+      descriptor = openSync(path, 'wx', 0o600);
     } catch (error) {
-      if (isAlreadyExists(error)) {
-        unlinkSync(moved);
-        return 'occupied';
+      if (!isAlreadyExists(error)) throw error;
+      if (removeStaleTaskLock(path, localHostname)) continue;
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw new TaskCommandError('task claim is busy', 75);
+      Atomics.wait(waitCell, 0, 0, Math.min(25, remaining));
+      continue;
+    }
+
+    let identity: FileIdentity | undefined;
+    try {
+      const stat = fstatSync(descriptor, { bigint: true });
+      identity = { dev: stat.dev, ino: stat.ino };
+      writeFileSync(
+        descriptor,
+        `${JSON.stringify({
+          pid: process.pid,
+          hostname: localHostname,
+          acquired: new Date().toISOString(),
+        })}\n`,
+      );
+      fsyncSync(descriptor);
+    } catch (error) {
+      closeSync(descriptor);
+      if (identity === undefined) {
+        try {
+          unlinkSync(path);
+        } catch (cleanupError) {
+          if (!isMissing(cleanupError)) throw cleanupError;
+        }
+      } else {
+        unlinkFileIfSame(path, identity);
       }
-      restoreClaim(moved, target);
       throw error;
     }
-    unlinkSync(moved);
-    return 'replaced';
-  } finally {
-    discardStagedWrite(staged);
+    closeSync(descriptor);
+    if (identity === undefined)
+      throw new Error('task lock identity is missing');
+    return { path, identity };
   }
 }
 
-function claimSnapshotStillMatches(
-  moved: string,
-  inspected: ClaimSnapshot,
-): boolean {
-  if (inspected.identity === undefined) return false;
-  let currentIdentity: ClaimFileIdentity;
+function releaseTaskLock(lock: TaskLock): void {
+  unlinkFileIfSame(lock.path, lock.identity);
+}
+
+function unlinkFileIfSame(path: string, identity: FileIdentity): void {
   try {
-    currentIdentity = claimFileIdentity(moved);
-  } catch {
-    return false;
-  }
-  if (!sameClaimIdentity(currentIdentity, inspected.identity)) return false;
-  if (inspected.bytes === undefined) return true;
-  try {
-    return readFileSync(moved).equals(inspected.bytes);
-  } catch {
-    return false;
+    if (sameFileIdentity(fileIdentity(path), identity)) unlinkSync(path);
+  } catch (error) {
+    if (!isMissing(error)) throw error;
   }
 }
 
-function claimFileIdentity(path: string): ClaimFileIdentity {
+function fileIdentity(path: string): FileIdentity {
   const stat = lstatSync(path, { bigint: true });
-  return {
-    dev: stat.dev,
-    ino: stat.ino,
-    size: stat.size,
-    mtimeNs: stat.mtimeNs,
-  };
+  return { dev: stat.dev, ino: stat.ino };
 }
 
-function sameClaimIdentity(
-  left: ClaimFileIdentity,
-  right: ClaimFileIdentity,
-): boolean {
-  return (
-    left.dev === right.dev &&
-    left.ino === right.ino &&
-    left.size === right.size &&
-    left.mtimeNs === right.mtimeNs
-  );
+function sameFileIdentity(left: FileIdentity, right: FileIdentity): boolean {
+  return left.dev === right.dev && left.ino === right.ino;
 }
 
-function moveClaimToStaging(
-  mainRoot: string,
-  target: string,
-): string | undefined {
-  const moved = uniqueStagingPath(mainRoot, target);
+function removeStaleTaskLock(path: string, localHostname: string): boolean {
+  let identity: FileIdentity;
+  let contents: string;
   try {
-    renameSync(target, moved);
-    return moved;
+    identity = fileIdentity(path);
+    contents = readFileSync(path, 'utf8');
   } catch (error) {
-    if (isMissing(error)) return undefined;
-    throw error;
+    return isMissing(error);
   }
+
+  if (!isDeadLocalLock(contents, localHostname)) return false;
+  try {
+    if (!sameFileIdentity(fileIdentity(path), identity)) return false;
+  } catch (error) {
+    return isMissing(error);
+  }
+
+  const stalePath = join(
+    dirname(path),
+    `.${basename(path)}.${randomUUID()}.stale`,
+  );
+  try {
+    renameSync(path, stalePath);
+  } catch (error) {
+    return isMissing(error);
+  }
+  unlinkSync(stalePath);
+  return true;
 }
 
-function restoreClaim(moved: string, target: string): boolean {
+function isDeadLocalLock(contents: string, localHostname: string): boolean {
+  let parsed: unknown;
   try {
-    linkSync(moved, target);
-  } catch (error) {
-    if (!isAlreadyExists(error)) throw error;
-    unlinkSync(moved);
+    parsed = JSON.parse(contents);
+  } catch {
     return false;
   }
-  unlinkSync(moved);
-  return true;
+  if (
+    parsed === null ||
+    typeof parsed !== 'object' ||
+    !('pid' in parsed) ||
+    !('hostname' in parsed) ||
+    !('acquired' in parsed) ||
+    typeof parsed.pid !== 'number' ||
+    !Number.isInteger(parsed.pid) ||
+    parsed.pid <= 0 ||
+    parsed.hostname !== localHostname ||
+    typeof parsed.acquired !== 'string'
+  )
+    return false;
+
+  try {
+    process.kill(parsed.pid, 0);
+    return false;
+  } catch (error) {
+    return errorCode(error) === 'ESRCH';
+  }
 }
 
 function heldClaimError(inspection: ClaimInspection): TaskCommandError {
   return new TaskCommandError(
     `task is held by ${claimHolder(inspection)}${inspection.findings.length > 0 ? `; claim findings: ${inspection.findings.join('; ')}` : ''}`,
-    75,
-  );
-}
-
-function claimChangedError(action: string): TaskCommandError {
-  return new TaskCommandError(`task claim changed ${action}`, 75);
-}
-
-function takeoverChangedError(
-  inspection: ClaimInspection,
-  inspectedClaimRemoved: boolean,
-): TaskCommandError {
-  const status =
-    inspection.state === 'none'
-      ? 'the task is now unclaimed'
-      : `the task is now held by ${claimHolder(inspection)}`;
-  return new TaskCommandError(
-    `task takeover could not replace the inspected claim; ${status}${inspectedClaimRemoved ? '; the inspected claim was removed' : ''}${inspection.findings.length > 0 ? `; claim findings: ${inspection.findings.join('; ')}` : ''}`,
     75,
   );
 }
