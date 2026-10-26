@@ -56,20 +56,25 @@ const statusesSchema = z.array(
   }),
 );
 const checkRunsSchema = z.array(
-  z.object({
-    id: z.number().int().positive(),
-    name: z.string().min(1),
-    app: z.object({ slug: z.string() }).nullable(),
-    status: z.string().min(1),
-    conclusion: z.string().nullable(),
-    html_url: z.string().url(),
-    created_at: z.string().datetime({ offset: true }),
-  }),
+  z
+    .object({
+      id: z.number().int().positive(),
+      name: z.string().min(1),
+      app: z.object({ slug: z.string() }).nullable(),
+      status: z.string().min(1),
+      conclusion: z.string().nullable(),
+      html_url: z.string().url(),
+      started_at: z.string().datetime({ offset: true }).nullable().optional(),
+      completed_at: z.string().datetime({ offset: true }).nullable().optional(),
+    })
+    .passthrough(),
 );
-const checkRunPageSchema = z.object({
-  total_count: z.number().int().nonnegative(),
-  check_runs: checkRunsSchema.max(CHECK_RUN_PAGE_SIZE),
-});
+const checkRunPageSchema = z
+  .object({
+    total_count: z.number().int().nonnegative(),
+    check_runs: checkRunsSchema.max(CHECK_RUN_PAGE_SIZE),
+  })
+  .passthrough();
 const ok = (value) => ({ ok: true, value });
 const err = (error) => ({ ok: false, error });
 
@@ -614,10 +619,20 @@ export async function runPreflight(input, dependencies = {}) {
           (check) =>
             check.name === 'gate' && check.app?.slug === 'github-actions',
         )
-        .sort(
-          (a, b) =>
-            Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id,
-        )[0];
+        .sort((a, b) => {
+          const aStartedAt =
+            a.started_at === undefined || a.started_at === null
+              ? null
+              : Date.parse(a.started_at);
+          const bStartedAt =
+            b.started_at === undefined || b.started_at === null
+              ? null
+              : Date.parse(b.started_at);
+          if (aStartedAt === null)
+            return bStartedAt === null ? b.id - a.id : -1;
+          if (bStartedAt === null) return 1;
+          return bStartedAt - aStartedAt || b.id - a.id;
+        })[0];
       if (!gate) reasons.add('exact-head Actions gate check-run is missing');
       else {
         report.gateCheckRun = {

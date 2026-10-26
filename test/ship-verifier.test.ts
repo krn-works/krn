@@ -488,7 +488,27 @@ for (const [name, checks] of [
   ['gate failure', [{ ...gateCheck(), conclusion: 'failure' }]],
   [
     'gate in progress',
-    [{ ...gateCheck(), status: 'in_progress', conclusion: null }],
+    [
+      {
+        ...gateCheck(),
+        status: 'in_progress',
+        conclusion: null,
+        completed_at: null,
+      },
+    ],
+  ],
+  [
+    'queued rerun without a start time',
+    [
+      gateCheck(),
+      {
+        ...gateCheck(2),
+        status: 'queued',
+        conclusion: null,
+        started_at: null,
+        completed_at: null,
+      },
+    ],
   ],
   ['gate neutral', [{ ...gateCheck(), conclusion: 'neutral' }]],
   [
@@ -497,7 +517,8 @@ for (const [name, checks] of [
       gateCheck(),
       {
         ...gateCheck(2),
-        created_at: '2026-10-26T11:00:00Z',
+        started_at: '2026-10-26T11:00:00Z',
+        completed_at: '2026-10-26T11:01:00Z',
         conclusion: 'failure',
       },
     ],
@@ -549,6 +570,7 @@ async function cliFixture(
   value: Awaited<ReturnType<typeof fixture>>,
   checks: unknown[],
   total = checks.length,
+  checkRunPage?: unknown,
 ) {
   const bin = join(value.directory, 'bin');
   await mkdir(bin);
@@ -565,7 +587,7 @@ else if (resource.includes('/statuses')) console.log(JSON.stringify(statuses));
 else if (resource.includes('/check-runs')) {
   const url = new URL(resource, 'https://api.github.com/');
   const page = Number(url.searchParams.get('page') || 1);
-  console.log(JSON.stringify({ total_count: ${total}, check_runs: checks.slice((page - 1) * 100, page * 100) }));
+  console.log(JSON.stringify(${checkRunPage === undefined ? `{ total_count: ${total}, check_runs: checks.slice((page - 1) * 100, page * 100) }` : JSON.stringify(checkRunPage)}));
 } else process.exitCode = 1;
 `,
   );
@@ -593,6 +615,26 @@ else if (resource.includes('/check-runs')) {
     );
 }
 
+test('CLI accepts the verbatim GitHub check-run page and passes its gate', async (t) => {
+  const value = await fixture(t);
+  const page = JSON.parse(
+    await readFile(
+      new URL(
+        './fixtures/github-check-runs/gate-success.json',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+  ) as { total_count: number; check_runs: unknown[] };
+  const result = (
+    await cliFixture(value, page.check_runs, page.total_count, page)
+  )();
+  assert.equal(result.status, 0, result.stderr);
+  const report = reportSchema.parse(JSON.parse(result.stdout));
+  assert.equal(report.verdict, 'pass', JSON.stringify(report.reasons));
+  assert.equal(report.gateCheckRun?.id, 121800537823);
+});
+
 test('CLI reads the real API boundary and preserves JSON and exit codes 0/1', async (t) => {
   const value = await fixture(t);
   const invoke = await cliFixture(value, [gateCheck()]);
@@ -615,7 +657,8 @@ test('CLI paginates all check-runs before selecting the newest gate', async (t) 
     })),
     {
       ...gateCheck(200),
-      created_at: '2026-10-26T11:00:00Z',
+      started_at: '2026-10-26T11:00:00Z',
+      completed_at: '2026-10-26T11:01:00Z',
       conclusion: 'failure',
     },
   ];

@@ -51,6 +51,7 @@ export function gateCheck(id = 1) {
     status: 'completed',
     conclusion: 'success',
     html_url: `https://github.com/krn-works/krn/actions/runs/${id}`,
-    created_at: '2026-10-26T10:00:00Z',
+    started_at: '2026-10-26T10:00:00Z',
+    completed_at: '2026-10-26T10:01:00Z',
   };
 }
