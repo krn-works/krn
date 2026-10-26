@@ -49,9 +49,9 @@ requires a reason.
 The format lens's merge table found that separate files keep unrelated task
 changes mergeable and make an identical-ID add/add collision visible. A check
 is needed because Git can still merge independent field edits into a
-semantically invalid record. The task CLI provides record operations,
-dependency management, readiness, claiming, release, and validation. Readiness
-is read-only and never removes expired claims.
+semantically invalid record. The task CLI provides create, show, list, edit,
+close, dep, ready, claim, release, and check commands. Readiness is read-only
+and never removes expired claims.
 
 1. Task records and validation (merged in #102).
 2. Readiness and claims.

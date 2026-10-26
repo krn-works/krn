@@ -100,7 +100,10 @@ test('task list returns empty when the repository has no tasks directory', async
   try {
     const result = runCli(repo, ['list', '--json']);
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, '[]\n');
+    assert.deepEqual(JSON.parse(result.stdout), {
+      ok: true,
+      tasks: [],
+    });
     assert.deepEqual(checkTaskDirectory(repo), []);
   } finally {
     await rm(repo, { recursive: true, force: true });
@@ -140,7 +143,7 @@ test('task list filters statuses and orders by priority, created date, then id',
 
     const allResult = runCli(repo, ['list', '--status', 'all', '--json']);
     assert.equal(allResult.status, 0, allResult.stderr);
-    const all = JSON.parse(allResult.stdout) as TaskRecord[];
+    const all = JSON.parse(allResult.stdout).tasks as TaskRecord[];
     assert.deepEqual(
       all.map((record) => record.id),
       [...all]
@@ -159,8 +162,14 @@ test('task list filters statuses and orders by priority, created date, then id',
     const closedResult = runCli(repo, ['list', '--status', 'closed', '--json']);
     assert.equal(openResult.status, 0, openResult.stderr);
     assert.equal(closedResult.status, 0, closedResult.stderr);
-    assert.equal((JSON.parse(openResult.stdout) as TaskRecord[]).length, 2);
-    assert.equal((JSON.parse(closedResult.stdout) as TaskRecord[]).length, 1);
+    assert.equal(
+      (JSON.parse(openResult.stdout).tasks as TaskRecord[]).length,
+      2,
+    );
+    assert.equal(
+      (JSON.parse(closedResult.stdout).tasks as TaskRecord[]).length,
+      1,
+    );
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
