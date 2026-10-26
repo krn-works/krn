@@ -111,6 +111,7 @@ const completeJudgeSchema = z.object({
   model: z.string().min(1).optional(),
   reasoningEffort: reasoningEffortSchema.optional(),
   verdict: z.enum(['PASS', 'FAIL']),
+  declaredVerdict: z.enum(['PASS', 'FAIL']).optional(),
   findings: z.array(findingSchema),
   sessionId: z.string().min(1),
   finalMessage: z.string().min(1).max(12000),
@@ -199,6 +200,7 @@ function reviewRecordInvariants(
     if (!record.prior) {
       if (
         judge.prior !== undefined ||
+        judge.declaredVerdict !== undefined ||
         judge.findings.some(
           (finding) =>
             finding.regression !== undefined || finding.demoted !== undefined,

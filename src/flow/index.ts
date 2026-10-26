@@ -93,7 +93,7 @@ export async function runReview(input: {
   readonly codexExecutable?: string;
 }): Promise<NewReviewRecord> {
   const root = repoRoot(input.repo);
-  const sha = validateSha(root, input.head);
+  const sha = validateSha(root, input.head).toLowerCase();
   const lens = readFileSync(resolve(input.lens), 'utf8');
   if (!lens.trim()) throw new Error('--lens file is empty');
   if (Buffer.byteLength(lens) > 32 * 1024)

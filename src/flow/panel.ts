@@ -85,6 +85,7 @@ const verificationResponseSchema = judgeResponseSchema.extend({
   findings: z.array(findingSchema.omit({ demoted: true })),
 });
 type JudgeResponse = Omit<z.infer<typeof judgeResponseSchema>, 'findings'> & {
+  declaredVerdict?: 'PASS' | 'FAIL';
   prior?: z.infer<typeof priorStatusSchema>[];
   findings: z.infer<typeof findingSchema>[];
 };
@@ -126,11 +127,12 @@ export function parseJudgeResponse(
           }
         : finding,
     );
-    if (result.verdict !== priorJudgeVerdict(result.prior, findings))
-      throw new Error(
-        'judge verdict must match unresolved prior findings and counted regressions',
-      );
-    return { ...result, findings };
+    return {
+      verdict: priorJudgeVerdict(result.prior, findings),
+      declaredVerdict: result.verdict,
+      prior: result.prior,
+      findings,
+    };
   }
   const result = judgeResponseSchema.parse(decoded);
   if (

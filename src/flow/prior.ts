@@ -9,6 +9,7 @@ import {
   readSync,
 } from 'node:fs';
 import { resolve } from 'node:path';
+import { TextDecoder } from 'node:util';
 import { changedPaths, validateSha } from './repository.ts';
 import { type PriorReview, reviewRecordSchema } from './types.ts';
 
@@ -62,9 +63,18 @@ export function loadPriorReview(
   path: string,
 ): PriorReview {
   const bytes = readBoundedRecord(resolve(path));
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', {
+      fatal: true,
+      ignoreBOM: true,
+    }).decode(bytes);
+  } catch {
+    throw new PriorRecordError('must contain valid UTF-8');
+  }
   let decoded: unknown;
   try {
-    decoded = JSON.parse(bytes.toString('utf8')) as unknown;
+    decoded = JSON.parse(text) as unknown;
   } catch {
     throw new PriorRecordError('must contain valid JSON');
   }
@@ -74,7 +84,18 @@ export function loadPriorReview(
       `does not match the review record schema: ${parsed.error.message}`,
     );
   const record = parsed.data;
-  if (record.headSha.toLowerCase() === head.toLowerCase())
+  let priorHead: string;
+  let currentHead: string;
+  let paths: string[];
+  try {
+    priorHead = validateSha(root, record.headSha.toLowerCase()).toLowerCase();
+    currentHead = validateSha(root, head.toLowerCase()).toLowerCase();
+  } catch (error) {
+    throw new PriorRecordError(
+      `cannot compare prior and current commits: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (priorHead === currentHead)
     throw new PriorRecordError('must have a different head SHA');
   if (
     record.panelVerdict !== 'FAIL' ||
@@ -85,11 +106,8 @@ export function loadPriorReview(
     throw new PriorRecordError(
       'requires a FAIL panel with at least one complete judge FAIL',
     );
-  let priorHead: string;
-  let paths: string[];
   try {
-    priorHead = validateSha(root, record.headSha);
-    paths = changedPaths(root, priorHead, head);
+    paths = changedPaths(root, priorHead, currentHead);
   } catch (error) {
     throw new PriorRecordError(
       `cannot compare prior and current commits: ${error instanceof Error ? error.message : String(error)}`,

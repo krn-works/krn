@@ -57,8 +57,14 @@ test('verification parser and both record schemas enforce the finding policy', (
   };
   for (const response of [
     { verdict: 'PASS', prior: resolved, findings: [] },
+    { verdict: 'FAIL', prior: resolved, findings: [] },
     {
       verdict: 'FAIL',
+      prior: [{ ...resolved[0], index: 0, status: 'UNRESOLVED' }, resolved[1]],
+      findings: [],
+    },
+    {
+      verdict: 'PASS',
       prior: [{ ...resolved[0], index: 0, status: 'UNRESOLVED' }, resolved[1]],
       findings: [],
     },
@@ -80,10 +86,17 @@ test('verification parser and both record schemas enforce the finding policy', (
     },
   ]) {
     const parsed = parseJudgeResponse(JSON.stringify(response), prior);
-    assert.equal(parsed.verdict, response.verdict);
+    assert.equal(parsed.declaredVerdict, response.verdict);
+    assert.equal(
+      parsed.verdict,
+      parsed.prior?.some(({ status }) => status === 'UNRESOLVED') ||
+        parsed.findings.some(({ severity }) => severity === 'BLOCKING')
+        ? 'FAIL'
+        : 'PASS',
+    );
     assert.deepEqual(parsed.prior, response.prior);
     const newFinding = parsed.findings[0];
-    if (response.verdict === 'PASS' && newFinding) {
+    if (parsed.verdict === 'PASS' && newFinding) {
       assert.equal(newFinding.severity, 'NON_BLOCKING');
       assert.equal(newFinding.demoted, true);
       assert.equal(newFinding.title, blocking.title);
@@ -95,7 +108,7 @@ test('verification parser and both record schemas enforce the finding policy', (
       headSha: 'b'.repeat(40),
       base: 'c'.repeat(40),
       createdAt: '2026-01-01T00:00:00.000Z',
-      panelVerdict: response.verdict,
+      panelVerdict: parsed.verdict,
       prior,
       redFirst: [],
       judges: panelRoles.map((role) => ({
@@ -193,12 +206,6 @@ test('verification parser and both record schemas enforce the finding policy', (
       prior: [resolved[0], { ...resolved[1], evidence: '' }],
     },
     { verdict: 'PASS', findings: [] },
-    { verdict: 'FAIL', findings: [], prior: resolved },
-    {
-      verdict: 'PASS',
-      findings: [{ ...blocking, regression: true }],
-      prior: resolved,
-    },
   ])
     assert.throws(() => parseJudgeResponse(JSON.stringify(response), prior));
   assert.throws(() =>
@@ -397,10 +404,39 @@ test('review wiring persists verification with a mocked host transport', async (
       prior: [resolved[0]],
       expected: 'INCOMPLETE',
     },
+    {
+      verdict: 'FAIL',
+      findings: [blocking],
+      prior: resolved,
+      expected: 'PASS',
+      declaredMismatch: true,
+    },
+    {
+      verdict: 'PASS',
+      findings: [],
+      prior: [{ ...resolved[0], index: 0, status: 'UNRESOLVED' }, resolved[1]],
+      expected: 'FAIL',
+      declaredMismatch: true,
+    },
+    {
+      verdict: 'PASS',
+      findings: [],
+      prior: resolved,
+      expected: 'PASS',
+      uppercaseHead: true,
+    },
   ]) {
     const f = fixture(true);
     try {
       response = scenario;
+      if ('uppercaseHead' in scenario && scenario.uppercaseHead) {
+        f.args[f.args.indexOf('--head') + 1] = f.head.toUpperCase();
+        assert.equal(f.priorRecord.headSha, f.priorHead.toLowerCase());
+        assert.equal(
+          f.args[f.args.indexOf('--head') + 1],
+          f.head.toUpperCase(),
+        );
+      }
       const checklist = join(f.root, 'checklist.txt');
       writeFileSync(checklist, 'Boundary inputs');
       const before = prompts.length;
@@ -412,6 +448,7 @@ test('review wiring persists verification with a mocked host transport', async (
         checklist,
       ]);
       assert.equal(outcome, scenario.expected);
+      assert.equal(record.headSha, f.head);
       assert.equal(prompts.length - before, 3);
       assert.equal(record.prepass, undefined);
       assert.deepEqual(record.prior?.changedPaths, ['src.ts']);
@@ -442,6 +479,16 @@ test('review wiring persists verification with a mocked host transport', async (
           ),
         );
       }
+      if ('declaredMismatch' in scenario && scenario.declaredMismatch) {
+        assert.ok(
+          record.judges.every(
+            (judge) =>
+              judge.state === 'complete' &&
+              judge.verdict === scenario.expected &&
+              judge.declaredVerdict === scenario.verdict,
+          ),
+        );
+      }
       const ancestor = spawnSync('git', [
         '-C',
         f.repo,
@@ -464,6 +511,8 @@ test('prior record input errors are usage errors before judges start', async (t)
     ['directory', /regular.*non-symlink/iu],
     ['oversized', /exceeds/iu],
     ['invalid JSON', /JSON/iu],
+    ['invalid UTF-8', /UTF-8/iu],
+    ['BOM', /JSON/iu],
     ['schema-invalid', /schema/iu],
     ['same head', /different.*head/iu],
     ['PASS record', /FAIL/iu],
@@ -486,6 +535,21 @@ test('prior record input errors are usage errors before judges start', async (t)
       if (kind === 'oversized')
         writeFileSync(f.priorPath, ' '.repeat(1024 * 1024 + 1));
       if (kind === 'invalid JSON') writeFileSync(f.priorPath, '{');
+      if (kind === 'invalid UTF-8') {
+        const bytes = Buffer.from(JSON.stringify(f.priorRecord));
+        const title = bytes.indexOf(Buffer.from('Empty input fails'));
+        assert.notEqual(title, -1);
+        bytes[title] = 0xff;
+        writeFileSync(f.priorPath, bytes);
+      }
+      if (kind === 'BOM')
+        writeFileSync(
+          f.priorPath,
+          Buffer.concat([
+            Buffer.from([0xef, 0xbb, 0xbf]),
+            readFileSync(f.priorPath),
+          ]),
+        );
       if (kind === 'schema-invalid') writeFileSync(f.priorPath, '{}');
       if (kind === 'same head')
         writeFileSync(
@@ -659,7 +723,7 @@ test('prior findings determine verdicts and only changed-file regressions can bl
   }
 });
 
-test('malformed coverage and inconsistent verdicts leave judges incomplete', async (t) => {
+test('malformed prior coverage leaves judges incomplete', async (t) => {
   if (!requiresIsolation(t, t.name, ['systemdUserScope'])) return;
   for (const response of [
     { verdict: 'PASS', findings: [], prior: [resolved[0]] },
@@ -670,12 +734,6 @@ test('malformed coverage and inconsistent verdicts leave judges incomplete', asy
       prior: [resolved[0], { ...resolved[1], index: 2 }],
     },
     { verdict: 'PASS', findings: [] },
-    { verdict: 'FAIL', findings: [], prior: resolved },
-    {
-      verdict: 'PASS',
-      findings: [{ ...blocking, regression: true }],
-      prior: resolved,
-    },
   ]) {
     await t.test(JSON.stringify(response), async (t) => {
       const f = fixture();
