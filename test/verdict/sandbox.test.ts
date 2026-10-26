@@ -19,14 +19,20 @@ import { redFirst } from '../../src/flow/repository.ts';
 import { recordRepo } from '../../src/foreman/state.ts';
 import { judge } from '../../src/verdict/index.ts';
 import { execute, MAX_CHECK_OUTPUT_BYTES } from '../../src/verdict/sandbox.ts';
+import {
+  CONDITION_WAIT_MS,
+  conditionTimeoutFor,
+  waitForCondition,
+  waitForProcessExit,
+} from '../helpers/condition-wait.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 import { systemdEnvironment } from '../helpers/systemd-environment.ts';
-import {
-  SPAWNED_PROCESS_WAIT_MS,
-  testTimeoutFor,
-} from '../support/process-wait.ts';
 
-function fixture(argv: readonly string[], withLockfile = false) {
+function fixture(
+  argv: readonly string[],
+  withLockfile = false,
+  timeoutMs = 2 * CONDITION_WAIT_MS,
+) {
   const scratch = join(process.cwd(), '.krn', 'tmp');
   mkdirSync(scratch, { recursive: true });
   const root = mkdtempSync(join(scratch, 'krn-verdict-'));
@@ -46,7 +52,7 @@ function fixture(argv: readonly string[], withLockfile = false) {
     join(root, 'krn.checks.json'),
     JSON.stringify({
       version: 1,
-      checks: [{ id: 'declared', argv, timeoutMs: 3000 }],
+      checks: [{ id: 'declared', argv, timeoutMs }],
     }),
   );
   if (withLockfile) {
@@ -69,16 +75,50 @@ function fixture(argv: readonly string[], withLockfile = false) {
   return { root, job, git, base, sha: base };
 }
 
-test('real SIGTERM during a sleeping verdict check stops before review readiness and is traced', async (t) => {
+// Keep the check alive until its owner releases it. The marker is written only
+// after the watcher is installed, so it proves the check is running.
+const heldCheck = [
+  process.execPath,
+  '-e',
+  `const fs=require('node:fs');const gate=fs.watch('.',()=>{if(fs.existsSync('check-release'))gate.close()});fs.writeFileSync('check-ready','ready');if(fs.existsSync('check-release'))gate.close();`,
+];
+
+function registeredWorktree(root: string): string | undefined {
+  const result = spawnSync(
+    'git',
+    ['-C', root, 'worktree', 'list', '--porcelain'],
+    {
+      encoding: 'utf8',
+    },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout
+    .split('\n')
+    .find((line) =>
+      line.startsWith(`worktree ${join(root, '.krn', 'tmp', 'verdict-')}`),
+    )
+    ?.slice('worktree '.length);
+}
+
+function waitForRunningCheck(root: string): Promise<string> {
+  return waitForCondition(() => {
+    const copy = registeredWorktree(root);
+    return copy && existsSync(join(copy, 'check-ready')) ? copy : undefined;
+  }, 'the registered verdict worktree with its running check marker');
+}
+
+test('real SIGTERM during a running verdict check stops before review readiness and is traced', {
+  timeout: conditionTimeoutFor(2),
+}, async (t) => {
   if (
     !requiresIsolation(
       t,
-      'real SIGTERM during a sleeping verdict check stops before review readiness and is traced',
+      'real SIGTERM during a running verdict check stops before review readiness and is traced',
       ['bwrap', 'systemdUserScope'],
     )
   )
     return;
-  const f = fixture(['/usr/bin/sleep', '30']);
+  const f = fixture(heldCheck);
   recordRepo(f.job, f.root);
   const marker = join(f.root, 'ready-for-review-called');
   const source = `
@@ -101,22 +141,15 @@ test('real SIGTERM during a sleeping verdict check stops before review readiness
   });
   let output = '';
   let errors = '';
-  const startedAt = Date.now();
   child.stdout.setEncoding('utf8').on('data', (chunk) => (output += chunk));
   child.stderr.setEncoding('utf8').on('data', (chunk) => (errors += chunk));
   try {
-    const deadline = Date.now() + 10000;
-    while (!existsSync(join(f.root, '.krn', 'tmp')) && Date.now() < deadline)
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await waitForRunningCheck(f.root);
     assert.ok(child.pid);
     process.kill(child.pid, 'SIGTERM');
-    const code = await new Promise<number | null>((resolve) =>
-      child.once('close', resolve),
-    );
-    assert.ok(
-      Date.now() - startedAt < 8000,
-      'SIGTERM must kill the verdict scope promptly',
+    const { code } = await waitForProcessExit(
+      child,
+      'the signalled verdict process to exit',
     );
     assert.equal(code, 130, errors);
     assert.equal(
@@ -135,6 +168,10 @@ test('real SIGTERM during a sleeping verdict check stops before review readiness
   } finally {
     if (child.exitCode === null && child.signalCode === null)
       child.kill('SIGKILL');
+    await waitForProcessExit(
+      child,
+      'the owned verdict child to exit during cleanup',
+    );
     rmSync(f.root, { recursive: true, force: true });
   }
 });
@@ -277,7 +314,7 @@ test('a check cannot connect to the host user bus', async (t) => {
       resolve(true);
     });
     socket.once('error', () => resolve(false));
-    socket.setTimeout(1000, () => {
+    socket.setTimeout(CONDITION_WAIT_MS, () => {
       socket.destroy();
       resolve(false);
     });
@@ -290,7 +327,7 @@ test('a check cannot connect to the host user bus', async (t) => {
   const f = fixture([
     process.execPath,
     '-e',
-    `const {createConnection}=require('node:net');const s=createConnection(${JSON.stringify(bus)});s.once('connect',()=>{s.destroy();process.exit(0)});s.once('error',()=>process.exit(1));s.setTimeout(1000,()=>{s.destroy();process.exit(1)});`,
+    `const {createConnection}=require('node:net');const s=createConnection(${JSON.stringify(bus)});s.once('connect',()=>{s.destroy();process.exit(0)});s.once('error',()=>process.exit(1));s.setTimeout(${CONDITION_WAIT_MS},()=>{s.destroy();process.exit(1)});`,
   ]);
   try {
     const result = await judge(
@@ -320,14 +357,11 @@ test('a check cannot read a planted file outside its candidate copy', async (t) 
     )
   )
     return;
-  const planted = join(
-    process.cwd(),
-    '.krn',
-    'tmp',
-    `krn-verdict-home-probe-${process.pid}`,
-  );
+  const scratch = join(process.cwd(), '.krn', 'tmp');
+  mkdirSync(scratch, { recursive: true });
+  const plantedRoot = mkdtempSync(join(scratch, 'krn-verdict-home-probe-'));
+  const planted = join(plantedRoot, 'probe');
   const content = `planted-${process.pid}`;
-  mkdirSync(join(process.cwd(), '.krn', 'tmp'), { recursive: true });
   writeFileSync(planted, content, { flag: 'wx', mode: 0o600 });
   assert.equal(
     readFileSync(planted, 'utf8'),
@@ -355,7 +389,7 @@ test('a check cannot read a planted file outside its candidate copy', async (t) 
     assert.notEqual(result.checks[0]?.exitCode, 0);
   } finally {
     rmSync(f.root, { recursive: true, force: true });
-    rmSync(planted, { force: true });
+    rmSync(plantedRoot, { recursive: true, force: true });
   }
 });
 
@@ -468,7 +502,7 @@ test('a check timeout is reported as a timeout', async (t) => {
     ])
   )
     return;
-  const f = fixture(['/usr/bin/sleep', '30']);
+  const f = fixture(heldCheck, false, 3000);
   try {
     const result = await judge(
       f.job,
@@ -980,7 +1014,7 @@ test('a detached background writer cannot produce a pass', async (t) => {
     )
   )
     return;
-  const source = `const {spawn}=require('node:child_process');const child=spawn(process.execPath,['-e',${JSON.stringify('setTimeout(()=>{},30000)')}],{detached:true,stdio:'ignore'});child.unref();`;
+  const source = `const {spawn}=require('node:child_process');const child=spawn(process.execPath,['-e',${JSON.stringify("require('node:fs').watch('.',()=>{})")}],{detached:true,stdio:'ignore'});child.unref();`;
   const f = fixture([process.execPath, '-e', source]);
   try {
     const result = await judge(
@@ -1035,37 +1069,34 @@ test('moving the worker HEAD during checks is refused', async (t) => {
     ])
   )
     return;
-  const f = fixture([process.execPath, '-e', 'setTimeout(()=>{},1500)']);
+  const f = fixture(heldCheck);
+  const controller = new AbortController();
+  let judging: ReturnType<typeof judge> | undefined;
   try {
-    const mover = spawn(
-      process.execPath,
-      [
-        '-e',
-        `setTimeout(()=>require('node:child_process').spawnSync('git',${JSON.stringify(['-C', f.root, 'commit', '--allow-empty', '-qm', 'moved'])}),500)`,
-      ],
-      { stdio: 'ignore' },
-    );
-    const moverDone = new Promise<void>((resolve) =>
-      mover.once('exit', () => resolve()),
-    );
-    const result = await judge(
+    judging = judge(
       f.job,
       f.sha,
       f.base,
       ['declared'],
       async () => {},
+      controller.signal,
     );
-    await moverDone;
+    const copy = await waitForRunningCheck(f.root);
+    f.git(['commit', '--allow-empty', '-qm', 'moved']);
+    writeFileSync(join(copy, 'check-release'), 'release');
+    const result = await judging;
     assert.equal(result.kind, 'refused');
     assert.match(result.findings.join(' '), /HEAD changed/u);
   } finally {
+    controller.abort();
+    await judging;
     rmSync(f.root, { recursive: true, force: true });
   }
 });
 
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   test(`${signal} during a verdict removes its registered check worktree`, {
-    timeout: testTimeoutFor(1),
+    timeout: conditionTimeoutFor(3),
   }, async (t) => {
     if (
       !requiresIsolation(
@@ -1075,7 +1106,7 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
       )
     )
       return;
-    const f = fixture(['/usr/bin/sleep', '30']);
+    const f = fixture(heldCheck);
     const staleDecoy = join(f.root, '.krn', 'tmp', 'unrelated-stale-worktree');
     spawnSync('git', [
       '-C',
@@ -1096,40 +1127,22 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
       ],
       { stdio: 'ignore' },
     );
-    const registered = () =>
-      spawnSync('git', ['-C', f.root, 'worktree', 'list', '--porcelain'], {
-        encoding: 'utf8',
-      })
-        .stdout.split('\n')
-        .find((line) =>
-          line.startsWith(
-            `worktree ${join(f.root, '.krn', 'tmp', 'verdict-')}`,
-          ),
-        )
-        ?.slice('worktree '.length);
     let checkWorktree: string | undefined;
     try {
-      const deadline = Date.now() + 5000;
-      while (Date.now() < deadline && !checkWorktree) {
-        checkWorktree = registered();
-        await new Promise((resolve) => setTimeout(resolve, 20));
-      }
-      assert.ok(
-        checkWorktree,
-        'verdict did not register its detached check worktree',
-      );
+      checkWorktree = await waitForRunningCheck(f.root);
       child.kill(signal);
-      await new Promise<void>((resolve) => child.once('exit', () => resolve()));
-      const cleanupDeadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
-      let remainingWorktree = registered();
-      while (remainingWorktree !== undefined && Date.now() < cleanupDeadline) {
-        await new Promise((resolve) => setTimeout(resolve, 20));
-        remainingWorktree = registered();
-      }
+      await waitForProcessExit(
+        child,
+        `the verdict process to exit after ${signal}`,
+      );
+      await waitForCondition(
+        () => (registeredWorktree(f.root) === undefined ? true : undefined),
+        `${signal} to remove its registered check worktree`,
+      );
       assert.equal(
-        remainingWorktree,
-        undefined,
-        `${signal} left a registered check worktree`,
+        existsSync(checkWorktree),
+        false,
+        'the detached check directory must also be removed',
       );
       const worktrees = spawnSync(
         'git',
@@ -1143,6 +1156,10 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     } finally {
       if (child.exitCode === null && child.signalCode === null)
         child.kill('SIGKILL');
+      await waitForProcessExit(
+        child,
+        'the owned verdict child to exit during cleanup',
+      );
       if (checkWorktree) {
         spawnSync('git', [
           '-C',
@@ -1166,7 +1183,9 @@ for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   });
 }
 
-test('cancellation accounts for the owned scope and all remaining check processes', async (t) => {
+test('cancellation accounts for the owned scope and all remaining check processes', {
+  timeout: conditionTimeoutFor(3),
+}, async (t) => {
   if (
     !requiresIsolation(t, 'canonical scope cancellation', [
       'bwrap',
@@ -1174,7 +1193,11 @@ test('cancellation accounts for the owned scope and all remaining check processe
     ])
   )
     return;
-  const f = fixture(['/bin/sh', '-c', 'sleep 30 & wait']);
+  const f = fixture([
+    '/bin/sh',
+    '-c',
+    'mkfifo check-input; (echo ready > descendant-ready; exec cat check-input) & wait',
+  ]);
   const controller = new AbortController();
   const env = systemdEnvironment();
   let scope: string | undefined;
@@ -1231,24 +1254,25 @@ test('cancellation accounts for the owned scope and all remaining check processe
       f.root,
       f.job,
       'declared',
-      ['/bin/sh', '-c', 'sleep 30 & wait'],
-      10000,
+      [
+        '/bin/sh',
+        '-c',
+        'mkfifo check-input; (echo ready > descendant-ready; exec cat check-input) & wait',
+      ],
+      2 * CONDITION_WAIT_MS,
       f.sha,
       controller.signal,
       f.base,
     ).catch((error: unknown) => error);
-    const deadline = Date.now() + 5000;
-    let activePids: string[] = [];
-    while (Date.now() < deadline) {
-      if (scope) {
-        const actual = show(scope);
-        if (actual.state === 'active' && actual.pids.length >= 3) {
-          activePids = actual.pids;
-          break;
-        }
-      }
-      await new Promise((done) => setTimeout(done, 20));
-    }
+    const activePids = await waitForCondition(() => {
+      if (!scope) return undefined;
+      const actual = show(scope);
+      return actual.state === 'active' &&
+        actual.pids.length >= 3 &&
+        existsSync(join(f.root, 'descendant-ready'))
+        ? actual.pids
+        : undefined;
+    }, 'the active owned check scope with wrapper, check and descendant PIDs');
     assert.ok(scope, 'must observe the scope created by this check');
     assert.ok(
       activePids.length >= 3,
@@ -1260,12 +1284,13 @@ test('cancellation accounts for the owned scope and all remaining check processe
       'absent .service differs from the active owned .scope',
     );
     controller.abort();
-    const stoppedBy = Date.now() + 1500;
-    while (Date.now() < stoppedBy) {
-      const actual = show(scope);
-      if (actual.state === 'inactive' && actual.pids.length === 0) break;
-      await new Promise((done) => setTimeout(done, 20));
-    }
+    const ownedScope = scope;
+    await waitForCondition(() => {
+      const actual = show(ownedScope);
+      return actual.state === 'inactive' && actual.pids.length === 0
+        ? true
+        : undefined;
+    }, 'the cancelled owned scope to become inactive with no member PIDs');
     assert.deepEqual(
       show(scope),
       { state: 'inactive', pids: [] },
@@ -1275,12 +1300,13 @@ test('cancellation accounts for the owned scope and all remaining check processe
     assert.ok(result instanceof Error);
     assert.equal(result.message, 'stopped');
     // An empty cgroup can precede child close/reaping by a scheduler turn.
-    const reapedBy = Date.now() + 1500;
-    while (
-      activePids.some((pid) => existsSync(`/proc/${pid}`)) &&
-      Date.now() < reapedBy
-    )
-      await new Promise((done) => setTimeout(done, 20));
+    await waitForCondition(
+      () =>
+        activePids.every((pid) => !existsSync(`/proc/${pid}`))
+          ? true
+          : undefined,
+      `all owned check PIDs to be reaped: ${activePids.join(', ')}`,
+    );
     for (const pid of activePids)
       assert.equal(
         existsSync(`/proc/${pid}`),

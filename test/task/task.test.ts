@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import test from 'node:test';
+import test, { beforeEach } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   parseTaskDocument,
@@ -13,7 +14,13 @@ import {
 import { checkTaskDirectory, createTask } from '../../src/task/store.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
-const scratch = resolve(process.cwd(), '.krn/runs/claude-claim-lock/scratch');
+let scratch: string;
+beforeEach(async (t) => {
+  assert.ok('after' in t, 'private task fixtures require a test context');
+  const ownedScratch = await mkdtemp(join(tmpdir(), 'krn-task-'));
+  scratch = ownedScratch;
+  t.after(() => rm(ownedScratch, { recursive: true, force: true }));
+});
 
 const validTask: TaskRecord = {
   id: 'T-1',

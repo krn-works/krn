@@ -12,19 +12,19 @@ import {
 } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { test } from 'node:test';
-import { setTimeout as delay } from 'node:timers/promises';
-import { requiresIsolation } from './helpers/isolation.ts';
 import {
-  SPAWNED_PROCESS_WAIT_MS,
-  testTimeoutFor,
-} from './support/process-wait.ts';
+  conditionTimeoutFor,
+  waitForCondition as waitFor,
+  waitForProcessExit as waitForExit,
+} from './helpers/condition-wait.ts';
+import { requiresIsolation } from './helpers/isolation.ts';
 
 const repoRoot = resolve(import.meta.dirname, '..');
 const smokeScript = join(repoRoot, 'scripts/live-smoke.mjs');
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   test(`live smoke cleans up its session and repo on ${signal}`, {
-    timeout: testTimeoutFor(1),
+    timeout: conditionTimeoutFor(4),
   }, async (t) => {
     if (
       !requiresIsolation(
@@ -42,17 +42,18 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
     const pidFile = join(fixture, 'pid');
     await writeFile(
       executable,
-      `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nconst args=process.argv.slice(2);\nconst cwd=args[args.indexOf('--cd')+1];\nwriteFileSync(${JSON.stringify(cwdFile)}, cwd);\nwriteFileSync(${JSON.stringify(pidFile)}, String(process.pid));\nprocess.stdin.resume();\nsetInterval(()=>{},1000);\n`,
+      `#!/usr/bin/env node\nimport { watch, writeFileSync } from 'node:fs';\nwatch(${JSON.stringify(fixture)},()=>{});\nconst args=process.argv.slice(2);\nconst cwd=args[args.indexOf('--cd')+1];\nwriteFileSync(${JSON.stringify(cwdFile)}, cwd);\nwriteFileSync(${JSON.stringify(pidFile)}, String(process.pid));\nprocess.stdin.resume();\n`,
     );
     await chmod(executable, 0o755);
 
+    let child: ReturnType<typeof spawn> | undefined;
     let smokeCwd: string | undefined;
     let codexPid: number | undefined;
     let exit:
       | { code: number | null; signal: NodeJS.Signals | null }
       | undefined;
     try {
-      const child = spawn(process.execPath, [smokeScript], {
+      child = spawn(process.execPath, [smokeScript], {
         env: {
           ...process.env,
           KRN_LIVE: '1',
@@ -68,9 +69,17 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
         } catch {
           return undefined;
         }
-      });
+      }, 'the live smoke fake Codex cwd and PID markers');
       child.kill(signal);
-      exit = await waitForExit(child);
+      exit = await waitForExit(child, `live smoke to exit after ${signal}`);
+      await waitFor(
+        async () => ((await isAlive(codexPid)) ? undefined : true),
+        `the fake Codex process to stop after ${signal}`,
+      );
+      await waitFor(
+        async () => ((await exists(smokeCwd)) ? undefined : true),
+        `the private smoke repository to be removed after ${signal}`,
+      );
       const orphanRemained = await isAlive(codexPid);
       const leakedTempRepo = await exists(smokeCwd);
       const repoLocalTempRepo = Boolean(
@@ -87,6 +96,14 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
         },
       );
     } finally {
+      if (child) {
+        if (child.exitCode === null && child.signalCode === null)
+          child.kill('SIGKILL');
+        await waitForExit(
+          child,
+          'the owned live smoke child to exit during cleanup',
+        );
+      }
       if (codexPid !== undefined && (await isAlive(codexPid)))
         process.kill(codexPid, 'SIGKILL');
       if (smokeCwd) await rm(smokeCwd, { recursive: true, force: true });
@@ -95,7 +112,9 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const) {
   });
 }
 
-test('live smoke retains its private fixture and reports it after failure', async (t) => {
+test('live smoke retains its private fixture and reports it after failure', {
+  timeout: conditionTimeoutFor(1),
+}, async (t) => {
   if (
     !requiresIsolation(t, 'live smoke retains failure evidence', [
       'systemdUserScope',
@@ -108,11 +127,13 @@ test('live smoke retains its private fixture and reports it after failure', asyn
   const executable = join(fixture, 'fake-codex');
   await writeFile(
     executable,
-    '#!/bin/sh\necho deliberate-smoke-failure >&2\nexit 9\n',
+    '#!/bin/sh\nIFS= read -r prompt || true\necho deliberate-smoke-failure >&2\nexit 9\n',
   );
   await chmod(executable, 0o755);
+  let child: ReturnType<typeof spawn> | undefined;
+  let artifact: string | undefined;
   try {
-    const child = spawn(process.execPath, [smokeScript], {
+    child = spawn(process.execPath, [smokeScript], {
       env: {
         ...process.env,
         KRN_LIVE: '1',
@@ -123,12 +144,10 @@ test('live smoke retains its private fixture and reports it after failure', asyn
     const [stdout, stderr, exit] = await Promise.all([
       collect(child.stdout),
       collect(child.stderr),
-      waitForExit(child),
+      waitForExit(child, 'live smoke to exit and retain its failure evidence'),
     ]);
     assert.notEqual(exit.code, 0);
-    const artifact = stderr
-      .match(/Failure evidence retained at: (.+)/u)?.[1]
-      ?.trim();
+    artifact = stderr.match(/Failure evidence retained at: (.+)/u)?.[1]?.trim();
     assert.ok(artifact, stderr);
     assert.equal(await exists(artifact), true);
     assert.doesNotMatch(stdout, /Live Codex sandbox checkpoint smoke passed/u);
@@ -147,36 +166,19 @@ test('live smoke retains its private fixture and reports it after failure', asyn
       await readFile(join(artifact, 'README.md'), 'utf8'),
       /live checkpoint smoke/u,
     );
-    await rm(artifact, { recursive: true, force: true });
   } finally {
+    if (child) {
+      if (child.exitCode === null && child.signalCode === null)
+        child.kill('SIGKILL');
+      await waitForExit(
+        child,
+        'the failed live smoke child to exit during cleanup',
+      );
+    }
+    if (artifact) await rm(artifact, { recursive: true, force: true });
     await rm(fixture, { recursive: true, force: true });
   }
 });
-
-async function waitFor<T>(read: () => Promise<T | undefined>): Promise<T> {
-  const deadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
-  while (Date.now() < deadline) {
-    const value = await read();
-    if (value !== undefined) return value;
-    await delay(20);
-  }
-  assert.fail('timed out waiting for live smoke fake Codex to start');
-}
-
-async function waitForExit(
-  child: ReturnType<typeof spawn>,
-): Promise<{ code: number | null; signal: NodeJS.Signals | null }> {
-  return new Promise((resolveExit, rejectExit) => {
-    const timer = setTimeout(() => {
-      child.kill('SIGKILL');
-      rejectExit(new Error('live smoke did not exit after the signal'));
-    }, 5000);
-    child.once('exit', (code, signal) => {
-      clearTimeout(timer);
-      resolveExit({ code, signal: signal as NodeJS.Signals | null });
-    });
-  });
-}
 
 async function collect(stream: NodeJS.ReadableStream | null): Promise<string> {
   if (!stream) return '';
