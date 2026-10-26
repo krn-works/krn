@@ -22,6 +22,7 @@ import { verifyCheckpoint } from '../../src/foreman/verdict.ts';
 import { judge } from '../../src/verdict/index.ts';
 import { execute, MAX_CHECK_OUTPUT_BYTES } from '../../src/verdict/sandbox.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+import { systemdEnvironment } from '../helpers/systemd-environment.ts';
 import {
   SPAWNED_PROCESS_WAIT_MS,
   testTimeoutFor,
@@ -338,7 +339,9 @@ test('a check cannot connect to the host user bus', async (t) => {
     ])
   )
     return;
-  const bus = `/run/user/${process.getuid?.() ?? 0}/bus`;
+  const runtime = systemdEnvironment().XDG_RUNTIME_DIR;
+  assert.ok(runtime, 'the systemd runtime directory must be available');
+  const bus = join(runtime, 'bus');
   const hostConnection = await new Promise<boolean>((resolve) => {
     const socket = createConnection(bus);
     socket.once('connect', () => {
@@ -1245,14 +1248,7 @@ test('cancellation accounts for the owned scope and all remaining check processe
     return;
   const f = fixture(['/bin/sh', '-c', 'sleep 30 & wait']);
   const controller = new AbortController();
-  const env = {
-    ...process.env,
-    XDG_RUNTIME_DIR:
-      process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.()}`,
-    DBUS_SESSION_BUS_ADDRESS:
-      process.env.DBUS_SESSION_BUS_ADDRESS ??
-      `unix:path=/run/user/${process.getuid?.()}/bus`,
-  };
+  const env = systemdEnvironment();
   let scope: string | undefined;
   let execution: Promise<unknown> | undefined;
   const originalSpawn = childProcess.spawn;

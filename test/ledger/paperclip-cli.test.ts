@@ -19,6 +19,7 @@ import {
 } from '../../src/ledger/live.ts';
 import { createPaperclipCliTransport } from '../../src/ledger/paperclip-cli.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+import { systemdEnvironment } from '../helpers/systemd-environment.ts';
 import {
   SPAWNED_PROCESS_WAIT_MS,
   testTimeoutFor,
@@ -578,9 +579,7 @@ test('cancelAll retains physical scope failures after their calls leave the acti
   const failUnitPath = join(directory, 'fail-unit');
   const failureLogPath = join(directory, 'failures');
   const originalPath = process.env.PATH;
-  const systemdEnv = { ...process.env };
-  systemdEnv.XDG_RUNTIME_DIR ??= `/run/user/${process.getuid?.() ?? 1000}`;
-  systemdEnv.DBUS_SESSION_BUS_ADDRESS ??= `unix:path=${systemdEnv.XDG_RUNTIME_DIR}/bus`;
+  const systemdEnv = systemdEnvironment();
   const identities: Array<{ pid: number; startTicks: string }> = [];
   let units: string[] = [];
   let transport: ReturnType<typeof createPaperclipCliTransport> | undefined;

@@ -20,6 +20,7 @@ import { CodexHost } from '../../src/hosts/codex.ts';
 import * as relay from '../../src/relay/index.ts';
 import * as trace from '../../src/trace/index.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+import { systemdEnvironment } from '../helpers/systemd-environment.ts';
 import {
   SPAWNED_PROCESS_WAIT_MS,
   testTimeoutFor,
@@ -650,15 +651,7 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
     const deadScope = crashStart.data.scopeRegistration.unit as string;
     crashed.kill('SIGKILL');
     await new Promise((resolve) => crashed?.once('close', resolve));
-    const systemdEnv = {
-      ...process.env,
-      XDG_RUNTIME_DIR:
-        process.env.XDG_RUNTIME_DIR ??
-        `/run/user/${process.getuid?.() ?? 1000}`,
-      DBUS_SESSION_BUS_ADDRESS:
-        process.env.DBUS_SESSION_BUS_ADDRESS ??
-        `unix:path=/run/user/${process.getuid?.() ?? 1000}/bus`,
-    };
+    const systemdEnv = systemdEnvironment();
     const drained = spawnSync(
       '/usr/bin/systemctl',
       ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', deadScope],
@@ -955,15 +948,7 @@ child.once('spawn', () => {
     if (previousIsolation === undefined) delete process.env.KRN_ISOLATION;
     else process.env.KRN_ISOLATION = previousIsolation;
     if (ownedUnit) {
-      const systemdEnv = {
-        ...process.env,
-        XDG_RUNTIME_DIR:
-          process.env.XDG_RUNTIME_DIR ??
-          `/run/user/${process.getuid?.() ?? 1000}`,
-        DBUS_SESSION_BUS_ADDRESS:
-          process.env.DBUS_SESSION_BUS_ADDRESS ??
-          `unix:path=/run/user/${process.getuid?.() ?? 1000}/bus`,
-      };
+      const systemdEnv = systemdEnvironment();
       spawnSync(
         '/usr/bin/systemctl',
         ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', ownedUnit],
@@ -1356,14 +1341,7 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
   runner.stderr.setEncoding('utf8').on('data', (chunk) => (stderr += chunk));
   let unit = '';
   let scopePids: number[] = [];
-  const systemdEnv = {
-    ...process.env,
-    XDG_RUNTIME_DIR:
-      process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? 1000}`,
-    DBUS_SESSION_BUS_ADDRESS:
-      process.env.DBUS_SESSION_BUS_ADDRESS ??
-      `unix:path=/run/user/${process.getuid?.() ?? 1000}/bus`,
-  };
+  const systemdEnv = systemdEnvironment();
   try {
     const deadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
     while (Date.now() < deadline && !unit && runner.exitCode === null) {

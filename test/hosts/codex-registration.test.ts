@@ -22,19 +22,13 @@ import {
   waitForSystemdScopeRegistration,
 } from '../../src/hosts/systemd-scope.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+import { systemdEnvironment } from '../helpers/systemd-environment.ts';
 import {
   SPAWNED_PROCESS_WAIT_MS,
   testTimeoutFor,
 } from '../support/process-wait.ts';
 
-const scopeEnvironment = () => ({
-  ...process.env,
-  XDG_RUNTIME_DIR:
-    process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? 1000}`,
-  DBUS_SESSION_BUS_ADDRESS:
-    process.env.DBUS_SESSION_BUS_ADDRESS ??
-    `unix:path=/run/user/${process.getuid?.() ?? 1000}/bus`,
-});
+const scopeEnvironment = systemdEnvironment;
 
 test('Codex onStarted waits for observed registration and persists live identity', {
   timeout: testTimeoutFor(1),

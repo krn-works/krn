@@ -14,6 +14,7 @@ import { test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 import { requiresIsolation } from '../helpers/isolation.ts';
+import { systemdEnvironment } from '../helpers/systemd-environment.ts';
 
 test('onStarted rejection waits for the fake Codex process tree to stop', async (t) => {
   const testName =
@@ -243,9 +244,7 @@ test('timeout cleanup verification failure reaches wait without an unhandled rej
   const waitPath = join(directory, 'wait.json');
   const failUnit = join(directory, 'fail-unit');
   const failureLog = join(directory, 'show-failures');
-  const systemdEnv = { ...process.env };
-  systemdEnv.XDG_RUNTIME_DIR ??= `/run/user/${process.getuid?.() ?? 1000}`;
-  systemdEnv.DBUS_SESSION_BUS_ADDRESS ??= `unix:path=${systemdEnv.XDG_RUNTIME_DIR}/bus`;
+  const systemdEnv = systemdEnvironment();
   const childModuleUrl = pathToFileURL(
     join(process.cwd(), 'src/hosts/codex.ts'),
   ).href;

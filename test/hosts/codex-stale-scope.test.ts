@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import { CodexHost } from '../../src/hosts/codex.ts';
 import { codexScopeRuntimeGraceMs } from '../../src/hosts/systemd-scope.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+import { systemdEnvironment as createSystemdEnvironment } from '../helpers/systemd-environment.ts';
 
 const sessionTimeoutMs = 700;
 
@@ -243,13 +244,5 @@ async function killScope(unit: string, cgroup: string): Promise<void> {
 }
 
 function systemdEnvironment(): NodeJS.ProcessEnv {
-  const uid = process.getuid?.();
-  if (uid === undefined) return process.env;
-  const runtime = process.env.XDG_RUNTIME_DIR ?? `/run/user/${uid}`;
-  return {
-    ...process.env,
-    XDG_RUNTIME_DIR: runtime,
-    DBUS_SESSION_BUS_ADDRESS:
-      process.env.DBUS_SESSION_BUS_ADDRESS ?? `unix:path=${runtime}/bus`,
-  };
+  return createSystemdEnvironment();
 }
