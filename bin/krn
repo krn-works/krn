@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source_path=${BASH_SOURCE[0]}
+while [[ -L "$source_path" ]]; do
+  source_dir=$(cd -P "$(dirname "$source_path")" >/dev/null 2>&1 && pwd)
+  target=$(readlink "$source_path")
+  if [[ "$target" != /* ]]; then
+    target="$source_dir/$target"
+  fi
+  source_path=$target
+done
+
+root=$(cd -P "$(dirname "$source_path")/.." >/dev/null 2>&1 && pwd)
+version=$(<"$root/.node-version")
+node=${MISE_DATA_DIR:-$HOME/.local/share/mise}/installs/node/$version/bin/node
+
+if [[ ! -x "$node" ]]; then
+  if install=$(mise where "node@$version" 2>/dev/null); then
+    node="$install/bin/node"
+  else
+    node=
+  fi
+fi
+
+if [[ ! -x "$node" ]]; then
+  printf 'krn: Node.js %s is not installed; install it with mise.\n' "$version" >&2
+  exit 127
+fi
+
+exec "$node" "$root/src/cli/krn.mjs" "$@"
