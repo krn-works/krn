@@ -536,6 +536,48 @@ for (const [name, checks] of [
   });
 }
 
+test('newer successful gate passes despite an older queued run', async (t) => {
+  const value = await fixture(t);
+  const report = await value.verify([
+    {
+      ...gateCheck(1),
+      status: 'queued',
+      conclusion: null,
+      started_at: null,
+      completed_at: null,
+    },
+    { ...gateCheck(2), started_at: '2026-10-26T09:00:00Z' },
+  ]);
+  assert.equal(report.verdict, 'pass', JSON.stringify(report.reasons));
+  assert.equal(report.gateCheckRun?.id, 2);
+});
+
+test('newer queued gate refuses an older successful run', async (t) => {
+  const value = await fixture(t);
+  const report = await value.verify([
+    gateCheck(1),
+    {
+      ...gateCheck(2),
+      status: 'queued',
+      conclusion: null,
+      started_at: null,
+      completed_at: null,
+    },
+  ]);
+  refused(report, /gate.*check-run/u);
+  assert.equal(report.gateCheckRun?.id, 2);
+});
+
+test('newer failed gate refuses an older successful run', async (t) => {
+  const value = await fixture(t);
+  const report = await value.verify([
+    gateCheck(1),
+    { ...gateCheck(2), conclusion: 'failure' },
+  ]);
+  refused(report, /gate.*check-run/u);
+  assert.equal(report.gateCheckRun?.id, 2);
+});
+
 test('a newer gate from another app cannot hide the Actions gate', async (t) => {
   const value = await fixture(t);
   const report = await value.verify([

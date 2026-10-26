@@ -619,20 +619,7 @@ export async function runPreflight(input, dependencies = {}) {
           (check) =>
             check.name === 'gate' && check.app?.slug === 'github-actions',
         )
-        .sort((a, b) => {
-          const aStartedAt =
-            a.started_at === undefined || a.started_at === null
-              ? null
-              : Date.parse(a.started_at);
-          const bStartedAt =
-            b.started_at === undefined || b.started_at === null
-              ? null
-              : Date.parse(b.started_at);
-          if (aStartedAt === null)
-            return bStartedAt === null ? b.id - a.id : -1;
-          if (bStartedAt === null) return 1;
-          return bStartedAt - aStartedAt || b.id - a.id;
-        })[0];
+        .sort((a, b) => b.id - a.id)[0];
       if (!gate) reasons.add('exact-head Actions gate check-run is missing');
       else {
         report.gateCheckRun = {
