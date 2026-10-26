@@ -2,11 +2,13 @@ import { readSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Job } from '../core/index.ts';
 import { leadIntervention } from '../trace/index.ts';
+import { CliUsageError } from './usage-error.ts';
 
 function value(args: string[], flag: string): string {
   const index = args.indexOf(flag);
   const result = index < 0 ? undefined : args[index + 1];
-  if (!result || result.startsWith('--')) throw new Error(`missing ${flag}`);
+  if (!result || result.startsWith('--'))
+    throw new CliUsageError(`missing ${flag}`);
   return result;
 }
 
@@ -24,7 +26,7 @@ function readNoteStdin(): string {
   if (totalBytes === maximumBytes) {
     const overflow = Buffer.alloc(1);
     if (readSync(0, overflow, 0, 1, null) > 0)
-      throw new Error('note text exceeds 8192 bytes');
+      throw new CliUsageError('note text exceeds 8192 bytes');
   }
   return Buffer.concat(chunks, totalBytes).toString('utf8');
 }
@@ -35,7 +37,7 @@ export async function noteCommand(args: string[]): Promise<void> {
   ).trim();
   const cliKind = value(args, '--kind');
   if (cliKind !== 'intervention' && cliKind !== 'reconstruction')
-    throw new Error('--kind must be intervention or reconstruction');
+    throw new CliUsageError('--kind must be intervention or reconstruction');
   const job: Job = {
     id: value(args, '--job'),
     issue: value(args, '--issue'),

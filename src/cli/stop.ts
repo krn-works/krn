@@ -1,11 +1,13 @@
 import { resolve } from 'node:path';
 import type { Job } from '../core/index.ts';
 import { operatorStop } from '../trace/index.ts';
+import { CliUsageError } from './usage-error.ts';
 
 function value(args: string[], flag: string): string {
   const index = args.indexOf(flag);
   const result = index < 0 ? undefined : args[index + 1];
-  if (!result || result.startsWith('--')) throw new Error(`missing ${flag}`);
+  if (!result || result.startsWith('--'))
+    throw new CliUsageError(`missing ${flag}`);
   return result;
 }
 

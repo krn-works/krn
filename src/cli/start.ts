@@ -5,11 +5,13 @@ import type { Job } from '../core/index.ts';
 import { recordRepo } from '../foreman/state.ts';
 import { operatorStart } from '../trace/index.ts';
 import { gitOutput, resolveBaseRef } from './index.ts';
+import { CliUsageError } from './usage-error.ts';
 
 function value(args: string[], flag: string): string {
   const index = args.indexOf(flag);
   const result = index < 0 ? undefined : args[index + 1];
-  if (!result || result.startsWith('--')) throw new Error(`missing ${flag}`);
+  if (!result || result.startsWith('--'))
+    throw new CliUsageError(`missing ${flag}`);
   return result;
 }
 
@@ -26,7 +28,7 @@ export async function startCommand(args: string[]): Promise<void> {
   const id = value(args, '--job');
   const issue = value(args, '--issue');
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(id) || id === '..')
-    throw new Error('invalid job id');
+    throw new CliUsageError('invalid job id');
   const root = gitOutput(process.cwd(), ['rev-parse', '--show-toplevel']);
   const baseRef = resolveBaseRef(
     root,
@@ -46,7 +48,7 @@ export async function startCommand(args: string[]): Promise<void> {
     { encoding: 'utf8' },
   );
   if (baseResult.status === 1)
-    throw new Error(
+    throw new CliUsageError(
       `base ref "${baseRef}" has no common ancestor with checkout HEAD`,
     );
   if (baseResult.status !== 0)
@@ -63,7 +65,7 @@ export async function startCommand(args: string[]): Promise<void> {
     `.krn/worktrees/${id}`,
   ]);
   if (ignored.status !== 0)
-    throw new Error(
+    throw new CliUsageError(
       `target repository must ignore .krn/worktrees/${id} before starting a job`,
     );
   mkdirSync(dirname(worktree), { recursive: true });

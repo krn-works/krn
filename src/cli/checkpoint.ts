@@ -1,11 +1,13 @@
 import { resolve } from 'node:path';
 import type { Job } from '../core/index.ts';
 import { writeCheckpointRequest } from '../foreman/checkpoint-request.ts';
+import { CliUsageError } from './usage-error.ts';
 
 function value(args: string[], flag: string): string {
   const index = args.indexOf(flag);
   const result = index < 0 ? undefined : args[index + 1];
-  if (!result || result.startsWith('--')) throw new Error(`missing ${flag}`);
+  if (!result || result.startsWith('--'))
+    throw new CliUsageError(`missing ${flag}`);
   return result;
 }
 
@@ -20,17 +22,19 @@ export function checkpointCommand(args: string[]): void {
   };
   const message = value(args, '--message');
   if (message.length > 200 || /[\r\n]/.test(message))
-    throw new Error(
+    throw new CliUsageError(
       '--message must be a single line of at most 200 characters',
     );
   const next = value(args, '--next');
   if (next.length > 200 || /[\r\n]/.test(next))
-    throw new Error('--next must be a single line of at most 200 characters');
+    throw new CliUsageError(
+      '--next must be a single line of at most 200 characters',
+    );
   const decision = args.includes('--decision')
     ? value(args, '--decision')
     : undefined;
   if (decision && (decision.length > 500 || /[\r\n]/.test(decision)))
-    throw new Error(
+    throw new CliUsageError(
       '--decision must be a single line of at most 500 characters',
     );
   const session = value(args, '--session');

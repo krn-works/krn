@@ -645,7 +645,7 @@ function taskFailure(error: unknown): {
   )
     return { code: error.exitCode, message: error.message };
   return {
-    code: 64,
+    code: 70,
     message: error instanceof Error ? error.message : String(error),
   };
 }

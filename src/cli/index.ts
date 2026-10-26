@@ -1,5 +1,6 @@
 // Keep the historical import surface while loading the CLI router on demand.
 import { spawnSync } from 'node:child_process';
+import { CliUsageError } from './usage-error.ts';
 
 function git(root: string, args: string[]): string {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
@@ -46,7 +47,9 @@ export function resolveBaseRef(root: string, requested?: string): string {
   );
   if (requested) {
     if (!resolvesToCommit(root, requested))
-      throw new Error(`base ref "${requested}" does not resolve to a commit`);
+      throw new CliUsageError(
+        `base ref "${requested}" does not resolve to a commit`,
+      );
     return requested;
   }
   if (remoteHead.status === 0) {
@@ -63,7 +66,9 @@ export function resolveBaseRef(root: string, requested?: string): string {
       throw new Error(`base ref "${branch}" does not resolve to a commit`);
     return branch;
   }
-  throw new Error('unable to resolve a base ref; specify one with --base');
+  throw new CliUsageError(
+    'unable to resolve a base ref; specify one with --base',
+  );
 }
 
 export function gitOutput(root: string, args: string[]): string {

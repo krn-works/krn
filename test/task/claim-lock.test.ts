@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import type { Readable } from 'node:stream';
 import test from 'node:test';
@@ -15,10 +16,6 @@ import {
 import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/krn.mjs', import.meta.url));
-const scratch = join(
-  process.cwd(),
-  '../../runs/claude-claim-lock-name/scratch',
-);
 
 test('expired claims have one concurrent claim --next winner across two worktrees', {
   timeout: 180_000,
@@ -365,8 +362,7 @@ async function fixtureRepo(
 }
 
 async function tempRepo(prefix: string): Promise<string> {
-  await mkdir(scratch, { recursive: true });
-  const repo = await mkdtemp(join(scratch, prefix));
+  const repo = await mkdtemp(join(tmpdir(), prefix));
   git(repo, 'init', '--quiet', '--initial-branch=main');
   git(repo, 'config', 'user.name', 'KRN task claim lock test');
   git(repo, 'config', 'user.email', 'krn-task-claim-lock-test@example.invalid');
