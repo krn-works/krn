@@ -1,0 +1,12 @@
+{
+  "id": "t-1yvxsvx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 3,
+  "title": "Remove the obsolete no-hooks harness lane",
+  "after": [],
+  "body": [
+    "After the parser guard removal (krn-works/krn-codex-skills #463) the OpenCode plugin no longer intercepts tool calls, so the harness `no-hooks` lane in GLOBAL `scripts/harness/swebench-run.mjs:20` (with `brief: true`) exercises the same KRN surfaces as `full`, and `scripts/harness/opencode-agent.mjs:9` still describes the plugin as a guard (review round 2 of #463).\nAcceptance: the harness either removes the `no-hooks` lane and its references or redefines it to disable a remaining component, with a test showing the lanes differ."
+  ]
+}
