@@ -1,18 +1,10 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import {
-  chmod,
-  mkdir,
-  mkdtemp,
-  readFile,
-  rm,
-  writeFile,
-} from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { delimiter, join } from 'node:path';
+import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { requiresIsolation } from './helpers/isolation.ts';
 
 const scriptPath = fileURLToPath(
   new URL('../scripts/pr-preflight.mjs', import.meta.url),
@@ -28,10 +20,11 @@ const gitOverrideKeys = [
 type FixtureOptions = {
   ticket?: string;
   title?: string;
+  taskId?: string;
+  taskStatus?: 'open' | 'closed';
+  taskFile?: 'valid' | 'missing' | 'working-tree-only' | 'invalid';
   r1TaskTrailer?: string | null;
   additionalR1TaskTrailers?: string[];
-  paperclipTask?: string | null;
-  paperclipDescription?: string;
   gateState?: string;
   gateDescription?: string;
   prBase?: string;
@@ -50,12 +43,34 @@ async function git(repo: string, args: string[]): Promise<string> {
   return result.stdout.trim();
 }
 
+function taskDocument(id: string, status: 'open' | 'closed' = 'open') {
+  return `${JSON.stringify(
+    {
+      id,
+      status,
+      resolution:
+        status === 'open'
+          ? null
+          : { kind: 'done', ref: null, note: 'Closed in delivery PR' },
+      created: '2026-10-26',
+      priority: 0,
+      title: 'Fixture delivery task',
+      after: [],
+      body: [],
+    },
+    null,
+    2,
+  )}\n`;
+}
+
 async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
   const directory = await mkdtemp(join(tmpdir(), 'krn-pr-preflight-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const repo = join(directory, 'repo');
   const outside = join(directory, 'unrelated-cwd');
   const ticket = options.ticket ?? 'LON-230';
+  const taskId = options.taskId ?? ticket;
+  const taskFile = options.taskFile ?? 'valid';
   await Promise.all([
     mkdir(join(repo, 'src'), { recursive: true }),
     mkdir(join(repo, 'test'), { recursive: true }),
@@ -73,12 +88,21 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
   ]);
   await writeFile(join(repo, 'src', 'index.ts'), 'export const value = 1;\n');
   await writeFile(join(repo, 'test', 'example.test.ts'), 'export {};\n');
+  if (taskFile === 'valid' || taskFile === 'invalid') {
+    await mkdir(join(repo, 'tasks'), { recursive: true });
+    await writeFile(
+      join(repo, 'tasks', `${taskId}.json`),
+      taskFile === 'valid'
+        ? taskDocument(taskId, options.taskStatus)
+        : '{ invalid task json\n',
+    );
+  }
   await git(repo, ['add', 'src', 'test']);
   await git(repo, ['commit', '--quiet', '-m', 'initial fixture']);
   const base = await git(repo, ['rev-parse', 'HEAD']);
 
   await writeFile(join(repo, 'src', 'index.ts'), 'export const value = 2;\n');
-  await git(repo, ['add', 'src']);
+  await git(repo, ['add', '--all']);
   const taskTrailers = [
     ...(options.r1TaskTrailer === null
       ? []
@@ -121,19 +145,13 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
       updated_at: '2026-10-11T10:30:00Z',
     },
   ];
-  const description =
-    options.paperclipDescription ??
-    [
-      ...(options.paperclipTask === null
-        ? []
-        : [
-            `R1-task: ${options.paperclipTask ?? 'none'} (review-system reset fixture)`,
-          ]),
-      '',
-      '```krn-contract',
-      '{"version":1,"targetRepo":"krn-works/krn","checks":["typecheck","lint","rules"]}',
-      '```',
-    ].join('\n');
+  if (taskFile === 'working-tree-only') {
+    await mkdir(join(repo, 'tasks'), { recursive: true });
+    await writeFile(
+      join(repo, 'tasks', `${taskId}.json`),
+      taskDocument(taskId, options.taskStatus),
+    );
+  }
   return {
     directory,
     repo,
@@ -145,13 +163,12 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
     testTreeSha,
     pull,
     statuses,
-    description,
   };
 }
 
 function runHarness(
   value: Awaited<ReturnType<typeof fixture>>,
-  options: { overrides?: boolean; paperclipBin?: string } = {},
+  options: { overrides?: boolean } = {},
 ) {
   const input = {
     repo: value.repo,
@@ -159,42 +176,21 @@ function runHarness(
     head: value.head,
     pr: 27,
   };
-  const paperclipDependency = options.paperclipBin
-    ? ''
-    : "readPaperclipDescription: async (ticket) => { calls.push(['paperclip', ticket]); return { ok: true, value: fixture.description }; },";
   const harness = `
     import { runPreflight } from ${JSON.stringify(scriptPath)};
     const fixture = ${JSON.stringify({
       input,
       pull: value.pull,
       statuses: value.statuses,
-      description: value.description,
     })};
     const calls = [];
     const report = await runPreflight(fixture.input, {
       readPull: async (...args) => { calls.push(['pull', ...args]); return { ok: true, value: fixture.pull }; },
       readStatuses: async (...args) => { calls.push(['statuses', ...args]); return { ok: true, value: fixture.statuses }; },
-      ${paperclipDependency}
     });
     process.stdout.write(JSON.stringify({ report, calls }) + '\\n');
   `;
   const env: NodeJS.ProcessEnv = { ...process.env };
-  if (options.paperclipBin) {
-    for (const key of gitOverrideKeys) delete env[key];
-    delete env.NODE_OPTIONS;
-    delete env.KRN_SCOPE_PROBE;
-    for (const key of Object.keys(env)) {
-      if (
-        key.startsWith('NODE_TEST_') ||
-        key.startsWith('PAPERCLIP_') ||
-        key.startsWith('KRN_PAPERCLIP_')
-      )
-        delete env[key];
-    }
-    env.PATH = env.PATH
-      ? `${options.paperclipBin}${delimiter}${env.PATH}`
-      : options.paperclipBin;
-  }
   if (options.overrides) {
     for (const key of gitOverrideKeys)
       env[key] = join(value.directory, `foreign-${key.toLowerCase()}`);
@@ -208,44 +204,6 @@ function runHarness(
   });
 }
 
-async function fakePaperclip(
-  directory: string,
-  ticket: string,
-  issue: {
-    readonly id: string;
-    readonly identifier: string;
-    readonly title: string;
-    readonly description: string;
-    readonly updatedAt: string;
-    readonly status: string;
-  },
-) {
-  const bin = join(directory, 'fake-paperclip-bin');
-  await mkdir(bin, { recursive: true });
-  await writeFile(
-    join(bin, 'package.json'),
-    JSON.stringify({ type: 'commonjs' }),
-  );
-  const executable = join(bin, 'paperclip');
-  const calls = join(bin, 'calls.json');
-  const expectedArgs = ['issue', 'get', ticket, '--json'];
-  const source = [
-    `#!${process.execPath}`,
-    "const fs = require('node:fs');",
-    'const args = process.argv.slice(2);',
-    `if (JSON.stringify(args) !== ${JSON.stringify(JSON.stringify(expectedArgs))}) {`,
-    "  process.stderr.write('unexpected Paperclip CLI arguments');",
-    '  process.exit(2);',
-    '}',
-    `fs.writeFileSync(${JSON.stringify(calls)}, JSON.stringify(args));`,
-    `process.stdout.write(${JSON.stringify(JSON.stringify(issue))});`,
-    '',
-  ].join('\n');
-  await writeFile(executable, source);
-  await chmod(executable, 0o755);
-  return { bin, calls };
-}
-
 function parseHarness(result: ReturnType<typeof runHarness>) {
   assert.equal(result.error, undefined, result.error?.message);
   assert.ok(result.stdout, `expected verdict JSON; stderr: ${result.stderr}`);
@@ -254,8 +212,6 @@ function parseHarness(result: ReturnType<typeof runHarness>) {
       verdict: 'pass' | 'fail';
       reasons: string[];
       ticket?: string;
-      r1TaskTrailer?: string;
-      paperclipR1Task?: string;
       srcTreeSha?: string;
       testTreeSha?: string;
       gateLocalStatus?: {
@@ -269,7 +225,7 @@ function parseHarness(result: ReturnType<typeof runHarness>) {
   };
 }
 
-test('preflight records a complete exact-head pass from an unrelated cwd', async (t) => {
+test('a PR whose ticket is a committed task at head passes', async (t) => {
   const value = await fixture(t);
   const result = runHarness(value, { overrides: true });
   assert.equal(result.status, 0, result.stderr);
@@ -277,8 +233,6 @@ test('preflight records a complete exact-head pass from an unrelated cwd', async
   assert.equal(report.verdict, 'pass');
   assert.deepEqual(report.reasons, []);
   assert.equal(report.ticket, 'LON-230');
-  assert.equal(report.r1TaskTrailer, 'none');
-  assert.equal(report.paperclipR1Task, 'none');
   assert.equal(report.srcTreeSha, value.srcTreeSha);
   assert.equal(report.testTreeSha, value.testTreeSha);
   assert.deepEqual(report.gateLocalStatus, {
@@ -289,13 +243,57 @@ test('preflight records a complete exact-head pass from an unrelated cwd', async
   });
   assert.deepEqual(calls, [
     ['pull', value.repo, 'krn-works/krn', 27],
-    ['paperclip', 'LON-230'],
     ['statuses', value.repo, 'krn-works/krn', value.head],
   ]);
 });
 
-test('preflight returns the full title capture and rejects a mismatched Ticket trailer', async (t) => {
+test('preflight accepts a closed task recorded in the delivery commit', async (t) => {
+  const value = await fixture(t, { taskStatus: 'closed' });
+  const { report } = parseHarness(runHarness(value));
+  assert.equal(report.verdict, 'pass');
+  assert.deepEqual(report.reasons, []);
+});
+
+test('preflight refuses a task missing from the exact PR head', async (t) => {
+  const value = await fixture(t, { taskFile: 'missing' });
+  const { report } = parseHarness(runHarness(value));
+  assert.equal(report.verdict, 'fail');
+  assert.ok(
+    report.reasons.some((reason) =>
+      /task LON-230 is missing from the PR head/u.test(reason),
+    ),
+    JSON.stringify(report.reasons),
+  );
+});
+
+test('preflight refuses a task present only in the working tree', async (t) => {
+  const value = await fixture(t, { taskFile: 'working-tree-only' });
+  const { report } = parseHarness(runHarness(value));
+  assert.equal(report.verdict, 'fail');
+  assert.ok(
+    report.reasons.some((reason) =>
+      /task LON-230 is missing from the PR head/u.test(reason),
+    ),
+    JSON.stringify(report.reasons),
+  );
+});
+
+test('preflight refuses an invalid task file at the PR head', async (t) => {
+  const value = await fixture(t, { taskFile: 'invalid' });
+  const { report } = parseHarness(runHarness(value));
+  assert.equal(report.verdict, 'fail');
+  assert.ok(
+    report.reasons.some((reason) =>
+      /task LON-230 at the PR head is invalid/u.test(reason),
+    ),
+    JSON.stringify(report.reasons),
+  );
+});
+
+test('preflight returns the title capture and rejects a mismatched Ticket trailer', async (t) => {
   const value = await fixture(t, {
+    ticket: 'LON-230',
+    taskId: 'LON-231',
     title: 'feat(review): add preflight (LON-231)',
   });
   const result = runHarness(value);
@@ -305,112 +303,33 @@ test('preflight returns the full title capture and rejects a mismatched Ticket t
   assert.ok(report.reasons.some((reason) => /Ticket trailer/u.test(reason)));
   assert.deepEqual(calls, [
     ['pull', value.repo, 'krn-works/krn', 27],
-    ['paperclip', 'LON-231'],
     ['statuses', value.repo, 'krn-works/krn', value.head],
   ]);
 });
 
-test('preflight pairs optional R1-task declarations and preserves fail-closed controls', async (t) => {
-  const scenarios: {
-    readonly name: string;
-    readonly options: FixtureOptions;
-    readonly verdict: 'pass' | 'fail';
-  }[] = [
-    {
-      name: 'matching declaration',
-      options: {},
-      verdict: 'pass',
-    },
-    {
-      name: 'mismatched declaration',
-      options: { paperclipTask: 'R1-15' },
-      verdict: 'fail',
-    },
-    {
-      name: 'omission on both sides',
-      options: { r1TaskTrailer: null, paperclipTask: null },
-      verdict: 'pass',
-    },
-    {
-      name: 'spurious trailer when declaration is omitted',
-      options: { paperclipTask: null },
-      verdict: 'fail',
-    },
-    {
-      name: 'missing trailer when declaration is present',
-      options: { r1TaskTrailer: null },
-      verdict: 'fail',
-    },
-    {
-      name: 'duplicate description declarations',
-      options: {
-        paperclipDescription: 'R1-task: none\nR1-task: R1-15',
-      },
-      verdict: 'fail',
-    },
-    {
-      name: 'malformed description declaration',
-      options: { paperclipDescription: 'R1-task: none trailing-value' },
-      verdict: 'fail',
-    },
-    {
-      name: 'duplicate commit trailers',
-      options: { additionalR1TaskTrailers: ['R1-task: none'] },
-      verdict: 'fail',
-    },
-    {
-      name: 'malformed commit trailer',
-      options: { r1TaskTrailer: 'none trailing-value' },
-      verdict: 'fail',
-    },
-  ];
-  for (const scenario of scenarios) {
-    await t.test(scenario.name, async (t) => {
-      const value = await fixture(t, scenario.options);
-      const { report } = parseHarness(runHarness(value));
-      assert.equal(report.verdict, scenario.verdict);
-      if (scenario.verdict === 'fail')
-        assert.ok(report.reasons.some((reason) => /R1-task/u.test(reason)));
-    });
-  }
-});
-
-test('preflight accepts matching LON task identifiers in trailer and Paperclip', async (t) => {
+test('preflight ignores legacy R1-task trailers', async (t) => {
   const value = await fixture(t, {
-    r1TaskTrailer: 'LON-231',
-    paperclipTask: 'LON-231',
+    r1TaskTrailer: 'malformed legacy value',
+    additionalR1TaskTrailers: ['R1-task: duplicate legacy value'],
   });
   const { report } = parseHarness(runHarness(value));
   assert.equal(report.verdict, 'pass');
-  assert.equal(report.r1TaskTrailer, 'LON-231');
-  assert.equal(report.paperclipR1Task, 'LON-231');
+  assert.deepEqual(report.reasons, []);
 });
 
-test('preflight rejects zero and zero-padded Ticket numbers with matching inputs', async (t) => {
-  for (const ticket of ['LON-0', 'LON-001']) {
-    await t.test(ticket, async (t) => {
-      const value = await fixture(t, { ticket });
-      const { report } = parseHarness(runHarness(value));
-      assert.equal(report.verdict, 'fail');
-      assert.ok(
-        report.reasons.some((reason) =>
-          /PR title|Ticket trailer/u.test(reason),
-        ),
-        JSON.stringify(report.reasons),
-      );
-    });
-  }
-});
-
-test('preflight checks equality between valid LON task identifiers', async (t) => {
+test('preflight refuses a LON suffix with no matching task file at head', async (t) => {
   const value = await fixture(t, {
-    r1TaskTrailer: 'LON-231',
-    paperclipTask: 'LON-232',
+    ticket: 'LON-319',
+    taskFile: 'missing',
+    title: 'feat(review): add preflight (LON-319)',
   });
   const { report } = parseHarness(runHarness(value));
   assert.equal(report.verdict, 'fail');
   assert.ok(
-    report.reasons.some((reason) => /R1-task trailer must match/u.test(reason)),
+    report.reasons.some((reason) =>
+      /task LON-319 is missing from the PR head/u.test(reason),
+    ),
+    JSON.stringify(report.reasons),
   );
 });
 
@@ -448,124 +367,6 @@ test('preflight rejects non-success and isolation-skipping gate-local statuses',
   assert.equal(tenSkipped.verdict, 'fail');
   assert.ok(
     tenSkipped.reasons.some((reason) => /zero isolation skips/u.test(reason)),
-  );
-});
-
-test('public preflight uses the default Paperclip description path without contract parsing', async (t) => {
-  if (
-    !requiresIsolation(
-      t,
-      'public preflight uses the default Paperclip description path without contract parsing',
-      ['systemdUserScope'],
-    )
-  )
-    return;
-  const value = await fixture(t);
-  const updatedAt = '2026-10-18T10:00:00.000Z';
-
-  const runSubtest = async (
-    name: string,
-    callback: () => Promise<void>,
-  ): Promise<void> => {
-    try {
-      await t.test(name, callback);
-    } catch {
-      // A failed child is already reported; continue so sibling fixtures execute.
-    }
-  };
-
-  await runSubtest(
-    'admits a short matching contract through the default transport',
-    async () => {
-      const issue = await fakePaperclip(value.directory, 'LON-230', {
-        id: 'LON-230',
-        identifier: 'LON-230',
-        title: 'Matching short execution contract',
-        description: value.description,
-        updatedAt,
-        status: 'in_progress',
-      });
-      const result = runHarness(value, { paperclipBin: issue.bin });
-      assert.equal(result.status, 0, result.stderr);
-      const { report, calls } = parseHarness(result);
-      assert.deepEqual(JSON.parse(await readFile(issue.calls, 'utf8')), [
-        'issue',
-        'get',
-        'LON-230',
-        '--json',
-      ]);
-      assert.deepEqual(calls, [
-        ['pull', value.repo, 'krn-works/krn', 27],
-        ['statuses', value.repo, 'krn-works/krn', value.head],
-      ]);
-      assert.equal(report.verdict, 'pass', JSON.stringify(report.reasons));
-      assert.deepEqual(report.reasons, []);
-    },
-  );
-
-  await runSubtest(
-    'admits the matching 9-KiB description without a contract block',
-    async () => {
-      const issue = await fakePaperclip(value.directory, 'LON-230', {
-        id: 'LON-230',
-        identifier: 'LON-230',
-        title: 'Long description without an execution contract',
-        description: [
-          'R1-task: none (long description fixture)',
-          '',
-          'x'.repeat(9 * 1024),
-        ].join('\n'),
-        updatedAt,
-        status: 'in_progress',
-      });
-      const result = runHarness(value, { paperclipBin: issue.bin });
-      assert.equal(result.status, 0, result.stderr);
-      const { report } = parseHarness(result);
-      assert.deepEqual(JSON.parse(await readFile(issue.calls, 'utf8')), [
-        'issue',
-        'get',
-        'LON-230',
-        '--json',
-      ]);
-      assert.equal(report.verdict, 'pass', JSON.stringify(report.reasons));
-      assert.deepEqual(report.reasons, []);
-    },
-  );
-
-  await runSubtest(
-    'refuses the small valid contract from a foreign issue identity',
-    async () => {
-      const issue = await fakePaperclip(value.directory, 'LON-230', {
-        id: 'paperclip-internal-foreign-id',
-        identifier: 'LON-999',
-        title: 'Foreign but coherent execution contract',
-        description: [
-          'R1-task: none (foreign issue fixture)',
-          '',
-          '```krn-contract',
-          '{"version":1,"targetRepo":"krn-works/krn","checks":["typecheck","lint","rules"]}',
-          '```',
-        ].join('\n'),
-        updatedAt,
-        status: 'in_progress',
-      });
-      const result = runHarness(value, { paperclipBin: issue.bin });
-      assert.equal(result.status, 0, result.stderr);
-      const { report } = parseHarness(result);
-      assert.deepEqual(JSON.parse(await readFile(issue.calls, 'utf8')), [
-        'issue',
-        'get',
-        'LON-230',
-        '--json',
-      ]);
-      assert.equal(report.verdict, 'fail');
-      assert.ok(
-        report.reasons.some((reason) =>
-          reason.startsWith('Paperclip issue LON-230 could not be read'),
-        ),
-        JSON.stringify(report.reasons),
-      );
-    },
   );
 });
 
