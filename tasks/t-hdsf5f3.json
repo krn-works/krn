@@ -1,0 +1,12 @@
+{
+  "id": "t-hdsf5f3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 1,
+  "title": "Run the repository verifier in krn ship",
+  "after": [],
+  "body": [
+    "Step 2 of the one-merge-path decision (`.krn/runs/claude-merge-path-design/decision.md`), after the Product ship verifier t-mc4hrzj (PR #113): GLOBAL `krn ship` reads `krn.ship.json` from the leased PR base, runs the declared repository verifier (Product `scripts/pr-preflight.mjs`) from a base checkout with the pinned Node, refuses on any non-pass result (also in `--dry-run`), records the verifier report in the ship record, and uses it instead of the GLOBAL change-contract pre-check for that repository only. Repositories without the policy behave as before.\nAcceptance: a GLOBAL falsifier shows ship refusing a Product PR with missing or failing evidence and passing with complete evidence, using verbatim captured verifier output (KRN-12); then one real Product delivery through `krn ship` and `pdeliver.sh` retired."
+  ]
+}
