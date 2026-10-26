@@ -72,9 +72,10 @@ changes mergeable and make an identical-ID add/add collision visible. A check
 is needed because Git can still merge independent field edits into a
 semantically invalid record. The shipped CLI provides create, show, list,
 ready, claim, release, close, dep, edit, and check. With `--json`, successful
-commands return an object with `ok: true` and command-specific fields; failures
-return `ok: false`, a numeric `code`, an `error` message, and optional
-`findings`.
+task operations return an object with `ok: true` and command-specific fields;
+failures return `ok: false`, a numeric `code`, an `error` message, and optional
+`findings`. Help output (`krn task`, `krn task --help`, and
+`krn task <verb> --help`) stays plain text, even when `--json` is supplied.
 The lead manages task status with `ready`, `claim`, `release`, and `close`.
 Workers receive the task id in their brief, never claim tracker work, and use
 the id in commit titles and the `Ticket:` trailer. The delivering PR closes the

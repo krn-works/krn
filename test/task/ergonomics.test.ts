@@ -25,7 +25,15 @@ test('task quickstart and each verb help give agents usable examples', async () 
       assert.equal(result.status, 0, result.stderr);
       const lines = result.stdout.trimEnd().split('\n');
       assert.ok(lines.length <= 30, `quickstart has ${lines.length} lines`);
-      assert.match(result.stdout, /ready.*claim.*worktree.*close.*PR/isu);
+      assert.match(
+        result.stdout,
+        /Lead runs the loop: krn task ready.*krn task claim --next --actor lead.*krn task release ID.*krn task close ID --as done.*delivering PR/isu,
+      );
+      assert.match(
+        result.stdout,
+        /Workers receive the task id in their brief and do not mutate tracker state/u,
+      );
+      assert.doesNotMatch(result.stdout, /^\s*\{/u);
       assert.match(result.stdout, /tasks\/<id>\.json/u);
       assert.match(result.stdout, /\.krn\/task-claims\/<id>\.json/u);
       assert.match(result.stdout, /64.*65.*75/u);
