@@ -1,7 +1,11 @@
 {
   "id": "t-yxxfg7k",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": ""
+  },
   "created": "2026-10-26",
   "priority": 1,
   "title": "Remove Paperclip from GLOBAL",

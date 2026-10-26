@@ -1,0 +1,12 @@
+{
+  "id": "t-crz1bww",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 2,
+  "title": "Let claim --next skip busy tasks",
+  "after": [],
+  "body": [
+    "`claimNext` aborts the whole command when one ready task is busy (`src/task/claims.ts:235`), so concurrent `claim --next` callers get exit 75 while other ready tasks are free (busy=4 in 17 trials at load 27–46, review N2).\nAcceptance: with N callers and at least N ready tasks every caller claims a distinct task; exit 75 only when no ready task can be claimed."
+  ]
+}

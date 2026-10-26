@@ -1,0 +1,12 @@
+{
+  "id": "t-h3hw3d5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 2,
+  "title": "Align GLOBAL session briefs with lead-owned claims",
+  "after": [],
+  "body": [
+    "GLOBAL `scripts/hooks/krn_capsule.py:27,265` and the opencode plugin `config/opencode/plugins/krn.js:21,169` tell every session to run `krn task claim <id> --actor <actor>`, and `skills/engineering/delivery-loop/SKILL.md:36-38` lets workers mutate the queue unless assigned. KRN-11 says only the lead claims; workers receive the id in their brief (review N3).\nAcceptance: session briefs and the delivery-loop skill state that the lead manages claims and workers never mutate tracker state; tests cover the brief text."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-z1rn4s0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 2,
+  "title": "Route krn task to a pinned Product checkout",
+  "after": [],
+  "body": [
+    "`~/.config/krn/product-entry` points at the lead working checkout, so `krn task` runs whatever commit is checked out there; on an older commit the frontier fails and claims run without the lock (review N4/A1). Route the entry to a checkout that only moves to `origin/main` (e.g. a detached release worktree updated after each merge) or to an installed Product release.\nAcceptance: switching the working checkout to another branch does not change the code `krn task` runs; doctor reports the entry commit."
+  ]
+}
