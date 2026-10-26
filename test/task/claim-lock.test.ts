@@ -17,7 +17,7 @@ import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
 const cli = fileURLToPath(new URL('../../src/cli/krn.mjs', import.meta.url));
 const scratch = join(
   process.cwd(),
-  '../../runs/claude-claim-lock-socket/scratch',
+  '../../runs/claude-claim-lock-name/scratch',
 );
 
 test('expired claims have one concurrent claim --next winner across two worktrees', {
@@ -209,6 +209,49 @@ test('repositories with the same task id have separate lock names', {
       rm(first, { recursive: true, force: true }),
       rm(second, { recursive: true, force: true }),
     ]);
+  }
+});
+
+test('a 100-character task id can be claimed and released', async () => {
+  const id = `T-${'1'.repeat(98)}`;
+  const repo = await fixtureRepo('claim-lock-long-id-', [task(id)]);
+  try {
+    await claimTask(repo, id, { actor: 'worker' });
+    assert.equal(inspectClaim(repo, id).state, 'live');
+
+    await releaseClaim(repo, id);
+    assert.equal(inspectClaim(repo, id).state, 'none');
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('long task ids with the same prefix have separate lock names', {
+  timeout: 10_000,
+}, async () => {
+  const prefix = `T-${'a'.repeat(97)}`;
+  const firstId = `${prefix}1`;
+  const secondId = `${prefix}2`;
+  const repo = await fixtureRepo('claim-lock-long-prefix-', [
+    task(firstId),
+    task(secondId),
+  ]);
+  let holder: ReturnType<typeof startLockHolder> | undefined;
+  try {
+    holder = startLockHolder(repo, firstId);
+    await holder.locked;
+
+    const independent = await runCliAsync(repo, [
+      'claim',
+      secondId,
+      '--actor',
+      'independent',
+    ]);
+    assert.equal(independent.status, 0, independent.stderr);
+    assert.equal(inspectClaim(repo, secondId).state, 'live');
+  } finally {
+    await stopHolder(holder);
+    await rm(repo, { recursive: true, force: true });
   }
 });
 

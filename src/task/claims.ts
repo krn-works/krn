@@ -595,9 +595,12 @@ async function acquireTaskLock(mainRoot: string, id: TaskId): Promise<Server> {
   if (process.platform !== 'linux')
     throw new TaskUsageError('claim locking requires Linux');
 
-  const address = `\0krn-task-lock:${createHash('sha256').update(mainRoot).digest('hex')}:${id}`;
-  if (address.length > 107)
-    throw new TaskUsageError('task id is too long for claim locking');
+  const lockId = createHash('sha256')
+    .update(mainRoot)
+    .update('\0')
+    .update(id)
+    .digest('hex');
+  const address = `\0krn-task-lock:${lockId}`;
 
   const deadline = performance.now() + 2_000;
   while (true) {
