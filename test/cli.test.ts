@@ -10,7 +10,7 @@ import {
   statSync,
   utimesSync,
 } from 'node:fs';
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -29,6 +29,18 @@ const cliEntries = [
 test('cli-lazy-fetch-canary refuses configured transports without repository writes', async (t) => {
   // Consumer: root/LON-292/LON-288; retain fixtures until outcome closeout and explicit disposition.
   const directory = await mkdtemp(join(tmpdir(), 'krn-cli-lazy-fetch-'));
+  const seed = join(directory, 'seed');
+  await mkdir(seed);
+  fixtureGit(seed, 'init', '--quiet');
+  fixtureGit(seed, 'config', 'user.name', 'KRN lazy-fetch fixture');
+  fixtureGit(seed, 'config', 'user.email', 'lazy-fetch@example.invalid');
+  await writeFile(join(seed, '.gitignore'), '.krn/\n');
+  await writeFile(join(seed, 'file.txt'), 'harmless lazy-fetch fixture\n');
+  fixtureGit(seed, 'add', '.gitignore', 'file.txt');
+  fixtureGit(seed, 'commit', '-qm', 'create full-clone fixture');
+  const head = fixtureGit(seed, 'rev-parse', 'HEAD');
+  const tree = fixtureGit(seed, 'rev-parse', 'HEAD^{tree}');
+  const seedConfiguration = readFileSync(join(seed, '.git/config'), 'utf8');
   const observations = [];
   for (const descriptor of [false, true]) {
     for (const config of [
@@ -39,16 +51,9 @@ test('cli-lazy-fetch-canary refuses configured transports without repository wri
     ]) {
       const name = `${descriptor ? 'descriptor' : 'raw'}-${config}`;
       const repo = join(directory, name);
-      await mkdir(repo);
-      fixtureGit(repo, 'init', '--quiet');
-      fixtureGit(repo, 'config', 'user.name', 'KRN lazy-fetch fixture');
-      fixtureGit(repo, 'config', 'user.email', 'lazy-fetch@example.invalid');
-      await writeFile(join(repo, '.gitignore'), '.krn/\n');
-      await writeFile(join(repo, 'file.txt'), 'harmless lazy-fetch fixture\n');
-      fixtureGit(repo, 'add', '.gitignore', 'file.txt');
-      fixtureGit(repo, 'commit', '-qm', 'create full-clone fixture');
-      const head = fixtureGit(repo, 'rev-parse', 'HEAD');
-      const tree = fixtureGit(repo, 'rev-parse', 'HEAD^{tree}');
+      // Independent mutable copies preserve each transport/configuration case;
+      // preparing the same committed object graph needs only one Git setup.
+      await cp(seed, repo, { recursive: true });
       const jobId = `lazy-fetch-${name}`;
       let worktree = repo;
       if (descriptor) {
@@ -134,29 +139,43 @@ test('cli-lazy-fetch-canary refuses configured transports without repository wri
           transportRan: existsSync(marker),
         };
       };
-      // This positive control has neither partial-clone nor promisor configuration.
-      assert.deepEqual(run('full-clone'), {
-        name,
-        phase: 'full-clone',
-        exit: 0,
-        kind: 'journey',
-        code: undefined,
-        transportRan: false,
-      });
-      fixtureGit(repo, 'config', 'core.repositoryformatversion', '1');
-      fixtureGit(
-        repo,
-        'config',
-        'remote.CanaryCase.url',
-        'ssh://canary.invalid/x',
+      // Before configuration the seed is identical for every case. One
+      // positive control per raw/descriptor resolution path proves this edge;
+      // every configured transport still gets both negative controls below.
+      if (config === 'partialClone') {
+        assert.deepEqual(run('full-clone'), {
+          name,
+          phase: 'full-clone',
+          exit: 0,
+          kind: 'journey',
+          code: undefined,
+          transportRan: false,
+        });
+      }
+      // Set up the native config fixture in one write. The real CLI/Git still
+      // reads every configuration, including deliberately mixed-case keys.
+      await writeFile(
+        join(repo, '.git/config'),
+        [
+          seedConfiguration,
+          '[core]',
+          'repositoryformatversion = 1',
+          `sshCommand = ${JSON.stringify(`/bin/sh ${script}`)}`,
+          '[remote "CanaryCase"]',
+          'url = ssh://canary.invalid/x',
+          ...(config === 'partialClone' || config === 'both'
+            ? ['[Extensions]', 'PartialClone = CanaryCase']
+            : []),
+          ...(config === 'promisor' || config === 'both'
+            ? ['[Remote "CanaryCase"]', 'Promisor = true']
+            : []),
+          ...(config === 'worktreePromisor'
+            ? ['[extensions]', 'worktreeConfig = true']
+            : []),
+          '',
+        ].join('\n'),
       );
-      fixtureGit(repo, 'config', 'core.sshCommand', `/bin/sh ${script}`);
-      if (config === 'partialClone' || config === 'both')
-        fixtureGit(repo, 'config', 'Extensions.PartialClone', 'CanaryCase');
-      if (config === 'promisor' || config === 'both')
-        fixtureGit(repo, 'config', 'Remote.CanaryCase.Promisor', 'true');
       if (config === 'worktreePromisor') {
-        fixtureGit(repo, 'config', 'extensions.worktreeConfig', 'true');
         fixtureGit(
           worktree,
           'config',

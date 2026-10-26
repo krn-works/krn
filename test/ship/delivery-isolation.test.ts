@@ -3,6 +3,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import {
   chmod,
+  cp,
   mkdir,
   mkdtemp,
   readdir,
@@ -14,7 +15,7 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
+import test, { after } from 'node:test';
 import { CodexHost } from '../../src/hosts/codex.ts';
 import * as relay from '../../src/relay/index.ts';
 import * as trace from '../../src/trace/index.ts';
@@ -26,11 +27,8 @@ import {
   testTimeoutFor,
 } from '../support/process-wait.ts';
 
-async function repoFixture(
-  ignore = '.krn/\n',
-  parent = tmpdir(),
-): Promise<string> {
-  const root = await mkdtemp(join(parent, 'krn-s4b-'));
+async function repositorySeed(): Promise<string> {
+  const root = await mkdtemp(join(tmpdir(), 'krn-delivery-repo-seed-'));
   const git = (args: string[]) => {
     const result = spawnSync('git', ['-C', root, ...args], {
       encoding: 'utf8',
@@ -38,7 +36,7 @@ async function repoFixture(
     assert.equal(result.status, 0, result.stderr);
   };
   git(['init', '-q', '--initial-branch=main']);
-  await writeFile(join(root, '.gitignore'), ignore);
+  await writeFile(join(root, '.gitignore'), '.krn/\n');
   await writeFile(join(root, 'README.md'), 'fixture\n');
   git(['add', '.gitignore', 'README.md']);
   git([
@@ -53,6 +51,33 @@ async function repoFixture(
   git(['config', 'user.name', 'Fixture']);
   git(['config', 'user.email', 'fixture@example.invalid']);
   git(['remote', 'add', 'origin', 'https://github.com/fixture/repo.git']);
+  return root;
+}
+
+let seed: Promise<string> | undefined;
+after(async () => {
+  if (seed) await rm(await seed, { recursive: true, force: true });
+});
+
+async function repoFixture(
+  ignore = '.krn/\n',
+  parent = tmpdir(),
+): Promise<string> {
+  seed ??= repositorySeed();
+  const root = await mkdtemp(join(parent, 'krn-s4b-'));
+  // Copies have independent object databases, refs and indexes. Keeping the
+  // initial Git setup once per file also leaves the real checkpoint/kill path
+  // (including its cancellation grace) intact.
+  await cp(await seed, root, { recursive: true });
+  if (ignore !== '.krn/\n') {
+    await writeFile(join(root, '.gitignore'), ignore);
+    const result = spawnSync(
+      'git',
+      ['-C', root, 'commit', '-qam', 'fixture ignore'],
+      { encoding: 'utf8' },
+    );
+    assert.equal(result.status, 0, result.stderr);
+  }
   return root;
 }
 

@@ -11,6 +11,7 @@ import {
 import { delimiter, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { statusRetryBackoffsMs } from '../scripts/gate-local.mjs';
 
 const gateLocal = fileURLToPath(
   new URL('../scripts/gate-local.mjs', import.meta.url),
@@ -47,6 +48,18 @@ async function makeFixture(name, { failures, error }) {
   const bin = join(root, 'bin');
   await mkdir(bin);
   const ghLog = join(root, 'gh-calls.jsonl');
+  const retryLog = join(root, 'retry-delays.jsonl');
+  const entry = join(root, 'gate-entry.mjs');
+  await writeFile(
+    entry,
+    `
+import { appendFileSync } from 'node:fs';
+import { main } from ${JSON.stringify(new URL('../scripts/gate-local.mjs', import.meta.url).href)};
+process.exitCode = await main({ waitForRetry: async (milliseconds) => {
+  appendFileSync(${JSON.stringify(retryLog)}, JSON.stringify(milliseconds) + '\\n');
+} });
+`,
+  );
 
   await writeFile(
     join(bin, 'git'),
@@ -85,6 +98,8 @@ if (callCount <= Number(process.env.KRN_FAKE_GH_FAILURES)) {
   return {
     root,
     ghLog,
+    retryLog,
+    entry,
     env: {
       ...process.env,
       PATH: `${bin}${delimiter}${process.env.PATH ?? ''}`,
@@ -95,8 +110,8 @@ if (callCount <= Number(process.env.KRN_FAKE_GH_FAILURES)) {
   };
 }
 
-function runGateLocal(root, env) {
-  const result = spawnSync(process.execPath, [gateLocal], {
+function runGateLocal(root, env, entry = gateLocal) {
+  const result = spawnSync(process.execPath, [entry], {
     cwd: root,
     env,
     encoding: 'utf8',
@@ -118,16 +133,70 @@ async function ghCalls(path) {
 }
 
 test('gate-local retries transient status failures with an identical payload', async (t) => {
+  assert.deepEqual(statusRetryBackoffsMs, [2_000, 8_000]);
+  await t.test(
+    'the default scheduler waits for both production backoffs',
+    async () => {
+      const fixture = await makeFixture('gate-local-status-default-wait', {
+        failures: 2,
+        error: 'HTTP 503 Service Unavailable',
+      });
+      try {
+        await writeFile(
+          fixture.entry,
+          `
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import { mock } from 'node:test';
+import { setImmediate } from 'node:timers/promises';
+import { main } from ${JSON.stringify(new URL('../scripts/gate-local.mjs', import.meta.url).href)};
+mock.timers.enable({ apis: ['setTimeout'] });
+const calls = () => existsSync(process.env.KRN_FAKE_GH_LOG)
+  ? readFileSync(process.env.KRN_FAKE_GH_LOG, 'utf8').trim().split('\\n').length : 0;
+const until = async (count) => {
+  const deadline = Date.now() + 15000;
+  while (calls() !== count) {
+    assert.ok(Date.now() < deadline, 'status attempt not reached');
+    await setImmediate();
+  }
+};
+try {
+  const pending = main(); // Exercise the default waitForRetry, without injection.
+  await until(1);
+  mock.timers.tick(1999);
+  await setImmediate();
+  assert.equal(calls(), 1);
+  mock.timers.tick(1);
+  await until(2);
+  mock.timers.tick(7999);
+  await setImmediate();
+  assert.equal(calls(), 2);
+  mock.timers.tick(1);
+  assert.equal(await pending, 0);
+  assert.equal(calls(), 3);
+} finally {
+  mock.timers.reset();
+}
+`,
+        );
+        const result = runGateLocal(fixture.root, fixture.env, fixture.entry);
+        assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      } finally {
+        await rm(fixture.root, { recursive: true, force: true });
+      }
+    },
+  );
   await t.test('TLS timeout then success retries once and passes', async () => {
     const fixture = await makeFixture('gate-local-status-retry-success', {
       failures: 1,
       error: 'net/http: TLS handshake timeout',
     });
     try {
-      const result = runGateLocal(fixture.root, fixture.env);
+      const result = runGateLocal(fixture.root, fixture.env, fixture.entry);
       assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
       const calls = await ghCalls(fixture.ghLog);
       assert.equal(calls.length, 2);
+      assert.deepEqual(await ghCalls(fixture.retryLog), [2_000]);
       assert.deepEqual(calls[1], calls[0]);
       assert.deepEqual(calls[0], [
         'api',
@@ -152,11 +221,12 @@ test('gate-local retries transient status failures with an identical payload', a
         error: 'HTTP 503 Service Unavailable',
       });
       try {
-        const result = runGateLocal(fixture.root, fixture.env);
+        const result = runGateLocal(fixture.root, fixture.env, fixture.entry);
         assert.notEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
         assert.match(result.stderr, /Unable to post gate-local status/u);
         const calls = await ghCalls(fixture.ghLog);
         assert.equal(calls.length, 3);
+        assert.deepEqual(await ghCalls(fixture.retryLog), [2_000, 8_000]);
         assert.deepEqual(calls[1], calls[0]);
         assert.deepEqual(calls[2], calls[0]);
       } finally {

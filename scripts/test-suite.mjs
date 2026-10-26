@@ -27,6 +27,7 @@ import {
   mergeTestShardResults,
   planTestShards,
 } from './lib/test-shards.mjs';
+import { formatSlowestTests, slowestTests } from './lib/test-timings.mjs';
 import {
   formatIsolationProbe,
   probeIsolationCapabilities,
@@ -210,6 +211,12 @@ function childEnvironment(
     XDG_DATA_HOME: join(home, '.local', 'share'),
     XDG_STATE_HOME: join(home, '.local', 'state'),
     MISE_DATA_DIR: parentMiseDataDirectory(),
+    // Node creates this best-effort cache. Keep it outside disposable shard
+    // TMPDIRs so subsequent runners and inherited child nodes can reuse it.
+    NODE_COMPILE_CACHE:
+      process.env.NODE_COMPILE_CACHE ??
+      join(process.cwd(), '.krn/tmp/node-compile-cache'),
+    KRN_TEST_EVENT_FILE: eventFile,
     KRN_ISOLATION_CAPABILITIES: JSON.stringify(capabilities),
     KRN_ISOLATION_GATE_PRELOAD: '1',
   };
@@ -222,7 +229,6 @@ function childEnvironment(
     for (const key of Object.keys(env)) {
       if (key.startsWith('NODE_TEST_')) delete env[key];
     }
-    env.KRN_TEST_EVENT_FILE = eventFile;
   }
   return env;
 }
@@ -293,13 +299,11 @@ async function runTestGroup({
       '{"private":true}\n',
       { mode: 0o600 },
     );
-    if (strict) {
-      eventDirectory = await mkdtemp(
-        join(stateDirectory, 'strict-test-events-'),
-      );
-      eventFile = join(eventDirectory, 'events.jsonl');
-      await writeFile(eventFile, '', { mode: 0o600 });
-    }
+    eventDirectory = await mkdtemp(
+      join(stateDirectory, strict ? 'strict-test-events-' : 'test-events-'),
+    );
+    eventFile = join(eventDirectory, 'events.jsonl');
+    await writeFile(eventFile, '', { mode: 0o600 });
     if (getForwardedSignal())
       throw new Error('interrupted before test runner start');
 
@@ -309,14 +313,10 @@ async function runTestGroup({
       '--test',
       '--test-concurrency=1',
       '--test-reporter=tap',
+      '--test-reporter-destination=stdout',
+      `--test-reporter=${eventReporter}`,
+      '--test-reporter-destination=stderr',
     ];
-    if (strict) {
-      runnerArgs.push(
-        '--test-reporter-destination=stdout',
-        `--test-reporter=${eventReporter}`,
-        '--test-reporter-destination=stderr',
-      );
-    }
     runnerArgs.push(...runnerArguments);
     child = spawn(process.execPath, runnerArgs, {
       detached: process.platform !== 'win32',
@@ -369,7 +369,7 @@ async function runTestGroup({
     const signal = getForwardedSignal();
     if (signal) runnerExitCode = signalExit(signal);
 
-    if (strict && eventFile) {
+    if (eventFile) {
       const recorded = await readRecordedEvents(eventFile);
       events = recorded.events;
       if (recorded.error)
@@ -435,6 +435,7 @@ async function main() {
   let stateDirectory;
   let expectedFiles = [];
   let structuredSummaryWritten = false;
+  let timingsWritten = false;
   let forwardedSignal;
   let exitCode = 1;
   const forwardSignal = (signal) => {
@@ -583,6 +584,11 @@ async function main() {
     );
     process.stdout.write(`# tests ${testCount}\n`);
     const legacySummary = isolationSummary(skipCount);
+    const timings = formatSlowestTests(
+      slowestTests(results.flatMap((result) => result.events)),
+    );
+    process.stdout.write(timings);
+    timingsWritten = true;
     process.stdout.write(`${legacySummary}\n`);
     if (cleanupError) process.stderr.write(`${cleanupError}\n`);
 
@@ -601,6 +607,7 @@ async function main() {
         `- bwrap: ${formatCapability(capabilities.bwrap)}`,
         `- systemd user scopes: ${formatCapability(capabilities.systemdUserScope)}`,
         '',
+        timings,
       ].join('\n');
       await appendFile(process.env.GITHUB_STEP_SUMMARY, markdown);
     }
@@ -640,6 +647,7 @@ async function main() {
       );
   } catch (error) {
     process.stderr.write(`Test suite wrapper failed: ${error.message}\n`);
+    if (!timingsWritten) process.stdout.write(formatSlowestTests([]));
     if (runDirectory) {
       try {
         await rm(runDirectory, { recursive: true, force: true });

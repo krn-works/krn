@@ -135,21 +135,22 @@ test('public registration alias graph rejects forged skips and preserves honest 
   const add = (name, fn) => cases.push(t.test(name, fn));
   try {
     for (const [loader, prelude] of Object.entries(loaders)) {
-      for (const alias of aliases) {
-        add(`${loader} ${alias} rejects registration skip`, async () => {
-          const result = await run(
-            `${prelude}\n${alias}('forged registration', { skip: 'SKIP(isolation): forged registration' }, () => {});`,
-          );
-          const details = `${result.stdout}\n${result.stderr}`;
-          assert.equal(result.status, 1, details);
-          assert.match(result.stdout, /^# skipped 0$/mu, details);
-          assert.match(
-            result.stdout,
-            /Registration-level (?:skips|todo).*not permitted/u,
-            details,
-          );
-        });
-      }
+      add(`${loader} every alias rejects registration skip`, async () => {
+        // Rejection is synchronous and occurs before registration. Exercise
+        // every edge in one child; a missing guard still fails assert.throws
+        // for that exact alias (and cannot hide behind another failed case).
+        const result = await run(`${prelude}
+import assert from 'node:assert/strict';
+${aliases.map((alias) => `api(${JSON.stringify(alias)}, () => assert.throws(() => ${alias}('forged registration', { skip: 'SKIP(isolation): forged registration' }, () => {}), /Registration-level (?:skips|todo).*not permitted/, ${JSON.stringify(alias)}));`).join('\n')}`);
+        const details = `${result.stdout}\n${result.stderr}`;
+        assert.equal(result.status, 0, details);
+        assert.match(result.stdout, /^# skipped 0$/mu, details);
+        assert.match(
+          result.stdout,
+          new RegExp(`^# pass ${aliases.length}$`, 'mu'),
+          details,
+        );
+      });
       add(
         `${loader} honest callback, suite, hook and static controls`,
         async () => {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
@@ -463,12 +463,12 @@ test('task check handles a 20,000 task dependency chain iteratively', async () =
       const id = `T-${String(index).padStart(5, '0')}`;
       const after =
         index === 19_999 ? [] : [`T-${String(index + 1).padStart(5, '0')}`];
-      await writeFile(
+      writeFileSync(
         join(tasks, `${id}.json`),
         serializeTask({ ...validTask, id, after }),
       );
     }
-    const result = runCli(repo, ['check'], undefined, undefined, {}, 60_000);
+    const result = await runCliAsync(repo, ['check']);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout, 'Task data is valid.\n');
   } finally {

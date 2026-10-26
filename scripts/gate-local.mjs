@@ -5,7 +5,7 @@ import { validateTestSummary } from './test-summary-policy.mjs';
 
 const ghPath = process.env.KRN_GH_BIN ?? 'gh';
 const summaryPrefix = 'KRN_TEST_SUMMARY_JSON=';
-const statusRetryBackoffsMs = [2_000, 8_000];
+export const statusRetryBackoffsMs = Object.freeze([2_000, 8_000]);
 const gitContextKeys = [
   'GIT_DIR',
   'GIT_WORK_TREE',
@@ -110,7 +110,7 @@ function wait(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-async function main() {
+export async function main({ waitForRetry = wait } = {}) {
   for (const key of gitContextKeys) delete process.env[key];
 
   const head = readHead();
@@ -173,7 +173,7 @@ async function main() {
           );
           throw new Error('Unable to post gate-local status');
         }
-        await wait(backoff);
+        await waitForRetry(backoff);
       }
       process.stdout.write(
         `Published krn/gate-local success for ${head}: ${description}\n`,
