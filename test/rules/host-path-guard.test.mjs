@@ -12,17 +12,6 @@ const forbiddenRoots = [
   `${slash}run${slash}user${slash}`,
   `${slash}tmp${slash}claude-`,
 ];
-const literalPathBoundaries = new Set([
-  '=',
-  ':',
-  '(',
-  ',',
-  '[',
-  '{',
-  "'",
-  '"',
-  '`',
-]);
 const hostPathAllowlist = new Map([
   [
     'scripts/probe-isolation.mjs',
@@ -104,24 +93,20 @@ function forbiddenRootMatches(value) {
       ) {
         const prefix = value.slice(0, offset);
         const previous = value[offset - 1];
-        const startsFileUrlPath = /(?:^|[\s=:(,[{'"`])file:\/\/$/iu.test(
-          prefix,
-        );
+        const followsNonFileUrl =
+          /[A-Za-z][A-Za-z0-9+.-]*:\/\/[^/]*$/u.test(prefix) &&
+          !/file:\/\/[^/]*$/iu.test(prefix);
         const followsScpRemote =
           previous === ':' &&
           /(?:^|[\s=([{,'"`])(?:[A-Za-z0-9._-]+@)?[A-Za-z0-9][A-Za-z0-9._-]*:$/u.test(
             prefix,
           );
-        const startsAtBoundary =
-          offset === 0 ||
-          /\s/u.test(previous) ||
-          literalPathBoundaries.has(previous);
+        const followsNameCharacter = /[A-Za-z0-9._~%-]/u.test(previous ?? '');
 
         if (
-          startsFileUrlPath ||
-          (!followsScpRemote &&
-            startsAtBoundary &&
-            !(previous === ':' && prefix.endsWith('://')))
+          !followsNameCharacter &&
+          !followsNonFileUrl &&
+          !followsScpRemote
         )
           matches.push({ offset, root });
       }
@@ -302,6 +287,16 @@ test('flags an absolute host path after an assignment separator', () => {
   assert.deepEqual(literalPathLines(source), [1]);
 });
 
+test('flags host paths after shell separators', () => {
+  for (const value of [
+    `echo >${hostPath('tmp', 'claude-1', 'log')}`,
+    `a;${hostPath('mnt', 'x')}`,
+    `a|${hostPath('home', 'krn', 'x')}`,
+    `$(cat ${hostPath('run', 'user', '1', 'x')})`,
+  ])
+    assert.deepEqual(literalPathLines(JSON.stringify(value)), [1], value);
+});
+
 test('flags an absolute host path in a quoted root option', () => {
   const value = `--root=${hostPath('run', 'user', '1000')}`;
   assert.deepEqual(literalPathLines(JSON.stringify(value)), [1]);
@@ -320,6 +315,14 @@ test('flags a host path in a file URL with an empty authority', () => {
 test('ignores an absolute path in an scp-style Git remote', () => {
   const value = `git@host:${hostPath('mnt', 'x')}`;
   assert.deepEqual(literalPathLines(JSON.stringify(value)), []);
+});
+
+test('ignores host path text after a name character', () => {
+  assert.deepEqual(literalPathLines(JSON.stringify('foo/mnt/x')), []);
+});
+
+test('ignores host path text in a non-file URL path', () => {
+  assert.deepEqual(literalPathLines(JSON.stringify('https://h/mnt/x')), []);
 });
 
 test('ignores the synthetic worker home path', () => {
