@@ -331,9 +331,19 @@ function reviewEvidence(repo, input, reasons) {
       sha256: createHash('sha256').update(bytes).digest('hex'),
     };
     records.push(evidence);
+    let source;
+    try {
+      source = new TextDecoder('utf-8', {
+        fatal: true,
+        ignoreBOM: true,
+      }).decode(bytes);
+    } catch {
+      reasons.add(`review record is not valid UTF-8: ${path}`);
+      continue;
+    }
     let json;
     try {
-      json = JSON.parse(bytes.toString('utf8'));
+      json = JSON.parse(source);
     } catch {
       reasons.add(`review record is not valid JSON: ${path}`);
       continue;
@@ -361,7 +371,7 @@ function reviewEvidence(repo, input, reasons) {
       redFirstCount: record.redFirst.length,
       ...(record.override ? { override: record.override } : {}),
     });
-    if (record.headSha.toLowerCase() !== input.head.toLowerCase())
+    if (record.headSha.toLowerCase() !== input.head)
       reasons.add(`review record head does not match the exact head: ${path}`);
     if (!sha.safeParse(record.base).success) {
       reasons.add(`review base must be a full commit ID: ${path}`);
@@ -440,6 +450,8 @@ export async function runPreflight(input, dependencies = {}) {
   if (remote && !slug)
     reasons.add('origin remote must identify a GitHub owner/repository');
 
+  let canonicalBase = input.base;
+  let canonicalHead = input.head;
   for (const [name, value] of [
     ['base', input.base],
     ['head', input.head],
@@ -451,16 +463,23 @@ export async function runPreflight(input, dependencies = {}) {
       `${name} commit is not present in the target repository`,
       reasons,
     );
-    if (found && found.toLowerCase() !== value.toLowerCase())
-      reasons.add(`${name} must be a full exact commit ID`);
+    if (found) {
+      const canonical = found.toLowerCase();
+      if (canonical !== value.toLowerCase())
+        reasons.add(`${name} must be a full exact commit ID`);
+      if (name === 'base') canonicalBase = canonical;
+      else canonicalHead = canonical;
+    }
   }
+  report.base = canonicalBase;
+  report.head = canonicalHead;
   for (const [field, path] of [
     ['srcTreeSha', 'src'],
     ['testTreeSha', 'test'],
   ]) {
     const tree = readGit(
       repo,
-      ['rev-parse', `${input.head}:${path}`],
+      ['rev-parse', `${canonicalHead}:${path}`],
       outputSha,
       `head commit has no readable ${path}/ tree`,
       reasons,
@@ -469,7 +488,7 @@ export async function runPreflight(input, dependencies = {}) {
   }
   const message = readGit(
     repo,
-    ['show', '-s', '--format=%B', input.head],
+    ['show', '-s', '--format=%B', canonicalHead],
     z.string().max(256 * 1024),
     'head commit message could not be read',
     reasons,
@@ -490,7 +509,11 @@ export async function runPreflight(input, dependencies = {}) {
     else reasons.add(ticketTrailer.error);
   }
 
-  report.reviewRecords = reviewEvidence(repo, input, reasons);
+  report.reviewRecords = reviewEvidence(
+    repo,
+    { ...input, base: canonicalBase, head: canonicalHead },
+    reasons,
+  );
 
   if (slug) {
     const pullRead =
@@ -520,7 +543,7 @@ export async function runPreflight(input, dependencies = {}) {
           );
         const taskFile = gitBytes(repo, [
           'show',
-          `${input.head}:tasks/${ticket}.json`,
+          `${canonicalHead}:tasks/${ticket}.json`,
         ]);
         if (!taskFile.ok) {
           reasons.add(`task ${ticket} is missing from the PR head`);
@@ -538,9 +561,9 @@ export async function runPreflight(input, dependencies = {}) {
           }
         }
       }
-      if (pull.base.sha.toLowerCase() !== input.base.toLowerCase())
+      if (pull.base.sha.toLowerCase() !== canonicalBase)
         reasons.add('PR base SHA does not match the requested base');
-      if (pull.head.sha.toLowerCase() !== input.head.toLowerCase())
+      if (pull.head.sha.toLowerCase() !== canonicalHead)
         reasons.add('PR head SHA does not match the requested exact head');
     }
 
@@ -550,7 +573,7 @@ export async function runPreflight(input, dependencies = {}) {
         ghJson(path, `repos/${repoName}/commits/${head}/statuses`));
     const statuses = await readValue(
       statusRead,
-      [repo, slug, input.head],
+      [repo, slug, canonicalHead],
       statusesSchema,
       'GitHub commit statuses could not be read',
       reasons,
@@ -580,7 +603,7 @@ export async function runPreflight(input, dependencies = {}) {
 
     const checkRuns = await readValue(
       dependencies.readCheckRuns ?? readCheckRuns,
-      [repo, slug, input.head],
+      [repo, slug, canonicalHead],
       checkRunsSchema,
       'GitHub head check-runs could not be read',
       reasons,

@@ -243,6 +243,20 @@ test('unparsable review JSON is refused', async (t) => {
   refused(await value.verify(), /review.*JSON/u);
 });
 
+test('review records with invalid UTF-8 are refused with their path', async (t) => {
+  const value = await fixture(t);
+  const bytes = Buffer.from(JSON.stringify(value.record));
+  const text = Buffer.from('fixture-standards');
+  const start = bytes.indexOf(text);
+  assert.notEqual(start, -1);
+  bytes[start] = 0xff;
+  await writeFile(value.recordPath, bytes);
+  refused(
+    await value.verify(),
+    /review record is not valid UTF-8: .*record\.json/u,
+  );
+});
+
 for (const key of ['panel', 'lensSha256', 'toolSha'] as const) {
   test(`review missing ${key} is refused by the strict schema`, async (t) => {
     const value = await fixture(t);
@@ -442,6 +456,17 @@ test('BOM is refused rather than stripped from review bytes', async (t) => {
   const value = await fixture(t);
   await writeFile(value.recordPath, `\uFEFF${JSON.stringify(value.record)}`);
   refused(await value.verify(), /review.*JSON/u);
+});
+
+test('uppercase base and head resolve to canonical review and CI evidence', async (t) => {
+  const value = await fixture(t);
+  value.input.base = value.base.toUpperCase();
+  value.input.head = value.head.toUpperCase();
+  const report = await value.verify();
+  assert.equal(report.verdict, 'pass', JSON.stringify(report.reasons));
+  assert.equal(report.base, value.base);
+  assert.equal(report.head, value.head);
+  assert.equal(report.reviewRecords[0]?.path, value.recordPath);
 });
 
 test('CRLF JSON is accepted and hashed without byte normalization', async (t) => {
