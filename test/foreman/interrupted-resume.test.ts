@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import {
   appendFile,
   mkdir,
@@ -19,12 +18,7 @@ import { runJob } from '../../src/foreman/run.ts';
 import { recoverLease, runSession } from '../../src/foreman/session.ts';
 import { recordRepo, stateDirectory } from '../../src/foreman/state.ts';
 import type { Capsule, Deps, Outcome } from '../../src/foreman/types.ts';
-import { reportPassingVerdict } from '../../src/foreman/verdict.ts';
-import type {
-  Contract,
-  SubmitForReviewOptions,
-  VerdictEvidence,
-} from '../../src/ledger/index.ts';
+import type { Contract } from '../../src/ledger/index.ts';
 import * as relay from '../../src/relay/index.ts';
 import * as diskTrace from '../../src/trace/index.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
@@ -279,7 +273,7 @@ test('resuming a ready_for_review checkpoint re-verdicts without starting a sess
   };
   let sessions = 0;
   let verdicts = 0;
-  let submissions = 0;
+  let readyEvents = 0;
   const capsule = {
     jobId: job.id,
     issue: job.issue,
@@ -309,10 +303,6 @@ test('resuming a ready_for_review checkpoint re-verdicts without starting a sess
         targetRepo: 'fixture/repo',
         checks: ['declared'],
       }),
-      submitForReview: async () => {
-        submissions += 1;
-        return 'ready_for_review';
-      },
     },
     relay: {
       load: async () => capsule,
@@ -321,11 +311,13 @@ test('resuming a ready_for_review checkpoint re-verdicts without starting a sess
       project: () => 'unused',
     } as unknown as Deps['relay'],
     trace: {
+      readyForReview: async () => {
+        readyEvents += 1;
+      },
       hasVerdict: async (_job, sha) => sha === head,
       verdict: async () => {
         verdicts += 1;
       },
-      readyForReview: async () => undefined,
       intent: async () => 'unused',
       started: async () => true,
       checkpoint: async () => undefined,
@@ -356,7 +348,7 @@ test('resuming a ready_for_review checkpoint re-verdicts without starting a sess
     });
     assert.equal(sessions, 0);
     assert.equal(verdicts, 1);
-    assert.equal(submissions, 1);
+    assert.equal(readyEvents, 1);
   } finally {
     await rm(worktree, { recursive: true, force: true });
   }
@@ -402,7 +394,6 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
         targetRepo: 'fixture/repo',
         checks: [],
       }),
-      submitForReview: async () => 'submitted',
     },
     relay: {
       load: async () =>
@@ -749,230 +740,6 @@ test('legacy persisted scoped session without registration proof stays already r
   }
 });
 
-test('live submission takes Krn-Session from the verified commit trailer', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'krn-session-trailer-'));
-  const git = (args: string[]) => {
-    const result = spawnSync('git', ['-C', root, ...args], {
-      encoding: 'utf8',
-    });
-    assert.equal(result.status, 0, result.stderr);
-    return result.stdout.trim();
-  };
-  try {
-    git(['init', '-q', '--initial-branch=main']);
-    await writeFile(join(root, 'README.md'), 'fixture\n');
-    git(['add', 'README.md']);
-    git([
-      '-c',
-      'user.name=Fixture',
-      '-c',
-      'user.email=fixture@example.invalid',
-      'commit',
-      '-qm',
-      'test: verified commit\n\nKrn-Session: trailer-session',
-    ]);
-    const sha = git(['rev-parse', 'HEAD']);
-    const job = { id: 'session-job', issue: 'I-SESSION', worktree: root };
-    recordRepo(job, root, 'main', sha);
-    let supplied: string | undefined;
-    const receipt = {
-      issueId: job.issue,
-      status: 'in_review',
-      updatedAt: '2026-10-08T10:00:00.000Z',
-    };
-    const result = await reportPassingVerdict(
-      job,
-      {
-        issueId: job.issue,
-        identifier: job.issue,
-        title: 'test',
-        description: 'test',
-        revision: 'rev',
-        targetRepo: 'fixture/repo',
-        checks: [],
-      },
-      sha,
-      [],
-      {
-        submissionEnabled: true,
-        submitForReview: async (
-          _job: typeof job,
-          _contract: Contract,
-          _evidence: VerdictEvidence,
-          _sha: string,
-          options?: SubmitForReviewOptions,
-        ) => {
-          supplied = options?.session;
-          options?.onSubmissionWindow?.(['baseline-event']);
-          options?.onSubmitted?.(receipt);
-          options?.onReconciliation?.('submitted');
-          return 'submitted';
-        },
-      } as never,
-      diskTrace,
-      (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
-    );
-    assert.equal(result.kind, 'verdict_pass');
-    assert.equal(supplied, 'trailer-session');
-    assert.deepEqual(await diskTrace.submittedFor(job, sha), receipt);
-    assert.deepEqual(await diskTrace.submissionWindowFor(job, sha), [
-      'baseline-event',
-    ]);
-    assert.equal(
-      await diskTrace.submissionReconciliationFor(job, sha),
-      'submitted',
-    );
-    const body = 'synthetic conflict comment body';
-    const pending = {
-      state: 'pending' as const,
-      body,
-      sha256: createHash('sha256').update(body).digest('hex'),
-    };
-    diskTrace.submissionReconciliation(job, sha, 'board_conflict');
-    diskTrace.conflictComment(job, sha, pending);
-    assert.equal(
-      await diskTrace.submissionReconciliationFor(job, sha),
-      'board_conflict',
-    );
-    assert.deepEqual(await diskTrace.conflictCommentFor(job, sha), pending);
-    diskTrace.conflictComment(job, sha, { ...pending, state: 'delivered' });
-    assert.deepEqual(await diskTrace.conflictCommentFor(job, sha), {
-      ...pending,
-      state: 'delivered',
-    });
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
-
-test('writable submission fails closed when owned persistence is unavailable', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'krn-session-no-trace-'));
-  const git = (args: string[]) => {
-    const result = spawnSync('git', ['-C', root, ...args], {
-      encoding: 'utf8',
-    });
-    assert.equal(result.status, 0, result.stderr);
-    return result.stdout.trim();
-  };
-  try {
-    git(['init', '-q', '--initial-branch=main']);
-    await writeFile(join(root, 'README.md'), 'fixture\n');
-    git(['add', 'README.md']);
-    git([
-      '-c',
-      'user.name=Fixture',
-      '-c',
-      'user.email=fixture@example.invalid',
-      'commit',
-      '-qm',
-      'test: verified commit\n\nKrn-Session: trailer-session',
-    ]);
-    const sha = git(['rev-parse', 'HEAD']);
-    const job = { id: 'session-job', issue: 'I-SESSION', worktree: root };
-    let writes = 0;
-    const outcome = await reportPassingVerdict(
-      job,
-      {
-        issueId: job.issue,
-        identifier: job.issue,
-        title: 'test',
-        description: 'test',
-        revision: 'rev',
-        targetRepo: 'fixture/repo',
-        checks: [],
-      },
-      sha,
-      [],
-      {
-        submissionEnabled: true,
-        submitForReview: async () => {
-          writes += 1;
-          return 'submitted';
-        },
-      } as never,
-      {},
-      (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
-    );
-    assert.deepEqual(outcome, {
-      kind: 'stop',
-      state: 'human_decision',
-      reasons: ['submission persistence unavailable'],
-    });
-    assert.equal(writes, 0);
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
-
-test('read-only submission keeps a persisted board conflict visible', async () => {
-  const root = await mkdtemp(join(tmpdir(), 'krn-session-read-only-conflict-'));
-  const git = (args: string[]) => {
-    const result = spawnSync('git', ['-C', root, ...args], {
-      encoding: 'utf8',
-    });
-    assert.equal(result.status, 0, result.stderr);
-    return result.stdout.trim();
-  };
-  try {
-    git(['init', '-q', '--initial-branch=main']);
-    await writeFile(join(root, 'README.md'), 'fixture\n');
-    git(['add', 'README.md']);
-    git([
-      '-c',
-      'user.name=Fixture',
-      '-c',
-      'user.email=fixture@example.invalid',
-      'commit',
-      '-qm',
-      'test: verified commit\n\nKrn-Session: trailer-session',
-    ]);
-    const sha = git(['rev-parse', 'HEAD']);
-    const job = { id: 'session-job', issue: 'I-SESSION', worktree: root };
-    let writes = 0;
-    const outcome = await reportPassingVerdict(
-      job,
-      {
-        issueId: job.issue,
-        identifier: job.issue,
-        title: 'test',
-        description: 'test',
-        revision: 'rev',
-        targetRepo: 'fixture/repo',
-        checks: [],
-      },
-      sha,
-      [],
-      {
-        submissionEnabled: false,
-        submitForReview: async () => {
-          writes += 1;
-          return 'ready_for_review';
-        },
-      } as never,
-      {
-        submissionPersistence: {
-          ...diskTrace.submissionPersistence,
-          submittedFor: async () => ({
-            issueId: job.issue,
-            status: 'in_review',
-            updatedAt: '2026-10-08T10:00:00.000Z',
-          }),
-          submissionReconciliationFor: async () => 'board_conflict',
-        },
-      } as never,
-      (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
-    );
-    assert.deepEqual(outcome, {
-      kind: 'stop',
-      state: 'human_decision',
-      reasons: ['board_conflict'],
-    });
-    assert.equal(writes, 0);
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
-
 test('a concurrent run cannot replace the active capsule session', async () => {
   const worktree = await mkdtemp(join(tmpdir(), 'krn-foreman-active-'));
   const git = (args: string[]) => {
@@ -1014,7 +781,6 @@ test('a concurrent run cannot replace the active capsule session', async () => {
         targetRepo: 'fixture/repo',
         checks: [],
       }),
-      submitForReview: async () => 'submitted',
     },
     relay,
     trace: {
@@ -1146,9 +912,7 @@ async function partialCheckpointFixture(
   const d: Deps = {
     budget: { maxResets: 0, maxRepairs: 0, session: { timeoutMs: 1000 } },
     ledger: {
-      submissionEnabled: false,
       readContract: async () => contract,
-      submitForReview: async () => 'ready_for_review',
     },
     relay,
     trace: diskTrace,

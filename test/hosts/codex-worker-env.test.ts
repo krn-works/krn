@@ -38,8 +38,8 @@ test('workerEnvironment keeps only the Codex runtime allowlist', () => {
     no_proxy: 'localhost',
     CODEX_HOME: '/home/worker/.codex',
     OPENAI_API_KEY: 'worker-auth',
-    KRN_PAPERCLIP_TOKEN: 'board-token',
-    PAPERCLIP_API_KEY: 'board-key',
+    KRN_SERVICE_TOKEN: 'service-token',
+    SERVICE_API_KEY: 'service-key',
     OTHER_SECRET: 'drop-me',
   };
   assert.deepEqual(workerEnvironment(source), {

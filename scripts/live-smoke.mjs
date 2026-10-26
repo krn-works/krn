@@ -50,7 +50,6 @@ export function createLiveSmokeLedger(targetRepo = repositoryRoot) {
       targetRepo,
       checks: ['checkpoint-file'],
     }),
-    submitForReview: async () => 'submitted',
   };
 }
 

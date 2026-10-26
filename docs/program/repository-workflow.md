@@ -14,7 +14,7 @@ Safety comes from system boundaries, not shell parsing. Remove the `krn_pretoolu
 
 ## Control plane and durable state
 
-Use the selected in-repository `krn task` tracker as the task-status source: tasks are Git-backed JSONL/files that travel with the repository; a local index is rebuildable; task dependencies, readiness, and claiming are supported by one command. This replaces the legacy Git-ref `krn task` queue and host-SQLite `krn work`. The implementation is a later slice. Paperclip is legacy: import existing records, then remove it everywhere. Do not add Paperclip dependencies.
+Use the selected in-repository `krn task` tracker as the task-status source: tasks are Git-backed JSONL/files that travel with the repository; a local index is rebuildable; task dependencies, readiness, and claiming are supported by one command. This replaces the legacy Git-ref `krn task` queue and host-SQLite `krn work`. The tracker uses committed `tasks/<id>.json` records under ADR 0015. No legacy board data is imported; its Product integration is removed. Local `krn review` records and git history provide review and delivery evidence without board publication.
 
 The tracker records task status, not PR acceptance. Apply [ADR 0014 D10–D11](../adr/0014-operator-decisions-2026-10-23.md): deterministic checks block; run parallel LLM judges before the gate; each judge reports all findings in one pass, with `BLOCKING` reserved for material defects and a reproduction preferred. Allow at most two review rounds, then the lead decides. Run cheap preflight (types, lint, documentation-reading tests, test-impact review, and contracts) before review. After review, Product runs `npm run gate:local`; Global does not run its full local gate, and CI runs the same steps.
 

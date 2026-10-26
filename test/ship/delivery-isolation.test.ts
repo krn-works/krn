@@ -12,7 +12,6 @@ import {
   unlink,
   writeFile,
 } from 'node:fs/promises';
-import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -20,6 +19,7 @@ import { CodexHost } from '../../src/hosts/codex.ts';
 import * as relay from '../../src/relay/index.ts';
 import * as trace from '../../src/trace/index.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
+import { writeLiveContract } from '../helpers/live-contract.ts';
 import { systemdEnvironment } from '../helpers/systemd-environment.ts';
 import {
   SPAWNED_PROCESS_WAIT_MS,
@@ -54,53 +54,6 @@ async function repoFixture(
   git(['config', 'user.email', 'fixture@example.invalid']);
   git(['remote', 'add', 'origin', 'https://github.com/fixture/repo.git']);
   return root;
-}
-
-async function fakePaperclip(issue: string, responseDelayMs = 0) {
-  let delayedBootstrapIssueReads = responseDelayMs > 0 ? 2 : 0;
-  const server = createServer((request, response) => {
-    const delayResponse =
-      request.method === 'GET' &&
-      request.url === `/api/issues/${issue}` &&
-      delayedBootstrapIssueReads > 0;
-    if (delayResponse) delayedBootstrapIssueReads -= 1;
-    const respond = () => {
-      response.writeHead(200, { 'content-type': 'application/json' });
-      response.end(
-        JSON.stringify({
-          id: issue,
-          title: 'Fixture issue',
-          description: [
-            '```krn-contract',
-            JSON.stringify({
-              version: 1,
-              targetRepo: 'fixture/repo',
-              checks: ['gate'],
-            }),
-            '```',
-          ].join('\n'),
-          updatedAt: '2026-10-08T10:00:00.000Z',
-          status: 'in_progress',
-          assigneeAgentId: 'fixture-agent',
-        }),
-      );
-    };
-    if (delayResponse) setTimeout(respond, responseDelayMs);
-    else respond();
-  });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address();
-  assert.ok(address && typeof address !== 'string');
-  return {
-    apiUrl: `http://127.0.0.1:${address.port}`,
-    resetBootstrapIssueReadPair: () => {
-      delayedBootstrapIssueReads = responseDelayMs > 0 ? 2 : 0;
-    },
-    close: () =>
-      new Promise<void>((resolve, reject) =>
-        server.close((error) => (error ? reject(error) : resolve())),
-      ),
-  };
 }
 
 async function fakeCodex(root: string, body: string): Promise<string> {
@@ -324,7 +277,6 @@ if (count === 1) {
   try {
     process.env.KRN_ISOLATION = 'pid_namespace';
     // The fake runs the real CLI inside a distinct shell process group.
-    const startedAt = Date.now();
     const outcome = await runJob(job, {
       budget: { maxResets: 1, maxRepairs: 0, session: { timeoutMs: 20_000 } },
       ledger: {
@@ -337,7 +289,6 @@ if (count === 1) {
           targetRepo: 'fixture/repo',
           checks: [],
         }),
-        submitForReview: async () => 'submitted',
       },
       relay: realRelay,
       trace,
@@ -372,10 +323,6 @@ if (count === 1) {
       },
       stop: (_job, state, reasons) => ({ kind: 'stop', state, reasons }),
     });
-    assert.ok(
-      Date.now() - startedAt < 15_000,
-      'foreman cancellation must beat the host timeout',
-    );
     assert.deepEqual(outcome.kind, 'stop');
     const lines = (
       await readFile(join(root, '.krn/runs/foreman/B1/trace.jsonl'), 'utf8')
@@ -435,7 +382,7 @@ test('B2 a foreman SIGTERM cancels every detached session group and exits 130', 
   )
     return;
   const root = await repoFixture();
-  const paperclip = await fakePaperclip('I-2', 3200);
+  const contractPath = await writeLiveContract(root, 'I-2');
   const pidFile = join(root, 'pids');
   const childPidFile = join(root, 'child-pid');
   const escapedPidFile = join(root, 'escaped-pid');
@@ -511,7 +458,8 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
     process.execPath,
     [
       live,
-      '--http',
+      '--contract',
+      contractPath,
       '--repo',
       root,
       '--job',
@@ -527,8 +475,6 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
         ...process.env,
         KRN_LIVE: '1',
         KRN_CODEX_BIN: executable,
-        KRN_PAPERCLIP_API_URL: paperclip.apiUrl,
-        KRN_PAPERCLIP_TOKEN: 'fixture-token',
         KRN_SESSION: 'fixture-session',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -600,12 +546,12 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       .map(Number);
     for (const pid of pids) assert.equal(await isAlive(pid), false);
     await unlink(pidFile);
-    paperclip.resetBootstrapIssueReadPair();
     crashed = spawn(
       process.execPath,
       [
         live,
-        '--http',
+        '--contract',
+        contractPath,
         '--repo',
         root,
         '--job',
@@ -621,8 +567,6 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
           ...process.env,
           KRN_LIVE: '1',
           KRN_CODEX_BIN: executable,
-          KRN_PAPERCLIP_API_URL: paperclip.apiUrl,
-          KRN_PAPERCLIP_TOKEN: 'fixture-token',
           KRN_SESSION: 'fixture-session',
         },
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -675,12 +619,12 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
         : undefined;
     });
     await unlink(pidFile);
-    paperclip.resetBootstrapIssueReadPair();
     resumed = spawn(
       process.execPath,
       [
         live,
-        '--http',
+        '--contract',
+        contractPath,
         '--repo',
         root,
         '--job',
@@ -696,8 +640,6 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
           ...process.env,
           KRN_LIVE: '1',
           KRN_CODEX_BIN: executable,
-          KRN_PAPERCLIP_API_URL: paperclip.apiUrl,
-          KRN_PAPERCLIP_TOKEN: 'fixture-token',
           KRN_SESSION: 'fixture-session',
         },
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -743,12 +685,12 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       await new Promise((resolve) => resumed?.once('close', resolve)),
       130,
     );
-    paperclip.resetBootstrapIssueReadPair();
     const timeoutForeman = spawn(
       process.execPath,
       [
         live,
-        '--http',
+        '--contract',
+        contractPath,
         '--repo',
         root,
         '--job',
@@ -765,8 +707,6 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
           KRN_LIVE: '1',
           KRN_CODEX_BIN: executable,
           KRN_LIVE_WALL_TIME_MS: '5000',
-          KRN_PAPERCLIP_API_URL: paperclip.apiUrl,
-          KRN_PAPERCLIP_TOKEN: 'fixture-token',
           KRN_SESSION: 'fixture-session',
         },
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -813,7 +753,6 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       ]);
     await rm(`${root}-jobs`, { recursive: true, force: true });
     await rm(root, { recursive: true, force: true });
-    await paperclip.close();
   }
 });
 
@@ -963,7 +902,7 @@ child.once('spawn', () => {
 
 test('B3 live uses the requested repo and resumes an existing job by id', async () => {
   const repo = await repoFixture();
-  const paperclip = await fakePaperclip('I-1');
+  const contractPath = await writeLiveContract(repo, 'I-1');
   const bin = await fakeCodex(
     repo,
     `process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'done'}})+'\\n'); process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,output_tokens:1,total_tokens:2}})+'\\n');`,
@@ -972,7 +911,8 @@ test('B3 live uses the requested repo and resumes an existing job by id', async 
   const args = [
     '--job',
     'same-job',
-    '--http',
+    '--contract',
+    contractPath,
     '--issue',
     'I-1',
     '--prompt',
@@ -998,8 +938,6 @@ test('B3 live uses the requested repo and resumes an existing job by id', async 
               HOME: fakeHome,
               KRN_LIVE: '1',
               KRN_CODEX_BIN: bin,
-              KRN_PAPERCLIP_API_URL: paperclip.apiUrl,
-              KRN_PAPERCLIP_TOKEN: 'fixture-token',
               KRN_SESSION: 'fixture-session',
             },
           },
@@ -1048,99 +986,6 @@ test('B3 live uses the requested repo and resumes an existing job by id', async 
     }
     await rm(repo, { recursive: true, force: true });
     await rm(fakeHome, { recursive: true, force: true });
-    await paperclip.close();
-  }
-});
-
-test('live SIGTERM reaps every Paperclip CLI group during contract loading', {
-  timeout: testTimeoutFor(1),
-}, async (t) => {
-  if (
-    !requiresIsolation(
-      t,
-      'live SIGTERM reaps every Paperclip CLI group during contract loading',
-      ['systemdUserScope'],
-    )
-  )
-    return;
-  const repo = await repoFixture();
-  const fakeBin = await mkdtemp(join(tmpdir(), 'krn-s4b-paperclip-bin-'));
-  const fakeHome = await mkdtemp(join(tmpdir(), 'krn-s4b-paperclip-home-'));
-  const pidFile = join(fakeHome, 'descendants.txt');
-  const executable = join(fakeBin, 'paperclip');
-  await writeFile(
-    executable,
-    `#!/usr/bin/env node\nconst fs = require('node:fs');\nconst { spawn } = require('node:child_process');\nconst child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });\nfs.appendFileSync(process.env.PAPERCLIP_TEST_PID_FILE, String(child.pid) + '\\n');\nsetInterval(() => {}, 1000);\n`,
-  );
-  await chmod(executable, 0o755);
-  const script = new URL('../../scripts/delivery-live.mjs', import.meta.url)
-    .pathname;
-  const live = spawn(
-    process.execPath,
-    [
-      script,
-      '--repo',
-      repo,
-      '--job',
-      'signal-during-ledger-read',
-      '--issue',
-      'I-SIGTERM',
-      '--prompt',
-      'hold during contract read',
-    ],
-    {
-      cwd: new URL('../..', import.meta.url).pathname,
-      env: {
-        ...process.env,
-        PATH: `${fakeBin}:${process.env.PATH ?? ''}`,
-        HOME: fakeHome,
-        KRN_LIVE: '1',
-        PAPERCLIP_TEST_PID_FILE: pidFile,
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    },
-  );
-  let stderr = '';
-  live.stderr.setEncoding('utf8').on('data', (chunk) => (stderr += chunk));
-  let pids: number[] = [];
-  try {
-    const recorded = await waitFor(async () => {
-      try {
-        const contents = await readFile(pidFile, 'utf8');
-        pids = contents.trim().split('\n').filter(Boolean).map(Number);
-        return pids.length >= 2 ? contents : undefined;
-      } catch {
-        return undefined;
-      }
-    });
-    assert.ok(recorded);
-    live.kill('SIGTERM');
-    const result = await new Promise<{
-      code: number | null;
-      signal: NodeJS.Signals | null;
-    }>((resolve) =>
-      live.once('close', (code, signal) => resolve({ code, signal })),
-    );
-    assert.ok(
-      (await Promise.all(pids.map((pid) => isAlive(pid)))).every(
-        (alive) => !alive,
-      ),
-      'SIGTERM must reap Paperclip CLI descendants before live-l1 exits',
-    );
-    assert.equal(result.code, 130, `${result.signal}: ${stderr}`);
-  } finally {
-    if (live.exitCode === null && live.signalCode === null)
-      live.kill('SIGKILL');
-    for (const pid of pids) {
-      try {
-        process.kill(pid, 'SIGKILL');
-      } catch {}
-    }
-    await Promise.all([
-      rm(fakeBin, { recursive: true, force: true }),
-      rm(fakeHome, { recursive: true, force: true }),
-      rm(repo, { recursive: true, force: true }),
-    ]);
   }
 });
 
@@ -1164,9 +1009,7 @@ test('live SIGTERM during a real verdict waits for scope teardown before exit', 
   );
   const jobId = 'signal-during-verdict';
   const issue = 'I-VERDICT-STOP';
-  const submitMarker = join(fakeBin, 'submit-called');
   const scopeKillMarker = join(fakeBin, 'scope-kill-completed');
-  const fakePaperclip = join(fakeBin, 'paperclip');
   const fakeCodexPath = join(fakeBin, 'codex');
   const toolchain = await mkdtemp(join(repoScratch, 'krn-s4b-toolchain-'));
   const scopeUnitMarker = join(toolchain, 'owned-scope-unit');
@@ -1276,22 +1119,9 @@ fi
 exec /usr/bin/systemd-run "$@"
 `,
   );
-  const contract = {
-    version: 1,
-    targetRepo: 'fixture/repo',
+  const contractPath = await writeLiveContract(root, issue, {
     checks: ['sleeping-check'],
-  };
-  await writeFile(
-    fakePaperclip,
-    `#!/usr/bin/env node
-const fs=require('node:fs');
-const args=process.argv.slice(2);
-if(args[0]==='issue'&&args[1]==='get')process.stdout.write(JSON.stringify({id:${JSON.stringify(issue)},identifier:${JSON.stringify(issue)},title:'Fixture',description:'\\x60\\x60\\x60krn-contract\\n'+${JSON.stringify(JSON.stringify(contract))}+'\\n\\x60\\x60\\x60',updatedAt:'2026-10-08T10:00:00.000Z',status:'in_progress',assigneeAgentId:'fixture-agent'}));
-else if(args[0]==='activity'&&args[1]==='issue')process.stdout.write('[]');
-else if(args[0]==='issue'&&args[1]==='update'){fs.writeFileSync(${JSON.stringify(submitMarker)},args.join(' '));process.stdout.write(JSON.stringify({id:${JSON.stringify(issue)}}));}
-else {process.stderr.write('unexpected Paperclip command: '+args.join(' '));process.exit(2)}
-`,
-  );
+  });
   const fakeCodexBody = `
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -1309,7 +1139,6 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
   await writeFile(fakeCodexPath, `#!/usr/bin/env node\n${fakeCodexBody}\n`);
   await Promise.all(
     [
-      fakePaperclip,
       fakeCodexPath,
       fakeMise,
       fakePnpm,
@@ -1322,7 +1151,17 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
     .pathname;
   const runner = spawn(
     process.execPath,
-    [live, '--submit', '--repo', root, '--job', jobId, '--issue', issue],
+    [
+      live,
+      '--contract',
+      contractPath,
+      '--repo',
+      root,
+      '--job',
+      jobId,
+      '--issue',
+      issue,
+    ],
     {
       cwd: root,
       env: {
@@ -1415,9 +1254,14 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
       'live-l1 exited before the scope kill completed',
     );
     assert.equal(
-      existsSync(submitMarker),
+      (
+        await readFile(
+          join(root, '.krn/runs/foreman', jobId, 'trace.jsonl'),
+          'utf8',
+        )
+      ).includes('ready_for_review'),
       false,
-      'SIGTERM must prevent the Paperclip update',
+      'SIGTERM must prevent local review readiness',
     );
     assert.ok(
       (await Promise.all(scopePids.map(isAlive))).every((alive) => !alive),

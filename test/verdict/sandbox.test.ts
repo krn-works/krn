@@ -17,8 +17,6 @@ import { delimiter, join } from 'node:path';
 import test, { mock } from 'node:test';
 import { redFirst } from '../../src/flow/repository.ts';
 import { recordRepo } from '../../src/foreman/state.ts';
-import type { Capsule, Deps } from '../../src/foreman/types.ts';
-import { verifyCheckpoint } from '../../src/foreman/verdict.ts';
 import { judge } from '../../src/verdict/index.ts';
 import { execute, MAX_CHECK_OUTPUT_BYTES } from '../../src/verdict/sandbox.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
@@ -71,18 +69,18 @@ function fixture(argv: readonly string[], withLockfile = false) {
   return { root, job, git, base, sha: base };
 }
 
-test('real SIGTERM during a sleeping verdict check stops before submit and is traced', async (t) => {
+test('real SIGTERM during a sleeping verdict check stops before review readiness and is traced', async (t) => {
   if (
     !requiresIsolation(
       t,
-      'real SIGTERM during a sleeping verdict check stops before submit and is traced',
+      'real SIGTERM during a sleeping verdict check stops before review readiness and is traced',
       ['bwrap', 'systemdUserScope'],
     )
   )
     return;
   const f = fixture(['/usr/bin/sleep', '30']);
   recordRepo(f.job, f.root);
-  const marker = join(f.root, 'submit-called');
+  const marker = join(f.root, 'ready-for-review-called');
   const source = `
     import { writeFileSync } from 'node:fs';
     import { verifyCheckpoint } from ${JSON.stringify(new URL('../../src/foreman/verdict.ts', import.meta.url).href)};
@@ -92,7 +90,7 @@ test('real SIGTERM during a sleeping verdict check stops before submit and is tr
     process.once('SIGTERM',()=>controller.abort('SIGTERM'));
     const capsule=${JSON.stringify({ jobId: f.job.id, issue: f.job.issue, contractRevision: 'r1', epoch: 0, base: f.base, head: f.sha, branch: 'main', worktree: f.root, nextAction: 'done', lease: 'checkpointed', blockers: [], decisions: [], rejectedApproaches: [], references: [] })};
     const contract=${JSON.stringify({ issueId: f.job.issue, identifier: 'fixture', title: 'fixture', description: 'fixture', revision: 'r1', targetRepo: 'fixture/repo', checks: ['declared'] })};
-    const deps={budget:{maxRepairs:0},signal:controller.signal,trace:{verdict:trace.verdict},ledger:{submitForReview:async()=>{writeFileSync(${JSON.stringify(marker)},'called');return 'submitted'}},stop:(_job,state,reasons)=>({kind:'stop',state,reasons})};
+    const deps={budget:{maxRepairs:0},signal:controller.signal,trace:{verdict:trace.verdict,readyForReview:async()=>{writeFileSync(${JSON.stringify(marker)},'called')}},stop:(_job,state,reasons)=>({kind:'stop',state,reasons})};
     const result=await verifyCheckpoint(job,capsule,${JSON.stringify(f.sha)},contract,0,deps);
     if(controller.signal.aborted) await trace.stopped(job,'SIGTERM');
     process.stdout.write(JSON.stringify(result)+'\\n');
@@ -124,7 +122,7 @@ test('real SIGTERM during a sleeping verdict check stops before submit and is tr
     assert.equal(
       existsSync(marker),
       false,
-      'SIGTERM must prevent submitForReview',
+      'SIGTERM must prevent local review readiness',
     );
     assert.match(output, /stopped/u);
     assert.match(
@@ -137,76 +135,6 @@ test('real SIGTERM during a sleeping verdict check stops before submit and is tr
   } finally {
     if (child.exitCode === null && child.signalCode === null)
       child.kill('SIGKILL');
-    rmSync(f.root, { recursive: true, force: true });
-  }
-});
-
-test('Paperclip board changes and conflicts return human decision outcomes', async (t) => {
-  if (
-    !requiresIsolation(
-      t,
-      'Paperclip board changes and conflicts return human decision outcomes',
-      ['bwrap', 'systemdUserScope'],
-    )
-  )
-    return;
-  const f = fixture(['/usr/bin/true']);
-  const capsule: Capsule = {
-    jobId: f.job.id,
-    issue: f.job.issue,
-    contractRevision: 'r1',
-    epoch: 0,
-    base: f.base,
-    head: f.sha,
-    branch: 'main',
-    worktree: f.root,
-    nextAction: 'done',
-    lease: 'active',
-    blockers: [],
-    decisions: [],
-    rejectedApproaches: [],
-    references: [],
-  };
-  let submission: 'board_conflict' | 'board_changed' = 'board_conflict';
-  const deps = {
-    budget: { maxRepairs: 0 },
-    ledger: { submitForReview: async () => submission },
-    trace: {},
-    stop: (_job: unknown, state: string, reasons: readonly string[]) => ({
-      kind: 'stop',
-      state,
-      reasons,
-    }),
-  } as unknown as Deps;
-  try {
-    for (const reason of ['board_conflict', 'board_changed'] as const) {
-      submission = reason;
-      const result = await verifyCheckpoint(
-        f.job,
-        capsule,
-        f.sha,
-        {
-          issueId: f.job.issue,
-          identifier: 'fixture',
-          title: 'sandbox fixture',
-          description: 'sandbox fixture',
-          revision: 'r1',
-          targetRepo: 'fixture/repo',
-          checks: ['declared'],
-        },
-        0,
-        deps,
-      );
-      assert.equal(result.kind, 'stop');
-      if (result.kind === 'stop') {
-        assert.deepEqual(result.outcome, {
-          kind: 'stop',
-          state: 'human_decision',
-          reasons: [reason],
-        });
-      }
-    }
-  } finally {
     rmSync(f.root, { recursive: true, force: true });
   }
 });

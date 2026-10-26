@@ -1,6 +1,6 @@
 # KRN delivery plan
 
-This plan records program sequence and exit conditions. It is not task status, acceptance, or authority. Product's selected in-repository `krn task` tracker is the task-status source under [ADR 0014 D8](../adr/0014-operator-decisions-2026-10-23.md); Paperclip is legacy and will be removed everywhere after import.
+This plan records program sequence and exit conditions. It is not task status, acceptance, or authority. Product's selected in-repository `krn task` tracker is the task-status source under [ADR 0014 D8](../adr/0014-operator-decisions-2026-10-23.md); no legacy board data is imported, and its Product integration is removed.
 
 ## Scope and decision owners
 
@@ -12,7 +12,7 @@ Apply [ADR 0014 D10–D11](../adr/0014-operator-decisions-2026-10-23.md): run ch
 
 ### Scope and hygiene
 
-Keep one current sequence, use the selected in-repository tracker for task status when implemented, and limit work to accepted outcomes. Outdated instructions lose to current code and passing tests.
+Keep one current sequence, use the in-repository tracker for task status, and limit work to accepted outcomes. Outdated instructions lose to current code and passing tests.
 
 **Exit:** active work has a role owner and tracker record; stale plans and snapshots do not act as status sources.
 
@@ -30,15 +30,15 @@ Qualify the worker environment on a real task. It must support required tests an
 
 ### Product delivery flow
 
-Run one real delivery through Product `krn delegate` and `krn review`. Use `krn task` as the selected status source when implemented; record a missing command as an implementation gap, not a reason to return to Paperclip. Use the delivery to identify runtime boundary gaps without inferring broader ownership migration from one delivery.
+Run one real delivery through Product `krn delegate` and `krn review`. Use `krn task` as the task-status source. Local `krn review` records and git history provide review and delivery evidence without board publication. Use the delivery to identify runtime boundary gaps without inferring broader ownership migration from one delivery.
 
 **Exit:** one real delivery completes through both commands with parallel independent exact-head reviews, the required gates, and CI.
 
 ### In-repository task tracker
 
-Implement the accepted D8 design: tasks as Git-backed JSONL/files, a rebuildable local index, dependencies, ready/claim, and one `krn task` command. Replace both the legacy Git-ref `krn task` queue and host-SQLite `krn work`. Import existing Paperclip records, then remove Paperclip everywhere; add no new Paperclip dependencies.
+The accepted D8 design and ADR 0015 use committed `tasks/<id>.json` records, dependencies, readiness, claiming, and one `krn task` command. This replaces the legacy Git-ref task queue and host-SQLite `krn work`. No import: the former board integration is removed from Product. Host service and data are outside this repository change.
 
-**Exit:** the in-repository tracker passes its focused CLI falsifier, import is verified, and Paperclip has been removed after import. No per-project cutover is part of this decision.
+**Exit:** the in-repository tracker passes its focused CLI falsifier, and the removed integration has no repository code or dependencies, with no data import. No per-project cutover is part of this decision.
 
 ### Reviewed memory loop
 
@@ -48,8 +48,8 @@ Capture only approved delivery fields as evidence. Review episodes, reusable les
 
 ## Open items
 
-- **P-052:** complete the caller inventory under ADR 0013 before runtime or repository ownership migration; include the legacy Git-ref task queue and Paperclip gateway.
-- **P-060:** verify the proposed `krn ship` path and Product preflight integration from code and CI before acting; Paperclip is not a status source.
+- **P-052:** complete the caller inventory under ADR 0013 before runtime or repository ownership migration; include the legacy Git-ref task queue and remaining compatibility callers.
+- **P-060:** verify the proposed `krn ship` path and Product preflight integration from code and CI before acting; task status comes from `krn task`.
 - Consolidation starts only if an ADR 0013 trigger is observed over its specified ten-PR sample.
 
 See [proposal register](proposals.md), [lead rules](lead-rules.md), and [ADR index](../adr/README.md).

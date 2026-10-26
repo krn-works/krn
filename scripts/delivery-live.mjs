@@ -4,19 +4,13 @@ import { isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runJob } from '../src/foreman/run.ts';
 import { CodexHost } from '../src/hosts/codex.ts';
-import { createLedger } from '../src/ledger/index.ts';
-import {
-  loadLiveContract,
-  withLiveSubmissionGate,
-} from '../src/ledger/live.ts';
-import { createPaperclipCliTransport } from '../src/ledger/paperclip-cli.ts';
+import { loadLiveContract } from '../src/ledger/live.ts';
 import * as relay from '../src/relay/index.ts';
 import * as trace from '../src/trace/index.ts';
 
 let setupSignalOutcome;
 
 async function main() {
-  let cancelPaperclip = async () => {};
   let host;
   const abortController = new AbortController();
   let stopSignal;
@@ -30,7 +24,6 @@ async function main() {
     stopSignal = signal;
     abortController.abort(signal);
     stopPromise = Promise.allSettled([
-      Promise.resolve().then(() => cancelPaperclip()),
       ...(host ? [Promise.resolve().then(() => host.cancelAll())] : []),
     ]);
     return stopPromise;
@@ -143,31 +136,12 @@ async function main() {
   if ((await git(repo, ['rev-parse', '--show-toplevel'])) !== repo)
     throw new Error('--repo must be the repository root');
   const origin = await git(repo, ['remote', 'get-url', 'origin']);
-  const session = process.env.KRN_SESSION ?? '';
-  const useHttp = process.argv.includes('--http');
-  let paperclipTransport;
-  const paperclip = useHttp
-    ? createLedger({
-        apiUrl: process.env.KRN_PAPERCLIP_API_URL ?? '',
-        token: process.env.KRN_PAPERCLIP_TOKEN ?? '',
-        session: session ?? '',
-      })
-    : (() => {
-        paperclipTransport = createPaperclipCliTransport();
-        cancelPaperclip = () => paperclipTransport.cancelAll();
-        return createLedger({
-          session: session ?? '',
-          transport: paperclipTransport,
-        });
-      })();
-  const { contract, board } = await loadLiveContract(paperclip, issue, {
+  for (const flag of ['--http', '--submit'])
+    if (process.argv.includes(flag)) throw new Error(`unsupported ${flag}`);
+  const contract = await loadLiveContract(argument('--contract'), issue, {
     origin,
     ...(revision === undefined ? {} : { revision }),
   });
-  const liveLedger = withLiveSubmissionGate(
-    { ...paperclip, readContract: async () => contract },
-    process.argv.includes('--submit'),
-  );
   const ignoredTrace = (root, cancellable = true) =>
     command(
       'git',
@@ -228,7 +202,7 @@ async function main() {
         maxRepairs: 2,
         session: { timeoutMs: 15 * 60 * 1000 },
       },
-      ledger: liveLedger,
+      ledger: { readContract: async () => contract },
       signal: abortController.signal,
       relay: {
         ...relay,
@@ -340,7 +314,6 @@ async function main() {
   process.stdout.write(
     `${JSON.stringify({
       job,
-      board,
       outcome: runJobRejected ? null : outcome,
       ...(runJobRejected
         ? {
