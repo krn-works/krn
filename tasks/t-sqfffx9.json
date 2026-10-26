@@ -11,7 +11,6 @@
   "title": "Replace Paperclip with the in-repository task tracker",
   "after": [],
   "body": [
-    "ADR 0015 records the shipped Git-backed `tasks/<id>.json` tracker, its `krn task` commands, and the no-import decision. Product Paperclip was removed in #109; GLOBAL forwarding is shipped in #457 and #459, and claim mutations use the kernel-held per-task lock in #110.",
-    "This delivery records the current tracker and routing, adds repository rules, and seeds follow-up work in `tasks/`. GLOBAL Paperclip removal remains a separate backlog item at `t-yxxfg7k`. Paperclip and legacy queue data are not imported."
+    "ADR 0015 records the shipped Git-backed `tasks/<id>.json` tracker, its `krn task` commands, and the no-import decision. Product Paperclip was removed in #109; GLOBAL forwarding is shipped in #457 and #459, and claim mutations use the kernel-held per-task lock in #110.\nDelivered: #111 recorded the tracker, routing and repository rules and seeded follow-up work in `tasks/`; GLOBAL removed its Paperclip integration in krn-works/krn-codex-skills #461 (t-yxxfg7k). Paperclip and legacy queue data are not imported; the host Paperclip service and data stay untouched pending a separate operator decision."
   ]
 }
