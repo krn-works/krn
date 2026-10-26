@@ -16,6 +16,7 @@ import {
   type CodexSessionResult,
   type CodexStartInput,
 } from '../hosts/codex.ts';
+import { CliUsageError } from './usage-error.ts';
 
 const maxBriefs = 8;
 const maxInputs = 16;
@@ -91,7 +92,7 @@ function parseRequest(args: string[]): ParsedRequest {
     const flag = args[index];
     const value = args[index + 1];
     if (!value || value.startsWith('--'))
-      throw new Error(`missing value for ${flag}`);
+      throw new CliUsageError(`missing value for ${flag}`);
     index += 1;
     if (flag === '--input') inputs.push(value);
     else if (flag === '--brief') briefs.push(value);
@@ -101,9 +102,9 @@ function parseRequest(args: string[]): ParsedRequest {
       flag === '--timeout-ms' ||
       flag === '--concurrency'
     ) {
-      if (singles.has(flag)) throw new Error(`duplicate ${flag}`);
+      if (singles.has(flag)) throw new CliUsageError(`duplicate ${flag}`);
       singles.set(flag, value);
-    } else throw new Error(`unknown delegate option ${flag}`);
+    } else throw new CliUsageError(`unknown delegate option ${flag}`);
   }
 
   const repoArg = singles.get('--repo');
@@ -111,16 +112,18 @@ function parseRequest(args: string[]): ParsedRequest {
   const timeoutText = singles.get('--timeout-ms');
   const concurrencyText = singles.get('--concurrency');
   if (!repoArg || !isAbsolute(repoArg))
-    throw new Error('--repo must be an absolute path');
+    throw new CliUsageError('--repo must be an absolute path');
   if (!resultsArg || !isAbsolute(resultsArg))
-    throw new Error('--results must be an absolute path');
+    throw new CliUsageError('--results must be an absolute path');
   if (inputs.length === 0 || inputs.length > maxInputs)
-    throw new Error(`--input must be supplied 1 to ${maxInputs} times`);
+    throw new CliUsageError(`--input must be supplied 1 to ${maxInputs} times`);
   if (briefs.length === 0 || briefs.length > maxBriefs)
-    throw new Error(`--brief must be supplied 1 to ${maxBriefs} times`);
+    throw new CliUsageError(`--brief must be supplied 1 to ${maxBriefs} times`);
   for (const brief of briefs) {
     if (!brief.trim() || Buffer.byteLength(brief) > maxBriefBytes)
-      throw new Error(`each --brief must contain 1 to ${maxBriefBytes} bytes`);
+      throw new CliUsageError(
+        `each --brief must contain 1 to ${maxBriefBytes} bytes`,
+      );
   }
   const timeoutMs = Number(timeoutText);
   if (
@@ -128,7 +131,7 @@ function parseRequest(args: string[]): ParsedRequest {
     timeoutMs < minTimeoutMs ||
     timeoutMs > maxTimeoutMs
   )
-    throw new Error(
+    throw new CliUsageError(
       `--timeout-ms must be between ${minTimeoutMs} and ${maxTimeoutMs}`,
     );
   const concurrency = Number(concurrencyText);
@@ -138,7 +141,7 @@ function parseRequest(args: string[]): ParsedRequest {
     concurrency > maxConcurrency ||
     concurrency > briefs.length
   )
-    throw new Error(
+    throw new CliUsageError(
       `--concurrency must be between 1 and min(${maxConcurrency}, brief count)`,
     );
 
@@ -150,6 +153,12 @@ function parseRequest(args: string[]): ParsedRequest {
     timeoutMs,
     concurrency,
   };
+}
+
+function isUserPathError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const code = (error as NodeJS.ErrnoException).code;
+  return code === 'ENOENT' || code === 'ENOTDIR' || code === 'ELOOP';
 }
 
 function inside(parent: string, child: string): boolean {
@@ -325,7 +334,9 @@ async function ensurePinnedPath(
     currentPath !== canonicalPath ||
     !inside(repo, currentPath)
   )
-    throw new Error('--input changed during bounded repository preflight');
+    throw new CliUsageError(
+      '--input changed during bounded repository preflight',
+    );
 }
 
 async function readBoundedText(
@@ -346,12 +357,12 @@ async function readBoundedText(
     if (bytesRead === 0) break;
     bytes += bytesRead;
     if (bytes > byteLimit)
-      throw new Error('delegated inputs exceed the bounded size limit');
+      throw new CliUsageError('delegated inputs exceed the bounded size limit');
     chunks.push(buffer.subarray(0, bytesRead));
   }
   const after = await handle.stat();
   if (!after.isFile() || !sameFile(after, initial) || after.size !== bytes)
-    throw new Error('--input changed while bounded contents were read');
+    throw new CliUsageError('--input changed while bounded contents were read');
   try {
     return {
       content: new TextDecoder('utf-8', { fatal: true }).decode(
@@ -360,7 +371,7 @@ async function readBoundedText(
       bytes,
     };
   } catch {
-    throw new Error('--input must be UTF-8 text');
+    throw new CliUsageError('--input must be UTF-8 text');
   }
 }
 
@@ -374,14 +385,20 @@ async function validateRepo(
     readonly content: string;
   }[];
 }> {
-  const repo = await realpath(request.repo);
+  let repo: string;
+  try {
+    repo = await realpath(request.repo);
+  } catch (error) {
+    if (!isUserPathError(error)) throw error;
+    throw new CliUsageError('--repo must name an existing repository root');
+  }
   const rootResult = await git(repo, ['rev-parse', '--show-toplevel'], signal);
   if (
     rootResult.status !== 0 ||
     rootResult.stderr ||
     (await realpath(rootResult.stdout.trim())) !== repo
   )
-    throw new Error('--repo must be the canonical repository root');
+    throw new CliUsageError('--repo must be the canonical repository root');
   let totalBytes = 0;
   const inputs: { path: string; content: string }[] = [];
   const canonicalInputs = new Set<string>();
@@ -390,38 +407,52 @@ async function validateRepo(
       throw new GitCommandError('repository preflight interrupted', 'aborted');
     const candidate = resolve(repo, input);
     if (!inside(repo, candidate))
-      throw new Error('--input must be inside --repo');
-    const path = await realpath(candidate);
+      throw new CliUsageError('--input must be inside --repo');
+    let path: string;
+    try {
+      path = await realpath(candidate);
+    } catch (error) {
+      if (!isUserPathError(error)) throw error;
+      throw new CliUsageError('--input must name an existing repository file');
+    }
     if (!inside(repo, path))
-      throw new Error('--input must resolve inside --repo');
+      throw new CliUsageError('--input must resolve inside --repo');
     if (canonicalInputs.has(path))
-      throw new Error(
+      throw new CliUsageError(
         '--input paths must be unique after canonical resolution',
       );
     canonicalInputs.add(path);
     const pathFromRepo = relative(repo, path);
     const segments = pathFromRepo.split(sep);
     if (segments.some((part) => ['.git', '.krn', '.codex'].includes(part)))
-      throw new Error('private repository state cannot be delegated');
+      throw new CliUsageError('private repository state cannot be delegated');
     const info = await lstat(candidate);
     if (!info.isFile() || info.isSymbolicLink())
-      throw new Error('--input must be a regular nonsymlink file');
+      throw new CliUsageError('--input must be a regular nonsymlink file');
     if (!fsConstants.O_NOFOLLOW)
       throw new Error('this platform cannot pin delegated input files safely');
-    const handle = await open(
-      candidate,
-      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
-    );
+    let handle: Awaited<ReturnType<typeof open>>;
+    try {
+      handle = await open(
+        candidate,
+        fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
+      );
+    } catch (error) {
+      if (!isUserPathError(error)) throw error;
+      throw new CliUsageError('--input must be a readable regular file');
+    }
     try {
       const pinned = await handle.stat();
       if (!pinned.isFile() || !sameFile(pinned, info))
-        throw new Error('--input changed while it was opened');
+        throw new CliUsageError('--input changed while it was opened');
       await ensurePinnedPath(candidate, path, repo, pinned);
       if (
         pinned.size > maxInputBytes ||
         totalBytes + pinned.size > maxTotalInputBytes
       )
-        throw new Error('delegated inputs exceed the bounded size limit');
+        throw new CliUsageError(
+          'delegated inputs exceed the bounded size limit',
+        );
       const tracked = await git(
         repo,
         [
@@ -439,7 +470,7 @@ async function validateRepo(
         tracked.stderr ||
         !tracked.stdout.split('\0').includes(pathFromRepo)
       )
-        throw new Error('--input must be a tracked repository file');
+        throw new CliUsageError('--input must be a tracked repository file');
       await ensurePinnedPath(candidate, path, repo, pinned);
       const remainingBytes = Math.min(
         maxInputBytes,
@@ -452,7 +483,7 @@ async function validateRepo(
         signal,
       );
       if (read.content.includes('\0'))
-        throw new Error('--input must be UTF-8 text');
+        throw new CliUsageError('--input must be UTF-8 text');
       await ensurePinnedPath(candidate, path, repo, pinned);
       totalBytes += read.bytes;
       inputs.push({ path: pathFromRepo, content: read.content });
@@ -470,10 +501,12 @@ async function ensurePrivateResultsDirectory(
 ): Promise<string> {
   const base = join(repo, '.krn', 'tmp');
   if (!inside(base, requested))
-    throw new Error('--results must be a new directory under <repo>/.krn/tmp');
+    throw new CliUsageError(
+      '--results must be a new directory under <repo>/.krn/tmp',
+    );
   const ignored = await git(repo, ['check-ignore', '-q', '.krn/tmp'], signal);
   if (ignored.status !== 0 || ignored.stderr)
-    throw new Error('repository must ignore .krn/tmp');
+    throw new CliUsageError('repository must ignore .krn/tmp');
   if (signal?.aborted)
     throw new GitCommandError('repository preflight interrupted', 'aborted');
   for (const directory of [join(repo, '.krn'), base]) {
@@ -486,12 +519,14 @@ async function ensurePrivateResultsDirectory(
     }
     const info = await lstat(directory);
     if (!info.isDirectory() || info.isSymbolicLink())
-      throw new Error('delegation state path must contain real directories');
+      throw new CliUsageError(
+        'delegation state path must contain real directories',
+      );
   }
   const destinationRelative = relative(base, requested);
   const parts = destinationRelative.split(sep);
   if (parts.some((part) => !part || part === '.' || part === '..'))
-    throw new Error(
+    throw new CliUsageError(
       '--results must name a new subdirectory under <repo>/.krn/tmp',
     );
   let current = base;
@@ -503,14 +538,19 @@ async function ensurePrivateResultsDirectory(
       await mkdir(current, { mode: 0o700 });
     } catch (error) {
       if (
-        index === parts.length - 1 ||
-        (error as NodeJS.ErrnoException).code !== 'EEXIST'
+        index === parts.length - 1 &&
+        (error as NodeJS.ErrnoException).code === 'EEXIST'
       )
-        throw error;
+        throw new CliUsageError(
+          '--results must be a new directory under <repo>/.krn/tmp',
+        );
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
     }
     const info = await lstat(current);
     if (!info.isDirectory() || info.isSymbolicLink())
-      throw new Error('delegation state path must contain real directories');
+      throw new CliUsageError(
+        'delegation state path must contain real directories',
+      );
   }
   return requested;
 }

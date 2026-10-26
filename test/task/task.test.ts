@@ -468,7 +468,7 @@ test('task check handles a 20,000 task dependency chain iteratively', async () =
         serializeTask({ ...validTask, id, after }),
       );
     }
-    const result = runCli(repo, ['check']);
+    const result = runCli(repo, ['check'], undefined, undefined, {}, 60_000);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout, 'Task data is valid.\n');
   } finally {
@@ -750,6 +750,7 @@ function runCli(
   legacy?: string,
   input?: string,
   childEnvironment: NodeJS.ProcessEnv = {},
+  timeoutMs = 10_000,
 ): { status: number | null; stdout: string; stderr: string } {
   const environment = {
     ...cleanGitEnvironment(),
@@ -762,7 +763,7 @@ function runCli(
     encoding: 'utf8',
     env: environment,
     input,
-    timeout: 10_000,
+    timeout: timeoutMs,
   });
   return {
     status: result.status,

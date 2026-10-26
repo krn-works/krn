@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { commandErrorExitCode } from '../cli/command-error.ts';
 import {
   claimHolder,
   claimNext,
@@ -10,7 +11,6 @@ import {
   releaseClaim,
 } from './claims.ts';
 import {
-  TaskCommandError,
   TaskDataError,
   type TaskId,
   type TaskRecord,
@@ -40,7 +40,7 @@ const quickstart = [
   'Lead runs the loop: krn task ready → krn task claim --next --actor lead → work in a worktree → krn task release ID or krn task close ID --as done in the delivering PR.',
   'Workers receive the task id in their brief and do not mutate tracker state.',
   'Records: tasks/<id>.json (tracked); claims: .krn/task-claims/<id>.json (ignored, shared from the main checkout).',
-  'Exit codes: 0 success; 64 usage; 65 invalid task data; 75 held claim or no ready task.',
+  'Exit codes: 0 success; 64 usage; 65 invalid task data; 70 internal error; 75 held claim or no ready task.',
   '',
   'krn task ready',
   'krn task claim --next --actor lead',
@@ -633,19 +633,13 @@ function taskFailure(error: unknown): {
   findings?: string[];
 } {
   if (error instanceof TaskDataError)
-    return { code: 65, message: error.message, findings: error.findings };
-  if (error instanceof TaskUsageError)
-    return { code: 64, message: error.message };
-  if (error instanceof TaskCommandError)
-    return { code: error.exitCode, message: error.message };
-  if (
-    error instanceof Error &&
-    'exitCode' in error &&
-    typeof error.exitCode === 'number'
-  )
-    return { code: error.exitCode, message: error.message };
+    return {
+      code: commandErrorExitCode(error),
+      message: error.message,
+      findings: error.findings,
+    };
   return {
-    code: 64,
+    code: commandErrorExitCode(error),
     message: error instanceof Error ? error.message : String(error),
   };
 }

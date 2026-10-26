@@ -2,6 +2,7 @@
 // The CLI owns its name while unknown commands pass through to the configured legacy entry. ADR 0001.
 import { spawn } from 'node:child_process';
 import { realpathSync } from 'node:fs';
+import { commandErrorExitCode } from './command-error.ts';
 
 const version = '0.1.0';
 const recursionFlag = 'KRN_FORWARDED';
@@ -96,16 +97,6 @@ export function reviewErrorExitCode(error: unknown): number {
   return error instanceof Error && error.name === 'ReviewUsageError' ? 64 : 70;
 }
 
-function taskErrorExitCode(error: unknown): number {
-  if (
-    error instanceof Error &&
-    'exitCode' in error &&
-    typeof error.exitCode === 'number'
-  )
-    return error.exitCode;
-  return 64;
-}
-
 export function main(args = process.argv.slice(2)): void {
   if (args[0] === '--version') {
     process.stdout.write(`krn ${version}\n`);
@@ -144,7 +135,9 @@ export function main(args = process.argv.slice(2)): void {
         process.stderr.write(
           `${error instanceof Error ? error.message : String(error)}\n`,
         );
-        process.exitCode = controller.signal.aborted ? 130 : 64;
+        process.exitCode = controller.signal.aborted
+          ? 130
+          : commandErrorExitCode(error);
       })
       .finally(() => {
         process.removeListener('SIGINT', interrupt);
@@ -158,7 +151,7 @@ export function main(args = process.argv.slice(2)): void {
       process.stderr.write(
         `${error instanceof Error ? error.message : String(error)}\n`,
       );
-      process.exitCode = taskErrorExitCode(error);
+      process.exitCode = commandErrorExitCode(error);
     });
     return;
   }
