@@ -178,6 +178,25 @@ export function git(root: string, args: readonly string[]): string {
   return result.stdout.trim();
 }
 
+export function changedPaths(
+  root: string,
+  prior: string,
+  head: string,
+): string[] {
+  const result = gitOutput(root, [
+    'diff',
+    '--no-renames',
+    '--name-only',
+    '-z',
+    prior,
+    head,
+    '--',
+  ]);
+  if (result.status !== 0)
+    throw new Error(result.stderr || 'git diff between review heads failed');
+  return result.stdout.split('\0').filter((path) => path.length > 0);
+}
+
 export function repoRoot(input: string): string {
   if (!isAbsolute(input)) throw new Error('--repo must be an absolute path');
   const root = realpathSync(input);

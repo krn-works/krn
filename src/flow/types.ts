@@ -39,7 +39,52 @@ export const findingSchema = z.object({
   line: z.number().int().positive(),
   defect: z.string().min(1).max(2000),
   fix: z.string().min(1).max(1000),
+  regression: z.boolean().optional(),
+  demoted: z.literal(true).optional(),
 });
+export const priorStatusSchema = z.object({
+  index: z.number().int().nonnegative(),
+  status: z.enum(['RESOLVED', 'UNRESOLVED']),
+  evidence: z.string().trim().min(1).max(4000),
+});
+export const priorReviewSchema = z.object({
+  headSha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
+  recordSha256: z.string().regex(/^[a-f0-9]{64}$/u),
+  findings: z.array(
+    findingSchema
+      .pick({ title: true, path: true, line: true, defect: true })
+      .extend({
+        role: roleSchema,
+      }),
+  ),
+  changedPaths: z.array(z.string().min(1)),
+});
+export type PriorReview = z.infer<typeof priorReviewSchema>;
+export function coversPriorFindings(
+  statuses: readonly z.infer<typeof priorStatusSchema>[],
+  count: number,
+): boolean {
+  return (
+    statuses.length === count &&
+    new Set(statuses.map(({ index }) => index)).size === count &&
+    statuses.every(({ index }) => index < count)
+  );
+}
+export function isCountedRegression(
+  finding: z.infer<typeof findingSchema>,
+  changedPaths: readonly string[],
+): boolean {
+  return finding.regression === true && changedPaths.includes(finding.path);
+}
+export function priorJudgeVerdict(
+  statuses: readonly z.infer<typeof priorStatusSchema>[],
+  findings: readonly z.infer<typeof findingSchema>[],
+): 'PASS' | 'FAIL' {
+  return statuses.some(({ status }) => status === 'UNRESOLVED') ||
+    findings.some(({ severity }) => severity === 'BLOCKING')
+    ? 'FAIL'
+    : 'PASS';
+}
 const prepassRecordSchema = z.object({
   state: z.enum(['complete', 'incomplete']),
   findings: z.array(findingSchema),
@@ -66,9 +111,11 @@ const completeJudgeSchema = z.object({
   model: z.string().min(1).optional(),
   reasoningEffort: reasoningEffortSchema.optional(),
   verdict: z.enum(['PASS', 'FAIL']),
+  declaredVerdict: z.enum(['PASS', 'FAIL']).optional(),
   findings: z.array(findingSchema),
   sessionId: z.string().min(1),
   finalMessage: z.string().min(1).max(12000),
+  prior: z.array(priorStatusSchema).optional(),
   reapedScopes: z.array(reapedScopeSchema).optional(),
 });
 const incompleteJudgeSchema = z.object({
@@ -125,6 +172,7 @@ const reviewRecordBaseSchema = z.object({
   redFirst: z.array(redFirstRecordSchema),
   judges: z.array(judgeSchema),
   prepass: prepassRecordSchema.optional(),
+  prior: priorReviewSchema.optional(),
 });
 function reviewRecordInvariants(
   record: z.infer<typeof reviewRecordBaseSchema> & {
@@ -132,6 +180,74 @@ function reviewRecordInvariants(
   },
   context: z.RefinementCtx,
 ): void {
+  if (record.prior) {
+    if (record.prior.headSha.toLowerCase() === record.headSha.toLowerCase())
+      context.addIssue({
+        code: 'custom',
+        path: ['prior', 'headSha'],
+        message: 'prior review must have a different head',
+      });
+    if (record.prepass !== undefined || record.panelVerdict === undefined)
+      context.addIssue({
+        code: 'custom',
+        path: ['prior'],
+        message:
+          'a prior review requires panel verification without a blocking prepass',
+      });
+  }
+  for (const [index, judge] of record.judges.entries()) {
+    if (judge.state !== 'complete') continue;
+    if (!record.prior) {
+      if (
+        judge.prior !== undefined ||
+        judge.declaredVerdict !== undefined ||
+        judge.findings.some(
+          (finding) =>
+            finding.regression !== undefined || finding.demoted !== undefined,
+        )
+      )
+        context.addIssue({
+          code: 'custom',
+          path: ['judges', index],
+          message:
+            'prior statuses and regression metadata require a prior review',
+        });
+      continue;
+    }
+    if (
+      judge.prior === undefined ||
+      !coversPriorFindings(judge.prior, record.prior.findings.length)
+    )
+      context.addIssue({
+        code: 'custom',
+        path: ['judges', index, 'prior'],
+        message:
+          'prior statuses must cover every prior BLOCKING finding exactly once',
+      });
+    for (const [findingIndex, finding] of judge.findings.entries()) {
+      const counted = isCountedRegression(finding, record.prior.changedPaths);
+      if (
+        (finding.severity === 'BLOCKING' && !counted) ||
+        (finding.demoted && (finding.severity !== 'NON_BLOCKING' || counted))
+      )
+        context.addIssue({
+          code: 'custom',
+          path: ['judges', index, 'findings', findingIndex],
+          message:
+            'only regressions in changed files may remain BLOCKING; other new BLOCKING findings must be demoted',
+        });
+    }
+    if (
+      judge.prior !== undefined &&
+      judge.verdict !== priorJudgeVerdict(judge.prior, judge.findings)
+    )
+      context.addIssue({
+        code: 'custom',
+        path: ['judges', index, 'verdict'],
+        message:
+          'verdict must match unresolved prior findings and counted regressions',
+      });
+  }
   const prepassHasBlocking =
     record.prepass?.state === 'complete' &&
     record.prepass.findings.some((finding) => finding.severity === 'BLOCKING');

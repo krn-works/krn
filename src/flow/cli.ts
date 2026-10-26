@@ -2,6 +2,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { runReview } from './index.ts';
+import { PriorRecordError } from './prior.ts';
 import { appendOverride } from './record.ts';
 import { repoRoot, resolveCommit, validateSha } from './repository.ts';
 import {
@@ -143,6 +144,22 @@ export async function reviewCommand(
   args: readonly string[],
   options: { readonly codexExecutable?: string } = {},
 ): Promise<ReviewCommandOutcome | undefined> {
+  if (args.includes('--help')) {
+    process.stdout.write(
+      [
+        'Usage: krn review --repo <path> --base <ref> --head <sha> --lens <path>',
+        '  [--panel standards,spec,adversarial] [--reasoning-effort low|medium|high|xhigh|max]',
+        '  [--prepass --checklist <path>] [--prior-record <path>]',
+        'Round two: --prior-record accepts a first-round FAIL record (regular non-symlink file, at most 1 MB, different head) to verify prior BLOCKING findings.',
+        'After two rounds the lead decides (override); a second-round record cannot be used as --prior-record.',
+        'Only unresolved prior findings and new regressions in changed files block; other new findings are advisory.',
+        'With --prior-record, --prepass --checklist supplies a panel search aid without a separate blocking prepass.',
+        'Override: krn review --repo <path> --head <sha> --override --reason <text> --evidence <text>',
+        '',
+      ].join('\n'),
+    );
+    return undefined;
+  }
   const controller = new AbortController();
   const abort = () => controller.abort();
   process.on('SIGINT', abort);
@@ -151,6 +168,8 @@ export async function reviewCommand(
   try {
     return await runReviewCommand(args, controller, options);
   } catch (error) {
+    if (error instanceof PriorRecordError)
+      throw new ReviewUsageError(error.message);
     if (!controller.signal.aborted) throw error;
     process.exitCode = 130;
     return undefined;
@@ -170,6 +189,10 @@ async function runReviewCommand(
   const repo = value(args, '--repo');
   const headInput = value(args, '--head');
   if (args.includes('--override')) {
+    if (args.includes('--prior-record'))
+      throw new ReviewUsageError(
+        '--prior-record cannot be combined with --override',
+      );
     const root = reviewRepository(repo);
     const head = reviewCommit(root, headInput, '--head');
     const record = appendOverride(root, head, {
@@ -198,6 +221,9 @@ async function runReviewCommand(
     lens,
     panel,
     reasoningEffort,
+    ...(args.includes('--prior-record')
+      ? { priorRecord: value(args, '--prior-record') }
+      : {}),
     ...(checklist === undefined ? {} : { prepassChecklist: checklist }),
     signal: controller.signal,
     ...(options.codexExecutable
