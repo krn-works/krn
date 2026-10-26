@@ -155,6 +155,12 @@ function parseRequest(args: string[]): ParsedRequest {
   };
 }
 
+function isUserPathError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const code = (error as NodeJS.ErrnoException).code;
+  return code === 'ENOENT' || code === 'ENOTDIR' || code === 'ELOOP';
+}
+
 function inside(parent: string, child: string): boolean {
   const path = relative(parent, child);
   return (
@@ -382,7 +388,8 @@ async function validateRepo(
   let repo: string;
   try {
     repo = await realpath(request.repo);
-  } catch {
+  } catch (error) {
+    if (!isUserPathError(error)) throw error;
     throw new CliUsageError('--repo must name an existing repository root');
   }
   const rootResult = await git(repo, ['rev-parse', '--show-toplevel'], signal);
@@ -404,7 +411,8 @@ async function validateRepo(
     let path: string;
     try {
       path = await realpath(candidate);
-    } catch {
+    } catch (error) {
+      if (!isUserPathError(error)) throw error;
       throw new CliUsageError('--input must name an existing repository file');
     }
     if (!inside(repo, path))
@@ -429,7 +437,8 @@ async function validateRepo(
         candidate,
         fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW,
       );
-    } catch {
+    } catch (error) {
+      if (!isUserPathError(error)) throw error;
       throw new CliUsageError('--input must be a readable regular file');
     }
     try {

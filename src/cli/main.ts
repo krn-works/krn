@@ -2,7 +2,7 @@
 // The CLI owns its name while unknown commands pass through to the configured legacy entry. ADR 0001.
 import { spawn } from 'node:child_process';
 import { realpathSync } from 'node:fs';
-import { CliUsageError } from './usage-error.ts';
+import { commandErrorExitCode } from './command-error.ts';
 
 const version = '0.1.0';
 const recursionFlag = 'KRN_FORWARDED';
@@ -95,17 +95,6 @@ export function reviewOutcomeExitCode(outcome: ReviewCommandOutcome): number {
 
 export function reviewErrorExitCode(error: unknown): number {
   return error instanceof Error && error.name === 'ReviewUsageError' ? 64 : 70;
-}
-
-function commandErrorExitCode(error: unknown): number {
-  if (
-    error instanceof Error &&
-    'exitCode' in error &&
-    typeof error.exitCode === 'number'
-  )
-    return error.exitCode;
-  if (error instanceof CliUsageError) return 64;
-  return 70;
 }
 
 export function main(args = process.argv.slice(2)): void {

@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { ZodError } from 'zod';
 import type { Job } from '../core/index.ts';
 import { writeCheckpointRequest } from '../foreman/checkpoint-request.ts';
 import { CliUsageError } from './usage-error.ts';
@@ -38,11 +39,16 @@ export function checkpointCommand(args: string[]): void {
       '--decision must be a single line of at most 500 characters',
     );
   const session = value(args, '--session');
-  writeCheckpointRequest(job, {
-    intent: value(args, '--intent'),
-    sessionId: session,
-    message,
-    next,
-    decision,
-  });
+  try {
+    writeCheckpointRequest(job, {
+      intent: value(args, '--intent'),
+      sessionId: session,
+      message,
+      next,
+      decision,
+    });
+  } catch (error) {
+    if (error instanceof ZodError) throw new CliUsageError(error.message);
+    throw error;
+  }
 }
