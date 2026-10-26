@@ -9,7 +9,7 @@
     "node": ">=24.22.1"
   },
   "bin": {
-    "krn": "src/cli/main.ts"
+    "krn": "src/cli/krn.mjs"
   },
   "scripts": {
     "check": "tsc --noEmit",
