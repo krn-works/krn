@@ -375,7 +375,7 @@ if (count === 1) {
       .trim()
       .split('\n')
       .map(Number);
-    for (const pid of pids) assert.equal(await isAlive(pid), false);
+    await waitForProcessesToExit(pids);
     assert.equal(
       existsSync(join(outside, 'escaped-alive-before-second')),
       false,
@@ -565,11 +565,11 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
     foreman.kill('SIGTERM');
     const code = await new Promise((resolve) => foreman.once('close', resolve));
     assert.equal(code, 130);
-    const pids = (await readFile(pidFile, 'utf8'))
+    const sigtermPids = (await readFile(pidFile, 'utf8'))
       .trim()
       .split('\n')
       .map(Number);
-    for (const pid of pids) assert.equal(await isAlive(pid), false);
+    await waitForProcessesToExit(sigtermPids);
     await unlink(pidFile);
     crashed = spawn(
       process.execPath,
@@ -750,11 +750,11 @@ process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1
       await new Promise((resolve) => timeoutForeman.once('close', resolve)),
       124,
     );
-    for (const pid of (await readFile(pidFile, 'utf8'))
+    const timeoutPids = (await readFile(pidFile, 'utf8'))
       .trim()
       .split('\n')
-      .map(Number))
-      assert.equal(await isAlive(pid), false);
+      .map(Number);
+    await waitForProcessesToExit(timeoutPids);
   } finally {
     foreman.kill('SIGKILL');
     if (crashed?.exitCode === null) crashed.kill('SIGKILL');
@@ -887,14 +887,7 @@ child.once('spawn', () => {
       'cancellation must drain the scope while the descendant holds inherited pipes',
     );
     await session.wait();
-    if (await isAlive(pid)) {
-      const state = spawnSync(
-        'ps',
-        ['-o', 'pid,ppid,pgid,sid,stat,args', '-p', String(pid)],
-        { encoding: 'utf8' },
-      );
-      assert.fail(`fallback left descendant ${pid} alive: ${state.stdout}`);
-    }
+    await waitForProcessesToExit([pid]);
     const events = (
       await readFile(
         join(root, '.krn/runs/foreman/B2-fallback/trace.jsonl'),
@@ -1288,10 +1281,7 @@ process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_mes
       false,
       'SIGTERM must prevent local review readiness',
     );
-    assert.ok(
-      (await Promise.all(scopePids.map(isAlive))).every((alive) => !alive),
-      'scope PIDs survived live-l1',
-    );
+    await waitForProcessesToExit(scopePids);
     const after = spawnSync(
       'systemctl',
       ['--user', 'show', unit, '-p', 'ActiveState', '--value'],
@@ -1565,6 +1555,25 @@ test('B7 codex command grants workspace write without the git common dir', async
 });
 
 async function isAlive(pid: number): Promise<boolean> {
+  if (process.platform === 'linux') {
+    try {
+      const stat = await readFile(`/proc/${pid}/stat`, 'utf8');
+      const state = stat
+        .slice(stat.lastIndexOf(')') + 2)
+        .trim()
+        .split(/\s+/u)[0];
+      if (state === 'Z') return false;
+    } catch (error) {
+      if (
+        error !== null &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      )
+        return false;
+    }
+  }
+
   try {
     process.kill(pid, 0);
     return true;
@@ -1573,8 +1582,19 @@ async function isAlive(pid: number): Promise<boolean> {
   }
 }
 
+async function waitForProcessesToExit(pids: number[]): Promise<void> {
+  await waitFor(
+    async () =>
+      (await Promise.all(pids.map(isAlive))).every((alive) => !alive)
+        ? 'exited'
+        : undefined,
+    'timed out waiting for processes to exit',
+  );
+}
+
 async function waitFor(
   read: () => Promise<string | undefined>,
+  timeoutMessage = 'timed out waiting for fake process',
 ): Promise<string> {
   const deadline = Date.now() + SPAWNED_PROCESS_WAIT_MS;
   while (Date.now() < deadline) {
@@ -1582,7 +1602,7 @@ async function waitFor(
     if (value) return value;
     await pause(20);
   }
-  assert.fail('timed out waiting for fake process');
+  assert.fail(timeoutMessage);
 }
 
 async function runIsolatedCheckpoint(
