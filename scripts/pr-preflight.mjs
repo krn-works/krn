@@ -1,15 +1,10 @@
-// PR admission reads are pinned to the supplied repository and exact head; no Git or Paperclip writes occur.
+// PR admission reads are pinned to the supplied repository and exact head; no Git writes occur.
 import { spawnSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { parsePaperclipIssue } from '../src/core/paperclip.ts';
-import {
-  parseDeliveryTicket,
-  parseWorkReference,
-} from '../src/ledger/delivery.ts';
-import { createPaperclipCliTransport } from '../src/ledger/paperclip-cli.ts';
+import { isTaskId, parseTaskDocument } from '../src/task/record.ts';
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
 const TIMEOUT_MS = 15_000;
@@ -22,12 +17,7 @@ const GIT_OVERRIDES = [
 ];
 const sha = z.string().regex(/^(?:[a-f\d]{40}|[a-f\d]{64})$/iu);
 const outputSha = z.string().trim().pipe(sha);
-const taskSchema = z.string().regex(/^(?:R1-\d+|LON-\d+|none)$/u);
-const ticketSchema = z
-  .string()
-  .refine(
-    (value) => value.startsWith('LON-') && parseDeliveryTicket(value) === value,
-  );
+const ticketSchema = z.string().refine(isTaskId);
 const text = z.string().trim().min(1);
 const argsSchema = z
   .object({
@@ -100,6 +90,22 @@ function git(repo, args, input) {
   return run('git', args, repo, env, input);
 }
 
+function gitBytes(repo, args) {
+  const env = { ...process.env };
+  for (const key of GIT_OVERRIDES) delete env[key];
+  const child = spawnSync('git', args, {
+    cwd: repo,
+    env,
+    encoding: 'buffer',
+    maxBuffer: MAX_OUTPUT_BYTES,
+    timeout: TIMEOUT_MS,
+    windowsHide: true,
+  });
+  if (child.error || child.status !== 0 || !Buffer.isBuffer(child.stdout))
+    return err('process failed');
+  return ok(child.stdout);
+}
+
 function checked(result, schema, reason, reasons) {
   const parsed =
     result?.ok === true ? schema.safeParse(result.value) : undefined;
@@ -138,11 +144,9 @@ function githubSlug(remote) {
 
 function extractTicket(title) {
   const ticket =
-    /^[a-z][a-z\d-]*(?:\([^)]+\))?!?: .+ \((?<ticket>LON-\d+)\)$/u.exec(title)
+    /^[a-z][a-z\d-]*(?:\([^)]+\))?!?: .+ \((?<ticket>[^()]+)\)$/u.exec(title)
       ?.groups?.ticket;
-  return ticket !== undefined && parseDeliveryTicket(ticket) === ticket
-    ? ticket
-    : undefined;
+  return ticket !== undefined && isTaskId(ticket) ? ticket : undefined;
 }
 
 function trailer(lines, name, schema, optional = false) {
@@ -160,20 +164,6 @@ function trailer(lines, name, schema, optional = false) {
     : err(`head commit ${name} trailer is malformed`);
 }
 
-function paperclipTask(description) {
-  const lines = description
-    .split(/\r?\n/u)
-    .filter((line) => line.startsWith('R1-task:'));
-  if (lines.length > 1)
-    return err('Paperclip description must contain at most one R1-task line');
-  if (lines.length === 0) return ok(undefined);
-  const value = parseWorkReference(lines[0] ?? '');
-  const parsed = taskSchema.safeParse(value);
-  return parsed.success
-    ? ok(parsed.data)
-    : err('Paperclip R1-task line is malformed');
-}
-
 function latestGateLocal(statuses) {
   const gate = statuses
     .filter((status) => status.context === 'krn/gate-local')
@@ -188,49 +178,6 @@ function latestGateLocal(statuses) {
 function hasZeroIsolationSkips(description) {
   const counts = [...description.matchAll(/\b(\d+)\s+isolation skips\b/gu)];
   return counts.length === 1 && Number(counts[0]?.[1]) === 0;
-}
-
-async function readPaperclipDescription(ticket) {
-  const transport = createPaperclipCliTransport();
-  try {
-    const issue = parsePaperclipIssue(await transport.readIssue(ticket));
-    if (!issue.ok)
-      return err(
-        `Paperclip issue ${ticket} could not be read: invalid issue response`,
-      );
-    if (issue.value.id !== ticket && issue.value.identifier !== ticket)
-      return err(
-        `Paperclip issue ${ticket} could not be read: issue identity mismatch`,
-      );
-    return ok(issue.value.description);
-  } catch {
-    return err(
-      `Paperclip issue ${ticket} could not be read: Paperclip CLI read failed`,
-    );
-  } finally {
-    if (transport.cancelAll) await transport.cancelAll().catch(() => {});
-  }
-}
-
-async function readPaperclipDescriptionValue(read, ticket, reasons) {
-  const fallback = `Paperclip issue ${ticket} could not be read through the ledger CLI`;
-  const safeFailures = new Set([
-    `Paperclip issue ${ticket} could not be read: invalid issue response`,
-    `Paperclip issue ${ticket} could not be read: issue identity mismatch`,
-    `Paperclip issue ${ticket} could not be read: Paperclip CLI read failed`,
-  ]);
-  let result;
-  try {
-    result = await read(ticket);
-  } catch {
-    reasons.add(fallback);
-    return;
-  }
-  if (result?.ok === false) {
-    reasons.add(safeFailures.has(result.error) ? result.error : fallback);
-    return;
-  }
-  return checked(result, z.string(), fallback, reasons);
 }
 
 export async function runPreflight(input, dependencies = {}) {
@@ -324,10 +271,6 @@ export async function runPreflight(input, dependencies = {}) {
     const ticketTrailer = trailer(lines, 'Ticket', ticketSchema);
     if (ticketTrailer.ok) report.ticketTrailer = ticketTrailer.value;
     else reasons.add(ticketTrailer.error);
-    const r1TaskTrailer = trailer(lines, 'R1-task', taskSchema, true);
-    if (r1TaskTrailer.ok && r1TaskTrailer.value !== undefined)
-      report.r1TaskTrailer = r1TaskTrailer.value;
-    else if (!r1TaskTrailer.ok) reasons.add(r1TaskTrailer.error);
   }
 
   if (slug) {
@@ -349,36 +292,31 @@ export async function runPreflight(input, dependencies = {}) {
       });
       const ticket = extractTicket(pull.title);
       if (!ticket)
-        reasons.add('PR title must be Conventional and end with (LON-<n>)');
+        reasons.add('PR title must be Conventional and end with a task id');
       else {
         report.ticket = ticket;
         if (report.ticketTrailer !== ticket)
           reasons.add(
-            'Ticket trailer must match the LON ticket captured from the PR title',
+            'Ticket trailer must match the task id captured from the PR title',
           );
-        const issueRead =
-          dependencies.readPaperclipDescription ?? readPaperclipDescription;
-        const description = await readPaperclipDescriptionValue(
-          issueRead,
-          ticket,
-          reasons,
-        );
-        if (description !== undefined) {
-          const mapping = paperclipTask(description);
-          if (mapping.ok) {
-            if (mapping.value === undefined) {
-              if (report.r1TaskTrailer !== undefined)
-                reasons.add(
-                  'R1-task trailer must be omitted when the Paperclip description has no R1-task line',
-                );
-            } else {
-              report.paperclipR1Task = mapping.value;
-              if (report.r1TaskTrailer !== mapping.value)
-                reasons.add(
-                  'R1-task trailer must match the Paperclip description',
-                );
-            }
-          } else reasons.add(mapping.error);
+        const taskFile = gitBytes(repo, [
+          'show',
+          `${input.head}:tasks/${ticket}.json`,
+        ]);
+        if (!taskFile.ok) {
+          reasons.add(`task ${ticket} is missing from the PR head`);
+        } else {
+          const task = parseTaskDocument(taskFile.value);
+          if (
+            task.findings.length > 0 ||
+            task.record === undefined ||
+            task.record.id !== ticket
+          ) {
+            const findings = task.findings.join(', ');
+            reasons.add(
+              `task ${ticket} at the PR head is invalid${findings ? `: ${findings}` : ''}`,
+            );
+          }
         }
       }
       if (pull.base.sha.toLowerCase() !== input.base.toLowerCase())

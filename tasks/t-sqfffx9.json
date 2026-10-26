@@ -1,0 +1,13 @@
+{
+  "id": "t-sqfffx9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-26",
+  "priority": 0,
+  "title": "Replace Paperclip with the in-repository task tracker",
+  "after": [],
+  "body": [
+    "Per ADR 0014 D8, replace Paperclip, the legacy Git-ref task queue, and host-SQLite krn work with the Git-backed in-repository krn task tracker. This PR makes PR preflight read its delivery ticket from the committed tasks/<id>.json record; Paperclip records remain untouched and are not imported.",
+    "Remaining steps from decision.md: implement ready and claim, forward GLOBAL's krn task command, remove the legacy queue and krn work, then remove Paperclip from Product and GLOBAL."
+  ]
+}
