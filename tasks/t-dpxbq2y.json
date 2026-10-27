@@ -1,0 +1,12 @@
+{
+  "id": "t-dpxbq2y",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Check the FR-40 experiment's power before building it",
+  "after": [],
+  "body": [
+    "Operator 2026-10-27 (ADR 0014 D20): FR-40 replaces the Wizard-of-Oz experiment as the brain packet test. Before any FR-40 builder work or run, commit `evals/fr40/validity.json` with: the task count n from the inventory (`.krn/runs/claude/fr40-inventory`: 9 usable, 19 need checking), the power at n for the registered effect (B−A +15 pp, clustered by fix commit), a leak audit (no packet or prompt cites the exemplar or fix commit), and whether the GO and KILL thresholds are reachable at n. If power is below 0.8, the lead reports to the operator with the cheaper convention-task alternative instead of building.\nAcceptance: validity.json is committed with n, power, leak audit and threshold reachability before any FR-40 build task starts, or the operator records a park or alternative decision."
+  ]
+}

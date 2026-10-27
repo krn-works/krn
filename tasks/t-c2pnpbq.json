@@ -1,0 +1,12 @@
+{
+  "id": "t-c2pnpbq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Make red-first prove a real red-to-green pair",
+  "after": [],
+  "body": [
+    "In 38 of 50 recent review records a changed test is non-pass on the head for setup reasons (isolation approval preloader not run, detached check processes left), so red-first adds no signal and the panel verdict comes from the judges alone (lead check 2026-10-27, `.krn/runs/claude/doctor/devils-advocate.md` §1 C). Run changed tests on base and head through the test-suite runner with its preloader and isolation, classify each side (assertion failure, setup error, pass), and require for every `red->green` contract a base assertion failure and a head pass; anything else records INCOMPLETE with its cause and the panel cannot PASS.\nAcceptance: a real red-to-green change records base=assertion and head=pass; a setup error on either side yields INCOMPLETE, never PASS; replaying three recently merged heads shows their changed tests passing on the head."
+  ]
+}

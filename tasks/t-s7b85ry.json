@@ -1,0 +1,16 @@
+{
+  "id": "t-s7b85ry",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": ""
+  },
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Record the proof program decisions in the plan",
+  "after": [],
+  "body": [
+    "Operator decisions of 2026-10-27 (FR-40 replaces WoZ, server-side ruleset and merge through the API, multi-vendor review after red-first, two-week KRN-vs-plain proof, tracker frozen, orchestration paused, eval harness scope frozen) live only in lead memory and run dirs. Record them as ADR 0014 D20–D24, rewrite PLAN.md around the proof program with one task per open step, and align the task records.\nAcceptance: ADR 0014 holds D20–D24; every PLAN section names its tasks or states it is paused; no open task asks for the Wizard-of-Oz run, and blinding remains only as the paused task t-sv9t252 (D24)."
+  ]
+}

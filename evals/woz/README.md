@@ -11,4 +11,4 @@ Do not edit `prereg.md` after the first run.
 
 ## Input status versus experiment runs (2026-10-20)
 
-This directory contains preregistered inputs, not proof that A/B/C/R ran. The product ADR's proposed thresholds conflict with the frozen [`prereg.md`](prereg.md); resolve that conflict before the first run, with no post-result threshold change.
+This directory contains preregistered inputs, not proof that A/B/C/R ran. The product ADR's proposed thresholds conflict with the frozen [`prereg.md`](prereg.md); resolve that conflict before the first run, with no post-result threshold change. FR-40 (ADR 0014 D20) is the gate; the Wizard-of-Oz set is a harness pilot only.
