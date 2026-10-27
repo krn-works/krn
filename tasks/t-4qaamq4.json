@@ -1,0 +1,12 @@
+{
+  "id": "t-4qaamq4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Run one arm session in the mask with usage accounting",
+  "after": [],
+  "body": [
+    "Evaluation harness slice (decision .krn/runs/claude/eval-design/decision.md): krn eval session runs one Codex or Claude session for a planned run inside krn eval mask with a frozen config home and read-only login files, records the raw stream, per-call usage and a status taxonomy.\nAcceptance: fake harness streams show cached and reasoning tokens as subsets, Claude message ids counted once without the result aggregate, truncated streams as missing usage, and login files readable but not writable inside the mask."
+  ]
+}
