@@ -186,6 +186,10 @@ reduces future findings remains a hypothesis to measure.
 
 ### A/B/C/R evaluation and kill criteria
 
+This section is superseded by ADR 0014 D20. FR-40 is the gate, and its
+thresholds replace the ones below. The Wizard-of-Oz set and these thresholds
+remain only as harness-pilot history.
+
 Before building the ingestion pipeline, index, or packet implementation, run
 the Wizard-of-Oz experiment with manually assembled packets. Use 6–9 frozen
 tasks of the same class, same repository revision, tools, and verdict checks;
@@ -216,8 +220,8 @@ follow-up 20-task evaluation only if the first round clears its registered
 bar. The claim that the brain brings Luna close to Opus is falsified if B is
 no better than A in two rounds or B is approximately C. In either case, stop
 brain packet productization and narrow the claim to a reviewed standards
-source for verdict enforcement. If the Wizard-of-Oz round fails, do not build
-the pipeline, index, or relay packet. A later 20-task failure also stops
+source for verdict enforcement. FR-40 gates whether to build the pipeline,
+index, or relay packet; see ADR 0014 D20. A later 20-task failure also stops
 expansion and requires re-review of the design before more investment.
 
 **Evidence:** R13 reports variable benefits from few-shot examples and
@@ -250,7 +254,7 @@ evidence for the Luna-to-Opus claim; the experiment is the required test.
   or automatic promotion.
 - Semantic/vector retrieval, model-based ranking, and cross-client sharing.
 - Expanding beyond the initial TS/review standards and course-distillation
-  domains before the Wizard-of-Oz gate.
+  domains before FR-40 (ADR 0014 D20).
 - Treating any copyright basis, detector threshold, judge result, or benchmark
   as a substitute for operator review or applicable rights.
 

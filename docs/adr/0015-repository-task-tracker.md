@@ -86,5 +86,5 @@ Product forwarding and tracker commands are shipped; per-task claim mutations
 use a Linux abstract Unix socket held for the full inspect, mutation, and
 publish operation. The kernel releases the lock on process exit (#110).
 GLOBAL's Paperclip integration was removed in krn-works/krn-codex-skills #461
-(merge 26446dd5). The only remaining Paperclip item is the host service and
-data; they remain untouched pending a separate operator decision and grant.
+(merge 26446dd5). The host Paperclip service and data were removed on operator
+order on 2026-10-27, without an archive.
