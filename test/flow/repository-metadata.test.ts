@@ -366,15 +366,47 @@ test('isolated review candidates retain exact Git history and test overlays', as
     { side: 'base', sha: base, classification: 'pass' },
     { side: 'head', sha: head, classification: 'pass' },
   ]);
-  assert.deepEqual(resultsFor(redGreenTestPath), [
-    { side: 'base', sha: base, classification: 'assertion' },
-    { side: 'head', sha: head, classification: 'pass' },
-  ]);
   assert.deepEqual(resultsFor(addedTestPath), [
     { side: 'base', sha: base, classification: 'pass' },
     { side: 'head', sha: head, classification: 'pass' },
   ]);
-  assert.equal(report.contracts?.[0]?.proven, true, JSON.stringify(report));
+  assert.deepEqual(
+    report.contracts?.map(({ path, red, green, proven }) => ({
+      path,
+      red: red && {
+        path: red.path,
+        side: red.side,
+        sha: red.sha,
+        classification: red.classification,
+      },
+      green: {
+        path: green.path,
+        side: green.side,
+        sha: green.sha,
+        classification: green.classification,
+      },
+      proven,
+    })),
+    [
+      {
+        path: redGreenTestPath,
+        red: {
+          path: redGreenTestPath,
+          side: 'base',
+          sha: base,
+          classification: 'assertion',
+        },
+        green: {
+          path: redGreenTestPath,
+          side: 'head',
+          sha: head,
+          classification: 'pass',
+        },
+        proven: true,
+      },
+    ],
+    JSON.stringify(report),
+  );
   for (const [path, bytes] of sourceBefore)
     assert.equal(readFileSync(join(f.root, path)).equals(bytes), true, path);
   assert.equal(worktreeState(f.root), worktreesBefore);

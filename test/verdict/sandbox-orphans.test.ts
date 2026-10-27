@@ -132,7 +132,12 @@ test('a reaped child is a zombie before the check exits', async () => {
   const creator = spawn(${JSON.stringify(process.execPath)}, ['-e', ${JSON.stringify(creatorSource)}], { detached: true, stdio: 'ignore' });
   creator.unref();
   const pid = await waitFor(() => {
-    try { return Number(readFileSync('orphan-pid', 'utf8')); } catch { return undefined; }
+    try {
+      const marker = readFileSync('orphan-pid', 'utf8').trim();
+      if (!/^[1-9]\\d*$/u.test(marker)) return undefined;
+      const value = Number(marker);
+      return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+    } catch { return undefined; }
   }, 'the detached child PID');
   await waitFor(() => existsSync('orphan-ready') ? true : undefined, 'the detached child readiness marker');
   await waitFor(() => {
