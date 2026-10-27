@@ -30,6 +30,7 @@ type FixtureOptions = {
   gateDescription?: string;
   prBase?: string;
   prHead?: string;
+  baseHistory?: 'moved-ancestor' | 'side-branch';
 };
 
 async function git(repo: string, args: string[]): Promise<string> {
@@ -122,10 +123,27 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
   await writeReviewEvidence(repo, base, head);
   const srcTreeSha = await git(repo, ['rev-parse', `${head}:src`]);
   const testTreeSha = await git(repo, ['rev-parse', `${head}:test`]);
+  let requestedBase = base;
+  let prBase = options.prBase ?? base;
+  if (options.baseHistory) {
+    await git(repo, ['checkout', '--quiet', '-b', 'moved-main', base]);
+    await writeFile(join(repo, 'main.txt'), 'main advanced\n');
+    await git(repo, ['add', 'main.txt']);
+    await git(repo, ['commit', '--quiet', '-m', 'advance main']);
+    requestedBase = await git(repo, ['rev-parse', 'HEAD']);
+    if (options.baseHistory === 'side-branch') {
+      await git(repo, ['checkout', '--quiet', '-b', 'side-base', base]);
+      await writeFile(join(repo, 'side.txt'), 'side branch\n');
+      await git(repo, ['add', 'side.txt']);
+      await git(repo, ['commit', '--quiet', '-m', 'advance side base']);
+      prBase = await git(repo, ['rev-parse', 'HEAD']);
+    }
+    await git(repo, ['checkout', '--quiet', '--detach', head]);
+  }
   const title = options.title ?? `feat(review): add preflight (${ticket})`;
   const pull = {
     title,
-    base: { sha: options.prBase ?? base },
+    base: { sha: prBase },
     head: { sha: options.prHead ?? head },
   };
   const statuses = [
@@ -159,6 +177,7 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
     repo,
     outside,
     base,
+    requestedBase,
     head,
     ticket,
     srcTreeSha,
@@ -174,7 +193,7 @@ function runHarness(
 ) {
   const input = {
     repo: value.repo,
-    base: value.base,
+    base: value.requestedBase,
     head: value.head,
     pr: 27,
   };
@@ -215,6 +234,8 @@ function parseHarness(result: ReturnType<typeof runHarness>) {
     report: {
       verdict: 'pass' | 'fail';
       reasons: string[];
+      base?: string;
+      prBase?: string;
       ticket?: string;
       srcTreeSha?: string;
       testTreeSha?: string;
@@ -250,6 +271,27 @@ test('a PR whose ticket is a committed task at head passes', async (t) => {
     ['statuses', value.repo, 'krn-works/krn', value.head],
     ['checks', value.repo, 'krn-works/krn', value.head],
   ]);
+});
+
+test('preflight accepts a PR base that is an ancestor of the requested base', async (t) => {
+  const value = await fixture(t, { baseHistory: 'moved-ancestor' });
+  const { report } = parseHarness(runHarness(value));
+  assert.equal(report.verdict, 'pass');
+  assert.deepEqual(report.reasons, []);
+  assert.equal(report.base, value.requestedBase);
+  assert.equal(report.prBase, value.base);
+});
+
+test('preflight refuses a PR base outside the requested base history', async (t) => {
+  const value = await fixture(t, { baseHistory: 'side-branch' });
+  const { report } = parseHarness(runHarness(value));
+  assert.equal(report.verdict, 'fail');
+  assert.equal(report.base, value.requestedBase);
+  assert.equal(report.prBase, value.pull.base.sha);
+  assert.ok(
+    report.reasons.includes('PR base SHA is not in the requested base history'),
+    JSON.stringify(report.reasons),
+  );
 });
 
 test('preflight accepts a closed task recorded in the delivery commit', async (t) => {

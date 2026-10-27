@@ -566,8 +566,15 @@ export async function runPreflight(input, dependencies = {}) {
           }
         }
       }
-      if (pull.base.sha.toLowerCase() !== canonicalBase)
-        reasons.add('PR base SHA does not match the requested base');
+      if (
+        !git(repo, [
+          'merge-base',
+          '--is-ancestor',
+          pull.base.sha.toLowerCase(),
+          canonicalBase,
+        ]).ok
+      )
+        reasons.add('PR base SHA is not in the requested base history');
       if (pull.head.sha.toLowerCase() !== canonicalHead)
         reasons.add('PR head SHA does not match the requested exact head');
     }
