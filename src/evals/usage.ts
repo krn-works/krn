@@ -247,10 +247,17 @@ export class SessionUsage {
           (totals.cache_creation_input_tokens ?? 0)
         : 0);
     if (!Number.isSafeInteger(total)) return missing();
+    const resultMatches =
+      this.harness === 'claude' && this.result
+        ? fields.claude.every(
+            (field) => record(this.result?.usage)[field] === totals[field],
+          )
+        : undefined;
     return {
       status: 'complete' as const,
       ...totals,
       total_tokens: total,
+      ...(resultMatches === undefined ? {} : { resultMatches }),
       ...crossCheck,
     };
   }

@@ -27,6 +27,12 @@ const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 const fake = fileURLToPath(
   new URL('../fixtures/eval/harness.cjs', import.meta.url),
 );
+const capturedCodex = fileURLToPath(
+  new URL('../fixtures/eval/codex-completed.jsonl', import.meta.url),
+);
+const capturedClaude = fileURLToPath(
+  new URL('../fixtures/eval/claude-stream.jsonl', import.meta.url),
+);
 const hash = (bytes: string | Buffer) =>
   createHash('sha256').update(bytes).digest('hex');
 const jsonl = (events: unknown[]) =>
@@ -532,6 +538,47 @@ test('eval session resolves a planned arm, preserves raw bytes and accounts Code
   }
 });
 
+test('eval session accounts the captured Codex stream through the harness', async (t) => {
+  if (!requiresIsolation(t, t.name, ['bwrap', 'systemdUserScope'])) return;
+  const f = await fixture();
+  try {
+    const stream = await readFile(capturedCodex);
+    await f.scenario(stream);
+    const observed = f.invoke(f.args());
+    assert.equal(observed.status, 0, observed.stderr);
+    const record = JSON.parse(
+      await readFile(join(f.output(), 'session.json'), 'utf8'),
+    );
+    assert.equal(record.status, 'completed');
+    assert.deepEqual(record.usage, {
+      status: 'complete',
+      input_tokens: 20_385,
+      output_tokens: 47,
+      cached_input_tokens: 12_160,
+      reasoning_output_tokens: 0,
+      total_tokens: 20_432,
+    });
+    assert.deepEqual(await readFile(join(f.output(), 'stream.jsonl')), stream);
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('eval usage accounts captured Codex tokens with cached input as a subset', async () => {
+  const stream = await readFile(capturedCodex);
+  const accounting = new SessionUsage('codex');
+  accounting.push(stream);
+  accounting.finish();
+  assert.deepEqual(accounting.summary(false), {
+    status: 'complete',
+    input_tokens: 20_385,
+    output_tokens: 47,
+    cached_input_tokens: 12_160,
+    reasoning_output_tokens: 0,
+    total_tokens: 20_432,
+  });
+});
+
 test('eval session counts each Claude message once and keeps result totals separate', async (t) => {
   if (!requiresIsolation(t, t.name, ['bwrap', 'systemdUserScope'])) return;
   const f = await fixture();
@@ -548,6 +595,7 @@ test('eval session counts each Claude message once and keeps result totals separ
       status: 'complete',
       ...claudeUsage,
       total_tokens: 26,
+      resultMatches: false,
       result: { usage: result.usage, modelUsage: result.modelUsage },
     });
     const calls = (await readFile(join(f.output('R'), 'calls.jsonl'), 'utf8'))
@@ -569,6 +617,174 @@ test('eval session counts each Claude message once and keeps result totals separ
       (await readFile(join(f.slot, 'claude', '.credentials.json'))).length,
       0,
     );
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('eval Claude usage keeps the last update for a repeated message id', () => {
+  const first = {
+    input_tokens: 1,
+    output_tokens: 2,
+    cache_read_input_tokens: 3,
+    cache_creation_input_tokens: 4,
+  };
+  const last = {
+    input_tokens: 6,
+    output_tokens: 9,
+    cache_read_input_tokens: 7,
+    cache_creation_input_tokens: 3,
+  };
+  const modelUsage = { 'fixture-model': { outputTokens: 9 } };
+  const accounting = new SessionUsage('claude');
+  accounting.push(
+    Buffer.from(
+      jsonl([
+        assistant(first, 'repeated-message'),
+        assistant(last, 'repeated-message'),
+        {
+          type: 'result',
+          subtype: 'success',
+          is_error: false,
+          usage: last,
+          modelUsage,
+        },
+      ]),
+    ),
+  );
+  accounting.finish();
+  assert.equal(accounting.calls.length, 1);
+  assert.deepEqual(accounting.calls[0]?.usage, last);
+  assert.deepEqual(accounting.summary(false), {
+    status: 'complete',
+    ...last,
+    total_tokens: 25,
+    resultMatches: true,
+    result: { usage: last, modelUsage },
+  });
+});
+
+test('eval usage accounts the captured Claude stream and compares its aggregate', async () => {
+  const stream = await readFile(capturedClaude);
+  const resultEvent = stream
+    .toString('utf8')
+    .trimEnd()
+    .split('\n')
+    .map((line) => JSON.parse(line))
+    .find((event) => event.type === 'result');
+  assert.ok(resultEvent);
+  const accounting = new SessionUsage('claude');
+  accounting.push(stream);
+  accounting.finish();
+  // Two unique messages contribute output 16 + 3 = 19; the repeated second
+  // message remains at its last usage (3). `result` says 233 output and 83
+  // thinking tokens, so it is retained for comparison but not counted.
+  assert.deepEqual(accounting.summary(false), {
+    status: 'complete',
+    input_tokens: 4,
+    output_tokens: 19,
+    cache_read_input_tokens: 21_708,
+    cache_creation_input_tokens: 21_834,
+    total_tokens: 43_565,
+    resultMatches: false,
+    result: {
+      usage: resultEvent.usage,
+      modelUsage: resultEvent.modelUsage,
+    },
+  });
+});
+
+test('eval session reports the captured Claude transcript and result mismatch', async (t) => {
+  if (!requiresIsolation(t, t.name, ['bwrap', 'systemdUserScope'])) return;
+  const f = await fixture();
+  try {
+    const stream = await readFile(capturedClaude);
+    await f.scenario(stream);
+    const observed = f.invoke(f.args('R'));
+    assert.equal(observed.status, 0, observed.stderr);
+    const record = JSON.parse(
+      await readFile(join(f.output('R'), 'session.json'), 'utf8'),
+    );
+    assert.equal(record.status, 'completed');
+    const resultEvent = stream
+      .toString('utf8')
+      .trimEnd()
+      .split('\n')
+      .map((line) => JSON.parse(line))
+      .find((event) => event.type === 'result');
+    assert.ok(resultEvent);
+    // The captured assistant messages contribute output 16 + 3; the repeated
+    // second id has the same final usage, while result aggregates output 233.
+    // Input and both cache fields agree with result, so the output mismatch is
+    // what makes resultMatches false without changing the counted 19 tokens.
+    assert.deepEqual(record.usage, {
+      status: 'complete',
+      input_tokens: 4,
+      output_tokens: 19,
+      cache_read_input_tokens: 21_708,
+      cache_creation_input_tokens: 21_834,
+      total_tokens: 43_565,
+      resultMatches: false,
+      result: {
+        usage: resultEvent.usage,
+        modelUsage: resultEvent.modelUsage,
+      },
+    });
+    assert.deepEqual(
+      [
+        record.usage.result.usage.input_tokens,
+        record.usage.result.usage.output_tokens,
+        record.usage.result.usage.cache_read_input_tokens,
+        record.usage.result.usage.cache_creation_input_tokens,
+        record.usage.result.usage.output_tokens_details.thinking_tokens,
+      ],
+      [4, 233, 21_708, 21_834, 83],
+    );
+    const raw = await readFile(join(f.output('R'), 'stream.jsonl'));
+    assert.deepEqual(raw, stream);
+    assert.match(raw.toString(), /"subtype":"permission_denied"/u);
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('eval Claude frozen settings use workspace absolute rules and accept edits', async (t) => {
+  if (!requiresIsolation(t, t.name, ['bwrap', 'systemdUserScope'])) return;
+  const f = await fixture();
+  try {
+    await f.scenario(jsonl([assistant(), result]));
+    const observed = f.invoke(f.args('R'));
+    assert.equal(observed.status, 0, observed.stderr);
+    const settings = JSON.parse(
+      await readFile(join(f.slot, 'claude', 'settings.json'), 'utf8'),
+    );
+    const permissionRules = [
+      ...settings.permissions.allow,
+      ...settings.permissions.deny,
+    ].filter((rule: string) => rule.includes('('));
+    assert.deepEqual(permissionRules, [
+      'Read(//w/repo/**)',
+      'Edit(//w/repo/**)',
+      'Write(//w/repo/**)',
+      'Bash(*)',
+      'Read(//w/codex/**)',
+      'Read(//w/claude/**)',
+      'Edit(//w/codex/**)',
+      'Edit(//w/claude/**)',
+      'Write(//w/codex/**)',
+      'Write(//w/claude/**)',
+    ]);
+    assert.ok(
+      permissionRules.every(
+        (rule: string) => rule === 'Bash(*)' || /^\w+\(\/\//u.test(rule),
+      ),
+    );
+    const harness = JSON.parse(
+      await readFile(join(f.slot, 'repo', 'observed.json'), 'utf8'),
+    );
+    const permissionMode = harness.args.indexOf('--permission-mode');
+    assert.notEqual(permissionMode, -1);
+    assert.equal(harness.args[permissionMode + 1], 'acceptEdits');
   } finally {
     await f.cleanup();
   }
