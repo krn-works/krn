@@ -79,8 +79,9 @@ async function fixture(ids?: string[]) {
   function run(options: string[] = ['--json']) {
     return invoke(['plan', '--experiment', experiment, ...options]);
   }
-  function invoke(args: string[]) {
+  function invoke(args: string[], cwd = process.cwd()) {
     return spawnSync(process.execPath, [cli, 'eval', ...args], {
+      cwd,
       encoding: 'utf8',
       env: { ...process.env, KRN_LEGACY_ENTRY: legacy, KRN_FORWARDED: '' },
     });
@@ -217,6 +218,118 @@ test('eval plan rejects paths outside the experiment and symlinks', async (t) =>
       }
     });
   }
+});
+
+test('eval plan checks every experiment path component through the CLI', async (t) => {
+  await t.test(
+    'refuses a symlinked experiment path in text output',
+    async () => {
+      const f = await fixture();
+      try {
+        const link = join(f.directory, 'experiment-link');
+        await symlink(f.experiment, link);
+        const result = f.invoke(['plan', '--experiment', link]);
+        assert.equal(result.status, 65, result.stderr);
+        assert.equal(result.stdout, '');
+        assert.match(
+          result.stderr,
+          /experiment-link.*symlinks are not allowed/u,
+        );
+      } finally {
+        await f.cleanup();
+      }
+    },
+  );
+
+  await t.test(
+    'refuses a symlinked experiment path in the JSON envelope',
+    async () => {
+      const f = await fixture();
+      try {
+        const link = join(f.directory, 'experiment-link');
+        await symlink(f.experiment, link);
+        failure(
+          f.invoke(['plan', '--experiment', link, '--json']),
+          65,
+          /experiment-link.*symlinks are not allowed/u,
+        );
+      } finally {
+        await f.cleanup();
+      }
+    },
+  );
+
+  await t.test(
+    'accepts a noncanonical path with a parent component',
+    async () => {
+      const f = await fixture();
+      try {
+        const path = join(f.experiment, '..', 'experiment');
+        const result = f.invoke(['plan', '--experiment', path, '--json']);
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(JSON.parse(result.stdout).experiment, f.value.id);
+      } finally {
+        await f.cleanup();
+      }
+    },
+  );
+
+  await t.test(
+    'refuses a symlinked intermediate experiment directory',
+    async () => {
+      const f = await fixture();
+      try {
+        await symlink(f.directory, join(f.directory, 'linkdir'));
+        failure(
+          f.invoke([
+            'plan',
+            '--experiment',
+            join(f.directory, 'linkdir', 'experiment'),
+            '--json',
+          ]),
+          65,
+          /linkdir.*symlinks are not allowed/u,
+        );
+      } finally {
+        await f.cleanup();
+      }
+    },
+  );
+
+  await t.test(
+    'refuses an experiment path whose final component is not a directory',
+    async () => {
+      const f = await fixture();
+      try {
+        const file = join(f.directory, 'experiment-file');
+        await writeFile(file, 'not a directory');
+        failure(
+          f.invoke(['plan', '--experiment', file, '--json']),
+          65,
+          /experiment-file.*expected a directory/u,
+        );
+      } finally {
+        await f.cleanup();
+      }
+    },
+  );
+
+  await t.test(
+    'accepts a relative experiment path from the CLI working directory',
+    async () => {
+      const f = await fixture();
+      try {
+        const result = f.invoke(
+          ['plan', '--experiment', 'experiment', '--json'],
+          f.directory,
+        );
+        assert.equal(result.status, 0, result.stderr);
+        assert.equal(JSON.parse(result.stdout).experiment, f.value.id);
+      } finally {
+        await f.cleanup();
+      }
+    },
+  );
 });
 
 test('eval plan requires frozen inputs unless explicitly printing a draft', async () => {

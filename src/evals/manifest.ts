@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { lstat, readFile, realpath } from 'node:fs/promises';
-import { isAbsolute, join, win32 } from 'node:path';
+import { lstat, readFile } from 'node:fs/promises';
+import { isAbsolute, join, parse, sep, win32 } from 'node:path';
 import { z } from 'zod';
 
 export class EvalDataError extends Error {
@@ -116,6 +116,36 @@ export const manifestSchema = z
 
 export type ExperimentManifest = z.infer<typeof manifestSchema>;
 
+async function inspectExperimentDirectory(path: string): Promise<string> {
+  const absolute = isAbsolute(path);
+  let current = absolute ? parse(path).root : process.cwd();
+  const components = path
+    .slice(absolute ? current.length : 0)
+    .split(sep)
+    .filter((component) => component !== '');
+  if (components.length === 0) components.push('.');
+  try {
+    for (const component of components) {
+      current = join(current, component);
+      const stat = await lstat(current);
+      if (stat.isSymbolicLink())
+        throw new EvalDataError(
+          `experiment path component "${current}": symlinks are not allowed`,
+        );
+      if (!stat.isDirectory())
+        throw new EvalDataError(
+          `experiment path component "${current}": expected a directory`,
+        );
+    }
+    return current;
+  } catch (error) {
+    if (error instanceof EvalDataError) throw error;
+    throw new EvalDataError(
+      `experiment directory: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
 // Paths use portable, relative POSIX segments. Inspect every component so a
 // symlinked parent directory cannot turn an otherwise relative input external.
 async function readExperimentFile(root: string, path: string): Promise<Buffer> {
@@ -155,14 +185,7 @@ function utf8(bytes: Buffer, path: string): string {
 export async function loadManifest(
   experimentDirectory: string,
 ): Promise<ExperimentManifest> {
-  let root: string;
-  try {
-    root = await realpath(experimentDirectory);
-  } catch (error) {
-    throw new EvalDataError(
-      `experiment directory: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
+  const root = await inspectExperimentDirectory(experimentDirectory);
   const json = utf8(
     await readExperimentFile(root, 'manifest.json'),
     'manifest.json',
