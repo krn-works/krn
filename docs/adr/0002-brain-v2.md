@@ -4,9 +4,9 @@ Date: 2026-10-08
 
 ## Status
 
-Proposed for E3 design. The Wizard-of-Oz evaluation gates implementation and
-the model-quality claim; it does not change the operator's selected scope or
-client-isolation policy.
+Proposed for E3 design. FR-40 (ADR 0014 D20) is the gate, the Wizard-of-Oz set
+is a harness pilot only, and this does not change the operator's selected
+scope or client-isolation policy.
 
 ## Context
 
