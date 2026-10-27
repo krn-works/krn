@@ -43,6 +43,7 @@ export class SessionUsage {
   private activeTurn: number | undefined;
   toolCalled = false;
   error = false;
+  configRejected = false;
   private result: { usage: unknown; modelUsage: unknown } | undefined;
 
   private readonly harness: Harness;
@@ -141,6 +142,15 @@ export class SessionUsage {
         this.toolCalled = true;
       if (event.type === 'error' || event.type === 'turn.failed')
         this.error = true;
+      if (
+        event.type === 'error' &&
+        typeof event.message === 'string' &&
+        /\b(?:config(?:uration)?|settings?|features?)\b/iu.test(
+          event.message,
+        ) &&
+        /\b(?:ignored|unrecogni[sz]ed)\b/iu.test(event.message)
+      )
+        this.configRejected = true;
       if (event.type === 'turn.failed' || event.type === 'turn.completed') {
         this.terminal = true;
         if (!this.validUsage(event.usage)) this.invalidUsage = true;

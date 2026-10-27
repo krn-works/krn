@@ -9,15 +9,18 @@ import {
   mkdtemp,
   readdir,
   readFile,
+  realpath,
   rm,
   symlink,
   writeFile,
 } from 'node:fs/promises';
 import { connect } from 'node:net';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { CODEX_CONFIG } from '../../src/evals/session.ts';
+import { SessionUsage } from '../../src/evals/usage.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
@@ -259,6 +262,209 @@ function refused(
   assert.equal(envelope.code, code);
 }
 
+test('eval Codex config disables ambient integrations with recognised settings', () => {
+  for (const feature of [
+    'apps',
+    'plugins',
+    'remote_plugin',
+    'skill_search',
+    'skill_mcp_dependency_install',
+    'browser_use',
+    'browser_use_external',
+    'browser_use_full_cdp_access',
+    'computer_use',
+    'image_generation',
+    'hooks',
+    'memories',
+  ])
+    assert.match(CODEX_CONFIG, new RegExp(`^${feature} = false$`, 'mu'));
+  assert.match(CODEX_CONFIG, /^web_search = "disabled"$/mu);
+  assert.ok(
+    CODEX_CONFIG.indexOf('web_search =') < CODEX_CONFIG.indexOf('[history]'),
+  );
+  assert.doesNotMatch(
+    CODEX_CONFIG,
+    /^(skills|multi_agent|goals|tool_suggest) =/mu,
+  );
+});
+
+const rejectedConfigMessages = [
+  '`features.skills` is ignored',
+  'The configuration setting `features.skills` is ignored.',
+  'Unrecognized configuration key: features.unknown',
+  'Unrecognised config setting: features.unknown',
+];
+
+test('eval Codex stream remembers rejected configuration after a completed tool turn', () => {
+  for (const message of rejectedConfigMessages) {
+    const accounting = new SessionUsage('codex');
+    accounting.push(
+      Buffer.from(jsonl([{ type: 'error', message }]) + codexStream),
+    );
+    accounting.finish();
+    assert.equal(accounting.configRejected, true, message);
+    assert.equal(accounting.truncated, false);
+  }
+  for (const event of [
+    { type: 'error', message: 'provider unavailable' },
+    { type: 'error', message: 'ignored command output' },
+    { type: 'error', message: 'unrecognized model' },
+    { type: 'error', message: { config: 'ignored' } },
+    { type: 'item.completed', message: rejectedConfigMessages[0] },
+  ]) {
+    const accounting = new SessionUsage('codex');
+    accounting.push(Buffer.from(jsonl([event]) + codexStream));
+    accounting.finish();
+    assert.equal(accounting.configRejected, false);
+  }
+});
+
+test('eval session classifies a rejected Codex config as harness_error despite completion', async (t) => {
+  if (!requiresIsolation(t, t.name, ['bwrap', 'systemdUserScope'])) return;
+  for (const message of rejectedConfigMessages) {
+    const f = await fixture();
+    try {
+      await f.scenario(jsonl([{ type: 'error', message }]) + codexStream);
+      const observed = f.invoke(f.args());
+      assert.equal(observed.status, 0, observed.stderr);
+      const record = JSON.parse(
+        await readFile(join(f.output(), 'session.json'), 'utf8'),
+      );
+      assert.equal(record.status, 'harness_error');
+      assert.equal(record.reason, 'config_rejected');
+      assert.equal(record.exitCode, 0);
+    } finally {
+      await f.cleanup();
+    }
+  }
+});
+
+test('eval mask with network exposes the host resolved resolv.conf bytes', async (t) => {
+  if (!requiresIsolation(t, t.name, ['bwrap'])) return;
+  const f = await fixture();
+  try {
+    const observed = spawnSync(
+      process.execPath,
+      [
+        cli,
+        'eval',
+        'mask',
+        '--slot',
+        f.slot,
+        '--network',
+        '--',
+        '/usr/bin/cat',
+        '/etc/resolv.conf',
+      ],
+      {
+        env: { ...process.env, KRN_EVAL_RESOLV_CONF: '/etc/resolv.conf' },
+        timeout: 30_000,
+      },
+    );
+    assert.equal(observed.status, 0, observed.stderr.toString());
+    assert.deepEqual(
+      observed.stdout,
+      await readFile(await realpath('/etc/resolv.conf')),
+    );
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('eval mask binds only the final resolver file read-only when network is enabled', async (t) => {
+  if (!requiresIsolation(t, t.name, ['bwrap'])) return;
+  const f = await fixture();
+  try {
+    const resolver = join(f.directory, 'resolver');
+    await mkdir(resolver);
+    const target = join(resolver, 'nameservers');
+    const neighbour = join(resolver, 'private');
+    const bytes = Buffer.from('nameserver 127.0.0.53\n# fixture\r\n');
+    await writeFile(target, bytes);
+    await writeFile(neighbour, 'hidden\n');
+    const alias = join(f.directory, 'resolv.conf');
+    const intermediate = join(f.directory, 'resolver-link');
+    await symlink('resolver/nameservers', intermediate);
+    await symlink('resolver-link', alias);
+    const before = await tree(resolver);
+    const env = { KRN_EVAL_RESOLV_CONF: alias };
+    const offline = f.invoke(
+      ['mask', '--slot', f.slot, '--', '/usr/bin/test', '!', '-e', target],
+      env,
+    );
+    assert.equal(offline.status, 0, offline.stderr);
+    const dangling = join(f.directory, 'dangling-resolver');
+    await symlink('absent', dangling);
+    const withoutResolver = f.invoke(
+      ['mask', '--slot', f.slot, '--', '/usr/bin/true'],
+      { KRN_EVAL_RESOLV_CONF: dangling },
+    );
+    assert.equal(withoutResolver.status, 0, withoutResolver.stderr);
+    const observed = f.invoke(
+      [
+        'mask',
+        '--slot',
+        f.slot,
+        '--network',
+        '--tool',
+        dirname(process.execPath),
+        '--',
+        process.execPath,
+        '-e',
+        `
+        const assert = require('node:assert/strict');
+        const fs = require('node:fs');
+        process.stdout.write(fs.readFileSync(process.argv[1]).toString('base64'));
+        assert.throws(() => fs.appendFileSync(process.argv[1], 'forbidden'), { code: 'EROFS' });
+        assert.equal(fs.existsSync(process.argv[2]), false);
+      `,
+        target,
+        neighbour,
+      ],
+      env,
+    );
+    assert.equal(observed.status, 0, observed.stderr);
+    assert.deepEqual(Buffer.from(observed.stdout, 'base64'), bytes);
+    assert.deepEqual(await tree(resolver), before);
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('eval mask refuses dangling and non-regular resolver targets with network', async () => {
+  const f = await fixture();
+  try {
+    const dangling = join(f.directory, 'resolv.conf');
+    await symlink('absent', dangling);
+    const directoryAlias = join(f.directory, 'resolver-directory');
+    await symlink(f.tools, directoryAlias);
+    const loop = join(f.directory, 'resolver-loop');
+    await symlink(loop, loop);
+    const unreadable = join(f.directory, 'resolver-unreadable');
+    await writeFile(unreadable, 'nameserver 127.0.0.53\n', { mode: 0o000 });
+    try {
+      for (const path of [
+        dangling,
+        directoryAlias,
+        f.tools,
+        loop,
+        unreadable,
+        `${f.directory}/absent`,
+      ]) {
+        const observed = f.invoke(
+          ['mask', '--slot', f.slot, '--network', '--', '/usr/bin/true'],
+          { KRN_EVAL_RESOLV_CONF: path },
+        );
+        assert.equal(observed.status, 65, `${path}: ${observed.stderr}`);
+      }
+    } finally {
+      await chmod(unreadable, 0o600);
+    }
+  } finally {
+    await f.cleanup();
+  }
+});
+
 test('eval session resolves a planned arm, preserves raw bytes and accounts Codex subsets', async (t) => {
   if (!requiresIsolation(t, t.name, ['bwrap', 'systemdUserScope'])) return;
   const f = await fixture();
@@ -283,7 +489,7 @@ test('eval session resolves a planned arm, preserves raw bytes and accounts Code
     assert.equal(record.promptSha256, hash(f.prompt));
     const config = await readFile(join(f.slot, 'codex', 'config.toml'));
     assert.equal(record.configSha256, hash(config));
-    assert.match(config.toString(), /project_doc_max_bytes = 0/u);
+    assert.doesNotMatch(config.toString(), /project_doc_max_bytes/u);
     assert.match(config.toString(), /approval_policy = "never"/u);
     assert.equal(
       (await readFile(join(f.slot, 'codex', 'auth.json'))).length,

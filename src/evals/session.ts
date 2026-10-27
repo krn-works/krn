@@ -28,13 +28,22 @@ import { type Harness, SessionUsage } from './usage.ts';
 // Empty config homes plus the mask remove ambient MCP, skills and history.
 export const CODEX_CONFIG = `approval_policy = "never"
 sandbox_mode = "workspace-write"
-project_doc_max_bytes = 0
 cli_auth_credentials_store = "file"
+web_search = "disabled"
 [history]
 persistence = "none"
 [features]
+apps = false
+plugins = false
+remote_plugin = false
+skill_search = false
+skill_mcp_dependency_install = false
+browser_use = false
+browser_use_external = false
+browser_use_full_cdp_access = false
+computer_use = false
+image_generation = false
 hooks = false
-skills = false
 memories = false
 `;
 export const CLAUDE_SETTINGS = `${JSON.stringify(
@@ -451,17 +460,19 @@ export async function sessionCommand(args: string[]): Promise<void> {
   accounting.finish();
   if (timedOut) exitCode = 124;
   else if (launchError) exitCode = 70;
-  const status = timedOut
-    ? 'timeout'
-    : launchError
-      ? 'harness_error'
-      : exitCode !== 0 || accounting.error
-        ? exitCode !== 0 && accounting.error && !accounting.toolCalled
-          ? 'harness_error'
-          : 'agent_error'
-        : accounting.truncated
-          ? 'truncated'
-          : 'completed';
+  const status = accounting.configRejected
+    ? 'harness_error'
+    : timedOut
+      ? 'timeout'
+      : launchError
+        ? 'harness_error'
+        : exitCode !== 0 || accounting.error
+          ? exitCode !== 0 && accounting.error && !accounting.toolCalled
+            ? 'harness_error'
+            : 'agent_error'
+          : accounting.truncated
+            ? 'truncated'
+            : 'completed';
   const session = {
     runId: run.runId,
     arm: run.arm,
@@ -473,6 +484,7 @@ export async function sessionCommand(args: string[]): Promise<void> {
     endedAt: new Date().toISOString(),
     exitCode,
     status,
+    ...(accounting.configRejected ? { reason: 'config_rejected' } : {}),
     usage: accounting.summary(timedOut || launchError),
     scope,
   };

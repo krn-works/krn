@@ -136,6 +136,27 @@ async function directoryWithoutSymlinks(path: string): Promise<void> {
   await directory(path);
 }
 
+async function resolverMounts(): Promise<string[]> {
+  // Test-only override: exercise resolver failures without changing host /etc.
+  const source = process.env.KRN_EVAL_RESOLV_CONF ?? '/etc/resolv.conf';
+  try {
+    const symlink = (await lstat(source)).isSymbolicLink();
+    const target = await realpath(source);
+    if (!(await lstat(target)).isFile())
+      throw new EvalDataError('resolver target must be a regular file');
+    await access(target, constants.R_OK);
+    // /etc and /usr are already mounted. Expose only the final file elsewhere,
+    // never its parent directory (notably /run with systemd-resolved).
+    return symlink && !inside(target, '/etc') && !inside(target, '/usr')
+      ? ['--ro-bind', target, target]
+      : [];
+  } catch (error) {
+    throw new EvalDataError(
+      `mask resolver: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
 export async function maskCommand(options: {
   slot: string;
   network: boolean;
@@ -146,6 +167,7 @@ export async function maskCommand(options: {
   let slot: string;
   const tools: string[] = [];
   let credentials: string[] = [];
+  const resolver = options.network ? await resolverMounts() : [];
   try {
     if (!isAbsolute(options.slot))
       throw new EvalDataError('slot must be absolute');
@@ -208,6 +230,7 @@ export async function maskCommand(options: {
     '--ro-bind',
     '/etc',
     '/etc',
+    ...resolver,
     '--symlink',
     '/usr/bin',
     '/bin',
