@@ -1,7 +1,11 @@
 {
   "id": "t-c2pnpbq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": ""
+  },
   "created": "2026-10-27",
   "priority": 1,
   "title": "Make red-first prove a real red-to-green pair",
