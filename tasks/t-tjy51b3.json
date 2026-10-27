@@ -1,0 +1,12 @@
+{
+  "id": "t-tjy51b3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Accept a moved base in the ship verifier",
+  "after": [],
+  "body": [
+    "krn ship leases the current main as the base and passes it to the repository verifier, while GitHub keeps a pull request's base SHA at the main commit of its last push. `scripts/pr-preflight.mjs` requires the two to be equal, so every reviewed Product pull request is refused as soon as main moves (2026-10-27: #121 refused after #122 merged). The merge-path decision already states the review base must be an ancestor of the merge base.\nAcceptance: preflight passes when the PR base SHA equals the requested base or is its ancestor, and refuses when it is not in the requested base history; `test/pr-preflight.test.ts` covers both and fails without the change."
+  ]
+}
