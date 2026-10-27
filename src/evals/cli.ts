@@ -1,5 +1,7 @@
 import { commandErrorExitCode } from '../cli/command-error.ts';
 import { CliUsageError } from '../cli/usage-error.ts';
+import { blindCommand } from './blind.ts';
+import { ledgerCommand } from './ledger.ts';
 import { EvalDataError, loadManifest } from './manifest.ts';
 import { maskCommand } from './mask.ts';
 import { planExperiment } from './plan.ts';
@@ -16,6 +18,14 @@ export async function evalCommand(args: string[]): Promise<void> {
   // A wrapped command owns every argument after "--", including "--json".
   const json = args[0] !== 'mask' && args.includes('--json');
   try {
+    if (args[0] === 'blind') {
+      await blindCommand(args.slice(1));
+      return;
+    }
+    if (args[0] === 'ledger') {
+      await ledgerCommand(args.slice(1));
+      return;
+    }
     if (args[0] === 'mask') {
       process.exitCode = await maskCommand(parseMask(args.slice(1)));
       return;
