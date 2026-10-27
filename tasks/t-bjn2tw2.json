@@ -1,0 +1,12 @@
+{
+  "id": "t-bjn2tw2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 2,
+  "title": "Make GLOBAL host-lock tests load resilient",
+  "after": [],
+  "body": [
+    "Replace time-based waits with condition waits bounded by deadlines in GLOBAL `test/host-lock.test.mjs` for the unflocked inherited descriptor, descendants keeping the lock, and nested run (status read right after spawn reports free under load 24–35; passes idle). Split from t-cx4gp1d, which covered the Product tests.\nAcceptance: each test waits for its required condition with a deadline, uses no fixed sleep or elapsed-time assertion, and passes under concurrent load."
+  ]
+}

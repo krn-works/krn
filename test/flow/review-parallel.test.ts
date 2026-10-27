@@ -11,23 +11,25 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { setTimeout as delay } from 'node:timers/promises';
 import { runReview } from '../../src/flow/index.ts';
 import { ReviewAbortedError } from '../../src/flow/panel.ts';
 import type { ReviewRole } from '../../src/flow/types.ts';
 import { CodexHost, type CodexSessionResult } from '../../src/hosts/codex.ts';
+import {
+  CONDITION_WAIT_MS,
+  conditionTimeoutFor,
+  waitForCondition,
+} from '../helpers/condition-wait.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
 type JudgeEvent = {
   readonly type: 'start' | 'end';
   readonly role: ReviewRole;
   readonly pid: number;
-  readonly at: number;
   readonly status?: 'complete' | 'failed' | 'terminated';
 };
 
 type FixtureOptions = {
-  readonly delaysMs?: Partial<Record<ReviewRole, number>>;
   readonly failRole?: ReviewRole;
 };
 
@@ -61,34 +63,36 @@ function fixture(options: FixtureOptions = {}) {
   writeFileSync(
     executable,
     `#!/usr/bin/env node
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, existsSync, watch } from 'node:fs';
 const eventsPath = ${JSON.stringify(eventsPath)};
-const delaysMs = ${JSON.stringify(options.delaysMs ?? {})};
+const controlRoot = ${JSON.stringify(root)};
 const failRole = ${JSON.stringify(options.failRole ?? null)};
 let prompt = '';
 for await (const chunk of process.stdin) prompt += chunk;
 const role = /ROLE: (standards|spec|adversarial)/u.exec(prompt)?.[1];
 if (!role) process.exit(90);
 function event(type, status) {
-  appendFileSync(eventsPath, JSON.stringify({ type, role, pid: process.pid, at: Date.now(), status }) + '\\n');
+  appendFileSync(eventsPath, JSON.stringify({ type, role, pid: process.pid, status }) + '\\n');
 }
-event('start');
 let finished = false;
-let timer;
 function finish(status, exitCode) {
   if (finished) return;
   finished = true;
-  clearTimeout(timer);
+  gate.close();
   event('end', status);
   process.exitCode = exitCode;
 }
-process.once('SIGTERM', () => finish('terminated', 143));
-timer = setTimeout(() => {
+function released() {
+  if (finished || !existsSync(controlRoot + '/release-' + role)) return;
   const message = JSON.stringify({ verdict: 'PASS', findings: [] });
   process.stdout.write(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: message } }) + '\\n');
   process.stdout.write(JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } }) + '\\n');
   finish(failRole === role ? 'failed' : 'complete', failRole === role ? 7 : 0);
-}, delaysMs[role] ?? 100);
+}
+const gate = watch(controlRoot, released);
+process.once('SIGTERM', () => finish('terminated', 143));
+event('start');
+released();
 `,
     { mode: 0o700 },
   );
@@ -138,28 +142,65 @@ async function waitForStarts(
   path: string,
   count: number,
 ): Promise<JudgeEvent[]> {
-  for (;;) {
+  return waitForCondition(() => {
     const events = readEvents(path);
     const starts = events.filter((event) => event.type === 'start');
-    if (starts.length >= count) return events;
-    await delay(20);
-  }
+    return starts.length >= count ? events : undefined;
+  }, `all ${count} judge processes to report start events`);
 }
 
 const panel: readonly ReviewRole[] = ['standards', 'spec', 'adversarial'];
 
-test('runReview settles panel judge sessions concurrently', async () => {
+// A serial implementation cannot satisfy the start barrier. Releasing each
+// role only after its predecessor ended also makes completion order explicit.
+async function runReleasedReview(
+  sample: ReturnType<typeof fixture>,
+  roles: readonly ReviewRole[] = panel,
+) {
+  const controller = new AbortController();
+  const review = runReview({
+    repo: sample.root,
+    base: sample.base,
+    head: sample.head,
+    lens: sample.lens,
+    panel: roles,
+    codexExecutable: sample.executable,
+    timeoutMs: 2 * CONDITION_WAIT_MS,
+    signal: controller.signal,
+  });
+  void review.catch(() => undefined);
+  try {
+    await waitForStarts(sample.eventsPath, roles.length);
+    for (const role of [...roles].reverse()) {
+      writeFileSync(join(sample.root, `release-${role}`), 'release');
+      await waitForCondition(
+        () =>
+          readEvents(sample.eventsPath).some(
+            (event) => event.type === 'end' && event.role === role,
+          )
+            ? true
+            : undefined,
+        `the released ${role} judge to report its end event`,
+      );
+    }
+    return await review;
+  } finally {
+    controller.abort();
+    await review.catch(() => undefined);
+  }
+}
+
+test('runReview settles panel judge sessions concurrently', {
+  timeout: conditionTimeoutFor(1),
+}, async () => {
   const sample = fixture();
   const originalStart = CodexHost.prototype.start;
   const events: {
     readonly type: 'start' | 'end';
     readonly role: ReviewRole;
   }[] = [];
-  const delaysMs: Record<ReviewRole, number> = {
-    standards: 700,
-    spec: 500,
-    adversarial: 300,
-  };
+  const waiting = new Set<ReviewRole>();
+  const completionOrder = [...panel].reverse();
   CodexHost.prototype.start = async (input) => {
     const match = /ROLE: (standards|spec|adversarial)/u.exec(input.prompt);
     assert.ok(match?.[1]);
@@ -169,7 +210,19 @@ test('runReview settles panel judge sessions concurrently', async () => {
     return {
       id: sessionId,
       wait: async () => {
-        await delay(delaysMs[role]);
+        waiting.add(role);
+        const predecessor = completionOrder[completionOrder.indexOf(role) - 1];
+        await waitForCondition(
+          () =>
+            waiting.size === panel.length &&
+            (predecessor === undefined ||
+              events.some(
+                (event) => event.type === 'end' && event.role === predecessor,
+              ))
+              ? true
+              : undefined,
+          `all judge waits to enter and ${predecessor ?? 'the last-started judge'} to release ${role}`,
+        );
         events.push({ type: 'end', role });
         return completedCodexResult(sessionId);
       },
@@ -200,7 +253,9 @@ test('runReview settles panel judge sessions concurrently', async () => {
   }
 });
 
-test('a thrown judge is recorded incomplete and retains the other verdicts', async () => {
+test('a thrown judge is recorded incomplete and retains the other verdicts', {
+  timeout: conditionTimeoutFor(1),
+}, async () => {
   const sample = fixture();
   const originalStart = CodexHost.prototype.start;
   const failure = new Error('judge startup failed');
@@ -218,7 +273,14 @@ test('a thrown judge is recorded incomplete and retains the other verdicts', asy
     return {
       id: sessionId,
       wait: async () => {
-        await delay(100);
+        await waitForCondition(
+          () =>
+            events.filter((event) => event.type === 'start').length ===
+            panel.length
+              ? true
+              : undefined,
+          `all judges, including the rejected judge, to start before ${role} finishes`,
+        );
         events.push({ type: 'end', role });
         return completedCodexResult(sessionId);
       },
@@ -312,7 +374,9 @@ test('an aborted panel with a rejected judge still throws ReviewAbortedError', a
   }
 });
 
-test('review starts panel judges together and records panel order', async (t) => {
+test('review starts panel judges together and records panel order', {
+  timeout: conditionTimeoutFor(4),
+}, async (t) => {
   if (
     !requiresIsolation(
       t,
@@ -321,18 +385,9 @@ test('review starts panel judges together and records panel order', async (t) =>
     )
   )
     return;
-  const sample = fixture({
-    delaysMs: { standards: 1000, spec: 800, adversarial: 600 },
-  });
+  const sample = fixture();
   try {
-    const record = await runReview({
-      repo: sample.root,
-      base: sample.base,
-      head: sample.head,
-      lens: sample.lens,
-      codexExecutable: sample.executable,
-      timeoutMs: 10000,
-    });
+    const record = await runReleasedReview(sample);
     const events = readEvents(sample.eventsPath);
     const firstEnd = events.findIndex((event) => event.type === 'end');
     assert.equal(events.filter((event) => event.type === 'start').length, 3);
@@ -351,7 +406,9 @@ test('review starts panel judges together and records panel order', async (t) =>
   }
 });
 
-test('a nonzero judge exit retains the other panel verdicts', async (t) => {
+test('a nonzero judge exit retains the other panel verdicts', {
+  timeout: conditionTimeoutFor(4),
+}, async (t) => {
   if (
     !requiresIsolation(
       t,
@@ -362,14 +419,7 @@ test('a nonzero judge exit retains the other panel verdicts', async (t) => {
     return;
   const sample = fixture({ failRole: 'spec' });
   try {
-    const record = await runReview({
-      repo: sample.root,
-      base: sample.base,
-      head: sample.head,
-      lens: sample.lens,
-      codexExecutable: sample.executable,
-      timeoutMs: 10000,
-    });
+    const record = await runReleasedReview(sample);
     assert.deepEqual(
       record.judges.map((judge) => judge.role),
       panel,
@@ -401,16 +451,16 @@ test('a nonzero judge exit retains the other panel verdicts', async (t) => {
   }
 });
 
-test('aborting a panel terminates every judge process', async (t) => {
+test('aborting a panel terminates every judge process', {
+  timeout: conditionTimeoutFor(4),
+}, async (t) => {
   if (
     !requiresIsolation(t, 'aborting a panel terminates every judge process', [
       'systemdUserScope',
     ])
   )
     return;
-  const sample = fixture({
-    delaysMs: { standards: 10000, spec: 10000, adversarial: 10000 },
-  });
+  const sample = fixture();
   const controller = new AbortController();
   let review: ReturnType<typeof runReview> | undefined;
   try {
@@ -420,9 +470,10 @@ test('aborting a panel terminates every judge process', async (t) => {
       head: sample.head,
       lens: sample.lens,
       codexExecutable: sample.executable,
-      timeoutMs: 30000,
+      timeoutMs: 2 * CONDITION_WAIT_MS,
       signal: controller.signal,
     });
+    void review.catch(() => undefined);
     await Promise.race([
       waitForStarts(sample.eventsPath, 3),
       review.then(() => {
@@ -449,7 +500,9 @@ test('aborting a panel terminates every judge process', async (t) => {
   }
 });
 
-test('a one-role panel remains partial', async (t) => {
+test('a one-role panel remains partial', {
+  timeout: conditionTimeoutFor(4),
+}, async (t) => {
   if (
     !requiresIsolation(t, 'a one-role panel remains partial', [
       'systemdUserScope',
@@ -458,15 +511,7 @@ test('a one-role panel remains partial', async (t) => {
     return;
   const sample = fixture();
   try {
-    const record = await runReview({
-      repo: sample.root,
-      base: sample.base,
-      head: sample.head,
-      lens: sample.lens,
-      panel: ['spec'],
-      codexExecutable: sample.executable,
-      timeoutMs: 10000,
-    });
+    const record = await runReleasedReview(sample, ['spec']);
     assert.equal(record.panel?.partial, true);
     assert.deepEqual(record.panel?.requestedRoles, ['spec']);
     assert.deepEqual(

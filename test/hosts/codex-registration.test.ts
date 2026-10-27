@@ -11,7 +11,6 @@ import {
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { test } from 'node:test';
-import { setTimeout as delay } from 'node:timers/promises';
 import { CodexHost } from '../../src/hosts/codex.ts';
 import {
   codexScopeUnit,
@@ -21,17 +20,18 @@ import {
   validateSystemdScopeRegistration,
   waitForSystemdScopeRegistration,
 } from '../../src/hosts/systemd-scope.ts';
+import {
+  CONDITION_WAIT_MS,
+  conditionTimeoutFor,
+  waitForCondition as waitFor,
+} from '../helpers/condition-wait.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 import { systemdEnvironment } from '../helpers/systemd-environment.ts';
-import {
-  SPAWNED_PROCESS_WAIT_MS,
-  testTimeoutFor,
-} from '../support/process-wait.ts';
 
 const scopeEnvironment = systemdEnvironment;
 
 test('Codex onStarted waits for observed registration and persists live identity', {
-  timeout: testTimeoutFor(1),
+  timeout: conditionTimeoutFor(1),
 }, async (t) => {
   if (
     !requiresIsolation(
@@ -87,7 +87,7 @@ IFS= read -r prompt || true
       cwd: directory,
       model: 'gpt-6-luna',
       prompt: 'registered prompt',
-      limits: { timeoutMs: 10_000 },
+      limits: { timeoutMs: 2 * CONDITION_WAIT_MS },
       checkpoint: {
         cli: 'unused',
         job: 'registration',
@@ -197,7 +197,7 @@ IFS= read -r prompt || true
 });
 
 test('cancellation during onStarted cannot deliver a prompt or return a session', {
-  timeout: testTimeoutFor(2),
+  timeout: conditionTimeoutFor(2),
 }, async (t) => {
   if (
     !requiresIsolation(
@@ -227,7 +227,7 @@ test('cancellation during onStarted cannot deliver a prompt or return a session'
       cwd: directory,
       model: 'gpt-6-luna',
       prompt: 'must not arrive',
-      limits: { timeoutMs: 10_000 },
+      limits: { timeoutMs: 2 * CONDITION_WAIT_MS },
       checkpoint: {
         cli: 'unused',
         job: 'callback-cancel',
@@ -254,14 +254,12 @@ test('cancellation during onStarted cannot deliver a prompt or return a session'
     });
     await waitFor(
       async () => (callbackEntered ? true : undefined),
-      waitDeadline(),
       'onStarted never became eligible',
     );
     await host.cancelAll();
     releaseCallback();
     const settled = await waitFor(
       async () => settledOutcome,
-      waitDeadline(),
       'callback cancellation did not settle startup',
     );
     if (settled.status !== 'rejected')
@@ -291,7 +289,7 @@ test('cancellation during onStarted cannot deliver a prompt or return a session'
 });
 
 test('child exit during blocked onStarted remains cancellable and hands back the lease', {
-  timeout: testTimeoutFor(5),
+  timeout: conditionTimeoutFor(5),
 }, async (t) => {
   const testName =
     'child exit during blocked onStarted remains cancellable and hands back the lease';
@@ -318,7 +316,7 @@ test('child exit during blocked onStarted remains cancellable and hands back the
       cwd: directory,
       model: 'gpt-6-luna',
       prompt: 'must not arrive',
-      limits: { timeoutMs: 10_000 },
+      limits: { timeoutMs: 2 * CONDITION_WAIT_MS },
       checkpoint: {
         cli: 'unused',
         job: 'closed-callback',
@@ -327,21 +325,15 @@ test('child exit during blocked onStarted remains cancellable and hands back the
         intent: 'intent:0',
       },
       onStarted: async (sessionId) => {
-        workerIdentity = await waitFor(
-          async () => {
-            try {
-              const pid = Number(
-                (await readFile(workerPidFile, 'utf8')).trim(),
-              );
-              const startTicks = processStartTicks(pid);
-              return startTicks ? { pid, startTicks } : undefined;
-            } catch {
-              return undefined;
-            }
-          },
-          waitDeadline(),
-          'the owned Codex worker identity was not observed',
-        );
+        workerIdentity = await waitFor(async () => {
+          try {
+            const pid = Number((await readFile(workerPidFile, 'utf8')).trim());
+            const startTicks = processStartTicks(pid);
+            return startTicks ? { pid, startTicks } : undefined;
+          } catch {
+            return undefined;
+          }
+        }, 'the owned Codex worker identity was not observed');
         workerUnit = codexScopeUnit('closed-callback', sessionId);
         const membership = await readFile(
           `/proc/${workerIdentity.pid}/cgroup`,
@@ -371,7 +363,6 @@ test('child exit during blocked onStarted remains cancellable and hands back the
     });
     await waitFor(
       async () => (callbackEntered ? true : undefined),
-      waitDeadline(),
       'onStarted never became eligible',
     );
     const identity = workerIdentity;
@@ -383,12 +374,10 @@ test('child exit during blocked onStarted remains cancellable and hands back the
         processHasIdentity(identity.pid, identity.startTicks)
           ? undefined
           : true,
-      waitDeadline(),
       'the owned worker did not exit after the test released it',
     );
     await waitFor(
       async () => (systemdScopeInactive(unit) ? true : undefined),
-      waitDeadline(),
       'the exact worker scope did not become inactive',
     );
 
@@ -398,7 +387,6 @@ test('child exit during blocked onStarted remains cancellable and hands back the
     releaseCallback();
     const settled = await waitFor(
       async () => settledOutcome,
-      waitDeadline(),
       'close-during-callback cancellation did not settle startup',
     );
     if (settled.status !== 'rejected')
@@ -417,7 +405,7 @@ test('child exit during blocked onStarted remains cancellable and hands back the
 });
 
 test('failed close verification retains an uncertain cancellation handle', {
-  timeout: testTimeoutFor(3),
+  timeout: conditionTimeoutFor(3),
 }, async (t) => {
   const testName =
     'failed close verification retains an uncertain cancellation handle';
@@ -469,7 +457,7 @@ exec /usr/bin/systemctl "$@"
       cwd: directory,
       model: 'gpt-6-luna',
       prompt: 'must not arrive',
-      limits: { timeoutMs: 10_000 },
+      limits: { timeoutMs: 2 * CONDITION_WAIT_MS },
       checkpoint: {
         cli: 'unused',
         job: 'failed-drain',
@@ -479,10 +467,13 @@ exec /usr/bin/systemctl "$@"
       },
       onStarted: async (sessionId) => {
         workerUnit = codexScopeUnit('failed-drain', sessionId);
-        const pid = Number((await readFile(workerPidFile, 'utf8')).trim());
-        const startTicks = processStartTicks(pid);
-        assert.ok(startTicks, 'the owned fixture worker must be live');
-        workerIdentity = { pid, startTicks };
+        workerIdentity = await waitFor(async () => {
+          const value = await readFile(workerPidFile, 'utf8').catch(() => '');
+          const pid = Number(value.trim());
+          const startTicks = processStartTicks(pid);
+          return startTicks ? { pid, startTicks } : undefined;
+        }, 'the failed-close worker PID file and live process identity');
+        const { pid, startTicks } = workerIdentity;
         const membership = await readFile(`/proc/${pid}/cgroup`, 'utf8');
         assert.ok(
           membership
@@ -493,7 +484,6 @@ exec /usr/bin/systemctl "$@"
         terminateFixtureWorker(pid, startTicks);
         await waitFor(
           async () => (processHasIdentity(pid, startTicks) ? undefined : true),
-          waitDeadline(),
           'the owned worker did not exit after the test released it',
         );
         await writeFile(unitFile, `${workerUnit}\n`);
@@ -516,13 +506,11 @@ exec /usr/bin/systemctl "$@"
     });
     await waitFor(
       async () => (callbackEntered ? true : undefined),
-      waitDeadline(),
       'onStarted never reached its gate',
     );
     releaseCallback();
     const settled = await waitFor(
       async () => settledOutcome,
-      waitDeadline(),
       'failed cleanup did not settle startup',
     );
     if (settled.status !== 'rejected')
@@ -807,7 +795,7 @@ test('traversal ControlGroup cannot supply a registration proof', async () => {
 });
 
 test('cancelling a pending registration kills its owned launcher before callback or prompt', {
-  timeout: testTimeoutFor(2),
+  timeout: conditionTimeoutFor(2),
 }, async (t) => {
   if (
     !requiresIsolation(
@@ -862,7 +850,7 @@ IFS= read -r prompt || true
         cwd: directory,
         model: 'gpt-6-luna',
         prompt: 'must not arrive',
-        limits: { timeoutMs: 10_000 },
+        limits: { timeoutMs: 2 * CONDITION_WAIT_MS },
         checkpoint: {
           cli: 'unused',
           job: 'pending',
@@ -879,19 +867,20 @@ IFS= read -r prompt || true
         (session) => session.wait(),
         (error: unknown) => Promise.reject(error),
       );
-    launcherPid = await waitFor(
-      async () => {
-        try {
-          const pid = Number((await readFile(launcherMarker, 'utf8')).trim());
-          return Number.isSafeInteger(pid) && pid > 0 ? pid : undefined;
-        } catch {
-          return undefined;
-        }
-      },
-      waitDeadline(),
-      'owned systemd-run launcher was not observed',
+    launcherPid = await waitFor(async () => {
+      try {
+        const pid = Number((await readFile(launcherMarker, 'utf8')).trim());
+        return Number.isSafeInteger(pid) && pid > 0 ? pid : undefined;
+      } catch {
+        return undefined;
+      }
+    }, 'owned systemd-run launcher was not observed');
+    launchedUnit = await waitFor(
+      async () =>
+        (await readFile(unitMarker, 'utf8').catch(() => '')).trim() ||
+        undefined,
+      'the owned systemd-run launcher unit marker',
     );
-    launchedUnit = (await readFile(unitMarker, 'utf8')).trim();
     let settledOutcome:
       | [
           PromiseSettledResult<Awaited<typeof starting>>,
@@ -903,7 +892,6 @@ IFS= read -r prompt || true
     });
     const settled = await waitFor(
       async () => settledOutcome,
-      waitDeadline(),
       'pending-launch cancellation did not settle',
     );
     const [startResult] = settled;
@@ -954,23 +942,6 @@ function systemdScopeInactive(unit: string): boolean {
     { encoding: 'utf8', env: scopeEnvironment() },
   );
   return shown.status !== 0 || shown.stdout.trim() === 'inactive';
-}
-
-function waitDeadline(): number {
-  return Date.now() + SPAWNED_PROCESS_WAIT_MS;
-}
-
-async function waitFor<T>(
-  read: () => T | undefined | Promise<T | undefined>,
-  deadline: number,
-  timeoutMessage: string,
-): Promise<T> {
-  while (Date.now() < deadline) {
-    const value = await read();
-    if (value !== undefined) return value;
-    await delay(20);
-  }
-  assert.fail(timeoutMessage);
 }
 
 function terminateFixtureWorker(pid: number, startTicks: string): void {

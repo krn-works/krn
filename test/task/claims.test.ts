@@ -9,8 +9,9 @@ import {
   rm,
   writeFile,
 } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import test from 'node:test';
+import test, { beforeEach } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   type ClaimGitProbe,
@@ -25,7 +26,13 @@ import {
 } from '../../src/task/record.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
-const scratch = join(process.cwd(), '.krn/runs/claude-claim-lock/scratch');
+let scratch: string;
+beforeEach(async (t) => {
+  assert.ok('after' in t, 'private task fixtures require a test context');
+  const ownedScratch = await mkdtemp(join(tmpdir(), 'krn-task-claims-'));
+  scratch = ownedScratch;
+  t.after(() => rm(ownedScratch, { recursive: true, force: true }));
+});
 
 test('claim --next claims a ready task and ready omits it', async () => {
   const repo = await tempRepo('claim-ready-');
@@ -262,22 +269,68 @@ test('two worktrees can claim concurrently without assigning an id twice', async
     addWorktree(repo, first, 'claim-concurrent-first-branch');
     addWorktree(repo, second, 'claim-concurrent-second-branch');
     const attempts = await Promise.all(
-      Array.from({ length: 20 }, (_, index) =>
-        runCliAsync(index % 2 === 0 ? first : second, [
-          'claim',
-          '--next',
-          '--actor',
-          `worker-${index}`,
-        ]),
-      ),
+      Array.from({ length: 20 }, async (_, index) => {
+        const actor = `worker-${index}`;
+        const worktree = index % 2 === 0 ? first : second;
+        return {
+          actor,
+          worktree,
+          ...(await runCliAsync(worktree, [
+            'claim',
+            '--next',
+            '--actor',
+            actor,
+          ])),
+        };
+      }),
     );
-    for (const result of attempts)
-      assert.ok(result.status === 0 || result.status === 75, result.stderr);
-    const ids = attempts
-      .filter((result) => result.status === 0)
-      .map((result) => result.stdout.trim());
-    assert.equal(new Set(ids).size, ids.length);
-    assert.equal(ids.length, 10);
+    const winners = attempts.filter((result) => result.status === 0);
+    const ids = winners.map((result) => result.stdout.trim());
+    assert.equal(new Set(ids).size, ids.length, 'no task may be claimed twice');
+    assert.ok(winners.length > 0, 'at least one ready task must be claimed');
+    assert.ok(
+      winners.length <= records.length,
+      'winners cannot exceed ready tasks',
+    );
+    for (const result of attempts) {
+      if (result.status !== 0) {
+        assert.equal(result.status, 75, result.stderr);
+        assert.match(
+          result.stderr,
+          /task claim is busy|no ready tasks are available to claim/u,
+        );
+        assert.equal(result.stdout.trim(), '');
+        continue;
+      }
+      const id = result.stdout.trim();
+      assert.ok(
+        records.some((record) => record.id === id),
+        'winner must claim a ready task',
+      );
+      const saved = JSON.parse(
+        readFileSync(join(repo, '.krn', 'task-claims', `${id}.json`), 'utf8'),
+      );
+      assert.equal(saved.id, id);
+      assert.equal(
+        saved.actor,
+        result.actor,
+        'claim must belong to its reported winner',
+      );
+      assert.equal(saved.worktree, realpathSync(result.worktree));
+      assert.equal(
+        saved.branch,
+        result.worktree === first
+          ? 'claim-concurrent-first-branch'
+          : 'claim-concurrent-second-branch',
+      );
+    }
+    assert.deepEqual(
+      (await readdir(join(repo, '.krn', 'task-claims')))
+        .filter((name) => name.endsWith('.json'))
+        .sort(),
+      ids.map((id) => `${id}.json`).sort(),
+      'every persisted claim must have exactly one successful owner',
+    );
     assert.equal(git(repo, 'status', '--porcelain'), '');
   } finally {
     removeWorktree(repo, first);

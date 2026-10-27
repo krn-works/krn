@@ -1,12 +1,16 @@
 {
   "id": "t-cx4gp1d",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": ""
+  },
   "created": "2026-10-26",
   "priority": 1,
   "title": "Make concurrency tests load resilient",
   "after": [],
   "body": [
-    "Replace time-based waits with condition waits bounded by deadlines in GLOBAL `test/host-lock.test.mjs` for the unflocked inherited descriptor, descendants keeping the lock, and nested run, and in Product `test/verdict/sandbox.test.ts` SIGTERM/SIGINT verdict tests, `test/flow/review-parallel.test.ts`, and `test/hosts/codex-registration.test.ts` registration and `onStarted` gates. Also give `test/task/claims.test.ts:28` and `test/task/task.test.ts:16` private temporary roots instead of `.krn/runs/claude-claim-lock/scratch` with fixed worktree names, and make `test/task/claims.test.ts:254-280` independent of host load (it requires exactly 10 `--next` winners of 20). The observed host-lock failures are listed in `.krn/runs/claude-tracker-format/flaky-observed.md`; the claim test findings in `.krn/runs/independent-review-followup/report.md` (N2).\nAcceptance: each test waits for its required condition, uses no fixed sleep or elapsed-time assertion, writes only under its own temporary root, and passes under concurrent load."
+    "Replace time-based waits with condition waits bounded by deadlines in Product `test/verdict/sandbox.test.ts` SIGTERM/SIGINT verdict tests, `test/hosts/codex-registration.test.ts` registration and `onStarted` gates, `test/flow/review-parallel.test.ts`, and `test/live-smoke-signal.test.ts`; give `test/task/claims.test.ts` and `test/task/task.test.ts` private temporary roots, and make the `claim --next` race test assert invariants instead of an exact winner count. The GLOBAL `test/host-lock.test.mjs` part moved to its own task.\nAcceptance: each test waits for its required condition, uses no fixed sleep or elapsed-time assertion, writes only under its own temporary root, and passes under concurrent load."
   ]
 }
