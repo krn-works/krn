@@ -1,0 +1,12 @@
+{
+  "id": "t-5wbkv1w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Merge through the pull request API and require checks on main",
+  "after": [],
+  "body": [
+    "Operator 2026-10-27 (ADR 0014 D21): GitHub Team with a server-side ruleset on `main` of both repositories. Stage one (deletion, non_fast_forward, no bypass) is live in rulesets 25961157 (krn) and 25961159 (krn-codex-skills). GLOBAL `krn ship` still pushes the merge commit directly (fast-forward with lease), which require-PR and required status checks would block. Make `krn ship` merge through `PUT /repos/{owner}/{repo}/pulls/{n}/merge` pinned to the reviewed head SHA, keeping the base lease, verifier and delivery record; then add require-PR and the required status checks to both rulesets without bypass. The ruleset change is applied by the lead with the exact rule set read back.\nAcceptance: a merge through krn ship lands through the API with the head pinned; a direct push to main and a PR missing a required check are refused by GitHub; both observed on the real repositories."
+  ]
+}

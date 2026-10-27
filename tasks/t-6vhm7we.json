@@ -9,6 +9,6 @@
     "t-ste3f73"
   ],
   "body": [
-    "Prove the product claim: on a fixed task set, compare plain harness delivery (Codex alone, human merge) with KRN delivery on accepted-first-try rate, escaped defects, human interventions, wall time and tokens, with the same blinded judging as the brain experiment.\nAcceptance: a pre-registered comparison with raw per-task results and a stated win/loss per metric."
+    "Operator 2026-10-27 (ADR 0014 D23): a two-week proof of full KRN delivery against a plain harness (Codex alone, human merge), plus a market review of comparable tools, measured by operator minutes per merge, lead time p50/p90, review rounds and noise, escaped defects and cost per PR. It uses the delivery records from t-ste3f73 and runs in parallel with FR-40.\nAcceptance: a pre-registered comparison with raw per-task results and a stated win or loss per metric."
   ]
 }

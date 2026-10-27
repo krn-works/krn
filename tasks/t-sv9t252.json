@@ -1,0 +1,15 @@
+{
+  "id": "t-sv9t252",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Blind candidates and seal the assignment ledger",
+  "after": [
+    "t-dpxbq2y"
+  ],
+  "body": [
+    "Evaluation harness slice (decision .krn/runs/claude/eval-design/decision.md): krn eval blind builds a judge repository of the base plus one synthetic commit with the candidate tree and fixed metadata, records leakage flags in a sealed ledger, and krn eval ledger unblinds only after every verdict exists.\nAcceptance: the blinded repository holds exactly base plus one commit without candidate messages or trailers; unblinding before all verdicts and any change after sealing are refused.",
+    "Paused (operator 2026-10-27) until the FR-40 power check; PR #124 is closed unmerged and its branch is kept as tag archive/feat/eval-blind."
+  ]
+}

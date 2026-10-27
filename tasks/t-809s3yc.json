@@ -1,0 +1,14 @@
+{
+  "id": "t-809s3yc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Review with judges from several vendors",
+  "after": [
+    "t-c2pnpbq"
+  ],
+  "body": [
+    "Operator 2026-10-27 (ADR 0014 D22): replace two of the three Codex judges in `krn review` with `codex review` and Claude Code `/code-review`; keep the red-first changed-test check and the exact-head record. Starts after red-first proves a real pair, so the new judges do not sit on empty evidence.\nAcceptance: one review record holds verdicts from three distinct judge implementations on the exact head; panel and round-two rules work unchanged; each judge's raw output is kept with the record."
+  ]
+}
