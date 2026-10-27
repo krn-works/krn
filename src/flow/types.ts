@@ -447,13 +447,15 @@ function reviewRecordInvariants(
       path: ['panelVerdict'],
       message: 'a complete judge FAIL must make the panel verdict FAIL',
     });
-  if (record.panel) {
-    const requested = record.panel.requestedRoles;
-    const required = record.panel.requiredRoles;
-    const expectedPartial =
-      requested.length !== required.length ||
-      required.some((role) => !requested.includes(role));
-    if (record.panel.partial !== expectedPartial)
+  const panel = record.panel;
+  const expectedPartial =
+    panel !== undefined &&
+    (panel.requestedRoles.length !== panel.requiredRoles.length ||
+      panel.requiredRoles.some((role) => !panel.requestedRoles.includes(role)));
+  if (panel) {
+    const requested = panel.requestedRoles;
+    const required = panel.requiredRoles;
+    if (panel.partial !== expectedPartial)
       context.addIssue({
         code: 'custom',
         path: ['panel', 'partial'],
@@ -478,26 +480,23 @@ function reviewRecordInvariants(
         path: ['panel', 'requestedRoles'],
         message: 'panel roles do not match the recorded judges',
       });
-    const hasIncomplete = record.judges.some(
-      (judge) => judge.state === 'incomplete',
-    );
-    const causes =
-      record.contracts === undefined && record.redFirstCauses === undefined
-        ? []
-        : deterministicCauses(record.redFirst, record.contracts ?? []);
-    const expectedVerdict =
-      hasFailure || causes.some(({ verdict }) => verdict === 'FAIL')
-        ? 'FAIL'
-        : expectedPartial || hasIncomplete || causes.length > 0
-          ? 'INCOMPLETE'
-          : 'PASS';
-    if (record.panelVerdict !== expectedVerdict)
-      context.addIssue({
-        code: 'custom',
-        path: ['panelVerdict'],
-        message: 'panel verdict does not match its judge and role outcomes',
-      });
   }
+  const hasIncomplete = record.judges.some(
+    (judge) => judge.state === 'incomplete',
+  );
+  const causes = deterministicCauses(record.redFirst, record.contracts ?? []);
+  const expectedVerdict =
+    hasFailure || causes.some(({ verdict }) => verdict === 'FAIL')
+      ? 'FAIL'
+      : expectedPartial || hasIncomplete || causes.length > 0
+        ? 'INCOMPLETE'
+        : 'PASS';
+  if (record.panelVerdict !== expectedVerdict)
+    context.addIssue({
+      code: 'custom',
+      path: ['panelVerdict'],
+      message: 'panel verdict does not match its judge and role outcomes',
+    });
 }
 const reviewRecordMetadataShape = {
   lensSha256: sha256Schema.optional(),

@@ -11,7 +11,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { isAbsolute, join, matchesGlob, relative } from 'node:path';
+import { extname, isAbsolute, join, matchesGlob, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { TEST_FILE_GLOB } from '../../scripts/test-suite.mjs';
@@ -57,6 +57,7 @@ const nodeTestReportSchema = z.object({
   missingModules: z.array(z.string()).default([]),
 });
 const nodeTestReportPrefix = 'KRN_NODE_TEST_REPORT:';
+const runnerConfigErrorPrefix = 'KRN_RUNNER_CONFIG_ERROR:';
 // Review checks already run inside isolation; nested isolation is unavailable.
 // Share this declaration across the reporter parent and the candidate child.
 const reviewSandboxCapabilities = {
@@ -288,7 +289,7 @@ function changedTestFiles(root: string, base: string, head: string): string[] {
     'diff',
     '--no-renames',
     '--name-only',
-    '--diff-filter=ACM',
+    '--diff-filter=ACMT',
     '-z',
     `${base}..${head}`,
     '--',
@@ -419,7 +420,9 @@ function regularGitFile(root: string, sha: string, path: string): boolean {
   return true;
 }
 
-function readRunnerConfig(root: string, base: string): readonly string[] {
+type RunnerModule = { path: string; source: string };
+
+function readRunnerConfig(root: string, base: string): readonly RunnerModule[] {
   const entry = git(root, ['ls-tree', base, '--', 'krn.review.json']);
   if (!entry) return [];
   if (!regularGitFile(root, base, 'krn.review.json'))
@@ -427,13 +430,16 @@ function readRunnerConfig(root: string, base: string): readonly string[] {
   const config = runnerConfigSchema.parse(
     JSON.parse(git(root, ['show', `${base}:krn.review.json`])),
   );
-  for (const module of config.testFile.import) {
+  return config.testFile.import.map((module) => {
     if (!regularGitFile(root, base, module))
       throw new Error(
         `runner import must be a regular repository file: ${module}`,
       );
-  }
-  return config.testFile.import;
+    const blob = gitOutput(root, ['show', `${base}:${module}`]);
+    if (blob.status !== 0)
+      throw new Error(blob.stderr || `cannot read runner import: ${module}`);
+    return { path: module, source: blob.stdout };
+  });
 }
 
 // Do not probe nested bwrap: it can leave orphans in the sandbox process monitor.
@@ -443,6 +449,32 @@ process.env.CI = 'true';
 process.env.KRN_ISOLATION_GATE_PRELOAD = '1';
 process.env.KRN_ISOLATION_CAPABILITIES = ${JSON.stringify(JSON.stringify(reviewSandboxCapabilities))};
 `;
+
+function runnerSetup(importPaths: readonly string[]): string {
+  return `
+import { registerHooks } from 'node:module';
+${runnerEnvironment}
+const configuredModules = new Set(${JSON.stringify(importPaths.map((path) => pathToFileURL(path).href))});
+// Preloads run before Node can start the test reporter. Keep their failures
+// distinct from test assertions and flush a bounded diagnostic before exiting.
+process.setUncaughtExceptionCaptureCallback((error) => {
+  const message = String(error?.stack ?? error).slice(-1500);
+  // The executor retains a byte-limited tail, so keep the marker last even
+  // when diagnostics contain multibyte characters or escaped control codes.
+  process.stderr.write(JSON.stringify(message) + '\\n' + ${JSON.stringify(runnerConfigErrorPrefix)} + '\\n', () => process.exit(65));
+});
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (configuredModules.has(context.parentURL) && !specifier.startsWith('node:'))
+      throw new Error('runner imports must be self-contained (node: imports only): ' + specifier);
+    return nextResolve(specifier, context);
+  },
+});
+export function runnerImportsLoaded() {
+  process.setUncaughtExceptionCaptureCallback(null);
+}
+`;
+}
 
 function removeHelper(path: string): void {
   try {
@@ -466,7 +498,7 @@ function dataError(
     path,
     side,
     sha,
-    classification: 'other',
+    classification: 'procedural',
     exitCode: 65,
     durationMs: 0,
     outputSha256: createHash('sha256').update(summary).digest('hex'),
@@ -557,37 +589,33 @@ async function classifyTest(
   baseSha: string,
   headSha: string,
   path: string,
-  imports: readonly string[],
+  imports: readonly RunnerModule[],
   run: typeof execute,
   signal?: AbortSignal,
 ): Promise<RedFirstResult> {
   const started = Date.now();
-  for (const module of imports) {
-    if (!regularGitFile(root, sha, module))
-      return dataError(
-        path,
-        side,
-        sha,
-        'runner-config',
-        `runner import must be a regular repository file: ${module}`,
-      );
-  }
   const id = `red-first-${randomUUID()}`;
   const job: Job = { id, issue: 'red-first', worktree: scratch };
-  const reporterPath = join(scratch, `.krn-redfirst-reporter-${id}.mjs`);
-  const wrapperPath = join(scratch, `.krn-redfirst-wrapper-${id}.mjs`);
-  const environmentPath = join(scratch, `.krn-redfirst-environment-${id}.mjs`);
-  const helpers = [reporterPath, wrapperPath, environmentPath];
+  const helpers: string[] = [];
+  const helper = (role: string, source: string, extension = '.mjs') => {
+    const helperPath = join(scratch, `.krn-redfirst-${role}-${id}${extension}`);
+    writeFileSync(helperPath, source, { flag: 'wx', mode: 0o400 });
+    helpers.push(helperPath);
+    return helperPath;
+  };
   try {
-    writeFileSync(reporterPath, nodeTestReporter, { flag: 'wx', mode: 0o400 });
-    writeFileSync(wrapperPath, nodeTestWrapper(join(scratch, path)), {
-      flag: 'wx',
-      mode: 0o400,
-    });
-    writeFileSync(environmentPath, runnerEnvironment, {
-      flag: 'wx',
-      mode: 0o400,
-    });
+    const reporterPath = helper('reporter', nodeTestReporter);
+    const wrapperPath = helper('wrapper', nodeTestWrapper(join(scratch, path)));
+    // Copy the exact base blobs, preserving module format and bytes. Candidate
+    // trees never supply runner code, even for contract parents before the base.
+    const importPaths = imports.map((module, index) =>
+      helper(`runner-${index}`, module.source, extname(module.path) || '.mjs'),
+    );
+    const environmentPath = helper('environment', runnerSetup(importPaths));
+    const readyPath = helper(
+      'ready',
+      `import { runnerImportsLoaded } from ${JSON.stringify(pathToFileURL(environmentPath).href)};\nrunnerImportsLoaded();\n`,
+    );
     const evidence = await run(
       root,
       scratch,
@@ -596,10 +624,11 @@ async function classifyTest(
       [
         process.execPath,
         ...(imports.length ? ['--import', environmentPath] : []),
-        ...imports.flatMap((module) => [
+        ...importPaths.flatMap((module) => [
           '--import',
-          pathToFileURL(join(scratch, module)).href,
+          pathToFileURL(module).href,
         ]),
+        ...(imports.length ? ['--import', readyPath] : []),
         '--test',
         `--test-reporter=${reporterPath}`,
         wrapperPath,
@@ -647,10 +676,13 @@ async function classifyTest(
             '--',
           ]).split('\0')
         : [];
-    const classification = classifyNodeTestOutput(evidence.exitCode, output, {
-      root: scratch,
-      addedPaths,
-    });
+    const runnerConfigFailed = output.includes(runnerConfigErrorPrefix);
+    const classification = runnerConfigFailed
+      ? 'procedural'
+      : classifyNodeTestOutput(evidence.exitCode, output, {
+          root: scratch,
+          addedPaths,
+        });
     let capability = false;
     if (classification === 'skipped' && imports.length > 0) {
       const report = parseNodeTestReport(output);
@@ -668,6 +700,7 @@ async function classifyTest(
       durationMs: Date.now() - started,
       outputSha256: evidence.sha256,
       summary: summarizeNodeTestOutput(output),
+      ...(runnerConfigFailed ? { cause: 'runner-config' } : {}),
       ...(capability ? { cause: 'capability', proven: false } : {}),
     });
   } catch (error) {
@@ -691,7 +724,7 @@ export async function redFirst(
   const baseSha = resolveCommit(root, base);
   const files = changedTestFiles(root, baseSha, head);
   const { declarations, errors } = contractDeclarations(root, baseSha, head);
-  let imports: readonly string[];
+  let imports: readonly RunnerModule[];
   try {
     imports = readRunnerConfig(root, baseSha);
   } catch (error) {
@@ -724,6 +757,17 @@ export async function redFirst(
           sha,
           'contract',
           `test must exist as a regular file at ${source}: ${path}`,
+        );
+      if (
+        git(root, ['--literal-pathspecs', 'ls-tree', sha, '--', path]) &&
+        !regularGitFile(root, sha, path)
+      )
+        return dataError(
+          path,
+          side,
+          sha,
+          'contract',
+          `test must be a regular file at ${sha}: ${path}`,
         );
       const scratch = createWorktreeDirectory(temporary);
       copies.push(scratch);

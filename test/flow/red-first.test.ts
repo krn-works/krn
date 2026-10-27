@@ -390,6 +390,111 @@ test('runner configuration is optional and always comes from base', async (t) =>
   );
 });
 
+test('head cannot replace the base isolation gate to skip a failing assertion', async (t) => {
+  const f = fixture(t);
+  installGate(f);
+  const base = f.commit();
+  f.put('scripts/isolation-gate.mjs', 'globalThis.skipFailures = true;');
+  f.put(
+    testPath,
+    "import assert from 'node:assert/strict'; import { test } from 'node:test'; test('failure', { skip: globalThis.skipFailures === true }, () => assert.fail('broken'));",
+  );
+  const head = f.commit();
+  const report = await review(f, base, head);
+  assert.deepEqual(
+    report.results.map((run) => run.classification),
+    ['assertion', 'assertion'],
+  );
+  assert.equal(aggregatePanelVerdict([passedJudge], false, report), 'FAIL');
+});
+
+test('base runner modules remain usable when head deletes or symlinks their paths', async (t) => {
+  for (const replacement of ['deleted', 'symlink']) {
+    const f = fixture(t);
+    installGate(f);
+    const base = f.commit();
+    rmSync(join(f.root, 'scripts/isolation-gate.mjs'));
+    if (replacement === 'symlink') {
+      f.put('replacement.mjs', "throw new Error('head runner must not load');");
+      symlinkSync(
+        '../replacement.mjs',
+        join(f.root, 'scripts/isolation-gate.mjs'),
+      );
+    }
+    f.put(testPath, `import './helpers/isolation.ts';\n${passingTest}`);
+    const head = f.commit();
+    assert.deepEqual(
+      (await review(f, base, head)).results.map((run) => run.classification),
+      ['pass', 'pass'],
+      replacement,
+    );
+  }
+});
+
+test('runner load failures and non-node imports are procedural configuration errors', async (t) => {
+  for (const source of [
+    'export const invalid = ;',
+    "throw Object.assign(new Error('runner failed'), { code: 'ERR_ASSERTION' });",
+    "throw new Error('界'.repeat(4000));",
+    "import 'node:does-not-exist';",
+    "import './dependency.mjs';",
+    "await import('./dependency.mjs');",
+    "import 'data:text/javascript,globalThis.approved=true';",
+    "import { createRequire } from 'node:module'; createRequire(import.meta.url)('./dependency.cjs');",
+  ]) {
+    const f = fixture(t);
+    f.put('scripts/gate.mjs', source);
+    f.put('scripts/dependency.mjs', 'globalThis.approved = true;');
+    f.put('scripts/dependency.cjs', 'globalThis.approved = true;');
+    f.put(
+      'krn.review.json',
+      JSON.stringify({
+        version: 1,
+        testFile: { import: ['scripts/gate.mjs'] },
+      }),
+    );
+    const base = f.commit();
+    f.put(testPath, passingTest);
+    const head = f.commit();
+    const report = await review(f, base, head);
+    for (const run of report.results) {
+      assert.equal(run.classification, 'procedural', source);
+      assert.equal(run.cause, 'runner-config', source);
+    }
+    assert.equal(
+      aggregatePanelVerdict([passedJudge], false, report),
+      'INCOMPLETE',
+      source,
+    );
+  }
+});
+
+test('changed tests that are symlinks on either side are procedural data errors', async (t) => {
+  for (const baseIsSymlink of [false, true]) {
+    const f = fixture(t);
+    f.put('actual.mjs', passingTest);
+    mkdirSync(join(f.root, 'test'), { recursive: true });
+    if (baseIsSymlink) symlinkSync('../actual.mjs', join(f.root, testPath));
+    else f.put(testPath, passingTest);
+    const base = f.commit();
+    rmSync(join(f.root, testPath));
+    if (baseIsSymlink) f.put(testPath, passingTest);
+    else symlinkSync('../actual.mjs', join(f.root, testPath));
+    const head = f.commit();
+    const report = await review(f, base, head);
+    assert.equal(report.results.length, 2);
+    assert.ok(
+      report.results.some(
+        (run) => run.classification === 'procedural' && run.exitCode === 65,
+      ),
+    );
+    assert.equal(
+      aggregatePanelVerdict([passedJudge], false, report),
+      'INCOMPLETE',
+    );
+  }
+});
+
 test('malformed, unknown-key and escaping runner configurations never execute tests', async (t) => {
   const f = fixture(t);
   for (const config of [
@@ -430,8 +535,8 @@ test('malformed, unknown-key and escaping runner configurations never execute te
   }
 });
 
-test('symlinked runner config, imports and import parents are data errors on either side', async (t) => {
-  for (const target of ['config', 'module', 'parent', 'head-module']) {
+test('symlinked base runner config, imports and import parents are data errors', async (t) => {
+  for (const target of ['config', 'module', 'parent']) {
     const f = fixture(t);
     f.put('actual/gate.mjs', 'globalThis.approved = true;');
     const config = JSON.stringify({
@@ -453,10 +558,6 @@ test('symlinked runner config, imports and import parents are data errors on eit
     }
     const base = f.commit();
     f.put(testPath, passingTest);
-    if (target === 'head-module') {
-      rmSync(join(f.root, 'scripts/gate.mjs'));
-      symlinkSync('../actual/gate.mjs', join(f.root, 'scripts/gate.mjs'));
-    }
     const head = f.commit();
     const report = await review(f, base, head);
     assert.ok(
@@ -658,10 +759,21 @@ test('deterministic verdicts survive record validation and prior-review verifica
     } = record;
     assert.equal(
       schema.safeParse({ ...legacy, panelVerdict: 'PASS' }).success,
-      true,
-      'old records without contract evidence stay valid',
+      false,
+      'head failures still determine verdicts without contract metadata',
     );
+    assert.equal(schema.safeParse(legacy).success, true);
   }
+  assert.equal(
+    aggregatePanelVerdict([passedJudge], false, { results: [failed] }),
+    'FAIL',
+  );
+  const { panel: _panel, ...withoutPanel } = record;
+  assert.equal(
+    reviewRecordSchema.safeParse({ ...withoutPanel, panelVerdict: 'PASS' })
+      .success,
+    false,
+  );
 });
 
 test('a procedural red side cannot prove a contract even when head passes', async (t) => {

@@ -362,15 +362,13 @@ function reviewEvidence(repo, input, reasons) {
       continue;
     }
     const record = parsed.data;
-    if (record.contracts !== undefined) {
-      for (const check of deterministicCauses(
-        record.redFirst,
-        record.contracts,
-      ))
-        reasons.add(
-          `deterministic red-first ${check.verdict}: ${check.path}: ${check.cause}`,
-        );
-    }
+    for (const check of deterministicCauses(
+      record.redFirst,
+      record.contracts ?? [],
+    ))
+      reasons.add(
+        `deterministic red-first ${check.verdict}: ${check.path}: ${check.cause}`,
+      );
     Object.assign(evidence, {
       headSha: record.headSha,
       base: record.base,

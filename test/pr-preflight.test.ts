@@ -504,3 +504,53 @@ test('preflight accepts contract-aware and legacy records and blocks determinist
     ),
   );
 });
+
+test('preflight derives head failures without contracts and rejects inconsistent stored verdicts or causes', async (t) => {
+  const value = await fixture(t);
+  const legacy = reviewEvidence(value.base, value.head);
+  const failedRun = {
+    path: 'test/example.test.ts',
+    side: 'head',
+    sha: value.head,
+    classification: 'assertion',
+    exitCode: 1,
+    durationMs: 0,
+    outputSha256: 'b'.repeat(64),
+    summary: '',
+  };
+  for (const metadata of [
+    { panelVerdict: 'PASS' },
+    { panelVerdict: 'FAIL', redFirstCauses: [] },
+  ]) {
+    await writeReviewEvidence(value.repo, value.base, value.head, {
+      ...legacy,
+      ...metadata,
+      redFirst: [failedRun],
+    });
+    const report = parseHarness(runHarness(value)).report;
+    assert.equal(report.verdict, 'fail');
+    assert.ok(
+      report.reasons.some((reason) => reason.includes('strict schema')),
+      report.reasons.join('\n'),
+    );
+  }
+  await writeReviewEvidence(value.repo, value.base, value.head, {
+    ...legacy,
+    panelVerdict: 'FAIL',
+    redFirst: [failedRun],
+    judges: legacy.judges.map((judge) => ({ ...judge, verdict: 'FAIL' })),
+    override: {
+      reason: 'judge override',
+      evidence: 'operator decision',
+      appendedAt: new Date().toISOString(),
+    },
+  });
+  const report = parseHarness(runHarness(value)).report;
+  assert.equal(report.verdict, 'fail');
+  assert.ok(
+    report.reasons.some((reason) =>
+      reason.includes('deterministic red-first FAIL'),
+    ),
+    report.reasons.join('\n'),
+  );
+});
