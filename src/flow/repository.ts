@@ -341,7 +341,13 @@ export function classifyNodeTestOutput(
         : 'other';
   }
   if (report.timeout) return 'timeout';
-  if (report.skipped > 0) return 'skipped';
+  const legacyNonzeroSkip =
+    report.testFailure &&
+    report.errorCodes.length === 1 &&
+    report.errorCodes[0] === 'ERR_ASSERTION' &&
+    report.causeCodes.length === 0;
+  if (report.skipped > 0 && (!report.testFailure || legacyNonzeroSkip))
+    return 'skipped';
   if (exitCode === 0) return 'pass';
   if (
     report.testFailure &&
