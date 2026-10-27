@@ -1,7 +1,11 @@
 {
   "id": "t-hjsvyfn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Private candidate Git metadata and dissociated object stores; zombie monitor preserves successful exits and refuses live detached processes. Host npm test of the three new observers on d095641 exited0:8 tests,0 isolation skips; real GLOBAL moved-base receiver smoke exited0 (previously125). Independent exact-head review, gate and CI required by the delivering PR."
+  },
   "created": "2026-10-27",
   "priority": 1,
   "title": "Run repository tests with faithful review isolation",
