@@ -8,12 +8,14 @@ import { loadPriorReview } from './prior.ts';
 import { writeReviewRecord } from './record.ts';
 import {
   git,
+  type RedFirstReport,
   redFirst,
   repoRoot,
   resolveCommit,
   validateSha,
 } from './repository.ts';
 import {
+  deterministicCauses,
   type NewReviewRecord,
   newReviewRecordSchema,
   panelRoles,
@@ -26,14 +28,24 @@ import {
 export function aggregatePanelVerdict(
   judges: readonly ReviewRecord['judges'][number][],
   panelPartial: boolean,
+  evidence?: Pick<RedFirstReport, 'results' | 'contracts'>,
 ): NonNullable<ReviewRecord['panelVerdict']> {
+  const causes = deterministicCauses(
+    evidence?.results ?? [],
+    evidence?.contracts ?? [],
+  );
   if (
     judges.some(
       (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
-    )
+    ) ||
+    causes.some(({ verdict }) => verdict === 'FAIL')
   )
     return 'FAIL';
-  if (panelPartial || judges.some((judge) => judge.state === 'incomplete'))
+  if (
+    panelPartial ||
+    judges.some((judge) => judge.state === 'incomplete') ||
+    causes.length > 0
+  )
     return 'INCOMPLETE';
   return 'PASS';
 }
@@ -144,6 +156,8 @@ export async function runReview(input: {
         lensSha256,
         toolSha,
         redFirst: red.results,
+        contracts: red.contracts ?? [],
+        redFirstCauses: deterministicCauses(red.results, red.contracts ?? []),
         judges: [],
         prepass,
       });
@@ -182,7 +196,7 @@ export async function runReview(input: {
     headSha: sha,
     base,
     createdAt: new Date().toISOString(),
-    panelVerdict: aggregatePanelVerdict(judges, panelPartial),
+    panelVerdict: aggregatePanelVerdict(judges, panelPartial, red),
     lensSha256,
     panel: {
       requestedRoles: [...panel],
@@ -191,6 +205,8 @@ export async function runReview(input: {
     },
     toolSha,
     redFirst: red.results,
+    contracts: red.contracts ?? [],
+    redFirstCauses: deterministicCauses(red.results, red.contracts ?? []),
     judges,
     ...(prepass === undefined ? {} : { prepass }),
     ...(prior === undefined ? {} : { prior }),

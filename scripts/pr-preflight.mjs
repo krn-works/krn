@@ -13,7 +13,10 @@ import {
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { newReviewRecordSchema } from '../src/flow/types.ts';
+import {
+  deterministicCauses,
+  newReviewRecordSchema,
+} from '../src/flow/types.ts';
 import { isTaskId, parseTaskDocument } from '../src/task/record.ts';
 
 const MAX_OUTPUT_BYTES = 1024 * 1024;
@@ -359,6 +362,15 @@ function reviewEvidence(repo, input, reasons) {
       continue;
     }
     const record = parsed.data;
+    if (record.contracts !== undefined) {
+      for (const check of deterministicCauses(
+        record.redFirst,
+        record.contracts,
+      ))
+        reasons.add(
+          `deterministic red-first ${check.verdict}: ${check.path}: ${check.cause}`,
+        );
+    }
     Object.assign(evidence, {
       headSha: record.headSha,
       base: record.base,

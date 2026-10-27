@@ -864,6 +864,8 @@ test('without a prior record the original brief and record format are unchanged'
     'createdAt',
     'panelVerdict',
     'redFirst',
+    'contracts',
+    'redFirstCauses',
     'judges',
     'lensSha256',
     'panel',
