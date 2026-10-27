@@ -583,7 +583,15 @@ async function runSandbox(
     child.stdout.on('data', (chunk) => forward(chunk,process.stdout));
     child.stderr.on('data', (chunk) => forward(chunk,process.stderr));
     child.on('close', (status) => {
-    const children = readdirSync('/proc').filter((n) => /^\\d+$/.test(n)).filter((n) => n !== String(process.pid) && (() => { try { const stat = readFileSync('/proc/' + n + '/stat', 'utf8'); return stat.slice(stat.lastIndexOf(')') + 2).split(' ')[1] === '1'; } catch { return false; } })());
+    const children = readdirSync('/proc')
+      .filter((n) => /^\\d+$/.test(n))
+      .filter((n) => n !== String(process.pid) && (() => {
+        try {
+          const stat = readFileSync('/proc/' + n + '/stat', 'utf8');
+          const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ');
+          return fields[0] !== 'Z' && fields[0] !== 'X' && fields[1] === '1';
+        } catch { return false; }
+      })());
     for (const pid of children) { try { process.kill(Number(pid), 'SIGKILL'); } catch {} }
     const digest=hash.digest('hex');
     let exitStatus=exceeded?125:(status ?? 1);
