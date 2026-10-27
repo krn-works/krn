@@ -50,11 +50,20 @@ async function files(root: string): Promise<Record<string, string>> {
   return result;
 }
 
-async function fixture() {
+async function fixture(
+  layout: {
+    id?: string;
+    sourceName?: string;
+    experimentName?: string;
+    temporaryRoot?: string;
+  } = {},
+) {
   // The runner's TMPDIR is under .krn; prepare requires an independent root.
-  const directory = await mkdtemp('/tmp/krn-eval-workspace-');
-  const source = join(directory, 'source');
-  await mkdir(source);
+  const directory = await mkdtemp(
+    join(layout.temporaryRoot ?? '/tmp', 'krn-eval-workspace-'),
+  );
+  const source = join(directory, layout.sourceName ?? 'source');
+  await mkdir(source, { recursive: true });
   git(source, ['init', '--quiet', '--template=', '--initial-branch=main']);
   await writeFile(join(source, 'base.txt'), 'parent\n');
   git(source, ['add', '.']);
@@ -73,8 +82,8 @@ async function fixture() {
   const dangling = git(source, ['hash-object', '-w', '--stdin'], 'dangling\n');
   git(source, ['tag', 'future', exemplar]);
   git(source, ['remote', 'add', 'upstream', '/unused-fixture-source']);
-  const experiment = join(directory, 'experiment');
-  await mkdir(experiment);
+  const experiment = join(directory, layout.experimentName ?? 'experiment');
+  await mkdir(experiment, { recursive: true });
   const inputs: Record<string, string> = {};
   for (const name of [
     'packet.md',
@@ -87,7 +96,7 @@ async function fixture() {
     inputs[name] = createHash('sha256').update(bytes).digest('hex');
   }
   const value = {
-    id: 'workspace-experiment',
+    id: layout.id ?? 'workspace-experiment',
     frozen: true,
     seed: 'workspace',
     replicas: 1,
@@ -125,12 +134,17 @@ async function fixture() {
       timeout: 20_000,
     });
   const prepare = (
-    options: { root?: string; sources?: string[]; extra?: string[] } = {},
+    options: {
+      experiment?: string;
+      root?: string;
+      sources?: string[];
+      extra?: string[];
+    } = {},
   ) =>
     invoke([
       'prepare',
       '--experiment',
-      experiment,
+      options.experiment ?? experiment,
       '--root',
       options.root ?? root,
       ...(options.sources ?? [`fixture=${source}`]).flatMap((source) => [
@@ -284,6 +298,59 @@ test('eval prepare refuses unsafe roots, existing task directories and symlink e
   }
 });
 
+test('eval prepare refuses either direction of root and input overlap', async (t) => {
+  for (const kind of [
+    'root equals experiment',
+    'root is inside experiment',
+    'root contains experiment',
+    'experiment path equals root experiment directory',
+    'root equals source',
+    'root is inside source',
+    'root contains source',
+    'source path equals root experiment directory',
+  ]) {
+    await t.test(kind, async () => {
+      const layout: Parameters<typeof fixture>[0] = {};
+      if (kind === 'root contains experiment')
+        Object.assign(layout, { experimentName: 'root-parent/experiment' });
+      else if (kind === 'experiment path equals root experiment directory')
+        Object.assign(layout, {
+          id: 'evaluation',
+          experimentName: 'root-parent/evaluation',
+        });
+      else if (kind === 'root contains source')
+        Object.assign(layout, { sourceName: 'root-parent/source' });
+      else if (kind === 'source path equals root experiment directory')
+        Object.assign(layout, { id: 'work', sourceName: 'root-parent/work' });
+      const f = await fixture(layout);
+      try {
+        let root = f.root;
+        if (kind === 'root equals experiment') root = f.experiment;
+        else if (kind === 'root is inside experiment')
+          root = join(f.experiment, 'slots');
+        else if (kind === 'root contains experiment')
+          root = join(f.directory, 'root-parent');
+        else if (kind === 'experiment path equals root experiment directory')
+          root = join(f.directory, 'root-parent');
+        else if (kind === 'root equals source') root = f.source;
+        else if (kind === 'root is inside source')
+          root = join(f.source, 'slots');
+        else if (kind === 'root contains source')
+          root = join(f.directory, 'root-parent');
+        else if (kind === 'source path equals root experiment directory')
+          root = join(f.directory, 'root-parent');
+        failure(
+          f.prepare({ root }),
+          65,
+          /root|source|experiment|overlap|ancestor/u,
+        );
+      } finally {
+        await f.cleanup();
+      }
+    });
+  }
+});
+
 test('eval prepare validates source labels, base objects and the frozen input contract', async (t) => {
   for (const kind of [
     'missing',
@@ -335,6 +402,31 @@ test('eval prepare validates source labels, base objects and the frozen input co
   }
 });
 
+test('eval prepare rejects repository labels outside the identifier rule', async () => {
+  const f = await fixture();
+  try {
+    const task = f.value.tasks[0];
+    assert.ok(task);
+    task.repository = 'team=repo';
+    await f.save();
+    failure(f.prepare(), 65, /repository|identifier|regex/u);
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('eval prepare splits source paths at the first equals sign', async () => {
+  const f = await fixture();
+  try {
+    const alias = join(f.directory, 'source=mirror');
+    await symlink(f.source, alias);
+    const result = f.prepare({ sources: [`fixture=${alias}`] });
+    assert.equal(result.status, 0, result.stderr);
+  } finally {
+    await f.cleanup();
+  }
+});
+
 test('eval prepare names the failed invariant when the exemplar is reachable from base', async () => {
   const f = await fixture();
   try {
@@ -379,6 +471,78 @@ test('eval mask refuses invalid slots and reports bwrap startup failures as 70',
   }
 });
 
+test('eval mask refuses tool mounts that overlap reserved paths or the slot', async (t) => {
+  const f = await fixture();
+  try {
+    const slot = join(f.directory, 'valid-slot');
+    await mkdir(join(slot, 'repo'), { recursive: true });
+    const tools = join(f.directory, 'tools');
+    await mkdir(tools);
+    await writeFile(
+      join(tools, 'bwrap'),
+      '#!/bin/sh\nprintf "fixture bwrap started\\n" >&2\nexit 70\n',
+      { mode: 0o755 },
+    );
+    const invoke = (tool: string) =>
+      f.invoke(
+        ['mask', '--slot', slot, '--tool', tool, '--', '/usr/bin/true'],
+        { PATH: tools },
+      );
+    for (const path of ['/', '/tmp', '/w', '/proc/x', '/usr', '/etc']) {
+      await t.test(path, async () => {
+        const result = invoke(path);
+        assert.equal(result.status, 65, result.stderr);
+        assert.match(
+          result.stderr,
+          /reserved|overlap|protected path|filesystem root/u,
+        );
+      });
+    }
+    for (const path of ['/usr/bin', dirname(process.execPath)]) {
+      await t.test(`${path} remains available`, async () => {
+        const result = invoke(path);
+        assert.equal(result.status, 70, result.stderr);
+        assert.equal(result.stderr, 'fixture bwrap started\n');
+      });
+    }
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('eval mask refuses an ancestor of the slot as a tool directory', async () => {
+  const temporaryRoot = process.env.TMPDIR;
+  assert.ok(temporaryRoot, 'test suite provides a private TMPDIR');
+  const f = await fixture({ temporaryRoot });
+  try {
+    const slot = join(f.directory, 'valid-slot');
+    await mkdir(join(slot, 'repo'), { recursive: true });
+    const tools = join(f.directory, 'tools');
+    await mkdir(tools);
+    await writeFile(
+      join(tools, 'bwrap'),
+      '#!/bin/sh\nprintf "fixture bwrap started\\n" >&2\nexit 70\n',
+      { mode: 0o755 },
+    );
+    const result = f.invoke(
+      ['mask', '--slot', slot, '--tool', f.directory, '--', '/usr/bin/true'],
+      { PATH: tools },
+    );
+    assert.equal(result.status, 65, result.stderr);
+    assert.match(result.stderr, /overlap.*slot/u);
+    const alias = join(f.directory, 'tools-alias');
+    await symlink(tools, alias);
+    const symlinked = f.invoke(
+      ['mask', '--slot', slot, '--tool', alias, '--', '/usr/bin/true'],
+      { PATH: tools },
+    );
+    assert.equal(symlinked.status, 65, symlinked.stderr);
+    assert.match(symlinked.stderr, /symlink/u);
+  } finally {
+    await f.cleanup();
+  }
+});
+
 test('eval mask provides a private writable /tmp', async (t) => {
   if (!requiresIsolation(t, t.name, ['bwrap'])) return;
   const f = await fixture();
@@ -397,6 +561,8 @@ test('eval mask provides a private writable /tmp', async (t) => {
       'mask',
       '--slot',
       f.slot,
+      '--tool',
+      '/usr/bin',
       '--tool',
       dirname(process.execPath),
       '--',

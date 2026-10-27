@@ -75,11 +75,21 @@ function value(args: string[], index: number, usage: string): string {
 }
 
 type ExperimentOptions = { experiment: string; draft: boolean };
+type SourceOption = { label: string; path: string };
 type EvalOptions = ExperimentOptions &
   (
     | { command: 'plan' }
-    | { command: 'prepare'; root: string; sources: string[] }
+    | { command: 'prepare'; root: string; sources: SourceOption[] }
   );
+
+function sourceOption(value: string, usage: string): SourceOption {
+  const delimiter = value.indexOf('=');
+  const label = value.slice(0, delimiter);
+  const path = value.slice(delimiter + 1);
+  if (delimiter < 1 || path === '')
+    throw new CliUsageError(`--source requires <repository>=<path>; ${usage}`);
+  return { label, path };
+}
 
 function parse(args: string[]): EvalOptions {
   const command = args[0];
@@ -89,7 +99,7 @@ function parse(args: string[]): EvalOptions {
   const seen = new Set<string>();
   let experiment: string | undefined;
   let root: string | undefined;
-  const sources: string[] = [];
+  const sources: SourceOption[] = [];
   let draft = false;
   for (let index = 1; index < args.length; index += 1) {
     const option = args[index];
@@ -108,7 +118,8 @@ function parse(args: string[]): EvalOptions {
     if (option === '--draft') draft = true;
     if (option === '--experiment') experiment = value(args, index++, usage);
     if (option === '--root') root = value(args, index++, usage);
-    if (option === '--source') sources.push(value(args, index++, usage));
+    if (option === '--source')
+      sources.push(sourceOption(value(args, index++, usage), usage));
   }
   if (experiment === undefined) throw new CliUsageError(usage);
   if (command === 'prepare') {

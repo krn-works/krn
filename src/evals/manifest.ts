@@ -54,7 +54,7 @@ const arm = z.strictObject({
 });
 const task = z.strictObject({
   id: identifier,
-  repository: label,
+  repository: identifier,
   baseSha: gitSha,
   exemplarSha: gitSha,
   packet: inputPath,

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { lstat, mkdir, realpath } from 'node:fs/promises';
-import { isAbsolute, join } from 'node:path';
+import { isAbsolute, join, parse, relative, resolve, sep } from 'node:path';
 import { EvalDataError } from './manifest.ts';
 
 async function directory(path: string): Promise<void> {
@@ -11,6 +11,39 @@ async function directory(path: string): Promise<void> {
     );
 }
 
+function inside(path: string, parent: string): boolean {
+  const child = relative(parent, path);
+  return (
+    child === '' ||
+    (!isAbsolute(child) && child !== '..' && !child.startsWith(`..${sep}`))
+  );
+}
+
+function overlaps(left: string, right: string): boolean {
+  return inside(left, right) || inside(right, left);
+}
+
+async function directoryWithoutSymlinks(path: string): Promise<void> {
+  const root = parse(path).root;
+  let current = root;
+  for (const component of path
+    .slice(root.length)
+    .split(sep)
+    .filter((value) => value !== '')) {
+    current = join(current, component);
+    const stat = await lstat(current);
+    if (stat.isSymbolicLink())
+      throw new EvalDataError(
+        `tool directory path component must not be a symlink: ${current}`,
+      );
+    if (!stat.isDirectory())
+      throw new EvalDataError(
+        `tool directory path component must be a directory: ${current}`,
+      );
+  }
+  await directory(path);
+}
+
 export async function maskCommand(options: {
   slot: string;
   network: boolean;
@@ -18,6 +51,7 @@ export async function maskCommand(options: {
   command: string[];
 }): Promise<number> {
   let slot: string;
+  const tools: string[] = [];
   try {
     if (!isAbsolute(options.slot))
       throw new EvalDataError('slot must be absolute');
@@ -31,7 +65,29 @@ export async function maskCommand(options: {
     for (const path of options.tools) {
       if (!isAbsolute(path))
         throw new EvalDataError('tool directory must be absolute');
-      await directory(path);
+      const tool = resolve(path);
+      if (tool === parse(tool).root)
+        throw new EvalDataError(
+          `tool directory must not be filesystem root: ${tool}`,
+        );
+      for (const reserved of ['/w', '/tmp', '/proc', '/dev']) {
+        if (overlaps(tool, reserved))
+          throw new EvalDataError(
+            `tool directory overlaps mask-reserved path ${reserved}: ${tool}`,
+          );
+      }
+      for (const protectedPath of ['/usr', '/etc']) {
+        if (tool === protectedPath || inside(protectedPath, tool))
+          throw new EvalDataError(
+            `tool directory equals or contains protected path ${protectedPath}: ${tool}`,
+          );
+      }
+      if (overlaps(tool, slot))
+        throw new EvalDataError(
+          `tool directory overlaps slot ${slot}: ${tool}`,
+        );
+      await directoryWithoutSymlinks(tool);
+      tools.push(tool);
     }
   } catch (error) {
     if (error instanceof EvalDataError) throw error;
@@ -67,7 +123,7 @@ export async function maskCommand(options: {
     '--symlink',
     '/usr/lib64',
     '/lib64',
-    ...options.tools.flatMap((path) => ['--ro-bind', path, path]),
+    ...tools.flatMap((path) => ['--ro-bind', path, path]),
     '--bind',
     slot,
     '/w',
@@ -88,7 +144,7 @@ export async function maskCommand(options: {
     '/w/t',
     '--setenv',
     'PATH',
-    [...options.tools, '/usr/bin'].join(':'),
+    [...tools, '/usr/bin'].join(':'),
     '--proc',
     '/proc',
     '--dev',

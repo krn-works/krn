@@ -89,6 +89,10 @@ function inside(path: string, parent: string): boolean {
   );
 }
 
+function overlaps(left: string, right: string): boolean {
+  return inside(left, right) || inside(right, left);
+}
+
 async function inspectAncestors(root: string): Promise<void> {
   let path = root;
   for (;;) {
@@ -189,7 +193,7 @@ export async function prepareExperiment(
   options: {
     experiment: string;
     root: string;
-    sources: string[];
+    sources: { label: string; path: string }[];
     draft: boolean;
   },
 ) {
@@ -200,12 +204,7 @@ export async function prepareExperiment(
       );
     const labels = new Set(manifest.tasks.map((task) => task.repository));
     const sources = new Map<string, string>();
-    for (const source of options.sources) {
-      const delimiter = source.indexOf('=');
-      const label = source.slice(0, delimiter);
-      const path = source.slice(delimiter + 1);
-      if (delimiter < 1 || path === '')
-        throw new CliUsageError('--source requires <repository>=<path>');
+    for (const { label, path } of options.sources) {
       if (!labels.has(label))
         throw new CliUsageError(`unknown --source label "${label}"`);
       if (sources.has(label))
@@ -227,13 +226,16 @@ export async function prepareExperiment(
       sources.set(label, source);
       forbidden.push(source);
     }
-    for (const path of forbidden) {
-      if (inside(root, path))
-        throw new EvalDataError(
-          `root must not be inside source or experiment: ${path}`,
-        );
-    }
     const experimentRoot = join(root, manifest.id);
+    const experimentDestination = await destination(experimentRoot);
+    for (const target of [root, experimentDestination]) {
+      for (const path of forbidden) {
+        if (overlaps(target, path))
+          throw new EvalDataError(
+            `root or experiment directory overlaps source or experiment: ${path}`,
+          );
+      }
+    }
     if (await exists(experimentRoot)) await directory(experimentRoot);
     for (const task of manifest.tasks) {
       const slot = join(experimentRoot, task.id);
