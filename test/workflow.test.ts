@@ -42,3 +42,48 @@ test('CI workflow has one guarded gate job on the configured isolated runner', a
     `\${{ fromJSON(vars.CI_RUNNER || '["self-hosted","linux","x64","krn-ci-isolated"]') }}`,
   );
 });
+
+test('CI workflow cancels superseded pull request runs but preserves main runs', async () => {
+  const source = await readFile(workflowPath, 'utf8');
+  const lines = source.split(/\r?\n/u);
+  const concurrencyIndexes = lines.flatMap((line, index) =>
+    line === 'concurrency:' ? [index] : [],
+  );
+  const jobsIndex = lines.indexOf('jobs:');
+
+  assert.deepEqual(
+    concurrencyIndexes.length,
+    1,
+    'workflow must define one top-level concurrency block',
+  );
+  assert.notEqual(jobsIndex, -1, 'workflow must define jobs');
+  const concurrencyIndex = concurrencyIndexes[0];
+  assert.ok(concurrencyIndex !== undefined && concurrencyIndex < jobsIndex);
+
+  const entries = lines
+    .slice(concurrencyIndex + 1, jobsIndex)
+    .filter((line) => line.length > 0)
+    .map((line) => {
+      const match = line.match(/^ {2}([a-z-]+): (.+)$/u);
+      assert.ok(match, `unexpected top-level concurrency entry: ${line}`);
+      return [match[1], match[2]];
+    });
+
+  assert.deepEqual(entries, [
+    ['group', 'ci-${{ github.ref }}'],
+    ['cancel-in-progress', "${{ github.ref != 'refs/heads/main' }}"],
+  ]);
+
+  const cancelExpression = entries[1]?.[1];
+  const match = cancelExpression?.match(
+    /^\$\{\{\s*github\.ref\s*!=\s*'([^']+)'\s*\}\}$/u,
+  );
+  assert.ok(
+    match,
+    'cancel-in-progress must compare github.ref with a protected ref',
+  );
+  const shouldCancel = (ref: string): boolean => ref !== match[1];
+
+  assert.equal(shouldCancel('refs/heads/main'), false);
+  assert.equal(shouldCancel('refs/pull/42/merge'), true);
+});
