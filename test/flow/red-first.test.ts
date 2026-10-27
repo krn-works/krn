@@ -109,6 +109,8 @@ const localExecute: typeof execute = async (
   delete env.NODE_TEST_CONTEXT;
   delete env.NODE_OPTIONS;
   delete env.KRN_ISOLATION_GATE_PRELOAD;
+  delete env.KRN_ISOLATION_CAPABILITIES;
+  delete env.CI;
   const child = spawnSync(argv[0] ?? process.execPath, argv.slice(1), {
     cwd: copy,
     env,
@@ -502,7 +504,15 @@ test('only unavailable isolation capabilities are a nonblocking unproven contrac
   installGate(f);
   f.put(
     testPath,
-    "import { test } from 'node:test'; import { requiresIsolation } from './helpers/isolation.ts'; test('requires user bus', (t) => { if (!requiresIsolation(t, 'requires user bus', ['systemdUserScope'])) return; throw new Error('bus should be unavailable'); });",
+    `import { test } from 'node:test';
+import { requiresIsolation } from './helpers/isolation.ts';
+for (const capability of ['bwrap', 'systemdUserScope']) {
+  test(capability, (t) => {
+    if (!requiresIsolation(t, capability, [capability])) return;
+    throw new Error('nested isolation should be unavailable');
+  });
+}
+`,
   );
   const base = f.commit();
   const head = f.commit(
@@ -514,6 +524,11 @@ test('only unavailable isolation capabilities are a nonblocking unproven contrac
   assert.equal(contract?.green.classification, 'skipped');
   assert.equal(contract?.proven, false);
   assert.equal(contract?.cause, 'capability');
+  for (const run of [contract?.red, contract?.green]) {
+    assert.equal(run?.exitCode, 0);
+    assert.equal(run?.cause, 'capability');
+    assert.equal(run?.proven, false);
+  }
   assert.equal(aggregatePanelVerdict([passedJudge], false, report), 'PASS');
   assert.equal(
     aggregatePanelVerdict([{ ...passedJudge, verdict: 'FAIL' }], false, report),

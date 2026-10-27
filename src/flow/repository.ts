@@ -57,6 +57,18 @@ const nodeTestReportSchema = z.object({
   missingModules: z.array(z.string()).default([]),
 });
 const nodeTestReportPrefix = 'KRN_NODE_TEST_REPORT:';
+// Review checks already run inside isolation; nested isolation is unavailable.
+// Share this declaration across the reporter parent and the candidate child.
+const reviewSandboxCapabilities = {
+  bwrap: {
+    available: false,
+    reason: 'review sandbox runs no nested isolation',
+  },
+  systemdUserScope: {
+    available: false,
+    reason: 'review sandbox runs no nested isolation',
+  },
+};
 
 // Keep candidate diagnostics observable while classification consumes only error codes.
 export const nodeTestReporter = `
@@ -75,8 +87,7 @@ let isolationSkipped = 0;
 let isolationSummary = 0;
 let timeout = false;
 const missingModules = new Set();
-let capabilities = {};
-try { capabilities = JSON.parse(process.env.KRN_ISOLATION_CAPABILITIES ?? '{}'); } catch {}
+const capabilities = ${JSON.stringify(reviewSandboxCapabilities)};
 function capabilitySkip(reason) {
   if (typeof reason !== 'string') return false;
   const labels = { 'bwrap user namespaces': 'bwrap', 'systemd user scopes': 'systemdUserScope' };
@@ -425,17 +436,12 @@ function readRunnerConfig(root: string, base: string): readonly string[] {
   return config.testFile.import;
 }
 
-// The outer sandbox deliberately has no user bus. Probe nested bwrap where it
-// will actually be used; CI mode lets the gate report unavailable capabilities.
+// Do not probe nested bwrap: it can leave orphans in the sandbox process monitor.
+// CI mode lets the gate report these declared capability skips.
 const runnerEnvironment = `
-import { spawnSync } from 'node:child_process';
-const probe = spawnSync('bwrap', ['--ro-bind', '/', '/', '--unshare-user', '--unshare-pid', '--proc', '/proc', '--', 'true'], { timeout: 3000, encoding: 'utf8' });
 process.env.CI = 'true';
 process.env.KRN_ISOLATION_GATE_PRELOAD = '1';
-process.env.KRN_ISOLATION_CAPABILITIES = JSON.stringify({
-  bwrap: { available: probe.status === 0, reason: 'nested review sandbox capability' },
-  systemdUserScope: { available: false, reason: 'review sandbox does not expose the user bus' },
-});
+process.env.KRN_ISOLATION_CAPABILITIES = ${JSON.stringify(JSON.stringify(reviewSandboxCapabilities))};
 `;
 
 function removeHelper(path: string): void {
