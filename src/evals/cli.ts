@@ -3,7 +3,6 @@ import { CliUsageError } from '../cli/usage-error.ts';
 import { EvalDataError, loadManifest } from './manifest.ts';
 import { maskCommand } from './mask.ts';
 import { planExperiment } from './plan.ts';
-import { sessionCommand } from './session.ts';
 import { prepareExperiment } from './workspace.ts';
 
 const usages = {
@@ -18,6 +17,7 @@ export async function evalCommand(args: string[]): Promise<void> {
   const json = args[0] !== 'mask' && args.includes('--json');
   try {
     if (args[0] === 'session') {
+      const { sessionCommand } = await import('./session.ts');
       await sessionCommand(args.slice(1));
       return;
     }
