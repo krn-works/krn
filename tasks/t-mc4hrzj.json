@@ -1,0 +1,16 @@
+{
+  "id": "t-mc4hrzj",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": ""
+  },
+  "created": "2026-10-26",
+  "priority": 1,
+  "title": "Verify Product evidence for krn ship",
+  "after": [],
+  "body": [
+    "GLOBAL `krn ship` merges a Product PR without checking Product evidence: with no review record, no Ticket/task, or a failed or skipping gate, a dry run returns 0 (recon in `.krn/runs/claude-merge-path-recon`). Product already exposes `scripts/pr-preflight.mjs` as its admission check. Extend it into the ship verifier: require the exact-head review record (full PASS panel or a recorded override), require the `gate` check-run from GitHub Actions on the head, and declare the verifier in `krn.ship.json`. Decision: `.krn/runs/claude-merge-path-design/decision.md`.\nAcceptance: a falsifier matrix of missing or invalid evidence fails on the base and every case is refused on the head, while a complete evidence set passes."
+  ]
+}
