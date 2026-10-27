@@ -1,0 +1,14 @@
+{
+  "id": "t-6qvv27r",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Deliver a third repository through KRN",
+  "after": [
+    "t-hdsf5f3"
+  ],
+  "body": [
+    "KRN only runs on its own two repositories. After Product ships through krn ship, adopt KRN in one client repository (tracker, review, gate, ship) and deliver real work there with the same metrics, to prove portability and find host-specific assumptions.\nAcceptance: at least five merged PRs in the third repository through krn ship with complete delivery records; every host-specific assumption found becomes a task."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-hp42vyt",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Treat pre-existing review findings as advisory",
+  "after": [],
+  "body": [
+    "Judges keep flagging defects that exist on the base (PR #112, #114 overrides). Mark a finding pre-existing when its cited lines are outside the diff or unchanged since the base, record it as advisory, and never let it block. Pattern from the Claude Code team code-review write-up (Important / Nit / Pre-existing).\nAcceptance: a finding on an untouched line is recorded as pre-existing and does not fail the panel; a finding on a changed line still blocks; tests cover both and moved lines."
+  ]
+}

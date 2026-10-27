@@ -1,0 +1,12 @@
+{
+  "id": "t-ste3f73",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Record delivery metrics with every merge",
+  "after": [],
+  "body": [
+    "Extend the delivery record written by `krn ship` (and its Product evidence) with review rounds, overrides, gate wall time, flaky retries, CI waits and time from first push to merge, and add `krn report deliveries` that summarises merges per lane-hour, review rounds p50/p90, overrides, flaky stalls and reverts over a window. These numbers are the product proof (ADR 0014 D2).\nAcceptance: every merge through krn ship records the fields from its real evidence; the report reproduces the last week of merges from records alone."
+  ]
+}
