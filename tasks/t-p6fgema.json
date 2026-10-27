@@ -1,0 +1,16 @@
+{
+  "id": "t-p6fgema",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": ""
+  },
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Prepare base-only task snapshots and the workspace mask",
+  "after": [],
+  "body": [
+    "Second slice of the evaluation harness (decision `.krn/runs/claude/eval-design/decision.md`): `krn eval prepare` builds one Git repository per experiment task that holds only the objects reachable from the task base at depth 1 (no exemplar objects, remotes, tags or reflogs; source untouched), under a root with no `.git`/`.krn` ancestor; `krn eval mask` runs a command in an empty-root mount namespace that sees only its slot at `/w`, read-only system and tool directories, and no network unless asked.\nAcceptance: a fixture source with a later exemplar commit and a dangling object yields a snapshot without either; inside the mask the experiment files, a neighbour slot, the source repository and the operator harness home are unreadable while `/w/repo` is writable, TCP fails without `--network`, and a Unix socket binds under `/w/t`."
+  ]
+}
