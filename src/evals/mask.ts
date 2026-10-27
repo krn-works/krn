@@ -136,6 +136,31 @@ async function directoryWithoutSymlinks(path: string): Promise<void> {
   await directory(path);
 }
 
+export async function assertToolDirectoryAllowed(
+  path: string,
+  home = process.env.HOME,
+): Promise<void> {
+  await directoryWithoutSymlinks(path);
+  if (!home || !isAbsolute(home) || !inside(path, resolve(home))) return;
+
+  const miseData =
+    process.env.MISE_DATA_DIR || join(resolve(home), '.local', 'share', 'mise');
+  const installs = join(resolve(miseData), 'installs');
+  const relativeInstallPath = relative(installs, path);
+  const installParts = relativeInstallPath.split(sep);
+  if (
+    relativeInstallPath === '' ||
+    isAbsolute(relativeInstallPath) ||
+    relativeInstallPath === '..' ||
+    relativeInstallPath.startsWith(`..${sep}`) ||
+    installParts.length < 2 ||
+    installParts.some((part) => !part)
+  )
+    throw new EvalDataError(
+      `tool directory under HOME must be a versioned mise install: ${path}`,
+    );
+}
+
 async function resolverMounts(): Promise<string[]> {
   // Test-only override: exercise resolver failures without changing host /etc.
   const source = process.env.KRN_EVAL_RESOLV_CONF ?? '/etc/resolv.conf';
@@ -205,7 +230,7 @@ export async function maskCommand(options: {
         throw new EvalDataError(
           `tool directory overlaps slot ${slot}: ${tool}`,
         );
-      await directoryWithoutSymlinks(tool);
+      await assertToolDirectoryAllowed(tool);
       tools.push(tool);
     }
   } catch (error) {

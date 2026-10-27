@@ -30,9 +30,6 @@ const fake = fileURLToPath(
 const capturedCodex = fileURLToPath(
   new URL('../fixtures/eval/codex-completed.jsonl', import.meta.url),
 );
-const capturedClaude = fileURLToPath(
-  new URL('../fixtures/eval/claude-stream.jsonl', import.meta.url),
-);
 const hash = (bytes: string | Buffer) =>
   createHash('sha256').update(bytes).digest('hex');
 const jsonl = (events: unknown[]) =>
@@ -62,29 +59,6 @@ const codexStream = jsonl([
   { type: 'turn.started' },
   turn(13, 7, 9, 4),
 ]);
-const claudeUsage = {
-  input_tokens: 11,
-  output_tokens: 5,
-  cache_read_input_tokens: 7,
-  cache_creation_input_tokens: 3,
-};
-const assistant = (usage: unknown = claudeUsage, id = 'message') => ({
-  type: 'assistant',
-  message: {
-    id,
-    model: 'fixture-model',
-    usage,
-    content: [{ type: 'text', text: 'fixture' }],
-  },
-});
-const result = {
-  type: 'result',
-  subtype: 'success',
-  is_error: false,
-  usage: { ...claudeUsage, input_tokens: 999 },
-  modelUsage: { 'fixture-model': { inputTokens: 999 } },
-};
-
 async function tree(root: string): Promise<Record<string, string>> {
   const files: Record<string, string> = {};
   for (const name of (await readdir(root)).sort()) {
@@ -111,16 +85,10 @@ async function fixture() {
     neighbour,
     tools,
     join(home, '.codex'),
-    join(home, '.claude'),
   ])
     await mkdir(path, { recursive: true });
-  for (const [dir, file] of [
-    ['.codex', 'auth.json'],
-    ['.claude', '.credentials.json'],
-  ]) {
-    await writeFile(join(home, dir ?? '', file ?? ''), 'fixture login\n');
-    await writeFile(join(home, dir ?? '', 'private'), 'hidden\n');
-  }
+  await writeFile(join(home, '.codex', 'auth.json'), 'fixture login\n');
+  await writeFile(join(home, '.codex', 'private'), 'hidden\n');
   await writeFile(join(neighbour, 'private'), 'neighbour\n');
   const inputs: Record<string, string> = {};
   for (const name of [
@@ -176,7 +144,6 @@ async function fixture() {
     ...process.env,
     HOME: home,
     KRN_EVAL_CODEX_BIN: binary,
-    KRN_EVAL_CLAUDE_BIN: binary,
   };
   const invoke = (args: string[], extraEnv: NodeJS.ProcessEnv = {}) =>
     spawnSync(process.execPath, [cli, 'eval', ...args], {
@@ -220,14 +187,7 @@ async function fixture() {
         stream: Buffer.from(stream).toString('base64'),
         stderr: Buffer.from([0, 255, 10]).toString('base64'),
         prompt: prompt.toString('base64'),
-        hidden: [
-          experiment,
-          home,
-          neighbour,
-          output(),
-          '/w/home/.codex',
-          '/w/home/.claude',
-        ],
+        hidden: [experiment, home, neighbour, output(), '/w/home/.codex'],
         model: 'fixture-model',
         exitCode,
         timeout,
@@ -268,6 +228,22 @@ function refused(
   assert.equal(envelope.code, code);
 }
 
+async function installFakeBwrap(
+  f: Awaited<ReturnType<typeof fixture>>,
+  capture: string,
+) {
+  const script = join(f.tools, 'bwrap.cjs');
+  await writeFile(
+    script,
+    `const fs = require('node:fs');\nfs.writeFileSync(${JSON.stringify(capture)}, JSON.stringify(process.argv.slice(2)));\nfs.writeSync(3, 'started');\n`,
+  );
+  await writeFile(
+    join(f.tools, 'bwrap'),
+    `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(script)} "$@"\n`,
+    { mode: 0o755 },
+  );
+}
+
 test('eval Codex config disables ambient integrations with recognised settings', () => {
   for (const feature of [
     'apps',
@@ -303,7 +279,7 @@ const rejectedConfigMessages = [
 
 test('eval Codex stream remembers rejected configuration after a completed tool turn', () => {
   for (const message of rejectedConfigMessages) {
-    const accounting = new SessionUsage('codex');
+    const accounting = new SessionUsage();
     accounting.push(
       Buffer.from(jsonl([{ type: 'error', message }]) + codexStream),
     );
@@ -318,7 +294,7 @@ test('eval Codex stream remembers rejected configuration after a completed tool 
     { type: 'error', message: { config: 'ignored' } },
     { type: 'item.completed', message: rejectedConfigMessages[0] },
   ]) {
-    const accounting = new SessionUsage('codex');
+    const accounting = new SessionUsage();
     accounting.push(Buffer.from(jsonl([event]) + codexStream));
     accounting.finish();
     assert.equal(accounting.configRejected, false);
@@ -566,7 +542,7 @@ test('eval session accounts the captured Codex stream through the harness', asyn
 
 test('eval usage accounts captured Codex tokens with cached input as a subset', async () => {
   const stream = await readFile(capturedCodex);
-  const accounting = new SessionUsage('codex');
+  const accounting = new SessionUsage();
   accounting.push(stream);
   accounting.finish();
   assert.deepEqual(accounting.summary(false), {
@@ -577,217 +553,6 @@ test('eval usage accounts captured Codex tokens with cached input as a subset', 
     reasoning_output_tokens: 0,
     total_tokens: 20_432,
   });
-});
-
-test('eval session counts each Claude message once and keeps result totals separate', async (t) => {
-  if (!requiresIsolation(t, t.name, ['bwrap', 'systemdUserScope'])) return;
-  const f = await fixture();
-  try {
-    const stream = jsonl([assistant(), assistant(), assistant(), result]);
-    await f.scenario(stream);
-    const observed = f.invoke(f.args('R'));
-    assert.equal(observed.status, 0, observed.stderr);
-    const record = JSON.parse(
-      await readFile(join(f.output('R'), 'session.json'), 'utf8'),
-    );
-    assert.equal(record.status, 'completed');
-    assert.deepEqual(record.usage, {
-      status: 'complete',
-      ...claudeUsage,
-      total_tokens: 26,
-      resultMatches: false,
-      result: { usage: result.usage, modelUsage: result.modelUsage },
-    });
-    const calls = (await readFile(join(f.output('R'), 'calls.jsonl'), 'utf8'))
-      .trim()
-      .split('\n')
-      .map((line) => JSON.parse(line));
-    assert.equal(calls.length, 1);
-    assert.equal(calls[0].messageId, 'message');
-    assert.deepEqual(calls[0].usage, claudeUsage);
-    assert.deepEqual(
-      await readFile(join(f.output('R'), 'stream.jsonl')),
-      Buffer.from(stream),
-    );
-    assert.equal(
-      record.configSha256,
-      hash(await readFile(join(f.slot, 'claude', 'settings.json'))),
-    );
-    assert.equal(
-      (await readFile(join(f.slot, 'claude', '.credentials.json'))).length,
-      0,
-    );
-  } finally {
-    await f.cleanup();
-  }
-});
-
-test('eval Claude usage keeps the last update for a repeated message id', () => {
-  const first = {
-    input_tokens: 1,
-    output_tokens: 2,
-    cache_read_input_tokens: 3,
-    cache_creation_input_tokens: 4,
-  };
-  const last = {
-    input_tokens: 6,
-    output_tokens: 9,
-    cache_read_input_tokens: 7,
-    cache_creation_input_tokens: 3,
-  };
-  const modelUsage = { 'fixture-model': { outputTokens: 9 } };
-  const accounting = new SessionUsage('claude');
-  accounting.push(
-    Buffer.from(
-      jsonl([
-        assistant(first, 'repeated-message'),
-        assistant(last, 'repeated-message'),
-        {
-          type: 'result',
-          subtype: 'success',
-          is_error: false,
-          usage: last,
-          modelUsage,
-        },
-      ]),
-    ),
-  );
-  accounting.finish();
-  assert.equal(accounting.calls.length, 1);
-  assert.deepEqual(accounting.calls[0]?.usage, last);
-  assert.deepEqual(accounting.summary(false), {
-    status: 'complete',
-    ...last,
-    total_tokens: 25,
-    resultMatches: true,
-    result: { usage: last, modelUsage },
-  });
-});
-
-test('eval usage accounts the captured Claude stream and compares its aggregate', async () => {
-  const stream = await readFile(capturedClaude);
-  const resultEvent = stream
-    .toString('utf8')
-    .trimEnd()
-    .split('\n')
-    .map((line) => JSON.parse(line))
-    .find((event) => event.type === 'result');
-  assert.ok(resultEvent);
-  const accounting = new SessionUsage('claude');
-  accounting.push(stream);
-  accounting.finish();
-  // Two unique messages contribute output 16 + 3 = 19; the repeated second
-  // message remains at its last usage (3). `result` says 233 output and 83
-  // thinking tokens, so it is retained for comparison but not counted.
-  assert.deepEqual(accounting.summary(false), {
-    status: 'complete',
-    input_tokens: 4,
-    output_tokens: 19,
-    cache_read_input_tokens: 21_708,
-    cache_creation_input_tokens: 21_834,
-    total_tokens: 43_565,
-    resultMatches: false,
-    result: {
-      usage: resultEvent.usage,
-      modelUsage: resultEvent.modelUsage,
-    },
-  });
-});
-
-test('eval session reports the captured Claude transcript and result mismatch', async (t) => {
-  if (!requiresIsolation(t, t.name, ['bwrap', 'systemdUserScope'])) return;
-  const f = await fixture();
-  try {
-    const stream = await readFile(capturedClaude);
-    await f.scenario(stream);
-    const observed = f.invoke(f.args('R'));
-    assert.equal(observed.status, 0, observed.stderr);
-    const record = JSON.parse(
-      await readFile(join(f.output('R'), 'session.json'), 'utf8'),
-    );
-    assert.equal(record.status, 'completed');
-    const resultEvent = stream
-      .toString('utf8')
-      .trimEnd()
-      .split('\n')
-      .map((line) => JSON.parse(line))
-      .find((event) => event.type === 'result');
-    assert.ok(resultEvent);
-    // The captured assistant messages contribute output 16 + 3; the repeated
-    // second id has the same final usage, while result aggregates output 233.
-    // Input and both cache fields agree with result, so the output mismatch is
-    // what makes resultMatches false without changing the counted 19 tokens.
-    assert.deepEqual(record.usage, {
-      status: 'complete',
-      input_tokens: 4,
-      output_tokens: 19,
-      cache_read_input_tokens: 21_708,
-      cache_creation_input_tokens: 21_834,
-      total_tokens: 43_565,
-      resultMatches: false,
-      result: {
-        usage: resultEvent.usage,
-        modelUsage: resultEvent.modelUsage,
-      },
-    });
-    assert.deepEqual(
-      [
-        record.usage.result.usage.input_tokens,
-        record.usage.result.usage.output_tokens,
-        record.usage.result.usage.cache_read_input_tokens,
-        record.usage.result.usage.cache_creation_input_tokens,
-        record.usage.result.usage.output_tokens_details.thinking_tokens,
-      ],
-      [4, 233, 21_708, 21_834, 83],
-    );
-    const raw = await readFile(join(f.output('R'), 'stream.jsonl'));
-    assert.deepEqual(raw, stream);
-    assert.match(raw.toString(), /"subtype":"permission_denied"/u);
-  } finally {
-    await f.cleanup();
-  }
-});
-
-test('eval Claude frozen settings use workspace absolute rules and accept edits', async (t) => {
-  if (!requiresIsolation(t, t.name, ['bwrap', 'systemdUserScope'])) return;
-  const f = await fixture();
-  try {
-    await f.scenario(jsonl([assistant(), result]));
-    const observed = f.invoke(f.args('R'));
-    assert.equal(observed.status, 0, observed.stderr);
-    const settings = JSON.parse(
-      await readFile(join(f.slot, 'claude', 'settings.json'), 'utf8'),
-    );
-    const permissionRules = [
-      ...settings.permissions.allow,
-      ...settings.permissions.deny,
-    ].filter((rule: string) => rule.includes('('));
-    assert.deepEqual(permissionRules, [
-      'Read(//w/repo/**)',
-      'Edit(//w/repo/**)',
-      'Write(//w/repo/**)',
-      'Bash(*)',
-      'Read(//w/codex/**)',
-      'Read(//w/claude/**)',
-      'Edit(//w/codex/**)',
-      'Edit(//w/claude/**)',
-      'Write(//w/codex/**)',
-      'Write(//w/claude/**)',
-    ]);
-    assert.ok(
-      permissionRules.every(
-        (rule: string) => rule === 'Bash(*)' || /^\w+\(\/\//u.test(rule),
-      ),
-    );
-    const harness = JSON.parse(
-      await readFile(join(f.slot, 'repo', 'observed.json'), 'utf8'),
-    );
-    const permissionMode = harness.args.indexOf('--permission-mode');
-    assert.notEqual(permissionMode, -1);
-    assert.equal(harness.args[permissionMode + 1], 'acceptEdits');
-  } finally {
-    await f.cleanup();
-  }
 });
 
 test('eval session distinguishes incomplete streams, invalid usage and infrastructure failures', async (t) => {
@@ -826,16 +591,6 @@ test('eval session distinguishes incomplete streams, invalid usage and infrastru
       exit: 7,
     },
     {
-      name: 'invalid Claude usage',
-      arm: 'R',
-      stream: jsonl([
-        assistant({ ...claudeUsage, input_tokens: '11' }),
-        result,
-      ]),
-      status: 'completed',
-      exit: 0,
-    },
-    {
       name: 'missing Codex usage',
       arm: 'A',
       stream: jsonl([{ type: 'turn.completed', usage: { input_tokens: 2 } }]),
@@ -846,13 +601,6 @@ test('eval session distinguishes incomplete streams, invalid usage and infrastru
       name: 'invalid UTF-8',
       arm: 'A',
       stream: `${codexStream}\ufffd`,
-      status: 'truncated',
-      exit: 0,
-    },
-    {
-      name: 'Claude without result',
-      arm: 'R',
-      stream: jsonl([assistant()]),
       status: 'truncated',
       exit: 0,
     },
@@ -962,6 +710,87 @@ test('eval session refuses unknown runs and harnesses, invalid paths and CLI opt
       'neighbour',
       'workspace',
     ]);
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('eval session refuses Claude arms with the supported-harness error', async () => {
+  const f = await fixture();
+  try {
+    const observed = f.invoke(f.args('R'));
+    assert.equal(observed.status, 65, observed.stderr);
+    const envelope = JSON.parse(observed.stdout);
+    assert.deepEqual(Object.keys(envelope).sort(), ['code', 'error', 'ok']);
+    assert.equal(envelope.ok, false);
+    assert.equal(envelope.code, 65);
+    assert.equal(envelope.error, 'only codex sessions are supported');
+    assert.equal(observed.stderr, 'only codex sessions are supported\n');
+    assert.deepEqual(await readdir(f.slot), ['repo']);
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('eval session refuses a Codex executable directory in home/bin', async () => {
+  const f = await fixture();
+  try {
+    const bin = join(f.home, 'bin');
+    await mkdir(bin);
+    const executable = join(bin, 'codex');
+    await copyFile(f.binary, executable);
+    await chmod(executable, 0o755);
+    const observed = f.invoke(f.args(), { KRN_EVAL_CODEX_BIN: executable });
+    assert.equal(observed.status, 65, observed.stderr);
+    const envelope = JSON.parse(observed.stdout);
+    assert.equal(envelope.ok, false);
+    assert.equal(envelope.code, 65);
+    assert.ok(envelope.error.includes(bin));
+    assert.deepEqual(await readdir(f.slot), ['repo']);
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('eval mask refuses tool directories in home outside mise installs', async () => {
+  const f = await fixture();
+  try {
+    const bin = join(f.home, 'bin');
+    await mkdir(bin);
+    const capture = join(f.directory, 'bwrap-args.json');
+    await installFakeBwrap(f, capture);
+    const observed = f.invoke(
+      ['mask', '--slot', f.slot, '--tool', bin, '--', '/usr/bin/true'],
+      { PATH: f.tools },
+    );
+    assert.equal(observed.status, 65, observed.stderr);
+    assert.match(observed.stderr, /tool directory under HOME/u);
+    assert.ok(observed.stderr.includes(bin));
+    await assert.rejects(readFile(capture), { code: 'ENOENT' });
+  } finally {
+    await f.cleanup();
+  }
+});
+
+test('eval mask allows a versioned mise tool directory inside home', async () => {
+  const f = await fixture();
+  try {
+    const mise = join(f.home, '.local', 'share', 'mise');
+    const tool = join(mise, 'installs', 'node', '1.2.3', 'bin');
+    await mkdir(tool, { recursive: true });
+    const capture = join(f.directory, 'bwrap-args.json');
+    await installFakeBwrap(f, capture);
+    const observed = f.invoke(
+      ['mask', '--slot', f.slot, '--tool', tool, '--', '/usr/bin/true'],
+      { MISE_DATA_DIR: mise, PATH: f.tools },
+    );
+    assert.equal(observed.status, 0, observed.stderr);
+    const args = JSON.parse(await readFile(capture, 'utf8')) as string[];
+    const mount = args.findIndex(
+      (value, index) => value === '--ro-bind' && args[index + 1] === tool,
+    );
+    assert.notEqual(mount, -1);
+    assert.deepEqual(args.slice(mount + 1, mount + 3), [tool, tool]);
   } finally {
     await f.cleanup();
   }

@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { closeSync, constants, openSync, writeSync } from 'node:fs';
 import {
   access,
@@ -20,9 +20,9 @@ import {
   systemdScopeUnit,
 } from '../hosts/systemd-scope.ts';
 import { EvalDataError, loadManifest } from './manifest.ts';
-import { credentialMounts } from './mask.ts';
+import { assertToolDirectoryAllowed, credentialMounts } from './mask.ts';
 import { planExperiment } from './plan.ts';
-import { type Harness, SessionUsage } from './usage.ts';
+import { SessionUsage } from './usage.ts';
 
 // These bytes (including the pinned model) are hashed as the session's config.
 // Empty config homes plus the mask remove ambient MCP, skills and history.
@@ -46,45 +46,6 @@ image_generation = false
 hooks = false
 memories = false
 `;
-export const CLAUDE_SETTINGS = `${JSON.stringify(
-  {
-    disableAllHooks: true,
-    autoMemoryEnabled: false,
-    enableAllProjectMcpServers: false,
-    enabledMcpjsonServers: [],
-    permissions: {
-      allow: [
-        'Read(//w/repo/**)',
-        'Edit(//w/repo/**)',
-        'Write(//w/repo/**)',
-        'Bash(*)',
-      ],
-      deny: [
-        'Skill',
-        'Read(//w/codex/**)',
-        'Read(//w/claude/**)',
-        'Edit(//w/codex/**)',
-        'Edit(//w/claude/**)',
-        'Write(//w/codex/**)',
-        'Write(//w/claude/**)',
-      ],
-      additionalDirectories: ['/w/repo'],
-    },
-    sandbox: {
-      enabled: true,
-      autoAllowBashIfSandboxed: true,
-      allowUnsandboxedCommands: false,
-      filesystem: {
-        allowWrite: ['/w/repo', '/w/t'],
-        denyRead: ['/w/codex', '/w/claude'],
-      },
-      network: { allowedDomains: [] },
-    },
-  },
-  null,
-  2,
-)}\n`;
-
 const usage =
   'usage: krn eval session --experiment <dir> --root <dir> --run <runId> --slot <dir> --prompt-file <file> [--timeout <seconds>] [--draft] [--json]';
 const digest = (bytes: string | Buffer) =>
@@ -206,16 +167,13 @@ async function absent(path: string) {
   throw new EvalDataError(`session requires fresh output and config: ${path}`);
 }
 
-async function executable(harness: Harness): Promise<string> {
-  const override =
-    process.env[
-      harness === 'codex' ? 'KRN_EVAL_CODEX_BIN' : 'KRN_EVAL_CLAUDE_BIN'
-    ];
+async function executable(): Promise<string> {
+  const override = process.env.KRN_EVAL_CODEX_BIN;
   const candidates =
     override === undefined
       ? (process.env.PATH ?? '')
           .split(':')
-          .map((path) => resolve(path || '.', harness))
+          .map((path) => resolve(path || '.', 'codex'))
       : [override];
   if (override !== undefined && !isAbsolute(override))
     throw new EvalDataError('harness executable override must be absolute');
@@ -231,7 +189,7 @@ async function executable(harness: Harness): Promise<string> {
       /* Try the next PATH entry. */
     }
   }
-  throw new EvalDataError(`cannot resolve executable for ${harness}`);
+  throw new EvalDataError('cannot resolve executable for codex');
 }
 
 export async function sessionCommand(args: string[]): Promise<void> {
@@ -242,16 +200,15 @@ export async function sessionCommand(args: string[]): Promise<void> {
   );
   if (!run) throw new EvalDataError(`unknown run id: ${input.run}`);
   const arm = manifest.arms.find((arm) => arm.id === run.arm);
-  if (!arm || (arm.harness !== 'codex' && arm.harness !== 'claude'))
+  if (!arm) throw new EvalDataError('unknown harness: undefined');
+  if (arm.harness === 'claude')
+    throw new EvalDataError('only codex sessions are supported');
+  if (arm.harness !== 'codex')
     throw new EvalDataError(`unknown harness: ${arm?.harness}`);
   const harness = arm.harness;
-  const configName = harness === 'codex' ? 'config.toml' : 'settings.json';
-  const credentialName =
-    harness === 'codex' ? 'auth.json' : '.credentials.json';
-  const config =
-    harness === 'codex'
-      ? `model = ${JSON.stringify(arm.model)}\n${CODEX_CONFIG}`
-      : CLAUDE_SETTINGS;
+  const configName = 'config.toml';
+  const credentialName = 'auth.json';
+  const config = `model = ${JSON.stringify(arm.model)}\n${CODEX_CONFIG}`;
   let slot: string,
     output: string,
     prompt: Buffer,
@@ -300,23 +257,23 @@ export async function sessionCommand(args: string[]): Promise<void> {
     }
     await inspect(output, 'directory', true);
     await absent(output);
-    for (const name of ['codex', 'claude']) await absent(join(slot, name));
+    await absent(join(slot, 'codex'));
     const home = process.env.HOME;
     if (!home)
       throw new EvalDataError('HOME is required to locate the login file');
-    credential = `${join(home, `.${harness}`, credentialName)}=/w/${harness}/${credentialName}`;
+    credential = `${join(home, '.codex', credentialName)}=/w/codex/${credentialName}`;
     await credentialMounts([credential], slot);
-    binary = await executable(harness);
+    binary = await executable();
     const tools = [...new Set([dirname(binary), dirname(process.execPath)])];
     for (const tool of tools) {
+      await assertToolDirectoryAllowed(tool, home);
       if (
         tool === '/' ||
         overlaps(tool, slot) ||
         overlaps(tool, experiment) ||
         overlaps(tool, root) ||
         inside(home, tool) ||
-        overlaps(tool, join(home, '.codex')) ||
-        overlaps(tool, join(home, '.claude'))
+        overlaps(tool, join(home, '.codex'))
       )
         throw new EvalDataError(
           `tool directory overlaps protected session paths: ${tool}`,
@@ -325,8 +282,8 @@ export async function sessionCommand(args: string[]): Promise<void> {
     // Validate every destination before the first write.
     await mkdir(dirname(output), { recursive: true });
     await mkdir(output);
-    await mkdir(join(slot, harness));
-    await writeFile(join(slot, harness, configName), config, {
+    await mkdir(join(slot, 'codex'));
+    await writeFile(join(slot, 'codex', configName), config, {
       flag: 'wx',
       mode: 0o444,
     });
@@ -337,40 +294,21 @@ export async function sessionCommand(args: string[]): Promise<void> {
     );
   }
 
-  const command =
-    harness === 'codex'
-      ? [
-          binary,
-          'exec',
-          '--json',
-          '--ephemeral',
-          '--model',
-          arm.model,
-          '--sandbox',
-          'workspace-write',
-          '--cd',
-          '/w/repo',
-          '--color',
-          'never',
-          '-',
-        ]
-      : [
-          binary,
-          '-p',
-          '--permission-mode',
-          'acceptEdits',
-          '--model',
-          arm.model,
-          '--output-format',
-          'stream-json',
-          '--verbose',
-          '--no-session-persistence',
-          '--session-id',
-          randomUUID(),
-          '--strict-mcp-config',
-          '--settings',
-          '/w/claude/settings.json',
-        ];
+  const command = [
+    binary,
+    'exec',
+    '--json',
+    '--ephemeral',
+    '--model',
+    arm.model,
+    '--sandbox',
+    'workspace-write',
+    '--cd',
+    '/w/repo',
+    '--color',
+    'never',
+    '-',
+  ];
   const maskArgs = [
     fileURLToPath(new URL('../cli/main.ts', import.meta.url)),
     'eval',
@@ -384,15 +322,15 @@ export async function sessionCommand(args: string[]): Promise<void> {
     '--credential',
     credential,
     '--credential',
-    `${join(slot, harness, configName)}=/w/${harness}/${configName}`,
+    `${join(slot, 'codex', configName)}=/w/codex/${configName}`,
     '--',
     '/usr/bin/env',
-    `${harness === 'codex' ? 'CODEX_HOME' : 'CLAUDE_CONFIG_DIR'}=/w/${harness}`,
+    'CODEX_HOME=/w/codex',
     ...command,
   ];
   const startedAt = new Date().toISOString();
   const scope = systemdScopeUnit('eval-session');
-  const accounting = new SessionUsage(harness);
+  const accounting = new SessionUsage();
   let timedOut = false;
   let exitCode = 70;
   let launchError = false;

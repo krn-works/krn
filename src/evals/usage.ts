@@ -1,6 +1,5 @@
-// Harness events are untrusted input. Keep their usage payloads verbatim in the
-// call ledger; only validated nonnegative safe integers enter session totals.
-export type Harness = 'codex' | 'claude';
+// Codex stream events are untrusted input; only validated token counts enter
+// session totals, while each turn's original usage stays in the call ledger.
 type RecordValue = Record<string, unknown>;
 
 function record(value: unknown): RecordValue {
@@ -9,29 +8,15 @@ function record(value: unknown): RecordValue {
     : {};
 }
 
-const fields = {
-  codex: [
-    'input_tokens',
-    'output_tokens',
-    'cached_input_tokens',
-    'reasoning_output_tokens',
-  ],
-  claude: [
-    'input_tokens',
-    'output_tokens',
-    'cache_read_input_tokens',
-    'cache_creation_input_tokens',
-  ],
-} as const;
+const fields = [
+  'input_tokens',
+  'output_tokens',
+  'cached_input_tokens',
+  'reasoning_output_tokens',
+] as const;
 
 export class SessionUsage {
-  readonly calls: {
-    index: number;
-    kind: string;
-    messageId?: string;
-    usage: unknown;
-  }[] = [];
-  private readonly messages = new Map<string, number>();
+  readonly calls: { index: number; kind: string; usage: unknown }[] = [];
   private readonly decoder = new TextDecoder('utf-8', {
     fatal: true,
     ignoreBOM: true,
@@ -44,13 +29,6 @@ export class SessionUsage {
   toolCalled = false;
   error = false;
   configRejected = false;
-  private result: { usage: unknown; modelUsage: unknown } | undefined;
-
-  private readonly harness: Harness;
-
-  constructor(harness: Harness) {
-    this.harness = harness;
-  }
 
   push(bytes: Buffer): void {
     try {
@@ -82,7 +60,7 @@ export class SessionUsage {
   private validUsage(value: unknown): boolean {
     const usage = record(value);
     if (
-      !fields[this.harness].every(
+      !fields.every(
         (field) =>
           typeof usage[field] === 'number' &&
           Number.isSafeInteger(usage[field]) &&
@@ -90,21 +68,18 @@ export class SessionUsage {
       )
     )
       return false;
-    if (this.harness === 'codex') {
-      const input = usage.input_tokens,
-        output = usage.output_tokens;
-      const cached = usage.cached_input_tokens,
-        reasoning = usage.reasoning_output_tokens;
-      if (
-        typeof input !== 'number' ||
-        typeof output !== 'number' ||
-        typeof cached !== 'number' ||
-        typeof reasoning !== 'number'
-      )
-        return false;
-      return cached <= input && reasoning <= output;
-    }
-    return true;
+    const input = usage.input_tokens,
+      output = usage.output_tokens;
+    const cached = usage.cached_input_tokens,
+      reasoning = usage.reasoning_output_tokens;
+    if (
+      typeof input !== 'number' ||
+      typeof output !== 'number' ||
+      typeof cached !== 'number' ||
+      typeof reasoning !== 'number'
+    )
+      return false;
+    return cached <= input && reasoning <= output;
   }
 
   private event(line: string): void {
@@ -119,105 +94,57 @@ export class SessionUsage {
       this.invalid = true;
       return;
     }
-    if (this.harness === 'codex') {
-      if (event.type === 'turn.started') {
-        this.terminal = false;
-        if (this.activeTurn !== undefined) this.invalid = true;
-        this.activeTurn = this.calls.length;
+    if (event.type === 'turn.started') {
+      this.terminal = false;
+      if (this.activeTurn !== undefined) this.invalid = true;
+      this.activeTurn = this.calls.length;
+      this.calls.push({
+        index: this.calls.length + 1,
+        kind: 'turn.started',
+        usage: null,
+      });
+    }
+    const item = record(event.item);
+    if (
+      [
+        'command_execution',
+        'mcp_tool_call',
+        'web_search',
+        'file_change',
+      ].includes(String(item.type))
+    )
+      this.toolCalled = true;
+    if (event.type === 'error' || event.type === 'turn.failed')
+      this.error = true;
+    if (
+      event.type === 'error' &&
+      typeof event.message === 'string' &&
+      /\b(?:config(?:uration)?|settings?|features?)\b/iu.test(event.message) &&
+      /\b(?:ignored|unrecogni[sz]ed)\b/iu.test(event.message)
+    )
+      this.configRejected = true;
+    if (event.type === 'turn.failed' || event.type === 'turn.completed') {
+      this.terminal = true;
+      if (!this.validUsage(event.usage)) this.invalidUsage = true;
+      const call =
+        this.activeTurn === undefined ? undefined : this.calls[this.activeTurn];
+      if (call) {
+        call.kind = event.type;
+        call.usage = event.usage ?? null;
+      } else
         this.calls.push({
           index: this.calls.length + 1,
-          kind: 'turn.started',
-          usage: null,
-        });
-      }
-      const item = record(event.item);
-      if (
-        [
-          'command_execution',
-          'mcp_tool_call',
-          'web_search',
-          'file_change',
-        ].includes(String(item.type))
-      )
-        this.toolCalled = true;
-      if (event.type === 'error' || event.type === 'turn.failed')
-        this.error = true;
-      if (
-        event.type === 'error' &&
-        typeof event.message === 'string' &&
-        /\b(?:config(?:uration)?|settings?|features?)\b/iu.test(
-          event.message,
-        ) &&
-        /\b(?:ignored|unrecogni[sz]ed)\b/iu.test(event.message)
-      )
-        this.configRejected = true;
-      if (event.type === 'turn.failed' || event.type === 'turn.completed') {
-        this.terminal = true;
-        if (!this.validUsage(event.usage)) this.invalidUsage = true;
-        const call =
-          this.activeTurn === undefined
-            ? undefined
-            : this.calls[this.activeTurn];
-        if (call) {
-          call.kind = event.type;
-          call.usage = event.usage ?? null;
-        } else
-          this.calls.push({
-            index: this.calls.length + 1,
-            kind: event.type,
-            usage: event.usage ?? null,
-          });
-        this.activeTurn = undefined;
-      }
-    } else {
-      if (event.type === 'assistant') {
-        this.terminal = false;
-        const message = record(event.message);
-        if (
-          Array.isArray(message.content) &&
-          message.content.some((block) => record(block).type === 'tool_use')
-        )
-          this.toolCalled = true;
-        if (!this.validUsage(message.usage)) this.invalidUsage = true;
-        if (typeof message.id !== 'string' || message.id.trim() === '') {
-          this.invalidUsage = true;
-          return;
-        }
-        const prior = this.messages.get(message.id);
-        if (prior !== undefined) {
-          const call = this.calls[prior];
-          if (call) call.usage = message.usage ?? null;
-        } else {
-          this.messages.set(message.id, this.calls.length);
-          this.calls.push({
-            index: this.calls.length + 1,
-            kind: 'assistant',
-            messageId: message.id,
-            usage: message.usage ?? null,
-          });
-        }
-      }
-      if (event.type === 'result') {
-        this.terminal = true;
-        if (!this.validUsage(event.usage)) this.invalidUsage = true;
-        this.error =
-          event.is_error === true ||
-          (typeof event.subtype === 'string' && event.subtype !== 'success');
-        this.result = {
+          kind: event.type,
           usage: event.usage ?? null,
-          modelUsage: event.modelUsage ?? null,
-        };
-      }
-      if (event.type === 'error') this.error = true;
+        });
+      this.activeTurn = undefined;
     }
   }
 
   summary(interrupted: boolean) {
-    const crossCheck = this.result ? { result: this.result } : {};
     const missing = () => ({
       status: 'missing' as const,
       total_tokens: null,
-      ...crossCheck,
     });
     if (
       interrupted ||
@@ -227,10 +154,10 @@ export class SessionUsage {
     )
       return missing();
     const totals: Record<string, number> = {};
-    for (const field of fields[this.harness]) totals[field] = 0;
+    for (const field of fields) totals[field] = 0;
     for (const call of this.calls) {
       const usage = record(call.usage);
-      for (const field of fields[this.harness]) {
+      for (const field of fields) {
         const value = usage[field];
         if (typeof value !== 'number') return missing();
         const total = (totals[field] ?? 0) + value;
@@ -238,27 +165,13 @@ export class SessionUsage {
         totals[field] = total;
       }
     }
-    // Cached/reasoning are subsets for Codex; Claude reports caches separately.
-    const total =
-      (totals.input_tokens ?? 0) +
-      (totals.output_tokens ?? 0) +
-      (this.harness === 'claude'
-        ? (totals.cache_read_input_tokens ?? 0) +
-          (totals.cache_creation_input_tokens ?? 0)
-        : 0);
+    // Cached and reasoning tokens are subsets of Codex input and output.
+    const total = (totals.input_tokens ?? 0) + (totals.output_tokens ?? 0);
     if (!Number.isSafeInteger(total)) return missing();
-    const resultMatches =
-      this.harness === 'claude' && this.result
-        ? fields.claude.every(
-            (field) => record(this.result?.usage)[field] === totals[field],
-          )
-        : undefined;
     return {
       status: 'complete' as const,
       ...totals,
       total_tokens: total,
-      ...(resultMatches === undefined ? {} : { resultMatches }),
-      ...crossCheck,
     };
   }
 }
