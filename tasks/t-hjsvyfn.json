@@ -1,0 +1,12 @@
+{
+  "id": "t-hjsvyfn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Run repository tests with faithful review isolation",
+  "after": [],
+  "body": [
+    "Real review isolation currently breaks repository tests: linked candidate .git files point outside the sandbox mount, and the process monitor treats zombie Git children as live orphans (exit125 after all assertions pass). Lead evidence: .krn/runs/review-boundary/smoke.json, metadata-host-proof.json, global-smoke.jsonl and orphan-smoke.json. This blocks GLOBAL PR #467 despite green CI. Keep private candidate Git objects/config/history inside the disposable copy, dissociated from borrowed source objects; do not mount source metadata, credentials, sockets or broaden sandbox access. Ignore already-dead zombie entries while retaining live-orphan kill/refusal. Acceptance: real sandbox Git commands and a genuine assertion/pass pair work, candidate local Git writes do not modify source metadata, source alternates are not needed, dead children do not falsify a successful test, live detached children still produce125 and are contained, exact-head records, trusted base runner blobs, overlays and cleanup stay intact. GLOBAL's missing test preload is a separate config prerequisite under t-5wbkv1w."
+  ]
+}

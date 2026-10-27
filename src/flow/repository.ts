@@ -8,6 +8,7 @@ import {
   readFileSync,
   realpathSync,
   rmdirSync,
+  rmSync,
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
@@ -18,8 +19,6 @@ import { TEST_FILE_GLOB } from '../../scripts/test-suite.mjs';
 import type { Job } from '../core/index.ts';
 import { stateDirectory } from '../foreman/state.ts';
 import {
-  addWorktree,
-  cleanupWorktrees,
   createWorktreeDirectory,
   execute,
   TeardownUnconfirmed,
@@ -298,6 +297,30 @@ function changedTestFiles(root: string, base: string, head: string): string[] {
     .split('\0')
     .filter((path) => path && matchesGlob(path, TEST_FILE_GLOB))
     .sort();
+}
+
+function createCandidateCopy(
+  root: string,
+  copy: string,
+  sha: string,
+  source: string,
+): void {
+  git(root, ['clone', '--quiet', '--no-hardlinks', '--dissociate', root, copy]);
+  git(copy, ['fetch', '--quiet', root, ...new Set([sha, source])]);
+  git(copy, ['checkout', '--quiet', '--detach', sha]);
+}
+
+function cleanupCandidateCopies(copies: readonly string[]): void {
+  const errors: unknown[] = [];
+  for (const copy of copies) {
+    try {
+      rmSync(copy, { recursive: true, force: true });
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length)
+    throw new AggregateError(errors, 'red-first candidate cleanup failed');
 }
 
 export function classifyNodeTestOutput(
@@ -771,7 +794,7 @@ export async function redFirst(
         );
       const scratch = createWorktreeDirectory(temporary);
       copies.push(scratch);
-      await addWorktree(root, scratch, sha);
+      createCandidateCopy(root, scratch, sha, source);
       if (source !== sha) {
         // Validate the receiver's parents too: checkout must never follow a
         // symlink from the earlier tree while overlaying a newly added test.
@@ -841,6 +864,6 @@ export async function redFirst(
     }
     return { baseSha, headSha: head, results, contracts };
   } finally {
-    await cleanupWorktrees(root, copies);
+    cleanupCandidateCopies(copies);
   }
 }
