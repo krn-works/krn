@@ -11,7 +11,11 @@ import {
 import { resolve } from 'node:path';
 import { TextDecoder } from 'node:util';
 import { changedPaths, validateSha } from './repository.ts';
-import { type PriorReview, reviewRecordSchema } from './types.ts';
+import {
+  deterministicCauses,
+  type PriorReview,
+  reviewRecordSchema,
+} from './types.ts';
 
 const recordByteLimit = 1024 * 1024;
 
@@ -103,12 +107,18 @@ export function loadPriorReview(
     throw new PriorRecordError('must have a different head SHA');
   if (
     record.panelVerdict !== 'FAIL' ||
-    !record.judges.some(
-      (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
+    !(
+      record.judges.some(
+        (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
+      ) ||
+      (record.contracts !== undefined &&
+        deterministicCauses(record.redFirst, record.contracts).some(
+          ({ verdict }) => verdict === 'FAIL',
+        ))
     )
   )
     throw new PriorRecordError(
-      'requires a FAIL panel with at least one complete judge FAIL',
+      'requires a FAIL panel with a complete judge FAIL or deterministic failure',
     );
   try {
     paths = changedPaths(root, priorHead, currentHead);

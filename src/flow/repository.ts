@@ -1,6 +1,6 @@
 // Process and repository boundaries for deterministic red-first evaluation.
 import { spawnSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import {
   lstatSync,
   mkdirSync,
@@ -11,8 +11,8 @@ import {
   unlinkSync,
   writeFileSync,
 } from 'node:fs';
-import { isAbsolute, join, matchesGlob } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { extname, isAbsolute, join, matchesGlob, relative } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import { TEST_FILE_GLOB } from '../../scripts/test-suite.mjs';
 import type { Job } from '../core/index.ts';
@@ -22,8 +22,13 @@ import {
   cleanupWorktrees,
   createWorktreeDirectory,
   execute,
+  TeardownUnconfirmed,
 } from '../verdict/sandbox.ts';
-import { type RedFirstResult, redFirstSchema } from './types.ts';
+import {
+  type ChangeContract,
+  type RedFirstResult,
+  redFirstSchema,
+} from './types.ts';
 
 const nodeResolutionCodes = new Set([
   'ERR_MODULE_NOT_FOUND',
@@ -46,8 +51,25 @@ const nodeTestReportSchema = z.object({
   errorCodes: z.array(z.string()),
   causeCodes: z.array(z.string()),
   diagnostics: z.string().max(2048).default(''),
+  skipped: z.number().int().nonnegative().default(0),
+  isolationSkipped: z.number().int().nonnegative().default(0),
+  timeout: z.boolean().default(false),
+  missingModules: z.array(z.string()).default([]),
 });
 const nodeTestReportPrefix = 'KRN_NODE_TEST_REPORT:';
+const runnerConfigErrorPrefix = 'KRN_RUNNER_CONFIG_ERROR:';
+// Review checks already run inside isolation; nested isolation is unavailable.
+// Share this declaration across the reporter parent and the candidate child.
+const reviewSandboxCapabilities = {
+  bwrap: {
+    available: false,
+    reason: 'review sandbox runs no nested isolation',
+  },
+  systemdUserScope: {
+    available: false,
+    reason: 'review sandbox runs no nested isolation',
+  },
+};
 
 // Keep candidate diagnostics observable while classification consumes only error codes.
 export const nodeTestReporter = `
@@ -61,6 +83,18 @@ let testFailure = false;
 const errorCodes = new Set();
 const causeCodes = new Set();
 let diagnostics = '';
+let skipped = 0;
+let isolationSkipped = 0;
+let isolationSummary = 0;
+let timeout = false;
+const missingModules = new Set();
+const capabilities = ${JSON.stringify(reviewSandboxCapabilities)};
+function capabilitySkip(reason) {
+  if (typeof reason !== 'string') return false;
+  const labels = { 'bwrap user namespaces': 'bwrap', 'systemd user scopes': 'systemdUserScope' };
+  const missing = /^SKIP\\(isolation\\): .+ — missing (.+)$/u.exec(reason)?.[1]?.split(', ');
+  return missing?.length > 0 && missing.every((label) => capabilities[labels[label]]?.available === false);
+}
 function appendDiagnostic(message) {
   if (typeof message !== 'string' || !message) return;
   diagnostics = (diagnostics + message).slice(-2048);
@@ -70,11 +104,21 @@ export default new Transform({
   transform(event, _encoding, callback) {
     if (event?.type === 'test:stdout' || event?.type === 'test:stderr') {
       appendDiagnostic(event.data?.message);
+      const summary = /Isolation-dependent tests skipped: (\\d+)/u.exec(event.data?.message ?? '');
+      if (summary) isolationSummary = Math.max(isolationSummary, Number(summary[1]));
+    }
+    if (event?.type === 'test:pass' && event.data?.skip) {
+      skipped++;
+      if (capabilitySkip(event.data.skip)) isolationSkipped++;
     }
     if (event?.type === 'test:fail') {
       testFailure = true;
       const error = event.data?.details?.error;
       const cause = error?.cause;
+      for (const failure of [error, cause]) {
+        if (failure?.failureType === 'testTimeoutFailure') timeout = true;
+        if (failure?.code === 'ERR_MODULE_NOT_FOUND' && typeof failure.url === 'string') missingModules.add(failure.url);
+      }
       if (knownCodes.has(error?.code)) {
         errorCodes.add(error.code);
         appendDiagnostic('\\n' + error.code);
@@ -94,6 +138,8 @@ export default new Transform({
     let retainedDiagnostics = diagnostics;
     let report = JSON.stringify({
       testFailure,
+      skipped: Math.max(skipped, isolationSummary), isolationSkipped, timeout,
+      missingModules: [...missingModules].slice(0, 1).map((url) => url.slice(0, 768)),
       errorCodes: [...errorCodes],
       causeCodes: [...causeCodes],
       diagnostics: retainedDiagnostics,
@@ -107,6 +153,8 @@ export default new Transform({
       );
       report = JSON.stringify({
         testFailure,
+        skipped: Math.max(skipped, isolationSummary), isolationSkipped, timeout,
+        missingModules: [...missingModules].slice(0, 1).map((url) => url.slice(0, 768)),
         errorCodes: [...errorCodes],
         causeCodes: [...causeCodes],
         diagnostics: retainedDiagnostics,
@@ -138,6 +186,7 @@ export interface RedFirstReport {
   readonly baseSha: string;
   readonly headSha: string;
   readonly results: readonly RedFirstResult[];
+  readonly contracts?: readonly ChangeContract[];
 }
 
 function gitOutput(
@@ -240,12 +289,13 @@ function changedTestFiles(root: string, base: string, head: string): string[] {
     'diff',
     '--no-renames',
     '--name-only',
-    '--diff-filter=ACM',
+    '--diff-filter=ACMT',
+    '-z',
     `${base}..${head}`,
     '--',
     'test',
   ])
-    .split('\n')
+    .split('\0')
     .filter((path) => path && matchesGlob(path, TEST_FILE_GLOB))
     .sort();
 }
@@ -253,14 +303,23 @@ function changedTestFiles(root: string, base: string, head: string): string[] {
 export function classifyNodeTestOutput(
   exitCode: number | null,
   output: string,
+  context?: { readonly root: string; readonly addedPaths: readonly string[] },
 ): RedFirstResult['classification'] {
-  if (exitCode === 0) return 'pass';
+  if (exitCode === 124) return 'timeout';
   let report: z.infer<typeof nodeTestReportSchema>;
   try {
     report = parseNodeTestReport(output);
   } catch {
-    return 'other';
+    return exitCode === 0 &&
+      !/Isolation-dependent tests skipped: [1-9]\d*/u.test(output)
+      ? 'pass'
+      : /Isolation-dependent tests skipped: [1-9]\d*/u.test(output)
+        ? 'skipped'
+        : 'other';
   }
+  if (report.timeout) return 'timeout';
+  if (report.skipped > 0) return 'skipped';
+  if (exitCode === 0) return 'pass';
   if (
     report.testFailure &&
     (report.errorCodes.includes('ERR_ASSERTION') ||
@@ -273,7 +332,17 @@ export function classifyNodeTestOutput(
       nodeResolutionCodes.has(code),
     )
   )
-    return 'procedural';
+    return context &&
+      report.missingModules.some((url) => {
+        try {
+          const path = relative(context.root, fileURLToPath(url));
+          return safeRepositoryPath(path) && context.addedPaths.includes(path);
+        } catch {
+          return false;
+        }
+      })
+      ? 'missing-module'
+      : 'procedural';
   return 'other';
 }
 
@@ -310,91 +379,336 @@ export function summarizeNodeTestOutput(output: string): string {
   }
 }
 
+// Runner configuration is trusted only from the review base. Both its syntax and
+// every import's tree entry are validated before candidate code can execute.
+function safeRepositoryPath(path: string): boolean {
+  return (
+    !isAbsolute(path) &&
+    !/[\\\0\r\n:]/u.test(path) &&
+    path
+      .split('/')
+      .every((part) => part !== '' && part !== '.' && part !== '..')
+  );
+}
+
+const runnerConfigSchema = z.strictObject({
+  version: z.literal(1),
+  testFile: z.strictObject({
+    import: z.array(z.string().refine(safeRepositoryPath)),
+  }),
+});
+
+function regularGitFile(root: string, sha: string, path: string): boolean {
+  if (!safeRepositoryPath(path)) return false;
+  const parts = path.split('/');
+  for (let index = 1; index <= parts.length; index++) {
+    const entry = git(root, [
+      '--literal-pathspecs',
+      'ls-tree',
+      sha,
+      '--',
+      parts.slice(0, index).join('/'),
+    ]);
+    const mode = entry.split(' ')[0];
+    if (
+      index < parts.length
+        ? mode !== '040000'
+        : !['100644', '100755'].includes(mode ?? '')
+    )
+      return false;
+  }
+  return true;
+}
+
+type RunnerModule = { path: string; source: string };
+
+function readRunnerConfig(root: string, base: string): readonly RunnerModule[] {
+  const entry = git(root, ['ls-tree', base, '--', 'krn.review.json']);
+  if (!entry) return [];
+  if (!regularGitFile(root, base, 'krn.review.json'))
+    throw new Error('krn.review.json must be a regular file without symlinks');
+  const config = runnerConfigSchema.parse(
+    JSON.parse(git(root, ['show', `${base}:krn.review.json`])),
+  );
+  return config.testFile.import.map((module) => {
+    if (!regularGitFile(root, base, module))
+      throw new Error(
+        `runner import must be a regular repository file: ${module}`,
+      );
+    const blob = gitOutput(root, ['show', `${base}:${module}`]);
+    if (blob.status !== 0)
+      throw new Error(blob.stderr || `cannot read runner import: ${module}`);
+    return { path: module, source: blob.stdout };
+  });
+}
+
+// Do not probe nested bwrap: it can leave orphans in the sandbox process monitor.
+// CI mode lets the gate report these declared capability skips.
+const runnerEnvironment = `
+process.env.CI = 'true';
+process.env.KRN_ISOLATION_GATE_PRELOAD = '1';
+process.env.KRN_ISOLATION_CAPABILITIES = ${JSON.stringify(JSON.stringify(reviewSandboxCapabilities))};
+`;
+
+function runnerSetup(importPaths: readonly string[]): string {
+  return `
+import { registerHooks } from 'node:module';
+${runnerEnvironment}
+const configuredModules = new Set(${JSON.stringify(importPaths.map((path) => pathToFileURL(path).href))});
+// Preloads run before Node can start the test reporter. Keep their failures
+// distinct from test assertions and flush a bounded diagnostic before exiting.
+process.setUncaughtExceptionCaptureCallback((error) => {
+  const message = String(error?.stack ?? error).slice(-1500);
+  // The executor retains a byte-limited tail, so keep the marker last even
+  // when diagnostics contain multibyte characters or escaped control codes.
+  process.stderr.write(JSON.stringify(message) + '\\n' + ${JSON.stringify(runnerConfigErrorPrefix)} + '\\n', () => process.exit(65));
+});
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (configuredModules.has(context.parentURL) && !specifier.startsWith('node:'))
+      throw new Error('runner imports must be self-contained (node: imports only): ' + specifier);
+    return nextResolve(specifier, context);
+  },
+});
+export function runnerImportsLoaded() {
+  process.setUncaughtExceptionCaptureCallback(null);
+}
+`;
+}
+
+function removeHelper(path: string): void {
+  try {
+    unlinkSync(path);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+}
+
+function dataError(
+  path: string,
+  side: 'base' | 'head',
+  sha: string,
+  cause: 'runner-config' | 'contract' | undefined,
+  error: unknown,
+): RedFirstResult {
+  const summary = (
+    error instanceof Error ? error.message : String(error)
+  ).slice(0, 2000);
+  return {
+    path,
+    side,
+    sha,
+    classification: 'procedural',
+    exitCode: 65,
+    durationMs: 0,
+    outputSha256: createHash('sha256').update(summary).digest('hex'),
+    summary,
+    ...(cause ? { cause } : {}),
+  };
+}
+
+type ContractDeclaration = {
+  commit: string;
+  parent: string;
+  path: string;
+  kind: ChangeContract['kind'];
+};
+function contractDeclarations(
+  root: string,
+  base: string,
+  head: string,
+): { declarations: ContractDeclaration[]; errors: RedFirstResult[] } {
+  const declarations: ContractDeclaration[] = [];
+  const errors: RedFirstResult[] = [];
+  for (const commit of git(root, [
+    'rev-list',
+    '--reverse',
+    '--topo-order',
+    `${base}..${head}`,
+  ])
+    .split('\n')
+    .filter(Boolean)) {
+    const message = git(root, ['show', '-s', '--format=%B', commit]);
+    const parsed = spawnSync('git', ['interpret-trailers', '--parse'], {
+      cwd: root,
+      input: message,
+      encoding: 'utf8',
+      timeout: 30000,
+      maxBuffer: 1024 * 1024,
+    });
+    if (parsed.status !== 0) {
+      errors.push(
+        dataError(
+          'Change-contract',
+          'head',
+          head,
+          'contract',
+          'cannot parse commit trailers',
+        ),
+      );
+      continue;
+    }
+    const seen = new Set<string>();
+    for (const line of parsed.stdout.split(/\r?\n/u)) {
+      if (!/^Change-contract:/iu.test(line)) continue;
+      const value = line.slice(line.indexOf(':') + 1).trim();
+      const match = /^(.*):(red->green|green->green)$/u.exec(value);
+      const path = match?.[1];
+      const kind = match?.[2];
+      if (
+        !path ||
+        (kind !== 'red->green' && kind !== 'green->green') ||
+        !safeRepositoryPath(path) ||
+        !matchesGlob(path, TEST_FILE_GLOB) ||
+        seen.has(path)
+      ) {
+        errors.push(
+          dataError(
+            path || 'Change-contract',
+            'head',
+            head,
+            'contract',
+            `invalid or duplicate Change-contract in ${commit}: ${value}`,
+          ),
+        );
+        continue;
+      }
+      seen.add(path);
+      const parent = git(root, ['rev-parse', `${commit}^1`]);
+      declarations.push({ commit, parent, path, kind });
+    }
+  }
+  return { declarations, errors };
+}
+
 async function classifyTest(
   root: string,
   scratch: string,
   side: 'base' | 'head',
   sha: string,
   baseSha: string,
+  headSha: string,
   path: string,
+  imports: readonly RunnerModule[],
+  run: typeof execute,
   signal?: AbortSignal,
 ): Promise<RedFirstResult> {
   const started = Date.now();
   const id = `red-first-${randomUUID()}`;
-  const job: Job = {
-    id,
-    issue: 'red-first',
-    worktree: scratch,
+  const job: Job = { id, issue: 'red-first', worktree: scratch };
+  const helpers: string[] = [];
+  const helper = (role: string, source: string, extension = '.mjs') => {
+    const helperPath = join(scratch, `.krn-redfirst-${role}-${id}${extension}`);
+    writeFileSync(helperPath, source, { flag: 'wx', mode: 0o400 });
+    helpers.push(helperPath);
+    return helperPath;
   };
-  const reporterPath = join(scratch, `.krn-redfirst-reporter-${id}.mjs`);
-  const wrapperPath = join(scratch, `.krn-redfirst-wrapper-${id}.mjs`);
-  writeFileSync(reporterPath, nodeTestReporter, {
-    flag: 'wx',
-    mode: 0o400,
-  });
-  writeFileSync(wrapperPath, nodeTestWrapper(join(scratch, path)), {
-    flag: 'wx',
-    mode: 0o400,
-  });
-  const evidence = await execute(
-    root,
-    scratch,
-    job,
-    id,
-    [
-      process.execPath,
-      '--test',
-      `--test-reporter=${reporterPath}`,
-      wrapperPath,
-    ],
-    120000,
-    sha,
-    signal,
-    baseSha,
-  );
-  for (const helper of [reporterPath, wrapperPath]) {
-    try {
-      unlinkSync(helper);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    }
-  }
-  const diagnostics = join(stateDirectory(job), 'diagnostics');
-  if (realpathSync(diagnostics) !== diagnostics)
-    throw new Error('unsafe red-first diagnostic directory');
-  const tailFile = readdirSync(diagnostics).find((name) =>
-    name.startsWith(`${sha}-${id}-`),
-  );
-  if (!tailFile) throw new Error(`missing sandbox diagnostic for ${path}`);
-  const tailPath = join(diagnostics, tailFile);
-  const tailStat = lstatSync(tailPath);
-  if (tailStat.isSymbolicLink() || !tailStat.isFile())
-    throw new Error('unsafe red-first diagnostic file');
-  const output = readFileSync(tailPath, 'utf8');
-  unlinkSync(tailPath);
-  for (const directory of [diagnostics, stateDirectory(job)]) {
-    try {
-      rmdirSync(directory);
-    } catch (error) {
-      if (
-        !['ENOENT', 'ENOTEMPTY'].includes(
-          (error as NodeJS.ErrnoException).code ?? '',
+  try {
+    const reporterPath = helper('reporter', nodeTestReporter);
+    const wrapperPath = helper('wrapper', nodeTestWrapper(join(scratch, path)));
+    // Copy the exact base blobs, preserving module format and bytes. Candidate
+    // trees never supply runner code, even for contract parents before the base.
+    const importPaths = imports.map((module, index) =>
+      helper(`runner-${index}`, module.source, extname(module.path) || '.mjs'),
+    );
+    const environmentPath = helper('environment', runnerSetup(importPaths));
+    const readyPath = helper(
+      'ready',
+      `import { runnerImportsLoaded } from ${JSON.stringify(pathToFileURL(environmentPath).href)};\nrunnerImportsLoaded();\n`,
+    );
+    const evidence = await run(
+      root,
+      scratch,
+      job,
+      id,
+      [
+        process.execPath,
+        ...(imports.length ? ['--import', environmentPath] : []),
+        ...importPaths.flatMap((module) => [
+          '--import',
+          pathToFileURL(module).href,
+        ]),
+        ...(imports.length ? ['--import', readyPath] : []),
+        '--test',
+        `--test-reporter=${reporterPath}`,
+        wrapperPath,
+      ],
+      120000,
+      sha,
+      signal,
+      baseSha,
+    );
+    const diagnostics = join(stateDirectory(job), 'diagnostics');
+    if (realpathSync(diagnostics) !== diagnostics)
+      throw new Error('unsafe red-first diagnostic directory');
+    const tailFile = readdirSync(diagnostics).find((name) =>
+      name.startsWith(`${sha}-${id}-`),
+    );
+    if (!tailFile) throw new Error(`missing sandbox diagnostic for ${path}`);
+    const tailPath = join(diagnostics, tailFile);
+    const tailStat = lstatSync(tailPath);
+    if (tailStat.isSymbolicLink() || !tailStat.isFile())
+      throw new Error('unsafe red-first diagnostic file');
+    const output = readFileSync(tailPath, 'utf8');
+    unlinkSync(tailPath);
+    for (const directory of [diagnostics, stateDirectory(job)]) {
+      try {
+        rmdirSync(directory);
+      } catch (error) {
+        if (
+          !['ENOENT', 'ENOTEMPTY'].includes(
+            (error as NodeJS.ErrnoException).code ?? '',
+          )
         )
-      )
-        throw error;
+          throw error;
+      }
     }
+    const addedPaths =
+      side === 'base'
+        ? git(root, [
+            'diff',
+            '--no-renames',
+            '--name-only',
+            '--diff-filter=A',
+            '-z',
+            sha,
+            headSha,
+            '--',
+          ]).split('\0')
+        : [];
+    const runnerConfigFailed = output.includes(runnerConfigErrorPrefix);
+    const classification = runnerConfigFailed
+      ? 'procedural'
+      : classifyNodeTestOutput(evidence.exitCode, output, {
+          root: scratch,
+          addedPaths,
+        });
+    let capability = false;
+    if (classification === 'skipped' && imports.length > 0) {
+      const report = parseNodeTestReport(output);
+      capability =
+        report.skipped > 0 &&
+        report.skipped === report.isolationSkipped &&
+        !report.testFailure;
+    }
+    return redFirstSchema.parse({
+      path,
+      side,
+      sha,
+      classification,
+      exitCode: evidence.exitCode,
+      durationMs: Date.now() - started,
+      outputSha256: evidence.sha256,
+      summary: summarizeNodeTestOutput(output),
+      ...(runnerConfigFailed ? { cause: 'runner-config' } : {}),
+      ...(capability ? { cause: 'capability', proven: false } : {}),
+    });
+  } catch (error) {
+    if (signal?.aborted || error instanceof TeardownUnconfirmed) throw error;
+    return dataError(path, side, sha, undefined, error);
+  } finally {
+    for (const helper of helpers) removeHelper(helper);
   }
-  const classification = classifyNodeTestOutput(evidence.exitCode, output);
-  return redFirstSchema.parse({
-    path,
-    side,
-    sha,
-    classification,
-    exitCode: evidence.exitCode,
-    durationMs: Date.now() - started,
-    outputSha256: evidence.sha256,
-    summary: summarizeNodeTestOutput(output),
-  });
 }
 
 export async function redFirst(
@@ -402,30 +716,130 @@ export async function redFirst(
   base: string,
   headInput: string,
   signal?: AbortSignal,
+  /** Transport seam for tests; the CLI always uses the isolated executor. */
+  run: typeof execute = execute,
 ): Promise<RedFirstReport> {
   const root = repoRoot(rootInput);
   const head = validateSha(root, headInput);
   const baseSha = resolveCommit(root, base);
   const files = changedTestFiles(root, baseSha, head);
+  const { declarations, errors } = contractDeclarations(root, baseSha, head);
+  let imports: readonly RunnerModule[];
+  try {
+    imports = readRunnerConfig(root, baseSha);
+  } catch (error) {
+    return {
+      baseSha,
+      headSha: head,
+      contracts: [],
+      results: [
+        dataError('krn.review.json', 'head', head, 'runner-config', error),
+      ],
+    };
+  }
   const temporary = temporaryDirectory(root);
   const copies: string[] = [];
+  const cache = new Map<string, Promise<RedFirstResult>>();
+  const evaluate = (
+    side: 'base' | 'head',
+    sha: string,
+    source: string,
+    path: string,
+  ): Promise<RedFirstResult> => {
+    const key = JSON.stringify([side, sha, source, path]);
+    const existing = cache.get(key);
+    if (existing) return existing;
+    const pending = (async () => {
+      if (!regularGitFile(root, source, path))
+        return dataError(
+          path,
+          side,
+          sha,
+          'contract',
+          `test must exist as a regular file at ${source}: ${path}`,
+        );
+      if (
+        git(root, ['--literal-pathspecs', 'ls-tree', sha, '--', path]) &&
+        !regularGitFile(root, sha, path)
+      )
+        return dataError(
+          path,
+          side,
+          sha,
+          'contract',
+          `test must be a regular file at ${sha}: ${path}`,
+        );
+      const scratch = createWorktreeDirectory(temporary);
+      copies.push(scratch);
+      await addWorktree(root, scratch, sha);
+      if (source !== sha) {
+        // Validate the receiver's parents too: checkout must never follow a
+        // symlink from the earlier tree while overlaying a newly added test.
+        const parts = path.split('/');
+        for (let index = 1; index < parts.length; index++) {
+          const entry = git(root, [
+            'ls-tree',
+            sha,
+            '--',
+            parts.slice(0, index).join('/'),
+          ]);
+          if (entry && !entry.startsWith('040000 '))
+            return dataError(path, side, sha, 'contract', 'unsafe test parent');
+        }
+        git(scratch, ['--literal-pathspecs', 'checkout', source, '--', path]);
+      }
+      return classifyTest(
+        root,
+        scratch,
+        side,
+        sha,
+        baseSha,
+        head,
+        path,
+        imports,
+        run,
+        signal,
+      );
+    })();
+    cache.set(key, pending);
+    return pending;
+  };
   try {
-    const results: RedFirstResult[] = [];
+    const results: RedFirstResult[] = [...errors];
     for (const [side, sha] of [
       ['base', baseSha],
       ['head', head],
     ] as const) {
-      for (const path of files) {
-        const scratch = createWorktreeDirectory(temporary);
-        copies.push(scratch);
-        await addWorktree(root, scratch, side === 'base' ? baseSha : head);
-        if (side === 'base') git(scratch, ['checkout', head, '--', ...files]);
-        results.push(
-          await classifyTest(root, scratch, side, sha, baseSha, path, signal),
-        );
-      }
+      for (const path of files)
+        results.push(await evaluate(side, sha, head, path));
     }
-    return { baseSha, headSha: head, results };
+    const contracts: ChangeContract[] = [];
+    for (const declaration of declarations) {
+      const { commit, parent, path, kind } = declaration;
+      const red =
+        kind === 'red->green'
+          ? await evaluate('base', parent, commit, path)
+          : undefined;
+      const green = await evaluate('head', head, head, path);
+      const proven =
+        green.classification === 'pass' &&
+        (kind === 'green->green' ||
+          red?.classification === 'assertion' ||
+          red?.classification === 'missing-module');
+      contracts.push({
+        commit,
+        path,
+        kind,
+        ...(red ? { red } : {}),
+        green,
+        proven,
+        ...(!proven &&
+        (red?.cause === 'capability' || green.cause === 'capability')
+          ? { cause: 'capability' as const }
+          : {}),
+      });
+    }
+    return { baseSha, headSha: head, results, contracts };
   } finally {
     await cleanupWorktrees(root, copies);
   }

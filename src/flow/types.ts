@@ -13,24 +13,162 @@ export const reasoningEffortSchema = z.enum([
 ]);
 export type ReviewReasoningEffort = z.infer<typeof reasoningEffortSchema>;
 
-export const redFirstSchema = z.object({
+const redFirstBaseSchema = z.object({
   path: z.string().min(1),
   side: z.enum(['base', 'head']),
   sha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
-  classification: z.enum(['pass', 'assertion', 'procedural', 'other']),
+  classification: z.enum([
+    'pass',
+    'assertion',
+    'missing-module',
+    'procedural',
+    'other',
+    'skipped',
+    'timeout',
+  ]),
   exitCode: z.number().int().nullable(),
   durationMs: z.number().int().nonnegative(),
   outputSha256: z.string().regex(/^[a-f0-9]{64}$/u),
   summary: z.string().max(2000),
+  cause: z.enum(['capability', 'runner-config', 'contract']).optional(),
+  proven: z.literal(false).optional(),
 });
+function validateCapabilityEvidence(
+  run: Pick<
+    z.infer<typeof redFirstBaseSchema>,
+    'cause' | 'classification' | 'proven'
+  >,
+  context: z.RefinementCtx,
+): void {
+  if (
+    run.cause === 'capability' &&
+    (run.classification !== 'skipped' || run.proven !== false)
+  )
+    context.addIssue({
+      code: 'custom',
+      message: 'capability evidence must remain skipped and unproven',
+    });
+}
+export const redFirstSchema = redFirstBaseSchema.superRefine(
+  validateCapabilityEvidence,
+);
 export type RedFirstResult = z.infer<typeof redFirstSchema>;
-const redFirstRecordSchema = redFirstSchema.extend({
-  side: z.enum(['base', 'head']).optional(),
-  sha: z
-    .string()
-    .regex(/^[a-f0-9]{40,64}$/iu)
-    .optional(),
+const redFirstRecordSchema = redFirstBaseSchema
+  .extend({
+    side: z.enum(['base', 'head']).optional(),
+    sha: z
+      .string()
+      .regex(/^[a-f0-9]{40,64}$/iu)
+      .optional(),
+  })
+  .superRefine(validateCapabilityEvidence);
+
+export const changeContractSchema = z
+  .object({
+    commit: z.string().regex(/^[a-f0-9]{40,64}$/iu),
+    path: z.string().min(1),
+    kind: z.enum(['red->green', 'green->green']),
+    red: redFirstSchema.optional(),
+    green: redFirstSchema,
+    proven: z.boolean(),
+    cause: z.literal('capability').optional(),
+  })
+  .superRefine((contract, context) => {
+    const red = contract.red;
+    const proven =
+      contract.green.classification === 'pass' &&
+      (contract.kind === 'green->green' ||
+        red?.classification === 'assertion' ||
+        red?.classification === 'missing-module');
+    if (
+      contract.proven !== proven ||
+      (contract.kind === 'red->green' && red === undefined)
+    )
+      context.addIssue({
+        code: 'custom',
+        message: 'contract proof must match both runner outcomes',
+      });
+    if (
+      contract.green.path !== contract.path ||
+      contract.green.side !== 'head' ||
+      (red && (red.path !== contract.path || red.side !== 'base'))
+    )
+      context.addIssue({
+        code: 'custom',
+        message: 'contract evidence must match its path and sides',
+      });
+    if (
+      contract.cause === 'capability' &&
+      (proven ||
+        (red?.cause !== 'capability' && contract.green.cause !== 'capability'))
+    )
+      context.addIssue({
+        code: 'custom',
+        message: 'capability exemption requires skipped runner evidence',
+      });
+  });
+export type ChangeContract = z.infer<typeof changeContractSchema>;
+const redFirstCauseSchema = z.object({
+  path: z.string().min(1),
+  commit: z.string().optional(),
+  verdict: z.enum(['FAIL', 'INCOMPLETE']),
+  cause: z.string().min(1),
 });
+
+export function deterministicCauses(
+  results: readonly z.infer<typeof redFirstRecordSchema>[],
+  contracts: readonly ChangeContract[],
+): z.infer<typeof redFirstCauseSchema>[] {
+  const causes: z.infer<typeof redFirstCauseSchema>[] = [];
+  const check = (
+    run: z.infer<typeof redFirstRecordSchema>,
+    commit?: string,
+  ) => {
+    if (run.classification === 'pass') return;
+    if (run.classification === 'skipped' && run.cause === 'capability') return;
+    causes.push({
+      path: run.path,
+      ...(commit === undefined ? {} : { commit }),
+      verdict:
+        run.side === 'head' &&
+        ['assertion', 'timeout'].includes(run.classification)
+          ? 'FAIL'
+          : 'INCOMPLETE',
+      cause: run.cause ?? `${run.side ?? 'unknown'}: ${run.classification}`,
+    });
+  };
+  for (const run of results) {
+    if (
+      run.side === 'head' ||
+      (run.side === 'base' &&
+        !['pass', 'assertion', 'missing-module'].includes(run.classification))
+    )
+      check(run);
+  }
+  for (const contract of contracts) {
+    check(contract.green, contract.commit);
+    if (contract.kind !== 'red->green') continue;
+    const red = contract.red;
+    if (!red) {
+      causes.push({
+        path: contract.path,
+        commit: contract.commit,
+        verdict: 'INCOMPLETE',
+        cause: 'missing red evidence',
+      });
+    } else if (red.classification === 'pass') {
+      causes.push({
+        path: contract.path,
+        commit: contract.commit,
+        verdict: 'FAIL',
+        cause: 'the test does not fail without the change',
+      });
+    } else if (!['assertion', 'missing-module'].includes(red.classification)) {
+      check(red, contract.commit);
+    }
+  }
+  return causes;
+}
 
 export const findingSchema = z.object({
   severity: z.enum(['BLOCKING', 'NON_BLOCKING']),
@@ -170,6 +308,8 @@ const reviewRecordBaseSchema = z.object({
   createdAt: z.string().datetime(),
   panelVerdict: z.enum(['PASS', 'FAIL', 'INCOMPLETE']).optional(),
   redFirst: z.array(redFirstRecordSchema),
+  contracts: z.array(changeContractSchema).optional(),
+  redFirstCauses: z.array(redFirstCauseSchema).optional(),
   judges: z.array(judgeSchema),
   prepass: prepassRecordSchema.optional(),
   prior: priorReviewSchema.optional(),
@@ -180,6 +320,26 @@ function reviewRecordInvariants(
   },
   context: z.RefinementCtx,
 ): void {
+  for (const [index, contract] of (record.contracts ?? []).entries()) {
+    if (contract.green.sha !== record.headSha)
+      context.addIssue({
+        code: 'custom',
+        path: ['contracts', index, 'green', 'sha'],
+        message: 'contract green evidence must identify this review head',
+      });
+  }
+  if (
+    record.redFirstCauses !== undefined &&
+    JSON.stringify(record.redFirstCauses) !==
+      JSON.stringify(
+        deterministicCauses(record.redFirst, record.contracts ?? []),
+      )
+  )
+    context.addIssue({
+      code: 'custom',
+      path: ['redFirstCauses'],
+      message: 'recorded causes must match deterministic evidence',
+    });
   if (record.prior) {
     if (record.prior.headSha.toLowerCase() === record.headSha.toLowerCase())
       context.addIssue({
@@ -287,13 +447,15 @@ function reviewRecordInvariants(
       path: ['panelVerdict'],
       message: 'a complete judge FAIL must make the panel verdict FAIL',
     });
-  if (record.panel) {
-    const requested = record.panel.requestedRoles;
-    const required = record.panel.requiredRoles;
-    const expectedPartial =
-      requested.length !== required.length ||
-      required.some((role) => !requested.includes(role));
-    if (record.panel.partial !== expectedPartial)
+  const panel = record.panel;
+  const expectedPartial =
+    panel !== undefined &&
+    (panel.requestedRoles.length !== panel.requiredRoles.length ||
+      panel.requiredRoles.some((role) => !panel.requestedRoles.includes(role)));
+  if (panel) {
+    const requested = panel.requestedRoles;
+    const required = panel.requiredRoles;
+    if (panel.partial !== expectedPartial)
       context.addIssue({
         code: 'custom',
         path: ['panel', 'partial'],
@@ -318,21 +480,23 @@ function reviewRecordInvariants(
         path: ['panel', 'requestedRoles'],
         message: 'panel roles do not match the recorded judges',
       });
-    const hasIncomplete = record.judges.some(
-      (judge) => judge.state === 'incomplete',
-    );
-    const expectedVerdict = hasFailure
+  }
+  const hasIncomplete = record.judges.some(
+    (judge) => judge.state === 'incomplete',
+  );
+  const causes = deterministicCauses(record.redFirst, record.contracts ?? []);
+  const expectedVerdict =
+    hasFailure || causes.some(({ verdict }) => verdict === 'FAIL')
       ? 'FAIL'
-      : expectedPartial || hasIncomplete
+      : expectedPartial || hasIncomplete || causes.length > 0
         ? 'INCOMPLETE'
         : 'PASS';
-    if (record.panelVerdict !== expectedVerdict)
-      context.addIssue({
-        code: 'custom',
-        path: ['panelVerdict'],
-        message: 'panel verdict does not match its judge and role outcomes',
-      });
-  }
+  if (record.panelVerdict !== expectedVerdict)
+    context.addIssue({
+      code: 'custom',
+      path: ['panelVerdict'],
+      message: 'panel verdict does not match its judge and role outcomes',
+    });
 }
 const reviewRecordMetadataShape = {
   lensSha256: sha256Schema.optional(),

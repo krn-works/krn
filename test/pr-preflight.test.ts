@@ -5,7 +5,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { gateCheck, writeReviewEvidence } from './helpers/ship-evidence.ts';
+import { deterministicCauses } from '../src/flow/types.ts';
+import {
+  gateCheck,
+  reviewEvidence,
+  writeReviewEvidence,
+} from './helpers/ship-evidence.ts';
 
 const scriptPath = fileURLToPath(
   new URL('../scripts/pr-preflight.mjs', import.meta.url),
@@ -433,4 +438,119 @@ test('CLI writes a JSON failure for invalid arguments', async (t) => {
   };
   assert.equal(report.verdict, 'fail');
   assert.ok(report.reasons[0]?.includes('missing value'));
+});
+
+test('preflight accepts contract-aware and legacy records and blocks deterministic failures even with an override', async (t) => {
+  const value = await fixture(t);
+  const legacy = reviewEvidence(value.base, value.head);
+  assert.equal(parseHarness(runHarness(value)).report.verdict, 'pass');
+  const run = {
+    path: 'test/example.test.ts',
+    side: 'head' as const,
+    sha: value.head,
+    classification: 'pass' as const,
+    exitCode: 0,
+    durationMs: 0,
+    outputSha256: 'b'.repeat(64),
+    summary: '',
+  };
+  const contract = {
+    commit: value.head,
+    path: run.path,
+    kind: 'green->green' as const,
+    green: run,
+    proven: true,
+  };
+  await writeReviewEvidence(value.repo, value.base, value.head, {
+    ...legacy,
+    contracts: [contract],
+    redFirstCauses: [],
+  });
+  assert.equal(parseHarness(runHarness(value)).report.verdict, 'pass');
+  const failedRun = {
+    ...run,
+    classification: 'assertion' as const,
+    exitCode: 1,
+  };
+  const failedContract = { ...contract, green: failedRun, proven: false };
+  await writeReviewEvidence(value.repo, value.base, value.head, {
+    ...legacy,
+    panelVerdict: 'FAIL',
+    redFirst: [failedRun],
+    contracts: [failedContract],
+    redFirstCauses: deterministicCauses([failedRun], [failedContract]),
+    judges: legacy.judges.map((judge) => ({ ...judge, verdict: 'FAIL' })),
+    override: {
+      reason: 'judge override',
+      evidence: 'operator decision',
+      appendedAt: new Date().toISOString(),
+    },
+  });
+  const failed = parseHarness(runHarness(value)).report;
+  assert.equal(failed.verdict, 'fail');
+  assert.ok(
+    failed.reasons.some((reason) =>
+      reason.includes('deterministic red-first FAIL'),
+    ),
+    failed.reasons.join('\n'),
+  );
+  await writeReviewEvidence(value.repo, value.base, value.head, {
+    ...legacy,
+    contracts: [{ ...contract, proven: false }],
+  });
+  assert.ok(
+    parseHarness(runHarness(value)).report.reasons.some((reason) =>
+      reason.includes('strict schema'),
+    ),
+  );
+});
+
+test('preflight derives head failures without contracts and rejects inconsistent stored verdicts or causes', async (t) => {
+  const value = await fixture(t);
+  const legacy = reviewEvidence(value.base, value.head);
+  const failedRun = {
+    path: 'test/example.test.ts',
+    side: 'head',
+    sha: value.head,
+    classification: 'assertion',
+    exitCode: 1,
+    durationMs: 0,
+    outputSha256: 'b'.repeat(64),
+    summary: '',
+  };
+  for (const metadata of [
+    { panelVerdict: 'PASS' },
+    { panelVerdict: 'FAIL', redFirstCauses: [] },
+  ]) {
+    await writeReviewEvidence(value.repo, value.base, value.head, {
+      ...legacy,
+      ...metadata,
+      redFirst: [failedRun],
+    });
+    const report = parseHarness(runHarness(value)).report;
+    assert.equal(report.verdict, 'fail');
+    assert.ok(
+      report.reasons.some((reason) => reason.includes('strict schema')),
+      report.reasons.join('\n'),
+    );
+  }
+  await writeReviewEvidence(value.repo, value.base, value.head, {
+    ...legacy,
+    panelVerdict: 'FAIL',
+    redFirst: [failedRun],
+    judges: legacy.judges.map((judge) => ({ ...judge, verdict: 'FAIL' })),
+    override: {
+      reason: 'judge override',
+      evidence: 'operator decision',
+      appendedAt: new Date().toISOString(),
+    },
+  });
+  const report = parseHarness(runHarness(value)).report;
+  assert.equal(report.verdict, 'fail');
+  assert.ok(
+    report.reasons.some((reason) =>
+      reason.includes('deterministic red-first FAIL'),
+    ),
+    report.reasons.join('\n'),
+  );
 });

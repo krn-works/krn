@@ -150,6 +150,8 @@ test('review requests complete-pass findings and keeps prepass outside verdicts'
         'createdAt',
         'panelVerdict',
         'redFirst',
+        'contracts',
+        'redFirstCauses',
         'judges',
         'lensSha256',
         'panel',
