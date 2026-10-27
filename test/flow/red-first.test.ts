@@ -829,7 +829,7 @@ test('a corrected head config cannot repair an invalid base runner config', asyn
   assert.equal(report.results[0]?.cause, 'runner-config');
 });
 
-test('a skip remains skipped on a nonzero run and record schemas reject forged capability evidence', () => {
+test('assertion failure remains an assertion on a nonzero run and record schemas reject forged capability evidence', () => {
   assert.equal(
     classifyNodeTestOutput(
       1,
@@ -840,7 +840,7 @@ test('a skip remains skipped on a nonzero run and record schemas reject forged c
         skipped: 1,
       }),
     ),
-    'skipped',
+    'assertion',
   );
   const record = {
     schemaVersion: 1,

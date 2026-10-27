@@ -22,6 +22,17 @@ test('assertion failures remain visible when other tests are skipped', () => {
   assert.equal(classifyNodeTestOutput(1, output), 'assertion');
 });
 
+test('direct assertion failures remain visible when other tests are skipped', () => {
+  const output = reporterOutput({
+    testFailure: true,
+    errorCodes: ['ERR_ASSERTION'],
+    causeCodes: [],
+    skipped: 1,
+  });
+
+  assert.equal(classifyNodeTestOutput(1, output), 'assertion');
+});
+
 test('setup failures remain procedural when other tests are skipped', () => {
   const output = reporterOutput({
     testFailure: true,
@@ -44,7 +55,7 @@ test('unrecognized test failures remain failures when other tests are skipped', 
   assert.equal(classifyNodeTestOutput(1, output), 'other');
 });
 
-test('a nonzero run with skips and no test failure remains skipped', () => {
+test('a genuine skip remains skipped on a nonzero run', () => {
   const output = reporterOutput({
     testFailure: false,
     errorCodes: [],
