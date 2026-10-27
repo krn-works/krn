@@ -1,0 +1,14 @@
+{
+  "id": "t-1hg9s06",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Verify eval session accounting against real Codex captures",
+  "after": [
+    "t-dpxbq2y"
+  ],
+  "body": [
+    "Lead override on PR #125 (`.krn/runs/claude/eval-arm/deliver/override-beafe1f.md`) left three eval session semantics unverified against the real Codex receiver: (1) whether `turn.failed` usage belongs in the run's token summary or only `turn.completed` (the lens said completed only; the code sums terminal turns); (2) how Codex reports an ignored or unrecognised config setting in `--json` mode (the detected message shapes in `test/evals/session.test.ts` are not from a capture); (3) a mask exit 70 without agent events is classified `agent_error` instead of `harness_error`. Capture each case verbatim from the real Codex binary pinned for FR-40, commit the captures as fixtures with their provenance, and make `src/evals/usage.ts` and `src/evals/session.ts` match them.\nAcceptance: three verbatim captures with command, Codex version and sha256; tests built on them pass; the FR-40 run cannot start before this closes."
+  ]
+}

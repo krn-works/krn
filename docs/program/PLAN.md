@@ -28,7 +28,7 @@ Product merges through GLOBAL `krn ship` with the base-declared verifier (`krn.s
 
 ### 4. Memory test
 
-Run FR-40 under D20, with the Wizard-of-Oz set as a harness pilot only. Check power first (`t-dpxbq2y`); below 0.8, the operator decides. The harness checks (`t-9ser2tw`) are paused; then run FR-40 (`t-y46gy0w`). Blinding (`t-sv9t252`) is paused.
+Run FR-40 under D20, with the Wizard-of-Oz set as a harness pilot only. Check power first (`t-dpxbq2y`); below 0.8, the operator decides. The harness checks (`t-9ser2tw`) are paused; the eval session accounting must match real Codex captures (`t-1hg9s06`); then run FR-40 (`t-y46gy0w`). Blinding (`t-sv9t252`) is paused.
 
 **Exit:** threshold verdicts are recorded or the operator records a park decision.
 
@@ -42,7 +42,7 @@ Capture only approved delivery fields as evidence. Review episodes, reusable les
 
 - Qualified worker environment — paused; `t-7zm0211` covers the CI-image gate; prior exit: real-task qualification proves required tests and commits in an isolated worktree without secrets or host access.
 - Product delivery through `krn delegate` — paused; prior exit: one real delivery through `krn delegate` and `krn review` with independent exact-head reviews, gates, and CI.
-- Orchestration build-out (`foreman`, `relay`, `hosts`, `trace`) — paused until proof metrics exist; prior exit: one end-to-end orchestration delivery with trace evidence.
+- Orchestration build-out (`foreman`, `relay`, `hosts`, `trace`) — paused until proof metrics exist.
 
 ## In-repository task tracker
 

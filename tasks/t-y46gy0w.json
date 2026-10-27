@@ -6,6 +6,7 @@
   "priority": 1,
   "title": "Run the FR-40 brain packet experiment",
   "after": [
+    "t-1hg9s06",
     "t-9ser2tw",
     "t-dpxbq2y"
   ],
