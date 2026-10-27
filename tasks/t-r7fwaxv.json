@@ -1,7 +1,11 @@
 {
   "id": "t-r7fwaxv",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": ""
+  },
   "created": "2026-10-27",
   "priority": 1,
   "title": "Validate the frozen experiment plan",
