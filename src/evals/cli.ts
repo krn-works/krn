@@ -9,13 +9,18 @@ const usages = {
   plan: 'usage: krn eval plan --experiment <dir> [--draft] [--json]',
   prepare:
     'usage: krn eval prepare --experiment <dir> --root <dir> --source <repository>=<path>... [--draft] [--json]',
-  mask: 'usage: krn eval mask --slot <dir> [--network] [--tool <dir>]... -- <command> [args…]',
+  mask: 'usage: krn eval mask --slot <dir> [--network] [--tool <dir>]... [--credential <file>=</w/path>]... -- <command> [args…]',
 };
 
 export async function evalCommand(args: string[]): Promise<void> {
   // A wrapped command owns every argument after "--", including "--json".
   const json = args[0] !== 'mask' && args.includes('--json');
   try {
+    if (args[0] === 'session') {
+      const { sessionCommand } = await import('./session.ts');
+      await sessionCommand(args.slice(1));
+      return;
+    }
     if (args[0] === 'mask') {
       process.exitCode = await maskCommand(parseMask(args.slice(1)));
       return;
@@ -134,22 +139,30 @@ function parseMask(args: string[]) {
   let slot: string | undefined;
   let network = false;
   const tools: string[] = [];
+  const credentials: string[] = [];
   const seen = new Set<string>();
   for (let index = 0; index < args.length; index += 1) {
     const option = args[index];
     if (option === '--') {
       const command = args.slice(index + 1);
       if (slot === undefined || !command[0]) throw new CliUsageError(usage);
-      return { slot, network, tools, command };
+      return { slot, network, tools, credentials, command };
     }
-    if (option !== '--slot' && option !== '--network' && option !== '--tool')
+    if (
+      option !== '--slot' &&
+      option !== '--network' &&
+      option !== '--tool' &&
+      option !== '--credential'
+    )
       throw new CliUsageError(`unknown eval mask option "${option}"; ${usage}`);
-    if (option !== '--tool' && seen.has(option))
+    if (option !== '--tool' && option !== '--credential' && seen.has(option))
       throw new CliUsageError(`${option} may be supplied once`);
     seen.add(option);
     if (option === '--slot') slot = value(args, index++, usage);
     if (option === '--network') network = true;
     if (option === '--tool') tools.push(value(args, index++, usage));
+    if (option === '--credential')
+      credentials.push(value(args, index++, usage));
   }
   throw new CliUsageError(usage);
 }

@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
-import { lstat, mkdir, realpath } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { access, lstat, mkdir, realpath } from 'node:fs/promises';
 import { isAbsolute, join, parse, relative, resolve, sep } from 'node:path';
 import { EvalDataError } from './manifest.ts';
 
@@ -23,6 +24,97 @@ function overlaps(left: string, right: string): boolean {
   return inside(left, right) || inside(right, left);
 }
 
+export async function credentialMounts(
+  values: string[],
+  slot: string,
+): Promise<string[]> {
+  const args: string[] = [];
+  const destinations = new Set<string>();
+  for (const value of values) {
+    const delimiter = value.indexOf('=');
+    const source = value.slice(0, delimiter);
+    const target = value.slice(delimiter + 1);
+    if (
+      delimiter < 1 ||
+      !source ||
+      !target.startsWith('/w/') ||
+      target.includes('\\') ||
+      target.includes('\0') ||
+      target
+        .slice(1)
+        .split('/')
+        .some((part) => !part || part === '.' || part === '..') ||
+      inside(target, '/w/repo')
+    )
+      throw new EvalDataError(
+        'credential requires <host file>=<absolute path under /w, outside /w/repo>',
+      );
+    if (destinations.has(target))
+      throw new EvalDataError(`duplicate credential destination: ${target}`);
+    for (const prior of destinations) {
+      if (overlaps(prior, target))
+        throw new EvalDataError('credential destinations overlap');
+    }
+    destinations.add(target);
+    if (source.includes('\0') || source.includes('\\'))
+      throw new EvalDataError('invalid credential host path');
+    let current = isAbsolute(source) ? parse(source).root : process.cwd();
+    const components = source
+      .slice(isAbsolute(source) ? current.length : 0)
+      .split('/');
+    for (const [index, component] of components.entries()) {
+      if (!component || component === '.' || component === '..')
+        throw new EvalDataError(
+          'credential host path must not contain empty or dot segments',
+        );
+      current = join(current, component);
+      const stat = await lstat(current);
+      if (stat.isSymbolicLink())
+        throw new EvalDataError(
+          `credential path must not contain a symlink: ${current}`,
+        );
+      if (
+        index === components.length - 1 ? !stat.isFile() : !stat.isDirectory()
+      )
+        throw new EvalDataError(
+          `credential requires a regular file and directory parents: ${current}`,
+        );
+    }
+    await access(current, constants.R_OK);
+    // A symlink in the writable slot must not redirect the mount into repo.
+    const destination = join(slot, target.slice('/w/'.length));
+    let parent = slot;
+    let existingParent = slot;
+    for (const component of relative(slot, destination).split(sep)) {
+      parent = join(parent, component);
+      try {
+        const stat = await lstat(parent);
+        if (
+          stat.isSymbolicLink() ||
+          (parent !== destination && !stat.isDirectory()) ||
+          (parent === destination && !stat.isFile())
+        )
+          throw new EvalDataError(
+            `credential destination must not contain symlinks or non-directory parents: ${parent}`,
+          );
+        if (stat.isDirectory()) existingParent = parent;
+      } catch (error) {
+        if (
+          !(
+            error instanceof Error &&
+            'code' in error &&
+            error.code === 'ENOENT'
+          )
+        )
+          throw error;
+        await access(existingParent, constants.W_OK | constants.X_OK);
+      }
+    }
+    args.push('--ro-bind', current, target);
+  }
+  return args;
+}
+
 async function directoryWithoutSymlinks(path: string): Promise<void> {
   const root = parse(path).root;
   let current = root;
@@ -44,19 +136,71 @@ async function directoryWithoutSymlinks(path: string): Promise<void> {
   await directory(path);
 }
 
+export async function assertToolDirectoryAllowed(
+  path: string,
+  home = process.env.HOME,
+): Promise<void> {
+  await directoryWithoutSymlinks(path);
+  if (!home || !isAbsolute(home) || !inside(path, resolve(home))) return;
+
+  const miseData =
+    process.env.MISE_DATA_DIR || join(resolve(home), '.local', 'share', 'mise');
+  const installs = join(resolve(miseData), 'installs');
+  const relativeInstallPath = relative(installs, path);
+  const installParts = relativeInstallPath.split(sep);
+  if (
+    relativeInstallPath === '' ||
+    isAbsolute(relativeInstallPath) ||
+    relativeInstallPath === '..' ||
+    relativeInstallPath.startsWith(`..${sep}`) ||
+    installParts.length < 2 ||
+    installParts.some((part) => !part)
+  )
+    throw new EvalDataError(
+      `tool directory under HOME must be a versioned mise install: ${path}`,
+    );
+}
+
+async function resolverMounts(): Promise<string[]> {
+  // Test-only override: exercise resolver failures without changing host /etc.
+  const source = process.env.KRN_EVAL_RESOLV_CONF ?? '/etc/resolv.conf';
+  try {
+    const symlink = (await lstat(source)).isSymbolicLink();
+    const target = await realpath(source);
+    if (!(await lstat(target)).isFile())
+      throw new EvalDataError('resolver target must be a regular file');
+    await access(target, constants.R_OK);
+    // /etc and /usr are already mounted. Expose only the final file elsewhere,
+    // never its parent directory (notably /run with systemd-resolved).
+    return symlink && !inside(target, '/etc') && !inside(target, '/usr')
+      ? ['--ro-bind', target, target]
+      : [];
+  } catch (error) {
+    throw new EvalDataError(
+      `mask resolver: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+}
+
 export async function maskCommand(options: {
   slot: string;
   network: boolean;
   tools: string[];
+  credentials?: string[];
   command: string[];
 }): Promise<number> {
   let slot: string;
   const tools: string[] = [];
+  let credentials: string[] = [];
+  const resolver = options.network ? await resolverMounts() : [];
   try {
     if (!isAbsolute(options.slot))
       throw new EvalDataError('slot must be absolute');
+    if (options.credentials?.length)
+      await directoryWithoutSymlinks(options.slot);
     slot = await realpath(options.slot);
     await directory(join(slot, 'repo'));
+    credentials = await credentialMounts(options.credentials ?? [], slot);
     for (const name of ['home', 't']) {
       const path = join(slot, name);
       await mkdir(path, { recursive: true });
@@ -86,7 +230,7 @@ export async function maskCommand(options: {
         throw new EvalDataError(
           `tool directory overlaps slot ${slot}: ${tool}`,
         );
-      await directoryWithoutSymlinks(tool);
+      await assertToolDirectoryAllowed(tool);
       tools.push(tool);
     }
   } catch (error) {
@@ -111,6 +255,7 @@ export async function maskCommand(options: {
     '--ro-bind',
     '/etc',
     '/etc',
+    ...resolver,
     '--symlink',
     '/usr/bin',
     '/bin',
@@ -127,6 +272,7 @@ export async function maskCommand(options: {
     '--bind',
     slot,
     '/w',
+    ...credentials,
     '--clearenv',
     ...(options.network ? [] : ['--unshare-net']),
     '--unshare-ipc',
