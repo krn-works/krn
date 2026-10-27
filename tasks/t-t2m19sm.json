@@ -1,0 +1,12 @@
+{
+  "id": "t-t2m19sm",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Fix concurrent trace append lock failure",
+  "after": [],
+  "body": [
+    "Product main CI40562324411 at05c9eb3 failed only 'independent trace appenders preserve events across a torn-tail repair' (test/trace/index.test.ts:1395/1598): one child threw 'unsafe trace lock' from src/trace/index.ts:793 via createTraceLock/acquireTraceLock/append/verdict. Both src/trace and the test are byte-unchanged from0c9ea3e. PR CI40560018528 and local gate941/0 passed. Preserve the main failure and isolate the failing file before the one D12 retry. Diagnose and fix the concurrent lock failure with a deterministic reproduction; retain path safety, exclusion and event preservation. Acceptance: forced competing append/repair operations preserve all events without unsafe-lock errors, red on the current base and green on the repair; real receiver/CI replay stays green. No orchestration feature build-out; this is an existing defect under D23. Implementation is pending, not part of the current API-merge delivery."
+  ]
+}
