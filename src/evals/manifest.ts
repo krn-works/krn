@@ -52,6 +52,18 @@ const arm = z.strictObject({
   harness: label,
   material: z.enum(['none', 'packet', 'control']),
 });
+const scripts = z
+  .unknown()
+  .refine(
+    (value) =>
+      value === null ||
+      typeof value !== 'object' ||
+      !['__proto__', 'constructor', 'prototype'].some((key) =>
+        Object.hasOwn(value, key),
+      ),
+    'reserved script name',
+  )
+  .pipe(z.record(z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/u), label));
 const task = z.strictObject({
   id: identifier,
   repository: identifier,
@@ -61,8 +73,11 @@ const task = z.strictObject({
   control: inputPath,
   contract: inputPath,
   checklist: inputPath,
+  node: z.string().regex(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/u),
+  workingDirectory: z.union([z.literal('.'), inputPath]),
+  scripts,
   focusedCheck: argv,
-  suiteChecks: z.array(argv).min(1),
+  suiteChecks: z.array(z.strictObject({ argv, tests: z.boolean() })).min(1),
 });
 
 const manifestSchema = z

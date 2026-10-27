@@ -45,8 +45,11 @@ function manifest(ids = ['LON-130']) {
       control: 'materials/control.md',
       contract: 'contract.md',
       checklist: 'checklist.md',
+      node: process.version.slice(1),
+      workingDirectory: '.',
+      scripts: { test: 'node --test' },
       focusedCheck: ['node', '--test', 'test/behavior.test.ts'],
-      suiteChecks: [['npm', 'test']],
+      suiteChecks: [{ argv: ['npm', 'test'], tests: true }],
     })),
     inputs,
   };
