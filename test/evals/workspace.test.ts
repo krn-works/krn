@@ -677,7 +677,7 @@ test('eval mask binds short Unix sockets and blocks TCP unless network is reques
     for (const network of [false, true]) {
       const script = `
         const assert = require('node:assert/strict'), fs = require('node:fs'), net = require('node:net');
-        const dir = fs.mkdtempSync(process.env.TMPDIR+'/paperclip-filter-test-');
+        const dir = fs.mkdtempSync(process.env.TMPDIR+'/api-filter-test-');
         const unix = net.createServer();
         unix.on('error', error => { throw error; });
         unix.listen(dir+'/api.sock', () => unix.close(() => {
