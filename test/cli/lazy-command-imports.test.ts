@@ -62,7 +62,21 @@ test('CLI commands load only their command modules', async (t) => {
       {
         name: 'task list',
         args: ['task', 'list'],
-        forbidden: ['flow', 'foreman', 'hosts'],
+        forbidden: ['evals', 'flow', 'foreman', 'hosts'],
+      },
+      {
+        name: 'eval usage',
+        args: ['eval', 'plan', '--json'],
+        forbidden: [
+          'flow',
+          'foreman',
+          'hosts',
+          'ledger',
+          'relay',
+          'task',
+          'trace',
+        ],
+        status: 64,
       },
     ];
 
@@ -87,7 +101,7 @@ test('CLI commands load only their command modules', async (t) => {
               },
             },
           );
-          assert.equal(result.status, 0, result.stderr);
+          assert.equal(result.status, scenario.status ?? 0, result.stderr);
           if (scenario.stdout !== undefined)
             assert.equal(result.stdout, scenario.stdout);
           const loaded = (await readFile(logPath, 'utf8')).trim().split('\n');
