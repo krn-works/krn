@@ -1,0 +1,12 @@
+{
+  "id": "t-9be6mbd",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 2,
+  "title": "Measure the fixed context of a worker run",
+  "after": [],
+  "body": [
+    "Workers use 100k–700k tokens per run; the fixed share (instructions, skills, tool schemas, MCP servers) is unknown. Measure the first-turn input tokens of an empty Codex worker run and of a Claude subagent, list the largest contributors, and trim what workers do not use.\nAcceptance: a measured before/after of first-turn input tokens with the change that reduced it."
+  ]
+}

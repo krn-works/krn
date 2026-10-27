@@ -1,0 +1,12 @@
+{
+  "id": "t-y46gy0w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-27",
+  "priority": 1,
+  "title": "Run the brain packet experiment",
+  "after": [],
+  "body": [
+    "Run the pre-registered Wizard-of-Oz A/B/C/R experiment in `evals/woz/` (operator 2026-10-27): freeze base SHAs, contracts, escaped-defect checklist and randomisation before the first run; prereg thresholds win over ADR 0002; record results and decide brain v2 scope from them.\nAcceptance: frozen manifest committed before runs; all arms run or are reported invalid with reasons; results table and threshold verdicts recorded."
+  ]
+}
