@@ -1,7 +1,11 @@
 {
   "id": "t-kxa435y",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Isolated checks get a private 256 MiB TMPDIR tmpfs; HOME keeps its 64 MiB cap. The 20,000-task stress test peaks at 78.24 MiB."
+  },
   "created": "2026-10-28",
   "priority": 0,
   "title": "Run large review checks without sandbox temporary-space exhaustion",
