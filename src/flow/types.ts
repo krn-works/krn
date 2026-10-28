@@ -1,4 +1,4 @@
-// Version one review boundary: compact judge evidence bound to one exact commit.
+// Versioned review boundary: compact judge evidence bound to one exact commit.
 import { z } from 'zod';
 
 export const roleSchema = z.enum(['standards', 'spec', 'adversarial']);
@@ -223,10 +223,92 @@ export function priorJudgeVerdict(
     ? 'FAIL'
     : 'PASS';
 }
+export const timingSchema = z.object({
+  startedAt: z.string().datetime(),
+  endedAt: z.string().datetime(),
+  durationMs: z.number().finite().nonnegative(),
+});
+export function startTiming(): () => z.infer<typeof timingSchema> {
+  const startedAt = new Date().toISOString();
+  const started = performance.now();
+  return () => ({
+    startedAt,
+    endedAt: new Date().toISOString(),
+    durationMs: Math.max(0, performance.now() - started),
+  });
+}
+const tokenCountSchema = z
+  .number()
+  .int()
+  .nonnegative()
+  .max(Number.MAX_SAFE_INTEGER);
+const usageSchema = z
+  .object({
+    state: z.enum(['observed', 'unknown']),
+    reason: z.string().min(1).optional(),
+    tokens: z
+      .object({
+        inputTokens: tokenCountSchema.optional(),
+        outputTokens: tokenCountSchema.optional(),
+        cachedInputTokens: tokenCountSchema.optional(),
+        cacheWriteInputTokens: tokenCountSchema.optional(),
+        reasoningOutputTokens: tokenCountSchema.optional(),
+      })
+      .strict(),
+    turnsStarted: tokenCountSchema,
+    turnsCompleted: tokenCountSchema,
+    invalidFields: tokenCountSchema,
+    missingRequiredTurns: tokenCountSchema.nullable().optional(),
+    complete: z.boolean(),
+    multiTurnSemantics: z.enum(['single-turn', 'unverified']),
+  })
+  .superRefine((usage, context) => {
+    const observed = Object.keys(usage.tokens).length > 0;
+    const tokens = usage.tokens;
+    const impossibleSubset =
+      (tokens.cachedInputTokens !== undefined &&
+        tokens.inputTokens !== undefined &&
+        tokens.cachedInputTokens > tokens.inputTokens) ||
+      (tokens.cacheWriteInputTokens !== undefined &&
+        tokens.inputTokens !== undefined &&
+        tokens.cacheWriteInputTokens > tokens.inputTokens) ||
+      (tokens.reasoningOutputTokens !== undefined &&
+        tokens.outputTokens !== undefined &&
+        tokens.reasoningOutputTokens > tokens.outputTokens);
+    const subsetWithoutParent =
+      (tokens.cachedInputTokens !== undefined &&
+        tokens.inputTokens === undefined) ||
+      (tokens.cacheWriteInputTokens !== undefined &&
+        tokens.inputTokens === undefined) ||
+      (tokens.reasoningOutputTokens !== undefined &&
+        tokens.outputTokens === undefined);
+    if (
+      impossibleSubset ||
+      (subsetWithoutParent && (usage.invalidFields === 0 || usage.complete)) ||
+      (usage.state === 'observed') !== observed ||
+      (!observed && !usage.reason) ||
+      usage.multiTurnSemantics !==
+        (usage.turnsCompleted > 1 ? 'unverified' : 'single-turn') ||
+      (usage.complete &&
+        (!observed ||
+          usage.invalidFields > 0 ||
+          usage.turnsCompleted === 0 ||
+          usage.turnsStarted !== usage.turnsCompleted ||
+          usage.tokens.inputTokens === undefined ||
+          usage.tokens.outputTokens === undefined))
+    )
+      context.addIssue({
+        code: 'custom',
+        message: 'usage observation is inconsistent',
+      });
+  });
+
 const prepassRecordSchema = z.object({
   state: z.enum(['complete', 'incomplete']),
   findings: z.array(findingSchema),
   sessionId: z.string().min(1),
+  timing: timingSchema.optional(),
+  usage: usageSchema.optional(),
   model: z.string().min(1).optional(),
   reasoningEffort: reasoningEffortSchema.optional(),
   reason: z
@@ -243,7 +325,12 @@ const reapedScopeSchema = z.object({
   ownerPid: z.number().int().positive(),
   ownerStartTicks: z.string().regex(/^\d+$/u),
 });
+const judgeObservationShape = {
+  timing: timingSchema.optional(),
+  usage: usageSchema.optional(),
+};
 const completeJudgeSchema = z.object({
+  ...judgeObservationShape,
   state: z.literal('complete'),
   role: roleSchema,
   model: z.string().min(1).optional(),
@@ -257,6 +344,7 @@ const completeJudgeSchema = z.object({
   reapedScopes: z.array(reapedScopeSchema).optional(),
 });
 const incompleteJudgeSchema = z.object({
+  ...judgeObservationShape,
   state: z.literal('incomplete'),
   role: roleSchema,
   model: z.string().min(1).optional(),
@@ -302,7 +390,10 @@ const panelCompositionSchema = z.object({
   partial: z.boolean(),
 });
 const reviewRecordBaseSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.union([z.literal(1), z.literal(2)]),
+  round: z.union([z.literal(1), z.literal(2)]).optional(),
+  timing: timingSchema.optional(),
+  redFirstTiming: timingSchema.optional(),
   headSha: commitShaSchema,
   base: z.string().min(1),
   createdAt: z.string().datetime(),
@@ -320,6 +411,30 @@ function reviewRecordInvariants(
   },
   context: z.RefinementCtx,
 ): void {
+  const hasValidV2Usage = (
+    usage: z.infer<typeof usageSchema> | undefined,
+  ): boolean =>
+    usage !== undefined &&
+    usage.missingRequiredTurns !== undefined &&
+    (!usage.complete || usage.missingRequiredTurns === 0);
+
+  if (record.schemaVersion === 2) {
+    if (
+      record.round !== (record.prior ? 2 : 1) ||
+      !record.timing ||
+      !record.redFirstTiming ||
+      (record.prepass !== undefined &&
+        (!record.prepass.timing || !hasValidV2Usage(record.prepass.usage))) ||
+      record.judges.some(
+        (judge) =>
+          !judge.timing || !hasValidV2Usage(judge.usage) || !judge.model,
+      )
+    )
+      context.addIssue({
+        code: 'custom',
+        message: 'version 2 requires round, review and judge observations',
+      });
+  }
   for (const [index, contract] of (record.contracts ?? []).entries()) {
     if (contract.green.sha !== record.headSha)
       context.addIssue({

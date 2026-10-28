@@ -859,6 +859,9 @@ test('without a prior record the original brief and record format are unchanged'
   assert.equal('prior' in record, false);
   assert.deepEqual(Object.keys(record), [
     'schemaVersion',
+    'round',
+    'timing',
+    'redFirstTiming',
     'headSha',
     'base',
     'createdAt',

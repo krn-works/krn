@@ -1,0 +1,13 @@
+{
+  "id": "t-jrnrafw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-28",
+  "priority": 1,
+  "title": "Diagnose invalid SessionStart hook output",
+  "after": [],
+  "body": [
+    "Operator-reported incident: a session displayed `Hook failed` / `hook returned invalid session start JSON output`, then continued reading AGENTS.md. The producing hook, harness/version and repository are not established; this is not a claimed local reproduction. The quoted session also mentioned another person's editing task; that quote does not grant access or changes to that work.",
+    "Start with read-only identification of the actual hook owner and consumer schema. Preserve a bounded, non-secret stdout/stderr/exit-code reproduction. Fix the owning producer through its existing repository workflow, and prove RED before / GREEN after against the actual SessionStart consumer; preserve instruction delivery and meaningful failures. Do not silence or disable the hook to obtain acceptance. Existing host-trust and credential grants still apply; no new trust decision is authorized by this task. Preserve unrelated dirty work and the four unpublished GLOBAL main commits."
+  ]
+}

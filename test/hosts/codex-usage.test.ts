@@ -123,6 +123,9 @@ test('Codex protocol input12 output3 cached4 accounts for exactly15 tokens', asy
   await runStream(fixture.slice(0, 4), async (result) => {
     assert.deepEqual(result.usage, {
       inputTokens: 12,
+      cachedInputTokens: 4,
+      cacheWriteInputTokens: 2,
+      reasoningOutputTokens: 1,
       outputTokens: 3,
       totalTokens: 15,
     });
@@ -135,6 +138,9 @@ test('Codex multiple turns accumulate usage and preserve totals in trace', async
   await runStream(fixture, async (result, root) => {
     assert.deepEqual(result.usage, {
       inputTokens: 20,
+      cachedInputTokens: 9,
+      cacheWriteInputTokens: 3,
+      reasoningOutputTokens: 2,
       outputTokens: 5,
       totalTokens: 25,
     });
@@ -142,7 +148,19 @@ test('Codex multiple turns accumulate usage and preserve totals in trace', async
       turnsStarted: 2,
       turnsCompleted: 2,
       invalidFields: 0,
+      missingRequiredTurns: 0,
+      reportedFields: [
+        'inputTokens',
+        'outputTokens',
+        'cachedInputTokens',
+        'cacheWriteInputTokens',
+        'reasoningOutputTokens',
+      ],
     });
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(result.usageObservation)),
+      result.usageObservation,
+    );
     const job = {
       id: 'usage-fixture',
       issue: 'fixture',
@@ -161,6 +179,9 @@ test('Codex multiple turns accumulate usage and preserve totals in trace', async
     );
     assert.deepEqual(event.data.end.usage, {
       inputTokens: 20,
+      cachedInputTokens: 9,
+      cacheWriteInputTokens: 3,
+      reasoningOutputTokens: 2,
       outputTokens: 5,
       totalTokens: 25,
     });
@@ -168,6 +189,14 @@ test('Codex multiple turns accumulate usage and preserve totals in trace', async
       turnsStarted: 2,
       turnsCompleted: 2,
       invalidFields: 0,
+      missingRequiredTurns: 0,
+      reportedFields: [
+        'inputTokens',
+        'outputTokens',
+        'cachedInputTokens',
+        'cacheWriteInputTokens',
+        'reasoningOutputTokens',
+      ],
     });
   });
 });
@@ -200,7 +229,9 @@ test('Codex usage retains validation before adding protocol counts', async (t) =
     assert.deepEqual(Reflect.get(result, 'usageObservation'), {
       turnsStarted: 0,
       turnsCompleted: 12,
-      invalidFields: 14,
+      invalidFields: 10,
+      missingRequiredTurns: 12,
+      reportedFields: ['outputTokens', 'inputTokens'],
     });
   });
 });
@@ -219,6 +250,8 @@ test('started native turn interrupted before completion remains unmeasured', {
     turnsStarted: 1,
     turnsCompleted: 0,
     invalidFields: 0,
+    missingRequiredTurns: 0,
+    reportedFields: [],
   });
 });
 
