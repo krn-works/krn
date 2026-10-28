@@ -91,7 +91,7 @@ const capabilities = ${JSON.stringify(reviewSandboxCapabilities)};
 function capabilitySkip(reason) {
   if (typeof reason !== 'string') return false;
   const labels = { 'bwrap user namespaces': 'bwrap', 'systemd user scopes': 'systemdUserScope' };
-  const missing = /^SKIP\\(isolation\\): .+ — missing (.+)$/u.exec(reason)?.[1]?.split(', ');
+  const missing = /^SKIP\\(isolation\\): .+ \\u{2014} missing (.+)$/u.exec(reason)?.[1]?.split(', ');
   return missing?.length > 0 && missing.every((label) => capabilities[labels[label]]?.available === false);
 }
 function appendDiagnostic(message) {
@@ -164,7 +164,7 @@ export default new Transform({
   },
 });
 `;
-function nodeTestWrapper(testModulePath: string): string {
+export function nodeTestWrapper(testModulePath: string): string {
   const testModuleUrl = pathToFileURL(testModulePath).href;
   return `
 import { test } from 'node:test';
@@ -473,7 +473,7 @@ process.env.KRN_ISOLATION_GATE_PRELOAD = '1';
 process.env.KRN_ISOLATION_CAPABILITIES = ${JSON.stringify(JSON.stringify(reviewSandboxCapabilities))};
 `;
 
-function runnerSetup(importPaths: readonly string[]): string {
+export function runnerSetup(importPaths: readonly string[]): string {
   return `
 import { registerHooks } from 'node:module';
 ${runnerEnvironment}
@@ -496,7 +496,30 @@ registerHooks({
 export function runnerImportsLoaded() {
   process.setUncaughtExceptionCaptureCallback(null);
 }
+
 `;
+}
+
+export function readyShim(environmentPath: string): string {
+  return `import { runnerImportsLoaded } from ${JSON.stringify(pathToFileURL(environmentPath).href)};\nrunnerImportsLoaded();\n`;
+}
+
+export function asciiHelperSource(source: string): string {
+  return Array.from(source, (character) => {
+    const codePoint = character.codePointAt(0)!;
+    return codePoint < 0x80 ? character : `\\u{${codePoint.toString(16)}}`;
+  }).join('');
+}
+
+export function writeHelperSource(
+  path: string,
+  source: string,
+  ascii = false,
+): void {
+  writeFileSync(path, ascii ? asciiHelperSource(source) : source, {
+    flag: 'wx',
+    mode: 0o400,
+  });
 }
 
 function removeHelper(path: string): void {
@@ -620,9 +643,14 @@ async function classifyTest(
   const id = `red-first-${randomUUID()}`;
   const job: Job = { id, issue: 'red-first', worktree: scratch };
   const helpers: string[] = [];
-  const helper = (role: string, source: string, extension = '.mjs') => {
+  const helper = (
+    role: string,
+    source: string,
+    extension = '.mjs',
+    ascii = true,
+  ) => {
     const helperPath = join(scratch, `.krn-redfirst-${role}-${id}${extension}`);
-    writeFileSync(helperPath, source, { flag: 'wx', mode: 0o400 });
+    writeHelperSource(helperPath, source, ascii);
     helpers.push(helperPath);
     return helperPath;
   };
@@ -632,13 +660,15 @@ async function classifyTest(
     // Copy the exact base blobs, preserving module format and bytes. Candidate
     // trees never supply runner code, even for contract parents before the base.
     const importPaths = imports.map((module, index) =>
-      helper(`runner-${index}`, module.source, extname(module.path) || '.mjs'),
+      helper(
+        `runner-${index}`,
+        module.source,
+        extname(module.path) || '.mjs',
+        false,
+      ),
     );
     const environmentPath = helper('environment', runnerSetup(importPaths));
-    const readyPath = helper(
-      'ready',
-      `import { runnerImportsLoaded } from ${JSON.stringify(pathToFileURL(environmentPath).href)};\nrunnerImportsLoaded();\n`,
-    );
+    const readyPath = helper('ready', readyShim(environmentPath));
     const evidence = await run(
       root,
       scratch,
