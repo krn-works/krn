@@ -1,0 +1,12 @@
+{
+  "id": "t-8zvy7c5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-28",
+  "priority": 1,
+  "title": "Enforce the two-round review limit in the engine and preflight",
+  "after": [],
+  "body": [
+    "ADR 0014 D10 allows at most two review rounds, but src/flow/prior.ts only refuses a prior record that is itself round two; a round-one FAIL can seed any number of later round-two runs and a fresh round one is always accepted, and scripts/pr-preflight.mjs only checks the exact-head record.\nAcceptance: the engine and preflight count review rounds per PR and base and refuse a third unless an explicit operator exception is recorded on the record; RED on base, GREEN on head."
+  ]
+}

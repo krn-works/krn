@@ -1,0 +1,12 @@
+{
+  "id": "t-30wmab4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-28",
+  "priority": 1,
+  "title": "Add comments to krn task",
+  "after": [],
+  "body": [
+    "Operator 2026-10-28 granted an exception to the D23 tracker freeze: krn task gets comments, the main gap versus Beads. Comments keep decision history beside the task instead of only in PRs.\nAcceptance: krn task comment ID --body-file appends a signed, dated entry stored canonically with the task (or beside it), shown by krn task show, validated by krn task check, mergeable across worktrees without silent loss; workers may comment but never change status."
+  ]
+}
