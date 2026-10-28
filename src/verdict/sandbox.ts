@@ -11,6 +11,8 @@ import { stateDirectory } from '../foreman/state.ts';
 import type { CheckEvidence } from './index.ts';
 
 export const MAX_CHECK_OUTPUT_BYTES = 8 * 1024 * 1024;
+export const CHECK_TMPDIR_SIZE_BYTES = 256 * 1024 * 1024;
+const CHECK_TMPDIR = '/krn-check-tmp';
 const MAX_PACKAGE_MANIFEST_BYTES = 1024 * 1024;
 const MAX_LOCKFILE_BYTES = 16 * 1024 * 1024;
 const OUTPUT_TAIL_BYTES = 2 * 1024;
@@ -282,7 +284,13 @@ async function gitBlob(
 }
 
 function sandboxDirectories(paths: readonly string[]): string[] {
-  const directories = new Set<string>(['/usr', '/etc', '/tmp', '/home']);
+  const directories = new Set<string>([
+    '/usr',
+    '/etc',
+    '/tmp',
+    '/home',
+    CHECK_TMPDIR,
+  ]);
   for (const path of paths) {
     let directory = resolve(path);
     while (directory !== '/') {
@@ -635,6 +643,10 @@ async function runSandbox(
     '67108864',
     '--tmpfs',
     home,
+    '--size',
+    String(CHECK_TMPDIR_SIZE_BYTES),
+    '--tmpfs',
+    CHECK_TMPDIR,
     '--bind',
     copy,
     copy,
@@ -652,7 +664,7 @@ async function runSandbox(
     home,
     '--setenv',
     'TMPDIR',
-    home,
+    CHECK_TMPDIR,
     '--setenv',
     'PATH',
     path,
