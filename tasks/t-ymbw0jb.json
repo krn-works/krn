@@ -1,0 +1,12 @@
+{
+  "id": "t-ymbw0jb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-28",
+  "priority": 1,
+  "title": "Make orphan fixture readiness deterministic under host load",
+  "after": [],
+  "body": [
+    "Previous lead reported a #130 local gate failure in test/verdict/sandbox-orphans.test.ts: a child fixture did not announce ready within the wait; the untouched file passed a recorded retry without a code fix or pre-existing pending defect. Preserve available failure evidence and verify the mechanism rather than treating the retry as a fix. Acceptance: a deterministic readiness handshake or condition wait with bounded diagnostic deadline survives competing host work; positive live-orphan detection, termination and exit125 remain tested. No blanket retries, skips or relaxed orphan acceptance."
+  ]
+}

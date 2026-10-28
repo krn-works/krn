@@ -145,6 +145,9 @@ test('review requests complete-pass findings and keeps prepass outside verdicts'
       ) as Record<string, unknown>;
       assert.deepEqual(Object.keys(persisted), [
         'schemaVersion',
+        'round',
+        'timing',
+        'redFirstTiming',
         'headSha',
         'base',
         'createdAt',

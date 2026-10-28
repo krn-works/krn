@@ -25,6 +25,7 @@ import {
   priorStatusSchema,
   type ReviewReasoningEffort,
   type ReviewRole,
+  startTiming,
 } from './types.ts';
 
 function readOnlyLauncher(parent: string, executable: string): string {
@@ -161,6 +162,8 @@ export async function judgeRole(
   checklist?: string,
   prior?: PriorReview,
 ): Promise<z.infer<typeof judgeSchema>> {
+  const finishTiming = startTiming();
+  const model = 'gpt-6-luna';
   if (signal?.aborted) throw new ReviewAbortedError();
   const parent = mkdtempSync(join(temporaryDirectory(root), `judge-${role}-`));
   const scratch = join(parent, 'repo');
@@ -177,7 +180,7 @@ export async function judgeRole(
     try {
       session = await host.start({
         cwd: scratch,
-        model: 'gpt-6-luna',
+        model,
         reasoningEffort,
         disableProjectDocs: true,
         prompt: makeBrief(role, sha, lens, red, checklist, prior),
@@ -199,6 +202,36 @@ export async function judgeRole(
       if (signal?.aborted) cancel();
       const response = await session.wait();
       if (signal?.aborted) throw new ReviewAbortedError();
+      const observation = response.usageObservation;
+      const fields = observation.reportedFields ?? [];
+      const tokens = Object.fromEntries(
+        Object.entries(response.usage).filter(([key]) => fields.includes(key)),
+      );
+      const observed = Object.keys(tokens).length > 0;
+      const evidence = {
+        timing: finishTiming(),
+        usage: {
+          state: observed ? 'observed' : 'unknown',
+          ...(observed
+            ? {}
+            : { reason: 'No valid token counts reported by the host' }),
+          tokens,
+          turnsStarted: observation.turnsStarted,
+          turnsCompleted: observation.turnsCompleted,
+          invalidFields: observation.invalidFields,
+          missingRequiredTurns: observation.missingRequiredTurns ?? null,
+          complete:
+            observed &&
+            observation.invalidFields === 0 &&
+            observation.missingRequiredTurns === 0 &&
+            observation.turnsCompleted > 0 &&
+            observation.turnsStarted === observation.turnsCompleted &&
+            tokens.inputTokens !== undefined &&
+            tokens.outputTokens !== undefined,
+          multiTurnSemantics:
+            observation.turnsCompleted > 1 ? 'unverified' : 'single-turn',
+        },
+      };
       const incomplete = (
         reason:
           | 'turn_incomplete'
@@ -207,9 +240,10 @@ export async function judgeRole(
           | 'invalid_verdict',
       ) =>
         judgeSchema.parse({
+          ...evidence,
           state: 'incomplete',
           role,
-          model: 'gpt-6-luna',
+          model,
           reasoningEffort,
           reason,
           reasonKind: response.reasonKind,
@@ -240,9 +274,10 @@ export async function judgeRole(
         return incomplete('invalid_verdict');
       }
       return judgeSchema.parse({
+        ...evidence,
         state: 'complete',
         role,
-        model: 'gpt-6-luna',
+        model,
         reasoningEffort,
         ...verdict,
         sessionId: response.sessionId,

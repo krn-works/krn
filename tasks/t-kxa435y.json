@@ -1,0 +1,12 @@
+{
+  "id": "t-kxa435y",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-28",
+  "priority": 0,
+  "title": "Run large review checks without sandbox temporary-space exhaustion",
+  "after": [],
+  "body": [
+    "Observed repeatedly in #129/#130: review sandbox HOME/TMPDIR is a 64 MiB tmpfs (src/verdict/sandbox.ts), while the existing 20,000-record fixture needs more capacity. Head execution ends ENOSPC although real-host tests pass. Fix the check temporary workspace through the existing sandbox owner, preserving private candidate state, the bounded home, network/IPC/PID isolation, process teardown and limits. Acceptance: an actual isolated check writing over 64 MiB of temporary fixtures fails on the current base and passes after repair; temporary data stays private and is cleaned, and unrelated host paths remain unreachable. Do not add an unrelated test/task contract to tasks-only or task-close metadata commits; native task check owns those records."
+  ]
+}

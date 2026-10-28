@@ -5,12 +5,98 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { deterministicCauses } from '../src/flow/types.ts';
+import { deterministicCauses, reviewRecordSchema } from '../src/flow/types.ts';
 import {
   gateCheck,
   reviewEvidence,
   writeReviewEvidence,
 } from './helpers/ship-evidence.ts';
+
+// Verbatim archived v1 receiver record; embedded for frozen-base replay.
+const archivedBytes = String.raw`{
+  "schemaVersion": 1,
+  "headSha": "255083535f0a92f8c89d8574fe79d3073143ac4e",
+  "base": "05c9eb332a7f5b43d3839bfc184696d2f3977255",
+  "createdAt": "2026-10-27T20:26:45.660Z",
+  "panelVerdict": "PASS",
+  "redFirst": [],
+  "contracts": [
+    {
+      "commit": "255083535f0a92f8c89d8574fe79d3073143ac4e",
+      "path": "test/task/ergonomics.test.ts",
+      "kind": "green->green",
+      "green": {
+        "path": "test/task/ergonomics.test.ts",
+        "side": "head",
+        "sha": "255083535f0a92f8c89d8574fe79d3073143ac4e",
+        "classification": "pass",
+        "exitCode": 0,
+        "durationMs": 20390,
+        "outputSha256": "9fe01742eb99fa2a8b72ce6629fe95bd13607c6e2b5bd6c2ecfa8a85d566b886",
+        "summary": ""
+      },
+      "proven": true
+    }
+  ],
+  "redFirstCauses": [],
+  "judges": [
+    {
+      "state": "complete",
+      "role": "standards",
+      "model": "gpt-6-luna",
+      "reasoningEffort": "high",
+      "verdict": "PASS",
+      "findings": [],
+      "sessionId": "a3f0d904-6cd4-40ee-ba16-cd9097242078",
+      "finalMessage": "{\"verdict\":\"PASS\",\"findings\":[]}"
+    },
+    {
+      "state": "complete",
+      "role": "spec",
+      "model": "gpt-6-luna",
+      "reasoningEffort": "high",
+      "verdict": "PASS",
+      "findings": [],
+      "sessionId": "c0b41936-56ad-48b6-9eac-e588a59a43ca",
+      "finalMessage": "{\"verdict\":\"PASS\",\"findings\":[]}"
+    },
+    {
+      "state": "complete",
+      "role": "adversarial",
+      "model": "gpt-6-luna",
+      "reasoningEffort": "high",
+      "verdict": "PASS",
+      "findings": [],
+      "sessionId": "132d815b-3ba4-452d-ae74-5db64abd3fc8",
+      "finalMessage": "{\"verdict\":\"PASS\",\"findings\":[]}"
+    }
+  ],
+  "lensSha256": "8b8526e5fd6048f6ba2c4b57f397675304762835b04a60e5220489ae8dfbedd1",
+  "panel": {
+    "requestedRoles": [
+      "standards",
+      "spec",
+      "adversarial"
+    ],
+    "requiredRoles": [
+      "standards",
+      "spec",
+      "adversarial"
+    ],
+    "partial": false
+  },
+  "toolSha": "05c9eb332a7f5b43d3839bfc184696d2f3977255"
+}
+`;
+const archivedResult = reviewRecordSchema.safeParse(JSON.parse(archivedBytes));
+assert.equal(
+  archivedResult.success,
+  true,
+  'archived v1 receiver record must parse',
+);
+if (!archivedResult.success)
+  throw new Error('archived v1 receiver record is invalid');
+const archived = archivedResult.data;
 
 const scriptPath = fileURLToPath(
   new URL('../scripts/pr-preflight.mjs', import.meta.url),
@@ -235,24 +321,83 @@ function runHarness(
 function parseHarness(result: ReturnType<typeof runHarness>) {
   assert.equal(result.error, undefined, result.error?.message);
   assert.ok(result.stdout, `expected verdict JSON; stderr: ${result.stderr}`);
-  return JSON.parse(result.stdout) as {
-    report: {
-      verdict: 'pass' | 'fail';
-      reasons: string[];
-      base?: string;
-      prBase?: string;
-      ticket?: string;
-      srcTreeSha?: string;
-      testTreeSha?: string;
-      gateLocalStatus?: {
-        context: string;
-        state: string;
-        creator: string | null;
-        description?: string | null;
-      };
+  const parsed: unknown = JSON.parse(result.stdout);
+  assert.ok(
+    isHarnessResult(parsed),
+    'preflight harness returns its JSON contract',
+  );
+  return parsed;
+}
+
+function isHarnessResult(value: unknown): value is {
+  report: {
+    verdict: 'pass' | 'fail';
+    reasons: string[];
+    base?: string;
+    prBase?: string;
+    ticket?: string;
+    srcTreeSha?: string;
+    testTreeSha?: string;
+    gateLocalStatus?: {
+      context: string;
+      state: string;
+      creator: string | null;
+      description?: string | null;
     };
-    calls: unknown[][];
   };
+  calls: unknown[][];
+} {
+  if (
+    typeof value !== 'object' ||
+    value === null ||
+    !('report' in value) ||
+    !('calls' in value)
+  )
+    return false;
+  if (!Array.isArray(value.calls) || !value.calls.every(Array.isArray))
+    return false;
+  const report = value.report;
+  if (
+    typeof report !== 'object' ||
+    report === null ||
+    !('verdict' in report) ||
+    !('reasons' in report)
+  )
+    return false;
+  if (report.verdict !== 'pass' && report.verdict !== 'fail') return false;
+  if (
+    !Array.isArray(report.reasons) ||
+    !report.reasons.every((reason) => typeof reason === 'string')
+  )
+    return false;
+  for (const key of [
+    'base',
+    'prBase',
+    'ticket',
+    'srcTreeSha',
+    'testTreeSha',
+  ] as const) {
+    const field = Object.getOwnPropertyDescriptor(report, key);
+    if (field && typeof field.value !== 'string') return false;
+  }
+  if ('gateLocalStatus' in report && report.gateLocalStatus !== undefined) {
+    const status = report.gateLocalStatus;
+    if (
+      typeof status !== 'object' ||
+      status === null ||
+      !('context' in status) ||
+      typeof status.context !== 'string' ||
+      !('state' in status) ||
+      typeof status.state !== 'string' ||
+      !('creator' in status) ||
+      (typeof status.creator !== 'string' && status.creator !== null) ||
+      ('description' in status &&
+        typeof status.description !== 'string' &&
+        status.description !== null)
+    )
+      return false;
+  }
+  return true;
 }
 
 test('a PR whose ticket is a committed task at head passes', async (t) => {
@@ -432,13 +577,29 @@ test('CLI writes a JSON failure for invalid arguments', async (t) => {
   });
   assert.equal(result.status, 1);
   assert.ok(result.stdout, `expected JSON verdict; stderr: ${result.stderr}`);
-  const report = JSON.parse(result.stdout) as {
-    verdict: string;
-    reasons: string[];
-  };
+  const parsed: unknown = JSON.parse(result.stdout);
+  assert.ok(
+    isCliFailure(parsed),
+    'CLI failure output satisfies its JSON contract',
+  );
+  const report = parsed;
   assert.equal(report.verdict, 'fail');
   assert.ok(report.reasons[0]?.includes('missing value'));
 });
+
+function isCliFailure(
+  value: unknown,
+): value is { verdict: string; reasons: string[] } {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'verdict' in value &&
+    typeof value.verdict === 'string' &&
+    'reasons' in value &&
+    Array.isArray(value.reasons) &&
+    value.reasons.every((reason) => typeof reason === 'string')
+  );
+}
 
 test('preflight accepts contract-aware and legacy records and blocks deterministic failures even with an override', async (t) => {
   const value = await fixture(t);
@@ -554,3 +715,70 @@ test('preflight derives head failures without contracts and rejects inconsistent
     report.reasons.join('\n'),
   );
 });
+
+for (const version of [1, 2]) {
+  test(`preflight reader accepts archived v1 and observed v${version} evidence`, async (t) => {
+    const value = await fixture(t);
+    const bytes = archivedBytes;
+    value.head = archived.headSha;
+    const timing = {
+      startedAt: '2026-10-28T00:00:00.000Z',
+      endedAt: '2026-10-28T00:00:01.000Z',
+      durationMs: 1000,
+    };
+    const usage = {
+      state: 'observed',
+      tokens: { inputTokens: 12, outputTokens: 3, cachedInputTokens: 4 },
+      turnsStarted: 1,
+      turnsCompleted: 1,
+      invalidFields: 0,
+      missingRequiredTurns: 0,
+      complete: true,
+      multiTurnSemantics: 'single-turn',
+    };
+    const record =
+      version === 1
+        ? archived
+        : {
+            ...archived,
+            schemaVersion: 2,
+            round: 1,
+            timing,
+            redFirstTiming: timing,
+            judges: archived.judges.map((judge) => ({
+              ...judge,
+              timing,
+              usage,
+            })),
+          };
+    const directory = join(value.repo, '.krn', 'runs', 'review', value.head);
+    await mkdir(directory, { recursive: true });
+    const path = join(directory, 'record.json');
+    await writeFile(path, version === 1 ? bytes : JSON.stringify(record));
+    const accepted = parseHarness(runHarness(value)).report;
+    // The archive commits are absent from this private repository; inspect the
+    // real reader's schema result separately from unrelated admission checks.
+    assert.equal(
+      accepted.reasons.some((reason) =>
+        /review record.*schema|exact-head review record is missing/u.test(
+          reason,
+        ),
+      ),
+      false,
+      JSON.stringify(accepted),
+    );
+    if (version === 2) {
+      const judge = record.judges[0];
+      assert.ok(judge?.usage, 'v2 receiver record carries observed usage');
+      judge.usage.tokens.inputTokens = -1;
+      await writeFile(path, JSON.stringify(record));
+      const refused = parseHarness(runHarness(value)).report;
+      assert.ok(
+        refused.reasons.some((reason) =>
+          /review record does not satisfy the strict schema/u.test(reason),
+        ),
+        JSON.stringify(refused),
+      );
+    }
+  });
+}

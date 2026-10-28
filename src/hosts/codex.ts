@@ -124,6 +124,9 @@ export type CodexUsage = {
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly totalTokens: number;
+  readonly cachedInputTokens?: number;
+  readonly cacheWriteInputTokens?: number;
+  readonly reasoningOutputTokens?: number;
 };
 
 export type CodexSessionResult = {
@@ -142,6 +145,8 @@ export type CodexSessionResult = {
     readonly turnsStarted: number;
     readonly turnsCompleted: number;
     readonly invalidFields: number;
+    readonly reportedFields?: readonly string[];
+    readonly missingRequiredTurns?: number;
   };
 };
 
@@ -496,11 +501,19 @@ class RunningSession {
   #stderrHash = createHash('sha256');
   #stderrLength = 0;
   #malformed = false;
+  #reportedUsageFields = new Set<string>();
+  #extraUsage: Partial<
+    Record<
+      'cachedInputTokens' | 'cacheWriteInputTokens' | 'reasoningOutputTokens',
+      number
+    >
+  > = {};
   #inputTokens = 0;
   #outputTokens = 0;
   #turnsStarted = 0;
   #turnsCompleted = 0;
   #invalidUsageFields = 0;
+  #missingRequiredTurns = 0;
   #result?: Promise<CodexSessionResult>;
 
   constructor(
@@ -658,6 +671,13 @@ class RunningSession {
             hash: this.#stderrHash.digest('hex'),
             length: Math.min(this.#stderrLength, Number.MAX_SAFE_INTEGER),
           });
+      const usageObservation: CodexSessionResult['usageObservation'] = {
+        turnsStarted: this.#turnsStarted,
+        turnsCompleted: this.#turnsCompleted,
+        invalidFields: this.#invalidUsageFields,
+        reportedFields: [...this.#reportedUsageFields],
+        missingRequiredTurns: this.#missingRequiredTurns,
+      };
       return {
         sessionId: this.#id,
         ...(this.#threadId === undefined ? {} : { threadId: this.#threadId }),
@@ -675,15 +695,12 @@ class RunningSession {
         exitCode: code,
         signal,
         usage: {
+          ...this.#extraUsage,
           inputTokens: this.#inputTokens,
           outputTokens: this.#outputTokens,
           totalTokens: safeAdd(this.#inputTokens, this.#outputTokens),
         },
-        usageObservation: {
-          turnsStarted: this.#turnsStarted,
-          turnsCompleted: this.#turnsCompleted,
-          invalidFields: this.#invalidUsageFields,
-        },
+        usageObservation,
       };
     });
     return this.#result;
@@ -732,20 +749,64 @@ class RunningSession {
       this.#completedTurnMessage = this.#pendingTurnMessage;
       this.#pendingTurnMessage = undefined;
       const usage = record(event.usage);
-      const inputTokens = tokenValue.safeParse(usage.input_tokens);
-      const outputTokens = tokenValue.safeParse(usage.output_tokens);
-      if (!inputTokens.success)
-        this.#invalidUsageFields = safeAdd(this.#invalidUsageFields, 1);
-      if (!outputTokens.success)
-        this.#invalidUsageFields = safeAdd(this.#invalidUsageFields, 1);
-      this.#inputTokens = safeAdd(
-        this.#inputTokens,
-        inputTokens.success ? inputTokens.data : 0,
-      );
-      this.#outputTokens = safeAdd(
-        this.#outputTokens,
-        outputTokens.success ? outputTokens.data : 0,
-      );
+      const turnValues: Partial<Record<string, number>> = {};
+      for (const [wire, field] of [
+        ['input_tokens', 'inputTokens'],
+        ['output_tokens', 'outputTokens'],
+        ['cached_input_tokens', 'cachedInputTokens'],
+        ['cache_write_input_tokens', 'cacheWriteInputTokens'],
+        ['reasoning_output_tokens', 'reasoningOutputTokens'],
+      ] as const) {
+        if (!Object.hasOwn(usage, wire)) continue;
+        const parsed = tokenValue.safeParse(usage[wire]);
+        if (!parsed.success) {
+          this.#invalidUsageFields = safeAdd(this.#invalidUsageFields, 1);
+          continue;
+        }
+        turnValues[field] = parsed.data;
+      }
+      if (
+        turnValues.inputTokens === undefined ||
+        turnValues.outputTokens === undefined
+      )
+        this.#missingRequiredTurns = safeAdd(this.#missingRequiredTurns, 1);
+      const relations = [
+        ['cachedInputTokens', 'inputTokens'],
+        ['cacheWriteInputTokens', 'inputTokens'],
+        ['reasoningOutputTokens', 'outputTokens'],
+      ] as const;
+      const invalidRelations = new Set<string>();
+      for (const [subset, total] of relations) {
+        const subsetValue = turnValues[subset];
+        const totalValue = turnValues[total];
+        if (
+          subsetValue !== undefined &&
+          (totalValue === undefined || subsetValue > totalValue)
+        ) {
+          invalidRelations.add(subset);
+          this.#invalidUsageFields = safeAdd(this.#invalidUsageFields, 1);
+        }
+      }
+      for (const [, field] of [
+        ['input_tokens', 'inputTokens'],
+        ['output_tokens', 'outputTokens'],
+        ['cached_input_tokens', 'cachedInputTokens'],
+        ['cache_write_input_tokens', 'cacheWriteInputTokens'],
+        ['reasoning_output_tokens', 'reasoningOutputTokens'],
+      ] as const) {
+        const value = turnValues[field];
+        if (value === undefined || invalidRelations.has(field)) continue;
+        this.#reportedUsageFields.add(field);
+        if (field === 'inputTokens')
+          this.#inputTokens = safeAdd(this.#inputTokens, value);
+        else if (field === 'outputTokens')
+          this.#outputTokens = safeAdd(this.#outputTokens, value);
+        else
+          this.#extraUsage[field] = safeAdd(
+            this.#extraUsage[field] ?? 0,
+            value,
+          );
+      }
     }
   }
 

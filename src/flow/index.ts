@@ -23,6 +23,7 @@ import {
   type ReviewRecord,
   type ReviewRole,
   roleSchema,
+  startTiming,
 } from './types.ts';
 
 export function aggregatePanelVerdict(
@@ -54,6 +55,8 @@ function recordedPrepass(
   judge: Awaited<ReturnType<typeof judgeRole>>,
 ): NonNullable<ReviewRecord['prepass']> {
   const metadata = {
+    timing: judge.timing,
+    usage: judge.usage,
     sessionId: judge.sessionId,
     ...(judge.model === undefined ? {} : { model: judge.model }),
     ...(judge.reasoningEffort === undefined
@@ -78,6 +81,18 @@ function recordedRejectedJudge(
   const message =
     error instanceof Error ? error.message || error.name : String(error);
   return {
+    timing: startTiming()(),
+    usage: {
+      state: 'unknown',
+      reason: 'Judge failed before host observation was available',
+      tokens: {},
+      turnsStarted: 0,
+      turnsCompleted: 0,
+      invalidFields: 0,
+      missingRequiredTurns: null,
+      complete: false,
+      multiTurnSemantics: 'single-turn',
+    },
     state: 'incomplete',
     role,
     model: 'gpt-6-luna',
@@ -104,6 +119,7 @@ export async function runReview(input: {
   /** Test seam; the CLI always uses CodexHost's installed executable. */
   readonly codexExecutable?: string;
 }): Promise<NewReviewRecord> {
+  const finishTiming = startTiming();
   const root = repoRoot(input.repo);
   const sha = validateSha(root, input.head).toLowerCase();
   const lens = readFileSync(resolve(input.lens), 'utf8');
@@ -126,7 +142,9 @@ export async function runReview(input: {
   const toolRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
   const toolSha = git(toolRoot, ['rev-parse', 'HEAD']);
   const lensSha256 = createHash('sha256').update(lens, 'utf8').digest('hex');
+  const finishRedTiming = startTiming();
   const red = await redFirst(root, base, sha, input.signal);
+  const redFirstTiming = finishRedTiming();
   let prepass: NonNullable<ReviewRecord['prepass']> | undefined;
   if (input.prepassChecklist !== undefined && prior === undefined) {
     const judge = await judgeRole(
@@ -149,7 +167,10 @@ export async function runReview(input: {
       await new Promise<void>((resolveTick) => setImmediate(resolveTick));
       if (input.signal?.aborted) throw new ReviewAbortedError();
       const record = newReviewRecordSchema.parse({
-        schemaVersion: 1,
+        schemaVersion: 2,
+        round: prior === undefined ? 1 : 2,
+        timing: finishTiming(),
+        redFirstTiming,
         headSha: sha,
         base,
         createdAt: new Date().toISOString(),
@@ -165,34 +186,38 @@ export async function runReview(input: {
       return record;
     }
   }
-  const settledJudges = await Promise.allSettled(
-    panel.map((role) =>
-      judgeRole(
-        root,
-        sha,
-        role,
-        lens,
-        red,
-        input.timeoutMs ?? 600000,
-        input.codexExecutable,
-        input.signal,
-        reasoningEffort,
-        prior === undefined ? undefined : input.prepassChecklist,
-        prior,
-      ),
-    ),
+  const judges = await Promise.all(
+    panel.map(async (role) => {
+      const finishJudgeTiming = startTiming();
+      try {
+        return await judgeRole(
+          root,
+          sha,
+          role,
+          lens,
+          red,
+          input.timeoutMs ?? 600000,
+          input.codexExecutable,
+          input.signal,
+          reasoningEffort,
+          prior === undefined ? undefined : input.prepassChecklist,
+          prior,
+        );
+      } catch (reason) {
+        return {
+          ...recordedRejectedJudge(role, reasoningEffort, reason),
+          timing: finishJudgeTiming(),
+        };
+      }
+    }),
   );
   await new Promise<void>((resolveTick) => setImmediate(resolveTick));
   if (input.signal?.aborted) throw new ReviewAbortedError();
-  const judges = settledJudges.map((result, index) => {
-    const role = panel[index];
-    if (role === undefined) throw new Error('panel judge role is missing');
-    if (result.status === 'rejected')
-      return recordedRejectedJudge(role, reasoningEffort, result.reason);
-    return result.value;
-  });
   const record = newReviewRecordSchema.parse({
-    schemaVersion: 1,
+    schemaVersion: 2,
+    round: prior === undefined ? 1 : 2,
+    timing: finishTiming(),
+    redFirstTiming,
     headSha: sha,
     base,
     createdAt: new Date().toISOString(),
