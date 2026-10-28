@@ -1,0 +1,12 @@
+{
+  "id": "t-m1mxsfp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-28",
+  "priority": 1,
+  "title": "Report lesson data as warnings in state check",
+  "after": [],
+  "body": [
+    "Installed GLOBAL `krn state check` turns every lesson-table finding into an error (scripts/lib/state/state-check.mjs:413-427), so one hand-edited row makes an adopting repository divergent. perfect-memory #245 wrote `2026-10-04@a218263; 2026-10-27@1a8a2e7`; lessons.mjs:37 splits Occurrences on [,\\s]+, the `;` token fails, and every queue branch cut before #249 stayed blocked. ADR 0014 D14 supersedes the standalone lessons page.\nFix in GLOBAL krn-codex-skills: report lesson-data findings (malformed rows, over-budget, unreadable page) from state check as warnings, not errors; keep krn memory check/verify and the friction-drain anchors unchanged. Acceptance: a fixture with the #245 row is divergent on base and not divergent with a warning on head, while `krn memory check` still fails it. Reaches adopters after seal and install. Follow-ups: setup stops creating the page and drops the Beads tracker; changes check and ship stop blocking on lesson data."
+  ]
+}
