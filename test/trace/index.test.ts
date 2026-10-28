@@ -1218,9 +1218,7 @@ fs.writeFileSync(process.env.KRN_TRACE_DURABILITY_RESULT, JSON.stringify({ ...id
 test('trace appenders reclaim a real zombie owner and retain both rows', {
   timeout: 15_000,
 }, async (t) => {
-  const scratch = join(process.cwd(), '.krn/tmp');
-  await mkdir(scratch, { recursive: true });
-  const directory = await mkdtemp(join(scratch, 'trace-zombie-owner-'));
+  const directory = await mkdtemp(join(tmpdir(), 'trace-zombie-owner-'));
   const job: Job = {
     id: `trace-zombie-${randomUUID()}`,
     issue: 'LON-291',
@@ -3596,5 +3594,135 @@ console.log(JSON.stringify({ stable, grew, bytes, maxReadBuffer, refused, error 
     );
   } finally {
     await rm(f.directory, { recursive: true, force: true });
+  }
+});
+
+test('trace lock path observations retry released inodes without accepting unsafe paths', async () => {
+  for (const variant of [
+    'primary-check',
+    'primary-create',
+    'reclaimer-check',
+    'reclaimer-create',
+    'released-before-owner-read',
+    'hardlink',
+    'reclaimer-symlink',
+    'released-timeout',
+    'dead-reclaimer',
+    'live-owner',
+  ]) {
+    const f = await fixture();
+    try {
+      await verdict(f.job, event('a'.repeat(40), 0, 'b'.repeat(64)));
+      const child = spawnSync(
+        process.execPath,
+        [
+          '--input-type=module',
+          '-e',
+          `
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+const job = JSON.parse(process.env.KRN_LOCK_JOB);
+const lock = process.env.KRN_LOCK_PATH;
+const variant = process.env.KRN_LOCK_VARIANT;
+const target = variant.startsWith('reclaimer') || variant === 'dead-reclaimer' ? lock + '.reclaim' : lock;
+const original = { lstatSync: fs.lstatSync, openSync: fs.openSync };
+const owner = { pid: 1000000000, startTicks: '1', token: '12345678-1234-4234-8234-123456789abc' };
+if (variant !== 'reclaimer-create') fs.writeFileSync(target, JSON.stringify(owner));
+if (variant === 'reclaimer-create') fs.writeFileSync(lock, JSON.stringify(owner));
+if (variant === 'live-owner') {
+  const { processStartTicks } = await import('./src/hosts/systemd-scope.ts');
+  fs.writeFileSync(target, JSON.stringify({ ...owner, pid: process.pid, startTicks: processStartTicks(process.pid) }));
+}
+if (variant === 'hardlink') fs.linkSync(target, target + '.aside');
+if (variant === 'reclaimer-symlink') {
+  fs.renameSync(target, target + '.aside');
+  fs.symlinkSync(target + '.aside', target);
+}
+let observations = 0;
+let injected = false;
+const occurrence = variant.endsWith('create') ? 3 : 2;
+fs.lstatSync = function(path, ...args) {
+  if (String(path) === target && ++observations === occurrence &&
+      ['primary-check', 'primary-create', 'reclaimer-check', 'reclaimer-create', 'released-timeout'].includes(variant)) {
+    if (variant === 'reclaimer-create') fs.writeFileSync(target, JSON.stringify(owner));
+    const fd = original.openSync(target, 'r');
+    fs.unlinkSync(target);
+    const stats = fs.fstatSync(fd);
+    fs.closeSync(fd);
+    assert.equal(stats.isFile(), true);
+    assert.equal(stats.nlink, 0);
+    injected = true;
+    return stats;
+  }
+  return original.lstatSync(path, ...args);
+};
+fs.openSync = function(path, flags, ...args) {
+  if (variant === 'released-before-owner-read' && String(path) === lock &&
+      (Number(flags) & fs.constants.O_EXCL) !== 0 && !injected) {
+    fs.unlinkSync(lock);
+    injected = true;
+    throw Object.assign(new Error('forced competing release'), { code: 'EEXIST' });
+  }
+  return original.openSync(path, flags, ...args);
+};
+const timedOut = ['released-timeout', 'dead-reclaimer', 'live-owner'].includes(variant);
+if (timedOut) {
+  const now = Date.now();
+  let calls = 0;
+  Date.now = () => now + calls++ * 20000;
+}
+syncBuiltinESMExports();
+const { verdict } = await import('./src/trace/index.ts');
+const evidence = { sha: 'c'.repeat(40), checks: [{ id: 'gate', exitCode: 0, durationMs: 1, sha256: 'd'.repeat(64) }] };
+if (timedOut) {
+  await assert.rejects(verdict(job, evidence), /trace lock acquisition timed out/u);
+  if (variant !== 'released-timeout') assert.equal(fs.existsSync(target), true);
+} else if (variant === 'hardlink' || variant === 'reclaimer-symlink') {
+  await assert.rejects(verdict(job, evidence), /unsafe trace (?:lock|path)/u);
+  assert.equal(fs.readFileSync(target, 'utf8'), JSON.stringify(owner));
+} else {
+  await verdict(job, evidence);
+  assert.equal(fs.existsSync(lock), false);
+  assert.equal(fs.existsSync(lock + '.reclaim'), false);
+}
+if (!['hardlink', 'reclaimer-symlink', 'dead-reclaimer', 'live-owner'].includes(variant))
+  assert.equal(injected, true, 'forced release must be observed');
+console.log(JSON.stringify({ variant, injected }));
+`,
+        ],
+        {
+          cwd: process.cwd(),
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            KRN_LOCK_JOB: JSON.stringify(f.job),
+            KRN_LOCK_PATH: `${f.tracePath}.lock`,
+            KRN_LOCK_VARIANT: variant,
+          },
+        },
+      );
+      assert.equal(
+        child.status,
+        0,
+        `${variant}: ${child.stdout}\n${child.stderr}`,
+      );
+      const rows = (await readFile(f.tracePath, 'utf8')).trim().split('\n');
+      assert.equal(
+        rows.length,
+        [
+          'hardlink',
+          'reclaimer-symlink',
+          'released-timeout',
+          'dead-reclaimer',
+          'live-owner',
+        ].includes(variant)
+          ? 1
+          : 2,
+        variant,
+      );
+    } finally {
+      await rm(f.directory, { recursive: true, force: true });
+    }
   }
 });
