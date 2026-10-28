@@ -1,0 +1,12 @@
+{
+  "id": "t-0ve20jn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-28",
+  "priority": 0,
+  "title": "Keep red-first helper sources ASCII",
+  "after": [],
+  "body": [
+    "Review red-first writes helper modules (.krn-redfirst-<role>-<id>.mjs) into the candidate copy before running a changed test. The reporter template (src/flow/repository.ts:94) contains a literal U+2014 EM DASH in its isolation-skip regex. GLOBAL krn-codex-skills validates install sources and rejects em dashes, so its bootstrap test (krn install apply --source <copy>) failed at base and head inside review for PR krn-codex-skills#472 while passing on the host and in CI: a false deterministic FAIL caused by the engine.\nAcceptance: every generated red-first helper source is ASCII-only (the regex uses an escape and keeps matching the em dash that tests print), proven by a test RED on base and GREEN on head; isolation-skip parsing is unchanged. Follow-up candidate: write helpers outside the candidate tree so tree-scanning tests never see them."
+  ]
+}
