@@ -786,14 +786,18 @@ function waitForTraceLock(): void {
   Atomics.wait(traceLockWaitCell, 0, 0, traceLockPollMs);
 }
 
-function assertTraceLockPath(path: string): void {
+function traceLockPathWasReleased(path: string): boolean {
   try {
     const stats = lstatSync(path);
-    if (!stats.isFile() || stats.nlink !== 1)
+    if (!stats.isFile() || (stats.nlink !== 0 && stats.nlink !== 1))
       throw new Error('unsafe trace lock');
+    // lstat can resolve an inode just before its owner unlinks it. This
+    // observation grants no ownership; retry acquisition from the path.
+    if (stats.nlink === 0) return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
   }
+  return false;
 }
 
 function readTraceLockOwner(path: string): TraceLockOwnerObservation {
@@ -856,7 +860,10 @@ function createTraceLock(
   path: string,
   owner: z.infer<typeof traceLockOwnerSchema>,
 ): { readonly dev: number; readonly ino: number } {
-  assertTraceLockPath(path);
+  if (traceLockPathWasReleased(path))
+    throw Object.assign(new Error('trace lock was released'), {
+      code: 'EEXIST',
+    });
   const fd = openSync(
     path,
     constants.O_WRONLY |
@@ -938,8 +945,13 @@ function acquireTraceLock(directory: string, tracePath: string): () => void {
   while (Date.now() < deadline) {
     assertNoTraceSymlinks(directory, lockPath);
     assertNoTraceSymlinks(directory, reclaimerPath);
-    assertTraceLockPath(lockPath);
-    assertTraceLockPath(reclaimerPath);
+    if (
+      traceLockPathWasReleased(lockPath) ||
+      traceLockPathWasReleased(reclaimerPath)
+    ) {
+      waitForTraceLock();
+      continue;
+    }
     if (existsSync(reclaimerPath)) {
       waitForTraceLock();
       continue;
