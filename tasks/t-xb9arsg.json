@@ -1,0 +1,13 @@
+{
+  "id": "t-xb9arsg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-28",
+  "priority": 2,
+  "title": "Normalize relative repository roots before memory reanchor",
+  "after": [],
+  "body": [
+    "GLOBAL memory reanchor fails with --root . while the identical native operation succeeds with an absolute root. Observed while qualifying PR473 source1ab49f44: relative invocation exit1, updated[], candidate-anchor proof reported not green; absolute invocation exit0, updated9759391->1ab49f4, errors[]. Full outputs: GLOBAL .krn/runs/claude/lesson-retire-tools/lead/review-final/{reanchor,reanchor-absolute}.json. No page edit occurred on failure.",
+    "Code: scripts/lib/lessons/lessons-verify.mjs:82 passes the caller root to withWorktree; kernel/worktree.mjs returns a path relative to that root; runCase joins that relative candidate into file and also sets cwd=candidate, so the test file is resolved twice. Normalize the repository root at its existing public boundary, preserve native proof checks and host isolation. Acceptance: a real git fixture with a stale but passing anchored proof reanchors identically using --root . and an absolute path; frozen observer assertion RED before and GREEN after. Do not silently edit the proof SHA or weaken the observer. Existing explicit memory compatibility remains."
+  ]
+}
