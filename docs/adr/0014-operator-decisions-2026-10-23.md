@@ -4,7 +4,7 @@ Date: 2026-10-23
 
 ## Status
 
-Accepted. This is the single durable Product record for operator decisions D1–D24 from 2026-10-22/23 and 2026-10-27. Operator quotes are reproduced verbatim where the register recorded them. It records decisions, not implementation or task acceptance. The GLOBAL repository has a separate consistency sweep.
+Accepted. This is the single durable Product record for operator decisions D1–D29 from 2026-10-22/23 and 2026-10-26/27/28. Operator quotes are reproduced verbatim where the register recorded them. It records decisions, not implementation or task acceptance. The GLOBAL repository has a separate consistency sweep.
 
 ## Decisions
 
@@ -34,9 +34,16 @@ Accepted. This is the single durable Product record for operator decisions D1–
 | D22 | Replace two of the three Codex judges with `codex review` and Claude Code `/code-review`; keep the red-first changed-test check and exact-head record. | No direct quote recorded in the source register. | The three-Codex judge panel; retains the red-first check and exact-head record. |
 | D23 | Run a two-week proof of full KRN versus a plain harness, plus a market review, measured by operator minutes per merge, lead time p50/p90, review rounds and noise, escaped defects, and cost per PR; run it in parallel with FR-40. Freeze the `krn task` tracker to defects only, with no new features, and pause orchestration build-out (`foreman`, `relay`, `hosts`, `trace`) until the metrics exist. | No direct quote recorded in the source register. | The prior program sequence that put tracker features and orchestration build-out ahead of comparative proof. |
 | D24 | Freeze `krn eval` to plan, snapshot, mask, checks, and the arm session; FR-40 runs Codex only. Keep the B0 certificate, repairs, reference arm, ledger hardening, and blinding off the critical path; blinding is paused. | No direct quote recorded in the source register. | The broader evaluation-harness scope and work on the reference arm, repairs, ledger hardening, and blinding in the critical path. |
+| D25 | (2026-10-26) Paperclip is legacy: it is never a fallback and its data is never imported. The host service and data are removed. | No direct quote recorded in the source register. | Any Paperclip fallback. |
+| D26 | (2026-10-28) KRN's tracker is `krn task`. Beads was rejected as KRN's tracker or backend; GLOBAL ADR 0004 adopts only its queue mechanics, and ADR 0011 records that “Beads itself or a thin adapter loses”. A repository may keep Beads for its own project; KRN never configures, runs, or repairs Beads, and KRN changes never remove data from historical projects. | “jesli jakis projekt uzywa beads to niech to ma project-wise a nie globalnie”; “nikt nie kazał niczego … z historycznych projektów” | GLOBAL setup's Beads tracker option. |
+| D27 | (2026-10-28) Applying D14, KRN tooling stops enforcing or creating the standalone `docs/research/workflow-lessons.md` page. Lesson findings are warnings; lessons become checks first and `AGENTS.md` rules second. Existing pages in other repositories remain theirs. | None recorded. | Lesson-page gating in GLOBAL state check, change contracts, and setup. |
+| D28 | (2026-10-28) Host lead policy (Claude hooks, lead skills, the codex-worker wrapper, and lead scripts) moves into GLOBAL and is installed by a sealed release; untracked host copies are removed. | None recorded. | Untracked host policy. |
+| D29 | (2026-10-28) As an exception to D23, `krn task` gets comments. | None recorded. | D23 for this feature only. |
 
 **D8 amendment (operator 2026-10-26):** [ADR 0015](0015-repository-task-tracker.md) supersedes D8's import clause; no Paperclip or legacy queue records are imported.
 
+**D8 amendment (operator 2026-10-28):** [ADR 0015](0015-repository-task-tracker.md) also replaces D8's “JSONL/files … rebuildable local index … later slice” wording with one canonical JSON file per task and an index computed in memory; this shipped in `t-sqfffx9`.
+
 ## Scope
 
-This ADR supersedes the cited portions of earlier Product and GLOBAL decisions only. In particular, D8 supersedes ADR 0011 and GLOBAL ADR 0007's Paperclip control-plane parts; D10–D11 supersede conflicting GLOBAL ADR 0007 review and gate-order parts. Other GLOBAL ADR 0007 requirements remain only where they do not conflict with D1–D24. Product's separate implementation work does not authorize host-side Paperclip archive or other irreversible actions.
+This ADR supersedes the cited portions of earlier Product and GLOBAL decisions only. In particular, D8 supersedes ADR 0011 and GLOBAL ADR 0007's Paperclip control-plane parts; D10–D11 supersede conflicting GLOBAL ADR 0007 review and gate-order parts. Other GLOBAL ADR 0007 requirements remain only where they do not conflict with D1–D29. Product's separate implementation work does not authorize host-side Paperclip archive or other irreversible actions.
