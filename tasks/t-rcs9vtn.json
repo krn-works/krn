@@ -1,0 +1,12 @@
+{
+  "id": "t-rcs9vtn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-28",
+  "priority": 1,
+  "title": "Record the 2026-10-26/28 operator decisions and align program docs",
+  "after": [],
+  "body": [
+    "The coherence audit of 2026-10-28 found operator decisions recorded only in lead memory and task notes (Paperclip never a fallback; Beads only project-wise, carrying the ADR 0011 rejection; lesson-page enforcement retired under D14; host policy moves into GLOBAL; krn task comments as a D23 exception) and program docs that contradict ADR 0014/0015 (panel roles, krn ship merge path, task-claims directory, stale PLAN items, JSONL wording).\nAcceptance: ADR 0014 records the decisions with verbatim quotes, and repository-workflow.md, README.md, CONTEXT.md and PLAN.md agree with ADR 0014/0015 and the shipped CLI; no historical project data changes."
+  ]
+}

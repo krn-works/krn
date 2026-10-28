@@ -1,7 +1,11 @@
 {
   "id": "t-cgna76b",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Tracker feature; ADR 0014 D23 freezes the tracker to defects (only the operator's comments exception is open)."
+  },
   "created": "2026-10-26",
   "priority": 3,
   "title": "Print one line per ready task",

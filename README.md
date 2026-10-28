@@ -12,16 +12,20 @@ node src/cli/main.ts --version
 
 Install repository dependencies with `pnpm install --frozen-lockfile`.
 
-Product implements `--version`, `task`, `review`, `delegate`, `report journey`, `start`, `checkpoint`, `stop`, and `note`. Unknown commands are forwarded to the Global KRN package under KRN-06. Product does not implement merge: `krn ship` is forwarded to Global, which performs the merge.
+Product implements `--version`, `task`, `review`, `delegate`, `report journey`, `start`, `checkpoint`, `stop`, `note`, and `eval`. Unknown commands are forwarded to the Global KRN package under KRN-06. Product does not implement merge: merges go only through GLOBAL `krn ship`, which pins the reviewed head through the pull request API (D21).
 
 ## Checks and delivery
 
 - `npm run check` checks TypeScript.
 - `npm run rules` verifies generated `AGENTS.md` against `spec/rules.json`.
 - Before review, run the cheap preflight: types, lint, documentation-reading tests, test-impact review, and contracts. After review, Product's `npm run gate:local` runs the full local gate; CI runs the same steps for the PR.
-- PR delivery requires the repository's independent Standards and Spec reviews on the exact head SHA and required CI.
+- The review panel is `standards`, `spec`, and `adversarial` (`src/flow/types.ts`). `krn/judge-standards` and `krn/judge-spec` are published only from a record with `panelVerdict` PASS or a recorded D10 override. PR delivery also requires the exact head SHA and required CI.
 
 The in-repository `krn task` tracker owns task status through committed `tasks/<id>.json` records, dependencies, readiness, and claiming. No legacy board data is imported; its Product integration is removed. Review and delivery evidence stays in local `krn review` records and git history. [ADR 0014](docs/adr/0014-operator-decisions-2026-10-23.md) and [ADR 0015](docs/adr/0015-repository-task-tracker.md) record the tracker decision. The repository-consolidation trigger is defined in [ADR 0013](docs/adr/0013-repository-consolidation.md).
+
+## Paused foreman/live-delivery route (D23)
+
+The live foreman route is paused under D23 until the delivery proof metrics exist. The route contract below documents the paused implementation; it is not the current delivery path.
 
 The live foreman reads a local JSON contract:
 

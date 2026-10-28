@@ -4,6 +4,7 @@ Date: 2026-10-08
 
 ## Status
 
+ADR 0014 D20 replaced the Wizard-of-Oz gate; the WoZ set is a harness pilot only.
 Proposed for E3 design. FR-40 (ADR 0014 D20) is the gate, the Wizard-of-Oz set
 is a harness pilot only, and this does not change the operator's selected
 scope or client-isolation policy.

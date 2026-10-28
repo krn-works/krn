@@ -1,0 +1,12 @@
+{
+  "id": "t-5fd4gcn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-28",
+  "priority": 2,
+  "title": "Remove legacy tracker and process references from GLOBAL docs",
+  "after": [],
+  "body": [
+    "GLOBAL docs and help texts still describe the Git-ref ticket queue, Paperclip import, JSONL tracker storage, a next command, missing test scripts, and ADR status headers that omit later supersession.\nAcceptance: research pages, ADR status headers and index, test-audit script names and the herdr hook ownership note match current code and ADR 0014/0015; deletions follow D19."
+  ]
+}

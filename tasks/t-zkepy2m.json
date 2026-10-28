@@ -1,0 +1,12 @@
+{
+  "id": "t-zkepy2m",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-28",
+  "priority": 1,
+  "title": "Move host lead policy into GLOBAL and install it by release",
+  "after": [],
+  "body": [
+    "Claude hooks, ~/.claude/skills/krn-*, the codex-worker wrapper and lead bin scripts are untracked host files with no review path; stale copies in ~/.agents/skills are visible to Codex; install-release.sh and lead.sh ship hand-roll steps that krn install and krn ship own; krn host-lock locks are per repository. Operator 2026-10-28: move this policy into GLOBAL.\nAcceptance: the policy files live in GLOBAL, are exported and installed by a sealed release, stale copies are removed, the seal and install flow uses native krn install and krn ship, and host-lock serializes host-wide."
+  ]
+}

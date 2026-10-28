@@ -1,0 +1,12 @@
+{
+  "id": "t-gdct2bc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-28",
+  "priority": 1,
+  "title": "Align GLOBAL instructions with D10-D13, D18, D21 and D22",
+  "after": [],
+  "body": [
+    "GLOBAL AGENTS.md demands a full local gate (D11 says CI runs it), the delegate and delivery-loop skills give model and judge policy that contradicts D18/D22, the repair loop has no round limit where it is owned (D10), D12/D13 have no owner, global krn does not forward review, wayfinder can default to a markdown tracker, and krn_capsule.py tells sessions to claim tasks.\nAcceptance: one owner per rule in GLOBAL config/AGENTS.md and skills, matching ADR 0014; pinned instruction tests updated; changes check clean."
+  ]
+}

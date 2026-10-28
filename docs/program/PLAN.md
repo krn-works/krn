@@ -4,7 +4,7 @@ This plan records program sequence and exit conditions. It is not task status, a
 
 ## Scope and decision owners
 
-Follow [ADR 0014 D20–D24](../adr/0014-operator-decisions-2026-10-23.md). Keep one current sequence and work in progress to at most two deliveries. Product and Global remain separate until the measured trigger in [ADR 0013](../adr/0013-repository-consolidation.md). Name work by role and purpose, not by phase, slice, ticket, round, date, or version.
+Follow [ADR 0014 D20–D29](../adr/0014-operator-decisions-2026-10-23.md). The numbered tracks are a sequence, not parallel work; the WIP limit counts deliveries in flight, at most two. Product and Global remain separate until the measured trigger in [ADR 0013](../adr/0013-repository-consolidation.md). Name work by role and purpose, not by phase, slice, ticket, round, date, or version.
 
 ## Sequence and exit checks
 
@@ -22,7 +22,7 @@ First make red-first prove an assertion failure on base and a pass on head (`t-c
 
 ### 3. One merge path and delivery record
 
-Product merges through GLOBAL `krn ship` with the base-declared verifier (`krn.ship.json` → `scripts/pr-preflight.mjs`); the first real merges were #121 and #123. Next, `t-5wbkv1w` adapts `krn ship` to GitHub Team server-side rulesets on `main` in both repositories: merge through the pull request API pinned to the reviewed head, then require PRs and required status checks with no bypass. CI stays on the self-hosted fleet.
+Product merges only through GLOBAL `krn ship` with the base-declared verifier (`krn.ship.json` → `scripts/pr-preflight.mjs`); it pins the reviewed head through the pull request API under D21. The first real merges were #121 and #123. `t-5wbkv1w` and `t-c2pnpbq` are delivered (Product #127 and #129; GLOBAL #467–#469). Exit status: met; the API merge pins the reviewed head, and GitHub refused direct pushes and PRs missing required checks. CI stays on the self-hosted fleet.
 
 **Exit:** GitHub refuses a direct push and a PR missing a required check; one delivery record holds review, gate, CI, and merge evidence.
 
@@ -48,11 +48,21 @@ Capture only approved delivery fields as evidence. Review episodes, reusable les
 
 Product's shipped tracker uses committed `tasks/<id>.json` records, dependencies, readiness, claims, and one `krn task` command. The lead manages readiness, claims, releases, and closure; workers receive the task id and use it in commit titles and the `Ticket:` trailer. No Paperclip or legacy queue data is imported. Product and GLOBAL Paperclip integrations were removed; GLOBAL forwards `krn task` to Product.
 
-**Exit: met** (`t-sqfffx9`). The tracker is frozen to defects only, with no new features (D23).
+**Exit: met** (`t-sqfffx9`). The tracker is frozen to defects only, with no new features except comments under D29 (`t-30wmab4`).
 
 ## Open items
 
 - **P-052:** complete the caller inventory under ADR 0013 before runtime or repository ownership migration; include the legacy Git-ref task queue and remaining compatibility callers.
 - **P-060:** resolved by the merge-path state above; see the [proposal register](proposals.md).
+
+## Consistency repair (operator 2026-10-28)
+
+- `t-rcs9vtn` — record decisions D25–D29 and align Product program docs.
+- `t-8zvy7c5` — enforce the two-round review limit in the engine and preflight.
+- `t-30wmab4` — add comments to `krn task` under the D29 exception.
+- `t-m1mxsfp` — retire lesson-page enforcement and Beads setup in GLOBAL.
+- `t-gdct2bc` — align GLOBAL instructions with D10–D13, D18, D21, and D22.
+- `t-5fd4gcn` — remove legacy tracker and process references from GLOBAL docs.
+- `t-zkepy2m` — move host lead policy into GLOBAL and install it by release.
 
 See [proposal register](proposals.md), [lead rules](lead-rules.md), and [ADR index](../adr/README.md).
