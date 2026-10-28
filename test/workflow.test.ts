@@ -4,6 +4,42 @@ import { test } from 'node:test';
 
 const workflowPath = new URL('../.github/workflows/ci.yml', import.meta.url);
 
+test('cheap preflight reuses local observers and documents manual impact and PR budget boundaries', async () => {
+  const manifest: unknown = JSON.parse(
+    await readFile(new URL('../package.json', import.meta.url), 'utf8'),
+  );
+  assert.ok(
+    typeof manifest === 'object' && manifest !== null && 'scripts' in manifest,
+  );
+  const scripts = manifest.scripts;
+  assert.ok(
+    typeof scripts === 'object' && scripts !== null && 'preflight' in scripts,
+  );
+  assert.equal(
+    scripts.preflight,
+    'npm run check && npm run lint && npm run rules && node src/cli/main.ts task check && npm test -- test/workflow.test.ts test/import-boundary.test.ts',
+  );
+  for (const path of [
+    'README.md',
+    'docs/program/repository-workflow.md',
+    'docs/program/lead-rules.md',
+  ]) {
+    const source = await readFile(
+      new URL(`../${path}`, import.meta.url),
+      'utf8',
+    );
+    for (const expected of [
+      /npm run preflight/u,
+      /[Mm]anually review test impact/u,
+      /--pr/u,
+      /--budget-exception/u,
+      /[Dd]eterministic checks always block/u,
+      /scripts\/pr-preflight\.mjs/u,
+    ])
+      assert.match(source, expected, path);
+  }
+});
+
 test('CI workflow has one guarded gate job on the configured isolated runner', async () => {
   const source = await readFile(workflowPath, 'utf8');
   const lines = source.split(/\r?\n/u);

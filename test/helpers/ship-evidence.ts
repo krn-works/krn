@@ -1,5 +1,8 @@
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import * as recordOwner from '../../src/flow/record.ts';
 import { type NewReviewRecord, panelRoles } from '../../src/flow/types.ts';
 
 export function reviewEvidence(base: string, head: string) {
@@ -35,10 +38,34 @@ export async function writeReviewEvidence(
   base: string,
   head: string,
   record: unknown = reviewEvidence(base, head),
+  pr = 27,
 ) {
   const directory = join(root, '.krn', 'runs', 'review', head);
   await mkdir(directory, { recursive: true });
   const path = join(directory, 'record.json');
+  if (typeof record === 'object' && record !== null) {
+    const reserve: unknown = Reflect.get(recordOwner, 'reserveReviewAttempt');
+    assert.equal(
+      typeof reserve,
+      'function',
+      'PR evidence needs the series reservation owner',
+    );
+    if (typeof reserve !== 'function')
+      throw new Error('reservation owner unavailable');
+    let attempt: unknown = 'attempt' in record ? record.attempt : undefined;
+    if (existsSync(path)) {
+      const prior: unknown = JSON.parse(readFileSync(path, 'utf8'));
+      if (typeof prior === 'object' && prior !== null && 'attempt' in prior)
+        attempt = prior.attempt;
+    }
+    attempt ??= reserve(
+      root,
+      { schemaVersion: 1, repository: 'krn-works/krn', pr, baseRef: 'main' },
+      base,
+      head,
+    );
+    Object.assign(record, { attempt });
+  }
   await writeFile(path, `${JSON.stringify(record, null, 2)}\n`);
   return path;
 }

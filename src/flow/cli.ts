@@ -6,9 +6,17 @@ import { PriorRecordError } from './prior.ts';
 import { appendOverride } from './record.ts';
 import { repoRoot, resolveCommit, validateSha } from './repository.ts';
 import {
+  attemptRecordPath,
+  type PullReader,
+  ReviewBudgetError,
+  readPullRequest,
+  verifyPullRequest,
+} from './series.ts';
+import {
   panelRoles,
   type ReviewReasoningEffort,
   reasoningEffortSchema,
+  reviewInputSchema,
   roleSchema,
 } from './types.ts';
 
@@ -142,7 +150,10 @@ function reviewChecklist(args: readonly string[]): string | undefined {
 
 export async function reviewCommand(
   args: readonly string[],
-  options: { readonly codexExecutable?: string } = {},
+  options: {
+    readonly codexExecutable?: string;
+    readonly readPull?: PullReader;
+  } = {},
 ): Promise<ReviewCommandOutcome | undefined> {
   if (args.includes('--help')) {
     process.stdout.write(
@@ -150,11 +161,15 @@ export async function reviewCommand(
         'Usage: krn review --repo <path> --base <ref> --head <sha> --lens <path>',
         '  [--panel standards,spec,adversarial] [--reasoning-effort low|medium|high|xhigh|max]',
         '  [--prepass --checklist <path>] [--prior-record <path>]',
+        '  [--pr <number>] [--budget-exception <path>]',
+        'PR-bound reviews verify authoritative PR metadata and reserve one of two repo-common attempts before deterministic checks or judges.',
+        'Each additional attempt requires a separate operator exception JSON bound to canonical repository, PR, baseRef, exact ordinal and headSha, with authority and evidence.',
         'Round two: --prior-record accepts a first-round FAIL record (regular non-symlink file, at most 1 MB, different head) to verify prior BLOCKING findings.',
-        'After two rounds the lead decides (override); a second-round record cannot be used as --prior-record.',
+        'After two attempts the lead decides; acceptance override does not grant review budget. A second-round record cannot be used as --prior-record.',
+        'Prior verification requires the same panel roles. Deterministic checks always block, including under acceptance override.',
         'Only unresolved prior findings and new regressions in changed files block; other new findings are advisory.',
         'With --prior-record, --prepass --checklist supplies a panel search aid without a separate blocking prepass.',
-        'Override: krn review --repo <path> --head <sha> --override --reason <text> --evidence <text>',
+        'Override: krn review --repo <path> --head <sha> [--pr <number> --base <sha>] --override --reason <text> --evidence <text>',
         '',
       ].join('\n'),
     );
@@ -168,7 +183,7 @@ export async function reviewCommand(
   try {
     return await runReviewCommand(args, controller, options);
   } catch (error) {
-    if (error instanceof PriorRecordError)
+    if (error instanceof PriorRecordError || error instanceof ReviewBudgetError)
       throw new ReviewUsageError(error.message);
     if (!controller.signal.aborted) throw error;
     process.exitCode = 130;
@@ -183,22 +198,76 @@ export async function reviewCommand(
 async function runReviewCommand(
   args: readonly string[],
   controller: AbortController,
-  options: { readonly codexExecutable?: string },
+  options: {
+    readonly codexExecutable?: string;
+    readonly readPull?: PullReader;
+  },
 ): Promise<ReviewCommandOutcome> {
+  const switches = new Set(['--prepass', '--override']);
+  const flags = new Set([
+    '--repo',
+    '--base',
+    '--head',
+    '--lens',
+    '--panel',
+    '--reasoning-effort',
+    '--checklist',
+    '--prior-record',
+    '--host',
+    '--pr',
+    '--budget-exception',
+    '--reason',
+    '--evidence',
+  ]);
+  const seen = new Set<string>();
+  for (let index = 0; index < args.length; index++) {
+    const flag = args[index];
+    if (!flag || seen.has(flag) || (!switches.has(flag) && !flags.has(flag)))
+      throw new ReviewUsageError(
+        `unknown or duplicate review argument: ${flag}`,
+      );
+    seen.add(flag);
+    if (!switches.has(flag)) {
+      value(args, flag);
+      index++;
+    }
+  }
   const reasoningEffort = reasoningEffortValue(args);
   const repo = value(args, '--repo');
   const headInput = value(args, '--head');
+  const pr = args.includes('--pr') ? Number(value(args, '--pr')) : undefined;
+  if (
+    pr !== undefined &&
+    (!/^[1-9]\d*$/u.test(value(args, '--pr')) || !Number.isSafeInteger(pr))
+  )
+    throw new ReviewUsageError('--pr must be a positive safe integer');
   if (args.includes('--override')) {
     if (args.includes('--prior-record'))
       throw new ReviewUsageError(
         '--prior-record cannot be combined with --override',
       );
+    if (args.includes('--budget-exception'))
+      throw new ReviewUsageError('acceptance override cannot grant budget');
     const root = reviewRepository(repo);
     const head = reviewCommit(root, headInput, '--head');
-    const record = appendOverride(root, head, {
-      reason: value(args, '--reason'),
-      evidence: value(args, '--evidence'),
-    });
+    const identity =
+      pr === undefined
+        ? undefined
+        : verifyPullRequest(
+            await (options.readPull ?? readPullRequest)(root, pr),
+            pr,
+            reviewCommit(root, value(args, '--base'), '--base'),
+            head,
+          );
+    const record = appendOverride(
+      root,
+      head,
+      {
+        reason: value(args, '--reason'),
+        evidence: value(args, '--evidence'),
+      },
+      identity,
+    );
     process.stdout.write(
       `${JSON.stringify({ headSha: record.headSha, override: record.override })}\n`,
     );
@@ -214,7 +283,7 @@ async function runReviewCommand(
   const root = reviewRepository(repo);
   const base = reviewCommit(root, baseInput, '--base');
   const head = reviewCommit(root, headInput, '--head');
-  const record = await runReview({
+  const parsed = reviewInputSchema.safeParse({
     repo: root,
     base,
     head,
@@ -225,19 +294,31 @@ async function runReviewCommand(
       ? { priorRecord: value(args, '--prior-record') }
       : {}),
     ...(checklist === undefined ? {} : { prepassChecklist: checklist }),
+    ...(pr === undefined ? {} : { pr }),
+    ...(args.includes('--budget-exception')
+      ? { budgetException: value(args, '--budget-exception') }
+      : {}),
+  });
+  if (!parsed.success) throw new ReviewUsageError(parsed.error.message);
+  const record = await runReview({
+    ...parsed.data,
     signal: controller.signal,
+    ...(options.readPull ? { readPull: options.readPull } : {}),
     ...(options.codexExecutable
       ? { codexExecutable: options.codexExecutable }
       : {}),
   });
+  const path = record.attempt
+    ? attemptRecordPath(root, record.attempt)
+    : resolve(root, '.krn', 'runs', 'review', record.headSha, 'record.json');
   if (record.panelVerdict === undefined) {
     process.stdout.write(
-      `${JSON.stringify({ headSha: record.headSha, prepass: record.prepass, record: resolve(repo, '.krn', 'runs', 'review', record.headSha, 'record.json') })}\n`,
+      `${JSON.stringify({ headSha: record.headSha, prepass: record.prepass, record: path })}\n`,
     );
     return 'PREPASS_BLOCKING';
   }
   process.stdout.write(
-    `${JSON.stringify({ headSha: record.headSha, panelVerdict: record.panelVerdict, record: resolve(repo, '.krn', 'runs', 'review', record.headSha, 'record.json'), judges: record.judges })}\n`,
+    `${JSON.stringify({ headSha: record.headSha, panelVerdict: record.panelVerdict, record: path, judges: record.judges })}\n`,
   );
   return record.panelVerdict;
 }

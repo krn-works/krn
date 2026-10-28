@@ -14,8 +14,15 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import {
+  currentReviewAttempts,
+  seriesRecordPaths,
+  verifyReviewBinding,
+} from '../src/flow/series.ts';
+import {
   deterministicCauses,
   newReviewRecordSchema,
+  pullRequestSchema,
+  seriesIdentitySchema,
 } from '../src/flow/types.ts';
 import { isTaskId, parseTaskDocument } from '../src/task/record.ts';
 
@@ -43,10 +50,8 @@ const argsSchema = z
     pr: z.string().regex(/^[1-9]\d*$/u),
   })
   .strict();
-const pullSchema = z.object({
+const pullSchema = pullRequestSchema.extend({
   title: z.string().min(1),
-  base: z.object({ sha }),
-  head: z.object({ sha }),
 });
 const statusesSchema = z.array(
   z.object({
@@ -242,9 +247,14 @@ function hasZeroIsolationSkips(description) {
 
 // Mirror record.ts's realpath/regular-file boundary, with bounded reads.
 // JSON.parse rejects BOM; CRLF is valid JSON. Hash the original bytes in both cases.
-function readReviewBytes(root, head) {
+function readReviewBytes(root, head, recordPath) {
   let directory = root;
-  for (const part of ['.krn', 'runs', 'review', head]) {
+  const parts = recordPath ? [] : ['.krn', 'runs', 'review', head];
+  if (recordPath) {
+    // Common series paths are derived and checked by their owner above.
+    directory = resolve(recordPath, '..');
+  }
+  for (const part of parts) {
     directory = join(directory, part);
     let stat;
     try {
@@ -258,7 +268,7 @@ function readReviewBytes(root, head) {
         'review record directory is unsafe (symlink or non-directory)',
       );
   }
-  const path = join(directory, 'record.json');
+  const path = recordPath ?? join(directory, 'record.json');
   let descriptor;
   try {
     const stat = lstatSync(path);
@@ -299,7 +309,7 @@ function readReviewBytes(root, head) {
   }
 }
 
-function reviewEvidence(repo, input, reasons) {
+function reviewEvidence(repo, input, reasons, identity) {
   const worktrees = readGit(
     repo,
     ['worktree', 'list', '--porcelain', '-z'],
@@ -313,18 +323,35 @@ function reviewEvidence(repo, input, reasons) {
       roots.add(field.slice('worktree '.length));
   }
   const records = [];
-  for (const root of roots) {
-    const path = join(
+  const paths = new Map(
+    [...roots].map((root) => [
+      join(root, '.krn', 'runs', 'review', input.head, 'record.json'),
       root,
-      '.krn',
-      'runs',
-      'review',
-      input.head,
-      'record.json',
-    );
+    ]),
+  );
+  let expected = [];
+  if (identity) {
+    try {
+      expected = currentReviewAttempts(repo, identity, input.head);
+      for (const path of seriesRecordPaths(repo, identity, input.head))
+        paths.set(path, undefined);
+    } catch (error) {
+      reasons.add(
+        `review series state unavailable or invalid: ${error.message}`,
+      );
+    }
+  }
+  const observed = new Set();
+  const latest = expected.at(-1);
+  const hashes = new Set();
+  for (const [path, root] of paths) {
     let found;
     try {
-      found = readReviewBytes(root, input.head);
+      found = readReviewBytes(
+        root ?? repo,
+        input.head,
+        root === undefined ? path : undefined,
+      );
     } catch {
       found = err('review record directory could not be read safely');
     }
@@ -338,6 +365,8 @@ function reviewEvidence(repo, input, reasons) {
       path,
       sha256: createHash('sha256').update(bytes).digest('hex'),
     };
+    if (hashes.has(evidence.sha256)) continue;
+    hashes.add(evidence.sha256);
     records.push(evidence);
     let source;
     try {
@@ -356,12 +385,61 @@ function reviewEvidence(repo, input, reasons) {
       reasons.add(`review record is not valid JSON: ${path}`);
       continue;
     }
+    const boundary = z
+      .object({ headSha: sha, base: z.string() })
+      .safeParse(json);
+    if (boundary.success) {
+      if (boundary.data.headSha.toLowerCase() !== input.head)
+        reasons.add(
+          `review record head does not match the exact head: ${path}`,
+        );
+      if (!sha.safeParse(boundary.data.base).success) {
+        reasons.add(`review base must be a full commit ID: ${path}`);
+      } else {
+        for (const [name, commit] of [
+          ['base', input.base],
+          ['head', input.head],
+        ]) {
+          if (
+            !git(repo, [
+              'merge-base',
+              '--is-ancestor',
+              boundary.data.base,
+              commit,
+            ]).ok
+          )
+            reasons.add(
+              `review base must be an ancestor of --${name}: ${path}`,
+            );
+        }
+      }
+    }
     const parsed = newReviewRecordSchema.safeParse(json);
     if (!parsed.success) {
       reasons.add(`review record does not satisfy the strict schema: ${path}`);
       continue;
     }
     const record = parsed.data;
+    try {
+      if (!identity) throw new Error('authoritative PR identity unavailable');
+      verifyReviewBinding(repo, record, identity);
+      observed.add(record.attempt.ordinal);
+    } catch (error) {
+      reasons.add(
+        `review PR/reservation binding refused: ${error.message}: ${path}`,
+      );
+    }
+    if (
+      record.attempt &&
+      latest &&
+      record.attempt.ordinal < latest.ordinal &&
+      record.panelVerdict === 'INCOMPLETE'
+    ) {
+      // Consumption stays visible in the series. Only the later attempt must
+      // complete, including when a crashed/incomplete attempt used this head.
+      records.pop();
+      continue;
+    }
     for (const check of deterministicCauses(
       record.redFirst,
       record.contracts ?? [],
@@ -386,23 +464,17 @@ function reviewEvidence(repo, input, reasons) {
       redFirstCount: record.redFirst.length,
       ...(record.override ? { override: record.override } : {}),
     });
-    if (record.headSha.toLowerCase() !== input.head)
-      reasons.add(`review record head does not match the exact head: ${path}`);
-    if (!sha.safeParse(record.base).success) {
-      reasons.add(`review base must be a full commit ID: ${path}`);
-    } else {
-      for (const [name, commit] of [
-        ['base', input.base],
-        ['head', input.head],
-      ]) {
-        if (!git(repo, ['merge-base', '--is-ancestor', record.base, commit]).ok)
-          reasons.add(`review base must be an ancestor of --${name}: ${path}`);
-      }
-    }
     const hasFailure = record.judges.some(
       (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
     );
     if (record.override) {
+      if (
+        record.panel?.partial !== false ||
+        record.judges.some((judge) => judge.state !== 'complete')
+      )
+        reasons.add(
+          `current exact-head review is incomplete despite override: ${path}`,
+        );
       if (!hasFailure)
         reasons.add(`review override requires a complete FAIL: ${path}`);
       else evidence.verdict = 'overridden';
@@ -418,6 +490,10 @@ function reviewEvidence(repo, input, reasons) {
       );
     }
   }
+  if (latest && !observed.has(latest.ordinal))
+    reasons.add(
+      'current exact-head review attempt is incomplete (record missing or binding invalid)',
+    );
   if (records.length === 0) reasons.add('exact-head review record is missing');
   return records;
 }
@@ -524,12 +600,8 @@ export async function runPreflight(input, dependencies = {}) {
     else reasons.add(ticketTrailer.error);
   }
 
-  report.reviewRecords = reviewEvidence(
-    repo,
-    { ...input, base: canonicalBase, head: canonicalHead },
-    reasons,
-  );
-
+  report.reviewRecords = [];
+  let identity;
   if (slug) {
     const pullRead =
       dependencies.readPull ??
@@ -542,6 +614,21 @@ export async function runPreflight(input, dependencies = {}) {
       reasons,
     );
     if (pull) {
+      try {
+        if (pull.number !== input.pr || pull.head.sha !== canonicalHead)
+          throw new Error(
+            'authoritative PR number/head does not match request',
+          );
+        // Admission checks base ancestry below; the reviewed base need not equal the moved PR base.
+        identity = seriesIdentitySchema.parse({
+          schemaVersion: 1,
+          repository: pull.base.repo.full_name,
+          pr: input.pr,
+          baseRef: pull.base.ref,
+        });
+      } catch (error) {
+        reasons.add(`authoritative PR binding refused: ${error.message}`);
+      }
       Object.assign(report, {
         title: pull.title,
         prBase: pull.base.sha,
@@ -652,6 +739,12 @@ export async function runPreflight(input, dependencies = {}) {
       }
     }
   }
+  report.reviewRecords = reviewEvidence(
+    repo,
+    { ...input, base: canonicalBase, head: canonicalHead },
+    reasons,
+    identity,
+  );
   return finish();
 }
 

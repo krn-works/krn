@@ -15,13 +15,21 @@ import {
   validateSha,
 } from './repository.ts';
 import {
+  type PullReader,
+  readPullRequest,
+  reserveReviewAttempt,
+  verifyPullRequest,
+} from './series.ts';
+import {
   deterministicCauses,
   type NewReviewRecord,
   newReviewRecordSchema,
   panelRoles,
+  type ReviewInput,
   type ReviewReasoningEffort,
   type ReviewRecord,
   type ReviewRole,
+  reviewInputSchema,
   roleSchema,
   startTiming,
 } from './types.ts';
@@ -105,20 +113,16 @@ function recordedRejectedJudge(
   };
 }
 
-export async function runReview(input: {
-  readonly repo: string;
-  readonly base: string;
-  readonly head: string;
-  readonly lens: string;
-  readonly panel?: readonly ReviewRole[];
-  readonly prepassChecklist?: string;
-  readonly priorRecord?: string;
-  readonly reasoningEffort?: ReviewReasoningEffort;
-  readonly timeoutMs?: number;
-  readonly signal?: AbortSignal;
-  /** Test seam; the CLI always uses CodexHost's installed executable. */
-  readonly codexExecutable?: string;
-}): Promise<NewReviewRecord> {
+export async function runReview(
+  request: Omit<ReviewInput, 'panel'> & {
+    readonly panel?: readonly ReviewRole[] | undefined;
+    readonly signal?: AbortSignal;
+    /** Test seam; the CLI always uses CodexHost's installed executable. */
+    readonly codexExecutable?: string;
+    readonly readPull?: PullReader;
+  },
+): Promise<NewReviewRecord> {
+  const input = { ...request, ...reviewInputSchema.parse(request) };
   const finishTiming = startTiming();
   const root = repoRoot(input.repo);
   const sha = validateSha(root, input.head).toLowerCase();
@@ -131,10 +135,22 @@ export async function runReview(input: {
     throw new Error('--panel must contain unique judge roles');
   for (const role of panel) roleSchema.parse(role);
   const base = resolveCommit(root, input.base);
+  const identity =
+    input.pr === undefined
+      ? undefined
+      : verifyPullRequest(
+          await (input.readPull ?? readPullRequest)(root, input.pr),
+          input.pr,
+          base,
+          sha,
+        );
   const prior =
     input.priorRecord === undefined
       ? undefined
-      : loadPriorReview(root, sha, input.priorRecord);
+      : loadPriorReview(root, sha, input.priorRecord, {
+          panel,
+          ...(identity ? { identity } : {}),
+        });
   const panelPartial =
     panel.length !== panelRoles.length ||
     panelRoles.some((role) => !panel.includes(role));
@@ -142,6 +158,18 @@ export async function runReview(input: {
   const toolRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
   const toolSha = git(toolRoot, ['rev-parse', 'HEAD']);
   const lensSha256 = createHash('sha256').update(lens, 'utf8').digest('hex');
+  if (input.signal?.aborted) throw new ReviewAbortedError();
+  const attempt =
+    identity === undefined
+      ? undefined
+      : reserveReviewAttempt(
+          root,
+          identity,
+          base,
+          sha,
+          prior?.recordSha256,
+          input.budgetException,
+        );
   const finishRedTiming = startTiming();
   const red = await redFirst(root, base, sha, input.signal);
   const redFirstTiming = finishRedTiming();
@@ -168,6 +196,7 @@ export async function runReview(input: {
       if (input.signal?.aborted) throw new ReviewAbortedError();
       const record = newReviewRecordSchema.parse({
         schemaVersion: 2,
+        ...(attempt === undefined ? {} : { attempt }),
         round: prior === undefined ? 1 : 2,
         timing: finishTiming(),
         redFirstTiming,
@@ -215,6 +244,7 @@ export async function runReview(input: {
   if (input.signal?.aborted) throw new ReviewAbortedError();
   const record = newReviewRecordSchema.parse({
     schemaVersion: 2,
+    ...(attempt === undefined ? {} : { attempt }),
     round: prior === undefined ? 1 : 2,
     timing: finishTiming(),
     redFirstTiming,

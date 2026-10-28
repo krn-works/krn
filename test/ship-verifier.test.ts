@@ -126,8 +126,9 @@ async function fixture(t: test.TestContext) {
   const head = git(['rev-parse', 'HEAD']);
   const input = { repo, base, head, pr: 27 };
   const pull = {
+    number: 27,
     title: 'feat(ship): verify fixture (LON-230)',
-    base: { sha: base },
+    base: { sha: base, ref: 'main', repo: { full_name: 'krn-works/krn' } },
     head: { sha: head },
   };
   const statuses = [
@@ -375,7 +376,9 @@ test('review is discovered in a registered worktree when invoked from another wo
   const value = await fixture(t);
   const worktree = join(value.directory, 'registered worktree');
   value.git(['worktree', 'add', '--quiet', '--detach', worktree, value.head]);
-  const path = await writeReviewEvidence(worktree, value.base, value.head);
+  const path = await writeReviewEvidence(worktree, value.base, value.head, {
+    ...value.record,
+  });
   await rm(value.recordPath);
   const report = await value.verify();
   assert.equal(report.verdict, 'pass', JSON.stringify(report.reasons));

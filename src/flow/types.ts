@@ -13,6 +13,125 @@ export const reasoningEffortSchema = z.enum([
 ]);
 export type ReviewReasoningEffort = z.infer<typeof reasoningEffortSchema>;
 
+const exactShaSchema = z
+  .string()
+  .regex(/^(?:[a-f\d]{40}|[a-f\d]{64})$/iu)
+  .transform((value) => value.toLowerCase());
+export const repositoryNameSchema = z
+  .string()
+  .regex(/^[\w.-]+\/[\w.-]+$/u)
+  .transform((value) => value.toLowerCase());
+const baseRefSchema = z
+  .string()
+  .min(1)
+  .max(1024)
+  .refine(
+    (value) =>
+      !/[\s~^:?*[\\]/u.test(value) &&
+      [...value].every(
+        (character) =>
+          character.charCodeAt(0) > 32 && character.charCodeAt(0) !== 127,
+      ) &&
+      !value.includes('..') &&
+      !value.includes('@{') &&
+      !value.startsWith('-') &&
+      !value.startsWith('/') &&
+      !value.endsWith('/') &&
+      !value.endsWith('.') &&
+      !value.endsWith('.lock') &&
+      !value.includes('//'),
+    'invalid target base ref',
+  );
+export const reviewInputSchema = z
+  .object({
+    repo: z.string().min(1),
+    base: z.string().min(1),
+    head: exactShaSchema,
+    lens: z.string().min(1),
+    panel: z
+      .array(roleSchema)
+      .min(1)
+      .refine((roles) => new Set(roles).size === roles.length)
+      .optional(),
+    prepassChecklist: z
+      .string()
+      .trim()
+      .min(1)
+      .max(32768)
+      .refine((value) => Buffer.byteLength(value) <= 32 * 1024)
+      .refine((value) => !value.includes('\0'))
+      .optional(),
+    priorRecord: z.string().min(1).optional(),
+    reasoningEffort: reasoningEffortSchema.optional(),
+    timeoutMs: z.number().int().positive().optional(),
+    pr: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(),
+    budgetException: z.string().min(1).optional(),
+  })
+  .refine(
+    (value) => value.budgetException === undefined || value.pr !== undefined,
+    'budget exception requires --pr',
+  );
+export type ReviewInput = z.infer<typeof reviewInputSchema>;
+// Both the CLI and direct API validate authoritative GitHub JSON here.
+export const pullRequestSchema = z.object({
+  number: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+  base: z.object({
+    ref: baseRefSchema,
+    sha: exactShaSchema,
+    repo: z.object({ full_name: repositoryNameSchema }),
+  }),
+  head: z.object({ sha: exactShaSchema }),
+});
+export const seriesIdentitySchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    repository: repositoryNameSchema,
+    pr: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+    baseRef: baseRefSchema,
+  })
+  .strict();
+export type SeriesIdentity = z.infer<typeof seriesIdentitySchema>;
+export const budgetExceptionSchema = seriesIdentitySchema
+  .extend({
+    ordinal: z.number().int().min(3).max(Number.MAX_SAFE_INTEGER),
+    headSha: exactShaSchema,
+    authority: z.string().trim().min(1).max(2000),
+    evidence: z.string().trim().min(1).max(4000),
+  })
+  .strict();
+export const reviewAttemptSchema = seriesIdentitySchema
+  .extend({
+    id: z.string().uuid(),
+    ordinal: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+    baseSha: exactShaSchema,
+    headSha: exactShaSchema,
+    reservedAt: z.string().datetime(),
+    priorRecordSha256: z
+      .string()
+      .regex(/^[a-f\d]{64}$/u)
+      .optional(),
+    exception: budgetExceptionSchema.optional(),
+  })
+  .strict()
+  .superRefine((attempt, context) => {
+    const exception = attempt.exception;
+    if (
+      attempt.ordinal > 2 !== (exception !== undefined) ||
+      (exception &&
+        (exception.repository !== attempt.repository ||
+          exception.pr !== attempt.pr ||
+          exception.baseRef !== attempt.baseRef ||
+          exception.ordinal !== attempt.ordinal ||
+          exception.headSha !== attempt.headSha))
+    )
+      context.addIssue({
+        code: 'custom',
+        message:
+          'each extra review attempt requires its exact operator budget exception',
+      });
+  });
+export type ReviewAttempt = z.infer<typeof reviewAttemptSchema>;
+
 const redFirstBaseSchema = z.object({
   path: z.string().min(1),
   side: z.enum(['base', 'head']),
@@ -391,6 +510,7 @@ const panelCompositionSchema = z.object({
 });
 const reviewRecordBaseSchema = z.object({
   schemaVersion: z.union([z.literal(1), z.literal(2)]),
+  attempt: reviewAttemptSchema.optional(),
   round: z.union([z.literal(1), z.literal(2)]).optional(),
   timing: timingSchema.optional(),
   redFirstTiming: timingSchema.optional(),
@@ -418,7 +538,17 @@ function reviewRecordInvariants(
     usage.missingRequiredTurns !== undefined &&
     (!usage.complete || usage.missingRequiredTurns === 0);
 
-  if (record.schemaVersion === 2) {
+  if (
+    record.attempt &&
+    (record.attempt.headSha !== record.headSha ||
+      record.attempt.baseSha !== record.base ||
+      record.attempt.priorRecordSha256 !== record.prior?.recordSha256)
+  )
+    context.addIssue({
+      code: 'custom',
+      message: 'PR-bound record requires matching attempt provenance',
+    });
+  if (record.schemaVersion >= 2) {
     if (
       record.round !== (record.prior ? 2 : 1) ||
       !record.timing ||
@@ -621,6 +751,7 @@ const reviewRecordMetadataShape = {
 };
 export const reviewRecordSchema = reviewRecordBaseSchema
   .extend(reviewRecordMetadataShape)
+  .strict()
   .superRefine(reviewRecordInvariants);
 export const newReviewRecordSchema = reviewRecordSchema
   .safeExtend({
