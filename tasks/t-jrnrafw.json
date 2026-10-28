@@ -1,7 +1,11 @@
 {
   "id": "t-jrnrafw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Diagnosed: the producer is the project-owned Beads SessionStart hook `bd prime` (sawaryn-i-partnerzy, krn-elektroinstal-ogar); its banner starts with `[`, so Codex 0.165 classifies the stdout as invalid JSON and drops it. No KRN producer is involved. Operator 2026-10-28: KRN uses krn task, Beads stays project-wise, KRN does not repair Beads hooks. Evidence: .krn/runs/claude/session-start-hook/diagnosis.md."
+  },
   "created": "2026-10-28",
   "priority": 1,
   "title": "Diagnose invalid SessionStart hook output",
