@@ -1,0 +1,12 @@
+{
+  "id": "t-s0fmfsm",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-29",
+  "priority": 2,
+  "title": "Evaluate the Ponytail minimal-code ladder in one adopter",
+  "after": [],
+  "body": [
+    "Operator 2026-10-29 approved evaluating the Ponytail coding-minimalism ladder (github.com/DietrichGebert/ponytail, MIT) as part of the D23 market review. Its published benchmarks are vendor-run; treat them as a hypothesis. Do not install it globally and add no hook trust (D7/D28 keep KRN-adjacent policy repository-local).\nAcceptance: in one adopting repository, add the seven-line decision ladder to the worker brief quality bar for a fixed set of comparable tasks and compare against the current briefs on lines changed, review rounds, BLOCKING findings, escaped defects, tokens and cost per merged PR; record the result and a keep or drop decision. No plugin install, global instructions or new tracker features."
+  ]
+}
