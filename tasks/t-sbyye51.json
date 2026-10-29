@@ -1,7 +1,11 @@
 {
   "id": "t-sbyye51",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Delivered by the PR that adds krn-lead, krn-retro and krn-handoff as project skills."
+  },
   "created": "2026-10-29",
   "priority": 1,
   "title": "Encode the KRN lead loop as project skills",
