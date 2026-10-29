@@ -1,0 +1,12 @@
+{
+  "id": "t-m76fby2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-29",
+  "priority": 2,
+  "title": "Refuse PR admission when the canonical series record is missing",
+  "after": [],
+  "body": [
+    "Advisory from the PR #135 review panels (standards round 2, spec third panel): scripts/pr-preflight.mjs:425 binds a discovered exact-head record to its reservation but not to its canonical series path, so a byte-identical copy at the legacy .krn/runs/review/<head>/record.json can stand in when the canonical records/<ordinal>.json was deleted.\nAcceptance: PR admission refuses when the reserved ordinal's canonical record is missing, even if an identical copy exists elsewhere; a frozen observer fails on the base by assertion and passes on the head. Keep the public report shape for the GLOBAL receiver."
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "t-rq6sw2v",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-29",
+  "priority": 1,
+  "title": "Make verdict scope-entry readiness deterministic under host load",
+  "after": [],
+  "body": [
+    "On Product #135 head 0b2c2d169a870420fdd7603d4ae715a3db15cbb6 the local gate failed 1/993 in untouched test/ship/delivery-isolation.test.ts, case \"live SIGTERM during a real verdict waits for scope teardown before exit\": \"sleeping check never entered its systemd scope (owned unit=<missing>)\" after about 1950 ms, while the host also ran a review panel and self-hosted CI. The identical tree passed 993/993 earlier. Evidence: .krn/runs/claude/review-attempt-budget/lead/gate-local-0b2c2d1-fail.log and d12-retry.json.\nAcceptance: replace the time-bounded scope-entry wait with a positive readiness condition and a bounded diagnostic deadline that survives competing host work; prove a frozen observer RED on base and GREEN on HEAD on the host with an actual systemd user scope. Keep SIGTERM teardown verification; no blanket retries, skips or weakened isolation acceptance. Related: t-xevd1d8, t-ymbw0jb.",
+    "The single D12 retry on the same head then failed in test/gate-summary.test.ts \"clean structured-evidence control publishes exactly once\": spawnSync of scripts/gate-local.mjs hit its 30 s timeout (ETIMEDOUT) under host load (gate-local-retry.log). Include that fixture: replace the fixed subprocess limit with the shared spawned-process wait and prove it under contention."
+  ]
+}

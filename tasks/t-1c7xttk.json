@@ -1,0 +1,12 @@
+{
+  "id": "t-1c7xttk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-29",
+  "priority": 1,
+  "title": "Check the head commit trailer block in cheap preflight",
+  "after": [],
+  "body": [
+    "Lesson from PR #135: a lead commit message separated Ticket from Co-Authored-By with a blank line, so git interpret-trailers saw no Ticket trailer; only krn ship's verifier caught it after review, which forced a third review panel under an operator D10 exception.\nAcceptance: npm run preflight fails when the head commit's final trailer block does not parse exactly one Ticket trailer (and every Change-contract trailer sits in that block), with a frozen observer RED on base and GREEN on head. No new preflight framework."
+  ]
+}

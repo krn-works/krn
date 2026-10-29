@@ -1,0 +1,12 @@
+{
+  "id": "t-bk2h4b5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-29",
+  "priority": 1,
+  "title": "Reconcile add-only CI egress drift automatically",
+  "after": [],
+  "body": [
+    "Operator 2026-10-29 granted: the self-hosted CI fleet automatically and atomically reconciles egress chain drift only when the drift adds DROP rules for a new host interface prefix (for example ham0 25/8), with a journal entry; loosening or foreign rules keep the current refusal. Stops on 2026-10-27 (about 2 h) and 2026-10-28 (3 h 41 min) came from configure-network.mjs refusing add-only drift.\nAcceptance: configure-network --apply reconciles add-only DROP drift and still refuses any other drift; live-boundary checks run after reconciliation; tests prove both paths; delivered by a GLOBAL PR and deployed by the final native install, with no manual firewall change."
+  ]
+}
