@@ -19,6 +19,7 @@ const cliEntries = [
 ];
 const hook = fileURLToPath(new URL('./module-load-hook.mjs', import.meta.url));
 const allCommandDirectories = [
+  'deliver',
   'evals',
   'flow',
   'foreman',
@@ -58,6 +59,11 @@ test('CLI commands load only their command modules', async (t) => {
         args: ['legacy-module-probe'],
         forbidden: allCommandDirectories,
         env: { KRN_LEGACY_ENTRY: legacy, KRN_FORWARDED: '' },
+      },
+      {
+        name: 'deliver help',
+        args: ['deliver', '--help'],
+        forbidden: allCommandDirectories.filter((name) => name !== 'deliver'),
       },
       {
         name: 'task list',

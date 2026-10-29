@@ -17,7 +17,7 @@ test('cheap preflight reuses local observers and documents manual impact and PR 
   );
   assert.equal(
     scripts.preflight,
-    'npm run check && npm run lint && npm run rules && node src/cli/main.ts task check && npm test -- test/workflow.test.ts test/import-boundary.test.ts',
+    'npm run check && npm run lint && npm run rules && node scripts/head-trailers.mjs && node src/cli/main.ts task check && npm test -- test/workflow.test.ts test/import-boundary.test.ts test/rules/*.test.ts',
   );
   for (const path of [
     'README.md',

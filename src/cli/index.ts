@@ -95,6 +95,9 @@ export async function dispatch(
   } else if (command === 'review') {
     const { reviewCommand } = await import('../flow/cli.ts');
     await reviewCommand(options);
+  } else if (command === 'deliver') {
+    const { deliverCommand } = await import('../deliver/cli.ts');
+    await deliverCommand(options);
   } else if (command === 'delegate') {
     const { delegateCommand } = await import('./delegate.ts');
     await delegateCommand(options, {

@@ -1,0 +1,12 @@
+{
+  "id": "t-q4dckkf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-29",
+  "priority": 2,
+  "title": "Triage a red CI, gate or review run into a worker brief",
+  "after": [],
+  "body": [
+    "Add `krn triage`: when CI, gate:local or review red-first fails, one command collects the failing run log, exact head and base, tool versions and failing test names into a run-folder brief, and prints a one-line verdict plus the brief path for a fresh worker to diagnose. Requested by the previous lead session c00b8515 as an operator-approved scope addition (relayed, not verified by this lead). Cases it must handle: real npm missing in the review sandbox, a test/rules hit such as no-paperclip, wall-clock timeouts under host load, a CI runner lost to CPU starvation. Acceptance: verbatim captures of each case produce a brief and verdict; builds on `krn deliver` (t-pst5y0h) stage failures."
+  ]
+}
