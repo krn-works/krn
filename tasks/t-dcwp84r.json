@@ -1,0 +1,12 @@
+{
+  "id": "t-dcwp84r",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-29",
+  "priority": 1,
+  "title": "Resolve contract ranges from the merge base in CI and ship",
+  "after": [],
+  "body": [
+    "GLOBAL npm run changes:check resolves its range from git merge-base, while the CI step passes the raw pull_request.base.sha (.github/workflows/validate.yml) and krn ship checks the merge commit. On #474 the local check passed and CI failed with unreadable-range because main had moved past the branch base; it cost a merge commit and a third panel.\nAcceptance: changes:check, the CI change-contract step and krn ship use one range resolver based on the merge base of the PR base and head; a branch whose base is an ancestor of main but not equal to it passes when its contracts hold; the CI workflow observer pins the new behavior RED on base and GREEN on head."
+  ]
+}
