@@ -38,10 +38,26 @@ export const exitCodes = {
 export class CommandFailure extends Error {
   readonly result: CommandResult;
   readonly commandExitCode: number;
+  readonly stdoutTail?: string;
+  readonly firstFailingTest?: string;
   constructor(result: CommandResult) {
-    super(result.stderr || `command exited ${result.code}`);
+    const stdoutLines = result.stdout.split(/\r?\n/u).slice(-40).join('\n');
+    const stdoutTail = Buffer.from(stdoutLines)
+      .subarray(-8192)
+      .toString('utf8');
+    const failureText = `${result.stdout}\n${result.stderr}`;
+    const first = failureText.match(/(?:not ok \d+ - |✖\s+)([^\r\n]+)/u)?.[1];
+    let message = result.stderr || `command exited ${result.code}`;
+    try {
+      const refusal = JSON.parse(result.stdout);
+      if (refusal?.ok === false && typeof refusal.reason === 'string')
+        message = refusal.reason;
+    } catch {}
+    super(message);
     this.commandExitCode = result.code;
     this.result = result;
+    if (stdoutTail) this.stdoutTail = stdoutTail;
+    if (first) this.firstFailingTest = first;
   }
 }
 export const sleep = (ms: number) =>

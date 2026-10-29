@@ -1,0 +1,46 @@
+Isolation capability probe: bwrap=available; systemd user scope=unavailable (systemd user manager probe: Failed to connect to user scope bus via local transport: No data available; systemd transient user scope probe: Failed to connect to user scope bus via local transport: No data available)
+Test shard plan: K=4; parallel groups=1; final serial files=0
+TAP version 13
+# Subtest: receiver fixture identifies the first failing test
+not ok 1 - receiver fixture identifies the first failing test
+  ---
+  duration_ms: 4.85767
+  type: 'test'
+  location: '<REPO>/scripts/isolation-gate.mjs:292:22'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+
+    1 !== 2
+
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 2
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    TestContext.<anonymous> (file://<RUN>/failing-test.mjs:3:73)
+    file://<REPO>/scripts/isolation-gate.mjs:338:52
+    AsyncLocalStorage.run (node:internal/async_local_storage/async_context_frame:65:14)
+    TestContext.<anonymous> (file://<REPO>/scripts/isolation-gate.mjs:338:27)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.start (node:internal/test_runner/test:1262:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 139.469295
+# tests 1
+## Slowest tests (top-level)
+
+| Test | File | Seconds |
+| --- | --- | ---: |
+| receiver fixture identifies the first failing test | ../../runs/claude/deliver-hardening/worker/failing-test.mjs | 0.005 |
+Isolation-dependent tests skipped: 0

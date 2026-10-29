@@ -2,12 +2,14 @@ import { createHash } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readdirSync,
   readFileSync,
   renameSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
-import { loadavg } from 'node:os';
+import { loadavg, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
@@ -19,6 +21,7 @@ import {
 import { deterministicCauses, newReviewRecordSchema } from '../flow/types.ts';
 import { checkMergeContracts, mergeMessage } from './message.ts';
 import {
+  CommandFailure,
   checked,
   exitCodes,
   github,
@@ -211,6 +214,18 @@ export async function deliver(
         throw new Error('local HEAD differs from PR head');
       if (worktree === main)
         throw new Error('delivery requires a separate worktree');
+      const nodePinPath = join(worktree, '.node-version');
+      if (!existsSync(nodePinPath))
+        throw new Error('delivery requires a .node-version pin');
+      const found = checked(runner('node', ['--version'], worktree)).replace(
+        /^v/u,
+        '',
+      );
+      const pin = readFileSync(nodePinPath, 'utf8').trim().replace(/^v/u, '');
+      if (found !== pin)
+        throw new Error(
+          `Node ${found} on PATH differs from .node-version ${pin}`,
+        );
       verifyReviewBinding(main, record, {
         schemaVersion: 1,
         repository: options.repo,
@@ -247,18 +262,18 @@ export async function deliver(
       );
       const body = git(worktree, ['show', '-s', '--format=%B', pull.head.sha]);
       const parsed = git(worktree, ['interpret-trailers', '--parse'], body);
-      let message = mergeMessage(pull.title, parsed, options.task);
+      let message = mergeMessage(pull.title, parsed, options.pr, options.task);
       if (options.messageFile) {
         const supplied = readFileSync(options.messageFile, 'utf8');
         const paragraphs = supplied.trimEnd().split(/\r?\n\s*\r?\n/u);
         if (
           paragraphs.length < 3 ||
-          paragraphs[0] !== pull.title ||
+          paragraphs[0] !== message.split('\n')[0] ||
           paragraphs.at(-1) !== message.trimEnd().split('\n\n').at(-1) ||
           git(worktree, ['interpret-trailers', '--parse'], supplied) !== parsed
         )
           throw new Error(
-            '--message-file must preserve PR subject and the head final trailers',
+            '--message-file must preserve generated subject and the head final trailers',
           );
         message = supplied;
       }
@@ -287,13 +302,64 @@ export async function deliver(
         message,
         runner,
       );
-      if (options.dryRun)
-        return {
-          status: 'dry-run',
-          head: pull.head.sha,
-          message,
-          stages: Object.keys(exitCodes),
-        };
+      if (options.dryRun) {
+        // Private temp space keeps dry-run free of repository state.
+        const tempDir = mkdtempSync(join(tmpdir(), 'krn-deliver-'));
+        const messageFile = join(tempDir, 'merge-message.txt');
+        try {
+          writeFileSync(messageFile, message);
+          const result = runner(
+            'krn',
+            [
+              'ship',
+              '--repo',
+              options.repo,
+              '--pr',
+              String(options.pr),
+              '--message-file',
+              messageFile,
+              '--dry-run',
+              '--json',
+            ],
+            main,
+          );
+          if (result.code === 0)
+            return {
+              status: 'dry-run',
+              head: pull.head.sha,
+              message,
+              ship: 'ready',
+            };
+          const refusal = (() => {
+            try {
+              return JSON.parse(result.stdout);
+            } catch {
+              return undefined;
+            }
+          })();
+          const reason = refusal?.reason;
+          if (
+            refusal?.ok === false &&
+            typeof reason === 'string' &&
+            // Only evidence that later stages produce is pending; failures are not.
+            (/^required judge krn\/judge-(?:standards|spec) is (?:missing|pending)$/u.test(
+              reason,
+            ) ||
+              /^no check runs on the exact head$|^check runs: \d+; failing run index \d+ is not completed successfully \(status (?!completed\b)/u.test(
+                reason,
+              ))
+          )
+            return {
+              status: 'dry-run',
+              head: pull.head.sha,
+              message,
+              ship: `pending: ${reason}`,
+            };
+          throw new CommandFailure(result);
+        } finally {
+          rmSync(tempDir, { recursive: true, force: true });
+        }
+      }
       mkdirSync(directory, { recursive: true });
       writeFileSync(join(directory, 'review.json'), recordBytes);
     } else if (!state)
@@ -390,6 +456,7 @@ export async function deliver(
           'success'
         )
           continue;
+        await assertBound();
         await gh(
           [
             'api',
@@ -527,6 +594,7 @@ export async function deliver(
         throw new Error('refuse to retire a changed branch');
       git(main, ['branch', '-d', '--', state.branch]);
     } else if (branch.code !== 1) checked(branch);
+    rmSync(directory, { recursive: true, force: true });
     return {
       status: 'delivered',
       head: state.head,

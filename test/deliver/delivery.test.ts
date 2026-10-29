@@ -9,7 +9,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { reserveReviewAttempt } from '../../src/flow/series.ts';
@@ -18,6 +18,9 @@ const api = await import('../../src/deliver/delivery.ts').catch(
   () => undefined,
 );
 const transport = await import('../../src/deliver/transport.ts').catch(
+  () => undefined,
+);
+const messageApi = await import('../../src/deliver/message.ts').catch(
   () => undefined,
 );
 const source = fileURLToPath(new URL('../..', import.meta.url));
@@ -62,6 +65,7 @@ if (role === 'gh') {
    if (config.gateFailure) {process.stderr.write('local gate failed\\n'); process.exit(19);}
  } else if (args[0] === 'ship') {
    if (process.cwd() !== config.main) { process.stderr.write('deleted cwd hazard\\n'); process.exit(64); }
+   if (args.includes('--dry-run') && config.dryRefusal) { process.stdout.write(raw(config.dryRefusal)); process.exit(1); }
    if (config.shipFailure) {process.stderr.write('ship refused\\n'); process.exit(29);}
    if (args.includes('--dry-run')) process.stdout.write(raw('ship-dry-run'));
    else {
@@ -107,7 +111,10 @@ function fixture(t: { after(fn: () => void): void }) {
   git(main, ['config', 'user.name', 'Fixture']);
   git(main, ['config', 'user.email', 'fixture@example.com']);
   writeFileSync(join(main, '.gitignore'), '.krn/\n');
-  git(main, ['add', '.gitignore']);
+  // Pin the Node that delivery will find on PATH, as a real repository does.
+  const pathNode = spawnSync('node', ['--version'], { encoding: 'utf8' });
+  writeFileSync(join(main, '.node-version'), pathNode.stdout);
+  git(main, ['add', '.gitignore', '.node-version']);
   git(main, ['commit', '--quiet', '-m', 'chore: fixture base']);
   const base = git(main, ['rev-parse', 'HEAD']);
   git(main, ['checkout', '--quiet', '-b', rawPull.head.ref]);
@@ -261,6 +268,7 @@ test('delivery replays captured statuses and ship output, retires once and resum
   assert.equal(result.mainConclusion, 'success');
   assert.ok(probes >= 3);
   assert.equal(existsSync(f.worktree), false);
+  assert.equal(existsSync(join(f.main, '.krn/runs/deliver', f.key)), false);
   assert.equal(f.git(f.main, ['rev-parse', 'HEAD']), f.config.merge);
   assert.ok(existsSync(join(f.main, '.krn/archive', `review-series-${f.key}`)));
   const calls = f.calls();
@@ -274,8 +282,10 @@ test('delivery replays captured statuses and ship output, retires once and resum
   assert.equal(ships[0]?.args.includes('--dry-run'), true);
   assert.ok(ships.every((call) => call.cwd === f.main));
   f.change({ capturePull: true });
-  const resumed = await f.api.deliver(f.options, { ...f.runtime, cwd: f.main });
-  assert.equal(resumed.status, 'delivered');
+  await assert.rejects(
+    f.api.deliver(f.options, { ...f.runtime, cwd: f.main }),
+    /merged PR requires a saved delivery binding/u,
+  );
   assert.equal(f.calls().filter((call) => call.args[0] === 'ship').length, 2);
 });
 
@@ -283,8 +293,115 @@ test('dry-run validates without publishing, ready, gate, ship or persistent stat
   const f = fixture(t);
   const result = await f.api.deliver({ ...f.options, dryRun: true }, f.runtime);
   assert.equal(result.status, 'dry-run');
-  assert.equal(f.calls().length, 1);
+  assert.equal(result.ship, 'ready');
+  const ship = f.calls().find((call) => call.args[0] === 'ship');
+  assert.ok(ship);
+  const messageFile = ship.args[ship.args.indexOf('--message-file') + 1];
+  assert.ok(messageFile);
+  assert.equal(existsSync(messageFile), false);
+  assert.equal(existsSync(dirname(messageFile)), false);
+  assert.equal(existsSync(join(f.main, '.krn/tmp')), false);
   assert.equal(existsSync(join(f.main, '.krn/runs/deliver')), false);
+});
+
+test('dry-run reports pending judge refusal and cleans message file', async (t) => {
+  const f = fixture(t);
+  f.change({ dryRefusal: 'ship-pending-judges.stdout' });
+  const result = await f.api.deliver({ ...f.options, dryRun: true }, f.runtime);
+  assert.equal(
+    result.ship,
+    'pending: required judge krn/judge-standards is missing',
+  );
+  const ship = f.calls().find((call) => call.args[0] === 'ship');
+  assert.ok(ship);
+  const messageFile = ship.args[ship.args.indexOf('--message-file') + 1];
+  assert.ok(messageFile);
+  assert.equal(existsSync(messageFile), false);
+  assert.equal(existsSync(dirname(messageFile)), false);
+  assert.equal(existsSync(join(f.main, '.krn/tmp')), false);
+  assert.equal(existsSync(join(f.main, '.krn/runs/deliver')), false);
+});
+
+test('dry-run fails a ship subject refusal at message and cleans message file', async (t) => {
+  const f = fixture(t);
+  assert.ok(transport);
+  f.change({ dryRefusal: 'ship-subject-refusal.stdout' });
+  await assert.rejects(
+    f.api.deliver({ ...f.options, dryRun: true }, f.runtime),
+    (error: unknown) => {
+      assert.ok(error instanceof f.api.DeliveryFailure);
+      assert.equal(error.stage, 'message');
+      assert.match(error.message, /subject must be a Conventional Commit/u);
+      assert.ok(error.cause instanceof transport.CommandFailure);
+      assert.match(error.cause.stdoutTail ?? '', /"ok": false/u);
+      return true;
+    },
+  );
+  const ship = f.calls().find((call) => call.args[0] === 'ship');
+  assert.ok(ship);
+  const messageFile = ship.args[ship.args.indexOf('--message-file') + 1];
+  assert.ok(messageFile);
+  assert.equal(existsSync(messageFile), false);
+  assert.equal(existsSync(dirname(messageFile)), false);
+  assert.equal(existsSync(join(f.main, '.krn/tmp')), false);
+  assert.equal(existsSync(join(f.main, '.krn/runs/deliver')), false);
+});
+
+// Reason text follows the receiver's checkRunsPassed format (ship.mjs) for a finished, failed run.
+test('dry-run fails a completed failing check run instead of reporting it pending', async (t) => {
+  const f = fixture(t);
+  f.change({ dryRefusal: 'ship-failed-checks.stdout' });
+  await assert.rejects(
+    f.api.deliver({ ...f.options, dryRun: true }, f.runtime),
+    (error: unknown) => {
+      assert.ok(error instanceof f.api.DeliveryFailure);
+      assert.equal(error.stage, 'message');
+      assert.match(error.message, /conclusion failure/u);
+      return true;
+    },
+  );
+});
+
+test('message file accepts only the generated PR subject and matching trailers', async (t) => {
+  const f = fixture(t);
+  assert.equal(typeof messageApi?.mergeMessage, 'function');
+  assert.ok(messageApi);
+  const commitMessage = spawnSync(
+    'git',
+    ['show', '-s', '--format=%B', 'HEAD'],
+    {
+      cwd: f.worktree,
+      encoding: 'utf8',
+    },
+  );
+  assert.equal(commitMessage.status, 0, commitMessage.stderr);
+  const parsed = spawnSync('git', ['interpret-trailers', '--parse'], {
+    cwd: f.worktree,
+    input: commitMessage.stdout,
+    encoding: 'utf8',
+  });
+  assert.equal(parsed.status, 0, parsed.stderr);
+  const generated = messageApi.mergeMessage(
+    'feat(skills): encode the KRN lead loop as project skills (t-sbyye51)',
+    parsed.stdout,
+    138,
+    't-sbyye51',
+  );
+  const supplied = join(f.root, 'message.txt');
+  writeFileSync(supplied, generated.replace(' (#138)', ' (t-sbyye51)'));
+  await assert.rejects(
+    f.api.deliver(
+      { ...f.options, messageFile: supplied, dryRun: true },
+      f.runtime,
+    ),
+    /generated subject/u,
+  );
+  writeFileSync(supplied, generated);
+  const result = await f.api.deliver(
+    { ...f.options, messageFile: supplied, dryRun: true },
+    f.runtime,
+  );
+  assert.equal(result.ship, 'ready');
 });
 
 test('publishing honors exact status receiver fields and preserves permanent receiver failure', async (t) => {
@@ -312,6 +429,30 @@ test('publishing honors exact status receiver fields and preserves permanent rec
   assert.equal(
     f.calls().filter((call) => call.args.includes('POST')).length,
     3,
+  );
+});
+
+test('command failures retain receiver stdout reason and the first gate failure', () => {
+  assert.equal(typeof transport?.CommandFailure, 'function');
+  assert.ok(transport);
+  const refusal = new transport.CommandFailure({
+    code: 1,
+    stdout: readFileSync(
+      join(fixtures, 'ship-subject-refusal.stdout.fixture'),
+      'utf8',
+    ),
+    stderr: '',
+  });
+  assert.match(refusal.message, /subject must be a Conventional Commit/u);
+  assert.match(refusal.stdoutTail ?? '', /"ok": false/u);
+  const gate = new transport.CommandFailure({
+    code: 1,
+    stdout: readFileSync(join(fixtures, 'gate-failure.fixture'), 'utf8'),
+    stderr: '',
+  });
+  assert.equal(
+    gate.firstFailingTest,
+    'receiver fixture identifies the first failing test',
   );
 });
 
@@ -401,6 +542,44 @@ test('delivery publishes no status when the PR head moves after the first read',
     (error: unknown) => {
       assert.ok(error instanceof f.api.DeliveryFailure);
       assert.equal(error.stage, 'bind');
+      return true;
+    },
+  );
+  assert.equal(
+    f.calls().filter((call) => call.args.includes('POST')).length,
+    0,
+  );
+});
+
+test('delivery rebinds immediately before each status POST', async (t) => {
+  const f = fixture(t);
+  f.change({ publish: true, moveAfter: 3 });
+  await assert.rejects(
+    f.api.deliver(f.options, f.runtime),
+    (error: unknown) => {
+      assert.ok(error instanceof f.api.DeliveryFailure);
+      assert.equal(error.stage, 'statuses');
+      return true;
+    },
+  );
+  assert.equal(
+    f.calls().filter((call) => call.args.includes('POST')).length,
+    1,
+  );
+});
+
+test('Node pin mismatch fails binding before status publication', async (t) => {
+  const f = fixture(t);
+  writeFileSync(join(f.worktree, '.node-version'), '0.0.0\n');
+  await assert.rejects(
+    f.api.deliver(f.options, f.runtime),
+    (error: unknown) => {
+      assert.ok(error instanceof f.api.DeliveryFailure);
+      assert.equal(error.stage, 'bind');
+      assert.match(
+        error.message,
+        /Node .* on PATH differs from \.node-version 0\.0\.0/u,
+      );
       return true;
     },
   );

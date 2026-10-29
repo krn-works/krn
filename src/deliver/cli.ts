@@ -6,12 +6,13 @@ export const help = `krn deliver --repo OWNER/REPO --pr N --record PATH (--messa
   --load-threshold N  Maximum 1-minute load (default 6)
   --timeout-seconds N Bounded wait per stage (default 1800)
   --poll-ms N         Poll interval (default 10000)
-Dry-run validates binding and merge contracts without publishing or merging.
+Subject is the PR title (minus a trailing task suffix) followed by (#PR); .node-version must match Node on PATH.
+Dry-run validates binding and merge contracts, then consults ship --dry-run without publishing or merging.
 Resume from the main checkout with the same arguments after worktree retirement.
 Exit codes: 0 delivered; 64 usage; 70 internal; ${Object.entries(exitCodes)
   .map(([name, code]) => `${code} ${name}`)
   .join('; ')}.
-Stage failures preserve receiver stderr and expose its original exit code in JSON.
+Stage failures preserve receiver stderr, stdoutTail and firstFailingTest when available, and expose its original exit code in JSON.
 `;
 
 export async function deliverCommand(args: string[]): Promise<void> {
@@ -97,9 +98,13 @@ export async function deliverCommand(args: string[]): Promise<void> {
       error instanceof Error && 'cause' in error ? error.cause : error;
     const commandExitCode =
       cause instanceof CommandFailure ? cause.commandExitCode : undefined;
+    const stdoutTail =
+      cause instanceof CommandFailure ? cause.stdoutTail : undefined;
+    const firstFailingTest =
+      cause instanceof CommandFailure ? cause.firstFailingTest : undefined;
     if (json)
       process.stdout.write(
-        `${JSON.stringify({ status: 'failed', exitCode, commandExitCode, error: error instanceof Error ? error.message : String(error) })}\n`,
+        `${JSON.stringify({ status: 'failed', exitCode, commandExitCode, ...(stdoutTail ? { stdoutTail } : {}), ...(firstFailingTest ? { firstFailingTest } : {}), error: error instanceof Error ? error.message : String(error) })}\n`,
       );
     process.stderr.write(
       cause instanceof CommandFailure
