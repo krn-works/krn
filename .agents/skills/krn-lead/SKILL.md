@@ -19,6 +19,8 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 - Verify with commands that print a verdict (exit code, PASS/FAIL, counts). If a check needs reading, script it.
 - One slice per session. When the slice merges, run `krn-retro`, then `krn-handoff`, and stop.
 
+- **Context budget:** obey `context-gauge` advisories at 120k and 160k of 200k; use `krn-reader` for reading verdicts and paths, finish the current step at an advisory, then run `krn-handoff`.
+
 ## The slice loop
 
 1. **Resume.** `krn state resume --root .`, `krn task ready`, `git fetch --prune`, open PRs, main CI. Confirm no other writer.
