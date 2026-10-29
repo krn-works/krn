@@ -79,6 +79,25 @@ test('CI workflow has one guarded gate job on the configured isolated runner', a
   );
 });
 
+test('CI workflow enables unprivileged user namespaces only on GitHub-hosted runners before the gate', async () => {
+  const source = await readFile(workflowPath, 'utf8');
+  const step = [
+    '      - name: Allow unprivileged user namespaces on GitHub-hosted runners',
+    "        if: ${{ runner.environment == 'github-hosted' }}",
+    '        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0',
+  ].join('\n');
+  const stepIndex = source.indexOf(step);
+  assert.notEqual(
+    stepIndex,
+    -1,
+    'workflow must define the guarded sysctl step',
+  );
+  assert.equal(source.indexOf(step, stepIndex + 1), -1);
+  assert.equal(source.match(/sysctl/gu)?.length, 1);
+  const gateIndex = source.indexOf('        run: npm run gate\n');
+  assert.ok(gateIndex > stepIndex, 'sysctl step must run before the gate');
+});
+
 test('Product uses required exact-head CI for the full gate and a host-locked local isolation supplement', async () => {
   const manifest: unknown = JSON.parse(
     await readFile(new URL('../package.json', import.meta.url), 'utf8'),
