@@ -83,7 +83,26 @@ test('CI workflow prepares any runner outside the isolated fleet for isolation t
   const source = await readFile(workflowPath, 'utf8');
   const fleet = `vars.CI_RUNNER || '["self-hosted","linux","x64","krn-ci-isolated"]'`;
   assert.ok(source.includes(`runs-on: \${{ fromJSON(${fleet}) }}`));
-  const outsideFleet = `        if: \${{ !contains(${fleet}, 'krn-ci-isolated') }}`;
+  const outsideFleet = `        if: \${{ !contains(format(',{0},', join(fromJSON(${fleet}), ',')), ',krn-ci-isolated,') }}`;
+  // GitHub expression semantics: join returns a string unchanged and joins an
+  // array; contains on strings is a case-insensitive substring test.
+  const runsOutsideFleet = (variable: string): boolean => {
+    const runner: unknown = JSON.parse(
+      variable || '["self-hosted","linux","x64","krn-ci-isolated"]',
+    );
+    const joined = Array.isArray(runner) ? runner.join(',') : String(runner);
+    return !`,${joined},`.toLowerCase().includes(',krn-ci-isolated,');
+  };
+  for (const [variable, outside] of [
+    ['', false],
+    ['["self-hosted","linux","x64","krn-ci-isolated"]', false],
+    ['"krn-ci-isolated"', false],
+    ['"ubuntu-latest"', true],
+    ['"blacksmith-4vcpu-ubuntu-2404"', true],
+    ['"blacksmith-krn-ci-isolated"', true],
+    ['["self-hosted","linux","x64","krn-ci-isolated-shadow"]', true],
+  ] as const)
+    assert.equal(runsOutsideFleet(variable), outside, variable);
   const step = [
     '      - name: Set up mise outside the isolated fleet',
     outsideFleet,
