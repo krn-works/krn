@@ -1,0 +1,12 @@
+{
+  "id": "t-vgkqhf4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-29",
+  "priority": 2,
+  "title": "Admit an overridden head after repeated FAIL attempts",
+  "after": [],
+  "body": [
+    "Review engine judge 2026-10-29 on #135 code: with two FAIL attempts on the same head, krn review --override appends only to the latest record, while PR admission also reads records/1.json and refuses with \"review panel is FAIL without override\", leaving that head unadmittable.\nAcceptance: admission evaluates the latest complete attempt on the exact head (earlier consumed attempts stay as history), or the override covers every FAIL attempt on that head; a frozen observer reproduces the dead end RED on base and GREEN on head."
+  ]
+}
