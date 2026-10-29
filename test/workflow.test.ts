@@ -79,11 +79,13 @@ test('CI workflow has one guarded gate job on the configured isolated runner', a
   );
 });
 
-test('CI workflow enables unprivileged user namespaces only on GitHub-hosted runners before the gate', async () => {
+test('CI workflow enables unprivileged user namespaces on any runner outside the isolated fleet before the gate', async () => {
   const source = await readFile(workflowPath, 'utf8');
+  const fleet = `vars.CI_RUNNER || '["self-hosted","linux","x64","krn-ci-isolated"]'`;
+  assert.ok(source.includes(`runs-on: \${{ fromJSON(${fleet}) }}`));
   const step = [
-    '      - name: Allow unprivileged user namespaces on GitHub-hosted runners',
-    "        if: ${{ runner.environment == 'github-hosted' }}",
+    '      - name: Allow unprivileged user namespaces outside the isolated fleet',
+    `        if: \${{ !contains(${fleet}, 'krn-ci-isolated') }}`,
     '        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0',
   ].join('\n');
   const stepIndex = source.indexOf(step);
