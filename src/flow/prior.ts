@@ -11,10 +11,13 @@ import {
 import { resolve } from 'node:path';
 import { TextDecoder } from 'node:util';
 import { changedPaths, validateSha } from './repository.ts';
+import { attemptRecordPath, verifyReviewBinding } from './series.ts';
 import {
   deterministicCauses,
   type PriorReview,
+  type ReviewRole,
   reviewRecordSchema,
+  type SeriesIdentity,
 } from './types.ts';
 
 const recordByteLimit = 1024 * 1024;
@@ -65,6 +68,10 @@ export function loadPriorReview(
   root: string,
   head: string,
   path: string,
+  context?: {
+    readonly panel: readonly ReviewRole[];
+    readonly identity?: SeriesIdentity;
+  },
 ): PriorReview {
   const bytes = readBoundedRecord(resolve(path));
   let text: string;
@@ -88,6 +95,28 @@ export function loadPriorReview(
       `does not match the review record schema: ${parsed.error.message}`,
     );
   const record = parsed.data;
+  if (context) {
+    const roles =
+      record.panel?.requestedRoles ?? record.judges.map((judge) => judge.role);
+    if (
+      roles.length !== context.panel.length ||
+      new Set(roles).size !== roles.length ||
+      roles.some((role) => !context.panel.includes(role))
+    )
+      throw new PriorRecordError(
+        'requires the same panel roles as the prior review',
+      );
+    if (context.identity) {
+      verifyReviewBinding(root, record, context.identity);
+      if (
+        !record.attempt ||
+        !bytes.equals(
+          readBoundedRecord(attemptRecordPath(root, record.attempt)),
+        )
+      )
+        throw new PriorRecordError('must be the exact reserved PR record');
+    }
+  }
   if (record.prior !== undefined)
     throw new PriorRecordError(
       'is already a second-round record; after two rounds the lead decides (override)',

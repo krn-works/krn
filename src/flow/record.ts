@@ -5,7 +5,6 @@ import {
   linkSync,
   lstatSync,
   mkdirSync,
-  readFileSync,
   realpathSync,
   renameSync,
   rmSync,
@@ -15,10 +14,21 @@ import {
 import { join } from 'node:path';
 import { repoRoot, validateSha } from './repository.ts';
 import {
+  attemptRecordPath,
+  readReviewJson,
+  seriesRecordPaths,
+  verifyReviewBinding,
+} from './series.ts';
+
+export { reserveReviewAttempt } from './series.ts';
+
+import {
+  deterministicCauses,
   type NewReviewRecord,
   newReviewRecordSchema,
   type ReviewRecord,
   reviewRecordSchema,
+  type SeriesIdentity,
 } from './types.ts';
 
 function recordPath(root: string, sha: string): string {
@@ -37,6 +47,10 @@ function recordPath(root: string, sha: string): string {
 
 export function writeReviewRecord(root: string, record: NewReviewRecord): void {
   const validated = newReviewRecordSchema.parse(record);
+  if (validated.attempt) {
+    writeExclusive(attemptRecordPath(root, validated.attempt), validated);
+    return;
+  }
   const reviewRoot = join(root, '.krn', 'runs', 'review');
   if (realpathSync(join(root, '.krn')) !== join(root, '.krn'))
     throw new Error('unsafe repository state directory');
@@ -50,6 +64,10 @@ export function writeReviewRecord(root: string, record: NewReviewRecord): void {
   const path = join(directory, 'record.json');
   if (existsSync(path))
     throw new Error(`review record already exists for ${validated.headSha}`);
+  writeExclusive(path, validated);
+}
+
+function writeExclusive(path: string, validated: NewReviewRecord): void {
   const temporary = `${path}.${randomUUID()}.tmp`;
   writeFileSync(temporary, `${JSON.stringify(validated, null, 2)}\n`, {
     mode: 0o600,
@@ -68,16 +86,24 @@ export function appendOverride(
   repo: string,
   shaInput: string,
   override: { readonly reason: string; readonly evidence: string },
+  identity?: SeriesIdentity,
 ): ReviewRecord {
   const root = repoRoot(repo);
   const sha = validateSha(root, shaInput);
-  const path = recordPath(root, sha);
+  const paths = identity
+    ? seriesRecordPaths(root, identity, sha)
+    : [recordPath(root, sha)];
+  const path = paths[paths.length - 1];
+  if (!path) throw new Error('review record is missing');
   const stat = lstatSync(path);
   if (stat.isSymbolicLink() || !stat.isFile())
     throw new Error('review record must be a regular file');
-  const current = reviewRecordSchema.parse(
-    JSON.parse(readFileSync(path, 'utf8')) as unknown,
-  );
+  const current = reviewRecordSchema.parse(readReviewJson(path));
+  if (identity) verifyReviewBinding(root, current, identity);
+  if (deterministicCauses(current.redFirst, current.contracts ?? []).length)
+    throw new Error(
+      'deterministic checks always block; override cannot bypass them',
+    );
   if (current.headSha !== sha)
     throw new Error('review record SHA does not match');
   if (current.override) throw new Error('review override already exists');

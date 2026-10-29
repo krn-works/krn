@@ -1,0 +1,13 @@
+{
+  "id": "t-xevd1d8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-28",
+  "priority": 1,
+  "title": "Make Codex registration cancellation deterministic under host load",
+  "after": [],
+  "body": [
+    "Observed on Product #133 HEAD 12023441285d6a3e16f07c662bbe6e1fa698bc1b: local gate retry (the sole D12 retry) failed 1/967 in untouched test/hosts/codex-registration.test.ts, case \"child exit during blocked onStarted remains cancellable and hands back the lease\", with \"Codex systemd-scope cancellation could not be verified\" under host load approximately 20-27. Evidence: .krn/runs/claude/redfirst-ascii/gate-retry.log and d12-retry.json. Do not treat a low-load pass as a repair.",
+    "Acceptance: reproduce the interleaving deterministically, replace time-based fixture ordering with positive readiness/exit/cancellation conditions and bounded diagnostic deadlines, and prove frozen observer assertion RED on base and GREEN on HEAD on the host with actual systemd user scope. Preserve prompt withholding, cancellation verification and lease handback checks; no blanket retries, skips or weakened isolation acceptance. Related readiness defect: t-ymbw0jb. If #133 low-load qualification fails again, fix the failing isolation test before #133 can merge."
+  ]
+}

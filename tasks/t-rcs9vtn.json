@@ -1,7 +1,11 @@
 {
   "id": "t-rcs9vtn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Delivered by Product PR #134, merge 9737ee18c1687084ba4559de4e114c0385baa53b; exact-head review PASS, local gate 965/0, main CI 40687549353 SUCCESS."
+  },
   "created": "2026-10-28",
   "priority": 1,
   "title": "Record the 2026-10-26/28 operator decisions and align program docs",

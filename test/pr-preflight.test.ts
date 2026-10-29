@@ -233,8 +233,9 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
   }
   const title = options.title ?? `feat(review): add preflight (${ticket})`;
   const pull = {
+    number: 27,
     title,
-    base: { sha: prBase },
+    base: { sha: prBase, ref: 'main', repo: { full_name: 'krn-works/krn' } },
     head: { sha: options.prHead ?? head },
   };
   const statuses = [
@@ -440,6 +441,45 @@ test('preflight refuses a PR base outside the requested base history', async (t)
   assert.equal(report.prBase, value.pull.base.sha);
   assert.ok(
     report.reasons.includes('PR base SHA is not in the requested base history'),
+    JSON.stringify(report.reasons),
+  );
+});
+
+test('preflight admits a reserved review when the PR base moves on the same ref', async (t) => {
+  const value = await fixture(t);
+  const movedBase = await git(value.repo, [
+    'commit-tree',
+    `${value.base}^{tree}`,
+    '-p',
+    value.base,
+    '-m',
+    'advance base',
+  ]);
+  value.requestedBase = movedBase;
+  value.pull.base.sha = movedBase;
+  const { report } = parseHarness(runHarness(value));
+  assert.equal(report.verdict, 'pass', report.reasons.join('\n'));
+  assert.equal(report.prBase, movedBase);
+  assert.equal(value.pull.base.ref, 'main');
+  assert.equal(value.pull.head.sha, value.head);
+});
+
+test('preflight refuses a reviewed base outside the requested base history', async (t) => {
+  const value = await fixture(t);
+  const unrelatedBase = await git(value.repo, [
+    'commit-tree',
+    `${value.base}^{tree}`,
+    '-m',
+    'unrelated base',
+  ]);
+  value.requestedBase = unrelatedBase;
+  value.pull.base.sha = unrelatedBase;
+  const { report } = parseHarness(runHarness(value));
+  assert.equal(report.verdict, 'fail');
+  assert.ok(
+    report.reasons.some((reason) =>
+      reason.includes('review base must be an ancestor of --base:'),
+    ),
     JSON.stringify(report.reasons),
   );
 });

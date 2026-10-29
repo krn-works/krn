@@ -1,7 +1,11 @@
 {
   "id": "t-0ve20jn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Delivered by Product PR #133, merge 6c385c5ad4c846c261a9ea1416f735a337feb72b. Review PASS record sha256 286184fd9dadd7d388ac14ba1d8ef8742d5343446bdf4439343c4fc5aca52f6d; gate:local 967/967, zero skips, exit 0; preflight and ship dry-run/ship exit 0, treeMatch true. Main CI 40691668904 observed in progress; receipt .krn/runs/ship/pr-133.json."
+  },
   "created": "2026-10-28",
   "priority": 0,
   "title": "Keep red-first helper sources ASCII",

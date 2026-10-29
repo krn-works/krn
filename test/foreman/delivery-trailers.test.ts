@@ -12,7 +12,11 @@ import * as relay from '../../src/relay/index.ts';
 import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
 import * as trace from '../../src/trace/index.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
-import { gateCheck, writeReviewEvidence } from '../helpers/ship-evidence.ts';
+import {
+  gateCheck,
+  reviewEvidence,
+  writeReviewEvidence,
+} from '../helpers/ship-evidence.ts';
 
 const gitContextKeys = [
   'GIT_DIR',
@@ -169,8 +173,9 @@ function runPreflight(input: {
       pr: 17,
     })};
     const pull = {
+      number: 17,
       title: ${JSON.stringify(input.title)},
-      base: { sha: input.base },
+      base: { sha: input.base, ref: 'main', repo: { full_name: 'krn-works/krn' } },
       head: { sha: input.head },
     };
     const statuses = [{
@@ -211,6 +216,31 @@ function parsedReport(result: ReturnType<typeof runPreflight>) {
     ticket?: string;
   };
 }
+
+test('public delivery receiver refuses an unbound review even with passing delivery metadata', async (t) => {
+  const fixture = await integrationFixture({ recordRepo: false });
+  t.after(() => rm(fixture.root, { recursive: true, force: true }));
+  const head = fixture.base;
+  const directory = join(fixture.root, '.krn/runs/review', head);
+  await mkdir(directory, { recursive: true });
+  await writeFile(
+    join(directory, 'record.json'),
+    JSON.stringify(reviewEvidence(fixture.base, head)),
+  );
+  const report = parsedReport(
+    runPreflight({
+      repo: fixture.root,
+      base: fixture.base,
+      head,
+      title: 'feat: delivery (LON-901)',
+    }),
+  );
+  assert.equal(report.verdict, 'fail');
+  assert.match(
+    report.reasons.join('\n'),
+    /unbound legacy review cannot admit a PR/u,
+  );
+});
 
 async function pathExists(path: string): Promise<boolean> {
   try {
@@ -275,7 +305,7 @@ test('runJob commits contract-derived trailers and the public preflight admits t
       'R1-task: none',
     ]);
 
-    await writeReviewEvidence(fixture.root, fixture.base, head);
+    await writeReviewEvidence(fixture.root, fixture.base, head, undefined, 17);
     const result = runPreflight({
       repo: fixture.root,
       base: fixture.base,
@@ -344,7 +374,7 @@ test('runJob and public preflight admit a contract with no R1-task declaration',
       'Ticket: LON-901',
     ]);
 
-    await writeReviewEvidence(fixture.root, fixture.base, head);
+    await writeReviewEvidence(fixture.root, fixture.base, head, undefined, 17);
     const result = runPreflight({
       repo: fixture.root,
       base: fixture.base,
