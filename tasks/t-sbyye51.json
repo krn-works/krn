@@ -1,0 +1,12 @@
+{
+  "id": "t-sbyye51",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-29",
+  "priority": 1,
+  "title": "Encode the KRN lead loop as project skills",
+  "after": [],
+  "body": [
+    "Operator 2026-10-29: the lead should work as a chief of staff — create tasks, delegate, verify, update memory and continuously improve skills, rules and checks — one slice per session, without bloating its context. Adopt the useful parts of mattpocock/skills chief-of-staff, retro and claude-handoff, adapted to KRN, as project-local skills (D7) for both Claude Code and Codex, and retire the stale krn-delivery skill (judge finding P15).\nAcceptance: .agents/skills holds krn-lead, krn-retro and krn-handoff, discoverable by Codex and, through a .claude/skills link, by Claude Code; krn-delivery is removed; every command and flag named in the skills exists in the current code; repository-workflow points to the skills; an observer pins discoverability and the absence of stale flags."
+  ]
+}
