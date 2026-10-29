@@ -1,7 +1,11 @@
 {
   "id": "t-m1mxsfp",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "GLOBAL lesson retirement delivered: #472 (2861a6c6), #473 (377a0bc4) and #474 (7cc709e4, main CI 40835720942 SUCCESS)."
+  },
   "created": "2026-10-28",
   "priority": 1,
   "title": "Retire lesson-page enforcement and Beads setup in GLOBAL",
