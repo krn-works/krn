@@ -32,6 +32,8 @@ When an outcome uses a delivery-loop capsule, its state belongs at `.krn/runs/de
 
 ## Roles and delivery
 
+The lead follows the project skills in `.agents/skills` (also exposed to Claude Code through `.claude/skills`): `krn-lead` for the slice loop, `krn-retro` when a slice ends, and `krn-handoff` to start the next slice in a fresh session.
+
 Merges go only through `krn ship`, which pins the reviewed head through the pull request API under D21.
 
 - **Lead:** follows [lead rules](lead-rules.md), owns the outcome loop, and decides after two review attempts by default. Do not treat a task update or worker handoff as acceptance.
