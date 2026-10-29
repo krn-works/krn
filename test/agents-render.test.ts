@@ -108,3 +108,19 @@ test('--check rejects rule enforcement without an existing test', async () => {
     await rm(copy.directory, { recursive: true, force: true });
   }
 });
+
+test('repository rules require bounded lead context', async () => {
+  const source = await readFile(agents, 'utf8');
+  assert.match(
+    source,
+    /^- \*\*KRN-13\*\* .*delegate reading.*pointers.*commands that print a verdict.*hand off at the context-gauge advisory.*$/mu,
+  );
+  const skill = await readFile(
+    new URL('../.agents/skills/krn-lead/SKILL.md', import.meta.url),
+    'utf8',
+  );
+  assert.match(
+    skill,
+    /Context budget.*context-gauge.*krn-reader.*krn-handoff/u,
+  );
+});

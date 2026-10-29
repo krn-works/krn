@@ -1,0 +1,12 @@
+{
+  "id": "t-rperync",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-29",
+  "priority": 1,
+  "title": "Bound lead context: compaction ceiling, gauge, deterministic restart",
+  "after": [],
+  "body": [
+    "Lead sessions run 333-1206 turns and reset context only by auto-compaction near 967k tokens; every turn re-reads the whole context (about 500M cache-read tokens per session) and accuracy falls with length. Design and measurements: .krn/runs/claude/context-discipline/handoff.md (operator grants 2026-10-29, hook trust for this slice's scripts, thresholds 200k/120k/160k).\nAcceptance:\n- L1: tracked .claude/settings.json sets autoCompactWindow 200000.\n- L2: UserPromptSubmit and PostToolUse hooks run a context gauge that reads the last main-chain message.usage from the transcript tail and adds a hand-off advisory once at 120k and again at 160k; state under .krn/runs/claude/context-gauge/<session_id>; any error exits 0 with empty output.\n- L3: PreCompact saves a krn state check snapshot; SessionStart (startup, resume, compact) injects at most 8000 characters of restart context from files.\n- L4: project env caps Bash output (12000) and MCP output (8000 tokens); a read-only haiku subagent .claude/agents/krn-reader.md returns at most 300 words with paths.\n- L5: a repository rule in spec/rules.json and the krn-lead skill state the context discipline; test/rules pins settings, hooks and the agent file.\n- L6: a tracked measure script reports per lead session peak context, turns, tool tokens and compactions.\n- Proof: gauge tests use verbatim transcript captures (KRN-12) and fail at the base; a real lead session shows the advisory at 120k."
+  ]
+}

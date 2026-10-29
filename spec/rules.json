@@ -27,7 +27,10 @@
       "trigger": "review is complete and a change is ready for integration",
       "action": "the author MUST pass `npm run gate:local`",
       "owner": "author",
-      "enforcement": { "kind": "gate", "check": "npm run gate:local" },
+      "enforcement": {
+        "kind": "gate",
+        "check": "npm run gate:local"
+      },
       "rationale": "Required CI on the exact HEAD is the full Product gate (D30); after review the lead runs preflight and only isolation test files with zero isolation skips under `krn host-lock run --name gate -- npm run gate:local`."
     },
     {
@@ -86,6 +89,17 @@
         "check": "repository rules document task delivery and receiver proof"
       },
       "rationale": "Receiver-boundary evidence verifies integration and forwarding contracts."
+    },
+    {
+      "id": "KRN-13",
+      "trigger": "the lead works in this repository",
+      "action": "the lead MUST keep context bounded: delegate reading to a subagent returning a verdict and path, pass pointers instead of file contents, verify by commands that print a verdict, keep one slice per session, and hand off at the context-gauge advisory with `krn-handoff`",
+      "owner": "lead",
+      "enforcement": {
+        "kind": "test",
+        "check": "repository rules require bounded lead context"
+      },
+      "rationale": "Fresh sessions restart from durable files instead of accumulating context."
     }
   ]
 }
