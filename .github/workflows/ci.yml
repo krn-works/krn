@@ -38,9 +38,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Allow unprivileged user namespaces on GitHub-hosted runners
-        if: ${{ runner.environment == 'github-hosted' }}
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Prepare isolation outside the isolated fleet
+        if: ${{ !contains(vars.CI_RUNNER || '["self-hosted","linux","x64","krn-ci-isolated"]', 'krn-ci-isolated') }}
+        run: |
+          set -euo pipefail
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          store="$(pnpm store path)"
+          echo "pnpm_config_store_dir=$store" >> "$GITHUB_ENV"
 
       - name: Run gate
         run: npm run gate

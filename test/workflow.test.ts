@@ -79,23 +79,33 @@ test('CI workflow has one guarded gate job on the configured isolated runner', a
   );
 });
 
-test('CI workflow enables unprivileged user namespaces only on GitHub-hosted runners before the gate', async () => {
+test('CI workflow prepares any runner outside the isolated fleet for isolation tests after install and before the gate', async () => {
   const source = await readFile(workflowPath, 'utf8');
+  const fleet = `vars.CI_RUNNER || '["self-hosted","linux","x64","krn-ci-isolated"]'`;
+  assert.ok(source.includes(`runs-on: \${{ fromJSON(${fleet}) }}`));
   const step = [
-    '      - name: Allow unprivileged user namespaces on GitHub-hosted runners',
-    "        if: ${{ runner.environment == 'github-hosted' }}",
-    '        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0',
+    '      - name: Prepare isolation outside the isolated fleet',
+    `        if: \${{ !contains(${fleet}, 'krn-ci-isolated') }}`,
+    '        run: |',
+    '          set -euo pipefail',
+    '          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0',
+    '          store="$(pnpm store path)"',
+    '          echo "pnpm_config_store_dir=$store" >> "$GITHUB_ENV"',
   ].join('\n');
   const stepIndex = source.indexOf(step);
   assert.notEqual(
     stepIndex,
     -1,
-    'workflow must define the guarded sysctl step',
+    'workflow must define the guarded isolation step',
   );
   assert.equal(source.indexOf(step, stepIndex + 1), -1);
   assert.equal(source.match(/sysctl/gu)?.length, 1);
+  const installIndex = source.indexOf(
+    '        run: pnpm install --frozen-lockfile\n',
+  );
+  assert.ok(installIndex !== -1 && installIndex < stepIndex);
   const gateIndex = source.indexOf('        run: npm run gate\n');
-  assert.ok(gateIndex > stepIndex, 'sysctl step must run before the gate');
+  assert.ok(gateIndex > stepIndex, 'isolation step must run before the gate');
 });
 
 test('Product uses required exact-head CI for the full gate and a host-locked local isolation supplement', async () => {
