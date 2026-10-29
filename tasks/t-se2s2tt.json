@@ -1,0 +1,12 @@
+{
+  "id": "t-se2s2tt",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-29",
+  "priority": 1,
+  "title": "Keep in-delivery claims live and enforce closure on merge",
+  "after": [],
+  "body": [
+    "Tracker judge 2026-10-29: when a delivery branch closes its task (as ADR 0015 asks), the lead claim expires and krn task ready lists the task again until the PR merges (t-8zvy7c5 during #135); merged PRs #133 and #134 left their tasks open on main, so claim --next would hand out finished work.\nAcceptance: a claim whose worktree closed the task stays live as in delivery until origin/main shows the task closed; krn task check refuses a branch whose commits carry Ticket: <id> while that task is open on the branch; observers RED on base and GREEN on head."
+  ]
+}
