@@ -45,6 +45,8 @@ Accepted. This is the single durable Product record for operator decisions D1–
 
 **D8 amendment (operator 2026-10-28):** [ADR 0015](0015-repository-task-tracker.md) also replaces D8's “JSONL/files … rebuildable local index … later slice” wording with one canonical JSON file per task and an index computed in memory; this shipped in `t-sqfffx9`.
 
+**D21 amendment (operator 2026-10-29):** Product CI runs on GitHub-hosted runners by default: the repository variable `CI_RUNNER` names the runner as JSON (`"ubuntu-latest"`), and switching to another managed runner is a change of that one variable. Unset, the workflow falls back to the self-hosted `krn-ci-isolated` fleet, which remains the fallback. Outside the fleet the gate job installs the `packageManager` pnpm through mise and sets `kernel.apparmor_restrict_unprivileged_userns=0`, so the full gate runs with zero isolation skips (trial run 40942674741: 1007 tests, 0 isolation skips, 6 min 29 s job, 7 billed Linux minutes per run on the GitHub Team plan's 3000 included minutes). Installing a third-party runner GitHub App needs a separate operator grant.
+
 ## Scope
 
 This ADR supersedes the cited portions of earlier Product and GLOBAL decisions only. In particular, D8 supersedes ADR 0011 and GLOBAL ADR 0007's Paperclip control-plane parts; D10–D11 supersede conflicting GLOBAL ADR 0007 review and gate-order parts; D30 supersedes D11's local full-gate clause for Product only. Other GLOBAL ADR 0007 requirements remain only where they do not conflict with D1–D30. Product's separate implementation work does not authorize host-side Paperclip archive or other irreversible actions.

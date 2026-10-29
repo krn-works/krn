@@ -117,6 +117,17 @@ test('CI workflow prepares any runner outside the isolated fleet for isolation t
   assert.ok(installIndex !== -1 && installIndex < stepIndex);
   const gateIndex = source.indexOf('        run: npm run gate\n');
   assert.ok(gateIndex > stepIndex, 'isolation step must run before the gate');
+  const adr = await readFile(
+    new URL(
+      '../docs/adr/0014-operator-decisions-2026-10-23.md',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  assert.match(
+    adr,
+    /^\*\*D21 amendment \(operator 2026-10-29\):\*\*.*GitHub-hosted.*`CI_RUNNER`.*fallback/mu,
+  );
 });
 
 test('Product uses required exact-head CI for the full gate and a host-locked local isolation supplement', async () => {
