@@ -1,7 +1,11 @@
 {
   "id": "t-wx0sz03",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Product CI runs on GitHub-hosted runners via CI_RUNNER with the fleet as fallback; trial run 40942674741 green with 0 isolation skips, 7 billed minutes; D21 amendment in ADR 0014."
+  },
   "created": "2026-10-29",
   "priority": 1,
   "title": "Run Product CI on GitHub-hosted runners",
