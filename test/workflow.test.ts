@@ -83,7 +83,26 @@ test('CI workflow prepares any runner outside the isolated fleet for isolation t
   const source = await readFile(workflowPath, 'utf8');
   const fleet = `vars.CI_RUNNER || '"ubuntu-latest"'`;
   assert.ok(source.includes(`runs-on: \${{ fromJSON(${fleet}) }}`));
-  const outsideFleet = `        if: \${{ !contains(${fleet}, 'krn-ci-isolated') }}`;
+  const outsideFleet = `        if: \${{ !contains(format(',{0},', join(fromJSON(${fleet}), ',')), ',krn-ci-isolated,') }}`;
+  // GitHub expression semantics: join returns a string unchanged and joins an
+  // array; contains on strings is a case-insensitive substring test.
+  const runsOutsideFleet = (variable: string): boolean => {
+    const runner: unknown = JSON.parse(
+      variable || '["self-hosted","linux","x64","krn-ci-isolated"]',
+    );
+    const joined = Array.isArray(runner) ? runner.join(',') : String(runner);
+    return !`,${joined},`.toLowerCase().includes(',krn-ci-isolated,');
+  };
+  for (const [variable, outside] of [
+    ['', false],
+    ['["self-hosted","linux","x64","krn-ci-isolated"]', false],
+    ['"krn-ci-isolated"', false],
+    ['"ubuntu-latest"', true],
+    ['"blacksmith-4vcpu-ubuntu-2404"', true],
+    ['"blacksmith-krn-ci-isolated"', true],
+    ['["self-hosted","linux","x64","krn-ci-isolated-shadow"]', true],
+  ] as const)
+    assert.equal(runsOutsideFleet(variable), outside, variable);
   const step = [
     '      - name: Set up mise outside the isolated fleet',
     outsideFleet,
@@ -117,6 +136,17 @@ test('CI workflow prepares any runner outside the isolated fleet for isolation t
   assert.ok(installIndex !== -1 && installIndex < stepIndex);
   const gateIndex = source.indexOf('        run: npm run gate\n');
   assert.ok(gateIndex > stepIndex, 'isolation step must run before the gate');
+  const adr = await readFile(
+    new URL(
+      '../docs/adr/0014-operator-decisions-2026-10-23.md',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  assert.match(
+    adr,
+    /^\*\*D21 amendment \(operator 2026-10-29\):\*\*.*GitHub-hosted.*`CI_RUNNER`.*fallback/mu,
+  );
 });
 
 test('Product uses required exact-head CI for the full gate and a host-locked local isolation supplement', async () => {
