@@ -17,7 +17,7 @@ jobs:
   gate:
     name: gate
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-    runs-on: ${{ fromJSON(vars.CI_RUNNER || '["self-hosted","linux","x64","krn-ci-isolated"]') }}
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}
     env:
       KRN_LIVE: ''
     steps:

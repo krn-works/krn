@@ -75,7 +75,7 @@ test('CI workflow has one guarded gate job on the configured isolated runner', a
   );
   assert.equal(
     scalar('runs-on'),
-    `\${{ fromJSON(vars.CI_RUNNER || '["self-hosted","linux","x64","krn-ci-isolated"]') }}`,
+    `\${{ fromJSON(vars.CI_RUNNER || '"ubuntu-latest"') }}`,
   );
 });
 
