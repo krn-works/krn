@@ -81,7 +81,7 @@ test('CI workflow has one guarded gate job on the configured isolated runner', a
 
 test('CI workflow prepares any runner outside the isolated fleet for isolation tests after install and before the gate', async () => {
   const source = await readFile(workflowPath, 'utf8');
-  const fleet = `vars.CI_RUNNER || '["self-hosted","linux","x64","krn-ci-isolated"]'`;
+  const fleet = `vars.CI_RUNNER || '"ubuntu-latest"'`;
   assert.ok(source.includes(`runs-on: \${{ fromJSON(${fleet}) }}`));
   const step = [
     '      - name: Prepare isolation outside the isolated fleet',

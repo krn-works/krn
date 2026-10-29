@@ -39,7 +39,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Prepare isolation outside the isolated fleet
-        if: ${{ !contains(vars.CI_RUNNER || '["self-hosted","linux","x64","krn-ci-isolated"]', 'krn-ci-isolated') }}
+        if: ${{ !contains(vars.CI_RUNNER || '"ubuntu-latest"', 'krn-ci-isolated') }}
         run: |
           set -euo pipefail
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
