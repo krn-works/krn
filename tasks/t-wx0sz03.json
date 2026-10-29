@@ -1,0 +1,12 @@
+{
+  "id": "t-wx0sz03",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-29",
+  "priority": 1,
+  "title": "Run Product CI on GitHub-hosted runners",
+  "after": [],
+  "body": [
+    "Operator 2026-10-29 approved trying GitHub-hosted runners for Product CI (amending D21, which keeps CI on the self-hosted fleet) to stop CI from competing with local agents and to avoid fleet stops on network drift. Trial on draft PR #136 (repository variable CI_RUNNER=\"ubuntu-latest\", run 40837977888): 10 isolation tests failed with \"requested PID namespace isolation is unavailable\" because Ubuntu 24.04 restricts unprivileged user namespaces; the variable was removed again.\nAcceptance: the CI workflow enables unprivileged user namespaces only on GitHub-hosted runners (for example sysctl kernel.apparmor_restrict_unprivileged_userns=0) and the full gate passes there with zero isolation skips; test/workflow.test.ts pins the behavior; Actions minutes per PR are measured and recorded; the D21 amendment is recorded in ADR 0014 once the trial passes; the self-hosted fleet remains the fallback."
+  ]
+}
