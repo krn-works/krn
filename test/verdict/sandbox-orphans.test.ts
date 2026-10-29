@@ -172,7 +172,8 @@ test('a live detached child is killed and rejected', {
     "const fs = require('node:fs');",
     "process.on('SIGUSR1', () => process.exit(0));",
     "fs.watch('.', () => {});",
-    "fs.writeFileSync('live-ready', 'ready');",
+    "fs.writeFileSync('live-ready.tmp', 'ready');",
+    "fs.renameSync('live-ready.tmp', 'live-ready');",
   ].join('\n');
   program(
     f.root,
