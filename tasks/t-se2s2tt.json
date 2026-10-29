@@ -7,6 +7,6 @@
   "title": "Keep in-delivery claims live and enforce closure on merge",
   "after": [],
   "body": [
-    "Tracker judge 2026-10-29: when a delivery branch closes its task (as ADR 0015 asks), the lead claim expires and krn task ready lists the task again until the PR merges (t-8zvy7c5 during #135); merged PRs #133 and #134 left their tasks open on main, so claim --next would hand out finished work.\nAcceptance: a claim whose worktree closed the task stays live as in delivery until origin/main shows the task closed; krn task check refuses a branch whose commits carry Ticket: <id> while that task is open on the branch; observers RED on base and GREEN on head."
+    "Tracker judge 2026-10-29: when a delivery branch closes its task (as ADR 0015 asks), the lead claim expires under the ADR 0015 liveness rule and krn task ready lists the task again until the PR merges (t-8zvy7c5 during #135); merged PRs #133 and #134 left their tasks open on main, so claim --next could hand out finished work. Changing claim liveness amends ADR 0015, so it needs an operator decision first.\nAcceptance: first, the operator decides whether to amend ADR 0015 so a claim stays live as in delivery while its worktree has closed the task and origin/main still has it open; the decision is recorded in ADR 0015. Independently of that decision: krn task check refuses a branch whose commits carry Ticket: <id> while that task is open on the branch, with observers RED on base and GREEN on head. If the liveness amendment is rejected, keep only the closure check."
   ]
 }
