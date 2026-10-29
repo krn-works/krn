@@ -4,6 +4,7 @@ import { checked, type Runner } from './transport.ts';
 export function mergeMessage(
   title: string,
   parsed: string,
+  pr: number,
   task?: string,
 ): string {
   if (
@@ -36,7 +37,20 @@ export function mergeMessage(
   )
     throw new Error('duplicate or mixed none Change-contract trailers');
   const authors = lines.filter((line) => /^Co-Authored-By:/iu.test(line));
-  return `${title}\n\nDeliver the reviewed change.\n\n${[...tickets, ...contracts, ...authors].join('\n')}\n`;
+  const withoutTask = title.replace(/ \(t-[a-z0-9]{7}\)$/u, '');
+  const subject = withoutTask.endsWith(` (#${pr})`)
+    ? withoutTask
+    : `${withoutTask} (#${pr})`;
+  // krn ship accepts only this subject shape (GLOBAL scripts/lib/ship/ship.mjs).
+  if (
+    Number(
+      /^[a-z][a-z0-9-]*(?:\([^)]+\))?!?: .+ \(#([1-9]\d*)\)$/u.exec(
+        subject,
+      )?.[1],
+    ) !== pr
+  )
+    throw new Error('generated subject would be refused by krn ship');
+  return `${subject}\n\nDeliver the reviewed change.\n\n${[...tickets, ...contracts, ...authors].join('\n')}\n`;
 }
 
 /** A synthetic commit makes existing red-first compare the merge tree to PR base. */

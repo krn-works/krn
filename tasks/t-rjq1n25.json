@@ -1,0 +1,16 @@
+{
+  "id": "t-rjq1n25",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn deliver matches ship subject, keeps failure causes, consults ship in dry-run, removes its state, rebinds before each status POST and checks the Node pin"
+  },
+  "created": "2026-10-29",
+  "priority": 1,
+  "title": "Harden krn deliver against real receivers",
+  "after": [],
+  "body": [
+    "Fix the defects the first real `krn deliver` run exposed that the offline receiver tests could not see. (1) The generated merge subject is the PR title without a trailing `(t-xxxxxxx)` plus ` (#N)`, which `krn ship` requires; `--message-file` accepts that subject. (2) A failing stage reports the receiver stdout tail and, for the gate, the first failing test in the JSON error. (3) `deliver --dry-run` also runs `krn ship --dry-run` and fails on any refusal other than pending judges or check runs. (4) Hygiene removes `.krn/runs/deliver/<series>` after success. (5) The PR head is re-checked immediately before each status POST. (6) Delivery refuses at bind when the Node on PATH differs from `.node-version`. Acceptance: tests replay verbatim `krn ship` refusals and a real failing test-runner output; each new observer fails at the base by assertion."
+  ]
+}
