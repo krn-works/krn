@@ -1,7 +1,11 @@
 {
   "id": "t-rjq1n25",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn deliver matches ship subject, keeps failure causes, consults ship in dry-run, removes its state, rebinds before each status POST and checks the Node pin"
+  },
   "created": "2026-10-29",
   "priority": 1,
   "title": "Harden krn deliver against real receivers",
