@@ -28,7 +28,7 @@
       "action": "the author MUST pass `npm run gate:local`",
       "owner": "author",
       "enforcement": { "kind": "gate", "check": "npm run gate:local" },
-      "rationale": "Product runs its full local gate after review; CI runs the same steps."
+      "rationale": "Required CI on the exact HEAD is the full Product gate (D30); after review the lead runs preflight and only isolation test files with zero isolation skips under `krn host-lock run --name gate -- npm run gate:local`."
     },
     {
       "id": "KRN-08",

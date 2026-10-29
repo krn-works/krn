@@ -1,7 +1,11 @@
 {
   "id": "t-8185mc4",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Delivered by the PR that records D30 and narrows gate:local to the cheap preflight and isolation tests."
+  },
   "created": "2026-10-29",
   "priority": 0,
   "title": "Make required CI the full Product gate (D30)",

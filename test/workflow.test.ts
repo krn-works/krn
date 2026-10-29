@@ -79,6 +79,63 @@ test('CI workflow has one guarded gate job on the configured isolated runner', a
   );
 });
 
+test('Product uses required exact-head CI for the full gate and a host-locked local isolation supplement', async () => {
+  const manifest: unknown = JSON.parse(
+    await readFile(new URL('../package.json', import.meta.url), 'utf8'),
+  );
+  assert.ok(
+    typeof manifest === 'object' && manifest !== null && 'scripts' in manifest,
+  );
+  const scripts = manifest.scripts;
+  assert.ok(
+    typeof scripts === 'object' && scripts !== null && 'gate' in scripts,
+  );
+  assert.equal(
+    scripts.gate,
+    'npm run check && npm run lint && npm test && node src/cli/main.ts task check && npm run rules',
+  );
+  assert.match(
+    await readFile(workflowPath, 'utf8'),
+    /^ {8}run: npm run gate$/mu,
+  );
+  for (const path of [
+    'README.md',
+    'docs/program/repository-workflow.md',
+    'docs/program/lead-rules.md',
+    'docs/program/PLANS.md',
+  ]) {
+    const source = await readFile(
+      new URL(`../${path}`, import.meta.url),
+      'utf8',
+    );
+    assert.match(source, /required CI on the exact HEAD/u, path);
+    assert.match(
+      source,
+      /krn host-lock run --name gate -- npm run gate:local/u,
+      path,
+    );
+    assert.match(source, /preflight.*isolation/iu, path);
+    assert.doesNotMatch(
+      source,
+      /CI runs the same steps|runs the full local gate/u,
+      path,
+    );
+  }
+  const adr = await readFile(
+    new URL(
+      '../docs/adr/0014-operator-decisions-2026-10-23.md',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  assert.match(adr, /^\| D30 \|.*D11.*Product/mu);
+  assert.match(adr, /Tak, zmień D11 \(Recommended\)/u);
+  assert.match(
+    adr,
+    /pełną bramką jest wymagane CI na dokładnym HEAD, a lokalnie tylko tani preflight \+ testy izolacji systemd pod host-lock \(bez pełnego gate:local po review\)/u,
+  );
+});
+
 test('CI workflow cancels superseded pull request runs but preserves main runs', async () => {
   const source = await readFile(workflowPath, 'utf8');
   const lines = source.split(/\r?\n/u);
