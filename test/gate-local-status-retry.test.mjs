@@ -47,6 +47,11 @@ async function makeFixture(name, { failures, error }) {
   const root = await mkdtemp(join(fixtureRoot, `${name}-`));
   const bin = join(root, 'bin');
   await mkdir(bin);
+  await mkdir(join(root, 'test'));
+  await writeFile(
+    join(root, 'test/fixture.test.mjs'),
+    "import './helpers/isolation.ts';\n",
+  );
   const ghLog = join(root, 'gh-calls.jsonl');
   const retryLog = join(root, 'retry-delays.jsonl');
   const entry = join(root, 'gate-entry.mjs');
@@ -75,6 +80,8 @@ if (process.argv[2] === 'rev-parse' && process.argv[3] === 'HEAD') {
   await writeFile(
     join(bin, 'npm'),
     `#!/usr/bin/env node
+import { appendFileSync } from 'node:fs';
+appendFileSync('npm-calls.jsonl', JSON.stringify(process.argv.slice(2)) + '\\n');
 process.stdout.write('Isolation-dependent tests skipped: 0\\n');
 process.stdout.write('KRN_TEST_SUMMARY_JSON=' + ${JSON.stringify(JSON.stringify(summary))} + '\\n');
 `,
@@ -194,6 +201,10 @@ try {
     try {
       const result = runGateLocal(fixture.root, fixture.env, fixture.entry);
       assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      assert.deepEqual(await ghCalls(join(fixture.root, 'npm-calls.jsonl')), [
+        ['run', 'preflight'],
+        ['test', '--', 'test/fixture.test.mjs'],
+      ]);
       const calls = await ghCalls(fixture.ghLog);
       assert.equal(calls.length, 2);
       assert.deepEqual(await ghCalls(fixture.retryLog), [2_000]);

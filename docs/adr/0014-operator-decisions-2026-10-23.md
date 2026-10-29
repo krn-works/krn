@@ -4,7 +4,7 @@ Date: 2026-10-23
 
 ## Status
 
-Accepted. This is the single durable Product record for operator decisions D1–D29 from 2026-10-22/23 and 2026-10-26/27/28. Operator quotes are reproduced verbatim where the register recorded them. It records decisions, not implementation or task acceptance. The GLOBAL repository has a separate consistency sweep.
+Accepted. This is the single durable Product record for operator decisions D1–D30 from 2026-10-22/23 and 2026-10-26/27/28/29. Operator quotes are reproduced verbatim where the register recorded them. It records decisions, not implementation or task acceptance. The GLOBAL repository has a separate consistency sweep.
 
 ## Decisions
 
@@ -39,6 +39,7 @@ Accepted. This is the single durable Product record for operator decisions D1–
 | D27 | (2026-10-28) Applying D14, KRN tooling stops enforcing or creating the standalone `docs/research/workflow-lessons.md` page. Lesson findings are warnings; lessons become checks first and `AGENTS.md` rules second. Existing pages in other repositories remain theirs. | None recorded. | Lesson-page gating in GLOBAL state check, change contracts, and setup. |
 | D28 | (2026-10-28) Host lead policy (Claude hooks, lead skills, the codex-worker wrapper, and lead scripts) moves into GLOBAL and is installed by a sealed release; untracked host copies are removed. | None recorded. | Untracked host policy. |
 | D29 | (2026-10-28) As an exception to D23, `krn task` gets comments. | None recorded. | D23 for this feature only. |
+| D30 | (2026-10-29) The full Product gate is required CI on the exact HEAD (`npm run gate`). Locally, after review the lead runs `krn host-lock run --name gate -- npm run gate:local`: cheap preflight plus only source-selected isolation test files (including systemd), with zero isolation skips required. Preserve the exact-head `krn/gate-local` status context and `Gate passed: N tests, 0 isolation skips` description; do not repeat the full suite locally. | “Tak, zmień D11 (Recommended)” — “pełną bramką jest wymagane CI na dokładnym HEAD, a lokalnie tylko tani preflight + testy izolacji systemd pod host-lock (bez pełnego gate:local po review)” | D11's local full-gate clause and claim that local and CI steps are the same, for Product only. |
 
 **D8 amendment (operator 2026-10-26):** [ADR 0015](0015-repository-task-tracker.md) supersedes D8's import clause; no Paperclip or legacy queue records are imported.
 
@@ -46,4 +47,4 @@ Accepted. This is the single durable Product record for operator decisions D1–
 
 ## Scope
 
-This ADR supersedes the cited portions of earlier Product and GLOBAL decisions only. In particular, D8 supersedes ADR 0011 and GLOBAL ADR 0007's Paperclip control-plane parts; D10–D11 supersede conflicting GLOBAL ADR 0007 review and gate-order parts. Other GLOBAL ADR 0007 requirements remain only where they do not conflict with D1–D29. Product's separate implementation work does not authorize host-side Paperclip archive or other irreversible actions.
+This ADR supersedes the cited portions of earlier Product and GLOBAL decisions only. In particular, D8 supersedes ADR 0011 and GLOBAL ADR 0007's Paperclip control-plane parts; D10–D11 supersede conflicting GLOBAL ADR 0007 review and gate-order parts; D30 supersedes D11's local full-gate clause for Product only. Other GLOBAL ADR 0007 requirements remain only where they do not conflict with D1–D30. Product's separate implementation work does not authorize host-side Paperclip archive or other irreversible actions.

@@ -11,7 +11,7 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { delimiter, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
@@ -572,9 +572,11 @@ test('gate-local publishes only a clean HEAD with complete structured evidence',
     const scenarios: Array<{
       name: string;
       dirty?: 'tracked' | 'untracked' | 'clean';
-      summary?: 'missing' | 'skip' | 'malformed-last';
+      summary?: 'missing' | 'skip' | 'isolation-skip' | 'malformed-last';
       tapCount?: number;
       dirties?: boolean;
+      movesHead?: boolean;
+      fails?: boolean;
       gitRedirect?: 'hide-dirty' | 'foreign-head';
     }> = [
       {
@@ -599,12 +601,24 @@ test('gate-local publishes only a clean HEAD with complete structured evidence',
         summary: 'skip',
       },
       {
+        name: 'an isolation skip refuses despite otherwise successful structured evidence',
+        summary: 'isolation-skip',
+      },
+      {
         name: 'malformed last summary overrides earlier valid summary',
         summary: 'malformed-last',
       },
       {
         name: 'a gate that dirties the tree refuses publication',
         dirties: true,
+      },
+      {
+        name: 'a gate that moves HEAD refuses publication',
+        movesHead: true,
+      },
+      {
+        name: 'a failed test refuses publication despite valid summary text',
+        fails: true,
       },
       {
         name: 'Git redirection cannot hide actual checkout dirt',
@@ -666,6 +680,7 @@ test('gate-local publishes only a clean HEAD with complete structured evidence',
         const ghCalls = join(project, '.krn/tmp/gh-calls.log');
         const gitContextLog = join(project, '.krn/tmp/gate-git-context.json');
         const env = fixtureEnv();
+        env.PATH = `${join(project, '.krn/tmp/bin')}${delimiter}${env.PATH ?? ''}`;
         env.KRN_GH_BIN = join(project, '.krn/tmp/fake-gh');
         env.KRN_GATE_RAN = gateRan;
         env.KRN_GATE_GIT_CONTEXT_LOG = gitContextLog;
@@ -678,12 +693,19 @@ test('gate-local publishes only a clean HEAD with complete structured evidence',
         if (scenario.tapCount)
           env.KRN_FIXTURE_TAP_TESTS = String(scenario.tapCount);
         if (scenario.dirties) env.KRN_FIXTURE_DIRTIES = '1';
+        if (scenario.movesHead) env.KRN_FIXTURE_MOVES_HEAD = '1';
+        if (scenario.fails) env.KRN_FIXTURE_FAILS = '1';
 
         const result = runNode(process.execPath, [gateLocal], project, env);
         if (scenario.dirty === 'clean' && !scenario.summary) {
           assert.equal(result.signal, null, resultDetails(result));
           assert.equal(result.status, 0, resultDetails(result));
           assert.equal(await exists(gateRan), true, 'clean gate was not run');
+          assert.equal(
+            await readFile(gateRan, 'utf8'),
+            'preflight\nisolation\n',
+            'local gate must run preflight before the isolation tests',
+          );
           const calls = (await readFile(ghCalls, 'utf8')).trim().split('\n');
           assert.equal(
             calls.length,
@@ -766,7 +788,11 @@ async function makeGitFixture(root: string, name: string): Promise<string> {
         version: '1.0.0',
         private: true,
         type: 'module',
-        scripts: { gate: 'node fake-gate.mjs' },
+        scripts: {
+          gate: 'node fake-gate.mjs full',
+          preflight: 'node fake-gate.mjs preflight',
+          test: 'node fake-gate.mjs isolation',
+        },
       },
       null,
       2,
@@ -774,12 +800,33 @@ async function makeGitFixture(root: string, name: string): Promise<string> {
   );
   await writeFile(
     join(project, 'test/a.test.mjs'),
-    "import { test } from 'node:test'; test('fixture declaration', () => {});\n",
+    "import './helpers/isolation.ts';\nimport { test } from 'node:test'; test('fixture declaration', () => {});\n",
   );
   await writeFile(
     join(project, 'fake-gate.mjs'),
-    `import { appendFileSync, writeFileSync } from 'node:fs';\nappendFileSync(process.env.KRN_GATE_RAN, 'ran\\n');\nwriteFileSync(process.env.KRN_GATE_GIT_CONTEXT_LOG, JSON.stringify(['GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY'].filter((key) => process.env[key] !== undefined)));\nif (process.env.KRN_FIXTURE_DIRTIES === '1') writeFileSync('gate-created.txt', 'dirty\\n');\nconst skipped = process.env.KRN_FIXTURE_SUMMARY === 'skip';\nconst counts = { tests: 1, passed: skipped ? 0 : 1, failed: 0, skipped: skipped ? 1 : 0, todo: 0, cancelled: 0 };\nconst summary = { version: 1, success: true, counts, files: [{ file: 'test/a.test.mjs', ...counts }] };\nconsole.log('# tests ' + (process.env.KRN_FIXTURE_TAP_TESTS || counts.tests));\nconsole.log('Isolation-dependent tests skipped: 0');\nif (process.env.KRN_FIXTURE_SUMMARY !== 'missing') { console.log('KRN_TEST_SUMMARY_JSON=' + JSON.stringify(summary)); if (process.env.KRN_FIXTURE_SUMMARY === 'malformed-last') console.log('KRN_TEST_SUMMARY_JSON={malformed'); }\n`,
+    `import { appendFileSync, writeFileSync } from 'node:fs';\nimport { execFileSync } from 'node:child_process';\nappendFileSync(process.env.KRN_GATE_RAN, process.argv[2] + '\\n');\nif (process.argv[2] === 'preflight') process.exit(0);\nwriteFileSync(process.env.KRN_GATE_GIT_CONTEXT_LOG, JSON.stringify(['GIT_DIR', 'GIT_WORK_TREE', 'GIT_COMMON_DIR', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY'].filter((key) => process.env[key] !== undefined)));\nif (process.env.KRN_FIXTURE_DIRTIES === '1') writeFileSync('gate-created.txt', 'dirty\\n');\nif (process.env.KRN_FIXTURE_MOVES_HEAD === '1') execFileSync('git', ['-c', 'core.hooksPath=/dev/null', 'commit', '--quiet', '--allow-empty', '-m', 'fixture moved head']);\nconst skipped = process.env.KRN_FIXTURE_SUMMARY === 'skip';\nconst counts = { tests: 1, passed: skipped ? 0 : 1, failed: 0, skipped: skipped ? 1 : 0, todo: 0, cancelled: 0 };\nconst summary = { version: 1, success: true, counts, files: [{ file: 'test/a.test.mjs', ...counts }] };\nconsole.log('# tests ' + (process.env.KRN_FIXTURE_TAP_TESTS || counts.tests));\nconsole.log('Isolation-dependent tests skipped: ' + (skipped || process.env.KRN_FIXTURE_SUMMARY === 'isolation-skip' ? 1 : 0));\nif (process.env.KRN_FIXTURE_SUMMARY !== 'missing') { console.log('KRN_TEST_SUMMARY_JSON=' + JSON.stringify(summary)); if (process.env.KRN_FIXTURE_SUMMARY === 'malformed-last') console.log('KRN_TEST_SUMMARY_JSON={malformed'); }\nif (process.env.KRN_FIXTURE_FAILS === '1') process.exitCode = 1;\n`,
   );
+  const bin = join(project, '.krn/tmp/bin');
+  await mkdir(bin);
+  const fakeNpm = join(bin, 'npm');
+  await writeFile(
+    fakeNpm,
+    `#!${process.execPath}
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+const args = process.argv.slice(2);
+const mode = new Map([
+  ['run preflight', 'preflight'],
+  ['run gate', 'full'],
+  ['test -- test/a.test.mjs', 'isolation'],
+]).get(args.join(' '));
+assert.ok(mode, 'unexpected fixture npm arguments: ' + JSON.stringify(args));
+const result = spawnSync(process.execPath, ['fake-gate.mjs', mode], { stdio: 'inherit' });
+assert.equal(result.error, undefined);
+process.exitCode = result.status ?? 1;
+`,
+  );
+  await chmod(fakeNpm, 0o755);
   const fakeGh = join(project, '.krn/tmp/fake-gh');
   const ghLog = join(project, '.krn/tmp/gh-calls.log');
   await writeFile(fakeGh, `#!/bin/sh\nprintf '%s\\n' "$*" >> '${ghLog}'\n`);
