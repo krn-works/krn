@@ -1,0 +1,12 @@
+{
+  "id": "t-8185mc4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-29",
+  "priority": 0,
+  "title": "Make required CI the full Product gate (D30)",
+  "after": [],
+  "body": [
+    "Operator 2026-10-29 changed D11 for Product: required CI on the exact head is the full gate; locally only the cheap preflight (npm run preflight) and the systemd isolation tests run, under krn host-lock, before review. Record it as ADR 0014 D30.\nAcceptance: D30 recorded; scripts/pr-preflight.mjs no longer requires krn/gate-local and instead requires the isolation status from the host-locked isolation run plus required CI; repository-workflow, lead-rules, README and spec/rules (KRN-07) agree; frozen observers RED on base and GREEN on head."
+  ]
+}
