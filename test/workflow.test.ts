@@ -83,14 +83,25 @@ test('CI workflow prepares any runner outside the isolated fleet for isolation t
   const source = await readFile(workflowPath, 'utf8');
   const fleet = `vars.CI_RUNNER || '["self-hosted","linux","x64","krn-ci-isolated"]'`;
   assert.ok(source.includes(`runs-on: \${{ fromJSON(${fleet}) }}`));
+  const outsideFleet = `        if: \${{ !contains(${fleet}, 'krn-ci-isolated') }}`;
   const step = [
+    '      - name: Set up mise outside the isolated fleet',
+    outsideFleet,
+    '        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2',
+    '        with:',
+    '          version: 2026.10.17',
+    '          install: false',
+    '          cache: false',
+    '',
     '      - name: Prepare isolation outside the isolated fleet',
-    `        if: \${{ !contains(${fleet}, 'krn-ci-isolated') }}`,
+    outsideFleet,
+    '        env:',
+    '          GITHUB_TOKEN: ${{ github.token }}',
     '        run: |',
     '          set -euo pipefail',
     '          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0',
-    '          store="$(pnpm store path)"',
-    '          echo "pnpm_config_store_dir=$store" >> "$GITHUB_ENV"',
+    `          manager="$(node -p "require('./package.json').packageManager")"`,
+    '          mise install "$manager"',
   ].join('\n');
   const stepIndex = source.indexOf(step);
   assert.notEqual(
