@@ -1,0 +1,162 @@
+{
+  "status": "published",
+  "repo": "krn-works/krn",
+  "pr": 138,
+  "base": "a3474ae31312b4ee053a70306ef3f240e292fec9",
+  "githubBase": "a3474ae31312b4ee053a70306ef3f240e292fec9",
+  "head": "b6712184c6d6345fa7fbc0f8dc482037c7b8eedc",
+  "judges": {
+    "krn/judge-standards": "success",
+    "krn/judge-spec": "success"
+  },
+  "checks": {
+    "count": 1,
+    "runs": [
+      {
+        "index": 1,
+        "appId": 15368,
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "cleanupFailures": [],
+  "precheck": {
+    "ok": true,
+    "errors": 0,
+    "warnings": 0,
+    "warningRules": []
+  },
+  "precheckedTree": "066b4d9179b44c7f958593912225baa8ef060efa",
+  "precheckedMerge": "afc69496f2d24e6ae059f64a15108ef90d46e615",
+  "dryRun": false,
+  "startedAt": "2026-10-29T18:41:07.770Z",
+  "repositoryEvidence": {
+    "policySha256": "9f17ff6c90a4c5509010778d5f87bce5daab8ed2bedac615a05bbb59f15084d0",
+    "verifier": [
+      "scripts/pr-preflight.mjs"
+    ],
+    "stdoutSha256": "b523ea7fa37d3e70370230797ddf0d7a9da65a4338bbd1f818ff452f9a18b41e",
+    "verdict": "pass",
+    "reasons": [],
+    "reviewRecords": [
+      {
+        "path": "/repository/.krn/runs/review-series/f0afa45d91c971f2728e747d2a6b49d40bf29f842af59b1d4831041c855e2c63/records/3.json",
+        "sha256": "506f7b900d7da792821b567cf861da5a8a6a9096feea1b11380b84b6dbb5556d",
+        "headSha": "b6712184c6d6345fa7fbc0f8dc482037c7b8eedc",
+        "base": "a3474ae31312b4ee053a70306ef3f240e292fec9",
+        "panelVerdict": "PASS",
+        "verdict": "PASS",
+        "panel": {
+          "requestedRoles": [
+            "standards",
+            "spec",
+            "adversarial"
+          ],
+          "requiredRoles": [
+            "standards",
+            "spec",
+            "adversarial"
+          ],
+          "partial": false
+        },
+        "judges": [
+          {
+            "role": "standards",
+            "state": "complete",
+            "verdict": "PASS",
+            "model": "gpt-6-luna"
+          },
+          {
+            "role": "spec",
+            "state": "complete",
+            "verdict": "PASS",
+            "model": "gpt-6-luna"
+          },
+          {
+            "role": "adversarial",
+            "state": "complete",
+            "verdict": "PASS",
+            "model": "gpt-6-luna"
+          }
+        ],
+        "lensSha256": "ec0f4f90fb4c14e5751f7849c27c128abf9e7d3096c8da0fcd3d5b285c00b1d0",
+        "toolSha": "a3474ae31312b4ee053a70306ef3f240e292fec9",
+        "redFirstCount": 2
+      }
+    ],
+    "gateCheckRun": {
+      "id": 123643045882,
+      "url": "https://github.com/krn-works/krn/actions/runs/40929271998/job/123643045882",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  },
+  "evidence": {
+    "readAt": "2026-10-29T18:41:26.348Z",
+    "ok": true,
+    "judges": {
+      "krn/judge-standards": "success",
+      "krn/judge-spec": "success"
+    },
+    "checks": {
+      "count": 1,
+      "runs": [
+        {
+          "index": 1,
+          "appId": 15368,
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    }
+  },
+  "postPublishEvidence": {
+    "readAt": "2026-10-29T18:41:37.471Z",
+    "ok": true,
+    "judges": {
+      "krn/judge-standards": "success",
+      "krn/judge-spec": "success"
+    },
+    "checks": {
+      "count": 1,
+      "runs": [
+        {
+          "index": 1,
+          "appId": 15368,
+          "status": "completed",
+          "conclusion": "success"
+        }
+      ]
+    }
+  },
+  "merge": "7f4779e935d182901188d14539febe8f25246d42",
+  "observedMain": "7f4779e935d182901188d14539febe8f25246d42",
+  "publishedSha": "7f4779e935d182901188d14539febe8f25246d42",
+  "mergeContained": true,
+  "publishedTree": "066b4d9179b44c7f958593912225baa8ef060efa",
+  "publishedParents": [
+    "a3474ae31312b4ee053a70306ef3f240e292fec9",
+    "b6712184c6d6345fa7fbc0f8dc482037c7b8eedc"
+  ],
+  "treeMatch": true,
+  "publication": {
+    "method": "pulls-merge-api",
+    "httpStatus": 200,
+    "sha": "7f4779e935d182901188d14539febe8f25246d42",
+    "status": "merged"
+  },
+  "prState": "MERGED",
+  "completedAt": "2026-10-29T18:41:37.471Z",
+  "branchCleanup": {
+    "remote": "deleted",
+    "worktrees": [
+      {
+        "path": "/repository/.krn/worktrees/lead-loop-skills",
+        "result": "kept:unknown ignored content"
+      }
+    ],
+    "localBranch": "kept:checked out"
+  },
+  "recordPath": "/repository/.krn/runs/ship/pr-138.json"
+}

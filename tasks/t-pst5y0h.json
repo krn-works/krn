@@ -1,0 +1,16 @@
+{
+  "id": "t-pst5y0h",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn deliver and head trailer preflight delivered"
+  },
+  "created": "2026-10-29",
+  "priority": 1,
+  "title": "Deliver a reviewed PR to merged with one command",
+  "after": [],
+  "body": [
+    "Replace the lead's hand-written deliver.sh with one tracked command, `krn deliver`, that takes a PR from review PASS to merged and retired, plus cheap pre-review checks that mirror ship and CI.\nAcceptance: (1) `krn deliver --repo OWNER/REPO --pr N --record PATH --task ID [--dry-run]` publishes krn/judge-standards and krn/judge-spec only from a record whose panelVerdict is PASS (or a recorded override) bound to the exact PR head, waits for required CI, runs `krn host-lock run --name gate -- npm run gate:local` only when load allows, marks ready, runs `krn ship` dry-run then real, reads main CI, then archives .krn/runs/review-series state and retires worktree and branch; every gh call retries transient network, DNS and 5xx errors with bounded backoff and fails closed on anything else. (2) It generates the merge message from the task and head trailers and refuses a Change-contract that is not red at the PR base and green on the merged tree. (3) `npm run preflight` also runs test/rules/* and fails when the head commit's final trailer block does not parse exactly one Ticket trailer with every Change-contract in that block (absorbs t-1c7xttk). Proof: new observers fail at the base by assertion, receiver tests use verbatim captures of gh and krn ship output."
+  ]
+}

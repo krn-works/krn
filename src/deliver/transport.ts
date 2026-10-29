@@ -1,0 +1,71 @@
+import { spawnSync } from 'node:child_process';
+
+export interface CommandResult {
+  code: number;
+  stdout: string;
+  stderr: string;
+}
+export type Runner = (
+  command: string,
+  args: string[],
+  cwd: string,
+  input?: string,
+) => CommandResult;
+export const run: Runner = (command, args, cwd, input) => {
+  const result = spawnSync(command, args, {
+    cwd,
+    input,
+    encoding: 'utf8',
+    timeout: 3_600_000,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  return {
+    code: result.status ?? 70,
+    stdout: result.stdout ?? '',
+    stderr: result.stderr || result.error?.message || '',
+  };
+};
+export const exitCodes = {
+  bind: 71,
+  statuses: 72,
+  message: 73,
+  ci: 74,
+  gate: 75,
+  ship: 76,
+  hygiene: 77,
+} as const;
+
+export class CommandFailure extends Error {
+  readonly result: CommandResult;
+  readonly commandExitCode: number;
+  constructor(result: CommandResult) {
+    super(result.stderr || `command exited ${result.code}`);
+    this.commandExitCode = result.code;
+    this.result = result;
+  }
+}
+export const sleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Only this boundary invokes gh. Keep the last receiver failure intact. */
+export async function github(
+  args: string[],
+  cwd: string,
+  runner: Runner = run,
+  wait = sleep,
+): Promise<string> {
+  for (let attempt = 0; ; attempt++) {
+    const result = runner('gh', args, cwd);
+    if (result.code === 0) return result.stdout;
+    const transient =
+      /(?:HTTP\s+(?:5\d\d|429)\b|rate limit|secondary rate|could not resolve host|temporary failure in name resolution|EAI_AGAIN|ENOTFOUND|ECONNRESET|ETIMEDOUT|connection (?:reset|refused)|TLS handshake timeout|network is unreachable|unexpected EOF|error connecting to)/iu.test(
+        result.stderr,
+      );
+    if (!transient || attempt === 3) throw new CommandFailure(result);
+    await wait(1000 * 2 ** attempt);
+  }
+}
+export function checked(result: CommandResult): string {
+  if (result.code !== 0) throw new CommandFailure(result);
+  return result.stdout.trim();
+}

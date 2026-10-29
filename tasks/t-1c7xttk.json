@@ -1,7 +1,11 @@
 {
   "id": "t-1c7xttk",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "absorbed: head trailer check in preflight (t-pst5y0h)"
+  },
   "created": "2026-10-29",
   "priority": 1,
   "title": "Check the head commit trailer block in cheap preflight",

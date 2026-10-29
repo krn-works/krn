@@ -147,7 +147,7 @@ export function main(args = process.argv.slice(2)): void {
   }
 
   if (
-    ['start', 'checkpoint', 'stop', 'note', 'task', 'eval'].includes(
+    ['start', 'checkpoint', 'stop', 'note', 'task', 'eval', 'deliver'].includes(
       args[0] ?? '',
     )
   ) {
