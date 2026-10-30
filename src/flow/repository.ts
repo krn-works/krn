@@ -598,30 +598,54 @@ function contractDeclarations(
     for (const line of parsed.stdout.split(/\r?\n/u)) {
       if (!/^Change-contract:/iu.test(line)) continue;
       const value = line.slice(line.indexOf(':') + 1).trim();
-      const match = /^(.*):(red->green|green->green)$/u.exec(value);
-      const path = match?.[1];
-      const kind = match?.[2];
-      if (
-        !path ||
-        (kind !== 'red->green' && kind !== 'green->green') ||
-        !safeRepositoryPath(path) ||
-        !matchesGlob(path, TEST_FILE_GLOB) ||
-        seen.has(path)
-      ) {
-        errors.push(
-          dataError(
-            path || 'Change-contract',
-            'head',
-            head,
-            'contract',
-            `invalid or duplicate Change-contract in ${commit}: ${value}`,
-          ),
-        );
+      const entries = value.split(',').map((entry) => {
+        const match = /^(.*):(red->green|green->green)$/u.exec(entry.trim());
+        return {
+          entry: entry.trim(),
+          path: match?.[1],
+          kind: match?.[2],
+        };
+      });
+      const invalidEntries = entries.filter(
+        ({ entry, path, kind }) =>
+          !entry ||
+          !path ||
+          (kind !== 'red->green' && kind !== 'green->green') ||
+          !safeRepositoryPath(path) ||
+          !matchesGlob(path, TEST_FILE_GLOB),
+      );
+      if (invalidEntries.length > 0) {
+        for (const { path } of invalidEntries)
+          errors.push(
+            dataError(
+              path || 'Change-contract',
+              'head',
+              head,
+              'contract',
+              `invalid or duplicate Change-contract in ${commit}: ${value}`,
+            ),
+          );
         continue;
       }
-      seen.add(path);
-      const parent = git(root, ['rev-parse', `${commit}^1`]);
-      declarations.push({ commit, parent, path, kind });
+      for (const { entry, path, kind } of entries) {
+        if (!path || (kind !== 'red->green' && kind !== 'green->green'))
+          continue;
+        if (seen.has(path)) {
+          errors.push(
+            dataError(
+              path,
+              'head',
+              head,
+              'contract',
+              `invalid or duplicate Change-contract in ${commit}: ${entry}`,
+            ),
+          );
+          continue;
+        }
+        seen.add(path);
+        const parent = git(root, ['rev-parse', `${commit}^1`]);
+        declarations.push({ commit, parent, path, kind });
+      }
     }
   }
   return { declarations, errors };

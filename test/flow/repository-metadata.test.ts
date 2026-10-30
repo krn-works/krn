@@ -21,6 +21,12 @@ import { requiresIsolation } from '../helpers/isolation.ts';
 const addedTestPath = 'test/repository-metadata-added.test.mjs';
 const unchangedTestPath = 'test/repository-metadata-unchanged.test.mjs';
 const redGreenTestPath = 'test/repository-metadata-red-green.test.mjs';
+const capturedObserverPaths = [
+  'test/hooks-guard.test.mjs',
+  'test/codex-context.test.mjs',
+] as const;
+const capturedChangeContract =
+  'Change-contract: test/hooks-guard.test.mjs:red->green, test/codex-context.test.mjs:red->green';
 
 function metadataTestSource(sentinelPath?: string): string {
   return `import assert from 'node:assert/strict';
@@ -93,6 +99,62 @@ function executeGit(copy: string, args: string[]) {
     encoding: 'utf8',
     timeout: 5000,
   });
+}
+
+const localExecute: typeof execute = async (
+  _root,
+  copy,
+  job,
+  id,
+  argv,
+  _timeout,
+  sha,
+) => {
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  delete env.NODE_OPTIONS;
+  delete env.KRN_ISOLATION_GATE_PRELOAD;
+  delete env.KRN_ISOLATION_CAPABILITIES;
+  delete env.CI;
+  const child = spawnSync(argv[0] ?? process.execPath, argv.slice(1), {
+    cwd: copy,
+    env,
+    encoding: 'utf8',
+    timeout: 5000,
+    maxBuffer: 1024 * 1024,
+  });
+  const output = `${child.stdout ?? ''}${child.stderr ?? ''}`;
+  const diagnostics = join(stateDirectory(job), 'diagnostics');
+  mkdirSync(diagnostics, { recursive: true });
+  writeFileSync(
+    join(diagnostics, `${sha}-${id}-capture.txt`),
+    Buffer.from(output).subarray(-2048),
+  );
+  return {
+    id,
+    exitCode:
+      child.error && 'code' in child.error && child.error.code === 'ETIMEDOUT'
+        ? 124
+        : (child.status ?? 1),
+    durationMs: 0,
+    sha256: createHash('sha256').update(output).digest('hex'),
+  };
+};
+
+function valueObserverSource(expected: number): string {
+  return `import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { value } from '../src/value.mjs';
+test('value observer', () => assert.equal(value, ${expected}));
+`;
+}
+
+function stableValueObserverSource(): string {
+  return `import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { value } from '../src/value.mjs';
+test('stable value observer', () => assert.ok(value > 0));
+`;
 }
 
 const metadataObserver: typeof execute = async (
@@ -312,6 +374,144 @@ test('candidate Git metadata cleanup follows successful and failed executions', 
   assert.deepEqual(readdirSync(tmp).sort(), temporaryEntries);
   assert.equal(worktreeState(f.root), worktreesBefore);
   assert.equal(worktreeState(f.root).includes(foreign), true);
+});
+
+test('the native comma-separated Change-contract proves both captured observer files', async (context) => {
+  const f = fixture(context);
+  f.put('src/value.mjs', 'export const value = 1;\n');
+  for (const path of capturedObserverPaths) f.put(path, valueObserverSource(2));
+  const base = f.commit('baseline captured observers');
+
+  f.put('src/value.mjs', 'export const value = 2;\n');
+  const head = f.commit(`fix captured observers\n\n${capturedChangeContract}`);
+
+  const report = await redFirst(f.root, base, head, undefined, localExecute);
+  assert.deepEqual(
+    report.contracts?.map(({ path, kind, red, green, proven }) => ({
+      path,
+      kind,
+      red: red?.classification,
+      green: green.classification,
+      proven,
+    })),
+    [
+      {
+        path: capturedObserverPaths[0],
+        kind: 'red->green',
+        red: 'assertion',
+        green: 'pass',
+        proven: true,
+      },
+      {
+        path: capturedObserverPaths[1],
+        kind: 'red->green',
+        red: 'assertion',
+        green: 'pass',
+        proven: true,
+      },
+    ],
+    JSON.stringify(report),
+  );
+  assert.deepEqual(report.results, []);
+});
+
+test('mixed contracts work across comma-separated entries and repeated trailers', async (context) => {
+  const f = fixture(context);
+  f.put('src/value.mjs', 'export const value = 1;\n');
+  f.put(capturedObserverPaths[0], valueObserverSource(2));
+  f.put(capturedObserverPaths[1], stableValueObserverSource());
+  f.put(addedTestPath, valueObserverSource(2));
+  const base = f.commit('baseline mixed observers');
+
+  f.put('src/value.mjs', 'export const value = 2;\n');
+  const head = f.commit(
+    `fix mixed observers\n\nChange-contract: ${capturedObserverPaths[0]}:red->green, ${capturedObserverPaths[1]}:green->green\nChange-contract: ${addedTestPath}:red->green`,
+  );
+
+  const report = await redFirst(f.root, base, head, undefined, localExecute);
+  assert.deepEqual(
+    report.contracts?.map(({ path, kind, red, green, proven }) => ({
+      path,
+      kind,
+      red: red?.classification,
+      green: green.classification,
+      proven,
+    })),
+    [
+      {
+        path: capturedObserverPaths[0],
+        kind: 'red->green',
+        red: 'assertion',
+        green: 'pass',
+        proven: true,
+      },
+      {
+        path: capturedObserverPaths[1],
+        kind: 'green->green',
+        red: undefined,
+        green: 'pass',
+        proven: true,
+      },
+      {
+        path: addedTestPath,
+        kind: 'red->green',
+        red: 'assertion',
+        green: 'pass',
+        proven: true,
+      },
+    ],
+    JSON.stringify(report),
+  );
+});
+
+test('duplicate, empty, malformed, and unsafe Change-contract entries stay rejected', async (context) => {
+  const declarations = [
+    {
+      name: 'duplicate entries in one list',
+      trailers: `Change-contract: ${capturedObserverPaths[0]}:red->green, ${capturedObserverPaths[0]}:green->green`,
+    },
+    {
+      name: 'duplicate entries across lines',
+      trailers: `Change-contract: ${capturedObserverPaths[0]}:red->green\nChange-contract: ${capturedObserverPaths[0]}:green->green`,
+    },
+    {
+      name: 'empty list entry',
+      trailers: `Change-contract: ${capturedObserverPaths[0]}:red->green, , ${capturedObserverPaths[1]}:red->green`,
+    },
+    {
+      name: 'trailing list entry',
+      trailers: `Change-contract: ${capturedObserverPaths[0]}:red->green,`,
+    },
+    {
+      name: 'invalid kind',
+      trailers: `Change-contract: ${capturedObserverPaths[0]}:red->blue`,
+    },
+    {
+      name: 'absolute path',
+      trailers: 'Change-contract: /tmp/observer.test.mjs:red->green',
+    },
+    {
+      name: 'traversal path',
+      trailers: 'Change-contract: ../test/observer.test.mjs:red->green',
+    },
+    {
+      name: 'non-test path',
+      trailers: 'Change-contract: src/value.mjs:red->green',
+    },
+  ];
+
+  for (const { name, trailers } of declarations) {
+    const f = fixture(context);
+    const base = f.commit('baseline malformed declaration');
+    const head = f.commit(`declare ${name}\n\n${trailers}`);
+    const report = await redFirst(f.root, base, head, undefined, localExecute);
+    assert.ok(
+      report.results.some(
+        ({ exitCode, cause }) => exitCode === 65 && cause === 'contract',
+      ),
+      `${name}: ${JSON.stringify(report)}`,
+    );
+  }
 });
 
 test('isolated review candidates retain exact Git history and test overlays', async (context) => {
