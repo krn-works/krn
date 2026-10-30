@@ -287,7 +287,7 @@ export async function deliver(
             message.trimEnd().split('\n\n').at(-1)
         )
           throw new Error(
-            '--message-file must preserve generated subject and PR commit trailers',
+            '--message-file must preserve generated subject and trailers from PR commits',
           );
         message = supplied;
       }

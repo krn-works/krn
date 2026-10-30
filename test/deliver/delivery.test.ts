@@ -445,7 +445,7 @@ test('message file accepts only the generated PR subject and matching trailers',
       { ...f.options, messageFile: supplied, dryRun: true },
       f.runtime,
     ),
-    /PR commit trailers/u,
+    /trailers from PR commits/u,
   );
 });
 

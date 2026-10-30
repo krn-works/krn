@@ -34,13 +34,13 @@ export function mergeMessage(
     )
   )
     throw new Error(
-      'merge contracts must declare red->green or none (<reason>)',
+      'PR commits must declare Change-contract red->green or none (<reason>)',
     );
   if (
     contracts.some((line) => /^Change-contract: none /u.test(line)) &&
     contracts.length !== 1
   )
-    throw new Error('mixed none Change-contract trailers');
+    throw new Error('PR commits mix none with other Change-contract trailers');
   const authors = [
     ...new Set(lines.filter((line) => /^Co-Authored-By:/iu.test(line))),
   ];

@@ -94,6 +94,6 @@ test('merge message aggregates and deduplicates trailers in first-seen order', (
         `Ticket: t-pst5y0h\nChange-contract: none (tracker only)\n${contract}`,
         7,
       ),
-    /mixed none/u,
+    /PR commits mix none/u,
   );
 });
