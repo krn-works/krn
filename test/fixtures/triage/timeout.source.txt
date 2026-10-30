@@ -1,0 +1,1 @@
+node --test --test-reporter=tap --test-timeout=50 /tmp/krn-triage-capture/timeout.test.mjs (cwd /tmp/krn-triage-capture, exit 1, node v24.22.1)

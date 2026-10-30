@@ -1,3 +1,4 @@
+// Decision: ADR 0011
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { relative } from 'node:path';

@@ -20,6 +20,7 @@ const cliEntries = [
 const hook = fileURLToPath(new URL('./module-load-hook.mjs', import.meta.url));
 const allCommandDirectories = [
   'deliver',
+  'triage',
   'evals',
   'flow',
   'foreman',
@@ -64,6 +65,11 @@ test('CLI commands load only their command modules', async (t) => {
         name: 'deliver help',
         args: ['deliver', '--help'],
         forbidden: allCommandDirectories.filter((name) => name !== 'deliver'),
+      },
+      {
+        name: 'triage help',
+        args: ['triage', '--help'],
+        forbidden: allCommandDirectories,
       },
       {
         name: 'task list',

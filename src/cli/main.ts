@@ -147,9 +147,16 @@ export function main(args = process.argv.slice(2)): void {
   }
 
   if (
-    ['start', 'checkpoint', 'stop', 'note', 'task', 'eval', 'deliver'].includes(
-      args[0] ?? '',
-    )
+    [
+      'start',
+      'checkpoint',
+      'stop',
+      'note',
+      'task',
+      'eval',
+      'deliver',
+      'triage',
+    ].includes(args[0] ?? '')
   ) {
     void dispatch(args).catch((error: unknown) => {
       process.stderr.write(

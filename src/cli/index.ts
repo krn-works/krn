@@ -98,6 +98,9 @@ export async function dispatch(
   } else if (command === 'deliver') {
     const { deliverCommand } = await import('../deliver/cli.ts');
     await deliverCommand(options);
+  } else if (command === 'triage') {
+    const { triageCommand } = await import('./triage.ts');
+    await triageCommand(options);
   } else if (command === 'delegate') {
     const { delegateCommand } = await import('./delegate.ts');
     await delegateCommand(options, {

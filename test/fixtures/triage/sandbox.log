@@ -1,0 +1,231 @@
+▶ strict wrapper requires real native test evidence for every selected file
+  ✔ a passing declared test remains accepted (378.010316ms)
+  ✔ context skip is rejected (386.33394ms)
+  ✔ option skip is rejected (324.751784ms)
+  ✔ registration skip is rejected (331.028116ms)
+  ✔ context todo is rejected (596.336479ms)
+  ✔ registration todo is rejected (482.437167ms)
+  ✔ skipped suite is rejected even with zero summary skipped count (394.219598ms)
+  ✔ nested skip is rejected when a sibling passes (372.064509ms)
+  ✔ empty file implicit pass is rejected (332.510082ms)
+  ✔ early-exit implicit pass is rejected (313.723217ms)
+  ✔ fake TAP totals cannot conceal a skipped test (334.981064ms)
+  ✔ runner filter arguments are rejected instead of accepting a partial run (96.069092ms)
+  ✔ default selection with no test files is rejected (117.310838ms)
+  ✔ strict runner scrubs inherited NODE_TEST_CONTEXT and still runs the selected test (369.773266ms)
+  ✔ strict probe with inherited context refuses without discovery or execution (92.662325ms)
+  ✔ strict parent and non-strict nested probe discover without recursion (495.491596ms)
+✔ strict wrapper requires real native test evidence for every selected file (5450.079069ms)
+▶ scope probe discovers only project tests without recursively running them
+  ✔ child probe emits the exact project-only discovery and runs no tests (106.108123ms)
+  ✔ symlink discovery escaping the project test root fails closed (104.7181ms)
+  ✔ non-strict probe refuses a symlinked project test root (105.900611ms)
+  ✔ strict default selection refuses a symlinked project test root (104.968182ms)
+  ✔ empty discovery fails closed (129.351055ms)
+  ✔ strict probe flag is refused without inherited test context (134.80238ms)
+✔ scope probe discovers only project tests without recursively running them (701.142365ms)
+▶ gate-local publishes only a clean HEAD with complete structured evidence
+  ✔ tracked changes refuse before running the gate (223.484695ms)
+  ✔ nonignored untracked files refuse before running the gate (176.000968ms)
+  ✖ clean structured-evidence control publishes exactly once (180.075045ms)
+  ✖ legacy TAP text without structured evidence refuses publication (187.48796ms)
+  ✖ coherent structured skip summary refuses publication (185.299522ms)
+  ✖ an isolation skip refuses despite otherwise successful structured evidence (180.717908ms)
+  ✖ malformed last summary overrides earlier valid summary (191.539034ms)
+  ✖ a gate that dirties the tree refuses publication (180.135489ms)
+  ✖ a gate that moves HEAD refuses publication (192.081217ms)
+  ✖ a failed test refuses publication despite valid summary text (217.246436ms)
+  ✔ Git redirection cannot hide actual checkout dirt (265.525934ms)
+  ✖ clean publication uses actual HEAD and removes Git context from gate (294.649901ms)
+✖ gate-local publishes only a clean HEAD with complete structured evidence (2514.951783ms)
+ℹ tests 37
+ℹ suites 0
+ℹ pass 27
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8919.274069
+
+✖ failing tests:
+
+test at test/gate-summary.test.ts:637:15
+✖ clean structured-evidence control publishes exactly once (180.075045ms)
+  AssertionError [ERR_ASSERTION]: status=1, signal=null
+  stdout:
+  
+  stderr:
+  Unable to start npm run preflight: spawn npm ENOENT
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:701:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:637:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/gate-summary.test.ts:637:15
+✖ legacy TAP text without structured evidence refuses publication (187.48796ms)
+  AssertionError [ERR_ASSERTION]: expected fixture gate to run
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:757:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:637:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/gate-summary.test.ts:637:15
+✖ coherent structured skip summary refuses publication (185.299522ms)
+  AssertionError [ERR_ASSERTION]: expected fixture gate to run
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:757:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:637:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/gate-summary.test.ts:637:15
+✖ an isolation skip refuses despite otherwise successful structured evidence (180.717908ms)
+  AssertionError [ERR_ASSERTION]: expected fixture gate to run
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:757:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:637:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/gate-summary.test.ts:637:15
+✖ malformed last summary overrides earlier valid summary (191.539034ms)
+  AssertionError [ERR_ASSERTION]: expected fixture gate to run
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:757:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:637:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/gate-summary.test.ts:637:15
+✖ a gate that dirties the tree refuses publication (180.135489ms)
+  AssertionError [ERR_ASSERTION]: expected fixture gate to run
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:757:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:637:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/gate-summary.test.ts:637:15
+✖ a gate that moves HEAD refuses publication (192.081217ms)
+  AssertionError [ERR_ASSERTION]: expected fixture gate to run
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:757:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:637:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/gate-summary.test.ts:637:15
+✖ a failed test refuses publication despite valid summary text (217.246436ms)
+  AssertionError [ERR_ASSERTION]: expected fixture gate to run
+  
+  false !== true
+  
+      at TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:757:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:637:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test/gate-summary.test.ts:637:15
+✖ clean publication uses actual HEAD and removes Git context from gate (294.649901ms)
+  AssertionError [ERR_ASSERTION]: status=1, signal=null
+  stdout:
+  
+  stderr:
+  Unable to start npm run preflight: spawn npm ENOENT
+  
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:701:18)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async TestContext.<anonymous> (file:///mnt/storage/coding/krn/active/krn/.krn/worktrees/ci-first-gate/test/gate-summary.test.ts:637:7)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

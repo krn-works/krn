@@ -1,0 +1,2 @@
+# Receiver captures retain original whitespace.
+*.log -whitespace

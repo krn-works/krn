@@ -1,0 +1,1 @@
+node --test --test-reporter=tap /tmp/krn-triage-capture/test/rules/context-budget.test.ts (cwd /tmp/krn-triage-capture, exit 1, node v24.22.1)

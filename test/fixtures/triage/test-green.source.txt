@@ -1,0 +1,1 @@
+node --test --test-reporter=tap /tmp/krn-triage-capture/calculation.test.mjs (cwd /tmp/krn-triage-capture, exit 0, node v24.22.1)

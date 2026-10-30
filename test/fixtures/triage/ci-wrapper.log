@@ -1,0 +1,22 @@
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4392211Z # Subtest: CodexHost launches an explicitly read-only bounded session
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4392605Z not ok 325 - CodexHost launches an explicitly read-only bounded session
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4392734Z   ---
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4392990Z   duration_ms: 1083.867328
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4394065Z   type: 'test'
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4394248Z   location: '/home/runner/work/krn/krn/scripts/isolation-gate.mjs:292:22'
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4394431Z   failureType: 'testCodeFailure'
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4394602Z   error: 'Codex startup cancelled before registration'
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4394735Z   code: 'ERR_TEST_FAILURE'
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4394831Z   stack: |-
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4395138Z     waitForSystemdScopeRegistration (file:///home/runner/work/krn/krn/src/hosts/systemd-scope.ts:110:13)
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4395446Z     async CodexHost.start (file:///home/runner/work/krn/krn/src/hosts/codex.ts:331:26)
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4395815Z     async TestContext.<anonymous> (file:///home/runner/work/krn/krn/test/hosts/codex-launch.test.ts:74:21)
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4396143Z     async Test.run (node:internal/test_runner/test:1409:7)
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4396436Z     async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4396575Z   ...
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4396802Z # Subtest: CodexHost abort signal cancels its owned process tree
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4397063Z ok 326 - CodexHost abort signal cancels its owned process tree
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4397166Z   ---
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4397267Z   duration_ms: 1056.317817
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4397355Z   type: 'test'
+gate	UNKNOWN STEP	2026-10-29T21:24:28.4397444Z   ...

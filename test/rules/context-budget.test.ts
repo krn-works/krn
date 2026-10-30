@@ -1,3 +1,4 @@
+// Decision: KRN-13
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
