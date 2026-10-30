@@ -1,0 +1,1 @@
+gh run view 41021916997 --repo krn-works/krn --log-failed, lines 26-60 then 6505-6533 verbatim (lint output with a key marker, then the failing block)

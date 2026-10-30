@@ -46,7 +46,7 @@ const clip = (value: string) =>
 export function redact(text: string): string {
   return text
     .replace(
-      /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)/gu,
+      /-----BEGIN [A-Z ]*PRIVATE KEY-----[^\n]*(?:\n[A-Za-z0-9+/=]+[\t \r]*)*(?:\n-----END [A-Z ]*PRIVATE KEY-----)?/gu,
       '[redacted]',
     )
     .replace(
@@ -151,6 +151,15 @@ function failures(log: string, cwd: string): FailedTest[] {
       file,
     };
   });
+}
+/** GitHub's --log-failed prefixes every job line with a step and timestamp. */
+function normalizeLog(log: string): string {
+  return log
+    .replace(/^\uFEFF/u, '')
+    .replace(
+      /^[^\t\r\n]+\t[^\t\r\n]+\t\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z /gmu,
+      '',
+    );
 }
 const runSchema = z.object({
   headSha: z.string().regex(/^[a-f\d]{40}$/iu),
@@ -324,7 +333,7 @@ export async function triage(
       );
     }
   }
-  log = redact(`${log}${annotations}`);
+  log = redact(normalizeLog(`${log}${annotations}`));
   if (!head) need('head', 'git rev-parse HEAD # pass as --head');
   if (!base) need('base', 'git merge-base HEAD origin/main # pass as --base');
   if (!log.trim())

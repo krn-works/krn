@@ -1,0 +1,64 @@
+gate	Run gate	2026-10-30T07:44:34.6785154Z     11 │ const markerFixtures: readonly (readonly [string, string])[] = [
+gate	Run gate	2026-10-30T07:44:34.6786590Z     12 │   ['private key', '-----BEGIN PRIVATE KEY-----'],
+gate	Run gate	2026-10-30T07:44:34.6787551Z   > 13 │   ['generic sk token', 'sk-' + 'a'.repeat(20)],
+gate	Run gate	2026-10-30T07:44:34.6788413Z        │                        ^^^^^^^^^^^^^^^^^^^^^^
+gate	Run gate	2026-10-30T07:44:34.6789266Z     14 │   ['sk test', 'sk-test-' + 'a'.repeat(16)],
+gate	Run gate	2026-10-30T07:44:34.6790168Z     15 │   ['sk project', 'sk-proj-' + 'a'.repeat(16)],
+gate	Run gate	2026-10-30T07:44:34.6790841Z   
+gate	Run gate	2026-10-30T07:44:34.6791390Z   i Unsafe fix: Use a template literal.
+gate	Run gate	2026-10-30T07:44:34.6791991Z   
+gate	Run gate	2026-10-30T07:44:34.6792884Z      11  11 │   const markerFixtures: readonly (readonly [string, string])[] = [
+gate	Run gate	2026-10-30T07:44:34.6794021Z      12  12 │     ['private key', '-----BEGIN PRIVATE KEY-----'],
+gate	Run gate	2026-10-30T07:44:34.6795884Z      13     │ - ··['generic·sk·token',·'sk-'·+·'a'.repeat(20)],
+gate	Run gate	2026-10-30T07:44:34.6796986Z          13 │ + ··['generic·sk·token',·`sk-${'a'.repeat(20)}`],
+gate	Run gate	2026-10-30T07:44:34.6797952Z      14  14 │     ['sk test', 'sk-test-' + 'a'.repeat(16)],
+gate	Run gate	2026-10-30T07:44:34.6798880Z      15  15 │     ['sk project', 'sk-proj-' + 'a'.repeat(16)],
+gate	Run gate	2026-10-30T07:44:34.6799563Z   
+gate	Run gate	2026-10-30T07:44:34.6799893Z 
+gate	Run gate	2026-10-30T07:44:34.6800943Z test/foreman/credential-shape.test.ts:14:15 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━
+gate	Run gate	2026-10-30T07:44:34.6801812Z 
+gate	Run gate	2026-10-30T07:44:34.6802330Z   i Template literals are preferred over string concatenation.
+gate	Run gate	2026-10-30T07:44:34.6803076Z   
+gate	Run gate	2026-10-30T07:44:34.6803792Z     12 │   ['private key', '-----BEGIN PRIVATE KEY-----'],
+gate	Run gate	2026-10-30T07:44:34.6804706Z     13 │   ['generic sk token', 'sk-' + 'a'.repeat(20)],
+gate	Run gate	2026-10-30T07:44:34.6805829Z   > 14 │   ['sk test', 'sk-test-' + 'a'.repeat(16)],
+gate	Run gate	2026-10-30T07:44:34.6806731Z        │               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+gate	Run gate	2026-10-30T07:44:34.6807611Z     15 │   ['sk project', 'sk-proj-' + 'a'.repeat(16)],
+gate	Run gate	2026-10-30T07:44:34.6808478Z     16 │   ['sk live', 'sk-live-' + 'a'.repeat(16)],
+gate	Run gate	2026-10-30T07:44:34.6809120Z   
+gate	Run gate	2026-10-30T07:44:34.6809659Z   i Unsafe fix: Use a template literal.
+gate	Run gate	2026-10-30T07:44:34.6810287Z   
+gate	Run gate	2026-10-30T07:44:34.6811025Z      12  12 │     ['private key', '-----BEGIN PRIVATE KEY-----'],
+gate	Run gate	2026-10-30T07:44:34.6811994Z      13  13 │     ['generic sk token', 'sk-' + 'a'.repeat(20)],
+gate	Run gate	2026-10-30T07:44:34.6812950Z      14     │ - ··['sk·test',·'sk-test-'·+·'a'.repeat(16)],
+gate	Run gate	2026-10-30T07:44:34.6813878Z          14 │ + ··['sk·test',·`sk-test-${'a'.repeat(16)}`],
+gate	Run gate	2026-10-30T07:44:34.6814812Z      15  15 │     ['sk project', 'sk-proj-' + 'a'.repeat(16)],
+gate	Run gate	2026-10-30T07:51:38.2426523Z   duration_ms: 220.55689
+gate	Run gate	2026-10-30T07:51:38.2426622Z   type: 'test'
+gate	Run gate	2026-10-30T07:51:38.2426703Z   ...
+gate	Run gate	2026-10-30T07:51:38.2427032Z # Subtest: a CI wrapper location resolves to the test file frame in the worker checkout
+gate	Run gate	2026-10-30T07:51:38.2427379Z not ok 690 - a CI wrapper location resolves to the test file frame in the worker checkout
+gate	Run gate	2026-10-30T07:51:38.2427461Z   ---
+gate	Run gate	2026-10-30T07:51:38.2427565Z   duration_ms: 113.747961
+gate	Run gate	2026-10-30T07:51:38.2427661Z   type: 'test'
+gate	Run gate	2026-10-30T07:51:38.2427913Z   location: '/home/runner/work/krn/krn/scripts/isolation-gate.mjs:292:22'
+gate	Run gate	2026-10-30T07:51:38.2428052Z   failureType: 'testCodeFailure'
+gate	Run gate	2026-10-30T07:51:38.2428325Z   error: |-
+gate	Run gate	2026-10-30T07:51:38.2428482Z     The expression evaluated to a falsy value:
+gate	Run gate	2026-10-30T07:51:38.2428574Z     
+gate	Run gate	2026-10-30T07:51:38.2428665Z       assert.ok(
+gate	Run gate	2026-10-30T07:51:38.2428750Z     
+gate	Run gate	2026-10-30T07:51:38.2428849Z   code: 'ERR_ASSERTION'
+gate	Run gate	2026-10-30T07:51:38.2428951Z   name: 'AssertionError'
+gate	Run gate	2026-10-30T07:51:38.2429048Z   expected: true
+gate	Run gate	2026-10-30T07:51:38.2429140Z   actual: false
+gate	Run gate	2026-10-30T07:51:38.2429238Z   operator: '=='
+gate	Run gate	2026-10-30T07:51:38.2429331Z   stack: |-
+gate	Run gate	2026-10-30T07:51:38.2429665Z     TestContext.<anonymous> (file:///home/runner/work/krn/krn/test/triage/triage.test.ts:103:10)
+gate	Run gate	2026-10-30T07:51:38.2429855Z     async Test.run (node:internal/test_runner/test:1409:7)
+gate	Run gate	2026-10-30T07:51:38.2430122Z     async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+gate	Run gate	2026-10-30T07:51:38.2430207Z   ...
+gate	Run gate	2026-10-30T07:51:38.2430483Z # Subtest: policy and timeout require matching test-level base evidence
+gate	Run gate	2026-10-30T07:51:38.2430745Z ok 691 - policy and timeout require matching test-level base evidence
+gate	Run gate	2026-10-30T07:51:38.2430832Z   ---
+gate	Run gate	2026-10-30T07:51:38.2430942Z   duration_ms: 203.040632

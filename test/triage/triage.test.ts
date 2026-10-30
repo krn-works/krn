@@ -100,8 +100,30 @@ test('a CI wrapper location resolves to the test file frame in the worker checko
     /codex-launch\.test\.ts:74:21/u,
   );
   assert.ok(result.commands.some((command) => command.includes(file)));
+  const fixtureRoot = '/home/runner/work/krn/krn';
   assert.ok(
-    !result.commands.some((command) => command.includes('/home/runner')),
+    result.commands
+      .filter((command) => command.includes('codex-launch.test.ts'))
+      .every((command) => command.includes(file)),
+  );
+  assert.ok(
+    root === fixtureRoot ||
+      !result.commands.some((command) => command.includes(fixtureRoot)),
+  );
+});
+
+test('GitHub CI log preserves failures after lint output mentions a key marker', async (t) => {
+  const result = await triage(
+    { logText: fixture('lint-key-marker'), out: workspace(t) },
+    { cwd: root },
+  );
+  assert.equal(result.class, 'test-failure');
+  assert.ok(
+    result.tests.some(
+      (failure) =>
+        failure.name ===
+        'a CI wrapper location resolves to the test file frame in the worker checkout',
+    ),
   );
 });
 
@@ -153,6 +175,7 @@ test('artifacts redact secrets and stay bounded for hostile logs', async (t) => 
   const logText = [
     'PASSWORD=hunter2',
     `${key}\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASC\n${end}`,
+    `${key}\nTRUNCATEDb2R5IG9mIGEga2V5\nUNTERMINATEDa2V5IGJvZHk=`,
     `ETIMEDOUT ${'x'.repeat(50_000)}`,
     ...Array.from({ length: 40 }, (_, i) => `node v24.${i}.0`),
     many,
@@ -168,6 +191,8 @@ test('artifacts redact secrets and stay bounded for hostile logs', async (t) => 
   for (const text of written) {
     assert.ok(!text.includes('hunter2'));
     assert.ok(!text.includes('MIIEvQIBADANBgkqhkiG9w0BAQEFAASC'));
+    assert.ok(!text.includes('TRUNCATEDb2R5IG9mIGEga2V5'));
+    assert.ok(!text.includes('UNTERMINATEDa2V5IGJvZHk='));
     assert.ok(text.length < 200_000, `${text.length}`);
   }
   assert.equal(result.tests.length, 50);
