@@ -1,0 +1,16 @@
+{
+  "id": "t-gqfnfn8",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn deliver aggregates Ticket, Change-contract and Co-Authored-By trailers from every PR commit"
+  },
+  "created": "2026-10-30",
+  "priority": 1,
+  "title": "Deliver merge message aggregates trailers from all PR commits",
+  "after": [],
+  "body": [
+    "krn deliver builds the merge message from trailers of the PR head commit only (src/deliver/message.ts:21, delivery.ts:263-265), so a PR whose last commit is the tracker close commit (Ticket only, no Change-contract) fails with exit 73 \"head requires Change-contract trailers\" even with --message-file (PR #143, #144). The repository workflow requires the task close as the last commit. Fix: aggregate Ticket and Change-contract trailers from every commit in base..head (one distinct Ticket, deduplicated contracts in first-seen order, Co-Authored-By deduplicated), and let --message-file be checked against the aggregated trailers. Acceptance: a PR with an implementation commit carrying contracts followed by a tracker close commit yields a merge message with the contracts; tests red at the base by assertion."
+  ]
+}
