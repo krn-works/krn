@@ -126,6 +126,21 @@ function fixture(t: { after(fn: () => void): void }) {
     '-m',
     'feat: fixture head\n\nTicket: t-sbyye51\nChange-contract: test/value.test.ts:red->green',
   ]);
+  writeFileSync(join(main, 'value.txt'), 'PR head refined\n');
+  git(main, ['add', 'value.txt']);
+  git(main, [
+    'commit',
+    '--quiet',
+    '-m',
+    'fix: refine fixture implementation\n\nTicket: t-sbyye51\nChange-contract: test/value.test.ts:red->green',
+  ]);
+  git(main, [
+    'commit',
+    '--quiet',
+    '--allow-empty',
+    '-m',
+    'chore: close tracked task\n\nTicket: t-sbyye51',
+  ]);
   const head = git(main, ['rev-parse', 'HEAD']);
   git(main, ['checkout', '--quiet', 'main']);
   git(main, ['merge', '--quiet', '--no-ff', '-m', 'Merge fixture PR', head]);
@@ -375,15 +390,33 @@ test('message file accepts only the generated PR subject and matching trailers',
     },
   );
   assert.equal(commitMessage.status, 0, commitMessage.stderr);
-  const parsed = spawnSync('git', ['interpret-trailers', '--parse'], {
-    cwd: f.worktree,
-    input: commitMessage.stdout,
-    encoding: 'utf8',
-  });
-  assert.equal(parsed.status, 0, parsed.stderr);
+  const commits = f
+    .git(f.worktree, [
+      'rev-list',
+      '--reverse',
+      '--no-merges',
+      `${f.config.base}..${f.config.head}`,
+    ])
+    .split('\n');
+  const parsedTrailers = commits
+    .map((commit) => {
+      const body = spawnSync('git', ['show', '-s', '--format=%B', commit], {
+        cwd: f.worktree,
+        encoding: 'utf8',
+      });
+      assert.equal(body.status, 0, body.stderr);
+      const parsed = spawnSync('git', ['interpret-trailers', '--parse'], {
+        cwd: f.worktree,
+        input: body.stdout,
+        encoding: 'utf8',
+      });
+      assert.equal(parsed.status, 0, parsed.stderr);
+      return parsed.stdout;
+    })
+    .join('\n');
   const generated = messageApi.mergeMessage(
     'feat(skills): encode the KRN lead loop as project skills (t-sbyye51)',
-    parsed.stdout,
+    parsedTrailers,
     138,
     't-sbyye51',
   );
@@ -402,6 +435,31 @@ test('message file accepts only the generated PR subject and matching trailers',
     f.runtime,
   );
   assert.equal(result.ship, 'ready');
+  const headOnly = generated.replace(
+    /\nChange-contract: test\/value\.test\.ts:red->green/u,
+    '',
+  );
+  writeFileSync(supplied, headOnly);
+  await assert.rejects(
+    f.api.deliver(
+      { ...f.options, messageFile: supplied, dryRun: true },
+      f.runtime,
+    ),
+    /PR commit trailers/u,
+  );
+});
+
+test('delivery accepts contracts from an implementation commit before tracker close', async (t) => {
+  const f = fixture(t);
+  let result: Awaited<ReturnType<typeof f.api.deliver>> | undefined;
+  await assert.doesNotReject(async () => {
+    result = await f.api.deliver({ ...f.options, dryRun: true }, f.runtime);
+  });
+  assert.ok(result);
+  assert.equal(result.status, 'dry-run');
+  const ship = f.calls().find((call) => call.args[0] === 'ship');
+  assert.ok(ship);
+  assert.ok(ship.args.includes('--message-file'));
 });
 
 test('publishing honors exact status receiver fields and preserves permanent receiver failure', async (t) => {

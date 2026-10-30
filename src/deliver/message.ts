@@ -14,11 +14,17 @@ export function mergeMessage(
     throw new Error('PR title must be a Conventional Commit subject');
   const lines = parsed.trim().split(/\r?\n/u);
   const tickets = lines.filter((line) => /^Ticket:/iu.test(line));
-  if (tickets.length !== 1 || (task && tickets[0] !== `Ticket: ${task}`))
-    throw new Error('head requires exactly one matching Ticket trailer');
-  const contracts = lines.filter((line) => /^Change-contract:/iu.test(line));
+  const distinctTickets = [...new Set(tickets)];
+  if (
+    distinctTickets.length !== 1 ||
+    (task && distinctTickets[0] !== `Ticket: ${task}`)
+  )
+    throw new Error('PR commits require exactly one matching Ticket trailer');
+  const contracts = [
+    ...new Set(lines.filter((line) => /^Change-contract:/iu.test(line))),
+  ];
   if (!contracts.length)
-    throw new Error('head requires Change-contract trailers');
+    throw new Error('PR commits require Change-contract trailers');
   if (
     contracts.some(
       (line) =>
@@ -31,12 +37,13 @@ export function mergeMessage(
       'merge contracts must declare red->green or none (<reason>)',
     );
   if (
-    new Set(contracts).size !== contracts.length ||
-    (contracts.some((line) => /^Change-contract: none /u.test(line)) &&
-      contracts.length !== 1)
+    contracts.some((line) => /^Change-contract: none /u.test(line)) &&
+    contracts.length !== 1
   )
-    throw new Error('duplicate or mixed none Change-contract trailers');
-  const authors = lines.filter((line) => /^Co-Authored-By:/iu.test(line));
+    throw new Error('mixed none Change-contract trailers');
+  const authors = [
+    ...new Set(lines.filter((line) => /^Co-Authored-By:/iu.test(line))),
+  ];
   const withoutTask = title.replace(/ \(t-[a-z0-9]{7}\)$/u, '');
   const subject = withoutTask.endsWith(` (#${pr})`)
     ? withoutTask
@@ -50,7 +57,7 @@ export function mergeMessage(
     ) !== pr
   )
     throw new Error('generated subject would be refused by krn ship');
-  return `${subject}\n\nDeliver the reviewed change.\n\n${[...tickets, ...contracts, ...authors].join('\n')}\n`;
+  return `${subject}\n\nDeliver the reviewed change.\n\n${[distinctTickets[0], ...contracts, ...authors].join('\n')}\n`;
 }
 
 /** A synthetic commit makes existing red-first compare the merge tree to PR base. */

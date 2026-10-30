@@ -260,8 +260,21 @@ export async function deliver(
           worktree,
         ),
       );
-      const body = git(worktree, ['show', '-s', '--format=%B', pull.head.sha]);
-      const parsed = git(worktree, ['interpret-trailers', '--parse'], body);
+      const commits = git(worktree, [
+        'rev-list',
+        '--reverse',
+        '--no-merges',
+        `${pull.base.sha}..${pull.head.sha}`,
+      ])
+        .split('\n')
+        .filter(Boolean);
+      const parsed = commits
+        .map((commit) => {
+          const body = git(worktree, ['show', '-s', '--format=%B', commit]);
+          return git(worktree, ['interpret-trailers', '--parse'], body);
+        })
+        .filter(Boolean)
+        .join('\n');
       let message = mergeMessage(pull.title, parsed, options.pr, options.task);
       if (options.messageFile) {
         const supplied = readFileSync(options.messageFile, 'utf8');
@@ -270,10 +283,11 @@ export async function deliver(
           paragraphs.length < 3 ||
           paragraphs[0] !== message.split('\n')[0] ||
           paragraphs.at(-1) !== message.trimEnd().split('\n\n').at(-1) ||
-          git(worktree, ['interpret-trailers', '--parse'], supplied) !== parsed
+          git(worktree, ['interpret-trailers', '--parse'], supplied) !==
+            message.trimEnd().split('\n\n').at(-1)
         )
           throw new Error(
-            '--message-file must preserve generated subject and the head final trailers',
+            '--message-file must preserve generated subject and PR commit trailers',
           );
         message = supplied;
       }

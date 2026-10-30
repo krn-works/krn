@@ -5,7 +5,7 @@ const api = await import('../../src/deliver/message.ts').catch(() => undefined);
 const trailers =
   'Ticket: t-pst5y0h\nChange-contract: test/deliver/message.test.ts:red->green\nCo-Authored-By: Contributor <contributor@example.com>\n';
 
-test('merge message preserves one final trailer paragraph from the head', () => {
+test('merge message preserves one final paragraph of PR trailers', () => {
   assert.equal(typeof api?.mergeMessage, 'function');
   assert.ok(api);
   let message = '';
@@ -63,5 +63,37 @@ test('merge message preserves one final trailer paragraph from the head', () => 
   assert.throws(
     () => api.mergeMessage('feat: x', `${trailers}Ticket: t-other\n`, 7),
     /Ticket/u,
+  );
+});
+
+test('merge message aggregates and deduplicates trailers in first-seen order', () => {
+  assert.ok(api);
+  const contract = 'Change-contract: test/deliver/message.test.ts:red->green';
+  const parsed = `Ticket: t-pst5y0h\n${contract}\nCo-Authored-By: A <a@example.com>\nTicket: t-pst5y0h\n${contract}\nCo-Authored-By: A <a@example.com>\nChange-contract: test/deliver/delivery.test.ts:red->green`;
+  let message = '';
+  assert.doesNotThrow(() => {
+    message = api.mergeMessage('feat: aggregate', parsed, 7, 't-pst5y0h');
+  });
+  const final = message.trimEnd().split('\n\n').at(-1);
+  assert.equal(
+    final,
+    `Ticket: t-pst5y0h\n${contract}\nChange-contract: test/deliver/delivery.test.ts:red->green\nCo-Authored-By: A <a@example.com>`,
+  );
+  assert.throws(
+    () => api.mergeMessage('feat: aggregate', `${parsed}\nTicket: t-other`, 7),
+    /Ticket/u,
+  );
+  assert.throws(
+    () => api.mergeMessage('feat: aggregate', 'Ticket: t-pst5y0h', 7),
+    /PR commits require Change-contract trailers/u,
+  );
+  assert.throws(
+    () =>
+      api.mergeMessage(
+        'feat: aggregate',
+        `Ticket: t-pst5y0h\nChange-contract: none (tracker only)\n${contract}`,
+        7,
+      ),
+    /mixed none/u,
   );
 });
