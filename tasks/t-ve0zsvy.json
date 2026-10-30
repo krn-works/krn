@@ -4,7 +4,7 @@
   "resolution": {
     "kind": "done",
     "ref": null,
-    "note": "Project skills route handoffs by active harness and document same-server resume; live warning/handoff/Herdr acceptance remains owned by runtime task t-b6v615x."
+    "note": "Prepared native handoff routing with canonical current ownership during pending launch, explicit transfer ACK and separate failure/unknown recovery. Public observer assertion RED/GREEN, 5/5 PASS and zero skips; formal exact-head review and green required CI remain delivery conditions."
   },
   "created": "2026-10-30",
   "priority": 0,

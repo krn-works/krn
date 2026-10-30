@@ -57,7 +57,7 @@ test('handoffs choose the active harness and keep native Codex sessions resumabl
   for (const requirement of [
     /Select the active harness from runtime context, never from executable presence/iu,
     /mcp__codex_tui__create_thread/u,
-    /descriptive title and a prompt containing only handoff\/task pointers/iu,
+    /descriptive title and a prompt containing (?:only )?handoff\/task pointers/iu,
     /omit the model/iu,
     /verify the repository cwd is inherited/iu,
     /fresh `threadId`/u,
@@ -78,6 +78,20 @@ test('handoffs choose the active harness and keep native Codex sessions resumabl
     /runtime owner still must demonstrate a real/iu,
   ])
     assert.match(handoff, requirement);
+});
+
+test('handoffs do not publish successor ownership before a confirmed launch', () => {
+  const handoff = skill('krn-handoff');
+  assert.doesNotMatch(
+    handoff,
+    /Record in the capsule field[^\n]+successor is the writer[^\n]+only then launch/iu,
+    'a pending launch must retain the current capsule owner',
+  );
+  assert.doesNotMatch(
+    handoff,
+    /If launch fails or its outcome is unknown,[^\n]+before retrying/iu,
+    'definite failure and an unknown launch need separate recovery decisions',
+  );
 });
 
 test('lead context policy thresholds are not presented as the native model window', () => {
