@@ -1,7 +1,11 @@
 {
   "id": "t-q4dckkf",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn triage delivered in PR #144: red CI, gate or review log to a bounded worker brief with one verdict line"
+  },
   "created": "2026-10-29",
   "priority": 2,
   "title": "Triage a red CI, gate or review run into a worker brief",
