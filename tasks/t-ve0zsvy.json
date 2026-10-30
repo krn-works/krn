@@ -1,7 +1,11 @@
 {
   "id": "t-ve0zsvy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Project skills route handoffs by active harness and document same-server resume; live warning/handoff/Herdr acceptance remains owned by runtime task t-b6v615x."
+  },
   "created": "2026-10-30",
   "priority": 0,
   "title": "Route fresh-session handoffs through the active harness",
