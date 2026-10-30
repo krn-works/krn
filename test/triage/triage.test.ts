@@ -174,6 +174,24 @@ test('artifacts redact secrets and stay bounded for hostile logs', async (t) => 
   assert.ok(result.truncated.some((t) => t.startsWith('log version lines')));
 });
 
+test('long test names match the base log in full and only artifacts are clipped', async (t) => {
+  const dir = workspace(t);
+  const name = `calculation result ${'n'.repeat(600)}`;
+  const file = `test/${'d/'.repeat(300)}calculation.test.mjs`;
+  const log = fixture('test-red')
+    .replaceAll('calculation result', name)
+    .replaceAll('test/calculation.test.mjs', file);
+  const result = await triage(
+    { head, base, logText: log, baseText: log, out: join(dir, 'out') },
+    { cwd: root },
+  );
+  assert.equal(result.verdict, 'failed-at-base');
+  assert.ok((result.tests[0]?.name.length ?? 0) < 600);
+  assert.ok((result.tests[0]?.file.length ?? 0) < 600);
+  assert.ok(!result.commands.some((command) => command.includes(file)));
+  assert.ok(!result.commands.some((command) => command.includes('[truncated')));
+});
+
 test('insufficient lists missing inputs and commands without guessing base passes', async (t) => {
   const dir = workspace(t);
   const empty = await triage({ out: join(dir, 'empty') }, { cwd: root });

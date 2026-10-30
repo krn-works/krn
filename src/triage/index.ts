@@ -302,10 +302,14 @@ export async function triage(
   const truncated: string[] = [];
   if (failed.length > limits.tests)
     truncated.push(`failing tests: kept ${limits.tests} of ${failed.length}`);
-  const tests: FailedTest[] = failed.slice(0, limits.tests).map((test) => ({
+  // Full names and paths stay for matching and commands; artifacts get clipped copies.
+  const kept = failed.slice(0, limits.tests);
+  const pattern = (name: string) =>
+    quote(name.slice(0, limits.field).replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'));
+  const tests: FailedTest[] = kept.map((test) => ({
     name: clip(test.name),
     location: clip(test.location),
-    file: test.file,
+    file: clip(test.file),
     ...(/(?:^|\/)test\/rules\//u.test(test.file)
       ? { adr: clip(decision(test.file)) }
       : {}),
@@ -314,7 +318,7 @@ export async function triage(
     if (test.adr === 'unrecorded')
       need(
         `ADR id: ${test.name}`,
-        `add a "// Decision: <ADR or rule id>" header to ${clip(test.file)}`,
+        `add a "// Decision: <ADR or rule id>" header to ${test.file}`,
       );
   let verdict: 'confirmed' | 'failed-at-base' | 'insufficient' = 'confirmed';
   const environment = kind === 'runner-lost' || kind === 'sandbox-tooling';
@@ -337,17 +341,18 @@ export async function triage(
         'git -C <base-checkout> rev-parse HEAD; node --test <test-file> > base.log 2>&1 # at base; pass --base-log base.log',
       );
     else {
-      const failed = testNames(baseText, false);
+      const baseFailed = testNames(baseText, false);
       const passed = testNames(baseText, true);
-      if (tests.some((test) => failed.includes(test.name)))
+      if (kept.some((test) => baseFailed.includes(test.name)))
         verdict = 'failed-at-base';
       else
-        for (const test of tests)
+        kept.forEach((test, i) => {
           if (!passed.includes(test.name))
             need(
-              `base evidence: ${test.name}`,
-              `node --test --test-name-pattern ${quote(test.name)} ${quote(test.file)} > base.log 2>&1 # at base; pass --base-log base.log`,
+              `base evidence: ${tests[i]?.name}`,
+              `node --test --test-name-pattern ${pattern(test.name)} ${quote(tests[i]?.file ?? '')} > base.log 2>&1 # at base; pass --base-log base.log`,
             );
+        });
     }
   }
   if (missing.length) verdict = 'insufficient';
@@ -384,10 +389,12 @@ export async function triage(
   if (redact(out) !== out || /[\r\n]/u.test(out))
     throw new Error('Unsafe output path');
   const brief = join(out, 'brief.md');
-  const commands = tests.map((test) =>
+  const commands = kept.map((test) =>
     test.file === 'unrecorded'
       ? 'unavailable: test file location missing'
-      : `node --test --test-name-pattern ${quote(test.name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&'))} ${quote(isAbsolute(test.file) ? test.file : resolve(cwd, test.file))}`,
+      : test.file.length > limits.field
+        ? `unavailable: test file path exceeds ${limits.field} chars`
+        : `node --test --test-name-pattern ${pattern(test.name)} ${quote(isAbsolute(test.file) ? test.file : resolve(cwd, test.file))}`,
   );
   for (const test of tests)
     if (!environment && test.file === 'unrecorded') {
