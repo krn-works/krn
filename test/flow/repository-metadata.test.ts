@@ -415,6 +415,56 @@ test('the native comma-separated Change-contract proves both captured observer f
   assert.deepEqual(report.results, []);
 });
 
+test('comma-bearing paths remain valid in single and multiple change contracts', async (context) => {
+  const commaPath = 'test/value,observer.test.mjs';
+  const cases = [
+    {
+      name: 'legacy single declaration',
+      paths: [commaPath],
+      trailer: `Change-contract: ${commaPath}:red->green`,
+    },
+    {
+      name: 'multiple declarations with separator whitespace',
+      paths: [commaPath, capturedObserverPaths[1]],
+      trailer: `Change-contract: ${commaPath}:red->green , ${capturedObserverPaths[1]}:red->green`,
+    },
+  ];
+  for (const { name, paths, trailer } of cases) {
+    await context.test(name, async (child) => {
+      const f = fixture(child);
+      f.put('src/value.mjs', 'export const value = 1;\n');
+      for (const path of paths) f.put(path, valueObserverSource(2));
+      const base = f.commit('baseline comma-bearing observer paths');
+      f.put('src/value.mjs', 'export const value = 2;\n');
+      const head = f.commit(`fix comma-bearing observers\n\n${trailer}`);
+
+      const report = await redFirst(
+        f.root,
+        base,
+        head,
+        undefined,
+        localExecute,
+      );
+      assert.deepEqual(
+        report.contracts?.map(({ path, red, green, proven }) => ({
+          path,
+          red: red?.classification,
+          green: green.classification,
+          proven,
+        })),
+        paths.map((path) => ({
+          path,
+          red: 'assertion',
+          green: 'pass',
+          proven: true,
+        })),
+        JSON.stringify(report),
+      );
+      assert.deepEqual(report.results, []);
+    });
+  }
+});
+
 test('mixed contracts work across comma-separated entries and repeated trailers', async (context) => {
   const f = fixture(context);
   f.put('src/value.mjs', 'export const value = 1;\n');

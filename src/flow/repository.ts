@@ -598,14 +598,17 @@ function contractDeclarations(
     for (const line of parsed.stdout.split(/\r?\n/u)) {
       if (!/^Change-contract:/iu.test(line)) continue;
       const value = line.slice(line.indexOf(':') + 1).trim();
-      const entries = value.split(',').map((entry) => {
-        const match = /^(.*):(red->green|green->green)$/u.exec(entry.trim());
-        return {
-          entry: entry.trim(),
-          path: match?.[1],
-          kind: match?.[2],
-        };
-      });
+      // Safe paths allow commas but forbid colons, so split after a contract kind.
+      const entries = value
+        .split(/(?<=:(?:red|green)->green)\s*,/u)
+        .map((entry) => {
+          const match = /^(.*):(red->green|green->green)$/u.exec(entry.trim());
+          return {
+            entry: entry.trim(),
+            path: match?.[1],
+            kind: match?.[2],
+          };
+        });
       const invalidEntries = entries.filter(
         ({ entry, path, kind }) =>
           !entry ||

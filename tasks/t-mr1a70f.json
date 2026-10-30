@@ -4,7 +4,7 @@
   "resolution": {
     "kind": "done",
     "ref": null,
-    "note": "Receiver accepts native comma-separated declarations and rejects malformed entries; independent replay and required PR checks accompany delivery."
+    "note": "Prepared parser compatibility fix and public assertion RED/GREEN proof, including comma-bearing paths; focused 10/10 PASS with zero isolation skips. Formal exact-head review and green required CI remain delivery conditions."
   },
   "created": "2026-10-30",
   "priority": 0,
