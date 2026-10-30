@@ -1,0 +1,12 @@
+{
+  "id": "t-a8v7yp9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-30",
+  "priority": 1,
+  "title": "Turn cross-slice operator requests into tasks or memory at handoff",
+  "after": [],
+  "body": [
+    "Outcome: operator requests that span slices never live only in handoff notes or transcripts. At handoff, every open operator request is either a krn task, a memory entry, or explicitly listed as closed.\nEvidence: the herdr-tabs request (2026-10-30) lived only in transcript handoff notes; no task or memory existed until the session-continuity handoff.\nInputs: Claude Code remember/memory research verdict (session-continuity outcome); .claude/skills/krn-handoff/SKILL.md step 2.\nProof: krn-handoff gains an executable check (script or `krn state check` rule) that refuses a handoff listing an operator request without a task id or memory pointer."
+  ]
+}
