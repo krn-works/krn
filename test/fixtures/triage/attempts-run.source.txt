@@ -1,0 +1,1 @@
+gh run view 40562324411 --repo krn-works/krn --json headSha,attempt (exit 0)

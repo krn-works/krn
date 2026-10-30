@@ -7,7 +7,6 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import type { Runner } from '../../src/deliver/transport.ts';
@@ -22,7 +21,9 @@ const fixture = (name: string) =>
 const head = 'a'.repeat(40);
 const base = 'b'.repeat(40);
 function workspace(t: { after: (fn: () => void) => void }) {
-  const dir = mkdtempSync(join(tmpdir(), 'krn-triage-'));
+  const parent = join(root, '.krn/runs/claude/triage/worker-r3');
+  mkdirSync(parent, { recursive: true });
+  const dir = mkdtempSync(join(parent, 'workspace-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
@@ -237,7 +238,7 @@ test('CI adapter uses captured run, jobs and check annotations through Runner', 
     calls.push([command, ...args]);
     const text = args.includes('--log-failed')
       ? ''
-      : args.includes('headSha')
+      : args.includes('headSha,attempt')
         ? fixture('runner-run')
         : args.at(-1)?.endsWith('/annotations')
           ? fixture('runner-annotations')
@@ -351,5 +352,168 @@ test('malformed CI metadata and mismatched head fail closed with a recovery comm
         (m) => m.item === 'CI metadata' && m.command.includes('gh run view'),
       ),
     );
+  }
+});
+
+test('base matching includes failures beyond the artifact limit', async (t) => {
+  const logText = Array.from(
+    { length: 51 },
+    (_, i) =>
+      `not ok ${i + 1} - case ${i + 1}\n  location: 'test/a.test.ts:1:1'`,
+  ).join('\n');
+  const baseText = Array.from(
+    { length: 51 },
+    (_, i) => `${i === 50 ? 'not ok' : 'ok'} ${i + 1} - case ${i + 1}`,
+  ).join('\n');
+  const result = await triage(
+    { head, base, logText, baseText, out: workspace(t) },
+    { cwd: root },
+  );
+  assert.equal(result.verdict, 'failed-at-base');
+  assert.equal(result.tests.length, 50);
+});
+
+test('missing base evidence beyond the artifact limit is bounded and reported', async (t) => {
+  const logText = Array.from(
+    { length: 105 },
+    (_, i) =>
+      `not ok ${i + 1} - case ${i + 1}\n  location: 'test/a.test.ts:1:1'`,
+  ).join('\n');
+  const result = await triage(
+    { head, base, logText, baseText: 'ok 1 - unrelated', out: workspace(t) },
+    { cwd: root },
+  );
+  assert.equal(result.verdict, 'insufficient');
+  assert.equal(
+    result.missing.filter((m) => m.item.startsWith('base evidence:')).length,
+    50,
+  );
+  assert.ok(result.truncated.some((note) => note.startsWith('base evidence:')));
+  const tail = await triage(
+    {
+      head,
+      base,
+      logText,
+      baseText: Array.from(
+        { length: 50 },
+        (_, i) => `ok ${i + 1} - case ${i + 1}`,
+      ).join('\n'),
+      out: join(workspace(t), 'tail'),
+    },
+    { cwd: root },
+  );
+  assert.equal(tail.verdict, 'insufficient');
+  assert.equal(
+    tail.missing.filter((m) => m.item.startsWith('base evidence:')).length,
+    50,
+  );
+  assert.ok(tail.missing.some((m) => m.item === 'base evidence: case 51'));
+});
+
+test('version metadata is clipped in both persisted artifacts', async (t) => {
+  const dir = workspace(t);
+  writeFileSync(join(dir, '.node-version'), 'n'.repeat(50_000));
+  const runner: Runner = () => ({
+    code: 0,
+    stdout: 'v'.repeat(50_000),
+    stderr: '',
+  });
+  const result = await triage(
+    {
+      head,
+      base,
+      logText: `npm: command not found\nnode v24 ${'x'.repeat(50_000)}`,
+      out: join(dir, 'out'),
+    },
+    { cwd: dir, run: runner },
+  );
+  for (const file of ['triage.json', 'brief.md']) {
+    const text = readFileSync(join(dir, 'out', file), 'utf8');
+    assert.ok(text.length < 200_000, `${file}: ${text.length}`);
+    assert.match(text, /truncated/u);
+  }
+  for (const version of Object.values(result.versions)) {
+    assert.ok(version.length < 600, `${version.length}`);
+    assert.match(version, /truncated/u);
+  }
+});
+
+test('CI adapter selects the latest failed attempt from verbatim receivers', async (t) => {
+  const calls: string[][] = [];
+  const runner: Runner = (command, args) => {
+    calls.push([command, ...args]);
+    const text =
+      command !== 'gh'
+        ? 'v1'
+        : args.includes('headSha,attempt')
+          ? fixture('attempts-run')
+          : args.at(-1)?.endsWith('/attempts/2/jobs')
+            ? fixture('attempts-jobs-2')
+            : args.at(-1)?.endsWith('/attempts/1/jobs')
+              ? fixture('attempts-jobs-1')
+              : args.includes('--log-failed')
+                ? fixture('attempts-failed-1')
+                : '[]';
+    return { code: 0, stdout: text, stderr: '' };
+  };
+  const name =
+    'independent trace appenders preserve events across a torn-tail repair';
+  const dir = workspace(t);
+  const result = await triage(
+    {
+      ciRun: '40562324411',
+      repo: 'krn-works/krn',
+      base,
+      baseText: `ok 1 - ${name}`,
+      out: dir,
+    },
+    { cwd: root, run: runner },
+  );
+  assert.equal(result.class, 'test-failure');
+  assert.equal(result.verdict, 'confirmed');
+  assert.equal(result.tests[0]?.name, name);
+  assert.equal(result.head, '05c9eb332a7f5b43d3839bfc184696d2f3977255');
+  assert.equal(
+    JSON.parse(readFileSync(join(dir, 'triage.json'), 'utf8')).attempt,
+    1,
+  );
+  assert.match(readFileSync(result.brief, 'utf8'), /Attempt: 1/u);
+  assert.ok(
+    calls.some(
+      (c) =>
+        c.includes('--log-failed') &&
+        c.includes('--attempt') &&
+        c.includes('1'),
+    ),
+  );
+});
+
+test('CI attempt search is bounded and reports absent failed attempts', async (t) => {
+  for (const attempt of [2, 100]) {
+    const calls: string[][] = [];
+    const runner: Runner = (command, args) => {
+      calls.push([command, ...args]);
+      return {
+        code: 0,
+        stdout:
+          command !== 'gh'
+            ? 'v1'
+            : args.includes('headSha,attempt')
+              ? JSON.stringify({ headSha: head, attempt })
+              : fixture('attempts-jobs-2'),
+        stderr: '',
+      };
+    };
+    const result = await triage(
+      { ciRun: '40562324411', repo: 'krn-works/krn', base, out: workspace(t) },
+      { cwd: root, run: runner },
+    );
+    assert.equal(result.verdict, 'insufficient');
+    assert.ok(result.missing.some((m) => m.item.includes('failed CI attempt')));
+    assert.equal(
+      calls.filter((c) => c.some((a) => a.endsWith('/jobs'))).length,
+      Math.min(attempt, 10),
+    );
+    assert.ok(!calls.some((c) => c.includes('--log-failed')));
   }
 });

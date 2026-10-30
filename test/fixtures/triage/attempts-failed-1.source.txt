@@ -1,0 +1,1 @@
+gh run view 40562324411 --repo krn-works/krn --attempt 1 --log-failed, lines 5608-5655 verbatim (contiguous failing block plus the next passing block)

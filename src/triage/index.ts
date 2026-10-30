@@ -35,6 +35,8 @@ interface FailedTest {
 
 /** Bounds that keep every persisted artifact small whatever the log holds. */
 const limits = { tests: 50, field: 500, excerptLines: 200, versionLines: 10 };
+/** Search at most ten attempts, newest first. */
+const maxAttempts = 10;
 const clip = (value: string) =>
   value.length > limits.field
     ? `${value.slice(0, limits.field)} [truncated ${value.length - limits.field} chars]`
@@ -150,7 +152,10 @@ function failures(log: string, cwd: string): FailedTest[] {
     };
   });
 }
-const runSchema = z.object({ headSha: z.string().regex(/^[a-f\d]{40}$/iu) });
+const runSchema = z.object({
+  headSha: z.string().regex(/^[a-f\d]{40}$/iu),
+  attempt: z.number().int().positive().optional().default(1),
+});
 const jobsSchema = z.object({
   jobs: z.array(
     z.object({
@@ -209,6 +214,7 @@ export async function triage(
   const base = options.base ?? '';
   let log = options.logText ?? '';
   let annotations = '';
+  let attempt: number | undefined;
   const read = (path: string, item: string) => {
     try {
       return redact(readFileSync(resolve(cwd, path), 'utf8'));
@@ -233,21 +239,44 @@ export async function triage(
             '--repo',
             options.repo,
             '--json',
-            'headSha',
+            'headSha,attempt',
           ]),
         ),
       );
       if (head && head !== info.headSha)
         throw new Error('head differs from CI run');
       head = info.headSha;
-      const jobs = jobsSchema.parse(
-        JSON.parse(
-          await gh([
-            'api',
-            `repos/${options.repo}/actions/runs/${options.ciRun}/jobs`,
-          ]),
-        ),
-      );
+      let jobs: z.infer<typeof jobsSchema> = { jobs: [] };
+      for (
+        let n = info.attempt;
+        n > Math.max(0, info.attempt - maxAttempts);
+        n--
+      ) {
+        const candidate = jobsSchema.parse(
+          JSON.parse(
+            await gh([
+              'api',
+              `repos/${options.repo}/actions/runs/${options.ciRun}/attempts/${n}/jobs`,
+            ]),
+          ),
+        );
+        if (
+          candidate.jobs.some((job) =>
+            ['failure', 'cancelled', 'timed_out'].includes(
+              job.conclusion ?? '',
+            ),
+          )
+        ) {
+          attempt = n;
+          jobs = candidate;
+          break;
+        }
+      }
+      if (attempt === undefined)
+        need(
+          `failed CI attempt: none found in latest ${Math.min(info.attempt, maxAttempts)} attempts`,
+          `gh run view ${options.ciRun} --repo ${options.repo} --json headSha,attempt`,
+        );
       for (const job of jobs.jobs) {
         const entries = annotationsSchema.parse(
           JSON.parse(
@@ -259,33 +288,39 @@ export async function triage(
         );
         annotations += `\n${entries.map((a) => `${a.path ?? ''}:${a.start_line ?? ''} ${a.title ?? ''} ${a.message}`).join('\n')}`;
         if (
-          ['failure', 'cancelled'].includes(job.conclusion ?? '') &&
+          ['failure', 'cancelled', 'timed_out'].includes(
+            job.conclusion ?? '',
+          ) &&
           !job.steps.some((s) => s.status !== 'queued' && Boolean(s.started_at))
         )
           annotations += '\nrunner shutdown: job with no step run';
       }
-      try {
-        log = redact(
-          await gh([
-            'run',
-            'view',
-            options.ciRun,
-            '--repo',
-            options.repo,
-            '--log-failed',
-          ]),
-        );
-      } catch {
-        if (!annotations.trim())
-          need(
-            'log',
-            `gh run view ${options.ciRun} --repo ${options.repo} --log-failed`,
+      if (attempt !== undefined) {
+        try {
+          log = redact(
+            await gh([
+              'run',
+              'view',
+              options.ciRun,
+              '--repo',
+              options.repo,
+              '--attempt',
+              String(attempt),
+              '--log-failed',
+            ]),
           );
+        } catch {
+          if (!annotations.trim())
+            need(
+              'log',
+              `gh run view ${options.ciRun} --repo ${options.repo} --attempt ${attempt} --log-failed`,
+            );
+        }
       }
     } catch {
       need(
         'CI metadata',
-        `gh run view ${options.ciRun} --repo ${options.repo} --json headSha,jobs`,
+        `gh run view ${options.ciRun} --repo ${options.repo} --json headSha,attempt`,
       );
     }
   }
@@ -343,32 +378,35 @@ export async function triage(
     else {
       const baseFailed = testNames(baseText, false);
       const passed = testNames(baseText, true);
-      if (kept.some((test) => baseFailed.includes(test.name)))
+      if (failed.some((test) => baseFailed.includes(test.name)))
         verdict = 'failed-at-base';
-      else
-        kept.forEach((test, i) => {
-          if (!passed.includes(test.name))
-            need(
-              `base evidence: ${tests[i]?.name}`,
-              `node --test --test-name-pattern ${pattern(test.name)} ${quote(tests[i]?.file ?? '')} > base.log 2>&1 # at base; pass --base-log base.log`,
-            );
-        });
+      else {
+        const absent = failed.filter((test) => !passed.includes(test.name));
+        for (const test of absent.slice(0, limits.tests))
+          need(
+            `base evidence: ${clip(test.name)}`,
+            `node --test --test-name-pattern ${pattern(test.name)} ${quote(clip(test.file))} > base.log 2>&1 # at base; pass --base-log base.log`,
+          );
+        if (absent.length > limits.tests)
+          truncated.push(
+            `base evidence: kept ${limits.tests} of ${absent.length} missing entries`,
+          );
+      }
     }
   }
   if (missing.length) verdict = 'insufficient';
   const versions: Record<string, string> = {};
   try {
-    versions['.node-version'] = readFileSync(
-      join(cwd, '.node-version'),
-      'utf8',
-    ).trim();
+    versions['.node-version'] = clip(
+      redact(readFileSync(join(cwd, '.node-version'), 'utf8').trim()),
+    );
   } catch {
     versions['.node-version'] = 'unavailable';
   }
   for (const tool of ['node', 'npm', 'git']) {
     const result = runner(tool, ['--version'], cwd);
-    versions[tool] = redact(
-      result.code === 0 ? result.stdout.trim() : 'unavailable',
+    versions[tool] = clip(
+      redact(result.code === 0 ? result.stdout.trim() : 'unavailable'),
     );
   }
   const logged = log
@@ -409,6 +447,7 @@ export async function triage(
     class: kind,
     head,
     base,
+    attempt,
     tests,
     versions,
     missing,
@@ -418,7 +457,7 @@ export async function triage(
     brief,
     exitCode: verdict === 'insufficient' ? 66 : 0,
   };
-  const text = `# Worker brief\n\nVerdict: ${verdict}\nClass: ${kind}\nHead: ${head || 'missing'}\nBase: ${base || 'missing'}\n\n${environment ? 'Environment signature confirmed; not head-attributable.' : 'Base evidence compares the same failing test names.'}\n\n## Feedback loop\n\nRun one red, deterministic, fast command at the indicated revision before editing:\n${commands.map((command) => `- ${command}`).join('\n') || '- unavailable: environment recovery or missing evidence required'}\n\n## Failing tests\n\n${tests.map((test) => `- ${test.name} — ${test.location}${test.adr ? `; ADR: ${test.adr}` : ''}`).join('\n') || '- none recorded'}\n\n## Missing evidence\n\n${missing.map((m) => `- ${m.item}: ${m.command}`).join('\n') || '- none'}\n\n## Truncated\n\n${truncated.map((t) => `- ${t}`).join('\n') || '- none'}\n\n## Tool versions\n\n${Object.entries(
+  const text = `# Worker brief\n\nVerdict: ${verdict}\nClass: ${kind}\nHead: ${head || 'missing'}\nBase: ${base || 'missing'}\n${attempt === undefined ? '' : `Attempt: ${attempt}\n`}\n${environment ? 'Environment signature confirmed; not head-attributable.' : 'Base evidence compares the same failing test names.'}\n\n## Feedback loop\n\nRun one red, deterministic, fast command at the indicated revision before editing:\n${commands.map((command) => `- ${command}`).join('\n') || '- unavailable: environment recovery or missing evidence required'}\n\n## Failing tests\n\n${tests.map((test) => `- ${test.name} — ${test.location}${test.adr ? `; ADR: ${test.adr}` : ''}`).join('\n') || '- none recorded'}\n\n## Missing evidence\n\n${missing.map((m) => `- ${m.item}: ${m.command}`).join('\n') || '- none'}\n\n## Truncated\n\n${truncated.map((t) => `- ${t}`).join('\n') || '- none'}\n\n## Tool versions\n\n${Object.entries(
     versions,
   )
     .map(([tool, version]) => `${tool}: ${version}`)

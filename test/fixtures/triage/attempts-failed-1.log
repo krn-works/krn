@@ -1,0 +1,48 @@
+gate	Run gate	2026-10-27T18:49:14.3757405Z # Subtest: independent trace appenders preserve events across a torn-tail repair
+gate	Run gate	2026-10-27T18:49:14.3758104Z not ok 564 - independent trace appenders preserve events across a torn-tail repair
+gate	Run gate	2026-10-27T18:49:14.3758269Z   ---
+gate	Run gate	2026-10-27T18:49:14.3758462Z   duration_ms: 2693.03059
+gate	Run gate	2026-10-27T18:49:14.3758711Z   type: 'test'
+gate	Run gate	2026-10-27T18:49:14.3759349Z   location: '/home/runner/_work/krn/krn/scripts/isolation-gate.mjs:292:22'
+gate	Run gate	2026-10-27T18:49:14.3759884Z   failureType: 'testCodeFailure'
+gate	Run gate	2026-10-27T18:49:14.3760081Z   error: |-
+gate	Run gate	2026-10-27T18:49:14.3760493Z     file:///home/runner/_work/krn/krn/src/trace/index.ts:793
+gate	Run gate	2026-10-27T18:49:14.3760797Z           throw new Error('unsafe trace lock');
+gate	Run gate	2026-10-27T18:49:14.3760985Z                 ^
+gate	Run gate	2026-10-27T18:49:14.3761350Z     
+gate	Run gate	2026-10-27T18:49:14.3768103Z     Error: unsafe trace lock
+gate	Run gate	2026-10-27T18:49:14.3768837Z         at assertTraceLockPath (file:///home/runner/_work/krn/krn/src/trace/index.ts:793:13)
+gate	Run gate	2026-10-27T18:49:14.3769429Z         at createTraceLock (file:///home/runner/_work/krn/krn/src/trace/index.ts:859:3)
+gate	Run gate	2026-10-27T18:49:14.3770035Z         at acquireTraceLock (file:///home/runner/_work/krn/krn/src/trace/index.ts:948:24)
+gate	Run gate	2026-10-27T18:49:14.3770562Z         at append (file:///home/runner/_work/krn/krn/src/trace/index.ts:1051:23)
+gate	Run gate	2026-10-27T18:49:14.3771068Z         at verdict (file:///home/runner/_work/krn/krn/src/trace/index.ts:1344:3)
+gate	Run gate	2026-10-27T18:49:14.3772119Z         at file:///home/runner/_work/krn/krn/.krn/tmp/test-suite-run-yJeRWp/worker-001/tmp/krn-trace-test-exndhA/barrier/child.mjs:14:7
+gate	Run gate	2026-10-27T18:49:14.3772299Z     
+gate	Run gate	2026-10-27T18:49:14.3772485Z     Node.js v24.22.1
+gate	Run gate	2026-10-27T18:49:14.3772655Z     
+gate	Run gate	2026-10-27T18:49:14.3772817Z     
+gate	Run gate	2026-10-27T18:49:14.3772984Z     1 !== 0
+gate	Run gate	2026-10-27T18:49:14.3773283Z     
+gate	Run gate	2026-10-27T18:49:14.3773481Z   code: 'ERR_ASSERTION'
+gate	Run gate	2026-10-27T18:49:14.3773705Z   name: 'AssertionError'
+gate	Run gate	2026-10-27T18:49:14.3773898Z   expected: 0
+gate	Run gate	2026-10-27T18:49:14.3774069Z   actual: 1
+gate	Run gate	2026-10-27T18:49:14.3774279Z   operator: 'strictEqual'
+gate	Run gate	2026-10-27T18:49:14.3774450Z   stack: |-
+gate	Run gate	2026-10-27T18:49:14.3775076Z     assertTraceLockPath (file:///home/runner/_work/krn/krn/src/trace/index.ts:793:13)
+gate	Run gate	2026-10-27T18:49:14.3775633Z     createTraceLock (file:///home/runner/_work/krn/krn/src/trace/index.ts:859:3)
+gate	Run gate	2026-10-27T18:49:14.3776200Z     acquireTraceLock (file:///home/runner/_work/krn/krn/src/trace/index.ts:948:24)
+gate	Run gate	2026-10-27T18:49:14.3776700Z     append (file:///home/runner/_work/krn/krn/src/trace/index.ts:1051:23)
+gate	Run gate	2026-10-27T18:49:14.3777191Z     verdict (file:///home/runner/_work/krn/krn/src/trace/index.ts:1344:3)
+gate	Run gate	2026-10-27T18:49:14.3778161Z     file:///home/runner/_work/krn/krn/.krn/tmp/test-suite-run-yJeRWp/worker-001/tmp/krn-trace-test-exndhA/barrier/child.mjs:14:7
+gate	Run gate	2026-10-27T18:49:14.3778906Z     TestContext.<anonymous> (file:///home/runner/_work/krn/krn/test/trace/index.test.ts:1598:12)
+gate	Run gate	2026-10-27T18:49:14.3779529Z     process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+gate	Run gate	2026-10-27T18:49:14.3779920Z     async Test.run (node:internal/test_runner/test:1409:7)
+gate	Run gate	2026-10-27T18:49:14.3780483Z     async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+gate	Run gate	2026-10-27T18:49:14.3780660Z   ...
+gate	Run gate	2026-10-27T18:49:14.3781366Z # Subtest: trace appenders wait for primary lock owner publication before reading it
+gate	Run gate	2026-10-27T18:49:14.3782055Z ok 565 - trace appenders wait for primary lock owner publication before reading it
+gate	Run gate	2026-10-27T18:49:14.3782236Z   ---
+gate	Run gate	2026-10-27T18:49:14.3782436Z   duration_ms: 4058.078034
+gate	Run gate	2026-10-27T18:49:14.3782629Z   type: 'test'
+gate	Run gate	2026-10-27T18:49:14.3782803Z   ...
