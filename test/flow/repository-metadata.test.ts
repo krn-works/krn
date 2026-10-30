@@ -502,12 +502,19 @@ test('duplicate, empty, malformed, and unsafe Change-contract entries stay rejec
 
   for (const { name, trailers } of declarations) {
     const f = fixture(context);
+    f.put('src/value.mjs', 'export const value = 1;\n');
+    for (const path of capturedObserverPaths)
+      f.put(path, valueObserverSource(2));
     const base = f.commit('baseline malformed declaration');
+    f.put('src/value.mjs', 'export const value = 2;\n');
     const head = f.commit(`declare ${name}\n\n${trailers}`);
     const report = await redFirst(f.root, base, head, undefined, localExecute);
     assert.ok(
       report.results.some(
-        ({ exitCode, cause }) => exitCode === 65 && cause === 'contract',
+        ({ exitCode, cause, summary }) =>
+          exitCode === 65 &&
+          cause === 'contract' &&
+          summary.includes('invalid or duplicate Change-contract in'),
       ),
       `${name}: ${JSON.stringify(report)}`,
     );
