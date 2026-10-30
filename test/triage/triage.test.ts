@@ -1,13 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import test from 'node:test';
 import type { Runner } from '../../src/deliver/transport.ts';
 import { classify, decision, triage } from '../../src/triage/index.ts';
@@ -87,6 +88,56 @@ test('test evidence confirms base passes and recognizes shared base failures', a
   }
 });
 
+test('partial base failures leave the unmatched head failure insufficient', async (t) => {
+  const result = await triage(
+    {
+      head,
+      base,
+      logText:
+        "not ok 1 - case A\n  location: 'test/a.test.ts:1:1'\nnot ok 2 - case B\n  location: 'test/a.test.ts:2:1'",
+      baseText: 'not ok 1 - case A',
+      out: workspace(t),
+    },
+    { cwd: root },
+  );
+  assert.equal(result.verdict, 'insufficient');
+  assert.ok(
+    result.missing.some((item) => item.item === 'base evidence: case B'),
+  );
+});
+
+test('CLI rejects an overlong syntactically valid repository with usage exit', (t) => {
+  const dir = workspace(t);
+  const cli = join(root, 'src/cli/main.ts');
+  const result = spawnSync(
+    process.execPath,
+    [
+      cli,
+      'triage',
+      '--ci-run',
+      '123',
+      '--repo',
+      `owner/${'r'.repeat(5000)}`,
+      '--out',
+      join(dir, 'brief'),
+    ],
+    { cwd: root, encoding: 'utf8' },
+  );
+  assert.equal(result.status, 64, result.stderr);
+});
+
+test('triage rejects an overlong repository before creating artifacts', async (t) => {
+  const out = join(workspace(t), 'brief');
+  await assert.rejects(
+    triage(
+      { ciRun: '123', repo: `owner/${'r'.repeat(101)}`, out },
+      { cwd: root, run: () => ({ code: 0, stdout: '', stderr: '' }) },
+    ),
+    /Invalid triage arguments/u,
+  );
+  assert.equal(existsSync(out), false);
+});
+
 test('a CI wrapper location resolves to the test file frame in the worker checkout', async (t) => {
   const result = await triage(
     { head, base, logText: fixture('ci-wrapper'), out: workspace(t) },
@@ -107,7 +158,7 @@ test('a CI wrapper location resolves to the test file frame in the worker checko
       .every((command) => command.includes(file)),
   );
   assert.ok(
-    root === fixtureRoot ||
+    resolve(root) === fixtureRoot ||
       !result.commands.some((command) => command.includes(fixtureRoot)),
   );
 });
@@ -281,6 +332,42 @@ test('CI adapter uses captured run, jobs and check annotations through Runner', 
   assert.ok(calls.some((c) => c.some((a) => a.endsWith('/annotations'))));
 });
 
+test('empty CI log with warning annotations reports a log recovery command', async (t) => {
+  const runner: Runner = (_command, args) => ({
+    code: 0,
+    stdout: args.includes('headSha,attempt')
+      ? fixture('runner-run')
+      : args.at(-1)?.endsWith('/annotations')
+        ? JSON.stringify([
+            {
+              path: '.github/workflows/ci.yml',
+              start_line: 1,
+              annotation_level: 'warning',
+              title: 'Notice',
+              message: 'A warning',
+            },
+          ])
+        : args.includes('--log-failed')
+          ? ''
+          : fixture('runner-jobs').replace(
+              '"steps":[]',
+              '"steps":[{"status":"completed","started_at":"2026-10-18T11:39:52Z"}]',
+            ),
+    stderr: '',
+  });
+  const result = await triage(
+    { ciRun: '39124131004', repo: 'krn-works/krn', base, out: workspace(t) },
+    { cwd: root, run: runner },
+  );
+  assert.ok(
+    result.missing.some(
+      (item) =>
+        item.item === 'log' &&
+        item.command.includes('--attempt 1 --log-failed'),
+    ),
+  );
+});
+
 test('CLI writes both files, emits one verdict line or JSON, and preserves exit codes', (t) => {
   const dir = workspace(t);
   const log = join(dir, 'red.log');
@@ -394,7 +481,7 @@ test('base matching includes failures beyond the artifact limit', async (t) => {
     { head, base, logText, baseText, out: workspace(t) },
     { cwd: root },
   );
-  assert.equal(result.verdict, 'failed-at-base');
+  assert.equal(result.verdict, 'confirmed');
   assert.equal(result.tests.length, 50);
 });
 

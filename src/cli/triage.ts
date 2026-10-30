@@ -35,10 +35,17 @@ export async function triageCommand(args: string[]): Promise<void> {
     const parsed = z
       .object({
         log: z.string().min(1).optional(),
-        ciRun: z.string().regex(/^\d+$/u).optional(),
+        ciRun: z
+          .string()
+          .regex(/^\d{1,20}$/u)
+          .optional(),
         repo: z
           .string()
           .regex(/^[A-Za-z\d][A-Za-z\d_.-]*\/[A-Za-z\d][A-Za-z\d_.-]*$/u)
+          .refine((value) => {
+            const [owner, name] = value.split('/');
+            return (owner?.length ?? 0) <= 39 && (name?.length ?? 0) <= 100;
+          })
           .optional(),
         head: sha,
         base: sha,

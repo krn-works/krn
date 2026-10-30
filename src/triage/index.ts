@@ -35,6 +35,7 @@ interface FailedTest {
 
 /** Bounds that keep every persisted artifact small whatever the log holds. */
 const limits = { tests: 50, field: 500, excerptLines: 200, versionLines: 10 };
+const repoLimits = { owner: 39, name: 100, ciRun: 20 };
 /** Search at most ten attempts, newest first. */
 const maxAttempts = 10;
 const clip = (value: string) =>
@@ -216,6 +217,20 @@ export async function triage(
 ) {
   const cwd = resolve(runtime.cwd ?? process.cwd());
   const runner = runtime.run ?? run;
+  if (options.repo || options.ciRun) {
+    const [owner, name] = (options.repo ?? '').split('/');
+    if (
+      !options.repo ||
+      !options.ciRun ||
+      !owner ||
+      !name ||
+      owner.length > repoLimits.owner ||
+      name.length > repoLimits.name ||
+      !/^\d+$/u.test(options.ciRun) ||
+      options.ciRun.length > repoLimits.ciRun
+    )
+      throw new Error('Invalid triage arguments');
+  }
   const missing: { item: string; command: string }[] = [];
   const need = (item: string, command: string) =>
     missing.push({ item, command });
@@ -319,12 +334,16 @@ export async function triage(
             ]),
           );
         } catch {
-          if (!annotations.trim())
-            need(
-              'log',
-              `gh run view ${options.ciRun} --repo ${options.repo} --attempt ${attempt} --log-failed`,
-            );
+          // The recovery entry is added below after checking annotations.
         }
+        if (
+          !log.trim() &&
+          !['runner-lost', 'sandbox-tooling'].includes(classify(annotations))
+        )
+          need(
+            'log',
+            `gh run view ${options.ciRun} --repo ${options.repo} --attempt ${attempt} --log-failed`,
+          );
       }
     } catch {
       need(
@@ -336,7 +355,7 @@ export async function triage(
   log = redact(normalizeLog(`${log}${annotations}`));
   if (!head) need('head', 'git rev-parse HEAD # pass as --head');
   if (!base) need('base', 'git merge-base HEAD origin/main # pass as --base');
-  if (!log.trim())
+  if (!log.trim() && !(options.ciRun && options.repo))
     need(
       'log',
       'node --test <test-file> > head.log 2>&1 # pass --log head.log',
@@ -387,10 +406,16 @@ export async function triage(
     else {
       const baseFailed = testNames(baseText, false);
       const passed = testNames(baseText, true);
-      if (failed.some((test) => baseFailed.includes(test.name)))
+      if (
+        failed.length &&
+        failed.every((test) => baseFailed.includes(test.name))
+      )
         verdict = 'failed-at-base';
       else {
-        const absent = failed.filter((test) => !passed.includes(test.name));
+        const absent = failed.filter(
+          (test) =>
+            !baseFailed.includes(test.name) && !passed.includes(test.name),
+        );
         for (const test of absent.slice(0, limits.tests))
           need(
             `base evidence: ${clip(test.name)}`,
