@@ -19,7 +19,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 - Verify with commands that print a verdict (exit code, PASS/FAIL, counts). If a check needs reading, script it.
 - One slice per session. When the slice merges, run `krn-retro`, then `krn-handoff`, and stop.
 
-- **Context budget:** obey `context-gauge` advisories at 120k and 160k of 200k; use `krn-reader` for reading verdicts and paths, finish the current step at an advisory, then run `krn-handoff`.
+- **Context budget:** when runtime emits a `context-gauge` advisory at 120k or 160k, finish the current step and run `krn-handoff`. These policy thresholds are not the native model context window: use the reported window, and state `unknown` when its measurement is unavailable. Runtime owns the measurement and warning.
 
 ## The slice loop
 

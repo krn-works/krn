@@ -51,3 +51,41 @@ test('the lead loop skills name only current commands and flags', () => {
   assert.match(lead, /krn review --repo <path> --pr <n>/u);
   assert.match(skill('krn-handoff'), /claude --bg -n /u);
 });
+
+test('handoffs choose the active harness and keep native Codex sessions resumable', () => {
+  const handoff = skill('krn-handoff');
+  for (const requirement of [
+    /Select the active harness from runtime context, never from executable presence/iu,
+    /mcp__codex_tui__create_thread/u,
+    /descriptive title and a prompt containing only handoff\/task pointers/iu,
+    /omit the model/iu,
+    /verify the repository cwd is inherited/iu,
+    /fresh `threadId`/u,
+    /never fork/iu,
+    /Start only an operator-authorized task/iu,
+    /report an unsupported/iu,
+    /do not silently launch Claude or invent a background flag/iu,
+    /retain the current owner/iu,
+    /reconcile .* before retrying/iu,
+    /stops writing/iu,
+    /verified same-server command .*codex --remote <observed endpoint> resume <returned threadId>/u,
+    /codex agents --remote <observed endpoint>/u,
+    /never infer it from `sessionId`/iu,
+    /thread\.id/iu,
+    /Never hardcode this host's endpoint globally, expose tokens/iu,
+    /claim automatic UI switching/iu,
+    /exec --json/iu,
+    /runtime owner still must demonstrate a real/iu,
+  ])
+    assert.match(handoff, requirement);
+});
+
+test('lead context policy thresholds are not presented as the native model window', () => {
+  const lead = skill('krn-lead');
+  assert.match(
+    lead,
+    /120k or 160k.*policy thresholds are not the native model context window/iu,
+  );
+  assert.match(lead, /state `unknown` when its measurement is unavailable/iu);
+  assert.doesNotMatch(lead, /120k and 160k of 200k/iu);
+});
