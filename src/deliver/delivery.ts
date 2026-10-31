@@ -170,12 +170,53 @@ function ensureRealDirectory(path: string, relativePath: string) {
     throw new Error(`destination is not a real directory: ${relativePath}`);
 }
 
+function validateHygieneDirectories(main: string, worktree: string) {
+  const mainKrn = join(main, '.krn');
+  const mainKrnStat = lstatIfPresent(mainKrn);
+  if (mainKrnStat && !mainKrnStat.isDirectory())
+    throw new Error('.krn is not a real directory');
+
+  if (mainKrnStat) {
+    const mainRuns = join(mainKrn, 'runs');
+    const mainRunsStat = lstatIfPresent(mainRuns);
+    if (mainRunsStat && !mainRunsStat.isDirectory())
+      throw new Error('.krn/runs is not a real directory');
+
+    const archiveStat = lstatIfPresent(join(mainKrn, 'archive'));
+    if (archiveStat && !archiveStat.isDirectory())
+      throw new Error('.krn/archive is not a real directory');
+
+    if (mainRunsStat) {
+      const reviewSeriesStat = lstatIfPresent(join(mainRuns, 'review-series'));
+      if (reviewSeriesStat && !reviewSeriesStat.isDirectory())
+        throw new Error('.krn/runs/review-series is not a real directory');
+    }
+  }
+
+  if (!lstatIfPresent(worktree)) return;
+  const worktreeKrn = join(worktree, '.krn');
+  const worktreeKrnStat = lstatIfPresent(worktreeKrn);
+  if (!worktreeKrnStat) return;
+  if (!worktreeKrnStat.isDirectory())
+    throw new Error('worktree .krn is not a real directory');
+
+  const worktreeRunsStat = lstatIfPresent(join(worktreeKrn, 'runs'));
+  if (worktreeRunsStat && !worktreeRunsStat.isDirectory())
+    throw new Error('worktree .krn/runs is not a real directory');
+}
+
 function relocateWorktreeRuns(
   worktree: string,
   main: string,
   trackedPaths: Set<string>,
 ) {
-  const sourceRoot = join(worktree, '.krn', 'runs');
+  const worktreeKrn = join(worktree, '.krn');
+  const worktreeKrnStat = lstatIfPresent(worktreeKrn);
+  if (!worktreeKrnStat) return;
+  if (!worktreeKrnStat.isDirectory())
+    throw new Error('worktree .krn is not a real directory');
+
+  const sourceRoot = join(worktreeKrn, 'runs');
   const sourceRootStat = lstatIfPresent(sourceRoot);
   if (!sourceRootStat) return;
   if (!sourceRootStat.isDirectory())
@@ -675,6 +716,7 @@ export async function deliver(
     stage = 'ci';
     const mainConclusion = await waitGate(state.merge);
     stage = 'hygiene';
+    validateHygieneDirectories(main, state.worktree);
     const archive = join(main, '.krn', 'archive');
     mkdirSync(archive, { recursive: true });
     const series = join(main, '.krn', 'runs', 'review-series', key);
