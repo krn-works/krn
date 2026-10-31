@@ -109,20 +109,11 @@ IFS= read -r prompt || true
         const unit = `krn-registration-${String(sessionId)}.scope`;
         const shown = spawnSync(
           '/usr/bin/systemctl',
-          [
-            '--user',
-            'show',
-            unit,
-            '-p',
-            'ActiveState',
-            '-p',
-            'ControlGroup',
-            '--value',
-          ],
+          ['--user', 'show', unit, '-p', 'ControlGroup', '--value'],
           { encoding: 'utf8', env: scopeEnvironment() },
         );
         if (shown.status === 0) {
-          const [, controlGroup = ''] = shown.stdout.trimEnd().split(/\r?\n/u);
+          const controlGroup = shown.stdout.trim();
           const members = controlGroup
             ? await readFile(
                 join('/sys/fs/cgroup', controlGroup.slice(1), 'cgroup.procs'),
@@ -554,7 +545,7 @@ exec /usr/bin/systemctl "$@"
   }
 });
 
-test('transitional empty scope status remains unknown while known states classify', async () => {
+test('named scope properties classify captured orders and fail closed on malformed output', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'krn-systemd-status-'));
   const fakeBin = join(directory, 'bin');
   const systemctl = join(fakeBin, 'systemctl');
@@ -571,7 +562,7 @@ for argument do
   case "$argument" in krn-*.scope) unit="$argument" ;; esac
 done
 if [ "$unit" = ${JSON.stringify(unit)} ]; then
-  printf '%s\\n\\n' "$(/usr/bin/cat ${JSON.stringify(stateFile)})"
+  /usr/bin/cat ${JSON.stringify(stateFile)}
   exit 0
 fi
 exec /usr/bin/systemctl "$@"
@@ -580,26 +571,49 @@ exec /usr/bin/systemctl "$@"
     await chmod(systemctl, 0o755);
     process.env.PATH = `${fakeBin}:${previousPath ?? ''}`;
 
-    await writeFile(stateFile, 'deactivating\n');
+    const capturedActiveControlGroupFirst =
+      'ControlGroup=/user.slice/user-1000.slice/user@1000.service/app.slice/krn-status-fixture.scope\nActiveState=active\n';
+    await writeFile(stateFile, capturedActiveControlGroupFirst);
+    assert.equal(
+      systemdScopeActive(unit),
+      true,
+      'captured systemd 257 property order keeps a live scope active',
+    );
+    await writeFile(
+      stateFile,
+      'ActiveState=active\nControlGroup=/user.slice/user-1000.slice/user@1000.service/app.slice/krn-status-fixture.scope\n',
+    );
+    assert.equal(
+      systemdScopeActive(unit),
+      true,
+      'the other named property order also keeps a live scope active',
+    );
+    await writeFile(stateFile, 'ControlGroup=\nActiveState=inactive\n');
+    assert.equal(
+      systemdScopeActive(unit),
+      false,
+      'captured post-GC output preserves an empty ControlGroup value',
+    );
+    await writeFile(stateFile, 'ControlGroup=\nActiveState=deactivating\n');
     assert.equal(
       systemdScopeActive(unit),
       null,
       'a transitional state without a cgroup is not proof of inactivity',
     );
-    await writeFile(stateFile, 'inactive\n');
-    assert.equal(
-      systemdScopeActive(unit),
-      false,
-      'known inactive remains false',
-    );
-    await writeFile(stateFile, 'active\n');
-    assert.equal(systemdScopeActive(unit), true, 'known active remains true');
-    await writeFile(stateFile, 'failed\n');
-    assert.equal(
-      systemdScopeActive(unit),
-      false,
-      'failed with an empty cgroup remains a confirmed terminated state',
-    );
+    for (const malformed of [
+      'ActiveState=inactive\n',
+      'ControlGroup=\nActiveState=inactive\nControlGroup=\n',
+      'ControlGroup=\nActiveState=inactive\nOther=value\n',
+    ]) {
+      await writeFile(stateFile, malformed);
+      assert.equal(
+        systemdScopeActive(unit),
+        null,
+        `malformed named scope properties remain unknown: ${malformed}`,
+      );
+    }
+    await writeFile(stateFile, 'ControlGroup=\nActiveState=failed\n');
+    assert.equal(systemdScopeActive(unit), false, 'known failed remains false');
   } finally {
     if (previousPath === undefined) delete process.env.PATH;
     else process.env.PATH = previousPath;
@@ -624,7 +638,7 @@ for argument do
   case "$argument" in krn-*.scope) unit="$argument" ;; esac
 done
 if [ "$unit" = ${JSON.stringify(unit)} ]; then
-  printf 'active\\n%s\\n' ${JSON.stringify(controlGroup)}
+  printf 'ControlGroup=%s\\nActiveState=active\\n' ${JSON.stringify(controlGroup)}
   exit 0
 fi
 exec /usr/bin/systemctl "$@"
@@ -746,7 +760,7 @@ test('traversal ControlGroup cannot supply a registration proof', async () => {
     await writeFile(join(target, 'cgroup.procs'), `${process.pid}\n`);
     await writeFile(
       systemctl,
-      `#!/bin/sh\nunit=''\nprevious=''\nfor argument do\n  if [ "$previous" = '--value' ]; then unit="$argument"; fi\n  previous="$argument"\ndone\nif [ "$unit" = ${JSON.stringify(unit)} ]; then\n  : > ${JSON.stringify(responseMarker)}\n  printf 'active\\n%s/%s\\n' ${JSON.stringify(traversalPrefix)} "$unit"\n  exit 0\nfi\nexec /usr/bin/systemctl "$@"\n`,
+      `#!/bin/sh\nunit=''\nfor argument do\n  case "$argument" in krn-*.scope) unit="$argument" ;; esac\ndone\nif [ "$unit" = ${JSON.stringify(unit)} ]; then\n  : > ${JSON.stringify(responseMarker)}\n  printf 'ControlGroup=%s/%s\\nActiveState=active\\n' ${JSON.stringify(traversalPrefix)} "$unit"\n  exit 0\nfi\nexec /usr/bin/systemctl "$@"\n`,
     );
     await chmod(systemctl, 0o755);
     process.env.PATH = `${fakeBin}:${previousPath ?? ''}`;

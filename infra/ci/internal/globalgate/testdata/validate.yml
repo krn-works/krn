@@ -1,0 +1,140 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  gate:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ${{ fromJSON(vars.CI_RUNNER || '["self-hosted","linux","x64","krn-ci-isolated"]') }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        tier: [fast, deep]
+    env:
+      # Frozen observer fixtures create their own commits without configuring an
+      # author; a runner with no git identity must still satisfy `git commit`.
+      GIT_AUTHOR_NAME: krn-ci
+      GIT_AUTHOR_EMAIL: krn-ci@users.noreply.github.com
+      GIT_COMMITTER_NAME: krn-ci
+      GIT_COMMITTER_EMAIL: krn-ci@users.noreply.github.com
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # PR merge refs have synthetic, unauthored contract metadata.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Precheck skill registration
+        if: matrix.tier == 'fast'
+        run: npm run precheck
+      - name: Validate remaining repository contracts
+        if: matrix.tier == 'fast'
+        run: npm run validate:remaining
+      - name: Prove deterministic exports
+        if: matrix.tier == 'fast'
+        run: npm run test:repro
+      - name: Check change contracts
+        if: matrix.tier == 'fast'
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE: ${{ github.event.before }}
+        run: |
+          base="${PR_BASE:-$PUSH_BASE}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            base="$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)"
+          fi
+          # Same range as the local changes:check: a PR base that moved past the branch point is not part of the change.
+          base="$(git merge-base "$base" HEAD)"
+          node scripts/krn.mjs changes check --root . --base "$base" --head HEAD --before
+      - name: Run the repository quality audit
+        if: matrix.tier == 'fast'
+        run: npm run quality:audit
+      - name: Test shared libraries
+        if: matrix.tier == 'fast'
+        run: npm run test:lib
+      - name: Test installed-release bootstrap
+        if: matrix.tier == 'deep'
+        run: npm run test:bootstrap
+      - name: Test install fail-closed smoke
+        if: matrix.tier == 'deep'
+        run: npm run test:install
+      - name: Test hooks
+        if: matrix.tier == 'deep'
+        run: npm run test:hooks
+      - name: Test spine state gate
+        if: matrix.tier == 'deep'
+        run: npm run test:state
+      - name: Test skill export
+        if: matrix.tier == 'deep'
+        run: npm run test:skills
+      - name: Verify lesson proofs
+        if: matrix.tier == 'deep'
+        run: npm run lessons:verify
+      - name: Test lesson gate resolver
+        if: matrix.tier == 'deep'
+        run: npm run test:lessons
+      - name: Test lesson proof executor
+        if: matrix.tier == 'deep'
+        run: npm run test:lessons-verify
+      - name: Test change-contract gate
+        if: matrix.tier == 'deep'
+        run: npm run test:change-contract
+      - name: Test the frozen acceptance conformance gate
+        if: matrix.tier == 'deep'
+        run: npm run test:conformance
+      - name: Apply the frozen conformance set from the base
+        if: matrix.tier == 'deep'
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE: ${{ github.event.before }}
+        run: |
+          base="${PR_BASE:-$PUSH_BASE}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            base="$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)"
+          fi
+          if git cat-file -e "$base:config/conformance.json" 2>/dev/null; then
+            mkdir -p "$GITHUB_WORKSPACE/.krn/tmp"
+            dir=$(mktemp -d "$GITHUB_WORKSPACE/.krn/tmp/krn-conformance-XXXXXX")
+            git worktree add --detach "$dir" "$base"
+            trap 'git worktree remove --force "$dir" >/dev/null 2>&1 || true; git worktree prune' EXIT
+            node "$dir/scripts/krn.mjs" conformance check --root "$dir" --candidate "$PWD" --frozen
+          else
+            echo "base $base predates the conformance set; running the candidate copy"
+            node scripts/krn.mjs conformance check --root . --frozen
+          fi
+      - name: Test validator rule modules
+        if: matrix.tier == 'deep'
+        run: npm run test:durable-pages
+      - name: Test the setup workflow
+        if: matrix.tier == 'deep'
+        run: npm run test:setup
+      - name: Test shipped skill scripts
+        if: matrix.tier == 'deep'
+        run: npm run test:skill-scripts
+      - name: Check shell and diff hygiene
+        if: matrix.tier == 'deep'
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PUSH_BASE: ${{ github.event.before }}
+        run: |
+          bash -n scripts/install.sh
+          bash -n skills/advisory/second-opinion/scripts/check-opinion.sh
+          bash -n skills/advisory/second-opinion/scripts/run-opinion.sh
+          base="${PR_BASE:-$PUSH_BASE}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            base="$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)"
+          fi
+          git diff --check "${base}...HEAD"

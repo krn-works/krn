@@ -56,6 +56,39 @@ const registrationDrainQuietMs = 1000;
 const cgroupPidByteLimit = 8 * 1024;
 const cgroupPidCountLimit = 256;
 
+export type SystemdScopeProperties = {
+  readonly activeState: string;
+  readonly controlGroup: string;
+};
+
+export function parseSystemdScopeProperties(
+  output: string,
+): SystemdScopeProperties | undefined {
+  const lines = output.split(/\r?\n/u);
+  if (lines.at(-1) === '') lines.pop();
+  const properties = new Map<string, string>();
+  for (const line of lines) {
+    const separator = line.indexOf('=');
+    if (separator <= 0) return undefined;
+    const name = line.slice(0, separator);
+    if (
+      (name !== 'ActiveState' && name !== 'ControlGroup') ||
+      properties.has(name)
+    )
+      return undefined;
+    properties.set(name, line.slice(separator + 1));
+  }
+  const activeState = properties.get('ActiveState');
+  const controlGroup = properties.get('ControlGroup');
+  if (
+    activeState === undefined ||
+    activeState.length === 0 ||
+    controlGroup === undefined
+  )
+    return undefined;
+  return { activeState, controlGroup };
+}
+
 export function codexScopeUnit(jobId: string, sessionId: string): string {
   const job = jobId.replace(/[^A-Za-z0-9:_.-]/g, '-').slice(0, 80) || 'session';
   if (!/^[A-Za-z0-9-]{1,128}$/u.test(sessionId))
@@ -123,8 +156,19 @@ export async function drainSystemdScope(
   let quietSince: number | undefined;
   while (Date.now() < deadline) {
     const active = systemdScopeActive(unit, env);
-    if (active === null)
+    if (active === null) {
+      // A failed readback cannot establish that the owned scope is empty.
+      // Still request termination of its exact unit before refusing cleanup;
+      // the caller must continue to treat the drain as unverified.
+      if (/^krn-[A-Za-z0-9:_.@-]+\.scope$/u.test(unit)) {
+        spawnSync(
+          'systemctl',
+          ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', unit],
+          { encoding: 'utf8', env, timeout: 5000 },
+        );
+      }
       throw new Error(`cannot verify systemd scope ${unit} drain state`);
+    }
     if (active) {
       quietSince = undefined;
       await killAndVerifyScope(unit, env);
@@ -247,15 +291,15 @@ function observeSystemdScopeRegistration(
       'show',
       '--property=ActiveState',
       '--property=ControlGroup',
-      '--value',
+      '--no-pager',
       unit,
     ],
     { encoding: 'utf8', env, timeout: 1000 },
   );
   if (shown.error || shown.status !== 0) return undefined;
-  const [state = '', controlGroup = ''] = shown.stdout
-    .trimEnd()
-    .split(/\r?\n/u);
+  const properties = parseSystemdScopeProperties(shown.stdout);
+  if (!properties) return undefined;
+  const { activeState: state, controlGroup } = properties;
   if (state !== 'active' && state !== 'activating' && state !== 'reloading')
     return undefined;
   const cgroupPath = registrationCgroupPath(controlGroup, unit);
@@ -467,7 +511,7 @@ export function systemdScopeActive(
       'ActiveState',
       '-p',
       'ControlGroup',
-      '--value',
+      '--no-pager',
       unit,
     ],
     { encoding: 'utf8', env, timeout: 3000 },
@@ -477,9 +521,9 @@ export function systemdScopeActive(
     if (/not loaded|not found|could not be found/i.test(detail)) return false;
     return null;
   }
-  const [state = '', controlGroup = ''] = shown.stdout
-    .trimEnd()
-    .split(/\r?\n/u);
+  const properties = parseSystemdScopeProperties(shown.stdout);
+  if (!properties) return null;
+  const { activeState: state, controlGroup } = properties;
   if (
     controlGroup &&
     (!controlGroup.startsWith('/') || controlGroup.split('/').includes('..'))

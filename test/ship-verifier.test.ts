@@ -148,7 +148,16 @@ async function fixture(t: test.TestContext) {
         readStatuses: async () => ({ ok: true, value: statuses }),
         readCheckRuns: async (...args: unknown[]) => {
           assert.deepEqual(args, [repo, 'krn-works/krn', head]);
-          return { ok: true, value: checks };
+          return {
+            ok: true,
+            value: Array.isArray(checks)
+              ? checks.map((check: unknown) =>
+                  typeof check === 'object' && check !== null
+                    ? { head_sha: head, ...check }
+                    : check,
+                )
+              : checks,
+          };
         },
       }),
     );
@@ -407,7 +416,10 @@ test('a branch review base ancestral only to head is refused against the PR base
           value: { ...value.pull, head: { sha: head } },
         }),
         readStatuses: async () => ({ ok: true, value: value.statuses }),
-        readCheckRuns: async () => ({ ok: true, value: [gateCheck()] }),
+        readCheckRuns: async () => ({
+          ok: true,
+          value: [{ ...gateCheck(), head_sha: head }],
+        }),
       },
     ),
   );
@@ -626,7 +638,10 @@ async function cliFixture(
 const resource = process.argv[3];
 const pull = ${JSON.stringify(value.pull)};
 const statuses = ${JSON.stringify(value.statuses)};
-const checks = ${JSON.stringify(checks)};
+const checks = ${JSON.stringify(checks)}.map(check =>
+  typeof check === 'object' && check !== null
+    ? { head_sha: pull.head.sha, ...check }
+    : check);
 if (resource.includes('/pulls/')) console.log(JSON.stringify(pull));
 else if (resource.includes('/statuses')) console.log(JSON.stringify(statuses));
 else if (resource.includes('/check-runs')) {
@@ -660,7 +675,7 @@ else if (resource.includes('/check-runs')) {
     );
 }
 
-test('CLI accepts the verbatim GitHub check-run page and passes its gate', async (t) => {
+test('CLI rejects a verbatim GitHub check-run page for another head', async (t) => {
   const value = await fixture(t);
   const page = JSON.parse(
     await readFile(
@@ -674,10 +689,9 @@ test('CLI accepts the verbatim GitHub check-run page and passes its gate', async
   const result = (
     await cliFixture(value, page.check_runs, page.total_count, page)
   )();
-  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.status, 1, result.stderr);
   const report = reportSchema.parse(JSON.parse(result.stdout));
-  assert.equal(report.verdict, 'pass', JSON.stringify(report.reasons));
-  assert.equal(report.gateCheckRun?.id, 121800537823);
+  refused(report, /exact-head configured gate check-run is missing/u);
 });
 
 test('CLI reads the real API boundary and preserves JSON and exit codes 0/1', async (t) => {

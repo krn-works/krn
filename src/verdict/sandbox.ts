@@ -8,6 +8,7 @@ import { basename, delimiter, dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import type { Job } from '../core/index.ts';
 import { stateDirectory } from '../foreman/state.ts';
+import { parseSystemdScopeProperties } from '../hosts/systemd-scope.ts';
 import type { CheckEvidence } from './index.ts';
 
 export const MAX_CHECK_OUTPUT_BYTES = 8 * 1024 * 1024;
@@ -457,7 +458,7 @@ export class TeardownUnconfirmed extends Error {
   }
 }
 
-function scopePids(controlGroup: string): number[] {
+export function scopePids(controlGroup: string): number[] {
   if (!controlGroup) return [];
   if (!controlGroup.startsWith('/') || controlGroup.split('/').includes('..'))
     throw new Error('systemd returned an invalid cgroup path');
@@ -475,6 +476,24 @@ function scopePids(controlGroup: string): number[] {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
     throw error;
   }
+}
+
+export function scopeReadbackIsDrained(
+  status: number | null,
+  properties: ReturnType<typeof parseSystemdScopeProperties>,
+  pids: readonly number[],
+  stdout: Buffer,
+  stderr: Buffer,
+): boolean {
+  if (status === 0)
+    return properties?.activeState === 'inactive' && pids.length === 0;
+  const detail = `${stderr.toString()} ${stdout.toString()}`;
+  return (
+    status !== null &&
+    stdout.length === 0 &&
+    /not loaded|not found|could not be found/i.test(detail) &&
+    pids.length === 0
+  );
 }
 
 async function killAndVerifyScope(
@@ -497,39 +516,45 @@ async function killAndVerifyScope(
       [
         '--user',
         'show',
+        '--property=ActiveState',
+        '--property=ControlGroup',
+        '--no-pager',
         unit,
-        '-p',
-        'ActiveState',
-        '-p',
-        'ControlGroup',
-        '--value',
       ],
       root,
       1500,
       busEnv,
     );
-    const [activeState = '', controlGroup = ''] = shown.stdout
-      .toString()
-      .trimEnd()
-      .split(/\r?\n/u);
+    const properties =
+      shown.status === 0
+        ? parseSystemdScopeProperties(shown.stdout.toString())
+        : undefined;
     let pids: number[];
     try {
-      pids = scopePids(controlGroup);
+      pids = scopePids(properties?.controlGroup ?? '');
     } catch (error) {
       lastState = error instanceof Error ? error.message : String(error);
       await new Promise((resolveDelay) => setTimeout(resolveDelay, 50));
       continue;
     }
+    if (
+      scopeReadbackIsDrained(
+        shown.status,
+        properties,
+        pids,
+        shown.stdout,
+        shown.stderr,
+      )
+    )
+      return;
     if (shown.status === 0) {
-      if (activeState === 'inactive' && pids.length === 0) return;
-      lastState = `state=${activeState || 'unknown'}; PIDs=${pids.join(',') || 'none'}`;
+      if (!properties) {
+        lastState = 'systemd returned invalid scope properties';
+      } else {
+        lastState = `state=${properties.activeState}; PIDs=${pids.join(',') || 'none'}`;
+      }
     } else {
       const detail = `${shown.stderr.toString()} ${shown.stdout.toString()}`;
-      if (
-        /not loaded|not found|could not be found/i.test(detail) &&
-        pids.length === 0
-      )
-        return;
       lastState = detail.trim() || 'systemctl show failed';
     }
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 50));

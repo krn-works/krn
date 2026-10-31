@@ -438,7 +438,15 @@ await new Promise((resolve) => setTimeout(resolve, 800));
               .split(/\s+/u);
             return { state: fields[0], startTicks: fields[19] };
           })
-          .catch(() => undefined);
+          .catch((error: unknown) => {
+            if (
+              error instanceof Error &&
+              'code' in error &&
+              error.code === 'ENOENT'
+            )
+              return undefined;
+            throw error;
+          });
         const shown = spawnSync(
           '/usr/bin/systemctl',
           [
@@ -446,30 +454,42 @@ await new Promise((resolve) => setTimeout(resolve, 800));
             'show',
             '--property=ActiveState',
             '--property=ControlGroup',
-            '--value',
             ownedRegistration.unit,
           ],
           { encoding: 'utf8', timeout: 5000, env: systemdEnv },
         );
-        const [active = '', controlGroup = ''] = shown.stdout
-          .trimEnd()
-          .split(/\r?\n/u);
-        const members = controlGroup.startsWith('/')
-          ? await readFile(
-              join('/sys/fs/cgroup', controlGroup.slice(1), 'cgroup.procs'),
-              'utf8',
+        const active = /^ActiveState=(.*)$/mu.exec(shown.stdout)?.[1] ?? '';
+        const controlGroup =
+          /^ControlGroup=(.*)$/mu.exec(shown.stdout)?.[1] ?? '';
+        const members = await readFile(
+          join(
+            '/sys/fs/cgroup',
+            ownedRegistration.controlGroup.slice(1),
+            'cgroup.procs',
+          ),
+          'utf8',
+        )
+          .then((raw) => raw.trim().split(/\s+/u).filter(Boolean))
+          .catch((error: unknown) => {
+            if (
+              error instanceof Error &&
+              'code' in error &&
+              error.code === 'ENOENT'
             )
-              .then((raw) => raw.trim().split(/\s+/u).filter(Boolean))
-              .catch(() => [])
-          : [];
+              return [];
+            throw error;
+          });
         const processGone =
           !stat ||
           stat.startTicks !== ownedRegistration.startTicks ||
           stat.state === 'Z' ||
           stat.state === 'X';
         const scopeGone =
-          shown.status !== 0 ||
-          (['inactive', 'failed'].includes(active) && members.length === 0);
+          shown.status === 0 &&
+          ['inactive', 'failed'].includes(active) &&
+          (controlGroup === '' ||
+            controlGroup === ownedRegistration.controlGroup) &&
+          members.length === 0;
         return processGone && scopeGone
           ? {
               unit: ownedRegistration.unit,

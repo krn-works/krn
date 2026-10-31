@@ -1,0 +1,7 @@
+# UNQUALIFIED DIRECT PINS ONLY; not a transitive lock or installation grant.
+configuration-as-code:2143.vc78d4eb_d4174
+workflow-job:1622.vc41c189cb_e5f
+workflow-cps:4395.v738456a_5da_6b_
+workflow-basic-steps:1129.v60e3c7e6654d
+matrix-auth:3.3
+script-security:1436.v1082791135e4

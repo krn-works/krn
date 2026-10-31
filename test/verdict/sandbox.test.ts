@@ -17,8 +17,14 @@ import { delimiter, join } from 'node:path';
 import test, { mock } from 'node:test';
 import { redFirst } from '../../src/flow/repository.ts';
 import { recordRepo } from '../../src/foreman/state.ts';
+import { parseSystemdScopeProperties } from '../../src/hosts/systemd-scope.ts';
 import { judge } from '../../src/verdict/index.ts';
-import { execute, MAX_CHECK_OUTPUT_BYTES } from '../../src/verdict/sandbox.ts';
+import {
+  execute,
+  MAX_CHECK_OUTPUT_BYTES,
+  scopePids,
+  scopeReadbackIsDrained,
+} from '../../src/verdict/sandbox.ts';
 import {
   CONDITION_WAIT_MS,
   conditionTimeoutFor,
@@ -1223,17 +1229,17 @@ test('cancellation accounts for the owned scope and all remaining check processe
       [
         '--user',
         'show',
+        '--property=ActiveState',
+        '--property=ControlGroup',
+        '--no-pager',
         unit,
-        '-p',
-        'ActiveState',
-        '-p',
-        'ControlGroup',
-        '--value',
       ],
       { env, encoding: 'utf8' },
     );
     assert.equal(result.status, 0, result.stderr);
-    const [state = '', group = ''] = result.stdout.trimEnd().split('\n');
+    const properties = parseSystemdScopeProperties(result.stdout);
+    assert.ok(properties, `invalid named systemd properties: ${result.stdout}`);
+    const { activeState: state, controlGroup: group } = properties;
     let pids: string[] = [];
     if (group) {
       try {
@@ -1326,4 +1332,132 @@ test('cancellation accounts for the owned scope and all remaining check processe
     syncBuiltinESMExports();
     rmSync(f.root, { recursive: true, force: true });
   }
+});
+
+test('sandbox teardown property and cgroup readers reject malformed evidence', () => {
+  assert.deepEqual(
+    parseSystemdScopeProperties(
+      'ControlGroup=/user.slice/user-1000.slice/app.slice/krn-captured.scope\nActiveState=active\n',
+    ),
+    {
+      activeState: 'active',
+      controlGroup: '/user.slice/user-1000.slice/app.slice/krn-captured.scope',
+    },
+    'captured systemd 257 ControlGroup-first output preserves names',
+  );
+  assert.deepEqual(
+    parseSystemdScopeProperties('ControlGroup=\nActiveState=inactive\n'),
+    { activeState: 'inactive', controlGroup: '' },
+    'captured post-GC output preserves empty ControlGroup',
+  );
+  assert.equal(
+    parseSystemdScopeProperties('ControlGroup=\nActiveState=deactivating\n')
+      ?.activeState,
+    'deactivating',
+    'transitional state is preserved for teardown to treat as unresolved',
+  );
+  for (const malformed of [
+    'ActiveState=inactive\n',
+    'ControlGroup=\nActiveState=inactive\nActiveState=failed\n',
+    'ControlGroup=\nActiveState=inactive\nUnknown=value\n',
+  ])
+    assert.equal(
+      parseSystemdScopeProperties(malformed),
+      undefined,
+      `malformed named properties must fail closed: ${malformed}`,
+    );
+
+  assert.deepEqual(scopePids(''), [], 'a named empty cgroup is empty');
+  for (const invalid of [
+    'active',
+    '/user.slice/../outside',
+    '/../../tmp/forged.scope',
+  ])
+    assert.throws(
+      () => scopePids(invalid),
+      /invalid cgroup path/u,
+      `teardown must reject malformed or traversal cgroup paths: ${invalid}`,
+    );
+
+  const emptyOutput = Buffer.alloc(0);
+  assert.equal(
+    scopeReadbackIsDrained(
+      0,
+      { activeState: 'inactive', controlGroup: '' },
+      [],
+      emptyOutput,
+      emptyOutput,
+    ),
+    true,
+    'inactive plus an empty cgroup confirms drain',
+  );
+  assert.equal(
+    scopeReadbackIsDrained(
+      0,
+      { activeState: 'unknown', controlGroup: '' },
+      [],
+      emptyOutput,
+      emptyOutput,
+    ),
+    false,
+    'unknown ActiveState is not proof of drain',
+  );
+  assert.equal(
+    scopeReadbackIsDrained(
+      0,
+      {
+        activeState: 'inactive',
+        controlGroup: '/user.slice/user-1000.slice/app.slice/krn-live.scope',
+      },
+      [1234],
+      emptyOutput,
+      emptyOutput,
+    ),
+    false,
+    'a live cgroup member prevents a drained result even with inactive state',
+  );
+  assert.equal(
+    scopeReadbackIsDrained(
+      1,
+      undefined,
+      [],
+      emptyOutput,
+      Buffer.from('Unit was not loaded'),
+    ),
+    true,
+    'a missing unit with empty output and no cgroup PIDs is confirmed absent',
+  );
+  assert.equal(
+    scopeReadbackIsDrained(
+      1,
+      undefined,
+      [],
+      Buffer.from('unexpected output'),
+      Buffer.from('Unit was not loaded'),
+    ),
+    false,
+    'unexpected stdout prevents not-found from proving drain',
+  );
+  assert.equal(
+    scopeReadbackIsDrained(
+      1,
+      undefined,
+      [1234],
+      emptyOutput,
+      Buffer.from('Unit was not loaded'),
+    ),
+    false,
+    'an observed member prevents not-found from proving drain',
+  );
+  assert.equal(
+    scopeReadbackIsDrained(
+      null,
+      undefined,
+      [],
+      emptyOutput,
+      Buffer.from('Unit was not loaded'),
+    ),
+    false,
+    'missing process exit status is not proof of an absent scope',
+  );
 });
