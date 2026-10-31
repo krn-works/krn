@@ -1,0 +1,16 @@
+{
+  "id": "t-gnydgbs",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Successor sessions start in a Herdr tab with claude --bg fallback"
+  },
+  "created": "2026-10-30",
+  "priority": 1,
+  "title": "Start successor lead sessions in herdr tabs",
+  "after": [],
+  "body": [
+    "Outcome: krn-handoff starts the successor lead session in a new herdr tab (operator agreement 2026-10-30, memory herdr-handoff-tabs.md) instead of an invisible `claude --bg` job, falling back to `claude --bg` when no herdr server/pane is available.\nFacts: .claude/skills/krn-handoff/SKILL.md:19 launches bare `claude --bg -n`; no herdr call in scripts/claude/context-{gauge,precompact,restart}.ts; herdr 0.9.1 (mise shim) offers `herdr tab create` and `herdr pane run`; ~/.claude/hooks/herdr-agent-state.sh only reports state and needs HERDR_PANE_ID.\nProof: a launcher script with a test against the real herdr receiver (KRN-12): tab created, command running in its pane; fallback path when herdr is absent."
+  ]
+}

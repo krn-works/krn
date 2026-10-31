@@ -1,0 +1,12 @@
+{
+  "id": "t-37k23wh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-30",
+  "priority": 1,
+  "title": "Make context-gauge advisories reflect real pressure over the tool-definition baseline",
+  "after": [],
+  "body": [
+    "Outcome: context-gauge advisories mean real pressure. Today a KRN lead session starts near 140k of the gauge's 200k from tool definitions alone (MCP connectors: ahrefs, Gmail, Calendar, Drive, Cloudflare, rss_news, Claude Docs), so the 120k/160k advisories fire on turn one and trigger premature handoffs.\nFacts: scripts/claude/context-gauge.ts:94-126 hard-codes 120000/160000 of 200k; jsonl-receiver retro and session-continuity session (2026-10-30) observed ~142k after one tool call.\nDecision needed (operator): trim connectors unused by KRN for this project, or calibrate thresholds to the model's real window and measured baseline. Recommendation: trim connectors first (frees real context), then re-measure.\nProof: gauge test with a transcript whose first turn is at the measured baseline yields no advisory; documented baseline measurement."
+  ]
+}
