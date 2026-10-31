@@ -1,0 +1,12 @@
+{
+  "id": "t-1yta2gd",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-31",
+  "priority": 3,
+  "title": "Share a real-directory chain check for repository file moves",
+  "after": [],
+  "body": [
+    "Evidence: PR #151 review record 1 (2026-10-31): both BLOCKING findings were symlinked ancestors (<worktree>/.krn, <main>/.krn/runs) followed by lstat of a leaf; GLOBAL ship has assertDirectoryChainWithoutSymlinks, Product deliver re-implemented it ad hoc.\nAcceptance: one Product helper asserts every component from a root to a path is a real directory (lstat), deliver hygiene uses it, and a unit test covers a symlinked middle component red at the base."
+  ]
+}

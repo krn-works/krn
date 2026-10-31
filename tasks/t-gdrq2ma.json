@@ -1,0 +1,12 @@
+{
+  "id": "t-gdrq2ma",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-31",
+  "priority": 2,
+  "title": "Refuse deliver when main checkout holds untracked paths the PR adds",
+  "after": [],
+  "body": [
+    "Evidence: PR #151 delivery 2026-10-31. An untracked tasks/t-jfvmmcq.json in the main checkout (task recorded but never committed) would make deliver hygiene's `git merge --ff-only origin/main` fail after the merge; the lead removed it by hand.\nAcceptance: `krn deliver --dry-run` fails at a named stage when an untracked or ignored main-checkout path collides with a path the PR adds; a test with such a file is red at the base by assertion."
+  ]
+}
