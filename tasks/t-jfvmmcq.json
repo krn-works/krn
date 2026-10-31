@@ -1,0 +1,13 @@
+{
+  "id": "t-jfvmmcq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-31",
+  "priority": 1,
+  "title": "Keep worktree run folders when krn deliver retires a worktree",
+  "after": [],
+  "body": [
+    "Evidence: PR #148 delivery 2026-10-31. `krn deliver` hygiene (src/deliver/delivery.ts:590-606) runs `git worktree remove` on the PR worktree, which deletes ignored `.krn/runs/<owner>/<slice>/` (operator grants rebase-grant.md, budget-exception-4/5.json, logs). Only the review series is archived. The lead copied the run folder by hand to .krn/runs/successor-tab-lead.\nAcceptance: a deliver test with a worktree holding `.krn/runs/x/y/file` shows the file under `.krn/archive/worktree-runs/<branch>-<UTC>/` after hygiene, matching `krn ship`; the test fails at the base by assertion.",
+    "Lead 2026-10-31: operator decision 2026-10-27 (no archives by default; t-gmzxbxy) outranks the archive wording above. Revised acceptance: before `git worktree remove`, deliver hygiene moves untracked `<worktree>/.krn/runs/*` to the same path under the main checkout `.krn/runs/` (merge directories, drop byte-identical files, fail closed on any other collision or symlinked runs path) and creates no `.krn/archive/worktree-runs`; test/deliver/run-relocation.test.ts is red at the base by assertion."
+  ]
+}
