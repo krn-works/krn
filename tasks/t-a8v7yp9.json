@@ -1,7 +1,11 @@
 {
   "id": "t-a8v7yp9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn-handoff requires ## Operator requests; scripts/claude/handoff-requests.ts refuses unrecorded requests"
+  },
   "created": "2026-10-30",
   "priority": 1,
   "title": "Turn cross-slice operator requests into tasks or memory at handoff",
