@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
+import { once } from 'node:events';
 import {
   existsSync,
   mkdirSync,
@@ -15,9 +16,13 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { TestContext } from 'node:test';
 import { test } from 'node:test';
+import type { Job } from '../../src/core/index.ts';
 import { redFirst } from '../../src/flow/repository.ts';
 import { stateDirectory } from '../../src/foreman/state.ts';
-import type { execute } from '../../src/verdict/sandbox.ts';
+import {
+  type execute,
+  TeardownUnconfirmed,
+} from '../../src/verdict/sandbox.ts';
 
 const fixtureTestPath = 'test/fixture.test.mjs';
 const baseTest = "import { test } from 'node:test'; test('base', () => {});\n";
@@ -90,12 +95,185 @@ function fixture(context: TestContext) {
   );
   assert.equal(git(root, ['cat-file', '-t', dangling]), 'commit');
   assert.equal(git(root, ['branch', '--contains', dangling]), '');
-  return { root, temporary, borrowed, base, referencedHead, head: dangling };
+  return {
+    root,
+    temporary,
+    borrowed,
+    base,
+    referencedHead,
+    head: dangling,
+    put,
+    commit,
+  };
 }
 
 function candidateGit(copy: string, args: string[]) {
   return runGit(copy, args);
 }
+
+function capturePass(job: Job, id: string, sha: string) {
+  const diagnostics = join(stateDirectory(job), 'diagnostics');
+  mkdirSync(diagnostics, { recursive: true });
+  writeFileSync(join(diagnostics, `${sha}-${id}-capture.txt`), '');
+  return {
+    id,
+    exitCode: 0,
+    durationMs: 0,
+    sha256: createHash('sha256').update('').digest('hex'),
+  };
+}
+
+test('candidate copies are released before the next red-first evaluation', async (context) => {
+  const f = fixture(context);
+  const paths = [
+    fixtureTestPath,
+    'test/second.test.mjs',
+    'test/third.test.mjs',
+  ];
+  const unchanged = 'test/unchanged.test.mjs';
+  for (const path of [...paths, unchanged]) f.put(path, baseTest);
+  const base = f.commit('base tests');
+  for (const path of paths) f.put(path, headTest);
+  const head = f.commit(
+    `change tests\n\nChange-contract: ${fixtureTestPath}:green->green\nChange-contract: ${unchanged}:green->green`,
+  );
+  const temporary = join(f.root, '.krn', 'tmp');
+  const liveCopies = () =>
+    readdirSync(temporary).filter((entry) => entry.startsWith('verdict-'));
+  const liveCounts: number[] = [];
+  const run: typeof execute = async (
+    _root,
+    copy,
+    job,
+    id,
+    _argv,
+    _timeout,
+    sha,
+  ) => {
+    liveCounts.push(liveCopies().length);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(
+      existsSync(copy),
+      true,
+      'the awaited executor still owns its copy',
+    );
+    const evidence = capturePass(job, id, sha);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(
+      existsSync(copy),
+      true,
+      'classification still needs its diagnostics',
+    );
+    return evidence;
+  };
+
+  const report = await redFirst(f.root, base, head, undefined, run);
+
+  assert.equal(report.results.length, 6);
+  assert.ok(report.contracts?.every(({ proven }) => proven));
+  assert.deepEqual(liveCounts, Array(7).fill(1));
+  assert.deepEqual(liveCopies(), []);
+});
+
+test('candidate cleanup releases confirmed executor cancellation', async (context) => {
+  const f = fixture(context);
+  const controller = new AbortController();
+  const error = new Error('fixture cancellation after confirmed teardown');
+  let calls = 0;
+  const run: typeof execute = async (_root, copy) => {
+    calls++;
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(existsSync(copy), true);
+    controller.abort(error);
+    throw error;
+  };
+
+  await assert.rejects(
+    redFirst(f.root, f.base, f.head, controller.signal, run),
+    (caught) => caught === error,
+  );
+  assert.equal(calls, 1, 'cancellation must stop later evaluations');
+  assert.deepEqual(readdirSync(join(f.root, '.krn', 'tmp')), []);
+});
+
+test('unconfirmed teardown retains candidate bytes and helpers for a live reader', async (context) => {
+  const f = fixture(context);
+  const error = new TeardownUnconfirmed('fixture scope readback failed');
+  let calls = 0;
+  let reader: ChildProcess | undefined;
+  let paths: string[] = [];
+  let expectedBytes: string[] = [];
+  const run: typeof execute = async (
+    _root,
+    copy,
+    job,
+    id,
+    _argv,
+    _timeout,
+    sha,
+  ) => {
+    calls++;
+    const helpers = readdirSync(copy)
+      .filter((entry) => entry.startsWith('.krn-redfirst-'))
+      .map((entry) => join(copy, entry));
+    assert.ok(helpers.length > 0, 'the executor received generated helpers');
+    const diagnostics = join(stateDirectory(job), 'diagnostics');
+    mkdirSync(diagnostics, { recursive: true });
+    const output = join(diagnostics, `${sha}-${id}-capture.txt`);
+    writeFileSync(output, 'fixture output before teardown failure\0\n');
+    paths = [join(copy, fixtureTestPath), ...helpers, output];
+    expectedBytes = paths.map((path) => readFileSync(path).toString('base64'));
+    reader = spawn(
+      process.execPath,
+      [
+        '--input-type=commonjs',
+        '-e',
+        `const { readFileSync } = require('node:fs');
+process.on('message', paths => {
+  try { process.send({ bytes: paths.map(path => readFileSync(path).toString('base64')) }); }
+  catch (error) { process.send({ error: error.message }); }
+});
+process.send('ready');`,
+      ],
+      { cwd: copy, stdio: ['ignore', 'ignore', 'inherit', 'ipc'] },
+    );
+    await once(reader, 'message', { signal: AbortSignal.timeout(10_000) });
+    throw error;
+  };
+
+  try {
+    await assert.rejects(
+      redFirst(f.root, f.base, f.head, undefined, run),
+      (caught) => caught === error,
+    );
+    assert.equal(calls, 1, 'unconfirmed teardown must stop later evaluations');
+    assert.ok(reader);
+    assert.equal(
+      reader.exitCode,
+      null,
+      'the reader has not confirmed teardown',
+    );
+    const readback = once(reader, 'message', {
+      signal: AbortSignal.timeout(10_000),
+    });
+    reader.send(paths);
+    const [observed] = await readback;
+    assert.equal(
+      observed.error,
+      undefined,
+      'the live reader can read its files',
+    );
+    assert.deepEqual(observed.bytes, expectedBytes);
+  } finally {
+    if (reader && reader.exitCode === null && reader.signalCode === null) {
+      const stopped = once(reader, 'exit', {
+        signal: AbortSignal.timeout(10_000),
+      });
+      reader.kill('SIGTERM');
+      await stopped;
+    }
+  }
+});
 
 test('candidate copies own borrowed objects and preserve exact unreferenced commits', async (context) => {
   const f = fixture(context);
@@ -162,15 +340,7 @@ test('candidate copies own borrowed objects and preserve exact unreferenced comm
     if (failures.length) throw new Error(failures.join('; '));
     observations.push(sha);
 
-    const diagnostics = join(stateDirectory(job), 'diagnostics');
-    mkdirSync(diagnostics, { recursive: true });
-    writeFileSync(join(diagnostics, `${sha}-${id}-capture.txt`), '');
-    return {
-      id,
-      exitCode: 0,
-      durationMs: 0,
-      sha256: createHash('sha256').update('').digest('hex'),
-    };
+    return capturePass(job, id, sha);
   };
 
   const report = await redFirst(f.root, f.base, f.head, undefined, run);

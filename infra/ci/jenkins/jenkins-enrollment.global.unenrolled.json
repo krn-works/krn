@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "enabled": false,
+  "library_sha": "",
+  "runner": {
+    "host": "",
+    "port": 22,
+    "credentials_id": "",
+    "host_key": "",
+    "remote_fs": "/var/lib/jenkins-agent"
+  },
+  "repositories": {
+    "OWNER/REPOSITORY": {
+      "repo_id": "",
+      "app_id": "",
+      "config_sha": "",
+      "image_fingerprint": "",
+      "main_branch": "",
+      "timeout_seconds": 1800,
+      "memory_mib": 6144,
+      "process_limit": 512,
+      "jobs": {
+        "ci/global-fast": {
+          "tier": "global-fast",
+          "check_name": "gate (fast)"
+        },
+        "ci/global-deep": {
+          "tier": "global-deep",
+          "check_name": "gate (deep)"
+        }
+      }
+    }
+  }
+}

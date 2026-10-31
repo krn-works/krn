@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto';
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   renameSync,
+  rmdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -19,6 +21,10 @@ import {
   verifyReviewBinding,
 } from '../flow/series.ts';
 import { deterministicCauses, newReviewRecordSchema } from '../flow/types.ts';
+import {
+  gateAdmissionPolicyFromBase,
+  matchesGateCheckRun,
+} from './admission-policy.ts';
 import { checkMergeContracts, mergeMessage } from './message.ts';
 import {
   CommandFailure,
@@ -112,7 +118,12 @@ const checksSchema = z.array(
         head_sha: sha,
         status: z.string(),
         conclusion: z.string().nullable(),
-        app: z.object({ slug: z.string() }),
+        app: z
+          .object({
+            id: z.number().int().positive().optional(),
+            slug: z.string().optional(),
+          })
+          .nullable(),
       }),
     ),
   }),
@@ -137,6 +148,132 @@ function hostCiBusy(): boolean {
         throw error;
       }
     });
+}
+
+function lstatIfPresent(path: string) {
+  try {
+    return lstatSync(path);
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+      return undefined;
+    throw error;
+  }
+}
+
+function ensureRealDirectory(path: string, relativePath: string) {
+  const current = lstatIfPresent(path);
+  if (!current) {
+    mkdirSync(path);
+    return;
+  }
+  if (!current.isDirectory())
+    throw new Error(`destination is not a real directory: ${relativePath}`);
+}
+
+function validateHygieneDirectories(main: string, worktree: string) {
+  const mainKrn = join(main, '.krn');
+  const mainKrnStat = lstatIfPresent(mainKrn);
+  if (mainKrnStat && !mainKrnStat.isDirectory())
+    throw new Error('.krn is not a real directory');
+
+  if (mainKrnStat) {
+    const mainRuns = join(mainKrn, 'runs');
+    const mainRunsStat = lstatIfPresent(mainRuns);
+    if (mainRunsStat && !mainRunsStat.isDirectory())
+      throw new Error('.krn/runs is not a real directory');
+
+    const archiveStat = lstatIfPresent(join(mainKrn, 'archive'));
+    if (archiveStat && !archiveStat.isDirectory())
+      throw new Error('.krn/archive is not a real directory');
+
+    if (mainRunsStat) {
+      const reviewSeriesStat = lstatIfPresent(join(mainRuns, 'review-series'));
+      if (reviewSeriesStat && !reviewSeriesStat.isDirectory())
+        throw new Error('.krn/runs/review-series is not a real directory');
+    }
+  }
+
+  if (!lstatIfPresent(worktree)) return;
+  const worktreeKrn = join(worktree, '.krn');
+  const worktreeKrnStat = lstatIfPresent(worktreeKrn);
+  if (!worktreeKrnStat) return;
+  if (!worktreeKrnStat.isDirectory())
+    throw new Error('worktree .krn is not a real directory');
+
+  const worktreeRunsStat = lstatIfPresent(join(worktreeKrn, 'runs'));
+  if (worktreeRunsStat && !worktreeRunsStat.isDirectory())
+    throw new Error('worktree .krn/runs is not a real directory');
+}
+
+function relocateWorktreeRuns(
+  worktree: string,
+  main: string,
+  trackedPaths: Set<string>,
+) {
+  const worktreeKrn = join(worktree, '.krn');
+  const worktreeKrnStat = lstatIfPresent(worktreeKrn);
+  if (!worktreeKrnStat) return;
+  if (!worktreeKrnStat.isDirectory())
+    throw new Error('worktree .krn is not a real directory');
+
+  const sourceRoot = join(worktreeKrn, 'runs');
+  const sourceRootStat = lstatIfPresent(sourceRoot);
+  if (!sourceRootStat) return;
+  if (!sourceRootStat.isDirectory())
+    throw new Error('worktree .krn/runs is not a real directory');
+
+  const destinationRoot = join(main, '.krn', 'runs');
+  ensureRealDirectory(join(main, '.krn'), '.krn');
+  ensureRealDirectory(destinationRoot, '.krn/runs');
+
+  const hasTrackedDescendant = (relativePath: string) =>
+    [...trackedPaths].some((tracked) => tracked.startsWith(`${relativePath}/`));
+
+  const mergeDirectory = (
+    sourceDirectory: string,
+    destinationDirectory: string,
+    relativeDirectory: string,
+  ) => {
+    for (const name of readdirSync(sourceDirectory)) {
+      const relativePath = relativeDirectory
+        ? `${relativeDirectory}/${name}`
+        : name;
+      if (trackedPaths.has(relativePath)) continue;
+
+      const source = join(sourceDirectory, name);
+      const destination = join(destinationDirectory, name);
+      const sourceStat = lstatSync(source);
+      const destinationStat = lstatIfPresent(destination);
+
+      if (
+        sourceStat.isDirectory() &&
+        (hasTrackedDescendant(relativePath) || destinationStat?.isDirectory())
+      ) {
+        ensureRealDirectory(destination, `.krn/runs/${relativePath}`);
+        mergeDirectory(source, destination, relativePath);
+        if (readdirSync(source).length === 0) rmdirSync(source);
+        continue;
+      }
+
+      if (!destinationStat) {
+        renameSync(source, destination);
+        continue;
+      }
+
+      if (
+        sourceStat.isFile() &&
+        destinationStat.isFile() &&
+        readFileSync(source).equals(readFileSync(destination))
+      ) {
+        rmSync(source);
+        continue;
+      }
+
+      throw new Error(`collision at .krn/runs/${relativePath}`);
+    }
+  };
+
+  mergeDirectory(sourceRoot, destinationRoot, '');
 }
 
 export async function deliver(
@@ -207,6 +344,9 @@ export async function deliver(
       );
     if (record.panelVerdict !== 'PASS' && !record.override)
       throw new Error('review requires PASS or recorded override');
+    const gatePolicy = gateAdmissionPolicyFromBase(pull.base.sha, (args) =>
+      git(main, args),
+    );
     if (!pull.merged) {
       const worktree =
         state?.worktree ?? git(initial, ['rev-parse', '--show-toplevel']);
@@ -412,12 +552,7 @@ export async function deliver(
         );
         const gate = pages
           .flatMap((page) => page.check_runs)
-          .filter(
-            (check) =>
-              check.name === 'gate' &&
-              check.head_sha === head &&
-              check.app.slug === 'github-actions',
-          )
+          .filter((check) => matchesGateCheckRun(check, head, gatePolicy))
           .sort((a, b) => b.id - a.id)[0];
         if (gate?.status !== 'completed') return false;
         conclusion = gate.conclusion ?? 'unknown';
@@ -581,6 +716,7 @@ export async function deliver(
     stage = 'ci';
     const mainConclusion = await waitGate(state.merge);
     stage = 'hygiene';
+    validateHygieneDirectories(main, state.worktree);
     const archive = join(main, '.krn', 'archive');
     mkdirSync(archive, { recursive: true });
     const series = join(main, '.krn', 'runs', 'review-series', key);
@@ -590,6 +726,28 @@ export async function deliver(
       const head = git(state.worktree, ['rev-parse', 'HEAD']);
       if (head !== state.head)
         throw new Error('refuse to retire a changed worktree');
+      const worktreeRuns = join(state.worktree, '.krn', 'runs');
+      const worktreeRunsStat = lstatIfPresent(worktreeRuns);
+      if (worktreeRunsStat && !worktreeRunsStat.isDirectory())
+        throw new Error('worktree .krn/runs is not a real directory');
+      if (worktreeRunsStat) {
+        const tracked = git(state.worktree, [
+          'ls-files',
+          '-z',
+          '--',
+          '.krn/runs',
+        ]);
+        relocateWorktreeRuns(
+          state.worktree,
+          main,
+          new Set(
+            tracked
+              .split('\0')
+              .filter(Boolean)
+              .map((path) => path.slice('.krn/runs/'.length)),
+          ),
+        );
+      }
       if (!runtime.cwd) process.chdir(main);
       // Normal git removal preserves unknown/untracked content and fails closed.
       git(main, ['worktree', 'remove', state.worktree]);

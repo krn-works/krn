@@ -1,6 +1,6 @@
 ---
 name: krn-handoff
-description: End a KRN lead session — update the capsule, write a one-page pointer handoff, and start the next slice in a fresh background session. Use when the slice merged, when it waits on the operator, or when the lead context grows large.
+description: End a KRN lead session — update the capsule, write a one-page pointer handoff, and start the next slice in a fresh session (a Herdr tab, else a background session). Use when the slice merged, when it waits on the operator, or when the lead context grows large.
 ---
 
 # KRN handoff
@@ -19,7 +19,7 @@ A fresh session with a short, precise handoff outperforms a long session that ca
 
    Run `node scripts/claude/handoff-requests.ts <handoff path>` from the repository root until it prints PASS.
 3. **Transfer the writer, then start the next session.** Record in the capsule field "Current workflow owner and sole writer" that the next session is the writer, finish every write of this session (capsule, handoff, tracker), and only then, as this session's last action, start the next one from the repository root:
-   `claude --bg -n "<slice purpose>" "Use the krn-lead skill. Read <handoff path>, then deliver <task id>."`
+   `node scripts/claude/successor-launch.ts --name "<slice purpose>" --prompt "Use the krn-lead skill. Read <handoff path>, then deliver <task id>."`
    After this command the current session writes nothing. If the next slice needs an operator decision, do not start a session; ask the operator with a decision-ready brief.
 4. **Report.** Tell the operator in Polish:
    - what merged (SHAs, runs);

@@ -8,6 +8,12 @@ import { basename, delimiter, dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import type { Job } from '../core/index.ts';
 import { stateDirectory } from '../foreman/state.ts';
+import {
+  parseSystemdScopeProperties,
+  type SystemdScopeRegistration,
+  systemdScopeProcessRegistration,
+  systemdScopeRegistrationActive,
+} from '../hosts/systemd-scope.ts';
 import type { CheckEvidence } from './index.ts';
 
 export const MAX_CHECK_OUTPUT_BYTES = 8 * 1024 * 1024;
@@ -457,7 +463,7 @@ export class TeardownUnconfirmed extends Error {
   }
 }
 
-function scopePids(controlGroup: string): number[] {
+export function scopePids(controlGroup: string): number[] {
   if (!controlGroup) return [];
   if (!controlGroup.startsWith('/') || controlGroup.split('/').includes('..'))
     throw new Error('systemd returned an invalid cgroup path');
@@ -477,10 +483,32 @@ function scopePids(controlGroup: string): number[] {
   }
 }
 
+export function scopeReadbackIsDrained(
+  status: number | null,
+  properties: ReturnType<typeof parseSystemdScopeProperties>,
+  pids: readonly number[],
+  stdout: Buffer,
+  stderr: Buffer,
+  originalActive?: boolean | null,
+): boolean {
+  if (originalActive === true || originalActive === null) return false;
+  if (status === 0)
+    return properties?.activeState === 'inactive' && pids.length === 0;
+  const detail = `${stderr.toString()} ${stdout.toString()}`;
+  return (
+    status !== null &&
+    originalActive === false &&
+    stdout.length === 0 &&
+    /not loaded|not found|could not be found/i.test(detail) &&
+    pids.length === 0
+  );
+}
+
 async function killAndVerifyScope(
   root: string,
   busEnv: NodeJS.ProcessEnv,
   unit: string,
+  registration?: SystemdScopeRegistration,
 ): Promise<void> {
   const kill = await run(
     'systemctl',
@@ -497,39 +525,48 @@ async function killAndVerifyScope(
       [
         '--user',
         'show',
+        '--property=ActiveState',
+        '--property=ControlGroup',
+        '--no-pager',
         unit,
-        '-p',
-        'ActiveState',
-        '-p',
-        'ControlGroup',
-        '--value',
       ],
       root,
       1500,
       busEnv,
     );
-    const [activeState = '', controlGroup = ''] = shown.stdout
-      .toString()
-      .trimEnd()
-      .split(/\r?\n/u);
+    const properties =
+      shown.status === 0
+        ? parseSystemdScopeProperties(shown.stdout.toString())
+        : undefined;
     let pids: number[];
     try {
-      pids = scopePids(controlGroup);
+      pids = scopePids(
+        registration?.controlGroup ?? properties?.controlGroup ?? '',
+      );
     } catch (error) {
       lastState = error instanceof Error ? error.message : String(error);
       await new Promise((resolveDelay) => setTimeout(resolveDelay, 50));
       continue;
     }
+    if (
+      scopeReadbackIsDrained(
+        shown.status,
+        properties,
+        pids,
+        shown.stdout,
+        shown.stderr,
+        registration ? systemdScopeRegistrationActive(registration) : undefined,
+      )
+    )
+      return;
     if (shown.status === 0) {
-      if (activeState === 'inactive' && pids.length === 0) return;
-      lastState = `state=${activeState || 'unknown'}; PIDs=${pids.join(',') || 'none'}`;
+      if (!properties) {
+        lastState = 'systemd returned invalid scope properties';
+      } else {
+        lastState = `state=${properties.activeState}; PIDs=${pids.join(',') || 'none'}`;
+      }
     } else {
       const detail = `${shown.stderr.toString()} ${shown.stdout.toString()}`;
-      if (
-        /not loaded|not found|could not be found/i.test(detail) &&
-        pids.length === 0
-      )
-        return;
       lastState = detail.trim() || 'systemctl show failed';
     }
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 50));
@@ -696,6 +733,7 @@ async function runSandbox(
   };
   // biome-ignore format: Preserve the exact scope argv beside the bwrap argv.
   const capture = new OutputCapture();
+  let registration: SystemdScopeRegistration | undefined;
   let abortPromise: Promise<void> | undefined;
   let timedOut = false;
   const resultPromise = new Promise<{ status: number | null }>(
@@ -719,39 +757,56 @@ async function runSandbox(
         ],
         { cwd: root, env: busEnv, stdio: ['ignore', 'pipe', 'pipe'] },
       );
+      const observeRegistration = () => {
+        registration ??= systemdScopeProcessRegistration(unit, child.pid);
+      };
+      const registrationTimer = setInterval(observeRegistration, 20);
       const abort = () => {
         if (abortPromise) return abortPromise;
-        abortPromise = killAndVerifyScope(root, busEnv, unit).catch(
-          (error: unknown) => {
-            child.kill('SIGTERM');
-            throw error instanceof TeardownUnconfirmed
-              ? error
-              : new TeardownUnconfirmed(
-                  error instanceof Error ? error.message : String(error),
-                );
-          },
-        );
+        observeRegistration();
+        abortPromise = killAndVerifyScope(
+          root,
+          busEnv,
+          unit,
+          registration,
+        ).catch((error: unknown) => {
+          child.kill('SIGTERM');
+          throw error instanceof TeardownUnconfirmed
+            ? error
+            : new TeardownUnconfirmed(
+                error instanceof Error ? error.message : String(error),
+              );
+        });
         void abortPromise.catch(() => {});
         return abortPromise;
       };
       child.stdout.on('data', (chunk: Buffer) => {
+        observeRegistration();
         capture.append(chunk);
         if (capture.exceeded) abort();
       });
       child.stderr.on('data', (chunk: Buffer) => {
+        observeRegistration();
         capture.append(chunk);
         if (capture.exceeded) abort();
       });
-      if (signal?.aborted) abort();
-      else signal?.addEventListener('abort', abort, { once: true });
+      const onAbort = () => {
+        void abort();
+      };
+      if (signal?.aborted) onAbort();
+      else signal?.addEventListener('abort', onAbort, { once: true });
       const timer = setTimeout(() => {
         timedOut = true;
         void abort();
       }, timeoutMs);
-      child.once('error', reject);
+      child.once('error', (error) => {
+        clearInterval(registrationTimer);
+        reject(error);
+      });
       child.once('close', (status) => {
+        clearInterval(registrationTimer);
         clearTimeout(timer);
-        signal?.removeEventListener('abort', abort);
+        signal?.removeEventListener('abort', onAbort);
         resolveResult({ status });
       });
     },
@@ -759,10 +814,12 @@ async function runSandbox(
   const result = await resultPromise;
   if (abortPromise) await abortPromise;
   if (signal?.aborted) {
-    if (!abortPromise) await killAndVerifyScope(root, busEnv, unit);
+    if (!abortPromise)
+      await killAndVerifyScope(root, busEnv, unit, registration);
     throw new Error('stopped');
   }
-  if (result.status === 125) await killAndVerifyScope(root, busEnv, unit);
+  if (result.status === 125)
+    await killAndVerifyScope(root, busEnv, unit, registration);
   // biome-ignore format: Both systemd observations use the same scope identity.
   const state = await run('systemctl', ['--user', 'show', unit, '-p', 'ActiveState', '--value'], root, 15000, busEnv);
   // biome-ignore format: Both systemd observations use the same scope identity.
@@ -771,7 +828,7 @@ async function runSandbox(
   const processList = cgroup ? `/sys/fs/cgroup${cgroup}/cgroup.procs` : '';
   const survivors = processList ? readFileSync(processList, 'utf8').trim() : '';
   if (state.status !== 0 || group.status !== 0 || survivors) {
-    await killAndVerifyScope(root, busEnv, unit);
+    await killAndVerifyScope(root, busEnv, unit, registration);
     throw new Error('check systemd scope did not become empty');
   }
   if (state.stdout.toString().trim() !== 'inactive')

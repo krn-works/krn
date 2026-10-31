@@ -56,6 +56,39 @@ const registrationDrainQuietMs = 1000;
 const cgroupPidByteLimit = 8 * 1024;
 const cgroupPidCountLimit = 256;
 
+export type SystemdScopeProperties = {
+  readonly activeState: string;
+  readonly controlGroup: string;
+};
+
+export function parseSystemdScopeProperties(
+  output: string,
+): SystemdScopeProperties | undefined {
+  const lines = output.split(/\r?\n/u);
+  if (lines.at(-1) === '') lines.pop();
+  const properties = new Map<string, string>();
+  for (const line of lines) {
+    const separator = line.indexOf('=');
+    if (separator <= 0) return undefined;
+    const name = line.slice(0, separator);
+    if (
+      (name !== 'ActiveState' && name !== 'ControlGroup') ||
+      properties.has(name)
+    )
+      return undefined;
+    properties.set(name, line.slice(separator + 1));
+  }
+  const activeState = properties.get('ActiveState');
+  const controlGroup = properties.get('ControlGroup');
+  if (
+    activeState === undefined ||
+    activeState.length === 0 ||
+    controlGroup === undefined
+  )
+    return undefined;
+  return { activeState, controlGroup };
+}
+
 export function codexScopeUnit(jobId: string, sessionId: string): string {
   const job = jobId.replace(/[^A-Za-z0-9:_.-]/g, '-').slice(0, 80) || 'session';
   if (!/^[A-Za-z0-9-]{1,128}$/u.test(sessionId))
@@ -118,16 +151,29 @@ export async function waitForSystemdScopeRegistration(
 export async function drainSystemdScope(
   unit: string,
   env: NodeJS.ProcessEnv = userManagerEnvironment(),
+  registration?: SystemdScopeRegistration,
 ): Promise<void> {
+  const original = registration ?? observeSystemdScopeRegistration(unit, env);
   const deadline = Date.now() + 7000;
   let quietSince: number | undefined;
   while (Date.now() < deadline) {
-    const active = systemdScopeActive(unit, env);
-    if (active === null)
+    const active = systemdScopeActive(unit, env, original);
+    if (active === null) {
+      // A failed readback cannot establish that the owned scope is empty.
+      // Still request termination of its exact unit before refusing cleanup;
+      // the caller must continue to treat the drain as unverified.
+      if (/^krn-[A-Za-z0-9:_.@-]+\.scope$/u.test(unit)) {
+        spawnSync(
+          'systemctl',
+          ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', unit],
+          { encoding: 'utf8', env, timeout: 5000 },
+        );
+      }
       throw new Error(`cannot verify systemd scope ${unit} drain state`);
+    }
     if (active) {
       quietSince = undefined;
-      await killAndVerifyScope(unit, env);
+      await killAndVerifyScope(unit, env, original);
     } else {
       quietSince ??= Date.now();
       if (Date.now() - quietSince >= registrationDrainQuietMs) return;
@@ -247,15 +293,15 @@ function observeSystemdScopeRegistration(
       'show',
       '--property=ActiveState',
       '--property=ControlGroup',
-      '--value',
+      '--no-pager',
       unit,
     ],
     { encoding: 'utf8', env, timeout: 1000 },
   );
   if (shown.error || shown.status !== 0) return undefined;
-  const [state = '', controlGroup = ''] = shown.stdout
-    .trimEnd()
-    .split(/\r?\n/u);
+  const properties = parseSystemdScopeProperties(shown.stdout);
+  if (!properties) return undefined;
+  const { activeState: state, controlGroup } = properties;
   if (state !== 'active' && state !== 'activating' && state !== 'reloading')
     return undefined;
   const cgroupPath = registrationCgroupPath(controlGroup, unit);
@@ -415,49 +461,106 @@ export function spawnSystemdScope(
 export async function killAndVerifyScope(
   unit: string,
   env: NodeJS.ProcessEnv = userManagerEnvironment(),
+  registration?: SystemdScopeRegistration,
 ): Promise<void> {
+  const original = registration ?? observeSystemdScopeRegistration(unit, env);
   const killed = spawnSync(
     'systemctl',
     ['--user', 'kill', '--kill-whom=all', '--signal=SIGKILL', unit],
     { encoding: 'utf8', env, timeout: 5000 },
   );
   const deadline = Date.now() + 5000;
-  let lastError = killed.error?.message ?? killed.stderr.trim();
   while (Date.now() < deadline) {
-    const shown = spawnSync(
-      'systemctl',
-      ['--user', 'show', '--property=ControlGroup', '--value', unit],
-      { encoding: 'utf8', env, timeout: 3000 },
-    );
-    if (shown.status !== 0) {
-      const detail = `${shown.stderr}\n${shown.stdout}`;
-      if (/not loaded|not found|could not be found/i.test(detail)) return;
-      throw new Error(`cannot verify systemd scope ${unit}: ${detail.trim()}`);
-    }
-    const controlGroup = shown.stdout.trim();
-    if (!controlGroup) return;
-    if (!controlGroup.startsWith('/') || controlGroup.split('/').includes('..'))
-      throw new Error(`systemd returned an invalid cgroup path for ${unit}`);
-    const cgroup = resolve('/sys/fs/cgroup', controlGroup.slice(1));
-    try {
-      const events = readFileSync(join(cgroup, 'cgroup.events'), 'utf8');
-      if (/^populated 0$/m.test(events)) return;
-      lastError = `cgroup ${controlGroup} remains populated`;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return;
-      throw error;
-    }
+    const active = systemdScopeActive(unit, env, original);
+    if (active === false) return;
+    if (active === null)
+      throw new Error(`cannot verify systemd scope ${unit} drain state`);
     await new Promise((done) => setTimeout(done, 20));
   }
-  if (killed.status !== 0 && !lastError)
-    lastError = killed.stderr || 'systemd kill command failed';
-  throw new Error(`systemd scope ${unit} did not become empty: ${lastError}`);
+  const detail = killed.error?.message ?? killed.stderr.trim();
+  throw new Error(
+    `systemd scope ${unit} did not become empty: ${detail || 'original cgroup or process remains live'}`,
+  );
+}
+
+// Observe the launched process directly, before systemd can collect the unit.
+export function systemdScopeProcessRegistration(
+  unit: string,
+  pid: number | undefined,
+): SystemdScopeRegistration | undefined {
+  if (pid === undefined) return undefined;
+  try {
+    const controlGroup = readFileSync(`/proc/${pid}/cgroup`, 'utf8')
+      .split('\n')
+      .find((line) => line.startsWith('0::'))
+      ?.slice(3);
+    const startTicks = processStartTicks(pid);
+    const registration = validateSystemdScopeRegistration(
+      { unit, controlGroup, pid, startTicks },
+      unit,
+    );
+    if (!registration || !processHasIdentity(pid, registration.startTicks))
+      return undefined;
+    const path = registrationCgroupPath(registration.controlGroup, unit);
+    if (!path) return undefined;
+    const membership = readCgroupProcesses(join(path, 'cgroup.procs'));
+    return membership?.kind === 'observed' &&
+      membership.pids.includes(pid) &&
+      processHasIdentity(pid, registration.startTicks)
+      ? registration
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function systemdScopeRegistrationActive(
+  registration: SystemdScopeRegistration,
+): boolean | null {
+  const validated = validateSystemdScopeRegistration(
+    registration,
+    registration.unit,
+  );
+  if (!validated) return null;
+  const path = registrationCgroupPath(validated.controlGroup, validated.unit);
+  if (!path) return null;
+  let populated: boolean;
+  try {
+    const events = readFileSync(join(path, 'cgroup.events'), 'utf8');
+    const match = /^populated ([01])$/mu.exec(events);
+    if (!match) return null;
+    populated = match[1] === '1';
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return null;
+    populated = false;
+  }
+  // A live original PID outside a removed/empty group is not verified cleanup.
+  try {
+    const stat = readFileSync(`/proc/${validated.pid}/stat`, 'utf8');
+    const fields = stat
+      .slice(stat.lastIndexOf(')') + 2)
+      .trim()
+      .split(/\s+/u);
+    if (fields.length < 20 || !/^\d+$/u.test(fields[19] ?? '')) return null;
+    if (
+      fields[0] !== 'Z' &&
+      fields[0] !== 'X' &&
+      fields[19] === validated.startTicks
+    )
+      return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return null;
+  }
+  return populated;
 }
 
 export function systemdScopeActive(
   unit: string,
   env: NodeJS.ProcessEnv = userManagerEnvironment(),
+  registration?: SystemdScopeRegistration,
 ): boolean | null {
+  if (registration && !validateSystemdScopeRegistration(registration, unit))
+    return null;
   const shown = spawnSync(
     'systemctl',
     [
@@ -467,19 +570,30 @@ export function systemdScopeActive(
       'ActiveState',
       '-p',
       'ControlGroup',
-      '--value',
+      '--no-pager',
       unit,
     ],
     { encoding: 'utf8', env, timeout: 3000 },
   );
-  if (shown.status !== 0) {
+  const originalActive =
+    registration?.unit === unit
+      ? systemdScopeRegistrationActive(registration)
+      : undefined;
+  if (shown.error || shown.status !== 0) {
     const detail = `${shown.stderr}\n${shown.stdout}`;
-    if (/not loaded|not found|could not be found/i.test(detail)) return false;
+    if (
+      !shown.error &&
+      shown.status !== null &&
+      shown.stdout.length === 0 &&
+      /not loaded|not found|could not be found/i.test(detail)
+    )
+      return originalActive ?? null;
     return null;
   }
-  const [state = '', controlGroup = ''] = shown.stdout
-    .trimEnd()
-    .split(/\r?\n/u);
+  const properties = parseSystemdScopeProperties(shown.stdout);
+  if (!properties) return null;
+  if (originalActive === true || originalActive === null) return originalActive;
+  const { activeState: state, controlGroup } = properties;
   if (
     controlGroup &&
     (!controlGroup.startsWith('/') || controlGroup.split('/').includes('..'))

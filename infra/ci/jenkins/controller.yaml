@@ -1,0 +1,30 @@
+# Install-time secret source is external to this repository. No enabled jobs,
+# agents, clouds, SCM scans, automatic publishers or credentials are seeded.
+# Enrollment creates only the persistent exclusive `control` agent (one
+# executor, CommandLauncher on this controller VM). NEVER persist a `runner`
+# node here: even core NOOP retention reconnects persisted nodes on restart.
+# The trusted wrapper registers the fixed runner VM as EphemeralNode only after
+# prepare, and disconnects/removes it before finish. No cloud auto-provisioning.
+# Global trusted library `owned-ci` must be implicit, exact enrolled SHA, with
+# allowVersionOverride=false and libraryPath=infra/ci/jenkins/library/.
+jenkins:
+  systemMessage: "CI seed: DISABLED; external enrollment and host qualification required"
+  numExecutors: 0
+  mode: EXCLUSIVE
+  slaveAgentPort: -1
+  disableRememberMe: true
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${CI_ADMIN_ID}"
+          password: "${CI_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    globalMatrix:
+      entries:
+        - user:
+            name: "${CI_ADMIN_ID}"
+            permissions:
+              - "Overall/Administer"
+  remotingSecurity:
+    enabled: true

@@ -14,6 +14,10 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import {
+  gateAdmissionPolicyFromBase,
+  matchesGateCheckRun,
+} from '../src/deliver/admission-policy.ts';
+import {
   currentReviewAttempts,
   seriesRecordPaths,
   verifyReviewBinding,
@@ -68,7 +72,13 @@ const checkRunsSchema = z.array(
     .object({
       id: z.number().int().positive(),
       name: z.string().min(1),
-      app: z.object({ slug: z.string() }).nullable(),
+      head_sha: z.string().regex(/^(?:[a-f\d]{40}|[a-f\d]{64})$/iu),
+      app: z
+        .object({
+          id: z.number().int().positive().optional(),
+          slug: z.string().optional(),
+        })
+        .nullable(),
       status: z.string().min(1),
       conclusion: z.string().nullable(),
       html_url: z.string().url(),
@@ -718,19 +728,34 @@ export async function runPreflight(input, dependencies = {}) {
       reasons,
     );
     if (checkRuns) {
+      let gatePolicy;
+      try {
+        gatePolicy = gateAdmissionPolicyFromBase(pull.base.sha, (args) => {
+          const result = git(repo, args);
+          if (!result.ok) throw new Error('base policy git read failed');
+          return result.value;
+        });
+      } catch {
+        reasons.add(
+          'authoritative PR base gate admission policy is invalid or unavailable',
+        );
+      }
       const gate = checkRuns
         .filter(
           (check) =>
-            check.name === 'gate' && check.app?.slug === 'github-actions',
+            gatePolicy && matchesGateCheckRun(check, canonicalHead, gatePolicy),
         )
         .sort((a, b) => b.id - a.id)[0];
-      if (!gate) reasons.add('exact-head Actions gate check-run is missing');
+      if (!gate) reasons.add('exact-head configured gate check-run is missing');
       else {
         report.gateCheckRun = {
           id: gate.id,
           url: gate.html_url,
           status: gate.status,
           conclusion: gate.conclusion,
+          name: gate.name,
+          head: gate.head_sha,
+          appId: gate.app?.id ?? null,
         };
         if (gate.status !== 'completed' || gate.conclusion !== 'success')
           reasons.add(

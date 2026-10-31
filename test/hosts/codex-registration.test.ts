@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   chmod,
   mkdir,
@@ -14,6 +14,7 @@ import { test } from 'node:test';
 import { CodexHost } from '../../src/hosts/codex.ts';
 import {
   codexScopeUnit,
+  drainSystemdScope,
   processHasIdentity,
   processStartTicks,
   systemdScopeActive,
@@ -109,20 +110,11 @@ IFS= read -r prompt || true
         const unit = `krn-registration-${String(sessionId)}.scope`;
         const shown = spawnSync(
           '/usr/bin/systemctl',
-          [
-            '--user',
-            'show',
-            unit,
-            '-p',
-            'ActiveState',
-            '-p',
-            'ControlGroup',
-            '--value',
-          ],
+          ['--user', 'show', unit, '-p', 'ControlGroup', '--value'],
           { encoding: 'utf8', env: scopeEnvironment() },
         );
         if (shown.status === 0) {
-          const [, controlGroup = ''] = shown.stdout.trimEnd().split(/\r?\n/u);
+          const controlGroup = shown.stdout.trim();
           const members = controlGroup
             ? await readFile(
                 join('/sys/fs/cgroup', controlGroup.slice(1), 'cgroup.procs'),
@@ -554,7 +546,7 @@ exec /usr/bin/systemctl "$@"
   }
 });
 
-test('transitional empty scope status remains unknown while known states classify', async () => {
+test('named scope properties classify captured orders and fail closed on malformed output', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'krn-systemd-status-'));
   const fakeBin = join(directory, 'bin');
   const systemctl = join(fakeBin, 'systemctl');
@@ -571,7 +563,7 @@ for argument do
   case "$argument" in krn-*.scope) unit="$argument" ;; esac
 done
 if [ "$unit" = ${JSON.stringify(unit)} ]; then
-  printf '%s\\n\\n' "$(/usr/bin/cat ${JSON.stringify(stateFile)})"
+  /usr/bin/cat ${JSON.stringify(stateFile)}
   exit 0
 fi
 exec /usr/bin/systemctl "$@"
@@ -580,26 +572,49 @@ exec /usr/bin/systemctl "$@"
     await chmod(systemctl, 0o755);
     process.env.PATH = `${fakeBin}:${previousPath ?? ''}`;
 
-    await writeFile(stateFile, 'deactivating\n');
+    const capturedActiveControlGroupFirst =
+      'ControlGroup=/user.slice/user-1000.slice/user@1000.service/app.slice/krn-status-fixture.scope\nActiveState=active\n';
+    await writeFile(stateFile, capturedActiveControlGroupFirst);
+    assert.equal(
+      systemdScopeActive(unit),
+      true,
+      'captured systemd 257 property order keeps a live scope active',
+    );
+    await writeFile(
+      stateFile,
+      'ActiveState=active\nControlGroup=/user.slice/user-1000.slice/user@1000.service/app.slice/krn-status-fixture.scope\n',
+    );
+    assert.equal(
+      systemdScopeActive(unit),
+      true,
+      'the other named property order also keeps a live scope active',
+    );
+    await writeFile(stateFile, 'ControlGroup=\nActiveState=inactive\n');
+    assert.equal(
+      systemdScopeActive(unit),
+      false,
+      'captured post-GC output preserves an empty ControlGroup value',
+    );
+    await writeFile(stateFile, 'ControlGroup=\nActiveState=deactivating\n');
     assert.equal(
       systemdScopeActive(unit),
       null,
       'a transitional state without a cgroup is not proof of inactivity',
     );
-    await writeFile(stateFile, 'inactive\n');
-    assert.equal(
-      systemdScopeActive(unit),
-      false,
-      'known inactive remains false',
-    );
-    await writeFile(stateFile, 'active\n');
-    assert.equal(systemdScopeActive(unit), true, 'known active remains true');
-    await writeFile(stateFile, 'failed\n');
-    assert.equal(
-      systemdScopeActive(unit),
-      false,
-      'failed with an empty cgroup remains a confirmed terminated state',
-    );
+    for (const malformed of [
+      'ActiveState=inactive\n',
+      'ControlGroup=\nActiveState=inactive\nControlGroup=\n',
+      'ControlGroup=\nActiveState=inactive\nOther=value\n',
+    ]) {
+      await writeFile(stateFile, malformed);
+      assert.equal(
+        systemdScopeActive(unit),
+        null,
+        `malformed named scope properties remain unknown: ${malformed}`,
+      );
+    }
+    await writeFile(stateFile, 'ControlGroup=\nActiveState=failed\n');
+    assert.equal(systemdScopeActive(unit), false, 'known failed remains false');
   } finally {
     if (previousPath === undefined) delete process.env.PATH;
     else process.env.PATH = previousPath;
@@ -624,7 +639,7 @@ for argument do
   case "$argument" in krn-*.scope) unit="$argument" ;; esac
 done
 if [ "$unit" = ${JSON.stringify(unit)} ]; then
-  printf 'active\\n%s\\n' ${JSON.stringify(controlGroup)}
+  printf 'ControlGroup=%s\\nActiveState=active\\n' ${JSON.stringify(controlGroup)}
   exit 0
 fi
 exec /usr/bin/systemctl "$@"
@@ -746,7 +761,7 @@ test('traversal ControlGroup cannot supply a registration proof', async () => {
     await writeFile(join(target, 'cgroup.procs'), `${process.pid}\n`);
     await writeFile(
       systemctl,
-      `#!/bin/sh\nunit=''\nprevious=''\nfor argument do\n  if [ "$previous" = '--value' ]; then unit="$argument"; fi\n  previous="$argument"\ndone\nif [ "$unit" = ${JSON.stringify(unit)} ]; then\n  : > ${JSON.stringify(responseMarker)}\n  printf 'active\\n%s/%s\\n' ${JSON.stringify(traversalPrefix)} "$unit"\n  exit 0\nfi\nexec /usr/bin/systemctl "$@"\n`,
+      `#!/bin/sh\nunit=''\nfor argument do\n  case "$argument" in krn-*.scope) unit="$argument" ;; esac\ndone\nif [ "$unit" = ${JSON.stringify(unit)} ]; then\n  : > ${JSON.stringify(responseMarker)}\n  printf 'ControlGroup=%s/%s\\nActiveState=active\\n' ${JSON.stringify(traversalPrefix)} "$unit"\n  exit 0\nfi\nexec /usr/bin/systemctl "$@"\n`,
     );
     await chmod(systemctl, 0o755);
     process.env.PATH = `${fakeBin}:${previousPath ?? ''}`;
@@ -961,3 +976,103 @@ async function processIsAlive(pid: number): Promise<boolean> {
     return false;
   }
 }
+
+test('missing unit readback cannot hide a live registered scope', {
+  timeout: conditionTimeoutFor(2),
+}, async (t) => {
+  if (
+    !requiresIsolation(t, 'missing unit with live registered scope', [
+      'systemdUserScope',
+    ])
+  )
+    return;
+  const directory = await mkdtemp(join(tmpdir(), 'krn-scope-absence-'));
+  const unit = codexScopeUnit('absence-proof', `owned-${process.pid}`);
+  const env = scopeEnvironment();
+  const child = spawn(
+    'systemd-run',
+    ['--user', '--scope', '--quiet', '--unit', unit, '/bin/sleep', '60'],
+    { env, stdio: 'ignore' },
+  );
+  const exited = new Promise((resolveExit) => child.once('close', resolveExit));
+  try {
+    const registration = await waitForSystemdScopeRegistration(
+      unit,
+      () => false,
+    );
+    const fakeBin = join(directory, 'bin');
+    await mkdir(fakeBin);
+    await writeFile(
+      join(fakeBin, 'systemctl'),
+      `#!/bin/sh
+for argument do
+  if [ "$argument" = ${JSON.stringify(unit)} ]; then
+    case " $* " in
+      *" show "*) printf 'Unit ${unit} could not be found.\\n' >&2; exit 1 ;;
+      *" kill "*) exit 0 ;;
+    esac
+  fi
+done
+exec /usr/bin/systemctl "$@"
+`,
+    );
+    await chmod(join(fakeBin, 'systemctl'), 0o755);
+    const missingEnv = { ...env, PATH: `${fakeBin}:${env.PATH ?? ''}` };
+    assert.equal(
+      systemdScopeActive(unit, missingEnv, registration),
+      true,
+      'original cgroup still contains its registered process',
+    );
+    assert.equal(
+      systemdScopeActive(unit, missingEnv),
+      null,
+      'missing unit without original evidence is unknown',
+    );
+    const previousPath = process.env.PATH;
+    try {
+      process.env.PATH = missingEnv.PATH;
+      assert.equal(
+        new CodexHost().sessionScopeActive(
+          'absence-proof',
+          `owned-${process.pid}`,
+          registration,
+        ),
+        true,
+        'the persisted registration also protects the host observer after restart',
+      );
+    } finally {
+      if (previousPath === undefined) delete process.env.PATH;
+      else process.env.PATH = previousPath;
+    }
+    await assert.rejects(
+      drainSystemdScope(unit, missingEnv, registration),
+      /did not become empty|cannot verify/,
+    );
+    assert.equal(
+      processHasIdentity(registration.pid, registration.startTicks),
+      true,
+      'the injected kill must leave the actual owned process alive',
+    );
+    const killed = spawnSync(
+      '/usr/bin/systemctl',
+      ['--user', 'kill', '--signal=SIGKILL', unit],
+      { env, encoding: 'utf8' },
+    );
+    assert.equal(killed.status, 0, killed.stderr);
+    await exited;
+    assert.equal(
+      systemdScopeActive(unit, missingEnv, registration),
+      false,
+      'original cgroup and process identity independently prove collection',
+    );
+    await drainSystemdScope(unit, missingEnv, registration);
+  } finally {
+    spawnSync(
+      '/usr/bin/systemctl',
+      ['--user', 'kill', '--signal=SIGKILL', unit],
+      { env, stdio: 'ignore' },
+    );
+    await exited;
+    await rm(directory, { recursive: true, force: true });
+  }
+});
