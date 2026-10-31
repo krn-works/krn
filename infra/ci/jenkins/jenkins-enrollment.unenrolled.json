@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "enabled": false,
+  "library_sha": "",
+  "runner": {
+    "host": "",
+    "port": 22,
+    "credentials_id": "",
+    "host_key": "",
+    "remote_fs": "/var/lib/jenkins-agent"
+  },
+  "repositories": {}
+}

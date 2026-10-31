@@ -186,7 +186,7 @@ function runPreflight(input: {
     const report = await runPreflight(input, {
       readPull: async () => ({ ok: true, value: pull }),
       readStatuses: async () => ({ ok: true, value: statuses }),
-      readCheckRuns: async () => ({ ok: true, value: ${JSON.stringify([gateCheck()])} }),
+      readCheckRuns: async () => ({ ok: true, value: [{ ...${JSON.stringify(gateCheck())}, head_sha: input.head }] }),
     });
     process.stdout.write(JSON.stringify(report) + '\\n');
   `;

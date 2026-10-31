@@ -122,6 +122,7 @@ type FixtureOptions = {
   prBase?: string;
   prHead?: string;
   baseHistory?: 'moved-ancestor' | 'side-branch';
+  gatePolicy?: boolean;
 };
 
 async function git(repo: string, args: string[]): Promise<string> {
@@ -181,6 +182,13 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
   ]);
   await writeFile(join(repo, 'src', 'index.ts'), 'export const value = 1;\n');
   await writeFile(join(repo, 'test', 'example.test.ts'), 'export {};\n');
+  if (options.gatePolicy) {
+    await mkdir(join(repo, 'spec'), { recursive: true });
+    await writeFile(
+      join(repo, 'spec', 'ci-admission.json'),
+      '{"schemaVersion":1,"checkRunName":"krn/gate","appId":5548482}\n',
+    );
+  }
   if (taskFile === 'valid' || taskFile === 'invalid') {
     await mkdir(join(repo, 'tasks'), { recursive: true });
     await writeFile(
@@ -190,10 +198,20 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
         : '{ invalid task json\n',
     );
   }
-  await git(repo, ['add', 'src', 'test']);
+  await git(repo, [
+    'add',
+    'src',
+    'test',
+    ...(options.gatePolicy ? ['spec'] : []),
+  ]);
   await git(repo, ['commit', '--quiet', '-m', 'initial fixture']);
   const base = await git(repo, ['rev-parse', 'HEAD']);
 
+  if (options.gatePolicy)
+    await writeFile(
+      join(repo, 'spec', 'ci-admission.json'),
+      '{"schemaVersion":1,"checkRunName":"gate","appId":15368}\n',
+    );
   await writeFile(join(repo, 'src', 'index.ts'), 'export const value = 2;\n');
   await git(repo, ['add', '--all']);
   const taskTrailers = [
@@ -276,6 +294,7 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
     testTreeSha,
     pull,
     statuses,
+    gatePolicy: options.gatePolicy ?? false,
   };
 }
 
@@ -295,7 +314,15 @@ function runHarness(
       input,
       pull: value.pull,
       statuses: value.statuses,
-      checks: [gateCheck()],
+      checks: [
+        {
+          ...gateCheck(),
+          head_sha: value.head,
+          ...(value.gatePolicy
+            ? { name: 'krn/gate', app: { id: 5548482 } }
+            : {}),
+        },
+      ],
     })};
     const calls = [];
     const report = await runPreflight(fixture.input, {
@@ -344,6 +371,15 @@ function isHarnessResult(value: unknown): value is {
       state: string;
       creator: string | null;
       description?: string | null;
+    };
+    gateCheckRun?: {
+      id: number;
+      url: string;
+      status: string;
+      conclusion: string | null;
+      name: string;
+      head: string;
+      appId: number | null;
     };
   };
   calls: unknown[][];
@@ -422,6 +458,21 @@ test('a PR whose ticket is a committed task at head passes', async (t) => {
     ['statuses', value.repo, 'krn-works/krn', value.head],
     ['checks', value.repo, 'krn-works/krn', value.head],
   ]);
+});
+
+test('preflight selects App admission policy from base, not PR head', async (t) => {
+  const value = await fixture(t, { gatePolicy: true });
+  const parsed = parseHarness(runHarness(value));
+  assert.equal(parsed.report.verdict, 'pass', parsed.report.reasons.join('; '));
+  assert.deepEqual(parsed.report.gateCheckRun, {
+    id: 1,
+    url: 'https://github.com/krn-works/krn/actions/runs/1',
+    status: 'completed',
+    conclusion: 'success',
+    name: 'krn/gate',
+    head: value.head,
+    appId: 5548482,
+  });
 });
 
 test('preflight accepts a PR base that is an ancestor of the requested base', async (t) => {

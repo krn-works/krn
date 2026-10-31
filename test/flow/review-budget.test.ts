@@ -170,6 +170,7 @@ function fixture(t: TestContext) {
             {
               id: 1,
               name: 'gate',
+              head_sha: head,
               app: { slug: 'github-actions' },
               status: 'completed',
               conclusion: 'success',

@@ -643,6 +643,7 @@ async function classifyTest(
   const id = `red-first-${randomUUID()}`;
   const job: Job = { id, issue: 'red-first', worktree: scratch };
   const helpers: string[] = [];
+  let retainHelpers = false;
   const helper = (
     role: string,
     source: string,
@@ -757,10 +758,14 @@ async function classifyTest(
       ...(capability ? { cause: 'capability', proven: false } : {}),
     });
   } catch (error) {
-    if (signal?.aborted || error instanceof TeardownUnconfirmed) throw error;
+    if (error instanceof TeardownUnconfirmed) {
+      retainHelpers = true;
+      throw error;
+    }
+    if (signal?.aborted) throw error;
     return dataError(path, side, sha, undefined, error);
   } finally {
-    for (const helper of helpers) removeHelper(helper);
+    if (!retainHelpers) for (const helper of helpers) removeHelper(helper);
   }
 }
 
@@ -792,6 +797,7 @@ export async function redFirst(
   }
   const temporary = temporaryDirectory(root);
   const copies: string[] = [];
+  const quarantined = new Set<string>();
   const cache = new Map<string, Promise<RedFirstResult>>();
   const evaluate = (
     side: 'base' | 'head',
@@ -824,35 +830,49 @@ export async function redFirst(
         );
       const scratch = createWorktreeDirectory(temporary);
       copies.push(scratch);
-      createCandidateCopy(root, scratch, sha, source);
-      if (source !== sha) {
-        // Validate the receiver's parents too: checkout must never follow a
-        // symlink from the earlier tree while overlaying a newly added test.
-        const parts = path.split('/');
-        for (let index = 1; index < parts.length; index++) {
-          const entry = git(root, [
-            'ls-tree',
-            sha,
-            '--',
-            parts.slice(0, index).join('/'),
-          ]);
-          if (entry && !entry.startsWith('040000 '))
-            return dataError(path, side, sha, 'contract', 'unsafe test parent');
+      try {
+        createCandidateCopy(root, scratch, sha, source);
+        if (source !== sha) {
+          // Validate the receiver's parents too: checkout must never follow a
+          // symlink from the earlier tree while overlaying a newly added test.
+          const parts = path.split('/');
+          for (let index = 1; index < parts.length; index++) {
+            const entry = git(root, [
+              'ls-tree',
+              sha,
+              '--',
+              parts.slice(0, index).join('/'),
+            ]);
+            if (entry && !entry.startsWith('040000 '))
+              return dataError(
+                path,
+                side,
+                sha,
+                'contract',
+                'unsafe test parent',
+              );
+          }
+          git(scratch, ['--literal-pathspecs', 'checkout', source, '--', path]);
         }
-        git(scratch, ['--literal-pathspecs', 'checkout', source, '--', path]);
+        return await classifyTest(
+          root,
+          scratch,
+          side,
+          sha,
+          baseSha,
+          head,
+          path,
+          imports,
+          run,
+          signal,
+        );
+      } catch (error) {
+        // A scope may still be reading this exact workspace and its helpers.
+        if (error instanceof TeardownUnconfirmed) quarantined.add(scratch);
+        throw error;
+      } finally {
+        if (!quarantined.has(scratch)) cleanupCandidateCopies([scratch]);
       }
-      return classifyTest(
-        root,
-        scratch,
-        side,
-        sha,
-        baseSha,
-        head,
-        path,
-        imports,
-        run,
-        signal,
-      );
     })();
     cache.set(key, pending);
     return pending;
@@ -894,6 +914,6 @@ export async function redFirst(
     }
     return { baseSha, headSha: head, results, contracts };
   } finally {
-    cleanupCandidateCopies(copies);
+    cleanupCandidateCopies(copies.filter((copy) => !quarantined.has(copy)));
   }
 }

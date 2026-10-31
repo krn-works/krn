@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
-import childProcess, { spawn, spawnSync } from 'node:child_process';
+import childProcess, {
+  type ChildProcess,
+  spawn,
+  spawnSync,
+} from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   existsSync,
@@ -17,8 +21,9 @@ import { delimiter, join } from 'node:path';
 import test, { mock } from 'node:test';
 import { redFirst } from '../../src/flow/repository.ts';
 import { recordRepo } from '../../src/foreman/state.ts';
+import * as systemdScope from '../../src/hosts/systemd-scope.ts';
 import { judge } from '../../src/verdict/index.ts';
-import { execute, MAX_CHECK_OUTPUT_BYTES } from '../../src/verdict/sandbox.ts';
+import * as sandbox from '../../src/verdict/sandbox.ts';
 import {
   CONDITION_WAIT_MS,
   conditionTimeoutFor,
@@ -27,6 +32,10 @@ import {
 } from '../helpers/condition-wait.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 import { systemdEnvironment } from '../helpers/systemd-environment.ts';
+
+const { parseSystemdScopeProperties } = systemdScope;
+const { execute, MAX_CHECK_OUTPUT_BYTES, scopePids, scopeReadbackIsDrained } =
+  sandbox;
 
 function fixture(
   argv: readonly string[],
@@ -1223,17 +1232,18 @@ test('cancellation accounts for the owned scope and all remaining check processe
       [
         '--user',
         'show',
+        '--property=ActiveState',
+        '--property=ControlGroup',
+        '--no-pager',
         unit,
-        '-p',
-        'ActiveState',
-        '-p',
-        'ControlGroup',
-        '--value',
       ],
       { env, encoding: 'utf8' },
     );
     assert.equal(result.status, 0, result.stderr);
-    const [state = '', group = ''] = result.stdout.trimEnd().split('\n');
+    assert.equal(typeof parseSystemdScopeProperties, 'function');
+    const properties = parseSystemdScopeProperties(result.stdout);
+    assert.ok(properties, `invalid named systemd properties: ${result.stdout}`);
+    const { activeState: state, controlGroup: group } = properties;
     let pids: string[] = [];
     if (group) {
       try {
@@ -1326,4 +1336,269 @@ test('cancellation accounts for the owned scope and all remaining check processe
     syncBuiltinESMExports();
     rmSync(f.root, { recursive: true, force: true });
   }
+});
+
+for (const killActualScope of [false, true]) {
+  test(killActualScope
+    ? 'missing unit after actual sandbox cleanup is confirmed by the original cgroup'
+    : 'missing unit output cannot confirm sandbox teardown while the original scope lives', {
+    timeout: conditionTimeoutFor(2),
+  }, async (t) => {
+    if (
+      !requiresIsolation(t, 'missing unit with live sandbox scope', [
+        'bwrap',
+        'systemdUserScope',
+      ])
+    )
+      return;
+    const f = fixture(heldCheck);
+    const controller = new AbortController();
+    const env = systemdEnvironment();
+    let scope: string | undefined;
+    let launcher: ChildProcess | undefined;
+    let hideUnit = false;
+    let execution: Promise<unknown> | undefined;
+    const originalSpawn = childProcess.spawn;
+    const observer = mock.method(
+      childProcess,
+      'spawn',
+      (...args: Parameters<typeof spawn>) => {
+        if (args[0] === 'systemd-run' && Array.isArray(args[1])) {
+          scope = args[1][args[1].indexOf('--unit') + 1];
+          launcher = originalSpawn(...args);
+          return launcher;
+        }
+        if (
+          hideUnit &&
+          args[0] === 'systemctl' &&
+          Array.isArray(args[1]) &&
+          scope &&
+          args[1].includes(scope)
+        ) {
+          const show = args[1].includes('show');
+          if (!show && killActualScope) return originalSpawn(...args);
+          return originalSpawn(
+            '/bin/sh',
+            [
+              '-c',
+              show
+                ? "printf 'Unit could not be found.\\n' >&2; exit 1"
+                : 'exit 0',
+            ],
+            args[2],
+          );
+        }
+        return originalSpawn(...args);
+      },
+    );
+    syncBuiltinESMExports();
+    try {
+      execution = execute(
+        f.root,
+        f.root,
+        f.job,
+        'declared',
+        heldCheck,
+        2 * CONDITION_WAIT_MS,
+        f.sha,
+        controller.signal,
+        f.base,
+      ).catch((error: unknown) => error);
+      await waitForCondition(
+        () => (existsSync(join(f.root, 'check-ready')) ? true : undefined),
+        'the owned sandbox check to be running',
+      );
+      assert.ok(scope);
+      assert.ok(launcher?.pid);
+      const originalGroup = readFileSync(`/proc/${launcher.pid}/cgroup`, 'utf8')
+        .split('\n')
+        .find((line) => line.startsWith('0::'))
+        ?.slice(3);
+      assert.ok(originalGroup?.endsWith(`/${scope}`));
+      hideUnit = true;
+      controller.abort();
+      // Only failed teardown verification terminates the launcher as fallback.
+      if (!killActualScope)
+        await waitForCondition(
+          () => (launcher?.signalCode === 'SIGTERM' ? true : undefined),
+          'unverified teardown to stop the sandbox launcher',
+          10000,
+        );
+      const result = await execution;
+      assert.ok(result instanceof Error);
+      if (killActualScope)
+        assert.equal(
+          result.message,
+          'stopped',
+          'the original cgroup independently confirms successful cancellation',
+        );
+      else
+        assert.match(
+          result.message,
+          /teardown_unconfirmed/u,
+          'a missing unit must never be accepted as a stopped, cleaned check',
+        );
+    } finally {
+      hideUnit = false;
+      if (scope)
+        spawnSync(
+          '/usr/bin/systemctl',
+          ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', scope],
+          { env, stdio: 'ignore' },
+        );
+      controller.abort();
+      await execution;
+      observer.mock.restore();
+      syncBuiltinESMExports();
+      rmSync(f.root, { recursive: true, force: true });
+    }
+  });
+}
+
+test('sandbox teardown property and cgroup readers reject malformed evidence', () => {
+  for (const [name, reader] of Object.entries({
+    parseSystemdScopeProperties,
+    scopePids,
+    scopeReadbackIsDrained,
+  }))
+    assert.equal(typeof reader, 'function', `${name} must be exported`);
+  assert.deepEqual(
+    parseSystemdScopeProperties(
+      'ControlGroup=/user.slice/user-1000.slice/app.slice/krn-captured.scope\nActiveState=active\n',
+    ),
+    {
+      activeState: 'active',
+      controlGroup: '/user.slice/user-1000.slice/app.slice/krn-captured.scope',
+    },
+    'captured systemd 257 ControlGroup-first output preserves names',
+  );
+  assert.deepEqual(
+    parseSystemdScopeProperties('ControlGroup=\nActiveState=inactive\n'),
+    { activeState: 'inactive', controlGroup: '' },
+    'captured post-GC output preserves empty ControlGroup',
+  );
+  assert.equal(
+    parseSystemdScopeProperties('ControlGroup=\nActiveState=deactivating\n')
+      ?.activeState,
+    'deactivating',
+    'transitional state is preserved for teardown to treat as unresolved',
+  );
+  for (const malformed of [
+    'ActiveState=inactive\n',
+    'ControlGroup=\nActiveState=inactive\nActiveState=failed\n',
+    'ControlGroup=\nActiveState=inactive\nUnknown=value\n',
+  ])
+    assert.equal(
+      parseSystemdScopeProperties(malformed),
+      undefined,
+      `malformed named properties must fail closed: ${malformed}`,
+    );
+
+  assert.deepEqual(scopePids(''), [], 'a named empty cgroup is empty');
+  for (const invalid of [
+    'active',
+    '/user.slice/../outside',
+    '/../../tmp/forged.scope',
+  ])
+    assert.throws(
+      () => scopePids(invalid),
+      /invalid cgroup path/u,
+      `teardown must reject malformed or traversal cgroup paths: ${invalid}`,
+    );
+
+  const emptyOutput = Buffer.alloc(0);
+  assert.equal(
+    scopeReadbackIsDrained(
+      0,
+      { activeState: 'inactive', controlGroup: '' },
+      [],
+      emptyOutput,
+      emptyOutput,
+    ),
+    true,
+    'inactive plus an empty cgroup confirms drain',
+  );
+  assert.equal(
+    scopeReadbackIsDrained(
+      0,
+      { activeState: 'unknown', controlGroup: '' },
+      [],
+      emptyOutput,
+      emptyOutput,
+    ),
+    false,
+    'unknown ActiveState is not proof of drain',
+  );
+  assert.equal(
+    scopeReadbackIsDrained(
+      0,
+      {
+        activeState: 'inactive',
+        controlGroup: '/user.slice/user-1000.slice/app.slice/krn-live.scope',
+      },
+      [1234],
+      emptyOutput,
+      emptyOutput,
+    ),
+    false,
+    'a live cgroup member prevents a drained result even with inactive state',
+  );
+  assert.equal(
+    scopeReadbackIsDrained(
+      1,
+      undefined,
+      [],
+      emptyOutput,
+      Buffer.from('Unit was not loaded'),
+    ),
+    false,
+    'a missing unit without original cgroup evidence remains unverified',
+  );
+  for (const originalActive of [true, null, false]) {
+    assert.equal(
+      scopeReadbackIsDrained(
+        1,
+        undefined,
+        [],
+        emptyOutput,
+        Buffer.from('Unit was not loaded'),
+        originalActive,
+      ),
+      originalActive === false,
+      `missing unit requires independent absence, original state=${originalActive}`,
+    );
+  }
+  assert.equal(
+    scopeReadbackIsDrained(
+      1,
+      undefined,
+      [],
+      Buffer.from('unexpected output'),
+      Buffer.from('Unit was not loaded'),
+    ),
+    false,
+    'unexpected stdout prevents not-found from proving drain',
+  );
+  assert.equal(
+    scopeReadbackIsDrained(
+      1,
+      undefined,
+      [1234],
+      emptyOutput,
+      Buffer.from('Unit was not loaded'),
+    ),
+    false,
+    'an observed member prevents not-found from proving drain',
+  );
+  assert.equal(
+    scopeReadbackIsDrained(
+      null,
+      undefined,
+      [],
+      emptyOutput,
+      Buffer.from('Unit was not loaded'),
+    ),
+    false,
+    'missing process exit status is not proof of an absent scope',
+  );
 });

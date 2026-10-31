@@ -1,0 +1,20 @@
+{
+  "table_prefix": "ci_example",
+  "runner_bridge": "br-runner",
+  "controller_bridge": "br-controller",
+  "runner_tap": "tap-runner",
+  "controller_tap": "tap-controller",
+  "uplink": "wan-example",
+  "runner_subnet": "192.0.2.0/24",
+  "controller_subnet": "198.51.100.0/24",
+  "runner_ip": "192.0.2.2",
+  "controller_ip": "198.51.100.2",
+  "pve_runner_ip": "192.0.2.1",
+  "pve_controller_ip": "198.51.100.1",
+  "runner_mac": "02:00:00:00:00:02",
+  "controller_mac": "02:00:00:00:00:04",
+  "dns_servers": ["203.0.113.53"],
+  "controller_https_cidrs": ["203.0.113.0/27"],
+  "protected_public_ipv4": ["203.0.113.200"],
+  "allow_http": false
+}

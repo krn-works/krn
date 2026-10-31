@@ -1,0 +1,3 @@
+# Replace both placeholders during the explicitly granted install.
+# The helper, manifest, ledger and all parent directories must be root-owned.
+restrict,from="CONTROLLER_IPV4",command="/usr/local/sbin/ci-runner-reset" ssh-ed25519 PUBLIC_KEY_CONTROLLER_ONLY ci-runner-reset

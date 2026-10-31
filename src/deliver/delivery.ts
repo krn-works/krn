@@ -19,6 +19,10 @@ import {
   verifyReviewBinding,
 } from '../flow/series.ts';
 import { deterministicCauses, newReviewRecordSchema } from '../flow/types.ts';
+import {
+  gateAdmissionPolicyFromBase,
+  matchesGateCheckRun,
+} from './admission-policy.ts';
 import { checkMergeContracts, mergeMessage } from './message.ts';
 import {
   CommandFailure,
@@ -112,7 +116,12 @@ const checksSchema = z.array(
         head_sha: sha,
         status: z.string(),
         conclusion: z.string().nullable(),
-        app: z.object({ slug: z.string() }),
+        app: z
+          .object({
+            id: z.number().int().positive().optional(),
+            slug: z.string().optional(),
+          })
+          .nullable(),
       }),
     ),
   }),
@@ -207,6 +216,9 @@ export async function deliver(
       );
     if (record.panelVerdict !== 'PASS' && !record.override)
       throw new Error('review requires PASS or recorded override');
+    const gatePolicy = gateAdmissionPolicyFromBase(pull.base.sha, (args) =>
+      git(main, args),
+    );
     if (!pull.merged) {
       const worktree =
         state?.worktree ?? git(initial, ['rev-parse', '--show-toplevel']);
@@ -412,12 +424,7 @@ export async function deliver(
         );
         const gate = pages
           .flatMap((page) => page.check_runs)
-          .filter(
-            (check) =>
-              check.name === 'gate' &&
-              check.head_sha === head &&
-              check.app.slug === 'github-actions',
-          )
+          .filter((check) => matchesGateCheckRun(check, head, gatePolicy))
           .sort((a, b) => b.id - a.id)[0];
         if (gate?.status !== 'completed') return false;
         conclusion = gate.conclusion ?? 'unknown';
