@@ -12,9 +12,12 @@ A fresh session with a short, precise handoff outperforms a long session that ca
    - the priority list, with the next slice and why it comes next;
    - in-flight PRs and runs with SHAs;
    - open operator decisions;
+   - `## Operator requests`: one bullet per open operator request that outlives this session, each carrying its task id, `memory:<slug>` (an auto-memory file) or a `closed: <reason>` prefix; `- none` when nothing is open. A request recorded only in a handoff or transcript is lost to the next session, so create the task or memory entry first;
    - grants in force (pointers);
    - the retro's top three;
    - suggested skills for the next session (`krn-lead` plus task-specific ones).
+
+   Run `node scripts/claude/handoff-requests.ts <handoff path>` from the repository root until it prints PASS.
 3. **Transfer the writer, then start the next session.** Record in the capsule field "Current workflow owner and sole writer" that the next session is the writer, finish every write of this session (capsule, handoff, tracker), and only then, as this session's last action, start the next one from the repository root:
    `claude --bg -n "<slice purpose>" "Use the krn-lead skill. Read <handoff path>, then deliver <task id>."`
    After this command the current session writes nothing. If the next slice needs an operator decision, do not start a session; ask the operator with a decision-ready brief.
