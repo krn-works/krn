@@ -1,7 +1,11 @@
 {
   "id": "t-jfvmmcq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "deliver hygiene relocates worktree .krn/runs to the main checkout (#151)"
+  },
   "created": "2026-10-31",
   "priority": 1,
   "title": "Keep worktree run folders when krn deliver retires a worktree",
