@@ -567,6 +567,16 @@ test('newer successful gate passes despite an older queued run', async (t) => {
   assert.equal(report.gateCheckRun?.id, 2);
 });
 
+test('newer successful gate passes despite an older failed attempt', async (t) => {
+  const value = await fixture(t);
+  const report = await value.verify([
+    { ...gateCheck(1), conclusion: 'failure' },
+    gateCheck(2),
+  ]);
+  assert.equal(report.verdict, 'pass', JSON.stringify(report.reasons));
+  assert.equal(report.gateCheckRun?.id, 2);
+});
+
 test('newer queued gate refuses an older successful run', async (t) => {
   const value = await fixture(t);
   const report = await value.verify([
