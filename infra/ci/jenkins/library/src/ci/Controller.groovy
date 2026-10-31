@@ -56,10 +56,7 @@ class Controller {
     @NonCPS
     static Map enrollment(def run) {
         Map config = new JsonSlurperClassic().parseText(trustedText(ENROLLMENT, 65536)) as Map
-        if (config.schema_version != 1 || config.enabled != true ||
-            !(config.library_sha ==~ /[0-9a-f]{40}/) || !(config.repositories instanceof Map)) {
-            throw new IllegalStateException('Jenkins is not enrolled')
-        }
+        validateEnrollment(config)
         def library = GlobalLibraries.get().libraries.find { it.name == 'owned-ci' }
         def loaded = run.getAction(LibrariesAction)?.libraries?.find { it.name == 'owned-ci' }
         if (!library || library.defaultVersion != config.library_sha ||
@@ -95,6 +92,44 @@ class Controller {
     }
 
     @NonCPS
+    static void validateEnrollment(Map config) {
+        Map approvedRepositories = ['krn-works/krn': '1409811398',
+                                    'krn-works/krn-codex-skills': '1246837409']
+        if (config.schema_version != 1 || config.enabled != true ||
+            !(config.library_sha ==~ /[0-9a-f]{40}/) ||
+            !(config.repositories instanceof Map) ||
+            config.repositories.keySet() != approvedRepositories.keySet()) {
+            throw new IllegalStateException('Jenkins requires exactly the approved repository enrollment')
+        }
+        approvedRepositories.each { repository, repoId ->
+            def record = config.repositories[repository]
+            if (!(record instanceof Map)) {
+                throw new IllegalStateException('Repository enrollment must be a map')
+            }
+            List entries
+            if (repository == 'krn-works/krn') {
+                if (record.jobs != null || record.tier != 'product' || record.check_name != 'krn/gate') {
+                    throw new IllegalStateException('Product requires the approved krn/gate job')
+                }
+                entries = [record]
+            } else {
+                if (!(record.jobs instanceof Map) || record.jobs.isEmpty()) {
+                    throw new IllegalStateException('GLOBAL requires its approved fast/deep jobs')
+                }
+                entries = record.jobs.keySet().collect { job -> selectedEntry(record, job) }
+            }
+            // Check both the repository record and merged GLOBAL jobs: child fields
+            // must not substitute a different repository or publishing App.
+            ([record] + entries).each { entry ->
+                if (!(entry.repo_id instanceof String) || entry.repo_id != repoId ||
+                    !(entry.app_id instanceof String) || entry.app_id != '5548482') {
+                    throw new IllegalStateException('Repository ID and publishing App must match the approved contract')
+                }
+            }
+        }
+    }
+
+    @NonCPS
     private static Map currentRunnerBinding(def run, Map runner) {
         if (runner.credentials_id != RunnerBinding.CREDENTIAL_ID) {
             throw new IllegalStateException('Runner credential differs from the deployment contract')
@@ -123,6 +158,7 @@ class Controller {
 
     @NonCPS
     static Map sourceIdentity(def run, Map config) {
+        validateEnrollment(config)
         def source = SCMSource.SourceByItem.findSource(run.parent)
         if (!(source instanceof GitHubSCMSource)) {
             throw new IllegalStateException('GitHub Branch Source context required')

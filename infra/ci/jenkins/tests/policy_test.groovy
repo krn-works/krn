@@ -1,4 +1,5 @@
 import ci.CheckoutPolicy
+import ci.Controller
 import ci.RunnerBinding
 import hudson.plugins.git.extensions.impl.BuildChooserSetting
 import hudson.plugins.git.extensions.impl.CloneOption
@@ -16,6 +17,51 @@ def rejects = { Closure action ->
     try { action.call() } catch (IllegalStateException expected) { rejected = true }
     assert rejected
 }
+// The enabled contract is exactly Product plus GLOBAL, with string IDs as
+// supplied by enrollment JSON. No Jenkins instance or credential lookup occurs.
+def enrollmentFixture = {
+    def common = [app_id: '5548482', config_sha: '1' * 40,
+                  image_fingerprint: '2' * 64, main_branch: 'main',
+                  timeout_seconds: 1800, memory_mib: 6144, process_limit: 512]
+    [schema_version: 1, enabled: true, library_sha: '1' * 40,
+     repositories: [
+         'krn-works/krn': common + [repo_id: '1409811398', job: 'ci/product',
+                                   tier: 'product', check_name: 'krn/gate'],
+         'krn-works/krn-codex-skills': common + [repo_id: '1246837409', jobs: [
+             'ci/global-fast': [tier: 'global-fast', check_name: 'gate (fast)'],
+             'ci/global-deep': [tier: 'global-deep', check_name: 'gate (deep)']]]]]
+}
+Controller.validateEnrollment(enrollmentFixture())
+[
+    wrongProductApp: { c -> c.repositories['krn-works/krn'].app_id = '1' },
+    wrongGlobalApp: { c -> c.repositories['krn-works/krn-codex-skills'].app_id = '1' },
+    numericApp: { c -> c.repositories['krn-works/krn'].app_id = 5548482 },
+    thirdRepository: { c -> c.repositories['krn-works/third'] = [:] },
+    missingProduct: { c -> c.repositories.remove('krn-works/krn') },
+    missingGlobal: { c -> c.repositories.remove('krn-works/krn-codex-skills') },
+    repositoryAlias: { c -> c.repositories['krn-works/alias'] = c.repositories.remove('krn-works/krn') },
+    wrongProductId: { c -> c.repositories['krn-works/krn'].repo_id = '1246837409' },
+    wrongGlobalId: { c -> c.repositories['krn-works/krn-codex-skills'].repo_id = '1409811398' },
+    numericRepositoryId: { c -> c.repositories['krn-works/krn'].repo_id = 1409811398 },
+    wrongProductName: { c -> c.repositories['krn-works/krn'].check_name = 'gate' },
+    wrongProductTier: { c -> c.repositories['krn-works/krn'].tier = 'global-fast' },
+    wrongFastName: { c -> c.repositories['krn-works/krn-codex-skills'].jobs['ci/global-fast'].check_name = 'gate (deep)' },
+    wrongDeepName: { c -> c.repositories['krn-works/krn-codex-skills'].jobs['ci/global-deep'].check_name = 'gate (fast)' },
+    missingGlobalJob: { c -> c.repositories['krn-works/krn-codex-skills'].jobs.remove('ci/global-deep') },
+    globalJobAppOverride: { c -> c.repositories['krn-works/krn-codex-skills'].jobs['ci/global-fast'].app_id = '1' },
+    globalJobIdOverride: { c -> c.repositories['krn-works/krn-codex-skills'].jobs['ci/global-deep'].repo_id = '1409811398' }
+].each { scenario, mutate ->
+    def config = enrollmentFixture()
+    mutate.call(config)
+    boolean rejected = false
+    try { Controller.validateEnrollment(config) } catch (IllegalStateException expected) { rejected = true }
+    assert rejected: scenario
+}
+// An invalid unselected repository also blocks admission before source lookup.
+def wrongGlobal = enrollmentFixture()
+wrongGlobal.repositories['krn-works/krn-codex-skills'].app_id = '1'
+rejects { Controller.sourceIdentity(null, wrongGlobal) }
+
 String sha = '1' * 40
 def revision = new AbstractGitSCMSource.SCMRevisionImpl(new SCMHead('source'), sha)
 def originalClone = new CloneOption(true, false, '/untrusted-reference', 1)
@@ -58,4 +104,4 @@ assert verify(fixture()).port == 22
     mutate.call(f)
     rejects { verify(f) }
 }
-println('PASS: checkout extension rejection/sanitization, exact revision, and runner binding negative cases')
+println('PASS: approved two-repository enrollment, checkout policy, exact revision, and runner binding negative cases')
