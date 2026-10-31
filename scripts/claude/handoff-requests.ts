@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 
@@ -69,56 +69,128 @@ try {
   fail(`FAIL ${handoff}: unreadable`, 1);
 }
 
-const lines = text.split('\n');
-const start = lines.findIndex((line) =>
-  /^##\s+operator requests\s*$/iu.test(line.trim()),
-);
-if (start === -1) fail(`FAIL ${handoff}: no "## Operator requests" section`, 1);
-
-// Top-level bullets until the next heading; indented lines continue the bullet above.
+// CommonMark subset: ATX headings take up to three leading spaces and optional closing hashes;
+// a backtick fence's info string holds no backtick. The section admits only unindented one-line
+// bullets and blank lines, so indented lines, code, nested lists and subheadings inside it fail
+// closed instead of hiding a request. Any other mention of "operator requests" (code, setext,
+// quote, list or HTML) could fake or hide a section, so it fails as ambiguous.
+const headingPattern = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/u;
+const fencePattern = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/u;
+const isSection = (heading: RegExpExecArray | null) =>
+  heading?.[1] === '##' && /^operator requests$/iu.test(heading[2] ?? '');
 const items: { line: number; text: string }[] = [];
-for (const [offset, line] of lines.slice(start + 1).entries()) {
-  if (/^#{1,6}\s/u.test(line)) break;
-  const last = items.at(-1);
-  if (/^[-*]\s+/u.test(line))
-    items.push({
-      line: start + offset + 2,
-      text: line.replace(/^[-*]\s+/u, ''),
-    });
-  else if (/^\s+\S/u.test(line) && last) last.text += ` ${line.trim()}`;
-}
-
 const failures: string[] = [];
-if (items.length === 0)
-  failures.push(
-    `FAIL ${handoff}:${start + 1}: empty section; write "- none" when no request is open`,
-  );
-const none = items.filter((item) => /^none\.?$/iu.test(item.text.trim()));
+let sections = 0;
+let section: { line: number; items: number } | undefined;
+let fence: string | undefined;
+const endSection = () => {
+  if (section && section.items === items.length)
+    failures.push(
+      `FAIL ${handoff}:${section.line}: empty section; write "- none" when there is no request`,
+    );
+  section = undefined;
+};
+for (const [index, line] of text
+  .replace(/^\uFEFF/u, '')
+  .split(/\r\n|\r|\n/u)
+  .entries()) {
+  if (
+    /operator\s+requests/iu.test(line) &&
+    (fence || !isSection(headingPattern.exec(line)))
+  )
+    failures.push(
+      `FAIL ${handoff}:${index + 1}: "operator requests" is ambiguous outside a "## Operator requests" heading; reword or move it`,
+    );
+  if (fence) {
+    const close = fencePattern.exec(line)?.[1];
+    if (
+      close !== undefined &&
+      close[0] === fence[0] &&
+      close.length >= fence.length &&
+      line.trim() === close
+    )
+      fence = undefined;
+    continue;
+  }
+  const misplaced =
+    !section || !line.trim()
+      ? undefined
+      : /^\s/u.test(line)
+        ? 'indented lines are'
+        : /^(?:`{3}|~{3})/u.test(line)
+          ? 'fenced code is'
+          : /^#{1,6}[ \t#]*$/u.test(line)
+            ? 'empty headings are'
+            : /^#{3,6}(?:[ \t]|$)/u.test(line)
+              ? 'subheadings are'
+              : undefined;
+  if (misplaced) {
+    failures.push(
+      `FAIL ${handoff}:${index + 1}: ${misplaced} not allowed in the operator requests section; write each request as one unindented bullet line`,
+    );
+    continue;
+  }
+  const open = fencePattern.exec(line)?.[1];
+  if (open) {
+    fence = open;
+    continue;
+  }
+  const heading = headingPattern.exec(line);
+  if (heading) {
+    endSection();
+    if (isSection(heading)) {
+      sections++;
+      section = { line: index + 1, items: items.length };
+    }
+    continue;
+  }
+  if (!section || !line.trim()) continue;
+  const bullet = /^[-*+](?:[ \t]+(.*))?$/u.exec(line);
+  if (bullet) items.push({ line: index + 1, text: (bullet[1] ?? '').trim() });
+  else
+    failures.push(
+      `FAIL ${handoff}:${index + 1}: write each operator request as a top-level bullet`,
+    );
+}
+endSection();
+if (sections === 0)
+  failures.push(`FAIL ${handoff}: no "## Operator requests" section`);
+
+const file = (path: string) =>
+  statSync(path, { throwIfNoEntry: false })?.isFile() === true;
+const none = items.filter((item) => /^none\.?$/iu.test(item.text));
 if (none.length > 0 && items.length > 1)
   failures.push(
     `FAIL ${handoff}:${none[0]?.line}: "none" cannot sit beside other requests`,
   );
+let open = 0;
 for (const item of items) {
-  if (none.includes(item) || /^closed:\s*\S/iu.test(item.text)) continue;
+  if (none.includes(item) || /^closed:[ \t]+\S/iu.test(item.text)) continue;
+  open++;
   const tasks = [...item.text.matchAll(/\bt-[a-z0-9]{7}\b/gu)].map(
     (match) => match[0],
   );
-  const memories = [
-    ...item.text.matchAll(/\bmemory:([A-Za-z0-9][A-Za-z0-9._-]*)/gu),
-  ].map((match) => (match[1] ?? '').replace(/\.md$/u, ''));
+  // Sentence punctuation may follow a slug; anything else must be a plain file name.
+  const memories = [...item.text.matchAll(/\bmemory:(\S*)/gu)].map((match) =>
+    (match[1] ?? '').replace(/[.,;:!?)\]`'"*]+$/u, '').replace(/\.md$/u, ''),
+  );
   if (tasks.length === 0 && memories.length === 0) {
     failures.push(
-      `FAIL ${handoff}:${item.line}: request has no task id, memory:<slug> or "closed:" prefix`,
+      `FAIL ${handoff}:${item.line}: request has no task id, memory:<slug> or "closed: <reason>" prefix`,
     );
     continue;
   }
   for (const id of tasks)
-    if (!existsSync(join(root, 'tasks', `${id}.json`)))
+    if (!file(join(root, 'tasks', `${id}.json`)))
       failures.push(
         `FAIL ${handoff}:${item.line}: ${id} has no tasks/${id}.json`,
       );
   for (const slug of memories)
-    if (!existsSync(join(memory, `${slug}.md`)))
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/u.test(slug) || slug.includes('..'))
+      failures.push(
+        `FAIL ${handoff}:${item.line}: memory:${slug} is not a memory file name`,
+      );
+    else if (!file(join(memory, `${slug}.md`)))
       failures.push(
         `FAIL ${handoff}:${item.line}: memory:${slug} has no ${join(memory, `${slug}.md`)}`,
       );
@@ -126,5 +198,5 @@ for (const item of items) {
 
 if (failures.length > 0) fail(failures.join('\n'), 1);
 process.stdout.write(
-  `PASS ${handoff}: ${none.length > 0 ? 0 : items.length} open operator request(s) recorded\n`,
+  `PASS ${handoff}: ${open} open operator request(s) recorded\n`,
 );

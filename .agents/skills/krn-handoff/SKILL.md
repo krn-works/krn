@@ -12,7 +12,7 @@ A fresh session with a short, precise handoff outperforms a long session that ca
    - the priority list, with the next slice and why it comes next;
    - in-flight PRs and runs with SHAs;
    - open operator decisions;
-   - `## Operator requests`: one bullet per open operator request that outlives this session, each carrying its task id, `memory:<slug>` (an auto-memory file) or a `closed: <reason>` prefix; `- none` when nothing is open. A request recorded only in a handoff or transcript is lost to the next session, so create the task or memory entry first;
+   - `## Operator requests`: one unindented single-line bullet per operator request this session received or carried. An open request carries its task id or `memory:<slug>` (an auto-memory file); a request settled in this session starts with `closed: <reason>`; a lone `- none` when there is no request at all. The section holds nothing else: no indented lines, code, nested lists or subheadings, and the phrase "operator requests" appears nowhere else in the handoff. A request recorded only in a handoff or transcript is lost to the next session, so create the task or memory entry first;
    - grants in force (pointers);
    - the retro's top three;
    - suggested skills for the next session (`krn-lead` plus task-specific ones).
