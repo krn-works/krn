@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   chmod,
   mkdir,
@@ -14,6 +14,7 @@ import { test } from 'node:test';
 import { CodexHost } from '../../src/hosts/codex.ts';
 import {
   codexScopeUnit,
+  drainSystemdScope,
   processHasIdentity,
   processStartTicks,
   systemdScopeActive,
@@ -975,3 +976,103 @@ async function processIsAlive(pid: number): Promise<boolean> {
     return false;
   }
 }
+
+test('missing unit readback cannot hide a live registered scope', {
+  timeout: conditionTimeoutFor(2),
+}, async (t) => {
+  if (
+    !requiresIsolation(t, 'missing unit with live registered scope', [
+      'systemdUserScope',
+    ])
+  )
+    return;
+  const directory = await mkdtemp(join(tmpdir(), 'krn-scope-absence-'));
+  const unit = codexScopeUnit('absence-proof', `owned-${process.pid}`);
+  const env = scopeEnvironment();
+  const child = spawn(
+    'systemd-run',
+    ['--user', '--scope', '--quiet', '--unit', unit, '/bin/sleep', '60'],
+    { env, stdio: 'ignore' },
+  );
+  const exited = new Promise((resolveExit) => child.once('close', resolveExit));
+  try {
+    const registration = await waitForSystemdScopeRegistration(
+      unit,
+      () => false,
+    );
+    const fakeBin = join(directory, 'bin');
+    await mkdir(fakeBin);
+    await writeFile(
+      join(fakeBin, 'systemctl'),
+      `#!/bin/sh
+for argument do
+  if [ "$argument" = ${JSON.stringify(unit)} ]; then
+    case " $* " in
+      *" show "*) printf 'Unit ${unit} could not be found.\\n' >&2; exit 1 ;;
+      *" kill "*) exit 0 ;;
+    esac
+  fi
+done
+exec /usr/bin/systemctl "$@"
+`,
+    );
+    await chmod(join(fakeBin, 'systemctl'), 0o755);
+    const missingEnv = { ...env, PATH: `${fakeBin}:${env.PATH ?? ''}` };
+    assert.equal(
+      systemdScopeActive(unit, missingEnv, registration),
+      true,
+      'original cgroup still contains its registered process',
+    );
+    assert.equal(
+      systemdScopeActive(unit, missingEnv),
+      null,
+      'missing unit without original evidence is unknown',
+    );
+    const previousPath = process.env.PATH;
+    try {
+      process.env.PATH = missingEnv.PATH;
+      assert.equal(
+        new CodexHost().sessionScopeActive(
+          'absence-proof',
+          `owned-${process.pid}`,
+          registration,
+        ),
+        true,
+        'the persisted registration also protects the host observer after restart',
+      );
+    } finally {
+      if (previousPath === undefined) delete process.env.PATH;
+      else process.env.PATH = previousPath;
+    }
+    await assert.rejects(
+      drainSystemdScope(unit, missingEnv, registration),
+      /did not become empty|cannot verify/,
+    );
+    assert.equal(
+      processHasIdentity(registration.pid, registration.startTicks),
+      true,
+      'the injected kill must leave the actual owned process alive',
+    );
+    const killed = spawnSync(
+      '/usr/bin/systemctl',
+      ['--user', 'kill', '--signal=SIGKILL', unit],
+      { env, encoding: 'utf8' },
+    );
+    assert.equal(killed.status, 0, killed.stderr);
+    await exited;
+    assert.equal(
+      systemdScopeActive(unit, missingEnv, registration),
+      false,
+      'original cgroup and process identity independently prove collection',
+    );
+    await drainSystemdScope(unit, missingEnv, registration);
+  } finally {
+    spawnSync(
+      '/usr/bin/systemctl',
+      ['--user', 'kill', '--signal=SIGKILL', unit],
+      { env, stdio: 'ignore' },
+    );
+    await exited;
+    await rm(directory, { recursive: true, force: true });
+  }
+});

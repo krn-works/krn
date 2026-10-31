@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
-import childProcess, { spawn, spawnSync } from 'node:child_process';
+import childProcess, {
+  type ChildProcess,
+  spawn,
+  spawnSync,
+} from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   existsSync,
@@ -1334,6 +1338,123 @@ test('cancellation accounts for the owned scope and all remaining check processe
   }
 });
 
+for (const killActualScope of [false, true]) {
+  test(killActualScope
+    ? 'missing unit after actual sandbox cleanup is confirmed by the original cgroup'
+    : 'missing unit output cannot confirm sandbox teardown while the original scope lives', {
+    timeout: conditionTimeoutFor(2),
+  }, async (t) => {
+    if (
+      !requiresIsolation(t, 'missing unit with live sandbox scope', [
+        'bwrap',
+        'systemdUserScope',
+      ])
+    )
+      return;
+    const f = fixture(heldCheck);
+    const controller = new AbortController();
+    const env = systemdEnvironment();
+    let scope: string | undefined;
+    let launcher: ChildProcess | undefined;
+    let hideUnit = false;
+    let execution: Promise<unknown> | undefined;
+    const originalSpawn = childProcess.spawn;
+    const observer = mock.method(
+      childProcess,
+      'spawn',
+      (...args: Parameters<typeof spawn>) => {
+        if (args[0] === 'systemd-run' && Array.isArray(args[1])) {
+          scope = args[1][args[1].indexOf('--unit') + 1];
+          launcher = originalSpawn(...args);
+          return launcher;
+        }
+        if (
+          hideUnit &&
+          args[0] === 'systemctl' &&
+          Array.isArray(args[1]) &&
+          scope &&
+          args[1].includes(scope)
+        ) {
+          const show = args[1].includes('show');
+          if (!show && killActualScope) return originalSpawn(...args);
+          return originalSpawn(
+            '/bin/sh',
+            [
+              '-c',
+              show
+                ? "printf 'Unit could not be found.\\n' >&2; exit 1"
+                : 'exit 0',
+            ],
+            args[2],
+          );
+        }
+        return originalSpawn(...args);
+      },
+    );
+    syncBuiltinESMExports();
+    try {
+      execution = execute(
+        f.root,
+        f.root,
+        f.job,
+        'declared',
+        heldCheck,
+        2 * CONDITION_WAIT_MS,
+        f.sha,
+        controller.signal,
+        f.base,
+      ).catch((error: unknown) => error);
+      await waitForCondition(
+        () => (existsSync(join(f.root, 'check-ready')) ? true : undefined),
+        'the owned sandbox check to be running',
+      );
+      assert.ok(scope);
+      assert.ok(launcher?.pid);
+      const originalGroup = readFileSync(`/proc/${launcher.pid}/cgroup`, 'utf8')
+        .split('\n')
+        .find((line) => line.startsWith('0::'))
+        ?.slice(3);
+      assert.ok(originalGroup?.endsWith(`/${scope}`));
+      hideUnit = true;
+      controller.abort();
+      // Only failed teardown verification terminates the launcher as fallback.
+      if (!killActualScope)
+        await waitForCondition(
+          () => (launcher?.signalCode === 'SIGTERM' ? true : undefined),
+          'unverified teardown to stop the sandbox launcher',
+          10000,
+        );
+      const result = await execution;
+      assert.ok(result instanceof Error);
+      if (killActualScope)
+        assert.equal(
+          result.message,
+          'stopped',
+          'the original cgroup independently confirms successful cancellation',
+        );
+      else
+        assert.match(
+          result.message,
+          /teardown_unconfirmed/u,
+          'a missing unit must never be accepted as a stopped, cleaned check',
+        );
+    } finally {
+      hideUnit = false;
+      if (scope)
+        spawnSync(
+          '/usr/bin/systemctl',
+          ['--user', 'kill', '--kill-who=all', '--signal=SIGKILL', scope],
+          { env, stdio: 'ignore' },
+        );
+      controller.abort();
+      await execution;
+      observer.mock.restore();
+      syncBuiltinESMExports();
+      rmSync(f.root, { recursive: true, force: true });
+    }
+  });
+}
+
 test('sandbox teardown property and cgroup readers reject malformed evidence', () => {
   assert.deepEqual(
     parseSystemdScopeProperties(
@@ -1424,9 +1545,23 @@ test('sandbox teardown property and cgroup readers reject malformed evidence', (
       emptyOutput,
       Buffer.from('Unit was not loaded'),
     ),
-    true,
-    'a missing unit with empty output and no cgroup PIDs is confirmed absent',
+    false,
+    'a missing unit without original cgroup evidence remains unverified',
   );
+  for (const originalActive of [true, null, false]) {
+    assert.equal(
+      scopeReadbackIsDrained(
+        1,
+        undefined,
+        [],
+        emptyOutput,
+        Buffer.from('Unit was not loaded'),
+        originalActive,
+      ),
+      originalActive === false,
+      `missing unit requires independent absence, original state=${originalActive}`,
+    );
+  }
   assert.equal(
     scopeReadbackIsDrained(
       1,

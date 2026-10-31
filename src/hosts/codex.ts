@@ -332,6 +332,7 @@ export class CodexHost {
             scope,
             () => running.cancelled || running.closed,
           );
+          running.setScopeRegistration(registration);
         } catch (error) {
           await rejectUnstartedSession(running, error);
         }
@@ -412,9 +413,16 @@ export class CodexHost {
     } catch {
       return null;
     }
-    if (!validateSystemdScopeRegistration(registration, expectedUnit))
-      return null;
-    return systemdScopeActive(expectedUnit);
+    const validated = validateSystemdScopeRegistration(
+      registration,
+      expectedUnit,
+    );
+    if (!validated) return null;
+    return systemdScopeActive(
+      expectedUnit,
+      userManagerEnvironment(),
+      validated,
+    );
   }
 
   async cancelAll(): Promise<void> {
@@ -471,6 +479,7 @@ class RunningSession {
   #namespace: string | undefined;
   #namespaceInitPid: number | undefined;
   readonly #scope: string | undefined;
+  #scopeRegistration: SystemdScopeRegistration | undefined;
   readonly #reapedScopes: readonly ReapedSystemdScope[];
   readonly #scopeEnvironment: NodeJS.ProcessEnv;
   #launcherStartTicks: string | undefined;
@@ -516,6 +525,10 @@ class RunningSession {
   #missingRequiredTurns = 0;
   #result?: Promise<CodexSessionResult>;
 
+  setScopeRegistration(registration: SystemdScopeRegistration): void {
+    this.#scopeRegistration = registration;
+  }
+
   constructor(
     id: string,
     child: ChildProcess,
@@ -559,7 +572,11 @@ class RunningSession {
         finished = true;
         try {
           if (this.#scope)
-            await drainSystemdScope(this.#scope, this.#scopeEnvironment);
+            await drainSystemdScope(
+              this.#scope,
+              this.#scopeEnvironment,
+              this.#scopeRegistration,
+            );
           if (this.#namespace) await waitForNamespaceExit(this.#namespace);
           const transportClosed = await this.raceWithTimeout(
             this.#transportClose.then(() => true),
