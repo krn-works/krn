@@ -21,14 +21,9 @@ import { delimiter, join } from 'node:path';
 import test, { mock } from 'node:test';
 import { redFirst } from '../../src/flow/repository.ts';
 import { recordRepo } from '../../src/foreman/state.ts';
-import { parseSystemdScopeProperties } from '../../src/hosts/systemd-scope.ts';
+import * as systemdScope from '../../src/hosts/systemd-scope.ts';
 import { judge } from '../../src/verdict/index.ts';
-import {
-  execute,
-  MAX_CHECK_OUTPUT_BYTES,
-  scopePids,
-  scopeReadbackIsDrained,
-} from '../../src/verdict/sandbox.ts';
+import * as sandbox from '../../src/verdict/sandbox.ts';
 import {
   CONDITION_WAIT_MS,
   conditionTimeoutFor,
@@ -37,6 +32,10 @@ import {
 } from '../helpers/condition-wait.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 import { systemdEnvironment } from '../helpers/systemd-environment.ts';
+
+const { parseSystemdScopeProperties } = systemdScope;
+const { execute, MAX_CHECK_OUTPUT_BYTES, scopePids, scopeReadbackIsDrained } =
+  sandbox;
 
 function fixture(
   argv: readonly string[],
@@ -1241,6 +1240,7 @@ test('cancellation accounts for the owned scope and all remaining check processe
       { env, encoding: 'utf8' },
     );
     assert.equal(result.status, 0, result.stderr);
+    assert.equal(typeof parseSystemdScopeProperties, 'function');
     const properties = parseSystemdScopeProperties(result.stdout);
     assert.ok(properties, `invalid named systemd properties: ${result.stdout}`);
     const { activeState: state, controlGroup: group } = properties;
@@ -1456,6 +1456,12 @@ for (const killActualScope of [false, true]) {
 }
 
 test('sandbox teardown property and cgroup readers reject malformed evidence', () => {
+  for (const [name, reader] of Object.entries({
+    parseSystemdScopeProperties,
+    scopePids,
+    scopeReadbackIsDrained,
+  }))
+    assert.equal(typeof reader, 'function', `${name} must be exported`);
   assert.deepEqual(
     parseSystemdScopeProperties(
       'ControlGroup=/user.slice/user-1000.slice/app.slice/krn-captured.scope\nActiveState=active\n',
