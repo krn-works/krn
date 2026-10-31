@@ -1,11 +1,13 @@
 import { createHash } from 'node:crypto';
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   renameSync,
+  rmdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -146,6 +148,91 @@ function hostCiBusy(): boolean {
         throw error;
       }
     });
+}
+
+function lstatIfPresent(path: string) {
+  try {
+    return lstatSync(path);
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+      return undefined;
+    throw error;
+  }
+}
+
+function ensureRealDirectory(path: string, relativePath: string) {
+  const current = lstatIfPresent(path);
+  if (!current) {
+    mkdirSync(path);
+    return;
+  }
+  if (!current.isDirectory())
+    throw new Error(`destination is not a real directory: ${relativePath}`);
+}
+
+function relocateWorktreeRuns(
+  worktree: string,
+  main: string,
+  trackedPaths: Set<string>,
+) {
+  const sourceRoot = join(worktree, '.krn', 'runs');
+  const sourceRootStat = lstatIfPresent(sourceRoot);
+  if (!sourceRootStat) return;
+  if (!sourceRootStat.isDirectory())
+    throw new Error('worktree .krn/runs is not a real directory');
+
+  const destinationRoot = join(main, '.krn', 'runs');
+  ensureRealDirectory(join(main, '.krn'), '.krn');
+  ensureRealDirectory(destinationRoot, '.krn/runs');
+
+  const hasTrackedDescendant = (relativePath: string) =>
+    [...trackedPaths].some((tracked) => tracked.startsWith(`${relativePath}/`));
+
+  const mergeDirectory = (
+    sourceDirectory: string,
+    destinationDirectory: string,
+    relativeDirectory: string,
+  ) => {
+    for (const name of readdirSync(sourceDirectory)) {
+      const relativePath = relativeDirectory
+        ? `${relativeDirectory}/${name}`
+        : name;
+      if (trackedPaths.has(relativePath)) continue;
+
+      const source = join(sourceDirectory, name);
+      const destination = join(destinationDirectory, name);
+      const sourceStat = lstatSync(source);
+      const destinationStat = lstatIfPresent(destination);
+
+      if (
+        sourceStat.isDirectory() &&
+        (hasTrackedDescendant(relativePath) || destinationStat?.isDirectory())
+      ) {
+        ensureRealDirectory(destination, `.krn/runs/${relativePath}`);
+        mergeDirectory(source, destination, relativePath);
+        if (readdirSync(source).length === 0) rmdirSync(source);
+        continue;
+      }
+
+      if (!destinationStat) {
+        renameSync(source, destination);
+        continue;
+      }
+
+      if (
+        sourceStat.isFile() &&
+        destinationStat.isFile() &&
+        readFileSync(source).equals(readFileSync(destination))
+      ) {
+        rmSync(source);
+        continue;
+      }
+
+      throw new Error(`collision at .krn/runs/${relativePath}`);
+    }
+  };
+
+  mergeDirectory(sourceRoot, destinationRoot, '');
 }
 
 export async function deliver(
@@ -597,6 +684,28 @@ export async function deliver(
       const head = git(state.worktree, ['rev-parse', 'HEAD']);
       if (head !== state.head)
         throw new Error('refuse to retire a changed worktree');
+      const worktreeRuns = join(state.worktree, '.krn', 'runs');
+      const worktreeRunsStat = lstatIfPresent(worktreeRuns);
+      if (worktreeRunsStat && !worktreeRunsStat.isDirectory())
+        throw new Error('worktree .krn/runs is not a real directory');
+      if (worktreeRunsStat) {
+        const tracked = git(state.worktree, [
+          'ls-files',
+          '-z',
+          '--',
+          '.krn/runs',
+        ]);
+        relocateWorktreeRuns(
+          state.worktree,
+          main,
+          new Set(
+            tracked
+              .split('\0')
+              .filter(Boolean)
+              .map((path) => path.slice('.krn/runs/'.length)),
+          ),
+        );
+      }
       if (!runtime.cwd) process.chdir(main);
       // Normal git removal preserves unknown/untracked content and fails closed.
       git(main, ['worktree', 'remove', state.worktree]);
