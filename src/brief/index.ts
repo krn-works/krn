@@ -76,33 +76,47 @@ function checkText(brief: string, checklist: string): string[] {
   let found = false;
   let inside = false;
   const lines = Array.from(outsideFences(brief));
+  const heading = (level: number, text: string, number: number) => {
+    if (level > 2) return;
+    inside = false;
+    if (level !== 2 || text !== 'Hardening') return;
+    if (found) add(`duplicate Hardening section at line ${number}`);
+    else {
+      found = true;
+      inside = true;
+    }
+  };
   for (let index = 0; index < lines.length; index++) {
     const current = lines[index];
     if (!current) continue;
     const { line, number } = current;
     const next = lines[index + 1];
     if (
-      inside &&
       next?.number === number + 1 &&
       isParagraphText(line) &&
       /^ {0,3}(?:=+|-+)[\t ]*$/u.test(next.line)
     ) {
-      inside = false;
+      // A setext heading takes its whole paragraph as its text.
+      const previous = lines[index - 1];
+      const single =
+        previous?.number !== number - 1 || !isParagraphText(previous.line);
+      heading(
+        next.line.trim().startsWith('=') ? 1 : 2,
+        single ? line.trim() : '',
+        number,
+      );
+      index++;
       continue;
     }
-    const heading = /^ {0,3}(#{1,6})(?:[\t ]+(.*))?$/u.exec(line);
-    const level = heading?.[1]?.length;
-    if (level !== undefined && level <= 2) {
-      inside = false;
-      const text = (heading?.[2] ?? '').replace(/[\t ]+#+[\t ]*$/u, '').trim();
-      if (level === 2 && text === 'Hardening') {
-        if (found) add(`duplicate Hardening section at line ${number}`);
-        else {
-          found = true;
-          inside = true;
-        }
-      }
-      continue;
+    const atx = /^ {0,3}(#{1,6})(?:[\t ]+(.*))?$/u.exec(line);
+    const level = atx?.[1]?.length;
+    if (level !== undefined) {
+      heading(
+        level,
+        (atx?.[2] ?? '').replace(/[\t ]+#+[\t ]*$/u, '').trim(),
+        number,
+      );
+      if (level <= 2) continue;
     }
     if (!inside) continue;
     const answer =
