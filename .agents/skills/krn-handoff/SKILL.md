@@ -20,7 +20,7 @@ A fresh session with a short, precise handoff outperforms a long session that ca
    Run `node scripts/claude/handoff-requests.ts <handoff path>` from the repository root until it prints PASS.
 3. **Transfer the writer, then start the next session.** Record in the capsule field "Current workflow owner and sole writer" that the next session is the writer, finish every write of this session (capsule, handoff, tracker), and only then, as this session's last action, start the next one from the repository root:
    `node scripts/claude/successor-launch.ts --name "<slice purpose>" --prompt "Use the krn-lead skill. Read <handoff path>, then deliver <task id>."`
-   After this command the current session writes nothing. If the next slice needs an operator decision, do not start a session; ask the operator with a decision-ready brief.
+   After this command the current session writes nothing. The launcher renames this tab "handed off → <name>" and closes older recorded predecessors that are idle; the immediate predecessor stays open. If the next slice needs an operator decision, do not start a session; ask the operator with a decision-ready brief.
 4. **Report.** Tell the operator in Polish:
    - what merged (SHAs, runs);
    - which session started (its name);
