@@ -1,0 +1,12 @@
+{
+  "id": "t-05r7e95",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Validate the handoff done-condition command against krn task show output",
+  "after": [],
+  "body": [
+    "Outcome: the restart block's 'Done when' and 'Verify first' commands are checked by krn-handoff against the real CLI output shape before the handoff is written, so a successor never runs a done-condition that is false for a closed task.\nEvidence: the session-continuity handoff carried `bin/krn task show t-1hjad4z --json | jq -e '.status == \"closed\"'`, which prints false after t-1hjad4z closed because the JSON nests the record under .task (correct: .task.status).\nProof: a new observer fails at the current main by assertion for a done command whose jq path does not exist in krn task show --json output, and passes at head. Coordinate with t-vq1k9mz (restart block hardening)."
+  ]
+}
