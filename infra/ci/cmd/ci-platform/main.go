@@ -8,7 +8,9 @@ import (
 	"io"
 	"os"
 
+	"krn.local/ci-platform/internal/admission"
 	"krn.local/ci-platform/internal/control"
+	"krn.local/ci-platform/internal/evidence"
 	"krn.local/ci-platform/internal/executor"
 	"krn.local/ci-platform/internal/globalgate"
 	"krn.local/ci-platform/internal/network"
@@ -21,6 +23,10 @@ func run(args []string, in io.Reader, out, errOut io.Writer) int {
 		return 2
 	}
 	switch args[0] {
+	case "admission":
+		return admission.Main(args[1:], in, out, errOut)
+	case "evidence":
+		return evidence.Main(args[1:], out, errOut)
 	case "control":
 		return control.Main(args[1:], in, out, errOut)
 	case "global":

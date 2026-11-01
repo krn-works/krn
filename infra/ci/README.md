@@ -1,7 +1,10 @@
 # CI on owned infrastructure
 
-Status: local implementation under task `t-crxrfg4`, not enrolled or deployed.
-The proposed baseline is one persistent Jenkins controller, one static PVE
+Status: the baseline has historical native Product pilot evidence on VM108/109;
+that does not qualify subsequent source changes or describe fresh host state.
+The diagnostics/queue changes require the qualification in
+[`jenkins/diagnostics-and-queue.md`](jenkins/diagnostics-and-queue.md).
+The baseline is one persistent Jenkins controller, one static PVE
 runner VM and one serial job slot. The VM is powered off and restored to its
 enrolled disk snapshot between attempts. Incus supplies an unprivileged system
 container inside that VM. No new paid services are part of this baseline.
