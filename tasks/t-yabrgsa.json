@@ -1,7 +1,11 @@
 {
   "id": "t-yabrgsa",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "hardening checklist required by krn brief check, stored in review records and enforced by krn deliver (#162)"
+  },
   "created": "2026-11-01",
   "priority": 0,
   "title": "Brief and review every slice against one hardening checklist",
