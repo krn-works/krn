@@ -5,9 +5,19 @@ import {
   lstatSync,
   openSync,
   readSync,
+  realpathSync,
 } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 
-function readInput(path: string, limit: number, label: string): string {
+/** Read a regular file reached without symlinks, refusing more than limit bytes. */
+export function readRegularFile(
+  path: string,
+  limit: number,
+  label: string,
+): string {
+  const parent = dirname(resolve(path));
+  if (realpathSync(parent) !== parent)
+    throw new Error(`${label} path must not pass through a symlink`);
   if (!lstatSync(path).isFile())
     throw new Error(`${label} must be a regular non-symlink file`);
   const fd = openSync(
@@ -158,7 +168,7 @@ export function checkBrief(briefPath: string, checklistPath: string): string[] {
   let brief: string;
   let checklist: string;
   try {
-    brief = readInput(briefPath, 256 * 1024, 'brief');
+    brief = readRegularFile(briefPath, 256 * 1024, 'brief');
   } catch (error) {
     return [
       error instanceof Error && !('code' in error)
@@ -167,7 +177,7 @@ export function checkBrief(briefPath: string, checklistPath: string): string[] {
     ];
   }
   try {
-    checklist = readInput(checklistPath, 32 * 1024, 'checklist');
+    checklist = readRegularFile(checklistPath, 32 * 1024, 'checklist');
   } catch (error) {
     return [
       error instanceof Error && !('code' in error)

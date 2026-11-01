@@ -1,6 +1,7 @@
 // Parse the explicit local review command and print its exact SHA-bound result.
 import { lstatSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { readRegularFile } from '../brief/index.ts';
 import { runReview } from './index.ts';
 import { PriorRecordError } from './prior.ts';
 import { appendOverride } from './record.ts';
@@ -132,7 +133,7 @@ function reviewChecklist(args: readonly string[]): string | undefined {
   try {
     if (!lstatSync(path).isFile())
       throw new ReviewUsageError('--checklist must name a regular file');
-    contents = readFileSync(path, 'utf8');
+    contents = readRegularFile(path, 32 * 1024, '--checklist');
   } catch (error) {
     if (error instanceof ReviewUsageError) throw error;
     throw new ReviewUsageError(
