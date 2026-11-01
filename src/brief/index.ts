@@ -15,13 +15,15 @@ export function readRegularFile(
   limit: number,
   label: string,
 ): string {
-  const parent = dirname(resolve(path));
+  // Open the resolved path, so `link/..` cannot leave the checked parent.
+  const full = resolve(path);
+  const parent = dirname(full);
   if (realpathSync(parent) !== parent)
     throw new Error(`${label} path must not pass through a symlink`);
-  if (!lstatSync(path).isFile())
+  if (!lstatSync(full).isFile())
     throw new Error(`${label} must be a regular non-symlink file`);
   const fd = openSync(
-    path,
+    full,
     constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
   );
   try {
@@ -90,7 +92,7 @@ function* outsideFences(text: string) {
 function checkText(brief: string, checklist: string): string[] {
   const ids = new Set<string>();
   for (const { line, number } of outsideFences(checklist)) {
-    if (!/^ {0,3}[-*+](?:[\t ]|$)/u.test(line)) continue;
+    if (!/^ {0,3}(?:[-*+]|\d{1,9}[.)])(?:[\t ]|$)/u.test(line)) continue;
     const id = /^ {0,3}- `([^\s`:\p{Cc}]+)`:[\t ]*\S/u.exec(line)?.[1];
     if (id === undefined) return [`malformed checklist item at line ${number}`];
     if (ids.has(id)) return [`duplicate checklist id ${shortId(id)}`];
@@ -143,7 +145,10 @@ function checkText(brief: string, checklist: string): string[] {
     if (level !== undefined) {
       heading(
         level,
-        (atx?.[2] ?? '').replace(/[\t ]+#+[\t ]*$/u, '').trim(),
+        (atx?.[2] ?? '')
+          .trimEnd()
+          .replace(/(?:^|[\t ])#+$/u, '')
+          .trim(),
         number,
       );
       if (level <= 2) continue;
@@ -159,11 +164,12 @@ function checkText(brief: string, checklist: string): string[] {
     if (answered.has(id)) add(`duplicate id ${shortId(id)} at line ${number}`);
     answered.add(id);
     const text = (answer?.[3] ?? '').replace(/[*_`]/gu, '').trim();
+    const reason = /^(?:[Nn]\/[Aa]|NA)\b[\t ]*(:?)(.*)$/u.exec(text);
+    const placeholder = (value: string) =>
+      !value || /^(?:<[^<>]+>|TODO|TBD|FIXME|\?|\.\.\.|…|[-.]+)$/iu.test(value);
     if (
-      !text ||
-      /^(?:<[^<>]+>|TODO|TBD|FIXME|\?|\.\.\.|…|[-.]+)$/iu.test(text) ||
-      (/^(?:[Nn]\/[Aa]|NA)\b/u.test(text) &&
-        !/^(?:[Nn]\/[Aa]|NA)[\t ]*:[\t ]*\S/u.test(text))
+      placeholder(text) ||
+      (reason !== null && (!reason[1] || placeholder(reason[2]?.trim() ?? '')))
     )
       add(`empty answer for id ${shortId(id)} at line ${number}`);
   }
