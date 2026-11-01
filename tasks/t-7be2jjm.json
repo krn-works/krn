@@ -1,7 +1,11 @@
 {
   "id": "t-7be2jjm",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn review records each verdict tree owner and sweeps dead owners' trees on the next allocation; observer test/verdict/verdict-tree-sweep.test.ts"
+  },
   "created": "2026-11-01",
   "priority": 1,
   "title": "Remove review verdict trees on every exit path",
