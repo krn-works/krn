@@ -70,9 +70,10 @@ function* outsideFences(text: string) {
 
 function checkText(brief: string, checklist: string): string[] {
   const ids = new Set<string>();
-  for (const { line } of outsideFences(checklist)) {
-    const id = /^ {0,3}- `([^\s`:\p{Cc}]+)`:/u.exec(line)?.[1];
-    if (id === undefined) continue;
+  for (const { line, number } of outsideFences(checklist)) {
+    if (!/^ {0,3}[-*+](?:[\t ]|$)/u.test(line)) continue;
+    const id = /^ {0,3}- `([^\s`:\p{Cc}]+)`:[\t ]*\S/u.exec(line)?.[1];
+    if (id === undefined) return [`malformed checklist item at line ${number}`];
     if (ids.has(id)) return [`duplicate checklist id ${shortId(id)}`];
     ids.add(id);
     if (ids.size > 64) return ['checklist exceeds 64 ids'];
@@ -138,8 +139,12 @@ function checkText(brief: string, checklist: string): string[] {
     if (!ids.has(id)) add(`unknown id ${shortId(id)} at line ${number}`);
     if (answered.has(id)) add(`duplicate id ${shortId(id)} at line ${number}`);
     answered.add(id);
-    const text = answer?.[3]?.trim() ?? '';
-    if (!text || (/^N\/A\b/u.test(text) && !/^N\/A:[\t ]*\S/u.test(text)))
+    const text = (answer?.[3] ?? '').replace(/[*_`]/gu, '').trim();
+    if (
+      !text ||
+      (/^(?:[Nn]\/[Aa]|NA)\b/u.test(text) &&
+        !/^(?:[Nn]\/[Aa]|NA)[\t ]*:[\t ]*\S/u.test(text))
+    )
       add(`empty answer for id ${shortId(id)} at line ${number}`);
   }
   if (!found) add('missing Hardening section');

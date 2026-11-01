@@ -315,6 +315,10 @@ export const priorReviewSchema = z.object({
       }),
   ),
   changedPaths: z.array(z.string().min(1)),
+  checklistSha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/u)
+    .optional(),
 });
 export type PriorReview = z.infer<typeof priorReviewSchema>;
 export function coversPriorFindings(

@@ -31,7 +31,11 @@ export function requireReviewChecklist(
     const base = entry(record.base);
     const head = entry(record.headSha);
     if (!base && !head) return;
-    if (record.prior === undefined && record.prepass?.state !== 'complete')
+    if (
+      record.prepass?.state !== 'complete' &&
+      (record.prior?.checklistSha256 === undefined ||
+        record.prior.checklistSha256 !== record.checklist?.sha256)
+    )
       throw new Error('no judge completed review with the checklist');
     const match =
       /^(100644|100755) blob ([a-f\d]{40}|[a-f\d]{64})\tdocs\/program\/hardening-checklist\.md$/u.exec(
