@@ -559,7 +559,7 @@ type ContractDeclaration = {
   path: string;
   kind: ChangeContract['kind'];
 };
-function contractDeclarations(
+export function contractDeclarations(
   root: string,
   base: string,
   head: string,

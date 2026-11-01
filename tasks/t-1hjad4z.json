@@ -1,0 +1,16 @@
+{
+  "id": "t-1hjad4z",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "preflight runs review's contractDeclarations over branch commits"
+  },
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Make preflight refuse review-invalid Change-contract trailers",
+  "after": [],
+  "body": [
+    "Outcome: npm run preflight refuses the commit trailers that krn review's red-first parser (src/flow/repository.ts, Change-contract parsing) refuses: a Change-contract value that is not <test path>:red->green|green->green (including none (...) on branch commits). PR #154 passed preflight with Change-contract: none (tracker-only commit) and a bare test path, then review 2 returned INCOMPLETE and cost an operator D10 exception. One parser owner: preflight reuses the review parser instead of duplicating it.\nProof: a new observer fails at the current main by assertion on a branch with each invalid trailer and passes at head."
+  ]
+}

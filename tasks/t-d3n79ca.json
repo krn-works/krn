@@ -1,0 +1,12 @@
+{
+  "id": "t-d3n79ca",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Make infrastructure gate failures diagnosable and re-runnable on the same head",
+  "after": [],
+  "body": [
+    "Outcome: a required krn/gate failure that is infrastructure, not code, is distinguishable and re-runnable on the same head without operator Jenkins login. Evidence: PR #154 head 03425602 got krn/gate failure with summary 'Attempt d5206958-ad6c-47e0-9190-411dd281ecf3 failed or is unverified; base=unresolved/not-required; gate=true' (tests passed, verification failed); the identical-tree head a6c4134 then failed in 55 s with gate=false (attempt 74ca95db-699c-4e1f-835d-bda8f9bb3836). The check-run output carries no cause, failed-gate logs are not persisted, POST check-runs/<id>/rerequest returns 404, and a Jenkins rebuild needs an authenticated operator, so krn deliver exits 74 and the slice waits overnight. Triage: .krn/runs/delivery-loop/session-continuity/handoff-block/ci-triage.md. Owner: CI lead (see Controller.groovy:388).\nProof: the check-run summary names the failing stage and cause; a documented lead-runnable rerun (GitHub rerequest or krn ci command) re-attempts the same head; a regression test covers gate=true with an unresolved base."
+  ]
+}
