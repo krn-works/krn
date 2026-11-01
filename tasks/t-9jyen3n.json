@@ -1,0 +1,12 @@
+{
+  "id": "t-9jyen3n",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Resolve repository hygiene items that need operator decisions",
+  "after": [],
+  "body": [
+    "Outcome: the remaining repository hygiene from t-sj1c2fv that needs operator decisions is resolved. Inventory: .krn/runs/delivery-loop/session-continuity/repo-hygiene/inventory.md (main checkout).\nDecisions to take, each with the inventory recommendation:\n1. Draft PR #144 (feat/triage, t-q4dckkf, claim kept as parked): stay parked or close.\n2. Local-only unmerged worktrees and branches from the CI platform work (ci-admission, fix/ci-red-first-lifecycle, feat/ci-scope-compat, feat/ci-jenkins, feat/ci-runtime-correction, fix/ci-enrollment-guard, fix/scope-absence-guard, feat/ci-network, feat/ci-executor) plus archive/ci-platform-* branches: delete after confirming PR #149 superseded them.\n3. Paused evaluation work: feat/eval-checks worktree and the t-9ser2tw claim (paused until the FR-40 power check).\n4. Duplicate task clusters: the four host-load determinism tasks (t-xevd1d8, t-rq6sw2v, t-ymbw0jb, t-4ct3j6q); t-rperync closure against #142/#152/#153.\nMechanical part already done (t-sj1c2fv): task records committed, 45 claims without a live session released, merged worktrees context-budget and jsonl-receiver removed, codex-context capsule moved to the GLOBAL repository where its fixed points resolve.\nNote: #146 and #147 add t-mr1a70f.json and t-ve0zsvy.json, which main now carries as open; their rebase takes the branch copy.\nProof: git worktree list and krn task claims show only live work; each decision recorded in this task's closing note."
+  ]
+}

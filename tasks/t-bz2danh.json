@@ -1,0 +1,14 @@
+{
+  "id": "t-bz2danh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-31",
+  "priority": 2,
+  "title": "Use the pinned Node executable in checkpoint subprocess fixtures",
+  "after": [],
+  "body": [
+    "Observed defect: test/ship/delivery-isolation.test.ts runIsolatedCheckpoint invokes bare node through bash. Under the isolated HOME used by the local gate, PATH can select an existing mise shim without a configured Node version. The gate failed369/370 at B4 although the exact same source passed native CI1061/1061. A per-invocation MISE_NODE_VERSION=24.22.1 let the unchanged local gate pass370/370.",
+    "Acceptance: preserve the detached-process checkpoint and cancellation behavior while selecting the current pinned Node executable explicitly in this fixture. Prove the B4 checkpoint path works with an isolated HOME and an unconfigured shim earlier on PATH; retain all assertions and zero isolation skips. No global mise configuration or retry policy. Run the real targeted test and local gate with the repository Node pin.",
+    "Evidence: .krn/runs/ci-lead/ci-platform/ci-gate-local-final.log (original failure), ci-local-node-target.log (targeted PASS), ci-gate-local-node-pinned.log (370/370 PASS), ci-local-gate-environment-review.md. Follow-up from merged PR149; not a blocker for the already observed native CI and corrected local gate."
+  ]
+}

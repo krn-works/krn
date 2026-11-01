@@ -1,0 +1,17 @@
+{
+  "id": "t-1jpr1aw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-30",
+  "priority": 1,
+  "title": "Prove receiver state under callback failures and interrupted writes",
+  "after": [],
+  "body": [
+    "Operator proposed tests combining an interface action with an independent receiver-state oracle and deliberate failures, inspired by the supplied summary of \"dánwò\". No article URL or framework has been verified or installed. Implement the testing principle with KRN's existing receiver-boundary contract, not an automatic new dependency.",
+    "Outcome: callbacks, retries and interrupted writes have observed, correct effects even when the initiating command fails or its result is lost.",
+    "Acceptance:\n1. Choose a bounded set of real existing callback/write boundaries from observed defects or delivery paths. For each, define the expected durable receiver state, producer identity/operation id, cancellation behaviour and permitted retry before execution.\n2. Exercise failure before delivery, after receiver commit but before acknowledgement, duplicate delivery, timeout/cancellation, and interruption during an atomic write. Include partial effects only where the real contract permits them.\n3. Check actual receiver state with an independent oracle. A successful CLI exit or callback log alone is not acceptance. A lost acknowledgement must not cause blind replay, duplicate effects or false success; unknown state must stay explicitly unknown until reconciled.\n4. New observers fail by assertion on a known defective base and pass at the exact fixed head. Use real boundaries or verbatim receiver captures with preserved exits; do not weaken assertions, mask errors or add blanket retries to obtain green tests.\n5. Run in disposable, explicitly scoped fixtures. Production, credentials and irreversible effects need their own existing or exact grants. Preserve diagnostic output without secrets and independently review fixes.",
+    "Source contract: repository rule KRN-12, docs/program/repository-workflow.md and current real hook acceptance in .krn/runs/delivery-loop/codex-context/brief.md. Avoid duplicating existing delivery hardening tests; select missing observed cases. Current t-b6v615x semantic compaction recovery test is part of the active hook slice and must finish first.",
+    "Operator priority update: this is the third of the first three measurement pilots in .krn/runs/rss-research/reports/Mechaniki zwiększające skuteczność KRN.md (Apache Airflow inspiration). Pre-register all five interruption points; the report does not enumerate a complete list. Include lost acknowledgement after committed effect, duplicate delivery and rejection of an acknowledgement belonging to a different task or HEAD. Unknown delivery must be reconciled against actual receiver state before retry. Existing behaviour has not been shown defective by the research alone.",
+    "Operator research extension: pre-register a cheap model-free receiver trial where a stale owner arrives FIRST after ownership transfer, before the receiver has observed the new epoch. Check current authority independently from operation identity and retry deduplication. Do not assume highest-seen epoch is a sufficient fence; record actual semantics and outcome before proposing a protocol change. Source proposal: .krn/runs/rss-research/reports/Dowody i odporność mechanik KRN.md; hypotheses are not measured KRN results."
+  ]
+}

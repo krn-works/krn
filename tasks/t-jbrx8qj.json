@@ -1,0 +1,12 @@
+{
+  "id": "t-jbrx8qj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Compare executor weight under the same review panel",
+  "after": [],
+  "body": [
+    "Outcome: one controlled comparison of a lighter executor plus the current review panel against a heavier executor plus the same panel, measuring cost per delivered change, escaped defects and operator minutes, with host load, provider and cache controlled by alternating time blocks.\nSource: operator RSS intake .krn/runs/delivery-loop/session-continuity/rss-intake/2026-11-01.md items 1, 3 and 4; related t-q625vvc."
+  ]
+}

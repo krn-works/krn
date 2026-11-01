@@ -1,0 +1,15 @@
+{
+  "id": "t-ve0zsvy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-30",
+  "priority": 0,
+  "title": "Route fresh-session handoffs through the active harness",
+  "after": [],
+  "body": [
+    "Operator outcome: Codex must warn on native context usage and transfer work into a fresh Codex session that the operator can resume, with the same durable handoff guarantees as Claude. Current Product krn-handoff launches only claude --bg, and krn-lead incorrectly presents policy thresholds as a fixed model window.",
+    "Scope: update existing krn-handoff and krn-lead instructions plus their existing documentation observer. Select the active harness from actual runtime context, preserve Claude, use a fresh native Codex task with pointer-only prompt and known cwd, retain one writer and reconcile an unknown launch before retry. Report a verified same-server resume command; do not guess endpoint or claim automatic UI switching. Unknown harness/tooling must stop explicitly. No new runtime adapter, configuration/trust changes, or CI changes.",
+    "Acceptance: an assertion observer fails on the base and passes on the candidate; existing project-skill tests and preflight pass; independent review accepts source. The separate runtime owner must demonstrate real advisory, handoff, fresh ID/cwd, active-session attachment and a completed follow-up with recovered goal/owner/constraints/authority/next. Documentation and RPC existence alone do not prove E2E.",
+    "Evidence: .krn/runs/delivery-loop/codex-context/runtime/handoff-recon.md and installed-diagnosis.md. Preserve t-mr1a70f parser work, t-b6v615x GLOBAL source, and all other local tasks."
+  ]
+}

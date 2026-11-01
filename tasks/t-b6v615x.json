@@ -1,0 +1,17 @@
+{
+  "id": "t-b6v615x",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-30",
+  "priority": 0,
+  "title": "Make Codex context hooks restore state and report native usage",
+  "after": [],
+  "body": [
+    "Operator asked for working Codex hooks and context control equivalent in purpose to the existing Claude integration, then explicitly reassigned the current lead to this work while another instance may verify the CI design. Implement and qualify the result; do not stop at another audit.",
+    "Evidence: .krn/runs/delivery-loop/codex-context/recon.md and ../ci-infrastructure/codex-context-audit.md. Source owner is GLOBAL krn-works/krn-codex-skills, verified base 58c46090c08168b45a4b6dd2690318fdc8235a10. Its local main d273159c is clean but diverged (four local commits); preserve it and use an isolated worktree at a freshly verified owner base.",
+    "Deliver:\n1. Fix capsule recovery so oversized JSON/Unicode/multiple outcomes cannot silently discard the entire restart context. Emit bounded useful pointers and an explicit truncation/diagnostic signal. Existing real receiver lost a 5161-byte envelope at its 4096-byte cap; shortening capsule data gave a 1549-byte PASS, without fixing the general defect.\n2. Add Codex-native usage gauge/advisories on its actual events, using last-request/main-chain metadata, never cumulative session sums or the Claude parser. Distinguish KRN's 120k/160k advisory policy from the actual model window (observed475000), reset/deduplicate correctly across compaction, and report missing/stale counters honestly. Do not change model_context_window, auto-compaction limits, models or MCP.\n3. PreCompact saves a bounded state-check receipt (UTC, outcome ids/status/exit) under .krn; it must not invent a capsule or block compaction accidentally. SessionStart startup/resume/compact restores current state from files and reports degraded state safely. Preserve KRN adoption boundaries for every event and write; unrelated projects get no KRN workflow.\n4. Keep hook definitions/helpers owned by source and the existing release/installer. Preserve Herdr and disabled state; never edit an immutable installed release or synthesize trusted_hash/bypass trust.",
+    "Acceptance: native metadata captures and focused meaningful tests reproduce the old failures by assertion and pass at the exact head; independent review and owner gates pass; accepted source is sealed/installed under recorded grants; real Codex runtime0.166 discovery/trust and callbacks are observed, including advisory, PreCompact receipt and restoration after controlled compaction. Manual handler output and unit tests alone are not runtime acceptance. Record actual output limits, error paths and non-adopter no-op.",
+    "Authority: the operator explicitly requested hook configuration/repair. Prior install/seal authority is recorded in continuous-delivery/handoff.md and state.md; reuse it. The earlier exact Claude-hook trust does not automatically cover new Codex definitions. Prepare/review the concrete handlers first, then obtain only any required separate exact hook-trust grant. No credentials, production host changes or external CI setup are needed.",
+    "Related t-rperync is Claude-specific and remains open; t-zkepy2m owns source/release exposure and t-9v5sb1z installer idempotence. Do not silently replace their acceptance or broaden this into a model/profile/MCP overhaul. CI is separate P0 t-crxrfg4 and its handoff is already written."
+  ]
+}

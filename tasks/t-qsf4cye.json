@@ -1,0 +1,12 @@
+{
+  "id": "t-qsf4cye",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-31",
+  "priority": 2,
+  "title": "Bound Codex worker and subagent context: no forked history, no unused tools",
+  "after": [],
+  "body": [
+    "Outcome: Codex subagents start without the parent's history (podolog forks 113-292k, rea 64k) and receive a pointer brief; KRN worker runs disable web search and image generation (about 3.2k per run) via the delegate-codex codex-worker config list.\nEvidence: .krn/runs/context-audit/codex.md drains 2 and 3.\nProof (KRN-12): measured first-turn input tokens of a real codex exec before and after; verify the -c keys are accepted by codex 0.166 (web_search=\"disabled\", features.image_generation=false) before relying on them. Note: a minimal codex exec hung for 10+ minutes under host load 13 on 2026-10-31; measure with a timeout."
+  ]
+}

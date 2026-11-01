@@ -1,0 +1,12 @@
+{
+  "id": "t-q625vvc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Cut PR CI wall time using measured wait, setup and run splits",
+  "after": [],
+  "body": [
+    "Outcome: PR CI wall time for krn-works/krn drops measurably, per the operator who pasted \"How I made our CI 20x faster (steal this)\" (.krn/runs/delivery-loop/session-continuity/ci-speed/source.md) and asked to apply it.\nFirst step: audit the last ~50 Jenkins krn/gate runs (Product) and split each into waiting (queue/admission), setup (snapshot, checkout, install) and running (tests by file); rank the nine article levers by measured seconds saved on our runs; respect ADR 0014 (self-hosted Jenkins, no new paid services) and the ci-lead ownership (t-a4t46ym).\nMetric: p50/p90 PR krn/gate wall time from check-run created_at to completed_at; today PR #159 took ~?? (measure in the audit). Also local gate:local wall time and host load interference (load 26/16 today made codex-usage flaky: .krn/runs/delivery-loop/session-continuity/predecessor-retire/codex-usage-diagnosis/verdict.md)."
+  ]
+}

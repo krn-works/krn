@@ -1,0 +1,12 @@
+{
+  "id": "t-wmnqrpz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Reconcile experiment arms between the manifest and D20",
+  "after": [],
+  "body": [
+    "Outcome: the experiment manifest and ADR 0014 D20 name the same arms (manifest says A/B/C/R, D20 says A/B/S) before any proof result is interpreted; a changed decision goes to the operator first.\nSource: operator RSS intake .krn/runs/delivery-loop/session-continuity/rss-intake/2026-11-01.md item \"Repo divergence\"."
+  ]
+}

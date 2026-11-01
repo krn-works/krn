@@ -1,0 +1,15 @@
+{
+  "id": "t-mr1a70f",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-30",
+  "priority": 0,
+  "title": "Accept native multi-entry change contracts at the Product receiver",
+  "after": [],
+  "body": [
+    "Observed receiver-boundary defect blocking the operator-authorized Codex hook delivery t-b6v615x: GLOBAL native changes:check accepts multiple comma-separated Change-contract declarations, while Product src/flow/repository.ts contractDeclarations treats the entire value as one path and rejects the same genuine producer output. Exact captured value in GLOBAL707c94a0: test/hooks-guard.test.mjs:red->green, test/codex-context.test.mjs:red->green. Formal GLOBAL review PR476/HEAD4cb00285 reports deterministic contract INCOMPLETE despite the producer's own check passing. Evidence: .krn/runs/delivery-loop/codex-context/review-verdict.md.",
+    "Outcome: make Product's real receiver consume the producer's documented multi-entry form while preserving existing single/repeated trailer behaviour and all rejection boundaries. This is a bounded compatibility fix, not permission to rewrite published GLOBAL history or weaken admission.",
+    "Acceptance: a frozen observer calls the existing public flow using the verbatim producer trailer and two real observer files; fails by assertion on Product367e2104 and passes at the fixed head. Cover mixed contract kinds, duplicates within/across lines, empty/trailing entries, invalid kinds and unsafe paths without broadening what the producer admits. Preserve existing no-contract/tracker semantics. Run supported typecheck/preflight and targeted tests, independent review and required owner gates. Prove the patched public receiver on the actual GLOBAL declaration without posting statuses, running a third review without its D10 exception or installing unaccepted code.",
+    "One writer owns only isolated Product worktree files: src/flow/repository.ts, test/flow/repository-metadata.test.ts and this task file; extra fixture only on observed need. Root Product main and all existing untracked root-authored tasks remain untouched. GLOBAL source/outcome writer is a separate session. Reuse existing source publication authority; CI variable/ruleset, credentials, production and global hook trust remain outside this task. Keep current KRN workflow, preserve recorded grants and use TypeScript Engineering for the runtime text boundary."
+  ]
+}
