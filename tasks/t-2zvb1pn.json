@@ -1,0 +1,12 @@
+{
+  "id": "t-2zvb1pn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Keep handoff history per outcome",
+  "after": [],
+  "body": [
+    "Outcome: the successor prompt names its own outcome's handoff and every rewrite is retained; today 11 of 14 launches share session-continuity/handoff.md (handoff-chain.mjs).\nMetric re-run: bash .krn/runs/delivery-loop/continuity-research/scratch/synthesis/run-all.sh (main checkout); baseline in baseline.txt beside it. Source: .krn/runs/delivery-loop/continuity-research/synthesis.md"
+  ]
+}

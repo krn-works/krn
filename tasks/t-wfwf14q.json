@@ -1,0 +1,12 @@
+{
+  "id": "t-wfwf14q",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Surface orphan PRs and idle claims at session start",
+  "after": [],
+  "body": [
+    "Outcome: each open PR appears with age and latest check-run, derived not hand-written; open PRs idle >24h left unsurfaced: 3 -> 0 (orphan-prs.sh).\nMetric re-run: bash .krn/runs/delivery-loop/continuity-research/scratch/synthesis/run-all.sh (main checkout); baseline in baseline.txt beside it. Source: .krn/runs/delivery-loop/continuity-research/synthesis.md"
+  ]
+}

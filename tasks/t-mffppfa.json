@@ -1,0 +1,12 @@
+{
+  "id": "t-mffppfa",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Keep the failing test output when the local gate rejects test evidence",
+  "after": [],
+  "body": [
+    "Outcome: when gate:local (scripts/gate-local.mjs) rejects strict test evidence, it keeps the failing file's full TAP output in a file and prints that path next to the verdict line, so a lead can tell a timing flake from a real failure without a rerun.\nEvidence: krn deliver for PR #156 (head 3966ebb) exit 75 with only 'file summary failed: test/hosts/codex-usage.test.ts'; the failing subtest and assertion were not recorded; the file passed twice alone and the full strict gate passed 370/370 on rerun (.krn/runs/delivery-loop/session-continuity/preflight-trailers/codex-usage-diagnosis.md). Load average was 5-6 with self-hosted CI active.\nProof: a new observer fails at the current main by assertion when a selected isolation file fails (no output path printed) and passes at head."
+  ]
+}

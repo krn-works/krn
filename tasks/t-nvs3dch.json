@@ -1,0 +1,12 @@
+{
+  "id": "t-nvs3dch",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 3,
+  "title": "Capture operator utterances by hash",
+  "after": [],
+  "body": [
+    "Outcome: every operator message is settled by handoff via a session/time/sha256 ledger; needs operator decision B and a hook-trust grant.\nMetric re-run: bash .krn/runs/delivery-loop/continuity-research/scratch/synthesis/run-all.sh (main checkout); baseline in baseline.txt beside it. Source: .krn/runs/delivery-loop/continuity-research/synthesis.md"
+  ]
+}

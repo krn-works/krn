@@ -1,0 +1,12 @@
+{
+  "id": "t-vbe2zfq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Measure live predecessor sessions after retirement rollout",
+  "after": [],
+  "body": [
+    "Outcome: after 3 handoffs through the retiring successor-launch, live predecessor claude sessions in this repo 10 -> <=1 (live-leads.sh count - 1); calls after final report 0 for retired generations (afterlife.mjs).\nMetric re-run: bash .krn/runs/delivery-loop/continuity-research/scratch/synthesis/run-all.sh (main checkout); baseline in baseline.txt beside it. Source: .krn/runs/delivery-loop/continuity-research/synthesis.md"
+  ]
+}

@@ -294,6 +294,7 @@ test('caller pane workspace is passed to the new tab', (t) => {
       '"$KRN_SUCCESSOR_NAME"',
       '"$KRN_SUCCESSOR_PROMPT"',
     ],
+    ['agent', 'get', 'caller-pane'],
   ]);
 });
 

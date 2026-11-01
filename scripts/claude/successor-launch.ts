@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
-import { resolve } from 'node:path';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export interface SuccessorLaunchOptions {
@@ -13,6 +14,22 @@ type CommandResult = {
   stdout: string;
   stderr: string;
   error?: Error;
+};
+
+type LaunchRecord = {
+  pane_id: string;
+  tab_id: string;
+  session_id: string;
+  name: string;
+  recorded_at: string;
+};
+
+type AgentInfo = {
+  agent?: string | undefined;
+  status?: string | undefined;
+  sessionId?: string | undefined;
+  tabId?: string | undefined;
+  notFound?: boolean;
 };
 
 function record(value: unknown): Record<string, unknown> | undefined {
@@ -94,6 +111,148 @@ function callerWorkspace(paneId: string): string | undefined {
     return text(pane?.workspace_id);
   } catch {
     return undefined;
+  }
+}
+
+function agentInfo(output: string): AgentInfo {
+  try {
+    const root = record(JSON.parse(output));
+    const error = record(root?.error);
+    if (error?.code === 'agent_not_found') return { notFound: true };
+
+    const payload = record(root?.result);
+    const agent = record(payload?.agent);
+    const session = record(agent?.agent_session);
+    return {
+      agent: text(agent?.agent),
+      status: text(agent?.agent_status),
+      sessionId: text(session?.value),
+      tabId: text(agent?.tab_id),
+    };
+  } catch {
+    return {};
+  }
+}
+
+// Malformed lines are skipped one by one so a damaged entry never stops
+// the retirement of the valid ones.
+function readLaunches(path: string): LaunchRecord[] {
+  let contents: string;
+  try {
+    contents = readFileSync(path, 'utf8');
+  } catch (error) {
+    if (record(error)?.code === 'ENOENT') return [];
+    throw error;
+  }
+
+  const launches: LaunchRecord[] = [];
+  for (const line of contents.split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      const value = record(JSON.parse(line));
+      const paneId = text(value?.pane_id);
+      const tabId = text(value?.tab_id);
+      const sessionId = text(value?.session_id);
+      const name = text(value?.name);
+      const recordedAt = text(value?.recorded_at);
+      if (!paneId || !tabId || !sessionId || !name || !recordedAt) continue;
+      launches.push({
+        pane_id: paneId,
+        tab_id: tabId,
+        session_id: sessionId,
+        name,
+        recorded_at: recordedAt,
+      });
+    } catch {}
+  }
+  return launches;
+}
+
+function retirePredecessors(
+  options: SuccessorLaunchOptions,
+  callerPaneId: string,
+): void {
+  const callerResult = run('herdr', ['agent', 'get', callerPaneId]);
+  const caller =
+    callerResult.status === 0 && !callerResult.error
+      ? agentInfo(callerResult.stdout)
+      : {};
+  if (
+    caller.agent !== 'claude' ||
+    !caller.sessionId ||
+    !caller.tabId ||
+    caller.notFound
+  ) {
+    process.stderr.write(
+      'successor retirement skipped: caller agent unavailable\n',
+    );
+    return;
+  }
+
+  const ledgerPath = join(options.cwd, '.krn', 'successors', 'launches.jsonl');
+  let launches: LaunchRecord[];
+  try {
+    launches = readLaunches(ledgerPath);
+  } catch {
+    process.stderr.write('successor retirement skipped: ledger unavailable\n');
+    return;
+  }
+
+  const kept: LaunchRecord[] = [];
+  for (const launch of launches) {
+    if (launch.pane_id === callerPaneId) continue;
+
+    const result = run('herdr', ['agent', 'get', launch.pane_id]);
+    const info = agentInfo(result.stdout);
+    if (info.notFound) continue;
+    if (result.error || result.status !== 0) {
+      kept.push(launch);
+      continue;
+    }
+    if (info.sessionId && info.sessionId !== launch.session_id) continue;
+    if (
+      info.agent === 'claude' &&
+      info.sessionId === launch.session_id &&
+      (info.status === 'idle' || info.status === 'done')
+    ) {
+      const closed = run('herdr', ['pane', 'close', launch.pane_id]);
+      if (!closed.error && closed.status === 0) {
+        process.stdout.write(
+          `retired: pane ${launch.pane_id} session ${launch.session_id}\n`,
+        );
+        continue;
+      }
+      process.stderr.write(
+        `successor retirement failed: pane ${launch.pane_id}\n`,
+      );
+    }
+    kept.push(launch);
+  }
+
+  const rename = run('herdr', [
+    'tab',
+    'rename',
+    caller.tabId,
+    `handed off → ${options.name}`,
+  ]);
+  if (rename.error || rename.status !== 0)
+    process.stderr.write(`successor retirement failed: tab ${caller.tabId}\n`);
+
+  const callerLaunch: LaunchRecord = {
+    pane_id: callerPaneId,
+    tab_id: caller.tabId,
+    session_id: caller.sessionId,
+    name: options.name,
+    recorded_at: new Date().toISOString(),
+  };
+  const serialized = [...kept, callerLaunch]
+    .map((launch) => JSON.stringify(launch))
+    .join('\n');
+  try {
+    mkdirSync(dirname(ledgerPath), { recursive: true });
+    writeFileSync(ledgerPath, `${serialized}\n`);
+  } catch {
+    process.stderr.write('successor retirement failed: ledger write\n');
   }
 }
 
@@ -204,6 +363,7 @@ export function main(args: string[]): number {
   process.stdout.write(
     `successor: herdr tab ${ids.tabId} pane ${ids.paneId}\n`,
   );
+  if (paneId) retirePredecessors(options, paneId);
   return 0;
 }
 
