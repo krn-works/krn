@@ -1,7 +1,11 @@
 {
   "id": "t-1tnpz1d",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Synthesis .krn/runs/delivery-loop/continuity-research/synthesis.md ranks 8 measured changes; first slice retires idle predecessor sessions at handoff (baseline 10 live predecessors, post-rollout measurement t-vbe2zfq); follow-ups t-3karwrx t-fsnjzh8 t-wfwf14q t-2zvb1pn t-e2k99h7 t-nvs3dch t-sfffjmy t-3hs8q66"
+  },
   "created": "2026-11-01",
   "priority": 1,
   "title": "Synthesize the continuity research and deliver the first redesign slice",
