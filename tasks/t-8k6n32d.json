@@ -1,0 +1,12 @@
+{
+  "id": "t-8k6n32d",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Let krn deliver bind from any checkout of the repository",
+  "after": [],
+  "body": [
+    "Defect: `krn deliver` binds by comparing the current checkout's HEAD with the PR head, so a first run from the main checkout fails with exit 71 \"bind: local HEAD differs from PR head\" (t-drwmtf8, PR #153, 2026-11-01; also t-37k23wh, PR #152). Running from the PR worktree binds, but hygiene then removes that worktree under the running shell (mise \"Current directory does not exist\", shell exit 1 after deliver exit 0; log .krn/runs/delivery-loop/session-continuity/compact-window/deliver-1.log).\nOutcome: one documented invocation from the main checkout delivers end to end: deliver resolves the PR head from GitHub and the local worktree that holds it (or fetches it), and never depends on cwd inside a worktree it retires.\nProof: a deliver test that starts in a checkout whose HEAD differs from the PR head binds by the PR head SHA and fails at the base by assertion; the krn-lead skill step 8 names the main checkout as the only start point."
+  ]
+}
