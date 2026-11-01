@@ -36,15 +36,26 @@ export function readRegularFile(
       size += count;
     }
     if (size > limit) throw new Error(`${label} exceeds ${limit} bytes`);
-    return bytes.subarray(0, size).toString('utf8');
+    const contents = bytes.subarray(0, size);
+    try {
+      const decoded = new TextDecoder('utf-8', { fatal: true }).decode(
+        contents,
+      );
+      const hasBom =
+        contents[0] === 0xef && contents[1] === 0xbb && contents[2] === 0xbf;
+      return hasBom ? `\uFEFF${decoded}` : decoded;
+    } catch {
+      throw new Error(`${label} must be UTF-8 text`);
+    }
   } finally {
     closeSync(fd);
   }
 }
 
-/** Only non-fenced lines participate in the brief's Markdown grammar. */
+/** Only lines outside fences and HTML comments participate in Markdown grammar. */
 function* outsideFences(text: string) {
   let fence: { marker: string; length: number } | undefined;
+  let comment = false;
   const lines = text.replace(/^\uFEFF/u, '').split(/\r?\n/u);
   for (const [index, line] of lines.entries()) {
     const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/u.exec(line);
@@ -55,6 +66,14 @@ function* outsideFences(text: string) {
         !marker[2]?.trim()
       )
         fence = undefined;
+      continue;
+    }
+    if (comment) {
+      if (line.includes('-->')) comment = false;
+      continue;
+    }
+    if (/^ {0,3}<!--/u.test(line)) {
+      if (!line.includes('-->')) comment = true;
       continue;
     }
     if (
@@ -131,7 +150,7 @@ function checkText(brief: string, checklist: string): string[] {
     }
     if (!inside) continue;
     const answer =
-      /^ {0,3}[-*][\t ]+(?:`([^\s`:\p{Cc}]+)`|([^\s`:\p{Cc}]+))[\t ]*:[\t ]*(.*)$/u.exec(
+      /^ {0,1}[-*][\t ]+(?:`([^\s`:\p{Cc}]+)`|([^\s`:\p{Cc}]+))[\t ]*:[\t ]*(.*)$/u.exec(
         line,
       );
     const id = answer?.[1] ?? answer?.[2];
@@ -142,6 +161,7 @@ function checkText(brief: string, checklist: string): string[] {
     const text = (answer?.[3] ?? '').replace(/[*_`]/gu, '').trim();
     if (
       !text ||
+      /^(?:<[^<>]+>|TODO|TBD|FIXME|\?|\.\.\.|…|[-.]+)$/iu.test(text) ||
       (/^(?:[Nn]\/[Aa]|NA)\b/u.test(text) &&
         !/^(?:[Nn]\/[Aa]|NA)[\t ]*:[\t ]*\S/u.test(text))
     )

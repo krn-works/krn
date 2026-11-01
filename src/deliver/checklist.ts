@@ -31,6 +31,8 @@ export function requireReviewChecklist(
     const base = entry(record.base);
     const head = entry(record.headSha);
     if (!base && !head) return;
+    if (base && !head)
+      throw new Error('head lacks the checklist; rebase onto the current base');
     if (
       record.prepass?.state !== 'complete' &&
       (record.prior?.checklistSha256 === undefined ||
@@ -42,6 +44,12 @@ export function requireReviewChecklist(
         head,
       );
     if (!match?.[2]) throw new Error('head must contain a regular blob');
+    const size = Number(
+      checked(runner('git', ['cat-file', '-s', match[2]], cwd)),
+    );
+    if (!Number.isSafeInteger(size) || size < 0)
+      throw new Error('head checklist has an invalid blob size');
+    if (size > 32 * 1024) throw new Error('head checklist exceeds 32768 bytes');
     const blob = runner('git', ['cat-file', 'blob', match[2]], cwd);
     checked(blob);
     const digest = createHash('sha256')

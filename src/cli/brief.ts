@@ -18,6 +18,14 @@ export function briefCommand(args: readonly string[]): void {
     throw new CliUsageError(
       'Usage: krn brief check <brief> [--checklist <path>]',
     );
+  if (
+    [brief, checklist].some(
+      (path) => path !== undefined && /[\p{Cc}]/u.test(path),
+    )
+  )
+    throw new CliUsageError(
+      'brief and checklist paths must not contain control characters',
+    );
   let path = checklist;
   if (path === undefined) {
     const result = spawnSync('git', ['rev-parse', '--show-toplevel'], {
