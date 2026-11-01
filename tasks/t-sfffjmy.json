@@ -1,0 +1,12 @@
+{
+  "id": "t-sfffjmy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 3,
+  "title": "Remove the unread PreCompact snapshot",
+  "after": [],
+  "body": [
+    "Outcome: context-precompact.ts output precompact.txt has 0 consumers; delete the hook or read it at SessionStart:compact.\nMetric re-run: bash .krn/runs/delivery-loop/continuity-research/scratch/synthesis/run-all.sh (main checkout); baseline in baseline.txt beside it. Source: .krn/runs/delivery-loop/continuity-research/synthesis.md"
+  ]
+}

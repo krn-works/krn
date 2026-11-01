@@ -1,0 +1,12 @@
+{
+  "id": "t-3hs8q66",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Refuse handoff while background agents are still running",
+  "after": [],
+  "body": [
+    "Outcome: krn-handoff refuses to launch a successor while the session has live background agents (f79475b2 launched with 2 recons in flight and kept working).\nMetric re-run: bash .krn/runs/delivery-loop/continuity-research/scratch/synthesis/run-all.sh (main checkout); baseline in baseline.txt beside it. Source: .krn/runs/delivery-loop/continuity-research/synthesis.md"
+  ]
+}

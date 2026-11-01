@@ -1,0 +1,12 @@
+{
+  "id": "t-e2k99h7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Check memory references in krn-retro",
+  "after": [],
+  "body": [
+    "Outcome: missing-artifact, date-named and stale index memory lines 16/3/4 -> 0/0/0 (memory-refs.py), superseded not deleted; needs operator decision B (ADR 0002, D5) first.\nMetric re-run: bash .krn/runs/delivery-loop/continuity-research/scratch/synthesis/run-all.sh (main checkout); baseline in baseline.txt beside it. Source: .krn/runs/delivery-loop/continuity-research/synthesis.md"
+  ]
+}

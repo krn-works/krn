@@ -1,0 +1,12 @@
+{
+  "id": "t-fsnjzh8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Warn when a lead session starts above its baseline",
+  "after": [],
+  "body": [
+    "Outcome: the context gauge prints a guard line when a session's first reading is at least 70k (expected ~47k); the 400k window otherwise hides a broken 142k start. Test proves the guard fires.\nMetric re-run: bash .krn/runs/delivery-loop/continuity-research/scratch/synthesis/run-all.sh (main checkout); baseline in baseline.txt beside it. Source: .krn/runs/delivery-loop/continuity-research/synthesis.md"
+  ]
+}

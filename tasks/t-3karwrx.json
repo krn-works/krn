@@ -1,0 +1,12 @@
+{
+  "id": "t-3karwrx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Show only live claims and capsules at session start",
+  "after": [],
+  "body": [
+    "Outcome: the restart block drops expired or 24h-idle claims and capsules without a fresh claim; dead share of restart text 0.71 -> <0.10 (restart-dead-share.mjs). Builds on #154 (t-xrcg8ms) and t-vq1k9mz.\nMetric re-run: bash .krn/runs/delivery-loop/continuity-research/scratch/synthesis/run-all.sh (main checkout); baseline in baseline.txt beside it. Source: .krn/runs/delivery-loop/continuity-research/synthesis.md"
+  ]
+}
