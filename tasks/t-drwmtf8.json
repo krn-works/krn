@@ -1,7 +1,11 @@
 {
   "id": "t-drwmtf8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "autoCompactWindow 400000; gauge advisories at 240k/320k (60%/80%); krn-lead skill states advisories relative to the window."
+  },
   "created": "2026-11-01",
   "priority": 1,
   "title": "Raise the auto-compact window to 400k",
