@@ -1,0 +1,16 @@
+{
+  "id": "t-drwmtf8",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "autoCompactWindow 400000; gauge advisories at 240k/320k (60%/80%); krn-lead skill states advisories relative to the window."
+  },
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Raise the auto-compact window to 400k",
+  "after": [],
+  "body": [
+    "Outcome: operator 2026-11-01 (verbatim): \"imo zmien na 400k póki co zeby sie swobodniej pracowało - potem jak juz wszystko bedzie zajebiscie rozwiniete i dzialajace to wrocimy do tematu\". Set .claude/settings.json autoCompactWindow 200000 -> 400000 (gauge reads it since PR #152; advisories become 240k/320k) and update any text that names 120k/160k of 200k (krn-lead skill, rules).\nProof: context-gauge tests derive advisories from the configured window; git grep finds no stale 120k/160k/200k budget text."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-e6zkwse",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Audit Claude Code health, skills and settings, then simplify",
+  "after": [],
+  "body": [
+    "Outcome: operator, verbatim (2026-11-01): \"potem /doctor i wielkki audyt skillsów i ustawień, a na końcu potencjalnie /simplify\". Run /doctor (operator types it, or krn doctor plus claude doctor output), audit every skill (project .claude/skills, .agents/skills, user ~/.claude/skills, plugins, skillOverrides) and settings (user, project, local, ~/.claude.json project entries) for dead, duplicate, contradictory or context-expensive entries; then /simplify on the changed code.\nProof: an audit file with findings and evidence; each fix merged or recorded as a task; measured first-turn context before and after."
+  ]
+}

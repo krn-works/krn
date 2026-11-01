@@ -1,0 +1,13 @@
+{
+  "id": "t-g5vqm2q",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Pin Node for this repository through mise",
+  "after": [],
+  "body": [
+    "Outcome: Node on PATH in this repository matches .node-version (24.22.1), so krn deliver and tests run on the pinned version. Observed 2026-11-01: node v26.12.1 on PATH and from `mise exec`; mise idiomatic_version_file_enable_tools = [] so .node-version is ignored; global ~/.config/mise/config.toml pins 26.12.1. Fix in project scope (tracked mise.toml or idiomatic file for node), never `mise use -g`.\nProof: `mise exec -- node --version` in the main checkout and a worktree prints v24.22.1; preflight check fails when they differ.",
+    "Also 2026-11-01: bin/krn is bash, and mise re-activation inside it puts global node 26.12.1 first even when PATH starts with node 24.22.1; krn deliver bind failed until MISE_NODE_VERSION=24.22.1 was exported. The fix must hold for bash children."
+  ]
+}

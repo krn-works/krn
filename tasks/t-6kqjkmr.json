@@ -1,0 +1,12 @@
+{
+  "id": "t-6kqjkmr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Measure mid-task cuts and hand off at verified work boundaries",
+  "after": [],
+  "body": [
+    "Outcome: KRN measures how often compaction or a handoff cuts a session mid-task, and the gauge/handoff advise a handoff at the next verified unit boundary (around half the window) so the handoff file replaces the compaction summary. Source: .krn/runs/delivery-loop/continuity-research/rss-patterns.md (catnap pattern: 0/129 mid-task cuts vs 78/82 default). Feed into t-1tnpz1d synthesis.\nProof: a script prints the mid-task cut rate from transcripts; a test shows the advisory fires at a boundary, not mid-step."
+  ]
+}

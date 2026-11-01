@@ -7,7 +7,7 @@ test('Claude context budget settings wire documented hooks and read-only reader'
   const path = new URL('.claude/settings.json', root);
   assert.ok(existsSync(path), 'project settings exist');
   const settings = JSON.parse(readFileSync(path, 'utf8'));
-  assert.equal(settings.autoCompactWindow, 200000);
+  assert.equal(settings.autoCompactWindow, 400000);
   // KRN uses no claude.ai connector and no rss_news tool; both stay off for
   // every checkout of this project, worktrees included.
   assert.equal(settings.disableClaudeAiConnectors, true);
@@ -45,4 +45,14 @@ test('Claude context budget settings wire documented hooks and read-only reader'
   );
   for (const text of ['read-only', '300 words', 'never edits', 'file paths'])
     assert.ok(reader.includes(text), text);
+  // The lead skill names advisories relative to the configured window, so a
+  // window change leaves no stale token counts behind.
+  const lead = readFileSync(
+    new URL('.agents/skills/krn-lead/SKILL.md', root),
+    'utf8',
+  );
+  assert.ok(
+    lead.includes('advisories at 60% and 80% of the `autoCompactWindow`'),
+  );
+  assert.doesNotMatch(lead, /\b\d+k of \d+k\b/u);
 });

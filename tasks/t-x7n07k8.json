@@ -1,0 +1,12 @@
+{
+  "id": "t-x7n07k8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Lock and check the agent harness configuration for drift",
+  "after": [],
+  "body": [
+    "Outcome: a krn harness check records a lockfile of the agent environment (CLI versions, model and effort, MCP servers, skills, hooks, skill overrides) and reports drift against it. Source: .krn/runs/delivery-loop/continuity-research/rss-patterns.md (hlock pattern). Overlaps t-e6zkwse (settings and skills audit) and t-g5vqm2q (Node pin); keep one owner.\nProof: the check exits non-zero on a changed model/effort, MCP set or skill override, and zero on the locked state."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-sj1c2fv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Bring every capsule back to a clean state check",
+  "after": [],
+  "body": [
+    "Outcome: krn state check --root . reports clean on main. Observed 2026-11-01: invalid-fixed-point 58c46090 and 8421374d (objects missing from the repository) in .krn/runs/delivery-loop/codex-context/state.md and continuous-delivery/state.md, plus stale-fixed-point warnings across capsules whose leads are idle since 10-30 (open claims t-b6v615x, t-gdct2bc and draft PRs #144 #146 #147). Each owner either resumes, hands off with a valid fixed point, or the operator retires the capsule.\nProof: krn state check --root . prints no error lines; each open claim has a live session or is released."
+  ]
+}

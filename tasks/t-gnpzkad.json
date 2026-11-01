@@ -1,0 +1,12 @@
+{
+  "id": "t-gnpzkad",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 3,
+  "title": "Consolidate memory periodically against a plain-search baseline",
+  "after": [],
+  "body": [
+    "Outcome: a periodic memory consolidation pass (merge, dedupe, retire stale entries) runs for repository memory, and its retrieval quality is compared with a plain-search baseline that the memory design must beat. Source: .krn/runs/delivery-loop/continuity-research/rss-patterns.md (\"dreaming\" consolidation). Must respect Product ADR 0002 (memory = temporal brain) and memory krn-memory-target; never retire memory blindly.\nProof: an eval prints retrieval accuracy for consolidated memory vs plain search on a fixed question set."
+  ]
+}
