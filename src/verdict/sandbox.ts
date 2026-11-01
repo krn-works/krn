@@ -1,8 +1,8 @@
 // Disposable worktrees execute base-declared checks under bwrap and a systemd scope. ADR 0001.
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 // biome-ignore format: These filesystem primitives form the sandbox's owned I/O surface.
-import { accessSync, closeSync, constants, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
+import { accessSync, closeSync, constants, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmdirSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
@@ -430,10 +430,181 @@ export async function pruneExactWorktree(
         `could not prune verdict worktree ${exactPath}`,
     );
   rmSync(exactPath, { recursive: true, force: true });
+  removeVerdictTreeOwner(exactPath);
 }
 
-// biome-ignore format: Directory creation is the first tracked cleanup step.
-export function createWorktreeDirectory(directory: string): string { return mkdtempSync(join(directory, 'verdict-')); }
+const verdictTreeOwnerSchema = z.object({
+  pid: z.number().int().positive(),
+  start: z.string().regex(/^\d+$/u),
+  quarantined: z.boolean().optional(),
+});
+
+function verdictTreeOwnerPath(copy: string): string {
+  return join(dirname(copy), '.verdict-owners', `${basename(copy)}.json`);
+}
+
+export function removeVerdictTreeOwner(copy: string): void {
+  const record = verdictTreeOwnerPath(copy);
+  rmSync(record, { force: true });
+  try {
+    rmdirSync(dirname(record));
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      !('code' in error) ||
+      !['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(String(error.code))
+    )
+      throw error;
+  }
+}
+
+export function quarantineVerdictTree(copy: string): void {
+  const record = verdictTreeOwnerPath(copy);
+  const owner = verdictTreeOwnerSchema.parse(
+    JSON.parse(readFileSync(record, 'utf8')),
+  );
+  writeFileSync(record, JSON.stringify({ ...owner, quarantined: true }));
+}
+
+function processStart(pid: number): string {
+  const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+  // comm (field 2) can contain spaces and parentheses; fields after it start at 3.
+  const start = stat.slice(stat.lastIndexOf(')') + 2).split(/\s+/u)[19];
+  if (!start || !/^\d+$/u.test(start))
+    throw new Error(`invalid process start for ${pid}`);
+  return start;
+}
+
+function verdictTreeOwnerAlive(pid: number, start: string): boolean {
+  try {
+    return processStart(pid) === start;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      (error.code === 'ENOENT' || error.code === 'ESRCH')
+    )
+      return false;
+    throw error;
+  }
+}
+
+function liveCheckScopes(): boolean {
+  const result = spawnSync(
+    'systemctl',
+    ['--user', 'list-units', 'krn-check-*', '--all', '--plain', '--no-legend'],
+    { encoding: 'utf8', timeout: 5000, killSignal: 'SIGKILL' },
+  );
+  if (result.error || result.status !== 0)
+    throw result.error ?? new Error(result.stderr || 'scope probe failed');
+  return result.stdout.split(/\r?\n/u).some((line) => {
+    const [unit, , state] = line.trim().split(/\s+/u);
+    return (
+      unit?.startsWith('krn-check-') &&
+      unit.endsWith('.scope') &&
+      state !== 'inactive'
+    );
+  });
+}
+
+export async function sweepOrphanedVerdictTrees(
+  root: string,
+  directory: string,
+  options: {
+    readonly scopeProbe?: () => boolean | Promise<boolean>;
+    readonly now?: () => number;
+    readonly isOwnerAlive?: (pid: number, start: string) => boolean;
+  } = {},
+): Promise<void> {
+  const errors: unknown[] = [];
+  let scopesLive: boolean | undefined;
+  try {
+    const now = (options.now ?? Date.now)();
+    for (const name of readdirSync(directory)) {
+      if (!name.startsWith('verdict-')) continue;
+      try {
+        const copy = join(directory, name);
+        const info = lstatSync(copy);
+        if (!info.isDirectory()) continue;
+        const record = verdictTreeOwnerPath(copy);
+        if (existsSync(record)) {
+          const owner = verdictTreeOwnerSchema.parse(
+            JSON.parse(readFileSync(record, 'utf8')),
+          );
+          if (
+            (options.isOwnerAlive ?? verdictTreeOwnerAlive)(
+              owner.pid,
+              owner.start,
+            )
+          )
+            continue;
+          if (owner.quarantined) {
+            if (scopesLive === undefined) {
+              try {
+                scopesLive = await (options.scopeProbe ?? liveCheckScopes)();
+              } catch (error) {
+                errors.push(error);
+                scopesLive = true;
+              }
+            }
+            if (scopesLive) continue;
+          }
+        } else if (now - info.mtimeMs <= 24 * 60 * 60 * 1000) continue;
+        const gitPath = join(copy, '.git');
+        if (existsSync(gitPath) && lstatSync(gitPath).isFile()) {
+          await pruneExactWorktree(root, copy);
+        } else {
+          rmSync(copy, { recursive: true, force: true });
+          removeVerdictTreeOwner(copy);
+        }
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    const owners = join(directory, '.verdict-owners');
+    if (existsSync(owners)) {
+      for (const record of readdirSync(owners)) {
+        if (!record.startsWith('verdict-') || !record.endsWith('.json'))
+          continue;
+        const copy = join(directory, record.slice(0, -'.json'.length));
+        if (!existsSync(copy)) removeVerdictTreeOwner(copy);
+      }
+    }
+  } catch (error) {
+    errors.push(error);
+  }
+  if (errors.length)
+    process.stderr.write(
+      `verdict tree sweep failed: ${errors.map(String).join('; ').replace(/\s+/gu, ' ')}\n`,
+    );
+}
+
+const verdictTreeSweeps = new Map<string, Promise<void>>();
+
+// biome-ignore format: Directory creation is the first tracked cleanup step after the shared sweep.
+export async function createWorktreeDirectory(directory: string, root: string): Promise<string> {
+  const key = resolve(directory);
+  let sweep = verdictTreeSweeps.get(key);
+  if (!sweep) {
+    sweep = sweepOrphanedVerdictTrees(root, directory);
+    verdictTreeSweeps.set(key, sweep);
+  }
+  await sweep;
+  const copy = mkdtempSync(join(directory, 'verdict-'));
+  try {
+    const record = verdictTreeOwnerPath(copy);
+    mkdirSync(dirname(record), { recursive: true, mode: 0o700 });
+    writeFileSync(
+      record,
+      JSON.stringify({ pid: process.pid, start: processStart(process.pid) }),
+    );
+    return copy;
+  } catch (error) {
+    rmSync(copy, { recursive: true, force: true });
+    removeVerdictTreeOwner(copy);
+    throw error;
+  }
+}
 
 // biome-ignore format: Attach the allocated directory to the exact checked SHA.
 export async function addWorktree(root: string, copy: string, sha: string): Promise<void> { await git(root, ['worktree', 'add', '--detach', copy, sha]); }

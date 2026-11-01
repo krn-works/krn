@@ -21,6 +21,8 @@ import { stateDirectory } from '../foreman/state.ts';
 import {
   createWorktreeDirectory,
   execute,
+  quarantineVerdictTree,
+  removeVerdictTreeOwner,
   TeardownUnconfirmed,
 } from '../verdict/sandbox.ts';
 import {
@@ -315,6 +317,7 @@ function cleanupCandidateCopies(copies: readonly string[]): void {
   for (const copy of copies) {
     try {
       rmSync(copy, { recursive: true, force: true });
+      removeVerdictTreeOwner(copy);
     } catch (error) {
       errors.push(error);
     }
@@ -828,7 +831,7 @@ export async function redFirst(
           'contract',
           `test must be a regular file at ${sha}: ${path}`,
         );
-      const scratch = createWorktreeDirectory(temporary);
+      const scratch = await createWorktreeDirectory(temporary, root);
       copies.push(scratch);
       try {
         createCandidateCopy(root, scratch, sha, source);
@@ -868,7 +871,10 @@ export async function redFirst(
         );
       } catch (error) {
         // A scope may still be reading this exact workspace and its helpers.
-        if (error instanceof TeardownUnconfirmed) quarantined.add(scratch);
+        if (error instanceof TeardownUnconfirmed) {
+          quarantined.add(scratch);
+          quarantineVerdictTree(scratch);
+        }
         throw error;
       } finally {
         if (!quarantined.has(scratch)) cleanupCandidateCopies([scratch]);
