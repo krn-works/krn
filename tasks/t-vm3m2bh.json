@@ -1,0 +1,12 @@
+{
+  "id": "t-vm3m2bh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-31",
+  "priority": 2,
+  "title": "State in krn-lead that a rebase does not reset the review budget",
+  "after": [],
+  "body": [
+    "Evidence: PR #148, 2026-10-31. The lead assumed a rebase onto a new main SHA resets the two-attempt review budget; `krn review` refused attempt 4 with exit 64 (\"two attempts exhausted\") because the series is keyed by repository + PR + baseRef (src/flow/series.ts:101; docs/program/lead-rules.md:27). The krn-lead skill says \"per PR and base ref\", which reads as the base SHA. Cost: one refused run and an operator question with a wrong premise.\nAcceptance: the krn-lead skill states that the budget belongs to the PR and its target branch and that a rebase does not reset it; test/rules/project-skills.test.ts asserts that sentence and fails at the base."
+  ]
+}

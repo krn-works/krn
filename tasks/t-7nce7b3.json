@@ -1,0 +1,12 @@
+{
+  "id": "t-7nce7b3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-31",
+  "priority": 2,
+  "title": "Make krn-lead review fixes fast-forward commits",
+  "after": [],
+  "body": [
+    "Evidence: PR #151 (2026-10-31): the auto-mode classifier refused --force-with-lease on the lead's own branch (second time after #150), so squash-after-push (krn-lead steps 6 and 9) stalled; a fast-forward fix commit after the tracker close delivered with an identical merge.\nAcceptance: krn-lead step 6/9 says review fixes land as fast-forward commits with their own Change-contract and never require rewriting pushed history; test/rules/project-skills.test.ts pins the wording."
+  ]
+}
