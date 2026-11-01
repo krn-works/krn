@@ -3,7 +3,7 @@
   "status": "open",
   "resolution": null,
   "created": "2026-10-31",
-  "priority": 2,
+  "priority": 1,
   "title": "Use the pinned Node executable in checkpoint subprocess fixtures",
   "after": [],
   "body": [

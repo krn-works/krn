@@ -9,6 +9,7 @@ import {
   cleanupWorktrees,
   createWorktreeDirectory,
   execute,
+  quarantineVerdictTrees,
   TeardownUnconfirmed,
 } from './sandbox.ts';
 import { evaluatorSurfaceChanges } from './surface.ts';
@@ -151,7 +152,7 @@ export async function judge(
           checks: results,
           findings: ['stopped'],
         };
-      const copy = createWorktreeDirectory(directory);
+      const copy = await createWorktreeDirectory(directory, root);
       copies.push(copy);
       await addWorktree(root, copy, sha);
       results.push(
@@ -212,7 +213,9 @@ export async function judge(
       process.removeListener('SIGINT', onSigint);
       process.removeListener('SIGTERM', onSigterm);
     }
-    if (teardownUnconfirmed) process.exitCode = 1;
-    else await cleanupWorktrees(root, copies);
+    if (teardownUnconfirmed) {
+      process.exitCode = 1;
+      quarantineVerdictTrees(copies);
+    } else await cleanupWorktrees(root, copies);
   }
 }
