@@ -520,12 +520,39 @@ export function quarantineVerdictTree(copy: string): void {
     return;
   }
   const record = verdictTreeOwnerPath(copy);
-  const owner = readVerdictTreeOwner(record);
-  // Replace atomically: an interrupted write must never leave the tree without its record.
+  // The empty temporary file marks quarantine intent before any read or write can fail;
+  // the sweep honours it until the tree is gone. Rename keeps the record atomic.
   const temporary = verdictTreeOwnerTemporary(record);
   rmSync(temporary, { force: true });
-  writeVerdictTreeOwner(temporary, { ...owner, quarantined: true });
+  closeSync(
+    openSync(
+      temporary,
+      constants.O_CREAT |
+        constants.O_EXCL |
+        constants.O_WRONLY |
+        constants.O_NOFOLLOW,
+      0o600,
+    ),
+  );
+  const owner = readVerdictTreeOwner(record);
+  const fd = openSync(
+    temporary,
+    constants.O_WRONLY | constants.O_TRUNC | constants.O_NOFOLLOW,
+  );
+  try {
+    writeFileSync(fd, JSON.stringify({ ...owner, quarantined: true }));
+  } finally {
+    closeSync(fd);
+  }
   renameSync(temporary, record);
+}
+
+function quarantineIntended(owners: string | undefined, copy: string): boolean {
+  if (!owners) return false;
+  const prefix = `.${basename(copy)}.json.`;
+  return readdirSync(owners).some(
+    (name) => name.startsWith(prefix) && name.endsWith('.tmp'),
+  );
 }
 
 function verdictTreeOwnerTemporary(record: string): string {
@@ -595,6 +622,18 @@ export async function sweepOrphanedVerdictTrees(
 ): Promise<void> {
   const errors: unknown[] = [];
   let scopesLive: boolean | undefined;
+  // A failed probe counts as live: a quarantined tree is kept rather than risked.
+  const scopesMayBeLive = async () => {
+    if (scopesLive === undefined) {
+      try {
+        scopesLive = await (options.scopeProbe ?? liveCheckScopes)();
+      } catch (error) {
+        errors.push(error);
+        scopesLive = true;
+      }
+    }
+    return scopesLive;
+  };
   try {
     const owners = verdictTreeOwners(directory);
     const now = (options.now ?? Date.now)();
@@ -626,18 +665,14 @@ export async function sweepOrphanedVerdictTrees(
             )
           )
             continue;
-          if (owner.quarantined) {
-            if (scopesLive === undefined) {
-              try {
-                scopesLive = await (options.scopeProbe ?? liveCheckScopes)();
-              } catch (error) {
-                errors.push(error);
-                scopesLive = true;
-              }
-            }
-            if (scopesLive) continue;
-          }
+          if (
+            (owner.quarantined || quarantineIntended(owners, copy)) &&
+            (await scopesMayBeLive())
+          )
+            continue;
         } else if (now - info.mtimeMs <= 24 * 60 * 60 * 1000) continue;
+        else if (quarantineIntended(owners, copy) && (await scopesMayBeLive()))
+          continue;
         verdictTreeOwners(directory);
         if (!info.isDirectory()) {
           unlinkSync(copy);
@@ -657,8 +692,12 @@ export async function sweepOrphanedVerdictTrees(
     }
     if (owners && verdictTreeOwners(directory)) {
       for (const record of readdirSync(owners)) {
-        const temporary = /^\.verdict-.+\.json\.(\d+)\.tmp$/u.exec(record);
-        if (temporary && !processExists(Number(temporary[1])))
+        const temporary = /^\.(verdict-.+)\.json\.(\d+)\.tmp$/u.exec(record);
+        if (
+          temporary?.[1] &&
+          !processExists(Number(temporary[2])) &&
+          !lstatSync(join(directory, temporary[1]), { throwIfNoEntry: false })
+        )
           rmSync(join(owners, record), { force: true });
         if (!record.startsWith('verdict-') || !record.endsWith('.json'))
           continue;
