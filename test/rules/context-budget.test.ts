@@ -8,6 +8,10 @@ test('Claude context budget settings wire documented hooks and read-only reader'
   assert.ok(existsSync(path), 'project settings exist');
   const settings = JSON.parse(readFileSync(path, 'utf8'));
   assert.equal(settings.autoCompactWindow, 200000);
+  // KRN uses no claude.ai connector and no rss_news tool; both stay off for
+  // every checkout of this project, worktrees included.
+  assert.equal(settings.disableClaudeAiConnectors, true);
+  assert.deepEqual(settings.deniedMcpServers, [{ serverName: 'rss_news' }]);
   assert.equal(settings.env.BASH_MAX_OUTPUT_LENGTH, '12000');
   assert.equal(settings.env.MAX_MCP_OUTPUT_TOKENS, '8000');
   for (const [event, file] of Object.entries({

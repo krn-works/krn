@@ -60,6 +60,26 @@ export function contextTotal(transcript: string): number | undefined {
   return gaugeReading(transcript).total;
 }
 
+// The budget is the auto-compact window the project configures, so the gauge
+// and compaction share one number; advisories fire at 60% and 80% of it.
+// A first lead turn measured 46-48k on 2026-11-01, well below the first one.
+function budget(project: string): number {
+  const path = join(project, '.claude/settings.json');
+  if (!existsSync(path)) return 200000;
+  const window = object(
+    JSON.parse(readFileSync(path, 'utf8')),
+  ).autoCompactWindow;
+  if (window === undefined) return 200000;
+  if (
+    typeof window !== 'number' ||
+    !Number.isSafeInteger(window) ||
+    window < 100000 ||
+    window > 1000000
+  )
+    throw new Error('Invalid autoCompactWindow');
+  return window;
+}
+
 function tail(path: string): string {
   const fd = openSync(path, 'r');
   try {
@@ -82,6 +102,9 @@ if (import.meta.main) {
     const input = hookInput(['UserPromptSubmit', 'PostToolUse']);
     const { total, boundary } = gaugeReading(tail(input.transcriptPath));
     if (total === undefined) throw new Error('No usage');
+    const window = budget(input.project);
+    const first = Math.floor((window * 3) / 5);
+    const second = Math.floor((window * 4) / 5);
     const directory = join(input.project, '.krn/runs/claude/context-gauge');
     const path = join(directory, `${input.sessionId}.json`);
     let highest = 0;
@@ -90,9 +113,9 @@ if (import.meta.main) {
     if (existsSync(path)) {
       const state = object(JSON.parse(readFileSync(path, 'utf8')));
       if (
-        state.highest !== 0 &&
-        state.highest !== 120000 &&
-        state.highest !== 160000
+        typeof state.highest !== 'number' ||
+        !Number.isSafeInteger(state.highest) ||
+        state.highest < 0
       )
         throw new Error('Invalid gauge state');
       highest = state.highest;
@@ -106,7 +129,7 @@ if (import.meta.main) {
       total < previous - 20000
     )
       highest = 0;
-    const level = total >= 160000 ? 160000 : total >= 120000 ? 120000 : 0;
+    const level = total >= second ? second : total >= first ? first : 0;
     mkdirSync(directory, { recursive: true });
     writeFileSync(
       path,
@@ -114,18 +137,18 @@ if (import.meta.main) {
       { mode: 0o600 },
     );
     if (level > highest) {
-      const prefix = `Context at ${Math.floor(total / 1000)}k of 200k.`;
-      const first = 'Finish the current step, then run krn-handoff.';
-      const second =
+      const prefix = `Context at ${Math.floor(total / 1000)}k of ${Math.floor(window / 1000)}k.`;
+      const finish = 'Finish the current step, then run krn-handoff.';
+      const exhausted =
         'Context budget nearly exhausted. Finish the current step now, then run krn-handoff before starting any new work.';
       // Jumping past both thresholds still delivers the first advisory.
       emitContext(
         input.event,
-        level === 120000
-          ? `${prefix} ${first}`
-          : highest < 120000
-            ? `${prefix} ${first} ${second}`
-            : `${prefix} ${second}`,
+        level === first
+          ? `${prefix} ${finish}`
+          : highest < first
+            ? `${prefix} ${finish} ${exhausted}`
+            : `${prefix} ${exhausted}`,
       );
     }
   } catch {

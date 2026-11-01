@@ -1,5 +1,7 @@
 {
   "autoCompactWindow": 200000,
+  "disableClaudeAiConnectors": true,
+  "deniedMcpServers": [{ "serverName": "rss_news" }],
   "env": {
     "BASH_MAX_OUTPUT_LENGTH": "12000",
     "MAX_MCP_OUTPUT_TOKENS": "8000"
