@@ -1,0 +1,12 @@
+{
+  "id": "t-c02h9cf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Run every CI test file in preflight",
+  "after": [],
+  "body": [
+    "Outcome: npm run preflight runs every test file CI runs, including test/rules/*.mjs; an observer that compares the preflight and CI test sets is red at base. Three PASS reviews were voided by CI-only rule tests (#138, #148, #159).\nEvidence: .krn/runs/program-audit/synthesis.md (operator grant ./grant.md, 2026-11-01)."
+  ]
+}

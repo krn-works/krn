@@ -1,0 +1,12 @@
+{
+  "id": "t-1akw783",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Move host-lock, state and ship from GLOBAL into Product",
+  "after": [],
+  "body": [
+    "Outcome: krn deliver no longer calls GLOBAL ship/host-lock (src/deliver/delivery.ts:469,655,680); the three commands live in Product in three PRs (host-lock, state, ship), each red-first, with the ADR 0013 trigger recorded under the operator grant; GLOBAL keeps skill text only for these paths (lens-architecture-memory.md consolidation map).\nEvidence: .krn/runs/program-audit/synthesis.md (operator grant ./grant.md, 2026-11-01)."
+  ]
+}

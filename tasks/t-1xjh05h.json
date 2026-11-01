@@ -1,0 +1,12 @@
+{
+  "id": "t-1xjh05h",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Give the review budget one owner and verify prior findings on every later attempt",
+  "after": [],
+  "body": [
+    "Outcome: D10 amendment names who may grant attempts beyond two and src/review/prior.ts verifies prior BLOCKING findings on attempts 3+ instead of running a fresh round one (prior.ts:120); settings autoMode, workflow and lead-rules agree.\nEvidence: .krn/runs/program-audit/synthesis.md (operator grant ./grant.md, 2026-11-01)."
+  ]
+}

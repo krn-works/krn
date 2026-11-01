@@ -1,0 +1,12 @@
+{
+  "id": "t-5prenqb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Define the change-contract grammar once for preflight, review and deliver",
+  "after": [],
+  "body": [
+    "Outcome: one module owns Change-contract parsing (none (...), red->green, green->green, multi-entry) and src/flow/repository.ts, src/deliver/message.ts, krn-lead SKILL.md and repository-workflow.md use it; tracker-only and green->green PRs deliver through krn deliver. Absorbs t-160zvad; unblocks t-mr1a70f.\nEvidence: .krn/runs/program-audit/synthesis.md (operator grant ./grant.md, 2026-11-01)."
+  ]
+}
