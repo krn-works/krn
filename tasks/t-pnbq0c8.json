@@ -1,0 +1,12 @@
+{
+  "id": "t-pnbq0c8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Refuse mixed Ticket trailers on a branch at preflight",
+  "after": [],
+  "body": [
+    "Outcome: a branch whose commits carry more than one distinct Ticket trailer is refused at preflight (scripts/head-trailers.mjs or a new check), not first at `krn deliver`.\nEvidence: #150 (t-a8v7yp9) carried d96dbe2 with `Ticket: t-gnydgbs`; after a PASS third panel `krn deliver --dry-run` exited 73 \"PR commits require exactly one matching Ticket trailer\" (src/deliver/message.ts:22). The reviewed head could not be rewritten, so the lead shipped by hand (statuses, gate, ready, ship) — .krn/runs/delivery-loop/session-continuity/pr150-decision.md Outcome.\nProof: an observer that fails at the base by assertion: preflight on a fixture branch with two distinct Ticket trailers exits non-zero naming both commits; a single-ticket branch passes."
+  ]
+}
