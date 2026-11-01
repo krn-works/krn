@@ -2,7 +2,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 // biome-ignore format: These filesystem primitives form the sandbox's owned I/O surface.
-import { accessSync, closeSync, constants, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync, writeSync } from 'node:fs';
+import { accessSync, closeSync, constants, existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, renameSync, rmdirSync, rmSync, statSync, unlinkSync, writeFileSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
@@ -521,8 +521,26 @@ export function quarantineVerdictTree(copy: string): void {
   }
   const record = verdictTreeOwnerPath(copy);
   const owner = readVerdictTreeOwner(record);
-  unlinkSync(record);
-  writeVerdictTreeOwner(record, { ...owner, quarantined: true });
+  // Replace atomically: an interrupted write must never leave the tree without its record.
+  const temporary = verdictTreeOwnerTemporary(record);
+  rmSync(temporary, { force: true });
+  writeVerdictTreeOwner(temporary, { ...owner, quarantined: true });
+  renameSync(temporary, record);
+}
+
+function verdictTreeOwnerTemporary(record: string): string {
+  return join(dirname(record), `.${basename(record)}.${process.pid}.tmp`);
+}
+
+function processExists(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'ESRCH')
+      return false;
+    return true;
+  }
 }
 
 function processStart(pid: number): string {
@@ -639,6 +657,9 @@ export async function sweepOrphanedVerdictTrees(
     }
     if (owners && verdictTreeOwners(directory)) {
       for (const record of readdirSync(owners)) {
+        const temporary = /^\.verdict-.+\.json\.(\d+)\.tmp$/u.exec(record);
+        if (temporary && !processExists(Number(temporary[1])))
+          rmSync(join(owners, record), { force: true });
         if (!record.startsWith('verdict-') || !record.endsWith('.json'))
           continue;
         const copy = join(directory, record.slice(0, -'.json'.length));
