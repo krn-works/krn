@@ -1,7 +1,11 @@
 {
   "id": "t-1hjad4z",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "preflight runs review's contractDeclarations over branch commits"
+  },
   "created": "2026-11-01",
   "priority": 1,
   "title": "Make preflight refuse review-invalid Change-contract trailers",
