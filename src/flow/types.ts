@@ -55,9 +55,9 @@ export const reviewInputSchema = z
       .optional(),
     prepassChecklist: z
       .string()
-      .trim()
       .min(1)
       .max(32768)
+      .refine((value) => value.trim().length > 0)
       .refine((value) => Buffer.byteLength(value) <= 32 * 1024)
       .refine((value) => !value.includes('\0'))
       .optional(),
@@ -523,6 +523,7 @@ const reviewRecordBaseSchema = z.object({
   redFirstCauses: z.array(redFirstCauseSchema).optional(),
   judges: z.array(judgeSchema),
   prepass: prepassRecordSchema.optional(),
+  checklist: z.object({ sha256: sha256Schema }).optional(),
   prior: priorReviewSchema.optional(),
 });
 function reviewRecordInvariants(

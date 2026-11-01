@@ -20,7 +20,7 @@ The tracker records task status, not PR acceptance. Apply [ADR 0014 D10–D11 an
 
 Run `npm run preflight` before review: it reuses types, lint, rules, task check, documentation and core-import observers. Manually review test impact and run the changed behavior's observers and real receiver proof. This is separate from the networked exact-head `scripts/pr-preflight.mjs` used by ship.
 
-Create a draft PR first, then run `krn review --repo <repo> --pr <number> --base <exact-base-sha> --head <exact-head-sha> --lens <lens>`. The direct API and CLI verify authoritative PR metadata before cost. The budget is two attempts per canonical base repository + PR number + target base ref, shared across worktrees through Git's common-directory anchor and `.krn/runs/review-series/`. Head, session, URL spelling and moving main do not reset it; inconsistent established base refs fail closed. Each immutable ordinal is reserved before red-first, prepass or judges; input errors consume zero, crashes after reservation consume one. Corrupt, gapped or missing established state refuses review/admission without stale-lock recovery. Earlier incomplete consumption can precede a later complete attempt on the same or a different head; current exact-head evidence must be complete. Unbound legacy v1/v2 evidence still parses but cannot admit a PR; never infer a count from `round`.
+Create a draft PR first, then run `krn review --repo <repo> --pr <number> --base <exact-base-sha> --head <exact-head-sha> --lens <lens> --prepass --checklist docs/program/hardening-checklist.md`. The direct API and CLI verify authoritative PR metadata before cost. The budget is two attempts per canonical base repository + PR number + target base ref, shared across worktrees through Git's common-directory anchor and `.krn/runs/review-series/`. Head, session, URL spelling and moving main do not reset it; inconsistent established base refs fail closed. Each immutable ordinal is reserved before red-first, prepass or judges; input errors consume zero, crashes after reservation consume one. Corrupt, gapped or missing established state refuses review/admission without stale-lock recovery. Earlier incomplete consumption can precede a later complete attempt on the same or a different head; current exact-head evidence must be complete. Unbound legacy v1/v2 evidence still parses but cannot admit a PR; never infer a count from `round`.
 
 PR admission requires the reviewed base to be an ancestor of the requested base and exact head, allowing the target base to move without another review attempt.
 
@@ -31,6 +31,8 @@ After two attempts the lead decides. Each additional ordinal requires `--budget-
 When an outcome uses a delivery-loop capsule, its state belongs at `.krn/runs/delivery-loop/<outcome-id>/state.md`. The delivery-loop owner is its sole writer; use `krn state check` to validate it and `krn state resume` to resume it. Durable repository decisions belong in `CONTEXT.md` and `docs/adr/`. Native Goals, transcripts, and personal memory are not durable repository truth.
 
 ## Roles and delivery
+
+Briefs and reviews use the single [hardening checklist](hardening-checklist.md); `krn brief check` verifies brief coverage and `krn deliver` requires a review digest matching the head checklist.
 
 The lead follows the project skills in `.agents/skills` (also exposed to Claude Code through `.claude/skills`): `krn-lead` for the slice loop, `krn-retro` when a slice ends, and `krn-handoff` to start the next slice in a fresh session.
 

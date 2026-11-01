@@ -4,6 +4,8 @@ export interface CommandResult {
   code: number;
   stdout: string;
   stderr: string;
+  /** Raw stdout for byte-exact Git blob comparisons. */
+  stdoutBytes?: Buffer;
 }
 export type Runner = (
   command: string,
@@ -15,14 +17,14 @@ export const run: Runner = (command, args, cwd, input) => {
   const result = spawnSync(command, args, {
     cwd,
     input,
-    encoding: 'utf8',
     timeout: 3_600_000,
     maxBuffer: 16 * 1024 * 1024,
   });
   return {
     code: result.status ?? 70,
-    stdout: result.stdout ?? '',
-    stderr: result.stderr || result.error?.message || '',
+    stdout: result.stdout?.toString('utf8') ?? '',
+    stderr: result.stderr?.toString('utf8') || result.error?.message || '',
+    stdoutBytes: result.stdout ?? Buffer.alloc(0),
   };
 };
 export const exitCodes = {
