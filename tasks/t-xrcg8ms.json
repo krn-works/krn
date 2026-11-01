@@ -1,7 +1,11 @@
 {
   "id": "t-xrcg8ms",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Handoff opens with a validated restart block; SessionStart injects it first with the verify command (PR feat/handoff-block)"
+  },
   "created": "2026-11-01",
   "priority": 1,
   "title": "Inject one consolidated handoff block and verify first at session start",
