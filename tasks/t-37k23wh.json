@@ -1,7 +1,11 @@
 {
   "id": "t-37k23wh",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Gauge budget follows autoCompactWindow (60%/80%); measured lead first-turn baseline 47.1k pinned below the first advisory; project settings disable claude.ai connectors and deny rss_news (claude -p 30,399 -> 28,394)."
+  },
   "created": "2026-10-30",
   "priority": 1,
   "title": "Make context-gauge advisories reflect real pressure over the tool-definition baseline",

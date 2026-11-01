@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -181,6 +182,66 @@ test('gauge reads only the final 256 KiB and skips the partial first line', () =
     });
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /121k of 200k/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('gauge budget follows the project auto-compact window and ignores the measured baseline', () => {
+  assert.ok(existsSync(script), 'gauge script exists');
+  const root = mkdtempSync(join(tmpdir(), 'context-gauge-'));
+  const transcript = join(root, 'transcript.jsonl');
+  const settings = join(root, '.claude/settings.json');
+  // Derived from the verbatim below capture by changing the usage counters
+  // only. 47,144 is the first-turn context of a lead session measured on
+  // 2026-11-01 (interactive lead sessions started at 46.0k-47.7k).
+  const reading = (total: number) => {
+    const entry = JSON.parse(fixture('below').split('\n')[0] ?? '');
+    entry.message.usage = {
+      ...entry.message.usage,
+      input_tokens: 2,
+      cache_read_input_tokens: 0,
+      cache_creation_input_tokens: total - 2,
+    };
+    return `${JSON.stringify(entry)}\n`;
+  };
+  const run = (text: string, session = 'session') => {
+    writeFileSync(transcript, text);
+    const result = spawnSync(process.execPath, [script], {
+      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+      encoding: 'utf8',
+      input: JSON.stringify({
+        session_id: session,
+        transcript_path: transcript,
+        hook_event_name: 'PostToolUse',
+      }),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, '');
+    return result.stdout;
+  };
+  try {
+    assert.equal(run(reading(47144), 'default'), '');
+    mkdirSync(join(root, '.claude'));
+    writeFileSync(settings, JSON.stringify({ autoCompactWindow: 200000 }));
+    assert.equal(run(reading(47144), 'configured'), '');
+    assert.match(run(fixture('warn'), 'configured'), /121k of 200k/u);
+    writeFileSync(settings, JSON.stringify({ autoCompactWindow: 300000 }));
+    assert.equal(run(reading(47144), 'wide'), '');
+    assert.equal(run(fixture('warn'), 'wide'), '');
+    assert.equal(run(fixture('second'), 'wide'), '');
+    assert.match(
+      run(reading(181000), 'wide'),
+      /^\{.*Context at 181k of 300k\. Finish the current step, then run krn-handoff\."/u,
+    );
+    assert.equal(run(reading(181000), 'wide'), '');
+    assert.match(
+      run(reading(241000), 'wide'),
+      /241k of 300k.*nearly exhausted/u,
+    );
+    // An invalid window fails open without a misleading advisory.
+    writeFileSync(settings, JSON.stringify({ autoCompactWindow: '200000' }));
+    assert.equal(run(fixture('second'), 'invalid'), '');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

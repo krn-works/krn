@@ -1,0 +1,12 @@
+{
+  "id": "t-tdkpgag",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Compare successor launch with the official herdr skill",
+  "after": [],
+  "body": [
+    "Outcome: the krn-handoff successor launch (scripts/claude/successor-launch.ts, memory herdr-handoff-tabs) is compared with the official herdr skill published by the herdr project, and KRN adopts its documented commands wherever they cover the same job.\nOperator, verbatim (2026-11-01): \"czy sprawdzlaes oficjalny herdr skill z ich serwisu? sprawdz to potem\"\nProof: a recon verdict file naming the official skill source URL and version, a command-by-command comparison with successor-launch.ts, and either a PR that adopts the official commands or a recorded reason per difference."
+  ]
+}
