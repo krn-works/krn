@@ -173,7 +173,7 @@ test('handoff check refuses requests without a durable record', () => {
         /:8: indented lines are not allowed/u,
       ],
       [
-        '## Operator requests\n- t-abc1234\n  ## Grants\n- unrecorded request\n',
+        '## Operator requests\n- t-abc1234\n  ### Grants\n- unrecorded request\n',
         /:7: indented lines are not allowed/u,
       ],
       [

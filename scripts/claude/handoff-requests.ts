@@ -72,8 +72,9 @@ try {
 // CommonMark subset: ATX headings take up to three leading spaces and optional closing hashes;
 // a backtick fence's info string holds no backtick. The section admits only unindented one-line
 // bullets and blank lines, so indented lines, code, nested lists and subheadings inside it fail
-// closed instead of hiding a request. Any other mention of "operator requests" (code, setext,
-// quote, list or HTML) could fake or hide a section, so it fails as ambiguous.
+// closed instead of hiding a request; a level-one or level-two heading, indented or not, ends it.
+// A second section or any other mention of "operator requests" (code, setext, quote, list or
+// HTML) could fake or hide a section, so it fails as ambiguous.
 const headingPattern = /^ {0,3}(#{1,6})(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/u;
 const fencePattern = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/u;
 const isSection = (heading: RegExpExecArray | null) =>
@@ -112,8 +113,13 @@ for (const [index, line] of text
       fence = undefined;
     continue;
   }
+  const heading = headingPattern.exec(line);
+  const endsSection =
+    heading !== null &&
+    (heading[1] ?? '').length <= 2 &&
+    /[^#\s]/u.test(heading[2] ?? '');
   const misplaced =
-    !section || !line.trim()
+    !section || !line.trim() || endsSection
       ? undefined
       : /^\s/u.test(line)
         ? 'indented lines are'
@@ -135,10 +141,13 @@ for (const [index, line] of text
     fence = open;
     continue;
   }
-  const heading = headingPattern.exec(line);
   if (heading) {
     endSection();
     if (isSection(heading)) {
+      if (sections > 0)
+        failures.push(
+          `FAIL ${handoff}:${index + 1}: a second "## Operator requests" section is not allowed; keep every request in one section`,
+        );
       sections++;
       section = { line: index + 1, items: items.length };
     }
