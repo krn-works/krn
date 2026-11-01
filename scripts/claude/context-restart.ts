@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { emitContext, hookInput, object } from './context-io.ts';
+import { operatorRequestsSection, restartBlock } from './handoff-block.ts';
 
 const rules = [
   'delegate reading to a subagent (krn-reader) that returns a verdict and path',
@@ -103,7 +104,30 @@ try {
     }
   }
   visit(join(main, '.krn/runs'));
-  lines.splice(1, 0, `Newest handoff: ${newest?.path ?? 'none'}`);
+  let restartPrefix: string[] = [];
+  let restartProblem: string | undefined;
+  if (newest) {
+    try {
+      const handoffText = readFileSync(newest.path, 'utf8');
+      const restart = restartBlock(handoffText, input.project);
+      if (restart.problems.length === 0) {
+        const verify = restart.lines[1] ?? '';
+        const command = /^- Verify first: `([^`]+)`$/u.exec(verify)?.[1] ?? '';
+        restartPrefix = [
+          `Handoff: ${newest.path}; run \`${command}\` before any other step.`,
+          ...restart.lines.slice(1),
+          ...(operatorRequestsSection(handoffText) ?? []),
+        ];
+      } else restartProblem = restart.problems[0];
+    } catch {
+      restartProblem = 'handoff is unreadable';
+    }
+  }
+  const newestLine = `Newest handoff: ${newest?.path ?? 'none'}${
+    restartProblem ? ` (no restart block: ${restartProblem})` : ''
+  }`;
+  lines.splice(1, 0, newestLine);
+  lines.unshift(...restartPrefix);
   // Budget includes JSON escaping and the envelope, not just the context string.
   let text = lines.join('\n');
   const length = (value: string) =>

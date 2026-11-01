@@ -9,10 +9,11 @@ A fresh session with a short, precise handoff outperforms a long session that ca
 
 1. **Capsule.** Update `.krn/runs/delivery-loop/<outcome>/state.md` and run `krn state check --root .` until it reports clean.
 2. **Handoff.** Write `handoff.md` beside the capsule: at most one page, pointers only, never content already held by an ADR, task, commit, PR or record. Redact secrets. Include:
+   - `## Restart block` as the first level-two heading, with exactly four unindented single-line bullets in this order: `- Verify first: \`<command>\``, `- Task: <task-id>` (and `tasks/<task-id>.json` exists), `- SHAs: main=<40-hex>[, <ref>=<40-hex>]...`, and `- Done when: \`<command>\``. Keep the section at most 2000 characters; the next level-one or level-two heading ends it. The successor runs Verify first before any other step;
    - the priority list, with the next slice and why it comes next;
    - in-flight PRs and runs with SHAs;
    - open operator decisions;
-   - `## Operator requests`: one unindented single-line bullet per operator request this session received or carried. An open request carries its task id or `memory:<slug>` (an auto-memory file); a request settled in this session starts with `closed: <reason>`; a lone `- none` when there is no request at all. The handoff holds exactly one such section, which ends at the next level-one or level-two heading. The section holds nothing else: no indented lines, code, nested lists or subheadings, and the phrase "operator requests" appears nowhere else in the handoff. A request recorded only in a handoff or transcript is lost to the next session, so create the task or memory entry first;
+   - `## Operator requests`: one unindented single-line bullet per operator request this session received or carried. An open request quotes the operator's exact words in double quotes (`"..."` or `„...”`) and carries its task id or `memory:<slug>` (an auto-memory file); a request settled in this session starts with `closed: <reason>`; a lone `- none` when there is no request at all. The handoff holds exactly one such section, which ends at the next level-one or level-two heading. The section holds nothing else: no indented lines, code, nested lists or subheadings, and the phrase "operator requests" appears nowhere else in the handoff. A request recorded only in a handoff or transcript is lost to the next session, so create the task or memory entry first;
    - grants in force (pointers);
    - the retro's top three;
    - suggested skills for the next session (`krn-lead` plus task-specific ones).

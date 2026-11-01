@@ -9,6 +9,13 @@ import { fileURLToPath } from 'node:url';
 const script = fileURLToPath(
   new URL('../../scripts/claude/handoff-requests.ts', import.meta.url),
 );
+const restartBlock = [
+  '## Restart block',
+  '- Verify first: `npm run check`',
+  '- Task: t-abc1234',
+  `- SHAs: main=${'a'.repeat(40)}`,
+  '- Done when: `npm test -- test/claude/handoff-requests-sections.test.ts`',
+].join('\n');
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'handoff-sections-'));
@@ -18,7 +25,7 @@ function fixture() {
   writeFileSync(join(root, 'memory/herdr-tabs.md'), 'fixture');
   const check = (body: string) => {
     const handoff = join(root, 'handoff.md');
-    writeFileSync(handoff, `# Handoff\n\n${body}`);
+    writeFileSync(handoff, `# Handoff\n\n${restartBlock}\n\n${body}`);
     return spawnSync(
       process.execPath,
       [script, handoff, '--root', root, '--memory', join(root, 'memory')],
@@ -35,7 +42,7 @@ test('an indented level-one or level-two heading ends the operator requests sect
       const result = check(
         [
           '## Operator requests',
-          '- Successor tabs in herdr: t-abc1234',
+          '- "Successor tabs in herdr": t-abc1234',
           heading,
           '- free text after the section',
           '',

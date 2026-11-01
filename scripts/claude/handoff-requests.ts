@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { restartBlock } from './handoff-block.ts';
 
 // A handoff must record every open operator request durably: a task, a memory entry, or an explicit close.
 const usage =
@@ -81,6 +82,10 @@ const isSection = (heading: RegExpExecArray | null) =>
   heading?.[1] === '##' && /^operator requests$/iu.test(heading[2] ?? '');
 const items: { line: number; text: string }[] = [];
 const failures: string[] = [];
+const restart = restartBlock(text, root);
+failures.push(
+  ...restart.problems.map((problem) => `FAIL ${handoff}: ${problem}`),
+);
 let sections = 0;
 let section: { line: number; items: number } | undefined;
 let fence: string | undefined;
