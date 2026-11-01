@@ -23,6 +23,7 @@ import {
 import { deterministicCauses, newReviewRecordSchema } from '../flow/types.ts';
 import {
   gateAdmissionPolicyFromBase,
+  KRN_CHECK_APP_ID,
   matchesGateCheckRun,
 } from './admission-policy.ts';
 import { checkMergeContracts, mergeMessage } from './message.ts';
@@ -550,8 +551,21 @@ export async function deliver(
             ),
           ),
         );
-        const gate = pages
-          .flatMap((page) => page.check_runs)
+        const checks = pages.flatMap((page) => page.check_runs);
+        if (
+          gatePolicy.source === 'legacy-actions' &&
+          checks.some((check) =>
+            matchesGateCheckRun(check, head, {
+              source: 'pinned-app',
+              checkRunName: 'krn/gate',
+              appId: KRN_CHECK_APP_ID,
+            }),
+          )
+        )
+          throw new Error(
+            'base selects legacy GitHub Actions but native CI is present; update branch from main or reconcile base CI policy',
+          );
+        const gate = checks
           .filter((check) => matchesGateCheckRun(check, head, gatePolicy))
           .sort((a, b) => b.id - a.id)[0];
         if (gate?.status !== 'completed') return false;

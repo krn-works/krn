@@ -1,10 +1,11 @@
 # Jenkins controller and protected job
 
-This remains an **unenrolled, disabled seed**, not deployment acceptance.
-Candidate Jenkins **2.580.2** and Temurin **21.0.13+9** are inherited research
-inputs. `plugins.txt` contains unverified direct pins; `required-plugins.md` is
-an unversioned inventory, not installation input. Freeze the complete compatible
-plugin lock, WAR/JDK/plugin digests and receiver evidence before installation.
+The supplied enrollment examples remain **unenrolled, disabled seeds**.
+Historical pilot evidence records Jenkins **2.580.2**, Temurin **21.0.13+9**
+and the complete 78-plugin closure now preserved in `plugins.txt` and
+`plugins.lock.json` (artifact digests and source provenance). This is not a fresh
+host inventory or acceptance of subsequent changes. Qualify
+[`diagnostics and queue changes`](diagnostics-and-queue.md) on the real receiver.
 No installer, credentials, cloud provisioner or automatic job is supplied.
 
 `controller.yaml` preserves zero built-in executors, disabled inbound agent TCP,
@@ -134,12 +135,14 @@ startup; an ephemeral registration prevents that restart reconnect. NOOP
 launches once when this wrapper registers it after prepare, and does not
 periodically reconnect. No cloud or dynamic VM allocation is involved.
 
-Every job holds `lock(resource: 'ci-runner')` across preparation, execution,
-cleanup and success publication. The wrapper refuses any existing runner
+Every job publishes QUEUED before checkout and the age-prioritized
+`lock(resource: 'ci-runner', priority: ...)`. The lock covers preparation,
+execution, evidence archival, cleanup and success publication. The wrapper
+refuses any existing runner
 registration instead of adopting/replacing it. Full checkout and bundle happen
 only on `control`, under a UUID directory
 `/var/lib/ci-control/workspaces/<attempt>/`. Hash-bound JobSpec is created from
-SCM revision plus enrollment. GLOBAL PRs also pin `base_sha` directly from
+SCM revision plus enrollment. All PRs pin their admission base directly from
 `PullRequestSCMRevision.getBaseHash()`; missing/invalid PR base fails without
 falling back to main. In native HEAD mode this is the revision's tracked base,
 which the plugin documents as the PR base/common ancestor, not a newly fetched
@@ -151,7 +154,8 @@ the enrolled App HTTPS credential, adds `+refs/heads/*:refs/remotes/origin/*`, a
 forces a full clone. Checkout SHA is asserted again. The selected base must
 exist as a commit; `refs/ci/base` explicitly includes it in the complete bundle,
 and bundle list-heads must advertise that exact SHA. Only then is JobSpec
-written and prepare called. Product does not acquire a required base field.
+written and prepare called. Product checks its exact base policy before the
+lock, without adding a required base field to its executor JobSpec.
 Success/failure check summaries record the full base when resolved.
 
 The fixed interfaces are:
@@ -159,14 +163,18 @@ The fixed interfaces are:
 ```text
 ci-platform control prepare --config /etc/ci-platform/control.json --spec ABS/job.json --bundle ABS/source.bundle --state-dir /var/lib/ci-control --execute
 ci-platform control finish --config /etc/ci-platform/control.json --attempt-id UUID --state-dir /var/lib/ci-control --execute
-ci-platform control verify --config /etc/ci-platform/control.json --spec ABS/job.json --receipt ABS/receipt.json
+ci-platform control verify --config /etc/ci-platform/control.json --spec ABS/job.json --receipt ABS/ci-evidence/receipt.json
+ci-platform evidence export --root /var/lib/ci-evidence --attempt-id UUID --output ABS/ci-evidence
+ci-platform admission product-base < ABS/base-policy.json
 ```
 
 Prepare must return `{ok:true,phase:"prepared",attempt_id:UUID,...}` only after
 reset/readback and delivery of `/var/lib/ci-input/{source.bundle,job.json,profile.json}`.
 The runner executes only the fixed `/usr/local/libexec/ci-platform executor`
-argv in `library/vars/ownedCi.groovy`. Its JSON receipt crosses back through
-stash/unstash; verify exit zero must mean the complete exact-attempt gate passed.
+argv in `library/vars/ownedCi.groovy`. Selected bounded diagnostics and its JSON
+receipt cross back through stash/unstash and archive before reset, including
+after failed execution where the channel permits. Verify exit zero must mean
+the complete exact-attempt gate passed; unavailable evidence prevents SUCCESS.
 Finish exit zero must mean a committed second reset, never transport-only success.
 
 Finally blocks stop scheduling, disconnect, wait for channel closure and zero
@@ -186,7 +194,7 @@ remain unverified. There is no false claim of success after an API failure.
 
 ## Qualification still required
 
-No Jenkins/Groovy/JDK runtime was available for this implementation. Static
+Source tests are separate from native runtime qualification. Static
 checks do not certify the eventual plugin lock, CPS serialization, node class
 loading, SSH connect/disconnect, cancellation/restart, source checkout or native
 Check API receiver. Run the protected job on the allocated test VM and exercise

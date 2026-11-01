@@ -198,12 +198,10 @@ class Controller {
                 throw new IllegalStateException('PR discovery must build the head revision')
             }
             sha = revision.pullHash
-            if (entry.tier != 'product') {
-                // Native source revision, not a mutable target ref or a PR parameter.
-                baseSha = revision.baseHash
-                if (!(baseSha ==~ /[0-9a-f]{40}/)) {
-                    throw new IllegalStateException('GLOBAL PR revision requires its pinned base SHA')
-                }
+            // Product admission also reads policy at this exact native base.
+            baseSha = revision.baseHash
+            if (!(baseSha ==~ /[0-9a-f]{40}/)) {
+                throw new IllegalStateException('PR revision requires its pinned base SHA')
             }
         } else {
             if (revision?.head?.name != entry.main_branch) {
@@ -297,7 +295,7 @@ class Controller {
         def recorded = SCMRevisionAction.getRevision(source, run)
         def current = source.fetch(recorded.head, null)
         String sha = current instanceof PullRequestSCMRevision ? current.pullHash : current?.hash
-        boolean baseMoved = identity.entry.tier != 'product' && identity.pull_request &&
+        boolean baseMoved = identity.pull_request &&
             (!(current instanceof PullRequestSCMRevision) || current.baseHash != identity.base_sha)
         if (sha != identity.source_sha || baseMoved) {
             throw new IllegalStateException('Source head/base moved; this attempt cannot publish SUCCESS')

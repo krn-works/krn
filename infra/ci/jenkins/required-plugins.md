@@ -1,9 +1,10 @@
 # Required plugin identities
 
-This is an inventory, **not an installation input or version lock**. Do not
-resolve these names to `latest`. Existing `plugins.txt` pins remain unverified
-direct candidates. Freeze compatible exact versions, transitive dependencies
-and digests before any installation; no such installation is authorized here.
+This table explains direct roles. [`plugins.txt`](plugins.txt) and
+[`plugins.lock.json`](plugins.lock.json) preserve all 78 exact plugins and
+artifact digests from the recorded closure, including 18 direct dependencies.
+They are historical evidence, not a fresh installed inventory or installation
+grant. Do not resolve any entry to `latest`.
 
 | Plugin ID | Role |
 | --- | --- |
@@ -28,4 +29,5 @@ and digests before any installation; no such installation is authorized here.
 
 The trust wrapper also uses Jenkins core and the plugins' Java APIs. Exact
 runtime compatibility and source/job configuration must be qualified against
-the eventual complete lock. No JUnit automatic check publisher is needed.
+the recorded closure on the target controller. No JUnit automatic check
+publisher is needed.

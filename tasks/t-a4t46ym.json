@@ -1,12 +1,17 @@
 {
   "id": "t-a4t46ym",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Repair staged for reviewed delivery: bounded evidence export and archive before reset; separate primary/cleanup failures; QUEUED, aging main priority, exact-base admission and stale-head check before runner use; deliver legacy-base/native-App mismatch refuses on first poll. Native deployment and failure/cancel/timeout proof are required before merge. abortPrevious remains disabled until qualified; broader CI programme remains open."
+  },
   "created": "2026-10-31",
   "priority": 1,
   "title": "Stop failing Jenkins PR builds from holding the single slot for 30 minutes",
   "after": [],
   "body": [
-    "Evidence: 2026-10-31 owned Jenkins `krn/gate` check runs (one slot): green builds took 8 min (5163aa6 12:23-12:31, 7dc765f 15:16-15:24); failing PR builds each held the slot 28-30 min (7310475, 610624b, a2d5a62, 13de2c0). PR #148 waited ~2 h in the queue and `krn deliver` stopped with exit 74 \"ci: bounded wait timed out\".\nAcceptance (owner CI lead): a failing PR build releases the slot within the duration of a green build plus a stated margin, shown by check-run timings; or deliver prints the queue position when its CI wait times out."
+    "Evidence: 2026-10-31 owned Jenkins `krn/gate` check runs (one slot): green builds took 8 min (5163aa6 12:23-12:31, 7dc765f 15:16-15:24); failing PR builds each held the slot 28-30 min (7310475, 610624b, a2d5a62, 13de2c0). PR #148 waited ~2 h in the queue and `krn deliver` stopped with exit 74 \"ci: bounded wait timed out\".\nAcceptance (owner CI lead): a failing PR build releases the slot within the duration of a green build plus a stated margin, shown by check-run timings; or deliver prints the queue position when its CI wait times out.",
+    "Operator follow-up: repair the remaining independently reviewed CI defects on existing VM108/109 and the two enrolled repos. Preserve bounded failure/cancel/timeout evidence before reset; expose queued status with fair main priority; reject obsolete Product bases before runner use; deliver refuses an exact-head native producer/legacy-base mismatch on its first poll. Cancellation of superseded same-branch heads may be enabled only after actual native cancel/finish/reset qualification. No new fees/resources/credentials/ruleset changes; exact-head gate, App identity and full isolation stay required. Research: .krn/runs/ci-lead/ci-architecture-review/opus-validation.md. Work/evidence: .krn/runs/ci-lead/ci-diagnostics/."
   ]
 }

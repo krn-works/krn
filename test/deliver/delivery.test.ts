@@ -54,7 +54,7 @@ if (role === 'gh') {
    process.stdout.write('{}');
  } else if (resource.includes('/check-runs?')) {
    if (config.ciPending) { process.stdout.write('[{"check_runs":[]}]'); process.exit(0); }
-   let checks = raw('checks');
+   let checks = config.checkRuns ? JSON.stringify([{check_runs: config.checkRuns}]) : raw('checks');
    if (resource.includes(config.merge)) checks = checks.replaceAll(config.head, config.merge);
    if (config.ciFailure) checks = checks.replaceAll('"success"','"failure"');
    process.stdout.write(checks);
@@ -513,6 +513,77 @@ test('command failures retain receiver stdout reason and the first gate failure'
     'receiver fixture identifies the first failing test',
   );
 });
+
+for (const [status, conclusion] of [
+  ['queued', null],
+  ['in_progress', null],
+  ['completed', 'failure'],
+  ['completed', 'success'],
+] as const) {
+  test(`delivery refuses a legacy base on the first poll when native CI is ${status}/${conclusion}`, async (t) => {
+    const f = fixture(t);
+    f.change({
+      checkRuns: [
+        {
+          id: 1,
+          name: 'krn/gate',
+          head_sha: f.config.head,
+          status,
+          conclusion,
+          app: { id: 5548482 },
+        },
+      ],
+    });
+    await assert.rejects(
+      f.api.deliver(f.options, f.runtime),
+      (error: unknown) => {
+        assert.ok(error instanceof f.api.DeliveryFailure);
+        assert.equal(error.stage, 'ci');
+        assert.match(error.message, /base selects legacy GitHub Actions/u);
+        assert.match(error.message, /update branch from main/u);
+        return true;
+      },
+    );
+    assert.equal(
+      f
+        .calls()
+        .filter((call) => call.args.some((arg) => arg.includes('/check-runs?')))
+        .length,
+      1,
+    );
+    assert.equal(f.calls().filter((call) => call.role === 'krn').length, 0);
+    assert.ok(existsSync(f.worktree));
+  });
+}
+
+for (const patch of [
+  { name: 'gate' },
+  { head_sha: 'f'.repeat(40) },
+  { app: { id: 1, slug: 'krn-works-ci' } },
+  { app: null },
+]) {
+  test(`delivery does not infer native CI from untrusted ${Object.keys(patch)[0]}`, async (t) => {
+    const f = fixture(t);
+    f.change({
+      checkRuns: [
+        {
+          id: 1,
+          name: 'krn/gate',
+          head_sha: f.config.head,
+          status: 'completed',
+          conclusion: 'success',
+          app: { id: 5548482 },
+          ...patch,
+        },
+      ],
+    });
+    await assert.rejects(
+      f.api.deliver(f.options, f.runtime),
+      /ci: bounded wait timed out/u,
+    );
+    assert.equal(f.calls().filter((call) => call.role === 'krn').length, 0);
+  });
+}
 
 for (const [patch, stage] of [
   [{ moved: true }, 'bind'],
