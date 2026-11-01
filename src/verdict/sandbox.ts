@@ -555,6 +555,25 @@ function quarantineIntended(owners: string | undefined, copy: string): boolean {
   );
 }
 
+// Quarantine every copy, newest first (the copy whose teardown failed is last allocated);
+// one failure must never leave the remaining copies unprotected.
+export function quarantineVerdictTrees(copies: readonly string[]): void {
+  const errors: unknown[] = [];
+  for (const copy of [...copies].reverse()) {
+    try {
+      quarantineVerdictTree(copy);
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (errors.length) {
+    process.stderr.write(
+      `verdict quarantine failed: ${errors.map(String).join('; ').replace(/\s+/gu, ' ')}\n`,
+    );
+    process.exitCode = 1;
+  }
+}
+
 function verdictTreeOwnerTemporary(record: string): string {
   return join(dirname(record), `.${basename(record)}.${process.pid}.tmp`);
 }

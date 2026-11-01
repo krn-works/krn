@@ -9,7 +9,7 @@ import {
   cleanupWorktrees,
   createWorktreeDirectory,
   execute,
-  quarantineVerdictTree,
+  quarantineVerdictTrees,
   TeardownUnconfirmed,
 } from './sandbox.ts';
 import { evaluatorSurfaceChanges } from './surface.ts';
@@ -215,7 +215,7 @@ export async function judge(
     }
     if (teardownUnconfirmed) {
       process.exitCode = 1;
-      for (const copy of copies) quarantineVerdictTree(copy);
+      quarantineVerdictTrees(copies);
     } else await cleanupWorktrees(root, copies);
   }
 }
