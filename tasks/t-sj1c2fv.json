@@ -1,7 +1,11 @@
 {
   "id": "t-sj1c2fv",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "State check on main has no errors: codex-context capsule moved to the GLOBAL repository where its fixed points resolve; 45 claims without a live session released (t-q4dckkf and t-9ser2tw kept pending operator decisions in t-9jyen3n); merged worktrees context-budget and jsonl-receiver removed; untracked task records committed."
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Bring every capsule back to a clean state check",
