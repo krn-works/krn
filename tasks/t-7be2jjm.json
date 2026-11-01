@@ -1,0 +1,12 @@
+{
+  "id": "t-7be2jjm",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Remove review verdict trees on every exit path",
+  "after": [],
+  "body": [
+    "Outcome: krn review removes its .krn/tmp/verdict-* red-first trees on every exit path (success, failure, signal); a test proves no verdict dir survives an interrupted run.\nEvidence: .krn/runs/delivery-loop/session-continuity/predecessor-retire/ (PR #159). On 2026-11-01 /mnt/storage hit 100% (2.4 GB free): .krn/worktrees/context-budget/.krn/tmp held 8+ verdict-* dirs of ~1.9 GB each from 10-29 (16.6 GB), no process referenced them."
+  ]
+}

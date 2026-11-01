@@ -1,0 +1,12 @@
+{
+  "id": "t-pwq9fx0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Define how receiver captures redact host paths",
+  "after": [],
+  "body": [
+    "Outcome: one sanctioned convention for receiver captures that contain host paths (for example a documented placeholder accepted by both KRN-12 review and the host-path guard), so judges do not flag the redaction as non-verbatim.\nEvidence: .krn/runs/delivery-loop/session-continuity/predecessor-retire/ (PR #159). Review record 3 of PR #159: one judge BLOCKING \"Herdr replies no longer captured verbatim\" after the host-path guard forced /work/repo; resolved by lead override."
+  ]
+}

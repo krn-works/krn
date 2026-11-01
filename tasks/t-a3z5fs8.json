@@ -1,0 +1,12 @@
+{
+  "id": "t-a3z5fs8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Give red-first base runs the new fixtures their observer reads",
+  "after": [],
+  "body": [
+    "Outcome: the red-first base run gives the observer the new fixture files it reads (or briefs require observers to embed new captures), so a new fixture never makes red-first INCOMPLETE on ENOENT.\nEvidence: .krn/runs/delivery-loop/session-continuity/predecessor-retire/ (PR #159). Review record 1 of PR #159: redFirstCauses INCOMPLETE \"base: other\" from ENOENT on test/fixtures/herdr/agent-get-idle-claude.reply.jsonl."
+  ]
+}

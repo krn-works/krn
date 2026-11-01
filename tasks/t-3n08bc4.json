@@ -1,0 +1,13 @@
+{
+  "id": "t-3n08bc4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-30",
+  "priority": 2,
+  "title": "Normalize merge-level delivery contracts",
+  "after": [],
+  "body": [
+    "`src/deliver/message.ts::mergeMessage` deduplicates complete Change-contract lines. Actual PR146 has Ticket-only e07, metadata:green->green e3 and metadata:red->green 13de for the same observer; delivery dry-run exit73 rejects the green line before reaching ship. Both source heads and independent review records must remain unchanged. Evidence: `.krn/runs/delivery-loop/contract-receiver/reader/deliver-message.md`, its real GET PR146/commits capture, and `deliver-dry-run.json`.",
+    "Normalize declarations according to their verified merge-level path/kind semantics. A regression using the verbatim captured PR commit payload must fail on the current base and pass after the fix. For this independently proven before/after case, generate exactly one `test/flow/repository-metadata.test.ts:red->green`; preserve other paths, none conflicts and malformed-input rejection. Never promote a green-only observer to red without PR-base/merged-tree proof. Verify the generated message against the actual ship receiver or its verbatim capture, then ordinary independent review and required gates. No history rewrite, CI bypass, new protocol/platform or unrelated source changes. Existing manual ship with a valid merge-level message is the bounded workaround."
+  ]
+}

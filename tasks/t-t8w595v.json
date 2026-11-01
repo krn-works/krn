@@ -1,0 +1,13 @@
+{
+  "id": "t-t8w595v",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-30",
+  "priority": 2,
+  "title": "Compare delegation under equal total execution budgets",
+  "after": [],
+  "body": [
+    "Operator selected measurements of existing KRN mechanisms, not adoption based on research alone. Source: .krn/runs/rss-research/reports/Mechaniki zwiększające skuteczność KRN.md. All proposed effects remain unmeasured in KRN. No external service, production, credential or global policy mutation is granted by this task. Pre-register the bounded pilot and independent oracle before running it.",
+    "Outcome: measure one executor versus a lead plus two workers separately on separable and sequential KRN tasks.\nPre-register matched task sets, fixed total token/cost ceilings, model choices and independent receiver acceptance. Include lead reasoning, tool use, synchronization, rework and synthesis in both cost and latency; hold model mix constant or report it as a separate factor. Record quality/failure rates and completion time without treating self-assessment as acceptance. Check existing ADR0014 D20/D23, FR40 validity work and delivery metrics first; reuse applicable fixtures and do not launch a conflicting benchmark/build framework. This is evidence for later policy decisions, not an immediate global delegation change."
+  ]
+}

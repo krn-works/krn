@@ -1,0 +1,12 @@
+{
+  "id": "t-9z0mjgx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Rebind deliver state after a PR head change",
+  "after": [],
+  "body": [
+    "Outcome: krn deliver rebinds or names the stale saved state when the PR head changed after an earlier stopped run, instead of refusing with \"record/PR head mismatch\".\nEvidence: .krn/runs/delivery-loop/session-continuity/predecessor-retire/ (PR #159). deliver-2.out exit 71 after a new head 1219d03; the saved .krn/runs/deliver/<key>/state.json still held 7208c89 and had to be deleted by hand."
+  ]
+}

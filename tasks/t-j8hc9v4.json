@@ -1,0 +1,12 @@
+{
+  "id": "t-j8hc9v4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Count memory harms against primary evidence",
+  "after": [],
+  "body": [
+    "Outcome: memory evaluation counts harms next to hits: cases where an agent with memory erred although the original ADR, review or transcript held the answer; each memory entry keeps a path to its primary evidence (ADR 0002).\nSource: operator RSS intake .krn/runs/delivery-loop/session-continuity/rss-intake/2026-11-01.md item 2 (Memory Tax); related t-e2k99h7."
+  ]
+}

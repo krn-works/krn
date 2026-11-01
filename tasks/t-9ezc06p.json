@@ -1,0 +1,15 @@
+{
+  "id": "t-9ezc06p",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-30",
+  "priority": 1,
+  "title": "Verify skill selection on representative operator prompts",
+  "after": [],
+  "body": [
+    "Operator proposed testing skill collisions on representative prompts because the active catalogue contains duplicates and overlapping descriptions. Source article labels: \"Audyt kolizji skilli\" / \"Mechanizm i przykłady\"; URLs were not supplied. Preserve this as the operator's proposal, not a verified quotation or a grant to install a package.",
+    "Outcome: prove that the real Codex setup selects the intended skill for representative operator requests, and repair demonstrated collisions at their actual owner.",
+    "Acceptance:\n1. Inventory active global/project/plugin skill candidates with owner, source and actual discovery state. Distinguish duplicates in a catalogue from duplicate runtime exposure. Never inspect or touch quarantined superpowers.\n2. Build a small reproducible prompt corpus covering ambiguous and overlapping routes, explicit skill requests and unrelated requests. Record expected skill/owner and cases that must invoke no skill; include Polish prompts used by the operator.\n3. Run controlled real selection trials on a pinned runtime/model without external mutations. Observe the actual chosen SKILL.md/tool path, not the agent's self-report. A declared skill is not observed invocation.\n4. Report wrong selection, missed selection and unwanted workflow injection, with examples and exact configuration. Demonstrated cases become focused source-owned fixes and are rerun after the fix. Do not import every upstream skill or disable a useful skill just to remove a collision.\n5. Keep KRN policy local to adopting repositories. Use the capability owner's reconciliation path and independent review; no ad-hoc edits to vendor caches or global trust. Record remaining unknowns and measured selection limits.",
+    "Existing context: .krn/runs/claude/pocock-skills/study.md; .krn/runs/delivery-loop/codex-context/recon.md. Current hook implementation t-b6v615x stays the priority and must not be delayed by this separate task. No installation, model/configuration changes, new hook trust or connector access is implied by creating this task."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-8ms03yc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Split delivery journey time into model, tools, CI, review and operator wait",
+  "after": [],
+  "body": [
+    "Outcome: the delivery journey report splits wall time into model, tools, CI, review and operator wait, using Codex 0.166 critical-path and approval-wait timings where available.\nSource: operator RSS intake .krn/runs/delivery-loop/session-continuity/rss-intake/2026-11-01.md item 5."
+  ]
+}

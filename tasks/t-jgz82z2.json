@@ -1,0 +1,13 @@
+{
+  "id": "t-jgz82z2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-30",
+  "priority": 1,
+  "title": "Measure whether PASS signals bias exact-head reviewers",
+  "after": [],
+  "body": [
+    "Operator selected measurements of existing KRN mechanisms, not adoption based on research alone. Source: .krn/runs/rss-research/reports/Mechaniki zwiększające skuteczność KRN.md. All proposed effects remain unmeasured in KRN. No external service, production, credential or global policy mutation is granted by this task. Pre-register the bounded pilot and independent oracle before running it.",
+    "Outcome: test the hypothesis that visible PASS data in the real makeBrief/review flow increases false acceptance; do not assert that KRN has this bias before measuring it.\nAcceptance:\n- Verify the current makeBrief path and actual evidence delivered to judges; pin runtime/model, code SHA, test evidence and experiment settings.\n- Prepare ten diffs independently: five correct controls and five with known reproducible defects not covered by the visible passing tests. Freeze the ground-truth oracle before model judging.\n- Run each diff with its genuine PASS signal and without that signal, twice, in randomized/counterbalanced order: forty offline shadow reviews. Preserve equal budgets and distinguish matched diffs from independent samples.\n- Report false accepts/rejects, reproducibility of cited findings, latency and total cost. Do not post shadow statuses, merge, change live admission or hide necessary evidence from production reviewers during the experiment.\n- Treat this as a small paired pilot; pre-register interpretation and avoid population claims or automatic policy changes from ten cases. Any resulting brief/reviewer change needs receiver-boundary proof and independent review."
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "t-c5q7nwj",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Delivered canonical handoff, exact firstParty claude-opus-5-5 architecture opinion and corrected addendum (session f8d2a132-77e2-4713-b3c5-385d69a1b393, both exit0), plus independent factual validation. Conditional RETAIN_AND_REPAIR; strongest conditional challenger GHA-JIT and second-slot criteria documented. Handoff validator PASS. Evidence: .krn/runs/ci-lead/ci-architecture-review/; handoff: .krn/runs/delivery-loop/ci-infrastructure/handoff.md. Research complete only: no architecture approval, source/production deployment or closure of broader t-crxrfg4."
+  },
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Evaluate CI architecture with Opus 5.5",
+  "after": [],
+  "body": [
+    "Operator requested: write the CI handoff and delegate exact Claude Opus 5.5 to independently assess whether the current CI is the best practical solution or a better owned-resource architecture exists.",
+    "Related programme: t-crxrfg4 remains open; this task covers only the bounded read-only architecture audit, evidence-backed recommendation and handoff, not implementation.",
+    "Acceptance: canonical handoff validates; official CLI confirms claude-opus-5-5; report compares Jenkins repair against realistic alternatives using existing Master/PVE/VM/hosting capacity and zero new fees; independent factual validation distinguishes current evidence from unknowns and corrects overclaims. No production or source-code deployment.",
+    "Evidence and result: .krn/runs/ci-lead/ci-architecture-review/; canonical handoff .krn/runs/delivery-loop/ci-infrastructure/handoff.md. Explicit session f8d2a132-77e2-4713-b3c5-385d69a1b393. The current scope was authorized directly by the operator, including use of exact Opus5.5."
+  ]
+}

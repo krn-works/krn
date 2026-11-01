@@ -1,0 +1,12 @@
+{
+  "id": "t-eya2kzf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Recover disk space on the system and storage disks",
+  "after": [],
+  "body": [
+    "Outcome: / and /mnt/storage each keep at least 20% free, per the operator (\"dysk systemowy jest praktycznie full - musimy cos z tym zrobic\", 2026-11-01).\nDone 2026-11-01: deleted leaked review verdict trees in .krn/worktrees/context-budget/.krn/tmp (16.6 GB; /mnt/storage 100% -> 96%), go/uv caches (small). State then: / 94% (15 GB free), /mnt/storage 96% (18 GB free).\nRemaining candidates (need operator decisions or sudo): btrfs snapshots and pacman cache 5.5 GB (sudo, paccache); ~/.local/share/containerd 7.4 GB + buildkit 5.5 GB (active user services); ~/.codex/thread_history_1.sqlite 12 GB and sessions 8.5 GB (operator: old used sessions must stay); /mnt/storage/coding: krn/lab 94 GB, Swieta-na-starowce 47 GB, seo-audit 34 GB, frontend-system 27 GB, ekologus-wp-local 24 GB, naster-hacked 22 GB, rekurencja.com 20 GB, plesk-cli 19 GB (other projects, ask before touching); /mnt/storage/backups 11 GB, krn-host-cache 8.1 GB. Survey: .krn/runs/delivery-loop/session-continuity/repo-hygiene/disk-survey.txt.\nRelated root-cause fix: t-7be2jjm."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-cjdywbq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Run the host-path guard in preflight",
+  "after": [],
+  "body": [
+    "Outcome: `npm run preflight` runs test/rules/host-path-guard.test.mjs, so a host-specific path literal fails before push.\nEvidence: .krn/runs/delivery-loop/session-continuity/predecessor-retire/ (PR #159). krn/gate on 7208c89 failed only on host-path-guard (two herdr capture literals); it cost one CI cycle (16 min), a D10 exception and a third review panel."
+  ]
+}

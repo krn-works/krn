@@ -1,0 +1,12 @@
+{
+  "id": "t-kfydr8a",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-10-31",
+  "priority": 2,
+  "title": "Trim instruction files that every session loads (Swieta AGENTS.md 36 KB, wilq AGENTS.md 13 KB)",
+  "after": [],
+  "body": [
+    "Outcome: Swieta-na-starowce AGENTS.md at most 8 KB (now 35.9 KB, about 9k tokens in every Claude session and Codex worker) and wilq-seo AGENTS.md at most 10 KB; moved detail lives in docs/ and is linked by path.\nEvidence: .krn/runs/context-audit/claude-code.md, .krn/runs/context-audit/codex.md (Codex Swieta first turn 36k vs krn 27k).\nProof: first-turn tokens measured before and after with .krn/runs/context-audit baseline scripts (/mnt/storage/tmp/krn/claude/context-audit/).\nScope: those two repositories, through their own workflow; no rule is dropped, only moved."
+  ]
+}
