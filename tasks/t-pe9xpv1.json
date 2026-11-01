@@ -1,0 +1,12 @@
+{
+  "id": "t-pe9xpv1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Restate slice goal, next command and elapsed time in gauge advisories",
+  "after": [],
+  "body": [
+    "Outcome: context-gauge advisories restate the slice goal, the next command and the done condition, and add an elapsed-time line, because Opus 4.7+ (incl. Opus 5.5) gets no built-in remaining-context signal and task budgets are unsupported in Claude Code, so the gauge is the lead's only budget signal. Source: .krn/runs/delivery-loop/continuity-research/papers.md (platform.claude.com context-windows, task-budgets). After t-drwmtf8.\nProof: gauge test asserts the advisory contains goal, next command, done condition and elapsed time read from the capsule."
+  ]
+}

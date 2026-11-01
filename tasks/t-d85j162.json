@@ -1,0 +1,12 @@
+{
+  "id": "t-d85j162",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 3,
+  "title": "Provide a tracked redacting capture tool for transcript fixtures",
+  "after": [],
+  "body": [
+    "Outcome: KRN-12 verbatim transcript fixtures are produced by a tracked script that elides message content and redacts cwd, instead of hand-derived lines. Observed 2026-11-01: auto mode denied copying a transcript line into test/claude/fixtures (\"Sensitive-Source Provenance\"), so the gauge baseline fixture was derived from an older capture by changing counters.\nProof: the script turns a transcript line into a fixture line with content [] and cwd \".\", with a test; existing fixtures reproduce from it."
+  ]
+}

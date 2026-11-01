@@ -1,0 +1,12 @@
+{
+  "id": "t-kjp1zp1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 3,
+  "title": "Decompose the interactive first-turn context",
+  "after": [],
+  "body": [
+    "Outcome: the ~17k gap between interactive lead first turn (46.0k-47.7k) and claude -p (30.4k) in this project is attributed to sources (SessionStart hook output, CLAUDE.md/AGENTS.md, MEMORY.md, skills list, system reminders) with measured sizes. Source: .krn/runs/delivery-loop/gauge-baseline/recon.md (open unknowns).\nProof: a table of sources and tokens that sums to the measured gap within 1k."
+  ]
+}

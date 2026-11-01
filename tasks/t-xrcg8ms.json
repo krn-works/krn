@@ -1,0 +1,12 @@
+{
+  "id": "t-xrcg8ms",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Inject one consolidated handoff block and verify first at session start",
+  "after": [],
+  "body": [
+    "Outcome: the handoff becomes one consolidated block injected at session start (task id, exact SHAs, done-condition command, verify command, every operator request verbatim), and the successor runs the verify command before any other step. Source: .krn/runs/delivery-loop/continuity-research/papers.md (Laban et al. 2025, arXiv:2505.06120: information spread over turns -39%, consolidated single message recovers ~full performance; Anthropic guidance: fresh window rebuilding state from files). Input to t-1tnpz1d; keep one owner for handoff format.\nProof: krn-handoff refuses a handoff missing any of the fields; a SessionStart test shows the block is injected and the verify command runs first."
+  ]
+}

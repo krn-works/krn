@@ -1,0 +1,12 @@
+{
+  "id": "t-4ct3j6q",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Make codex-usage test deterministic under host load",
+  "after": [],
+  "body": [
+    "Outcome: test/hosts/codex-usage.test.ts is deterministic under host load. Observed 2026-11-01: failed inside npm run gate:local (krn deliver PR #152, load ~13-19, exit 75) while CI on the same head passed and `node scripts/test-suite.mjs test/hosts/codex-usage.test.ts` passed 5/5 in isolation. Gate log only says \"file summary failed\"; capture the failing assertion.\nProof: the file passes repeatedly under synthetic CPU load (stress loop) and the gate log names the failing subtest when it fails."
+  ]
+}

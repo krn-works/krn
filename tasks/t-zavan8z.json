@@ -1,0 +1,12 @@
+{
+  "id": "t-zavan8z",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Attribute agent token spend per role and enforce slice budgets in the harness",
+  "after": [],
+  "body": [
+    "Outcome: token and cost spend is attributed per role/query source (lead, worker, judge, subagent summaries) from Claude Code OpenTelemetry and Codex usage, and a per-slice budget is enforced by the harness rather than by prompt. Source: .krn/runs/delivery-loop/continuity-research/rss-patterns.md item on OTel attribution (subagent summaries reportedly ~16-20% of Claude Code spend). Relates to memory codex-usage-burn; budget limits need an operator grant.\nProof: a report per slice lists spend by role from real telemetry; a slice exceeding its budget is refused or flagged by a command that prints a verdict."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-1tnpz1d",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Synthesize the continuity research and deliver the first redesign slice",
+  "after": [],
+  "body": [
+    "Outcome: lead session continuity (context budget, handoffs, memory, restart) works without loss, per the operator: \"zrob doogłębny research potem jak z tym pracować, jak to przełomowo ugryźć, jak to ogarnąć lepiej, każdy aspekt musimy rozwiązać i potencjalne audytować\" and the standing outcome in .krn/runs/delivery-loop/session-continuity/handoff.md.\nInputs: three independent Opus lenses .krn/runs/delivery-loop/continuity-research/{external,audit,redesign}.md (brief.md beside them); remember-research.md; context-audit.\nProof: a synthesis file with ranked changes, each with a metric computed from transcripts or records before and after; the first slice merged with its metric measured; follow-ups recorded as tasks; contradictions with ADR 0014/0002 raised to the operator first."
+  ]
+}

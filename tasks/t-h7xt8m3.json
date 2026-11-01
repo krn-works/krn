@@ -1,0 +1,12 @@
+{
+  "id": "t-h7xt8m3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Let successor launch pass model and effort",
+  "after": [],
+  "body": [
+    "Outcome: krn-handoff successors start as `claude --model claude-opus-5-5 --effort max` (operator 2026-11-01, verbatim: \"od nastepnej sesji opusa uzywaj opus 5.5 /effort\", \"max effort mozesz uzywac\"; memory successor-model-effort). scripts/claude/successor-launch.ts parseArgs accepts only --name, --prompt, --cwd.\nProof: successor-launch test shows the herdr and background command lines carry --model and --effort; the krn-handoff skill passes them."
+  ]
+}
