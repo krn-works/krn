@@ -1,0 +1,12 @@
+{
+  "id": "t-vq1k9mz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Harden the restart block against malformed handoffs",
+  "after": [],
+  "body": [
+    "Outcome: the restart block refuses the malformed handoffs PR #154's third review found (record .krn/runs/review-series/92fa2cf048b8807854c904b12c169358d720619288484b62ab5ee5ff4aca341c/records/3.json): (1) control characters in command fields, or a block whose JSON serialization would push the SessionStart context past its cap, are refused; (2) an open operator request bullet must be exactly - \"<verbatim words>\": <task id|memory:slug>, with the id outside the quote; (3) headings inside fenced code do not end the operator-requests section in scripts/claude/handoff-block.ts, and a fenced section makes the hook report the handoff invalid instead of injecting part of it.\nProof: a new observer test file fails at the current main by assertion for each case and passes at head."
+  ]
+}
