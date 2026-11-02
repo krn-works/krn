@@ -293,6 +293,32 @@ function readReviewBytes(root, head, recordPath) {
   }
 }
 
+function stripUnrecognizedKeys(value, issues) {
+  const stripped = structuredClone(value);
+  for (const issue of issues) {
+    if (
+      issue.code !== 'unrecognized_keys' ||
+      !Array.isArray(issue.keys) ||
+      !issue.keys.every((key) => typeof key === 'string')
+    )
+      return undefined;
+    let target = stripped;
+    for (const segment of issue.path) {
+      if (
+        target === null ||
+        typeof target !== 'object' ||
+        !Object.hasOwn(target, segment)
+      )
+        return undefined;
+      target = target[segment];
+    }
+    if (target === null || typeof target !== 'object' || Array.isArray(target))
+      return undefined;
+    for (const key of issue.keys) delete target[key];
+  }
+  return stripped;
+}
+
 function reviewEvidence(repo, input, reasons, identity) {
   const worktrees = readGit(
     repo,
@@ -398,7 +424,14 @@ function reviewEvidence(repo, input, reasons, identity) {
         }
       }
     }
-    const parsed = newReviewRecordSchema.safeParse(json);
+    let parsed = newReviewRecordSchema.safeParse(json);
+    if (
+      !parsed.success &&
+      parsed.error.issues.every((issue) => issue.code === 'unrecognized_keys')
+    ) {
+      const stripped = stripUnrecognizedKeys(json, parsed.error.issues);
+      parsed = newReviewRecordSchema.safeParse(stripped);
+    }
     if (!parsed.success) {
       reasons.add(`review record does not satisfy the strict schema: ${path}`);
       continue;

@@ -15,7 +15,14 @@ Exit codes: 0 delivered; 64 usage; 70 internal; ${Object.entries(exitCodes)
 Stage failures preserve receiver stderr, stdoutTail and firstFailingTest when available, and expose its original exit code in JSON.
 `;
 
-export async function deliverCommand(args: string[]): Promise<void> {
+type DeliveryCommandDependencies = {
+  deliver?: typeof import('./delivery.ts').deliver;
+};
+
+export async function deliverCommand(
+  args: string[],
+  dependencies: DeliveryCommandDependencies = {},
+): Promise<void> {
   let json = false;
   try {
     let values: { [key: string]: string | boolean | undefined };
@@ -80,38 +87,44 @@ export async function deliverCommand(args: string[]): Promise<void> {
       throw Object.assign(new Error(`Invalid deliver arguments.\n${help}`), {
         exitCode: 64,
       });
-    const { deliver } = await import('./delivery.ts');
     const { loadThreshold: _deprecatedLoadThreshold, ...options } = parsed.data;
-    const result = await deliver(options);
+    const result = dependencies.deliver
+      ? await dependencies.deliver(options)
+      : await (await import('./delivery.ts')).deliver(options);
     process.stdout.write(
       json
         ? `${JSON.stringify(result)}\n`
         : `${result.status}: ${result.head}\n`,
     );
   } catch (error) {
-    const exitCode =
-      error instanceof Error &&
-      'exitCode' in error &&
-      typeof error.exitCode === 'number'
-        ? error.exitCode
-        : 70;
-    const cause =
-      error instanceof Error && 'cause' in error ? error.cause : error;
-    const commandExitCode =
-      cause instanceof CommandFailure ? cause.commandExitCode : undefined;
-    const stdoutTail =
-      cause instanceof CommandFailure ? cause.stdoutTail : undefined;
-    const firstFailingTest =
-      cause instanceof CommandFailure ? cause.firstFailingTest : undefined;
-    if (json)
-      process.stdout.write(
-        `${JSON.stringify({ status: 'failed', exitCode, commandExitCode, ...(stdoutTail ? { stdoutTail } : {}), ...(firstFailingTest ? { firstFailingTest } : {}), error: error instanceof Error ? error.message : String(error) })}\n`,
-      );
-    process.stderr.write(
-      cause instanceof CommandFailure
-        ? cause.result.stderr
-        : `${error instanceof Error ? error.message : String(error)}\n`,
-    );
-    process.exitCode = exitCode;
+    const output = failureOutput(error, json);
+    if (output.stdout) process.stdout.write(output.stdout);
+    process.stderr.write(output.stderr);
+    process.exitCode = output.exitCode;
   }
+}
+
+function failureOutput(error: unknown, json: boolean) {
+  const exitCode =
+    error instanceof Error &&
+    'exitCode' in error &&
+    typeof error.exitCode === 'number'
+      ? error.exitCode
+      : 70;
+  const cause =
+    error instanceof Error && 'cause' in error ? error.cause : error;
+  const commandExitCode =
+    cause instanceof CommandFailure ? cause.commandExitCode : undefined;
+  const stdoutTail =
+    cause instanceof CommandFailure ? cause.stdoutTail : undefined;
+  const firstFailingTest =
+    cause instanceof CommandFailure ? cause.firstFailingTest : undefined;
+  const stdout = json
+    ? `${JSON.stringify({ status: 'failed', exitCode, commandExitCode, ...(stdoutTail ? { stdoutTail } : {}), ...(firstFailingTest ? { firstFailingTest } : {}), error: error instanceof Error ? error.message : String(error) })}\n`
+    : undefined;
+  const stderr =
+    cause instanceof CommandFailure
+      ? cause.result.stderr || `${cause.message}\n`
+      : `${error instanceof Error ? error.message : String(error)}\n`;
+  return { exitCode, stdout, stderr };
 }

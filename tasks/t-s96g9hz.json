@@ -1,0 +1,12 @@
+{
+  "id": "t-s96g9hz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 3,
+  "title": "Narrow a task body before closing it when scope is split",
+  "after": [],
+  "body": [
+    "Outcome: a slice that delivers less than its task body cannot close that task as done with the original acceptance. Evidence: PR #171 review attempt 1 (standards BLOCKING, .krn/runs/review-series/afdaedfc.../records/1.json) failed because t-zr25epj was closed while its body still required a second Jenkins executor that was split into t-vgd1bp3; it cost one review attempt. Acceptance: krn-lead step 6 says to narrow the task body (krn task edit before close) when scope is split, and a rule test checks that sentence; or krn task close refuses --as done when --note names another open task id without a body edit."
+  ]
+}
