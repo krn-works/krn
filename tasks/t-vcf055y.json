@@ -1,7 +1,11 @@
 {
   "id": "t-vcf055y",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "review refuses an attempt while the exact head's krn/gate failed"
+  },
   "created": "2026-11-02",
   "priority": 1,
   "title": "Review refuses to reserve an attempt while the exact head's krn/gate failed",
