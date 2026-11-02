@@ -1,7 +1,11 @@
 {
   "id": "t-c02h9cf",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "preflight passes test/rules to the suite, which selects it through TEST_FILE_GLOB; test/rules/preflight-parity.test.ts compares the preflight and CI sets under test/rules. Preflight stays the cheap pre-review subset; the full suite stays in CI (D30)."
+  },
   "created": "2026-11-01",
   "priority": 1,
   "title": "Run every CI test file in preflight",

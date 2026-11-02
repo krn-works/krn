@@ -1,0 +1,12 @@
+{
+  "id": "t-75qhb77",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Refuse a review before reserving an attempt when deterministic checks fail",
+  "after": [],
+  "body": [
+    "Outcome: `krn review --pr` runs red-first and the per-commit contract parser before `reserveReviewAttempt`; a non-empty `deterministicCauses` refuses with no ordinal reserved and no judge spawned; docs/program/repository-workflow.md:23 matches.\nEvidence: src/flow/index.ts:162-174,218 (at ccac27b); lens-contract-quality Q1; ranked 2 in .krn/runs/program-audit/synthesis.md (8 attempts saved of 13 catchable)."
+  ]
+}

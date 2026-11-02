@@ -1,0 +1,12 @@
+{
+  "id": "t-kmevw6w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Keep the review budget closed when series state is deleted",
+  "after": [],
+  "body": [
+    "Outcome: after .krn/runs/review-series/<key> is removed, the next reservation for that PR is refused instead of restarting at ordinal 1; the anchor survives `rm -rf .krn/runs` (a git ref in the common dir or an anchor under .krn/ outside runs/, consistent with KRN-08).\nEvidence: src/flow/series.ts:204; PR #162 reserved ordinal 1 at 2026-11-02T07:42:44Z after seven consumed attempts; .krn/runs/program-audit/synthesis.md."
+  ]
+}

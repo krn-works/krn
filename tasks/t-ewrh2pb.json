@@ -1,0 +1,12 @@
+{
+  "id": "t-ewrh2pb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 2,
+  "title": "Measure handoff cost per restart class: warm cache, long pause, after compaction",
+  "after": [],
+  "body": [
+    "Outcome: handoff economics are measured per restart class — warm cache (successor within the cache TTL), long pause (cache expired) and restart after compaction — reporting tokens and cost to reach the first verified step and the facts the successor had to re-read; the report says when a fresh session costs more than continuing.\nEvidence: operator intake 2026-11-02 (pasted digest, item 2, Relayvora pre-alpha, 1–2 runs per variant): a short-session handoff raised cost 73%; a long-session handoff cut context 71% at similar cost. Related: t-nmdd3wh, t-6kqjkmr, t-rperync, t-3karwrx."
+  ]
+}

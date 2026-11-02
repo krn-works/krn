@@ -1,0 +1,12 @@
+{
+  "id": "t-07bh84a",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Red-first resolves the base pnpm even after mise prune",
+  "after": [],
+  "body": [
+    "Outcome: krn review red-first never reports every run as procedural because the host pruned the base packageManager pnpm version; src/verdict/sandbox.ts pnpmBinary installs the exact declared version on demand (or the review refuses before reserving an attempt with one usage error naming `mise install pnpm@<v>`), so an environment change cannot burn a D10 attempt.\nEvidence: PR #162 record 6 (.krn/runs/review-series/a3b6e8ee134180e3cde4ffbf86449ffda82f30460cb4ce45030387e1db29c855/records/6.json): all three judges PASS, every red-first run \"cannot resolve base manager pnpm@12.10.1: mise ERROR pnpm@12.10.1 not installed\"; a home-directory cleanup session ran `mise prune --yes` at 2026-11-02T06:21:33Z, four minutes before the attempt."
+  ]
+}

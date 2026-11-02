@@ -1,0 +1,12 @@
+{
+  "id": "t-3he8mvz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 2,
+  "title": "Trial a code-search tool by cost per completed task and evidence completeness",
+  "after": [],
+  "body": [
+    "Outcome: a bounded trial runs one code-search tool (Sweet-search class: tool plus its instructions) against the default worker setup on the same closed KRN tasks and reports, per variant, cost per completed task and evidence completeness (every brief fact and path:line the reviewer needed was found); token reduction alone is not a pass.\nEvidence: operator intake 2026-11-02 (pasted digest, item 1): author reports 5–33% lower run cost on 200 SWE-rebench tasks with equal solves (481/1000), but tools and instructions were compared together and a separate retrieval benchmark showed accuracy drops in some configurations. No paid spend; frugal Codex (grant .krn/runs/program-audit/grant.md)."
+  ]
+}

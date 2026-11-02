@@ -32,5 +32,8 @@ test('preflight includes rule observers and the head trailer guard', () => {
     ),
   );
   assert.match(pkg.scripts.preflight, /node scripts\/head-trailers\.mjs/u);
-  assert.match(pkg.scripts.preflight, /test\/rules\/\*\.test\.ts/u);
+  assert.match(
+    pkg.scripts.preflight,
+    /npm test -- (?:.* )?test\/rules(?: |$)/u,
+  );
 });

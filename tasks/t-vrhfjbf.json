@@ -1,0 +1,12 @@
+{
+  "id": "t-vrhfjbf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 2,
+  "title": "Report existing run directories as live in state resume",
+  "after": [],
+  "body": [
+    "Outcome: `krn state resume --root .` reports a capsule cleanup entry as live when its directory exists; an observer creates the directory and asserts it is not listed as missing.\nEvidence: on 2026-11-02 `bin/krn state resume --root .` printed \"cleanup: listed 3 / live 2; missing .krn/runs/program-audit\" while `ls -d .krn/runs/program-audit` showed the directory with four files."
+  ]
+}
