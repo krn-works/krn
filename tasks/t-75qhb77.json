@@ -1,7 +1,11 @@
 {
   "id": "t-75qhb77",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "delivered in #166 as c1ef7c7"
+  },
   "created": "2026-11-02",
   "priority": 1,
   "title": "Refuse a review before reserving an attempt when deterministic checks fail",

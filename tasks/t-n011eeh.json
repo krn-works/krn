@@ -1,0 +1,12 @@
+{
+  "id": "t-n011eeh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 2,
+  "title": "Resolve relative krn review paths and keep deliver hygiene off deleted cwd",
+  "after": [],
+  "body": [
+    "Outcome: krn review resolves relative --repo/--lens/--checklist against the caller cwd (a zero-cost input error recurred in #164 and #166: '--repo must be an absolute path'); deliver hygiene removes untracked main-checkout task copies that are byte-identical to the merged blobs before fast-forward and never runs a step from the removed worktree (#166: 'untracked working tree files would be overwritten by merge', 'getcwd: cannot access parent directories', exit 1 after a successful merge). Relates to t-zqb0qce."
+  ]
+}
