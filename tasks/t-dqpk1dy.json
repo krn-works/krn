@@ -1,0 +1,12 @@
+{
+  "id": "t-dqpk1dy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Retire the krn/gate-local required check (D30 amendment)",
+  "after": [],
+  "body": [
+    "Outcome: krn/gate-local is no longer a required check; the D30 amendment is recorded; deliver, docs and the krn-lead skill stop requiring the local gate.\nBlocked on the operator decision (D30 amendment) with evidence from t-mzsecc0: after PR #164 a green krn/gate proves every isolation file selected by gate:local (28 at d454a95) ran with tests and zero skips, because the strict full run rejects its evidence otherwise.\nScope: ruleset edit (separate grant), krn deliver gate step, KRN-07 text, docs/program, krn-lead skill step 8; supersedes t-eq27hsa if accepted."
+  ]
+}

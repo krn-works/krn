@@ -1,0 +1,12 @@
+{
+  "id": "t-yyp0fe7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 2,
+  "title": "Add empty and root-resolving arguments to the hardening checklist",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/hardening-checklist.md names argument inputs: an empty argument, \".\", \"..\", an absolute path or a symlink that resolves to an ancestor of the intended root is refused, never widened into a larger selection; krn brief check keeps accepting the existing classes (extend `malformed` or add one class, with the brief-hardening tests updated).\nEvidence: PR #163 review attempt 1 was lost to a prepass BLOCKING finding: selectTestFiles([\"\"]) resolved to the project root and selected every test (record .krn/archive/review-series-af9fd99ac4ea2f35fa7551eb0ae2a77f48ff8b733bfcaea6629dabe79fdca616/records/1.json). The brief's Hardening section answered `malformed` for records only, so no class asked for the case.\nProof: brief-hardening observer red at base (the new class id is required), green at head."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-axd5bbb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 2,
+  "title": "Publish isolation coverage in the krn/gate check-run text",
+  "after": [],
+  "body": [
+    "Outcome: the Jenkins krn/gate check-run text states the isolation file count and skip count for the exact head, from trusted code.\nEvidence (t-mzsecc0, PR #164): the guest merges gate stdout and stderr and logs only the first 256 KiB (infra/ci/internal/executor/model.go:21 LogLimit, guest.go summaryStream); evidence/main_linux.go:188 publishes the tail of that, so no node-side line reaches GitHub. The decoded KRN_TEST_SUMMARY_JSON is in receipt.json but not in summary.txt.\nShape: trusted Go formats one line from the decoded Summary (files, tests, skipped) into summary.txt ahead of the tails; deploy needs merge, install and a library_sha/binary bump. Never add a JSON field from node before Go accepts it (DisallowUnknownFields)."
+  ]
+}

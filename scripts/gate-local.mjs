@@ -1,8 +1,9 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { globSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { postGateStatusWhenClean } from './isolation-gate.mjs';
+import {
+  selectIsolationTestFiles as discoverIsolationTestFiles,
+  postGateStatusWhenClean,
+} from './isolation-gate.mjs';
 import { TEST_FILE_GLOB } from './test-suite.mjs';
 import { validateTestSummary } from './test-summary-policy.mjs';
 
@@ -49,128 +50,8 @@ function requireCleanTree(phase) {
   return true;
 }
 
-function importedModules(file) {
-  // Keep literals as tokens, so generated test fixtures and comments cannot
-  // masquerade as imports. Both static and literal dynamic imports are used
-  // by the real isolation tests; CommonJS uses the same module boundary.
-  const tokens = [
-    ...readFileSync(file, 'utf8').matchAll(
-      /\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|`(?:\\[\s\S]|[^`\\])*`|[\w$]+|[^\s]/gu,
-    ),
-  ]
-    .map(([token]) => token)
-    .filter((token) => !token.startsWith('//') && !token.startsWith('/*'));
-  const literal = (token) => {
-    if (!token || !['"', "'", '`'].includes(token[0])) return undefined;
-    if (token.includes('${')) return undefined;
-    return token.slice(1, -1);
-  };
-  const modules = [];
-  for (const [index, token] of tokens.entries()) {
-    if (
-      (token === 'import' || token === 'require') &&
-      tokens[index + 1] === '('
-    ) {
-      if (
-        tokens[index + 3] === ')' ||
-        (token === 'import' && tokens[index + 3] === ',')
-      )
-        modules.push(literal(tokens[index + 2]));
-      continue;
-    }
-    if (token !== 'import' && token !== 'export') continue;
-    const nextToken = tokens[index + 1];
-    if (nextToken === 'type' || nextToken === '.') continue;
-    if (token === 'import' && literal(nextToken) !== undefined) {
-      modules.push(literal(nextToken));
-      continue;
-    }
-    if (token === 'export' && nextToken !== '*' && nextToken !== '{') continue;
-    for (let next = index + 1; next < tokens.length; next += 1) {
-      if (tokens[next] === ';') break;
-      if (tokens[next] === 'from' && literal(tokens[next + 1]) !== undefined) {
-        modules.push(literal(tokens[next + 1]));
-        break;
-      }
-    }
-  }
-  return modules.filter((specifier) => specifier !== undefined);
-}
-
-function withinTestRoot(testRoot, file) {
-  const fromTestRoot = relative(testRoot, file);
-  return (
-    !isAbsolute(fromTestRoot) &&
-    fromTestRoot !== '..' &&
-    !fromTestRoot.startsWith(`..${sep}`)
-  );
-}
-
-function localModule(file, specifier, testRoot, helper) {
-  if (!specifier.startsWith('.') && !isAbsolute(specifier)) return undefined;
-  const target = resolve(dirname(file), specifier);
-  if (!withinTestRoot(testRoot, target)) return undefined;
-  // Reaching the isolation boundary is sufficient; do not execute its code.
-  if (target === helper) return helper;
-  const extensions = ['', '.js', '.ts', '.mjs', '.cjs', '.mts', '.cts'];
-  for (const candidate of [
-    ...extensions.map((extension) => `${target}${extension}`),
-    ...extensions
-      .slice(1)
-      .map((extension) => join(target, `index${extension}`)),
-  ]) {
-    try {
-      const resolved = realpathSync(candidate);
-      if (withinTestRoot(testRoot, resolved) && lstatSync(resolved).isFile())
-        return resolved;
-    } catch (error) {
-      if (error.code !== 'ENOENT' && error.code !== 'ENOTDIR') throw error;
-    }
-  }
-  return undefined;
-}
-
 export function selectIsolationTestFiles(root = process.cwd()) {
-  const projectRoot = realpathSync(root);
-  const testRoot = join(projectRoot, 'test');
-  const testRootStat = lstatSync(testRoot);
-  if (!testRootStat.isDirectory() || testRootStat.isSymbolicLink())
-    throw new Error('project test root must be a real directory');
-  const helper = join(testRoot, 'helpers/isolation.ts');
-  const files = [];
-  for (const match of globSync(TEST_FILE_GLOB, { cwd: projectRoot })) {
-    const file = realpathSync(resolve(projectRoot, match));
-    if (!withinTestRoot(testRoot, file))
-      throw new Error(
-        `isolation test discovery escaped project test root: ${file}`,
-      );
-    files.push(file);
-  }
-
-  const dependents = new Map();
-  const pending = [...new Set(files)];
-  const scanned = new Set([helper]);
-  for (const file of pending) {
-    if (scanned.has(file)) continue;
-    scanned.add(file);
-    for (const specifier of importedModules(file)) {
-      const dependency = localModule(file, specifier, testRoot, helper);
-      if (!dependency) continue;
-      if (!dependents.has(dependency)) dependents.set(dependency, new Set());
-      dependents.get(dependency).add(file);
-      pending.push(dependency);
-    }
-  }
-  // Propagate from the boundary after building the graph, so a cycle cannot
-  // cache a premature negative result for another test's shared helper.
-  const isolationModules = new Set([helper]);
-  for (const file of isolationModules)
-    for (const dependent of dependents.get(file) ?? [])
-      isolationModules.add(dependent);
-  return [...new Set(files)]
-    .filter((file) => isolationModules.has(file))
-    .map((file) => relative(projectRoot, file).split(sep).join('/'))
-    .sort();
+  return discoverIsolationTestFiles(root, TEST_FILE_GLOB);
 }
 
 function runNpm(args, strict = false) {
