@@ -1,0 +1,12 @@
+{
+  "id": "t-zqb0qce",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 2,
+  "title": "Deliver completes hygiene when only the CI final reset failed",
+  "after": [],
+  "body": [
+    "Outcome: krn deliver finishes hygiene when the merged head's krn/gate reports gate=true but only the Jenkins final reset failed, and reports the infra failure separately (exit and task pointer).\nEvidence: PR #164 deliver exited 74 on main 8961311 ('Final reset failed; quarantine remains', gate=true); the lead redid hygiene by hand from src/deliver/delivery.ts:734-780 (review-series archive, worktree remove, ff main, branch delete), then archived orphaned runs.\nProof: a deliver test with a captured check-run summary 'gate=true; cleanup=false' reaches hygiene and exits with a distinct infra code; a gate=false summary still stops at ci."
+  ]
+}

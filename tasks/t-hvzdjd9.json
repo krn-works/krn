@@ -1,0 +1,12 @@
+{
+  "id": "t-hvzdjd9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 3,
+  "title": "Decide whether KRN exposes its delivery surface as an MCP server over harnesses",
+  "after": [],
+  "body": [
+    "Outcome: a decision-ready ADR proposal on whether KRN should expose its delivery surface (krn task, krn review, krn deliver, handoff) as one MCP server that every harness (Claude Code, Codex) consumes, instead of per-harness skills and wrappers such as codex-worker and successor-launch; the proposal names what stays CLI and is checked against ADR 0014 before any change.\nSource: operator 2026-11-02 pasted article on harnesses vs interfaces (T3 Code exposes multi-harness features as an MCP server); operator: \"Też ciekawa opcja - do rozważenia\". Consider only; no implementation without an operator decision."
+  ]
+}
