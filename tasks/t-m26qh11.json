@@ -1,0 +1,12 @@
+{
+  "id": "t-m26qh11",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Round-two delivery accepts a checklist edited between rounds",
+  "after": [],
+  "body": [
+    "Outcome: a second-round review record delivers when round one applied any hardening checklist (record.prior.checklistSha256 present) and the current record.checklist.sha256 equals the head blob, so a PR that edits docs/program/hardening-checklist.md between rounds is not refused at bind (src/deliver/checklist.ts:37). Keep refusing round two when round one ran without a completed prepass checklist.\nEvidence: PR #162 record 5 (.krn/runs/review-series/a3b6e8ee134180e3cde4ffbf86449ffda82f30460cb4ce45030387e1db29c855/records/5.json), spec judge BLOCKING; operator accepted by override on 2026-11-02 with this follow-up."
+  ]
+}
