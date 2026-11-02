@@ -1,7 +1,11 @@
 {
   "id": "t-cjdywbq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-c02h9cf",
+    "note": "the host-path guard is one of the three .mjs rule tests preflight now runs"
+  },
   "created": "2026-11-01",
   "priority": 1,
   "title": "Run the host-path guard in preflight",
