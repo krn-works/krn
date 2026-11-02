@@ -55,14 +55,21 @@ function makeBrief(
           'BLOCKING findings must be behaviour or acceptance defects, with a real path and line and the smallest fix. Style issues are NON_BLOCKING. PASS requires no BLOCKING findings.',
           'Enumerate ALL defects that would make the stated contract false in one pass. Do not stop at the first defect. Order findings by severity, with BLOCKING findings first.',
         ]
-      : [
-          'Verify the prior BLOCKING findings mechanically. For EVERY indexed prior finding return RESOLVED or UNRESOLVED with concrete evidence, exactly once. Report new problems as findings; other new defects are advisory.',
-          'Return only one JSON object matching: {"verdict":"PASS"|"FAIL","prior":[{"index":0,"status":"RESOLVED"|"UNRESOLVED","evidence":"..."}],"findings":[{"severity":"BLOCKING"|"NON_BLOCKING","title":"...","path":"repo-relative path","line":1,"defect":"...","fix":"smallest fix","regression":true|false}]}. regression is optional; do not set demoted yourself.',
-          `Mark a new finding regression: true ONLY if behavior worked at prior head ${prior.headSha} and fails at current head ${sha} because of the changes between these two commits. Inspect git diff ${prior.headSha} ${sha} and cite the working prior behavior and failing current behavior in the defect. No ancestry is assumed.`,
-          'FAIL iff any prior finding is UNRESOLVED or a new BLOCKING finding has regression: true AND its exact repository-relative path is in CHANGED PATHS below. Every other new BLOCKING finding is demoted to advisory by the engine. PASS otherwise, even when advisory findings exist.',
-          `PRIOR BLOCKING FINDINGS (zero-based indices):\n${JSON.stringify(prior.findings.map((finding, index) => ({ index, ...finding })))}`,
-          `CHANGED PATHS — ${prior.headSha}..${sha}:\n${JSON.stringify(prior.changedPaths)}`,
-        ]),
+      : prior.source === 'prepass'
+        ? [
+            'Verify EVERY indexed prior prepass finding with RESOLVED or UNRESOLVED status and concrete evidence, exactly once. Also enumerate ALL defects in one pass, including defects beyond the prior findings. Do not stop at the first defect. Order findings by severity, with BLOCKING findings first.',
+            'Return only one JSON object matching: {"verdict":"PASS"|"FAIL","prior":[{"index":0,"status":"RESOLVED"|"UNRESOLVED","evidence":"..."}],"findings":[{"severity":"BLOCKING"|"NON_BLOCKING","title":"...","path":"repo-relative path","line":1,"defect":"...","fix":"smallest fix"}]}.',
+            'FAIL iff any prior finding is UNRESOLVED or any finding is BLOCKING. PASS otherwise, even when advisory findings exist.',
+            `PRIOR BLOCKING PREPASS FINDINGS (zero-based indices):\n${JSON.stringify(prior.findings.map((finding, index) => ({ index, ...finding })))}`,
+          ]
+        : [
+            'Verify the prior BLOCKING findings mechanically. For EVERY indexed prior finding return RESOLVED or UNRESOLVED with concrete evidence, exactly once. Report new problems as findings; other new defects are advisory.',
+            'Return only one JSON object matching: {"verdict":"PASS"|"FAIL","prior":[{"index":0,"status":"RESOLVED"|"UNRESOLVED","evidence":"..."}],"findings":[{"severity":"BLOCKING"|"NON_BLOCKING","title":"...","path":"repo-relative path","line":1,"defect":"...","fix":"smallest fix","regression":true|false}]}. regression is optional; do not set demoted yourself.',
+            `Mark a new finding regression: true ONLY if behavior worked at prior head ${prior.headSha} and fails at current head ${sha} because of the changes between these two commits. Inspect git diff ${prior.headSha} ${sha} and cite the working prior behavior and failing current behavior in the defect. No ancestry is assumed.`,
+            'FAIL iff any prior finding is UNRESOLVED or a new BLOCKING finding has regression: true AND its exact repository-relative path is in CHANGED PATHS below. Every other new BLOCKING finding is demoted to advisory by the engine. PASS otherwise, even when advisory findings exist.',
+            `PRIOR BLOCKING FINDINGS (zero-based indices):\n${JSON.stringify(prior.findings.map((finding, index) => ({ index, ...finding })))}`,
+            `CHANGED PATHS — ${prior.headSha}..${sha}:\n${JSON.stringify(prior.changedPaths)}`,
+          ]),
     'Every BLOCKING finding must name a concrete failing input or scenario that demonstrates the contract failure.',
     `ROLE: ${role}`,
     `LENS:\n${lens}`,
@@ -84,6 +91,10 @@ const judgeResponseSchema = z.object({
 const verificationResponseSchema = judgeResponseSchema.extend({
   prior: z.array(priorStatusSchema),
   findings: z.array(findingSchema.omit({ demoted: true })),
+});
+const prepassVerificationResponseSchema = judgeResponseSchema.extend({
+  prior: z.array(priorStatusSchema),
+  findings: z.array(findingSchema.omit({ regression: true, demoted: true })),
 });
 type JudgeResponse = Omit<z.infer<typeof judgeResponseSchema>, 'findings'> & {
   declaredVerdict?: 'PASS' | 'FAIL';
@@ -113,11 +124,21 @@ export function parseJudgeResponse(
     throw new Error('judge response did not contain a JSON verdict');
   }
   if (prior !== undefined) {
-    const result = verificationResponseSchema.parse(decoded);
+    const result =
+      prior.source === 'prepass'
+        ? prepassVerificationResponseSchema.parse(decoded)
+        : verificationResponseSchema.parse(decoded);
     if (!coversPriorFindings(result.prior, prior.findings.length))
       throw new Error(
         'judge prior statuses must cover every prior finding exactly once',
       );
+    if (prior.source === 'prepass')
+      return {
+        verdict: priorJudgeVerdict(result.prior, result.findings),
+        declaredVerdict: result.verdict,
+        prior: result.prior,
+        findings: result.findings,
+      };
     const findings = result.findings.map((finding) =>
       finding.severity === 'BLOCKING' &&
       !isCountedRegression(finding, prior.changedPaths)

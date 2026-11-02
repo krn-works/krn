@@ -304,22 +304,37 @@ export const priorStatusSchema = z.object({
   status: z.enum(['RESOLVED', 'UNRESOLVED']),
   evidence: z.string().trim().min(1).max(4000),
 });
-export const priorReviewSchema = z.object({
-  headSha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
-  recordSha256: z.string().regex(/^[a-f0-9]{64}$/u),
-  findings: z.array(
-    findingSchema
-      .pick({ title: true, path: true, line: true, defect: true })
-      .extend({
-        role: roleSchema,
-      }),
-  ),
-  changedPaths: z.array(z.string().min(1)),
-  checklistSha256: z
-    .string()
-    .regex(/^[a-f0-9]{64}$/u)
-    .optional(),
-});
+export const priorReviewSchema = z
+  .object({
+    source: z.enum(['panel', 'prepass']).optional(),
+    headSha: z.string().regex(/^[a-f0-9]{40,64}$/iu),
+    recordSha256: z.string().regex(/^[a-f0-9]{64}$/u),
+    findings: z.array(
+      findingSchema
+        .pick({ title: true, path: true, line: true, defect: true })
+        .extend({
+          role: z.union([roleSchema, z.literal('prepass')]),
+        }),
+    ),
+    changedPaths: z.array(z.string().min(1)),
+    checklistSha256: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/u)
+      .optional(),
+  })
+  .superRefine((prior, context) => {
+    for (const [index, finding] of prior.findings.entries()) {
+      if (
+        (prior.source === 'prepass' && finding.role !== 'prepass') ||
+        (prior.source !== 'prepass' && finding.role === 'prepass')
+      )
+        context.addIssue({
+          code: 'custom',
+          path: ['findings', index, 'role'],
+          message: 'prior finding role must match its source',
+        });
+    }
+  });
 export type PriorReview = z.infer<typeof priorReviewSchema>;
 export function coversPriorFindings(
   statuses: readonly z.infer<typeof priorStatusSchema>[],
@@ -635,17 +650,26 @@ function reviewRecordInvariants(
           'prior statuses must cover every prior BLOCKING finding exactly once',
       });
     for (const [findingIndex, finding] of judge.findings.entries()) {
-      const counted = isCountedRegression(finding, record.prior.changedPaths);
-      if (
-        (finding.severity === 'BLOCKING' && !counted) ||
-        (finding.demoted && (finding.severity !== 'NON_BLOCKING' || counted))
-      )
-        context.addIssue({
-          code: 'custom',
-          path: ['judges', index, 'findings', findingIndex],
-          message:
-            'only regressions in changed files may remain BLOCKING; other new BLOCKING findings must be demoted',
-        });
+      if (record.prior.source === 'prepass') {
+        if (finding.demoted)
+          context.addIssue({
+            code: 'custom',
+            path: ['judges', index, 'findings', findingIndex, 'demoted'],
+            message: 'prepass prior findings cannot be demoted',
+          });
+      } else {
+        const counted = isCountedRegression(finding, record.prior.changedPaths);
+        if (
+          (finding.severity === 'BLOCKING' && !counted) ||
+          (finding.demoted && (finding.severity !== 'NON_BLOCKING' || counted))
+        )
+          context.addIssue({
+            code: 'custom',
+            path: ['judges', index, 'findings', findingIndex],
+            message:
+              'only regressions in changed files may remain BLOCKING; other new BLOCKING findings must be demoted',
+          });
+      }
     }
     if (
       judge.prior !== undefined &&
@@ -655,7 +679,9 @@ function reviewRecordInvariants(
         code: 'custom',
         path: ['judges', index, 'verdict'],
         message:
-          'verdict must match unresolved prior findings and counted regressions',
+          record.prior.source === 'prepass'
+            ? 'verdict must match unresolved prior findings and BLOCKING findings'
+            : 'verdict must match unresolved prior findings and counted regressions',
       });
   }
   const prepassHasBlocking =
