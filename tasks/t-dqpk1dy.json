@@ -1,7 +1,11 @@
 {
   "id": "t-dqpk1dy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Operator explicitly approved D30 amendment and separately granted ruleset25961157 removal of ONLY krn/gate-local AFTER this source PR merges. Delivery preserves independent preflight, exact source/base/App full CI and judges, supports old gate:false/absent journals; optional local diagnostics remain. Code144 targeted+72 preflight PASS; external cutover/readback owned by ci-lead after merge under recorded grant."
+  },
   "created": "2026-11-02",
   "priority": 1,
   "title": "Retire the krn/gate-local required check (D30 amendment)",

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { CommandFailure, exitCodes } from './transport.ts';
 
 export const help = `krn deliver --repo OWNER/REPO --pr N --record PATH (--message-file PATH | --task ID) [--dry-run] [--json]
-  --load-threshold N  Maximum 1-minute load (default 6)
+  --load-threshold N  Deprecated; accepted and ignored (no host-load wait)
   --timeout-seconds N Bounded wait per stage (default 1800)
   --poll-ms N         Poll interval (default 10000)
 Subject is the PR title (minus a trailing task suffix) followed by (#PR); .node-version must match Node on PATH.
@@ -81,7 +81,8 @@ export async function deliverCommand(args: string[]): Promise<void> {
         exitCode: 64,
       });
     const { deliver } = await import('./delivery.ts');
-    const result = await deliver(parsed.data);
+    const { loadThreshold: _deprecatedLoadThreshold, ...options } = parsed.data;
+    const result = await deliver(options);
     process.stdout.write(
       json
         ? `${JSON.stringify(result)}\n`

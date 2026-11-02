@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -43,6 +44,7 @@ if (role === 'gh') {
  if (resource.includes('/pulls/')) {
    const pull = JSON.parse(raw('pull'));
    if (!config.capturePull) Object.assign(pull, {merged: !!config.merged, draft: !!config.draft, state: config.merged ? 'closed' : 'open', merge_commit_sha: config.merged ? pull.merge_commit_sha : null});
+   if (config.currentBase) pull.base.sha = config.currentBase;
    config.pullReads = (config.pullReads || 0) + 1; save();
  if (config.moved || (config.moveAfter !== undefined && config.pullReads > config.moveAfter)) pull.head.sha = 'e'.repeat(40);
    process.stdout.write(config.capturePull ? raw('pull') : JSON.stringify(pull));
@@ -56,13 +58,12 @@ if (role === 'gh') {
    if (config.ciPending) { process.stdout.write('[{"check_runs":[]}]'); process.exit(0); }
    let checks = config.checkRuns ? JSON.stringify([{check_runs: config.checkRuns}]) : raw('checks');
    if (resource.includes(config.merge)) checks = checks.replaceAll(config.head, config.merge);
-   if (config.ciFailure) checks = checks.replaceAll('"success"','"failure"');
+   if (config.ciFailure || (config.mainCiFailure && resource.includes(config.merge))) checks = checks.replaceAll('"success"','"failure"');
    process.stdout.write(checks);
  } else process.exit(64);
 } else {
  if (args[0] === 'host-lock') {
-   if (JSON.stringify(args) !== JSON.stringify(['host-lock','run','--name','gate','--','npm','run','gate:local'])) process.exit(64);
-   if (config.gateFailure) {process.stderr.write('local gate failed\\n'); process.exit(19);}
+   process.stderr.write('obsolete local gate call'); process.exit(64);
  } else if (args[0] === 'ship') {
    if (process.cwd() !== config.main) { process.stderr.write('deleted cwd hazard\\n'); process.exit(64); }
    if (args.includes('--dry-run') && config.dryRefusal) { process.stdout.write(raw(config.dryRefusal)); process.exit(1); }
@@ -80,7 +81,7 @@ if (role === 'gh') {
 }
 `;
 
-function fixture(t: { after(fn: () => void): void }) {
+function fixture(t: { after(fn: () => void): void }, pinnedApp = false) {
   assert.equal(typeof api?.deliver, 'function');
   assert.equal(typeof transport?.run, 'function');
   assert.ok(api && transport);
@@ -114,7 +115,18 @@ function fixture(t: { after(fn: () => void): void }) {
   // Pin the Node that delivery will find on PATH, as a real repository does.
   const pathNode = spawnSync('node', ['--version'], { encoding: 'utf8' });
   writeFileSync(join(main, '.node-version'), pathNode.stdout);
-  git(main, ['add', '.gitignore', '.node-version']);
+  if (pinnedApp) {
+    mkdirSync(join(main, 'spec'));
+    writeFileSync(
+      join(main, 'spec/ci-admission.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        checkRunName: 'krn/gate',
+        appId: 5548482,
+      }),
+    );
+  }
+  git(main, ['add', '.']);
   git(main, ['commit', '--quiet', '-m', 'chore: fixture base']);
   const base = git(main, ['rev-parse', 'HEAD']);
   git(main, ['checkout', '--quiet', '-b', rawPull.head.ref]);
@@ -199,6 +211,20 @@ function fixture(t: { after(fn: () => void): void }) {
     merged: false,
     draft: true,
     publish: false,
+    ...(pinnedApp
+      ? {
+          checkRuns: [
+            {
+              id: 1,
+              name: 'krn/gate',
+              head_sha: head,
+              status: 'completed',
+              conclusion: 'success',
+              app: { id: 5548482 },
+            },
+          ],
+        }
+      : {}),
   };
   writeFileSync(configPath, JSON.stringify(config));
   writeFileSync(config.log, '');
@@ -240,15 +266,12 @@ function fixture(t: { after(fn: () => void): void }) {
     record: recordPath,
     task: 't-sbyye51',
     dryRun: false,
-    loadThreshold: 6,
     timeoutMs: 100,
     pollMs: 10,
   };
   const runtime = {
     cwd: worktree,
     run: runner,
-    load: () => 0,
-    ciBusy: () => false,
     now: () => clock,
     sleep: async (ms: number) => {
       clock += ms;
@@ -273,36 +296,6 @@ function fixture(t: { after(fn: () => void): void }) {
       .digest('hex'),
   };
 }
-
-test('delivery replays captured statuses and ship output, retires once and resumes from main', async (t) => {
-  const f = fixture(t);
-  let probes = 0;
-  f.runtime.ciBusy = () => ++probes < 3;
-  const result = await f.api.deliver(f.options, f.runtime);
-  assert.equal(result.status, 'delivered');
-  assert.equal(result.mainConclusion, 'success');
-  assert.ok(probes >= 3);
-  assert.equal(existsSync(f.worktree), false);
-  assert.equal(existsSync(join(f.main, '.krn/runs/deliver', f.key)), false);
-  assert.equal(f.git(f.main, ['rev-parse', 'HEAD']), f.config.merge);
-  assert.ok(existsSync(join(f.main, '.krn/archive', `review-series-${f.key}`)));
-  const calls = f.calls();
-  assert.equal(
-    calls.filter((call) => call.role === 'gh' && call.args.includes('POST'))
-      .length,
-    0,
-  );
-  const ships = calls.filter((call) => call.args[0] === 'ship');
-  assert.equal(ships.length, 2);
-  assert.equal(ships[0]?.args.includes('--dry-run'), true);
-  assert.ok(ships.every((call) => call.cwd === f.main));
-  f.change({ capturePull: true });
-  await assert.rejects(
-    f.api.deliver(f.options, { ...f.runtime, cwd: f.main }),
-    /merged PR requires a saved delivery binding/u,
-  );
-  assert.equal(f.calls().filter((call) => call.args[0] === 'ship').length, 2);
-});
 
 test('dry-run validates without publishing, ready, gate, ship or persistent state', async (t) => {
   const f = fixture(t);
@@ -589,7 +582,6 @@ for (const [patch, stage] of [
   [{ moved: true }, 'bind'],
   [{ ciFailure: true }, 'ci'],
   [{ ciPending: true }, 'ci'],
-  [{ gateFailure: true }, 'gate'],
   [{ shipFailure: true }, 'ship'],
   [{ treeMismatch: true }, 'ship'],
 ] as const) {
@@ -647,7 +639,7 @@ test('delivery refuses invalid review and merge contracts before publication', a
   );
 });
 
-test('hygiene preserves an untracked file and resumes without a second local gate', async (t) => {
+test('hygiene preserves an untracked file and resumes without a local gate', async (t) => {
   const f = fixture(t);
   writeFileSync(join(f.worktree, 'owned.txt'), 'preserve');
   await assert.rejects(f.api.deliver(f.options, f.runtime), /hygiene:/u);
@@ -659,7 +651,7 @@ test('hygiene preserves an untracked file and resumes without a second local gat
   );
   assert.equal(
     f.calls().filter((call) => call.args[0] === 'host-lock').length,
-    1,
+    0,
   );
 });
 
@@ -718,42 +710,190 @@ test('Node pin mismatch fails binding before status publication', async (t) => {
   );
 });
 
-test('delivery refuses the local gate when the worktree moved during the wait', async (t) => {
-  const f = fixture(t);
+test('delivery rechecks worktree HEAD after waiting for full CI', async (t) => {
+  const f = fixture(t, true);
+  f.change({ ciPending: true });
   let moved = false;
-  f.runtime.ciBusy = () => {
-    if (!moved) {
+  const runtime = {
+    ...f.runtime,
+    sleep: async (ms: number) => {
+      await f.runtime.sleep(ms);
+      if (moved) return;
       moved = true;
       f.git(f.worktree, ['commit', '--quiet', '--allow-empty', '-m', 'moved']);
-    }
-    return false;
+      f.change({ ciPending: false });
+    },
   };
   await assert.rejects(
-    f.api.deliver(f.options, f.runtime),
-    (error: unknown) => {
-      assert.ok(error instanceof f.api.DeliveryFailure);
-      assert.equal(error.stage, 'gate');
-      return true;
-    },
+    f.api.deliver(f.options, runtime),
+    /ship: worktree HEAD differs/u,
   );
   assert.equal(
-    f.calls().some((call) => call.args[0] === 'host-lock'),
+    f
+      .calls()
+      .some((call) => call.args[0] === 'ship' || call.args.includes('ready')),
     false,
   );
 });
 
-test('delivery does not accept a merged PR whose local gate never passed', async (t) => {
-  const f = fixture(t);
-  f.change({ gateFailure: true });
-  await assert.rejects(f.api.deliver(f.options, f.runtime));
-  f.change({ gateFailure: false, merged: true });
+for (const legacyGate of [false, undefined] as const) {
+  for (const merged of [false, true]) {
+    test(`delivery resumes ${merged ? 'merged' : 'open'} journal with gate ${String(legacyGate)} using fresh full CI`, async (t) => {
+      const f = fixture(t, true);
+      f.change({ publish: true, statusFailure: true });
+      await assert.rejects(f.api.deliver(f.options, f.runtime), /statuses:/u);
+      const statePath = join(f.main, '.krn/runs/deliver', f.key, 'state.json');
+      const state = JSON.parse(readFileSync(statePath, 'utf8'));
+      delete state.gate;
+      if (legacyGate !== undefined) state.gate = legacyGate;
+      writeFileSync(statePath, JSON.stringify(state));
+      if (merged) {
+        mkdirSync(join(f.main, '.krn/runs/ship'), { recursive: true });
+        const captured = readFileSync(
+          join(fixtures, 'ship-result.fixture'),
+          'utf8',
+        ).replace(/\b[a-f0-9]{40}\b/gu, (sha) => f.config.shas[sha] ?? sha);
+        writeFileSync(join(f.main, '.krn/runs/ship/pr-138.json'), captured);
+      }
+      f.change({
+        merged,
+        publish: false,
+        statusFailure: false,
+        ciPending: true,
+      });
+      const before = f.calls().length;
+      await assert.rejects(
+        f.api.deliver(f.options, f.runtime),
+        /ci: bounded wait timed out/u,
+      );
+      assert.equal(
+        f
+          .calls()
+          .slice(before)
+          .some(
+            (call) => call.args[0] === 'ship' || call.args.includes('ready'),
+          ),
+        false,
+      );
+      assert.ok(
+        f
+          .calls()
+          .slice(before)
+          .some((call) =>
+            call.args.some((arg) =>
+              arg.includes(`/commits/${f.config.head}/check-runs?`),
+            ),
+          ),
+      );
+      f.change({ ciPending: false, ciFailure: true });
+      await assert.rejects(
+        f.api.deliver(f.options, f.runtime),
+        /ci: gate concluded failure/u,
+      );
+      f.change({ ciFailure: false });
+      assert.equal(
+        (await f.api.deliver(f.options, f.runtime)).status,
+        'delivered',
+      );
+      assert.equal(
+        f.calls().some((call) => call.args[0] === 'host-lock'),
+        false,
+      );
+    });
+  }
+}
+
+test('delivery rejects a malformed legacy gate field before receiver calls', async (t) => {
+  const f = fixture(t, true);
+  f.change({ ciPending: true });
+  await assert.rejects(f.api.deliver(f.options, f.runtime), /ci:/u);
+  const statePath = join(f.main, '.krn/runs/deliver', f.key, 'state.json');
+  const state = JSON.parse(readFileSync(statePath, 'utf8'));
+  state.gate = 'false';
+  writeFileSync(statePath, JSON.stringify(state));
+  const before = f.calls().length;
+  await assert.rejects(f.api.deliver(f.options, f.runtime), /bind:/u);
+  assert.equal(f.calls().length, before);
+});
+
+for (const [label, patch] of [
+  ['wrong head', { head_sha: 'e'.repeat(40) }],
+  ['wrong App', { app: { id: 15368, slug: 'github-actions' } }],
+  ['wrong name', { name: 'gate' }],
+  ['malformed', { app: { id: '5548482' } }],
+] as const) {
+  test(`delivery refuses ${label} Product CI before ready and ship`, async (t) => {
+    const f = fixture(t, true);
+    f.change({
+      checkRuns: [
+        {
+          id: 1,
+          name: 'krn/gate',
+          head_sha: f.config.head,
+          status: 'completed',
+          conclusion: 'success',
+          app: { id: 5548482 },
+          ...patch,
+        },
+      ],
+    });
+    await assert.rejects(f.api.deliver(f.options, f.runtime), /ci:/u);
+    assert.equal(
+      f
+        .calls()
+        .some((call) => call.args[0] === 'ship' || call.args.includes('ready')),
+      false,
+    );
+  });
+}
+
+test('delivery retains worktree until full main CI succeeds', async (t) => {
+  const f = fixture(t, true);
+  f.change({ mainCiFailure: true });
   await assert.rejects(
     f.api.deliver(f.options, f.runtime),
-    (error: unknown) => {
-      assert.ok(error instanceof f.api.DeliveryFailure);
-      assert.equal(error.stage, 'ship');
-      assert.match(error.message, /without the recorded local gate/u);
-      return true;
-    },
+    /ci: gate concluded failure/u,
+  );
+  assert.ok(existsSync(f.worktree));
+  assert.equal(f.calls().filter((call) => call.args[0] === 'ship').length, 2);
+  f.change({ mainCiFailure: false });
+  assert.equal((await f.api.deliver(f.options, f.runtime)).status, 'delivered');
+  assert.equal(f.calls().filter((call) => call.args[0] === 'ship').length, 2);
+});
+
+test('delivery CLI accepts the deprecated load flag and preserves argument exit codes', (t) => {
+  const root = mkdtempSync(join(tmpdir(), 'krn-deliver-cli-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const invoke = (extra: string[]) =>
+    spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `import { deliverCommand } from ${JSON.stringify(fileURLToPath(new URL('../../src/deliver/cli.ts', import.meta.url)))}; await deliverCommand(process.argv.slice(1));`,
+        '--',
+        '--repo',
+        'krn-works/krn',
+        '--pr',
+        '138',
+        '--record',
+        'missing.json',
+        '--task',
+        't-sbyye51',
+        '--json',
+        ...extra,
+      ],
+      { cwd: root, encoding: 'utf8' },
+    );
+  const valid = invoke(['--load-threshold', '0.001']);
+  assert.equal(valid.status, 71, valid.stderr);
+  assert.match(JSON.parse(valid.stdout).error, /^bind:/u);
+  const invalid = invoke(['--load-threshold', 'invalid']);
+  assert.equal(invalid.status, 64, invalid.stderr);
+  const help = invoke(['--help']);
+  assert.equal(help.status, 0, help.stderr);
+  assert.match(
+    help.stdout,
+    /load-threshold N.*Deprecated; accepted and ignored/u,
   );
 });

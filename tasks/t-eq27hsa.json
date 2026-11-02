@@ -1,7 +1,11 @@
 {
   "id": "t-eq27hsa",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-dqpk1dy",
+    "note": "Operator approved D30 amendment: exact-head full Jenkins gate required, local isolation gate optional. Local-gate CPU reservation no longer required."
+  },
   "created": "2026-11-02",
   "priority": 1,
   "title": "Give the local gate reserved CPU and admit it by CPU pressure",

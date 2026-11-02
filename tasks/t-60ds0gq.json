@@ -1,0 +1,16 @@
+{
+  "id": "t-60ds0gq",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "CI slot recovered by supported SAME-attempt Finish 70a55013 (G163->164); main15 queue2096 exact8961311 native and App5548482 check125267695998 SUCCESS, gate/cleanup/archive true, idle/readyG166. Operator separately approved exclude100->100,108 in the sole scheduled PVE backup job; full config readback confirmed no other delta. Root evidence/runbook/diagnose: .krn/runs/ci-platform/slot-recovery/ in main checkout. Independent recovery opinion PASS; exact primary reset error and future backup cycle not proved."
+  },
+  "created": "2026-11-02",
+  "priority": 0,
+  "title": "Clear the Jenkins slot quarantine after a failed final reset",
+  "after": [],
+  "body": [
+    "Outcome: the Jenkins Product slot is out of quarantine and main 8961311 has a green krn/gate (gate already passed: gate=true; only the final reset failed).\nEvidence: Jenkins product/main #14, attempt 70a55013-781d-41bf-a0c3-3ce782a3b2a2: 'Final reset failed; quarantine remains' (cleanup=false). Quarantine blocks every later attempt (infra/ci/internal/control/control.go:240-243, :303-304); only Finish of the same attempt retries the cold reset (:335-366). Recon: .krn/runs/lead/ci-quarantine/recon.md.\nNeeds: operator with PVE/controller root (forced command pve/ci-runner-reset.sh) and a grant; read the archived attempt.json reset error first. Then rerun main CI. Follow-up: add a runbook and an executable diagnosis for final reset failures."
+  ]
+}
