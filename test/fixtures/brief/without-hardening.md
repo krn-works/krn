@@ -1,9 +1,9 @@
 # Brief — sweep orphaned review verdict trees (t-7be2jjm)
 
-Repo: worktree `/mnt/storage/coding/krn/active/krn/.krn/worktrees/review-verdict-cleanup`, branch `fix/review-verdict-cleanup`, base origin/main `b2705d7` (branch HEAD 13c55c0 adds tracker files only; do not touch `tasks/`). Task id `t-7be2jjm`.
+Repo: worktree `<repo>/.krn/worktrees/review-verdict-cleanup`, branch `fix/review-verdict-cleanup`, base origin/main `b2705d7` (branch HEAD 13c55c0 adds tracker files only; do not touch `tasks/`). Task id `t-7be2jjm`.
 
 ## Outcome
-`krn review` never leaves `<root>/.krn/tmp/verdict-*` trees behind for longer than the next review run. On 2026-11-01 `/mnt/storage` hit 100%: 8+ orphaned `verdict-*` red-first clones of ~1.9 GB each from 10-29, no live owner. In-process `finally` blocks already clean up on success, failure and SIGINT/SIGTERM; SIGKILL, OOM and quarantined trees (`TeardownUnconfirmed`) leak. Fix: record each tree's owner and sweep dead owners' trees when a review next allocates one.
+`krn review` never leaves `<root>/.krn/tmp/verdict-*` trees behind for longer than the next review run. On 2026-11-01 `<storage>` hit 100%: 8+ orphaned `verdict-*` red-first clones of ~1.9 GB each from 10-29, no live owner. In-process `finally` blocks already clean up on success, failure and SIGINT/SIGTERM; SIGKILL, OOM and quarantined trees (`TeardownUnconfirmed`) leak. Fix: record each tree's owner and sweep dead owners' trees when a review next allocates one.
 
 ## Facts
 - Single allocation seam: `createWorktreeDirectory` `src/verdict/sandbox.ts:436` (`mkdtempSync(join(directory,'verdict-'))`). Callers: `src/verdict/index.ts:154` (then `addWorktree` → registered `git worktree add --detach`, `sandbox.ts:439`) and `src/flow/repository.ts:831` (plain `git clone`, `createCandidateCopy` `:302-308`, no registration).
