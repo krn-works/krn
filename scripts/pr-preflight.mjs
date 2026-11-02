@@ -434,6 +434,16 @@ function reviewEvidence(repo, input, reasons, identity) {
     }
     if (!parsed.success) {
       reasons.add(`review record does not satisfy the strict schema: ${path}`);
+      // Ship never guesses an unknown value; only the trusted base reviewer
+      // can produce a record the base schema can verify.
+      const tool = typeof json?.toolSha === 'string' ? json.toolSha : '';
+      if (
+        sha.safeParse(tool).success &&
+        !git(repo, ['merge-base', '--is-ancestor', tool, input.base]).ok
+      )
+        reasons.add(
+          `review record came from reviewer code ${tool} outside the PR base; re-run the review with the base checkout's bin/krn: ${path}`,
+        );
       continue;
     }
     const record = parsed.data;

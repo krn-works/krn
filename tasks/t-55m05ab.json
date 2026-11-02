@@ -1,0 +1,12 @@
+{
+  "id": "t-55m05ab",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 3,
+  "title": "Keep rule tests off open-trap workaround text",
+  "after": [],
+  "body": [
+    "Outcome: a rule test never asserts the text of an open trap workaround, so removing a fixed trap from krn-lead does not break an unrelated test. Evidence: PR #172 krn verify preflight FAIL (.krn/runs/delivery-loop/deliver-traps/verify-1.out) because test/rules/parallel-lanes.test.ts asserted \"bind: record/PR head mismatch\" from the t-zwba7pr workaround; one extra verify cycle. Acceptance: test/rules/lead-traps.test.ts (or a new rule test) fails when a test under test/rules/ matches a workaround sentence owned by an Open traps id, or krn-lead step 6 states that trap text is asserted only by lead-traps.test.ts."
+  ]
+}
