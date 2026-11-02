@@ -1,0 +1,12 @@
+{
+  "id": "t-jjzvgsn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Pin the brief Markdown grammar to CommonMark with a captured render oracle",
+  "after": [],
+  "body": [
+    "Outcome: the brief checker's Markdown grammar (src/brief/index.ts outsideFences) is pinned to CommonMark by an observer that compares section visibility with a verbatim GitHub GFM render capture (KRN-12), covering an inline `<!--` before an ATX heading and a multi-line paragraph above a setext underline; the review lens tells judges that a Markdown-grammar BLOCKING finding must cite CommonMark block/inline order or a rendered proof.\nEvidence: PR #162 attempt 8 (record review-series/a3b6e8ee…/records/1.json) lost one panel vote to a false positive at src/brief/index.ts:77; GFM render in .krn/archive/worktree-runs/feat-hardening-checklist-20261102T075404Z/claude/hardening-checklist/lead/finding-8-gfm-render.md; operator approved the override."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-wqzzmcg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 2,
+  "title": "Report lost delivery state at session start",
+  "after": [],
+  "body": [
+    "Outcome: the session-start restart block prints `STATE LOSS: <expected path>` when an open claim names a worktree, or a recorded successor launch exists, and no capsule or handoff resolves.\nEvidence: scripts/claude/context-restart.ts:48-106; the 2026-11-02 deletion of 21 .krn/runs directories went unreported by `krn state check`; .krn/runs/program-audit/synthesis.md."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-bpz81ye",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Audit cleanup paths for owner races, check-then-delete and interrupted writes",
+  "after": [],
+  "body": [
+    "Outcome: the recently changed cleanup paths (review verdict-tree sweep and quarantine, worker run and sandbox cleanup, ship worktree archiving) are audited for three race classes — process-owner races, state change between check and delete, interrupted write — and each class ends as either a committed reproducing test (defect) or a recorded, executed scenario showing it is handled.\nEvidence: operator intake 2026-11-02 (pasted digest, item 4): AI-assisted review found real OverlayFS defects (info leak, use-after-free, NULL dereference, data loss), fixed in Linux. Local motive: on 2026-11-02 a cleanup session deleted 21 directories under .krn/runs because a failed age filter was hidden (handoff incident). Recent changes: PR #161, t-7be2jjm."
+  ]
+}

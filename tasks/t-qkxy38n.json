@@ -1,0 +1,12 @@
+{
+  "id": "t-qkxy38n",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Give the round-one checklist to the whole panel instead of a blocking prepass",
+  "after": [],
+  "body": [
+    "Outcome: in round 1, `--prepass --checklist` hands every panel judge the checklist as a search aid, as round 2 does; no record has `judges: []`, so every FAIL record can serve as a prior or be overridden.\nEvidence: src/flow/index.ts:177-216, src/flow/prior.ts:99-108, src/flow/record.ts:111-115, src/flow/cli.ts:171; PR #162 attempts 2–4; split from t-1xjh05h; ranked 4 in .krn/runs/program-audit/synthesis.md."
+  ]
+}

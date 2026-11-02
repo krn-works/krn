@@ -1,0 +1,14 @@
+{
+  "id": "t-01yr1qf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 2,
+  "title": "Report coordination overhead per completed change in the delivery benchmark",
+  "after": [
+    "t-6vhm7we"
+  ],
+  "body": [
+    "Outcome: the delivery benchmark reports coordination overhead per completed change — messages between agents, agreements or decisions recorded, and documents written — next to merged changes, so organisational activity cannot pass for progress.\nEvidence: operator intake 2026-11-02 (pasted digest, item 3): in a YC/Olam Labs experiment 50 agents sent ~5900 messages in three hours and four spent 11 minutes agreeing on one operator for one fertilising step. Owner of the benchmark: t-6vhm7we."
+  ]
+}

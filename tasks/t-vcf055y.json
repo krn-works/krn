@@ -1,0 +1,12 @@
+{
+  "id": "t-vcf055y",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Review refuses to reserve an attempt while the exact head's krn/gate failed",
+  "after": [],
+  "body": [
+    "Outcome: `krn review --pr` reads the exact head's krn/gate check run before reserving a D10 attempt and refuses (usage error naming the failed check) while it concluded failure, so no attempt is spent on a head that cannot ship; a pending gate is allowed. Observer red at base.\nEvidence: PR #162 attempts 6 and 7 ran on 12faa09 while krn/gate had already failed on 6371266 (06:10Z) and then 12faa09 (06:35Z) from test/rules/host-path-guard.test.mjs; the fix (ed023ff) forced attempt 8 under an operator exception. Memory rule ci-only-red-runner-shape (\"review only after green CI on the exact head\") existed but was not enforced. Retro: .krn/worktrees/hardening-checklist/.krn/runs/claude/hardening-checklist/lead/retro-notes.md."
+  ]
+}
