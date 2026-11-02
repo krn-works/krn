@@ -1,0 +1,12 @@
+{
+  "id": "t-tmptv5f",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 3,
+  "title": "Review every PR with the trusted base reviewer",
+  "after": [],
+  "body": [
+    "Outcome: every krn review runs the trusted base reviewer, not the code under review. Evidence: PR #174 review ran from the main checkout bin/krn with absolute --lens/--checklist into the PR worktree (record toolSha 63e9390 = base, PASS in one attempt, .krn/runs/delivery-loop/deliver-traps/review-enum-1.json); krn-lead step 7 still runs head bin/krn from the PR worktree for other PRs, so head code writes its own review record. Acceptance: krn-lead step 7 names one review invocation from the main checkout for every PR, and preflight or review refuses (or flags) a record whose toolSha is not an ancestor of the PR base, with an observer red at base by assertion."
+  ]
+}
