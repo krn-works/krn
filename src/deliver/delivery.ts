@@ -306,11 +306,14 @@ export async function deliver(
     )
       throw new Error('review record changed while reading');
     const record = newReviewRecordSchema.parse(decoded);
-    if (
-      record.headSha !== pull.head.sha ||
-      (state && state.head !== pull.head.sha)
-    )
+    if (record.headSha !== pull.head.sha)
       throw new Error('record/PR head mismatch');
+    // Unmerged state from an earlier head is stale; a recorded merge is not.
+    if (state && state.head !== pull.head.sha) {
+      if (pull.merged || state.merge)
+        throw new Error('record/PR head mismatch');
+      state = undefined;
+    }
     requireReviewChecklist(record, main, runner);
     if (
       record.override &&
