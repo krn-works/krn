@@ -1,7 +1,11 @@
 {
   "id": "t-m26qh11",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Round two delivers when round one applied any checklist; the head-blob check binds the current round (test/deliver/checklist-round-two.test.ts)."
+  },
   "created": "2026-11-02",
   "priority": 1,
   "title": "Round-two delivery accepts a checklist edited between rounds",
