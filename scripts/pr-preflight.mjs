@@ -57,16 +57,6 @@ const argsSchema = z
 const pullSchema = pullRequestSchema.extend({
   title: z.string().min(1),
 });
-const statusesSchema = z.array(
-  z.object({
-    context: z.string().min(1),
-    state: z.enum(['error', 'failure', 'pending', 'success']),
-    creator: z.object({ login: z.string().min(1) }).nullable(),
-    description: z.string().nullable().optional(),
-    created_at: z.string().datetime({ offset: true }).optional(),
-    updated_at: z.string().datetime({ offset: true }).optional(),
-  }),
-);
 const checkRunsSchema = z.array(
   z
     .object({
@@ -237,22 +227,6 @@ function trailer(lines, name, schema, optional = false) {
   return parsed.success
     ? ok(parsed.data)
     : err(`head commit ${name} trailer is malformed`);
-}
-
-function latestGateLocal(statuses) {
-  const gate = statuses
-    .filter((status) => status.context === 'krn/gate-local')
-    .sort(
-      (a, b) =>
-        (Date.parse(b.created_at ?? b.updated_at ?? '') || 0) -
-        (Date.parse(a.created_at ?? a.updated_at ?? '') || 0),
-    )[0];
-  return gate ? ok(gate) : err('exact-head krn/gate-local status is missing');
-}
-
-function hasZeroIsolationSkips(description) {
-  const counts = [...description.matchAll(/\b(\d+)\s+isolation skips\b/gu)];
-  return counts.length === 1 && Number(counts[0]?.[1]) === 0;
 }
 
 // Mirror record.ts's realpath/regular-file boundary, with bounded reads.
@@ -684,40 +658,6 @@ export async function runPreflight(input, dependencies = {}) {
         reasons.add('PR base SHA is not in the requested base history');
       if (pull.head.sha.toLowerCase() !== canonicalHead)
         reasons.add('PR head SHA does not match the requested exact head');
-    }
-
-    const statusRead =
-      dependencies.readStatuses ??
-      ((path, repoName, head) =>
-        ghJson(path, `repos/${repoName}/commits/${head}/statuses`));
-    const statuses = await readValue(
-      statusRead,
-      [repo, slug, canonicalHead],
-      statusesSchema,
-      'GitHub commit statuses could not be read',
-      reasons,
-    );
-    if (statuses) {
-      const found = latestGateLocal(statuses);
-      if (!found.ok) reasons.add(found.error);
-      else {
-        const status = found.value;
-        const creator = status.creator?.login ?? null;
-        report.gateLocalStatus = {
-          context: status.context,
-          state: status.state,
-          creator,
-          description: status.description ?? null,
-        };
-        if (status.state !== 'success')
-          reasons.add('exact-head krn/gate-local status is not success');
-        if (!creator)
-          reasons.add('exact-head krn/gate-local status has no creator');
-        if (!status.description || !hasZeroIsolationSkips(status.description))
-          reasons.add(
-            'exact-head krn/gate-local status does not report zero isolation skips',
-          );
-      }
     }
 
     const checkRuns = await readValue(

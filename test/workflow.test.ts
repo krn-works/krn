@@ -149,7 +149,7 @@ test('CI workflow prepares any runner outside the isolated fleet for isolation t
   );
 });
 
-test('Product uses required exact-head CI for the full gate and a host-locked local isolation supplement', async () => {
+test('Product uses required exact-head App CI and optional local diagnostics', async () => {
   const manifest: unknown = JSON.parse(
     await readFile(new URL('../package.json', import.meta.url), 'utf8'),
   );
@@ -173,18 +173,21 @@ test('Product uses required exact-head CI for the full gate and a host-locked lo
     'docs/program/repository-workflow.md',
     'docs/program/lead-rules.md',
     'docs/program/PLANS.md',
+    '.agents/skills/krn-lead/SKILL.md',
   ]) {
     const source = await readFile(
       new URL(`../${path}`, import.meta.url),
       'utf8',
     );
     assert.match(source, /required CI on the exact HEAD/u, path);
-    assert.match(
+    assert.match(source, /optional local diagnostics/u, path);
+    assert.match(source, /krn\/gate.*5548482/u, path);
+    assert.match(source, /npm run preflight/u, path);
+    assert.doesNotMatch(
       source,
-      /krn host-lock run --name gate -- npm run gate:local/u,
+      /after review the lead runs .*gate:local/iu,
       path,
     );
-    assert.match(source, /preflight.*isolation/iu, path);
     assert.doesNotMatch(
       source,
       /CI runs the same steps|runs the full local gate/u,
@@ -198,6 +201,17 @@ test('Product uses required exact-head CI for the full gate and a host-locked lo
     ),
     'utf8',
   );
+  assert.match(
+    adr,
+    /^\*\*D30 amendment.*Tak, opcja 1 — zmiana D30.*optional local diagnostics/mu,
+  );
+  assert.match(adr, /Tak, zgoda na ten zakres rulesetu/u);
+  const agents = await readFile(
+    new URL('../AGENTS.md', import.meta.url),
+    'utf8',
+  );
+  assert.match(agents, /KRN-07.*MUST.*krn\/gate.*5548482.*gate: npm run gate/u);
+  assert.doesNotMatch(agents, /KRN-07.*MUST pass `npm run gate:local`/u);
   assert.match(adr, /^\| D30 \|.*D11.*Product/mu);
   assert.match(adr, /Tak, zmień D11 \(Recommended\)/u);
   assert.match(

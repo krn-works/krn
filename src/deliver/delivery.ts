@@ -11,7 +11,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { loadavg, tmpdir } from 'node:os';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
@@ -59,7 +59,8 @@ export interface DeliveryOptions {
   task?: string | undefined;
   messageFile?: string | undefined;
   dryRun: boolean;
-  loadThreshold: number;
+  /** @deprecated Accepted for older callers; delivery no longer waits for host load. */
+  loadThreshold?: number;
   timeoutMs: number;
   pollMs: number;
 }
@@ -68,8 +69,6 @@ export interface DeliveryRuntime {
   run?: Runner;
   sleep?: (ms: number) => Promise<void>;
   now?: () => number;
-  load?: () => number;
-  ciBusy?: () => boolean;
   contracts?: typeof checkMergeContracts;
 }
 const sha = z.string().regex(/^[a-f\d]{40}$/u);
@@ -100,7 +99,8 @@ const stateSchema = z.object({
   worktree: z.string(),
   branch: z.string(),
   message: z.string(),
-  gate: z.boolean(),
+  // Old journals may retain this flag; only current GitHub CI admits delivery.
+  gate: z.boolean().optional(),
   merge: sha.optional(),
 });
 const statusesSchema = z.array(
@@ -130,27 +130,6 @@ const checksSchema = z.array(
     ),
   }),
 );
-
-function hostCiBusy(): boolean {
-  // Runner.Worker exists for the whole local Actions job, including non-node steps.
-  return readdirSync('/proc')
-    .filter((name) => /^\d+$/u.test(name))
-    .some((pid) => {
-      try {
-        return /(?:^|\/)Runner\.Worker(?:\0|$)/u.test(
-          readFileSync(`/proc/${pid}/cmdline`, 'utf8'),
-        );
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          'code' in error &&
-          error.code === 'ENOENT'
-        )
-          return false;
-        throw error;
-      }
-    });
-}
 
 function lstatIfPresent(path: string) {
   try {
@@ -347,7 +326,11 @@ export async function deliver(
       );
     if (record.panelVerdict !== 'PASS' && !record.override)
       throw new Error('review requires PASS or recorded override');
-    const gatePolicy = gateAdmissionPolicyFromBase(pull.base.sha, (args) =>
+    // Merged recovery keeps the recorded producer when the target branch moves.
+    const policyBase = pull.merged ? state?.base : pull.base.sha;
+    if (policyBase === undefined)
+      throw new Error('merged PR requires a saved delivery binding');
+    const gatePolicy = gateAdmissionPolicyFromBase(policyBase, (args) =>
       git(main, args),
     );
     if (!pull.merged) {
@@ -444,7 +427,6 @@ export async function deliver(
         worktree,
         branch: git(worktree, ['branch', '--show-current']),
         message,
-        gate: false,
       };
       if (
         !state.branch ||
@@ -640,35 +622,6 @@ export async function deliver(
       }
       stage = 'ci';
       await waitGate(state.head);
-      stage = 'gate';
-      if (!state.gate) {
-        await poll(
-          async () =>
-            !(runtime.ciBusy ?? hostCiBusy)() &&
-            (
-              runtime.load ?? (() => loadavg()[0] ?? Number.POSITIVE_INFINITY)
-            )() < options.loadThreshold,
-        );
-        await assertBound();
-        checked(
-          runner(
-            'krn',
-            [
-              'host-lock',
-              'run',
-              '--name',
-              'gate',
-              '--',
-              'npm',
-              'run',
-              'gate:local',
-            ],
-            state.worktree,
-          ),
-        );
-        state.gate = true;
-        save();
-      }
       stage = 'ship';
       const current = await assertBound();
       if (current.draft)
@@ -705,9 +658,9 @@ export async function deliver(
       state.merge = result.merge;
       save();
     } else {
+      stage = 'ci';
+      await waitGate(state.head);
       stage = 'ship';
-      if (!state.gate)
-        throw new Error('PR merged without the recorded local gate');
       if (!state.merge) {
         const recovered = shipSchema.parse(
           JSON.parse(

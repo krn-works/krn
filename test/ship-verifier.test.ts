@@ -185,6 +185,14 @@ function refused(report: z.infer<typeof reportSchema>, reason: RegExp) {
   assert.match(report.reasons.join('\n'), reason);
 }
 
+test('ship verifier admits full CI without reading local diagnostic statuses', async (t) => {
+  const value = await fixture(t);
+  value.statuses.length = 0;
+  assert.equal((await value.verify()).verdict, 'pass');
+  const result = await (await cliFixture(value, [gateCheck()]))();
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test('complete review and Actions gate pass with reproducible evidence and no repository writes', async (t) => {
   const value = await fixture(t);
   const beforeStatus = value.git(['status', '--porcelain']);
@@ -613,7 +621,7 @@ test('a newer gate from another app cannot hide the Actions gate', async (t) => 
   assert.equal(report.gateCheckRun?.id, 1);
 });
 
-test('Ticket, task, gate-local, review and CI failures are reported together', async (t) => {
+test('Ticket, task, review and CI failures remain independent of local diagnostics', async (t) => {
   const value = await fixture(t);
   value.pull.title = 'feat(ship): unknown task (LON-999)';
   const status = value.statuses[0];
@@ -622,11 +630,10 @@ test('Ticket, task, gate-local, review and CI failures are reported together', a
   status.description = 'Gate passed: 1 tests, 2 isolation skips';
   await rm(value.recordPath);
   const report = await value.verify([]);
+  assert.doesNotMatch(report.reasons.join('\n'), /gate-local|isolation skips/u);
   refused(report, /Ticket trailer/u);
   for (const reason of [
     /task LON-999.*missing/u,
-    /gate-local.*not success/u,
-    /zero isolation skips/u,
     /review.*missing/u,
     /gate.*check-run/u,
   ])
@@ -647,13 +654,12 @@ async function cliFixture(
     `#!${process.execPath}
 const resource = process.argv[3];
 const pull = ${JSON.stringify(value.pull)};
-const statuses = ${JSON.stringify(value.statuses)};
 const checks = ${JSON.stringify(checks)}.map(check =>
   typeof check === 'object' && check !== null
     ? { head_sha: pull.head.sha, ...check }
     : check);
 if (resource.includes('/pulls/')) console.log(JSON.stringify(pull));
-else if (resource.includes('/statuses')) console.log(JSON.stringify(statuses));
+else if (resource.includes('/statuses')) { console.error('obsolete local status read'); process.exitCode = 64; }
 else if (resource.includes('/check-runs')) {
   const url = new URL(resource, 'https://api.github.com/');
   const page = Number(url.searchParams.get('page') || 1);

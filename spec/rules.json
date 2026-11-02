@@ -25,13 +25,13 @@
     {
       "id": "KRN-07",
       "trigger": "review is complete and a change is ready for integration",
-      "action": "the author MUST pass `npm run gate:local`",
+      "action": "the author MUST obtain a successful full Product `krn/gate` check from GitHub App `5548482` on the exact reviewed HEAD",
       "owner": "author",
       "enforcement": {
         "kind": "gate",
-        "check": "npm run gate:local"
+        "check": "npm run gate"
       },
-      "rationale": "Required CI on the exact HEAD is the full Product gate (D30); after review the lead runs preflight and only isolation test files with zero isolation skips under `krn host-lock run --name gate -- npm run gate:local`."
+      "rationale": "D30 amendment: full required CI replaces mandatory local isolation diagnostics; cheap independent preflight and review remain required, while `npm run gate:local` is optional local diagnostics."
     },
     {
       "id": "KRN-08",

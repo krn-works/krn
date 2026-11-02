@@ -61,8 +61,7 @@ if (role === 'gh') {
  } else process.exit(64);
 } else {
  if (args[0] === 'host-lock') {
-   if (JSON.stringify(args) !== JSON.stringify(['host-lock','run','--name','gate','--','npm','run','gate:local'])) process.exit(64);
-   if (config.gateFailure) {process.stderr.write('local gate failed\\n'); process.exit(19);}
+   process.stderr.write('obsolete local gate call'); process.exit(64);
  } else if (args[0] === 'ship') {
    if (process.cwd() !== config.main) { process.stderr.write('deleted cwd hazard\\n'); process.exit(64); }
    if (args.includes('--dry-run') && config.dryRefusal) { process.stdout.write(raw(config.dryRefusal)); process.exit(1); }
@@ -240,15 +239,12 @@ function fixture(t: { after(fn: () => void): void }) {
     record: recordPath,
     task: 't-sbyye51',
     dryRun: false,
-    loadThreshold: 6,
     timeoutMs: 100,
     pollMs: 10,
   };
   const runtime = {
     cwd: worktree,
     run: runner,
-    load: () => 0,
-    ciBusy: () => false,
     now: () => clock,
     sleep: async (ms: number) => {
       clock += ms;

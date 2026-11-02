@@ -300,7 +300,7 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
 
 function runHarness(
   value: Awaited<ReturnType<typeof fixture>>,
-  options: { overrides?: boolean } = {},
+  options: { overrides?: boolean; checks?: unknown[] } = {},
 ) {
   const input = {
     repo: value.repo,
@@ -314,7 +314,7 @@ function runHarness(
       input,
       pull: value.pull,
       statuses: value.statuses,
-      checks: [
+      checks: options.checks ?? [
         {
           ...gateCheck(),
           head_sha: value.head,
@@ -366,12 +366,6 @@ function isHarnessResult(value: unknown): value is {
     ticket?: string;
     srcTreeSha?: string;
     testTreeSha?: string;
-    gateLocalStatus?: {
-      context: string;
-      state: string;
-      creator: string | null;
-      description?: string | null;
-    };
     gateCheckRun?: {
       id: number;
       url: string;
@@ -417,23 +411,6 @@ function isHarnessResult(value: unknown): value is {
     const field = Object.getOwnPropertyDescriptor(report, key);
     if (field && typeof field.value !== 'string') return false;
   }
-  if ('gateLocalStatus' in report && report.gateLocalStatus !== undefined) {
-    const status = report.gateLocalStatus;
-    if (
-      typeof status !== 'object' ||
-      status === null ||
-      !('context' in status) ||
-      typeof status.context !== 'string' ||
-      !('state' in status) ||
-      typeof status.state !== 'string' ||
-      !('creator' in status) ||
-      (typeof status.creator !== 'string' && status.creator !== null) ||
-      ('description' in status &&
-        typeof status.description !== 'string' &&
-        status.description !== null)
-    )
-      return false;
-  }
   return true;
 }
 
@@ -447,23 +424,22 @@ test('a PR whose ticket is a committed task at head passes', async (t) => {
   assert.equal(report.ticket, 'LON-230');
   assert.equal(report.srcTreeSha, value.srcTreeSha);
   assert.equal(report.testTreeSha, value.testTreeSha);
-  assert.deepEqual(report.gateLocalStatus, {
-    context: 'krn/gate-local',
-    state: 'success',
-    creator: 'preflight-test-bot',
-    description: 'Gate passed: 12 tests, 0 isolation skips',
-  });
+  assert.equal('gateLocalStatus' in report, false);
   assert.deepEqual(calls, [
     ['pull', value.repo, 'krn-works/krn', 27],
-    ['statuses', value.repo, 'krn-works/krn', value.head],
     ['checks', value.repo, 'krn-works/krn', value.head],
   ]);
 });
 
 test('preflight selects App admission policy from base, not PR head', async (t) => {
   const value = await fixture(t, { gatePolicy: true });
+  value.statuses.length = 0;
   const parsed = parseHarness(runHarness(value));
   assert.equal(parsed.report.verdict, 'pass', parsed.report.reasons.join('; '));
+  assert.equal(
+    parsed.calls.some(([role]) => role === 'statuses'),
+    false,
+  );
   assert.deepEqual(parsed.report.gateCheckRun, {
     id: 1,
     url: 'https://github.com/krn-works/krn/actions/runs/1',
@@ -591,7 +567,6 @@ test('preflight returns the title capture and rejects a mismatched Ticket traile
   assert.ok(report.reasons.some((reason) => /Ticket trailer/u.test(reason)));
   assert.deepEqual(calls, [
     ['pull', value.repo, 'krn-works/krn', 27],
-    ['statuses', value.repo, 'krn-works/krn', value.head],
     ['checks', value.repo, 'krn-works/krn', value.head],
   ]);
 });
@@ -629,35 +604,53 @@ test('preflight rejects a PR head that differs from the requested exact head', a
   assert.ok(report.reasons.some((reason) => /PR head SHA/u.test(reason)));
 });
 
-test('preflight rejects non-success and isolation-skipping gate-local statuses', async (t) => {
-  const failedStatus = await fixture(t, { gateState: 'failure' });
-  const failed = parseHarness(runHarness(failedStatus)).report;
-  assert.equal(failed.verdict, 'fail');
-  assert.equal(failed.gateLocalStatus?.state, 'failure');
-  assert.ok(
-    failed.reasons.some((reason) =>
-      /gate-local status is not success/u.test(reason),
-    ),
-  );
-
-  const skippedStatus = await fixture(t, {
-    gateDescription: 'Gate passed: 12 tests, 1 isolation skips',
-  });
-  const skipped = parseHarness(runHarness(skippedStatus)).report;
-  assert.equal(skipped.verdict, 'fail');
-  assert.ok(
-    skipped.reasons.some((reason) => /zero isolation skips/u.test(reason)),
-  );
-
-  const tenSkippedStatus = await fixture(t, {
+test('preflight ignores optional local diagnostic failures and skips', async (t) => {
+  const value = await fixture(t, {
+    gatePolicy: true,
+    gateState: 'failure',
     gateDescription: 'Gate passed: 12 tests, 10 isolation skips',
   });
-  const tenSkipped = parseHarness(runHarness(tenSkippedStatus)).report;
-  assert.equal(tenSkipped.verdict, 'fail');
-  assert.ok(
-    tenSkipped.reasons.some((reason) => /zero isolation skips/u.test(reason)),
+  const { report, calls } = parseHarness(runHarness(value));
+  assert.equal(report.verdict, 'pass', report.reasons.join('; '));
+  assert.equal(
+    calls.some(([role]) => role === 'statuses'),
+    false,
   );
 });
+
+for (const [label, patch] of [
+  ['wrong head', { head_sha: 'f'.repeat(40) }],
+  ['wrong App', { app: { id: 15368, slug: 'github-actions' } }],
+  ['wrong name', { name: 'gate' }],
+  ['failed', { conclusion: 'failure' }],
+  ['pending', { status: 'in_progress', conclusion: null }],
+  ['malformed', { id: 'invalid' }],
+  ['missing', null],
+] as const) {
+  test(`preflight refuses ${label} full Product gate without local status`, async (t) => {
+    const value = await fixture(t, { gatePolicy: true });
+    value.statuses.length = 0;
+    const checks =
+      patch === null
+        ? []
+        : [
+            {
+              ...gateCheck(),
+              name: 'krn/gate',
+              app: { id: 5548482 },
+              head_sha: value.head,
+              ...patch,
+            },
+          ];
+    const { report, calls } = parseHarness(runHarness(value, { checks }));
+    assert.equal(report.verdict, 'fail');
+    assert.match(report.reasons.join('; '), /check-runs?|check_runs/u);
+    assert.equal(
+      calls.some(([role]) => role === 'statuses'),
+      false,
+    );
+  });
+}
 
 test('CLI writes a JSON failure for invalid arguments', async (t) => {
   const value = await fixture(t);

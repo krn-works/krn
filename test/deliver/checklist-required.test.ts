@@ -149,7 +149,6 @@ function fixture(
           pr: pull.number,
           record: recordPath,
           dryRun: true,
-          loadThreshold: 6,
           timeoutMs: 100,
           pollMs: 10,
         },
