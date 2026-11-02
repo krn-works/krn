@@ -1,7 +1,11 @@
 {
   "id": "t-wrx8fp2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn-lead, repository workflow and krn-retro steer around the open lead traps; test/rules/lead-traps.test.ts keeps the skill's Open traps list equal to tagged open tasks"
+  },
   "created": "2026-11-02",
   "priority": 0,
   "title": "Stop instructions steering leads into known open traps",
