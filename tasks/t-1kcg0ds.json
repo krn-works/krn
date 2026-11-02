@@ -1,0 +1,12 @@
+{
+  "id": "t-1kcg0ds",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 3,
+  "title": "Remove claim, review path and trailer-wording frictions in the lead loop",
+  "after": [],
+  "body": [
+    "Outcome: three small lead-loop frictions from PR #164 are gone.\n1) krn task claim run from the main checkout refuses a task whose record is untracked there ('task does not exist', exit 65) though the worktree commits it; accept --worktree's record or say so (relates to t-aw1vr9w).\n2) krn review --repo refuses a relative path (exit 64); resolve it like other krn commands.\n3) krn-lead skill trap says tracker-only PRs use 'Change-contract: none (<reason>)'; at commit level preflight rejects it (src/flow/repository.ts:603 expects <test>:red->green|green->green) and tracker commits carry no Change-contract. State the per-commit form.\nProof: one observer per item, red at base."
+  ]
+}
