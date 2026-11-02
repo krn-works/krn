@@ -1,0 +1,70 @@
+[
+  {
+    "total_count": 1,
+    "check_runs": [
+      {
+        "id": 125129571037,
+        "name": "krn/gate",
+        "node_id": "CR_kwDOVAgDxs8AAAAdIk263Q",
+        "head_sha": "12faa099bdb389b3b520a62ad0a74a63f3a7528e",
+        "external_id": "ci/product/PR-162#7",
+        "url": "https://api.github.com/repos/krn-works/krn/check-runs/125129571037",
+        "html_url": "https://github.com/krn-works/krn/runs/125129571037",
+        "details_url": "http://127.0.0.1:18080/job/ci/job/product/job/PR-162/7/display/redirect",
+        "status": "completed",
+        "conclusion": "failure",
+        "started_at": "2026-11-02T06:27:20Z",
+        "completed_at": "2026-11-02T06:35:33Z",
+        "output": {
+          "title": "krn/gate",
+          "summary": "Attempt 40d0eb34-1137-46f5-8cc3-8ee10d3eb5fd failed or is unverified; base=ccac27ba4a674c920a52c87f159116292c20ec29; gate=false; cleanup=true; evidence=true",
+          "text": "Primary: hudson.AbortException: Executor returned 1\n\n\nAttempt 40d0eb34-1137-46f5-8cc3-8ee10d3eb5fd; evidence complete=true. Diagnostics are untrusted gate output.\n\nGate stderr (last 4096 bytes):\nRunning as unit: ci-40d0eb34-1137-46f5-8cc3-8ee10d3eb5fd-gate.service; invocation ID: 80f4cb1de55f4c6b825da3cb9ac153dc\nFinished with result: exit-code\nMain processes terminated with: code=exited, status=1/FAILURE\nService runtime: 7min 374ms\nCPU time consumed: 11ms\nMemory peak: 2.4M (swap: 0B)\n\n\nGate stdout (last 4096 bytes):\n     type: 'test'\n      ...\n    # Subtest: cjs reflected api.it.expectFailure rejects forged skip\n    ok 10 - cjs reflected api.it.expectFailure rejects forged skip\n      ---\n      duration_ms: 157.745026\n      type: 'test'\n      ...\n    # Subtest: cjs reflected api.suite.only rejects forged skip\n    ok 11 - cjs reflected api.suite.only rejects forged skip\n      ---\n      duration_ms: 150.84559\n      type: 'test'\n      ...\n    # Subtest: cjs reflected api.suite.expectFailure rejects forged skip\n    ok 12 - cjs reflected api.suite.expectFailure rejects forged skip\n      ---\n      duration_ms: 167.073444\n      type: 'test'\n      ...\n    # Subtest: builtin every alias rejects registration skip\n    ok 13 - builtin every alias rejects registration skip\n      ---\n      duration_ms: 244.862719\n      type: 'test'\n      ...\n    # Subtest: builtin honest callback, suite, hook and static controls\n    ok 14 - builtin honest callback, suite, hook and static controls\n      ---\n      duration_ms: 179.825426\n      type: 'test'\n      ...\n    # Subtest: builtin reflected aliases reject forged skips\n    ok 15 - builtin reflected aliases reject forged skips\n      ---\n      duration_ms: 165.664236\n      type: 'test'\n      ...\n    # Subtest: builtin reflected api.it.expectFailure rejects forged skip\n    ok 16 - builtin reflected api.it.expectFailure rejects forged skip\n      ---\n      duration_ms: 160.84171\n      type: 'test'\n      ...\n    # Subtest: builtin reflected api.suite.only rejects forged skip\n    ok 17 - builtin reflected api.suite.only rejects forged skip\n      ---\n      duration_ms: 158.102882\n      type: 'test'\n      ...\n    # Subtest: builtin reflected api.suite.expectFailure rejects forged skip\n    ok 18 - builtin reflected api.suite.expectFailure rejects forged skip\n      ---\n      duration_ms: 156.528278\n      type: 'test'\n      ...\n    1..18\nok 440 - public registration alias graph rejects forged skips and preserves honest controls\n  ---\n  duration_ms: 1634.048511\n  type: 'test'\n  ...\n# Subtest: requirement decisions use the same validated snapshot\n    # Subtest: custom iterator hides unknown indexed value\n    ok 1 - custom iterator hides unknown indexed value\n      ---\n      duration_ms: 167.211189\n      type: 'test'\n      ...\n    # Subtest: accessor changes value between validation and decision\n    ok 2 - accessor changes value between validation and decision\n      ---\n      duration_ms: 169.574187\n      type: 'test'\n      ...\n    # Subtest: custom iterator and filter hide unknown value\n    ok 3 - custom iterator and filter hide unknown value\n      ---\n      duration_ms: 174.154152\n      type: 'test'\n      ...\n    # Subtest: empty and known requirements retain honest decisions\n    ok 4 - empty and known requirements retain honest decisions\n      ---\n      duration_ms: 176.780818\n      type: 'test'\n      ...\n    1..4\nok 441 - requirement decisions use the same validated snapshot\n  ---\n  duration_ms: 693.994236\n  type: 'test'\n  ...\n# Subtest: guarded node:test refuses separate runners through every exposed run alias\n    # Subtest: esm\n    ok 1 - esm\n      ---\n      duration_ms: 166.633614\n      type: 'test'\n      ...\n    # Subtest: cjs\n    ok 2 - cjs\n      ---\n      duration_ms: 171.304472\n      type: 'test'\n      ...\n    # Subtest: builtin\n    ok 3 - builtin\n      ---\n      duration_ms: 171.024573\n      type: 'test'\n      ...\n    1..3\nok 442 - guarded node:test refuses separate runners through every exposed run alias\n  ---\n  duration_ms: 512.163672\n  type: 'test'\n  ...\n# Subtest: live contract loads local JSON and preserves delivery metadata\nok 443 - live contract loads local JSON and preserves delivery metadata\n  ---\n  duration_ms: 12.607499\n  type: 'test'\n  ...\n# Subtest: live contract refuses mismatched issue identity\nok 444 - live contract refuses mismatched issue identity\n  ---\n  duration_ms: 2.89396\n  type: 'test'\n  ...\n# Subtest: live contract refuses mismatched requested revision\nok 445 - live contract refuses mismatched requested revision\n  ---\n  duration_ms: 1.931531\n  type: 'test'\n  ...\n# Subtest: live contract r\n",
+          "annotations_count": 0,
+          "annotations_url": "https://api.github.com/repos/krn-works/krn/check-runs/125129571037/annotations"
+        },
+        "check_suite": { "id": 112191451537 },
+        "app": {
+          "id": 5548482,
+          "client_id": "Iv23lif6JKIBHmMC1LSZ",
+          "slug": "krn-works-ci",
+          "node_id": "A_kwHOFDzIvc4AVKnC",
+          "owner": {
+            "login": "krn-works",
+            "id": 339527869,
+            "node_id": "O_kgDOFDzIvQ",
+            "avatar_url": "https://avatars.githubusercontent.com/u/339527869?v=4",
+            "gravatar_id": "",
+            "url": "https://api.github.com/users/krn-works",
+            "html_url": "https://github.com/krn-works",
+            "followers_url": "https://api.github.com/users/krn-works/followers",
+            "following_url": "https://api.github.com/users/krn-works/following{/other_user}",
+            "gists_url": "https://api.github.com/users/krn-works/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/krn-works/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/krn-works/subscriptions",
+            "organizations_url": "https://api.github.com/users/krn-works/orgs",
+            "repos_url": "https://api.github.com/users/krn-works/repos",
+            "events_url": "https://api.github.com/users/krn-works/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/krn-works/received_events",
+            "type": "Organization",
+            "user_view_type": "public",
+            "site_admin": false
+          },
+          "name": "krn-works-ci",
+          "description": "Private Jenkins CI on owned PVE",
+          "external_url": "https://github.com/krn-works/krn",
+          "html_url": "https://github.com/apps/krn-works-ci",
+          "created_at": "2026-10-30T22:23:37Z",
+          "updated_at": "2026-10-30T22:34:49Z",
+          "permissions": {
+            "checks": "write",
+            "contents": "read",
+            "metadata": "read",
+            "pull_requests": "read"
+          },
+          "events": []
+        },
+        "pull_requests": []
+      }
+    ]
+  }
+]

@@ -2,6 +2,7 @@
 import { lstatSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readRegularFile } from '../brief/index.ts';
+import type { GateCheckRunReader } from './gate-admission.ts';
 import { ReviewAdmissionError, runReview } from './index.ts';
 import { PriorRecordError } from './prior.ts';
 import { appendOverride } from './record.ts';
@@ -154,6 +155,7 @@ export async function reviewCommand(
   options: {
     readonly codexExecutable?: string;
     readonly readPull?: PullReader;
+    readonly readGateCheckRuns?: GateCheckRunReader;
   } = {},
 ): Promise<ReviewCommandOutcome | undefined> {
   if (args.includes('--help')) {
@@ -164,6 +166,7 @@ export async function reviewCommand(
         '  [--prepass --checklist <path>] [--prior-record <path>]',
         '  [--pr <number>] [--budget-exception <path>]',
         'PR-bound reviews verify authoritative PR metadata, run red-first and the change-contract parser, and refuse deterministic failures before reserving one of two repo-common attempts.',
+        'PR-bound reviews also refuse a latest matching required gate run that failed, timed out, or had a startup failure; pending or absent runs are allowed, and read errors refuse before reservation.',
         'Each additional attempt requires a separate operator exception JSON bound to canonical repository, PR, baseRef, exact ordinal and headSha, with authority and evidence.',
         'Round two: --prior-record accepts a first-round FAIL record (regular non-symlink file, at most 1 MB, different head) to verify prior BLOCKING findings.',
         'After two attempts the lead decides; acceptance override does not grant review budget. A second-round record cannot be used as --prior-record.',
@@ -206,6 +209,7 @@ async function runReviewCommand(
   options: {
     readonly codexExecutable?: string;
     readonly readPull?: PullReader;
+    readonly readGateCheckRuns?: GateCheckRunReader;
   },
 ): Promise<ReviewCommandOutcome> {
   const switches = new Set(['--prepass', '--override']);
@@ -309,6 +313,9 @@ async function runReviewCommand(
     ...parsed.data,
     signal: controller.signal,
     ...(options.readPull ? { readPull: options.readPull } : {}),
+    ...(options.readGateCheckRuns
+      ? { readGateCheckRuns: options.readGateCheckRuns }
+      : {}),
     ...(options.codexExecutable
       ? { codexExecutable: options.codexExecutable }
       : {}),
