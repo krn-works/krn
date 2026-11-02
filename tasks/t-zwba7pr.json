@@ -1,0 +1,12 @@
+{
+  "id": "t-zwba7pr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Ship review-record schema changes and print deliver ship refusals",
+  "after": [],
+  "body": [
+    "Outcome: a change to the review record schema can ship with its own review record. krn ship verifies records with the trusted base schema, so a record using a new field (PR #170: prior.source, role 'prepass') is refused ('review record does not satisfy the strict schema', ship --dry-run exit 1) and the PR needs an extra review attempt run in the old shape. Also: krn deliver exited 76 with empty stdout and stderr instead of printing the ship refusal.\nEvidence: .krn/runs/lead/prepass-prior/deliver.exit (76), deliver.out (0 bytes); hand ship --dry-run printed the refusal.\nLead trap: when a PR changes the review record schema, run its last review attempt in the base record shape (no new fields) under a budget exception; when deliver exits 76 silently, run krn ship --dry-run by hand to read the refusal."
+  ]
+}

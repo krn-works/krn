@@ -95,13 +95,22 @@ export function loadPriorReview(
       `does not match the review record schema: ${parsed.error.message}`,
     );
   const record = parsed.data;
+  const prepassOnly =
+    record.panelVerdict === undefined &&
+    record.judges.length === 0 &&
+    record.panel === undefined;
+  if (prepassOnly && context?.identity === undefined)
+    throw new PriorRecordError(
+      'with a prepass-only record requires a PR review series (--pr) to bind it',
+    );
   if (context) {
     const roles =
       record.panel?.requestedRoles ?? record.judges.map((judge) => judge.role);
     if (
-      roles.length !== context.panel.length ||
-      new Set(roles).size !== roles.length ||
-      roles.some((role) => !context.panel.includes(role))
+      !prepassOnly &&
+      (roles.length !== context.panel.length ||
+        new Set(roles).size !== roles.length ||
+        roles.some((role) => !context.panel.includes(role)))
     )
       throw new PriorRecordError(
         'requires the same panel roles as the prior review',
@@ -117,7 +126,7 @@ export function loadPriorReview(
         throw new PriorRecordError('must be the exact reserved PR record');
     }
   }
-  if (record.prior !== undefined)
+  if (record.prior !== undefined || record.round === 2)
     throw new PriorRecordError(
       'is already a second-round record; after two rounds the lead decides (override)',
     );
@@ -134,18 +143,26 @@ export function loadPriorReview(
   }
   if (priorHead === currentHead)
     throw new PriorRecordError('must have a different head SHA');
-  if (
-    record.panelVerdict !== 'FAIL' ||
-    !(
-      record.judges.some(
-        (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
-      ) ||
+  const prepassFindings =
+    record.prepass?.state === 'complete'
+      ? record.prepass.findings.filter(
+          ({ severity }) => severity === 'BLOCKING',
+        )
+      : [];
+  if (prepassOnly && prepassFindings.length === 0)
+    throw new PriorRecordError(
+      'requires a complete prepass with at least one BLOCKING finding',
+    );
+  const hasPanelFailure =
+    record.panelVerdict === 'FAIL' &&
+    (record.judges.some(
+      (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
+    ) ||
       (record.contracts !== undefined &&
         deterministicCauses(record.redFirst, record.contracts).some(
           ({ verdict }) => verdict === 'FAIL',
-        ))
-    )
-  )
+        )));
+  if (!prepassOnly && !hasPanelFailure)
     throw new PriorRecordError(
       'requires a FAIL panel with a complete judge FAIL or deterministic failure',
     );
@@ -157,21 +174,30 @@ export function loadPriorReview(
     );
   }
   return {
+    ...(prepassOnly ? { source: 'prepass' as const } : {}),
     headSha: priorHead,
     recordSha256: createHash('sha256').update(bytes).digest('hex'),
-    findings: record.judges.flatMap((judge) =>
-      judge.state === 'complete'
-        ? judge.findings
-            .filter(({ severity }) => severity === 'BLOCKING')
-            .map(({ title, path, line, defect }) => ({
-              role: judge.role,
-              title,
-              path,
-              line,
-              defect,
-            }))
-        : [],
-    ),
+    findings: prepassOnly
+      ? prepassFindings.map(({ title, path, line, defect }) => ({
+          role: 'prepass' as const,
+          title,
+          path,
+          line,
+          defect,
+        }))
+      : record.judges.flatMap((judge) =>
+          judge.state === 'complete'
+            ? judge.findings
+                .filter(({ severity }) => severity === 'BLOCKING')
+                .map(({ title, path, line, defect }) => ({
+                  role: judge.role,
+                  title,
+                  path,
+                  line,
+                  defect,
+                }))
+            : [],
+        ),
     changedPaths: paths,
     ...(record.checklist === undefined || record.prepass?.state !== 'complete'
       ? {}
