@@ -98,6 +98,9 @@ export async function dispatch(
   } else if (command === 'brief') {
     const { briefCommand } = await import('./brief.ts');
     briefCommand(options);
+  } else if (command === 'verify') {
+    const { verifyCommand } = await import('./verify.ts');
+    await verifyCommand(options);
   } else if (command === 'deliver') {
     const { deliverCommand } = await import('../deliver/cli.ts');
     await deliverCommand(options);

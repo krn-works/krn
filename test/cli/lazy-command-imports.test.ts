@@ -28,6 +28,7 @@ const allCommandDirectories = [
   'relay',
   'task',
   'trace',
+  'verify',
 ];
 
 test('CLI commands load only their command modules', async (t) => {
