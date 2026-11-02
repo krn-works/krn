@@ -1,7 +1,11 @@
 {
   "id": "t-5gc1q76",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "preflight names the base-reviewer remedy; krn-lead routes schema PRs to the base reviewer"
+  },
   "created": "2026-11-02",
   "priority": 2,
   "title": "Ship review records that use a new schema enum value",
