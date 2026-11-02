@@ -153,6 +153,7 @@ export function main(args = process.argv.slice(2)): void {
       'stop',
       'note',
       'task',
+      'worker',
       'eval',
       'deliver',
       'brief',

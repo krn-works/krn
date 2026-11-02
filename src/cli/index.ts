@@ -110,6 +110,9 @@ export async function dispatch(
       ...runtime.delegate,
       write: runtime.delegate?.write ?? ((text) => process.stdout.write(text)),
     });
+  } else if (command === 'worker') {
+    const { workerCommand } = await import('../worker/cli.ts');
+    await workerCommand(options);
   } else if (command === 'task') {
     const { taskCommand } = await import('../task/cli.ts');
     await taskCommand(options);

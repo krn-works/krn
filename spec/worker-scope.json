@@ -1,0 +1,27 @@
+{
+  "supportedVersions": ["0.166.0"],
+  "forbidden": [
+    "**/AGENTS.md",
+    "**/CLAUDE.md",
+    ".agents/**",
+    ".claude/**",
+    ".codex/**",
+    ".github/**",
+    ".krn/**",
+    "tasks/**",
+    "spec/rules.json",
+    "docs/adr/**",
+    "docs/program/lead-rules.md",
+    "docs/program/repository-workflow.md",
+    "docs/program/hardening-checklist.md",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "mise.toml",
+    ".mise.toml",
+    "scripts/install*",
+    "scripts/seal*",
+    ".gitmodules",
+    ".git/**"
+  ],
+  "review": ["docs/**", "scripts/**", "package.json", "spec/**"]
+}
