@@ -69,8 +69,17 @@ const childEnvironmentDenylist = new Set([
   'KRN_TEST_EVENT_FILE',
 ]);
 
-function defaultTestFiles() {
-  const projectRoot = realpathSync(process.cwd());
+function isInside(parent, path) {
+  const fromParent = relative(parent, path);
+  return (
+    fromParent.length > 0 &&
+    !isAbsolute(fromParent) &&
+    fromParent !== '..' &&
+    !fromParent.startsWith(`..${sep}`)
+  );
+}
+
+function projectTestFiles(projectRoot) {
   const testRoot = join(projectRoot, 'test');
   const testRootStat = lstatSync(testRoot);
   if (!testRootStat.isDirectory() || testRootStat.isSymbolicLink())
@@ -80,13 +89,7 @@ function defaultTestFiles() {
     const path = resolve(projectRoot, match);
     if (!statSync(path).isFile()) continue;
     const resolved = realpathSync(path);
-    const fromTestRoot = relative(testRoot, resolved);
-    if (
-      isAbsolute(fromTestRoot) ||
-      fromTestRoot === '..' ||
-      fromTestRoot.startsWith(`..${sep}`) ||
-      fromTestRoot.length === 0
-    )
+    if (!isInside(testRoot, resolved))
       throw new Error(
         `test discovery resolved outside project test root: ${resolved}`,
       );
@@ -95,17 +98,45 @@ function defaultTestFiles() {
   return [...new Set(files)].sort();
 }
 
-function strictTestFiles(args) {
-  if (args.length === 0) return defaultTestFiles();
-  const files = args.map((argument) => {
+function defaultTestFiles() {
+  return projectTestFiles(realpathSync(process.cwd()));
+}
+
+const MAX_TEST_ARGUMENT_BYTES = 4096;
+
+// A directory argument selects the files TEST_FILE_GLOB discovers whose real
+// path lies inside the directory's real path, the same real paths CI runs, so
+// a caller such as preflight never restates CI's test grammar.
+export function selectTestFiles(args, projectRoot = process.cwd()) {
+  const root = realpathSync(projectRoot);
+  if (args.length === 0) return projectTestFiles(root);
+  let discovered;
+  const files = args.flatMap((argument) => {
+    if (Buffer.byteLength(argument, 'utf8') > MAX_TEST_ARGUMENT_BYTES)
+      throw new Error(`test argument exceeds ${MAX_TEST_ARGUMENT_BYTES} bytes`);
+    const shown = JSON.stringify(argument);
     if (argument.startsWith('-'))
       throw new Error(
-        `strict test mode accepts file paths only, not ${argument}`,
+        `test selection accepts file or directory paths only, not ${shown}`,
       );
-    const file = resolve(process.cwd(), argument);
-    if (!statSync(file).isFile())
-      throw new Error(`strict test argument is not a file: ${argument}`);
-    return realpathSync(file);
+    const path = resolve(root, argument);
+    const stat = statSync(path);
+    if (stat.isFile()) return [realpathSync(path)];
+    if (!stat.isDirectory())
+      throw new Error(`test argument is not a file or directory: ${shown}`);
+    discovered ??= projectTestFiles(root);
+    // An empty argument, the project root or a symlink out of test/ would
+    // otherwise widen the selection beyond the directory the caller named.
+    const directory = realpathSync(path);
+    const testRoot = join(root, 'test');
+    if (directory !== testRoot && !isInside(testRoot, directory))
+      throw new Error(
+        `test directory argument must be the project test root or inside it: ${shown}`,
+      );
+    const selected = discovered.filter((file) => isInside(directory, file));
+    if (selected.length === 0)
+      throw new Error(`test directory holds no project test files: ${shown}`);
+    return selected;
   });
   return [...new Set(files)].sort();
 }
@@ -481,7 +512,7 @@ async function main() {
     const requestedFiles = process.argv.slice(2);
     let runnerArguments;
     if (strict) {
-      expectedFiles = strictTestFiles(requestedFiles);
+      expectedFiles = selectTestFiles(requestedFiles);
       if (expectedFiles.length === 0)
         throw new Error('strict test selection contains no files');
       runnerArguments = expectedFiles;
@@ -490,7 +521,7 @@ async function main() {
     ) {
       runnerArguments = requestedFiles;
     } else {
-      expectedFiles = strictTestFiles(requestedFiles);
+      expectedFiles = selectTestFiles(requestedFiles);
       if (expectedFiles.length === 0)
         throw new Error('test selection contains no files');
       runnerArguments = expectedFiles;
