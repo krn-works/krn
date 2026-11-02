@@ -16,7 +16,7 @@ From the records: wall time from claim to merge; worker time; review attempts an
 Categories adapted from mattpocock/skills `retro`:
 
 - **Automated checks:** an error a check could have caught earlier. Add or extend the cheapest check (`npm run preflight`, a CI step). This is the preferred outcome.
-- **Reviewer rules:** a finding judges raised that no deterministic check can catch. Add it to the lens or a repository rule.
+- **Reviewer rules:** a finding judges raised that no deterministic check can catch. Add it to the lens or a repository rule; add any BLOCKING class missing from `docs/program/hardening-checklist.md` to that checklist.
 - **Steering files:** instructions that changed nothing, duplicate another owner, or contradict an ADR. Delete them or move them to their owner (D19).
 - **Navigation:** time lost finding a file or an owner. Add one pointer in `AGENTS.md` or `CONTEXT.md`.
 - **Tool economy:** expensive calls, such as raw logs read by the lead or repeated full gates. Script a verdict instead.

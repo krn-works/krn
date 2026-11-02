@@ -1,0 +1,12 @@
+{
+  "id": "t-gmnp7nd",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Ship verifier requires the applied hardening checklist",
+  "after": [],
+  "body": [
+    "Outcome: krn ship (scripts/pr-preflight.mjs ship verifier) refuses to merge a PR whose base or head carries docs/program/hardening-checklist.md unless the PR head has the krn deliver review-binding status for a record with a matching, applied checklist digest, so the by-hand ship path in krn-lead step 8 cannot skip the checklist that krn deliver enforces (src/deliver/checklist.ts).\nEvidence: PR #162 pre-panel sweep (.krn/archive/worktree-runs/feat-hardening-checklist-*/claude/hardening-checklist/lead/sweep.md); a second review prepass showed a prepass-blocked record cannot be --prior-record (no panel roles), so two attempts were consumed by single prepass judges; fold that into t-1xjh05h."
+  ]
+}

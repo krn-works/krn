@@ -158,6 +158,14 @@ export async function runReview(
   const toolRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
   const toolSha = git(toolRoot, ['rev-parse', 'HEAD']);
   const lensSha256 = createHash('sha256').update(lens, 'utf8').digest('hex');
+  const checklist =
+    input.prepassChecklist === undefined
+      ? undefined
+      : {
+          sha256: createHash('sha256')
+            .update(input.prepassChecklist, 'utf8')
+            .digest('hex'),
+        };
   if (input.signal?.aborted) throw new ReviewAbortedError();
   const attempt =
     identity === undefined
@@ -204,6 +212,7 @@ export async function runReview(
         base,
         createdAt: new Date().toISOString(),
         lensSha256,
+        ...(checklist === undefined ? {} : { checklist }),
         toolSha,
         redFirst: red.results,
         contracts: red.contracts ?? [],
@@ -253,6 +262,7 @@ export async function runReview(
     createdAt: new Date().toISOString(),
     panelVerdict: aggregatePanelVerdict(judges, panelPartial, red),
     lensSha256,
+    ...(checklist === undefined ? {} : { checklist }),
     panel: {
       requestedRoles: [...panel],
       requiredRoles: [...panelRoles],

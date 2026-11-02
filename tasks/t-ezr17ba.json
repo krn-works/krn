@@ -1,0 +1,12 @@
+{
+  "id": "t-ezr17ba",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Align host Codex policy with D18 and D9",
+  "after": [],
+  "body": [
+    "Outcome: Codex default model and effort follow D18 (gpt-6-luna, not gpt-6.1-sol xhigh), one codex-worker copy is on the delegation path, and the untracked shell-parsing hook krn-merge-guard.sh is retired or replaced per D9; codex usage per slice is measured before and after (memory codex-usage-burn).\nEvidence: .krn/runs/program-audit/synthesis.md (operator grant ./grant.md, 2026-11-01)."
+  ]
+}

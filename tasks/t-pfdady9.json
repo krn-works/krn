@@ -1,0 +1,12 @@
+{
+  "id": "t-pfdady9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 2,
+  "title": "Prune stale lead memory and move lessons into checks",
+  "after": [],
+  "body": [
+    "Outcome: no auto-memory note cites retired lead.sh/pdeliver or a missing path (a reference checker prints 0); lesson-type notes become checks or AGENTS rules per D14 (with t-3ha9z96, t-e2k99h7); MEMORY.md lists only current facts.\nEvidence: .krn/runs/program-audit/synthesis.md (operator grant ./grant.md, 2026-11-01)."
+  ]
+}

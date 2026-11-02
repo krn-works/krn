@@ -173,5 +173,8 @@ export function loadPriorReview(
         : [],
     ),
     changedPaths: paths,
+    ...(record.checklist === undefined || record.prepass?.state !== 'complete'
+      ? {}
+      : { checklistSha256: record.checklist.sha256 }),
   };
 }

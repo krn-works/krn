@@ -1,0 +1,12 @@
+{
+  "id": "t-pdyp1z0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-01",
+  "priority": 1,
+  "title": "Run every ship verifier in deliver dry-run",
+  "after": [],
+  "body": [
+    "Outcome: krn deliver --dry-run (and preflight where possible) runs every verifier krn ship runs, including the PR title rule (Conventional, ends with a task id); a dry-run on a PR whose title lacks the task id exits non-zero. Evidence: PR #161 deliver dry-run exit 0, then the real ship refused \"PR title must be Conventional and end with a task id\" after CI and the gate (deliver-1.out kept only exit=76; use --json to keep receiver stderr). .krn/runs/delivery-loop/session-continuity/review-verdict-cleanup/."
+  ]
+}

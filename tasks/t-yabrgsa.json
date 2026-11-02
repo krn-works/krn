@@ -1,0 +1,16 @@
+{
+  "id": "t-yabrgsa",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "hardening checklist required by krn brief check, stored in review records and enforced by krn deliver (#162)"
+  },
+  "created": "2026-11-01",
+  "priority": 0,
+  "title": "Brief and review every slice against one hardening checklist",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/hardening-checklist.md (symlinks, path traversal, malformed records, races, signals, size limits, error paths) is required as a ## Hardening section in every worker brief (preflight or brief-check refuses a brief without it) and is passed to krn review via --prepass --checklist in every delivery; an observer is red at base. Root cause of 48% of lost review attempts (lens-quality.md).\nEvidence: .krn/runs/program-audit/synthesis.md (operator grant ./grant.md, 2026-11-01)."
+  ]
+}

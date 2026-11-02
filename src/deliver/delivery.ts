@@ -26,6 +26,7 @@ import {
   KRN_CHECK_APP_ID,
   matchesGateCheckRun,
 } from './admission-policy.ts';
+import { requireReviewChecklist } from './checklist.ts';
 import { checkMergeContracts, mergeMessage } from './message.ts';
 import {
   CommandFailure,
@@ -331,6 +332,7 @@ export async function deliver(
       (state && state.head !== pull.head.sha)
     )
       throw new Error('record/PR head mismatch');
+    requireReviewChecklist(record, main, runner);
     if (
       record.override &&
       (deterministicCauses(record.redFirst, record.contracts ?? []).length ||

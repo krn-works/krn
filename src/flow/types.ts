@@ -55,9 +55,9 @@ export const reviewInputSchema = z
       .optional(),
     prepassChecklist: z
       .string()
-      .trim()
       .min(1)
       .max(32768)
+      .refine((value) => value.trim().length > 0)
       .refine((value) => Buffer.byteLength(value) <= 32 * 1024)
       .refine((value) => !value.includes('\0'))
       .optional(),
@@ -315,6 +315,10 @@ export const priorReviewSchema = z.object({
       }),
   ),
   changedPaths: z.array(z.string().min(1)),
+  checklistSha256: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/u)
+    .optional(),
 });
 export type PriorReview = z.infer<typeof priorReviewSchema>;
 export function coversPriorFindings(
@@ -523,6 +527,7 @@ const reviewRecordBaseSchema = z.object({
   redFirstCauses: z.array(redFirstCauseSchema).optional(),
   judges: z.array(judgeSchema),
   prepass: prepassRecordSchema.optional(),
+  checklist: z.object({ sha256: sha256Schema }).optional(),
   prior: priorReviewSchema.optional(),
 });
 function reviewRecordInvariants(
