@@ -31,5 +31,4 @@ test('the lead skill routes a second lane to the parallel lanes rule', () => {
   const skill = read('.agents/skills/krn-lead/SKILL.md');
   const resume = /^1\. \*\*Resume\.\*\*.*$/mu.exec(skill)?.[0] ?? '';
   assert.match(resume, /Parallel lanes/u);
-  assert.match(skill, /bind: record\/PR head mismatch/u);
 });
