@@ -1,5 +1,13 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import {
+  globSync,
+  lstatSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+} from 'node:fs';
 import { registerHooks } from 'node:module';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 const capabilityNames = ['bwrap', 'systemdUserScope'];
 const testApiKey = 'krn.isolation-gate.test-api';
@@ -20,6 +28,201 @@ const registrationKinds = new Map([
 ]);
 
 let runnerState;
+
+function importedModules(file) {
+  // Keep literals as tokens, so generated test fixtures and comments cannot
+  // masquerade as imports. Both static and literal dynamic imports are used
+  // by the real isolation tests; CommonJS uses the same module boundary.
+  const tokens = [
+    ...readFileSync(file, 'utf8').matchAll(
+      /\/\/[^\r\n]*|\/\*[\s\S]*?\*\/|"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*'|`(?:\\[\s\S]|[^`\\])*`|[\w$]+|[^\s]/gu,
+    ),
+  ]
+    .map(([token]) => token)
+    .filter((token) => !token.startsWith('//') && !token.startsWith('/*'));
+  const literal = (token) => {
+    if (!token || !['"', "'", '`'].includes(token[0])) return undefined;
+    if (token.includes('${')) return undefined;
+    return token.slice(1, -1);
+  };
+  const modules = [];
+  for (const [index, token] of tokens.entries()) {
+    if (
+      (token === 'import' || token === 'require') &&
+      tokens[index + 1] === '('
+    ) {
+      if (
+        tokens[index + 3] === ')' ||
+        (token === 'import' && tokens[index + 3] === ',')
+      )
+        modules.push(literal(tokens[index + 2]));
+      continue;
+    }
+    if (token !== 'import' && token !== 'export') continue;
+    const nextToken = tokens[index + 1];
+    if (nextToken === 'type' || nextToken === '.') continue;
+    if (token === 'import' && literal(nextToken) !== undefined) {
+      modules.push(literal(nextToken));
+      continue;
+    }
+    if (token === 'export' && nextToken !== '*' && nextToken !== '{') continue;
+    for (let next = index + 1; next < tokens.length; next += 1) {
+      if (tokens[next] === ';') break;
+      if (tokens[next] === 'from' && literal(tokens[next + 1]) !== undefined) {
+        modules.push(literal(tokens[next + 1]));
+        break;
+      }
+    }
+  }
+  return modules.filter((specifier) => specifier !== undefined);
+}
+
+function withinTestRoot(testRoot, file) {
+  const fromTestRoot = relative(testRoot, file);
+  return (
+    !isAbsolute(fromTestRoot) &&
+    fromTestRoot !== '..' &&
+    !fromTestRoot.startsWith(`..${sep}`)
+  );
+}
+
+function localModule(file, specifier, testRoot, helper) {
+  if (!specifier.startsWith('.') && !isAbsolute(specifier)) return undefined;
+  const target = resolve(dirname(file), specifier);
+  if (!withinTestRoot(testRoot, target)) return undefined;
+  // Reaching the isolation boundary is sufficient; do not execute its code.
+  if (target === helper) return helper;
+  const extensions = ['', '.js', '.ts', '.mjs', '.cjs', '.mts', '.cts'];
+  for (const candidate of [
+    ...extensions.map((extension) => `${target}${extension}`),
+    ...extensions
+      .slice(1)
+      .map((extension) => join(target, `index${extension}`)),
+  ]) {
+    try {
+      const resolved = realpathSync(candidate);
+      if (withinTestRoot(testRoot, resolved) && lstatSync(resolved).isFile())
+        return resolved;
+    } catch (error) {
+      if (error.code !== 'ENOENT' && error.code !== 'ENOTDIR') throw error;
+    }
+  }
+  return undefined;
+}
+
+export function selectIsolationTestFiles(root, testFileGlob) {
+  const projectRoot = realpathSync(root);
+  const testRoot = join(projectRoot, 'test');
+  const testRootStat = lstatSync(testRoot);
+  if (!testRootStat.isDirectory() || testRootStat.isSymbolicLink())
+    throw new Error('project test root must be a real directory');
+  const helper = join(testRoot, 'helpers/isolation.ts');
+  const files = [];
+  for (const match of globSync(testFileGlob, { cwd: projectRoot })) {
+    const path = resolve(projectRoot, match);
+    if (!statSync(path).isFile()) continue;
+    const file = realpathSync(path);
+    if (!withinTestRoot(testRoot, file))
+      throw new Error(
+        `isolation test discovery escaped project test root: ${file}`,
+      );
+    files.push(file);
+  }
+
+  const dependents = new Map();
+  const pending = [...new Set(files)];
+  const scanned = new Set([helper]);
+  for (const file of pending) {
+    if (scanned.has(file)) continue;
+    scanned.add(file);
+    for (const specifier of importedModules(file)) {
+      const dependency = localModule(file, specifier, testRoot, helper);
+      if (!dependency) continue;
+      if (!dependents.has(dependency)) dependents.set(dependency, new Set());
+      dependents.get(dependency).add(file);
+      pending.push(dependency);
+    }
+  }
+  // Propagate from the boundary after building the graph, so a cycle cannot
+  // cache a premature negative result for another test's shared helper.
+  const isolationModules = new Set([helper]);
+  for (const file of isolationModules)
+    for (const dependent of dependents.get(file) ?? [])
+      isolationModules.add(dependent);
+  return [...new Set(files)]
+    .filter((file) => isolationModules.has(file))
+    .map((file) => relative(projectRoot, file).split(sep).join('/'))
+    .sort();
+}
+
+function projectRelativePath(root, file) {
+  if (typeof file !== 'string') return undefined;
+  const absolute = isAbsolute(file) ? resolve(file) : resolve(root, file);
+  return relative(root, absolute).split(sep).join('/');
+}
+
+export function isolationCoverage(summaryFiles, isolationFiles, root) {
+  const projectRoot = resolve(root);
+  const selected = Array.isArray(isolationFiles)
+    ? [...new Set(isolationFiles.filter((file) => typeof file === 'string'))]
+    : [];
+  if (selected.length === 0)
+    return {
+      ok: false,
+      line: undefined,
+      errors: ['isolation coverage rejected: no isolation files were selected'],
+    };
+
+  const rows = Array.isArray(summaryFiles) ? summaryFiles : [];
+  const coverage = new Map();
+  for (const row of rows) {
+    if (!row || typeof row !== 'object' || typeof row.file !== 'string')
+      continue;
+    const path = projectRelativePath(projectRoot, row.file);
+    if (!coverage.has(path)) coverage.set(path, []);
+    coverage.get(path).push(row);
+  }
+
+  const failures = [];
+  for (const selectedFile of selected) {
+    const path = projectRelativePath(projectRoot, selectedFile);
+    const entries = coverage.get(path) ?? [];
+    if (entries.length !== 1) {
+      failures.push(`${path} (missing or malformed)`);
+      continue;
+    }
+    const [entry] = entries;
+    if (
+      !Number.isSafeInteger(entry.tests) ||
+      !Number.isSafeInteger(entry.skipped) ||
+      entry.tests < 0 ||
+      entry.skipped < 0
+    ) {
+      failures.push(`${path} (missing or malformed)`);
+    } else if (entry.tests === 0) {
+      failures.push(`${path} (no tests)`);
+    } else if (entry.skipped !== 0) {
+      failures.push(`${path} (${entry.skipped} skipped)`);
+    }
+  }
+
+  if (failures.length > 0) {
+    const shown = failures.slice(0, 20);
+    if (failures.length > shown.length)
+      shown.push(`+${failures.length - shown.length} more`);
+    return {
+      ok: false,
+      line: undefined,
+      errors: [`isolation coverage rejected: ${shown.join('; ')}`],
+    };
+  }
+
+  return {
+    ok: true,
+    line: `KRN isolation evidence: ${selected.length} isolation files, 0 isolation skips`,
+    errors: [],
+  };
+}
 
 export function decideIsolation(testName, required, capabilities, isCI) {
   const labels = {

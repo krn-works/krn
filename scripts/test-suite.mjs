@@ -19,7 +19,9 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   countIsolationSkips,
+  isolationCoverage,
   isolationSummary,
+  selectIsolationTestFiles,
   testSuiteExitCode,
 } from './isolation-gate.mjs';
 import {
@@ -658,11 +660,34 @@ async function main() {
         result.summary.success = false;
         result.ok = false;
       }
+      let coverageLine;
+      if (requestedFiles.length === 0) {
+        let coverage;
+        try {
+          coverage = isolationCoverage(
+            result.summary.files,
+            selectIsolationTestFiles(process.cwd(), TEST_FILE_GLOB),
+            process.cwd(),
+          );
+        } catch (error) {
+          coverage = {
+            ok: false,
+            errors: [`isolation selection failed: ${error.message}`],
+          };
+        }
+        if (coverage.ok) coverageLine = coverage.line;
+        else {
+          result.errors.push(...coverage.errors);
+          result.summary.success = false;
+          result.ok = false;
+        }
+      }
       if (!result.ok)
         process.stderr.write(
           `Strict test evidence rejected: ${result.errors.join('; ')}\n`,
         );
       printStrictSummary(result);
+      if (coverageLine) process.stderr.write(`${coverageLine}\n`);
       structuredSummaryWritten = true;
       exitCode = forwardedSignal
         ? signalExit(forwardedSignal)
