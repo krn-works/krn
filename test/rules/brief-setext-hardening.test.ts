@@ -19,13 +19,20 @@ function check(t: { after(fn: () => void): void }, brief: string): string[] {
   return api?.checkBrief(path, checklist) ?? [];
 }
 
-const answers = [
-  ...readFileSync(checklist, 'utf8').matchAll(/^- `([^`]+)`: /gmu),
-]
-  .map((match) => `- ${match[1]}: covered`)
-  .join('\n');
+// Read lazily: at a base without the checklist, checkBrief's typeof
+// assertion must fail the test instead of a throw at load.
+function readAnswers(): string {
+  try {
+    return [...readFileSync(checklist, 'utf8').matchAll(/^- `([^`]+)`: /gmu)]
+      .map((match) => `- ${match[1]}: covered`)
+      .join('\n');
+  } catch {
+    return '';
+  }
+}
 
 test('a setext Hardening heading starts the section', (t) => {
+  const answers = readAnswers();
   assert.deepEqual(
     check(t, `Brief\n=====\n\nHardening\n---------\n${answers}\n`),
     [],
@@ -37,6 +44,7 @@ test('a setext Hardening heading starts the section', (t) => {
 });
 
 test('setext headings follow the section and duplicate rules', (t) => {
+  const answers = readAnswers();
   assert.deepEqual(check(t, `# Brief\n\nHardening\n=========\n${answers}\n`), [
     'missing Hardening section',
   ]);
