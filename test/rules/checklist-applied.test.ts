@@ -63,7 +63,7 @@ test('a malformed checklist item is refused instead of skipped', (t) => {
     );
 });
 
-test('a second-round record needs a first round that applied the same checklist', (t) => {
+test('a second-round record needs a first round that applied a checklist', (t) => {
   assert.equal(typeof deliver?.requireReviewChecklist, 'function');
   const dir = temp(t);
   const git = (...args: string[]) => {
@@ -95,7 +95,7 @@ test('a second-round record needs a first round that applied the same checklist'
       dir,
       run,
     );
-  for (const record of [{ prior: prior() }, { prior: prior('0'.repeat(64)) }])
-    assert.throws(() => verify(record), /no judge completed review/u);
-  assert.doesNotThrow(() => verify({ prior: prior(digest) }));
+  assert.throws(() => verify({ prior: prior() }), /no judge completed review/u);
+  for (const checklistSha256 of [digest, '0'.repeat(64)])
+    assert.doesNotThrow(() => verify({ prior: prior(checklistSha256) }));
 });

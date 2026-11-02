@@ -33,10 +33,11 @@ export function requireReviewChecklist(
     if (!base && !head) return;
     if (base && !head)
       throw new Error('head lacks the checklist; rebase onto the current base');
+    // Round two may follow a checklist edit; the head-blob check below binds
+    // the current round, so round one only has to have applied a checklist.
     if (
       record.prepass?.state !== 'complete' &&
-      (record.prior?.checklistSha256 === undefined ||
-        record.prior.checklistSha256 !== record.checklist?.sha256)
+      record.prior?.checklistSha256 === undefined
     )
       throw new Error('no judge completed review with the checklist');
     const match =
