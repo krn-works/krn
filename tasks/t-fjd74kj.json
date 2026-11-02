@@ -1,7 +1,11 @@
 {
   "id": "t-fjd74kj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn verify runs lint, check, targeted, red-first (assertion vs import), preflight and diff-check as one command"
+  },
   "created": "2026-11-02",
   "priority": 1,
   "title": "Run the lead verification as one command with a red-first verdict",
