@@ -87,7 +87,13 @@ function fixture(t: TestContext) {
     base,
     head,
     lens,
-    ...(prBound ? { pr: 17, readPull: async () => pull(head) } : {}),
+    ...(prBound
+      ? {
+          pr: 17,
+          readPull: async () => pull(head),
+          readGateCheckRuns: async () => [],
+        }
+      : {}),
   });
   const args = (head: string) => [
     '--repo',
@@ -184,6 +190,7 @@ test('PR-bound deterministic contract failures refuse before reserving or judgin
   await assert.rejects(
     reviewCommand(f.args(f.brokenHead), {
       readPull: async () => f.pull(f.brokenHead),
+      readGateCheckRuns: async () => [],
     }),
     (error: unknown) => {
       assert.equal(

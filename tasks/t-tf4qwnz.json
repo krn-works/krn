@@ -1,0 +1,12 @@
+{
+  "id": "t-tf4qwnz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 2,
+  "title": "Refuse review admission when the PR head does not close its ticket",
+  "after": [],
+  "body": [
+    "Outcome: krn review --pr (before reserving an attempt) and krn deliver --dry-run refuse when tasks/<ticket>.json at the exact head is not closed, so the close commit lands before review instead of needing a follow-up PR or a second attempt. Evidence: PR #166 merged c1ef7c7 with t-75qhb77 still open; the lead skill requires the close commit as the PR's last commit."
+  ]
+}

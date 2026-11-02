@@ -3,6 +3,17 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  type GateAdmissionPolicy,
+  gateAdmissionPolicyFromBase,
+} from '../deliver/admission-policy.ts';
+import {
+  GateCheckReadError,
+  type GateCheckRunReader,
+  latestMatchingGateCheckRun,
+  type ReviewGateCheckRun,
+  readGateCheckRunsFromGitHub,
+} from './gate-admission.ts';
 import { judgeRole, ReviewAbortedError } from './panel.ts';
 import { loadPriorReview } from './prior.ts';
 import { writeReviewRecord } from './record.ts';
@@ -36,7 +47,10 @@ import {
 } from './types.ts';
 
 export class ReviewAdmissionError extends Error {
-  constructor(causes: ReturnType<typeof deterministicCauses>) {
+  constructor(
+    causes: ReturnType<typeof deterministicCauses>,
+    refusal = 'deterministic checks failed',
+  ) {
     const sanitize = (value: string) =>
       value
         .replace(/\p{Cc}/gu, ' ')
@@ -52,10 +66,9 @@ export class ReviewAdmissionError extends Error {
       });
     if (causes.length > 20) lines.push(`+${causes.length - 20} more`);
     super(
-      [
-        'review refused before reserving an attempt: deterministic checks failed',
-        ...lines,
-      ].join('\n'),
+      [`review refused before reserving an attempt: ${refusal}`, ...lines].join(
+        '\n',
+      ),
     );
     this.name = 'ReviewAdmissionError';
   }
@@ -147,6 +160,7 @@ export async function runReview(
     /** Test seam; the CLI always uses CodexHost's installed executable. */
     readonly codexExecutable?: string;
     readonly readPull?: PullReader;
+    readonly readGateCheckRuns?: GateCheckRunReader;
   },
 ): Promise<NewReviewRecord> {
   const input = { ...request, ...reviewInputSchema.parse(request) };
@@ -202,6 +216,65 @@ export async function runReview(
   const causes = deterministicCauses(red.results, red.contracts ?? []);
   if (identity !== undefined && causes.length > 0)
     throw new ReviewAdmissionError(causes);
+  if (identity !== undefined) {
+    let policy: GateAdmissionPolicy;
+    try {
+      policy = gateAdmissionPolicyFromBase(base, (args) => git(root, args));
+    } catch (error) {
+      const reason =
+        error instanceof Error
+          ? error.message
+          : 'base policy could not be read';
+      throw new ReviewAdmissionError(
+        [
+          {
+            verdict: 'FAIL',
+            path: 'gate check read failed',
+            cause: reason.slice(0, 200),
+          },
+        ],
+        'gate check admission failed',
+      );
+    }
+    let gate: ReviewGateCheckRun | undefined;
+    try {
+      const checkRuns = await (request.readGateCheckRuns
+        ? request.readGateCheckRuns(identity.repository, sha)
+        : readGateCheckRunsFromGitHub(identity.repository, sha, input.signal));
+      gate = latestMatchingGateCheckRun(checkRuns, sha, policy);
+    } catch (error) {
+      if (input.signal?.aborted) throw new ReviewAbortedError();
+      const reason =
+        error instanceof GateCheckReadError ? error.message : 'reader failed';
+      throw new ReviewAdmissionError(
+        [
+          {
+            verdict: 'FAIL',
+            path: 'gate check read failed',
+            cause: reason.slice(0, 200),
+          },
+        ],
+        'gate check admission failed',
+      );
+    }
+    if (input.signal?.aborted) throw new ReviewAbortedError();
+    if (
+      gate &&
+      (gate.conclusion === 'failure' ||
+        gate.conclusion === 'timed_out' ||
+        gate.conclusion === 'startup_failure')
+    )
+      throw new ReviewAdmissionError(
+        [
+          {
+            verdict: 'FAIL',
+            path: gate.name,
+            cause: `${gate.conclusion} ${gate.html_url ?? '(no check run URL)'}`,
+          },
+        ],
+        'required gate check failed',
+      );
+  }
   const attempt =
     identity === undefined
       ? undefined

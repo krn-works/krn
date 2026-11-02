@@ -122,6 +122,7 @@ function fixture(t: TestContext) {
     lens,
     pr: 17,
     readPull: async () => metadata ?? pull(head),
+    readGateCheckRuns: async () => [],
   });
   const args = (head: string, root = repo) => [
     '--repo',
@@ -290,12 +291,14 @@ for (const prior of [false, true])
     const extra = prior ? ['--prior-record', priorPath] : [];
     await reviewCommand([...f.args(secondHead), ...extra], {
       readPull: async () => f.pull(secondHead),
+      readGateCheckRuns: async () => [],
     });
     const before = host.starts();
     const thirdHead = head(f, 2);
     await assert.rejects(
       reviewCommand([...f.args(thirdHead), ...extra], {
         readPull: async () => f.pull(thirdHead),
+        readGateCheckRuns: async () => [],
       }),
       /budget|two attempts/iu,
     );
@@ -352,6 +355,7 @@ test('input and authoritative PR errors consume zero attempts', async (t) => {
   await assert.rejects(
     reviewCommand([...f.args(target), '--unknown'], {
       readPull: async () => f.pull(target),
+      readGateCheckRuns: async () => [],
     }),
   );
   assert.equal(f.reservations().length, 0);
@@ -632,7 +636,10 @@ test('acceptance override preserves PR binding and cannot bypass deterministic F
       '--evidence',
       'Concrete evidence',
     ],
-    { readPull: async () => f.pull(target) },
+    {
+      readPull: async () => f.pull(target),
+      readGateCheckRuns: async () => [],
+    },
   );
   const path = f.recordPath(1);
   assert.ok(path);
@@ -683,7 +690,7 @@ import { CodexHost } from ${JSON.stringify(new URL('../../src/hosts/codex.ts', i
 CodexHost.prototype.start = async () => { ${crash ? 'process.exit(77);' : ''}
 const text = JSON.stringify({ verdict: 'PASS', findings: [] });
 return { id: 'child', wait: async () => ({ sessionId: 'child', reasonKind: 'turn_complete', reasonSha256: 'a'.repeat(64), reasonLength: text.length, claimsDone: true, finalMessage: text, exitCode: 0, signal: null, usage: {}, usageObservation: { turnsStarted: 1, turnsCompleted: 1, invalidFields: 0, missingRequiredTurns: 0 } }) }; };
-try { await reviewCommand(${JSON.stringify(f.args(target))}, { readPull: async () => (${JSON.stringify(f.pull(target))}) }); }
+try { await reviewCommand(${JSON.stringify(f.args(target))}, { readPull: async () => (${JSON.stringify(f.pull(target))}), readGateCheckRuns: async () => [] }); }
 catch (error) { process.stderr.write(error.message); process.exitCode = 64; }
 `;
   writeFileSync(script, source);
