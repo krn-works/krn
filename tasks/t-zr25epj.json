@@ -1,0 +1,12 @@
+{
+  "id": "t-zr25epj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Run two independent lead slices in parallel and add a second Jenkins executor",
+  "after": [],
+  "body": [
+    "Outcome: delivery throughput rises without new spend: two lead sessions run independent slices in parallel (host cap of 2 deliveries), and Jenkins gets a second executor so two PRs do not queue for krn/gate. Measure PRs per day and open-to-merge minutes before and after.\nEvidence (2026-11-02): krn/gate takes 7-8 min per run; #166 waited about 8 min behind #165 on the single slot; open-to-merge typically 30-114 min, outliers #162 541 min, #150 796 min from review rounds; host 16 cores, about 11 GB free RAM, load about 3-9. Operator asked to speed delivery by any means, VPS or VM included; a VPS is not justified while host CPU is not the bottleneck. Waits on operator: grant for the CI fleet change (second executor) and go-ahead for parallel leads."
+  ]
+}

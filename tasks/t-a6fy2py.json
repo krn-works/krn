@@ -1,0 +1,12 @@
+{
+  "id": "t-a6fy2py",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 2,
+  "title": "Let briefs declare additive seam injection in existing tests",
+  "after": [],
+  "body": [
+    "Outcome: the brief template and `krn brief check` allow additive seam injection in existing tests (adding a fake for a new optional dependency without changing assertions) as a declared scope class, so a worker does not stop on it; the check flags a diff that changes an assertion in such a file. Observer red at base.\nEvidence: PR #167 first worker run stopped (status blocked) because existing PR-mode tests needed `readGateCheckRuns: async () => []`; the lead had to issue fix-brief.md and resume, adding one round. Archive .krn/archive/worktree-runs/fix-review-gate-admission-20261102T165601Z/lead/review-gate-admission/fix-brief.md."
+  ]
+}
