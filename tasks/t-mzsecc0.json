@@ -1,0 +1,12 @@
+{
+  "id": "t-mzsecc0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Measure whether Jenkins runs every isolation test with zero skips",
+  "after": [],
+  "body": [
+    "Outcome: evidence whether the Jenkins krn/gate job runs every isolation test file that gate:local selects (scripts/gate-local.mjs selectIsolationTestFiles, 28 files at 98643ed), with zero isolation skips, on the exact head; if yes, a decision-ready D30 amendment that retires the local krn/gate-local requirement, then the PR that implements it (ruleset, deliver, docs, lead skill).\nOperator 2026-11-02: \"4. dawaj stary wszystko po kolei\" (after the lead proposed measuring this and retiring krn/gate-local when Jenkins proves 0 skips).\nEvidence: PR #163 deliver waited 30 min on the local load threshold and exited 75 (gate: bounded wait timed out) while krn/gate on Jenkins was already green; the krn/gate check-run text (4.5 KB) does not report the isolation skip count, so today the claim cannot be checked from GitHub.\nProof: the krn/gate check output (or an archived Jenkins artifact) names the isolation file count and \"0 isolation skips\" for one exact head; a red-first observer for whatever reporting change is needed."
+  ]
+}

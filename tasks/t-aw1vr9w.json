@@ -1,0 +1,12 @@
+{
+  "id": "t-aw1vr9w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 3,
+  "title": "Let krn deliver find the PR worktree from the main checkout",
+  "after": [],
+  "body": [
+    "Outcome: `krn deliver --pr N` run from the main checkout resolves the PR head's worktree (git worktree list, branch = PR head ref) and binds there, or refuses naming the expected path; the lead skill states where deliver runs.\nEvidence: PR #163 first `krn deliver --dry-run` from the main checkout exited 71 \"bind: local HEAD differs from PR head\"; krn-lead step 8 does not say to run it from the PR worktree, while the CLI help says to resume from the main checkout after retirement.\nProof: deliver bind unit test with an injected worktree list: main checkout plus matching worktree binds; no matching worktree exits 71 naming the branch."
+  ]
+}

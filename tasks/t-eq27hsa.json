@@ -1,0 +1,12 @@
+{
+  "id": "t-eq27hsa",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Give the local gate reserved CPU and admit it by CPU pressure",
+  "after": [],
+  "body": [
+    "Outcome: until krn/gate-local is retired, gate:local runs in its own systemd user slice with a high CPUWeight (verify the user manager delegates the cpu controller first), and krn deliver admits the gate by CPU pressure (/proc/pressure/cpu some avg60 below a stated bound) instead of the 1-minute load average <= 6 (src/deliver/cli.ts:75, src/deliver/delivery.ts loadavg); host-lock still serializes gate runs.\nOperator 2026-11-02: \"3. ogarnij lepiej\" (the lead proposed a reserved slice plus pressure-based admission).\nEvidence: 2026-11-02 10:33 on krn-desktop (16 cores): load average 7.7-12.5 from unrelated sessions, CPU 19.6% idle, PSI cpu some avg60 5.2%; PR #163 deliver timed out at the load gate after 30 min. Timing tests went red at load 29 (memory host-concurrency-cap); related flake tasks t-4ct3j6q, t-rq6sw2v, t-xevd1d8, t-ymbw0jb.\nProof: deliver admission unit test with injected PSI and loadavg readings (high load, low pressure admits; high pressure waits; unreadable PSI falls back fail-closed); gate-local starts its runner under the slice (receiver test against systemd-run or a verbatim capture)."
+  ]
+}
