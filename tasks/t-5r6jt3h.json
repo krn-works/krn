@@ -1,0 +1,12 @@
+{
+  "id": "t-5r6jt3h",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 2,
+  "title": "Verify a round-two record's prior against the first-round record",
+  "after": [],
+  "body": [
+    "Outcome: the trusted verifier of a round-two review record (review admission and krn ship) recomputes the record's prior (source, findings, changedPaths, checklist digest) from the first-round record named by attempt.priorRecordSha256 and refuses a mismatch. Today only the schema is checked, so an edited round-two record can zero or relabel prior findings (panel or prepass source) and still validate. Observer red at base.\nEvidence: PR #170 review attempt 3 prepass finding 1 (.krn/runs/review-series/2f4a3e69d97729450ec55e516b77cbf5f58f7afa3565aa0ce322437c1ebe3b6d/records/3.json); git grep shows recordSha256 only written (src/flow/prior.ts, src/flow/series.ts), never compared."
+  ]
+}
