@@ -7,6 +7,7 @@
   "title": "Refuse review admission when the PR head does not close its ticket",
   "after": [],
   "body": [
-    "Outcome: krn review --pr (before reserving an attempt) and krn deliver --dry-run refuse when tasks/<ticket>.json at the exact head is not closed, so the close commit lands before review instead of needing a follow-up PR or a second attempt. Evidence: PR #166 merged c1ef7c7 with t-75qhb77 still open; the lead skill requires the close commit as the PR's last commit."
+    "Outcome: krn review --pr (before reserving an attempt) and krn deliver --dry-run refuse when tasks/<ticket>.json at the exact head is not closed, so the close commit lands before review instead of needing a follow-up PR or a second attempt. Evidence: PR #166 merged c1ef7c7 with t-75qhb77 still open; the lead skill requires the close commit as the PR's last commit.",
+    "Lead trap: krn-lead puts the close commit before review and krn verify on that final head until this ships."
   ]
 }

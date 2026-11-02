@@ -7,6 +7,7 @@
   "title": "Make the lead skill name a review command that works",
   "after": [],
   "body": [
-    "Outcome: krn-lead step 7 names a review invocation that runs as written. Observed 2026-11-01: `krn review --repo <path>` on PATH exits 64 \"unknown option: --repo\" (installed krn lacks review); repository bin/krn has it but exits 64 \"--repo must be an absolute path\" for a relative path. Fix: install/forward review in the installed krn or make the skill name bin/krn with absolute paths; accept relative --repo by resolving it.\nProof: a test that runs the skill-named command shape against the CLI receiver and gets past argument parsing."
+    "Outcome: krn-lead step 7 names a review invocation that runs as written. Observed 2026-11-01: `krn review --repo <path>` on PATH exits 64 \"unknown option: --repo\" (installed krn lacks review); repository bin/krn has it but exits 64 \"--repo must be an absolute path\" for a relative path. Fix: install/forward review in the installed krn or make the skill name bin/krn with absolute paths; accept relative --repo by resolving it.\nProof: a test that runs the skill-named command shape against the CLI receiver and gets past argument parsing.",
+    "Lead trap: krn-lead names `bin/krn review` with an absolute --repo until this ships."
   ]
 }
