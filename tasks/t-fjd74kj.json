@@ -1,0 +1,16 @@
+{
+  "id": "t-fjd74kj",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn verify runs lint, check, targeted, red-first (assertion vs import), preflight and diff-check as one command"
+  },
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Run the lead verification as one command with a red-first verdict",
+  "after": [],
+  "body": [
+    "Outcome: one command (e.g. `krn verify --base <sha> --observer <file>...`) runs lint, check, the targeted suite, red-first (base tree plus each observer, reporting assertion vs import failures separately), preflight and git diff --check, and prints one PASS/FAIL line per step plus an overall exit code. Observer red at base.\nEvidence: PR #167 lead composed this by hand three times (after the worker, after review attempt 1, after the pre-review fix), including a temporary base worktree with a node_modules symlink; one red-first round found a case failing by ERR_MODULE_NOT_FOUND instead of assertion. Archive .krn/archive/worktree-runs/fix-review-gate-admission-20261102T165601Z/."
+  ]
+}

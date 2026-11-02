@@ -1,0 +1,12 @@
+{
+  "id": "t-msheqbk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Accept a prepass-only first attempt as the prior record for round two",
+  "after": [],
+  "body": [
+    "Outcome: a second D10 attempt can use --prior-record when the first attempt stopped at a BLOCKING prepass (record with zero judges); today src/flow/prior.ts:107 refuses with 'requires the same panel roles as the prior review' (exit 64), so the krn-lead step 'the second also uses --prior-record' cannot be followed and round two silently becomes a fresh round one. Observer red at base.\nEvidence: PR #167 attempt 1 record .krn/runs/review-series/1052561ec2b44e4e4903cb5b49a2b0481e70b6d02a6d870c4f897c8aad6ffdef/records/1.json (judges 0, prepass 1 BLOCKING); the --prior-record call on head b27a36b exited 64 without reserving."
+  ]
+}

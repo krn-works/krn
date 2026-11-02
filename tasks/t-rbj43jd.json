@@ -1,0 +1,12 @@
+{
+  "id": "t-rbj43jd",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Trial risk-tiered review and parallel dispatch for one week",
+  "after": [],
+  "body": [
+    "Outcome: a one-week experiment delivers ten queued tasks with review cost tiered by changed paths (docs, tracker or tests: worker, CI and one judge; core, contracts, CI or security: full panel with red-first), review running in parallel with CI, and a stateless lead dispatching 2-4 worktrees. It is compared with the current flow on task-to-merge minutes, PRs per day and defects that reached main, and feeds the KRN-vs-plain proof.\nNeeds an operator exception to ADR 0014 D10 and to KRN-13 or the one-slice-per-session rule for the experiment. Source: operator 2026-11-02 asked how the lead would rebuild delivery its own way; the proposal was given in session and awaits a go-ahead."
+  ]
+}
