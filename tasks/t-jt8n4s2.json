@@ -7,6 +7,7 @@
   "title": "Make deliver dry-run run ship's repository verifier and report ship refusals",
   "after": [],
   "body": [
-    "Outcome: krn deliver --dry-run fails when ship's verifier would refuse (PR title not ending in '(<task-id>)', e.g. '[t-75qhb77]'); a ship refusal during deliver prints its reason on stderr (today exit 76 with an empty log); a PR title change before ship re-derives the merge message instead of 'merge message changed since delivery started', which needed manual deletion of .krn/runs/deliver/<series>/state.json. Evidence: PR #166 deliver runs 2026-11-02, .krn/runs/lead/review-admission/deliver.log."
+    "Outcome: krn deliver --dry-run fails when ship's verifier would refuse (PR title not ending in '(<task-id>)', e.g. '[t-75qhb77]'); a ship refusal during deliver prints its reason on stderr (today exit 76 with an empty log); a PR title change before ship re-derives the merge message instead of 'merge message changed since delivery started', which needed manual deletion of .krn/runs/deliver/<series>/state.json. Evidence: PR #166 deliver runs 2026-11-02, .krn/runs/lead/review-admission/deliver.log.",
+    "Lead trap: krn-lead requires the PR title to end with (<task-id>) because deliver --dry-run does not check it until this ships."
   ]
 }
