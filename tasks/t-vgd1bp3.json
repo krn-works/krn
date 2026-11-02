@@ -1,0 +1,13 @@
+{
+  "id": "t-vgd1bp3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 2,
+  "title": "Add a second Jenkins runner VM so two PR gates run concurrently",
+  "after": [],
+  "body": [
+    "Outcome: two different-PR krn/gate runs execute concurrently on a pool of two Jenkins runner VMs, if measured queue wait justifies it.\nEvidence (2026-11-02): live krn/gate is produced by Jenkins (App 5548482) behind a global lock(resource: ci-runner) on one snapshot-reset runner VM (infra/ci/jenkins/library/vars/ownedCi.groovy:90, OwnedRunner.groovy:20, Controller.groovy:153,:306); a gate run takes 8.0-8.8 min; measured queue wait over the last 16 merged PRs is about 3 min per PR (max about 11), against a median open-to-merge of 49 min (n=40). Raising numExecutors alone does nothing because of the lock.\nPlan: (1) one PR parameterizing the runner slot (lockable label pool, runner-<slot> node names, enrollment runners map, per-slot control.json and state dir) with N=1 default; (2) PVE reset wrapper, forced-command key, second MAC/IP in infra/ci/internal/network; (3) live enrollment on the controller and the PVE host. Design notes: .krn/runs/lead/runner-pool/runner-pool-design.md (local, untracked).\nTrigger: start when two parallel lanes push the median queue wait above 10 min per PR. Blocker: no access path from this host to the PVE host (pvesupermicro) or the controller 10.254.254.6; host steps are production changes and need that access and a production grant.",
+    "Measurement moved here from t-zr25epj: record PRs per day, open-to-merge minutes and krn/gate queue wait with two parallel lanes against the 2026-11-02 baseline (1-9 merged PRs per day, median open-to-merge 49 min over the last 40 PRs, queue wait about 3 min per PR); the trigger above uses that measurement."
+  ]
+}
