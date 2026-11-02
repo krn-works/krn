@@ -1,7 +1,11 @@
 {
   "id": "t-mzsecc0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "PR #164: strict full runs reject evidence unless all 28 isolation files ran with tests and 0 skips; krn/gate green on d454a95. Count publication: t-axd5bbb. Retirement of krn/gate-local: t-dqpk1dy (operator D30 decision)."
+  },
   "created": "2026-11-02",
   "priority": 1,
   "title": "Measure whether Jenkins runs every isolation test with zero skips",
