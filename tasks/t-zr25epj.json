@@ -1,7 +1,11 @@
 {
   "id": "t-zr25epj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "parallel lanes rule shipped; second executor and measurement in t-vgd1bp3"
+  },
   "created": "2026-11-02",
   "priority": 1,
   "title": "Run two independent lead slices in parallel",
