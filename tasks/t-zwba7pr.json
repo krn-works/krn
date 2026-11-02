@@ -1,7 +1,11 @@
 {
   "id": "t-zwba7pr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship drops unknown record keys, deliver prints refusals and ignores unmerged stale state; enum values move to t-5gc1q76"
+  },
   "created": "2026-11-02",
   "priority": 1,
   "title": "Ship review-record schema changes and print deliver ship refusals",
