@@ -1,0 +1,12 @@
+{
+  "id": "t-qkqkwt6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 1,
+  "title": "Measure a krn worker slice against PR #167 and adopt it in delegation",
+  "after": [],
+  "body": [
+    "Outcome: measure one real slice delivered through krn worker against PR #167 with one script over both rollouts at equal effort: worker uncached tokens (input - cached + output, the ~/.codex/canary.jsonl unit), wall minutes, model calls and peak context. Join records by rollout id and timestamp. #167's rollout is ~/.codex/sessions/2026/11/02/rollout-2026-11-02T16-25-37-01a19cdd-*.jsonl (545,589 tokens, 97.7% cached). Then switch the krn-lead step 5 delegation from the host codex-worker to krn worker, or record why not.\nSource: split from t-bz2kwyh (lens .krn/runs/lead/live-worker/lens-risk.md: tokens about equal to exec resume; the gain is per-turn effort, interrupt and metrics)."
+  ]
+}
