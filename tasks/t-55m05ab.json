@@ -1,7 +1,11 @@
 {
   "id": "t-55m05ab",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lead-traps.test.ts refuses rule-test literals that pin open-trap workaround text"
+  },
   "created": "2026-11-02",
   "priority": 3,
   "title": "Keep rule tests off open-trap workaround text",

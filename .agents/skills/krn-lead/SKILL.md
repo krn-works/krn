@@ -56,7 +56,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 
 ## Open traps
 
-Each open task whose body has a `Lead trap:` line is a known defect with its workaround above; `test/rules/lead-traps.test.ts` keeps this list equal to those tasks. When a fix ships, remove its id here and its workaround above in the same PR.
+Each open task whose body has a `Lead trap:` line is a known defect with its workaround above; `test/rules/lead-traps.test.ts` keeps this list equal to those tasks, and only `test/rules/lead-traps.test.ts` reads workaround text, so removing a fixed trap breaks no other test. When a fix ships, remove its id here and its workaround above in the same PR.
 
 t-160zvad, t-8k6n32d, t-g5vqm2q, t-hq84b8z, t-jt8n4s2, t-m991e6t, t-tf4qwnz
 
