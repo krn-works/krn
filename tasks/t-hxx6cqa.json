@@ -1,0 +1,12 @@
+{
+  "id": "t-hxx6cqa",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 2,
+  "title": "Refine krn verify observer scope, process-group timeout and log pruning",
+  "after": [],
+  "body": [
+    "Outcome: `krn verify` refines PR #168 follow-ups. (1) An `--observer` that is not a changed test file between base and HEAD is refused with exit 64 and a message naming red-first's changed-test scope (today: red-first FAIL missing=base). (2) Step timeout kills the whole process group so a grandchild holding stdout cannot hang a step. (3) `.krn/tmp/verify-*` older than the newest N runs are pruned. (4) A spawn `error` reports its errno instead of `exit=spawn`. Observer red at base by assertion.\nEvidence: PR #168 review records .krn/archive/review-series-c1e627bd*/records/2.json (standards BLOCKING src/verify/index.ts:666, overridden under D10 as fail-closed); pre-review .krn/runs/lead/lead-verify/prereview-2.md minors 1, 4, 5."
+  ]
+}

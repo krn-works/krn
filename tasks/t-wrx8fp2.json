@@ -1,0 +1,12 @@
+{
+  "id": "t-wrx8fp2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-02",
+  "priority": 0,
+  "title": "Stop instructions steering leads into known open traps",
+  "after": [],
+  "body": [
+    "Outcome: no instruction surface steers a lead into a known open trap. Patch .agents/skills/krn-lead/SKILL.md and docs/program/repository-workflow.md for the top rows of .krn/runs/lead/trap-audit/audit.md: absolute `--repo` paths for `krn review`; Node via `mise exec node@<.node-version> --` for deliver; run the first `krn deliver` from the PR worktree, resume from main; remove identical untracked task copies before hygiene; tracker commits carry no `Change-contract` (admission refuses `none (...)` on a commit, contradicting SKILL.md:51); after a prepass-only FAIL, attempt 2 runs without `--prior-record` until t-msheqbk ships; run `krn verify` on the final head (after the close commit) before every review attempt. Add an executable check (rules test) that every open task tagged as a lead trap is referenced by the skill, and change krn-retro so a trap lesson patches the steering instruction in the same slice, not only a task.\nEvidence: PR #168 lost one review admission (close commit `Change-contract: none`), one `--prior-record` refusal (t-msheqbk known since #167), one deliver exit 71 (main checkout); operator 2026-11-02: \"czemu nadal w naszym setupie jest znany błąd ... zrób audyt ustawien\". Audit .krn/runs/lead/trap-audit/audit.md (about 55 delivery traps among 141 open tasks)."
+  ]
+}
