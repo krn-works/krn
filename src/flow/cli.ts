@@ -2,7 +2,7 @@
 import { lstatSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readRegularFile } from '../brief/index.ts';
-import { runReview } from './index.ts';
+import { ReviewAdmissionError, runReview } from './index.ts';
 import { PriorRecordError } from './prior.ts';
 import { appendOverride } from './record.ts';
 import { repoRoot, resolveCommit, validateSha } from './repository.ts';
@@ -163,7 +163,7 @@ export async function reviewCommand(
         '  [--panel standards,spec,adversarial] [--reasoning-effort low|medium|high|xhigh|max]',
         '  [--prepass --checklist <path>] [--prior-record <path>]',
         '  [--pr <number>] [--budget-exception <path>]',
-        'PR-bound reviews verify authoritative PR metadata and reserve one of two repo-common attempts before deterministic checks or judges.',
+        'PR-bound reviews verify authoritative PR metadata, run red-first and the change-contract parser, and refuse deterministic failures before reserving one of two repo-common attempts.',
         'Each additional attempt requires a separate operator exception JSON bound to canonical repository, PR, baseRef, exact ordinal and headSha, with authority and evidence.',
         'Round two: --prior-record accepts a first-round FAIL record (regular non-symlink file, at most 1 MB, different head) to verify prior BLOCKING findings.',
         'After two attempts the lead decides; acceptance override does not grant review budget. A second-round record cannot be used as --prior-record.',
@@ -184,7 +184,11 @@ export async function reviewCommand(
   try {
     return await runReviewCommand(args, controller, options);
   } catch (error) {
-    if (error instanceof PriorRecordError || error instanceof ReviewBudgetError)
+    if (
+      error instanceof PriorRecordError ||
+      error instanceof ReviewBudgetError ||
+      error instanceof ReviewAdmissionError
+    )
       throw new ReviewUsageError(error.message);
     if (!controller.signal.aborted) throw error;
     process.exitCode = 130;

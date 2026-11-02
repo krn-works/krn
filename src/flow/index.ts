@@ -15,6 +15,7 @@ import {
   validateSha,
 } from './repository.ts';
 import {
+  checkReviewBudget,
   type PullReader,
   readPullRequest,
   reserveReviewAttempt,
@@ -33,6 +34,32 @@ import {
   roleSchema,
   startTiming,
 } from './types.ts';
+
+export class ReviewAdmissionError extends Error {
+  constructor(causes: ReturnType<typeof deterministicCauses>) {
+    const sanitize = (value: string) =>
+      value
+        .replace(/\p{Cc}/gu, ' ')
+        .replace(/\s+/gu, ' ')
+        .slice(0, 200);
+    const lines = causes
+      .slice(0, 20)
+      .map(({ verdict, path, commit, cause }) => {
+        const safePath = sanitize(path);
+        const safeCommit = commit === undefined ? undefined : sanitize(commit);
+        const safeCause = sanitize(cause);
+        return `${verdict} ${safePath}${safeCommit === undefined ? '' : `@${safeCommit}`}: ${safeCause}`;
+      });
+    if (causes.length > 20) lines.push(`+${causes.length - 20} more`);
+    super(
+      [
+        'review refused before reserving an attempt: deterministic checks failed',
+        ...lines,
+      ].join('\n'),
+    );
+    this.name = 'ReviewAdmissionError';
+  }
+}
 
 export function aggregatePanelVerdict(
   judges: readonly ReviewRecord['judges'][number][],
@@ -144,6 +171,8 @@ export async function runReview(
           base,
           sha,
         );
+  if (identity !== undefined)
+    checkReviewBudget(root, identity, input.budgetException);
   const prior =
     input.priorRecord === undefined
       ? undefined
@@ -166,7 +195,13 @@ export async function runReview(
             .update(input.prepassChecklist, 'utf8')
             .digest('hex'),
         };
+  const finishRedTiming = startTiming();
+  const red = await redFirst(root, base, sha, input.signal);
+  const redFirstTiming = finishRedTiming();
   if (input.signal?.aborted) throw new ReviewAbortedError();
+  const causes = deterministicCauses(red.results, red.contracts ?? []);
+  if (identity !== undefined && causes.length > 0)
+    throw new ReviewAdmissionError(causes);
   const attempt =
     identity === undefined
       ? undefined
@@ -178,9 +213,6 @@ export async function runReview(
           prior?.recordSha256,
           input.budgetException,
         );
-  const finishRedTiming = startTiming();
-  const red = await redFirst(root, base, sha, input.signal);
-  const redFirstTiming = finishRedTiming();
   let prepass: NonNullable<ReviewRecord['prepass']> | undefined;
   if (input.prepassChecklist !== undefined && prior === undefined) {
     const judge = await judgeRole(
@@ -216,7 +248,7 @@ export async function runReview(
         toolSha,
         redFirst: red.results,
         contracts: red.contracts ?? [],
-        redFirstCauses: deterministicCauses(red.results, red.contracts ?? []),
+        redFirstCauses: causes,
         judges: [],
         prepass,
       });
@@ -271,7 +303,7 @@ export async function runReview(
     toolSha,
     redFirst: red.results,
     contracts: red.contracts ?? [],
-    redFirstCauses: deterministicCauses(red.results, red.contracts ?? []),
+    redFirstCauses: causes,
     judges,
     ...(prepass === undefined ? {} : { prepass }),
     ...(prior === undefined ? {} : { prior }),
