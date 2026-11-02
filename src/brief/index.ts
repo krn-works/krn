@@ -107,16 +107,27 @@ function checkText(brief: string, checklist: string): string[] {
   const answered = new Set<string>();
   let found = false;
   let inside = false;
+  let sectionStartNumber: number | undefined;
+  let sectionEndNumber: number | undefined;
   const lines = Array.from(outsideFences(brief));
-  const heading = (level: number, text: string, number: number) => {
+  const heading = (
+    level: number,
+    text: string,
+    number: number,
+    bodyStartNumber: number,
+  ) => {
     if (level > 2) return;
-    inside = false;
-    if (level !== 2 || text !== 'Hardening') return;
-    if (found) add(`duplicate Hardening section at line ${number}`);
-    else {
-      found = true;
-      inside = true;
+    if (found) {
+      inside = false;
+      sectionEndNumber ??= number;
+      if (level === 2 && text === 'Hardening')
+        add(`duplicate Hardening section at line ${number}`);
+      return;
     }
+    if (level !== 2 || text !== 'Hardening') return;
+    found = true;
+    inside = true;
+    sectionStartNumber = bodyStartNumber;
   };
   for (let index = 0; index < lines.length; index++) {
     const current = lines[index];
@@ -136,6 +147,7 @@ function checkText(brief: string, checklist: string): string[] {
         next.line.trim().startsWith('=') ? 1 : 2,
         single ? line.trim() : '',
         number,
+        next.number + 1,
       );
       index++;
       continue;
@@ -150,6 +162,7 @@ function checkText(brief: string, checklist: string): string[] {
           .replace(/(?:^|[\t ])#+$/u, '')
           .trim(),
         number,
+        number + 1,
       );
       if (level <= 2) continue;
     }
@@ -163,21 +176,96 @@ function checkText(brief: string, checklist: string): string[] {
     if (!ids.has(id)) add(`unknown id ${shortId(id)} at line ${number}`);
     if (answered.has(id)) add(`duplicate id ${shortId(id)} at line ${number}`);
     answered.add(id);
-    const text = (answer?.[3] ?? '').replace(/[*_`]/gu, '').trim();
+    const text = normalizeAnswerText(answer?.[3] ?? '');
     const reason = /^(?:[Nn]\/[Aa]|NA)\b[\t ]*(:?)(.*)$/u.exec(text);
     const placeholder = (value: string) =>
       !value || /^(?:<[^<>]+>|TODO|TBD|FIXME|\?|\.\.\.|…|[-.]+)$/iu.test(value);
     if (
-      placeholder(text) ||
-      (reason !== null && (!reason[1] || placeholder(reason[2]?.trim() ?? '')))
+      isEmptyAnswer(text, placeholder) ||
+      (reason !== null &&
+        (!reason[1] || isEmptyAnswer(reason[2]?.trim() ?? '', placeholder)))
     )
       add(`empty answer for id ${shortId(id)} at line ${number}`);
+  }
+  if (found) {
+    // Fenced and commented lines are skipped above, so they never answer.
+    const visible = new Set(lines.map(({ number }) => number));
+    const rawLines = brief.replace(/^\uFEFF/u, '').split(/\r?\n/u);
+    const startNumber = sectionStartNumber ?? rawLines.length + 1;
+    const endNumber = sectionEndNumber ?? rawLines.length + 1;
+    for (let number = startNumber; number < endNumber; number++) {
+      if (!visible.has(number)) continue;
+      const line = rawLines[number - 1] ?? '';
+      const previousLine = rawLines[number - 2] ?? '';
+      const answer =
+        /^ {0,1}[-*][\t ]+(?:`([^\s`:\p{Cc}]+)`|([^\s`:\p{Cc}]+))[\t ]*:[\t ]*(.*)$/u.exec(
+          line,
+        );
+      const blank = /^[\t ]*$/u.test(line);
+      const continuation = /^ {2,}/u.test(line);
+      const thematicBreak =
+        number > startNumber &&
+        /^[\t ]*$/u.test(previousLine) &&
+        /^ {0,3}(?:-{3,}|\*{3,}|_{3,})[\t ]*$/u.test(line);
+      const subheading = /^ {0,3}#{3,6}(?:[\t ]|$)/u.test(line);
+      if (
+        !blank &&
+        answer === null &&
+        !continuation &&
+        !thematicBreak &&
+        !subheading
+      )
+        add(`unsupported line ${number} in Hardening section`);
+    }
   }
   if (!found) add('missing Hardening section');
   else
     for (const id of ids)
       if (!answered.has(id)) add(`missing id ${shortId(id)}`);
   return reasons;
+}
+
+function normalizeAnswerText(value: string): string {
+  const characters: string[] = [];
+  let tagStart = -1;
+  for (let index = 0; index < value.length; ) {
+    const codePoint = value.codePointAt(index);
+    if (codePoint === undefined) break;
+    const character = String.fromCodePoint(codePoint);
+    if (tagStart !== -1) {
+      if (character === '>') tagStart = -1;
+      index += character.length;
+      continue;
+    }
+    if (character === '<') {
+      tagStart = index;
+      index++;
+      continue;
+    }
+    if (character !== '*' && character !== '_' && character !== '`')
+      characters.push(character);
+    index += character.length;
+  }
+  if (tagStart !== -1) {
+    for (const character of value.slice(tagStart))
+      if (character !== '*' && character !== '_' && character !== '`')
+        characters.push(character);
+  }
+  return characters.join('').trim();
+}
+
+function isEmptyAnswer(
+  value: string,
+  placeholder: (text: string) => boolean,
+): boolean {
+  if (placeholder(value)) return true;
+  const letterOrNumber = /^[\p{L}\p{N}]$/u;
+  let count = 0;
+  for (const character of value) {
+    if (letterOrNumber.test(character)) count++;
+    if (count >= 3) return false;
+  }
+  return true;
 }
 
 function shortId(id: string): string {
