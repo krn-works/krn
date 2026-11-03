@@ -1,5 +1,11 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { join, resolve } from 'node:path';
 
 if (process.env.KRN_LIVE !== '1') {
@@ -48,7 +54,13 @@ try {
   const worker = (...args) =>
     execute(process.execPath, [cli, 'worker', ...args, '--run', run]);
   worker('start', '--repo', repo, '--brief', brief);
-  worker('send', '--message', message);
+  // A live compaction must finish before the fix turn starts.
+  worker('send', '--message', message, '--compact', 'always');
+  const metrics = JSON.parse(
+    readFileSync(join(run, 'rounds', '002', 'metrics.json'), 'utf8'),
+  );
+  if (metrics.compacted !== true)
+    throw new Error('live worker round 2 did not compact');
 } finally {
   execute(process.execPath, [cli, 'worker', 'stop', '--run', run]);
 }
