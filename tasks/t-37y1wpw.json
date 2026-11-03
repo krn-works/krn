@@ -1,7 +1,11 @@
 {
   "id": "t-37y1wpw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Driver waits for its thread's contextCompaction item or thread/compacted; send --compact always; live compaction verified"
+  },
   "created": "2026-11-03",
   "priority": 2,
   "title": "Finish worker compaction only on its compaction item",
