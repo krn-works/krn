@@ -1,7 +1,11 @@
 {
   "id": "t-2pvd95z",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "checklist text-scanner class; brief check requires it"
+  },
   "created": "2026-11-03",
   "priority": 2,
   "title": "Bound text-scanning guards by contract shape in briefs and lenses",
