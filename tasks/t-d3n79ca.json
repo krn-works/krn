@@ -1,7 +1,11 @@
 {
   "id": "t-d3n79ca",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Failure summary names stage and cause (ownedCi, effective after library_sha repin); krn ci rerun re-attempts the same head via Jenkins as krn-lead"
+  },
   "created": "2026-11-01",
   "priority": 1,
   "title": "Make infrastructure gate failures diagnosable and re-runnable on the same head",

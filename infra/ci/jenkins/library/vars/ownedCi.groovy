@@ -25,12 +25,14 @@ def call(def sourceScm) {
     List problems = []
     def failure = null
     String conclusion = 'FAILURE'
+    String stage = 'admission'
     String diagnostic = 'Runner evidence unavailable: execution has not started.'
     try {
         // A waiting build is visible before checkout or the single global slot.
         publishChecks(name: identity.entry.check_name, status: 'QUEUED', conclusion: 'NONE',
             summary: "Attempt ${attempt}; queued; source ${identity.source_sha}; base ${identity.base_sha ?: 'not-required'}")
         Controller.readback(currentBuild.rawBuild, identity, 'QUEUED', null)
+        if (failure == null && problems.isEmpty()) { stage = 'checkout' }
         node('control') {
             if (env.NODE_NAME != 'control') { error('Control label resolved to a different node') }
             ws(work) {
@@ -87,8 +89,10 @@ git -c core.hooksPath=/dev/null bundle verify ../source.bundle
             }
         }
         int priority = QueuePolicy.priority(currentBuild.startTimeInMillis as long, identity.pull_request as boolean)
+        if (failure == null && problems.isEmpty()) { stage = 'allocation' }
         lock(resource: 'ci-runner', priority: priority) {
             try {
+                if (failure == null && problems.isEmpty()) { stage = 'execution' }
                 publishChecks(name: identity.entry.check_name, status: 'IN_PROGRESS', conclusion: 'NONE',
                     summary: "Attempt ${attempt}; source ${identity.source_sha}; base ${identity.base_sha ?: 'not-required'}")
                 Controller.readback(currentBuild.rawBuild, identity, 'IN_PROGRESS', null)
@@ -126,6 +130,7 @@ exec /usr/local/libexec/ci-platform executor --profile /var/lib/ci-input/profile
 ''')
                                     if (status == 124) { conclusion = 'TIME_OUT' }
                                     if (status != 0) { error("Executor returned ${status}") }
+                                    if (failure == null && problems.isEmpty()) { stage = 'export' }
                                 }
                             } finally {
                                 // Outside the gate timeout. A dead channel is explicit and
@@ -151,6 +156,7 @@ exec /usr/local/libexec/ci-platform evidence export --root /var/lib/ci-evidence 
             } catch (Exception problem) {
                 failure = problem
             } finally {
+                if (failure == null && problems.isEmpty()) { stage = 'export' }
                 // Native stash crosses to the controller BEFORE disconnect/cold reset,
                 // also after nonzero executor, cancellation and timeout.
                 try {
@@ -159,9 +165,11 @@ exec /usr/local/libexec/ci-platform evidence export --root /var/lib/ci-evidence 
                             if (evidenceStashed) {
                                 unstash('executor-evidence')
                                 diagnostic = readFile(file: 'ci-evidence/summary.txt').take(12000)
+                                if (failure == null && problems.isEmpty()) { stage = 'evidence-archive' }
                                 archiveArtifacts(artifacts: 'ci-evidence/*', fingerprint: false, allowEmptyArchive: false)
                                 evidenceArchived = true
                                 if (failure == null && evidenceComplete) {
+                                    if (failure == null && problems.isEmpty()) { stage = 'verify' }
                                     sh """#!/bin/sh
 set -eu
 exec /usr/local/libexec/ci-platform control verify --config /etc/ci-platform/control.json --spec '${work}/job.json' --receipt '${work}/ci-evidence/receipt.json'
@@ -180,6 +188,7 @@ exec /usr/local/libexec/ci-platform control verify --config /etc/ci-platform/con
                 }
                 boolean stopped = false
                 try {
+                    if (failure == null && problems.isEmpty()) { stage = 'runner-stop' }
                     Controller.disconnectRunner(attempt)
                     timeout(time: 2, unit: 'MINUTES') { waitUntil { Controller.runnerStopped(attempt) } }
                     Controller.removeRunner(attempt)
@@ -190,6 +199,7 @@ exec /usr/local/libexec/ci-platform control verify --config /etc/ci-platform/con
                 }
                 if (prepared && stopped) {
                     try {
+                        if (failure == null && problems.isEmpty()) { stage = 'finish' }
                         node('control') {
                             Controller.requireRunnerBinding(currentBuild.rawBuild, enrollment)
                             sh """#!/bin/sh
@@ -206,6 +216,7 @@ exec /usr/local/libexec/ci-platform control finish --config /etc/ci-platform/con
                 // Preserve the primary error AND evidence/cleanup errors, even when
                 // a later reset error would otherwise replace the gate exception.
                 try {
+                    if (failure == null && problems.isEmpty()) { stage = 'archive' }
                     node('control') {
                         ws(work) {
                             writeFile(file: 'attempt.json', text: JsonOutput.toJson([
@@ -224,9 +235,11 @@ exec /usr/local/libexec/ci-platform control finish --config /etc/ci-platform/con
             }
             if (failure != null) { throw failure }
             if (!gatePassed || !cleaned || !evidenceComplete || !evidenceArchived || !problems.isEmpty()) {
-                error('Gate, evidence export/archive or final reset is incomplete')
+                error('Gate, evidence export/archive or final reset is incomplete' + (problems.isEmpty() ? '' : ': ' + problems[0]))
             }
+            if (failure == null && problems.isEmpty()) { stage = 'head-check' }
             Controller.requireCurrentHead(currentBuild.rawBuild, identity)
+            if (failure == null && problems.isEmpty()) { stage = 'publish' }
             publishChecks(name: identity.entry.check_name, status: 'COMPLETED', conclusion: 'SUCCESS',
                 summary: "Gate, archived evidence and final reset verified; source ${identity.source_sha}; base ${identity.base_sha ?: spec.base_sha ?: 'not-required'}; attempt ${attempt}", text: diagnostic)
             Controller.readback(currentBuild.rawBuild, identity, 'COMPLETED', 'SUCCESS')
@@ -242,9 +255,11 @@ exec /usr/local/libexec/ci-platform control finish --config /etc/ci-platform/con
     } finally {
         if (!accepted) {
             try {
+                String cause = failure == null ? 'unverified' : failure.class.simpleName + ': ' + (failure.message ?: '')
+                cause = cause.split(/[\r\n]/, 2)[0].replaceAll(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/, ' ').take(300)
                 publishChecks(name: identity.entry.check_name, status: 'COMPLETED', conclusion: conclusion,
-                    summary: "Attempt ${attempt} failed or is unverified; base=${identity.base_sha ?: spec.base_sha ?: 'not-required'}; gate=${gatePassed}; cleanup=${cleaned}; evidence=${evidenceArchived && evidenceComplete}",
-                    text: ("Primary: ${failure?.toString()?.take(1000) ?: 'unverified'}\n" + problems.join('\n') + '\n\n' + diagnostic).take(16000))
+                    summary: "Attempt ${attempt} failed at stage ${stage}: ${cause}; base=${identity.base_sha ?: spec.base_sha ?: 'not-required'}; gate=${gatePassed}; cleanup=${cleaned}; evidence=${evidenceArchived && evidenceComplete}",
+                    text: ("Attempt ${attempt} failed at stage ${stage}: ${cause}\nPrimary: ${failure?.toString()?.take(1000) ?: 'unverified'}\n" + problems.join('\n') + '\n\n' + diagnostic).take(16000))
                 Controller.readback(currentBuild.rawBuild, identity, 'COMPLETED', conclusion)
             } catch (Exception ignored) { echo('Failure check publication is unverified') }
         }

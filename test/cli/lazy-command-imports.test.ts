@@ -19,6 +19,7 @@ const cliEntries = [
 ];
 const hook = fileURLToPath(new URL('./module-load-hook.mjs', import.meta.url));
 const allCommandDirectories = [
+  'ci',
   'deliver',
   'evals',
   'flow',
