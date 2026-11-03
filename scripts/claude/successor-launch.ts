@@ -114,6 +114,131 @@ function callerWorkspace(paneId: string): string | undefined {
   }
 }
 
+function paneInfo(output: string): { workspaceId?: string; tabId?: string } {
+  try {
+    const root = record(JSON.parse(output));
+    const pane = record(record(root?.result)?.pane);
+    const workspaceId = text(pane?.workspace_id);
+    const tabId = text(pane?.tab_id);
+    return {
+      ...(workspaceId ? { workspaceId } : {}),
+      ...(tabId ? { tabId } : {}),
+    };
+  } catch {
+    return {};
+  }
+}
+
+function sleep(seconds: number): void {
+  if (seconds > 0)
+    Atomics.wait(
+      new Int32Array(new SharedArrayBuffer(4)),
+      0,
+      0,
+      seconds * 1000,
+    );
+}
+
+export function retireMode(
+  args: string[],
+  pause: (seconds: number) => void = sleep,
+  now: () => number = Date.now,
+): number {
+  let waitSeconds = 180;
+  let cwd = process.cwd();
+  for (let i = 0; i < args.length; i += 1) {
+    const flag = args[i];
+    const value = args[++i];
+    if (
+      flag === '--wait-seconds' &&
+      value !== undefined &&
+      /^(0|[1-9]\d*)$/u.test(value) &&
+      Number(value) <= 600
+    )
+      waitSeconds = Number(value);
+    else if (flag === '--cwd' && value) cwd = resolve(cwd, value);
+    else {
+      process.stderr.write('invalid retire arguments\n');
+      return 64;
+    }
+  }
+  if (!process.env.HERDR_PANE_ID) {
+    process.stderr.write('retire: skipped: not in Herdr\n');
+    return 0;
+  }
+  const ownPane = process.env.HERDR_PANE_ID;
+  const ownResult = run('herdr', ['pane', 'get', ownPane]);
+  const own =
+    ownResult.status === 0 && !ownResult.error
+      ? paneInfo(ownResult.stdout)
+      : {};
+  if (!own.workspaceId || !own.tabId) {
+    process.stderr.write('retire: failed: own pane unavailable\n');
+    return 0;
+  }
+  const predPane = process.env.KRN_PREDECESSOR_PANE;
+  const predSession = process.env.KRN_PREDECESSOR_SESSION;
+  if (predPane && predSession) {
+    const deadline = now() + waitSeconds * 1000;
+    for (;;) {
+      const result = run('herdr', ['agent', 'get', predPane]);
+      const info =
+        result.status === 0 && !result.error ? agentInfo(result.stdout) : {};
+      if (info.notFound || (info.sessionId && info.sessionId !== predSession))
+        break;
+      if (
+        info.agent === 'claude' &&
+        info.sessionId === predSession &&
+        (info.status === 'idle' || info.status === 'done')
+      ) {
+        const closed = run('herdr', ['pane', 'close', predPane]);
+        process.stderr.write(
+          `retire: ${closed.status === 0 && !closed.error ? 'closed' : 'failed to close'} predecessor ${predPane}\n`,
+        );
+        break;
+      }
+      if (now() >= deadline) {
+        process.stderr.write('retire: predecessor still working\n');
+        break;
+      }
+      pause(Math.min(5, Math.max(0, (deadline - now()) / 1000)));
+    }
+  }
+  const ledgerPath = join(cwd, '.krn', 'successors', 'launches.jsonl');
+  try {
+    rewriteLedger(ledgerPath, retireLedger(readLaunches(ledgerPath), ownPane));
+  } catch {
+    process.stderr.write('retire: failed: ledger unavailable\n');
+  }
+  const list = run('herdr', ['tab', 'list', '--workspace', own.workspaceId]);
+  try {
+    const root = record(JSON.parse(list.stdout));
+    const tabs = record(root?.result)?.tabs;
+    if (list.status !== 0 || list.error || !Array.isArray(tabs))
+      throw new Error();
+    for (const value of tabs) {
+      const tab = record(value);
+      const id = text(tab?.tab_id);
+      if (!id) continue;
+      const eligible =
+        typeof tab?.label === 'string' &&
+        tab.label.startsWith('handed off → ') &&
+        tab.workspace_id === own.workspaceId &&
+        id !== own.tabId &&
+        (tab.agent_status === 'idle' || tab.agent_status === 'done');
+      if (eligible) {
+        const closed = run('herdr', ['tab', 'close', id]);
+        process.stderr.write(
+          `retire: ${closed.status === 0 && !closed.error ? 'closed' : 'kept'} tab ${id}\n`,
+        );
+      } else process.stderr.write(`retire: kept tab ${id}\n`);
+    }
+  } catch {
+    process.stderr.write('retire: failed: malformed tab list\n');
+  }
+  return 0;
+}
+
 function agentInfo(output: string): AgentInfo {
   try {
     const root = record(JSON.parse(output));
@@ -168,6 +293,50 @@ function readLaunches(path: string): LaunchRecord[] {
   return launches;
 }
 
+function retireLedger(
+  launches: LaunchRecord[],
+  callerPaneId: string,
+): LaunchRecord[] {
+  const kept: LaunchRecord[] = [];
+  for (const launch of launches) {
+    if (launch.pane_id === callerPaneId) continue;
+    const result = run('herdr', ['agent', 'get', launch.pane_id]);
+    const info = agentInfo(result.stdout);
+    if (info.notFound) continue;
+    if (result.error || result.status !== 0) {
+      kept.push(launch);
+      continue;
+    }
+    if (info.sessionId && info.sessionId !== launch.session_id) continue;
+    if (
+      info.agent === 'claude' &&
+      info.sessionId === launch.session_id &&
+      (info.status === 'idle' || info.status === 'done')
+    ) {
+      const closed = run('herdr', ['pane', 'close', launch.pane_id]);
+      if (!closed.error && closed.status === 0) {
+        process.stdout.write(
+          `retired: pane ${launch.pane_id} session ${launch.session_id}\n`,
+        );
+        continue;
+      }
+      process.stderr.write(
+        `successor retirement failed: pane ${launch.pane_id}\n`,
+      );
+    }
+    kept.push(launch);
+  }
+  return kept;
+}
+
+function rewriteLedger(ledgerPath: string, launches: LaunchRecord[]): void {
+  mkdirSync(dirname(ledgerPath), { recursive: true });
+  writeFileSync(
+    ledgerPath,
+    `${launches.map((launch) => JSON.stringify(launch)).join('\n')}\n`,
+  );
+}
+
 function retirePredecessors(
   options: SuccessorLaunchOptions,
   callerPaneId: string,
@@ -198,36 +367,7 @@ function retirePredecessors(
     return;
   }
 
-  const kept: LaunchRecord[] = [];
-  for (const launch of launches) {
-    if (launch.pane_id === callerPaneId) continue;
-
-    const result = run('herdr', ['agent', 'get', launch.pane_id]);
-    const info = agentInfo(result.stdout);
-    if (info.notFound) continue;
-    if (result.error || result.status !== 0) {
-      kept.push(launch);
-      continue;
-    }
-    if (info.sessionId && info.sessionId !== launch.session_id) continue;
-    if (
-      info.agent === 'claude' &&
-      info.sessionId === launch.session_id &&
-      (info.status === 'idle' || info.status === 'done')
-    ) {
-      const closed = run('herdr', ['pane', 'close', launch.pane_id]);
-      if (!closed.error && closed.status === 0) {
-        process.stdout.write(
-          `retired: pane ${launch.pane_id} session ${launch.session_id}\n`,
-        );
-        continue;
-      }
-      process.stderr.write(
-        `successor retirement failed: pane ${launch.pane_id}\n`,
-      );
-    }
-    kept.push(launch);
-  }
+  const kept = retireLedger(launches, callerPaneId);
 
   const rename = run('herdr', [
     'tab',
@@ -287,6 +427,7 @@ function exitFailure(result: CommandResult): number {
 }
 
 export function main(args: string[]): number {
+  if (args[0] === '--retire') return retireMode(args.slice(1));
   let options: SuccessorLaunchOptions;
   try {
     options = parseArgs(args);
@@ -310,10 +451,11 @@ export function main(args: string[]): number {
   }
 
   const agent = process.env.KRN_SUCCESSOR_AGENT || 'claude';
+  const prompt = `First run \`node scripts/claude/successor-launch.ts --retire\` from the repository root. ${options.prompt}`;
   if (unavailable) {
     const fallback = run(
       agent,
-      ['--bg', '-n', options.name, options.prompt],
+      ['--bg', '-n', options.name, prompt],
       options.cwd,
     );
     if (fallback.error || fallback.status !== 0) return exitFailure(fallback);
@@ -337,9 +479,22 @@ export function main(args: string[]): number {
     '--env',
     `KRN_SUCCESSOR_NAME=${options.name}`,
     '--env',
-    `KRN_SUCCESSOR_PROMPT=${options.prompt}`,
-    '--no-focus',
+    `KRN_SUCCESSOR_PROMPT=${prompt}`,
   );
+  let predecessorSession: string | undefined;
+  if (paneId && workspaceId) {
+    const caller = run('herdr', ['agent', 'get', paneId]);
+    if (caller.status === 0 && !caller.error)
+      predecessorSession = agentInfo(caller.stdout).sessionId;
+    if (predecessorSession)
+      createArgs.push(
+        '--env',
+        `KRN_PREDECESSOR_PANE=${paneId}`,
+        '--env',
+        `KRN_PREDECESSOR_SESSION=${predecessorSession}`,
+      );
+  }
+  createArgs.push('--no-focus');
   const created = run('herdr', createArgs);
   if (created.error || created.status !== 0) return exitFailure(created);
 
