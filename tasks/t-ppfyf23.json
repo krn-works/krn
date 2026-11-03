@@ -1,0 +1,12 @@
+{
+  "id": "t-ppfyf23",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Name failing tests in krn/gate evidence despite the stdout cap",
+  "after": [],
+  "body": [
+    "Outcome: when krn/gate fails, the check-run summary or the archived evidence names each failing test (file, name, assertion) even when gate.stdout exceeds its 256 KB cap.\nSource: PR #183 builds 1-2: ci-evidence/gate.stdout truncated at 262144 B before the only 'not ok', so the lead had to rerun the full suite locally (.krn/runs/lead/worker-compaction/ci-failures.txt)."
+  ]
+}

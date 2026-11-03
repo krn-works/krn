@@ -8,6 +8,7 @@
   "after": [],
   "body": [
     "Outcome: in round 1, `--prepass --checklist` hands every panel judge the checklist as a search aid, as round 2 does; no record has `judges: []`, so every FAIL record can serve as a prior or be overridden.\nEvidence: src/flow/index.ts:177-216, src/flow/prior.ts:99-108, src/flow/record.ts:111-115, src/flow/cli.ts:171; PR #162 attempts 2–4; split from t-1xjh05h; ranked 4 in .krn/runs/program-audit/synthesis.md.",
-    "Evidence PR #182: five review attempts on one PR; four were prepass-only FAILs, each with 1-3 new findings on code the previous prepass had already seen (drip), costing three budget exceptions and an override. Records: .krn/runs/review-series/de1dc5d0.../records/1-5.json."
+    "Evidence PR #182: five review attempts on one PR; four were prepass-only FAILs, each with 1-3 new findings on code the previous prepass had already seen (drip), costing three budget exceptions and an override. Records: .krn/runs/review-series/de1dc5d0.../records/1-5.json.",
+    "Evidence PR #183 (t-37y1wpw): 4 review attempts, each prepass adding new findings on code it had seen (attempt 1 compaction deadline; 2 interrupt with empty turnId; 3-4 request ignores stop, pre-existing at base); 2 budget exceptions, 2 overrides; records .krn/runs/review-series/326cc6e9.../records/1-4.json."
   ]
 }
