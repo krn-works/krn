@@ -526,3 +526,81 @@ test('PEM, AWS and credential assignments are redacted in start and send inboxes
   assert.equal((await s.turn('report-secrets').result).code, 0);
   inspect(join(s.run, 'rounds/003/report.json'));
 });
+
+test('start refuses an --allow value that names a forbidden path before spawning', async (t) => {
+  for (const value of [
+    '.agents/skills/x/SKILL.md',
+    'tasks/a.json',
+    '.git/config',
+    'docs/program/lead-rules.md',
+  ]) {
+    await t.test(value, async (t) => {
+      const s = await setup(t);
+      const result = await s.turn('ok', true, s.run, ['--allow', value]).result;
+      assert.equal(result.code, 64, result.stderr);
+      assert.match(result.stderr, /names a forbidden path/);
+      assert.ok(result.stderr.includes(value), result.stderr);
+      assert.equal(existsSync(s.env.CODEX_TEST_WORKER_PID), false);
+      assert.equal(existsSync(join(s.run, 'session.json')), false);
+      assert.equal(existsSync(s.env.CODEX_TEST_WORKER_LOG), false);
+    });
+  }
+  // A wildcard allow that overlaps forbidden globs is accepted on purpose:
+  // `src/**` and `docs/**` overlap `**/AGENTS.md` and `docs/adr/**`, and the
+  // scope check still fails any forbidden change under it (exit 3).
+  await t.test('wildcard allow still fails a forbidden change', async (t) => {
+    const s = await setup(t);
+    const result = await s.turn(
+      'write .agents/skills/x/SKILL.md',
+      true,
+      s.run,
+      ['--allow', '**'],
+    ).result;
+    assert.equal(result.code, 3, result.stderr);
+    assert.match(
+      result.stderr,
+      /scope violation: .*\.agents\/skills\/x\/SKILL\.md/,
+    );
+  });
+  for (const value of ['src/**', 'docs/**', 'test/worker/x.test.ts']) {
+    await t.test(`accepts ${value}`, async (t) => {
+      const s = await setup(t);
+      const result = await s.turn('ok', true, s.run, ['--allow', value]).result;
+      assert.equal(result.code, 0, result.stderr);
+    });
+  }
+});
+
+test('a partial or blocked report without a blocker exits 4 and keeps its report', async (t) => {
+  for (const [action, code, status] of [
+    ['partial-empty', 4, 'partial'],
+    ['blocked-empty', 4, 'blocked'],
+    ['partial-blank', 4, 'partial'],
+    ['blocked-named', 0, 'blocked'],
+    ['ok', 0, 'done'],
+  ] as const) {
+    await t.test(action, async (t) => {
+      const s = await setup(t);
+      const result = await s.turn(action, true).result;
+      assert.equal(result.code, code, result.stderr);
+      if (code === 4)
+        assert.match(
+          result.stderr,
+          new RegExp(`worker report status ${status} names no blocker`),
+        );
+      assert.equal(s.json('rounds/001/report.json').status, status);
+    });
+  }
+});
+
+test('worker instructions ask to finish the brief and name a blocker', async (t) => {
+  const s = await setup(t);
+  assert.equal((await s.turn('ok', true).result).code, 0);
+  const thread = s.requests().find((row) => row.method === 'thread/start');
+  const text = thread?.params?.developerInstructions ?? '';
+  assert.match(text, /finish the whole brief in this turn/i);
+  assert.match(text, /no time or token limit/i);
+  assert.match(text, /uncommitted change in scope is finished work/i);
+  assert.match(text, /requires at least one concrete blocker/i);
+  assert.ok(Buffer.byteLength(text) <= 600);
+});
