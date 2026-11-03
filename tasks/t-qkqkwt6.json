@@ -1,7 +1,11 @@
 {
   "id": "t-qkqkwt6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn worker slice measured against #167 at gpt-6-luna xhigh with scripts/rollout-usage.ts (545,589 vs 108,874 uncached; 26.9 vs 5.1 min; 133 vs 19 calls; peak 244,251 vs 70,518; slices differ in size); krn-lead step 5 now delegates through krn worker"
+  },
   "created": "2026-11-02",
   "priority": 1,
   "title": "Measure a krn worker slice against PR #167 and adopt it in delegation",
