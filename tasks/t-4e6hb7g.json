@@ -1,0 +1,12 @@
+{
+  "id": "t-4e6hb7g",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Keep the KRN ready-queue prompt out of worker threads",
+  "after": [],
+  "body": [
+    "Outcome: a `krn worker` Codex thread no longer receives the session-start developer message \"KRN ready queue: ... Claim one with `krn task claim <id> --actor <actor>`\", or that message is suppressed for worker runs, so workers do not try to mutate tracker state (KRN-11).\nEvidence: live proof turn for t-t8v24zs (`.krn/runs/lead/worker-turn-finish/live/rounds/001/report.json`, checks) ran `krn task claim t-t8v24zs --actor codex` (exit 64) after that injected message; also visible in rollout 01a1a12e (first developer message after the AGENTS.md block). Source of the hook not found in the repository by text search; check Codex hooks in ~/.codex and the project's .codex config.\nProof: a fixture or live worker thread start shows no ready-queue message, and a lead session still gets it."
+  ]
+}
