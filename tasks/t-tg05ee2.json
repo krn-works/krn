@@ -1,0 +1,12 @@
+{
+  "id": "t-tg05ee2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Keep worker scratch logs inside the run directory",
+  "after": [],
+  "body": [
+    "Outcome: a worker turn's scratch logs never cause a scope violation: either the driver gives the worker a scratch directory inside its run dir (stated in the turn prompt) or `krn brief check` refuses a brief whose run dir is not the only writable `.krn/` path. Evidence: t-1svg55a round 1 exit 3 only for `.krn/runs/worker-acceptance/*.log` beside the run dir (.krn/runs/lead/worker-acceptance/rounds/001). Proof: observer red at base by assertion."
+  ]
+}

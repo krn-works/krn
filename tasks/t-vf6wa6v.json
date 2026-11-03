@@ -7,6 +7,7 @@
   "title": "Lens restates the brief's settled bounds so judges do not re-decide them",
   "after": [],
   "body": [
-    "Outcome: krn-lead step 7 (or the lens template) requires the lens to quote the brief's settled decisions and Hardening bounds verbatim, so a judge does not raise a BLOCKING finding against a bound the lead already settled. Evidence PR #188 (t-5npejnh): the standards judge FAILed 'Limit raportu pomija łączny limit 20 pozycji' although brief.md bounds says 'at most 20 blocker and 20 check lines' per kind; lens.md omitted the bound; lead override in review series ffbed71d…/records/1.json. Proof: a rules test asserts the lens instruction names settled decisions and bounds."
+    "Outcome: krn-lead step 7 (or the lens template) requires the lens to quote the brief's settled decisions and Hardening bounds verbatim, so a judge does not raise a BLOCKING finding against a bound the lead already settled. Evidence PR #188 (t-5npejnh): the standards judge FAILed 'Limit raportu pomija łączny limit 20 pozycji' although brief.md bounds says 'at most 20 blocker and 20 check lines' per kind; lens.md omitted the bound; lead override in review series ffbed71d…/records/1.json. Proof: a rules test asserts the lens instruction names settled decisions and bounds.",
+    "Also regenerate the lens after every fix round: #189 attempt 2 judge 2 FAILed on a lens line ('refuses backslashes') that the attempt-1 fix had deliberately reversed (records 0b202a47…/2.json)."
   ]
 }

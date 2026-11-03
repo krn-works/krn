@@ -1,0 +1,12 @@
+{
+  "id": "t-q90rzmq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 1,
+  "title": "Lock deliver per PR and resume after merge",
+  "after": [],
+  "body": [
+    "Outcome: `krn deliver` takes a per-PR lock so a second run while one is live exits with a clear \"deliver already running pid <n>\" instead of racing, and a resume after the PR merged continues with main CI and hygiene instead of exiting 76 \"PR is not open\". Evidence: PR #189, session restart left deliver pid 1702827 running; the resumed run printed `PR is not open` exit 76 (.krn/runs/lead/worker-acceptance/deliver-2.txt) while the first finished `delivered: e35a666`. Proof: observer red at base by assertion for both cases."
+  ]
+}
