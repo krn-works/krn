@@ -1,0 +1,12 @@
+{
+  "id": "t-zj42a67",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Refuse a rollout whose session_meta id differs from its file name",
+  "after": [],
+  "body": [
+    "Outcome: scripts/rollout-usage.ts refuses (65) a rollout whose session_meta.id differs from the UUID in its file name, and a --thread or --run lookup requires both to equal the requested id or prefix. Evidence: PR #180 review attempt 3 (.krn/runs/review-series/9042aa359fd4dce4b8f4053731febaa4b0a023c2ea1d28f3d2694bfbebbc3d42/records/3.json) BLOCKING at scripts/rollout-usage.ts:617; overridden by the lead because only a corrupted or crafted sessions tree triggers it. Proof: a new observer with a mismatched session_meta.id, red at base by assertion."
+  ]
+}

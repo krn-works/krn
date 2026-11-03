@@ -179,6 +179,11 @@ export async function drive(run: string): Promise<void> {
             exclude_tmpdir_env_var: true,
             exclude_slash_tmp: true,
           },
+          // Host shell_environment_policy.set may pin TMPDIR outside the
+          // sandbox; dotted keys override only these leaves.
+          'shell_environment_policy.set.TMPDIR': tmp,
+          'shell_environment_policy.set.TMP': tmp,
+          'shell_environment_policy.set.TEMP': tmp,
         },
       }),
     );

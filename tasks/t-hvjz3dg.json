@@ -1,0 +1,17 @@
+{
+  "id": "t-hvjz3dg",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn-lead step 5 shows worker send [--model <id>] [--effort <level>]"
+  },
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Show --model on krn worker send in the lead skill",
+  "after": [],
+  "body": [
+    "Outcome: .agents/skills/krn-lead/SKILL.md step 5 shows krn worker send with [--model <id>] [--effort <level>], matching src/worker/cli.ts and the ADR 0014 D13 amendment (model and effort explicit per turn). Evidence: PR #180 review attempt 4 (.krn/runs/review-series/9042aa359fd4dce4b8f4053731febaa4b0a023c2ea1d28f3d2694bfbebbc3d42/records/4.json) BLOCKING at SKILL.md:30, overridden by the lead as a documentation omission. Ship with the next lead-skill change.",
+    "-"
+  ]
+}
