@@ -27,6 +27,7 @@ import {
   matchesGateCheckRun,
 } from './admission-policy.ts';
 import { requireReviewChecklist } from './checklist.ts';
+import { removeIdenticalLeftovers } from './identical-leftovers.ts';
 import { checkMergeContracts, mergeMessage } from './message.ts';
 import {
   CommandFailure,
@@ -721,6 +722,7 @@ export async function deliver(
     if (git(main, ['branch', '--show-current']) !== 'main')
       throw new Error('main checkout must be on main');
     git(main, ['fetch', 'origin', 'main']);
+    removeIdenticalLeftovers(main);
     git(main, ['merge', '--ff-only', 'origin/main']);
     const branch = runner(
       'git',

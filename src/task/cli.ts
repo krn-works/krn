@@ -7,8 +7,11 @@ import {
   claimTask,
   formatClaim,
   inspectClaim,
+  mainCheckoutRoot,
   readyTasks,
+  registeredTaskWorktree,
   releaseClaim,
+  taskRecordRoot,
 } from './claims.ts';
 import {
   TaskDataError,
@@ -57,7 +60,7 @@ const quickstart = [
 
 const verbHelp: Record<string, string> = {
   create:
-    'krn task create --title T [--priority 0..3] [--after ID] [--body-file FILE|-] [--json]\nCreate one task. Example: krn task create --title "Add a task" --priority 1 --json',
+    'krn task create --title T [--priority 0..3] [--after ID] [--body-file FILE|-] [--worktree PATH] [--json]\nCreate one task. Example: krn task create --title "Add a task" --priority 1 --json',
   show: 'krn task show ID [--json]\nShow task details, blockers, dependents, and claim. Example: krn task show t-a1b2c3d --json',
   list: 'krn task list [--status open|closed|all] [--json]\nList tasks. Example: krn task list --status all --json',
   ready:
@@ -144,6 +147,7 @@ function create(args: string[], json: boolean): CommandOutput {
   let title: string | undefined;
   let priority: number | undefined;
   let bodyFile: string | undefined;
+  let worktree: string | undefined;
   const after: TaskId[] = [];
   for (let index = 0; index < args.length; index += 1) {
     const option = args[index];
@@ -165,17 +169,31 @@ function create(args: string[], json: boolean): CommandOutput {
       if (bodyFile !== undefined)
         throw usage('--body-file may be supplied once');
       bodyFile = nextValue(args, index++, option);
+    } else if (option === '--worktree') {
+      if (worktree !== undefined)
+        throw usage('--worktree may be supplied once');
+      worktree = nextValue(args, index++, option);
     } else throw usage(`unknown create option "${option}"`);
   }
   if (title === undefined) throw usage('task create requires --title');
 
   const body = bodyFile === undefined ? [] : readBody(bodyFile);
-  const record = createTask(repositoryRoot(), {
-    title,
-    after,
-    body,
-    ...(priority === undefined ? {} : { priority }),
-  });
+  const cwdRoot = repositoryRoot();
+  const targetRoot =
+    worktree === undefined
+      ? cwdRoot
+      : registeredTaskWorktree(cwdRoot, worktree);
+  const mainRoot = mainCheckoutRoot(cwdRoot);
+  const record = createTask(
+    targetRoot,
+    {
+      title,
+      after,
+      body,
+      ...(priority === undefined ? {} : { priority }),
+    },
+    { uniquenessRoots: targetRoot === mainRoot ? [] : [mainRoot] },
+  );
   return result({ task: record }, `${record.id}\n`, json);
 }
 
@@ -369,7 +387,9 @@ function close(args: string[], json: boolean): CommandOutput {
       'usage: krn task close ID --as done|dropped|duplicate:ID|superseded:ID [--note N]',
     );
   const resolution = parseResolution(resolutionArg, note ?? '');
-  const record = closeTask(repositoryRoot(), requireId(id), resolution);
+  const cwdRoot = repositoryRoot();
+  const taskId = requireId(id);
+  const record = closeTask(taskRecordRoot(cwdRoot, taskId), taskId, resolution);
   return result({ task: record }, `${record.id}\n`, json);
 }
 
@@ -384,7 +404,7 @@ function dependency(args: string[], json: boolean): CommandOutput {
   if (dependencyId === undefined)
     throw usage('usage: krn task dep add|rm ID --after ID');
   const record = changeDependency(
-    repositoryRoot(),
+    taskRecordRoot(repositoryRoot(), requireId(id)),
     requireId(id),
     requireId(dependencyId),
     operation,
@@ -440,8 +460,9 @@ function edit(args: string[], json: boolean): CommandOutput {
   )
     throw usage('task edit requires at least one change');
 
-  const root = repositoryRoot();
+  const cwdRoot = repositoryRoot();
   const taskId = requireId(id);
+  const root = taskRecordRoot(cwdRoot, taskId);
   const current = getTask(root, taskId);
   if (current.status === 'closed' && !reopen)
     throw new TaskDataError([

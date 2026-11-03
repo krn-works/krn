@@ -40,6 +40,7 @@ export interface EditTask {
 
 export interface TaskStoreOptions {
   makeId?: () => TaskId;
+  uniquenessRoots?: string[];
 }
 
 export function repositoryRoot(cwd = process.cwd()): string {
@@ -207,7 +208,14 @@ export function createTask(
     if (!isTaskId(id))
       throw new TaskDataError([`generated invalid task id "${id}"`]);
     const path = join(directory, `${id}.json`);
-    if (existsSync(path) || existsInOriginMain(root, id)) continue;
+    if (
+      existsSync(path) ||
+      (options.uniquenessRoots ?? []).some((candidate) =>
+        existsSync(join(candidate, 'tasks', `${id}.json`)),
+      ) ||
+      existsInOriginMain(root, id)
+    )
+      continue;
     const record: TaskRecord = {
       id,
       status: 'open',
