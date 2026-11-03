@@ -16,7 +16,11 @@ import { runReview } from '../../src/flow/index.ts';
 import { judgeRole, parseJudgeResponse } from '../../src/flow/panel.ts';
 import { appendOverride } from '../../src/flow/record.ts';
 import { redFirst } from '../../src/flow/repository.ts';
-import { redFirstSchema, reviewRecordSchema } from '../../src/flow/types.ts';
+import {
+  panelRoles,
+  redFirstSchema,
+  reviewRecordSchema,
+} from '../../src/flow/types.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 import { systemdEnvironment as createSystemdEnvironment } from '../helpers/systemd-environment.ts';
 
@@ -369,6 +373,11 @@ test('legacy review records without red-first side and SHA still accept override
           base: headSha,
           createdAt: '2026-10-11T00:00:00.000Z',
           panelVerdict: 'FAIL',
+          panel: {
+            requestedRoles: [...panelRoles],
+            requiredRoles: [...panelRoles],
+            partial: false,
+          },
           redFirst: [
             {
               path: 'test/legacy.test.ts',
@@ -379,16 +388,14 @@ test('legacy review records without red-first side and SHA still accept override
               summary: 'AssertionError',
             },
           ],
-          judges: [
-            {
-              state: 'complete',
-              role: 'adversarial',
-              verdict: 'FAIL',
-              findings: [],
-              sessionId: 'legacy-session',
-              finalMessage: 'FAIL',
-            },
-          ],
+          judges: panelRoles.map((role) => ({
+            state: 'complete',
+            role,
+            verdict: 'FAIL',
+            findings: [],
+            sessionId: `legacy-session-${role}`,
+            finalMessage: 'FAIL',
+          })),
         },
         null,
         2,
@@ -776,11 +783,11 @@ test('a judge response without a verdict cannot be parsed into a review record',
   assert.throws(() => parseJudgeResponse('{"findings":[]}'));
 });
 
-test('panel launcher forces read-only and a lead override is appended after FAIL', async (t) => {
+test('panel launcher forces read-only and a partial-panel FAIL refuses an override', async (t) => {
   if (
     !requiresIsolation(
       t,
-      'panel launcher forces read-only and a lead override is appended after FAIL',
+      'panel launcher forces read-only and a partial-panel FAIL refuses an override',
       ['systemdUserScope'],
     )
   )
@@ -824,6 +831,7 @@ test('panel launcher forces read-only and a lead override is appended after FAIL
       timeoutMs: 30000,
     });
     assert.equal(record.judges[0]?.state, 'complete');
+    assert.equal(record.panel?.partial, true);
     if (record.judges[0]?.state === 'complete')
       assert.equal(record.judges[0].verdict, 'FAIL');
     const args = JSON.parse(readFileSync(fake.argsFile, 'utf8')) as string[];
@@ -832,12 +840,15 @@ test('panel launcher forces read-only and a lead override is appended after FAIL
     assert.ok(prompt.includes(`MECHANICAL RED-FIRST REPORT — BASE ${base}`));
     assert.ok(prompt.includes(`MECHANICAL RED-FIRST REPORT — HEAD ${head}`));
     assert.ok(prompt.includes(`Review diff range: ${base}..${head}`));
-    const updated = appendOverride(root, head, {
-      reason: 'accepted residual risk',
-      evidence: 'verified in the follow-up probe',
-    });
-    assert.equal(updated.override?.reason, 'accepted residual risk');
-    assert.equal(updated.headSha, head);
+    // A partial panel FAIL is refused here exactly as preflight and delivery refuse it.
+    assert.throws(
+      () =>
+        appendOverride(root, head, {
+          reason: 'accepted residual risk',
+          evidence: 'verified in the follow-up probe',
+        }),
+      /override requires a recorded FAIL/u,
+    );
   } finally {
     cleanup();
   }
