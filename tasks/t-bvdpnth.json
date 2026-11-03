@@ -1,0 +1,12 @@
+{
+  "id": "t-bvdpnth",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 1,
+  "title": "Generate the review lens from Settled decisions and accepted Hardening residuals",
+  "after": [],
+  "body": [
+    "Outcome: krn brief lens also prints the brief's Hardening answers that accept a residual (race, symlink, stale-state) verbatim, so the panel does not re-flag accepted residuals as BLOCKING. Evidence: PR #192 attempt 2 FAIL on the task-guard race and symlink swap, both accepted in brief Hardening but absent from the lens; lead override spent (.krn/runs/lead/brief-guard/override.txt). Proof: test/brief/lens.test.ts red at base by assertion."
+  ]
+}

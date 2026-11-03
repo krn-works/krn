@@ -1,0 +1,12 @@
+{
+  "id": "t-58722t8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 1,
+  "title": "Worker-spawning observers fail under the driver acceptance sandbox",
+  "after": [],
+  "body": [
+    "Outcome: a declared --observer that spawns krn worker start/stop either runs in the Codex workspace-write sandbox or is reported as sandbox-incompatible, instead of failing 'worker stop did not finish' while passing on the host. Evidence: PR #192 round 001 acceptance-3.log (.krn/runs/lead/brief-guard/rounds/001/) exit 1 in sandbox; same file 10/10 pass on host. Proof: test/worker/acceptance-checks.test.ts case red at base by assertion."
+  ]
+}
