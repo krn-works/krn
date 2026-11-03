@@ -33,6 +33,13 @@ test('checklist bounds text-scanning guards by contract shape', () => {
   assert.match(line, /fails closed/u);
 });
 
+// Classes added after text-scanner; the answered brief must cover them too.
+const later = [...readFileSync(checklist, 'utf8').matchAll(/^- `([^`]+)`: /gmu)]
+  .map((match) => match[1] as string)
+  .filter((id) => id !== 'text-scanner' && !earlier.includes(id))
+  .map((id) => `- ${id}: N/A: not touched\n`)
+  .join('');
+
 test('brief check refuses a brief that leaves the text-scanner class unanswered', (t) => {
   const root = mkdtempSync(join(tmpdir(), 'krn-brief-text-scanner-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -51,7 +58,7 @@ test('brief check refuses a brief that leaves the text-scanner class unanswered'
   assert.match(missing.stderr, /text-scanner/u);
   writeFileSync(
     brief,
-    `# Brief\n\n## Hardening\n${answers}\n- text-scanner: N/A: no source-text guard\n`,
+    `# Brief\n\n## Hardening\n${answers}\n- text-scanner: N/A: no source-text guard\n${later}`,
   );
   const answered = run();
   assert.equal(answered.status, 0, answered.stderr);
