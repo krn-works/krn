@@ -1,0 +1,12 @@
+{
+  "id": "t-x2nmk9j",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Let the lead override a prepass-only review FAIL",
+  "after": [],
+  "body": [
+    "Outcome: the lead can turn a prepass-only review FAIL into a lead decision without a wasted review attempt. Evidence: PR #175 (t-55m05ab) attempt 4 was prepass-only (records/4.json, panelVerdict null); `krn review --override` exited 70 \"override requires a recorded FAIL verdict\", and `--prior-record` refused a same-head record (exit 64) and a second-round record (exit 64), so attempt 5 on a new head was spent only to obtain a panel verdict. Acceptance: either `krn review --override` accepts a prepass-only FAIL on the exact head, or krn-lead step 7 states that an override needs a recorded panel FAIL and that the next attempt after a prepass-only FAIL must use `--prior-record` on a new head; a rule or CLI test covers the chosen behaviour."
+  ]
+}

@@ -159,6 +159,8 @@ export async function runReview(
     readonly signal?: AbortSignal;
     /** Test seam; the CLI always uses CodexHost's installed executable. */
     readonly codexExecutable?: string;
+    /** Test seam; omitted callers record the tool checkout's HEAD. */
+    readonly toolSha?: string;
     readonly readPull?: PullReader;
     readonly readGateCheckRuns?: GateCheckRunReader;
   },
@@ -199,7 +201,7 @@ export async function runReview(
     panelRoles.some((role) => !panel.includes(role));
   const reasoningEffort = input.reasoningEffort ?? 'high';
   const toolRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-  const toolSha = git(toolRoot, ['rev-parse', 'HEAD']);
+  const toolSha = request.toolSha ?? git(toolRoot, ['rev-parse', 'HEAD']);
   const lensSha256 = createHash('sha256').update(lens, 'utf8').digest('hex');
   const checklist =
     input.prepassChecklist === undefined

@@ -1,7 +1,11 @@
 {
   "id": "t-tmptv5f",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "preflight refuses review records whose toolSha is outside the PR base; krn-lead step 7 runs the base reviewer from the main checkout for every PR"
+  },
   "created": "2026-11-02",
   "priority": 3,
   "title": "Review every PR with the trusted base reviewer",

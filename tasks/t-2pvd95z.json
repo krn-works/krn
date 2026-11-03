@@ -1,0 +1,12 @@
+{
+  "id": "t-2pvd95z",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Bound text-scanning guards by contract shape in briefs and lenses",
+  "after": [],
+  "body": [
+    "Outcome: a brief or lens for a guard that scans source text (Markdown, JavaScript) states its contract as the concrete shapes it must catch and declares parser completeness out of scope before the first review attempt. Evidence: PR #175 (t-55m05ab) spent 5 review attempts and 3 budget exceptions; each attempt named new lexer or CommonMark edge cases (escapes, multi-line templates, regex after if/else, mixed fences, blockquote fences, x++ / \"...\"), ending in a lead override (records/5.json). Acceptance: docs/program/hardening-checklist.md gains a class for text-scanning guards (contract shape, non-goals, fail-closed direction) and `krn brief check` requires it to be answered."
+  ]
+}

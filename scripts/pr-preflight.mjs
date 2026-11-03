@@ -319,6 +319,16 @@ function stripUnrecognizedKeys(value, issues) {
   return stripped;
 }
 
+function addReviewerToolBaseReason(repo, base, toolSha, path, reasons) {
+  if (
+    sha.safeParse(toolSha).success &&
+    !git(repo, ['merge-base', '--is-ancestor', toolSha, base]).ok
+  )
+    reasons.add(
+      `review record came from reviewer code ${toolSha} outside the PR base; re-run the review with the base checkout's bin/krn: ${path}`,
+    );
+}
+
 function reviewEvidence(repo, input, reasons, identity) {
   const worktrees = readGit(
     repo,
@@ -436,17 +446,11 @@ function reviewEvidence(repo, input, reasons, identity) {
       reasons.add(`review record does not satisfy the strict schema: ${path}`);
       // Ship never guesses an unknown value; only the trusted base reviewer
       // can produce a record the base schema can verify.
-      const tool = typeof json?.toolSha === 'string' ? json.toolSha : '';
-      if (
-        sha.safeParse(tool).success &&
-        !git(repo, ['merge-base', '--is-ancestor', tool, input.base]).ok
-      )
-        reasons.add(
-          `review record came from reviewer code ${tool} outside the PR base; re-run the review with the base checkout's bin/krn: ${path}`,
-        );
+      addReviewerToolBaseReason(repo, input.base, json?.toolSha, path, reasons);
       continue;
     }
     const record = parsed.data;
+    addReviewerToolBaseReason(repo, input.base, record.toolSha, path, reasons);
     try {
       if (!identity) throw new Error('authoritative PR identity unavailable');
       verifyReviewBinding(repo, record, identity);
