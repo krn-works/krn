@@ -1,7 +1,11 @@
 {
   "id": "t-1svg55a",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "required outputs and report consistency enforced by the worker driver; driver-run checks in t-n9b3q2g, verify red-first in t-1xyccee"
+  },
   "created": "2026-11-03",
   "priority": 0,
   "title": "Accept worker turns by checks the driver runs",
