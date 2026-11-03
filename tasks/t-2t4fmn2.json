@@ -1,0 +1,12 @@
+{
+  "id": "t-2t4fmn2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Share one hardened local-read module across scripts",
+  "after": [],
+  "body": [
+    "Outcome: one shared module for hardened local reads (open with O_NOFOLLOW and verify the opened fd path through /proc/self/fd, read through a fixed bounded buffer, list a directory through its verified fd with an entry bound) that new scripts import instead of re-deriving. Evidence: PR #180 review attempts 1-2 (records 1.json, 2.json under .krn/runs/review-series/9042aa35…) dripped the symlink-ancestor, TOCTOU, unbounded JSON read and unbounded readdir classes for scripts/rollout-usage.ts, the same classes #173 hit in src/worker. Proof: scripts/rollout-usage.ts uses the module and its three observers stay green; the module has its own observers per class."
+  ]
+}

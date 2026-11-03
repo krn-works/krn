@@ -1,0 +1,12 @@
+{
+  "id": "t-zm4ntaa",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 1,
+  "title": "Give krn worker turns a writable TMPDIR outside the scope check",
+  "after": [],
+  "body": [
+    "Outcome: krn worker gives every turn a writable TMPDIR that the scope check ignores (for example <run>/tmp, exported to the app-server turn), so worker tests that create temp files neither fail in the sandbox nor count as scope violations. Evidence: PR #180 fix run .krn/runs/lead/worker-adoption/worker-fix-1-evidence: round 001 could not write /mnt/storage/tmp/krn (sandbox), round 002 used TMPDIR=<worktree>/.krn/tmp and failed exit 3 with thousands of .krn/tmp/node-compile-cache scope violations. Proof: a worker test whose turn writes under TMPDIR ends exit 0 with no scope violation, red at base by assertion."
+  ]
+}
