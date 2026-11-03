@@ -55,7 +55,7 @@ export function readRegularFile(
 }
 
 /** Only lines outside fences and HTML comments participate in Markdown grammar. */
-function* outsideFences(text: string) {
+export function* outsideFences(text: string) {
   let fence: { marker: string; length: number } | undefined;
   let comment = false;
   const lines = text.replace(/^\uFEFF/u, '').split(/\r?\n/u);

@@ -31,6 +31,7 @@ import {
   listTasks,
   repositoryRoot,
 } from './store.ts';
+import { assertWorkerIdle } from './worker-busy.ts';
 
 interface CommandOutput {
   text: string;
@@ -184,6 +185,7 @@ function create(args: string[], json: boolean): CommandOutput {
       ? cwdRoot
       : registeredTaskWorktree(cwdRoot, worktree);
   const mainRoot = mainCheckoutRoot(cwdRoot);
+  assertWorkerIdle(targetRoot);
   const record = createTask(
     targetRoot,
     {
@@ -389,7 +391,9 @@ function close(args: string[], json: boolean): CommandOutput {
   const resolution = parseResolution(resolutionArg, note ?? '');
   const cwdRoot = repositoryRoot();
   const taskId = requireId(id);
-  const record = closeTask(taskRecordRoot(cwdRoot, taskId), taskId, resolution);
+  const root = taskRecordRoot(cwdRoot, taskId);
+  assertWorkerIdle(root);
+  const record = closeTask(root, taskId, resolution);
   return result({ task: record }, `${record.id}\n`, json);
 }
 
@@ -403,8 +407,10 @@ function dependency(args: string[], json: boolean): CommandOutput {
   const dependencyId = options[1];
   if (dependencyId === undefined)
     throw usage('usage: krn task dep add|rm ID --after ID');
+  const root = taskRecordRoot(repositoryRoot(), requireId(id));
+  assertWorkerIdle(root);
   const record = changeDependency(
-    taskRecordRoot(repositoryRoot(), requireId(id)),
+    root,
     requireId(id),
     requireId(dependencyId),
     operation,
@@ -469,6 +475,7 @@ function edit(args: string[], json: boolean): CommandOutput {
       `tasks/${taskId}.json: task is closed; use --reopen to edit it`,
     ]);
   const body = bodyFile === undefined ? undefined : readBody(bodyFile);
+  assertWorkerIdle(root);
   const record = editTask(root, taskId, {
     ...(title === undefined ? {} : { title }),
     ...(priority === undefined ? {} : { priority }),
