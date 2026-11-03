@@ -1,0 +1,12 @@
+{
+  "id": "t-a3z9zfx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Assert the worker TMPDIR in the live worker check",
+  "after": [],
+  "body": [
+    "Outcome: npm run live:worker (scripts/live-worker.mjs) asserts that a real Codex turn sees TMPDIR, TMP and TEMP equal to <run>/tmp and can write there, so host Codex config drift (shell_environment_policy.set) is caught by a command that prints a verdict. Evidence: PR #181 root cause was ~/.codex/config.toml shell_environment_policy.set.TMPDIR overriding the app-server env; found only by a manual live probe (.krn/runs/lead/worker-tmpdir/rounds/001/report.json). Proof: live:worker exits non-zero when the turn reports a TMPDIR outside <run>/tmp."
+  ]
+}
