@@ -1,7 +1,11 @@
 {
   "id": "t-grzahad",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "identity and stale-state classes in docs/program/hardening-checklist.md, enforced by krn brief check; splitting large subsystems stays a lead judgement, not a checklist class"
+  },
   "created": "2026-11-03",
   "priority": 2,
   "title": "Add identity and stale-state classes to the hardening checklist",

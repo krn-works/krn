@@ -1,0 +1,12 @@
+{
+  "id": "t-70c1gx4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Targeted verify runs the tests that exercise changed modules",
+  "after": [],
+  "body": [
+    "Outcome: krn verify's targeted stage also runs every test file that exercises a changed module through the CLI (e.g. test/worker/* for src/worker/*), so a change to a persisted record shape fails locally instead of in krn/gate.\nSource: PR #183 head ff2d8ef passed krn verify but krn/gate failed on test/worker/scope-bypass.test.ts:204 (inbox record deep-equal); found only by a 10-minute full local npm test (.krn/runs/lead/worker-compaction/local-test.txt)."
+  ]
+}

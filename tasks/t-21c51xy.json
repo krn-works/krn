@@ -1,0 +1,12 @@
+{
+  "id": "t-21c51xy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Bound worker app-server requests by stop and the round deadline",
+  "after": [],
+  "body": [
+    "Outcome: worker app-server requests stop waiting when the worker is stopped, and turn/start uses the remaining round time instead of the full timeout, so stop and the round deadline bound every request in a round. Interrupt a turn whose ack timed out once its id is known.\nSource: PR #183 review attempt 3 prepass findings (src/worker/driver.ts:245 and :287, .krn/runs/review-series/326cc6e9.../records/3.json); both behaviours exist at base 6885d84 and were accepted by lead override."
+  ]
+}
