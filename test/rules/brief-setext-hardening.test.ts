@@ -57,6 +57,6 @@ test('setext headings follow the section and duplicate rules', (t) => {
       0,
       1,
     ),
-    ['duplicate Hardening section at line 12'],
+    [`duplicate Hardening section at line ${answers.split('\n').length + 3}`],
   );
 });
