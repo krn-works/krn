@@ -1,0 +1,12 @@
+{
+  "id": "t-e6kke4g",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 1,
+  "title": "Ledger retirement reports lookup failures and stays in its workspace",
+  "after": [],
+  "body": [
+    "Outcome: the shared successor ledger loop in `scripts/claude/successor-launch.ts` (launch-time and `--retire`) reports every Herdr `agent get` failure on stderr and closes a ledger pane only when its workspace equals the caller's workspace. Today a lookup error keeps the record silently and a session-verified idle record in another workspace is closed. Found by PR #190 review records/2.json (standards and adversarial judges); accepted there by lead override as pre-existing behaviour at 84bd43f:200-230. Proof: observer with fake `herdr` on PATH, red at base by assertion: agent-get failure prints a stderr line; other-workspace idle ledger pane is not closed."
+  ]
+}
