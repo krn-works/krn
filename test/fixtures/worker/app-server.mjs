@@ -48,6 +48,7 @@ const threadId =
 let round = 0;
 let current;
 let total = 0;
+let shellTmp;
 writeFileSync(process.env.CODEX_TEST_WORKER_PID, String(process.pid));
 function notification(method, turnId, text, input = 100) {
   const message = structuredClone(records.find((row) => row.method === method));
@@ -95,7 +96,8 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
       },
     });
   }
-  if (method === 'thread/start')
+  if (method === 'thread/start') {
+    shellTmp = params.config?.['shell_environment_policy.set.TMPDIR'];
     return emit({
       id,
       result: {
@@ -105,6 +107,7 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
         },
       },
     });
+  }
   if (method === 'thread/compact/start') {
     emit({ id, result: {} });
     return emit({
@@ -188,6 +191,13 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
     mkdirSync(dirname(path), { recursive: true });
     if (action.startsWith('link ')) symlinkSync('target', path);
     else writeFileSync(path, 'worker edit');
+  }
+  if (action.startsWith('tmpwrite ')) {
+    // Like Codex: a host shell_environment_policy.set.TMPDIR wins over the
+    // process environment unless the thread config overrides it.
+    const tmp =
+      shellTmp ?? process.env.CODEX_TEST_HOST_TMPDIR ?? process.env.TMPDIR;
+    writeFileSync(join(tmp, action.slice('tmpwrite '.length)), 'scratch');
   }
   if (action.startsWith('ignore ')) {
     const name = action.slice('ignore '.length);
