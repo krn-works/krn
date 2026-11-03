@@ -1,7 +1,11 @@
 {
   "id": "t-jgtaex2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "one shared isOverridableFailure predicate in record.ts, pr-preflight.mjs, delivery.ts"
+  },
   "created": "2026-11-03",
   "priority": 3,
   "title": "Refuse overrides that ship would refuse",

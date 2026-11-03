@@ -251,6 +251,27 @@ export function isBlockingPrepassOnly(
   );
 }
 
+/**
+ * The one override admission rule shared by `krn review --override`, preflight
+ * and delivery: no deterministic cause, and either a prepass-only FAIL or a
+ * complete, non-partial panel whose judges all completed with at least one FAIL.
+ */
+export function isOverridableFailure(
+  record: Pick<ReviewRecord, PrepassShape | 'redFirst' | 'contracts'>,
+): boolean {
+  if (deterministicCauses(record.redFirst, record.contracts ?? []).length)
+    return false;
+  if (isBlockingPrepassOnly(record)) return true;
+  return (
+    record.panelVerdict === 'FAIL' &&
+    record.panel?.partial === false &&
+    record.judges.every((judge) => judge.state === 'complete') &&
+    record.judges.some(
+      (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
+    )
+  );
+}
+
 export function deterministicCauses(
   results: readonly z.infer<typeof redFirstRecordSchema>[],
   contracts: readonly ChangeContract[],
