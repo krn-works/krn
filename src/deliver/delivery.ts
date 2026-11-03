@@ -20,7 +20,11 @@ import {
   readReviewJson,
   verifyReviewBinding,
 } from '../flow/series.ts';
-import { deterministicCauses, newReviewRecordSchema } from '../flow/types.ts';
+import {
+  deterministicCauses,
+  isBlockingPrepassOnly,
+  newReviewRecordSchema,
+} from '../flow/types.ts';
 import {
   gateAdmissionPolicyFromBase,
   KRN_CHECK_APP_ID,
@@ -318,11 +322,12 @@ export async function deliver(
     if (
       record.override &&
       (deterministicCauses(record.redFirst, record.contracts ?? []).length ||
-        record.panel?.partial !== false ||
-        record.judges.some((judge) => judge.state !== 'complete') ||
-        !record.judges.some(
-          (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
-        ))
+        (!isBlockingPrepassOnly(record) &&
+          (record.panel?.partial !== false ||
+            record.judges.some((judge) => judge.state !== 'complete') ||
+            !record.judges.some(
+              (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
+            ))))
     )
       throw new Error(
         'override cannot bypass deterministic or incomplete evidence',

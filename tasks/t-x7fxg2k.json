@@ -1,0 +1,12 @@
+{
+  "id": "t-x7fxg2k",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Name failing tests in the krn/gate check-run text",
+  "after": [],
+  "body": [
+    "Outcome: a red krn/gate check run names its failing tests. Evidence: PR #176 run 1 (head 67b06b3) check-run text held only the last 4096 bytes of stdout (passing tests); Jenkins consoleText needs auth, so the lead reproduced the 5 failing tests locally (.krn/runs/delivery-loop/deliver-traps/base-reviewer/consumers.out), costing one CI run and one review attempt. Acceptance: the check-run text lists every 'not ok' test name with its file and first assertion line before the stdout tail, with an observer red at base by assertion."
+  ]
+}
