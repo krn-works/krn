@@ -1,0 +1,14 @@
+{
+  "id": "t-n9b3q2g",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 0,
+  "title": "Run declared acceptance checks in the worker driver",
+  "after": [
+    "t-1svg55a"
+  ],
+  "body": [
+    "Outcome: the `krn worker` driver runs declared `--check <cmd>` and `--observer <test file>` itself after a turn, inside the worker sandbox with a timeout, records each exit code in `result.json`, and exits 4 when any is non-zero, independent of the report's own `checks`. Source: .krn/runs/lead/worker-audit/code-audit.md fix 3 (split from t-1svg55a). Also decide the report `canary`: today it has no consumer and no expected value; either derive an expected token from the brief and refuse a mismatch, or remove the field. Proof: new observer test/worker/acceptance-checks.test.ts red at base by assertion."
+  ]
+}

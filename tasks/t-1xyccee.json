@@ -1,0 +1,12 @@
+{
+  "id": "t-1xyccee",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 0,
+  "title": "Fail verify red-first when code changes without an observer",
+  "after": [],
+  "body": [
+    "Outcome: `krn verify` red-first fails with `no observer for code change` instead of SKIP 'no observer test files' when base..head changes non-tracker source (src/, scripts/, bin/) and neither `--observer` nor a changed test file is given (src/verify/index.ts ~557; mirror src/deliver/message.ts:84-94). Tracker-only or docs-only diffs still SKIP. Source: .krn/runs/lead/worker-audit/code-audit.md fix 5 (split from t-1svg55a). Proof: new observer under test/cli/ red at base by assertion; adjust existing SKIP assertions in test/cli/verify.test.ts only where they cover a code change."
+  ]
+}
