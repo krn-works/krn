@@ -1,7 +1,11 @@
 {
   "id": "t-t8v24zs",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Worker instructions now ask to finish the brief and leave changes uncommitted; start refuses forbidden --allow (exit 64); partial/blocked without a blocker exits 4"
+  },
   "created": "2026-11-03",
   "priority": 1,
   "title": "Make worker turns finish briefs and commit allowed paths",
