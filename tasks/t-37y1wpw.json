@@ -1,0 +1,12 @@
+{
+  "id": "t-37y1wpw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Finish worker compaction only on its compaction item",
+  "after": [],
+  "body": [
+    "Outcome: during thread/compact/start the driver waits for the contextCompaction item (or thread/compacted) for that thread and ignores other item/completed events, so a turn never starts before compaction has finished. Also cover a live compaction in scripts/live-worker.mjs, since compaction has not run live yet.\nSource: PR #173 review attempt 6 prepass BLOCKING finding (src/worker/driver.ts:238, .krn/runs/review-series/0473f8d5.../records/6.json), accepted by lead override; krn worker is not yet used for delegation (t-qkqkwt6)."
+  ]
+}
