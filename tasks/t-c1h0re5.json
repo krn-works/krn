@@ -1,0 +1,12 @@
+{
+  "id": "t-c1h0re5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Run the Jenkins pipeline harness in required checks",
+  "after": [],
+  "body": [
+    "Outcome: infra/ci/jenkins/tests/pipeline_test.groovy (the only executable check of ownedCi.groovy and Controller stubs) runs in npm run preflight or krn/gate with an exact mise-pinned Java (temurin-11.0.32+101 works) and a SHA256-verified groovy-all-2.4.21.jar (de65260cf2070442e99882f2f3d72e7531725c1e6a257446cc0cea525c607bd0), so a Groovy regression fails CI instead of relying on a lead running it by hand. Evidence: PR #182 needed a manual jar download and java install; red/green proof lives only in .krn/runs/lead/gate-infra-rerun/groovy-*.out.\nProof: a deliberately broken ownedCi.groovy assertion makes the chosen gate step fail; the step passes on main."
+  ]
+}

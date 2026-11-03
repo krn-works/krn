@@ -1,0 +1,12 @@
+{
+  "id": "t-t8v24zs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 1,
+  "title": "Make worker turns finish briefs and commit allowed paths",
+  "after": [],
+  "body": [
+    "Outcome: a krn worker turn that the brief asks to finish and commit does so, or reports a concrete blocker. Evidence (PR #182, .krn/runs/lead/gate-infra-rerun/rounds): gpt-6-luna at high effort returned status partial twice (41k then 75k uncached tokens) with no blocker; round 2 refused to commit citing an overriding instruction that the lead commits, and called .agents/skills/krn-lead/SKILL.md read-only although it was in --allow. The lead finished the slice by hand.\nProof: a fixture worker turn with an allowed .agents path can write it, and the worker instructions no longer forbid the commit the brief asks for (or the brief template stops asking); one recorded live turn completes a small brief end to end."
+  ]
+}
