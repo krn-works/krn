@@ -1,0 +1,12 @@
+{
+  "id": "t-36bvkbr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Name absent-target and dangling-ancestor rows in the symlink hardening class",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/hardening-checklist.md symlink class names the boundary rows judges found on #186: an absent target under a symlinked ancestor and a dangling symlinked ancestor must be unsafe, not missing; a genuinely absent ancestor stays missing. Evidence: PR #186 review records 1.json (prepass) and 2.json (standards+spec) under .krn/runs/review-series/e90c6dd6…; cost two attempts and a budget exception. Proof: krn brief check refuses a brief whose symlink answer omits absent-target and dangling-ancestor handling, or the checklist test asserts the new rows."
+  ]
+}

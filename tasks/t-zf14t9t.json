@@ -1,0 +1,12 @@
+{
+  "id": "t-zf14t9t",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 0,
+  "title": "Write task records only in the active lane worktree",
+  "after": [],
+  "body": [
+    "Outcome: `krn task` writes task records in exactly one place, the active lane's worktree (from the claim's --worktree, or an explicit --worktree on create), never as a second copy in the main checkout; deliver hygiene then never meets duplicate tasks/*.json. Evidence: every lane-A PR since #152 carried 'carry lane-A task records' commits and needed manual cmp/rm or git checkout before hygiene (t-hq84b8z, #184); PR #186 removed t-62ww57k and t-fd02vfs by hand. Operator 2026-11-03: 'Czemu ciagle powstaja zduplikowane taski? Czemu nadal tego jakkolwiek nie rozwiązałeś?'. Proof: an observer where create/claim/close with an active lane worktree leaves the main checkout clean and the record in the worktree; t-hq84b8z identical-file fast-forward ships in the same slice; krn-lead step 8 cmp/rm workaround and the t-hq84b8z open-trap id are removed."
+  ]
+}
