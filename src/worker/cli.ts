@@ -9,6 +9,7 @@ import {
 import { join, matchesGlob, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
+import { BriefSectionsError, briefSections } from '../brief/sections.ts';
 import { defaultCodexExecutable } from '../hosts/codex.ts';
 import { reapAppServer } from '../hosts/codex-app-server.ts';
 import {
@@ -219,6 +220,25 @@ export async function workerCommand(args: string[]): Promise<void> {
           64,
           `--allow ${forbidden} names a forbidden path`,
         );
+      try {
+        const { allowed } = briefSections(text);
+        if (allowed) {
+          const expected = new Set(allowed.map((entry) => entry.path));
+          const actual = new Set(allows);
+          const missing = [...expected].filter((path) => !actual.has(path));
+          const extra = [...actual].filter((path) => !expected.has(path));
+          if (missing.length || extra.length)
+            throw new WorkerError(
+              64,
+              `--allow differs from brief Allowed paths: missing ${missing.join(',')}; extra ${extra.join(',')}`,
+            );
+        }
+      } catch (error) {
+        if (error instanceof BriefSectionsError) {
+          if (error.hasAllowed)
+            throw new WorkerError(64, error.reasons.join('\n'));
+        } else throw error;
+      }
     } else {
       if (command === 'stop' && !existsSync(run)) return;
       try {

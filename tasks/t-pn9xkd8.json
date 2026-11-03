@@ -1,0 +1,12 @@
+{
+  "id": "t-pn9xkd8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Hardening checklist: redaction never alters executed or stored-for-execution values",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/hardening-checklist.md `secrets` class adds: a value that will be executed or used as a path is never redacted in place; a credential-like value is refused (exit 64/65) instead. Evidence: PR #191 review records e962b36f…/records/2.json BLOCKING (cli.ts stored checks.map(redact), driver ran an altered command). Proof: krn brief check fixture brief lacking the clause still passes (checklist text only) — test/rules/hardening-checklist.test.ts asserts the clause."
+  ]
+}
