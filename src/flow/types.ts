@@ -234,6 +234,23 @@ const redFirstCauseSchema = z.object({
   cause: z.string().min(1),
 });
 
+/** A prepass-only FAIL: a complete prepass with a BLOCKING finding and no panel evidence. */
+type PrepassShape = 'panelVerdict' | 'panel' | 'judges' | 'prepass';
+
+export function isBlockingPrepassOnly(
+  record:
+    | Pick<NewReviewRecord, PrepassShape>
+    | Pick<ReviewRecord, PrepassShape>,
+): boolean {
+  return (
+    record.panelVerdict === undefined &&
+    record.panel === undefined &&
+    record.judges.length === 0 &&
+    record.prepass?.state === 'complete' &&
+    record.prepass.findings.some((finding) => finding.severity === 'BLOCKING')
+  );
+}
+
 export function deterministicCauses(
   results: readonly z.infer<typeof redFirstRecordSchema>[],
   contracts: readonly ChangeContract[],

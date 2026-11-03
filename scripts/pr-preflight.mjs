@@ -24,6 +24,7 @@ import {
 } from '../src/flow/series.ts';
 import {
   deterministicCauses,
+  isBlockingPrepassOnly,
   newReviewRecordSchema,
   pullRequestSchema,
   seriesIdentitySchema,
@@ -495,13 +496,17 @@ function reviewEvidence(repo, input, reasons, identity) {
       redFirstCount: record.redFirst.length,
       ...(record.override ? { override: record.override } : {}),
     });
-    const hasFailure = record.judges.some(
-      (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
-    );
+    const blockingPrepass = isBlockingPrepassOnly(record);
+    const hasFailure =
+      blockingPrepass ||
+      record.judges.some(
+        (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
+      );
     if (record.override) {
       if (
-        record.panel?.partial !== false ||
-        record.judges.some((judge) => judge.state !== 'complete')
+        !blockingPrepass &&
+        (record.panel?.partial !== false ||
+          record.judges.some((judge) => judge.state !== 'complete'))
       )
         reasons.add(
           `current exact-head review is incomplete despite override: ${path}`,

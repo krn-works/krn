@@ -24,6 +24,7 @@ export { reserveReviewAttempt } from './series.ts';
 
 import {
   deterministicCauses,
+  isBlockingPrepassOnly,
   type NewReviewRecord,
   newReviewRecordSchema,
   type ReviewRecord,
@@ -82,6 +83,16 @@ function writeExclusive(path: string, validated: NewReviewRecord): void {
   }
 }
 
+function hasRecordedFailure(record: ReviewRecord): boolean {
+  if (
+    record.judges.some(
+      (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
+    )
+  )
+    return true;
+  return isBlockingPrepassOnly(record);
+}
+
 export function appendOverride(
   repo: string,
   shaInput: string,
@@ -107,12 +118,10 @@ export function appendOverride(
   if (current.headSha !== sha)
     throw new Error('review record SHA does not match');
   if (current.override) throw new Error('review override already exists');
-  if (
-    !current.judges.some(
-      (judge) => judge.state === 'complete' && judge.verdict === 'FAIL',
-    )
-  )
-    throw new Error('override requires a recorded FAIL verdict');
+  if (!hasRecordedFailure(current))
+    throw new Error(
+      'override requires a recorded FAIL verdict or a complete blocking prepass',
+    );
   const updated = reviewRecordSchema.parse({
     ...current,
     override: { ...override, appendedAt: new Date().toISOString() },

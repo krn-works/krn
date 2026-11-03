@@ -1,0 +1,12 @@
+{
+  "id": "t-mghsesm",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Run consumer tests of changed files in krn verify",
+  "after": [],
+  "body": [
+    "Outcome: krn verify targeted tests include every test that exercises a changed script or module, not only the observer. Evidence: PR #176 changed scripts/pr-preflight.mjs; krn verify passed, but test/flow/review-budget.test.ts (in-process review then preflight) failed in CI. Acceptance: krn verify selects test files that import or spawn a changed file (static scan of import specifiers and script paths), runs them through scripts/test-suite.mjs, with an observer red at base by assertion."
+  ]
+}
