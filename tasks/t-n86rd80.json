@@ -1,0 +1,12 @@
+{
+  "id": "t-n86rd80",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Process-death assertions treat zombies as dead under red-first PID 1",
+  "after": [],
+  "body": [
+    "Outcome: a shared test helper (test/helpers/process.ts processGone(pid)) reads /proc/<pid>/stat and treats missing or state Z as gone; worker tests use it instead of process.kill(pid,0). Evidence: krn verify red-first head=assertion on PR #191 row 5 (.krn/runs/lead/acceptance-checks/redfirst-diagnosis.md): src/verdict/sandbox.ts --unshare-pid --as-pid-1 leaves killed children as unreaped zombies. Proof: grep check in test/rules that no test under test/worker uses process.kill(pid, 0) for liveness."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-4ft1t6k",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 1,
+  "title": "Refuse tracker writes into a worktree with a live worker turn",
+  "after": [],
+  "body": [
+    "Outcome: `krn task create|edit|close|dep --worktree <path>` exits 75 when <path> holds a running krn worker session (session.json status running), instead of writing a file the scope check later reports as a worker violation. Evidence: t-n9b3q2g round 3 exit 3 'scope violation: tasks/t-r960z2s.json' (.krn/runs/lead/acceptance-checks/worker-3.txt) after the lead created a task during the turn. Proof: test/tasks/worker-busy.test.ts red at base by assertion."
+  ]
+}
