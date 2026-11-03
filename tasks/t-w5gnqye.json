@@ -1,0 +1,16 @@
+{
+  "id": "t-w5gnqye",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "successor --retire closes predecessor and idle handed-off tabs of the same workspace"
+  },
+  "created": "2026-11-03",
+  "priority": 0,
+  "title": "Close handed-off session tabs after the successor starts",
+  "after": [],
+  "body": [
+    "Outcome: no handed-off KRN session stays open to auto-compact and burn tokens. `scripts/claude/successor-launch.ts` starts the successor with an instruction (or a SessionStart step) that, once the successor has read its handoff, closes the immediate predecessor's Herdr tab and every other \"handed off → …\" tab in the same KRN workspace whose agent is idle; tabs of other workspaces and working agents are never closed. `.agents/skills/krn-handoff/SKILL.md` step 3 is updated (today: \"the immediate predecessor stays open\"). Operator 2026-11-03: \"żebyś historyczne taby zamykał… autokompaktowanie… wpierdala nam to tokeny\" (memory:close-handed-off-tabs). Proof: an observer with a fake `herdr` on PATH, red at base by assertion: predecessor tab closed after successor start; other-workspace and working tabs untouched."
+  ]
+}

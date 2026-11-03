@@ -392,7 +392,18 @@ test('caller agent lookup failure skips retirement and rename but keeps launch s
     ['predecessor-pane'],
   );
   const laterCalls = readCalls(run.herdrCalls).slice(4);
-  assert.deepEqual(laterCalls, [['agent', 'get', callerPane]]);
+  assert.deepEqual(laterCalls, [
+    [
+      'pane',
+      'run',
+      'w2E:pH',
+      '"$KRN_SUCCESSOR_AGENT"',
+      '-n',
+      '"$KRN_SUCCESSOR_NAME"',
+      '"$KRN_SUCCESSOR_PROMPT"',
+    ],
+    ['agent', 'get', callerPane],
+  ]);
 });
 
 test('failed pane run does not write the ledger or retire predecessors', (t) => {
@@ -401,9 +412,9 @@ test('failed pane run does not write the ledger or retire predecessors', (t) => 
 
   assert.equal(run.result.status, 23);
   assert.deepEqual(readLedger(run.ledgerPath), initial);
-  assert.equal(
-    readCalls(run.herdrCalls).some((call) => call[0] === 'agent'),
-    false,
+  assert.deepEqual(
+    readCalls(run.herdrCalls).filter((call) => call[0] === 'agent'),
+    [['agent', 'get', callerPane]],
   );
   assert.equal(
     readCalls(run.herdrCalls).some((call) => call[1] === 'close'),

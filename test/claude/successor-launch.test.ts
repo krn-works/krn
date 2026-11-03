@@ -57,6 +57,8 @@ function herdrStub(): string {
     '  process.stdout.write(readFileSync(process.env.STATUS_FIXTURE));',
     "} else if (args[0] === 'pane' && args[1] === 'get') {",
     '  process.stdout.write(readFileSync(process.env.PANE_FIXTURE));',
+    "} else if (args[0] === 'agent' && args[1] === 'get') {",
+    '  process.stdout.write(\'{"result":{"agent":{"agent":"claude","agent_status":"working","agent_session":{"value":"6d5dd06a-49cf-4b74-8309-cf67dcb7fe68"},"tab_id":"w2E:tH"}}}\\n\');',
     "} else if (args[0] === 'tab' && args[1] === 'create') {",
     "  if (process.env.HERDR_MODE === 'invalid-create') {",
     "    process.stdout.write('not a Herdr reply\\n');",
@@ -221,7 +223,7 @@ test('Herdr launch uses the captured pane and tab IDs without starting fallback'
       '--env',
       'KRN_SUCCESSOR_NAME=Next slice',
       '--env',
-      'KRN_SUCCESSOR_PROMPT=Read handoff',
+      'KRN_SUCCESSOR_PROMPT=First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Read handoff',
       '--no-focus',
     ],
     [
@@ -268,6 +270,7 @@ test('caller pane workspace is passed to the new tab', (t) => {
   assert.deepEqual(readCalls(herdrCalls), [
     ['status'],
     ['pane', 'get', 'caller-pane'],
+    ['agent', 'get', 'caller-pane'],
     [
       'tab',
       'create',
@@ -282,7 +285,11 @@ test('caller pane workspace is passed to the new tab', (t) => {
       '--env',
       'KRN_SUCCESSOR_NAME=Next slice',
       '--env',
-      'KRN_SUCCESSOR_PROMPT=Read handoff',
+      'KRN_SUCCESSOR_PROMPT=First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Read handoff',
+      '--env',
+      `KRN_PREDECESSOR_PANE=caller-pane`,
+      '--env',
+      `KRN_PREDECESSOR_SESSION=6d5dd06a-49cf-4b74-8309-cf67dcb7fe68`,
       '--no-focus',
     ],
     [
@@ -295,6 +302,7 @@ test('caller pane workspace is passed to the new tab', (t) => {
       '"$KRN_SUCCESSOR_PROMPT"',
     ],
     ['agent', 'get', 'caller-pane'],
+    ['tab', 'rename', 'w2E:tH', 'handed off → Next slice'],
   ]);
 });
 
@@ -324,7 +332,12 @@ test('missing Herdr falls back to claude background launch once', (t) => {
     'successor: claude --bg (herdr unavailable: herdr not on PATH)\n',
   );
   assert.deepEqual(readCalls(agentCalls), [
-    ['--bg', '-n', 'Next slice', 'Read handoff'],
+    [
+      '--bg',
+      '-n',
+      'Next slice',
+      'First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Read handoff',
+    ],
   ]);
 });
 
@@ -352,7 +365,12 @@ test('a failed Herdr server probe falls back without creating a tab', (t) => {
   assert.match(result.stdout, /herdr unavailable: server did not respond/u);
   assert.deepEqual(readCalls(herdrCalls), [['status']]);
   assert.deepEqual(readCalls(agentCalls), [
-    ['--bg', '-n', 'Next slice', 'Read handoff'],
+    [
+      '--bg',
+      '-n',
+      'Next slice',
+      'First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Read handoff',
+    ],
   ]);
 });
 
@@ -382,7 +400,12 @@ test('a failed fallback agent returns its non-zero exit code', (t) => {
   assert.match(result.stderr, /command exited with status 19/u);
   assert.deepEqual(readCalls(herdrCalls), [['status']]);
   assert.deepEqual(readCalls(agentCalls), [
-    ['--bg', '-n', 'Next slice', 'Read handoff'],
+    [
+      '--bg',
+      '-n',
+      'Next slice',
+      'First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Read handoff',
+    ],
   ]);
 });
 
