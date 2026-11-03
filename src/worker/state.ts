@@ -92,6 +92,10 @@ export const metricsSchema = z.object({
   context_window: count.nullable(),
   compacted: z.boolean(),
 });
+export const acceptanceValueSchema = z
+  .string()
+  .min(1)
+  .refine((value) => Buffer.byteLength(value) <= 4096 && !value.includes('\0'));
 export const sessionSchema = z.object({
   repo: pathSchema,
   run: pathSchema,
@@ -101,6 +105,8 @@ export const sessionSchema = z.object({
   timeoutMs: timeoutSchema,
   allows: z.array(pathSchema).max(100),
   requires: requiresSchema.default([]),
+  checks: z.array(acceptanceValueSchema).max(16).default([]),
+  observers: z.array(acceptanceValueSchema).max(16).default([]),
   roots: z.array(pathSchema).max(2),
   threadId: z.union([identifierSchema, z.literal('')]),
   pid: processId,
@@ -125,10 +131,20 @@ export const resultSchema = z.object({
   changed: z.array(z.string()),
   needs_lead_note: z.array(z.string()),
   scope_violations: z.array(z.string()),
+  acceptance: z
+    .array(
+      z.object({
+        kind: z.enum(['check', 'observer']),
+        cmd: z.string(),
+        exit_code: z.number().int().nullable(),
+        timed_out: z.boolean(),
+        log: z.string(),
+      }),
+    )
+    .default([]),
 });
 export const reportSchema = z.strictObject({
   status: z.enum(['done', 'blocked', 'partial']),
-  canary: z.string(),
   summary: z.string(),
   changed_paths: z.array(z.string()),
   checks: z.array(

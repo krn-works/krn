@@ -19,6 +19,7 @@ import {
 } from './process.ts';
 import { git, loadPolicy } from './scope.ts';
 import {
+  acceptanceValueSchema,
   alive,
   atomic,
   effortSchema,
@@ -44,7 +45,11 @@ import {
 } from './state.ts';
 import { workerTmp } from './trust.ts';
 
-function reportLines(path: string, round: string): string[] {
+function reportLines(
+  path: string,
+  resultPath: string,
+  round: string,
+): string[] {
   let report: z.infer<typeof reportSchema>;
   try {
     report = readJson(path, reportSchema);
@@ -70,6 +75,7 @@ function reportLines(path: string, round: string): string[] {
   };
   const blockers = report.blockers.filter((text) => clean(text).trim());
   const checks = report.checks.filter((check) => check.exit_code !== 0);
+  const result = readJson(resultPath, resultSchema);
   return [
     `status: ${report.status}`,
     ...blockers.slice(0, 20).map((text) => `blocker: ${bounded(text)}`),
@@ -81,11 +87,17 @@ function reportLines(path: string, round: string): string[] {
           `failing check: ${bounded(check.cmd)} exit ${check.exit_code}`,
       ),
     ...(checks.length > 20 ? [`… ${checks.length - 20} more`] : []),
+    ...result.acceptance
+      .filter((entry) => entry.exit_code !== 0)
+      .map(
+        (entry) =>
+          `acceptance: ${bounded(entry.cmd)} exit ${entry.exit_code ?? 'null'}`,
+      ),
   ];
 }
 
 const optionNames =
-  '--run --repo --brief --message --model --effort --allow --require --timeout-min --compact'.split(
+  '--run --repo --brief --message --model --effort --allow --require --check --observer --timeout-min --compact'.split(
     ' ',
   );
 const errorSchema = z.object({
@@ -107,6 +119,8 @@ export async function workerCommand(args: string[]): Promise<void> {
     const values = new Map<string, string>();
     const allows: string[] = [];
     const requires: string[] = [];
+    const checks: string[] = [];
+    const observers: string[] = [];
     for (let i = 0; i < options.length; i += 2) {
       const key = options[i];
       const value = options[i + 1];
@@ -115,10 +129,13 @@ export async function workerCommand(args: string[]): Promise<void> {
         !value ||
         value.startsWith('--') ||
         !optionNames.includes(key) ||
-        (key !== '--allow' && key !== '--require' && values.has(key))
+        (!['--allow', '--require', '--check', '--observer'].includes(key) &&
+          values.has(key))
       )
         throw new WorkerError(64, 'invalid worker arguments');
       if (key === '--require') requires.push(value);
+      else if (key === '--check') checks.push(value);
+      else if (key === '--observer') observers.push(value);
       else if (key === '--allow') allows.push(value);
       else values.set(key, value);
     }
@@ -153,6 +170,28 @@ export async function workerCommand(args: string[]): Promise<void> {
       throw new WorkerError(
         64,
         'invalid --require: usage requires start and unique repository-relative file paths',
+      );
+    const entries = [...checks, ...observers];
+    const invalidValue = entries.some(
+      (value) => !acceptanceValueSchema.safeParse(value).success,
+    );
+    const invalidObserver = observers.some(
+      (value) => value.startsWith('/') || value.split('/').includes('..'),
+    );
+    if (
+      entries.length > 16 ||
+      invalidValue ||
+      invalidObserver ||
+      (entries.length > 0 && command !== 'start')
+    )
+      throw new WorkerError(64, 'invalid acceptance options');
+    // A value redact() would change is refused rather than stored altered:
+    // the driver must run exactly what the lead declared, and a
+    // credential-like value is never persisted.
+    if (entries.some((value) => redact(value) !== value))
+      throw new WorkerError(
+        64,
+        'invalid acceptance options: a --check or --observer value looks like a credential',
       );
     const timeoutMs = Number(values.get('--timeout-min') ?? 30) * 60000;
     if (!timeoutSchema.safeParse(timeoutMs).success)
@@ -270,6 +309,8 @@ export async function workerCommand(args: string[]): Promise<void> {
         timeoutMs,
         allows,
         requires,
+        checks,
+        observers,
         roots: [repo, workerTmp(run)],
         threadId: '',
         pid: 0,
@@ -334,7 +375,11 @@ export async function workerCommand(args: string[]): Promise<void> {
       roundName(state.rounds + 1),
       'result.json',
     );
-    const deadline = Date.now() + state.timeoutMs + 25000;
+    const deadline =
+      Date.now() +
+      state.timeoutMs +
+      (state.checks.length + state.observers.length) * 600000 +
+      25000;
     for (;;) {
       if (existsSync(resultPath)) {
         const result = readJson(resultPath, resultSchema);
@@ -342,7 +387,7 @@ export async function workerCommand(args: string[]): Promise<void> {
         (result.exit_code ? process.stderr : process.stdout).write(
           `${redact(line)
             .replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, ' ')
-            .trimEnd()}\n${reportLines(join(run, 'rounds', roundName(state.rounds + 1), 'report.json'), roundName(state.rounds + 1)).join('\n')}\n`,
+            .trimEnd()}\n${reportLines(join(run, 'rounds', roundName(state.rounds + 1), 'report.json'), resultPath, roundName(state.rounds + 1)).join('\n')}\n`,
         );
         process.exitCode = result.exit_code;
         return;

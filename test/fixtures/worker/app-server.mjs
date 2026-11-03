@@ -15,6 +15,26 @@ import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { setTimeout as delay } from 'node:timers/promises';
 
+if (process.argv[2] === 'sandbox') {
+  const args = process.argv.slice(3);
+  const marker = args.indexOf('--');
+  const record = { kind: 'sandbox', args };
+  appendFileSync(
+    process.env.CODEX_TEST_WORKER_LOG,
+    `${JSON.stringify(record)}\n`,
+  );
+  if (marker < 0) process.exit(64);
+  const child = spawn(args[marker + 1], args.slice(marker + 2), {
+    stdio: 'inherit',
+    env: process.env,
+  });
+  const code = await new Promise((done) => {
+    child.once('error', () => done(127));
+    child.once('close', (code, signal) => done(code ?? (signal ? 128 : 1)));
+  });
+  process.exit(code);
+}
+
 const records = readFileSync(
   new URL('./transcript.jsonl', import.meta.url),
   'utf8',
@@ -49,7 +69,6 @@ const untracked = (cwd = process.cwd()) =>
 const initialUntracked = untracked();
 const report = {
   status: 'done',
-  canary: '',
   summary: 'ok',
   changed_paths: [],
   checks: [],
@@ -276,6 +295,13 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
     mkdirSync(dir);
     for (let i = 0; i <= 10000; i++)
       writeFileSync(join(dir, `${i}.txt`), 'worker edit');
+  }
+  if (action === 'observer-pass' || action === 'observer-fail') {
+    const passing = action === 'observer-pass';
+    writeFileSync(
+      join(params.cwd, `${passing ? 'pass' : 'fail'}.test.mjs`),
+      `import { test } from 'node:test'; test('observer', () => { ${passing ? '' : "throw new Error('failed');"} });`,
+    );
   }
   const currentUntracked = untracked(params.cwd);
   report.changed_paths = [
