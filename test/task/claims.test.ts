@@ -3,6 +3,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import {
   chmod,
+  copyFile,
   mkdir,
   mkdtemp,
   readdir,
@@ -441,8 +442,14 @@ test('closing the task on origin main expires the linked worktree claim', async 
       runCli(linked, ['claim', 'T-1', '--actor', 'worker']).status,
       0,
     );
+    // The live claim routes the close into the lane; the merge brings it to main.
     const closed = runCli(repo, ['close', 'T-1', '--as', 'done']);
     assert.equal(closed.status, 0, closed.stderr);
+    await copyFile(
+      join(linked, 'tasks', 'T-1.json'),
+      join(repo, 'tasks', 'T-1.json'),
+    );
+    git(linked, 'checkout', '--', 'tasks/T-1.json');
     git(repo, 'add', 'tasks/T-1.json');
     git(repo, 'commit', '-qm', 'close task on origin main');
     git(repo, 'update-ref', 'refs/remotes/origin/main', 'HEAD');

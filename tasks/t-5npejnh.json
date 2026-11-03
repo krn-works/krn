@@ -1,0 +1,13 @@
+{
+  "id": "t-5npejnh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 0,
+  "title": "Fail a worker turn whose report is partial or blocked",
+  "after": [],
+  "body": [
+    "Outcome: a worker turn whose report is `partial` or `blocked` always exits non-zero (4), and `krn worker start|send` prints status, blockers and every non-zero check from rounds/NNN/report.json, never a bare `done`. Evidence 2026-11-03 t-zf14t9t: gpt-6-luna reported `partial` with honest blockers (tests missing, lint 1, check 2) twice; src/worker/driver.ts:219-220 defaults code 0/'done' and :371-379 maps only blocker-less partial to 4; src/worker/cli.ts:288-294 prints only the reason; pinned by test/worker/hardening.test.ts:579. History: 4 of 6 luna first turns were partial/blocked (.krn/runs/lead/worker-audit/history.md); audit .krn/runs/lead/worker-audit/code-audit.md. Operator 2026-11-03: \"jak Ci workerzy mogą nadal … odpierdalać taki syf?\", \"audytuj to gówno\". Also record the Codex rollout path in the round result and fix the SKILL.md claim that start prints the report. Proof: test/worker/report-outcome.test.ts red at base by assertion.",
+    "Lead trap: krn-lead reads rounds/NNN/report.json status and blockers after every worker turn until this ships."
+  ]
+}

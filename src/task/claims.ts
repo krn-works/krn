@@ -121,6 +121,19 @@ export function inspectClaim(root: string, id: TaskId): ClaimInspection {
   return inspectClaimAt(mainCheckoutRoot(root), id);
 }
 
+export function taskRecordRoot(cwdRoot: string, id: TaskId): string {
+  const claim = inspectClaim(cwdRoot, id);
+  return claim.state === 'live' &&
+    claim.claim?.worktree &&
+    claim.claim.worktree !== realpathSync(cwdRoot)
+    ? claim.claim.worktree
+    : cwdRoot;
+}
+
+export function registeredTaskWorktree(root: string, path: string): string {
+  return resolveClaimWorktree(root, path);
+}
+
 function inspectClaimAt(mainRoot: string, id: TaskId): ClaimInspection {
   const path = claimPath(mainRoot, id);
   try {
@@ -558,7 +571,7 @@ function registeredWorktrees(output: Buffer): Set<string> {
   return paths;
 }
 
-function mainCheckoutRoot(root: string): string {
+export function mainCheckoutRoot(root: string): string {
   const result = spawnSync(
     'git',
     ['-C', root, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
