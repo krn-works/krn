@@ -26,7 +26,7 @@ class Controller {
     static boolean runnerOnline(attempt) { true }
     static void disconnectRunner(attempt) { context.events.add('disconnect') }
     static boolean runnerStopped(attempt) { true }
-    static void removeRunner(attempt) { context.events.add('remove') }
+    static void removeRunner(attempt) { context.events.add('remove'); if (context.scenario == 'stop-failure') { throw new IllegalStateException('runner still attached') } }
     static void requireCurrentHead(run, identity) { context.events.add('currentHead') }
 }
 class CheckoutPolicy { static environment() { [] } }
@@ -58,7 +58,7 @@ def run = { String scenario ->
         image_fingerprint: '2' * 64, tier: 'product', timeout_seconds: 1800,
         memory_mib: 5120, process_limit: 1024, check_name: 'krn/gate'],
         source_sha: '3' * 40, base_sha: '4' * 40, pull_request: true]
-    def context = [identity: identity, events: events]
+    def context = [identity: identity, events: events, scenario: scenario]
     controller.context = context
     def env = [NODE_NAME: null]
     List timeoutScopes = []
@@ -151,7 +151,7 @@ def run = { String scenario ->
         }
         if (command.contains(' control finish ')) {
             events.add('reset')
-            if (scenario in ['failure-reset', 'reset-failure']) { throw new IllegalStateException('reset receiver refused') }
+            if (scenario in ['failure-reset', 'reset-failure', 'post-gate-failure']) { throw new IllegalStateException(scenario == 'post-gate-failure' ? 'reset receiver\u0085\u2028refused\u202e' : 'reset receiver refused') }
             return null
         }
         events.add('shell')
@@ -178,10 +178,10 @@ def run = { String scenario ->
         assert !events.contains('reset')
         assert finalCheck.conclusion == (scenario == 'queued-cancel' ? 'CANCELED' : 'FAILURE')
     } else {
-        assert events.contains('reset'): scenario
+        assert events.contains('reset') || scenario == 'stop-failure': scenario
         assert events.indexOf('export') < events.indexOf('disconnect') || scenario == 'allocation-timeout'
-        assert events.indexOf('unstash') < events.indexOf('reset') || scenario in ['dead-channel', 'allocation-timeout']
-        if (!(scenario in ['dead-channel', 'unstash-failure', 'allocation-timeout'])) {
+        assert events.indexOf('unstash') < events.indexOf('reset') || scenario in ['dead-channel', 'allocation-timeout', 'stop-failure']
+        if (!(scenario in ['dead-channel', 'unstash-failure', 'allocation-timeout', 'stop-failure'])) {
             assert events.indexOf('archive:ci-evidence/*') < events.indexOf('reset'): scenario
         }
         if (scenario in ['cancel', 'timeout', 'allocation-timeout']) {
@@ -190,7 +190,14 @@ def run = { String scenario ->
         if (scenario == 'executor-timeout') { assert finalCheck.conclusion == 'TIME_OUT' }
         if (scenario in ['failure', 'failure-reset']) {
             assert thrown.message == 'Executor returned 23'
+            assert finalCheck.summary.contains('failed at stage execution: ')
+            assert finalCheck.text.contains('failed at stage')
             assert finalCheck.text.contains('failed test: diagnostic receiver')
+        }
+        if (scenario == 'post-gate-failure') {
+            assert finalCheck.summary.contains('failed at stage finish: IllegalStateException: reset receiver  refused ;')
+            assert finalCheck.summary.contains('gate=true')
+            assert finalCheck.text.contains('failed at stage finish: IllegalStateException: reset receiver  refused ')
         }
         def report = new JsonSlurperClassic().parseText(files['attempt.json'])
         if (scenario == 'failure-reset') {
@@ -202,10 +209,21 @@ def run = { String scenario ->
             assert !report.evidence_stashed
             assert report.secondary_errors.any { it.contains('unavailable') }
         }
-        if (scenario == 'incomplete-export') { assert !report.evidence_complete }
+        if (scenario == 'incomplete-export') {
+            assert !report.evidence_complete
+            assert finalCheck.summary.contains('failed at stage export: ')
+            assert finalCheck.summary.contains('Evidence export incomplete')
+        }
+        if (scenario == 'stop-failure') {
+            assert finalCheck.summary.contains('failed at stage runner-stop: IllegalStateException: runner still attached')
+            assert finalCheck.summary.contains('gate=true')
+        }
+        if (scenario == 'archive-failure') { assert finalCheck.summary.contains('failed at stage evidence-archive: ') }
+        if (scenario == 'unstash-failure') { assert finalCheck.summary.contains('failed at stage export: IllegalStateException: controller transfer failed') }
+        if (scenario == 'dead-channel') { assert finalCheck.summary.contains('failed at stage ') }
     }
     println('PASS Pipeline receiver scenario: ' + scenario)
 }
 ['success', 'failure', 'cancel', 'timeout', 'executor-timeout', 'allocation-timeout', 'failure-reset', 'reset-failure', 'dead-channel',
- 'incomplete-export', 'unstash-failure', 'archive-failure', 'verify-failure', 'stale-base', 'queued-cancel'].each(run)
+ 'incomplete-export', 'unstash-failure', 'archive-failure', 'verify-failure', 'post-gate-failure', 'stop-failure', 'stale-base', 'queued-cancel'].each(run)
 println('PASS age-bounded main priority: same-time preference, old PR aging, FIFO tie, integer range')

@@ -158,6 +158,7 @@ export function main(args = process.argv.slice(2)): void {
       'deliver',
       'brief',
       'verify',
+      'ci',
     ].includes(args[0] ?? '')
   ) {
     void dispatch(args).catch((error: unknown) => {

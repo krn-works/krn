@@ -550,7 +550,9 @@ export async function deliver(
         if (gate?.status !== 'completed') return false;
         conclusion = gate.conclusion ?? 'unknown';
         if (conclusion !== 'success')
-          throw new Error(`gate concluded ${conclusion} on ${head}`);
+          throw new Error(
+            `gate concluded ${conclusion} on ${head}; rerun: krn ci rerun --pr ${options.pr} --head ${head}`,
+          );
         return true;
       });
       return conclusion;
