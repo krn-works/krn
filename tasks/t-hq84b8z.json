@@ -1,7 +1,11 @@
 {
   "id": "t-hq84b8z",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "identical-leftover fast-forward ships with t-zf14t9t"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Let deliver hygiene fast-forward over identical untracked files",
