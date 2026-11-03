@@ -62,6 +62,7 @@ export const requestSchema = z.object({
   text: z.string().refine((value) => Buffer.byteLength(value) <= 256 * 1024),
   model: persistedModel,
   effort: effortSchema,
+  compact: z.enum(['auto', 'always']).default('auto'),
 });
 export const usageSchema = z.object({
   input: count,

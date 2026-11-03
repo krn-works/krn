@@ -43,7 +43,7 @@ import {
 import { workerTmp } from './trust.ts';
 
 const optionNames =
-  '--run --repo --brief --message --model --effort --allow --timeout-min'.split(
+  '--run --repo --brief --message --model --effort --allow --timeout-min --compact'.split(
     ' ',
   );
 const errorSchema = z.object({
@@ -91,7 +91,9 @@ export async function workerCommand(args: string[]): Promise<void> {
             ? effortSchema
             : key === '--timeout-min'
               ? z.string().max(32)
-              : pathSchema;
+              : key === '--compact'
+                ? z.enum(['auto', 'always'])
+                : pathSchema;
       if (!schema.safeParse(value).success)
         throw new WorkerError(64, `invalid ${key}`);
     }
@@ -103,6 +105,8 @@ export async function workerCommand(args: string[]): Promise<void> {
     const timeoutMs = Number(values.get('--timeout-min') ?? 30) * 60000;
     if (!timeoutSchema.safeParse(timeoutMs).success)
       throw new WorkerError(64, 'invalid --timeout-min');
+    if (values.has('--compact') && command !== 'send')
+      throw new WorkerError(64, '--compact applies only to send');
     let run = resolve(required('--run'));
     const statePath = join(run, 'session.json');
     let repo: string;
@@ -257,6 +261,10 @@ export async function workerCommand(args: string[]): Promise<void> {
         text: redact(text ?? ''),
         model: redact(values.get('--model') ?? state.model),
         effort: redact(values.get('--effort') ?? state.effort),
+        // Absent means auto (requestSchema default), so records stay unchanged.
+        ...(values.has('--compact')
+          ? { compact: values.get('--compact') }
+          : {}),
       });
     }
     const resultPath = join(

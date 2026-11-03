@@ -49,6 +49,7 @@ let round = 0;
 let current;
 let total = 0;
 let shellTmp;
+let compacting = false;
 writeFileSync(process.env.CODEX_TEST_WORKER_PID, String(process.pid));
 function notification(method, turnId, text, input = 100) {
   const message = structuredClone(records.find((row) => row.method === method));
@@ -109,15 +110,53 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
     });
   }
   if (method === 'thread/compact/start') {
+    await delay(Number(process.env.CODEX_TEST_WORKER_COMPACT_ACK_MS ?? 0));
     emit({ id, result: {} });
-    return emit({
+    if (process.env.CODEX_TEST_WORKER_SLOW_COMPACTION !== '1')
+      return emit({
+        method: 'item/completed',
+        params: {
+          threadId,
+          turnId: 'compact',
+          item: { type: 'contextCompaction', id: 'compact' },
+        },
+      });
+    // Like a live compaction: other items finish first, and a turn started
+    // before the compaction item arrives races the summary.
+    compacting = true;
+    emit({
       method: 'item/completed',
       params: {
         threadId,
         turnId: 'compact',
-        item: { type: 'contextCompaction', id: 'compact' },
+        item: { type: 'reasoning', id: 'reasoning' },
       },
     });
+    emit({
+      method: 'item/completed',
+      params: {
+        threadId: 'other-thread',
+        turnId: 'compact',
+        item: { type: 'contextCompaction', id: 'other' },
+      },
+    });
+    await delay(300);
+    compacting = false;
+    return emit(
+      process.env.CODEX_TEST_WORKER_COMPACTED_NOTIFICATION === '1'
+        ? {
+            method: 'thread/compacted',
+            params: { threadId, turnId: 'compact' },
+          }
+        : {
+            method: 'item/completed',
+            params: {
+              threadId,
+              turnId: 'compact',
+              item: { type: 'contextCompaction', id: 'compact' },
+            },
+          },
+    );
   }
   if (method === 'turn/interrupt') {
     emit({ id, result: {} });
@@ -126,6 +165,7 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
   }
   if (method === 'thread/unsubscribe') return emit({ id, result: {} });
   if (method !== 'turn/start') return;
+  if (compacting) process.exit(21);
   round++;
   current = `turn-${round}`;
   emit({ id, result: { turn: { id: current } } });

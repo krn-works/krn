@@ -71,6 +71,7 @@ const completionSchema = z.object({
     }),
   ),
 });
+const compactionItem = z.object({ type: z.literal('contextCompaction') });
 export async function drive(run: string): Promise<void> {
   secureDir(run, false);
   const readState = () => {
@@ -221,6 +222,8 @@ export async function drive(run: string): Promise<void> {
       let compacted = false;
       let report: z.infer<typeof reportSchema> | undefined;
       const began = Date.now();
+      const remaining = () =>
+        Math.max(1, state.timeoutMs - (Date.now() - began));
       server.approvalRequested = false;
       try {
         if (
@@ -233,20 +236,31 @@ export async function drive(run: string): Promise<void> {
           );
         if (
           previous &&
-          (previous.last.input > 250000 ||
+          (message.compact === 'always' ||
+            previous.last.input > 250000 ||
             (previous.context_window !== null &&
               previous.last.input > previous.context_window / 2))
         ) {
           server.notifications.length = 0;
-          await server.request('thread/compact/start', { threadId });
+          await server.request(
+            'thread/compact/start',
+            { threadId },
+            remaining(),
+          );
+          // Compaction ends with its own contextCompaction item (or the
+          // deprecated thread/compacted); other items must not start the turn.
           await server.wait(
             (event) =>
-              event.method === 'item/completed' &&
-              event.params?.threadId === threadId,
-            state.timeoutMs,
+              event.params?.threadId === threadId &&
+              (event.method === 'thread/compacted' ||
+                (event.method === 'item/completed' &&
+                  compactionItem.safeParse(event.params?.item).success)),
+            remaining(),
             stopped,
           );
           compacted = true;
+          if (Date.now() - began >= state.timeoutMs)
+            throw new WorkerError(124, 'worker turn timeout');
         }
         usage = undefined;
         usageTurnId = undefined;
@@ -280,7 +294,7 @@ export async function drive(run: string): Promise<void> {
             e.params?.threadId === threadId &&
             z.object({ id: z.literal(turnId) }).safeParse(e.params?.turn)
               .success,
-          Math.max(1, state.timeoutMs - (Date.now() - began)),
+          remaining(),
           stopped,
         );
         const completed = data(completionSchema, event.params?.turn);
@@ -309,19 +323,23 @@ export async function drive(run: string): Promise<void> {
         code = problem.exitCode;
         reason = problem.message;
         if (code === 65 || code === 124 || stopped()) {
-          await server
-            .request('turn/interrupt', { threadId, turnId }, 1000)
-            .catch(() => undefined);
-          await server
-            .wait(
-              (e) =>
-                e.method === 'turn/completed' &&
-                e.params?.threadId === threadId &&
-                z.object({ id: z.literal(turnId) }).safeParse(e.params?.turn)
-                  .success,
-              10000,
-            )
-            .catch(() => undefined);
+          // Without a turn id (e.g. a compaction timeout) there is no turn
+          // to interrupt or await; the dead thread is reaped by stop.
+          if (turnId) {
+            await server
+              .request('turn/interrupt', { threadId, turnId }, 1000)
+              .catch(() => undefined);
+            await server
+              .wait(
+                (e) =>
+                  e.method === 'turn/completed' &&
+                  e.params?.threadId === threadId &&
+                  z.object({ id: z.literal(turnId) }).safeParse(e.params?.turn)
+                    .success,
+                10000,
+              )
+              .catch(() => undefined);
+          }
           state.status = 'dead';
         }
         if (server.error) state.status = 'dead';

@@ -144,6 +144,7 @@ export class CodexAppServer {
           } else {
             if (
               event.method === 'turn/completed' ||
+              event.method === 'thread/compacted' ||
               (event.method === 'item/completed' &&
                 z
                   .object({ type: z.literal('contextCompaction') })
