@@ -1,7 +1,11 @@
 {
   "id": "t-r960z2s",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "brief check --repo/--model, brief lens, worker start allow diff, skill routing; rollout analysis .krn/runs/lead/brief-guard/rollout-analysis.md"
+  },
   "created": "2026-11-03",
   "priority": 0,
   "title": "Refuse brief and worker-start mistakes by command",

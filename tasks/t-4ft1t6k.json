@@ -1,7 +1,11 @@
 {
   "id": "t-4ft1t6k",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "worker-busy guard in feat(brief) commit; test/task/worker-busy.test.ts"
+  },
   "created": "2026-11-03",
   "priority": 1,
   "title": "Refuse tracker writes into a worktree with a live worker turn",
