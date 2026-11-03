@@ -1,7 +1,11 @@
 {
   "id": "t-w5gnqye",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "successor --retire closes predecessor and idle handed-off tabs of the same workspace"
+  },
   "created": "2026-11-03",
   "priority": 0,
   "title": "Close handed-off session tabs after the successor starts",
