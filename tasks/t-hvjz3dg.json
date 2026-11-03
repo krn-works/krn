@@ -1,7 +1,11 @@
 {
   "id": "t-hvjz3dg",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn-lead step 5 shows worker send [--model <id>] [--effort <level>]"
+  },
   "created": "2026-11-03",
   "priority": 2,
   "title": "Show --model on krn worker send in the lead skill",
