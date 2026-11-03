@@ -1,19 +1,16 @@
-import {
-  closeSync,
-  constants,
-  createReadStream,
-  type Dirent,
-  fstatSync,
-  lstatSync,
-  opendirSync,
-  openSync,
-  readlinkSync,
-  readSync,
-  realpathSync,
-} from 'node:fs';
+import { closeSync, createReadStream, type Dirent } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, dirname, join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
+import {
+  LocalReadError,
+  listVerifiedDirectory,
+  lstatVerified,
+  lstatVerifiedIfPresent,
+  openVerifiedDirectory,
+  openVerifiedFile,
+  readBoundedFile,
+} from '../src/fs/local-read.ts';
 
 const maxRolloutBytes = 1024 ** 3;
 const maxJsonBytes = 1024 ** 2;
@@ -126,101 +123,44 @@ function sanitized(value: string): string {
     .slice(0, 256);
 }
 
-// lstat and O_NOFOLLOW guard only the last path element, so every ancestor
-// must already be its own real path: a symlinked directory is refused.
-function refuseLinkedAncestors(path: string, input: string): void {
-  const parent = dirname(resolve(path));
-  let real: string;
+function localRead<T>(input: string, operation: () => T): T {
   try {
-    real = realpathSync(parent);
-  } catch {
-    fail(input);
+    return operation();
+  } catch (error) {
+    if (!(error instanceof LocalReadError)) throw error;
+    fail(
+      input,
+      error.reason === 'entry-limit'
+        ? 'directory entry limit exceeded'
+        : undefined,
+    );
   }
-  if (real !== parent) fail(input);
 }
 
 function lstatPath(path: string, input: string) {
-  let stat: ReturnType<typeof lstatSync>;
-  try {
-    stat = lstatSync(path);
-  } catch {
-    fail(input);
-  }
-  refuseLinkedAncestors(path, input);
-  return stat;
+  return localRead(input, () => lstatVerified(path));
 }
 
 function maybeLstat(path: string, input: string) {
-  let stat: ReturnType<typeof lstatSync>;
-  try {
-    stat = lstatSync(path);
-  } catch (error) {
-    if (record(error) && error.code === 'ENOENT') return undefined;
-    fail(input);
-  }
-  refuseLinkedAncestors(path, input);
-  return stat;
+  return localRead(input, () => lstatVerifiedIfPresent(path));
 }
 
 function openRegularFile(path: string, limit: number, input: string) {
-  const absolutePath = resolve(path);
-  const parentPath = dirname(absolutePath);
-  const parentFd = openDirectory(parentPath, input);
-  let fd: number;
-  try {
-    fd = openSync(
-      `/proc/self/fd/${parentFd}/${path.slice(path.lastIndexOf('/') + 1)}`,
-      constants.O_RDONLY | constants.O_NOFOLLOW,
-    );
-  } catch {
-    closeSync(parentFd);
-    fail(input);
-  }
-  try {
-    const opened = fstatSync(fd);
-    // Linux only: verify the object actually opened. Fail closed without procfs.
-    if (
-      !opened.isFile() ||
-      opened.size > limit ||
-      readlinkFd(fd) !== absolutePath
-    )
-      fail(input);
-    return { fd, size: opened.size };
-  } catch (error) {
-    closeSync(fd);
-    throw error;
-  } finally {
-    closeSync(parentFd);
-  }
-}
-
-function readlinkFd(fd: number): string {
-  try {
-    return readlinkSync(`/proc/self/fd/${fd}`);
-  } catch {
-    return '';
-  }
+  return localRead(input, () => openVerifiedFile(path, limit));
 }
 
 function readSmallJson(path: string, input: string): Record<string, unknown> {
-  const { fd } = openRegularFile(path, maxJsonBytes, input);
   try {
-    const buffer = Buffer.alloc(maxJsonBytes + 1);
-    let length = 0;
-    while (length < buffer.length) {
-      const count = readSync(fd, buffer, length, buffer.length - length, null);
-      if (count === 0) break;
-      length += count;
-    }
-    if (length > maxJsonBytes) fail(input);
-    const parsed: unknown = JSON.parse(buffer.toString('utf8', 0, length));
+    const parsed: unknown = JSON.parse(
+      localRead(input, () => readBoundedFile(path, maxJsonBytes)).toString(
+        'utf8',
+      ),
+    );
     if (!record(parsed)) fail(input);
     return parsed;
   } catch (error) {
     if (error instanceof ReportFailure) throw error;
     fail(input);
-  } finally {
-    closeSync(fd);
   }
 }
 
@@ -432,34 +372,8 @@ function ensureDirectory(path: string, input: string) {
   return openDirectory(path, input);
 }
 
-function openDirectory(path: string, input: string, parentFd?: number): number {
-  let fd: number;
-  let ownedParent: number | undefined;
-  const absolutePath = resolve(path);
-  const name = absolutePath.slice(absolutePath.lastIndexOf('/') + 1);
-  if (parentFd === undefined && absolutePath !== '/') {
-    ownedParent = openDirectory(dirname(absolutePath), input);
-    parentFd = ownedParent;
-  }
-  try {
-    fd = openSync(
-      parentFd === undefined ? '/' : `/proc/self/fd/${parentFd}/${name}`,
-      constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
-    );
-  } catch {
-    if (ownedParent !== undefined) closeSync(ownedParent);
-    fail(input);
-  }
-  try {
-    if (!fstatSync(fd).isDirectory() || readlinkFd(fd) !== absolutePath)
-      fail(input);
-    return fd;
-  } catch (error) {
-    closeSync(fd);
-    throw error;
-  } finally {
-    if (ownedParent !== undefined) closeSync(ownedParent);
-  }
+function openDirectory(path: string, input: string): number {
+  return localRead(input, () => openVerifiedDirectory(path));
 }
 
 function readDirectory(
@@ -467,27 +381,7 @@ function readDirectory(
   input: string,
   limit = maxDirectoryEntries,
 ): Dirent[] {
-  let directory: ReturnType<typeof opendirSync>;
-  try {
-    directory = opendirSync(`/proc/self/fd/${fd}`);
-  } catch {
-    fail(input);
-  }
-  try {
-    const entries: Dirent[] = [];
-    while (entries.length <= limit) {
-      const entry = directory.readSync();
-      if (entry === null) break;
-      entries.push(entry);
-    }
-    if (entries.length > limit) fail(input, 'directory entry limit exceeded');
-    return entries.sort((a, b) => a.name.localeCompare(b.name));
-  } catch (error) {
-    if (error instanceof ReportFailure) throw error;
-    fail(input);
-  } finally {
-    directory.closeSync();
-  }
+  return localRead(input, () => listVerifiedDirectory(fd, limit));
 }
 
 function filenameUuid(name: string): string | undefined {

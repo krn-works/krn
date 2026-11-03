@@ -1,0 +1,12 @@
+{
+  "id": "t-62ww57k",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Let the worker driver run one continuation turn on a blockerless stop",
+  "after": [],
+  "body": [
+    "Outcome: when a turn ends with exit 4 \"worker report status <s> names no blocker\", `krn worker start|send` sends one bounded continuation turn in the same thread (counted against the D13 three-turn and 1M uncached budget) that lists the brief's unmet proof, before returning exit 4.\nEvidence: t-t8v24zs slice (PR #185): two gpt-6-luna turns stopped early (20 s, 6 tool calls; 60 s, 666 output tokens) and the lead finished by hand; `.krn/runs/lead/worker-turn-finish/{stop-cause.md,rounds}`. A manual continuation (msg-2.md) also stopped early, so measure first: record whether the new instructions (#185) alone reduce blockerless stops over the next five worker turns before building this.\nProof: fixture turn returning partial-empty then done ends exit 0 after two turns; a second blockerless stop exits 4."
+  ]
+}
