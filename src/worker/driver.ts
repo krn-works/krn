@@ -1,5 +1,5 @@
-import { existsSync, rmSync } from 'node:fs';
-import { isAbsolute, join, relative } from 'node:path';
+import { existsSync, lstatSync, rmSync } from 'node:fs';
+import { isAbsolute, join, posix, relative } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import { defaultCodexExecutable } from '../hosts/codex.ts';
@@ -72,6 +72,37 @@ const completionSchema = z.object({
   ),
 });
 const compactionItem = z.object({ type: z.literal('contextCompaction') });
+function reasonText(text: string): string {
+  const clean = redact(text).replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, ' ');
+  if (Buffer.byteLength(clean) <= 512) return clean;
+  let prefix = '';
+  for (const character of clean) {
+    if (Buffer.byteLength(prefix + character) > 509) break;
+    prefix += character;
+  }
+  return `${prefix}…`;
+}
+function boundedReasons(reasons: string[]): string[] {
+  return [
+    ...reasons.slice(0, 20),
+    ...(reasons.length > 20 ? [`… ${reasons.length - 20} more`] : []),
+  ];
+}
+function reportPath(repo: string, path: string): string | undefined {
+  const value = isAbsolute(path)
+    ? relative(repo, path)
+    : path.replace(/^\.\//, '');
+  if (!value || /\p{Cc}/u.test(value)) return undefined;
+  const normalized = posix.normalize(value);
+  if (
+    normalized === '.' ||
+    normalized === '..' ||
+    normalized.startsWith('../') ||
+    isAbsolute(normalized)
+  )
+    return undefined;
+  return normalized;
+}
 export async function drive(run: string): Promise<void> {
   secureDir(run, false);
   const readState = () => {
@@ -381,7 +412,7 @@ export async function drive(run: string): Promise<void> {
         reason = `scope violation: ${scope.scope_violations.join(', ')}`;
       }
       if (
-        code !== 3 &&
+        code === 0 &&
         report &&
         ['partial', 'blocked'].includes(report.status)
       ) {
@@ -390,6 +421,57 @@ export async function drive(run: string): Promise<void> {
         reason = named.length
           ? `worker report status ${report.status} names ${named.length} blocker(s)`
           : `worker report status ${report.status} names no blocker`;
+      }
+      if (code === 0 && report) {
+        const changed = new Set(scope.changed);
+        const missing = readState()
+          .requires.filter((path) => {
+            if (!changed.has(path)) return true;
+            try {
+              return !lstatSync(join(state.repo, path)).isFile();
+            } catch {
+              return true;
+            }
+          })
+          .map((path) => reasonText(`missing required output ${path}`));
+        const named = new Set(
+          report.changed_paths
+            .map((path) => reportPath(state.repo, path))
+            .filter((path) => path !== undefined),
+        );
+        const extra = [...new Set(report.changed_paths)]
+          .filter((path) => {
+            const normalized = reportPath(state.repo, path);
+            return normalized === undefined || !changed.has(normalized);
+          })
+          .map((path) => reasonText(`report names unchanged path ${path}`));
+        const omitted = scope.changed
+          .filter((path) => {
+            if (named.has(path)) return false;
+            try {
+              return !lstatSync(join(state.repo, path)).isDirectory();
+            } catch {
+              return true;
+            }
+          })
+          .map((path) => reasonText(`report omits changed path ${path}`));
+        const failing =
+          report.status === 'done'
+            ? report.checks
+                .filter((check) => check.exit_code !== 0)
+                .map((check) =>
+                  reasonText(
+                    `report done with failing check ${check.cmd} exit ${check.exit_code}`,
+                  ),
+                )
+            : [];
+        const reasons = [missing, extra, omitted, failing].flatMap(
+          boundedReasons,
+        );
+        if (reasons.length) {
+          code = 4;
+          reason = reasons.join('; ');
+        }
       }
       const duration_ms = Date.now() - began;
       duration += duration_ms;
