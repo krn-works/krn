@@ -1,7 +1,11 @@
 {
   "id": "t-bz2kwyh",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn worker live session with path tiers; D13 amendment; measurement in t-qkqkwt6"
+  },
   "created": "2026-11-02",
   "priority": 1,
   "title": "Keep one live worker session per slice instead of exec plus resume",
