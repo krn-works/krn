@@ -1,0 +1,12 @@
+{
+  "id": "t-xxa04np",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Refuse verify and review on a base that is not the PR's authoritative base",
+  "after": [],
+  "body": [
+    "Outcome: a lead never rebases or verifies a PR on a base other than the PR's authoritative base. krn verify (or a preflight step) refuses when --base differs from gh pr view <n> --json baseRefOid / git ls-remote origin main, or when HEAD does not contain it, and prints both SHAs. Evidence: PR #173 krn/gate admission failed twice ('Exact Product base CI policy is missing or incompatible', .krn/runs/lead/live-worker/ci-1.md, ci-2.md) because a parallel lane's fetch moved the local origin/main during the rebase; it cost two CI runs (~20 min).\nLead trap: with two lanes, rebase onto the SHA from git ls-remote origin main (or the PR baseRefOid) and pass that exact SHA to krn verify and krn review, never the local origin/main."
+  ]
+}

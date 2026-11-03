@@ -1,0 +1,12 @@
+{
+  "id": "t-grzahad",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Add identity and stale-state classes to the hardening checklist",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/hardening-checklist.md gains classes for process-lifecycle code: 'identity' (verify pid start time and cmdline, plus the unit pattern, before any signal; never trust state the supervised process can write) and 'stale-state' (artefacts of an earlier session are refused or tagged by session id; a refused start spawns nothing); krn brief check enforces them. Evidence: PR #173 needed 6 review attempts with 22 prepass BLOCKING findings, mostly these two classes (records 1-6 in .krn/runs/review-series/0473f8d5...). Also consider splitting a new subsystem over ~1500 lines into a protocol client PR and a driver PR."
+  ]
+}
