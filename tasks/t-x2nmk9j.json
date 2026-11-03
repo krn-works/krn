@@ -1,7 +1,11 @@
 {
   "id": "t-x2nmk9j",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "override accepts a prepass-only FAIL on the exact head"
+  },
   "created": "2026-11-03",
   "priority": 2,
   "title": "Let the lead override a prepass-only review FAIL",
