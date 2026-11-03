@@ -1,0 +1,12 @@
+{
+  "id": "t-fd02vfs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 3,
+  "title": "Make briefs list existing assertions on text the brief changes",
+  "after": [],
+  "body": [
+    "Outcome: `krn brief check` or the krn-lead brief step requires a \"Consumers\" line listing existing test assertions on any instruction, message or schema text the brief changes (from `git grep -n` over test/), so a worker is never told both to change the text and to keep those tests unchanged.\nEvidence: t-t8v24zs brief (`.krn/runs/lead/worker-turn-finish/brief.md`) told the worker to drop \"Never commit; the lead commits\" and to keep every worker test unchanged; test/worker/hardening.test.ts:251 asserted that text and round 2 reported blocked on it.\nProof: a brief changing an asserted literal without naming the asserting test fails the check, or the krn-lead step 4 text names the grep."
+  ]
+}
