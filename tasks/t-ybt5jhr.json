@@ -1,0 +1,12 @@
+{
+  "id": "t-ybt5jhr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 1,
+  "title": "Verify fails when targeted tests write into the repository",
+  "after": [],
+  "body": [
+    "Outcome: `krn verify` fails its targeted step when the targeted tests create or change files under the worktree (tracked or untracked, `.krn/` included) outside the run dir. Evidence: PR #190 observer called `retireMode` without `--cwd` and wrote `.krn/successors/launches.jsonl` into the worktree; the worker turn reported a scope violation and the lead found the leak by hand (.krn/runs/lead/close-handed-off-tabs/). Proof: observer red at base by assertion: a targeted test that writes a file into the repo makes verify print `targeted FAIL` naming the path."
+  ]
+}

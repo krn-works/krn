@@ -134,7 +134,6 @@ test('report normalizes paths and refuses invalid paths', async (t) => {
       s.env.CODEX_TEST_WORKER_REPORT ?? '',
       JSON.stringify({
         status: 'done',
-        canary: '',
         summary: '',
         changed_paths: [path],
         checks: [],
@@ -165,7 +164,6 @@ test('reasons are bounded per category, sanitized and redacted', async (t) => {
     s.env.CODEX_TEST_WORKER_REPORT ?? '',
     JSON.stringify({
       status: 'done',
-      canary: '',
       summary: '',
       changed_paths: paths,
       checks: Array.from({ length: 23 }, () => ({
@@ -193,7 +191,6 @@ test('reasons are bounded per category, sanitized and redacted', async (t) => {
 const doneReport = (changed_paths: string[]) =>
   JSON.stringify({
     status: 'done',
-    canary: '',
     summary: '',
     changed_paths,
     checks: [],

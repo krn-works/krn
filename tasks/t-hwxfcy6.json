@@ -1,0 +1,12 @@
+{
+  "id": "t-hwxfcy6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Review reports why PR metadata could not be read",
+  "after": [],
+  "body": [
+    "Outcome: `krn review` reading `gh api repos/<slug>/pulls/<n>` right after `gh pr create` does not exit 64 \"authoritative PR metadata unavailable\" on a transient failure: it reports the gh stderr and status (src/flow/series.ts:72-83 discards them) and the lead skill says to wait for `gh pr view <n>` before review. Evidence: PR #190 first review exit 64 while `gh api` succeeded 1 min later (.krn/runs/lead/close-handed-off-tabs/review-1.txt history). Proof: observer with a fake `gh` that fails once: the message names gh exit status and stderr."
+  ]
+}

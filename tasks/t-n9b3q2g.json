@@ -1,7 +1,11 @@
 {
   "id": "t-n9b3q2g",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "driver runs declared --check/--observer in codex sandbox; canary removed"
+  },
   "created": "2026-11-03",
   "priority": 0,
   "title": "Run declared acceptance checks in the worker driver",

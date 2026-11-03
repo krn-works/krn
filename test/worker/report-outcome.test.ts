@@ -181,7 +181,6 @@ test('report text is redacted, single line and bounded', async (t) => {
     s.env.CODEX_TEST_WORKER_REPORT ?? '',
     JSON.stringify({
       status: 'blocked',
-      canary: '',
       summary: '',
       changed_paths: [],
       findings: [],
