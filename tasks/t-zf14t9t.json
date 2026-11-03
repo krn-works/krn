@@ -1,7 +1,11 @@
 {
   "id": "t-zf14t9t",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane-only task records and identical-leftover hygiene"
+  },
   "created": "2026-11-03",
   "priority": 0,
   "title": "Write task records only in the active lane worktree",
