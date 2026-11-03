@@ -32,6 +32,7 @@ import {
   readText,
   redact,
   reportSchema,
+  requiresSchema,
   resultSchema,
   roundName,
   type Session,
@@ -84,7 +85,7 @@ function reportLines(path: string, round: string): string[] {
 }
 
 const optionNames =
-  '--run --repo --brief --message --model --effort --allow --timeout-min --compact'.split(
+  '--run --repo --brief --message --model --effort --allow --require --timeout-min --compact'.split(
     ' ',
   );
 const errorSchema = z.object({
@@ -105,6 +106,7 @@ export async function workerCommand(args: string[]): Promise<void> {
       throw new WorkerError(64, 'usage: worker start|send|stop --run DIR');
     const values = new Map<string, string>();
     const allows: string[] = [];
+    const requires: string[] = [];
     for (let i = 0; i < options.length; i += 2) {
       const key = options[i];
       const value = options[i + 1];
@@ -113,10 +115,11 @@ export async function workerCommand(args: string[]): Promise<void> {
         !value ||
         value.startsWith('--') ||
         !optionNames.includes(key) ||
-        (key !== '--allow' && values.has(key))
+        (key !== '--allow' && key !== '--require' && values.has(key))
       )
         throw new WorkerError(64, 'invalid worker arguments');
-      if (key === '--allow') allows.push(value);
+      if (key === '--require') requires.push(value);
+      else if (key === '--allow') allows.push(value);
       else values.set(key, value);
     }
     const required = (key: string) => {
@@ -143,6 +146,14 @@ export async function workerCommand(args: string[]): Promise<void> {
       allows.some((value) => !pathSchema.safeParse(value).success)
     )
       throw new WorkerError(64, 'invalid --allow');
+    if (
+      !requiresSchema.safeParse(requires).success ||
+      (requires.length && command !== 'start')
+    )
+      throw new WorkerError(
+        64,
+        'invalid --require: usage requires start and unique repository-relative file paths',
+      );
     const timeoutMs = Number(values.get('--timeout-min') ?? 30) * 60000;
     if (!timeoutSchema.safeParse(timeoutMs).success)
       throw new WorkerError(64, 'invalid --timeout-min');
@@ -258,6 +269,7 @@ export async function workerCommand(args: string[]): Promise<void> {
         effort: effortSchema.parse(redact(values.get('--effort') ?? 'medium')),
         timeoutMs,
         allows,
+        requires,
         roots: [repo, workerTmp(run)],
         threadId: '',
         pid: 0,

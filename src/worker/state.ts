@@ -48,6 +48,18 @@ export const pathSchema = z
       ) &&
       redact(value) === value,
   );
+export const requiredPathSchema = pathSchema.refine(
+  (value) =>
+    !value.startsWith('/') &&
+    !/[\\*?[\]{}]/u.test(value) &&
+    value
+      .split('/')
+      .every((part) => part !== '' && part !== '.' && part !== '..'),
+);
+export const requiresSchema = z
+  .array(requiredPathSchema)
+  .max(64)
+  .refine((values) => new Set(values).size === values.length);
 export const identifierSchema = z
   .string()
   .min(1)
@@ -88,6 +100,7 @@ export const sessionSchema = z.object({
   effort: effortSchema,
   timeoutMs: timeoutSchema,
   allows: z.array(pathSchema).max(100),
+  requires: requiresSchema.default([]),
   roots: z.array(pathSchema).max(2),
   threadId: z.union([identifierSchema, z.literal('')]),
   pid: processId,
