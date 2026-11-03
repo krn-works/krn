@@ -11,3 +11,4 @@ Every worker brief carries a `## Hardening` section that answers each class belo
 - `text-grammar`: parsed text handles repeated sections, fenced code, 0-3 space indent, CRLF, a BOM and control characters.
 - `secrets`: values that may hold credentials, multiline ones included, are redacted before they are logged, persisted or forwarded.
 - `trust`: code, configuration and records read from a PR head or another untrusted tree are never executed or trusted as policy.
+- `text-scanner`: a guard that scans source text (Markdown, JavaScript, shell) states its contract as the concrete shapes it must catch, each with a fixture, and declares full lexer or parser completeness (escapes, multi-line templates, regex literals, CommonMark fence variants beyond those shapes) a non-goal before the first review; input it cannot classify fails closed (refused with exit 65), never passes.

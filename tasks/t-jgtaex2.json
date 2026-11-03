@@ -1,0 +1,12 @@
+{
+  "id": "t-jgtaex2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 3,
+  "title": "Refuse overrides that ship would refuse",
+  "after": [],
+  "body": [
+    "Outcome: `krn review --override` refuses exactly the records that preflight and `krn deliver` refuse. Evidence: PR #177 review attempt 2 (review-series 7fd1e161…/records/2.json): `appendOverride` (src/flow/record.ts hasRecordedFailure) accepts a panel record with one complete FAIL and an incomplete judge, which the schema allows as panelVerdict FAIL (src/flow/types.ts expectedVerdict), while preflight and delivery refuse that override as incomplete. Behaviour predates #177 and is fail-safe. Acceptance: one shared overridable-failure predicate used by record.ts, scripts/pr-preflight.mjs and src/deliver/delivery.ts; a test shows appendOverride refuses a partial or incomplete panel FAIL."
+  ]
+}
