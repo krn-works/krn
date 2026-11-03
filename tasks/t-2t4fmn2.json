@@ -1,7 +1,11 @@
 {
   "id": "t-2t4fmn2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "src/fs/local-read.ts shared; rollout-usage migrated"
+  },
   "created": "2026-11-03",
   "priority": 2,
   "title": "Share one hardened local-read module across scripts",
