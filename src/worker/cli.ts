@@ -1,0 +1,300 @@
+import { spawn } from 'node:child_process';
+import {
+  existsSync,
+  lstatSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+} from 'node:fs';
+import { join, resolve } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
+import { z } from 'zod';
+import { defaultCodexExecutable } from '../hosts/codex.ts';
+import { reapAppServer } from '../hosts/codex-app-server.ts';
+import {
+  assertDriverIdentity,
+  assertServerIdentity,
+  executablePath,
+  workerUnit,
+} from './process.ts';
+import { git, loadPolicy } from './scope.ts';
+import {
+  alive,
+  atomic,
+  effortSchema,
+  failure,
+  isMissing,
+  lock,
+  metricsSchema,
+  modelSchema,
+  pathSchema,
+  readJson,
+  readText,
+  redact,
+  resultSchema,
+  roundName,
+  type Session,
+  secureDir,
+  sessionSchema,
+  timeoutSchema,
+  validateRun,
+  WorkerError,
+} from './state.ts';
+import { workerTmp } from './trust.ts';
+
+const optionNames =
+  '--run --repo --brief --message --model --effort --allow --timeout-min'.split(
+    ' ',
+  );
+const errorSchema = z.object({
+  exit_code: z.number().int(),
+  message: z.string(),
+});
+function inputText(path: string): string {
+  const text = redact(readText(resolve(path)));
+  if (Buffer.byteLength(text) > 256 * 1024)
+    throw new WorkerError(65, 'redacted worker input exceeds 256 KB');
+  return text;
+}
+export async function workerCommand(args: string[]): Promise<void> {
+  let unlock: (() => void) | undefined;
+  try {
+    const [command, ...options] = args;
+    if (!['start', 'send', 'stop'].includes(command ?? ''))
+      throw new WorkerError(64, 'usage: worker start|send|stop --run DIR');
+    const values = new Map<string, string>();
+    const allows: string[] = [];
+    for (let i = 0; i < options.length; i += 2) {
+      const key = options[i];
+      const value = options[i + 1];
+      if (
+        !key ||
+        !value ||
+        value.startsWith('--') ||
+        !optionNames.includes(key) ||
+        (key !== '--allow' && values.has(key))
+      )
+        throw new WorkerError(64, 'invalid worker arguments');
+      if (key === '--allow') allows.push(value);
+      else values.set(key, value);
+    }
+    const required = (key: string) => {
+      const value = values.get(key);
+      if (!value) throw new WorkerError(64, `missing ${key}`);
+      return value;
+    };
+    for (const [key, value] of values) {
+      const schema =
+        key === '--model'
+          ? modelSchema
+          : key === '--effort'
+            ? effortSchema
+            : key === '--timeout-min'
+              ? z.string().max(32)
+              : pathSchema;
+      if (!schema.safeParse(value).success)
+        throw new WorkerError(64, `invalid ${key}`);
+    }
+    if (
+      allows.length > 100 ||
+      allows.some((value) => !pathSchema.safeParse(value).success)
+    )
+      throw new WorkerError(64, 'invalid --allow');
+    const timeoutMs = Number(values.get('--timeout-min') ?? 30) * 60000;
+    if (!timeoutSchema.safeParse(timeoutMs).success)
+      throw new WorkerError(64, 'invalid --timeout-min');
+    let run = resolve(required('--run'));
+    const statePath = join(run, 'session.json');
+    let repo: string;
+    let text: string | undefined;
+    let startCommit: string | undefined;
+    let saved: Session | undefined;
+    if (command === 'start') {
+      repo = validateRun(resolve(required('--repo')), run);
+      validateRun(repo, join(run, 'inbox'));
+      validateRun(repo, join(run, 'tmp'));
+      text = inputText(required('--brief'));
+      startCommit = git(repo, 'rev-parse', 'HEAD').trim();
+      loadPolicy(repo, startCommit);
+    } else {
+      if (command === 'stop' && !existsSync(run)) return;
+      try {
+        secureDir(run, false);
+      } catch (error) {
+        if (isMissing(error)) throw new WorkerError(65, 'worker run missing');
+        throw error;
+      }
+      if (command === 'stop' && !existsSync(statePath)) return;
+      saved = readJson(statePath, sessionSchema);
+      try {
+        repo = validateRun(saved.repo, run);
+      } catch (error) {
+        if (command === 'stop')
+          throw new WorkerError(
+            65,
+            'worker session boundary identity mismatch',
+          );
+        throw error;
+      }
+      validateRun(repo, join(run, 'inbox'));
+      if (saved.run !== run)
+        throw new WorkerError(65, 'worker run identity mismatch');
+      if (values.has('--repo') && resolve(required('--repo')) !== repo)
+        throw new WorkerError(64, 'worker session boundary mismatch');
+      if (command === 'send') text = inputText(required('--message'));
+    }
+    if (command === 'stop') {
+      if (!saved) throw new WorkerError(65, 'worker state missing');
+      const state = saved;
+      assertServerIdentity(state, run, defaultCodexExecutable, true);
+      if (assertDriverIdentity(state, run, true)) {
+        try {
+          process.kill(state.pid, 'SIGTERM');
+        } catch (error) {
+          if (!isMissing(error, 'ESRCH')) throw error;
+        }
+      }
+      const deadline = Date.now() + 20000;
+      while (alive(state.pid) && Date.now() < deadline) await delay(20);
+      if (alive(state.pid))
+        throw new WorkerError(75, 'worker stop did not finish');
+      await reapAppServer(state, run, true);
+      atomic(join(run, 'stop'), {});
+      renameSync(statePath, join(run, 'closed-session.json'));
+      rmSync(join(run, 'driver.lock'), { force: true });
+      process.stdout.write('worker stopped\n');
+      return;
+    }
+    secureDir(run);
+    run = realpathSync(run);
+    unlock = lock(join(run, 'client.lock'));
+    let state: Session;
+    if (command === 'start') {
+      if (existsSync(statePath)) {
+        const stale = readJson(statePath, sessionSchema);
+        if (!alive(stale.pid)) await reapAppServer(stale, run, true);
+        throw new WorkerError(75, 'worker session.json exists; run stop first');
+      }
+      for (const name of [
+        'error.json',
+        'rounds',
+        'closed-session.json',
+        'inbox',
+        'stop',
+        'summary.json',
+        'driver.lock',
+      ]) {
+        try {
+          lstatSync(join(run, name));
+        } catch (error) {
+          if (isMissing(error)) continue;
+          throw error;
+        }
+        throw new WorkerError(
+          75,
+          `worker run contains ${name}; choose a fresh directory`,
+        );
+      }
+      if (!startCommit || text === undefined)
+        throw new WorkerError(70, 'missing prepared worker start');
+      state = {
+        repo,
+        run,
+        startCommit,
+        model: redact(values.get('--model') ?? 'gpt-6-luna'),
+        effort: effortSchema.parse(redact(values.get('--effort') ?? 'medium')),
+        timeoutMs,
+        allows,
+        roots: [repo, workerTmp(run)],
+        threadId: '',
+        pid: 0,
+        pidStartTime: null,
+        serverPid: 0,
+        serverStartTime: null,
+        serverGroup: 0,
+        serverExecutable: executablePath(defaultCodexExecutable),
+        unit: workerUnit(run),
+        rounds: 0,
+        status: 'running',
+      };
+      secureDir(join(run, 'tmp'));
+      atomic(statePath, state);
+      secureDir(join(run, 'inbox'));
+      atomic(join(run, 'inbox/001.json'), {
+        text: redact(text),
+        model: redact(state.model),
+        effort: redact(state.effort),
+      });
+      const child = spawn(
+        process.execPath,
+        [new URL('./driver.ts', import.meta.url).pathname, run],
+        { cwd: repo, detached: true, stdio: 'ignore' },
+      );
+      await new Promise<void>((done, reject) => {
+        child.once('spawn', done);
+        child.once('error', reject);
+      });
+      child.unref();
+      state.pid = child.pid ?? 0;
+    } else {
+      if (!saved) throw new WorkerError(65, 'worker state missing');
+      state = saved;
+      validateRun(state.repo, run);
+      if (state.status !== 'running')
+        throw new WorkerError(5, 'dead thread; start fresh with handoff');
+      if (!alive(state.pid))
+        throw new WorkerError(75, 'stale worker state; run stop first');
+      if (!alive(state.serverPid))
+        throw new WorkerError(75, 'worker server exited; run stop first');
+      const previous = readJson(
+        join(run, 'rounds', roundName(state.rounds), 'metrics.json'),
+        metricsSchema,
+      );
+      if (state.rounds >= 3 || previous.cumulative.uncached_total > 1000000)
+        throw new WorkerError(5, 'budget exhausted; start fresh with handoff');
+      secureDir(join(run, 'inbox'));
+      atomic(join(run, 'inbox', `${roundName(state.rounds + 1)}.json`), {
+        text: redact(text ?? ''),
+        model: redact(values.get('--model') ?? state.model),
+        effort: redact(values.get('--effort') ?? state.effort),
+      });
+    }
+    const resultPath = join(
+      run,
+      'rounds',
+      roundName(state.rounds + 1),
+      'result.json',
+    );
+    const deadline = Date.now() + state.timeoutMs + 25000;
+    for (;;) {
+      if (existsSync(resultPath)) {
+        const result = readJson(resultPath, resultSchema);
+        const line = `${result.message}${result.needs_lead_note.length ? `; needs_lead_note: ${result.needs_lead_note.join(', ')}` : ''}\n`;
+        (result.exit_code ? process.stderr : process.stdout).write(
+          `${redact(line)
+            .replace(/[\r\n]/g, ' ')
+            .trimEnd()}\n`,
+        );
+        process.exitCode = result.exit_code;
+        return;
+      }
+      if (existsSync(join(run, 'error.json'))) {
+        const error = readJson(join(run, 'error.json'), errorSchema);
+        throw new WorkerError(error.exit_code, error.message);
+      }
+      if (!alive(state.pid))
+        throw new WorkerError(75, 'driver exited; run stop first');
+      if (Date.now() >= deadline)
+        throw new WorkerError(75, 'worker result deadline exceeded');
+      await delay(20);
+    }
+  } catch (error) {
+    const problem = failure(error);
+    process.stderr.write(
+      `${redact(problem.message).replace(/[\r\n]/g, ' ')}\n`,
+    );
+    process.exitCode = problem.exitCode;
+  } finally {
+    unlock?.();
+  }
+}

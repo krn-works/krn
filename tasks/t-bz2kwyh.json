@@ -1,12 +1,16 @@
 {
   "id": "t-bz2kwyh",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn worker live session with path tiers; D13 amendment; measurement in t-qkqkwt6"
+  },
   "created": "2026-11-02",
   "priority": 1,
   "title": "Keep one live worker session per slice instead of exec plus resume",
   "after": [],
   "body": [
-    "Outcome: a slice keeps one live worker session that loads the repository once and receives fix rounds as messages, replacing one-shot codex exec plus --resume; scope is path tiers checked on the diff, not an exhaustive --allow list. Measure worker tokens and minutes per slice against PR #167 (3 runs, 6+3+10 min, cumulative 546k tokens, which is over the 500k resume cap).\nSource: operator 2026-11-02: delegating through a command is slowing delivery and the architecture needs improvement. May touch D18 routing; check against ADR 0014 before briefing."
+    "Outcome: a slice keeps one live worker session (krn worker start|send|stop over codex app-server) that loads the repository once and receives fix rounds as further turns with explicit model and effort; scope is path tiers from spec/worker-scope.json checked on the diff after every turn, not an exhaustive --allow list; per-turn usage and minutes are written to the run dir in the canary unit. ADR 0014 records the D13 amendment and its budget. The measurement against PR #167 and the switch of lead delegation moved to t-qkqkwt6.\nSource: operator 2026-11-02: delegating through a command is slowing delivery and the architecture needs improvement."
   ]
 }
