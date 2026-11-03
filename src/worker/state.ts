@@ -106,6 +106,7 @@ export const sessionSchema = z.object({
 });
 export type Session = z.infer<typeof sessionSchema>;
 export const resultSchema = z.object({
+  rollout_path: z.string().nullable().optional(),
   exit_code: count,
   message: z.string(),
   changed: z.array(z.string()),

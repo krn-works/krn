@@ -1,5 +1,5 @@
 import { existsSync, rmSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { isAbsolute, join, relative } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import { defaultCodexExecutable } from '../hosts/codex.ts';
@@ -164,7 +164,12 @@ export async function drive(run: string): Promise<void> {
       throw new WorkerError(65, 'unsupported Codex app-server version');
     server.write({ method: 'initialized', params: {} });
     const started = data(
-      z.object({ thread: z.object({ id: identifierSchema }) }),
+      z.object({
+        thread: z.object({
+          id: identifierSchema,
+          path: z.unknown().optional(),
+        }),
+      }),
       await server.request('thread/start', {
         cwd: state.repo,
         model: state.model,
@@ -188,6 +193,13 @@ export async function drive(run: string): Promise<void> {
         },
       }),
     );
+    const path = started.thread.path;
+    const rolloutPath =
+      typeof path === 'string' &&
+      isAbsolute(path) &&
+      Buffer.byteLength(path) <= 4096
+        ? redact(path)
+        : null;
     threadId = started.thread.id;
     state.threadId = threadId;
     save();
@@ -371,11 +383,13 @@ export async function drive(run: string): Promise<void> {
       if (
         code !== 3 &&
         report &&
-        ['partial', 'blocked'].includes(report.status) &&
-        report.blockers.every((blocker) => blocker.trim() === '')
+        ['partial', 'blocked'].includes(report.status)
       ) {
         code = 4;
-        reason = `worker report status ${report.status} names no blocker`;
+        const named = report.blockers.filter((blocker) => blocker.trim());
+        reason = named.length
+          ? `worker report status ${report.status} names ${named.length} blocker(s)`
+          : `worker report status ${report.status} names no blocker`;
       }
       const duration_ms = Date.now() - began;
       duration += duration_ms;
@@ -408,6 +422,7 @@ export async function drive(run: string): Promise<void> {
       state.rounds = active;
       save();
       atomic(join(roundDir, 'result.json'), {
+        rollout_path: rolloutPath,
         exit_code: code,
         message: redact(reason),
         ...Object.fromEntries(
