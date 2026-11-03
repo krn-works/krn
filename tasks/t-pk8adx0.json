@@ -1,0 +1,12 @@
+{
+  "id": "t-pk8adx0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 1,
+  "title": "Close same-uid TOCTOU in deliver hygiene unlink",
+  "after": [],
+  "body": [
+    "Outcome: deliver hygiene (src/deliver/identical-leftovers.ts) never follows or unlinks through a path swapped after inspection: read the candidate through src/fs/local-read.ts (O_NOFOLLOW verified open per component), compare fstat dev/ino of that fd with an lstat of the path and a re-verified parent realpath immediately before unlink/checkout; refuse otherwise. Source: PR #187 review records/2.json (2 BLOCKING same-uid TOCTOU findings, lead override; Node has no unlinkat). Proof: observer with a swap hook (injectable between read and unlink) that replaces the file with a symlink and the parent with a symlink to an outside dir; both leave the outside file intact; red at base by assertion."
+  ]
+}
