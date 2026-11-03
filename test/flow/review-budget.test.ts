@@ -120,6 +120,7 @@ function fixture(t: TestContext) {
     base: currentBase,
     head,
     lens,
+    toolSha: base,
     pr: 17,
     readPull: async () => metadata ?? pull(head),
     readGateCheckRuns: async () => [],
