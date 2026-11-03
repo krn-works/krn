@@ -104,6 +104,10 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
       result: {
         thread: {
           id: threadId,
+          path: JSON.parse(
+            process.env.CODEX_TEST_WORKER_THREAD_PATH ??
+              '"/tmp/codex-rollout.jsonl"',
+          ),
           cliVersion: process.env.CODEX_TEST_WORKER_VERSION ?? '0.166.0',
         },
       },
@@ -253,6 +257,38 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
       writeFileSync(join(dir, `${i}.txt`), 'worker edit');
   }
   let text = JSON.stringify(report);
+  if (action === 'partial-named')
+    text = JSON.stringify({
+      ...report,
+      status: 'partial',
+      blockers: ['tests missing'],
+    });
+  if (action === 'done-clean')
+    text = JSON.stringify({
+      ...report,
+      checks: [{ cmd: 'npm test', exit_code: 0, note: '' }],
+    });
+  if (action === 'blocked-blank')
+    text = JSON.stringify({
+      ...report,
+      status: 'blocked',
+      blockers: [' ', '\t'],
+    });
+  if (action === 'done-failing')
+    text = JSON.stringify({
+      ...report,
+      checks: [{ cmd: 'npm test', exit_code: 1, note: '' }],
+    });
+  if (action === 'custom-report')
+    text = readFileSync(process.env.CODEX_TEST_WORKER_REPORT, 'utf8');
+  if (action === 'scope-partial') {
+    writeFileSync(join(params.cwd, 'package-lock.json'), 'edit');
+    text = JSON.stringify({
+      ...report,
+      status: 'partial',
+      blockers: ['tests missing'],
+    });
+  }
   if (action === 'invalid') text = '{}';
   if (action === 'oversized') text = 'x'.repeat(256 * 1024 + 1);
   if (action === 'partial-empty')

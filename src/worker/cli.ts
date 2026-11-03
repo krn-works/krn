@@ -31,6 +31,7 @@ import {
   readJson,
   readText,
   redact,
+  reportSchema,
   resultSchema,
   roundName,
   type Session,
@@ -41,6 +42,46 @@ import {
   WorkerError,
 } from './state.ts';
 import { workerTmp } from './trust.ts';
+
+function reportLines(path: string, round: string): string[] {
+  let report: z.infer<typeof reportSchema>;
+  try {
+    report = readJson(path, reportSchema);
+  } catch {
+    return ['status: none'];
+  }
+  const clean = (text: string) =>
+    redact(text).replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, ' ');
+  const bounded = (text: string) => {
+    const value = clean(text);
+    if (Buffer.byteLength(value) <= 512) return value;
+    const marker = `… (truncated; see rounds/${round}/report.json)`;
+    let prefix = '';
+    for (const character of value) {
+      if (
+        Buffer.byteLength(prefix + character) >
+        512 - Buffer.byteLength(marker)
+      )
+        break;
+      prefix += character;
+    }
+    return prefix + marker;
+  };
+  const blockers = report.blockers.filter((text) => clean(text).trim());
+  const checks = report.checks.filter((check) => check.exit_code !== 0);
+  return [
+    `status: ${report.status}`,
+    ...blockers.slice(0, 20).map((text) => `blocker: ${bounded(text)}`),
+    ...(blockers.length > 20 ? [`… ${blockers.length - 20} more`] : []),
+    ...checks
+      .slice(0, 20)
+      .map(
+        (check) =>
+          `failing check: ${bounded(check.cmd)} exit ${check.exit_code}`,
+      ),
+    ...(checks.length > 20 ? [`… ${checks.length - 20} more`] : []),
+  ];
+}
 
 const optionNames =
   '--run --repo --brief --message --model --effort --allow --timeout-min --compact'.split(
@@ -288,8 +329,8 @@ export async function workerCommand(args: string[]): Promise<void> {
         const line = `${result.message}${result.needs_lead_note.length ? `; needs_lead_note: ${result.needs_lead_note.join(', ')}` : ''}\n`;
         (result.exit_code ? process.stderr : process.stdout).write(
           `${redact(line)
-            .replace(/[\r\n]/g, ' ')
-            .trimEnd()}\n`,
+            .replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, ' ')
+            .trimEnd()}\n${reportLines(join(run, 'rounds', roundName(state.rounds + 1), 'report.json'), roundName(state.rounds + 1)).join('\n')}\n`,
         );
         process.exitCode = result.exit_code;
         return;

@@ -576,17 +576,22 @@ test('a partial or blocked report without a blocker exits 4 and keeps its report
     ['partial-empty', 4, 'partial'],
     ['blocked-empty', 4, 'blocked'],
     ['partial-blank', 4, 'partial'],
-    ['blocked-named', 0, 'blocked'],
+    ['blocked-named', 4, 'blocked'],
     ['ok', 0, 'done'],
   ] as const) {
     await t.test(action, async (t) => {
       const s = await setup(t);
       const result = await s.turn(action, true).result;
       assert.equal(result.code, code, result.stderr);
-      if (code === 4)
+      if (code === 4 && action !== 'blocked-named')
         assert.match(
           result.stderr,
           new RegExp(`worker report status ${status} names no blocker`),
+        );
+      if (action === 'blocked-named')
+        assert.match(
+          result.stderr,
+          /worker report status blocked names 1 blocker\(s\)\n(?:.*\n)*blocker: npm test exit 1/,
         );
       assert.equal(s.json('rounds/001/report.json').status, status);
     });

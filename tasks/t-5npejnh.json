@@ -1,7 +1,11 @@
 {
   "id": "t-5npejnh",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "partial/blocked turns exit 4; start|send print status, blockers, failing checks; result.json records rollout_path"
+  },
   "created": "2026-11-03",
   "priority": 0,
   "title": "Fail a worker turn whose report is partial or blocked",
