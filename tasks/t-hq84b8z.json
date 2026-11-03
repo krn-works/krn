@@ -8,6 +8,7 @@
   "after": [],
   "body": [
     "Outcome: krn deliver hygiene does not fail when the main checkout holds untracked files byte-identical to files the merge adds (typical: tasks/*.json created in the main checkout and shipped in the PR). Observed 2026-11-01 PR #152: hygiene exit 77 \"untracked working tree files would be overwritten by merge: tasks/t-pnbq0c8.json tasks/t-tdkpgag.json\"; both identical to origin/main; resume after removing them delivered exit 0. Same run also removed the PR worktree while the deliver process cwd was inside it (mise WARN cwd missing) — run deliver from the main checkout or chdir out before removal.\nProof: a deliver hygiene test with an identical untracked file in the main checkout fast-forwards; a differing one still refuses.",
-    "Lead trap: krn-lead removes identical untracked task copies from the main checkout before deliver hygiene until this ships."
+    "Lead trap: krn-lead removes identical untracked task copies from the main checkout before deliver hygiene until this ships.",
+    "Evidence #184 (2026-11-03): a modified tracked tasks/*.json in the main checkout identical to the PR copy also needs restoring (git checkout -- <file>) before hygiene, not only untracked copies deleted."
   ]
 }

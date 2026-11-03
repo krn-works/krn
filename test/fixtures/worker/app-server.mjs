@@ -255,6 +255,22 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
   let text = JSON.stringify(report);
   if (action === 'invalid') text = '{}';
   if (action === 'oversized') text = 'x'.repeat(256 * 1024 + 1);
+  if (action === 'partial-empty')
+    text = JSON.stringify({ ...report, status: 'partial' });
+  if (action === 'blocked-empty')
+    text = JSON.stringify({ ...report, status: 'blocked' });
+  if (action === 'partial-blank')
+    text = JSON.stringify({
+      ...report,
+      status: 'partial',
+      blockers: [' ', '\t'],
+    });
+  if (action === 'blocked-named')
+    text = JSON.stringify({
+      ...report,
+      status: 'blocked',
+      blockers: ['npm test exit 1'],
+    });
   if (action === 'report-secrets')
     text = JSON.stringify({
       ...report,

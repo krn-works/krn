@@ -6,7 +6,7 @@ import {
   renameSync,
   rmSync,
 } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, matchesGlob, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import { defaultCodexExecutable } from '../hosts/codex.ts';
@@ -119,7 +119,15 @@ export async function workerCommand(args: string[]): Promise<void> {
       validateRun(repo, join(run, 'tmp'));
       text = inputText(required('--brief'));
       startCommit = git(repo, 'rev-parse', 'HEAD').trim();
-      loadPolicy(repo, startCommit);
+      const policy = loadPolicy(repo, startCommit);
+      const forbidden = allows.find((value) =>
+        policy.forbidden.some((glob) => matchesGlob(value, glob)),
+      );
+      if (forbidden)
+        throw new WorkerError(
+          64,
+          `--allow ${forbidden} names a forbidden path`,
+        );
     } else {
       if (command === 'stop' && !existsSync(run)) return;
       try {
