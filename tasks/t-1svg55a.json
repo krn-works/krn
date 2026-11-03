@@ -1,7 +1,11 @@
 {
   "id": "t-1svg55a",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "required outputs and report consistency enforced by the worker driver; driver-run checks in t-n9b3q2g, verify red-first in t-1xyccee"
+  },
   "created": "2026-11-03",
   "priority": 0,
   "title": "Accept worker turns by checks the driver runs",
@@ -9,6 +13,6 @@
     "t-5npejnh"
   ],
   "body": [
-    "Outcome: independent acceptance after a worker turn: `--require <path>` (missing from the turn's changes → exit 4 even on `done`), and the driver runs declared `--check <cmd>` / `--observer <file>` itself after the turn (non-zero → exit 4); report consistency (changed_paths vs diff, canary, `done` with a non-zero check) refused; `krn verify` fails instead of skipping red-first when code changed without an observer (src/verify/index.ts:557). Source: .krn/runs/lead/worker-audit/code-audit.md fixes 2-5. Proof: observers required-outputs, acceptance-checks, report-consistency, verify red-first-required, each red at base by assertion."
+    "Outcome: independent acceptance after a worker turn, part one: `--require <path>` on `krn worker start` (repeatable, stored in the session, applies to every turn) makes a turn exit 4 with `missing required output <path>` when that path is not among the turn's changed paths, even when the report says `done`; and the driver refuses an inconsistent report with exit 4: a `done` report with any check `exit_code != 0`, or `changed_paths` naming a path the diff does not contain, or the diff containing a path the report omits. Source: .krn/runs/lead/worker-audit/code-audit.md fixes 2 and 4. Fix 3 (driver-run checks, canary) and fix 5 (verify red-first required) are split into their own tasks. Proof: observers test/worker/required-outputs.test.ts and test/worker/report-consistency.test.ts, each red at base by assertion."
   ]
 }

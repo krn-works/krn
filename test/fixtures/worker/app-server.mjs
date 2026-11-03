@@ -3,8 +3,10 @@ import { spawn, spawnSync } from 'node:child_process';
 import {
   appendFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
+  readlinkSync,
   rmSync,
   symlinkSync,
   writeFileSync,
@@ -26,6 +28,25 @@ const log = (value) =>
     process.env.CODEX_TEST_WORKER_LOG,
     `${JSON.stringify(value)}\n`,
   );
+const untracked = (cwd = process.cwd()) =>
+  new Map(
+    spawnSync('git', ['ls-files', '--others', '-z'], { cwd, encoding: 'utf8' })
+      .stdout.split('\0')
+      .filter((path) => path && !path.startsWith('.krn/'))
+      .map((path) => {
+        const full = join(cwd, path);
+        const stat = lstatSync(full);
+        return [
+          path,
+          stat.isSymbolicLink()
+            ? `link:${readlinkSync(full)}`
+            : stat.isFile()
+              ? readFileSync(full).toString('base64')
+              : 'directory',
+        ];
+      }),
+  );
+const initialUntracked = untracked();
 const report = {
   status: 'done',
   canary: '',
@@ -256,7 +277,28 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
     for (let i = 0; i <= 10000; i++)
       writeFileSync(join(dir, `${i}.txt`), 'worker edit');
   }
+  const currentUntracked = untracked(params.cwd);
+  report.changed_paths = [
+    ...new Set([
+      ...spawnSync(
+        'git',
+        ['diff', '--name-only', '--no-renames', '-z', 'HEAD'],
+        { cwd: params.cwd, encoding: 'utf8' },
+      )
+        .stdout.split('\0')
+        .filter(Boolean),
+      ...[
+        ...new Set([...initialUntracked.keys(), ...currentUntracked.keys()]),
+      ].filter(
+        (path) => initialUntracked.get(path) !== currentUntracked.get(path),
+      ),
+    ]),
+  ].filter((path) => !path.startsWith('.krn/'));
   let text = JSON.stringify(report);
+  if (action === 'lie-path')
+    text = JSON.stringify({ ...report, changed_paths: ['b.txt'] });
+  if (action === 'omit-path')
+    text = JSON.stringify({ ...report, changed_paths: [] });
   if (action === 'partial-named')
     text = JSON.stringify({
       ...report,

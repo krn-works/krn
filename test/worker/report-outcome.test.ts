@@ -118,7 +118,7 @@ test('report outcomes are visible on start and send', async (t) => {
     ['partial-blank', 4, /names no blocker/],
     ['blocked-blank', 4, /names no blocker/],
     ['done-clean', 0, /status: done/],
-    ['done-failing', 0, /status: done\nfailing check: npm test exit 1/],
+    ['done-failing', 4, /status: done\nfailing check: npm test exit 1/],
     ['ok', 0, /status: done/],
     ['scope-partial', 3, /scope violation/],
     ['invalid', 4, /status: none/],

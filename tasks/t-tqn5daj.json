@@ -1,0 +1,12 @@
+{
+  "id": "t-tqn5daj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Stop review admission timing out worker hardening tests under host load",
+  "after": [],
+  "body": [
+    "Outcome: review admission red-first of test/worker/hardening.test.ts does not report head=timeout when the host is loaded by foreign processes. Evidence PR #188 (t-5npejnh): admission refused 'FAIL test/worker/hardening.test.ts: head: timeout' at load 24-26 (seo-audit unlighthouse, olx curl scraping), .krn/runs/lead/worker-outcome/review-1.txt; the same head passed krn verify at load 7 (verify-1.log) and admission at load <12 (review-1b.txt). Find which subtest or deadline expires (driver result deadline timeoutMs+25000, fixture waits) and make it independent of CPU contention, or record it as a D12 flake naming the failing subtest. Proof: the file passes admission red-first under synthetic CPU load."
+  ]
+}
