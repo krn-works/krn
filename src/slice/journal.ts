@@ -29,7 +29,7 @@ export const journalSchema = z.object({
   reviewRecord: z.string().nullable(),
   argv: z.array(z.string()).max(64),
   exitCode: z.number().int().min(0),
-  cause: z.string().max(200),
+  cause: z.string(),
   worktreeCreated: z.boolean().optional(),
   implementationCommitted: z.boolean().optional(),
   taskClosed: z.boolean().optional(),
@@ -42,6 +42,8 @@ export const journalSchema = z.object({
     .regex(/^[a-f\d]{40,64}$/u)
     .nullable()
     .optional(),
+  gateHead: z.string().nullable().optional(),
+  landing: z.object({ log: z.string(), exit: z.string() }).optional(),
   reviewOverride: z.boolean().optional(),
   reviewFailed: z.boolean().optional(),
 });

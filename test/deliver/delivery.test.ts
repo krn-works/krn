@@ -911,3 +911,17 @@ test('delivery CLI accepts the deprecated load flag and preserves argument exit 
     /load-threshold N.*Deprecated; accepted and ignored/u,
   );
 });
+
+test('merge-only preserves state and plain delivery resumes from the same cwd', async (t) => {
+  const f = fixture(t);
+  const result = await f.api.deliver(
+    { ...f.options, mergeOnly: true },
+    f.runtime,
+  );
+  assert.equal(result.status, 'merged');
+  assert.ok(existsSync(f.worktree), 'hygiene waits for plain delivery');
+  assert.ok(existsSync(join(f.main, '.krn/runs/deliver', f.key, 'state.json')));
+  const resumed = await f.api.deliver(f.options, f.runtime);
+  assert.equal(resumed.status, 'delivered');
+  assert.ok(!existsSync(f.worktree));
+});
