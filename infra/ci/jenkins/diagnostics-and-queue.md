@@ -2,7 +2,7 @@
 
 ## Lead rerun
 
-Run `krn ci rerun --pr <n> --head <40-hex-sha> [--repo <owner/repo>]` to queue a fresh Jenkins attempt for the same indexed PR head. Set `KRN_JENKINS_URL` (default `http://127.0.0.1:18080`), `KRN_JENKINS_USER`, and `KRN_JENKINS_TOKEN`; credentials are in Bitwarden item **Jenkins krn-works CI - lead (read+build)**. The command checks the GitHub PR head, pending gate, and Jenkins indexed revision before queueing. Failure-summary changes take effect after the deployment owner repins `library_sha`.
+Run `krn ci rerun --pr <n> --head <40-hex-sha> [--repo <owner/repo>]` to queue a fresh Jenkins attempt for the same indexed PR head. Set `KRN_JENKINS_URL` (default `http://127.0.0.1:18080`), `KRN_JENKINS_USER`, and `KRN_JENKINS_TOKEN`; credentials are in Bitwarden item **Jenkins krn-works CI - lead (read+build)**. The command checks the GitHub PR head, pending gate, and Jenkins indexed revision before queueing. Failure-summary changes take effect after the deployment owner repins `library_sha`. Until then `krn deliver` names the cause of a summary without a stage from the check run's `Primary:` line (`failed at stage unknown: <cause>`). The lead account builds PR jobs only, so a failed main gate is not re-run by the lead; the next merge to main runs it again (t-33mv33n).
 
 The trusted library publishes QUEUED before checkout and the global runner lock.
 Product PR admission reads `spec/ci-admission.json` from the exact native

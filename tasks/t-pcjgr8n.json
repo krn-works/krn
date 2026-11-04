@@ -1,0 +1,12 @@
+{
+  "id": "t-pcjgr8n",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "Refuse raw invisible format characters in tracked source",
+  "after": [],
+  "body": [
+    "Outcome: npm run preflight refuses a raw invisible format character (U+200B-U+200F, U+2028-U+202E, U+2066-U+2069, U+FEFF not at file start) in tracked src/, test/ and scripts/ files and names path:line. Evidence: while delivering t-dzyg447 (PR #198) the lead's Write tool turned the escape text for U+FEFF in test/brief/invisible-format.test.ts into a raw character; only a manual grep -P caught it; krn brief check covers briefs only. git grep at 2434eda finds none today, so the check starts green. Proof: new observer red at base by assertion."
+  ]
+}

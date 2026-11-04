@@ -1,7 +1,11 @@
 {
   "id": "t-axrzg1n",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "deliver names the cause from the check output (7b01635: checkout clone failure under a pre-6bfdd3a library); repin and main rerun tracked as t-33mv33n"
+  },
   "created": "2026-11-04",
   "priority": 1,
   "title": "Name the cause of a main krn/gate failure that ran no stage, and make its rerun reachable",

@@ -27,6 +27,7 @@ import {
   matchesGateCheckRun,
 } from './admission-policy.ts';
 import { requireReviewChecklist } from './checklist.ts';
+import { gateFailureLine } from './gate-failure.ts';
 import { removeIdenticalLeftovers } from './identical-leftovers.ts';
 import { checkMergeContracts, mergeMessage } from './message.ts';
 import {
@@ -121,6 +122,7 @@ const checksSchema = z.array(
         head_sha: sha,
         status: z.string(),
         conclusion: z.string().nullable(),
+        output: z.unknown().optional(),
         app: z
           .object({
             id: z.number().int().positive().optional(),
@@ -515,7 +517,7 @@ export async function deliver(
         await wait(options.pollMs);
       }
     };
-    const waitGate = async (head: string) => {
+    const waitGate = async (head: string, onMain = false) => {
       let conclusion = 'pending';
       await poll(async () => {
         const pages = checksSchema.parse(
@@ -552,7 +554,11 @@ export async function deliver(
         conclusion = gate.conclusion ?? 'unknown';
         if (conclusion !== 'success')
           throw new Error(
-            `gate concluded ${conclusion} on ${head}; rerun: krn ci rerun --pr ${options.pr} --head ${head}`,
+            `gate concluded ${conclusion} on ${head}; ${gateFailureLine(gate.output)}; rerun: ${
+              onMain
+                ? 'main has no lead rerun (the lead Jenkins account builds PR jobs only); the next merge to main runs the gate again'
+                : `krn ci rerun --pr ${options.pr} --head ${head}`
+            }`,
           );
         return true;
       });
@@ -681,7 +687,7 @@ export async function deliver(
     }
     if (!state.merge) throw new Error('ship did not provide a merge sha');
     stage = 'ci';
-    const mainConclusion = await waitGate(state.merge);
+    const mainConclusion = await waitGate(state.merge, true);
     stage = 'hygiene';
     validateHygieneDirectories(main, state.worktree);
     const archive = join(main, '.krn', 'archive');
