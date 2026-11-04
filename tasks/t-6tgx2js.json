@@ -1,0 +1,12 @@
+{
+  "id": "t-6tgx2js",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 1,
+  "title": "Record the memory target and GLOBAL v1 store in ADR 0014",
+  "after": [],
+  "body": [
+    "Outcome: docs/adr/0014-operator-decisions-2026-10-23.md gains D31+ that accepts ADR 0002 (brain v2) as the memory target, permits shadow packets beside the current memory, and decides the GLOBAL v1 store; the decision is reported to the operator. Lead decision under the full autonomy grant (.krn/runs/program-audit/grant.md) and memory:memory-lane-mandate. Inputs: .krn/runs/lead/memory-takeover/lens-{decisions,evidence,architecture}.md. Proof: the ADR rules test (git grep the ADR decision tests) stays green and a new observer asserts the D31+ entries exist."
+  ]
+}

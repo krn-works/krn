@@ -4,10 +4,10 @@ Date: 2026-10-08
 
 ## Status
 
-ADR 0014 D20 replaced the Wizard-of-Oz gate; the WoZ set is a harness pilot only.
-Proposed for E3 design. FR-40 (ADR 0014 D20) is the gate, the Wizard-of-Oz set
-is a harness pilot only, and this does not change the operator's selected
-scope or client-isolation policy.
+Accepted target, unbuilt (ADR 0014 D31). Injection into worker context is gated
+by FR-40 (ADR 0014 D20); shadow packets are permitted (ADR 0014 D32); the GLOBAL
+v1 store is frozen (ADR 0014 D33). The Wizard-of-Oz set is a harness pilot only,
+and this does not change the operator's selected scope or client-isolation policy.
 
 ## Context
 
@@ -187,9 +187,10 @@ reduces future findings remains a hypothesis to measure.
 
 ### A/B/C/R evaluation and kill criteria
 
-This section is superseded by ADR 0014 D20. FR-40 is the gate, and its
-thresholds replace the ones below. The Wizard-of-Oz set and these thresholds
-remain only as harness-pilot history.
+This section is superseded by ADR 0014 D20 and D32. FR-40 gates packet
+injection only, and its thresholds replace the ones below; building before it
+is permitted by D32. The Wizard-of-Oz set and these thresholds remain only as
+harness-pilot history.
 
 Before building the ingestion pipeline, index, or packet implementation, run
 the Wizard-of-Oz experiment with manually assembled packets. Use 6–9 frozen
@@ -221,8 +222,9 @@ follow-up 20-task evaluation only if the first round clears its registered
 bar. The claim that the brain brings Luna close to Opus is falsified if B is
 no better than A in two rounds or B is approximately C. In either case, stop
 brain packet productization and narrow the claim to a reviewed standards
-source for verdict enforcement. FR-40 gates whether to build the pipeline,
-index, or relay packet; see ADR 0014 D20. A later 20-task failure also stops
+source for verdict enforcement. FR-40 gates whether a packet is injected into
+worker context (ADR 0014 D20); the schema, validator, index and non-injected
+shadow packets may be built before it (ADR 0014 D32). A later 20-task failure also stops
 expansion and requires re-review of the design before more investment.
 
 **Evidence:** R13 reports variable benefits from few-shot examples and
@@ -247,8 +249,9 @@ evidence for the Luna-to-Opus claim; the experiment is the required test.
 
 ## Deferred
 
-- Implementing the v2 JSON schema, validator, SQLite/FTS5 index, ingestion
-  command, inbox, or `brain.packet` integration.
+- Injecting a `brain.packet` into a worker brief, inbox or delegate prompt
+  before FR-40 (ADR 0014 D20); the schema, validator, index, ingestion command
+  and shadow packets are no longer deferred (ADR 0014 D32).
 - Migrating existing v1 records or deciding an automatic event/episode store
   and retention policy.
 - Automatic source fetching, raw-corpus retention in Git, transcript mining,
@@ -259,13 +262,13 @@ evidence for the Luna-to-Opus claim; the experiment is the required test.
 - Treating any copyright basis, detector threshold, judge result, or benchmark
   as a substitute for operator review or applicable rights.
 
-## Proposal status
+## Target status
 
-This ADR remains proposed for E3 design and establishes neither implementation nor benefit. Any future evaluation needs a current task, an approved protocol, and a preregistration before results are observed.
+This ADR is the accepted memory target (ADR 0014 D31) and establishes neither implementation nor benefit. Any future evaluation needs a current task, an approved protocol, and a preregistration before results are observed.
 
 
 ## Current status
 
 Current Product or Global memory implementation, task status, and utility are
-not asserted by this ADR. Its proposed Product v2 design does not change the
-separate Global memory decision.
+not asserted by this ADR. ADR 0014 D31 makes its Product v2 design the single
+memory target, and D33 freezes the Global v1 store.
