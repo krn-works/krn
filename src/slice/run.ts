@@ -1,0 +1,679 @@
+import { randomUUID } from 'node:crypto';
+import { lstat, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
+import { z } from 'zod';
+import { effortSchema } from '../worker/state.ts';
+import {
+  type Journal,
+  journalPath,
+  readJournal,
+  writeJournal,
+} from './journal.ts';
+import {
+  implementationMessage,
+  oneLine,
+  parseArgv,
+  type Stage,
+  stages,
+} from './stages.ts';
+
+const optionsSchema = z.object({
+  task: z.string().regex(/^t-[a-z\d]+$/u),
+  brief: z.string().min(1),
+  message: z.string().min(1),
+  name: z.string().regex(/^[a-z\d]+(?:-[a-z\d]+)*$/u),
+  repo: z.string().regex(/^[\w.-]+\/[\w.-]+$/u),
+  model: z.string().min(1),
+  effort: effortSchema,
+  worker: z.enum(['codex', 'none']).optional(),
+  stopAfter: z.enum(stages).optional(),
+});
+export interface SliceOptions {
+  readonly task: string;
+  readonly brief: string;
+  readonly message: string;
+  readonly name: string;
+  readonly repo: string;
+  readonly model: string;
+  readonly effort: string;
+  readonly worker?: 'codex' | 'none';
+  readonly stopAfter?: string;
+}
+export interface SliceRuntime {
+  readonly root: string;
+  readonly krn: string;
+  readonly run: (
+    command: string,
+    args: readonly string[],
+    options: { readonly cwd: string },
+  ) => Promise<{
+    readonly code: number;
+    readonly stdout: string;
+    readonly stderr: string;
+  }>;
+}
+export interface SliceResult {
+  readonly exitCode: number;
+  readonly stage: string;
+  readonly cause: string;
+}
+class Failure extends Error {
+  readonly code: number;
+  constructor(code: number, cause: string) {
+    super(oneLine(cause) || `command failed exit ${code}`);
+    this.code = code;
+  }
+}
+// `git worktree list --porcelain` names a registered worktree with its branch.
+function registeredWorktree(
+  porcelain: string,
+  worktree: string,
+  branch: string,
+): boolean {
+  return porcelain.split(/\r?\n\r?\n/u).some((block) => {
+    const lines = block.split(/\r?\n/u);
+    return (
+      lines.includes(`worktree ${worktree}`) &&
+      lines.includes(`branch refs/heads/${branch}`)
+    );
+  });
+}
+
+// A live claim by the lead on this worktree, left by a run that stopped
+// before it recorded the claim stage.
+async function heldClaim(
+  root: string,
+  task: string,
+  worktree: string,
+): Promise<boolean> {
+  const path = join(root, '.krn', 'task-claims', `${task}.json`);
+  try {
+    if (!(await lstat(path)).isFile()) return false;
+    const claim = z
+      .object({ actor: z.string(), worktree: z.string() })
+      .safeParse(parseJson(await readFile(path, 'utf8')));
+    return (
+      claim.success &&
+      claim.data.actor === 'lead' &&
+      claim.data.worktree === worktree
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function closedTask(worktree: string, task: string): Promise<boolean> {
+  const path = join(worktree, 'tasks', `${task}.json`);
+  try {
+    if (!(await lstat(path)).isFile()) return false;
+    const record = z
+      .object({ status: z.string() })
+      .safeParse(parseJson(await readFile(path, 'utf8')));
+    return record.success && record.data.status === 'closed';
+  } catch {
+    return false;
+  }
+}
+
+// Temp file plus rename replaces a symlink at the target instead of following it.
+async function writeRunFile(path: string, text: string): Promise<void> {
+  const temporary = join(dirname(path), `.run-${randomUUID()}.tmp`);
+  try {
+    await writeFile(temporary, text, { flag: 'wx', mode: 0o600 });
+    await rename(temporary, path);
+  } finally {
+    await rm(temporary, { force: true });
+  }
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+export async function runSlice(
+  input: SliceOptions,
+  runtime: SliceRuntime,
+): Promise<SliceResult> {
+  let stage: Stage = 'base';
+  let state: Journal | undefined;
+  let path: string | undefined;
+  let writable = false;
+  let lock: string | undefined;
+  try {
+    const parsed = optionsSchema.safeParse(input);
+    if (!parsed.success) throw new Failure(64, 'invalid slice options');
+    const options = parsed.data;
+    const root = resolve(runtime.root);
+    const brief = resolve(root, options.brief);
+    const message = resolve(root, options.message);
+    let body: string;
+    try {
+      body = await readFile(message, 'utf8');
+    } catch {
+      throw new Failure(64, `cannot read message: ${message}`);
+    }
+    const title = body.split(/\r?\n/u)[0] ?? '';
+    const type = /^([a-z]+)(?:\([^\r\n]*\))?!?: /u.exec(title)?.[1];
+    if (
+      !title.endsWith(`(${options.task})`) ||
+      !type ||
+      /[\p{Cc}\p{Cf}]/u.test(title)
+    )
+      throw new Failure(
+        64,
+        'message title must be Conventional Commits with the task suffix',
+      );
+    const worktree = join(root, '.krn', 'worktrees', options.name);
+    path = await journalPath(root, options.task);
+    const lockPath = join(dirname(path), 'run.lock');
+    try {
+      await writeFile(lockPath, `${process.pid}\n`, {
+        flag: 'wx',
+        mode: 0o600,
+      });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'EEXIST')
+        throw new Failure(
+          75,
+          `another slice run holds ${lockPath}; remove it only when no run is active`,
+        );
+      throw error;
+    }
+    lock = lockPath;
+    state = await readJournal(path);
+    if (state) {
+      stage = state.stage;
+      for (const [key, expected] of Object.entries({
+        task: options.task,
+        name: options.name,
+        brief,
+        message,
+        repo: options.repo,
+        model: options.model,
+        effort: options.effort,
+        worktree,
+        branch: `${type}/${options.name}`,
+      })) {
+        if (state[key as keyof Journal] !== expected)
+          throw new Failure(
+            65,
+            `journal ${key} mismatch: ${state[key as keyof Journal]} != ${expected}`,
+          );
+      }
+    } else {
+      state = {
+        task: options.task,
+        name: options.name,
+        branch: `${type}/${options.name}`,
+        brief,
+        message,
+        repo: options.repo,
+        model: options.model,
+        effort: options.effort,
+        worktree,
+        base: '',
+        pr: null,
+        stage: 'base',
+        completed: false,
+        reviewAttempts: 0,
+        reviewRecord: null,
+        argv: [],
+        exitCode: 0,
+        cause: '',
+      };
+    }
+    writable = true;
+    const journal = state;
+    const journalFile = path;
+    const save = () => writeJournal(journalFile, journal);
+    const exec = async (
+      command: string,
+      args: readonly string[],
+      cwd = worktree,
+    ) => {
+      const result = await runtime.run(command, args, { cwd });
+      if (result.code !== 0)
+        throw new Failure(
+          result.code,
+          result.stderr || result.stdout || `${command} exit ${result.code}`,
+        );
+      return result.stdout;
+    };
+    const krn = (args: string[], cwd = worktree) =>
+      exec(runtime.krn, args, cwd);
+    if (
+      journal.stage === 'worker' &&
+      !journal.completed &&
+      journal.exitCode &&
+      options.worker !== 'none'
+    )
+      return {
+        exitCode: journal.exitCode,
+        stage: 'worker',
+        cause: journal.cause,
+      };
+    // A second review round runs on a fixed head: verify and push it first.
+    const start =
+      journal.stage === 'review' &&
+      !journal.completed &&
+      journal.reviewAttempts === 1 &&
+      journal.reviewPending !== true
+        ? stages.indexOf('verify')
+        : stages.indexOf(journal.stage) + (journal.completed ? 1 : 0);
+    if (journal.completed && options.stopAfter === journal.stage)
+      return { exitCode: 0, stage: journal.stage, cause: '' };
+    for (stage of stages.slice(start)) {
+      journal.stage = stage;
+      journal.completed = false;
+      journal.exitCode = 0;
+      journal.cause = '';
+      await save();
+      const observers = journal.argv.flatMap((word, i, all) =>
+        word === '--observer' ? [all[i + 1] ?? ''] : [],
+      );
+      switch (stage) {
+        case 'base': {
+          const output = await exec(
+            'git',
+            ['ls-remote', 'origin', 'main'],
+            root,
+          );
+          const sha = output.trim().split(/\s/u)[0] ?? '';
+          if (!/^[a-f\d]{40,64}$/u.test(sha))
+            throw new Failure(65, 'invalid remote base SHA');
+          journal.base = sha;
+          break;
+        }
+        case 'worktree': {
+          if (
+            !journal.worktreeCreated &&
+            !registeredWorktree(
+              await exec('git', ['worktree', 'list', '--porcelain'], root),
+              worktree,
+              journal.branch,
+            )
+          ) {
+            await exec(
+              'git',
+              ['worktree', 'add', '-b', journal.branch, worktree, journal.base],
+              root,
+            );
+            journal.worktreeCreated = true;
+            await save();
+          }
+          const version = (
+            await readFile(join(root, '.node-version'), 'utf8')
+          ).trim();
+          await exec('mise', [
+            'exec',
+            `node@${version}`,
+            '--',
+            'pnpm',
+            'install',
+            '--frozen-lockfile',
+          ]);
+          break;
+        }
+        case 'claim':
+          if (await heldClaim(root, options.task, worktree)) break;
+          await krn([
+            'task',
+            'claim',
+            options.task,
+            '--actor',
+            'lead',
+            '--worktree',
+            worktree,
+            '--reason',
+            title,
+          ]);
+          break;
+        case 'brief': {
+          journal.argv = parseArgv(
+            await krn([
+              'brief',
+              'check',
+              brief,
+              '--repo',
+              worktree,
+              '--model',
+              options.model,
+            ]),
+          );
+          const lens = await krn(['brief', 'lens', brief]);
+          await writeRunFile(join(dirname(path), 'lens.md'), lens);
+          break;
+        }
+        case 'worker':
+          if (options.worker === 'none') {
+            if (journal.workerOpen === true) {
+              await krn([
+                'worker',
+                'stop',
+                '--run',
+                join(worktree, '.krn', 'runs', options.name),
+              ]);
+              journal.workerOpen = false;
+              await save();
+            }
+          } else {
+            const run = join(worktree, '.krn', 'runs', options.name);
+            journal.workerOpen = true;
+            await save();
+            await krn([
+              'worker',
+              'start',
+              '--run',
+              run,
+              '--repo',
+              worktree,
+              '--brief',
+              brief,
+              ...journal.argv,
+              '--model',
+              options.model,
+              '--effort',
+              options.effort,
+            ]);
+            await krn(['worker', 'stop', '--run', run]);
+            journal.workerOpen = false;
+          }
+          break;
+        case 'commit': {
+          if (!journal.implementationCommitted) {
+            const status = await exec('git', [
+              'status',
+              '--porcelain=v1',
+              '-z',
+              '--untracked-files=all',
+            ]);
+            const paths: string[] = [];
+            const entries = status.includes('\0')
+              ? status.split('\0')
+              : status.split(/\r?\n/u);
+            for (let i = 0; i < entries.length; i++) {
+              const entry = entries[i];
+              if (!entry) continue;
+              paths.push(entry.slice(3));
+              if (status.includes('\0') && /^[RC]|^.[RC]/u.test(entry)) i++;
+            }
+            if (paths.length) {
+              await exec('git', ['add', '--', ...paths]);
+              const commitFile = join(
+                dirname(path),
+                'implementation-message.md',
+              );
+              await writeRunFile(
+                commitFile,
+                implementationMessage(body, options.task, observers),
+              );
+              await exec('git', ['commit', '-F', commitFile]);
+            }
+            journal.implementationCommitted = true;
+            await save();
+          }
+          if (
+            !journal.taskClosed &&
+            !(await closedTask(worktree, options.task))
+          ) {
+            await krn([
+              'task',
+              'close',
+              options.task,
+              '--as',
+              'done',
+              '--note',
+              title,
+            ]);
+            journal.taskClosed = true;
+            await save();
+          }
+          const closeSubject = `chore(tasks): close ${options.task} (${options.task})`;
+          if (
+            !journal.closeCommitted &&
+            (await exec('git', ['log', '-1', '--format=%s'])).trim() !==
+              closeSubject
+          ) {
+            await exec('git', ['add', '--', `tasks/${options.task}.json`]);
+            await exec('git', [
+              'commit',
+              '-m',
+              closeSubject,
+              '-m',
+              `Ticket: ${options.task}`,
+            ]);
+            journal.closeCommitted = true;
+            await save();
+          }
+          break;
+        }
+        case 'verify': {
+          const remote = (
+            await exec('git', ['ls-remote', 'origin', 'main'], root)
+          )
+            .trim()
+            .split(/\s/u)[0];
+          if (!remote || !/^[a-f\d]{40,64}$/u.test(remote))
+            throw new Failure(65, 'invalid remote base SHA');
+          if (remote !== journal.base) {
+            const ancestor = await runtime.run(
+              'git',
+              ['merge-base', '--is-ancestor', remote, 'HEAD'],
+              { cwd: worktree },
+            );
+            if (ancestor.code === 1)
+              throw new Failure(
+                75,
+                `main moved to ${remote}: rebase ${journal.branch} onto it, then rerun`,
+              );
+            if (ancestor.code !== 0)
+              throw new Failure(
+                ancestor.code,
+                ancestor.stderr || 'git merge-base failed',
+              );
+            // D10 budgets review per PR and base: a new base starts a new series.
+            journal.base = remote;
+            journal.reviewAttempts = 0;
+            journal.reviewRecord = null;
+            await save();
+          }
+          await krn([
+            'verify',
+            '--base',
+            journal.base,
+            ...observers.flatMap((p) => ['--observer', p]),
+          ]);
+          break;
+        }
+        case 'pr': {
+          await exec('git', [
+            'push',
+            '--force-with-lease',
+            '-u',
+            'origin',
+            journal.branch,
+          ]);
+          journal.pushed = true;
+          await save();
+          if (journal.pr !== null) break;
+          const listed = z
+            .array(z.object({ number: z.number().int().positive() }))
+            .max(1)
+            .safeParse(
+              parseJson(
+                (
+                  await exec('gh', [
+                    'pr',
+                    'list',
+                    '--repo',
+                    options.repo,
+                    '--head',
+                    journal.branch,
+                    '--state',
+                    'open',
+                    '--json',
+                    'number',
+                  ])
+                ).trim() || '[]',
+              ),
+            );
+          if (!listed.success)
+            throw new Failure(65, 'invalid gh pr list output');
+          const existing = listed.data[0]?.number;
+          if (existing !== undefined) {
+            journal.pr = existing;
+            break;
+          }
+          const output = await exec('gh', [
+            'pr',
+            'create',
+            '--repo',
+            options.repo,
+            '--draft',
+            '--title',
+            title,
+            '--body',
+            body,
+            '--base',
+            'main',
+            '--head',
+            journal.branch,
+          ]);
+          const match = /^https:\/\/[^\s]+\/pull\/([1-9]\d*)$/u.exec(
+            output.trim(),
+          );
+          const number = Number(match?.[1]);
+          if (!Number.isSafeInteger(number) || number <= 0)
+            throw new Failure(65, 'invalid PR URL');
+          journal.pr = number;
+          break;
+        }
+        case 'review': {
+          if (journal.reviewAttempts > 0 && !journal.reviewRecord)
+            throw new Failure(
+              65,
+              'review attempt has no prior record; cannot resume review',
+            );
+          if (journal.reviewAttempts >= 2)
+            throw new Failure(
+              65,
+              'review budget exhausted: two attempts recorded',
+            );
+          const head = (await exec('git', ['rev-parse', 'HEAD'])).trim();
+          const args = [
+            'review',
+            '--repo',
+            worktree,
+            '--pr',
+            String(journal.pr),
+            '--base',
+            journal.base,
+            '--head',
+            head,
+            '--lens',
+            join(dirname(path), 'lens.md'),
+            '--prepass',
+            '--checklist',
+            join(worktree, 'docs', 'program', 'hardening-checklist.md'),
+          ];
+          if (journal.reviewRecord)
+            args.push('--prior-record', journal.reviewRecord);
+          if (journal.reviewPending === true)
+            throw new Failure(
+              65,
+              'review outcome unknown after an interrupted attempt: read .krn/runs/review-series and decide by hand',
+            );
+          journal.reviewPending = true;
+          await save();
+          const result = await runtime.run(runtime.krn, args, { cwd: root });
+          journal.reviewPending = false;
+          await save();
+          try {
+            const last = result.stdout.trimEnd().split(/\r?\n/u).at(-1) ?? '';
+            journal.reviewRecord = z
+              .object({ record: z.string().min(1) })
+              .parse(JSON.parse(last)).record;
+            journal.reviewAttempts++;
+          } catch {
+            if (result.code)
+              throw new Failure(
+                result.code,
+                result.stderr || `review refused exit ${result.code}`,
+              );
+            throw new Failure(
+              result.code || 65,
+              'review did not return a valid record',
+            );
+          }
+          await save();
+          if (result.code)
+            throw new Failure(
+              result.code,
+              result.stderr || `review failed exit ${result.code}`,
+            );
+          break;
+        }
+        case 'deliver': {
+          let cwd = root;
+          try {
+            if ((await lstat(worktree)).isDirectory()) cwd = worktree;
+          } catch {
+            /* Retired by delivery. */
+          }
+          const version = (
+            await readFile(join(root, '.node-version'), 'utf8')
+          ).trim();
+          await exec(
+            'mise',
+            [
+              'exec',
+              `node@${version}`,
+              '--',
+              join(cwd, 'bin', 'krn'),
+              'deliver',
+              '--repo',
+              options.repo,
+              '--pr',
+              String(journal.pr),
+              '--record',
+              journal.reviewRecord ?? '',
+              '--task',
+              options.task,
+            ],
+            cwd,
+          );
+          break;
+        }
+        case 'done':
+          break;
+      }
+      journal.completed = true;
+      await save();
+      if (options.stopAfter === stage) return { exitCode: 0, stage, cause: '' };
+    }
+    return { exitCode: 0, stage: 'done', cause: '' };
+  } catch (error) {
+    const exitCode = error instanceof Failure ? error.code : 65;
+    const cause = oneLine(
+      error instanceof Error ? error.message : String(error),
+    );
+    if (writable && state && path) {
+      state.stage = stage;
+      state.completed = false;
+      state.exitCode = exitCode;
+      state.cause = cause;
+      try {
+        await writeJournal(path, state);
+      } catch {
+        /* Preserve original refusal. */
+      }
+    }
+    return { exitCode, stage, cause };
+  } finally {
+    if (lock) await rm(lock, { force: true });
+  }
+}
