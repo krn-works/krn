@@ -1,0 +1,12 @@
+{
+  "id": "t-vh64cpr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "checklist crash class and lead receiver check catch runner resume gaps before review",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/hardening-checklist.md `crash` class names the side effect that lands before its journal write (rerun must detect it from real state: registered worktree, claim file, record status, last commit subject), and the krn-lead skill step 7 runs a receiver-argv check (subagent comparing spawned argv to each receiver parser, verdict + path) before the first review attempt of any change that spawns existing commands.\nEvidence: PR #203 review 1 FAIL had 4 BLOCKING crash gaps of exactly this shape (record .krn/runs/review-series/2c61c362c41220e80ad6f96a996524ba33468f8cb12dce620311f552420412d5/records/1.json); pre-review receiver check found 4 argv/receiver defects the stubbed observer could not (.krn/runs/lead/slice-run/receiver-check.md, prereview.md).\nProof: test/rules asserts the checklist crash line names the landed-side-effect case and the skill names the receiver check."
+  ]
+}

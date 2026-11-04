@@ -590,15 +590,17 @@ export async function runSlice(
           journal.reviewPending = true;
           await save();
           const result = await runtime.run(runtime.krn, args, { cwd: root });
-          journal.reviewPending = false;
-          await save();
+          // The flag clears only in the write that saves the outcome.
+          const last = result.stdout.trimEnd().split(/\r?\n/u).at(-1) ?? '';
           try {
-            const last = result.stdout.trimEnd().split(/\r?\n/u).at(-1) ?? '';
             journal.reviewRecord = z
               .object({ record: z.string().min(1) })
               .parse(JSON.parse(last)).record;
             journal.reviewAttempts++;
+            journal.reviewPending = false;
           } catch {
+            journal.reviewPending = false;
+            await save();
             if (result.code)
               throw new Failure(
                 result.code,
