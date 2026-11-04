@@ -1128,3 +1128,66 @@ test('a review PASS saved before its stage completed resumes at deliver, not as 
     recordPath(root, 1),
   );
 });
+
+test('a failed verify names the first failing step and its log, not the first line', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  const receiver = stub(root, {});
+  // Verbatim line grammar of `krn verify` stdout (src/cli/verify.ts): `<step> <STATUS> <detail>`.
+  const run: Run = async (command, args, cwd) => {
+    if (normalize(command, args).join(' ').startsWith('krn verify'))
+      return {
+        code: 1,
+        stdout:
+          'lint PASS completed\ntargeted FAIL exit=1 log=.krn/verify/targeted.log\noverall FAIL targeted\n',
+        stderr: '',
+      };
+    return receiver.run(command, args, cwd);
+  };
+  const result = await runSlice(options, { root, krn, run });
+  assert.equal(result.exitCode, 1);
+  assert.equal(result.stage, 'verify');
+  assert.equal(
+    result.cause,
+    'targeted FAIL exit=1 log=.krn/verify/targeted.log',
+  );
+  assert.equal((await journal(root)).cause, result.cause);
+});
+
+test('a failed verify without a step FAIL line names the overall line', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  const receiver = stub(root, {});
+  const run: Run = async (command, args, cwd) => {
+    if (normalize(command, args).join(' ').startsWith('krn verify'))
+      return {
+        code: 2,
+        stdout: 'lint PASS completed\noverall FAIL red-first\n',
+        stderr: '',
+      };
+    return receiver.run(command, args, cwd);
+  };
+  const result = await runSlice(options, { root, krn, run });
+  assert.equal(result.exitCode, 2);
+  assert.equal(result.cause, 'overall FAIL red-first');
+});
+
+test('a refused --override leaves the journal byte-identical', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  const first = await runSlice(
+    { ...options, stopAfter: 'pr' },
+    { root, krn, run: stub(root, {}).run },
+  );
+  assert.equal(first.exitCode, 0);
+  const file = join(root, '.krn', 'runs', 'slice', TASK, 'journal.json');
+  const before = await readFile(file, 'utf8');
+  const changed = stub(root, { head: FIXED });
+  const refused = await runSlice(
+    { ...options, override: true, reason: 'r', evidence: 'e' },
+    { root, krn, run: changed.run },
+  );
+  assert.equal(refused.exitCode, 64);
+  assert.equal(await readFile(file, 'utf8'), before);
+  assert.equal(count(changed.calls, 'krn review'), 0);
+});
