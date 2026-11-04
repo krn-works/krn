@@ -73,6 +73,9 @@ const completionSchema = z.object({
   ),
 });
 const compactionItem = z.object({ type: z.literal('contextCompaction') });
+// A blocker is technical when it names a command with its exit code or a timeout.
+const technicalBlocker =
+  /\S\s+(?:exit(?:ed)?(?:\s+with)?(?:\s+(?:exit\s+)?(?:code|status))?\s*:?\s*-?\d+\b)|\btimed\s+out\b/i;
 function reasonText(text: string): string {
   const clean = redact(text).replace(/[\p{Cc}\p{Zl}\p{Zp}]/gu, ' ');
   if (Buffer.byteLength(clean) <= 512) return clean;
@@ -262,6 +265,7 @@ export async function drive(run: string): Promise<void> {
       const checkRun = runBaseline(run);
       let code = 0;
       let reason = 'done';
+      let nontechnicalBlocker = false;
       let turnId = '';
       let compacted = false;
       let report: z.infer<typeof reportSchema> | undefined;
@@ -422,6 +426,13 @@ export async function drive(run: string): Promise<void> {
         reason = named.length
           ? `worker report status ${report.status} names ${named.length} blocker(s)`
           : `worker report status ${report.status} names no blocker`;
+        if (
+          !report.changed_paths.length &&
+          !named.some((blocker) => technicalBlocker.test(blocker))
+        ) {
+          nontechnicalBlocker = true;
+          reason += '; blocker not technical: send a continuation';
+        }
       }
       if (code === 0 && report) {
         const changed = new Set(scope.changed);
@@ -549,6 +560,7 @@ export async function drive(run: string): Promise<void> {
           Object.entries(scope).map(([key, paths]) => [key, paths.map(redact)]),
         ),
         acceptance,
+        nontechnical_blocker: nontechnicalBlocker,
       });
       if (state.status === 'dead') break;
     }
