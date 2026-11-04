@@ -1,0 +1,13 @@
+{
+  "id": "t-smc67ss",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 1,
+  "title": "slice run names the failing verify step",
+  "after": [],
+  "body": [
+    "Outcome: when `krn verify` fails inside `krn slice run`, the cause names the failing step and its log (the `<step> FAIL exit=N log=...` line) instead of the first output line.\nEvidence: PR #205 (t-4sesbm3): `slice verify exit=1: lint PASS completed` while the targeted step failed; the lead had to rerun krn verify by hand.\nProof: an observer whose stub verify prints a PASS line then a FAIL line; the cause names the FAIL step.",
+    "Lead trap: when `slice verify` fails, run `bin/krn verify --base <base> --observer <file>` in the worktree to see the FAIL step and its log."
+  ]
+}
