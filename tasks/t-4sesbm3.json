@@ -1,7 +1,11 @@
 {
   "id": "t-4sesbm3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "feat(slice): name the review findings when review fails (t-4sesbm3)"
+  },
   "created": "2026-11-04",
   "priority": 2,
   "title": "slice run names the review findings when review fails",
