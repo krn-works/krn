@@ -56,6 +56,7 @@ if (role === 'gh') {
    process.stdout.write('{}');
  } else if (resource.includes('/check-runs?')) {
    if (config.ciPending) { process.stdout.write('[{"check_runs":[]}]'); process.exit(0); }
+   if (config.headCiPending && resource.includes(config.head)) { process.stdout.write('[{"check_runs":[]}]'); process.exit(0); }
    let checks = config.checkRuns ? JSON.stringify([{check_runs: config.checkRuns}]) : raw('checks');
    if (resource.includes(config.merge)) checks = checks.replaceAll(config.head, config.merge);
    if (config.ciFailure || (config.mainCiFailure && resource.includes(config.merge))) checks = checks.replaceAll('"success"','"failure"');
@@ -847,17 +848,30 @@ for (const [label, patch] of [
   });
 }
 
-test('delivery retains worktree until full main CI succeeds', async (t) => {
+test('delivery runs hygiene when main CI fails after the merge', async (t) => {
   const f = fixture(t, true);
   f.change({ mainCiFailure: true });
-  await assert.rejects(
-    f.api.deliver(f.options, f.runtime),
-    /ci: gate concluded failure on [0-9a-f]{40}; failed at stage unknown: [^;]+; rerun: main has no lead rerun \(the lead Jenkins account builds PR jobs only\)/u,
+  const mainFailure =
+    /ci: gate concluded failure on [0-9a-f]{40}; failed at stage unknown: [^;]+; rerun: main has no lead rerun \(the lead Jenkins account builds PR jobs only\)/u;
+  const branch = f.git(f.worktree, ['branch', '--show-current']);
+  await assert.rejects(f.api.deliver(f.options, f.runtime), mainFailure);
+  assert.equal(existsSync(f.worktree), false);
+  assert.equal(
+    f.git(f.main, ['branch', '--list', branch]),
+    '',
+    'merged branch retired',
   );
-  assert.ok(existsSync(f.worktree));
+  assert.equal(f.git(f.main, ['rev-parse', 'HEAD']), f.config.merge);
+  assert.equal(f.calls().filter((call) => call.args[0] === 'ship').length, 2);
+  // Hygiene removed the PR worktree, so reruns start from the main checkout.
+  const rerun = { ...f.runtime, cwd: f.main };
+  // The PR head gate passed before the saved merge; a rerun must not wait on it again.
+  f.change({ headCiPending: true });
+  await assert.rejects(f.api.deliver(f.options, rerun), mainFailure);
+  f.change({ headCiPending: false });
   assert.equal(f.calls().filter((call) => call.args[0] === 'ship').length, 2);
   f.change({ mainCiFailure: false });
-  assert.equal((await f.api.deliver(f.options, f.runtime)).status, 'delivered');
+  assert.equal((await f.api.deliver(f.options, rerun)).status, 'delivered');
   assert.equal(f.calls().filter((call) => call.args[0] === 'ship').length, 2);
 });
 

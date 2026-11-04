@@ -662,8 +662,11 @@ export async function deliver(
       state.merge = result.merge;
       save();
     } else {
-      stage = 'ci';
-      await waitGate(state.head);
+      // A saved merge means this delivery saw the PR head gate pass before ship.
+      if (!state.merge) {
+        stage = 'ci';
+        await waitGate(state.head);
+      }
       stage = 'ship';
       if (!state.merge) {
         const recovered = shipSchema.parse(
@@ -687,7 +690,14 @@ export async function deliver(
     }
     if (!state.merge) throw new Error('ship did not provide a merge sha');
     stage = 'ci';
-    const mainConclusion = await waitGate(state.merge, true);
+    // The merge is final: hygiene runs even when the main gate is red, then the red gate is reported.
+    let mainConclusion = 'pending';
+    let mainFailure: { error: unknown } | undefined;
+    try {
+      mainConclusion = await waitGate(state.merge, true);
+    } catch (error) {
+      mainFailure = { error };
+    }
     stage = 'hygiene';
     validateHygieneDirectories(main, state.worktree);
     const archive = join(main, '.krn', 'archive');
@@ -740,6 +750,11 @@ export async function deliver(
         throw new Error('refuse to retire a changed branch');
       git(main, ['branch', '-d', '--', state.branch]);
     } else if (branch.code !== 1) checked(branch);
+    if (mainFailure) {
+      // Saved state stays so a rerun keeps its binding and reports the red gate again.
+      stage = 'ci';
+      throw mainFailure.error;
+    }
     rmSync(directory, { recursive: true, force: true });
     return {
       status: 'delivered',

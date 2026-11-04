@@ -1,7 +1,11 @@
 {
   "id": "t-5hh171q",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fix(deliver): run hygiene when the main gate fails after the merge (t-5hh171q)"
+  },
   "created": "2026-11-04",
   "priority": 1,
   "title": "deliver runs hygiene when the main gate fails after the merge",

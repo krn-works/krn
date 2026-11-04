@@ -1,0 +1,13 @@
+{
+  "id": "t-dxna9xq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "slice run checks --repo against the origin remote",
+  "after": [],
+  "body": [
+    "Outcome: krn slice run refuses (64) at the base stage, before any worktree or claim, a --repo that does not name the origin remote's owner/repo, instead of storing it in the journal and failing at the pr stage.\nEvidence: #208 (t-vxshve4): --repo korneliuszburian/krn passed base, worktree and claim; origin is krn-works/krn; the lead fixed journal.json by hand before the pr stage (.krn/runs/lead/pr-head-wait/).\nProof: an observer where the stub origin URL is https://github.com/o/r.git and --repo x/r exits 64 with no git worktree add call.",
+    "Lead trap: pass --repo as the owner/repo of `git remote get-url origin` (krn-works/krn); a wrong slug already in the journal is fixed in .krn/runs/slice/<task>/journal.json before the pr stage."
+  ]
+}
