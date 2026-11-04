@@ -1,7 +1,11 @@
 {
   "id": "t-xgz4601",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "driver flags partial/blocked reports with no changes and no command+exit blocker"
+  },
   "created": "2026-11-04",
   "priority": 2,
   "title": "Driver flags a partial report with no changes and a non-technical blocker",
