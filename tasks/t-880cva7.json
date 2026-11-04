@@ -1,7 +1,11 @@
 {
   "id": "t-880cva7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn slice run drives one slice end to end with a resumable journal"
+  },
   "created": "2026-11-04",
   "priority": 1,
   "title": "krn slice run drives one slice end to end with a resumable journal",
