@@ -40,6 +40,7 @@ type RunSlice = (
   readonly exitCode: number;
   readonly stage: string;
   readonly cause: string;
+  readonly details?: readonly string[];
 }>;
 
 const BASE = 'a'.repeat(40);
@@ -114,6 +115,7 @@ function stub(
     readonly worker?: number;
     readonly reviews?: readonly number[];
     readonly reviewRefusal?: boolean;
+    readonly recordBody?: string;
     readonly prs?: string;
     readonly crashAt?: string;
     readonly base?: string;
@@ -235,6 +237,10 @@ function stub(
       const attempt = prior ? Number(basename(prior, '.json')) + 1 : reviews;
       const record = recordPath(root, attempt);
       const verdict = code === 0 ? 'PASS' : 'FAIL';
+      if (script.recordBody !== undefined) {
+        await mkdir(join(record, '..'), { recursive: true });
+        await writeFile(record, script.recordBody);
+      }
       return {
         code,
         stdout: `${JSON.stringify({ headSha: HEAD, panelVerdict: verdict, record })}\n`,
@@ -894,4 +900,93 @@ test('run files never follow a symlink', async (t) => {
   });
   assert.equal(await readFile(target, 'utf8'), 'untouched\n');
   assert.equal(result.exitCode, 0, result.cause);
+});
+
+test('a review FAIL names the record path and each BLOCKING finding', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  const finding = (severity: string, title: string, line: number) => ({
+    severity,
+    title,
+    path: 'src/x.ts',
+    line,
+    defect: 'd',
+    fix: 'f',
+  });
+  const recordBody = JSON.stringify({
+    prepass: {
+      state: 'complete',
+      findings: [
+        finding('BLOCKING', 'the title', 12),
+        finding('NON_BLOCKING', 'a nit', 3),
+      ],
+    },
+    judges: [
+      { state: 'incomplete', reason: 'turn_incomplete' },
+      {
+        findings: [
+          finding('BLOCKING', 'judge\ntitle', 40),
+          { ...finding('NON_BLOCKING', 'demoted one', 41), demoted: true },
+        ],
+      },
+    ],
+  });
+  const failed = await runSlice(options, {
+    root,
+    krn,
+    run: stub(root, { reviews: [3], recordBody }).run,
+  });
+  assert.equal(failed.exitCode, 3);
+  assert.equal(failed.stage, 'review');
+  assert.ok(!/[\r\n]/.test(failed.cause), 'one-line cause');
+  assert.match(failed.cause, /^review FAIL exit 3$/u);
+  assert.deepEqual(failed.details, [
+    `record ${recordPath(root, 1)}`,
+    'BLOCKING src/x.ts:12 the title',
+    'BLOCKING src/x.ts:40 judge title',
+  ]);
+});
+
+test('a review FAIL with an unreadable record still names the record path', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  const failed = await runSlice(options, {
+    root,
+    krn,
+    run: stub(root, { reviews: [3], recordBody: '{not json' }).run,
+  });
+  assert.equal(failed.exitCode, 3);
+  assert.deepEqual(failed.details, [`record ${recordPath(root, 1)}`]);
+});
+
+test('a failed slice prints the cause line, then one uncut line per detail', async () => {
+  const cli = (await import('../../src/slice/cli.ts')) as Record<
+    string,
+    unknown
+  >;
+  assert.equal(typeof cli.failureText, 'function');
+  const failureText = cli.failureText as (result: {
+    exitCode: number;
+    stage: string;
+    cause: string;
+    details?: readonly string[];
+  }) => string;
+  const path = `/${'p'.repeat(300)}/1.json`;
+  assert.equal(
+    failureText({
+      exitCode: 3,
+      stage: 'review',
+      cause: 'review FAIL exit 3',
+      details: [
+        `record ${path}`,
+        'BLOCKING src/x.ts:12 the title',
+        'BLOCKING a:1 b\nc',
+      ],
+    }),
+    `slice review exit=3: review FAIL exit 3\n  record ${path}\n  BLOCKING src/x.ts:12 the title\n  BLOCKING a:1 b c\n`,
+  );
+  assert.equal(
+    failureText({ exitCode: 65, stage: 'verify', cause: 'x' }),
+    'slice verify exit=65: x\n',
+  );
 });

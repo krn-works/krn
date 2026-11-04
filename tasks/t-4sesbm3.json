@@ -1,0 +1,16 @@
+{
+  "id": "t-4sesbm3",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "feat(slice): name the review findings when review fails (t-4sesbm3)"
+  },
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "slice run names the review findings when review fails",
+  "after": [],
+  "body": [
+    "Outcome: when the review stage fails, `krn slice run` prints the record path and each BLOCKING finding (severity, path:line, title, one line each) instead of only \"review failed exit 3\", so the lead decides without opening the record.\nEvidence: PR #204 (t-4bc72d3): `slice review exit=3: review failed exit 3`; the lead needed jq over records/1.json to see the one finding.\nProof: an observer whose stub review prints a FAIL record with one finding; the cause names the record path and the finding."
+  ]
+}

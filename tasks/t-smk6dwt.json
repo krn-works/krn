@@ -1,0 +1,12 @@
+{
+  "id": "t-smk6dwt",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 1,
+  "title": "slice run handles a review FAIL on an unchanged head",
+  "after": [],
+  "body": [
+    "Outcome: after a first review FAIL on an unchanged head, `krn slice run` offers the lead's documented choices instead of dead-ending: a rerun with `--override --reason <text> --evidence <text>` records the override through `krn review --override` on the exact head and continues to deliver; a plain rerun on an unchanged head refuses with 65 naming both options (fix and commit, or override) before verify/push.\nEvidence: PR #204 (t-4bc72d3) dogfood: prepass-only false-positive FAIL; rerun ran verify and push, then `krn review --prior-record` exited 64 \"--prior-record must have a different head SHA\" (.krn/runs/lead/review-pending/slice-review2.log); override had to be done by hand outside the journal.\nProof: an observer where review 1 FAILs and the head is unchanged: plain rerun exits 65 with no review call; rerun with --override calls `krn review ... --override` once and records its record in the journal."
+  ]
+}
