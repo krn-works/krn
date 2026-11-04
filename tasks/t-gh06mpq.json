@@ -1,0 +1,12 @@
+{
+  "id": "t-gh06mpq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 1,
+  "title": "slice run re-verifies a head changed after a review FAIL",
+  "after": [],
+  "body": [
+    "Outcome: after a review FAIL and a lead fix commit, `krn slice run` notices the head changed since its verify stage and reruns `krn verify` on the new head before the second review attempt, instead of the lead running verify by hand.\nEvidence: #209: journal stayed at stage review after the fixup; the lead ran `bin/krn verify --base bb52ea9 --observer test/deliver/delivery.test.ts` manually (.krn/runs/lead/main-red-hygiene/verify2.log) before rerunning slice.\nProof: an observer changes the worktree head after a recorded review FAIL and asserts slice runs verify on the new head before calling review."
+  ]
+}

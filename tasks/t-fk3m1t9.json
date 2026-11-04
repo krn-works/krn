@@ -1,0 +1,12 @@
+{
+  "id": "t-fk3m1t9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 1,
+  "title": "review admission survives observer timeouts under host load",
+  "after": [],
+  "body": [
+    "Outcome: review admission does not refuse a slice because its observer timed out under host load; the observer run uses a timeout that scales or is long enough for test/deliver/delivery.test.ts at load ~40, or the refusal names load and the slice reruns it without a lead wait loop.\nEvidence: #209 slice review exit 64 \"FAIL test/deliver/delivery.test.ts: head: timeout\" at load 47 (blender render, not KRN); .krn/runs/lead/main-red-hygiene/slice-review.log; the lead waited ~30 min for load <30 before a rerun passed admission.\nProof: an observer runs admission with a stub test that exceeds the current per-test timeout only under a simulated slow runner and asserts the chosen behaviour."
+  ]
+}
