@@ -852,7 +852,7 @@ test('delivery retains worktree until full main CI succeeds', async (t) => {
   f.change({ mainCiFailure: true });
   await assert.rejects(
     f.api.deliver(f.options, f.runtime),
-    /ci: gate concluded failure/u,
+    /ci: gate concluded failure on [0-9a-f]{40}; failed at stage unknown: [^;]+; rerun: main has no lead rerun \(the lead Jenkins account builds PR jobs only\)/u,
   );
   assert.ok(existsSync(f.worktree));
   assert.equal(f.calls().filter((call) => call.args[0] === 'ship').length, 2);

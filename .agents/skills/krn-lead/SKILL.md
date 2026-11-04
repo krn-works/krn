@@ -51,6 +51,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 - **Merge message contracts are merge-level.** Declare only observers that are red at the PR base and green on the merged tree. Tracker commits (task records, the close commit) carry no `Change-contract`: admission refuses `none (...)` on a commit, and a PR with tracker commits only cannot deliver yet, so ship task records with a code PR (t-160zvad).
 - **Branch base.** The branch must contain the PR base: `git merge-base --is-ancestor <pr-base> HEAD`.
 - **Authoritative base (t-xxa04np).** With two lanes a parallel fetch moves the local `origin/main`: rebase onto the SHA from `git ls-remote origin main` or the PR's `baseRefOid`, and pass that exact SHA to `krn verify` and `krn review`, never the local `origin/main`.
+- **Main gate rerun (t-33mv33n).** A red main `krn/gate` has no lead rerun: deliver prints its cause (`failed at stage <stage>: <cause>`, or `unknown` with the Primary cause while the deployed library is stale); the next merge to main runs the gate again. Never re-push to rerun.
 - **GLOBAL.** `AGENTS.md` stays within its 90-line cap; run `npm run gate:fast` there as the cheap preflight.
 - **Decisions.** A task or brief must not contradict a recorded ADR; changing a decision is a request to the operator first.
 - **Host load.** Optional local diagnostics and review compete with self-hosted CI for CPU; schedule optional host work separately. Delivery waits only for required GitHub CI, never for host load. `/tmp` is quota-limited; agent temp space lives on disk.
@@ -59,7 +60,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 
 Each open task whose body has a `Lead trap:` line is a known defect with its workaround above; `test/rules/lead-traps.test.ts` keeps this list equal to those tasks, and only `test/rules/lead-traps.test.ts` reads workaround text, so removing a fixed trap breaks no other test. When a fix ships, remove its id here and its workaround above in the same PR.
 
-t-160zvad, t-8k6n32d, t-g5vqm2q, t-jt8n4s2, t-m991e6t, t-tf4qwnz, t-xxa04np
+t-160zvad, t-33mv33n, t-8k6n32d, t-g5vqm2q, t-jt8n4s2, t-m991e6t, t-tf4qwnz, t-xxa04np
 
 ## Talking to the operator
 
