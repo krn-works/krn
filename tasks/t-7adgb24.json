@@ -1,7 +1,11 @@
 {
   "id": "t-7adgb24",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "worker start refuses a repo with package.json and no node_modules/.bin (exit 64)"
+  },
   "created": "2026-11-04",
   "priority": 1,
   "title": "Worker start refuses a worktree without installed dependencies",
