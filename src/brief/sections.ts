@@ -1,4 +1,4 @@
-import { outsideFences } from './index.ts';
+import { normalizeAnswerText, outsideFences } from './index.ts';
 
 /** Invalid sections carry bounded reasons, without echoing their body. */
 export class BriefSectionsError extends Error {
@@ -16,9 +16,17 @@ export function briefSections(text: string): {
   steps: string[] | undefined;
   observer: string | undefined;
   settled: string | undefined;
+  residuals: string[];
 } {
-  const names = ['Allowed paths', 'Steps', 'Proof', 'Settled decisions'];
+  const names = [
+    'Allowed paths',
+    'Steps',
+    'Proof',
+    'Settled decisions',
+    'Hardening',
+  ];
   const bodies = new Map<string, string[]>();
+  const hardeningRaw: string[] = [];
   const reasons: string[] = [];
   const raw = text.split('\n');
   let active: string | undefined;
@@ -35,7 +43,8 @@ export function briefSections(text: string): {
         continue;
       }
       if (bodies.has(active)) {
-        if (reasons.length < 64)
+        // checkBrief reports a duplicate Hardening section.
+        if (active !== 'Hardening' && reasons.length < 64)
           reasons.push(`duplicate ${active} section at line ${number}`);
         active = undefined;
         continue;
@@ -45,7 +54,10 @@ export function briefSections(text: string): {
     } else if (/^ {0,3}#[\t ]/u.test(line)) {
       if (active === 'Settled decisions') settledEnd = number - 1;
       active = undefined;
-    } else if (active) bodies.get(active)?.push(line);
+    } else if (active) {
+      bodies.get(active)?.push(line);
+      if (active === 'Hardening') hardeningRaw.push(raw[number - 1] ?? line);
+    }
   }
   const allowedBody = bodies.get('Allowed paths');
   const allowed = allowedBody
@@ -85,6 +97,22 @@ export function briefSections(text: string): {
     .find((token) =>
       /^test\/(?:[^\s/]+\/)*[^\s/]+\.test\.(?:ts|mjs|js|cjs)$/u.test(token),
     );
+  // A residual is a Hardening answer that is not N/A, with its continuation lines.
+  const residuals: string[] = [];
+  let keep = false;
+  for (const [index, line] of (bodies.get('Hardening') ?? []).entries()) {
+    const answer =
+      /^ {0,1}[-*][\t ]+(?:`[^\s`:\p{Cc}]+`|[^\s`:\p{Cc}]+)[\t ]*:[\t ]*(.*)$/u.exec(
+        line,
+      );
+    if (answer)
+      keep = !/^(?:[Nn]\/[Aa]|NA)\b/u.test(
+        normalizeAnswerText(answer[1] ?? ''),
+      );
+    else if (!/^ {2,}\S/u.test(line)) keep = false;
+    // Residuals stay verbatim, CRLF included.
+    if (keep) residuals.push(hardeningRaw[index] ?? line);
+  }
   if (reasons.length)
     throw new BriefSectionsError(
       reasons.slice(0, 64),
@@ -99,5 +127,6 @@ export function briefSections(text: string): {
         ? undefined
         : raw.slice(settledStart, settledEnd).join('\n') +
           (settledEnd < raw.length ? '\n' : ''),
+    residuals,
   };
 }
