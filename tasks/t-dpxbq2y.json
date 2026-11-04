@@ -1,7 +1,11 @@
 {
   "id": "t-dpxbq2y",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "validity.json committed: below power (max 0.314 at n=28; 0.002 at 5 clusters); FR-40 not built, convention-task alternative reported to operator"
+  },
   "created": "2026-10-27",
   "priority": 1,
   "title": "Check the FR-40 experiment's power before building it",
