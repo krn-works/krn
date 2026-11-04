@@ -295,11 +295,14 @@ export async function runSlice(
       (await exec('git', ['ls-remote', 'origin', 'main'], root))
         .trim()
         .split(/\s/u)[0] === journal.base;
-    if (options.override === true && !unchanged)
+    if (options.override === true && !unchanged) {
+      // A refusal changes nothing: a completed stage must not be rerun.
+      writable = false;
       throw new Failure(
         64,
         '--override applies only to a review FAIL on the unchanged reviewed head and base',
       );
+    }
     if (unchanged && options.override !== true)
       throw new Failure(
         65,
@@ -561,12 +564,24 @@ export async function runSlice(
             journal.reviewFailed = undefined;
             await save();
           }
-          await krn([
-            'verify',
-            '--base',
-            journal.base,
-            ...observers.flatMap((p) => ['--observer', p]),
-          ]);
+          const verified = await runtime.run(
+            runtime.krn,
+            [
+              'verify',
+              '--base',
+              journal.base,
+              ...observers.flatMap((p) => ['--observer', p]),
+            ],
+            { cwd: worktree },
+          );
+          if (verified.code !== 0)
+            throw new Failure(
+              verified.code,
+              verifyFailure(verified.stdout) ||
+                verified.stderr ||
+                verified.stdout ||
+                `${runtime.krn} exit ${verified.code}`,
+            );
           break;
         }
         case 'pr': {
@@ -835,4 +850,14 @@ async function recordOverridden(
 ): Promise<boolean> {
   const parsed = await readRecordHead(record);
   return parsed?.headSha === head && parsed.override !== undefined;
+}
+
+/** The first failing step line of `krn verify` stdout (`<step> FAIL <detail>`), else its overall line. */
+function verifyFailure(stdout: string): string {
+  const lines = stdout.split(/\r?\n/u);
+  return (
+    lines.find((line) => /^(?!overall )\S+ FAIL /u.test(line)) ??
+    lines.find((line) => line.startsWith('overall FAIL')) ??
+    ''
+  );
 }

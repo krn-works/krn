@@ -1,0 +1,16 @@
+{
+  "id": "t-625v6fr",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "folded into t-smc67ss: a refused --override leaves the journal byte-identical"
+  },
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "slice run leaves the journal unchanged when it refuses --override",
+  "after": [],
+  "body": [
+    "Outcome: `krn slice run --override` refused with 64 (head or base changed, or no reviewed FAIL) leaves the journal byte-identical, so a completed stage is not rerun.\nEvidence: PR #206 review record 2 finding \"Odrzucony override zmienia journal\", confirmed REAL by the independent verifier (.krn/runs/lead/review-override/verdict.md): journal {stage:pr, completed:true} becomes completed:false, exitCode:64. Fix: set `writable = false` before the 64 throw in src/slice/run.ts.\nProof: an observer that refuses --override on a completed-stage journal and asserts journal.json is unchanged; plus a failed override (non-zero exit) leaves stage review."
+  ]
+}

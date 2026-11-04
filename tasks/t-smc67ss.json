@@ -1,7 +1,11 @@
 {
   "id": "t-smc67ss",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fix(slice): name the failing verify step (t-smc67ss)"
+  },
   "created": "2026-11-04",
   "priority": 1,
   "title": "slice run names the failing verify step",
