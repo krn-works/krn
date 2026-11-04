@@ -5,6 +5,7 @@ import {
   realpathSync,
   renameSync,
   rmSync,
+  statSync,
 } from 'node:fs';
 import { join, matchesGlob, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -238,6 +239,17 @@ export async function workerCommand(args: string[]): Promise<void> {
           if (error.hasAllowed)
             throw new WorkerError(64, error.reasons.join('\n'));
         } else throw error;
+      }
+      if (existsSync(join(repo, 'package.json'))) {
+        const missingDependencies = `dependencies missing: run pnpm install --frozen-lockfile in ${repo}`;
+        try {
+          if (!statSync(join(repo, 'node_modules/.bin')).isDirectory())
+            throw new WorkerError(64, missingDependencies);
+        } catch (error) {
+          if (error instanceof WorkerError) throw error;
+          if (!isMissing(error) && !isMissing(error, 'ENOTDIR')) throw error;
+          throw new WorkerError(64, missingDependencies);
+        }
       }
     } else {
       if (command === 'stop' && !existsSync(run)) return;

@@ -1,0 +1,12 @@
+{
+  "id": "t-xgz4601",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "Driver flags a partial report with no changes and a non-technical blocker",
+  "after": [],
+  "body": [
+    "Outcome: when a worker turn reports partial or blocked with empty changed_paths and no blocker naming a command and its exit code, krn worker start/send print 'blocker not technical: send a continuation' and record it in result.json, so the lead does not read the rollout. Evidence: PR #193 round 1, gpt-6-luna stopped after 24 s and 3 reads claiming no time left although the prompt says no time limit (.krn/runs/lead/verify-observer/rounds/001/report.json). Proof: new observer under test/worker/ red at base by assertion."
+  ]
+}
