@@ -779,6 +779,35 @@ test('a crash during review fails closed instead of spending another attempt', a
   assert.equal(count(second.calls, 'krn review'), 0);
 });
 
+test('a crash after review returns a record fails closed on rerun', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  const first = stub(root, {});
+  const crashed = await runSlice(options, {
+    root,
+    krn,
+    run: async (command, args, opts) => {
+      const result = await first.run(command, args, opts);
+      if (!normalize(command, args).join(' ').startsWith('krn review'))
+        return result;
+      return {
+        code: result.code,
+        stderr: result.stderr,
+        get stdout(): string {
+          throw new Error('simulated crash while reading the review record');
+        },
+      };
+    },
+  });
+  assert.notEqual(crashed.exitCode, 0);
+  assert.equal(count(first.calls, 'krn review'), 1);
+  const second = stub(root, {});
+  const result = await runSlice(options, { root, krn, run: second.run });
+  assert.equal(result.exitCode, 65);
+  assert.equal(result.stage, 'review');
+  assert.equal(count(second.calls, 'krn review'), 0);
+});
+
 const MOVED = 'c'.repeat(40);
 
 test('a second review round re-verifies and pushes the fixed head first', async (t) => {
