@@ -76,8 +76,16 @@ export async function sliceCommand(args: readonly string[]): Promise<void> {
     };
   }
   process.exitCode = result.exitCode;
-  if (result.exitCode !== 0)
-    process.stderr.write(
-      `slice ${result.stage} exit=${result.exitCode}: ${oneLine(result.cause)}\n`,
-    );
+  if (result.exitCode !== 0) process.stderr.write(failureText(result));
+}
+
+/** The stderr text of a failed slice run: the cause line, then one indented line per detail; details keep their length so a record path is never cut. */
+export function failureText(result: SliceResult): string {
+  return `slice ${result.stage} exit=${result.exitCode}: ${oneLine(result.cause)}\n${(
+    result.details ?? []
+  )
+    .map(
+      (detail) => `  ${detail.replace(/[\p{Cc}\p{Cf}\u2028\u2029]+/gu, ' ')}\n`,
+    )
+    .join('')}`;
 }

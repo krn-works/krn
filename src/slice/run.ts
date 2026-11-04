@@ -56,12 +56,16 @@ export interface SliceResult {
   readonly exitCode: number;
   readonly stage: string;
   readonly cause: string;
+  /** Lines after the cause: a failed review's record path, then one per BLOCKING finding. */
+  readonly details?: readonly string[];
 }
 class Failure extends Error {
   readonly code: number;
-  constructor(code: number, cause: string) {
+  readonly details: readonly string[];
+  constructor(code: number, cause: string, details: readonly string[] = []) {
     super(oneLine(cause) || `command failed exit ${code}`);
     this.code = code;
+    this.details = details;
   }
 }
 // `git worktree list --porcelain` names a registered worktree with its branch.
@@ -613,10 +617,10 @@ export async function runSlice(
           }
           await save();
           if (result.code)
-            throw new Failure(
-              result.code,
-              result.stderr || `review failed exit ${result.code}`,
-            );
+            throw new Failure(result.code, `review FAIL exit ${result.code}`, [
+              `record ${journal.reviewRecord}`,
+              ...(await blockingFindings(journal.reviewRecord)),
+            ]);
           break;
         }
         case 'deliver': {
@@ -674,8 +678,46 @@ export async function runSlice(
         /* Preserve original refusal. */
       }
     }
-    return { exitCode, stage, cause };
+    const details = error instanceof Failure ? error.details : [];
+    return { exitCode, stage, cause, ...(details.length ? { details } : {}) };
   } finally {
     if (lock) await rm(lock, { force: true });
+  }
+}
+
+const recordFindings = z.array(
+  z.object({
+    severity: z.string(),
+    path: z.string(),
+    line: z.number(),
+    title: z.string(),
+    demoted: z.boolean().optional(),
+  }),
+);
+
+/** Names each non-demoted BLOCKING finding of a review record; an unreadable record names none. */
+async function blockingFindings(record: string): Promise<string[]> {
+  try {
+    const parsed = z
+      .object({
+        prepass: z.object({ findings: recordFindings }).optional(),
+        judges: z
+          .array(z.object({ findings: recordFindings.default([]) }))
+          .default([]),
+      })
+      .parse(JSON.parse(await readFile(record, 'utf8')));
+    return [
+      parsed.prepass?.findings ?? [],
+      ...parsed.judges.map((j) => j.findings),
+    ]
+      .flat()
+      .filter((f) => f.severity === 'BLOCKING' && f.demoted !== true)
+      .map((f) =>
+        oneLine(
+          `BLOCKING ${f.path}:${f.line} ${f.title.replace(/\s+/gu, ' ')}`,
+        ),
+      );
+  } catch {
+    return [];
   }
 }
