@@ -1,7 +1,11 @@
 {
   "id": "t-smk6dwt",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "feat(slice): offer override after a review FAIL on an unchanged head (t-smk6dwt)"
+  },
   "created": "2026-11-04",
   "priority": 1,
   "title": "slice run handles a review FAIL on an unchanged head",
