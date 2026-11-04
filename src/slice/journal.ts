@@ -37,6 +37,13 @@ export const journalSchema = z.object({
   pushed: z.boolean().optional(),
   workerOpen: z.boolean().optional(),
   reviewPending: z.boolean().optional(),
+  reviewHead: z
+    .string()
+    .regex(/^[a-f\d]{40,64}$/u)
+    .nullable()
+    .optional(),
+  reviewOverride: z.boolean().optional(),
+  reviewFailed: z.boolean().optional(),
 });
 export type Journal = z.infer<typeof journalSchema>;
 

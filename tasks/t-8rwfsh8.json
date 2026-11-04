@@ -1,0 +1,17 @@
+{
+  "id": "t-8rwfsh8",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "slice run regenerates the lens before every review attempt (with t-smk6dwt)"
+  },
+  "created": "2026-11-04",
+  "priority": 1,
+  "title": "slice run reviews against a lens from the current brief",
+  "after": [],
+  "body": [
+    "Outcome: `krn slice run` regenerates the review lens from the current brief before every review attempt (or refuses when the brief changed after the lens), so review never judges against superseded settled decisions.\nEvidence: PR #205 (t-4sesbm3): the lead revised the brief after the brief stage; attempt 1 (prepass) raised two BLOCKING findings that matched only the stale .krn/runs/slice/t-4sesbm3/lens.md; an independent Opus verdict rated both NOT A DEFECT.\nProof: an observer that changes the brief after the brief stage and asserts the lens passed to `krn review` holds the new Settled decisions.",
+    "Lead trap: after any brief edit past the brief stage, run `krn brief lens <brief> > .krn/runs/slice/<task>/lens.md` before the review stage."
+  ]
+}

@@ -23,7 +23,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 
 ## The slice loop
 
-`krn slice run <task-id> --brief <file> --message <file> --name <kebab> --repo <owner/repo> --model <id> --effort <level> [--worker none] [--stop-after <stage>]` chains steps 3–8 below from the main checkout with a resumable journal in `.krn/runs/slice/<task>/journal.json`: rerun it with the same arguments after any stop; `--stop-after claim` leaves room for lead edits, and `--worker none` skips (or closes a failed) worker. The message file is the implementation commit message without trailers; the runner appends `Ticket:` and `Change-contract:`. The manual steps stay the reference for each stage.
+`krn slice run <task-id> --brief <file> --message <file> --name <kebab> --repo <owner/repo> --model <id> --effort <level> [--worker none] [--stop-after <stage>]` chains steps 3–8 below from the main checkout with a resumable journal in `.krn/runs/slice/<task>/journal.json`: rerun it with the same arguments after any stop; `--stop-after claim` leaves room for lead edits, and `--worker none` skips (or closes a failed) worker. The message file is the implementation commit message without trailers; the runner appends `Ticket:` and `Change-contract:`. After a review FAIL on an unchanged head a plain rerun exits 65; fix and commit, or rerun with `--override --reason <text> --evidence <text>` to record the override and deliver. The manual steps stay the reference for each stage.
 
 1. **Resume.** `krn state resume --root .`, `krn task ready`, `git fetch --prune`, open PRs, main CI. Confirm no other writer on this outcome; a second lane follows "Parallel lanes" in `docs/program/lead-rules.md`.
 2. **Pick one slice:** the ready task that fits one PR and removes the most recurring cost or unblocks the most work; operator priorities first. Say what you defer.
@@ -54,6 +54,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 - **Branch base.** The branch must contain the PR base: `git merge-base --is-ancestor <pr-base> HEAD`.
 - **Authoritative base (t-xxa04np).** With two lanes a parallel fetch moves the local `origin/main`: rebase onto the SHA from `git ls-remote origin main` or the PR's `baseRefOid`, and pass that exact SHA to `krn verify` and `krn review`, never the local `origin/main`.
 - **Main gate rerun (t-33mv33n).** A red main `krn/gate` has no lead rerun: deliver prints its cause (`failed at stage <stage>: <cause>`, or `unknown` with the Primary cause while the deployed library is stale); the next merge to main runs the gate again. Never re-push to rerun.
+- **Slice verify cause (t-smc67ss).** `slice verify exit=1` names the first verify line, not the failing step; run `bin/krn verify --base <base> --observer <file>` in the worktree to see the FAIL step and its log.
 - **GLOBAL.** `AGENTS.md` stays within its 90-line cap; run `npm run gate:fast` there as the cheap preflight.
 - **Decisions.** A task or brief must not contradict a recorded ADR; changing a decision is a request to the operator first.
 - **Host load.** Optional local diagnostics and review compete with self-hosted CI for CPU; schedule optional host work separately. Delivery waits only for required GitHub CI, never for host load. `/tmp` is quota-limited; agent temp space lives on disk.
@@ -62,7 +63,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 
 Each open task whose body has a `Lead trap:` line is a known defect with its workaround above; `test/rules/lead-traps.test.ts` keeps this list equal to those tasks, and only `test/rules/lead-traps.test.ts` reads workaround text, so removing a fixed trap breaks no other test. When a fix ships, remove its id here and its workaround above in the same PR.
 
-t-160zvad, t-33mv33n, t-8k6n32d, t-g5vqm2q, t-jt8n4s2, t-m991e6t, t-tf4qwnz, t-xxa04np
+t-160zvad, t-33mv33n, t-8k6n32d, t-g5vqm2q, t-jt8n4s2, t-m991e6t, t-smc67ss, t-tf4qwnz, t-xxa04np
 
 ## Talking to the operator
 

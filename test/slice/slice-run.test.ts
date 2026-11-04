@@ -31,6 +31,9 @@ interface SliceOptions {
   readonly effort: string;
   readonly worker?: 'codex' | 'none';
   readonly stopAfter?: string;
+  readonly override?: boolean;
+  readonly reason?: string;
+  readonly evidence?: string;
 }
 
 type RunSlice = (
@@ -45,6 +48,7 @@ type RunSlice = (
 
 const BASE = 'a'.repeat(40);
 const HEAD = 'b'.repeat(40);
+const FIXED = 'd'.repeat(40);
 const TASK = 't-test123';
 
 interface Call {
@@ -120,6 +124,7 @@ function stub(
     readonly crashAt?: string;
     readonly base?: string;
     readonly rebased?: boolean;
+    readonly head?: string;
   },
 ): { readonly run: Run; readonly calls: Call[] } {
   const calls: Call[] = [];
@@ -173,7 +178,7 @@ function stub(
       }
       return ok('');
     }
-    if (line.startsWith('git rev-parse')) return ok(`${HEAD}\n`);
+    if (line.startsWith('git rev-parse')) return ok(`${script.head ?? HEAD}\n`);
     if (line.startsWith('git worktree list')) {
       const exists = await stat(worktree).then(
         () => true,
@@ -227,6 +232,12 @@ function stub(
     if (line.startsWith('gh pr list')) return ok(script.prs ?? '[]\n');
     if (line.startsWith('gh pr create'))
       return ok('https://github.com/o/r/pull/7\n');
+    if (line.startsWith('krn review') && words.includes('--override')) {
+      // Verbatim shape of `krn review --override` stdout (src/flow/cli.ts): no record path.
+      return ok(
+        `${JSON.stringify({ headSha: valueAfter(words, '--head'), override: { reason: valueAfter(words, '--reason'), evidence: valueAfter(words, '--evidence'), appendedAt: '2026-11-04T00:00:00.000Z' } })}\n`,
+      );
+    }
     if (line.startsWith('krn review')) {
       if (script.reviewRefusal === true) {
         return { code: 64, stdout: '', stderr: 'review: missing --lens\n' };
@@ -449,7 +460,7 @@ test('a rerun after a review FAIL resumes at review and never starts a third att
   assert.equal(state.reviewAttempts, 1);
   assert.equal(state.reviewRecord, recordPath(root, 1));
 
-  const second = stub(root, { reviews: [1] });
+  const second = stub(root, { reviews: [1], head: FIXED });
   const again = await runSlice(options, { root, krn, run: second.run });
   assert.notEqual(again.exitCode, 0);
   assert.equal(again.stage, 'review');
@@ -484,7 +495,7 @@ test('a second review PASS after a FAIL delivers its own record', async (t) => {
   const runSlice = await loadRunSlice();
   const { root, options, krn } = await fixture(t);
   await runSlice(options, { root, krn, run: stub(root, { reviews: [1] }).run });
-  const second = stub(root, { reviews: [0] });
+  const second = stub(root, { reviews: [0], head: FIXED });
   const result = await runSlice(options, { root, krn, run: second.run });
   assert.equal(result.exitCode, 0, result.cause);
   assert.equal(result.stage, 'done');
@@ -820,7 +831,7 @@ test('a second review round re-verifies and pushes the fixed head first', async 
   const runSlice = await loadRunSlice();
   const { root, options, krn } = await fixture(t);
   await runSlice(options, { root, krn, run: stub(root, { reviews: [1] }).run });
-  const second = stub(root, {});
+  const second = stub(root, { head: FIXED });
   const result = await runSlice(options, { root, krn, run: second.run });
   assert.equal(result.exitCode, 0, result.cause);
   const review = index(second.calls, 'krn review');
@@ -988,5 +999,132 @@ test('a failed slice prints the cause line, then one uncut line per detail', asy
   assert.equal(
     failureText({ exitCode: 65, stage: 'verify', cause: 'x' }),
     'slice verify exit=65: x\n',
+  );
+});
+
+test('a plain rerun after a review FAIL on the unchanged head refuses before verify and push', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  await runSlice(options, { root, krn, run: stub(root, { reviews: [1] }).run });
+  const second = stub(root, {});
+  const refused = await runSlice(options, { root, krn, run: second.run });
+  assert.equal(refused.exitCode, 65);
+  assert.equal(refused.stage, 'review');
+  assert.match(refused.cause, new RegExp(HEAD));
+  assert.match(refused.cause, /--override/);
+  assert.match(refused.cause, /commit/);
+  for (const prefix of ['krn verify', 'git push', 'krn review', 'krn deliver'])
+    assert.equal(count(second.calls, prefix), 0, `no ${prefix}`);
+  const state = await journal(root);
+  assert.equal(state.reviewAttempts, 1);
+  assert.equal(state.reviewRecord, recordPath(root, 1));
+  assert.equal(state.reviewHead, HEAD);
+});
+
+test('a rerun with --override records the override on the exact head and delivers the FAIL record', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  await runSlice(options, { root, krn, run: stub(root, { reviews: [1] }).run });
+  const second = stub(root, {});
+  const result = await runSlice(
+    {
+      ...options,
+      override: true,
+      reason: 'false positive',
+      evidence: 'verdict.md',
+    },
+    { root, krn, run: second.run },
+  );
+  assert.equal(result.exitCode, 0, result.cause);
+  assert.equal(result.stage, 'done');
+  const review = only(second.calls, 'krn review');
+  assert.ok(review.words.includes('--override'));
+  assert.equal(valueAfter(review.words, '--head'), HEAD);
+  assert.equal(valueAfter(review.words, '--pr'), '7');
+  assert.equal(valueAfter(review.words, '--base'), BASE);
+  assert.equal(valueAfter(review.words, '--reason'), 'false positive');
+  assert.equal(valueAfter(review.words, '--evidence'), 'verdict.md');
+  assert.ok(!review.words.includes('--prior-record'));
+  assert.equal(review.cwd, root);
+  assert.equal(count(second.calls, 'krn verify'), 0);
+  assert.equal(count(second.calls, 'git push'), 0);
+  assert.equal(
+    valueAfter(only(second.calls, 'krn deliver').words, '--record'),
+    recordPath(root, 1),
+  );
+  const state = await journal(root);
+  assert.equal(state.reviewRecord, recordPath(root, 1));
+  assert.equal(state.reviewOverride, true);
+});
+
+test('--override needs both --reason and --evidence and an unchanged reviewed FAIL head', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  const bare = stub(root, {});
+  const missing = await runSlice(
+    { ...options, override: true, reason: 'r' },
+    { root, krn, run: bare.run },
+  );
+  assert.equal(missing.exitCode, 64);
+  assert.equal(bare.calls.length, 0);
+  const stray = await runSlice(
+    { ...options, reason: 'r', evidence: 'e' },
+    { root, krn, run: bare.run },
+  );
+  assert.equal(stray.exitCode, 64);
+  await runSlice(options, { root, krn, run: stub(root, { reviews: [1] }).run });
+  const changed = stub(root, { head: FIXED });
+  const refused = await runSlice(
+    { ...options, override: true, reason: 'r', evidence: 'e' },
+    { root, krn, run: changed.run },
+  );
+  assert.equal(refused.exitCode, 64);
+  assert.equal(count(changed.calls, 'krn review'), 0);
+  assert.equal(count(changed.calls, 'krn verify'), 0);
+  assert.equal((await journal(root)).reviewAttempts, 1);
+});
+
+test('the review stage regenerates the lens from the current brief before every attempt', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  await runSlice(options, { root, krn, run: stub(root, { reviews: [1] }).run });
+  const second = stub(root, { head: FIXED });
+  const result = await runSlice(options, { root, krn, run: second.run });
+  assert.equal(result.exitCode, 0, result.cause);
+  const lens = index(second.calls, 'krn brief lens');
+  assert.ok(
+    lens >= 0 && lens < index(second.calls, 'krn review'),
+    'lens before review',
+  );
+  assert.equal(count(second.calls, 'krn brief check'), 0);
+});
+
+test('a review PASS saved before its stage completed resumes at deliver, not as a FAIL', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  await runSlice(
+    { ...options, stopAfter: 'review' },
+    { root, krn, run: stub(root, {}).run },
+  );
+  const file = join(root, '.krn', 'runs', 'slice', TASK, 'journal.json');
+  await writeFile(
+    file,
+    `${JSON.stringify({ ...(await journal(root)), completed: false })}\n`,
+  );
+  const override = stub(root, {});
+  const refused = await runSlice(
+    { ...options, override: true, reason: 'r', evidence: 'e' },
+    { root, krn, run: override.run },
+  );
+  assert.equal(refused.exitCode, 64);
+  assert.equal(count(override.calls, 'krn review'), 0);
+  const resumed = stub(root, {});
+  const result = await runSlice(options, { root, krn, run: resumed.run });
+  assert.equal(result.exitCode, 0, result.cause);
+  assert.equal(count(resumed.calls, 'krn review'), 0);
+  assert.equal(count(resumed.calls, 'krn verify'), 0);
+  assert.equal(
+    valueAfter(only(resumed.calls, 'krn deliver').words, '--record'),
+    recordPath(root, 1),
   );
 });
