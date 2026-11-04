@@ -57,6 +57,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 - **Deliver check runs lag (t-5f91xhs).** Right after a push, deliver can exit 76 "check runs unavailable" while `krn/gate` is already reported or pending: rerun the same deliver command.
 - **Repo slug (t-dxna9xq).** `krn slice run --repo` takes the owner/repo of `git remote get-url origin` (`krn-works/krn`); a wrong slug passes until the pr stage: fix `repo` in `.krn/runs/slice/<task>/journal.json` before that stage.
 - **Shared remote refs (t-xa40ns5).** With two lanes a fetch in the other lane moves the shared `.git/refs/remotes`; a worker exit 3 that names only `.git/refs/remotes` paths is not a worker violation: check `git status` in the worktree and continue.
+- **Untracked record copy (t-jc27nbz).** When shipping an untracked task record from the main checkout, move it (copy into the worktree, then delete the main copy) before the close commit; after a deliver exit 77 on such a file, delete it and rerun deliver from the main checkout.
 - **GLOBAL.** `AGENTS.md` stays within its 90-line cap; run `npm run gate:fast` there as the cheap preflight.
 - **Decisions.** A task or brief must not contradict a recorded ADR; changing a decision is a request to the operator first.
 - **Host load.** Optional local diagnostics and review compete with self-hosted CI for CPU; schedule optional host work separately. Delivery waits only for required GitHub CI, never for host load. `/tmp` is quota-limited; agent temp space lives on disk.
@@ -65,7 +66,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 
 Each open task whose body has a `Lead trap:` line is a known defect with its workaround above; `test/rules/lead-traps.test.ts` keeps this list equal to those tasks, and only `test/rules/lead-traps.test.ts` reads workaround text, so removing a fixed trap breaks no other test. When a fix ships, remove its id here and its workaround above in the same PR.
 
-t-160zvad, t-33mv33n, t-5f91xhs, t-8k6n32d, t-dxna9xq, t-g5vqm2q, t-jt8n4s2, t-m991e6t, t-tf4qwnz, t-xa40ns5, t-xxa04np
+t-160zvad, t-33mv33n, t-5f91xhs, t-8k6n32d, t-dxna9xq, t-g5vqm2q, t-jc27nbz, t-jt8n4s2, t-m991e6t, t-tf4qwnz, t-xa40ns5, t-xxa04np
 
 ## Talking to the operator
 

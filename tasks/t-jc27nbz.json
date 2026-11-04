@@ -1,0 +1,12 @@
+{
+  "id": "t-jc27nbz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "Deliver hygiene removes stale untracked copies of records the branch shipped",
+  "after": [],
+  "body": [
+    "Outcome: deliver hygiene removes a main-checkout untracked task record that the merged branch committed and later changed (e.g. the open version before the close commit), instead of exiting 77. PR #214: lane B copied untracked tasks/t-zaxbnqj.json from main into its worktree; the merge brought the closed version, main still held the open one, hygiene stopped 'untracked working tree files would be overwritten by merge'. Proof: observer with a main untracked file equal to an earlier branch blob of the same path, red at base.\nLead trap: when shipping an untracked task record from the main checkout, move it (copy into the worktree, then delete the main copy) before the close commit; after an exit 77 on such a file, delete it and rerun deliver from the main checkout."
+  ]
+}
