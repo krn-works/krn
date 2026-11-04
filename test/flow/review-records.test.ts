@@ -329,3 +329,62 @@ test('timing uses a monotonic duration despite a wall clock reversal', async (t)
   assert.ok(result.durationMs >= 0);
   assert.ok(result.endedAt < result.startedAt);
 });
+
+test('tier panels retain legacy requirements and enforce bounded metadata', () => {
+  const legacy = record();
+  const spec = legacy.judges.find((judge) => judge.role === 'spec');
+  assert.ok(spec);
+  const low = {
+    ...legacy,
+    tier: { level: 'low', reasons: ['LOW_PATHS: docs/guide.md'] },
+    judges: [spec],
+    panel: {
+      requestedRoles: ['spec'],
+      requiredRoles: ['spec'],
+      partial: false,
+    },
+    consolidated: [],
+  };
+  assert.equal(reviewRecordSchema.safeParse(low).success, true);
+  assert.equal(
+    reviewRecordSchema.safeParse({ ...low, tier: undefined }).success,
+    false,
+  );
+  assert.equal(
+    reviewRecordSchema.safeParse({
+      ...low,
+      tier: { level: 'medium', reasons: [] },
+    }).success,
+    false,
+  );
+  assert.equal(
+    reviewRecordSchema.safeParse({
+      ...low,
+      tier: { level: 'low', reasons: Array(11).fill('reason') },
+    }).success,
+    false,
+  );
+  assert.equal(
+    reviewRecordSchema.safeParse({
+      ...low,
+      tier: { level: 'low', reasons: ['ą'.repeat(101)] },
+    }).success,
+    false,
+  );
+  const finding = {
+    severity: 'BLOCKING',
+    title: 'Defect',
+    path: 'a.ts',
+    line: 1,
+    defect: 'Fails',
+    fix: 'Fix',
+    roles: ['spec'],
+  };
+  assert.equal(
+    reviewRecordSchema.safeParse({
+      ...low,
+      consolidated: Array(201).fill(finding),
+    }).success,
+    false,
+  );
+});

@@ -1,0 +1,12 @@
+{
+  "id": "t-ygymrg2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "review classifies the risk tier by default and keeps it in round two",
+  "after": [],
+  "body": [
+    "Outcome: `krn review` classifies the risk tier by default and a round-two review keeps the round-one tier's roles, so a fix that adds a sensitive path cannot be refused by prior-panel role checks and a manual review cannot forget `--risk-tier`.\nEvidence: t-sa7ag03 made `--risk-tier` opt-in because about 18 existing review tests drive the CLI on README.md/src.ts fixtures that classify as low; round two recomputes the tier on the new diff while loadPriorReview requires the same panel roles.\nProof: an observer where round one is low and round two adds a src/flow path, asserting the round-two panel and record; existing review tests pass with classification on by default (fixtures pass `--panel` or touch a medium path)."
+  ]
+}

@@ -1,5 +1,6 @@
 // Versioned review boundary: compact judge evidence bound to one exact commit.
 import { z } from 'zod';
+import { tierRoles } from './tier.ts';
 
 export const roleSchema = z.enum(['standards', 'spec', 'adversarial']);
 export const panelRoles = roleSchema.options;
@@ -66,6 +67,8 @@ export const reviewInputSchema = z
     timeoutMs: z.number().int().positive().optional(),
     pr: z.number().int().positive().max(Number.MAX_SAFE_INTEGER).optional(),
     budgetException: z.string().min(1).optional(),
+    /** Classify the diff and size the panel by its risk tier; omitted keeps the full panel. */
+    riskTier: z.boolean().optional(),
   })
   .refine(
     (value) => value.budgetException === undefined || value.pr !== undefined,
@@ -328,6 +331,9 @@ export function deterministicCauses(
 }
 
 export const findingSchema = z.object({
+  category: z
+    .enum(['correctness', 'security', 'contract', 'test', 'style'])
+    .optional(),
   severity: z.enum(['BLOCKING', 'NON_BLOCKING']),
   title: z.string().min(1).max(300),
   path: z.string().min(1),
@@ -514,6 +520,7 @@ const completeJudgeSchema = z.object({
   verdict: z.enum(['PASS', 'FAIL']),
   declaredVerdict: z.enum(['PASS', 'FAIL']).optional(),
   findings: z.array(findingSchema),
+  droppedStyle: z.number().int().nonnegative().optional(),
   sessionId: z.string().min(1),
   finalMessage: z.string().min(1).max(12000),
   prior: z.array(priorStatusSchema).optional(),
@@ -566,6 +573,33 @@ const panelCompositionSchema = z.object({
   partial: z.boolean(),
 });
 const reviewRecordBaseSchema = z.object({
+  tier: z
+    .object({
+      level: z.enum(['low', 'medium', 'high']),
+      reasons: z
+        .array(z.string().refine((value) => Buffer.byteLength(value) <= 200))
+        .max(10),
+    })
+    .optional(),
+  consolidated: z
+    .array(
+      findingSchema
+        .pick({
+          severity: true,
+          title: true,
+          path: true,
+          line: true,
+          defect: true,
+          fix: true,
+        })
+        .extend({
+          path: z.string().nullable(),
+          line: z.number().int().positive().nullable(),
+          roles: z.array(roleSchema).min(1),
+        }),
+    )
+    .max(200)
+    .optional(),
   schemaVersion: z.union([z.literal(1), z.literal(2)]),
   attempt: reviewAttemptSchema.optional(),
   round: z.union([z.literal(1), z.literal(2)]).optional(),
@@ -776,8 +810,10 @@ function reviewRecordInvariants(
         message: 'panel partial flag does not match its role composition',
       });
     if (
-      required.length !== panelRoles.length ||
-      panelRoles.some((role) => !required.includes(role))
+      required.length !== tierRoles(record.tier?.level ?? 'medium').length ||
+      tierRoles(record.tier?.level ?? 'medium').some(
+        (role) => !required.includes(role),
+      )
     )
       context.addIssue({
         code: 'custom',

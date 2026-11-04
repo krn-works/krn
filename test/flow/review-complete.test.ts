@@ -144,6 +144,7 @@ test('review requests complete-pass findings and keeps prepass outside verdicts'
         readFileSync(outputRecord.record, 'utf8'),
       ) as Record<string, unknown>;
       assert.deepEqual(Object.keys(persisted), [
+        'consolidated',
         'schemaVersion',
         'round',
         'timing',

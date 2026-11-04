@@ -1,0 +1,12 @@
+{
+  "id": "t-bmcza70",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 1,
+  "title": "slice landing start survives a crash between journal save and spawn",
+  "after": [],
+  "body": [
+    "Outcome: the slice landing start survives a crash between the journal save and the detached spawn. Today `krn slice run` saves `landing` before `runtime.detach`; a hard crash in that window leaves `landing: running` with no process, and main CI plus hygiene never run until the lead runs plain `krn deliver`.\nEvidence: PR #210 review 2 record .krn/runs/review-series/3a58521cdc2a7a6596f4795c767717fcb216d88d1ee03d33420a2a917da19d48/records/2.json (src/slice/run.ts:913-914), accepted by lead override.\nProof: an observer crashes the run after the landing save and before spawn, and a rerun starts exactly one landing deliver (e.g. a launch id written by the detached wrapper as its first act, or a uniquely named systemd-run unit checked by identity).\nDecisions: keeps D21/D30; no gate removed."
+  ]
+}

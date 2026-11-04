@@ -1,0 +1,12 @@
+{
+  "id": "t-0qne9n8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "slice claim carries untracked lead task records",
+  "after": [],
+  "body": [
+    "Outcome: `krn slice run` claim works for a task whose record exists only untracked in the main checkout: it copies lead-owned untracked `tasks/<id>.json` records of this lane into the new worktree and commits them as a tracker commit, or refuses with the exact command to do so.\nEvidence: #210 claim exited 65 \"tasks/t-3ny1bcp.json: task does not exist\"; the lead moved four records into the worktree and committed b3c87ff by hand.\nProof: an observer creates a task untracked in the main checkout, runs slice run --stop-after claim, and expects exit 0 with the record committed in the worktree."
+  ]
+}

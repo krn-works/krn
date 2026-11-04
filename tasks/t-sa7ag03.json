@@ -1,7 +1,11 @@
 {
   "id": "t-sa7ag03",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "feat(review): size the review panel by the risk tier of the diff (t-sa7ag03)"
+  },
   "created": "2026-11-04",
   "priority": 0,
   "title": "review depth follows a risk tier of the diff",

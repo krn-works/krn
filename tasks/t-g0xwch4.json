@@ -1,0 +1,12 @@
+{
+  "id": "t-g0xwch4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "brief CLI max-line test is wall-clock flaky under load",
+  "after": [],
+  "body": [
+    "Outcome: the brief CLI maximum-sized section line test does not fail on a loaded host while still bounding the brief CLI's cost.\nEvidence: krn verify preflight on e38f272 at load ~27: \"not ok 7 - brief CLI handles maximum-sized section lines before its one-second deadline\", spawnSync node ETIMEDOUT (.krn/runs/lead/landing/verify2.log); passed on rerun (verify3.log).\nProof: the test measures the CLI's own work (e.g. CPU time or an in-process call) instead of a wall-clock spawn deadline; it passes under a CPU-saturating stub load."
+  ]
+}
