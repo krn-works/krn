@@ -142,6 +142,7 @@ export const resultSchema = z.object({
       }),
     )
     .default([]),
+  nontechnical_blocker: z.boolean().default(false),
 });
 export const reportSchema = z.strictObject({
   status: z.enum(['done', 'blocked', 'partial']),
