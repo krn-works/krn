@@ -1,7 +1,11 @@
 {
   "id": "t-dzyg447",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "brief check refuses raw invisible format characters with line numbers"
+  },
   "created": "2026-11-04",
   "priority": 1,
   "title": "Refuse raw invisible format characters in a brief",
