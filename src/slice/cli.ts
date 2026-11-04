@@ -40,6 +40,9 @@ export async function sliceCommand(args: readonly string[]): Promise<void> {
         effort: { type: 'string' },
         worker: { type: 'string' },
         'stop-after': { type: 'string' },
+        override: { type: 'boolean' },
+        reason: { type: 'string' },
+        evidence: { type: 'string' },
       },
     });
     if (
@@ -50,7 +53,7 @@ export async function sliceCommand(args: readonly string[]): Promise<void> {
         values.worker !== 'none')
     )
       throw new Error(
-        'usage: krn slice run <task-id> --brief FILE --message FILE --name NAME --repo OWNER/REPO --model ID --effort LEVEL',
+        'usage: krn slice run <task-id> --brief FILE --message FILE --name NAME --repo OWNER/REPO --model ID --effort LEVEL [--worker codex|none] [--stop-after STAGE] [--override --reason TEXT --evidence TEXT]',
       );
     result = await runSlice(
       {
@@ -65,6 +68,9 @@ export async function sliceCommand(args: readonly string[]): Promise<void> {
         ...(values['stop-after'] === undefined
           ? {}
           : { stopAfter: values['stop-after'] }),
+        ...(values.override === true ? { override: true } : {}),
+        ...(values.reason === undefined ? {} : { reason: values.reason }),
+        ...(values.evidence === undefined ? {} : { evidence: values.evidence }),
       },
       { root: process.cwd(), krn: resolve('bin/krn'), run },
     );

@@ -27,6 +27,9 @@ const optionsSchema = z.object({
   effort: effortSchema,
   worker: z.enum(['codex', 'none']).optional(),
   stopAfter: z.enum(stages).optional(),
+  override: z.boolean().optional(),
+  reason: z.string().min(1).optional(),
+  evidence: z.string().min(1).optional(),
 });
 export interface SliceOptions {
   readonly task: string;
@@ -38,6 +41,10 @@ export interface SliceOptions {
   readonly effort: string;
   readonly worker?: 'codex' | 'none';
   readonly stopAfter?: string;
+  /** Accept the recorded review FAIL on the unchanged reviewed head (needs reason and evidence). */
+  readonly override?: boolean;
+  readonly reason?: string;
+  readonly evidence?: string;
 }
 export interface SliceRuntime {
   readonly root: string;
@@ -151,6 +158,15 @@ export async function runSlice(
     const parsed = optionsSchema.safeParse(input);
     if (!parsed.success) throw new Failure(64, 'invalid slice options');
     const options = parsed.data;
+    if (
+      options.override === true
+        ? !options.reason || !options.evidence
+        : options.reason !== undefined || options.evidence !== undefined
+    )
+      throw new Failure(
+        64,
+        '--override needs --reason and --evidence, and they need --override',
+      );
     const root = resolve(runtime.root);
     const brief = resolve(root, options.brief);
     const message = resolve(root, options.message);
@@ -260,12 +276,70 @@ export async function runSlice(
         stage: 'worker',
         cause: journal.cause,
       };
-    // A second review round runs on a fixed head: verify and push it first.
-    const start =
+    // A review FAIL on the unchanged head on the same base: the lead fixes or overrides.
+    const failed =
       journal.stage === 'review' &&
       !journal.completed &&
-      journal.reviewAttempts === 1 &&
-      journal.reviewPending !== true
+      journal.reviewAttempts >= 1 &&
+      journal.reviewPending !== true &&
+      journal.reviewRecord !== null &&
+      (journal.reviewFailed ?? journal.exitCode !== 0);
+    const reviewed = failed ? await reviewedHead(journal) : undefined;
+    const head =
+      reviewed === undefined
+        ? undefined
+        : (await exec('git', ['rev-parse', 'HEAD'])).trim();
+    const unchanged =
+      head !== undefined &&
+      head === reviewed &&
+      (await exec('git', ['ls-remote', 'origin', 'main'], root))
+        .trim()
+        .split(/\s/u)[0] === journal.base;
+    if (options.override === true && !unchanged)
+      throw new Failure(
+        64,
+        '--override applies only to a review FAIL on the unchanged reviewed head and base',
+      );
+    if (unchanged && options.override !== true)
+      throw new Failure(
+        65,
+        `review attempt ${journal.reviewAttempts} FAILed on unchanged head ${head}: fix and commit, or rerun with --override --reason <text> --evidence <text>`,
+      );
+    if (unchanged && options.reason && options.evidence) {
+      if (!(await recordOverridden(journal.reviewRecord, head)))
+        await krn(
+          [
+            'review',
+            '--repo',
+            worktree,
+            '--pr',
+            String(journal.pr),
+            '--base',
+            journal.base,
+            '--head',
+            head,
+            '--override',
+            '--reason',
+            options.reason,
+            '--evidence',
+            options.evidence,
+          ],
+          root,
+        );
+      journal.reviewOverride = true;
+      journal.completed = true;
+      await save();
+    }
+    // A review PASS saved before the stage completed resumes at deliver.
+    if (
+      journal.stage === 'review' &&
+      journal.reviewPending !== true &&
+      journal.reviewFailed === false
+    )
+      journal.completed = true;
+    // A second review round runs on a fixed head: verify and push it first.
+    const start =
+      failed && !unchanged && journal.reviewAttempts === 1
         ? stages.indexOf('verify')
         : stages.indexOf(journal.stage) + (journal.completed ? 1 : 0);
     if (journal.completed && options.stopAfter === journal.stage)
@@ -483,6 +557,8 @@ export async function runSlice(
             journal.base = remote;
             journal.reviewAttempts = 0;
             journal.reviewRecord = null;
+            journal.reviewHead = null;
+            journal.reviewFailed = undefined;
             await save();
           }
           await krn([
@@ -568,6 +644,11 @@ export async function runSlice(
               'review budget exhausted: two attempts recorded',
             );
           const head = (await exec('git', ['rev-parse', 'HEAD'])).trim();
+          // The brief may change after the brief stage: judge against the current one.
+          await writeRunFile(
+            join(dirname(path), 'lens.md'),
+            await krn(['brief', 'lens', brief]),
+          );
           const args = [
             'review',
             '--repo',
@@ -601,6 +682,8 @@ export async function runSlice(
               .object({ record: z.string().min(1) })
               .parse(JSON.parse(last)).record;
             journal.reviewAttempts++;
+            journal.reviewHead = /^[a-f\d]{40,64}$/u.test(head) ? head : null;
+            journal.reviewFailed = result.code !== 0;
             journal.reviewPending = false;
           } catch {
             journal.reviewPending = false;
@@ -720,4 +803,36 @@ async function blockingFindings(record: string): Promise<string[]> {
   } catch {
     return [];
   }
+}
+
+const recordHeadSchema = z.object({
+  headSha: z.string().regex(/^[a-f\d]{40,64}$/u),
+  override: z.unknown().optional(),
+});
+
+async function readRecordHead(
+  record: string | null,
+): Promise<z.infer<typeof recordHeadSchema> | undefined> {
+  if (!record) return undefined;
+  try {
+    return recordHeadSchema.parse(JSON.parse(await readFile(record, 'utf8')));
+  } catch {
+    return undefined;
+  }
+}
+
+/** The head the last review judged: the journal's, else the record's; unknown keeps the old resume. */
+async function reviewedHead(journal: Journal): Promise<string | undefined> {
+  return (
+    journal.reviewHead ?? (await readRecordHead(journal.reviewRecord))?.headSha
+  );
+}
+
+/** True when the FAIL record already carries an override for this head (a crash after the override). */
+async function recordOverridden(
+  record: string | null,
+  head: string,
+): Promise<boolean> {
+  const parsed = await readRecordHead(record);
+  return parsed?.headSha === head && parsed.override !== undefined;
 }
