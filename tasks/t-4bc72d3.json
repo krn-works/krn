@@ -1,0 +1,12 @@
+{
+  "id": "t-4bc72d3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "slice run saves the review record with the pending flag cleared",
+  "after": [],
+  "body": [
+    "Outcome: `krn slice run` keeps `reviewPending` set until the review record and attempt count are saved in the same journal write, so a crash between the review returning and that write fails closed instead of allowing another attempt.\nEvidence: PR #203 review 2 NON_BLOCKING (record .krn/runs/review-series/2c61c362c41220e80ad6f96a996524ba33468f8cb12dce620311f552420412d5/records/2.json), src/slice/run.ts reviewPending=false saved before record parse.\nProof: a crash injected after review returns a record leaves the rerun refusing with 65 and no review call."
+  ]
+}
