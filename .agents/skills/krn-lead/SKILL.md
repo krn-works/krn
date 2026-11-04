@@ -23,6 +23,8 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 
 ## The slice loop
 
+`krn slice run <task-id> --brief <file> --message <file> --name <kebab> --repo <owner/repo> --model <id> --effort <level> [--worker none] [--stop-after <stage>]` chains steps 3–8 below from the main checkout with a resumable journal in `.krn/runs/slice/<task>/journal.json`: rerun it with the same arguments after any stop; `--stop-after claim` leaves room for lead edits, and `--worker none` skips (or closes a failed) worker. The message file is the implementation commit message without trailers; the runner appends `Ticket:` and `Change-contract:`. The manual steps stay the reference for each stage.
+
 1. **Resume.** `krn state resume --root .`, `krn task ready`, `git fetch --prune`, open PRs, main CI. Confirm no other writer on this outcome; a second lane follows "Parallel lanes" in `docs/program/lead-rules.md`.
 2. **Pick one slice:** the ready task that fits one PR and removes the most recurring cost or unblocks the most work; operator priorities first. Say what you defer.
 3. **Claim.** `krn task claim <id> --actor lead --worktree <path> --reason <text>`; branch and worktree under `.krn/worktrees/<purpose>`. While a lane is active, create tasks with `krn task create --worktree <lane worktree>`; `close`, `edit` and `dep` on a live-claimed task write into the claim's worktree, so the main checkout never holds a second copy.

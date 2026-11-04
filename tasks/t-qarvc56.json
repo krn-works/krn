@@ -1,0 +1,12 @@
+{
+  "id": "t-qarvc56",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "Hardening checklist gains a shell-suggestion class",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/hardening-checklist.md gains class `shell-suggestion`: a printed command meant to be pasted quotes every interpolated path or value (single quotes, embedded quote escaped) and the split of a location string never relies on excluding `:` from paths; brief check refuses a brief without the answer.\nEvidence: #202 attempt 1 prepass BLOCKING x2 (unquoted fix command paths; colon paths skipped) in .krn/runs/review-series/8b34c8f2…/records/1.json; cost one of two D10 attempts.\nProof: rule test under test/rules red by assertion at base."
+  ]
+}
