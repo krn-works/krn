@@ -228,6 +228,41 @@ export function git(root: string, args: readonly string[]): string {
   return result.stdout.trim();
 }
 
+// NUL delimiters preserve tabs and newlines in git paths. Empty path marks malformed data.
+export function diffStat(
+  root: string,
+  base: string,
+  sha: string,
+): import('./tier.ts').DiffEntry[] {
+  const output = gitOutput(root, [
+    'diff',
+    '--numstat',
+    '-z',
+    '--no-renames',
+    base,
+    sha,
+  ]);
+  if (output.status !== 0)
+    throw new Error(output.stderr || 'git diff --numstat failed');
+  if (!output.stdout) return [];
+  const chunks = output.stdout.split('\0');
+  const terminated = chunks.pop() === '';
+  const entries = chunks.map((chunk) => {
+    const match = /^(\d+|-)\t(\d+|-)\t([\s\S]+)$/u.exec(chunk);
+    if (!match) return { path: '', added: null, deleted: null };
+    const added = match[1] === '-' ? null : Number(match[1]);
+    const deleted = match[2] === '-' ? null : Number(match[2]);
+    if (
+      (added !== null && !Number.isSafeInteger(added)) ||
+      (deleted !== null && !Number.isSafeInteger(deleted))
+    )
+      return { path: '', added: null, deleted: null };
+    return { path: match[3] ?? '', added, deleted };
+  });
+  if (!terminated) entries.push({ path: '', added: null, deleted: null });
+  return entries;
+}
+
 export function changedPaths(
   root: string,
   prior: string,

@@ -2,6 +2,7 @@
 import { lstatSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readRegularFile } from '../brief/index.ts';
+import { oneLine } from './findings.ts';
 import type { GateCheckRunReader } from './gate-admission.ts';
 import { ReviewAdmissionError, runReview } from './index.ts';
 import { PriorRecordError } from './prior.ts';
@@ -15,7 +16,7 @@ import {
   verifyPullRequest,
 } from './series.ts';
 import {
-  panelRoles,
+  type panelRoles,
   type ReviewReasoningEffort,
   reasoningEffortSchema,
   reviewInputSchema,
@@ -164,7 +165,8 @@ export async function reviewCommand(
         'Usage: krn review --repo <path> --base <ref> --head <sha> --lens <path>',
         '  [--panel standards,spec,adversarial] [--reasoning-effort low|medium|high|xhigh|max]',
         '  [--prepass --checklist <path>] [--prior-record <path>]',
-        '  [--pr <number>] [--budget-exception <path>]',
+        '  [--pr <number>] [--budget-exception <path>] [--risk-tier]',
+        '--risk-tier sizes the panel by the diff risk tier: low runs one spec judge, medium the full panel, high the full panel with an operator notice.',
         'PR-bound reviews verify authoritative PR metadata, run red-first and the change-contract parser, and refuse deterministic failures before reserving one of two repo-common attempts.',
         'PR-bound reviews also refuse a latest matching required gate run that failed, timed out, or had a startup failure; pending or absent runs are allowed, and read errors refuse before reservation.',
         'Each additional attempt requires a separate operator exception JSON bound to canonical repository, PR, baseRef, exact ordinal and headSha, with authority and evidence.',
@@ -212,7 +214,7 @@ async function runReviewCommand(
     readonly readGateCheckRuns?: GateCheckRunReader;
   },
 ): Promise<ReviewCommandOutcome> {
-  const switches = new Set(['--prepass', '--override']);
+  const switches = new Set(['--prepass', '--override', '--risk-tier']);
   const flags = new Set([
     '--repo',
     '--base',
@@ -288,7 +290,7 @@ async function runReviewCommand(
   const baseInput = value(args, '--base');
   const lens = reviewLens(value(args, '--lens'));
   const checklist = reviewChecklist(args);
-  const panel = args.includes('--panel') ? panelValue(args) : [...panelRoles];
+  const panel = args.includes('--panel') ? panelValue(args) : undefined;
   const root = reviewRepository(repo);
   const base = reviewCommit(root, baseInput, '--base');
   const head = reviewCommit(root, headInput, '--head');
@@ -304,6 +306,7 @@ async function runReviewCommand(
       : {}),
     ...(checklist === undefined ? {} : { prepassChecklist: checklist }),
     ...(pr === undefined ? {} : { pr }),
+    ...(args.includes('--risk-tier') ? { riskTier: true } : {}),
     ...(args.includes('--budget-exception')
       ? { budgetException: value(args, '--budget-exception') }
       : {}),
@@ -320,6 +323,14 @@ async function runReviewCommand(
       ? { codexExecutable: options.codexExecutable }
       : {}),
   });
+  if (record.tier?.level === 'high')
+    process.stdout.write(
+      `notice: high risk review tier: ${record.tier.reasons.map(oneLine).join('; ')}\n`,
+    );
+  for (const finding of record.consolidated ?? [])
+    process.stdout.write(
+      `${finding.severity} ${oneLine(finding.path ?? '(unknown)')}:${finding.line ?? '?'} ${oneLine(finding.title)} [votes ${finding.roles.length}]\n`,
+    );
   const path = record.attempt
     ? attemptRecordPath(root, record.attempt)
     : resolve(root, '.krn', 'runs', 'review', record.headSha, 'record.json');

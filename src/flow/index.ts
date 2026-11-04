@@ -7,6 +7,7 @@ import {
   type GateAdmissionPolicy,
   gateAdmissionPolicyFromBase,
 } from '../deliver/admission-policy.ts';
+import { consolidateFindings, dropStyle } from './findings.ts';
 import {
   GateCheckReadError,
   type GateCheckRunReader,
@@ -18,6 +19,7 @@ import { judgeRole, ReviewAbortedError } from './panel.ts';
 import { loadPriorReview } from './prior.ts';
 import { writeReviewRecord } from './record.ts';
 import {
+  diffStat,
   git,
   type RedFirstReport,
   redFirst,
@@ -32,11 +34,11 @@ import {
   reserveReviewAttempt,
   verifyPullRequest,
 } from './series.ts';
+import { classifyRiskTier, tierRoles } from './tier.ts';
 import {
   deterministicCauses,
   type NewReviewRecord,
   newReviewRecordSchema,
-  panelRoles,
   type ReviewInput,
   type ReviewReasoningEffort,
   type ReviewRecord,
@@ -173,11 +175,15 @@ export async function runReview(
   if (!lens.trim()) throw new Error('--lens file is empty');
   if (Buffer.byteLength(lens) > 32 * 1024)
     throw new Error('--lens file exceeds 32 KB');
-  const panel = input.panel ?? panelRoles;
+  const base = resolveCommit(root, input.base);
+  const tier = input.riskTier
+    ? classifyRiskTier(diffStat(root, base, sha))
+    : undefined;
+  const required = tierRoles(tier?.level ?? 'medium');
+  const panel = input.panel ?? required;
   if (!panel.length || new Set(panel).size !== panel.length)
     throw new Error('--panel must contain unique judge roles');
   for (const role of panel) roleSchema.parse(role);
-  const base = resolveCommit(root, input.base);
   const identity =
     input.pr === undefined
       ? undefined
@@ -197,8 +203,8 @@ export async function runReview(
           ...(identity ? { identity } : {}),
         });
   const panelPartial =
-    panel.length !== panelRoles.length ||
-    panelRoles.some((role) => !panel.includes(role));
+    panel.length !== required.length ||
+    required.some((role) => !panel.includes(role));
   const reasoningEffort = input.reasoningEffort ?? 'high';
   const toolRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
   const toolSha = request.toolSha ?? git(toolRoot, ['rev-parse', 'HEAD']);
@@ -302,7 +308,7 @@ export async function runReview(
       reasoningEffort,
       input.prepassChecklist,
     );
-    prepass = recordedPrepass(judge);
+    prepass = recordedPrepass(dropStyle(judge));
     if (
       prepass.state === 'complete' &&
       prepass.findings.some((finding) => finding.severity === 'BLOCKING')
@@ -310,6 +316,7 @@ export async function runReview(
       await new Promise<void>((resolveTick) => setImmediate(resolveTick));
       if (input.signal?.aborted) throw new ReviewAbortedError();
       const record = newReviewRecordSchema.parse({
+        ...(tier === undefined ? {} : { tier }),
         schemaVersion: 2,
         ...(attempt === undefined ? {} : { attempt }),
         round: prior === undefined ? 1 : 2,
@@ -331,7 +338,7 @@ export async function runReview(
       return record;
     }
   }
-  const judges = await Promise.all(
+  const rawJudges = await Promise.all(
     panel.map(async (role) => {
       const finishJudgeTiming = startTiming();
       try {
@@ -358,7 +365,10 @@ export async function runReview(
   );
   await new Promise<void>((resolveTick) => setImmediate(resolveTick));
   if (input.signal?.aborted) throw new ReviewAbortedError();
+  const judges = rawJudges.map(dropStyle);
   const record = newReviewRecordSchema.parse({
+    ...(tier === undefined ? {} : { tier }),
+    consolidated: consolidateFindings(judges),
     schemaVersion: 2,
     ...(attempt === undefined ? {} : { attempt }),
     round: prior === undefined ? 1 : 2,
@@ -372,7 +382,7 @@ export async function runReview(
     ...(checklist === undefined ? {} : { checklist }),
     panel: {
       requestedRoles: [...panel],
-      requiredRoles: [...panelRoles],
+      requiredRoles: [...required],
       partial: panelPartial,
     },
     toolSha,

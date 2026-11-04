@@ -783,6 +783,7 @@ export async function runSlice(
             '--lens',
             join(dirname(path), 'lens.md'),
             '--prepass',
+            '--risk-tier',
             '--checklist',
             join(worktree, 'docs', 'program', 'hardening-checklist.md'),
           ];

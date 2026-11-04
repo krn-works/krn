@@ -469,6 +469,10 @@ test('review wiring persists verification with a mocked host transport', async (
         assert.match(prompt, /RESOLVED/u);
         assert.match(prompt, /UNRESOLVED/u);
         assert.match(prompt, /regression/u);
+        assert.ok(
+          prompt.includes(`review only git diff ${f.priorHead}..${f.head}`),
+        );
+        assert.ok(prompt.includes(`Context only: ${f.base}..${f.head}`));
       }
       if (scenario.expected === 'INCOMPLETE') {
         assert.ok(
@@ -731,6 +735,10 @@ test('prior findings determine verdicts and only changed-file regressions can bl
       assert.match(prompt, /RESOLVED/u);
       assert.match(prompt, /UNRESOLVED/u);
       assert.match(prompt, /regression/u);
+      assert.ok(
+        prompt.includes(`review only git diff ${f.priorHead}..${f.head}`),
+      );
+      assert.ok(prompt.includes(`Context only: ${f.base}..${f.head}`));
       assert.match(prompt, new RegExp(f.priorHead, 'u'));
       assert.match(prompt, /Negative input fails/u);
       assert.match(prompt, /standards/u);
@@ -858,6 +866,7 @@ test('without a prior record the original brief and record format are unchanged'
   assert.equal(outcome, 'PASS');
   assert.equal('prior' in record, false);
   assert.deepEqual(Object.keys(record), [
+    'consolidated',
     'schemaVersion',
     'round',
     'timing',
@@ -884,6 +893,7 @@ test('without a prior record the original brief and record format are unchanged'
       'Return only one JSON object matching: {"verdict":"PASS"|"FAIL","findings":[{"severity":"BLOCKING"|"NON_BLOCKING","title":"...","path":"repo-relative path","line":1,"defect":"...","fix":"smallest fix"}]}.',
       'BLOCKING findings must be behaviour or acceptance defects, with a real path and line and the smallest fix. Style issues are NON_BLOCKING. PASS requires no BLOCKING findings.',
       'Enumerate ALL defects that would make the stated contract false in one pass. Do not stop at the first defect. Order findings by severity, with BLOCKING findings first.',
+      'Tag every finding with category: correctness, security, contract, test, or style. Style-only findings never block; the engine drops them.',
       'Every BLOCKING finding must name a concrete failing input or scenario that demonstrates the contract failure.',
       `ROLE: ${role}`,
       'LENS:\nCheck the stated behavior.',

@@ -416,6 +416,7 @@ test('a fresh run drives every stage to deliver and writes the journal', async (
   assert.equal(valueAfter(review.words, '--base'), BASE);
   assert.equal(valueAfter(review.words, '--head'), HEAD);
   assert.ok(review.words.includes('--prepass'));
+  assert.ok(review.words.includes('--risk-tier'));
   assert.equal(
     valueAfter(review.words, '--checklist'),
     join(worktree, 'docs', 'program', 'hardening-checklist.md'),
