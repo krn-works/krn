@@ -1,0 +1,12 @@
+{
+  "id": "t-b1pxnvk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "Add a superseded-wording sweep to the hardening checklist for ADR amendments",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/hardening-checklist.md gains a class for decision amendments: when a decision narrows or replaces a gate, every sentence in the amended ADRs that still states the old gate is updated in the same PR (PR #217 review attempt 1 FAIL: ADR 0002 Deferred still deferred schema and index after D32). Proof: the checklist rules test asserts the class and krn brief check refuses a brief that leaves it unanswered."
+  ]
+}
