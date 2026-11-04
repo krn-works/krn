@@ -29,6 +29,9 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 - A test that is red only in CI is reproduced in the runner shape before a fix round: the tree bind-mounted at `/home/runner/work/krn/krn` in a user namespace (`unshare -rm`) with `CI=true`.
 - Run hygiene, cleanup and deliver resumption with absolute paths from the main checkout, never from inside a worktree they remove; a successful merge exits 0.
 - The Bash tool runs each command inside `eval ... ||`, so `set -e` does not stop it: chain state-changing steps with `&&` or explicit `|| exit`.
+- Before every review attempt, on the exact head: `krn/gate` success, every observer red at the PR base by assertion, the base `packageManager` pnpm present (`mise where pnpm@<version>`), and exactly one distinct `Ticket:` across the PR commits (deliver `--dry-run`).
+- After ship, a removed worktree's review records live under `.krn/archive/worktree-runs/<branch>-<UTC>/`; archive lead-only evidence before ship when it must sit beside them.
+- When the auto-mode classifier denies a granted step, never work around it: put the exact `! <command>` line in the handoff for the operator and continue with work that needs no such step.
 - A user-level `skillOverrides` entry disables any project skill with the same name; when a repository skill does not load, check `~/.claude/settings.json` overrides first.
 
 ## Parallel lanes

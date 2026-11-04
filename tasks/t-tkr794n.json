@@ -1,0 +1,12 @@
+{
+  "id": "t-tkr794n",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 3,
+  "title": "Let lead-implemented briefs name lead-only paths",
+  "after": [],
+  "body": [
+    "Outcome: krn brief check accepts a lead-implemented slice brief: a section for lead-only paths (forbidden to workers by spec/worker-scope.json) that the lens carries but --allow omits. Evidence: t-3ha9z96 brief took 4 check rounds (.krn/runs/lead/memory-lessons/brief.md); listing .agents/skills and docs/program/lead-rules.md under Allowed paths failed as forbidden, and free text there failed as a malformed entry, so the lead moved them into Settled decisions."
+  ]
+}

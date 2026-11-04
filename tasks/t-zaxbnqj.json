@@ -1,0 +1,16 @@
+{
+  "id": "t-zaxbnqj",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "MEMORY.md 5888 to 1777 bytes, 20 lesson notes moved to lead-rules, ~/AGENTS.network.md or deleted; memory-refs INDEX-SIZE above 2400 bytes"
+  },
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "Trim remaining lesson notes from the lead memory index",
+  "after": [],
+  "body": [
+    "Outcome: the lead MEMORY.md index holds operator preferences, grants and decisions only (target about 600 tokens; 5888 bytes after #213). Unmarked lesson notes remain, e.g. codex-exec-dispatch-pitfalls, host-disk-housekeeping, krn-ci-fleet-egress-drift, codex-hook-stdout-json-rule, krn-ship-archives-worktree-runs, review-attempt-admission, bg-daemon-mcp-baseline: mark each 'Lesson pending enforcement: <id>' or move it to a check, lead-rules line or ~/AGENTS.network.md, then delete it; memory-refs PENDING-LESSON keeps them visible."
+  ]
+}
