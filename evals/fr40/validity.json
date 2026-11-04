@@ -1,0 +1,96 @@
+{
+  "task": "t-dpxbq2y",
+  "decision": "ADR 0014 D20",
+  "date": "2026-11-04",
+  "inventory": {
+    "source": "fr40-inventory report (lead run state, recovered copy); per-candidate candidates.json was not recovered",
+    "blockingFindings": 112,
+    "defectsAfterDedup": 66,
+    "usable": 9,
+    "needsCheck": 19,
+    "unusable": 38,
+    "usableClusters": [
+      {
+        "repo": "krn-works/krn",
+        "pr": 102,
+        "base": "4dc84c5f93",
+        "fix": "05c71885d7",
+        "tasks": 4
+      },
+      {
+        "repo": "krn-works/krn",
+        "pr": 113,
+        "base": "c78e8e001f",
+        "fix": "e176da189b",
+        "tasks": 2
+      },
+      {
+        "repo": "krn-works/krn",
+        "pr": 116,
+        "base": "a298b23cf7",
+        "fix": "cd81788751",
+        "tasks": 1
+      },
+      {
+        "repo": "krn-works/krn",
+        "pr": 119,
+        "base": "3724f0257d",
+        "fix": "d2130bf262",
+        "tasks": 1
+      },
+      {
+        "repo": "GLOBAL",
+        "pr": 437,
+        "base": "7d882f365e",
+        "fix": "66e89d7c6b",
+        "tasks": 1
+      }
+    ],
+    "workingEstimate": [18, 24]
+  },
+  "design": {
+    "test": "one-sided exact McNemar (sign test on discordant units), unit = fix-commit cluster",
+    "effect": 0.15,
+    "alpha": 0.05,
+    "target": 0.8,
+    "killBound": 0.1,
+    "killZ": 1.645,
+    "killInterval": "Bonett-Price adjusted Wald 90% interval for paired proportions",
+    "discordance": [0.05, 0.1, 0.15]
+  },
+  "scenarios": [
+    {
+      "name": "usable clusters",
+      "units": 5,
+      "goPower": [0, 0.001, 0.002],
+      "killUnderNull": [0.001, 0.007, 0.018],
+      "goMinimumWins": 5
+    },
+    {
+      "name": "usable tasks treated as independent",
+      "units": 9,
+      "goPower": [0.015, 0.029, 0.042],
+      "killUnderNull": [0.006, 0.03, 0.06],
+      "goMinimumWins": 5
+    },
+    {
+      "name": "optimistic ceiling, every needs-check task usable and independent",
+      "units": 28,
+      "goPower": [0.314, 0.257, 0.231],
+      "killUnderNull": [0.396, 0.28, 0.226],
+      "goMinimumWins": 5
+    }
+  ],
+  "unitsForTargetPower": [74, 103, 132],
+  "reachability": {
+    "go": "unreachable in practice: at 5 clusters GO needs all 5 clusters discordant for B and has power at most 0.002; even the optimistic 28 independent tasks reach at most 0.314",
+    "kill": "unreachable in practice: a null B arm fires KILL with probability at most 0.018 at 5 clusters and at most 0.396 at 28 tasks"
+  },
+  "leakAudit": {
+    "fr40Packets": "none exist; no FR-40 packet or prompt has been written",
+    "forbiddenShas": "every usableClusters base and fix SHA; test/evals/fr40-validity.test.ts refuses them in any other file under evals/fr40",
+    "wozExclusion": "evals/woz/packets/LON-*.md cite exemplar SHAs (the D20 leak); FR-40 must not reuse those packets as prompts"
+  },
+  "verdict": "below-power",
+  "action": "Do not build FR-40. Report to the operator with the cheaper convention-task alternative: synthetic tasks whose deterministic check is a recorded repository convention (trailer block, task id in the PR title, KRN-08 state paths), generated in quantity (74 to 132 independent tasks for 0.8 power at discordance 0.05 to 0.15), with the same A/B/S arms and thresholds."
+}

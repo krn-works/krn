@@ -1,0 +1,12 @@
+{
+  "id": "t-mmh9ff6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "Check that the ADR index matches each ADR's decision range and status",
+  "after": [],
+  "body": [
+    "Outcome: a deterministic check fails when docs/adr/README.md misstates ADR 0014's decision range (it said D1–D24 while ADR 0014 held D1–D30; found by review prepass on PR #217) or an ADR's index status differs from its Status section. Proof: an observer red on a fixture with a stale range and green on main."
+  ]
+}
