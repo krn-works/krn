@@ -1,0 +1,12 @@
+{
+  "id": "t-cqbnged",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "slice run closes folded tasks in its close commit",
+  "after": [],
+  "body": [
+    "Outcome: `krn slice run --close <id>` (repeatable) closes folded tasks in the same close commit as the slice task, so a folded task needs no amend and no second verify.\nEvidence: PR #207 folded t-625v6fr; the lead closed it after the runner close commit, amended that commit and reran krn verify by hand.\nProof: an observer that runs a slice with --close t-x and asserts one close commit changes both task records."
+  ]
+}

@@ -38,7 +38,12 @@ interface SliceOptions {
 
 type RunSlice = (
   options: SliceOptions,
-  runtime: { readonly root: string; readonly krn: string; readonly run: Run },
+  runtime: {
+    readonly root: string;
+    readonly krn: string;
+    readonly run: Run;
+    readonly sleep?: (ms: number) => Promise<void>;
+  },
 ) => Promise<{
   readonly exitCode: number;
   readonly stage: string;
@@ -125,10 +130,13 @@ function stub(
     readonly base?: string;
     readonly rebased?: boolean;
     readonly head?: string;
+    /** `gh pr view` answers the base SHA for this many polls before the head. */
+    readonly headLag?: number;
   },
 ): { readonly run: Run; readonly calls: Call[] } {
   const calls: Call[] = [];
   let reviews = 0;
+  let views = 0;
   const worktree = join(root, '.krn', 'worktrees', 'slice-run');
   const subject = join(root, '.stub-last-subject');
   const run: Run = async (command, args, options) => {
@@ -230,6 +238,12 @@ function stub(
     }
     if (line.startsWith('krn verify')) return ok(`overall PASS head=${HEAD}\n`);
     if (line.startsWith('gh pr list')) return ok(script.prs ?? '[]\n');
+    if (line.startsWith('gh pr view')) {
+      views += 1;
+      return ok(
+        `${views <= (script.headLag ?? 0) ? BASE : (script.head ?? HEAD)}\n`,
+      );
+    }
     if (line.startsWith('gh pr create'))
       return ok('https://github.com/o/r/pull/7\n');
     if (line.startsWith('krn review') && words.includes('--override')) {
@@ -1190,4 +1204,68 @@ test('a refused --override leaves the journal byte-identical', async (t) => {
   assert.equal(refused.exitCode, 64);
   assert.equal(await readFile(file, 'utf8'), before);
   assert.equal(count(changed.calls, 'krn review'), 0);
+});
+
+test('review waits for the pushed PR head before calling krn review', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  const { run, calls } = stub(root, { headLag: 1 });
+  const sleeps: number[] = [];
+  const result = await runSlice(options, {
+    root,
+    krn,
+    run,
+    sleep: async (ms) => {
+      sleeps.push(ms);
+    },
+  });
+  assert.equal(result.exitCode, 0, result.cause);
+  const review = only(calls, 'krn review');
+  assert.equal(valueAfter(review.words, '--head'), HEAD);
+  const views = calls.filter((call) => call.line.startsWith('gh pr view'));
+  assert.equal(views.length, 2);
+  assert.ok(index(calls, 'gh pr view') < index(calls, 'krn review'));
+  assert.equal(valueAfter(views[0]?.words ?? [], '--repo'), 'o/r');
+  assert.ok(views.every((call) => call.words.includes('7')));
+  assert.equal(sleeps.length, 1);
+});
+
+test('a PR head that never arrives exits 75 before an attempt is reserved', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  const { run, calls } = stub(root, { headLag: 1000 });
+  const result = await runSlice(options, {
+    root,
+    krn,
+    run,
+    sleep: async () => {},
+  });
+  assert.equal(result.exitCode, 75);
+  assert.equal(result.stage, 'review');
+  assert.match(result.cause, /PR #7 head/u);
+  assert.match(result.cause, new RegExp(HEAD, 'u'));
+  assert.equal(count(calls, 'krn review'), 0);
+  assert.equal(count(calls, 'gh pr view'), 12);
+  const saved = await journal(root);
+  assert.equal(saved.reviewAttempts, 0);
+  assert.notEqual(saved.reviewPending, true);
+});
+
+test('a non-SHA PR head answer is refused with 65', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  const { run: inner, calls } = stub(root, {});
+  const run: Run = async (command, args, opts) =>
+    normalize(command, args).join(' ').startsWith('gh pr view')
+      ? { code: 0, stdout: 'null\n', stderr: '' }
+      : inner(command, args, opts);
+  const result = await runSlice(options, {
+    root,
+    krn,
+    run,
+    sleep: async () => {},
+  });
+  assert.equal(result.exitCode, 65);
+  assert.match(result.cause, /invalid gh pr view output/u);
+  assert.equal(count(calls, 'krn review'), 0);
 });
