@@ -278,6 +278,34 @@ export async function runSlice(
     };
     const krn = (args: string[], cwd = worktree) =>
       exec(runtime.krn, args, cwd);
+    // The detached landing deliver: from the PR worktree until hygiene retires it.
+    const landing = async () => {
+      let cwd = root;
+      try {
+        if ((await lstat(worktree)).isDirectory()) cwd = worktree;
+      } catch {
+        /* Retired by delivery. */
+      }
+      const version = (
+        await readFile(join(root, '.node-version'), 'utf8')
+      ).trim();
+      const args = [
+        'exec',
+        `node@${version}`,
+        '--',
+        join(cwd, 'bin', 'krn'),
+        'deliver',
+        '--repo',
+        options.repo,
+        '--pr',
+        String(journal.pr),
+        '--record',
+        journal.reviewRecord ?? '',
+        '--task',
+        options.task,
+      ];
+      return { cwd, args };
+    };
     if (
       journal.stage === 'worker' &&
       !journal.completed &&
@@ -368,6 +396,12 @@ export async function runSlice(
         }
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        // No exit: running, or crashed between the landing save and the spawn.
+        const { cwd, args } = await landing();
+        await runtime.detach('mise', args, {
+          cwd,
+          log: join(dirname(path), 'landing.log'),
+        });
         return { exitCode: 0, stage: 'done', cause: 'landing: running' };
       }
       const value = text.trim();
@@ -870,34 +904,12 @@ export async function runSlice(
           break;
         }
         case 'deliver': {
-          let cwd = root;
-          try {
-            if ((await lstat(worktree)).isDirectory()) cwd = worktree;
-          } catch {
-            /* Retired by delivery. */
-          }
-          const version = (
-            await readFile(join(root, '.node-version'), 'utf8')
-          ).trim();
-          const args = [
-            'exec',
-            `node@${version}`,
-            '--',
-            join(cwd, 'bin', 'krn'),
-            'deliver',
-            '--repo',
-            options.repo,
-            '--pr',
-            String(journal.pr),
-            '--record',
-            journal.reviewRecord ?? '',
-            '--task',
-            options.task,
-          ];
+          const { cwd, args } = await landing();
           const log = join(dirname(path), 'landing.log');
           const exit = join(dirname(path), 'landing.exit');
-          // A landing recorded before a crash has started (or is about to); never start a second one.
+          // A landing recorded before a crash may never have spawned; the detached wrapper's lock runs at most one.
           if (journal.landing) {
+            await runtime.detach('mise', args, { cwd, log });
             mergedCause = `landing: recorded, log ${log}`;
             break;
           }

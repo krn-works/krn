@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   mkdir,
   mkdtemp,
+  readdir,
   readFile,
   rm,
   stat,
@@ -396,8 +397,21 @@ test('gate and review overlap; merge waits for both and landing detaches', async
   assert.equal(valueAfter(deliver, '--pr'), '7');
   assert.equal(valueAfter(deliver, '--record'), recordPath(root, 1));
   assert.match(result.cause, /^merged:/);
-  const runtime = { root, krn, run: receiver.run };
+  let restarted = 0;
+  const runtime = {
+    root,
+    krn,
+    run: receiver.run,
+    detach: () => {
+      restarted += 1;
+    },
+  };
   assert.equal((await runSlice(options, runtime)).cause, 'landing: running');
+  assert.equal(
+    restarted,
+    1,
+    'a rerun without an exit file restarts the landing',
+  );
   await writeFile(join(root, '.krn/runs/slice', TASK, 'landing.exit'), '74\n');
   const failed = await runSlice(options, runtime);
   assert.equal(failed.exitCode, 74);
@@ -563,7 +577,7 @@ test('a landing start failure fails the deliver stage and a rerun starts it once
   assert.equal(started, 1);
 });
 
-test('a landing recorded before a crash is never started twice', async (t) => {
+test('a landing recorded before a crash restarts on rerun without a second merge', async (t) => {
   const runSlice = await loadRunSlice();
   const { root, options, krn } = await fixture(t);
   const receiver = stub(root, {});
@@ -581,6 +595,7 @@ test('a landing recorded before a crash is never started twice', async (t) => {
   const path = join(root, '.krn', 'runs', 'slice', TASK, 'journal.json');
   const crashed = await journal(root);
   assert.ok(crashed.landing, 'landing is recorded');
+  // A crash after the landing save and before the spawn: no process, no exit file.
   await writeFile(
     path,
     `${JSON.stringify({ ...crashed, stage: 'deliver', completed: false })}\n`,
@@ -588,9 +603,55 @@ test('a landing recorded before a crash is never started twice', async (t) => {
   const deliveries = count(receiver.calls, 'krn deliver');
   const resumed = await runSlice(options, runtime);
   assert.equal(resumed.exitCode, 0, resumed.cause);
-  assert.equal(started, 1);
+  assert.equal(started, 2, 'the rerun starts the landing again');
   assert.equal(count(receiver.calls, 'krn deliver'), deliveries);
   assert.equal((await journal(root)).completed, true);
+  const polled = await runSlice(options, runtime);
+  assert.equal(polled.cause, 'landing: running');
+  assert.equal(started, 3, 'a done rerun without an exit file restarts too');
+  await writeFile(join(root, '.krn/runs/slice', TASK, 'landing.exit'), '0\n');
+  assert.equal((await runSlice(options, runtime)).cause, 'landing: delivered');
+  assert.equal(started, 3, 'a published exit never restarts the landing');
+});
+
+async function settled(root: string, done: () => Promise<boolean>) {
+  const deadline = Date.now() + 10000;
+  for (;;) {
+    const temporary = (await readdir(root)).some((name) =>
+      name.startsWith('.landing-'),
+    );
+    if (!temporary && (await done())) return;
+    assert.ok(Date.now() < deadline, 'landing wrappers settle');
+    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+test('default detach runs exactly one landing for concurrent and late restarts', async (t) => {
+  const api = await import('../../src/slice/cli.ts');
+  assert.equal(typeof api.detach, 'function');
+  const { root } = await fixture(t);
+  const log = join(root, 'landing.log');
+  const counter = join(root, 'counter');
+  const exit = join(root, 'landing.exit');
+  const command = [
+    '-c',
+    'echo run >> "$1"; printf landing-output; sleep 0.5',
+    'landing',
+    counter,
+  ];
+  const published = async () =>
+    (await readFile(exit, 'utf8').catch(() => undefined)) !== undefined;
+  await Promise.all([
+    api.detach('/bin/sh', command, { cwd: root, log }),
+    api.detach('/bin/sh', command, { cwd: root, log }),
+  ]);
+  await settled(root, published);
+  assert.equal(await readFile(counter, 'utf8'), 'run\n');
+  assert.equal(await readFile(exit, 'utf8'), '0\n');
+  await api.detach('/bin/sh', command, { cwd: root, log });
+  await settled(root, async () => true);
+  assert.equal(await readFile(counter, 'utf8'), 'run\n');
+  assert.equal(await readFile(log, 'utf8'), 'landing-output');
 });
 
 test('default detach rejects when the landing process cannot start', async (t) => {
