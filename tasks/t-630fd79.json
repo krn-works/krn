@@ -1,0 +1,12 @@
+{
+  "id": "t-630fd79",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "krn verify names a head-only path an observer reads at base",
+  "after": [],
+  "body": [
+    "Outcome: when red-first classifies an observer base run as `other` because the observer reads or imports a path that is absent from the base tree, krn verify names that path (e.g. `base=other missing test/fixtures/x.json`) so the lead inlines the fixture or adds it in a base-present form without reading logs.\nEvidence: #202 first verify FAIL: test/cli/verify-lint-errors.test.ts read a new fixture JSON at module load; base=other; fixed by inlining the capture (one verify cycle).\nProof: observer fixture reading a head-only file reports the missing path in the red-first detail."
+  ]
+}
