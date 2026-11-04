@@ -58,7 +58,12 @@ export interface SliceRuntime {
     readonly stdout: string;
     readonly stderr: string;
   }>;
+  /** Waits between PR head polls; defaults to a timer. */
+  readonly sleep?: (ms: number) => Promise<void>;
 }
+/** GitHub can report the previous PR head right after a push. */
+const HEAD_POLLS = 12;
+const HEAD_POLL_MS = 5000;
 export interface SliceResult {
   readonly exitCode: number;
   readonly stage: string;
@@ -659,6 +664,36 @@ export async function runSlice(
               'review budget exhausted: two attempts recorded',
             );
           const head = (await exec('git', ['rev-parse', 'HEAD'])).trim();
+          // Review admission compares the PR head: wait until GitHub reports the push.
+          const sleep =
+            runtime.sleep ??
+            ((ms: number) =>
+              new Promise<void>((resolve) => setTimeout(resolve, ms)));
+          let remoteHead = '';
+          for (let poll = 1; poll <= HEAD_POLLS; poll++) {
+            remoteHead = (
+              await exec('gh', [
+                'pr',
+                'view',
+                String(journal.pr),
+                '--repo',
+                options.repo,
+                '--json',
+                'headRefOid',
+                '--jq',
+                '.headRefOid',
+              ])
+            ).trim();
+            if (!/^[a-f\d]{40,64}$/u.test(remoteHead))
+              throw new Failure(65, 'invalid gh pr view output');
+            if (remoteHead === head) break;
+            if (poll < HEAD_POLLS) await sleep(HEAD_POLL_MS);
+          }
+          if (remoteHead !== head)
+            throw new Failure(
+              75,
+              `PR #${journal.pr} head ${remoteHead} has not reached ${head}: rerun`,
+            );
           // The brief may change after the brief stage: judge against the current one.
           await writeRunFile(
             join(dirname(path), 'lens.md'),
