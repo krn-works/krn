@@ -1,7 +1,11 @@
 {
   "id": "t-g9ab2vk",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "one-line-text class with brief-check observer"
+  },
   "created": "2026-11-04",
   "priority": 2,
   "title": "Add a one-line external text class to the hardening checklist",

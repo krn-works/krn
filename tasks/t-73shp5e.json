@@ -1,0 +1,12 @@
+{
+  "id": "t-73shp5e",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "krn verify names the lint error for changed paths",
+  "after": [],
+  "body": [
+    "Outcome: when krn verify lint fails, it prints each biome error (not warning) diagnostic header for the changed paths, plus the fix command `npx biome check --write <paths>`, so the lead does not open lint.log. Evidence: #199 (noControlCharactersInRegex) and #200 (formatter diff in test/rules/invisible-format-source.test.ts) each had a first krn verify FAIL on lint; lint.log holds ~100 repository-wide warnings, so finding the one error took two extra greps. Proof: new observer red at base by assertion."
+  ]
+}
