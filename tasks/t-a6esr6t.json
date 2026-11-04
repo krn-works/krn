@@ -1,0 +1,12 @@
+{
+  "id": "t-a6esr6t",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "Refuse '..' segments in brief observer and Allowed paths",
+  "after": [],
+  "body": [
+    "Outcome: briefSections refuses a Proof observer (and Allowed path) containing a '..' segment, and krn brief check verifies the resolved observer path stays under --repo. Evidence: PR #197 review attempt 2 spec judge: 'test/../../tmp/outside.test.ts' lets the text-grammar fixture check read a file outside the repository (overridden: lead-authored brief is trusted input). Proof: new observer under test/brief/ red at base by assertion."
+  ]
+}

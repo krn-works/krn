@@ -1,0 +1,12 @@
+{
+  "id": "t-dzyg447",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 1,
+  "title": "Refuse raw invisible format characters in a brief",
+  "after": [],
+  "body": [
+    "Outcome: krn brief check refuses a brief containing a raw invisible format character (U+FEFF after position 0, U+200B-U+200F, U+2028/2029, U+202A-U+202E, U+2066-U+2069) and names its line. Evidence: PR #197 review attempt 1 prepass FAIL (2 BLOCKING): the lead's brief said '`<raw U+FEFF>` or `\\\\u{FEFF}`' because the escape text became a raw character while writing the file; the judges read the Settled decision as excluding the \\\\uFEFF escape. Proof: new observer under test/brief/ red at base by assertion."
+  ]
+}
