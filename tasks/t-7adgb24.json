@@ -1,0 +1,12 @@
+{
+  "id": "t-7adgb24",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 1,
+  "title": "Worker start refuses a worktree without installed dependencies",
+  "after": [],
+  "body": [
+    "Outcome: krn worker start exits 64 'dependencies missing: run pnpm install --frozen-lockfile in <repo>' before any state write or spawn when <repo>/package.json exists and <repo>/node_modules/.bin is absent. Evidence: PR #193 round 2 in a fresh worktree, tsc and biome checks exit 127 (.krn/runs/lead/verify-observer/rounds/002/report.json); the lead installed by hand. Proof: new observer under test/worker/ red at base by assertion."
+  ]
+}
