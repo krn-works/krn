@@ -1,7 +1,11 @@
 {
   "id": "t-625v6fr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "folded into t-smc67ss: a refused --override leaves the journal byte-identical"
+  },
   "created": "2026-11-04",
   "priority": 2,
   "title": "slice run leaves the journal unchanged when it refuses --override",
