@@ -225,7 +225,7 @@ function checkText(brief: string, checklist: string): string[] {
   return reasons;
 }
 
-function normalizeAnswerText(value: string): string {
+export function normalizeAnswerText(value: string): string {
   const characters: string[] = [];
   let tagStart = -1;
   for (let index = 0; index < value.length; ) {

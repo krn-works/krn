@@ -1,7 +1,11 @@
 {
   "id": "t-bvdpnth",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn brief lens prints non-N/A Hardening answers as accepted residuals"
+  },
   "created": "2026-11-03",
   "priority": 1,
   "title": "Generate the review lens from Settled decisions and accepted Hardening residuals",

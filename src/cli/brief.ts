@@ -37,14 +37,17 @@ export function briefCommand(args: readonly string[]): void {
     );
   if (command === 'lens') {
     try {
-      const { settled } = briefSections(
+      const { settled, residuals } = briefSections(
         readRegularFile(brief, 256 * 1024, 'brief'),
       );
       if (settled === undefined)
         throw new Error('missing Settled decisions section');
       process.stdout.write(
         'Settled decisions (verbatim from the brief; do not re-decide or flag them):\n' +
-          settled,
+          settled +
+          (residuals.length
+            ? `${settled.endsWith('\n') ? '' : '\n'}\nHardening residuals (accepted in the brief; do not flag them as BLOCKING):\n${residuals.join('\n')}\n`
+            : ''),
       );
     } catch (error) {
       process.stderr.write(
