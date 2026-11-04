@@ -7,6 +7,6 @@
   "title": "Worker scope check flags shared remote refs moved by another lane",
   "after": [],
   "body": [
-    "Outcome: the worker scope check ignores .git/refs/remotes/** and packed-refs changes in the shared common git dir. Evidence: #211 fix round exited 3 'scope violation: .git/refs/remotes/origin/feat/slice-landing, .git/refs/remotes/origin/main' while lane A fetched (.krn/runs/lead/memory-refs/worker-send1.log); worker edits were in scope. Lead trap: with two lanes, a worker exit 3 naming only .git/refs/remotes paths is not a worker violation; check git status in the worktree and continue."
+    "Outcome: the worker scope check ignores .git/refs/remotes/** and packed-refs changes in the shared common git dir. Evidence: #211 fix round exited 3 'scope violation: .git/refs/remotes/origin/feat/slice-landing, .git/refs/remotes/origin/main' while lane A fetched (.krn/runs/lead/memory-refs/worker-send1.log); worker edits were in scope.\nLead trap: with two lanes, a worker exit 3 naming only .git/refs/remotes paths is not a worker violation; check git status in the worktree and continue."
   ]
 }
