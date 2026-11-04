@@ -1,9 +1,14 @@
 import { RerunError, rerun } from '../ci/rerun.ts';
+import { waitCommand } from '../ci/wait.ts';
 
 const usage = 'Usage: krn ci rerun --pr <n> --head <sha> [--repo <owner/repo>]';
 
 export async function ciCommand(args: string[]): Promise<void> {
   const [subcommand, ...rest] = args;
+  if (subcommand === 'wait') {
+    process.stdout.write(`${await waitCommand(rest)}\n`);
+    return;
+  }
   if (subcommand !== 'rerun') throw new RerunError(usage, 64);
   const options = new Map<string, string>();
   for (let index = 0; index < rest.length; index += 2) {

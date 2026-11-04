@@ -79,7 +79,9 @@ async function loadRunSlice(): Promise<RunSlice> {
     'function',
     'src/slice/run.ts must export runSlice',
   );
-  return runSlice as RunSlice;
+  const run = runSlice as RunSlice;
+  return (options, runtime) =>
+    run(options, { ...runtime, detach: () => {} } as Parameters<typeof run>[1]);
 }
 
 // Strips `mise exec node@<v> --` and names any bin/krn launcher `krn`.
@@ -272,7 +274,7 @@ function stub(
         stderr: '',
       };
     }
-    if (line.startsWith('krn deliver')) return ok(`delivered: ${HEAD}\n`);
+    if (line.startsWith('krn deliver')) return ok(`merged: ${HEAD}\n`);
     return ok('');
   };
   return { run, calls };

@@ -1,0 +1,16 @@
+{
+  "id": "t-3ny1bcp",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "feat(slice): run the gate beside review and land without waiting for main (t-3ny1bcp)"
+  },
+  "created": "2026-11-04",
+  "priority": 0,
+  "title": "slice landing runs gate and review in parallel and merges server-side",
+  "after": [],
+  "body": [
+    "Outcome: a slice lands without the lead session waiting in sequence. `krn/gate` starts on push and runs in parallel with the review panel; once review PASS and the gate succeeds on the pinned head, the PR merges server-side (auto-merge pinned to the reviewed head); main CI and hygiene run asynchronously and report to the capsule, so the lead session ends at review PASS.\nEvidence: market research .krn/runs/lead/market-research/report.md (Anthropic \"layers not one gate\", GitHub Agent Merge, Graphite queue); KRN last 30 PRs open→merge p50 29 min, p90 58 min; #209 spent ~12 min on PR krn/gate after review plus main CI wait in the lead session.\nProof: an observer drives slice run with stub gate and review and asserts the gate starts before review completes, merge is requested with the pinned head only after both pass, and the run returns before main CI completes.\nDecisions: keeps D21/D30 (required CI and review on the exact head); no gate is removed.\nOperator: \"Możemy realnie w ogóle nie potrzebujemy tych wszystkich CI, PR-ów, gate'ów… ogarnij to jak należy, od A do Z\" (2026-11-04)."
+  ]
+}

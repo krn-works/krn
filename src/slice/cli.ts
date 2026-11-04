@@ -1,5 +1,7 @@
 import { spawn } from 'node:child_process';
-import { resolve } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { closeSync, constants, openSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { runSlice, type SliceResult, type SliceRuntime } from './run.ts';
 import { oneLine } from './stages.ts';
@@ -23,6 +25,62 @@ const run: SliceRuntime['run'] = (command, args, { cwd }) =>
       done({ code: 127, stdout, stderr: 'cannot start command' }),
     );
     child.once('close', (code) => done({ code: code ?? 128, stdout, stderr }));
+  });
+
+/** Open landing outputs without following an existing symlink, then hand descriptors to the child. */
+export const detach: SliceRuntime['detach'] = (command, args, { cwd, log }) =>
+  new Promise<void>((started, failed) => {
+    const output = openSync(
+      log,
+      constants.O_WRONLY |
+        constants.O_CREAT |
+        constants.O_TRUNC |
+        constants.O_NOFOLLOW,
+      0o600,
+    );
+    try {
+      const exitPath = join(dirname(log), 'landing.exit');
+      const temporary = join(dirname(log), `.landing-${randomUUID()}.tmp`);
+      const exit = openSync(
+        temporary,
+        constants.O_WRONLY |
+          constants.O_CREAT |
+          constants.O_EXCL |
+          constants.O_NOFOLLOW,
+        0o600,
+      );
+      try {
+        const child = spawn(
+          '/bin/sh',
+          [
+            '-c',
+            'target=$1; temporary=$2; shift 2; "$@" >&3 2>&1; echo $? >&4; mv -T -- "$temporary" "$target"',
+            'landing',
+            exitPath,
+            temporary,
+            command,
+            ...args,
+          ],
+          {
+            cwd,
+            detached: true,
+            stdio: ['ignore', 'ignore', 'ignore', output, exit],
+          },
+        );
+        // Resolve only once the process exists; a start error reaches the slice run.
+        child.once('spawn', () => {
+          child.unref();
+          started();
+        });
+        child.once('error', failed);
+      } finally {
+        closeSync(exit);
+      }
+    } catch (error) {
+      failed(error);
+    } finally {
+      closeSync(output);
+    }
   });
 
 export async function sliceCommand(args: readonly string[]): Promise<void> {
@@ -72,7 +130,7 @@ export async function sliceCommand(args: readonly string[]): Promise<void> {
         ...(values.reason === undefined ? {} : { reason: values.reason }),
         ...(values.evidence === undefined ? {} : { evidence: values.evidence }),
       },
-      { root: process.cwd(), krn: resolve('bin/krn'), run },
+      { root: process.cwd(), krn: resolve('bin/krn'), run, detach },
     );
   } catch (error) {
     result = {
@@ -82,12 +140,21 @@ export async function sliceCommand(args: readonly string[]): Promise<void> {
     };
   }
   process.exitCode = result.exitCode;
+  if (result.exitCode === 0 && result.cause)
+    process.stdout.write(`${result.cause}\n`);
   if (result.exitCode !== 0) process.stderr.write(failureText(result));
 }
 
 /** The stderr text of a failed slice run: the cause line, then one indented line per detail; details keep their length so a record path is never cut. */
 export function failureText(result: SliceResult): string {
-  return `slice ${result.stage} exit=${result.exitCode}: ${oneLine(result.cause)}\n${(
+  const cause =
+    result.stage === 'gate' || result.stage === 'done'
+      ? (result.cause.split(/[\n\r\u2028\u2029]/u)[0] ?? '').replace(
+          /[\p{Cc}\p{Cf}]/gu,
+          '',
+        )
+      : oneLine(result.cause);
+  return `slice ${result.stage} exit=${result.exitCode}: ${cause}\n${(
     result.details ?? []
   )
     .map(

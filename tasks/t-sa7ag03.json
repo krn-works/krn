@@ -1,0 +1,12 @@
+{
+  "id": "t-sa7ag03",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 0,
+  "title": "review depth follows a risk tier of the diff",
+  "after": [],
+  "body": [
+    "Outcome: review depth follows risk, not a fixed panel. A deterministic classifier on the diff picks a tier: low (docs, tests, tracker, small non-sensitive code) = deterministic checks + one judge; medium = current panel; high (CI workflows, review/ship/deliver code, ADRs, spec/worker-scope.json) = panel + operator notice. The panel adds voting/dedup of findings, drops style findings and re-reviews only the diff after round one.\nEvidence: .krn/runs/lead/market-research/report.md (\"How the Claude Code team does code review\", 2026-10-15: first-round pass 65%→78%, mean rounds 2.08→1.32); KRN review is the largest wait per slice.\nProof: classifier observer over fixture diffs per tier; panel observer asserting a duplicated finding is reported once and a style finding is dropped.\nDecisions: a low tier without the full panel amends ADR 0014 D30 (\"Standards and Spec required\"); the lead decides it under the Full autonomy grant and records the amendment in the same PR.\nOperator: \"Możemy realnie w ogóle nie potrzebujemy tych wszystkich CI, PR-ów, gate'ów…\" (2026-11-04)."
+  ]
+}

@@ -8,6 +8,7 @@ export const stages = [
   'verify',
   'pr',
   'review',
+  'gate',
   'deliver',
   'done',
 ] as const;

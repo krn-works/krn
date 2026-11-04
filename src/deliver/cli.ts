@@ -2,7 +2,7 @@ import { parseArgs } from 'node:util';
 import { z } from 'zod';
 import { CommandFailure, exitCodes } from './transport.ts';
 
-export const help = `krn deliver --repo OWNER/REPO --pr N --record PATH (--message-file PATH | --task ID) [--dry-run] [--json]
+export const help = `krn deliver --repo OWNER/REPO --pr N --record PATH (--message-file PATH | --task ID) [--dry-run] [--merge-only] [--json]
   --load-threshold N  Deprecated; accepted and ignored (no host-load wait)
   --timeout-seconds N Bounded wait per stage (default 1800)
   --poll-ms N         Poll interval (default 10000)
@@ -35,6 +35,7 @@ export async function deliverCommand(
           record: { type: 'string' },
           task: { type: 'string' },
           'message-file': { type: 'string' },
+          'merge-only': { type: 'boolean' },
           'dry-run': { type: 'boolean' },
           json: { type: 'boolean' },
           help: { type: 'boolean' },
@@ -67,6 +68,7 @@ export async function deliverCommand(
           .optional(),
         messageFile: z.string().min(1).optional(),
         dryRun: z.boolean(),
+        mergeOnly: z.boolean(),
         loadThreshold: z.coerce.number().positive().finite(),
         timeoutMs: z.coerce.number().positive().finite(),
         pollMs: z.coerce.number().int().positive(),
@@ -79,6 +81,7 @@ export async function deliverCommand(
         task: values.task,
         messageFile: values['message-file'],
         dryRun: values['dry-run'] ?? false,
+        mergeOnly: values['merge-only'] ?? false,
         loadThreshold: values['load-threshold'] ?? 6,
         timeoutMs: Number(values['timeout-seconds'] ?? 1800) * 1000,
         pollMs: values['poll-ms'] ?? 10000,

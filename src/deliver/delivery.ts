@@ -21,13 +21,9 @@ import {
   verifyReviewBinding,
 } from '../flow/series.ts';
 import { isOverridableFailure, newReviewRecordSchema } from '../flow/types.ts';
-import {
-  gateAdmissionPolicyFromBase,
-  KRN_CHECK_APP_ID,
-  matchesGateCheckRun,
-} from './admission-policy.ts';
+import { gateAdmissionPolicyFromBase } from './admission-policy.ts';
 import { requireReviewChecklist } from './checklist.ts';
-import { gateFailureLine } from './gate-failure.ts';
+import { waitForGate } from './gate-wait.ts';
 import { removeIdenticalLeftovers } from './identical-leftovers.ts';
 import { checkMergeContracts, mergeMessage } from './message.ts';
 import {
@@ -61,6 +57,7 @@ export interface DeliveryOptions {
   task?: string | undefined;
   messageFile?: string | undefined;
   dryRun: boolean;
+  mergeOnly?: boolean;
   /** @deprecated Accepted for older callers; delivery no longer waits for host load. */
   loadThreshold?: number;
   timeoutMs: number;
@@ -112,26 +109,6 @@ const statusesSchema = z.array(
       state: z.string(),
     }),
   ),
-);
-const checksSchema = z.array(
-  z.object({
-    check_runs: z.array(
-      z.object({
-        id: z.number(),
-        name: z.string(),
-        head_sha: sha,
-        status: z.string(),
-        conclusion: z.string().nullable(),
-        output: z.unknown().optional(),
-        app: z
-          .object({
-            id: z.number().int().positive().optional(),
-            slug: z.string().optional(),
-          })
-          .nullable(),
-      }),
-    ),
-  }),
 );
 
 function lstatIfPresent(path: string) {
@@ -510,60 +487,19 @@ export async function deliver(
     if (options.dryRun)
       return { status: 'dry-run', head: state.head, merged: pull.merged };
     save();
-    const poll = async (condition: () => Promise<boolean>) => {
-      const deadline = now() + options.timeoutMs;
-      while (!(await condition())) {
-        if (now() >= deadline) throw new Error('bounded wait timed out');
-        await wait(options.pollMs);
-      }
-    };
-    const waitGate = async (head: string, onMain = false) => {
-      let conclusion = 'pending';
-      await poll(async () => {
-        const pages = checksSchema.parse(
-          JSON.parse(
-            await gh(
-              [
-                'api',
-                '--paginate',
-                '--slurp',
-                `repos/${options.repo}/commits/${head}/check-runs?filter=all&per_page=100`,
-              ],
-              main,
-            ),
-          ),
-        );
-        const checks = pages.flatMap((page) => page.check_runs);
-        if (
-          gatePolicy.source === 'legacy-actions' &&
-          checks.some((check) =>
-            matchesGateCheckRun(check, head, {
-              source: 'pinned-app',
-              checkRunName: 'krn/gate',
-              appId: KRN_CHECK_APP_ID,
-            }),
-          )
-        )
-          throw new Error(
-            'base selects legacy GitHub Actions but native CI is present; update branch from main or reconcile base CI policy',
-          );
-        const gate = checks
-          .filter((check) => matchesGateCheckRun(check, head, gatePolicy))
-          .sort((a, b) => b.id - a.id)[0];
-        if (gate?.status !== 'completed') return false;
-        conclusion = gate.conclusion ?? 'unknown';
-        if (conclusion !== 'success')
-          throw new Error(
-            `gate concluded ${conclusion} on ${head}; ${gateFailureLine(gate.output)}; rerun: ${
-              onMain
-                ? 'main has no lead rerun (the lead Jenkins account builds PR jobs only); the next merge to main runs the gate again'
-                : `krn ci rerun --pr ${options.pr} --head ${head}`
-            }`,
-          );
-        return true;
+    const waitGate = (head: string, onMain = false) =>
+      waitForGate({
+        repo: options.repo,
+        pr: options.pr,
+        head,
+        onMain,
+        policy: gatePolicy,
+        gh: (args) => gh(args, main),
+        sleep: wait,
+        now,
+        pollMs: options.pollMs,
+        timeoutMs: options.timeoutMs,
       });
-      return conclusion;
-    };
     // Re-bind the reviewed head to GitHub and the worktree before every irreversible step.
     const assertBound = async () => {
       const live = pullSchema.parse(
@@ -689,6 +625,7 @@ export async function deliver(
         throw new Error('saved merge differs from GitHub merge');
     }
     if (!state.merge) throw new Error('ship did not provide a merge sha');
+    if (options.mergeOnly) return { status: 'merged', head: state.merge };
     stage = 'ci';
     // The merge is final: hygiene runs even when the main gate is red, then the red gate is reported.
     let mainConclusion = 'pending';

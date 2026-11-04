@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { lstat, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { lstat, open, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import { effortSchema } from '../worker/state.ts';
@@ -58,6 +59,11 @@ export interface SliceRuntime {
     readonly stdout: string;
     readonly stderr: string;
   }>;
+  readonly detach: (
+    command: string,
+    args: readonly string[],
+    options: { readonly cwd: string; readonly log: string },
+  ) => Promise<void> | void;
   /** Waits between PR head polls; defaults to a timer. */
   readonly sleep?: (ms: number) => Promise<void>;
 }
@@ -75,7 +81,7 @@ class Failure extends Error {
   readonly code: number;
   readonly details: readonly string[];
   constructor(code: number, cause: string, details: readonly string[] = []) {
-    super(oneLine(cause) || `command failed exit ${code}`);
+    super(cause || `command failed exit ${code}`);
     this.code = code;
     this.details = details;
   }
@@ -159,6 +165,8 @@ export async function runSlice(
   let path: string | undefined;
   let writable = false;
   let lock: string | undefined;
+  let gate: ReturnType<SliceRuntime['run']> | undefined;
+  let mergedCause = '';
   try {
     const parsed = optionsSchema.safeParse(input);
     if (!parsed.success) throw new Failure(64, 'invalid slice options');
@@ -337,6 +345,47 @@ export async function runSlice(
       journal.reviewOverride = true;
       journal.completed = true;
       await save();
+    }
+    if (journal.stage === 'done' && journal.completed) {
+      stage = 'done';
+      writable = false;
+      const log = join(dirname(path), 'landing.log').replace(
+        /[\p{Cc}\p{Cf}\u2028\u2029]/gu,
+        ' ',
+      );
+      const exit = join(dirname(path), 'landing.exit');
+      if (!journal.landing) return { exitCode: 0, stage: 'done', cause: '' };
+      let text: string;
+      try {
+        const file = await open(
+          exit,
+          constants.O_RDONLY | constants.O_NOFOLLOW,
+        );
+        try {
+          text = await file.readFile('utf8');
+        } finally {
+          await file.close();
+        }
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        return { exitCode: 0, stage: 'done', cause: 'landing: running' };
+      }
+      const value = text.trim();
+      const code = /^\d+$/u.test(value) ? Number(value) : NaN;
+      if (!Number.isSafeInteger(code) || code > 255)
+        return {
+          exitCode: 74,
+          stage: 'done',
+          cause: `landing: failed exit unknown, log ${log}`,
+        };
+      return {
+        exitCode: code,
+        stage: 'done',
+        cause:
+          code === 0
+            ? 'landing: delivered'
+            : `landing: failed exit ${code}, log ${log}`,
+      };
     }
     // A review PASS saved before the stage completed resumes at deliver.
     if (
@@ -694,6 +743,28 @@ export async function runSlice(
               75,
               `PR #${journal.pr} head ${remoteHead} has not reached ${head}: rerun`,
             );
+          gate = runtime
+            .run(
+              runtime.krn,
+              [
+                'ci',
+                'wait',
+                '--repo',
+                options.repo,
+                '--pr',
+                String(journal.pr),
+                '--head',
+                head,
+                '--base',
+                journal.base,
+              ],
+              { cwd: worktree },
+            )
+            .catch((error) => ({
+              code: 74,
+              stdout: '',
+              stderr: String(error),
+            }));
           // The brief may change after the brief stage: judge against the current one.
           await writeRunFile(
             join(dirname(path), 'lens.md'),
@@ -749,11 +820,52 @@ export async function runSlice(
             );
           }
           await save();
+          if (gate) {
+            const waited = await gate;
+            if (result.code === 0 && waited.code === 0) {
+              journal.gateHead = journal.reviewHead;
+              await save();
+            }
+          }
           if (result.code)
             throw new Failure(result.code, `review FAIL exit ${result.code}`, [
               `record ${journal.reviewRecord}`,
               ...(await blockingFindings(journal.reviewRecord)),
             ]);
+          break;
+        }
+        case 'gate': {
+          const head = (await exec('git', ['rev-parse', 'HEAD'])).trim();
+          if (head !== journal.reviewHead)
+            throw new Failure(
+              75,
+              'HEAD differs from reviewed head; rerun review',
+            );
+          if (journal.gateHead !== journal.reviewHead) {
+            const result = await (gate ??
+              runtime.run(
+                runtime.krn,
+                [
+                  'ci',
+                  'wait',
+                  '--repo',
+                  options.repo,
+                  '--pr',
+                  String(journal.pr),
+                  '--head',
+                  head,
+                  '--base',
+                  journal.base,
+                ],
+                { cwd: worktree },
+              ));
+            if (result.code !== 0)
+              throw new Failure(
+                result.code === 75 ? 75 : 74,
+                result.stderr || result.stdout || 'gate failed',
+              );
+            journal.gateHead = head;
+          }
           break;
         }
         case 'deliver': {
@@ -766,25 +878,55 @@ export async function runSlice(
           const version = (
             await readFile(join(root, '.node-version'), 'utf8')
           ).trim();
-          await exec(
-            'mise',
-            [
-              'exec',
-              `node@${version}`,
-              '--',
-              join(cwd, 'bin', 'krn'),
-              'deliver',
-              '--repo',
-              options.repo,
-              '--pr',
-              String(journal.pr),
-              '--record',
-              journal.reviewRecord ?? '',
-              '--task',
-              options.task,
-            ],
-            cwd,
-          );
+          const args = [
+            'exec',
+            `node@${version}`,
+            '--',
+            join(cwd, 'bin', 'krn'),
+            'deliver',
+            '--repo',
+            options.repo,
+            '--pr',
+            String(journal.pr),
+            '--record',
+            journal.reviewRecord ?? '',
+            '--task',
+            options.task,
+          ];
+          const log = join(dirname(path), 'landing.log');
+          const exit = join(dirname(path), 'landing.exit');
+          // A landing recorded before a crash has started (or is about to); never start a second one.
+          if (journal.landing) {
+            mergedCause = `landing: recorded, log ${log}`;
+            break;
+          }
+          const merged = await exec('mise', [...args, '--merge-only'], cwd);
+          for (const file of [log, exit]) {
+            const handle = await open(
+              file,
+              constants.O_WRONLY | constants.O_CREAT | constants.O_NOFOLLOW,
+              0o600,
+            );
+            await handle.close();
+          }
+          await rm(exit);
+          journal.landing = { log, exit };
+          await save();
+          try {
+            await runtime.detach('mise', args, { cwd, log });
+          } catch (error) {
+            delete journal.landing;
+            await save();
+            throw new Failure(
+              70,
+              `cannot start the landing deliver: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+          mergedCause =
+            `${merged.trim()}; main CI and hygiene running, log ${log}`.replace(
+              /[\p{Cc}\p{Cf}\u2028\u2029]/gu,
+              ' ',
+            );
           break;
         }
         case 'done':
@@ -794,12 +936,17 @@ export async function runSlice(
       await save();
       if (options.stopAfter === stage) return { exitCode: 0, stage, cause: '' };
     }
-    return { exitCode: 0, stage: 'done', cause: '' };
+    return { exitCode: 0, stage: 'done', cause: mergedCause };
   } catch (error) {
     const exitCode = error instanceof Failure ? error.code : 65;
-    const cause = oneLine(
-      error instanceof Error ? error.message : String(error),
-    );
+    const message = error instanceof Error ? error.message : String(error);
+    const cause =
+      stage === 'gate'
+        ? (message.split(/[\n\r\u2028\u2029]/u)[0] ?? '').replace(
+            /[\p{Cc}\p{Cf}]/gu,
+            '',
+          )
+        : oneLine(message);
     if (writable && state && path) {
       state.stage = stage;
       state.completed = false;
