@@ -1,0 +1,12 @@
+{
+  "id": "t-8gk2jzk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "Red-first names detached processes instead of 'other'",
+  "after": [],
+  "body": [
+    "Outcome: when the red-first sandbox wrapper kills orphaned processes and forces exit 125 ('detached check processes remained', src/verdict/sandbox.ts ~:967-981), krn verify prints red-first FAIL with cause 'detached processes remained' instead of the opaque 'head=other', and the diagnostic tail is kept under the lead run dir. Evidence: PR #194 observer left a detached worker driver; head classified 'other' and the diagnostic was deleted (src/flow/repository.ts:697-710); a subagent needed ~2 min to reproduce it (/mnt/storage/tmp/krn/redfirst-diag/verdict.md). Proof: new observer under test/flow/ red at base by assertion."
+  ]
+}
