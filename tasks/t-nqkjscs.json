@@ -1,7 +1,11 @@
 {
   "id": "t-nqkjscs",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "brief check refuses CRLF/BOM text-grammar claims without a fixture literal"
+  },
   "created": "2026-11-04",
   "priority": 1,
   "title": "Refuse a brief that claims CRLF or BOM handling without a fixture in its observer",
