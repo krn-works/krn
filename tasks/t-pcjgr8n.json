@@ -1,7 +1,11 @@
 {
   "id": "t-pcjgr8n",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "preflight test/rules scans tracked src/test/scripts for raw invisible format characters"
+  },
   "created": "2026-11-04",
   "priority": 2,
   "title": "Refuse raw invisible format characters in tracked source",

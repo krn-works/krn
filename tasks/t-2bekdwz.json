@@ -1,0 +1,12 @@
+{
+  "id": "t-2bekdwz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 3,
+  "title": "Name an observer that reads a new fixture before its first assertion",
+  "after": [],
+  "body": [
+    "Outcome: an observer that reads a new fixture at module load is refused before verify, or red-first reports it as such, because at the base the fixture is missing and the run classifies as 'other' instead of 'assertion'. Evidence: PR #199 first krn verify red-first FAIL 'test/deliver/gate-failure-line.test.ts base=other' (.krn/runs/lead/gate-no-stage/verify.log history) fixed by reading the fixture after the typeof assertion. Proof: an observer with a top-level readFileSync of a new fixture gets a named reason ('reads a new fixture before its first assertion') from krn verify red-first."
+  ]
+}

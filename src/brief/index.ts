@@ -304,9 +304,14 @@ export function checkBrief(briefPath: string, checklistPath: string): string[] {
         : 'checklist cannot be read',
     ];
   }
+  return [...findInvisibleFormat(brief), ...checkText(brief, checklist)];
+}
+
+/** Names each raw invisible format character by line, at most 64. */
+export function findInvisibleFormat(text: string): string[] {
   const invisible: string[] = [];
   // A leading U+FEFF is the file's byte order mark; anywhere else it is text.
-  for (const [index, line] of brief.split('\n').entries())
+  for (const [index, line] of text.split('\n').entries())
     for (const match of line.matchAll(
       /[\u200B-\u200F\u2028-\u202E\u2066-\u2069\uFEFF]/gu,
     ))
@@ -317,5 +322,5 @@ export function checkBrief(briefPath: string, checklistPath: string): string[] {
         invisible.push(
           `line ${index + 1}: raw invisible character U+${match[0].codePointAt(0)?.toString(16).toUpperCase()}; write its escape text`,
         );
-  return [...invisible, ...checkText(brief, checklist)];
+  return invisible;
 }
