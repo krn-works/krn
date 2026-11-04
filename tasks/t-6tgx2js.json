@@ -1,7 +1,11 @@
 {
   "id": "t-6tgx2js",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ADR 0014 D31-D33 recorded; observer test/rules/memory-target-adr.test.ts"
+  },
   "created": "2026-11-04",
   "priority": 1,
   "title": "Record the memory target and GLOBAL v1 store in ADR 0014",
