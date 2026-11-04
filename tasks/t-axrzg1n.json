@@ -1,0 +1,12 @@
+{
+  "id": "t-axrzg1n",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 1,
+  "title": "Name the cause of a main krn/gate failure that ran no stage, and make its rerun reachable",
+  "after": [],
+  "body": [
+    "Outcome: a main krn/gate failure that ran no stage names its cause and can be re-run without the operator. Evidence: main 7b01635 (#196) krn/gate failed in 4 s (02:36:19-02:36:23Z), summary 'Attempt 1f057a44-... failed or is unverified; base=not-required; gate=false; cleanup=false; evidence=false' with no 'failed at stage' text; build 46 on aebd727 passed in 12 min; observer test/brief/lens.test.ts passes at 7b01635. krn ci rerun was impossible: Jenkins is reachable only through the 127.0.0.1:18080 tunnel (down) and Bitwarden is locked, so KRN_JENKINS_TOKEN is unavailable; deliver exited 74. Proof: an observer that feeds a no-stage failure summary to the gate reporter and asserts a 'failed at stage <stage>: <cause>' line."
+  ]
+}

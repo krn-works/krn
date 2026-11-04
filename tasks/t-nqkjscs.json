@@ -1,0 +1,12 @@
+{
+  "id": "t-nqkjscs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 1,
+  "title": "Refuse a brief that claims CRLF or BOM handling without a fixture in its observer",
+  "after": [],
+  "body": [
+    "Outcome: krn brief check refuses a brief whose Hardening text-grammar answer claims CRLF (or BOM) handling while the Proof observer file contains no such fixture (no '\\r\\n' / '\\uFEFF' literal). Evidence: PR #196 attempt 1 prepass FAIL 'CRLF residual lines are changed to LF' — the lead's own brief claimed 'CRLF lines stay verbatim' with no CRLF fixture; PR #195 attempt 1 failed on the same class (claimed shape without fixture). Proof: test/brief/allowed-paths.test.ts or a new observer red at base by assertion."
+  ]
+}
