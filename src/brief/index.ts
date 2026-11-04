@@ -304,5 +304,18 @@ export function checkBrief(briefPath: string, checklistPath: string): string[] {
         : 'checklist cannot be read',
     ];
   }
-  return checkText(brief, checklist);
+  const invisible: string[] = [];
+  // A leading U+FEFF is the file's byte order mark; anywhere else it is text.
+  for (const [index, line] of brief.split('\n').entries())
+    for (const match of line.matchAll(
+      /[\u200B-\u200F\u2028-\u202E\u2066-\u2069\uFEFF]/gu,
+    ))
+      if (
+        (index > 0 || match.index > 0 || match[0] !== '\uFEFF') &&
+        invisible.length < 64
+      )
+        invisible.push(
+          `line ${index + 1}: raw invisible character U+${match[0].codePointAt(0)?.toString(16).toUpperCase()}; write its escape text`,
+        );
+  return [...invisible, ...checkText(brief, checklist)];
 }
