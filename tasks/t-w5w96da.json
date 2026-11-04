@@ -1,0 +1,12 @@
+{
+  "id": "t-w5w96da",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 1,
+  "title": "slice run keeps the review series count across a same-ref rebase",
+  "after": [],
+  "body": [
+    "Outcome: `krn slice run` resets its review attempt count only when the review series actually starts over; after a rebase onto a new main SHA with the same baseRef it keeps the series count and stops with the budget-exception instruction before calling review.\nEvidence: PR #212 (t-sa7ag03): slice run verify reset reviewAttempts to 0 on a new base (src/slice/run.ts \"a new base starts a new series\"), but the series is keyed by PR and baseRef `main`, so the next review exited 64 \"two attempts exhausted\"; attempt 3 then ran by hand with --budget-exception, and slice run has no --budget-exception passthrough.\nProof: slice observer: rebase onto a moved main after two FAIL attempts → no review call, exit 64 naming the exception path; with `--budget-exception <file>` the review argv carries it."
+  ]
+}
