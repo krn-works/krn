@@ -3,6 +3,9 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { emitContext, hookInput, object } from './context-io.ts';
 
+import { memoryDirectory } from './memory-directory.ts';
+import { checkMemory } from './memory-refs.ts';
+
 const rules = [
   'delegate reading to a subagent (krn-reader) that returns a verdict and path',
   'pass pointers, not file contents',
@@ -84,6 +87,19 @@ try {
         if (line) lines.push(line.trimStart().slice(0, 400));
       }
     }
+  }
+  try {
+    const memory = memoryDirectory(input.project);
+    if (existsSync(memory)) {
+      const { findings } = checkMemory({ root: input.project, memory });
+      lines.push(
+        findings.length > 0
+          ? `Memory: ${findings.length} findings; run node scripts/claude/memory-refs.ts`
+          : 'Memory: clean',
+      );
+    }
+  } catch {
+    /* Memory hygiene must never interrupt startup. */
   }
   let newest: { path: string; mtime: number } | undefined;
   function visit(directory: string) {

@@ -1,7 +1,6 @@
-import { execFileSync } from 'node:child_process';
 import { readFileSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
+import { memoryDirectory } from './memory-directory.ts';
 
 // A handoff must record every open operator request durably: a task, a memory entry, or an explicit close.
 const usage =
@@ -33,32 +32,6 @@ function options(arguments_: string[]) {
   }
   if (!handoff) fail(usage, 64);
   return { handoff, root, memory: memory ?? memoryDirectory(root) };
-}
-
-// Claude Code keys auto memory by the main checkout, so worktrees share it.
-function memoryDirectory(root: string): string {
-  let main = root;
-  try {
-    main = dirname(
-      resolve(
-        root,
-        execFileSync('git', ['rev-parse', '--git-common-dir'], {
-          cwd: root,
-          encoding: 'utf8',
-          timeout: 2000,
-          stdio: ['ignore', 'pipe', 'ignore'],
-        }).trim(),
-      ),
-    );
-  } catch {
-    /* Outside Git the root itself names the project. */
-  }
-  return join(
-    homedir(),
-    '.claude/projects',
-    main.replace(/[^A-Za-z0-9]/gu, '-'),
-    'memory',
-  );
 }
 
 const { handoff, root, memory } = options(process.argv.slice(2));

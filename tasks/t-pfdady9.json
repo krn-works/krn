@@ -1,7 +1,11 @@
 {
   "id": "t-pfdady9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scripts/claude/memory-refs.ts checks lead memory references and SessionStart prints the count; real memory pruned from 38 findings to 0 (.krn/runs/lead/memory-refs/prune-log.md); moving lesson notes into checks continues in t-3ha9z96"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Prune stale lead memory and move lessons into checks",
