@@ -34,7 +34,7 @@ export const detach: SliceRuntime['detach'] = (command, args, { cwd, log }) =>
       log,
       constants.O_WRONLY |
         constants.O_CREAT |
-        constants.O_TRUNC |
+        constants.O_APPEND |
         constants.O_NOFOLLOW,
       0o600,
     );
@@ -54,10 +54,12 @@ export const detach: SliceRuntime['detach'] = (command, args, { cwd, log }) =>
           '/bin/sh',
           [
             '-c',
-            'target=$1; temporary=$2; shift 2; "$@" >&3 2>&1; echo $? >&4; mv -T -- "$temporary" "$target"',
+            // One landing per run directory: a restart that finds the lock held or the exit published stops.
+            'target=$1; temporary=$2; lock=$3; shift 3; exec 9>>"$lock"; if { command -v flock >/dev/null && ! flock -n 9; } || [ -e "$target" ]; then rm -f -- "$temporary"; exit 0; fi; "$@" >&3 2>&1 9>&-; echo $? >&4; mv -T -- "$temporary" "$target"',
             'landing',
             exitPath,
             temporary,
+            join(dirname(log), 'landing.lock'),
             command,
             ...args,
           ],

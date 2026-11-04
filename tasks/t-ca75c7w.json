@@ -1,0 +1,12 @@
+{
+  "id": "t-ca75c7w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 1,
+  "title": "worker scope check ignores shared git ref updates",
+  "after": [],
+  "body": [
+    "Outcome: the worker scope check ignores ref updates in the shared common git directory (other lanes' fetch/push under .git/refs/remotes) and reports only worktree paths.\nEvidence: t-sa7ag03 worker turn exited 3 \"scope violation: .git/refs/remotes/origin/feat/memory-refs\" while lane memory pushed #211 during the turn.\nProof: driver observer: a ref written in the common git dir during a turn yields no scope violation; a worktree file outside --allow still exits 3."
+  ]
+}

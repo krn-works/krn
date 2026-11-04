@@ -1,7 +1,11 @@
 {
   "id": "t-bmcza70",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "rerun restarts a landing without a published exit; flock in the detached wrapper runs one deliver"
+  },
   "created": "2026-11-04",
   "priority": 1,
   "title": "slice landing start survives a crash between journal save and spawn",
