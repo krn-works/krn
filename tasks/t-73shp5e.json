@@ -1,7 +1,11 @@
 {
   "id": "t-73shp5e",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn verify prints biome error headers for changed paths and the fix command"
+  },
   "created": "2026-11-04",
   "priority": 2,
   "title": "krn verify names the lint error for changed paths",

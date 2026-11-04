@@ -5,6 +5,7 @@ import {
   lstatSync,
   mkdirSync,
   openSync,
+  readFileSync,
   realpathSync,
   writeSync,
 } from 'node:fs';
@@ -16,6 +17,7 @@ import {
   resolve,
   sep,
 } from 'node:path';
+import { stripVTControlCharacters } from 'node:util';
 import { TEST_FILE_GLOB } from '../../scripts/test-suite.mjs';
 import {
   type RedFirstReport,
@@ -316,6 +318,87 @@ function changedCodeFiles(root: string, base: string, head: string): string[] {
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error('unable to list changed code files');
   return result.stdout.split('\0').filter(Boolean).sort();
+}
+
+function changedPaths(root: string, base: string, head: string): Set<string> {
+  const result = runGit(root, [
+    'diff',
+    '--no-renames',
+    '--name-only',
+    '--diff-filter=ACMT',
+    '-z',
+    base,
+    head,
+  ]);
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error('unable to list changed paths');
+  return new Set(result.stdout.split('\0').filter(Boolean));
+}
+
+const MAX_LINT_ERRORS = 10;
+// A biome diagnostic header: `<path>[:line:col] <category> [FIXABLE] ━━━`.
+// The location may hold `:`, so the changed path set decides where it ends.
+const BIOME_HEADER =
+  /^(?<location>[^\s\p{Cc}\p{Cf}]+) (?<category>[^\s\p{Cc}\p{Cf}]+)(?:\s+FIXABLE)?\s+━+$/u;
+
+function headerPath(
+  location: string,
+  changed: Set<string>,
+): { readonly path: string; readonly position: string } | undefined {
+  if (changed.has(location)) return { path: location, position: '' };
+  const split = /^(?<path>.+)(?<position>:\d+:\d+)$/u.exec(location)?.groups;
+  return split?.path && split.position && changed.has(split.path)
+    ? { path: split.path, position: split.position }
+    : undefined;
+}
+
+function shellQuote(path: string): string {
+  return /^[\w./@+-]+$/u.test(path)
+    ? path
+    : `'${path.replaceAll("'", "'\\''")}'`;
+}
+
+// Names each biome error (not warning) diagnostic in a changed path and the
+// command that applies the safe fixes, so a lint FAIL needs no log reading.
+function lintErrorLines(logPath: string, changed: Set<string>): VerifyLine[] {
+  let log: string;
+  try {
+    log = stripVTControlCharacters(readFileSync(logPath, 'utf8'));
+  } catch {
+    return [];
+  }
+  const entries = log.split(/\r?\n/u);
+  const errors: string[] = [];
+  const paths = new Set<string>();
+  entries.forEach((entry, index) => {
+    const header = BIOME_HEADER.exec(entry)?.groups;
+    const located = header?.location
+      ? headerPath(header.location, changed)
+      : undefined;
+    if (!located) return;
+    const message = entries
+      .slice(index + 1)
+      .find((candidate) => candidate.trim() !== '');
+    if (!message?.startsWith('  × ')) return;
+    errors.push(`${located.path}${located.position} ${header?.category}`);
+    paths.add(located.path);
+  });
+  if (!errors.length) return [];
+  const shown = errors
+    .slice(0, MAX_LINT_ERRORS)
+    .map((error) => line('lint', 'FAIL', `error ${error}`));
+  if (errors.length > MAX_LINT_ERRORS)
+    shown.push(
+      line('lint', 'FAIL', `error +${errors.length - MAX_LINT_ERRORS} more`),
+    );
+  shown.push(
+    line(
+      'lint',
+      'FAIL',
+      `fix npx biome check --write ${[...paths].map(shellQuote).join(' ')}`,
+    ),
+  );
+  return shown;
 }
 
 const MAX_LOG_BYTES = 8 * 1024 * 1024;
@@ -676,6 +759,8 @@ export async function runVerify(
     else {
       failed = true;
       lines.push(line(step, 'FAIL', commandFailureDetail(logRelative, result)));
+      if (step === 'lint')
+        lines.push(...lintErrorLines(logPath, changedPaths(root, base, head)));
     }
   };
 
