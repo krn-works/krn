@@ -1,7 +1,11 @@
 {
   "id": "t-3ny1bcp",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "feat(slice): run the gate beside review and land without waiting for main (t-3ny1bcp)"
+  },
   "created": "2026-11-04",
   "priority": 0,
   "title": "slice landing runs gate and review in parallel and merges server-side",
