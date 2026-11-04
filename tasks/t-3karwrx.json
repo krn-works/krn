@@ -1,7 +1,11 @@
 {
   "id": "t-3karwrx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "restart block hides idle claims and inactive capsules; real main block 1441->1062 bytes, 0 dead entries"
+  },
   "created": "2026-11-01",
   "priority": 1,
   "title": "Show only live claims and capsules at session start",

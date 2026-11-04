@@ -26,6 +26,45 @@ function closed(project: string, id: unknown): boolean {
   }
 }
 
+// An entry idle for longer than this window is dead weight in the restart block.
+const idleWindow = 24 * 60 * 60 * 1000;
+
+function mtime(path: string): number {
+  try {
+    return statSync(path).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
+// Last activity on a claim: its claim time, its record write, or the newest commit in its worktree.
+function claimActivity(path: string, claim: Record<string, unknown>): number {
+  let latest = mtime(path);
+  if (typeof claim.claimed === 'string') {
+    const claimed = Date.parse(claim.claimed);
+    if (Number.isFinite(claimed) && claimed <= Date.now())
+      latest = Math.max(latest, claimed);
+  }
+  if (typeof claim.worktree === 'string' && claim.worktree.startsWith('/')) {
+    try {
+      if (statSync(claim.worktree).isDirectory()) {
+        const seconds = Number(
+          execFileSync('git', ['log', '-1', '--format=%ct'], {
+            cwd: claim.worktree,
+            encoding: 'utf8',
+            timeout: 2000,
+            stdio: ['ignore', 'pipe', 'ignore'],
+          }).trim(),
+        );
+        if (Number.isFinite(seconds)) latest = Math.max(latest, seconds * 1000);
+      }
+    } catch {
+      /* A missing or broken worktree adds no activity. */
+    }
+  }
+  return latest;
+}
+
 try {
   const input = hookInput(['SessionStart']);
   if (
@@ -48,6 +87,9 @@ try {
     `Branch: ${branch}; HEAD: ${head}`,
     ...rules.map((rule) => `Rule: ${rule}`),
   ];
+  const now = Date.now();
+  let idleClaims = 0;
+  let inactiveCapsules = 0;
   const claims = join(main, '.krn/task-claims');
   if (existsSync(claims)) {
     lines.push(`Claims directory: ${claims}`);
@@ -64,6 +106,10 @@ try {
       }
       // A claim on a closed task is stale; a missing record stays visible.
       if (closed(input.project, claim.id)) continue;
+      if (now - claimActivity(path, claim) > idleWindow) {
+        idleClaims += 1;
+        continue;
+      }
       lines.push(
         `Open claim: ${entry.name} ${JSON.stringify({ id: claim.id, actor: claim.actor, branch: claim.branch }).slice(0, 160)}`,
       );
@@ -78,16 +124,34 @@ try {
       const path = join(capsules, entry.name, 'state.md');
       if (!existsSync(path)) continue;
       const text = readFileSync(path, 'utf8');
-      lines.push(`Capsule: ${path}`);
       // Same fieldLine semantics as GLOBAL capsule-abi.mjs: first trimmed label line.
-      for (const label of ['Outcome state', 'Restart state']) {
+      const fields = ['Outcome state', 'Restart state'].flatMap((label) => {
         const line = text
           .split('\n')
           .find((line) => line.trimStart().startsWith(`${label}:`));
-        if (line) lines.push(line.trimStart().slice(0, 400));
+        return line ? [line.trimStart().slice(0, 400)] : [];
+      });
+      const complete = fields.some((line) =>
+        /^Outcome state:\s*COMPLETE\b/u.test(line),
+      );
+      const touched = Math.max(
+        mtime(path),
+        mtime(join(capsules, entry.name, 'handoff.md')),
+      );
+      if (complete || now - touched > idleWindow) {
+        inactiveCapsules += 1;
+        continue;
       }
+      lines.push(`Capsule: ${path}`, ...fields);
     }
   }
+  // The count sits right after the rules, so truncation of the entries never drops it.
+  if (idleClaims + inactiveCapsules > 0)
+    lines.splice(
+      1 + rules.length,
+      0,
+      `Hidden: ${idleClaims} idle claims, ${inactiveCapsules} inactive capsules (idle over 24h or COMPLETE)`,
+    );
   try {
     const memory = memoryDirectory(input.project);
     if (existsSync(memory)) {
