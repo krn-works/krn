@@ -1,0 +1,13 @@
+{
+  "id": "t-vxshve4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "slice run waits for the PR head before review after a push",
+  "after": [],
+  "body": [
+    "Outcome: after the pr stage pushes a new head, the review stage waits (bounded) until `gh pr view` reports that headRefOid before calling `krn review`, instead of failing 64 \"authoritative PR number/base/head does not match requested review\".\nEvidence: PR #206 second round (.krn/runs/lead/review-override/slice-review2b.log): push succeeded, review exited 64 immediately; a rerun minutes later passed admission. Related transient: deliver exit 76 \"check runs unavailable\" while krn/gate was already success (deliver.log), resumed with exit 0.\nProof: an observer where the stub PR head lags one poll behind the push; review is called once with the new head.",
+    "Lead trap: when slice review exits 64 'authoritative PR number/base/head does not match' right after a push, check `gh pr view <n> --json headRefOid` equals the local HEAD, then rerun the same slice command; a deliver exit 76 'check runs unavailable' with krn/gate already success is resumed by rerunning deliver."
+  ]
+}

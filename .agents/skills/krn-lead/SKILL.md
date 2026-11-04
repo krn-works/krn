@@ -55,6 +55,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 - **Authoritative base (t-xxa04np).** With two lanes a parallel fetch moves the local `origin/main`: rebase onto the SHA from `git ls-remote origin main` or the PR's `baseRefOid`, and pass that exact SHA to `krn verify` and `krn review`, never the local `origin/main`.
 - **Main gate rerun (t-33mv33n).** A red main `krn/gate` has no lead rerun: deliver prints its cause (`failed at stage <stage>: <cause>`, or `unknown` with the Primary cause while the deployed library is stale); the next merge to main runs the gate again. Never re-push to rerun.
 - **Slice verify cause (t-smc67ss).** `slice verify exit=1` names the first verify line, not the failing step; run `bin/krn verify --base <base> --observer <file>` in the worktree to see the FAIL step and its log.
+- **PR head lag (t-vxshve4).** Right after a push, slice review can exit 64 "authoritative PR number/base/head does not match" and deliver can exit 76 "check runs unavailable": confirm `gh pr view <n> --json headRefOid` equals HEAD (or `krn/gate` already reported), then rerun the same command.
 - **GLOBAL.** `AGENTS.md` stays within its 90-line cap; run `npm run gate:fast` there as the cheap preflight.
 - **Decisions.** A task or brief must not contradict a recorded ADR; changing a decision is a request to the operator first.
 - **Host load.** Optional local diagnostics and review compete with self-hosted CI for CPU; schedule optional host work separately. Delivery waits only for required GitHub CI, never for host load. `/tmp` is quota-limited; agent temp space lives on disk.
@@ -63,7 +64,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 
 Each open task whose body has a `Lead trap:` line is a known defect with its workaround above; `test/rules/lead-traps.test.ts` keeps this list equal to those tasks, and only `test/rules/lead-traps.test.ts` reads workaround text, so removing a fixed trap breaks no other test. When a fix ships, remove its id here and its workaround above in the same PR.
 
-t-160zvad, t-33mv33n, t-8k6n32d, t-g5vqm2q, t-jt8n4s2, t-m991e6t, t-smc67ss, t-tf4qwnz, t-xxa04np
+t-160zvad, t-33mv33n, t-8k6n32d, t-g5vqm2q, t-jt8n4s2, t-m991e6t, t-smc67ss, t-tf4qwnz, t-vxshve4, t-xxa04np
 
 ## Talking to the operator
 
