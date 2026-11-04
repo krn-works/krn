@@ -1,0 +1,12 @@
+{
+  "id": "t-a9vnsn1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "Preflight refuses a commit whose subject is followed by a non-blank line",
+  "after": [],
+  "body": [
+    "Outcome: npm run preflight (diff check over the PR commits) refuses a commit whose message line 2 is not empty, naming the commit, exit 65. Evidence: the t-g9ab2vk session wrote three commits with git commit -F heredocs that had no blank line after the subject, so subject, body and trailers merged into one paragraph (pre-rebase 0efbf8c, bc79924, de11a8e); the lead caught it by eye and rewrote them with rebase --exec. Proof: a test/rules observer with a fixture commit whose line 2 is non-empty is red at base by assertion and green at head."
+  ]
+}
