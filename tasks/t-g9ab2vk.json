@@ -1,0 +1,12 @@
+{
+  "id": "t-g9ab2vk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "Add a one-line external text class to the hardening checklist",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/hardening-checklist.md has a class for untrusted external text printed as one line (check output, API fields, logs): cut at LF, CR, U+2028, U+2029 and drop Cc and Cf characters, each with a fixture. Evidence: PR #199 review attempt 1 FAIL (standards: 'Cause can contain a Unicode line separator', .krn/runs/review-series/40fe2c34e86c8e623f51c9fdf2be5e573267b953535a649bdc040b48c4680101/records/1.json); no checklist class asked the brief to answer it, so it cost one of two review attempts. Proof: test/rules hardening-checklist test lists the new class and krn brief check refuses a brief without its answer."
+  ]
+}
