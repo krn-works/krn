@@ -1,0 +1,13 @@
+{
+  "id": "t-5f91xhs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "deliver waits for check runs right after a push",
+  "after": [],
+  "body": [
+    "Outcome: deliver waits (bounded) for the PR check runs right after a push instead of exiting 76 \"check runs unavailable\" while krn/gate is already success or about to report.\nEvidence: PR #206 deliver.log under .krn/runs/lead/review-override/: exit 76 with krn/gate already success, resumed with exit 0 by rerunning deliver. Split from t-vxshve4, which fixed the review-side head lag.\nProof: an observer where the check-runs read fails once after the push; deliver reads it again and continues.",
+    "Lead trap: a deliver exit 76 'check runs unavailable' right after a push, with krn/gate already reported or pending, is resumed by rerunning the same deliver command."
+  ]
+}

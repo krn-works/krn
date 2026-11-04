@@ -1,0 +1,12 @@
+{
+  "id": "t-5hh171q",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 1,
+  "title": "deliver runs hygiene when the main gate fails after the merge",
+  "after": [],
+  "body": [
+    "Outcome: after ship merges the PR, `krn deliver` (and `krn slice run`) runs hygiene (retire branch and worktree, archive review-series state, fast-forward main) even when the main krn/gate then fails, and still exits 74 naming the main cause; a rerun after a red main gate does not wait forever for it.\nEvidence: PR #207 merged as a41c870; main krn/gate failed before the gate ran (GitHub check readback failed, gate=false); deliver exited 74 with worktree .krn/worktrees/verify-cause, branch fix/verify-cause and local main at 80a5299 left behind; the lead fast-forwarded and removed them by hand.\nProof: an observer whose stub main gate fails after ship asserts the hygiene calls ran and the exit is 74.\nLead trap: when deliver exits 74 on a red main gate after the merge, confirm the merged tree equals the PR head (`git diff --quiet <pr-head> <merge>`), then `git merge --ff-only <merge>`, `git worktree remove <worktree>`, `git branch -D <branch>` from the main checkout."
+  ]
+}
