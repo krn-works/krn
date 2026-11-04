@@ -1,0 +1,12 @@
+{
+  "id": "t-w76pb4v",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Brief CLI deadline test fails under host load",
+  "after": [],
+  "body": [
+    "Outcome: test/rules/brief-allowlist.test.ts:102 'brief CLI handles maximum-sized section lines before its one-second deadline' passes deterministically under host load or measures work instead of wall time (D12: no retry). Evidence: PR #192 regression run at load 15.6 failed spawnSync ETIMEDOUT 1849 ms; three isolated reruns passed. Proof: the test asserts a bound that does not depend on host load."
+  ]
+}

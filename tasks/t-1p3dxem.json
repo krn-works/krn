@@ -1,0 +1,12 @@
+{
+  "id": "t-1p3dxem",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Brief section parser ends a section at an empty level-2 heading",
+  "after": [],
+  "body": [
+    "Outcome: src/brief/sections.ts treats a bare '##' line as a level-2 heading that closes the active section, so '## Allowed paths / src/a.ts / ## / notes' yields only src/a.ts. Evidence: PR #192 review record 2 NON_BLOCKING (review-series d9d12458…/records/2.json). Proof: a case in test/brief/allowed-paths.test.ts red at base by assertion."
+  ]
+}

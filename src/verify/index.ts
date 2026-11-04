@@ -299,6 +299,25 @@ function changedTestFiles(root: string, base: string, head: string): string[] {
     .sort();
 }
 
+function changedCodeFiles(root: string, base: string, head: string): string[] {
+  const result = runGit(root, [
+    'diff',
+    '--no-renames',
+    '--name-only',
+    '--diff-filter=ACMT',
+    '-z',
+    base,
+    head,
+    '--',
+    'src',
+    'scripts',
+    'bin',
+  ]);
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error('unable to list changed code files');
+  return result.stdout.split('\0').filter(Boolean).sort();
+}
+
 const MAX_LOG_BYTES = 8 * 1024 * 1024;
 const LOG_TRUNCATED_MARKER = Buffer.from('\n[log truncated]\n');
 
@@ -420,6 +439,7 @@ function formatRedFirst(
   report: RedFirstReport,
   changedTests: readonly string[],
   observers: readonly string[],
+  codePaths: readonly string[],
 ): VerifyLine {
   const explicit = observers.length > 0;
   const contracts: readonly ChangeContract[] = report.contracts ?? [];
@@ -554,6 +574,16 @@ function formatRedFirst(
   ];
   if (uniqueFailures.length)
     return line('red-first', 'FAIL', formatFileList(uniqueFailures));
+  if (
+    changedTests.length === 0 &&
+    observers.length === 0 &&
+    codePaths.length > 0
+  )
+    return line(
+      'red-first',
+      'FAIL',
+      `no observer for code change: ${formatFileList(codePaths)}`,
+    );
   if (changedTests.length === 0 && observers.length === 0)
     return line('red-first', 'SKIP', 'no observer test files');
 
@@ -612,6 +642,7 @@ export async function runVerify(
   for (const observer of explicitObservers)
     validateObserver(root, head, observer);
   const changed = changedTestFiles(root, base, head);
+  const codePaths = changedCodeFiles(root, base, head);
   const targeted = [...new Set([...explicitObservers, ...changed])];
   const temp = temporaryDirectory(root);
   const logDirectory = join(temp, `verify-${randomUUID()}`);
@@ -664,7 +695,12 @@ export async function runVerify(
     lines.push(line('red-first', 'SKIP', 'skipped by flag'));
   else {
     const report = await redFirstRunner(root, base, head);
-    const redLine = formatRedFirst(report, changed, explicitObservers);
+    const redLine = formatRedFirst(
+      report,
+      changed,
+      explicitObservers,
+      codePaths,
+    );
     if (redLine.status === 'FAIL') failed = true;
     lines.push(redLine);
   }

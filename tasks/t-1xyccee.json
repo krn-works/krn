@@ -1,7 +1,11 @@
 {
   "id": "t-1xyccee",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "verify red-first fails a code change without an observer"
+  },
   "created": "2026-11-03",
   "priority": 0,
   "title": "Fail verify red-first when code changes without an observer",
