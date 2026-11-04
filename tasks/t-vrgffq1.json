@@ -1,0 +1,12 @@
+{
+  "id": "t-vrgffq1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "brief-hardening one-second deadline test fails under host load",
+  "after": [],
+  "body": [
+    "Outcome: test/rules/brief-hardening.test.ts 'brief CLI handles maximum-sized section lines before its one-second deadline' passes at host load 22 or measures CPU time instead of wall time (D12: no retry policy). Evidence: krn verify preflight failed on #211 at load ~22 (.krn/worktrees/memory-refs/.krn/tmp/verify-6aa145cb…/preflight.log, archived with the worktree), rerun passed."
+  ]
+}

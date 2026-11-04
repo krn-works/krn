@@ -22,7 +22,8 @@ export type Finding = {
     | 'DANGLING'
     | 'INDEX-SIZE'
     | 'TOO-LARGE'
-    | 'UNREADABLE';
+    | 'UNREADABLE'
+    | 'PENDING-LESSON';
   file: string;
   line: number;
   target: string;
@@ -189,6 +190,11 @@ export function checkMemory({
           if (!exists(join(memory, `${target}.md`)))
             add('MISSING-INDEX', file, number, target);
         }
+      // A lesson belongs in a check or a repository rule; lead memory keeps operator
+      // preferences and decisions only, so a marked lesson still waiting is a finding.
+      const pending = /^\s*Lesson pending enforcement:\s*(.*)$/u.exec(line);
+      if (pending)
+        add('PENDING-LESSON', file, number, pending[1]?.trim() ?? '');
       for (const match of line.matchAll(/\bt-[a-z0-9]{7}\b/gu)) {
         const id = match[0];
         try {

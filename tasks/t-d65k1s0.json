@@ -1,0 +1,12 @@
+{
+  "id": "t-d65k1s0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 3,
+  "title": "memory-refs: regular-file index targets, unbounded task reads, per-id stale status",
+  "after": [],
+  "body": [
+    "Outcome: scripts/claude/memory-refs.ts (1) reports MISSING-INDEX when the link target is not a regular file (a directory foo.md hides a missing note); (2) reads tasks/<id>.json without the 256 KiB memory bound; (3) STALE-TASK binds status words to the nearest id so a line mixing open and closed ids keeps its status words. Evidence: #211 attempt-3 prepass findings (review-series 39f29216…/records/3.json) accepted by override; prune log .krn/runs/lead/memory-refs/prune-log.md."
+  ]
+}

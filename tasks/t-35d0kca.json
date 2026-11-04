@@ -1,0 +1,12 @@
+{
+  "id": "t-35d0kca",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "Worker report counts the intended red-at-base check as a failing check",
+  "after": [],
+  "body": [
+    "Outcome: krn worker start/send exit 0 when the driver's own acceptance checks pass and the only non-zero entry in report.json checks is the brief's step-1 red-at-base run of the declared observer. Evidence: #211 round 1 printed 'report done with failing check node --test test/claude/memory-refs.test.ts exit 1', exit 4, while result.json acceptance showed check and observer exit 0 (.krn/runs/lead/memory-refs/rounds/)."
+  ]
+}

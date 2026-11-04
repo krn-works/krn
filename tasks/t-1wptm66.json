@@ -1,0 +1,12 @@
+{
+  "id": "t-1wptm66",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "Fix rounds that change a settled contract must update the brief before review",
+  "after": [],
+  "body": [
+    "Outcome: krn review or krn verify refuses when the brief's mtime is older than a commit that changes an Allowed path after the first worker round, or the lead skill makes the brief update a numbered step. Evidence: #211 attempt-1 prepass BLOCKING 'Dangling paths without extensions are skipped' was a deliberate fix-round rule absent from the brief and lens (.krn/runs/lead/memory-refs/review1.log)."
+  ]
+}

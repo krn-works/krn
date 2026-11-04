@@ -1,7 +1,11 @@
 {
   "id": "t-3ha9z96",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Pending lead lessons are lead-rules lines or checks; memory-refs flags PENDING-LESSON notes."
+  },
   "created": "2026-10-26",
   "priority": 2,
   "title": "Move worker lessons into checks and AGENTS",

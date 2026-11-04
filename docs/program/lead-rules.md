@@ -23,6 +23,13 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 - Run the cheapest relevant falsifier, then the required repository checks. Do not claim acceptance from a successful command alone.
 - Run cheap preflight checks (types, lint, documentation-reading tests, test-impact review, and contracts) before review. Run parallel independent judges before the gate; each judge reports all findings in one pass, and only material defects are blocking, preferably with a reproduction. Allow two review attempts by default, then the lead decides; each extra ordinal requires its explicit operator exception. Under the ADR 0014 D30 amendment, the full Product gate is required CI on the exact HEAD (`npm run gate`): `krn/gate` from GitHub App `5548482`, selected from the authoritative PR base. Independent preflight and review remain mandatory. `npm run gate:local` remains available for optional local diagnostics (source-selected isolation tests with zero isolation skips); delivery does not invoke it or wait for host load. Follow the exact-head review and required-CI policy, then use Conventional Commits.
 - Do not send messages to external services without explicit authorization. Do not perform host, production, install/seal, hook-trust, or other irreversible actions without their separate grant.
+- A client push or API error is not remote state: read the exact remote ref (`git ls-remote origin <ref>`, the PR `headRefOid`) before any retry, rebase or rewrite.
+- A brief for a validator or schema states the full key set from the producer's code, each field's type, format and bounds, and the success semantics at once, with fixtures captured verbatim from the real producer; refusal-only observers are not red at base, so the proof asserts an accepted record too.
+- After a FAIL in review attempt two, decide before fixing: a fix produces a head no attempt may review, so record the override on the reviewed head or file the extra-attempt exception first.
+- A test that is red only in CI is reproduced in the runner shape before a fix round: the tree bind-mounted at `/home/runner/work/krn/krn` in a user namespace (`unshare -rm`) with `CI=true`.
+- Run hygiene, cleanup and deliver resumption with absolute paths from the main checkout, never from inside a worktree they remove; a successful merge exits 0.
+- The Bash tool runs each command inside `eval ... ||`, so `set -e` does not stop it: chain state-changing steps with `&&` or explicit `|| exit`.
+- A user-level `skillOverrides` entry disables any project skill with the same name; when a repository skill does not load, check `~/.claude/settings.json` overrides first.
 
 ## Parallel lanes
 
