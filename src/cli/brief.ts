@@ -5,6 +5,54 @@ import { BriefSectionsError, briefSections } from '../brief/sections.ts';
 import { loadPolicy } from '../worker/scope.ts';
 import { CliUsageError } from './usage-error.ts';
 
+// A text-grammar claim names a shape; the observer must hold its literal.
+const fixtures = [
+  { name: 'CRLF', claim: /\bCRLF\b/iu, literal: /\\r|\\x0d|\\u000d/iu },
+  {
+    name: 'BOM',
+    claim: /\bBOM\b|\bbyte order mark\b/iu,
+    // A raw U+FEFF counts unless it is the file's own leading BOM.
+    literal: /\\uFEFF|\\u\{FEFF\}|(?<!^)\uFEFF/iu,
+  },
+];
+
+function fixtureReasons(
+  residuals: readonly string[],
+  observer: string,
+  path: string,
+  firstStep: string,
+): string[] {
+  const claimed = residuals.flatMap((line, index) =>
+    /^ {0,1}[-*][\t ]+`?text-grammar`?[\t ]*:/u.test(line) ? [index] : [],
+  );
+  if (!claimed.length) return [];
+  const start = claimed[0] ?? 0;
+  let end = start + 1;
+  while (end < residuals.length && /^ {2,}\S/u.test(residuals[end] ?? ''))
+    end++;
+  const text = residuals.slice(start, end).join('\n');
+  let source: string | undefined;
+  try {
+    source = readRegularFile(path, 1024 * 1024, 'observer');
+  } catch (error) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT'))
+      return [`observer ${observer} cannot be read`];
+  }
+  return fixtures
+    .filter(({ claim }) => claim.test(text))
+    .flatMap(({ name, claim, literal }) =>
+      source === undefined
+        ? claim.test(firstStep)
+          ? []
+          : [`text-grammar claims ${name}; step 1 must write a ${name} fixture`]
+        : literal.test(source)
+          ? []
+          : [
+              `text-grammar claims ${name} but ${observer} has no ${name} fixture literal`,
+            ],
+    );
+}
+
 export function briefCommand(args: readonly string[]): void {
   const [command, brief, ...options] = args;
   if (
@@ -91,6 +139,15 @@ export function briefCommand(args: readonly string[]): void {
         !/\bred\b/iu.test(sections.steps[0] ?? '')
       )
         reasons.push('first step must contain the Proof observer and red');
+      if (sections.observer)
+        reasons.push(
+          ...fixtureReasons(
+            sections.residuals,
+            sections.observer,
+            join(repo, sections.observer),
+            sections.steps?.[0] ?? '',
+          ),
+        );
     } catch (error) {
       reasons.push(
         ...(error instanceof BriefSectionsError
