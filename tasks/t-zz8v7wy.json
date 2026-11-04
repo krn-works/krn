@@ -1,0 +1,12 @@
+{
+  "id": "t-zz8v7wy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-04",
+  "priority": 2,
+  "title": "brief check refuses missing npm scripts",
+  "after": [],
+  "body": [
+    "Outcome: `krn brief check` refuses a brief whose Steps or checks name `npm run <script>` absent from the worktree's package.json (exit 65, naming the script).\nEvidence: #210 brief named `npm run typecheck` (no such script); worker reported done with a failing check, exit 4, and the lead restarted the worker stage with --worker none (.krn/runs/lead/landing/slice-worker.log).\nProof: an observer runs brief check on a brief naming a missing npm script and expects exit 65; an existing script passes."
+  ]
+}
