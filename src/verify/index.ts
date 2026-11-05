@@ -72,6 +72,7 @@ export type CommandRunner = (
   args: readonly string[],
   cwd: string,
   logPath: string,
+  env?: NodeJS.ProcessEnv,
 ) => CommandResult | Promise<CommandResult>;
 
 export type RedFirstRunner = (
@@ -415,6 +416,7 @@ function defaultCommandRunner(
   args: readonly string[],
   cwd: string,
   logPath: string,
+  env?: NodeJS.ProcessEnv,
 ): Promise<CommandResult> {
   return new Promise((resolveResult, rejectResult) => {
     const descriptor = openSync(logPath, 'wx', 0o600);
@@ -430,6 +432,7 @@ function defaultCommandRunner(
     try {
       child = spawn(command, [...args], {
         cwd,
+        ...(env ? { env } : {}),
         stdio: ['ignore', 'pipe', 'pipe'],
       });
     } catch (error) {
@@ -740,6 +743,7 @@ export async function runVerify(
     step: VerifyStep,
     command: string,
     args: readonly string[],
+    env?: NodeJS.ProcessEnv,
   ): Promise<void> => {
     if (skipped.has(step)) {
       lines.push(line(step, 'SKIP', 'skipped by flag'));
@@ -747,7 +751,7 @@ export async function runVerify(
     }
     const logPath = join(logDirectory, `${step}.log`);
     const logRelative = relative(root, logPath).split(sep).join('/');
-    const result = await commandRunner(command, args, root, logPath);
+    const result = await commandRunner(command, args, root, logPath, env);
     if (result.exitCode === 0 && !result.timedOut && !result.signal)
       lines.push(
         line(
@@ -758,7 +762,13 @@ export async function runVerify(
       );
     else {
       failed = true;
-      lines.push(line(step, 'FAIL', commandFailureDetail(logRelative, result)));
+      lines.push(
+        line(
+          step,
+          'FAIL',
+          `${commandFailureDetail(logRelative, result)}${step === 'targeted' ? ' under strict CI evidence (CI=true KRN_REQUIRE_ZERO_ISOLATION_SKIPS=1)' : ''}`,
+        ),
+      );
       if (step === 'lint')
         lines.push(...lintErrorLines(logPath, changedPaths(root, base, head)));
     }
@@ -770,11 +780,31 @@ export async function runVerify(
     lines.push(line('targeted', 'SKIP', 'skipped by flag'));
   else if (!targeted.length)
     lines.push(line('targeted', 'SKIP', 'no changed test files'));
-  else
-    await runCommandStep('targeted', 'node', [
-      'scripts/test-suite.mjs',
-      ...targeted,
-    ]);
+  else {
+    let pin = '';
+    try {
+      pin = readFileSync(join(root, '.node-version'), 'utf8')
+        .trim()
+        .replace(/^v/u, '');
+    } catch {}
+    if (!/^\d+\.\d+\.\d+$/u.test(pin)) {
+      failed = true;
+      lines.push(line('targeted', 'FAIL', 'invalid or missing .node-version'));
+    } else
+      await runCommandStep(
+        'targeted',
+        'mise',
+        [
+          'exec',
+          `node@${pin}`,
+          '--',
+          'node',
+          'scripts/test-suite.mjs',
+          ...targeted,
+        ],
+        { ...process.env, CI: 'true', KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1' },
+      );
+  }
 
   if (skipped.has('red-first'))
     lines.push(line('red-first', 'SKIP', 'skipped by flag'));
