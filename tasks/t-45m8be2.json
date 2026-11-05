@@ -1,0 +1,12 @@
+{
+  "id": "t-45m8be2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 2,
+  "title": "slice-run review stub enforces review's prior-record admission rules",
+  "after": [],
+  "body": [
+    "Outcome: the krn review stub in test/slice/slice-run.test.ts refuses --prior-record whose record head equals --head, and --prior-record combined with --budget-exception, exactly as src/flow/prior.ts and src/flow/cli.ts do, so slice argv defects fail in unit tests instead of the review panel.\nEvidence: PR #220 (t-w5w96da) review attempt 1 BLOCKING src/slice/run.ts:834: slice passed --prior-record on an unchanged head after main moved; the stub accepted it, the real receiver refuses it (KRN-12 receiver fidelity).\nProof: a stub-level test where slice argv carries --prior-record on the reviewed head exits 64 in the stub; existing slice tests stay green."
+  ]
+}
