@@ -1,7 +1,11 @@
 {
   "id": "t-vrbgwbk",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "brief check strips punctuation around Proof observer tokens"
+  },
   "created": "2026-11-05",
   "priority": 2,
   "title": "Brief check accepts an observer path with trailing punctuation",
