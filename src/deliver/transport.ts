@@ -32,7 +32,7 @@ export const exitCodes = {
   statuses: 72,
   message: 73,
   ci: 74,
-  gate: 75,
+  'ci-wait': 75,
   ship: 76,
   hygiene: 77,
 } as const;

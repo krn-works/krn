@@ -72,7 +72,10 @@ test('wait times out with 75', async () => {
   assert.ok(api);
   await assert.rejects(
     api.waitCommand([...args, '--timeout-seconds', '1'], runtime(null)),
-    { exitCode: 75 },
+    {
+      exitCode: 75,
+      message: `bounded wait timed out after 1s: krn/gate missing on ${head}; rerun the same command to resume`,
+    },
   );
 });
 test('wait refuses usage with 64 before reading git', async () => {
@@ -86,3 +89,68 @@ test('wait refuses usage with 64 before reading git', async () => {
   ])
     await assert.rejects(api.waitCommand(invalid), { exitCode: 64 });
 });
+
+for (const [status, printed] of [
+  ['in_progress', 'in_progress'],
+  ['queued\ninjected', 'queued'],
+  ['queued\rinjected', 'queued'],
+  ['queued\u2028injected', 'queued'],
+  ['queued\u2029injected', 'queued'],
+  ['\u0000in\u001b_\u200bprogress\u007f', 'in_progress'],
+  ['q'.repeat(40), 'q'.repeat(32)],
+]) {
+  test(`timeout reports the last seen state safely: ${JSON.stringify(status)}`, async () => {
+    const { waitForGate, GateTimeout } = await import(
+      '../../src/deliver/gate-wait.ts'
+    );
+    let time = 0;
+    await assert.rejects(
+      waitForGate({
+        repo: 'o/r',
+        pr: 7,
+        head,
+        policy: {
+          source: 'pinned-app',
+          checkRunName: 'krn/gate',
+          appId: 5548482,
+        },
+        gh: async () =>
+          JSON.stringify([
+            {
+              check_runs:
+                time === 0
+                  ? []
+                  : [
+                      {
+                        id: 1,
+                        name: 'krn/gate',
+                        head_sha: head,
+                        status,
+                        conclusion: null,
+                        app: { id: 5548482 },
+                      },
+                    ],
+            },
+          ]),
+        now: () => time,
+        sleep: async (ms) => {
+          time += ms;
+        },
+        pollMs: 1000,
+        timeoutMs: 2000,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof GateTimeout);
+        assert.equal(error.seconds, 2);
+        assert.equal(error.state, printed);
+        assert.equal(
+          error.message,
+          `bounded wait timed out after 2s: krn/gate ${printed} on ${head}; rerun the same command to resume`,
+        );
+        assert.doesNotMatch(error.message, /[\p{Cc}\p{Cf}\u2028\u2029]/u);
+        assert.ok(error.state.length <= 32);
+        return true;
+      },
+    );
+  });
+}

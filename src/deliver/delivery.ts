@@ -23,7 +23,7 @@ import {
 import { isOverridableFailure, newReviewRecordSchema } from '../flow/types.ts';
 import { gateAdmissionPolicyFromBase } from './admission-policy.ts';
 import { requireReviewChecklist } from './checklist.ts';
-import { waitForGate } from './gate-wait.ts';
+import { GateTimeout, waitForGate } from './gate-wait.ts';
 import { removeIdenticalLeftovers } from './identical-leftovers.ts';
 import { checkMergeContracts, mergeMessage } from './message.ts';
 import {
@@ -627,7 +627,7 @@ export async function deliver(
     if (!state.merge) throw new Error('ship did not provide a merge sha');
     if (options.mergeOnly) return { status: 'merged', head: state.merge };
     stage = 'ci';
-    // The merge is final: hygiene runs even when the main gate is red, then the red gate is reported.
+    // The merge is final: hygiene runs before a main gate failure or timeout is reported.
     let mainConclusion = 'pending';
     let mainFailure: { error: unknown } | undefined;
     try {
@@ -688,7 +688,7 @@ export async function deliver(
       git(main, ['branch', '-d', '--', state.branch]);
     } else if (branch.code !== 1) checked(branch);
     if (mainFailure) {
-      // Saved state stays so a rerun keeps its binding and reports the red gate again.
+      // Saved state stays so a rerun keeps its binding and rechecks the main gate.
       stage = 'ci';
       throw mainFailure.error;
     }
@@ -701,6 +701,9 @@ export async function deliver(
       mainConclusion,
     };
   } catch (error) {
-    throw new DeliveryFailure(stage, error);
+    throw new DeliveryFailure(
+      stage === 'ci' && error instanceof GateTimeout ? 'ci-wait' : stage,
+      error,
+    );
   }
 }
