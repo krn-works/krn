@@ -1,0 +1,12 @@
+{
+  "id": "t-z2wbk07",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 2,
+  "title": "Refuse slice run briefs stored inside the slice worktree",
+  "after": [],
+  "body": [
+    "Outcome: krn slice run refuses (exit 64, before the commit stage) a --brief or --message path inside the slice worktree, because landing hygiene removes that worktree and with it the lead brief, message and log (t-b1pxnvk: the brief dir vanished mid-run and a tail on its log read as a failure). Proof: a slice run test with a brief under .krn/worktrees/<name>/ exits 64 and names the path; a brief under the main checkout .krn/runs/lead/ is accepted."
+  ]
+}

@@ -570,6 +570,59 @@ test('stop-after claim, then a rerun without a worker delivers the lead edits', 
   assert.equal(count(second.calls, 'krn deliver'), 1);
 });
 
+test('a lead-authored slice stops before commit when observers or rule tests fail', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  const first = stub(root, {});
+  let checks: string[] = [];
+  const failing: Run = async (command, args, cwd) => {
+    const line = normalize(command, args).join(' ');
+    if (line.startsWith('node --test')) {
+      checks.push(line);
+      return {
+        code: 1,
+        stdout: 'not ok 1 - invisible-format-source\n',
+        stderr: '',
+      };
+    }
+    return first.run(command, args, cwd);
+  };
+  const stopped = await runSlice(
+    { ...options, worker: 'none' },
+    { root, krn, run: failing },
+  );
+  assert.equal(stopped.exitCode, 1);
+  assert.equal(stopped.stage, 'worker');
+  assert.equal(count(first.calls, 'git commit'), 0);
+  assert.equal(count(first.calls, 'git add'), 0);
+  assert.deepEqual(checks, ['node --test test/a.test.ts test/rules']);
+  const saved = await journal(root);
+  assert.equal(saved.exitCode, 1);
+  assert.notEqual(saved.implementationCommitted, true);
+  assert.match(String(saved.cause), /exit 1/u);
+  const log = await readFile(
+    join(root, '.krn', 'runs', 'slice', TASK, 'pre-commit.log'),
+    'utf8',
+  );
+  assert.match(log, /invisible-format-source/u);
+
+  checks = [];
+  const second = stub(root, {});
+  const passing: Run = async (command, args, cwd) => {
+    const line = normalize(command, args).join(' ');
+    if (line.startsWith('node --test')) checks.push(line);
+    return second.run(command, args, cwd);
+  };
+  const result = await runSlice(
+    { ...options, worker: 'none' },
+    { root, krn, run: passing },
+  );
+  assert.equal(result.exitCode, 0, result.cause);
+  assert.equal(result.stage, 'done');
+  assert.equal(checks.length, 1);
+  assert.equal(count(second.calls, 'git commit') >= 1, true);
+});
+
 test('a message title without the task suffix is refused before any command', async (t) => {
   const runSlice = await loadRunSlice();
   const { root, options, krn } = await fixture(t);

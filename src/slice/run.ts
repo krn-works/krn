@@ -140,6 +140,8 @@ async function closedTask(worktree: string, task: string): Promise<boolean> {
   }
 }
 
+const PRE_COMMIT_LOG_BYTES = 1024 * 1024;
+
 // Temp file plus rename replaces a symlink at the target instead of following it.
 async function writeRunFile(path: string, text: string): Promise<void> {
   const temporary = join(dirname(path), `.run-${randomUUID()}.tmp`);
@@ -531,6 +533,35 @@ export async function runSlice(
               ]);
               journal.workerOpen = false;
               await save();
+            }
+            // Lead edits face the observers and rule tests before they are committed.
+            if (!journal.implementationCommitted) {
+              const version = (
+                await readFile(join(root, '.node-version'), 'utf8')
+              ).trim();
+              const result = await runtime.run(
+                'mise',
+                [
+                  'exec',
+                  `node@${version}`,
+                  '--',
+                  'node',
+                  '--test',
+                  ...observers,
+                  'test/rules',
+                ],
+                { cwd: worktree },
+              );
+              const output = Buffer.from(`${result.stdout}${result.stderr}`);
+              await writeRunFile(
+                join(dirname(path), 'pre-commit.log'),
+                output.subarray(-PRE_COMMIT_LOG_BYTES).toString(),
+              );
+              if (result.code !== 0)
+                throw new Failure(
+                  result.code,
+                  `pre-commit observers and test/rules exit ${result.code}; see pre-commit.log`,
+                );
             }
           } else {
             const run = join(worktree, '.krn', 'runs', options.name);

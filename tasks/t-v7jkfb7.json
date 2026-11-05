@@ -1,0 +1,12 @@
+{
+  "id": "t-v7jkfb7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 2,
+  "title": "Let a brief declare lead edits to worker-forbidden paths",
+  "after": [],
+  "body": [
+    "Outcome: krn brief check accepts a lead-edit path that spec/worker-scope.json forbids when the brief lists it under a \"Lead edits\" section (or slice run --worker none passes a flag that skips the forbidden check), so a --worker none slice can declare its whole diff (t-b1pxnvk: the checklist edit had to be dropped from Allowed paths and named only in Settled decisions). Forbidden paths under Allowed paths stay refused. Proof: a brief rules test: forbidden path under Allowed paths exits 65; the same path under Lead edits passes and is excluded from the printed --allow argv."
+  ]
+}
