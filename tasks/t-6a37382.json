@@ -1,0 +1,12 @@
+{
+  "id": "t-6a37382",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 1,
+  "title": "krn verify refuses a PR commit whose Ticket trailer differs from the PR task",
+  "after": [],
+  "body": [
+    "Outcome: krn verify fails before review when any PR commit carries a Ticket trailer other than the task the PR delivers, naming the commit. In #224 a tracker commit adding t-ta1cyc0 carried Ticket: t-ta1cyc0; verify and review 1 passed, deliver --dry-run exited 73 \"PR commits require exactly one matching Ticket trailer\", and the reword cost a second review attempt.\nProof: an observer runs krn verify on a branch whose tracker commit has a different Ticket trailer and asserts a non-zero exit naming the commit; the same branch with matching trailers passes."
+  ]
+}

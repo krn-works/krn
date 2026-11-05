@@ -2,11 +2,13 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import {
   access,
+  chmod,
   mkdir,
   mkdtemp,
   readdir,
   readFile,
   rm,
+  symlink,
   writeFile,
 } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -31,6 +33,32 @@ const available: IsolationCapabilities = {
   bwrap: { available: true, reason: 'available in test fixture' },
   systemdUserScope: { available: true, reason: 'available in test fixture' },
 };
+
+test('Go is an optional isolation capability with a named label', async () => {
+  const gate: Record<string, unknown> = await import(
+    '../scripts/isolation-gate.mjs'
+  );
+  const names = gate.capabilityNames;
+  assert.ok(Array.isArray(names) && names.includes('go'));
+  assert.equal(decideIsolation('t', ['go', 'bwrap'], {}, false).kind, 'fail');
+  for (const ci of [false, true]) {
+    assert.deepEqual(decideIsolation('t', ['go'], {}, ci), {
+      kind: 'skip',
+      line: 'SKIP(isolation): t — missing Go toolchain',
+    });
+  }
+  assert.deepEqual(
+    decideIsolation(
+      't',
+      ['go'],
+      {
+        go: { available: true, reason: '' },
+      },
+      false,
+    ),
+    { kind: 'run' },
+  );
+});
 
 test('missing isolation in CI produces named skips and a skip summary', () => {
   const decision = decideIsolation(
@@ -680,3 +708,71 @@ function processIsAlive(pid: number): boolean {
     return false;
   }
 }
+
+test('Go resolution rejects malformed roots and inactive shims', async (t) => {
+  const directory = await mkdtemp(
+    join(process.cwd(), '.krn/tmp/go-resolution-'),
+  );
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const root = join(directory, 'toolchain');
+  await mkdir(join(root, 'bin'), { recursive: true });
+  const fake = join(directory, 'go');
+  await writeFile(
+    fake,
+    `#!${process.execPath}
+if (process.env.FAKE_INACTIVE) process.exit(1);
+process.stdout.write(process.env.FAKE_GOROOT ?? '');
+`,
+  );
+  await chmod(fake, 0o755);
+  const moduleUrl = new URL('../scripts/isolation-gate.mjs', import.meta.url)
+    .href;
+  const resolve = (output: string, inactive = false) => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `import { resolveGoToolchain } from ${JSON.stringify(moduleUrl)}; console.log(JSON.stringify(resolveGoToolchain() ?? null));`,
+      ],
+      {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          PATH: directory,
+          FAKE_GOROOT: output,
+          FAKE_INACTIVE: inactive ? '1' : '',
+        },
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout);
+  };
+  for (const output of [
+    '',
+    'relative',
+    `${root}\nextra\n`,
+    join(directory, 'absent'),
+    'x'.repeat(5000),
+    root,
+  ]) {
+    assert.equal(resolve(output), null, output);
+  }
+  await writeFile(join(root, 'bin/go'), 'fixture');
+  assert.equal(resolve(root), null, 'non-executable go');
+  await chmod(join(root, 'bin/go'), 0o755);
+  assert.deepEqual(resolve(`${root}\n`), {
+    root,
+    binary: join(root, 'bin/go'),
+  });
+  const alias = join(directory, 'alias');
+  await symlink(root, alias);
+  assert.deepEqual(resolve(alias), { root, binary: join(root, 'bin/go') });
+  assert.equal(resolve(root, true), null, 'inactive mise shim');
+  const outside = join(directory, 'outside-go');
+  await writeFile(outside, 'fixture');
+  await chmod(outside, 0o755);
+  await rm(join(root, 'bin/go'));
+  await symlink(outside, join(root, 'bin/go'));
+  assert.equal(resolve(root), null, 'go binary outside the mounted GOROOT');
+});

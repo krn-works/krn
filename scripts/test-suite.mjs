@@ -21,6 +21,7 @@ import {
   countIsolationSkips,
   isolationCoverage,
   isolationSummary,
+  probeGoCapability,
   selectIsolationTestFiles,
   testSuiteExitCode,
 } from './isolation-gate.mjs';
@@ -453,9 +454,14 @@ function defaultCapabilities() {
     process.env.KRN_ISOLATION_CAPABILITIES
       ? JSON.parse(process.env.KRN_ISOLATION_CAPABILITIES)
       : undefined;
-  const capabilities = inherited ?? probeIsolationCapabilities();
+  const capabilities = {
+    ...(inherited ?? probeIsolationCapabilities()),
+    go: inherited?.go ?? probeGoCapability(),
+  };
   if (!inherited)
-    process.stdout.write(`${formatIsolationProbe(capabilities)}\n`);
+    process.stdout.write(
+      `${formatIsolationProbe(capabilities)}; Go toolchain=${capabilities.go.available ? 'available' : 'unavailable'}\n`,
+    );
   return capabilities;
 }
 
@@ -637,6 +643,7 @@ async function main() {
         '',
         `- Tests: ${testCount}`,
         `- ${legacySummary}`,
+        `- Go toolchain: ${formatCapability(capabilities.go)}`,
         `- bwrap: ${formatCapability(capabilities.bwrap)}`,
         `- systemd user scopes: ${formatCapability(capabilities.systemdUserScope)}`,
         '',

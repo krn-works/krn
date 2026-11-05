@@ -1,8 +1,8 @@
-export type IsolationCapability = 'bwrap' | 'systemdUserScope';
+export type IsolationCapability = 'bwrap' | 'systemdUserScope' | 'go';
 export type IsolationCapabilities = Record<
-  IsolationCapability,
+  Exclude<IsolationCapability, 'go'>,
   { available: boolean; reason: string }
->;
+> & { go?: { available: boolean; reason: string } };
 export type IsolationDecision =
   | { kind: 'run' }
   | { kind: 'skip'; line: string }
@@ -10,7 +10,7 @@ export type IsolationDecision =
 export function decideIsolation(
   testName: string,
   required: readonly IsolationCapability[],
-  capabilities: IsolationCapabilities,
+  capabilities: Partial<IsolationCapabilities>,
   isCI: boolean,
 ): IsolationDecision;
 export function isolationSummary(skipCount: number): string;
@@ -25,3 +25,9 @@ export function postGateStatusWhenClean(args: {
   skipCount: number;
   post: () => void | Promise<void>;
 }): Promise<boolean>;
+
+export const capabilityNames: readonly IsolationCapability[];
+export function resolveGoToolchain():
+  | { root: string; binary: string }
+  | undefined;
+export function probeGoCapability(): { available: boolean; reason: string };
