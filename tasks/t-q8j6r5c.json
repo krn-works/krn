@@ -1,0 +1,12 @@
+{
+  "id": "t-q8j6r5c",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 0,
+  "title": "Shard, cache and tier the required gate so low-risk PRs go green in minutes",
+  "after": [],
+  "body": [
+    "Outcome: a small, low-risk PR reaches a green required `krn/gate` in minutes, not tens of minutes. Continues t-47enn80 (slice 1 shipped the deliver ci-wait exit 75 and the gate profile).\nOperator mandate 2026-11-05 (verbatim): \"strukturalnie musisz wszystko ogarnąć ten kod ma być perfekcyjny szefie\" — granted after the lead proposed a diff-scoped gate for low-risk changes, which amends ADR 0014 D30 (full Product `krn/gate` required on every HEAD); record the amendment in the ADR in the same PR as the tiered gate.\nProfile (.krn/runs/lead/t-47enn80/gate-profile.md, PR-232 #2): the VM `npm run gate` unit (check, lint, test, task check, rules, run serially) ran 11 min 30 s of a ~13 min build; infra overhead ~1 min; PR builds took 7.5-8 min before host load. The gate stdout artifact is cut at 4096 bytes, so per-file test durations are not yet measured.\nSlices, one measured change each: (1) export per-file test durations from the gate (evidence artifact) and measure; (2) shard the gate suite across parallel containers by measured duration, cheap stages first, fail fast; (3) content-hash test-result cache keyed by each test file's import closure + toolchain, skip unchanged; (4) persist the pnpm store and node_modules by lockfile hash; (5) tiered gate from `krn review --risk-tier` (low = affected tests + rules + preflight, full suite on main after merge) with the D30 amendment.\nReference (operator, 2026-11-05: pingdotgg/t3code release.yml): wall clock comes from parallelism and skipped work, not fast tests: cheap preflight first, 8-job sharded tests, content-addressed skips with an eviction-free cache, cached pnpm store.\nProof: a gate-duration measurement before/after on the same PR shape for each slice."
+  ]
+}
