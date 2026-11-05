@@ -120,7 +120,7 @@ func (s JobSpec) Validate() error {
 		{validTier(s.Tier), "unknown tier"},
 		{s.BaseSHA == "" && s.Tier == Product || match(`[0-9a-f]{40}`, s.BaseSHA), "GLOBAL requires full base_sha"},
 		{bounded(s.TimeoutSeconds, 30, 7200), "timeout out of bounds"},
-		{bounded(s.MemoryMiB, 256, 6144), "memory out of bounds"},
+		{bounded(s.MemoryMiB, 256, 14336), "memory out of bounds"},
 		{bounded(s.ProcessLimit, 64, 4096), "process limit out of bounds"},
 	}
 	for _, c := range checks {
@@ -182,7 +182,7 @@ func (p Profile) Validate() error {
 	if !match(`[a-z][a-z0-9-]{0,47}`, p.Project) || !match(`[a-z][a-z0-9-]{0,47}`, p.StoragePool) {
 		return errors.New("invalid Incus name")
 	}
-	if !bounded(p.CPUCount, 1, 4) || !bounded(p.RootGiB, 8, 64) || !bounded(p.VMMemoryMiB, 2048, 65536) || !bounded(p.VMHeadroomMiB, 1536, 32768) || !bounded(p.MaxJobMemoryMiB, 256, 6144) || !bounded(p.MaxJobProcesses, 64, 4096) || p.MaxJobMemoryMiB+p.VMHeadroomMiB > p.VMMemoryMiB {
+	if !bounded(p.CPUCount, 1, 8) || !bounded(p.RootGiB, 8, 64) || !bounded(p.VMMemoryMiB, 2048, 65536) || !bounded(p.VMHeadroomMiB, 1536, 32768) || !bounded(p.MaxJobMemoryMiB, 256, 14336) || !bounded(p.MaxJobProcesses, 64, 4096) || p.MaxJobMemoryMiB+p.VMHeadroomMiB > p.VMMemoryMiB {
 		return errors.New("profile resource bounds/headroom invalid")
 	}
 	if !match(`[A-Za-z0-9 ._-]{1,80}`, p.GitName) || !match(`[A-Za-z0-9._+\-]+@[A-Za-z0-9.\-]+`, p.GitEmail) {

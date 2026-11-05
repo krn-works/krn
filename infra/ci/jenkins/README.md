@@ -75,7 +75,7 @@ refuses execution. Enabled enrollment has `schema_version:1`, `enabled:true`,
 - `config_sha`: same SHA as `library_sha`; `image_fingerprint`: 64 lowercase
   hex; `main_branch`: explicit protected branch; `check_name`: enrolled check.
 - `tier`: product for the existing single-job Product entry; integer `timeout_seconds` (30–7200),
-  `memory_mib` (256–6144), `process_limit` (64–4096).
+  `memory_mib` (256–14336), `process_limit` (64–4096).
 
 GLOBAL uses the same repository fields but replaces top-level `job`, `tier`
 and `check_name` with `jobs`, keyed by exact parent Multibranch full name.
@@ -272,8 +272,8 @@ authenticate their provenance. The supervisor must deliver protected copies.
 
 `JobSpec` fields are `repo_id`, `source_sha`, `config_sha`, `image_fingerprint`,
 `attempt_id` (canonical UUIDv4), `tier`, `timeout_seconds` (30–7200),
-`memory_mib` (256–6144), `process_limit` (64–4096). Profile caps apply too.
-CPU is 1–4, root disk 8–64 GiB, VM headroom at least 1536 MiB, and job cap +
+`memory_mib` (256–14336), `process_limit` (64–4096). Profile caps apply too.
+CPU is 1–8, root disk 8–64 GiB, VM headroom at least 1536 MiB, and job cap +
 headroom must fit the declared VM. Runtime probes check available memory.
 
 Image prerequisites: systemd/PAM/logind, `ci` UID/GID 1000 and `/home/ci`, Git,

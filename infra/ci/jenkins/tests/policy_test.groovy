@@ -31,6 +31,13 @@ def enrollmentFixture = {
              'ci/global-fast': [tier: 'global-fast', check_name: 'gate (fast)'],
              'ci/global-deep': [tier: 'global-deep', check_name: 'gate (deep)']]]]]
 }
+// Exercise the same numeric policy used by sourceIdentity before admission.
+[256, 6144, 14336].each { memory ->
+    Controller.validateResourceLimits([timeout_seconds: 1800, memory_mib: memory, process_limit: 512])
+}
+[255, 14337].each { memory ->
+    rejects { Controller.validateResourceLimits([timeout_seconds: 1800, memory_mib: memory, process_limit: 512]) }
+}
 Controller.validateEnrollment(enrollmentFixture())
 [
     wrongProductApp: { c -> c.repositories['krn-works/krn'].app_id = '1' },
