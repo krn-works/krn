@@ -178,6 +178,16 @@ test('Git config, hooks and info changes are forbidden in repositories and linke
   });
 });
 
+test('remote-tracking refs written in the shared Git directory during a turn are not violations', async (t) => {
+  const s = await setup(t, true);
+  const path = join(s.commonDir, 'refs/remotes/origin/feat/memory-refs');
+  const shared = await s.turn(`write ${relative(s.repo, path)}`).result;
+  assert.equal(shared.code, 0, shared.stderr);
+  const forbidden = await s.turn('write AGENTS.md').result;
+  assert.equal(forbidden.code, 3, forbidden.stderr);
+  assert.ok(forbidden.stderr.includes('AGENTS.md'), forbidden.stderr);
+});
+
 test('symlinked hooks are reported without following their targets', async (t) => {
   const s = await setup(t);
   const target = join(s.root, 'outside');
