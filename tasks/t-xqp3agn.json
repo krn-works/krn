@@ -1,7 +1,11 @@
 {
   "id": "t-xqp3agn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Guest log reserves 32 KiB for failing TAP lines past the 256 KiB head; evidence summary lists failing TAP lines first. Deployment tracked in t-6997d21."
+  },
   "created": "2026-11-05",
   "priority": 1,
   "title": "Gate evidence keeps failing TAP lines beyond the stdout cap",
