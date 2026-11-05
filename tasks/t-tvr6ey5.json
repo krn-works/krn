@@ -1,0 +1,12 @@
+{
+  "id": "t-tvr6ey5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 2,
+  "title": "Give the lead Jenkins tunnel a health verdict and detached restart",
+  "after": [],
+  "body": [
+    "Outcome: the lead Jenkins tunnel reports and repairs its own health: a command prints `tunnel: up|down (<cause>)` and restarts it detached, so Jenkins reads never fail with ECONNREFUSED mid-slice.\nEvidence 2026-11-05: .krn/runs/ci-platform/lead-access/tunnel.mjs died twice (\"Connection timed out during banner exchange\"; a child of the Bash tool was killed); restarting with nohup+disown worked.\nProof: a test of the health verdict against a closed port."
+  ]
+}

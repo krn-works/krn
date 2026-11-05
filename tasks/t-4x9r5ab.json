@@ -1,0 +1,12 @@
+{
+  "id": "t-4x9r5ab",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 1,
+  "title": "Run gate static checks in parallel with tests, trial tsgo, measure queue vs run time",
+  "after": [],
+  "body": [
+    "Outcome: typecheck, lint, task check and rules run in parallel with the test shards inside `npm run gate` (fail-fast: the first failure stops the rest and prints which stage failed), and a measured trial of tsgo for typecheck decides whether to adopt it.\nSource: .krn/runs/lead/ci-research/report.md (rank 5; Linear reported -73% typecheck with tsgo, secondary source). Also measure queue time vs run time per gate (rank 6) from Jenkins/attempt evidence at host load 20-25 and record whether host contention is the hidden cost.\nProof: gate duration before/after; a test that a failing parallel stage fails the gate with its name."
+  ]
+}

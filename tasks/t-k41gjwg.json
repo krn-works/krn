@@ -1,0 +1,12 @@
+{
+  "id": "t-k41gjwg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 1,
+  "title": "Slim krn-lead to pointers and audit claude -p exit handling",
+  "after": [],
+  "body": [
+    "Outcome: krn-lead SKILL.md loads only the slice loop and pointers; the Traps and Open traps sections live in .agents/skills/krn-lead/references/traps.md, read on the branch that hits them; test/rules/lead-traps.test.ts reads the new file. Today SKILL.md is 17.4 KB and loads in full every lead session (pattern: mattpocock/skills productivity/writing-for-agents, \"always-loaded text costs every turn\").\nAlso check: Claude Code 2.1.3xx makes `claude -p` exit 1 on startup failure, transcript-write loss and mid-response API error (was 0) — audit scripts/claude/* wrappers and review launchers for exit handling; decide CLAUDE_CODE_FORK_SUBAGENT default for `-p` runs. Report: .krn/runs/lead/skills-research/report.md.\nProof: rules tests pass with the moved text; SKILL.md byte size before/after."
+  ]
+}
