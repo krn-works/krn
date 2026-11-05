@@ -1,7 +1,11 @@
 {
   "id": "t-m8j0mt7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "verify targeted step runs changed tests under CI=true KRN_REQUIRE_ZERO_ISOLATION_SKIPS=1 with the pinned Node"
+  },
   "created": "2026-11-05",
   "priority": 1,
   "title": "Verify runs changed tests under the CI guest's strict zero-skip evidence",
