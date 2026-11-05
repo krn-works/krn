@@ -94,6 +94,8 @@ export function briefSections(text: string): {
     ?.join('\n')
     .replaceAll('`', '')
     .split(/\s+/u)
+    // Prose punctuation around a path is not part of it: `x.test.ts`: or (x.test.ts),
+    .map((token) => token.replace(/^[("'[]+|[)"'\],.:;!?]+$/gu, ''))
     .find((token) =>
       /^test\/(?:[^\s/]+\/)*[^\s/]+\.test\.(?:ts|mjs|js|cjs)$/u.test(token),
     );
