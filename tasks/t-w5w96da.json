@@ -1,7 +1,11 @@
 {
   "id": "t-w5w96da",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "slice run keeps the review series across a same-ref rebase; --budget-exception passthrough; observer test/slice/slice-run.test.ts"
+  },
   "created": "2026-11-04",
   "priority": 1,
   "title": "slice run keeps the review series count across a same-ref rebase",
