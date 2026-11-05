@@ -1,7 +1,11 @@
 {
   "id": "t-tdfzter",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "executor accepts 1..8 CPU and 14336 MiB job memory; deploy follows"
+  },
   "created": "2026-11-05",
   "priority": 0,
   "title": "Allow an 8-CPU gate executor profile and raise its memory limit",
