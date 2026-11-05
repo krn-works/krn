@@ -25,7 +25,7 @@ export const journalSchema = z.object({
   pr: z.number().int().positive().safe().nullable(),
   stage: z.enum(stages),
   completed: z.boolean(),
-  reviewAttempts: z.number().int().min(0).max(2),
+  reviewAttempts: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
   reviewRecord: z.string().nullable(),
   argv: z.array(z.string()).max(64),
   exitCode: z.number().int().min(0),

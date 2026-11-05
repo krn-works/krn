@@ -103,6 +103,7 @@ export async function sliceCommand(args: readonly string[]): Promise<void> {
         override: { type: 'boolean' },
         reason: { type: 'string' },
         evidence: { type: 'string' },
+        'budget-exception': { type: 'string' },
       },
     });
     if (
@@ -113,7 +114,7 @@ export async function sliceCommand(args: readonly string[]): Promise<void> {
         values.worker !== 'none')
     )
       throw new Error(
-        'usage: krn slice run <task-id> --brief FILE --message FILE --name NAME --repo OWNER/REPO --model ID --effort LEVEL [--worker codex|none] [--stop-after STAGE] [--override --reason TEXT --evidence TEXT]',
+        'usage: krn slice run <task-id> --brief FILE --message FILE --name NAME --repo OWNER/REPO --model ID --effort LEVEL [--worker codex|none] [--stop-after STAGE] [--override --reason TEXT --evidence TEXT] [--budget-exception FILE]',
       );
     result = await runSlice(
       {
@@ -131,6 +132,9 @@ export async function sliceCommand(args: readonly string[]): Promise<void> {
         ...(values.override === true ? { override: true } : {}),
         ...(values.reason === undefined ? {} : { reason: values.reason }),
         ...(values.evidence === undefined ? {} : { evidence: values.evidence }),
+        ...(values['budget-exception'] === undefined
+          ? {}
+          : { budgetException: values['budget-exception'] }),
       },
       { root: process.cwd(), krn: resolve('bin/krn'), run, detach },
     );

@@ -34,6 +34,7 @@ interface SliceOptions {
   readonly override?: boolean;
   readonly reason?: string;
   readonly evidence?: string;
+  readonly budgetException?: string;
 }
 
 type RunSlice = (
@@ -863,7 +864,7 @@ test('a second review round re-verifies and pushes the fixed head first', async 
   assert.equal(count(second.calls, 'gh pr create'), 0);
 });
 
-test('a moved main stops the rerun until the branch contains it, then restarts the review budget', async (t) => {
+test('a moved main stops the rerun until the branch contains it, then keeps the review series', async (t) => {
   const runSlice = await loadRunSlice();
   const { root, options, krn } = await fixture(t);
   await runSlice(options, { root, krn, run: stub(root, { reviews: [1] }).run });
@@ -872,20 +873,85 @@ test('a moved main stops the rerun until the branch contains it, then restarts t
   assert.equal(stopped.exitCode, 75);
   assert.match(stopped.cause, /rebase/);
   assert.equal(count(stale.calls, 'krn review'), 0);
-  const rebased = stub(root, { base: MOVED });
+  const rebased = stub(root, { base: MOVED, head: FIXED });
   const result = await runSlice(options, { root, krn, run: rebased.run });
   assert.equal(result.exitCode, 0, result.cause);
   const review = only(rebased.calls, 'krn review');
   assert.equal(valueAfter(review.words, '--base'), MOVED);
-  assert.ok(
-    !review.words.includes('--prior-record'),
-    'a new base starts a new series',
-  );
+  // D10 keys the series by PR and baseRef: a same-ref rebase is attempt two.
+  assert.equal(valueAfter(review.words, '--prior-record'), recordPath(root, 1));
   assert.equal(
     valueAfter(only(rebased.calls, 'krn verify').words, '--base'),
     MOVED,
   );
   assert.equal((await journal(root)).base, MOVED);
+  assert.equal((await journal(root)).reviewAttempts, 2);
+});
+
+test('main moving into an unchanged reviewed head continues the series without a prior record', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  await runSlice(options, { root, krn, run: stub(root, { reviews: [1] }).run });
+  const moved = stub(root, { base: MOVED });
+  const result = await runSlice(options, { root, krn, run: moved.run });
+  assert.equal(result.exitCode, 0, result.cause);
+  const review = only(moved.calls, 'krn review');
+  assert.equal(valueAfter(review.words, '--base'), MOVED);
+  // Review refuses a prior record whose head equals the reviewed head.
+  assert.ok(!review.words.includes('--prior-record'));
+  assert.equal((await journal(root)).reviewAttempts, 2);
+});
+
+test('a rebase after two review FAILs stops before review until a budget exception is passed', async (t) => {
+  const runSlice = await loadRunSlice();
+  const { root, options, krn } = await fixture(t);
+  await runSlice(options, { root, krn, run: stub(root, { reviews: [1] }).run });
+  await runSlice(options, {
+    root,
+    krn,
+    run: stub(root, { reviews: [1], head: FIXED }).run,
+  });
+  assert.equal((await journal(root)).reviewAttempts, 2);
+  const REBASED = 'e'.repeat(40);
+  const moved = stub(root, { base: MOVED, head: REBASED });
+  const stopped = await runSlice(options, { root, krn, run: moved.run });
+  assert.equal(stopped.exitCode, 64, stopped.cause);
+  assert.equal(stopped.stage, 'review');
+  assert.equal(count(moved.calls, 'krn review'), 0);
+  const exception = join(
+    root,
+    '.krn',
+    'runs',
+    'slice',
+    TASK,
+    'budget-exception.json',
+  );
+  assert.ok(
+    stopped.cause.includes(
+      join('.krn', 'runs', 'slice', TASK, 'budget-exception.json'),
+    ),
+    stopped.cause,
+  );
+  assert.match(stopped.cause, /--budget-exception/u);
+  const detail = (stopped.details ?? []).join('\n');
+  assert.ok(detail.includes(exception), detail);
+  assert.match(detail, /ordinal 3 on head e{40}/u);
+  assert.equal((await journal(root)).reviewAttempts, 2);
+
+  const granted = stub(root, { base: MOVED, head: REBASED });
+  const result = await runSlice(
+    { ...options, budgetException: exception },
+    { root, krn, run: granted.run },
+  );
+  assert.equal(result.exitCode, 0, JSON.stringify(result));
+  const review = only(granted.calls, 'krn review');
+  assert.equal(valueAfter(review.words, '--budget-exception'), exception);
+  assert.equal(valueAfter(review.words, '--base'), MOVED);
+  assert.ok(
+    !review.words.includes('--prior-record'),
+    'an exception attempt takes no prior record',
+  );
+  assert.equal((await journal(root)).reviewAttempts, 3);
 });
 
 test('a second concurrent run is refused while the lock is held', async (t) => {
