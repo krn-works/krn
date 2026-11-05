@@ -534,7 +534,9 @@ export async function runSlice(
               journal.workerOpen = false;
               await save();
             }
-            // Lead edits face the observers and rule tests before they are committed.
+            // Lead edits face the observers and rule tests before they are committed,
+            // through the suite runner that sets the isolation capabilities and
+            // expands test/rules into its test files, as krn verify targeted does.
             if (!journal.implementationCommitted) {
               const version = (
                 await readFile(join(root, '.node-version'), 'utf8')
@@ -546,7 +548,7 @@ export async function runSlice(
                   `node@${version}`,
                   '--',
                   'node',
-                  '--test',
+                  'scripts/test-suite.mjs',
                   ...observers,
                   'test/rules',
                 ],

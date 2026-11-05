@@ -578,7 +578,7 @@ test('a lead-authored slice stops before commit when observers or rule tests fai
   let checks: string[] = [];
   const failing: Run = async (command, args, cwd) => {
     const line = normalize(command, args).join(' ');
-    if (line.startsWith('node --test')) {
+    if (line.startsWith('node scripts/test-suite.mjs')) {
       checks.push(line);
       return {
         code: 1,
@@ -596,7 +596,11 @@ test('a lead-authored slice stops before commit when observers or rule tests fai
   assert.equal(stopped.stage, 'worker');
   assert.equal(count(first.calls, 'git commit'), 0);
   assert.equal(count(first.calls, 'git add'), 0);
-  assert.deepEqual(checks, ['node --test test/a.test.ts test/rules']);
+  // The suite runner sets the isolation capabilities and expands test/rules
+  // into its test files; plain node --test treats the directory as a module.
+  assert.deepEqual(checks, [
+    'node scripts/test-suite.mjs test/a.test.ts test/rules',
+  ]);
   const saved = await journal(root);
   assert.equal(saved.exitCode, 1);
   assert.notEqual(saved.implementationCommitted, true);
@@ -611,7 +615,7 @@ test('a lead-authored slice stops before commit when observers or rule tests fai
   const second = stub(root, {});
   const passing: Run = async (command, args, cwd) => {
     const line = normalize(command, args).join(' ');
-    if (line.startsWith('node --test')) checks.push(line);
+    if (line.startsWith('node scripts/test-suite.mjs')) checks.push(line);
     return second.run(command, args, cwd);
   };
   const result = await runSlice(
