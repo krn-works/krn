@@ -94,6 +94,7 @@ interface VerifyFixtureOptions {
   readonly observerPaths?: readonly string[];
   readonly failingPaths?: readonly string[];
   readonly testSuiteScripts?: boolean;
+  readonly nodeVersion?: string | null;
 }
 
 type RunVerify = (
@@ -167,6 +168,11 @@ async function makeRepository(options: VerifyFixtureOptions = {}): Promise<{
     join(root, 'package.json'),
     `${JSON.stringify({ name: 'verify-fixture', scripts }, null, 2)}\n`,
   );
+  if (options.nodeVersion !== null)
+    await writeFile(
+      join(root, '.node-version'),
+      `${options.nodeVersion ?? process.version}\n`,
+    );
   const observerPaths = options.observerPaths ?? [observer];
   for (const path of observerPaths) {
     const absolute = join(root, path);
@@ -180,6 +186,7 @@ async function makeRepository(options: VerifyFixtureOptions = {}): Promise<{
   git(root, [
     'add',
     'package.json',
+    ...(options.nodeVersion === null ? [] : ['.node-version']),
     ...observerPaths,
     ...(options.testSuiteScripts ? testSuiteFiles : []),
   ]);
@@ -292,7 +299,15 @@ test('verify runs every step and reports one successful line per step', async ()
     assert.deepEqual(calls, [
       ['npm', 'run', 'lint'],
       ['npm', 'run', 'check'],
-      ['node', 'scripts/test-suite.mjs', observer],
+      [
+        'mise',
+        'exec',
+        `node@${process.version.slice(1)}`,
+        '--',
+        'node',
+        'scripts/test-suite.mjs',
+        observer,
+      ],
       ['npm', 'run', 'preflight'],
       ['git', 'diff', '--check', fixture.base, fixture.head],
     ]);
@@ -776,8 +791,17 @@ test('an explicit observer keeps every changed test targeted and green', async (
       },
     );
     assert.deepEqual(
-      calls.find((call) => call[0] === 'node'),
-      ['node', 'scripts/test-suite.mjs', observer, secondObserver],
+      calls.find((call) => call[0] === 'mise'),
+      [
+        'mise',
+        'exec',
+        `node@${process.version.slice(1)}`,
+        '--',
+        'node',
+        'scripts/test-suite.mjs',
+        observer,
+        secondObserver,
+      ],
     );
     const targeted = verification.lines.find(({ step }) => step === 'targeted');
     const red = verification.lines.find(({ step }) => step === 'red-first');
@@ -789,6 +813,33 @@ test('an explicit observer keeps every changed test targeted and green', async (
     );
   } finally {
     await fixture.cleanup();
+  }
+});
+
+test('targeted fails without spawning when .node-version is missing or invalid', async () => {
+  const { runVerify } = await loadVerify();
+  for (const nodeVersion of [null, 'abc']) {
+    const fixture = await makeRepository({ nodeVersion });
+    try {
+      const calls: string[][] = [];
+      const result = await runVerify(
+        { base: fixture.base },
+        {
+          cwd: fixture.root,
+          commandRunner: fakeCommandRunner(calls),
+          redFirst: async () => passingReport(fixture.base, fixture.head),
+        },
+      );
+      const targeted = result.lines.find(({ step }) => step === 'targeted');
+      assert.equal(targeted?.status, 'FAIL');
+      assert.match(targeted?.detail ?? '', /\.node-version/u);
+      assert.equal(
+        calls.some(([command]) => command === 'mise'),
+        false,
+      );
+    } finally {
+      await fixture.cleanup();
+    }
   }
 });
 
@@ -931,6 +982,24 @@ test('CLI runs the real targeted step, bounds logs, and reports a failing fixtur
       await writeFile(
         join(shimDirectory, 'npm'),
         "#!/usr/bin/env node\nprocess.stdout.write(process.argv.includes('lint') ? 'x'.repeat(9_000_000) : 'child output\\n');\n",
+        { mode: 0o755 },
+      );
+      // The real mise needs a network or an installed pin; this shim checks
+      // the launcher argv and runs the real test-suite under this Node.
+      await writeFile(
+        join(shimDirectory, 'mise'),
+        [
+          '#!/usr/bin/env node',
+          "const { spawnSync } = process.getBuiltinModule('node:child_process');",
+          'const [exec, pin, separator, node, ...rest] = process.argv.slice(2);',
+          "if (exec !== 'exec' || !/^node@\\d+\\.\\d+\\.\\d+$/u.test(pin) || separator !== '--' || node !== 'node') {",
+          "  process.stderr.write('unexpected mise argv\\n');",
+          '  process.exit(2);',
+          '}',
+          "const run = spawnSync(process.execPath, rest, { stdio: 'inherit' });",
+          'process.exit(run.status ?? 1);',
+          '',
+        ].join('\n'),
         { mode: 0o755 },
       );
       const result = spawnSync(
