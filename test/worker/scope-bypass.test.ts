@@ -276,3 +276,18 @@ test('untracked enumeration errors exit 70 instead of checking an incomplete lis
   assert.equal(result.code, 70, result.stderr);
   assert.match(result.stderr, /enumeration failed/);
 });
+
+test('git-ignored .krn/tmp scratch writes are not scope changes while symlinks there still are', async (t) => {
+  const s = await setup(t);
+  mkdirSync(join(s.repo, '.krn/tmp/node-compile-cache/old'), {
+    recursive: true,
+  });
+  writeFileSync(join(s.repo, '.krn/tmp/node-compile-cache/old/entry'), 'old');
+  const written = await s.turn('write .krn/tmp/node-compile-cache/v24/entry')
+    .result;
+  assert.equal(written.code, 0, written.stderr);
+  assert.ok(!written.stderr.includes('.krn/tmp'), written.stderr);
+  const linked = await s.turn('link .krn/tmp/escape').result;
+  assert.equal(linked.code, 3, linked.stderr);
+  assert.ok(linked.stderr.includes('.krn/tmp/escape'), linked.stderr);
+});

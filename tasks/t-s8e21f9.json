@@ -1,0 +1,12 @@
+{
+  "id": "t-s8e21f9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 2,
+  "title": "Make the brief CLI deadline test independent of host load",
+  "after": [],
+  "body": [
+    "Outcome: test/rules/brief-allowlist.test.ts:102 ('brief CLI handles maximum-sized section lines before its one-second deadline') does not fail under host load. It spawns the brief CLI with a 1000 ms wall-clock timeout (line 114); on 2026-11-05 at load average 37 it failed once in node scripts/test-suite.mjs test/slice/slice-run.test.ts test/rules and passed twice in isolation (t-xgwxm6z pre-commit run). A wall-clock bound on a spawned process measures host load, not the parser's complexity.\nProof: the test asserts a load-independent bound (for example an operation count or a linear-time property on the parser in-process) and stays green under parallel load; no retry policy (D12)."
+  ]
+}

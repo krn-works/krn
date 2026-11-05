@@ -132,6 +132,8 @@ async function ignoredRoots(
   }
 }
 
+const scratchRoot = '.krn/tmp';
+
 export async function untrackedBaseline(
   repo: string,
   startCommit: string,
@@ -172,6 +174,24 @@ export async function untrackedBaseline(
     const stat = lstatSync(join(repo, path));
     if (underRun(path) && !stat.isSymbolicLink()) return;
     const isIgnored = inheritedIgnore || ignored.has(path);
+    // A committed-ignored .krn/tmp is scratch space (node compile cache,
+    // verify trees): its files are not worker changes, but symlinks planted
+    // beneath it still are, so descend without recording anything else.
+    if (
+      (path === scratchRoot || path.startsWith(`${scratchRoot}/`)) &&
+      isIgnored &&
+      !stat.isSymbolicLink()
+    ) {
+      if (!stat.isDirectory()) return;
+      const dir = opendirSync(join(repo, path));
+      try {
+        for (let entry = dir.readSync(); entry; entry = dir.readSync())
+          walk(join(path, entry.name), result, true);
+      } finally {
+        dir.closeSync();
+      }
+      return;
+    }
     // Ignore ordinary dependency contents, while still observing control files
     // and symlinks hidden anywhere beneath a committed ignored root.
     if (

@@ -1,7 +1,11 @@
 {
   "id": "t-qms15mt",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "untracked walk skips ignored .krn/tmp except symlinks; observer test/worker/scope-bypass.test.ts"
+  },
   "created": "2026-11-05",
   "priority": 2,
   "title": "Worker scope check ignores git-ignored .krn/tmp caches",
