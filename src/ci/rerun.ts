@@ -27,6 +27,14 @@ export type RerunInput = {
 
 const responseLimit = 1024 * 1024;
 const defaultJenkinsUrl = 'http://127.0.0.1:18080';
+// The lead reaches the controller VM through this loopback tunnel (t-gjxcvxh).
+const tunnelHint =
+  'start the Jenkins lead tunnel with `node .krn/runs/ci-platform/lead-access/tunnel.mjs` (127.0.0.1:18080 via PVE to ci-controller 10.254.254.6:8080) and retry';
+
+function refusedConnection(error: unknown): boolean {
+  const cause = (error as { cause?: { code?: unknown } } | null)?.cause;
+  return cause?.code === 'ECONNREFUSED';
+}
 const pending = new Set([
   'queued',
   'in_progress',
@@ -186,11 +194,14 @@ export async function rerun(
         redirect: 'manual',
         signal: AbortSignal.timeout(15_000),
       });
-    } catch {
-      throw new RerunError(
-        `Jenkins request failed for ${path.split('?')[0]}`,
-        75,
-      );
+    } catch (error) {
+      const target = path.split('?')[0];
+      if (refusedConnection(error))
+        throw new RerunError(
+          `Jenkins connection refused for ${target}: ${tunnelHint}`,
+          75,
+        );
+      throw new RerunError(`Jenkins request failed for ${target}`, 75);
     }
   };
   const metadataPath = `${job}/api/json?tree=lastBuild[number,actions[_class,revision[_class,pullHash]]]`;

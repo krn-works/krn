@@ -342,3 +342,53 @@ test('krn ci rerun without Jenkins credentials exits 64 and names the variables'
   assert.equal(result.status, 64, result.stderr);
   assert.match(result.stderr, /KRN_JENKINS_USER and KRN_JENKINS_TOKEN/u);
 });
+
+const tunnelCommand = 'node .krn/runs/ci-platform/lead-access/tunnel.mjs';
+
+test('rerun names the Jenkins lead tunnel when the Jenkins URL refuses the connection', async () => {
+  const { rerun } = await load();
+  // Real receiver: a loopback port that was just released refuses connections.
+  const closed = createServer();
+  await new Promise<void>((resolve) => closed.listen(0, '127.0.0.1', resolve));
+  const { port } = closed.address() as AddressInfo;
+  await new Promise<void>((resolve) => closed.close(() => resolve()));
+  const refused = await failure(
+    rerun(
+      { pr: 181, head, repo: 'krn-works/krn' },
+      {
+        gh: gh().runner,
+        env: env(`http://127.0.0.1:${port}`),
+      },
+    ),
+  );
+  assert.equal(refused.exitCode, 75);
+  // The configured URL may carry credentials, so the refusal never echoes it.
+  assert.ok(!refused.message.includes(`:${port}`), refused.message);
+  assert.match(refused.message, /connection refused/u);
+  assert.ok(refused.message.includes(tunnelCommand), refused.message);
+  const other = await failure(
+    rerun(
+      { pr: 181, head, repo: 'krn-works/krn' },
+      {
+        gh: gh().runner,
+        env: env('http://127.0.0.1:1'),
+        fetcher: async () => {
+          throw new TypeError('fetch failed', {
+            cause: Object.assign(new Error('timeout'), { code: 'ETIMEDOUT' }),
+          });
+        },
+      },
+    ),
+  );
+  assert.equal(other.exitCode, 75);
+  assert.ok(!other.message.includes(tunnelCommand), other.message);
+});
+
+test('Jenkins diagnostics document the lead tunnel for krn ci rerun', () => {
+  const doc = readFileSync(
+    new URL('../../infra/ci/jenkins/diagnostics-and-queue.md', import.meta.url),
+    'utf8',
+  );
+  assert.ok(doc.includes(tunnelCommand), 'tunnel command missing');
+  assert.match(doc, /10\.254\.254\.6:8080/u);
+});

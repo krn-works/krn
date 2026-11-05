@@ -1,0 +1,12 @@
+{
+  "id": "t-ta1cyc0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 2,
+  "title": "hardening checklist: filters of a foreign format accept exactly the receiver grammar",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/hardening-checklist.md gains a receiver-grammar class: code that skips or accepts lines of a format owned by another tool (packed-refs, git refnames, TAP, CI summaries) accepts exactly what that tool accepts, and its tests cross-check each case against the real tool (e.g. git check-ref-format).\nEvidence: PR #222 (t-ca75c7w) spent review attempts 1-3 on the packed-refs filter grammar (OID length, refnames Git rejects, Unicode whitespace); each finding was a grammar mismatch with git, surfaced one per attempt by the prepass.\nProof: the hardening checklist rule test lists the new class; krn brief check refuses a Hardening section without it."
+  ]
+}
