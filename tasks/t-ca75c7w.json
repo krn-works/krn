@@ -1,7 +1,11 @@
 {
   "id": "t-ca75c7w",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "worker git metadata check skips shared refs/remotes and remote packed-refs lines; test/worker/shared-refs.test.ts"
+  },
   "created": "2026-11-04",
   "priority": 1,
   "title": "worker scope check ignores shared git ref updates",
