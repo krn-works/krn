@@ -155,6 +155,55 @@ func TestGateReceiptRequiresCompleteExecutionAndCleanup(t *testing.T) {
 	}
 }
 
+func TestProfileAcceptsEightCPUs(t *testing.T) {
+	for _, tc := range []struct {
+		name                             string
+		cpu, memory, headroom, jobMemory int
+		valid                            bool
+	}{
+		{"raised profile", 8, 16384, 2048, 14336, true},
+		{"CPU minimum", 1, 16384, 2048, 14336, true},
+		{"CPU below minimum", 0, 16384, 2048, 14336, false},
+		{"CPU above maximum", 9, 16384, 2048, 14336, false},
+		{"job memory above maximum", 8, 32768, 2048, 14337, false},
+		{"headroom overcommit", 8, 8192, 2048, 14336, false},
+		{"legacy profile", 4, 8192, 1536, 6144, true},
+		{"job memory minimum", 8, 16384, 2048, 256, true},
+		{"job memory below minimum", 8, 16384, 2048, 255, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := newFixture(t).profile
+			p.CPUCount, p.VMMemoryMiB = tc.cpu, tc.memory
+			p.VMHeadroomMiB, p.MaxJobMemoryMiB = tc.headroom, tc.jobMemory
+			err := p.Validate()
+			if tc.valid {
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else if err == nil || err.Error() != "profile resource bounds/headroom invalid" {
+				t.Fatalf("expected resource bounds/headroom rejection, got %v", err)
+			}
+		})
+	}
+}
+
+func TestSpecMemoryUpperBound(t *testing.T) {
+	for _, memory := range []int{255, 256, 6144, 14336, 14337} {
+		t.Run(fmt.Sprint(memory), func(t *testing.T) {
+			s := newFixture(t).spec
+			s.MemoryMiB = memory
+			err := s.Validate()
+			if memory >= 256 && memory <= 14336 {
+				if err != nil {
+					t.Fatal(err)
+				}
+			} else if err == nil || err.Error() != "memory out of bounds" {
+				t.Fatalf("expected memory rejection, got %v", err)
+			}
+		})
+	}
+}
+
 func TestInvalidAdmissionAndResourceBounds(t *testing.T) {
 	cases := map[string]func(*fixture){
 		"source injection":       func(f *fixture) { f.spec.SourceSHA = "a; touch /tmp/unsafe" },
@@ -167,7 +216,7 @@ func TestInvalidAdmissionAndResourceBounds(t *testing.T) {
 		"missing global mapping": func(f *fixture) { f.spec.Tier = GlobalFast },
 		"UUID version":           func(f *fixture) { f.spec.AttemptID = "12345678-1234-1123-8123-123456789abc" },
 		"memory low":             func(f *fixture) { f.spec.MemoryMiB = 255 },
-		"memory high":            func(f *fixture) { f.spec.MemoryMiB = 6145 },
+		"memory high":            func(f *fixture) { f.spec.MemoryMiB = 14337 },
 		"profile memory":         func(f *fixture) { f.profile.MaxJobMemoryMiB = 256 },
 		"pids low":               func(f *fixture) { f.spec.ProcessLimit = 63 },
 		"pids high":              func(f *fixture) { f.spec.ProcessLimit = 4097 },
@@ -175,7 +224,7 @@ func TestInvalidAdmissionAndResourceBounds(t *testing.T) {
 		"timeout low":            func(f *fixture) { f.spec.TimeoutSeconds = 29 },
 		"timeout high":           func(f *fixture) { f.spec.TimeoutSeconds = 7201 },
 		"CPU low":                func(f *fixture) { f.profile.CPUCount = 0 },
-		"CPU high":               func(f *fixture) { f.profile.CPUCount = 5 },
+		"CPU high":               func(f *fixture) { f.profile.CPUCount = 9 },
 		"root size":              func(f *fixture) { f.profile.RootGiB = 65 },
 		"headroom low":           func(f *fixture) { f.profile.VMHeadroomMiB = 1535 },
 		"headroom overcommit":    func(f *fixture) { f.profile.VMMemoryMiB = 6144 },

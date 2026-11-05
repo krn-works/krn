@@ -182,12 +182,7 @@ class Controller {
             throw new IllegalStateException('Repository is not enrolled in the protected map')
         }
         approvedApp(run, source, entry)
-        [timeout_seconds: [30, 7200], memory_mib: [256, 6144], process_limit: [64, 4096]].each { key, bounds ->
-            def value = entry[key]
-            if (!(value instanceof Integer) || value < bounds[0] || value > bounds[1]) {
-                throw new IllegalStateException('Invalid enrolled resource limits')
-            }
-        }
+        validateResourceLimits(entry)
         def revision = SCMRevisionAction.getRevision(source, run)
         String sha
         String baseSha = null
@@ -214,6 +209,16 @@ class Controller {
         }
         return [repository: repository, source_sha: sha, base_sha: baseSha,
                 pull_request: pullRequest, entry: new LinkedHashMap(entry)]
+    }
+
+    @NonCPS
+    static void validateResourceLimits(Map entry) {
+        [timeout_seconds: [30, 7200], memory_mib: [256, 14336], process_limit: [64, 4096]].each { key, bounds ->
+            def value = entry[key]
+            if (!(value instanceof Integer) || value < bounds[0] || value > bounds[1]) {
+                throw new IllegalStateException('Invalid enrolled resource limits')
+            }
+        }
     }
 
     @NonCPS
