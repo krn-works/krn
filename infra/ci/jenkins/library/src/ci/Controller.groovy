@@ -23,6 +23,7 @@ import io.jenkins.plugins.checks.github.status.GitHubSCMSourceStatusChecksTrait
 import org.jenkinsci.plugins.workflow.libs.GlobalLibraries
 import org.jenkinsci.plugins.workflow.libs.LibrariesAction
 import org.jenkinsci.plugins.workflow.multibranch.extended.RemoteJenkinsFileWorkflowBranchProjectFactory
+import org.kohsuke.github.HttpException
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Paths
@@ -290,7 +291,34 @@ class Controller {
     }
 
     @NonCPS
-    static void requireCurrentHead(def run, Map identity) {
+    private static boolean retryableGitHubFailure(Exception problem) {
+        // HttpException is also an IOException: never retry HTTP 4xx.
+        if (problem instanceof HttpException) {
+            return problem.responseCode >= 500 && problem.responseCode <= 599
+        }
+        return problem instanceof IOException
+    }
+
+    // CPS-compatible: the caller supplies Pipeline sleep; tests inject a recorder.
+    static def retryGitHub(Closure action, Closure sleeper) {
+        for (int attempt = 0; ; attempt++) {
+            try {
+                return action()
+            } catch (Exception problem) {
+                if (attempt >= 3 || !retryableGitHubFailure(problem)) { throw problem }
+                sleeper(2 << attempt)
+            }
+        }
+    }
+
+    static void requireCurrentHead(Closure run, Map identity, Closure sleeper) {
+        // Resolve rawBuild only inside the synchronous attempt. Jenkins objects
+        // must not remain in CPS locals across the injected Pipeline sleep.
+        retryGitHub({ requireCurrentHeadAttempt(run(), identity) }, sleeper)
+    }
+
+    @NonCPS
+    private static void requireCurrentHeadAttempt(def run, Map identity) {
         def source = SCMSource.SourceByItem.findSource(run.parent) as GitHubSCMSource
         def recorded = SCMRevisionAction.getRevision(source, run)
         def current = source.fetch(recorded.head, null)
@@ -383,7 +411,9 @@ class Controller {
             }
         } catch (Exception ignored) {
             // Never propagate credential-library/API error bodies into console.
-            throw new IllegalStateException('GitHub check readback failed; publication is unverified')
+            String message = 'GitHub check readback failed; publication is unverified'
+            if (retryableGitHubFailure(ignored)) { throw new IOException(message) }
+            throw new IllegalStateException(message)
         }
     }
 }

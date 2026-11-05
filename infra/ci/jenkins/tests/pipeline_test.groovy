@@ -13,12 +13,121 @@ class FlowInterruptedException extends Exception {
 class ExceededTimeout {}
 class UserInterruption {}
 ''')
+
+// Compile the complete production Controller against minimal Jenkins API receivers.
+// Only its class name changes, so Pipeline's lifecycle fake can delegate retry,
+// head lookup and readback to the actual implementation.
+String controllerSource = new File(root, 'infra/ci/jenkins/library/src/ci/Controller.groovy').text
+Map apiStubs = [
+    'com.cloudbees.groovy.cps.NonCPS': '@interface NonCPS {}',
+    'jenkins.scm.api.SCMSource': '''class SCMSource {
+        static def source
+        static class SourceByItem { static def findSource(item) { SCMSource.source } }
+    }''',
+    'jenkins.scm.api.SCMRevisionAction': '''class SCMRevisionAction {
+        static def getRevision(source, run) { [head: 'head'] }
+    }''',
+    'org.jenkinsci.plugins.github_branch_source.GitHubSCMSource': '''class GitHubSCMSource {
+        Closure receiver
+        String credentialsId = 'app'
+        String apiUri
+        String repoOwner = 'owner'
+        def fetch(head, listener) { receiver() }
+    }''',
+    'org.jenkinsci.plugins.github_branch_source.PullRequestSCMRevision':
+        'class PullRequestSCMRevision { String pullHash; String baseHash }',
+    'org.jenkinsci.plugins.github_branch_source.GitHubAppCredentials': '''class GitHubAppCredentials {
+        String apiUri
+        String getAppID() { '5548482' }
+    }''',
+    'org.jenkinsci.plugins.github_branch_source.Connector': '''class Connector {
+        static def connection
+        static def credential
+        static def lookupScanCredentials(item, uri, id, owner) { credential }
+        static def connect(uri, credential) { connection }
+    }''',
+    'org.kohsuke.github.HttpException': '''class HttpException extends IOException {
+        int responseCode
+        HttpException(int code) { super(code == 503 ? 'Service Unavailable' : 'HTTP error'); responseCode = code }
+    }''',
+    'hudson.slaves.OfflineCause': 'class OfflineCause { static class ByCLI {} }'
+]
+controllerSource.readLines().findAll { it.startsWith('import ') }.each { line ->
+    String name = line.substring(7)
+    if (!name.startsWith('java.') && !name.startsWith('groovy.')) {
+        String simple = name.tokenize('.').last()
+        loader.parseClass('package ' + name.substring(0, name.lastIndexOf('.')) + '\n' +
+            (apiStubs[name] ?: ('class ' + simple + ' {}')))
+    }
+}
+loader.parseClass('package ci; class OwnedRunner {}')
+loader.parseClass('package ci; class RunnerBinding {}')
+loader.parseClass('package ci; class CheckoutPolicy { static environment() { [] } }')
+def actualController = loader.parseClass(controllerSource.replace('class Controller {', 'class ActualController {'))
+def httpFailure = loader.loadClass('org.kohsuke.github.HttpException')
+def scmSource = loader.loadClass('jenkins.scm.api.SCMSource')
+def githubSource = loader.loadClass('org.jenkinsci.plugins.github_branch_source.GitHubSCMSource')
+def prRevision = loader.loadClass('org.jenkinsci.plugins.github_branch_source.PullRequestSCMRevision')
+
+// Readback must keep retry classification while dropping API error bodies.
+def connector = loader.loadClass('org.jenkinsci.plugins.github_branch_source.Connector')
+connector.credential = loader.loadClass('org.jenkinsci.plugins.github_branch_source.GitHubAppCredentials').newInstance()
+scmSource.source = githubSource.newInstance(receiver: { null })
+for (int code : [503, 404]) {
+    int reads = 0
+    List sleeps = []
+    connector.connection = [getRepository: { name ->
+        reads++
+        throw httpFailure.newInstance(code)
+    }]
+    Exception failed = null
+    try {
+        actualController.retryGitHub({
+            actualController.readback(
+                [parent: 'job', getActions: { type -> [[name: 'krn/gate', id: 1]] }],
+                [entry: [check_name: 'krn/gate', app_id: '5548482'], repository: 'owner/repo'],
+                'COMPLETED', 'FAILURE')
+        }, { seconds -> sleeps.add(seconds) })
+    } catch (Exception problem) { failed = problem }
+    assert failed != null
+    assert failed.message == 'GitHub check readback failed; publication is unverified'
+    assert failed.cause == null
+    assert reads == (code == 503 ? 4 : 1)
+    assert sleeps == (code == 503 ? [2, 4, 8] : [])
+}
+for (int code : [400, 401, 403, 404, 429, 499, 500, 503, 599, 600]) {
+    int attempts = 0
+    List sleeps = []
+    try {
+        actualController.retryGitHub({ attempts++; throw httpFailure.newInstance(code) },
+            { seconds -> sleeps.add(seconds) })
+        assert false
+    } catch (IOException expected) {}
+    boolean retryable = code >= 500 && code <= 599
+    assert attempts == (retryable ? 4 : 1)
+    assert sleeps == (retryable ? [2, 4, 8] : [])
+}
+int transportAttempts = 0
+List transportSleeps = []
+assert actualController.retryGitHub({
+    if (++transportAttempts <= 2) { throw new IOException('transport') }
+    'received'
+}, { seconds -> transportSleeps.add(seconds) }) == 'received'
+assert transportAttempts == 3
+assert transportSleeps == [2, 4]
+println('PASS real Controller: HTTP boundaries, IOException retry, sanitized readback classification')
 loader.parseClass('''package ci
 class Controller {
     static Map context
     static Map enrollment(run) { [runner: [remote_fs: '/var/lib/jenkins-agent']] }
     static Map sourceIdentity(run, enrollment) { context.identity }
-    static void readback(run, identity, status, conclusion) { context.events.add('readback:' + status) }
+    static void readback(run, identity, status, conclusion) {
+        context.events.add('readback:' + status)
+        if (context.scenario == 'readback-transient' && status == 'COMPLETED' && !context.readbackFailed) {
+            context.readbackFailed = true
+            throw new IOException('GitHub check readback failed; publication is unverified')
+        }
+    }
     static checkoutScm(scm, run, identity) { scm }
     static void requireNoRunner() { context.events.add('requireNoRunner') }
     static void requireRunnerBinding(run, enrollment) {}
@@ -27,9 +136,12 @@ class Controller {
     static void disconnectRunner(attempt) { context.events.add('disconnect') }
     static boolean runnerStopped(attempt) { true }
     static void removeRunner(attempt) { context.events.add('remove'); if (context.scenario == 'stop-failure') { throw new IllegalStateException('runner still attached') } }
-    static void requireCurrentHead(run, identity) { context.events.add('currentHead') }
+    static def retryGitHub(Closure action, Closure sleeper) { ActualController.retryGitHub(action, sleeper) }
+    static void requireCurrentHead(Closure run, identity, Closure sleeper) {
+        context.events.add('currentHead')
+        ActualController.requireCurrentHead(run, identity, sleeper)
+    }
 }
-class CheckoutPolicy { static environment() { [] } }
 ''')
 loader.parseClass(new File(root, 'infra/ci/jenkins/library/src/ci/QueuePolicy.groovy'))
 def controller = loader.loadClass('ci.Controller')
@@ -58,15 +170,40 @@ def run = { String scenario ->
         image_fingerprint: '2' * 64, tier: 'product', timeout_seconds: 1800,
         memory_mib: 5120, process_limit: 1024, check_name: 'krn/gate'],
         source_sha: '3' * 40, base_sha: '4' * 40, pull_request: true]
+    def sleeps = []
+    int headAttempts = 0
+    scmSource.source = githubSource.newInstance(receiver: {
+        headAttempts++
+        if (scenario == 'head-transient' && headAttempts <= 2 || scenario == 'head-exhausted' || scenario == 'head-final-exhausted' && headAttempts >= 2) {
+            throw httpFailure.newInstance(503)
+        }
+        if (scenario == 'head-404') { throw httpFailure.newInstance(404) }
+        if (scenario == 'head-other') { throw new IllegalStateException('other') }
+        prRevision.newInstance(pullHash: identity.source_sha, baseHash: identity.base_sha)
+    })
     def context = [identity: identity, events: events, scenario: scenario]
     controller.context = context
     def env = [NODE_NAME: null]
     List timeoutScopes = []
-    def build = [rawBuild: new Object(), startTimeInMillis: admitted, result: null]
+    def build = [rawBuild: [parent: 'job'], startTimeInMillis: admitted, result: null]
     def binding = new Binding([currentBuild: build, env: env])
     def script = scriptClass.newInstance()
     script.binding = binding
-    binding.setVariable('publishChecks', { Map options -> checks.add(options); events.add('check:' + options.status) })
+    int terminalAttempts = 0
+    binding.setVariable('sleep', { Map options ->
+        assert options.unit == 'SECONDS'
+        sleeps.add(options.time)
+    })
+    binding.setVariable('publishChecks', { Map options ->
+        if (options.status == 'COMPLETED') {
+            terminalAttempts++
+            if (scenario == 'publish-exhausted' || scenario == 'publish-transient' && terminalAttempts == 1) {
+                throw httpFailure.newInstance(503)
+            }
+        }
+        checks.add(options)
+        events.add('check:' + options.status)
+    })
     binding.setVariable('node', { String name, Closure action ->
         if (name == 'runner') {
             assert timeoutScopes.any { it.unit == 'SECONDS' && it.time == 2100 }
@@ -137,7 +274,7 @@ def run = { String scenario ->
         if (command.contains(' executor --profile')) {
             events.add('executor')
             if (scenario in ['cancel', 'timeout']) { throw interrupt(scenario == 'timeout' ? timeoutCause.newInstance() : userCause.newInstance()) }
-            return scenario == 'executor-timeout' ? 124 : (scenario in ['failure', 'failure-reset'] ? 23 : 0)
+            return scenario == 'executor-timeout' ? 124 : (scenario in ['failure', 'failure-reset', 'publish-transient', 'publish-exhausted', 'readback-transient'] ? 23 : 0)
         }
         if (command.contains(' evidence export ')) {
             events.add('export')
@@ -163,7 +300,43 @@ def run = { String scenario ->
     assert events.indexOf('check:QUEUED') < events.indexOf('lock') || scenario == 'stale-base'
     assert events.indexOf('admission') < events.indexOf('lock') || scenario == 'stale-base'
     def finalCheck = checks.last()
-    if (scenario == 'success') {
+    if (scenario in ['head-exhausted', 'head-404', 'head-other']) {
+        assert thrown != null
+        assert build.result == 'FAILURE'
+        assert finalCheck.conclusion == 'FAILURE'
+        assert finalCheck.summary.contains('failed at stage execution: ')
+        assert terminalAttempts == 1
+        assert headAttempts == (scenario == 'head-exhausted' ? 4 : 1)
+        assert sleeps == (scenario == 'head-exhausted' ? [2, 4, 8] : [])
+        println('PASS Pipeline receiver scenario: ' + scenario)
+        return
+    }
+    if (scenario == 'publish-exhausted') {
+        assert thrown.message == 'Executor returned 23'
+        assert build.result == 'FAILURE'
+        assert terminalAttempts == 4
+        assert sleeps == [2, 4, 8]
+        assert events.contains('echo:Failure check publication is unverified')
+        println('PASS Pipeline receiver scenario: ' + scenario)
+        return
+    }
+    if (scenario == 'head-final-exhausted') {
+        assert headAttempts == 5
+        assert sleeps == [2, 4, 8]
+        assert finalCheck.summary.contains('failed at stage head-check: HttpException: Service Unavailable')
+        assert build.result == 'FAILURE'
+    }
+    if (scenario in ['publish-transient', 'readback-transient']) {
+        assert terminalAttempts == 2
+        assert sleeps == [2]
+        assert build.result == 'FAILURE'
+        assert events.last() == 'readback:COMPLETED'
+    }
+    if (scenario == 'head-transient') {
+        assert headAttempts == 4 // three at admission, one before success publication
+        assert sleeps == [2, 4]
+    }
+    if (scenario in ['success', 'head-transient']) {
         assert thrown == null
         assert finalCheck.conclusion == 'SUCCESS'
         assert events.indexOf('archive:ci-evidence/*') < events.indexOf('verify')
@@ -224,6 +397,6 @@ def run = { String scenario ->
     }
     println('PASS Pipeline receiver scenario: ' + scenario)
 }
-['success', 'failure', 'cancel', 'timeout', 'executor-timeout', 'allocation-timeout', 'failure-reset', 'reset-failure', 'dead-channel',
+['head-transient', 'head-exhausted', 'head-final-exhausted', 'head-404', 'head-other', 'publish-transient', 'publish-exhausted', 'readback-transient', 'success', 'failure', 'cancel', 'timeout', 'executor-timeout', 'allocation-timeout', 'failure-reset', 'reset-failure', 'dead-channel',
  'incomplete-export', 'unstash-failure', 'archive-failure', 'verify-failure', 'post-gate-failure', 'stop-failure', 'stale-base', 'queued-cancel'].each(run)
 println('PASS age-bounded main priority: same-time preference, old PR aging, FIFO tie, integer range')

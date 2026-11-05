@@ -96,7 +96,7 @@ git -c core.hooksPath=/dev/null bundle verify ../source.bundle
                 publishChecks(name: identity.entry.check_name, status: 'IN_PROGRESS', conclusion: 'NONE',
                     summary: "Attempt ${attempt}; source ${identity.source_sha}; base ${identity.base_sha ?: 'not-required'}")
                 Controller.readback(currentBuild.rawBuild, identity, 'IN_PROGRESS', null)
-                Controller.requireCurrentHead(currentBuild.rawBuild, identity)
+                Controller.requireCurrentHead({ currentBuild.rawBuild }, identity, { seconds -> sleep(time: seconds, unit: 'SECONDS') })
                 Controller.requireNoRunner()
                 node('control') {
                     ws(work) {
@@ -238,7 +238,7 @@ exec /usr/local/libexec/ci-platform control finish --config /etc/ci-platform/con
                 error('Gate, evidence export/archive or final reset is incomplete' + (problems.isEmpty() ? '' : ': ' + problems[0]))
             }
             if (failure == null && problems.isEmpty()) { stage = 'head-check' }
-            Controller.requireCurrentHead(currentBuild.rawBuild, identity)
+            Controller.requireCurrentHead({ currentBuild.rawBuild }, identity, { seconds -> sleep(time: seconds, unit: 'SECONDS') })
             if (failure == null && problems.isEmpty()) { stage = 'publish' }
             publishChecks(name: identity.entry.check_name, status: 'COMPLETED', conclusion: 'SUCCESS',
                 summary: "Gate, archived evidence and final reset verified; source ${identity.source_sha}; base ${identity.base_sha ?: spec.base_sha ?: 'not-required'}; attempt ${attempt}", text: diagnostic)
@@ -257,10 +257,12 @@ exec /usr/local/libexec/ci-platform control finish --config /etc/ci-platform/con
             try {
                 String cause = failure == null ? 'unverified' : failure.class.simpleName + ': ' + (failure.message ?: '')
                 cause = cause.split(/[\r\n]/, 2)[0].replaceAll(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/, ' ').take(300)
-                publishChecks(name: identity.entry.check_name, status: 'COMPLETED', conclusion: conclusion,
-                    summary: "Attempt ${attempt} failed at stage ${stage}: ${cause}; base=${identity.base_sha ?: spec.base_sha ?: 'not-required'}; gate=${gatePassed}; cleanup=${cleaned}; evidence=${evidenceArchived && evidenceComplete}",
-                    text: ("Attempt ${attempt} failed at stage ${stage}: ${cause}\nPrimary: ${failure?.toString()?.take(1000) ?: 'unverified'}\n" + problems.join('\n') + '\n\n' + diagnostic).take(16000))
-                Controller.readback(currentBuild.rawBuild, identity, 'COMPLETED', conclusion)
+                Controller.retryGitHub({
+                    publishChecks(name: identity.entry.check_name, status: 'COMPLETED', conclusion: conclusion,
+                        summary: "Attempt ${attempt} failed at stage ${stage}: ${cause}; base=${identity.base_sha ?: spec.base_sha ?: 'not-required'}; gate=${gatePassed}; cleanup=${cleaned}; evidence=${evidenceArchived && evidenceComplete}",
+                        text: ("Attempt ${attempt} failed at stage ${stage}: ${cause}\nPrimary: ${failure?.toString()?.take(1000) ?: 'unverified'}\n" + problems.join('\n') + '\n\n' + diagnostic).take(16000))
+                    Controller.readback(currentBuild.rawBuild, identity, 'COMPLETED', conclusion)
+                }, { seconds -> sleep(time: seconds, unit: 'SECONDS') })
             } catch (Exception ignored) { echo('Failure check publication is unverified') }
         }
     }

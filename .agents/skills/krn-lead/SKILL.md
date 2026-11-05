@@ -54,7 +54,6 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 - **Branch base.** The branch must contain the PR base: `git merge-base --is-ancestor <pr-base> HEAD`.
 - **Authoritative base (t-xxa04np).** With two lanes a parallel fetch moves the local `origin/main`: rebase onto the SHA from `git ls-remote origin main` or the PR's `baseRefOid`, and pass that exact SHA to `krn verify` and `krn review`, never the local `origin/main`.
 - **Main gate rerun (t-33mv33n).** A red main `krn/gate` has no lead rerun: deliver prints its cause (`failed at stage <stage>: <cause>`, or `unknown` with the Primary cause while the deployed library is stale); the next merge to main runs the gate again. Never re-push to rerun.
-- **Stuck gate check (t-gb2dk26).** When `krn/gate` stays in_progress after the Jenkins build finished (the controller lost a GitHub 5xx), `krn ci rerun` exits 75: POST the native `/job/ci/job/product/job/PR-<n>/build` through the lead tunnel with the lead Jenkins credentials (env or `curl -K -`, never printed); never re-push.
 - **Deliver check runs lag (t-5f91xhs).** Right after a push, deliver can exit 76 "check runs unavailable" while `krn/gate` is already reported or pending: rerun the same deliver command.
 - **Repo slug (t-dxna9xq).** `krn slice run --repo` takes the owner/repo of `git remote get-url origin` (`krn-works/krn`); a wrong slug passes until the pr stage: fix `repo` in `.krn/runs/slice/<task>/journal.json` before that stage.
 - **Shared remote refs (t-xa40ns5).** With two lanes a fetch in the other lane moves the shared `.git/refs/remotes`; a worker exit 3 that names only `.git/refs/remotes` paths is not a worker violation: check `git status` in the worktree and continue.
@@ -67,7 +66,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 
 Each open task whose body has a `Lead trap:` line is a known defect with its workaround above; `test/rules/lead-traps.test.ts` keeps this list equal to those tasks, and only `test/rules/lead-traps.test.ts` reads workaround text, so removing a fixed trap breaks no other test. When a fix ships, remove its id here and its workaround above in the same PR.
 
-t-160zvad, t-33mv33n, t-5f91xhs, t-8k6n32d, t-dxna9xq, t-g5vqm2q, t-gb2dk26, t-jc27nbz, t-jt8n4s2, t-m991e6t, t-tf4qwnz, t-xa40ns5, t-xxa04np
+t-160zvad, t-33mv33n, t-5f91xhs, t-8k6n32d, t-dxna9xq, t-g5vqm2q, t-jc27nbz, t-jt8n4s2, t-m991e6t, t-tf4qwnz, t-xa40ns5, t-xxa04np
 
 ## Talking to the operator
 
