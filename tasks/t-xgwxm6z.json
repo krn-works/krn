@@ -1,7 +1,11 @@
 {
   "id": "t-xgwxm6z",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "slice pre-commit runs scripts/test-suite.mjs with test/rules expanded by the runner"
+  },
   "created": "2026-11-05",
   "priority": 1,
   "title": "Run slice pre-commit checks through the test suite runner",
