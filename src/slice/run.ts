@@ -689,6 +689,8 @@ export async function runSlice(
               'verify',
               '--base',
               journal.base,
+              '--task',
+              options.task,
               ...observers.flatMap((p) => ['--observer', p]),
             ],
             { cwd: worktree },

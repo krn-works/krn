@@ -398,6 +398,7 @@ test('a fresh run drives every stage to deliver and writes the journal', async (
   ) as Call;
   assert.equal(valueAfter(verify.words, '--base'), BASE);
   assert.equal(valueAfter(verify.words, '--observer'), 'test/a.test.ts');
+  assert.equal(valueAfter(verify.words, '--task'), TASK);
 
   const pr = only(calls, 'gh pr create');
   assert.ok(pr.words.includes('--draft'));

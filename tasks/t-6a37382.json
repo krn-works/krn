@@ -1,7 +1,11 @@
 {
   "id": "t-6a37382",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn verify tickets step refuses foreign Ticket trailers; slice run passes --task"
+  },
   "created": "2026-11-05",
   "priority": 1,
   "title": "krn verify refuses a PR commit whose Ticket trailer differs from the PR task",

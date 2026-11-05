@@ -292,6 +292,7 @@ test('verify runs every step and reports one successful line per step', async ()
         'red-first',
         'preflight',
         'diff-check',
+        'tickets',
         'overall',
       ],
     );
@@ -314,6 +315,216 @@ test('verify runs every step and reports one successful line per step', async ()
   } finally {
     await fixture.cleanup();
   }
+});
+
+// Receiver: deliver's merge-message check on the trailers deliver parses
+// (src/deliver/delivery.ts), so verify and deliver agree on the same branch.
+async function deliverTicketError(
+  root: string,
+  base: string,
+  task: string,
+): Promise<string> {
+  const { mergeMessage } = await import('../../src/deliver/message.ts');
+  const parsed = git(root, [
+    'rev-list',
+    '--reverse',
+    '--no-merges',
+    `${base}..HEAD`,
+  ])
+    .split('\n')
+    .filter(Boolean)
+    .map((commit) => {
+      const body = git(root, ['show', '-s', '--format=%B', commit]);
+      const result = spawnSync('git', ['interpret-trailers', '--parse'], {
+        cwd: root,
+        input: body,
+        encoding: 'utf8',
+      });
+      assert.equal(result.status, 0, result.stderr);
+      return result.stdout.trim();
+    })
+    .filter(Boolean)
+    .join('\n');
+  try {
+    mergeMessage('fix(verify): fixture', parsed, 1, task);
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  return '';
+}
+
+function commitTracker(root: string, message: string): string {
+  git(root, ['commit', '--quiet', '--allow-empty', '-m', message]);
+  return git(root, ['rev-parse', 'HEAD']);
+}
+
+async function verifyTickets(
+  root: string,
+  base: string,
+  task?: string,
+): Promise<{ readonly exitCode: number; readonly ticket: string }> {
+  const { runVerify } = await loadVerify();
+  const head = git(root, ['rev-parse', 'HEAD']);
+  const result = await runVerify(
+    { base, ...(task ? { task } : {}) },
+    {
+      cwd: root,
+      commandRunner: fakeCommandRunner([]),
+      redFirst: async () => passingReport(base, head),
+    },
+  );
+  const ticket = result.lines.find(({ step }) => String(step) === 'tickets');
+  assert.ok(ticket, 'verify must report a tickets line');
+  return {
+    exitCode: result.exitCode,
+    ticket: `${ticket.status} ${ticket.detail}`,
+  };
+}
+
+test('verify refuses a PR commit whose Ticket trailer differs from the PR task', async () => {
+  const fixture = await makeRepository();
+  try {
+    const foreign = commitTracker(
+      fixture.root,
+      'chore(tasks): add t-other99\n\nTicket: t-other99',
+    );
+    commitTracker(
+      fixture.root,
+      'chore(tasks): close t-pr12345 (t-pr12345)\n\nTicket: t-pr12345',
+    );
+    const refused = await verifyTickets(fixture.root, fixture.base);
+    assert.equal(refused.exitCode, 1);
+    assert.match(refused.ticket, /^FAIL /u);
+    assert.ok(
+      refused.ticket.includes(foreign.slice(0, 12)),
+      `tickets line must name ${foreign}: ${refused.ticket}`,
+    );
+    assert.match(refused.ticket, /Ticket: t-other99/u);
+    assert.match(refused.ticket, /expected Ticket: t-pr12345/u);
+    assert.match(
+      await deliverTicketError(fixture.root, fixture.base, 't-pr12345'),
+      /exactly one matching Ticket trailer/u,
+    );
+
+    const explicit = await verifyTickets(
+      fixture.root,
+      fixture.base,
+      't-pr12345',
+    );
+    assert.equal(explicit.exitCode, 1);
+    assert.ok(explicit.ticket.includes(foreign.slice(0, 12)));
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('verify passes matching Ticket trailers and refuses a missing one under --task', async () => {
+  const fixture = await makeRepository();
+  try {
+    const plain = await verifyTickets(fixture.root, fixture.base);
+    assert.equal(plain.exitCode, 0);
+    assert.match(plain.ticket, /^SKIP no Ticket trailers/u);
+
+    const missing = await verifyTickets(
+      fixture.root,
+      fixture.base,
+      't-pr12345',
+    );
+    assert.equal(missing.exitCode, 1);
+    assert.equal(
+      missing.ticket,
+      'FAIL no Ticket trailer; expected Ticket: t-pr12345',
+    );
+
+    commitTracker(
+      fixture.root,
+      'chore(tasks): add t-pr12345 (t-pr12345)\n\nTicket: t-pr12345',
+    );
+    commitTracker(
+      fixture.root,
+      'chore(tasks): close t-pr12345 (t-pr12345)\n\nTicket: t-pr12345\nCo-Authored-By: Verify Test <verify@example.test>',
+    );
+    const matching = await verifyTickets(
+      fixture.root,
+      fixture.base,
+      't-pr12345',
+    );
+    assert.equal(matching.exitCode, 0);
+    assert.equal(matching.ticket, 'PASS Ticket: t-pr12345');
+    assert.doesNotMatch(
+      await deliverTicketError(fixture.root, fixture.base, 't-pr12345'),
+      /Ticket trailer/u,
+    );
+    const derived = await verifyTickets(fixture.root, fixture.base);
+    assert.equal(derived.exitCode, 0);
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('a separator byte inside a Ticket trailer cannot hide its foreign suffix', async () => {
+  for (const separator of ['\u001d', '\u001f', '\u001e']) {
+    const fixture = await makeRepository();
+    try {
+      commitTracker(
+        fixture.root,
+        `chore(tasks): add t-pr12345\n\nTicket: t-pr12345${separator}t-other99`,
+      );
+      const refused = await verifyTickets(
+        fixture.root,
+        fixture.base,
+        't-pr12345',
+      );
+      assert.equal(refused.exitCode, 1, refused.ticket);
+      assert.match(refused.ticket, /^FAIL foreign Ticket trailer/u);
+      assert.match(
+        await deliverTicketError(fixture.root, fixture.base, 't-pr12345'),
+        /exactly one matching Ticket trailer/u,
+      );
+    } finally {
+      await fixture.cleanup();
+    }
+  }
+});
+
+test('a lookalike Ticket trailer fails and prints without format characters', async () => {
+  const fixture = await makeRepository();
+  try {
+    commitTracker(
+      fixture.root,
+      'chore(tasks): add t-pr12345\n\nTicket: t-pr12345\u200b',
+    );
+    const refused = await verifyTickets(
+      fixture.root,
+      fixture.base,
+      't-pr12345',
+    );
+    assert.equal(refused.exitCode, 1);
+    assert.match(refused.ticket, /^FAIL foreign Ticket trailer/u);
+    assert.doesNotMatch(refused.ticket, /[\p{Cc}\p{Cf}]/u);
+    assert.match(
+      await deliverTicketError(fixture.root, fixture.base, 't-pr12345'),
+      /exactly one matching Ticket trailer/u,
+    );
+  } finally {
+    await fixture.cleanup();
+  }
+});
+
+test('--task takes one valid task id', async () => {
+  const { parseVerifyArgs } = await loadVerify();
+  assert.deepEqual(parseVerifyArgs(['--base', 'main', '--task', 't-ab12']), {
+    base: 'main',
+    task: 't-ab12',
+  });
+  assert.throws(
+    () => parseVerifyArgs(['--base', 'main', '--task', 'T-AB']),
+    /invalid task id/u,
+  );
+  assert.throws(
+    () => parseVerifyArgs(['--base', 'main', '--task', 't-a', '--task', 't-b']),
+    /--task may be specified once/u,
+  );
 });
 
 test('runVerify formats a verbatim red-first report captured from the real runner', async () => {
@@ -432,6 +643,7 @@ test('a failed child step does not stop later steps', async () => {
         'red-first',
         'preflight',
         'diff-check',
+        'tickets',
         'overall',
       ],
     );
@@ -1044,6 +1256,7 @@ test('CLI runs the real targeted step, bounds logs, and reports a failing fixtur
           'red-first',
           'preflight',
           'diff-check',
+          'tickets',
           'overall',
         ],
       );

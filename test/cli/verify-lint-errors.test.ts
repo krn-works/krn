@@ -112,6 +112,7 @@ test('a failing lint names each biome error in a changed path and the fix comman
         'red-first',
         'preflight',
         'diff-check',
+        'tickets',
         'overall',
       ],
     );

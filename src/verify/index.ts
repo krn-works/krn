@@ -37,6 +37,7 @@ export const verifySteps = [
   'red-first',
   'preflight',
   'diff-check',
+  'tickets',
 ] as const;
 
 export type VerifyStep = (typeof verifySteps)[number];
@@ -46,6 +47,7 @@ export interface VerifyOptions {
   readonly base: string;
   readonly observers?: readonly string[];
   readonly skipped?: readonly VerifyStep[];
+  readonly task?: string;
 }
 
 export interface VerifyLine {
@@ -115,19 +117,25 @@ export class VerifyInternalError extends Error {
 }
 
 const usage = [
-  'Usage: krn verify --base <rev> [--observer <test-file>]... [--skip <step>]...',
+  'Usage: krn verify --base <rev> [--task <id>] [--observer <test-file>]... [--skip <step>]...',
   'Exit codes: 0 pass, 1 verification failed or incomplete (a --skip step), 64 usage error, 70 internal error, 75 dirty tracked worktree (commit first).',
 ].join('\n');
 
 export function parseVerifyArgs(args: readonly string[]): VerifyOptions {
   let base: string | undefined;
+  let task: string | undefined;
   const observers: string[] = [];
   const skipped = new Set<VerifyStep>();
 
   for (let index = 0; index < args.length; index++) {
     const flag = args[index];
     const value = args[index + 1];
-    if (flag !== '--base' && flag !== '--observer' && flag !== '--skip')
+    if (
+      flag !== '--base' &&
+      flag !== '--observer' &&
+      flag !== '--skip' &&
+      flag !== '--task'
+    )
       throw new VerifyUsageError(`${usage}\nUnknown option: ${flag}`);
     if (!value || value.startsWith('--'))
       throw new VerifyUsageError(`${usage}\nMissing value for ${flag}`);
@@ -137,6 +145,12 @@ export function parseVerifyArgs(args: readonly string[]): VerifyOptions {
       if (base !== undefined)
         throw new VerifyUsageError(`${usage}\n--base may be specified once`);
       base = value;
+    } else if (flag === '--task') {
+      if (task !== undefined)
+        throw new VerifyUsageError(`${usage}\n--task may be specified once`);
+      if (!/^t-[a-z\d]+$/u.test(value))
+        throw new VerifyUsageError(`invalid task id for --task: ${value}`);
+      task = value;
     } else if (flag === '--observer') {
       if (observers.length >= 64)
         throw new VerifyUsageError('--observer accepts at most 64 files');
@@ -155,6 +169,7 @@ export function parseVerifyArgs(args: readonly string[]): VerifyOptions {
     base,
     ...(observers.length ? { observers } : {}),
     ...(skipped.size ? { skipped: [...skipped] } : {}),
+    ...(task ? { task } : {}),
   };
 }
 
@@ -341,6 +356,81 @@ const MAX_LINT_ERRORS = 10;
 // The location may hold `:`, so the changed path set decides where it ends.
 const BIOME_HEADER =
   /^(?<location>[^\s\p{Cc}\p{Cf}]+) (?<category>[^\s\p{Cc}\p{Cf}]+)(?:\s+FIXABLE)?\s+━+$/u;
+
+// Trailer values are commit text: compare them raw, print them without
+// control or format characters so one detail stays one line.
+function printable(value: string): string {
+  return value.replace(/[\p{Cc}\p{Cf}\u2028\u2029]/gu, '');
+}
+
+// Mirrors deliver's merge-message rule (src/deliver/message.ts): every
+// Ticket trailer line in base..head must equal `Ticket: <task>`. Without
+// --task the newest commit's trailer is the PR task (the close commit is last).
+function ticketLine(
+  root: string,
+  base: string,
+  head: string,
+  task: string | undefined,
+): VerifyLine {
+  // Same parse as deliver (src/deliver/delivery.ts): one commit at a time
+  // through `git interpret-trailers --parse`, so no in-band separator in
+  // commit text can split or hide a trailer.
+  const shas = gitText(
+    root,
+    ['rev-list', '--no-merges', `${base}..${head}`],
+    'git rev-list failed while reading Ticket trailers',
+  )
+    .split('\n')
+    .filter(Boolean);
+  const commits = shas.map((sha) => {
+    const body = runGit(root, ['show', '-s', '--format=%B', sha]);
+    if (body.error || body.status !== 0)
+      throw new Error(`git show failed for ${sha}`);
+    const parsed = spawnSync('git', ['interpret-trailers', '--parse'], {
+      cwd: root,
+      input: body.stdout,
+      encoding: 'utf8',
+      timeout: 30_000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    if (parsed.error || parsed.status !== 0)
+      throw new Error(`git interpret-trailers failed for ${sha}`);
+    return {
+      sha,
+      tickets: parsed.stdout
+        .trim()
+        .split(/\r?\n/u)
+        .filter((entry) => /^Ticket:/iu.test(entry)),
+    };
+  });
+  const newest = commits.find((commit) => commit.tickets.length);
+  const expected = task ? `Ticket: ${task}` : newest?.tickets[0];
+  if (!expected)
+    return line('tickets', 'SKIP', 'no Ticket trailers in base..head');
+  if (!newest)
+    return line(
+      'tickets',
+      'FAIL',
+      `no Ticket trailer; expected ${printable(expected)}`,
+    );
+  const foreign = commits.filter((commit) =>
+    commit.tickets.some((ticket) => ticket !== expected),
+  );
+  if (!foreign.length) return line('tickets', 'PASS', printable(expected));
+  return line(
+    'tickets',
+    'FAIL',
+    `foreign Ticket trailer (expected ${printable(expected)}): ${foreign
+      .map(
+        (commit) =>
+          `${commit.sha.slice(0, 12)} (${commit.tickets
+            .filter((ticket) => ticket !== expected)
+            .map(printable)
+            .join(', ')})`,
+      )
+      .join('; ')}; reword the commit before review`,
+  );
+}
 
 function headerPath(
   location: string,
@@ -822,6 +912,13 @@ export async function runVerify(
 
   await runCommandStep('preflight', 'npm', ['run', 'preflight']);
   await runCommandStep('diff-check', 'git', ['diff', '--check', base, head]);
+  if (skipped.has('tickets'))
+    lines.push(line('tickets', 'SKIP', 'skipped by flag'));
+  else {
+    const ticketResult = ticketLine(root, base, head, options.task);
+    if (ticketResult.status === 'FAIL') failed = true;
+    lines.push(ticketResult);
+  }
 
   const finalHead = resolveCommit(root, 'HEAD', 'HEAD');
   const headMoved = finalHead !== head;
