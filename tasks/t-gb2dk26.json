@@ -1,7 +1,11 @@
 {
   "id": "t-gb2dk26",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "controller retries GitHub 5xx and completes the check; rerun reads Jenkins state; deploy follows"
+  },
   "created": "2026-11-05",
   "priority": 0,
   "title": "Gate controller retries GitHub 5xx and always completes the krn/gate check",
