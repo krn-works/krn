@@ -58,7 +58,7 @@ function normalizedFile(file) {
 export function defaultTestShardCount(coreCount = availableParallelism()) {
   const cores =
     Number.isSafeInteger(coreCount) && coreCount > 0 ? coreCount : 1;
-  return Math.max(1, Math.min(4, Math.floor(cores / 4)));
+  return Math.max(1, Math.min(4, cores));
 }
 
 export function configuredTestShardCount(override, coreCount) {

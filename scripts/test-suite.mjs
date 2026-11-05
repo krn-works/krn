@@ -69,6 +69,7 @@ const childEnvironmentAllowlistPrefixes = ['KRN_', 'MISE_'];
 const childEnvironmentDenylist = new Set([
   'KRN_ISOLATION_APPROVAL_TOKEN',
   'KRN_TEST_SHARDS',
+  'KRN_TEST_OUTPUT',
   'KRN_TEST_EVENT_FILE',
 ]);
 
@@ -466,6 +467,11 @@ function defaultCapabilities() {
 }
 
 async function main() {
+  const outputMode = process.env.KRN_TEST_OUTPUT ?? 'full';
+  if (outputMode !== 'full' && outputMode !== 'failures') {
+    process.stderr.write('KRN_TEST_OUTPUT must be full or failures\n');
+    return 64;
+  }
   const strict = process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS === '1';
   const probeRequested = process.env.KRN_SCOPE_PROBE === '1';
   const inheritedTestContext = Boolean(process.env.NODE_TEST_CONTEXT);
@@ -611,9 +617,23 @@ async function main() {
     }
 
     let stdout = '';
-    for (const result of results) {
+    for (const [index, result] of results.entries()) {
       stdout += result.stdout;
-      process.stdout.write(result.stdout);
+      if (outputMode === 'failures') {
+        if (
+          result.runnerExitCode === 0 &&
+          !/^not ok(?:\s|$)/mu.test(result.stdout)
+        )
+          process.stdout.write(
+            `# group ${index + 1}: ok, ${result.nativeTestCount ?? 0} tests, ${groups[index].files.length} files\n`,
+          );
+        else {
+          process.stdout.write(
+            `# group ${index + 1}: FAILED exit ${result.runnerExitCode}\n`,
+          );
+          process.stdout.write(result.stdout);
+        }
+      } else process.stdout.write(result.stdout);
       if (result.stderr) process.stderr.write(result.stderr);
     }
     const skipCount = countIsolationSkips(stdout);

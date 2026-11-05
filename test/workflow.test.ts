@@ -162,7 +162,7 @@ test('Product uses required exact-head App CI and optional local diagnostics', a
   );
   assert.equal(
     scripts.gate,
-    'npm run check && npm run lint && npm test && node src/cli/main.ts task check && npm run rules',
+    'npm run check && npm run lint && KRN_TEST_OUTPUT=failures npm test && node src/cli/main.ts task check && npm run rules',
   );
   assert.match(
     await readFile(workflowPath, 'utf8'),
