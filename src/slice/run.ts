@@ -423,7 +423,9 @@ export async function runSlice(
         cause:
           code === 0
             ? 'landing: delivered'
-            : `landing: failed exit ${code}, log ${log}`,
+            : code === 75
+              ? `landing: ci wait timed out exit 75, rerun krn deliver to resume, log ${log}`
+              : `landing: failed exit ${code}, log ${log}`,
       };
     }
     // A review PASS saved before the stage completed resumes at deliver.

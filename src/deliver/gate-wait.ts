@@ -40,7 +40,21 @@ export interface GateWaitOptions {
   pollMs: number;
   timeoutMs: number;
 }
-export class GateTimeout extends Error {}
+export class GateTimeout extends Error {
+  readonly state: string;
+  readonly seconds: number;
+  constructor(timeoutMs: number, state: string, head: string) {
+    const seconds = Math.floor(timeoutMs / 1000);
+    const safeState = (state.split(/[\n\r\u2028\u2029]/u)[0] ?? '')
+      .replace(/[\p{Cc}\p{Cf}]/gu, '')
+      .slice(0, 32);
+    super(
+      `bounded wait timed out after ${seconds}s: krn/gate ${safeState} on ${head}; rerun the same command to resume`,
+    );
+    this.state = safeState;
+    this.seconds = seconds;
+  }
+}
 export async function waitForGate({
   repo,
   pr,
@@ -53,10 +67,11 @@ export async function waitForGate({
   pollMs,
   timeoutMs,
 }: GateWaitOptions): Promise<string> {
+  let state = 'missing';
   const poll = async (condition: () => Promise<boolean>) => {
     const deadline = now() + timeoutMs;
     while (!(await condition())) {
-      if (now() >= deadline) throw new GateTimeout('bounded wait timed out');
+      if (now() >= deadline) throw new GateTimeout(timeoutMs, state, head);
       await sleep(pollMs);
     }
   };
@@ -89,6 +104,7 @@ export async function waitForGate({
     const gate = checks
       .filter((check) => matchesGateCheckRun(check, head, policy))
       .sort((a, b) => b.id - a.id)[0];
+    state = gate?.status ?? 'missing';
     if (gate?.status !== 'completed') return false;
     conclusion = gate.conclusion ?? 'unknown';
     if (conclusion !== 'success')

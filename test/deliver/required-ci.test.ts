@@ -56,6 +56,7 @@ if (role === 'gh') {
    let checks = config.checkRuns ? JSON.stringify([{check_runs: config.checkRuns}]) : raw('checks');
    if (resource.includes(config.merge)) checks = checks.replaceAll(config.head, config.merge);
    if (config.ciFailure || (config.mainCiFailure && resource.includes(config.merge))) checks = checks.replaceAll('"success"','"failure"');
+   if (config.mainCiStatus && resource.includes(config.merge)) checks = checks.replaceAll('"completed"', JSON.stringify(config.mainCiStatus));
    process.stdout.write(checks);
  } else process.exit(64);
 } else {
@@ -416,8 +417,14 @@ for (const merged of [false, true]) {
           f.api.deliver(f.options, f.runtime),
           (error: unknown) => {
             assert.ok(error instanceof f.api.DeliveryFailure);
-            assert.equal(error.stage, 'ci');
-            assert.equal(error.exitCode, transport?.exitCodes.ci);
+            assert.equal(error.stage, merged ? 'ci-wait' : 'ci');
+            assert.equal(error.exitCode, merged ? 75 : 74);
+            if (merged) {
+              assert.ok(
+                error.message.includes(`krn/gate missing on ${f.config.head}`),
+              );
+              assert.match(error.message, /rerun the same command to resume/u);
+            }
             assert.match(
               error.message,
               merged
@@ -458,3 +465,91 @@ for (const merged of [false, true]) {
     });
   }
 }
+
+for (const status of ['missing', 'queued', 'in_progress', 'completed']) {
+  test(`PR gate ${status} retains delivery state and refuses ship`, async (t) => {
+    const f = fixture(t, true);
+    f.change({
+      checkRuns:
+        status === 'missing'
+          ? []
+          : [
+              {
+                ...f.config.checkRuns?.[0],
+                status,
+                conclusion: 'failure',
+              },
+            ],
+    });
+    await assert.rejects(
+      f.api.deliver(f.options, f.runtime),
+      (error: unknown) => {
+        assert.ok(error instanceof f.api.DeliveryFailure);
+        assert.equal(error.stage, status === 'completed' ? 'ci' : 'ci-wait');
+        assert.equal(error.exitCode, status === 'completed' ? 74 : 75);
+        if (status !== 'completed') {
+          assert.equal(
+            error.message,
+            `ci-wait: bounded wait timed out after 0s: krn/gate ${status} on ${f.config.head}; rerun the same command to resume`,
+          );
+        }
+        return true;
+      },
+    );
+    assert.ok(
+      existsSync(join(f.main, '.krn/runs/deliver', f.key, 'state.json')),
+    );
+    assert.ok(existsSync(f.worktree));
+    assert.equal(
+      f
+        .calls()
+        .some((call) => call.args[0] === 'ship' || call.args.includes('ready')),
+      false,
+    );
+    f.change({ checkRuns: f.config.checkRuns });
+    assert.equal(
+      (await f.api.deliver(f.options, f.runtime)).status,
+      'delivered',
+    );
+  });
+}
+
+test('main gate timeout runs hygiene, retains state and resumes from main', async (t) => {
+  const f = fixture(t, true);
+  f.change({ mainCiStatus: 'in_progress' });
+  const branch = f.git(f.worktree, ['branch', '--show-current']);
+  const statePath = join(f.main, '.krn/runs/deliver', f.key, 'state.json');
+  await assert.rejects(
+    f.api.deliver(f.options, f.runtime),
+    (error: unknown) => {
+      assert.ok(error instanceof f.api.DeliveryFailure);
+      assert.equal(error.stage, 'ci-wait');
+      assert.equal(error.exitCode, 75);
+      assert.equal(
+        error.message,
+        `ci-wait: bounded wait timed out after 0s: krn/gate in_progress on ${f.config.merge}; rerun the same command to resume`,
+      );
+      return true;
+    },
+  );
+  assert.ok(existsSync(statePath));
+  assert.equal(
+    JSON.parse(readFileSync(statePath, 'utf8')).merge,
+    f.config.merge,
+  );
+  assert.equal(existsSync(f.worktree), false);
+  assert.equal(f.git(f.main, ['branch', '--list', branch]), '');
+  assert.equal(f.git(f.main, ['rev-parse', 'HEAD']), f.config.merge);
+  const shipCalls = f.calls().filter((call) => call.args[0] === 'ship').length;
+  assert.equal(shipCalls, 2);
+  f.change({ mainCiStatus: null });
+  assert.equal(
+    (await f.api.deliver(f.options, { ...f.runtime, cwd: f.main })).status,
+    'delivered',
+  );
+  assert.equal(
+    f.calls().filter((call) => call.args[0] === 'ship').length,
+    shipCalls,
+  );
+  assert.equal(existsSync(statePath), false);
+});

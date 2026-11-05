@@ -573,7 +573,7 @@ for (const patch of [
     });
     await assert.rejects(
       f.api.deliver(f.options, f.runtime),
-      /ci: bounded wait timed out/u,
+      /ci-wait: bounded wait timed out/u,
     );
     assert.equal(f.calls().filter((call) => call.role === 'krn').length, 0);
   });
@@ -582,7 +582,7 @@ for (const patch of [
 for (const [patch, stage] of [
   [{ moved: true }, 'bind'],
   [{ ciFailure: true }, 'ci'],
-  [{ ciPending: true }, 'ci'],
+  [{ ciPending: true }, 'ci-wait'],
   [{ shipFailure: true }, 'ship'],
   [{ treeMismatch: true }, 'ship'],
 ] as const) {
@@ -765,7 +765,7 @@ for (const legacyGate of [false, undefined] as const) {
       const before = f.calls().length;
       await assert.rejects(
         f.api.deliver(f.options, f.runtime),
-        /ci: bounded wait timed out/u,
+        /ci-wait: bounded wait timed out/u,
       );
       assert.equal(
         f
@@ -807,7 +807,10 @@ for (const legacyGate of [false, undefined] as const) {
 test('delivery rejects a malformed legacy gate field before receiver calls', async (t) => {
   const f = fixture(t, true);
   f.change({ ciPending: true });
-  await assert.rejects(f.api.deliver(f.options, f.runtime), /ci:/u);
+  await assert.rejects(f.api.deliver(f.options, f.runtime), {
+    stage: 'ci-wait',
+    exitCode: 75,
+  });
   const statePath = join(f.main, '.krn/runs/deliver', f.key, 'state.json');
   const state = JSON.parse(readFileSync(statePath, 'utf8'));
   state.gate = 'false';
@@ -838,7 +841,10 @@ for (const [label, patch] of [
         },
       ],
     });
-    await assert.rejects(f.api.deliver(f.options, f.runtime), /ci:/u);
+    await assert.rejects(f.api.deliver(f.options, f.runtime), {
+      stage: label === 'malformed' ? 'ci' : 'ci-wait',
+      exitCode: label === 'malformed' ? 74 : 75,
+    });
     assert.equal(
       f
         .calls()
@@ -854,7 +860,11 @@ test('delivery runs hygiene when main CI fails after the merge', async (t) => {
   const mainFailure =
     /ci: gate concluded failure on [0-9a-f]{40}; failed at stage unknown: [^;]+; rerun: main has no lead rerun \(the lead Jenkins account builds PR jobs only\)/u;
   const branch = f.git(f.worktree, ['branch', '--show-current']);
-  await assert.rejects(f.api.deliver(f.options, f.runtime), mainFailure);
+  await assert.rejects(f.api.deliver(f.options, f.runtime), {
+    stage: 'ci',
+    exitCode: 74,
+    message: mainFailure,
+  });
   assert.equal(existsSync(f.worktree), false);
   assert.equal(
     f.git(f.main, ['branch', '--list', branch]),
@@ -867,7 +877,11 @@ test('delivery runs hygiene when main CI fails after the merge', async (t) => {
   const rerun = { ...f.runtime, cwd: f.main };
   // The PR head gate passed before the saved merge; a rerun must not wait on it again.
   f.change({ headCiPending: true });
-  await assert.rejects(f.api.deliver(f.options, rerun), mainFailure);
+  await assert.rejects(f.api.deliver(f.options, rerun), {
+    stage: 'ci',
+    exitCode: 74,
+    message: mainFailure,
+  });
   f.change({ headCiPending: false });
   assert.equal(f.calls().filter((call) => call.args[0] === 'ship').length, 2);
   f.change({ mainCiFailure: false });

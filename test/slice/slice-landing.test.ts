@@ -416,6 +416,14 @@ test('gate and review overlap; merge waits for both and landing detaches', async
   const failed = await runSlice(options, runtime);
   assert.equal(failed.exitCode, 74);
   assert.match(failed.cause, /^landing: failed exit 74, log /);
+  await writeFile(join(root, '.krn/runs/slice', TASK, 'landing.exit'), '75\n');
+  const held = await runSlice(options, runtime);
+  assert.equal(held.exitCode, 75);
+  assert.equal(held.stage, 'done');
+  assert.equal(
+    held.cause,
+    `landing: ci wait timed out exit 75, rerun krn deliver to resume, log ${join(root, '.krn/runs/slice', TASK, 'landing.log')}`,
+  );
   await writeFile(join(root, '.krn/runs/slice', TASK, 'landing.exit'), 'oops');
   assert.match((await runSlice(options, runtime)).cause, /failed exit unknown/);
 });
