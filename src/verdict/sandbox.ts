@@ -6,6 +6,7 @@ import { accessSync, closeSync, constants, existsSync, lstatSync, mkdirSync, mkd
 import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
+import { resolveGoToolchain } from '../../scripts/isolation-gate.mjs';
 import type { Job } from '../core/index.ts';
 import { stateDirectory } from '../foreman/state.ts';
 import {
@@ -931,11 +932,13 @@ async function runSandbox(
   const home = '/tmp';
   const executable = argv[0];
   if (!executable) throw new Error('check argv is empty');
-  const path = sandboxEnv(extraPath).PATH ?? '/usr/bin:/bin';
+  const go = resolveGoToolchain();
+  const basePath = sandboxEnv(extraPath).PATH ?? '/usr/bin:/bin';
+  const path = go ? `${join(go.root, 'bin')}:${basePath}` : basePath;
   const nodeDirectory = dirname(process.execPath);
   const toolDirectories = [
     ...new Set(
-      [nodeDirectory, extraPath].filter((value): value is string =>
+      [nodeDirectory, extraPath, go?.root].filter((value): value is string =>
         Boolean(value),
       ),
     ),
@@ -1042,6 +1045,7 @@ async function runSandbox(
     '--setenv',
     'PATH',
     path,
+    ...(go ? ['--setenv', 'GOTOOLCHAIN', 'local'] : []),
     '--setenv',
     'LANG',
     'C',
