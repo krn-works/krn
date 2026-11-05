@@ -1,7 +1,11 @@
 {
   "id": "t-zsqwrey",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fix(ci): truncate instead of dropping long retained failure lines (t-zsqwrey)"
+  },
   "created": "2026-11-05",
   "priority": 2,
   "title": "Truncate instead of dropping long retained failure lines",
