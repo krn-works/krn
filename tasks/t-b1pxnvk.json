@@ -1,7 +1,11 @@
 {
   "id": "t-b1pxnvk",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "docs(hardening): add a superseded-wording class for decision amendments (t-b1pxnvk)"
+  },
   "created": "2026-11-04",
   "priority": 2,
   "title": "Add a superseded-wording sweep to the hardening checklist for ADR amendments",

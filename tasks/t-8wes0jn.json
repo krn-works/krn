@@ -1,0 +1,12 @@
+{
+  "id": "t-8wes0jn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 2,
+  "title": "Require every text-grammar shape in a brief's Hardening answer",
+  "after": [],
+  "body": [
+    "Outcome: `krn brief check` refuses a text-grammar answer that is not N/A and does not name each shape the checklist lists (repeated sections, fenced code, 0-3 space indent, CRLF, BOM, control characters) as handled or as a non-goal. t-mmh9ff6 review attempt 1 blocked on indented index rows silently skipped, a shape the checklist names but the brief omitted. Proof: a brief-check test red on a text-grammar answer naming only CRLF and BOM."
+  ]
+}
