@@ -1,0 +1,12 @@
+{
+  "id": "t-vwsz7hs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 2,
+  "title": "Run observers and rule tests before committing a lead-authored slice",
+  "after": [],
+  "body": [
+    "Outcome: with `--worker none`, `krn slice run` runs the brief's observers and `test/rules` on the lead's uncommitted edits before the commit stage and stops with their exit code, so a rule failure (t-mmh9ff6: raw U+FEFF caught by invisible-format-source only in verify preflight, after commit and close) never costs a fixup and rebase. Proof: a slice-run test with a failing rule fixture stops before commit with no new commit."
+  ]
+}
