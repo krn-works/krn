@@ -1,0 +1,12 @@
+{
+  "id": "t-xqp3agn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 1,
+  "title": "Gate evidence keeps failing TAP lines beyond the stdout cap",
+  "after": [],
+  "body": [
+    "Outcome: a red krn/gate names its failing test. In #216 (PR-216/1) and on main 8af14df the gate failed with Executor returned 1 and no 'not ok' line: ci-evidence/gate.stdout is capped at 262144 bytes, stopping near test 115, so the failure was not visible and the lead reran blind. Keep the TAP failure lines (not ok, # fail, the assertion) in the evidence and in the check-run summary regardless of the cap.\nProof: an observer feeds a >256 KiB TAP stream with a late failure and asserts the summary names that test."
+  ]
+}
