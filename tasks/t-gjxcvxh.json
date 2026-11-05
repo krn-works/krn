@@ -1,0 +1,12 @@
+{
+  "id": "t-gjxcvxh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 1,
+  "title": "krn ci rerun names the Jenkins lead tunnel when the URL refuses",
+  "after": [],
+  "body": [
+    "Outcome: a lead can reach Jenkins for krn ci rerun without asking other agents or the operator. In #216 KRN_JENKINS_URL=http://127.0.0.1:18080 refused (connection refused) and the route was found only through two other projects' agents: .krn/runs/ci-platform/lead-access/tunnel.mjs forwards 127.0.0.1:18080 via PVE to the controller VM109 (10.254.254.6:8080). krn ci rerun should name that tunnel (or start it) when the URL refuses, and infra/ci/jenkins/diagnostics-and-queue.md should document it.\nProof: an observer runs krn ci rerun against a refused URL and asserts the error names the tunnel command."
+  ]
+}

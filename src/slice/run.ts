@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { constants } from 'node:fs';
 import { lstat, open, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { z } from 'zod';
 import { effortSchema } from '../worker/state.ts';
 import {
@@ -31,6 +31,7 @@ const optionsSchema = z.object({
   override: z.boolean().optional(),
   reason: z.string().min(1).optional(),
   evidence: z.string().min(1).optional(),
+  budgetException: z.string().min(1).optional(),
 });
 export interface SliceOptions {
   readonly task: string;
@@ -46,6 +47,8 @@ export interface SliceOptions {
   readonly override?: boolean;
   readonly reason?: string;
   readonly evidence?: string;
+  /** Operator budget exception passed to a review attempt beyond the second. */
+  readonly budgetException?: string;
 }
 export interface SliceRuntime {
   readonly root: string;
@@ -428,9 +431,9 @@ export async function runSlice(
       journal.reviewFailed === false
     )
       journal.completed = true;
-    // A second review round runs on a fixed head: verify and push it first.
+    // A later review round runs on a fixed head: verify and push it first.
     const start =
-      failed && !unchanged && journal.reviewAttempts === 1
+      failed && !unchanged && journal.reviewAttempts >= 1
         ? stages.indexOf('verify')
         : stages.indexOf(journal.stage) + (journal.completed ? 1 : 0);
     if (journal.completed && options.stopAfter === journal.stage)
@@ -644,12 +647,9 @@ export async function runSlice(
                 ancestor.code,
                 ancestor.stderr || 'git merge-base failed',
               );
-            // D10 budgets review per PR and base: a new base starts a new series.
+            // D10 keys the review series by PR and baseRef, not the base SHA:
+            // a same-ref rebase continues the series and keeps its count.
             journal.base = remote;
-            journal.reviewAttempts = 0;
-            journal.reviewRecord = null;
-            journal.reviewHead = null;
-            journal.reviewFailed = undefined;
             await save();
           }
           const verified = await runtime.run(
@@ -741,12 +741,19 @@ export async function runSlice(
               65,
               'review attempt has no prior record; cannot resume review',
             );
-          if (journal.reviewAttempts >= 2)
-            throw new Failure(
-              65,
-              'review budget exhausted: two attempts recorded',
-            );
           const head = (await exec('git', ['rev-parse', 'HEAD'])).trim();
+          const exception =
+            journal.reviewAttempts >= 2 && options.budgetException !== undefined
+              ? resolve(root, options.budgetException)
+              : undefined;
+          if (journal.reviewAttempts >= 2 && exception === undefined)
+            throw new Failure(
+              64,
+              `review budget spent: write the operator exception to ${relative(root, join(dirname(path), 'budget-exception.json'))} and rerun with --budget-exception`,
+              [
+                `exception: ${join(dirname(path), 'budget-exception.json')} for ordinal ${journal.reviewAttempts + 1} on head ${head}`,
+              ],
+            );
           // Review admission compares the PR head: wait until GitHub reports the push.
           const sleep =
             runtime.sleep ??
@@ -821,7 +828,12 @@ export async function runSlice(
             '--checklist',
             join(worktree, 'docs', 'program', 'hardening-checklist.md'),
           ];
-          if (journal.reviewRecord)
+          // An exception attempt takes no prior record (only round two verifies one).
+          if (exception !== undefined)
+            args.push('--budget-exception', exception);
+          // Review refuses a prior record on the head it judged: a moved base
+          // under an unchanged head continues the series without one.
+          else if (journal.reviewRecord && journal.reviewHead !== head)
             args.push('--prior-record', journal.reviewRecord);
           if (journal.reviewPending === true)
             throw new Failure(
