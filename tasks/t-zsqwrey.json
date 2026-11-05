@@ -1,0 +1,12 @@
+{
+  "id": "t-zsqwrey",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 2,
+  "title": "Truncate instead of dropping long retained failure lines",
+  "after": [],
+  "body": [
+    "Outcome: a failing TAP line longer than the guest failure reserve still reaches gate evidence. summaryStream.retain (infra/ci/internal/executor/guest.go) drops a single not-ok line longer than the remaining 32 KiB reserve; truncate retained lines (e.g. 1024 bytes) instead. Accepted as residual by override in PR #226 review attempt 3.\nProof: a Go receiver feeds a 40 KiB not-ok line past the head and asserts its prefix is in the log; run via test/ci/gate-evidence-failures.test.ts."
+  ]
+}

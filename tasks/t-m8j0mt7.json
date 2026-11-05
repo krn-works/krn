@@ -1,0 +1,12 @@
+{
+  "id": "t-m8j0mt7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 1,
+  "title": "Verify runs changed tests under the CI guest's strict zero-skip evidence",
+  "after": [],
+  "body": [
+    "Outcome: krn verify catches a changed test that skips in the CI guest before push. PR #226 went red twice in krn/gate: the guest sets KRN_REQUIRE_ZERO_ISOLATION_SKIPS=1 and CI=true (infra/ci/internal/executor/guest.go:27) and strict test evidence rejects any skip, but verify's targeted step and npm run gate locally do neither.\nProof: an observer gives verify a changed test that calls t.skip via an approved path and asserts the targeted step fails naming strict evidence."
+  ]
+}
