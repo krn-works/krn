@@ -1,7 +1,11 @@
 {
   "id": "t-vwsz7hs",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "feat(slice): run observers and rule tests before a lead-authored commit (t-vwsz7hs)"
+  },
   "created": "2026-11-05",
   "priority": 2,
   "title": "Run observers and rule tests before committing a lead-authored slice",
