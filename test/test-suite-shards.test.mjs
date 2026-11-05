@@ -734,3 +734,51 @@ test('a missing file or mismatched native test count rejects the merged summary'
 test('the runner keeps the global event-directory observer in the final serial phase', () => {
   assert.ok(SERIAL_TEST_FILES.includes('test/isolation-gate.test.ts'));
 });
+
+test('compact output retains failing TAP and summarizes passing groups', async () => {
+  const stateRoot = join(projectRoot, '.krn/tmp');
+  await mkdir(stateRoot, { recursive: true });
+  const directory = await mkdtemp(join(stateRoot, 'test-compact-output-'));
+  const files = Array.from({ length: 3 }, (_, index) =>
+    join(directory, `compact-${index}.test.mjs`),
+  );
+  try {
+    for (const [index, file] of files.entries())
+      await writeFile(
+        file,
+        `import { test } from 'node:test';\ntest('case ${index}', () => { ${index === 1 ? "throw new Error('planted');" : ''} });\n`,
+      );
+    const result = spawnSync(process.execPath, [suitePath, ...files], {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1',
+        KRN_TEST_SHARDS: '3',
+        KRN_TEST_OUTPUT: 'failures',
+      },
+      timeout: 30_000,
+    });
+    assert.equal(result.error, undefined, result.stderr);
+    assert.notEqual(result.status, 0, result.stdout);
+    assert.match(result.stdout, /# group \d+: ok, 1 tests, 1 files/u);
+    assert.match(result.stdout, /# group \d+: FAILED exit 1/u);
+    assert.match(result.stdout, /not ok 1 - case 1/u);
+    assert.doesNotMatch(result.stdout, /ok 1 - case (?:0|2)/u);
+    assert.match(result.stdout, /KRN_TEST_SUMMARY_JSON=.*"success":false/u);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('invalid compact output mode exits before spawning tests', () => {
+  const result = spawnSync(process.execPath, [suitePath], {
+    cwd: projectRoot,
+    encoding: 'utf8',
+    env: { ...process.env, KRN_TEST_OUTPUT: 'bogus' },
+    timeout: 30_000,
+  });
+  assert.equal(result.status, 64);
+  assert.match(result.stderr, /KRN_TEST_OUTPUT must be full or failures/u);
+  assert.equal(result.stdout, '');
+});
