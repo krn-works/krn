@@ -1,0 +1,12 @@
+{
+  "id": "t-87ks15p",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 0,
+  "title": "Adopt an architecture-review skill (codebase-design, improve-codebase-architecture) and run it on KRN hot spots",
+  "after": [],
+  "body": [
+    "Outcome: KRN has an architecture-review skill adapted (MIT, attributed) from mattpocock/skills `engineering/improve-codebase-architecture` + `engineering/codebase-design` (vocabulary: module, interface, depth, seam, adapter, leverage, locality; deletion test; design-it-twice), and its first run on KRN hot spots yields ranked deepening candidates turned into tasks.\nOperator 2026-11-05 (verbatim): \"dawaj szefie wjezdzaj we wszystko - ale realnie nie ma tam nic ciekawego typu improve-codebase-architecture ani nic?\" plus the grant \"masz przyznanie i zgodę na wszystko\"; memory: delivery-speed-priority (\"fix architecture\").\nFacts: upstream files fetched to the lead scratch (SKILL.md 6.0 KB, HTML-REPORT.md, codebase-design SKILL.md 6.4 KB + DEEPENING.md + DESIGN-IT-TWICE.md). Hot spots by commit count since 2026-10-01: src/trace/index.ts 45, src/hosts/codex.ts 37, src/cli/index.ts 37, src/foreman/types.ts 25, src/verdict/sandbox.ts 22, src/flow/repository.ts 21, scripts/pr-preflight.mjs 21; also src/deliver/delivery.ts (700+ lines) and src/slice/run.ts.\nAdaptation: KRN terms instead of GLOSSARY.md if none exists (check docs/), ADRs in docs/adr are settled decisions (D1-D30); report as an Artifact page or file under .krn/runs, never in the repo tree; exploration delegated to a fresh-context subagent (krn-lead context rule); candidates become `krn task create` entries, not inline refactors.\nProof: skill passes test/rules skill checks; the first run's report path and the created task ids recorded here."
+  ]
+}

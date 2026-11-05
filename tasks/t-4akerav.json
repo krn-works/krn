@@ -1,0 +1,12 @@
+{
+  "id": "t-4akerav",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 2,
+  "title": "Fold proven external skill patterns into krn review, krn-retro, task creation and parallel lanes",
+  "after": [],
+  "body": [
+    "Outcome: fold proven patterns into existing KRN skills instead of adding new ones: mattpocock `code-review` (Standards and Spec axes in fresh subagents, fail fast on an empty diff) into the `krn review` panel; mattpocock `retro` lesson taxonomy (mechanical vs judgement, no-ops) into krn-retro; `to-tickets`/`triage` tracer-bullet and blocking-edge rules into task creation (AGENT-BRIEF conflict: briefs keep path:line facts, long-lived task bodies do not); wshobson `parallel-feature-development` file ownership and interface contracts into docs/program/lead-rules.md \"Parallel lanes\"; addyosmani `doubt-driven-development` adversarial fresh reviewer for D18 program decisions.\nSource: .krn/runs/lead/skills-research/exhaustive.md (top 3-8). All sources MIT; attribute in each adapted file.\nProof: rules tests pass; each adaptation names its source."
+  ]
+}

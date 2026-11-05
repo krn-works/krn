@@ -1,0 +1,12 @@
+{
+  "id": "t-kzyerr2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 1,
+  "title": "Make worker turns immune to missing deps, PATH Node and red-first evidence",
+  "after": [],
+  "body": [
+    "Outcome: a worker turn never fails for environment reasons: `krn worker start` installs dependencies in a fresh worktree (or refuses before the turn with the exact command), runs the sandbox `--check`/`--observer` commands with the Node from `.node-version` (not PATH Node 26.12.1), and the report schema keeps intended red-first base runs out of `failing check` lines.\nEvidence 2026-11-05: t-47enn80 worker start exit 64 \"dependencies missing: run pnpm install --frozen-lockfile\"; its next turn exited 4 listing two \"failing checks\" that were the intended red-at-base runs (.krn/runs/lead/t-47enn80/rounds/001/report.json); t-q8j6r5c compact worker reported partial with blocker \"Node v26.12.1, strict suite tests need 24.22.1\" while all checks passed on Node 24 (.krn/runs/lead/t-q8j6r5c/worker-compact.log).\nProof: driver tests for a missing node_modules worktree, PATH Node mismatch, and a report whose red-first entries are not counted as failing."
+  ]
+}

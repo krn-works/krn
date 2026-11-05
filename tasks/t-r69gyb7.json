@@ -1,0 +1,12 @@
+{
+  "id": "t-r69gyb7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 0,
+  "title": "Split gate shards by measured duration, retry a failed file once as flaky evidence, print failures first",
+  "after": [],
+  "body": [
+    "Outcome: the gate splits test files by measured duration (not file count), retries a failed file once with both results recorded as evidence (a pass-after-fail is reported as flaky, never silently green), and prints a failure-first summary line before any TAP.\nSource: .krn/runs/lead/ci-research/report.md (rank 1). After t-q8j6r5c slice A (PR #234, K=min(4,cores), compact output): gate build 13 min -> ~6-7 min; shard groups were 46/46/46/46 files + 7 serial with uneven duration.\nProof: a shard-plan test with fixture durations and a retry test where the first run fails and the second passes (flaky reported); gate duration before/after on the same PR shape."
+  ]
+}

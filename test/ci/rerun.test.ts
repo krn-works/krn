@@ -392,3 +392,83 @@ test('Jenkins diagnostics document the lead tunnel for krn ci rerun', () => {
   assert.ok(doc.includes(tunnelCommand), 'tunnel command missing');
   assert.match(doc, /10\.254\.254\.6:8080/u);
 });
+
+const pendingRuns = [{ id: 11, name: 'krn/gate', status: 'in_progress' }];
+
+test('GitHub pending, Jenkins finished → POST /build', async () => {
+  const { rerun } = await load();
+  const job = JSON.parse(readCapture());
+  Object.assign(job.lastBuild, { building: false, result: 'FAILURE' });
+  const server = await jenkins({ job: JSON.stringify(job) });
+  try {
+    const line = await rerun(
+      { pr: 181, head },
+      { gh: gh({ runs: pendingRuns }).runner, env: env(server.url) },
+    );
+    assert.match(line, /^RERUN queued/u);
+    assert.equal(
+      server.seen.filter((request) => request.method === 'POST').length,
+      1,
+    );
+    assert.ok(server.seen[0]?.url?.includes('building,result'));
+  } finally {
+    await server.close();
+  }
+});
+
+test('pending rerun requires a typed finished Jenkins build and matching head', async () => {
+  const { rerun } = await load();
+  for (const state of [
+    { building: true, result: null },
+    { building: false },
+    { result: 'FAILURE' },
+    { building: 'false', result: 'FAILURE' },
+    { building: false, result: false },
+    { building: false, result: 1 },
+    { building: false, result: null },
+    {},
+  ]) {
+    const job = JSON.parse(readCapture());
+    Object.assign(job.lastBuild, state);
+    const server = await jenkins({ job: JSON.stringify(job) });
+    try {
+      const refused = await failure(
+        rerun(
+          { pr: 181, head },
+          { gh: gh({ runs: pendingRuns }).runner, env: env(server.url) },
+        ),
+      );
+      assert.equal(refused.exitCode, 75);
+      assert.match(refused.message, /jenkins building/u);
+      assert.equal(
+        server.seen.filter((request) => request.method === 'POST').length,
+        0,
+      );
+    } finally {
+      await server.close();
+    }
+  }
+  const job = JSON.parse(readCapture());
+  Object.assign(job.lastBuild, { building: false, result: 'FAILURE' });
+  const server = await jenkins({ job: JSON.stringify(job) });
+  try {
+    const moved = 'c'.repeat(40);
+    const refused = await failure(
+      rerun(
+        { pr: 181, head: moved },
+        {
+          gh: gh({ head: moved, runs: pendingRuns }).runner,
+          env: env(server.url),
+        },
+      ),
+    );
+    assert.equal(refused.exitCode, 65);
+    assert.match(refused.message, /not indexed/u);
+    assert.equal(
+      server.seen.filter((request) => request.method === 'POST').length,
+      0,
+    );
+  } finally {
+    await server.close();
+  }
+});

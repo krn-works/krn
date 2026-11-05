@@ -1,0 +1,12 @@
+{
+  "id": "t-jdjdvc7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 1,
+  "title": "Add gate recovery classification to krn-lead and a constraint-weakening prepass check",
+  "after": [],
+  "body": [
+    "Outcome: krn-lead has a gate-recovery branch adapted (MIT) from github/awesome-copilot `diagnose-ci-gate`: classify a red or stuck `krn/gate` as Bug / Flaky / Env / Pipeline from the evidence and take exactly one action (fix, rerun via `krn ci rerun`, native Jenkins build for a stuck check, or escalate), replacing prose traps t-33mv33n, t-gb2dk26, t-5f91xhs where possible.\nAlso adapt addyosmani/agent-skills `constraint-driven-development` as a `krn review --prepass` check: flag new suppressions, loosened thresholds, skipped tests, widened allowlists in a diff.\nSource: .krn/runs/lead/skills-research/exhaustive.md (top 1-2; 39/39 Pocock, 20/20 anthropics, 25/25 addyosmani, 7/7 humanlayer read; large collections filtered by topic).\nProof: a fixture-driven test of the prepass check; skill rules tests pass."
+  ]
+}

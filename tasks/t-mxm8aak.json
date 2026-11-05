@@ -1,0 +1,12 @@
+{
+  "id": "t-mxm8aak",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 1,
+  "title": "Build the review lens from every brief in a multi-commit PR",
+  "after": [],
+  "body": [
+    "Outcome: `krn brief lens` accepts several briefs (one per implementation commit) and merges their Settled decisions and Hardening residuals, so a multi-commit PR's lens covers every intended change.\nEvidence 2026-11-05: PR #234 carried two commits (shard count, compact output) but the lens came from the compact brief only; the prepass raised BLOCKING \"default shard change alters full-mode output\" (the intended change), and `--prior-record` on the unchanged head exited 64 (\"must have a different head SHA\"), leaving only an override (.krn/runs/lead/t-q8j6r5c/override.log).\nProof: a lens test with two briefs whose decisions both appear."
+  ]
+}

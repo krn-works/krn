@@ -1,0 +1,12 @@
+{
+  "id": "t-8psg09j",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 0,
+  "title": "Refuse repeated lead traps mechanically before push and deliver",
+  "after": [],
+  "body": [
+    "Outcome: the most repeated lead traps are refused mechanically before they cost a CI or review round: a PreToolUse hook (or `krn preflight` item) checks, before `git push`/`gh pr create`/`krn deliver`: Node on PATH equals `.node-version` (t-g5vqm2q), `krn verify` PASS recorded for the exact HEAD, trailer block shape, branch contains the PR base, PR title ends with `(<task-id>)`, `--repo` equals the origin slug.\nEvidence 2026-11-05: PR #234 pushed without `krn verify`; CI went red on test/workflow.test.ts:163 pinning the gate script (preflight runs that file); a worker's checks failed only because the sandbox ran Node 26.12.1 instead of 24.22.1; test-suite-shards tests \"failed\" locally for the same reason. Pattern: mattpocock/skills misc/git-guardrails-claude-code. Memory: lead-mistakes-need-checks.\nProof: hook tests that block each shape and pass a clean push."
+  ]
+}

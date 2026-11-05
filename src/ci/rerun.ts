@@ -177,11 +177,8 @@ export async function rerun(
       throw new RerunError('check run id or status missing', 65);
     if (latest === undefined || run.id > (latest.id as number)) latest = run;
   }
-  if (latest !== undefined && pending.has(latest.status as string))
-    throw new RerunError(
-      `krn/gate check run ${latest.id} is still ${latest.status}`,
-      75,
-    );
+  const githubPending =
+    latest !== undefined && pending.has(latest.status as string);
 
   const job = `/job/ci/job/product/job/PR-${input.pr}`;
   const authorization = `Basic ${Buffer.from(`${user}:${token}`).toString('base64')}`;
@@ -204,14 +201,24 @@ export async function rerun(
       throw new RerunError(`Jenkins request failed for ${target}`, 75);
     }
   };
-  const metadataPath = `${job}/api/json?tree=lastBuild[number,actions[_class,revision[_class,pullHash]]]`;
+  const metadataPath = `${job}/api/json?tree=lastBuild[number,building,result,actions[_class,revision[_class,pullHash]]]`;
   const metadata = await request(metadataPath, { method: 'GET' });
   if (metadata.status !== 200)
     throw new RerunError(
       `Jenkins returned status ${metadata.status} for ${job}/api/json`,
       75,
     );
-  const built = jenkinsPullHash(await readJson(metadata, 'Jenkins job'));
+  const jobData = await readJson(metadata, 'Jenkins job');
+  const lastBuild = record(record(jobData)?.lastBuild);
+  if (
+    githubPending &&
+    (lastBuild?.building !== false || typeof lastBuild.result !== 'string')
+  )
+    throw new RerunError(
+      'krn/gate is pending; jenkins building or state unavailable',
+      75,
+    );
+  const built = jenkinsPullHash(jobData);
   if (built !== input.head)
     throw new RerunError(
       `Jenkins has not indexed this head (last build ${built ?? 'unknown'}); push or scan first`,
