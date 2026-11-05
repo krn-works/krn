@@ -7,6 +7,7 @@
   "title": "Worker scope check ignores git-ignored .krn/tmp caches",
   "after": [],
   "body": [
-    "Outcome: worker start does not report git-ignored cache files as scope violations. In t-xqp3agn the worker turn exited 3 listing only .krn/tmp/node-compile-cache/** (ignored by .gitignore .krn/), which the worker's node runs created inside the worktree.\nProof: an observer runs a fake worker turn that writes .krn/tmp/x in the worktree and asserts exit is not 3."
+    "Outcome: worker start does not report git-ignored cache files as scope violations. In t-xqp3agn the worker turn exited 3 listing only .krn/tmp/node-compile-cache/** (ignored by .gitignore .krn/), which the worker's node runs created inside the worktree.\nProof: an observer runs a fake worker turn that writes .krn/tmp/x in the worktree and asserts exit is not 3.",
+    "Also seen in t-m8j0mt7: worker exit 3 listed .krn/tmp/node-compile-cache and the lead's own .krn/runs/<slice>/ files inside the worktree (brief, continue message, worker logs). Workaround: keep lead run files under the main checkout's .krn/runs/lead/<slice>/."
   ]
 }

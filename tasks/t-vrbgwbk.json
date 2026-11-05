@@ -1,0 +1,12 @@
+{
+  "id": "t-vrbgwbk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 2,
+  "title": "Brief check accepts an observer path with trailing punctuation",
+  "after": [],
+  "body": [
+    "Outcome: krn brief check finds the Proof observer when its path token ends in punctuation (e.g. `test/x.test.ts`: or a trailing comma), or names the token it rejected. In t-m8j0mt7 the Proof line 'Observer `test/cli/verify-strict-evidence.test.ts`:' made src/brief/sections.ts:92-99 pick the next path (test/cli/verify.test.ts), and the check printed only 'first step must contain the Proof observer and red' (two lead rounds).\nProof: an observer gives brief check a Proof whose first observer path ends in ':' and asserts PASS with that path in the --observer argv."
+  ]
+}
