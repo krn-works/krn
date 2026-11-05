@@ -1,7 +1,11 @@
 {
   "id": "t-47enn80",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "slice 1: deliver CI wait timeout exits 75 (ci-wait); gate profile in .krn/runs/lead/t-47enn80/gate-profile.md; shard, cache and tiered gate continue in t-q8j6r5c"
+  },
   "created": "2026-11-05",
   "priority": 0,
   "title": "Make the required gate fast for low-risk PRs and stop reporting a slow gate as red",
