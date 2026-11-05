@@ -60,3 +60,49 @@ func TestSummaryStreamFailureLinesStayBoundedUnderManyFailures(t *testing.T) {
 		t.Fatalf("log exceeded limit: %d", log.Len())
 	}
 }
+
+func TestSummaryStreamTruncatesLongRetainedFailureLines(t *testing.T) {
+	passing := strings.Repeat("ok 1 - passing receiver\n", LogLimit/20)
+	long := "not ok 903 - long late failure " + strings.Repeat("x", 40*1024)
+	short := "not ok 904 - short late failure"
+	var log bytes.Buffer
+	s := &summaryStream{out: &log, prefix: []byte("RESULT=")}
+	if _, err := s.Write([]byte(passing + long + "\n" + short + "\n# fail 2\n")); err != nil {
+		t.Fatal(err)
+	}
+	s.finish()
+	got := log.String()
+	if log.Len() > LogLimit {
+		t.Fatalf("log exceeded limit: %d", log.Len())
+	}
+	if !strings.Contains(got, long[:retainedLineLimit]+string(truncatedMarker)+"\n") {
+		t.Fatal("long failing line was not kept as a marked prefix")
+	}
+	if strings.Contains(got, long[:retainedLineLimit+1]) {
+		t.Fatal("long failing line was kept beyond the bound")
+	}
+	if !strings.Contains(got, "\n"+short+"\n") || !strings.Contains(got, "\n# fail 2\n") {
+		t.Fatal("short failing line or fail count was lost or altered")
+	}
+	huge := "not ok 905 - huge late failure " + strings.Repeat("y", LogLimit+4096)
+	var oversized bytes.Buffer
+	o := &summaryStream{out: &oversized, prefix: []byte("RESULT=")}
+	for _, chunk := range []string{passing, huge[:LogLimit/2], huge[LogLimit/2:], "\n# fail 1\n"} {
+		if _, err := o.Write([]byte(chunk)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	o.finish()
+	if oversized.Len() > LogLimit || !strings.Contains(oversized.String(), huge[:retainedLineLimit]+string(truncatedMarker)+"\n# fail 1\n") {
+		t.Fatal("failing line longer than LogLimit was not kept as a marked prefix")
+	}
+	var unterminated bytes.Buffer
+	u := &summaryStream{out: &unterminated, prefix: []byte("RESULT=")}
+	if _, err := u.Write([]byte(passing + long)); err != nil {
+		t.Fatal(err)
+	}
+	u.finish()
+	if unterminated.Len() > LogLimit || !strings.Contains(unterminated.String(), long[:retainedLineLimit]+string(truncatedMarker)) {
+		t.Fatal("unterminated long failure line was not kept as a marked prefix")
+	}
+}

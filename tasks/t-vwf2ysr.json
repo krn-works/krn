@@ -1,0 +1,12 @@
+{
+  "id": "t-vwf2ysr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 2,
+  "title": "Hardening checklist class for in-band separators in parsed untrusted text",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/hardening-checklist.md gains an `in-band-separator` class: code that splits untrusted text (commit messages, logs, API fields) on separator bytes uses a framing the data cannot contain (one record per call, NUL with -z, or length-prefixed), each with a fixture that embeds the separator in the data. In #228 review 1 blocked on `git log --format` records split on \\x1d/\\x1e/\\x1f: a Ticket trailer containing \\x1d hid a foreign suffix; the fix parsed one commit per `git interpret-trailers` call.\nProof: test/rules asserts the checklist lists in-band-separator, and krn brief check refuses a brief whose Hardening section misses it."
+  ]
+}

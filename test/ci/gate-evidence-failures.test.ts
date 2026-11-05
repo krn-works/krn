@@ -11,6 +11,7 @@ const receivers = [
   'TestSummaryStreamKeepsLateFailingTAPLinesWithinTheLogLimit',
   'TestSummaryStreamFailureLinesStayBoundedUnderManyFailures',
   'TestEvidenceSummaryNamesFailingTAPLinesBeyondTheTail',
+  'TestSummaryStreamTruncatesLongRetainedFailureLines',
 ];
 
 test('capped gate evidence keeps a late failing TAP line and the summary names it', (t) => {

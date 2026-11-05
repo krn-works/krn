@@ -1,0 +1,12 @@
+{
+  "id": "t-xgwxm6z",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 1,
+  "title": "Run slice pre-commit checks through the test suite runner",
+  "after": [],
+  "body": [
+    "Outcome: krn slice run --worker none runs the brief observers and test/rules through scripts/test-suite.mjs, as krn verify targeted does. Today src/slice/run.ts (pre-commit step) runs mise exec node -- node --test <observers> test/rules: Node treats the directory test/rules as a module (Cannot find module .../test/rules) and observers miss KRN_ISOLATION_CAPABILITIES, so every lead-edit slice stops at stage worker with exit 1 (seen on t-zsqwrey, .krn/runs/slice/t-zsqwrey/pre-commit.log).\nWorkaround: run the observers and test/rules by hand with node scripts/test-suite.mjs, commit the implementation with the runner's trailers, set implementationCommitted and stage worker in the journal, then rerun slice run.\nProof: test/slice/slice-run.test.ts asserts the pre-commit argv runs scripts/test-suite.mjs with expanded test/rules files."
+  ]
+}
