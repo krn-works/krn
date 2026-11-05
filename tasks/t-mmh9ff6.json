@@ -1,7 +1,11 @@
 {
   "id": "t-mmh9ff6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test(rules): check the ADR index against each ADR range and status (t-mmh9ff6)"
+  },
   "created": "2026-11-04",
   "priority": 2,
   "title": "Check that the ADR index matches each ADR's decision range and status",
