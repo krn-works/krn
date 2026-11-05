@@ -413,12 +413,19 @@ type summaryStream struct {
 
 const failureReserve = 32768
 
+// retainedLineLimit bounds one retained failure line, so a single long line
+// cannot exhaust the reserve; the cut is marked, never silent.
+const retainedLineLimit = 1024
+
+var truncatedMarker = []byte(" [ci-platform: line truncated]")
+
 var omittedMarker = []byte("\n[ci-platform: gate output omitted beyond the log limit; failing TAP lines follow]\n")
 
 func tapIndent(line []byte) int { return len(line) - len(bytes.TrimLeft(line, " ")) }
 
-// retain writes one complete line past the head budget when it is part of a
-// failure: a "not ok" line, its deeper-indented YAML block, or a "# fail" count.
+// retain writes one line past the head budget, cut at retainedLineLimit, when
+// it is part of a failure: a "not ok" line, its deeper-indented YAML block, or
+// a "# fail" count.
 func (s *summaryStream) retain(line []byte) error {
 	trimmed := bytes.TrimLeft(line, " ")
 	keep := false
@@ -432,11 +439,19 @@ func (s *summaryStream) retain(line []byte) error {
 	default:
 		s.failing = -1
 	}
-	if !keep || s.retained+len(line)+1 > failureReserve-len(omittedMarker) {
+	if !keep {
 		return nil
 	}
-	s.retained += len(line) + 1
-	_, err := s.out.Write(append(append([]byte{}, line...), '\n'))
+	out := append([]byte{}, line...)
+	if len(out) > retainedLineLimit {
+		out = append(out[:retainedLineLimit], truncatedMarker...)
+	}
+	out = append(out, '\n')
+	if s.retained+len(out) > failureReserve-len(omittedMarker) {
+		return nil
+	}
+	s.retained += len(out)
+	_, err := s.out.Write(out)
 	return err
 }
 
@@ -476,12 +491,13 @@ func (s *summaryStream) Write(b []byte) (int, error) {
 		if index >= 0 {
 			take = index
 		}
-		if len(s.pending)+take > LogLimit {
+		// A line beyond LogLimit invalidates the summary but keeps its bounded
+		// prefix, so retain can still keep a truncated failing line.
+		if room := LogLimit - len(s.pending); take > room {
 			s.invalid = true
-			s.pending = nil
-		} else {
-			s.pending = append(s.pending, b[:take]...)
+			take = room
 		}
+		s.pending = append(s.pending, b[:take]...)
 		if index < 0 {
 			break
 		}
