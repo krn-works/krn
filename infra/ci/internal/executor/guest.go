@@ -404,6 +404,40 @@ type summaryStream struct {
 	count   int
 	summary *Summary
 	invalid bool
+	// After the head budget the log keeps only failing TAP lines, so a late
+	// failure stays visible in bounded evidence.
+	omitted  bool
+	failing  int
+	retained int
+}
+
+const failureReserve = 32768
+
+var omittedMarker = []byte("\n[ci-platform: gate output omitted beyond the log limit; failing TAP lines follow]\n")
+
+func tapIndent(line []byte) int { return len(line) - len(bytes.TrimLeft(line, " ")) }
+
+// retain writes one complete line past the head budget when it is part of a
+// failure: a "not ok" line, its deeper-indented YAML block, or a "# fail" count.
+func (s *summaryStream) retain(line []byte) error {
+	trimmed := bytes.TrimLeft(line, " ")
+	keep := false
+	switch {
+	case bytes.HasPrefix(trimmed, []byte("not ok ")):
+		s.failing, keep = tapIndent(line), true
+	case s.failing >= 0 && len(trimmed) > 0 && tapIndent(line) > s.failing:
+		keep = s.retained < failureReserve/2
+	case bytes.HasPrefix(trimmed, []byte("# fail ")):
+		s.failing, keep = -1, true
+	default:
+		s.failing = -1
+	}
+	if !keep || s.retained+len(line)+1 > failureReserve-len(omittedMarker) {
+		return nil
+	}
+	s.retained += len(line) + 1
+	_, err := s.out.Write(append(append([]byte{}, line...), '\n'))
+	return err
 }
 
 func (s *summaryStream) line(line []byte) {
@@ -421,7 +455,10 @@ func (s *summaryStream) Write(b []byte) (int, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	n := len(b)
-	if room := LogLimit - s.logged; room > 0 {
+	// headEnd counts the bytes of b that went to the head; a line ending
+	// beyond it is past the head budget.
+	headEnd := 0
+	if room := LogLimit - failureReserve - s.logged; room > 0 {
 		part := b
 		if len(part) > room {
 			part = part[:room]
@@ -430,7 +467,9 @@ func (s *summaryStream) Write(b []byte) (int, error) {
 			return 0, err
 		}
 		s.logged += len(part)
+		headEnd = len(part)
 	}
+	offset := 0
 	for len(b) > 0 {
 		index := bytes.IndexByte(b, '\n')
 		take := len(b)
@@ -449,6 +488,18 @@ func (s *summaryStream) Write(b []byte) (int, error) {
 		if !s.invalid {
 			s.line(s.pending)
 		}
+		offset += index + 1
+		if offset > headEnd {
+			if !s.omitted {
+				s.omitted, s.failing = true, -1
+				if _, err := s.out.Write(omittedMarker); err != nil {
+					return 0, err
+				}
+			}
+			if err := s.retain(s.pending); err != nil {
+				return 0, err
+			}
+		}
 		s.pending = nil
 		b = b[index+1:]
 	}
@@ -457,6 +508,14 @@ func (s *summaryStream) Write(b []byte) (int, error) {
 func (s *summaryStream) finish() {
 	if len(s.pending) > 0 && !s.invalid {
 		s.line(s.pending)
+	}
+	// An unterminated final line past the head budget can still be a failure.
+	if len(s.pending) > 0 && s.logged >= LogLimit-failureReserve {
+		if !s.omitted {
+			s.omitted, s.failing = true, -1
+			_, _ = s.out.Write(omittedMarker)
+		}
+		_ = s.retain(s.pending)
 	}
 	if s.invalid {
 		s.summary = nil
