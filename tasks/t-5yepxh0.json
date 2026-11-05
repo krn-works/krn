@@ -1,0 +1,12 @@
+{
+  "id": "t-5yepxh0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 3,
+  "title": "Lead pre-commit runs biome format before verify",
+  "after": [],
+  "body": [
+    "Outcome: a lead edit committed before krn verify is already biome-formatted: krn slice run --worker none pre-commit (or a lead pre-commit helper) runs biome check on changed files and fails with the fix command before the commit, so verify lint never costs a fixup/autosquash round. Evidence: t-qms15mt verify 1 lint FAIL format test/worker/scope-bypass.test.ts (.krn/runs/lead/t-qms15mt), fixed by fixup + autosquash. Proof: an observer where an unformatted lead edit makes the pre-commit stage exit non-zero naming biome, red at base by assertion."
+  ]
+}
