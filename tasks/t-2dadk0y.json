@@ -1,0 +1,12 @@
+{
+  "id": "t-2dadk0y",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 2,
+  "title": "Wrapper signal tests fail under the targeted test-suite runner",
+  "after": [],
+  "body": [
+    "Outcome: krn verify's targeted step passes on a head that changes test/isolation-gate.test.ts. 'SIGINT/SIGTERM of the test-suite wrapper stops its sleeping test child' fail with 'timed out waiting for sleeping test pid file' under node scripts/test-suite.mjs test/isolation-gate.test.ts at base 24ce843 and at head, while plain node --test passes (nested wrapper likely inherits the outer wrapper's env). Seen in t-jjjwvb1 verify (.krn/runs/lead/go-observer-capability/verify-1.log).\nProof: an observer runs the targeted runner on test/isolation-gate.test.ts and asserts both signal tests pass."
+  ]
+}
