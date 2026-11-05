@@ -1,7 +1,11 @@
 {
   "id": "t-jjjwvb1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Optional go isolation capability; host-resolved GOROOT mounted read-only in the check sandbox; reported in review sandbox capabilities."
+  },
   "created": "2026-11-05",
   "priority": 1,
   "title": "Red-first sandbox can run Go toolchain observers",
