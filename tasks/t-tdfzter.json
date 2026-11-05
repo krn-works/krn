@@ -1,0 +1,12 @@
+{
+  "id": "t-tdfzter",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 0,
+  "title": "Allow an 8-CPU gate executor profile and raise its memory limit",
+  "after": [],
+  "body": [
+    "Outcome: the Product gate executor VM may run with up to 8 vCPU and more memory, so one gate runs its K=min(4,cores) shards with headroom and the operator-granted raise (2026-11-05, .krn/runs/lead/decisions.md) can be deployed. Today infra/ci/internal/executor/model.go:185 rejects CPUCount above 4 and the job memory limit is 6144 MiB (model.go:123, Controller.groovy:185).\nProof: an executor model test accepts an 8-CPU profile with a raised memory limit and still rejects 0 and 9 CPUs; after deploy a main krn/gate is measured before/after."
+  ]
+}
