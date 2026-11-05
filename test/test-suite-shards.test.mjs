@@ -78,9 +78,11 @@ test('the shard plan covers every selected test file exactly once', () => {
   assert.ok(SERIAL_TEST_FILES.every((file) => SERIAL_TEST_REASONS[file]));
 });
 
-test('the default shard count scales by four cores and supports an override', () => {
+test('the default shard count uses one shard per core up to four and supports an override', () => {
   assert.equal(defaultTestShardCount(16), 4);
-  assert.equal(defaultTestShardCount(3), 1);
+  assert.equal(defaultTestShardCount(4), 4);
+  assert.equal(defaultTestShardCount(3), 3);
+  assert.equal(defaultTestShardCount(1), 1);
   assert.equal(configuredTestShardCount('2', 16), 2);
   assert.throws(() => configuredTestShardCount('0', 16), /positive integer/u);
 });
