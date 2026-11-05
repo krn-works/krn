@@ -5,6 +5,7 @@
 package evidence
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -123,6 +124,33 @@ func tail(data []byte) string {
 	if len(data) > 4096 {
 		data = data[len(data)-4096:]
 	}
+	return printable(data)
+}
+
+// failures lists the failing TAP lines of the whole stdout within 4096 bytes,
+// so the summary names a failing test the stdout tail no longer shows.
+func failures(data []byte) string {
+	var kept []byte
+	for _, line := range bytes.Split(data, []byte("\n")) {
+		trimmed := bytes.TrimLeft(line, " ")
+		if !bytes.HasPrefix(trimmed, []byte("not ok ")) && !bytes.HasPrefix(trimmed, []byte("# fail ")) {
+			continue
+		}
+		if len(trimmed) > 512 {
+			trimmed = trimmed[:512]
+		}
+		if len(kept)+len(trimmed)+1 > 4096 {
+			break
+		}
+		kept = append(append(kept, trimmed...), '\n')
+	}
+	if len(kept) == 0 {
+		return "none found\n"
+	}
+	return printable(kept)
+}
+
+func printable(data []byte) string {
 	return strings.Map(func(r rune) rune {
 		if r == '\n' || r == '\t' || (!unicode.IsControl(r) && r != '\u007f') {
 			return r
@@ -185,7 +213,7 @@ func export(root, attempt, output string) error {
 	if err = writeSelected(dest, "export.json", append(data, '\n')); err != nil {
 		return errors.New("manifest output failed")
 	}
-	summary := fmt.Sprintf("Attempt %s; evidence complete=%t. Diagnostics are untrusted gate output.\n\nGate stderr (last 4096 bytes):\n%s\n\nGate stdout (last 4096 bytes):\n%s\n", attempt, m.Complete, tail(stderr), tail(stdout))
+	summary := fmt.Sprintf("Attempt %s; evidence complete=%t. Diagnostics are untrusted gate output.\n\nFailing TAP lines (gate stdout, at most 4096 bytes):\n%s\nGate stderr (last 4096 bytes):\n%s\n\nGate stdout (last 4096 bytes):\n%s\n", attempt, m.Complete, failures(stdout), tail(stderr), tail(stdout))
 	if err = writeSelected(dest, "summary.txt", []byte(summary)); err != nil {
 		return errors.New("summary output failed")
 	}

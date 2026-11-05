@@ -1,0 +1,14 @@
+{
+  "id": "t-6997d21",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 1,
+  "title": "Deploy ci-platform and repin owned-ci so gate evidence keeps failing TAP lines",
+  "after": [
+    "t-xqp3agn"
+  ],
+  "body": [
+    "Outcome: the deployed CI keeps failing TAP lines. The fix for t-xqp3agn (summaryStream failure reserve, evidence summary 'Failing TAP lines') lives in infra/ci Go code; the executor VM runs the installed /usr/local/libexec/ci-platform and Jenkins loads owned-ci at a pinned library_sha, so a merge changes nothing until deployment (infra/ci/jenkins/diagnostics-and-queue.md steps 1-4: drain, build+sha256, stage on VM109 and VM108, reseal VM108 snapshot, repin library_sha).\nGrant boundary: installing binaries and resealing the CI snapshot is production work (infra/ci/README.md 'Deployment boundary'); needs the deployment owner's recorded grant. Batch with the t-33mv33n library repin.\nProof: a red krn/gate on a PR with >256 KiB stdout shows a 'not ok' line in its check-run summary."
+  ]
+}
