@@ -1,7 +1,11 @@
 {
   "id": "t-33mv33n",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn ci rerun --branch main reruns a red main krn/gate on its unchanged head; lead has Read+Build on ci/product/main"
+  },
   "created": "2026-11-04",
   "priority": 2,
   "title": "Repin the deployed Jenkins library and make a main krn/gate rerunnable by the lead",
