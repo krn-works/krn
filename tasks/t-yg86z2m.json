@@ -1,0 +1,12 @@
+{
+  "id": "t-yg86z2m",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 0,
+  "title": "Stop the pids limit probe from failing gate jobs",
+  "after": [],
+  "body": [
+    "Outcome: the session-stage pids limit probe no longer fails gate jobs at random. Main builds #92, #96, #97 failed in 64 s with `session pids limit probe: guest command failed (exit=2 ...)` (evidence .krn/runs/lead/t-33mv33n/main-executor-failure.md). Cause: the probe is the Go guest binary itself, run under TasksMax=16 while it forks cats until EAGAIN; when the Go runtime needs a new OS thread at the limit it aborts with exit 2. Onset follows the 8-CPU profile (GOMAXPROCS=8, more runtime threads). Fix: pin GOMAXPROCS=1 for the limit probe units, keep the runtime/guest failure line in the error, retry the probe once (fail closed on the second failure).\nProof: Go receivers for the probe argv, the failure line filter and the single retry; main gate green after redeploy."
+  ]
+}
