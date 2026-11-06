@@ -1,0 +1,12 @@
+{
+  "id": "t-3trwjr9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 1,
+  "title": "Run the serial test lane beside the parallel shards, follow cores, balance by measured duration",
+  "after": [],
+  "body": [
+    "Outcome: the required krn/gate test phase uses the gate VM's cores: the serial lane runs concurrently with the parallel groups (serial only among its own files; files that truly conflict with concurrent shards stay exclusive), the shard count follows the cores, and shards are balanced by a checked-in per-file duration table refreshed from gate evidence instead of file size.\nOperator 2026-11-06 (verbatim): \"gates are far too slow, act without waiting\".\nSource: .krn/runs/lead/system-audit/gate-profile.md (gate command 285-322 s; K=min(4,cores) caps K=4 on 8-CPU VM108; 7 serial files ~155 s run after the parallel groups). Covers the duration-split part of t-r69gyb7 (retry/flaky reporting stays there).\nProof: observer test on the scheduler (serial lane starts with the groups; K follows cores; duration-weighted balancing) red at base by assertion; local K=7 gate 3 runs; main krn/gate duration after merge vs 377-401 s build."
+  ]
+}
