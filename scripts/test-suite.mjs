@@ -548,6 +548,29 @@ async function main() {
       runnerArguments = expectedFiles;
     }
 
+    // CI change detection may exclude the isolation-dependent files when a
+    // change cannot affect them; strict mode then reports the exclusion.
+    const excludeIsolation = process.env.KRN_TEST_EXCLUDE_ISOLATION === '1';
+    if (excludeIsolation) {
+      if (expectedFiles.length === 0)
+        throw new Error('isolation exclusion needs a planned file list');
+      const isolation = new Set(
+        isolationFilesInSelection(
+          process.cwd(),
+          expectedFiles,
+          selectIsolationTestFiles(process.cwd(), TEST_FILE_GLOB),
+        ).map((file) => realpathSync(resolve(process.cwd(), file))),
+      );
+      const before = expectedFiles.length;
+      expectedFiles = expectedFiles.filter(
+        (file) => !isolation.has(realpathSync(resolve(process.cwd(), file))),
+      );
+      runnerArguments = expectedFiles;
+      process.stdout.write(
+        `Isolation tests excluded by change detection: ${before - expectedFiles.length} files\n`,
+      );
+    }
+
     const shardSelection = configuredTestShardSelection(
       process.env.KRN_TEST_SHARD_INDEX,
       process.env.KRN_TEST_SHARD_TOTAL,
@@ -714,7 +737,10 @@ async function main() {
         result.ok = false;
       }
       let coverageLine;
-      if (requestedFiles.length === 0) {
+      if (requestedFiles.length === 0 && excludeIsolation) {
+        coverageLine =
+          'Isolation coverage: excluded by CI change detection (no isolation-relevant path changed)';
+      } else if (requestedFiles.length === 0) {
         let coverage;
         try {
           // A shard proves coverage for the isolation files it was assigned;

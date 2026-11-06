@@ -1,0 +1,14 @@
+{
+  "id": "t-2f4cqda",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 0,
+  "title": "Make Actions CI faster than t3code: runners, toolchain cache, shard rebalance",
+  "after": [
+    "t-nwdj5hx"
+  ],
+  "body": [
+    "Operator grant (2026-11-06, verbatim): \"wszystkie triki od theo są dozwolone szefie, to musi być superior tool\". Split from t-nwdj5hx, which delivered the verification-only Check (isolation/Go by change detection, rules + task check in preflight).\nBaseline: KRN Actions CI median PR 451 s / main push 475 s; t3code PR median 226 s. Recon: .krn/runs/lead/ci-actions/t3code-recon.md.\nDo (measure each, keep only what cuts push->Check wall-clock or flakes):\n1. Faster runners (Blacksmith 4/8 vCPU as t3code) — needs the Blacksmith GitHub App installed on krn-works: operator action, ask once with a ready link.\n2. Cache the toolchain (node/pnpm/mise pnpm install, Go with cache: true) instead of mise install per shard.\n3. Rebalance shards (3-4 vs 6-8, slowest shard 129 s) by recorded durations (#244 / t-3trwjr9 planner).\n4. Sparse checkout + fetch-depth 2 in Changes.\n5. Later: test-task cache with verify-hits.\nProof: median push->Check over >=10 PR runs before/after in .krn/runs/lead/ci-actions/speed.md; target <= t3code median."
+  ]
+}

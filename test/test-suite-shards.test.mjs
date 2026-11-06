@@ -850,3 +850,27 @@ test('six CI shards hold every isolation test file exactly once', async () => {
     );
   assert.deepEqual([...held].sort(), [...isolation].sort());
 });
+
+test('CI change detection excludes isolation files before the runner plans them', () => {
+  const root = fileURLToPath(new URL('..', import.meta.url));
+  const result = spawnSync(
+    process.execPath,
+    [suitePath, 'test/ci/ci-changes.test.ts', 'test/verdict/sandbox.test.ts'],
+    {
+      cwd: root,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        KRN_TEST_EXCLUDE_ISOLATION: '1',
+        KRN_TEST_SHARDS: '1',
+        KRN_TEST_OUTPUT: 'failures',
+      },
+    },
+  );
+  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  assert.match(
+    result.stdout,
+    /^Isolation tests excluded by change detection: 1 files$/mu,
+  );
+  assert.doesNotMatch(result.stdout, /sandbox\.test\.ts/u);
+});

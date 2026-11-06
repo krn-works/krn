@@ -23,14 +23,22 @@ jobs:
     timeout-minutes: 5
     outputs:
       test: ${{ steps.detect.outputs.test }}
+      isolation: ${{ steps.detect.outputs.isolation }}
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
 
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+
       # Fail open: pushes to main and any detection problem run everything.
-      # Only a pull request that changes nothing but task records skips tests.
+      # A pull request that changes only task records skips tests; one that
+      # changes only task records, non-agent documents or non-isolation tests
+      # skips the isolation-dependent tests and their Go/bubblewrap setup.
       - name: Detect affected jobs
         id: detect
         env:
@@ -39,14 +47,12 @@ jobs:
           HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -u
-          test_result=true
-          if [ "$EVENT" = pull_request ] && files="$(git diff --name-only --no-renames "$BASE...$HEAD" 2>/dev/null)" && [ -n "$files" ]; then
-            if ! printf '%s\n' "$files" | grep -qv '^tasks/[^/]*\.json$'; then
-              test_result=false
-            fi
+          listing="$RUNNER_TEMP/changed-files"
+          : > "$listing"
+          if [ "$EVENT" = pull_request ]; then
+            git diff --name-only --no-renames "$BASE...$HEAD" > "$listing" 2>/dev/null || : > "$listing"
           fi
-          echo "test=$test_result" >> "$GITHUB_OUTPUT"
-          echo "test=$test_result"
+          node scripts/ci-changes.mjs "$listing" | tee -a "$GITHUB_OUTPUT"
 
   lint:
     name: Lint
@@ -61,14 +67,10 @@ jobs:
       - name: Set up CI
         uses: ./.github/actions/setup-ci
 
+      # Rendered rules and task records are checked by `npm run preflight`
+      # before review; CI only verifies the code.
       - name: Biome
         run: npm run lint
-
-      - name: Rendered rules
-        run: npm run rules
-
-      - name: Task records
-        run: node src/cli/main.ts task check
 
   typecheck:
     name: Typecheck
@@ -106,7 +108,7 @@ jobs:
       - name: Set up CI
         uses: ./.github/actions/setup-ci
         with:
-          go: 'true'
+          go: ${{ needs.changes.outputs.isolation != 'false' }}
 
       - name: Set up mise
         uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
@@ -127,6 +129,7 @@ jobs:
         env:
           KRN_TEST_OUTPUT: failures
           KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1'
+          KRN_TEST_EXCLUDE_ISOLATION: ${{ needs.changes.outputs.isolation == 'false' && '1' || '0' }}
         run: npm test
 
   check:

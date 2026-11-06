@@ -76,12 +76,23 @@ test('CI workflow runs lint, typecheck and six test shards on hosted runners beh
   assert.match(test, /^ {6}KRN_TEST_SHARD_INDEX: \$\{\{ matrix\.shard \}\}$/mu);
   assert.match(test, /^ {6}KRN_TEST_SHARD_TOTAL: '6'$/mu);
   assert.match(test, /^ {8}run: npm test$/mu);
-  assert.match(test, /^ {10}go: 'true'$/mu);
-  assert.match(jobs.get('lint') ?? '', /run: npm run lint$/mu);
-  assert.match(jobs.get('lint') ?? '', /run: npm run rules$/mu);
+  // Go and isolation setup follow change detection; strict shards exclude
+  // the isolation files only when Changes reported isolation=false.
   assert.match(
-    jobs.get('lint') ?? '',
-    /run: node src\/cli\/main\.ts task check$/mu,
+    test,
+    /^ {10}go: \$\{\{ needs\.changes\.outputs\.isolation != 'false' \}\}$/mu,
+  );
+  assert.match(
+    test,
+    /^ {10}KRN_TEST_EXCLUDE_ISOLATION: \$\{\{ needs\.changes\.outputs\.isolation == 'false' && '1' \|\| '0' \}\}$/mu,
+  );
+  const lint = jobs.get('lint') ?? '';
+  assert.match(lint, /run: npm run lint$/mu);
+  // Verification only: rules and task records belong to local preflight.
+  assert.doesNotMatch(lint, /npm run rules|task check/u);
+  assert.match(
+    jobs.get('changes') ?? '',
+    /node scripts\/ci-changes\.mjs "\$listing" \| tee -a "\$GITHUB_OUTPUT"/u,
   );
   assert.match(jobs.get('typecheck') ?? '', /run: npm run check$/mu);
 
@@ -165,8 +176,6 @@ test('Product uses required exact-head Actions Check and optional local diagnost
     /run: npm run lint$/mu,
     /run: npm run check$/mu,
     /run: npm test$/mu,
-    /run: node src\/cli\/main\.ts task check$/mu,
-    /run: npm run rules$/mu,
   ])
     assert.match(workflow, step);
   for (const path of [
