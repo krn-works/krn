@@ -1,7 +1,11 @@
 {
   "id": "t-dwkrwej",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fix(ci): complete orphaned krn/gate check runs and rerun them from deliver (t-dwkrwej)"
+  },
   "created": "2026-11-06",
   "priority": 0,
   "title": "Complete orphaned krn/gate check runs from the finished Jenkins build",
