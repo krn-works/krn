@@ -1,7 +1,11 @@
 {
   "id": "t-sa3sfpx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Prepare skips the reset after a verified clean-ready Finish; webhook half deferred (no public ingress)"
+  },
   "created": "2026-11-06",
   "priority": 0,
   "title": "Start krn/gate by webhook and skip the redundant pre-job VM reset",
