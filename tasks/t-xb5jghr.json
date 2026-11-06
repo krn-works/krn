@@ -1,7 +1,11 @@
 {
   "id": "t-xb5jghr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "red-first containment test counts only scopes holding its own probe; PR-238 gate unblocked"
+  },
   "created": "2026-11-06",
   "priority": 0,
   "title": "Scope the red-first containment test to its own probe scopes",
