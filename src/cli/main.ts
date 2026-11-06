@@ -148,6 +148,7 @@ export function main(args = process.argv.slice(2)): void {
 
   if (
     [
+      'ledger',
       'start',
       'checkpoint',
       'stop',

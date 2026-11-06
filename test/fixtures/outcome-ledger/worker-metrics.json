@@ -1,0 +1,20 @@
+{
+  "round": 1,
+  "last": {
+    "input": 69925,
+    "cached": 68992,
+    "output": 793,
+    "uncached_total": 1726
+  },
+  "cumulative": {
+    "input": 988510,
+    "cached": 926208,
+    "output": 11100,
+    "uncached_total": 73402
+  },
+  "duration_ms": 333239,
+  "effort": "high",
+  "model": "gpt-6.1-sol",
+  "context_window": 475000,
+  "compacted": false
+}
