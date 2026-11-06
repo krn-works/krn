@@ -1,0 +1,12 @@
+{
+  "id": "t-8ys2ke5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 0,
+  "title": "Scale the guest MemTotal tolerance with gate VM memory",
+  "after": [],
+  "body": [
+    "Outcome: the executor accepts the guest MemTotal of a large gate VM. execute.go:218 requires MemTotal within vm_memory_mib±256 MiB; at 12288 MiB the guest reports 11966 (kernel/firmware overhead 322 MiB, 245 at 8192), so every gate failed at setup with 'VM memory/headroom unavailable' after the 2026-11-05 deploy (Jenkins ci/product/main #88, PR-237 #1; .krn/runs/lead/ci-deploy/build88-diagnosis.md) and production was rolled back. The lower tolerance scales with VM memory (max(256, 4%)) and the refusal names the observed and expected values.\nProof: a Go receiver accepts MemTotal 11966 for a 12288 MiB profile, still refuses 11000 and 12600, wired into test/ci/executor-profile-bounds.test.ts (red at base by assertion)."
+  ]
+}
