@@ -1,0 +1,16 @@
+{
+  "id": "t-sdcdxb2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 0,
+  "title": "Decommission Jenkins/PVE CI after the Actions cutover",
+  "after": [
+    "t-6vqyhjy"
+  ],
+  "body": [
+    "Operator decision (2026-11-06 ~14:10Z, relayed by predecessor lead): after the GitHub Actions cutover (#247, t-6vqyhjy) KRN does not need PVE/Jenkins at all.",
+    "Do, once #247 and the required-check switch are merged and main `Check` is green:\n1. Close PRs #245 (t-yg86z2m pids probe) and #246 (t-sa3sfpx reset skip) as obsolete (Jenkins/PVE-only fixes); release their claims. Keep #244 (t-3trwjr9 shard planner) only if the Actions shards use it.\n2. Stop Jenkins VMs 108 and 109 on PVE — touch only those two.\n3. Remove `krn/gate` (GitHub App 5548482) from krn deliver/ship/ci and docs; remove Jenkins env (KRN_JENKINS_*) paths and `krn ci rerun` Jenkins backend.\n4. Retire t-sp5fbse and the `.krn/runs/lead/ci-deploy` runbook paths; drop Jenkins notes from krn-lead skill.",
+    "Proof: `git grep -n '5548482\\|krn/gate\\|KRN_JENKINS'` prints nothing outside history docs/ADRs; a PR delivers on Actions `Check` alone."
+  ]
+}

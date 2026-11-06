@@ -1,0 +1,13 @@
+{
+  "id": "t-phsq5re",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 1,
+  "title": "Adopt the TypeScript deep-modules skill and prove it on a real slice",
+  "after": [],
+  "body": [
+    "Operator (2026-11-06 ~14:05Z): the 2026-11-05 recommendation to adopt new skills (TypeScript, improve-codebase-architecture, ...) \"gdzieś zginęło\". Source: lead session 4feed9e1-567e-4595-aa11-ad5384b2e976.jsonl (~20:45Z 11-05); map: .krn/runs/lead/skills-research/lost-recommendation.md, exhaustive.md.\nAlready tracked (open): t-87ks15p (improve-codebase-architecture + codebase-design, mattpocock/skills), t-jdjdvc7 (diagnose-ci-gate github/awesome-copilot; constraint-driven-development addyosmani/agent-skills), t-4akerav (code-review/retro/to-tickets patterns), t-k41gjwg (slim krn-lead).\nUntracked until now: setup-ts-deep-modules (mattpocock/skills, in-progress; dependency-cruiser module boundaries, fits KRN-05) — exhaustive.md:46.\nDo: adopt setup-ts-deep-modules as a project skill (vendored, MIT notice) and make dependency-cruiser enforce KRN-05 in Lint.\nProof: eval on a real slice — run the skill on the next code slice; record before/after (violations found, review rounds, worker tokens) in .krn/runs/lead/skills-research/eval-<skill>.md; keep only if it measurably helps.\nNote: the 11-06 answer \"not recorded in any task\" was false for four tasks — second fixture for t-kewqaq6 (lost/misreported operator directives).",
+    "Operator (2026-11-06): each adopted skill must be reworked to fit the KRN workflow (krn task, krn slice run, briefs, review panel, KRN rules) — do not vendor upstream verbatim; the goal is that the recommendation is not lost. Same applies to t-87ks15p, t-jdjdvc7, t-4akerav."
+  ]
+}
