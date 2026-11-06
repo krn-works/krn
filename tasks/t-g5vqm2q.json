@@ -1,7 +1,11 @@
 {
   "id": "t-g5vqm2q",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "bin/krn pins Node and Go for children; repository mise.toml; trap retired"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Pin Node for this repository through mise",
