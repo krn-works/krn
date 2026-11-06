@@ -9,6 +9,8 @@ Head lookup exhaustion fails the current stage; terminal failure publication and
 When GitHub still reports a pending gate, rerun reads Jenkins lastBuild: only `building=false`, a string result, and the matching indexed pullHash allow POST /build; building, missing or mistyped state keeps exit 75 (`jenkins building`).
 
 
+After QUEUED readback, each multibranch build schedules on the Jenkins Timer pool, without waiting, a reconciliation of orphaned App-owned checks from at most 100 jobs and each job's three newest finished builds within seven days; the scan runs as SYSTEM and stops between GitHub requests after a 20-second total budget. It verifies check ID, name, App, head SHA and Jenkins external ID before completing a pending check: ABORTED becomes CANCELLED; every other result, including SUCCESS without verified publication, becomes FAILURE with a `failed at stage publish` cause. Errors are skipped without changing the current build. On PRs, `krn deliver` and `krn ci wait` with both Jenkins credentials in the environment probe after two minutes of continuous pending on the newest check; they queue at most one successful rerun per wait and follow newer checks. Retryable Jenkins errors defer the next probe by two minutes; other errors are logged once. Main waits do not rerun.
+
 The trusted library publishes QUEUED before checkout and the global runner lock.
 Product PR admission reads `spec/ci-admission.json` from the exact native
 `PullRequestSCMRevision.baseHash`, before reserving the runner. The git tree mode

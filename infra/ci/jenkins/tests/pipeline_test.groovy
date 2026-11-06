@@ -25,7 +25,7 @@ Map apiStubs = [
         static class SourceByItem { static def findSource(item) { SCMSource.source } }
     }''',
     'jenkins.scm.api.SCMRevisionAction': '''class SCMRevisionAction {
-        static def getRevision(source, run) { [head: 'head'] }
+        static def getRevision(source, run) { run instanceof Map && run.containsKey('revision') ? run.revision : [head: 'head'] }
     }''',
     'org.jenkinsci.plugins.github_branch_source.GitHubSCMSource': '''class GitHubSCMSource {
         Closure receiver
@@ -46,11 +46,31 @@ Map apiStubs = [
         static def lookupScanCredentials(item, uri, id, owner) { credential }
         static def connect(uri, credential) { connection }
     }''',
+    'org.kohsuke.github.GHCheckRun': '''class GHCheckRun {
+        enum Status { QUEUED, IN_PROGRESS, COMPLETED }
+        enum Conclusion { FAILURE, CANCELLED }
+    }''',
+    'org.kohsuke.github.GHCheckRunBuilder': '''class GHCheckRunBuilder {
+        static class Output {
+            String title; String summary
+            Output(String title, String summary) { this.title = title; this.summary = summary }
+        }
+    }''',
     'org.kohsuke.github.HttpException': '''class HttpException extends IOException {
         int responseCode
         HttpException(int code) { super(code == 503 ? 'Service Unavailable' : 'HTTP error'); responseCode = code }
     }''',
-    'hudson.slaves.OfflineCause': 'class OfflineCause { static class ByCLI {} }'
+    'hudson.slaves.OfflineCause': 'class OfflineCause { static class ByCLI {} }',
+    'hudson.security.ACL': '''class ACL {
+        static def SYSTEM2 = 'system'
+        static List contexts = []
+        static def as2(auth) { Map context = [auth: auth, closed: false]; context.close = { -> context.closed = true }; contexts.add(context); context }
+    }''',
+    // Records submitted work without running it: the caller must not wait on it.
+    'jenkins.util.Timer': '''class Timer {
+        static List submitted = []
+        static def get() { [submit: { task -> submitted.add(task); null }] }
+    }'''
 ]
 controllerSource.readLines().findAll { it.startsWith('import ') }.each { line ->
     String name = line.substring(7)
@@ -115,6 +135,143 @@ assert actualController.retryGitHub({
 }, { seconds -> transportSleeps.add(seconds) }) == 'received'
 assert transportAttempts == 3
 assert transportSleeps == [2, 4]
+// Exercise actual reconciliation with enum/builder receivers matching github-api 1.330.
+def statusType = loader.loadClass('org.kohsuke.github.GHCheckRun$Status')
+def conclusionType = loader.loadClass('org.kohsuke.github.GHCheckRun$Conclusion')
+for (String scenario : ['failure', 'success', 'aborted', 'building', 'completed', 'app', 'external',
+                        'head', 'name', 'repository', 'read-error', 'no-revision', 'bad-sha', 'no-action', 'old', 'current']) {
+    List updates = []
+    String sha = 'a' * 40
+    Map build = [parent: 'job', building: scenario == 'building', result: scenario == 'success' ? 'SUCCESS' : scenario == 'aborted' ? 'ABORTED' : 'FAILURE',
+                 startTimeInMillis: System.currentTimeMillis() - (scenario == 'old' ? 9L * 86400000 : 1000), duration: 100,
+                 externalizableId: 'project/PR-1#7', revision: scenario == 'no-revision' ? null : [hash: scenario == 'bad-sha' ? 'bad' : sha],
+                 getActions: { type -> scenario == 'no-action' ? [] : [[name: 'krn/gate', id: 9]] }]
+    Map builder = [:]
+    builder.withStatus = { value -> updates.add([status: value]); builder }
+    builder.withConclusion = { value -> updates.last().conclusion = value; builder }
+    builder.add = { value -> updates.last().output = value; builder }
+    builder.create = { -> null }
+    Map check = [id: 9, name: scenario == 'name' ? 'other' : 'krn/gate', headSha: scenario == 'head' ? 'b' * 40 : sha,
+                 app: [id: scenario == 'app' ? 1 : 5548482], externalId: scenario == 'external' ? 'other' : build.externalizableId,
+                 status: statusType.valueOf(scenario == 'completed' ? 'COMPLETED' : scenario == 'aborted' ? 'QUEUED' : 'IN_PROGRESS'),
+                 update: { -> builder }]
+    connector.connection = [getRepository: { name ->
+        [id: scenario == 'repository' ? 2 : 1, getCheckRuns: { head, filter ->
+            assert head == sha && filter == [filter: 'all']
+            if (scenario == 'read-error') { throw new IOException('unavailable') }
+            [check]
+        }]
+    }]
+    Map run = scenario == 'current' ? build : [:]
+    run.parent = [parent: [items: [[builds: [build]]]]]
+    def lines = actualController.reconcileOrphans(run,
+        [entry: [check_name: 'krn/gate', app_id: '5548482', repo_id: '1'], repository: 'owner/repo'])
+    boolean expected = scenario in ['failure', 'success', 'aborted']
+    assert lines.size() == (expected ? 1 : 0) : scenario
+    assert updates.size() == (expected ? 1 : 0) : scenario
+    if (expected) {
+        String conclusion = scenario == 'aborted' ? 'CANCELLED' : 'FAILURE'
+        assert lines == ["reconciled check run 9 ${conclusion}".toString()]
+        assert updates[0].status == statusType.COMPLETED
+        assert updates[0].conclusion == conclusionType.valueOf(conclusion)
+        assert updates[0].output.title == 'krn/gate'
+        assert updates[0].output.summary.contains('failed at stage publish:')
+        assert updates[0].output.summary.endsWith('gate=false')
+        assert updates[0].output.summary.size() <= 300
+    }
+}
+// Broken siblings do not hide healthy ones; scan only the bounded recent prefix.
+for (String layout : ['mixed', 'job-bound', 'build-bound', 'pull-revision']) {
+    List updated = []
+    String sha = 'a' * 40
+    def makeBuild = { int id ->
+        [parent: 'job', building: false, result: 'FAILURE', startTimeInMillis: System.currentTimeMillis() - 1000,
+         duration: 100, externalizableId: 'project/PR-1#' + id,
+         revision: layout == 'pull-revision' ? prRevision.newInstance(pullHash: sha) : [hash: sha],
+         getActions: { type -> [[name: 'krn/gate', id: id]] }]
+    }
+    def first = makeBuild(1)
+    def healthy = makeBuild(2)
+    def third = makeBuild(3)
+    def fourth = makeBuild(4)
+    def builderFor = { id ->
+        Map builder = [:]
+        builder.withStatus = { value -> builder }
+        builder.withConclusion = { value -> builder }
+        builder.add = { value -> builder }
+        builder.create = { -> updated.add(id) }
+        builder
+    }
+    connector.connection = [getRepository: { name ->
+        [id: 1, getCheckRuns: { head, filter ->
+            if (layout == 'mixed' && first.revision != null) {
+                first.revision = null
+                throw new IOException('unavailable')
+            }
+            [1, 2, 3, 4].collect { id ->
+                [id: id, name: 'krn/gate', headSha: sha, app: [id: 5548482], externalId: 'project/PR-1#' + id,
+                 status: statusType.IN_PROGRESS, update: { -> builderFor(id) }]
+            }
+        }]
+    }]
+    List jobs = layout == 'job-bound' ? (1..101).collect { [builds: [healthy]] } :
+        [[builds: layout == 'build-bound' ? [first, healthy, third, fourth] : [first, healthy]]]
+    def lines = actualController.reconcileOrphans([parent: [parent: [items: jobs]]],
+        [entry: [check_name: 'krn/gate', app_id: '5548482', repo_id: '1'], repository: 'owner/repo'])
+    assert updated == (layout == 'mixed' ? [2] : layout == 'job-bound' ? (1..100).collect { 2 } :
+        layout == 'build-bound' ? [1, 2, 3] : [1, 2]) : layout
+    assert lines.size() == updated.size()
+}
+// A total time budget stops the scan: the current build is never held longer.
+if (true) {
+    List updated = []
+    String sha = 'a' * 40
+    long time = 0
+    List jobs = (1..5).collect { id ->
+        [builds: [[parent: 'job', building: false, result: 'FAILURE', startTimeInMillis: System.currentTimeMillis() - 1000,
+                   duration: 100, externalizableId: 'project/PR-1#' + id, revision: [hash: sha],
+                   getActions: { type -> [[name: 'krn/gate', id: id]] }]]]
+    }
+    connector.connection = [getRepository: { name ->
+        [id: 1, getCheckRuns: { head, filter ->
+            time += 10
+            (1..5).collect { id ->
+                Map builder = [:]
+                builder.withStatus = { value -> builder }
+                builder.withConclusion = { value -> builder }
+                builder.add = { value -> builder }
+                builder.create = { -> updated.add(id) }
+                [id: id, name: 'krn/gate', headSha: sha, app: [id: 5548482], externalId: 'project/PR-1#' + id,
+                 status: statusType.IN_PROGRESS, update: { -> builder }]
+            }
+        }]
+    }]
+    def lines = actualController.reconcileOrphans([parent: [parent: [items: jobs]]],
+        [entry: [check_name: 'krn/gate', app_id: '5548482', repo_id: '1'], repository: 'owner/repo'], 25L, { -> time })
+    assert updated == [1, 2, 3]
+    assert lines.size() == 3
+}
+// Background scheduling returns before any GitHub request; the task runs the bounded scan as SYSTEM.
+if (true) {
+    def timer = loader.loadClass('jenkins.util.Timer')
+    def acl = loader.loadClass('hudson.security.ACL')
+    timer.submitted.clear()
+    acl.contexts.clear()
+    int reads = 0
+    connector.connection = [getRepository: { name -> reads++; [id: 1, getCheckRuns: { head, filter -> [] }] }]
+    String sha = 'a' * 40
+    List jobs = [[builds: [[parent: 'job', building: false, result: 'FAILURE', startTimeInMillis: System.currentTimeMillis() - 1000,
+                            duration: 100, externalizableId: 'project/PR-1#1', revision: [hash: sha],
+                            getActions: { type -> [[name: 'krn/gate', id: 1]] }]]]]
+    actualController.reconcileOrphansInBackground([parent: [parent: [items: jobs]]],
+        [entry: [check_name: 'krn/gate', app_id: '5548482', repo_id: '1'], repository: 'owner/repo'])
+    assert timer.submitted.size() == 1
+    assert reads == 0
+    timer.submitted[0].run()
+    assert reads == 1
+    assert acl.contexts.size() == 1 && acl.contexts[0].auth == 'system' && acl.contexts[0].closed
+}
+println('PASS real Controller: orphan identity, outcomes, malformed state, read failure, time budget and background scheduling')
 println('PASS real Controller: HTTP boundaries, IOException retry, sanitized readback classification')
 loader.parseClass('''package ci
 class Controller {
@@ -127,6 +284,10 @@ class Controller {
             context.readbackFailed = true
             throw new IOException('GitHub check readback failed; publication is unverified')
         }
+    }
+    static void reconcileOrphansInBackground(run, identity) {
+        context.events.add('reconcile')
+        if (context.scenario == 'orphan-error') { throw new IOException('unavailable') }
     }
     static checkoutScm(scm, run, identity) { scm }
     static void requireNoRunner() { context.events.add('requireNoRunner') }
@@ -336,8 +497,10 @@ def run = { String scenario ->
         assert headAttempts == 4 // three at admission, one before success publication
         assert sleeps == [2, 4]
     }
-    if (scenario in ['success', 'head-transient']) {
+    if (scenario in ['success', 'head-transient', 'orphan-error']) {
         assert thrown == null
+        if (scenario == 'orphan-error') { assert events.contains('echo:Orphan reconcile skipped') }
+        assert events.indexOf('reconcile') > events.indexOf('readback:QUEUED')
         assert finalCheck.conclusion == 'SUCCESS'
         assert events.indexOf('archive:ci-evidence/*') < events.indexOf('verify')
         assert events.indexOf('reset') < events.lastIndexOf('check:COMPLETED')
@@ -397,6 +560,6 @@ def run = { String scenario ->
     }
     println('PASS Pipeline receiver scenario: ' + scenario)
 }
-['head-transient', 'head-exhausted', 'head-final-exhausted', 'head-404', 'head-other', 'publish-transient', 'publish-exhausted', 'readback-transient', 'success', 'failure', 'cancel', 'timeout', 'executor-timeout', 'allocation-timeout', 'failure-reset', 'reset-failure', 'dead-channel',
+['orphan-error', 'head-transient', 'head-exhausted', 'head-final-exhausted', 'head-404', 'head-other', 'publish-transient', 'publish-exhausted', 'readback-transient', 'success', 'failure', 'cancel', 'timeout', 'executor-timeout', 'allocation-timeout', 'failure-reset', 'reset-failure', 'dead-channel',
  'incomplete-export', 'unstash-failure', 'archive-failure', 'verify-failure', 'post-gate-failure', 'stop-failure', 'stale-base', 'queued-cancel'].each(run)
 println('PASS age-bounded main priority: same-time preference, old PR aging, FIFO tie, integer range')
