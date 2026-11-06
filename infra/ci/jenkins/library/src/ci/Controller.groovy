@@ -23,7 +23,12 @@ import io.jenkins.plugins.checks.github.status.GitHubSCMSourceStatusChecksTrait
 import org.jenkinsci.plugins.workflow.libs.GlobalLibraries
 import org.jenkinsci.plugins.workflow.libs.LibrariesAction
 import org.jenkinsci.plugins.workflow.multibranch.extended.RemoteJenkinsFileWorkflowBranchProjectFactory
+import org.kohsuke.github.GHCheckRun
+import org.kohsuke.github.GHCheckRunBuilder
 import org.kohsuke.github.HttpException
+import jenkins.util.Timer
+import hudson.security.ACL
+import java.util.logging.Logger
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Paths
@@ -391,6 +396,73 @@ class Controller {
         if (!runnerStopped(attempt)) { throw new IllegalStateException('Runner remains busy') }
         def node = ownedRunner(attempt)
         if (node != null) { Jenkins.get().removeNode(node) }
+    }
+
+    @NonCPS
+    // The current build never waits on reconciliation: it runs on the Jenkins
+    // Timer pool, and a total time budget stops the scan between GitHub requests.
+    @NonCPS
+    static void reconcileOrphansInBackground(def run, Map identity) {
+        Timer.get().submit({
+            // Timer threads carry no authentication; item listing needs SYSTEM.
+            def context = ACL.as2(ACL.SYSTEM2)
+            try {
+                reconcileOrphans(run, identity).each { Logger.getLogger('ci.Controller').info(it) }
+            } catch (Exception ignored) {
+                // Reconciliation is best effort; the next build retries it.
+            } finally {
+                context.close()
+            }
+        } as Runnable)
+    }
+
+    static List<String> reconcileOrphans(def run, Map identity, long budgetMs = 20000L,
+                                         Closure clock = { System.currentTimeMillis() }) {
+        List<String> lines = []
+        long started = clock() as long
+        long deadline = started + budgetMs
+        long cutoff = started - 7L * 24 * 60 * 60 * 1000
+        run.parent.parent.items.take(100).each { job ->
+            if ((clock() as long) >= deadline) { return }
+            try {
+                job.builds.take(3).each { build ->
+                    if ((clock() as long) >= deadline) { return }
+                    try {
+                        if (build == run || build.building || build.result == null ||
+                            build.startTimeInMillis + build.duration < cutoff) { return }
+                        def action = build.getActions(GitHubChecksAction).find {
+                            it.name == identity.entry.check_name
+                        }
+                        if (!action) { return }
+                        def source = SCMSource.SourceByItem.findSource(job) as GitHubSCMSource
+                        def revision = SCMRevisionAction.getRevision(source, build)
+                        String sha = revision instanceof PullRequestSCMRevision ? revision.pullHash : revision?.hash
+                        if (!(sha ==~ /[0-9a-fA-F]{40}/)) { return }
+                        def credential = approvedApp(build, source, identity.entry as Map)
+                        def repository = Connector.connect(source.apiUri, credential).getRepository(identity.repository)
+                        if (repository.id.toString() != identity.entry.repo_id) { return }
+                        def check = repository.getCheckRuns(sha, [filter: 'all']).find {
+                            it.id.toString() == action.id.toString()
+                        }
+                        if (!check || check.name != identity.entry.check_name || check.headSha != sha ||
+                            check.app.id.toString() != identity.entry.app_id ||
+                            check.externalId != build.externalizableId || check.status == GHCheckRun.Status.COMPLETED) { return }
+                        String result = build.result.toString()
+                        def conclusion = result == 'ABORTED' ? GHCheckRun.Conclusion.CANCELLED : GHCheckRun.Conclusion.FAILURE
+                        String summary = "Attempt reconciled from Jenkins build ${build.externalizableId} (${result}) failed at stage publish: check run orphaned after the build finished; gate=false"
+                        summary = summary.split(/[\n\r\u2028\u2029]/, 2)[0].replaceAll(/[\p{Cc}\p{Cf}]/, '').take(300)
+                        check.update().withStatus(GHCheckRun.Status.COMPLETED).withConclusion(conclusion)
+                            .add(new GHCheckRunBuilder.Output('krn/gate', summary)).create()
+                        lines.add("reconciled check run ${check.id} ${conclusion}".toString())
+                    } catch (Exception ignored) {
+                        // A stale/inaccessible sibling must not change this build's outcome.
+                    }
+                }
+            } catch (Exception ignored) {
+                // A disappearing branch job must not stop other jobs being reconciled.
+            }
+        }
+        return lines
     }
 
     @NonCPS

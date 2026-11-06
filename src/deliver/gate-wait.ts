@@ -39,6 +39,9 @@ export interface GateWaitOptions {
   now: () => number;
   pollMs: number;
   timeoutMs: number;
+  orphanRerun?: (() => Promise<string>) | undefined;
+  orphanAfterMs?: number;
+  log?: (line: string) => void;
 }
 export class GateTimeout extends Error {
   readonly state: string;
@@ -66,8 +69,14 @@ export async function waitForGate({
   now,
   pollMs,
   timeoutMs,
+  orphanRerun,
+  orphanAfterMs = 120000,
+  log,
 }: GateWaitOptions): Promise<string> {
   let state = 'missing';
+  let pendingId: number | undefined;
+  let pendingSince = 0;
+  let probing = true;
   const poll = async (condition: () => Promise<boolean>) => {
     const deadline = now() + timeoutMs;
     while (!(await condition())) {
@@ -105,7 +114,48 @@ export async function waitForGate({
       .filter((check) => matchesGateCheckRun(check, head, policy))
       .sort((a, b) => b.id - a.id)[0];
     state = gate?.status ?? 'missing';
-    if (gate?.status !== 'completed') return false;
+    if (gate?.status !== 'completed') {
+      if (gate && (gate.status === 'queued' || gate.status === 'in_progress')) {
+        if (pendingId !== gate.id) {
+          pendingId = gate.id;
+          pendingSince = now();
+        }
+        if (
+          !onMain &&
+          orphanRerun &&
+          probing &&
+          now() - pendingSince >= orphanAfterMs
+        ) {
+          let line: string | undefined;
+          try {
+            line = await orphanRerun();
+            probing = false;
+          } catch (error) {
+            if (
+              typeof error === 'object' &&
+              error !== null &&
+              'exitCode' in error &&
+              error.exitCode === 75
+            ) {
+              pendingSince = now();
+            } else {
+              line = error instanceof Error ? error.message : String(error);
+              probing = false;
+            }
+          }
+          if (line !== undefined)
+            log?.(
+              `orphan: ${(line.split(/[\n\r\u2028\u2029]/u)[0] ?? '').replace(
+                /[\p{Cc}\p{Cf}]/gu,
+                '',
+              )}`,
+            );
+        }
+      } else {
+        pendingId = undefined;
+      }
+      return false;
+    }
     conclusion = gate.conclusion ?? 'unknown';
     if (conclusion !== 'success')
       throw new Error(

@@ -32,6 +32,9 @@ def call(def sourceScm) {
         publishChecks(name: identity.entry.check_name, status: 'QUEUED', conclusion: 'NONE',
             summary: "Attempt ${attempt}; queued; source ${identity.source_sha}; base ${identity.base_sha ?: 'not-required'}")
         Controller.readback(currentBuild.rawBuild, identity, 'QUEUED', null)
+        try {
+            Controller.reconcileOrphansInBackground(currentBuild.rawBuild, identity)
+        } catch (Exception ignored) { echo('Orphan reconcile skipped') }
         if (failure == null && problems.isEmpty()) { stage = 'checkout' }
         node('control') {
             if (env.NODE_NAME != 'control') { error('Control label resolved to a different node') }
