@@ -7,10 +7,11 @@ import test from 'node:test';
 
 type RerunModule = {
   rerun: (
-    input: { pr: number; head: string; repo?: string },
+    input: { pr?: number; branch?: string; head: string; repo?: string },
     dependencies?: Record<string, unknown>,
   ) => Promise<string>;
   jenkinsPullHash: (job: unknown) => string | undefined;
+  jenkinsBranchHash?: (job: unknown) => string | undefined;
 };
 
 async function load(): Promise<RerunModule> {
@@ -45,6 +46,11 @@ function gh(
       return {
         code: 0,
         stdout: JSON.stringify({ nameWithOwner: 'krn-works/krn' }),
+      };
+    if (args[1]?.endsWith('/git/ref/heads/main'))
+      return {
+        code: 0,
+        stdout: JSON.stringify({ object: { sha: overrides.head ?? head } }),
       };
     if (args[1]?.includes('/pulls/'))
       return {
@@ -468,6 +474,91 @@ test('pending rerun requires a typed finished Jenkins build and matching head', 
       server.seen.filter((request) => request.method === 'POST').length,
       0,
     );
+  } finally {
+    await server.close();
+  }
+});
+
+// Verbatim capture of the real Jenkins ci/product/main job (build #91, head aa46502),
+// fetched as krn-lead with the exact tree query rerun sends; Jenkins omits
+// `revision.hash` unless the tree names it.
+const readMainCapture = () =>
+  readFileSync(
+    new URL('../fixtures/jenkins/main-job-last-build.json', import.meta.url),
+    'utf8',
+  );
+
+test('rerun --branch main reruns the main job after its head check (t-33mv33n)', async () => {
+  const { rerun, jenkinsBranchHash } = await load();
+  assert.equal(typeof jenkinsBranchHash, 'function');
+  const capture = JSON.parse(readMainCapture());
+  const mainHead = jenkinsBranchHash?.(capture) ?? '';
+  assert.equal(mainHead, 'aa4650256caebda29da14a40efe2d9e79ba37a3f');
+  assert.equal(jenkinsBranchHash?.(JSON.parse(readCapture())), undefined);
+  const server = await jenkins({ job: readMainCapture() });
+  try {
+    const { runner, calls } = gh({ head: mainHead });
+    const line = await rerun(
+      { branch: 'main', head: mainHead },
+      { gh: runner, env: env(server.url) },
+    );
+    assert.equal(
+      line,
+      `RERUN queued branch=main head=${mainHead} queue-item=77`,
+    );
+    assert.ok(
+      calls.some(
+        (args) => args[1] === 'repos/krn-works/krn/git/ref/heads/main',
+      ),
+    );
+    assert.ok(!calls.some((args) => args[1]?.includes('/pulls/')));
+    assert.match(
+      server.seen[0]?.url ?? '',
+      /^\/job\/ci\/job\/product\/job\/main\/api\/json\?tree=/u,
+    );
+    assert.match(
+      decodeURIComponent(server.seen[0]?.url ?? ''),
+      /revision\[_class,pullHash,hash\]/u,
+    );
+    assert.equal(server.seen[1]?.url, '/job/ci/job/product/job/main/build');
+  } finally {
+    await server.close();
+  }
+});
+
+test('rerun --branch refuses other branches, both selectors and a moved main', async () => {
+  const { rerun } = await load();
+  const server = await jenkins({ job: readMainCapture() });
+  try {
+    const mainHead = 'd'.repeat(40);
+    for (const input of [
+      { branch: 'dev', head: mainHead },
+      { branch: 'main', pr: 1, head: mainHead },
+      { head: mainHead },
+    ]) {
+      const refused = await failure(
+        rerun(input, { gh: gh().runner, env: env(server.url) }),
+      );
+      assert.equal(refused.exitCode, 64);
+    }
+    const moved = await failure(
+      rerun(
+        { branch: 'main', head: mainHead },
+        { gh: gh().runner, env: env(server.url) },
+      ),
+    );
+    assert.equal(moved.exitCode, 65);
+    assert.match(moved.message, /main head .* does not match --head/u);
+    // Jenkins indexed a different main head: refuse before any POST.
+    const stale = await failure(
+      rerun(
+        { branch: 'main', head: mainHead },
+        { gh: gh({ head: mainHead }).runner, env: env(server.url) },
+      ),
+    );
+    assert.equal(stale.exitCode, 65);
+    assert.match(stale.message, /has not indexed this head/u);
+    assert.equal(server.seen.filter((r) => r.method === 'POST').length, 0);
   } finally {
     await server.close();
   }

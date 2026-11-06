@@ -161,7 +161,7 @@ export async function waitForGate({
       throw new Error(
         `gate concluded ${conclusion} on ${head}; ${gateFailureLine(gate.output)}; rerun: ${
           onMain
-            ? 'main has no lead rerun (the lead Jenkins account builds PR jobs only); the next merge to main runs the gate again'
+            ? `krn ci rerun --branch main --head ${head}`
             : `krn ci rerun --pr ${pr} --head ${head}`
         }`,
       );

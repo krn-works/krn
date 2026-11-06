@@ -20,7 +20,9 @@ export type RerunDependencies = {
   readonly env?: NodeJS.ProcessEnv;
 };
 export type RerunInput = {
-  readonly pr: number;
+  /** Exactly one of `pr` and `branch`; `branch` accepts only `main` (t-33mv33n). */
+  readonly pr?: number;
+  readonly branch?: string;
   readonly head: string;
   readonly repo?: string;
 };
@@ -92,12 +94,24 @@ async function readJson(response: Response, field: string): Promise<unknown> {
 
 /** The PR head of the job's last build, from its native SCMRevisionAction only. */
 export function jenkinsPullHash(job: unknown): string | undefined {
+  return jenkinsRevision(job, 'pullHash');
+}
+
+/** The branch head of the job's last build, from its native SCMRevisionAction only. */
+export function jenkinsBranchHash(job: unknown): string | undefined {
+  return jenkinsRevision(job, 'hash');
+}
+
+function jenkinsRevision(
+  job: unknown,
+  field: 'pullHash' | 'hash',
+): string | undefined {
   const actions = record(record(job)?.lastBuild)?.actions;
   if (!Array.isArray(actions)) return undefined;
   const hashes = actions
     .map(record)
     .filter((action) => action?._class === 'jenkins.scm.api.SCMRevisionAction')
-    .map((action) => record(action?.revision)?.pullHash);
+    .map((action) => record(action?.revision)?.[field]);
   const [hash] = hashes;
   return hashes.length === 1 &&
     typeof hash === 'string' &&
@@ -110,7 +124,12 @@ export async function rerun(
   input: RerunInput,
   dependencies: RerunDependencies = {},
 ): Promise<string> {
-  if (!Number.isInteger(input.pr) || input.pr < 1 || input.pr > 10_000_000)
+  const pr = input.pr;
+  if ((pr === undefined) === (input.branch === undefined))
+    throw new RerunError('pass exactly one of --pr and --branch', 64);
+  if (input.branch !== undefined && input.branch !== 'main')
+    throw new RerunError('--branch accepts only main', 64);
+  if (pr !== undefined && (!Number.isInteger(pr) || pr < 1 || pr > 10_000_000))
     throw new RerunError(
       '--pr must be a positive integer at most 10000000',
       64,
@@ -144,14 +163,28 @@ export async function rerun(
       ?.nameWithOwner;
   if (typeof repo !== 'string' || !/^[\w.-]+\/[\w.-]+$/u.test(repo))
     throw new RerunError('nameWithOwner missing', 65);
-  const pull = record(
-    gh(['api', `repos/${repo}/pulls/${input.pr}`], 'pull request'),
-  );
-  const head = record(pull?.head)?.sha;
-  if (typeof head !== 'string')
-    throw new RerunError('pull request head.sha missing', 65);
-  if (head !== input.head)
-    throw new RerunError(`Pull request head ${head} does not match --head`, 65);
+  if (pr === undefined) {
+    const ref = record(
+      gh(['api', `repos/${repo}/git/ref/heads/main`], 'main ref'),
+    );
+    const head = record(ref?.object)?.sha;
+    if (typeof head !== 'string')
+      throw new RerunError('main ref object.sha missing', 65);
+    if (head !== input.head)
+      throw new RerunError(`main head ${head} does not match --head`, 65);
+  } else {
+    const pull = record(
+      gh(['api', `repos/${repo}/pulls/${pr}`], 'pull request'),
+    );
+    const head = record(pull?.head)?.sha;
+    if (typeof head !== 'string')
+      throw new RerunError('pull request head.sha missing', 65);
+    if (head !== input.head)
+      throw new RerunError(
+        `Pull request head ${head} does not match --head`,
+        65,
+      );
+  }
   const page = record(
     gh(
       [
@@ -180,7 +213,7 @@ export async function rerun(
   const githubPending =
     latest !== undefined && pending.has(latest.status as string);
 
-  const job = `/job/ci/job/product/job/PR-${input.pr}`;
+  const job = `/job/ci/job/product/job/${pr === undefined ? 'main' : `PR-${pr}`}`;
   const authorization = `Basic ${Buffer.from(`${user}:${token}`).toString('base64')}`;
   const fetcher = dependencies.fetcher ?? fetch;
   const request = async (path: string, init: RequestInit) => {
@@ -201,7 +234,7 @@ export async function rerun(
       throw new RerunError(`Jenkins request failed for ${target}`, 75);
     }
   };
-  const metadataPath = `${job}/api/json?tree=lastBuild[number,building,result,actions[_class,revision[_class,pullHash]]]`;
+  const metadataPath = `${job}/api/json?tree=lastBuild[number,building,result,actions[_class,revision[_class,pullHash,hash]]]`;
   const metadata = await request(metadataPath, { method: 'GET' });
   if (metadata.status !== 200)
     throw new RerunError(
@@ -218,7 +251,8 @@ export async function rerun(
       'krn/gate is pending; jenkins building or state unavailable',
       75,
     );
-  const built = jenkinsPullHash(jobData);
+  const built =
+    pr === undefined ? jenkinsBranchHash(jobData) : jenkinsPullHash(jobData);
   if (built !== input.head)
     throw new RerunError(
       `Jenkins has not indexed this head (last build ${built ?? 'unknown'}); push or scan first`,
@@ -236,5 +270,6 @@ export async function rerun(
   )?.[1];
   if (item === undefined)
     throw new RerunError('Jenkins queue location is missing or malformed', 65);
-  return `RERUN queued pr=${input.pr} head=${input.head} queue-item=${item}`;
+  const target = pr === undefined ? 'branch=main' : `pr=${pr}`;
+  return `RERUN queued ${target} head=${input.head} queue-item=${item}`;
 }

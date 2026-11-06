@@ -1,0 +1,37 @@
+{
+  "_class": "org.jenkinsci.plugins.workflow.job.WorkflowJob",
+  "lastBuild": {
+    "_class": "org.jenkinsci.plugins.workflow.job.WorkflowRun",
+    "actions": [
+      { "_class": "hudson.model.CauseAction" },
+      { "_class": "hudson.plugins.git.util.BuildData" },
+      {},
+      { "_class": "org.jenkinsci.plugins.workflow.libs.LibrariesAction" },
+      {
+        "_class": "jenkins.scm.api.SCMRevisionAction",
+        "revision": {
+          "_class": "jenkins.plugins.git.AbstractGitSCMSource$SCMRevisionImpl",
+          "hash": "aa4650256caebda29da14a40efe2d9e79ba37a3f"
+        }
+      },
+      {},
+      {},
+      { "_class": "org.jenkinsci.plugins.workflow.cps.EnvActionImpl" },
+      { "_class": "hudson.plugins.git.util.BuildData" },
+      {},
+      {
+        "_class": "org.jenkinsci.plugins.displayurlapi.actions.RunDisplayAction"
+      },
+      {
+        "_class": "org.jenkinsci.plugins.pipeline.modeldefinition.actions.RestartDeclarativePipelineAction"
+      },
+      {},
+      { "_class": "org.jenkinsci.plugins.workflow.job.views.FlowGraphAction" },
+      {},
+      {}
+    ],
+    "building": false,
+    "number": 91,
+    "result": "SUCCESS"
+  }
+}
