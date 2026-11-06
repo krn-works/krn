@@ -1,7 +1,11 @@
 {
   "id": "t-tm9ytff",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "native ship in Product; deliver calls <main>/bin/krn ship"
+  },
   "created": "2026-11-06",
   "priority": 0,
   "title": "Native krn ship in Product; deliver stops calling the legacy install",
