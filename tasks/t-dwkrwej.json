@@ -1,0 +1,12 @@
+{
+  "id": "t-dwkrwej",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 0,
+  "title": "Complete orphaned krn/gate check runs from the finished Jenkins build",
+  "after": [],
+  "body": [
+    "Outcome: a krn/gate check run that GitHub still shows queued or in_progress after its Jenkins build finished is completed by the controller with the Jenkins result and its cause (`failed at stage <stage>: <cause>` or success), so deliver never waits on an orphaned check run.\nEvidence 2026-11-06: PR-237 Jenkins build #1 FAILURE at 06:30 while GitHub check run stayed in_progress; main 5c83fd6 check run 127578776138 stuck in_progress after the outage.\nProof: a reconcile test with a captured Jenkins lastBuild (building:false, result FAILURE) and a GitHub check run in_progress for the same head produces one completion PATCH with conclusion failure; a still-building job produces none.\nOperator 2026-11-06: \"my mamy napierdalać rzeczy a nie kurwa ksztusić się na gejtach\"."
+  ]
+}
