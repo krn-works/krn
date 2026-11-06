@@ -1,0 +1,12 @@
+{
+  "id": "t-sa3sfpx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 0,
+  "title": "Start krn/gate by webhook and skip the redundant pre-job VM reset",
+  "after": [],
+  "body": [
+    "Outcome: krn/gate starts within seconds of a push or merge and each job skips the redundant pre-job VM reset. (1) Replace the 5-minute multibranch scan trigger with a GitHub webhook (push/pull_request) so a gate starts immediately (gate-profile.md: average ~150 s, up to 300 s saved; main #91 started 42 min after merge — find why). (2) Prepare trusts the post-build Finish reset (control.go:357-368) when the ledger records a verified clean-ready VM for the current snapshot digest and boot_id, and skips the reset at control.go:320; anything unknown resets first (~17 s/job, PVE journal 2026-11-06).\nRAM (vmstate) snapshots rejected: 5-10 s gain vs manifest.go:303-307 policy, ROLLBACK_NOT_STOPPED and boot_id freshness (service.go:180, control.go:270).\nEvidence: .krn/runs/lead/system-audit/gate-profile.md; operator 2026-11-06 'rób 1 i 2'. Deploy with .krn/runs/lead/ci-deploy/runbook.sh (proven 2026-11-06).\nProof: push-to-gate-start latency under 30 s on two PRs; Go tests for trusted vs untrusted clean-ready; pre-test seconds before/after."
+  ]
+}
