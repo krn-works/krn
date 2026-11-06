@@ -1,7 +1,11 @@
 {
   "id": "t-3trwjr9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scope lane concurrent, K=cores-1, duration-balanced shards"
+  },
   "created": "2026-11-06",
   "priority": 1,
   "title": "Run the serial test lane beside the parallel shards, follow cores, balance by measured duration",
