@@ -168,14 +168,8 @@ func session(data guestPayload) (sessionProbe, error) {
 	}
 	p.Cgroup = strings.TrimSpace(string(cgroup))
 	for _, kind := range []string{"memory", "pids"} {
-		argv := []string{"/usr/bin/systemd-run", "--user", "--wait", "--pipe", "--collect", "--service-type=exec", "--expand-environment=no", "-p", "RuntimeMaxSec=20s", "-p", "TimeoutStopSec=3s", "-p", "MemoryMax=64M", "-p", "MemorySwapMax=0", "-p", "TasksMax=16"}
-		if kind == "memory" {
-			// The deliberate OOM must kill its child while the observer stays
-			// alive to read memory.events. The 64MiB limit remains enforced.
-			argv = append(argv, "-p", "OOMPolicy=continue")
-		}
-		argv = append(argv, "--", guestBinary, "executor", "__guest", "limit-"+kind, string(jsonBytes(data)))
-		output, err := invokeGuest(data, "", argv...)
+		argv := limitProbeArgv(kind, data)
+		output, err := retryLimitProbe(func() (string, error) { return invokeLimitProbe(data, argv) })
 		if err != nil {
 			return p, fmt.Errorf("%s limit probe: %w", kind, err)
 		}
@@ -189,6 +183,60 @@ func session(data guestPayload) (sessionProbe, error) {
 		}
 	}
 	return p, p.validate()
+}
+
+// limitProbeArgv runs one limit probe in its own capped user unit. The probe
+// is this Go binary: at TasksMax=16 a runtime that needs another OS thread
+// aborts with exit 2, so the unit pins GOMAXPROCS=1 to keep the runtime's
+// thread count small and stable while the probe exhausts the pids limit.
+func limitProbeArgv(kind string, data guestPayload) []string {
+	argv := []string{"/usr/bin/systemd-run", "--user", "--wait", "--pipe", "--collect", "--service-type=exec", "--expand-environment=no", "--setenv=GOMAXPROCS=1", "-p", "RuntimeMaxSec=20s", "-p", "TimeoutStopSec=3s", "-p", "MemoryMax=64M", "-p", "MemorySwapMax=0", "-p", "TasksMax=16"}
+	if kind == "memory" {
+		// The deliberate OOM must kill its child while the observer stays
+		// alive to read memory.events. The 64MiB limit remains enforced.
+		argv = append(argv, "-p", "OOMPolicy=continue")
+	}
+	return append(argv, "--", guestBinary, "executor", "__guest", "limit-"+kind, string(jsonBytes(data)))
+}
+
+// invokeLimitProbe is invokeGuest for the limit probes: on failure it keeps
+// the probe's own runtime or guest failure line, never other output.
+func invokeLimitProbe(data guestPayload, argv []string) (string, error) {
+	r := runProcess(context.Background(), Command{Argv: argv, Timeout: 30 * time.Second}, guestEnvironment(data), "", nil)
+	if !r.ok() || r.Truncated {
+		err := fmt.Errorf("guest command failed (exit=%d signal=%d timeout=%t start_failed=%t truncated=%t)", r.ExitCode, r.Signal, r.TimedOut, r.StartFailed, r.Truncated)
+		if line := guestFailureLine(r.Stderr); line != "" {
+			err = fmt.Errorf("%w: %s", err, line)
+		}
+		return "", err
+	}
+	return strings.TrimSpace(string(r.Stdout)), nil
+}
+
+// guestFailureLine returns the first stderr line that the Go runtime or the
+// guest dispatcher wrote (fixed prefixes), bounded to 200 bytes.
+func guestFailureLine(stderr []byte) string {
+	for _, line := range strings.Split(string(stderr), "\n") {
+		for _, prefix := range []string{"runtime: ", "fatal error: ", "guest operation failed: "} {
+			if strings.HasPrefix(line, prefix) {
+				if len(line) > 200 {
+					line = line[:200]
+				}
+				return line
+			}
+		}
+	}
+	return ""
+}
+
+// retryLimitProbe runs a limit probe at most twice: a probe that fails twice
+// fails the session closed.
+func retryLimitProbe(probe func() (string, error)) (string, error) {
+	output, err := probe()
+	if err == nil {
+		return output, nil
+	}
+	return probe()
 }
 
 func cgroupPath() (string, error) {
