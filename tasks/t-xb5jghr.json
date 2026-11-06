@@ -1,0 +1,12 @@
+{
+  "id": "t-xb5jghr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 0,
+  "title": "Scope the red-first containment test to its own probe scopes",
+  "after": [],
+  "body": [
+    "Outcome: the review red-first containment test asserts that no krn-check scope holding its own detached probe survives, instead of diffing every populated krn-check scope on the host, so parallel gate shards cannot fail it.\nEvidence 2026-11-06: PR #238 gate builds PR-238 #1 and #2 (K=4 parallel shards) both failed test/flow/review.test.ts:713 with one foreign `krn-check-<uuid>.scope`; the PR changes only Go executor code.\nProof: a unit test of the scope filter with a fake listing (a foreign populated scope ignored, a scope whose process cmdline carries the probe target reported) is red at base by assertion."
+  ]
+}
