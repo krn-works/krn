@@ -1,7 +1,11 @@
 {
   "id": "t-5av8etp",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "claude successors start with bypassPermissions"
+  },
   "created": "2026-11-06",
   "priority": 1,
   "title": "Start Claude successors with bypassPermissions",
