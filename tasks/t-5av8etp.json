@@ -1,0 +1,12 @@
+{
+  "id": "t-5av8etp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 1,
+  "title": "Start Claude successors with bypassPermissions",
+  "after": [],
+  "body": [
+    "Outcome: every Claude successor started by scripts/claude/successor-launch.ts runs with --permission-mode bypassPermissions, so a relayed lead never stops on permission prompts or the auto-mode classifier. Operator 2026-11-06: \"Masz bypassed permissions ... ogarnij opcje 1 do successor launch\" (standing grants: .krn/runs/program-audit/grant.md, memory full-project-control-grant).\nProof: test/claude/successor-launch.test.ts launches a stub named claude through Herdr and the --bg fallback and sees --permission-mode bypassPermissions; a non-claude agent gets no extra flags."
+  ]
+}
