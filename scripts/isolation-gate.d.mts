@@ -31,3 +31,12 @@ export function resolveGoToolchain():
   | { root: string; binary: string }
   | undefined;
 export function probeGoCapability(): { available: boolean; reason: string };
+export function selectIsolationTestFiles(
+  root: string,
+  testFileGlob: string,
+): string[];
+export function isolationFilesInSelection(
+  root: string,
+  selectedFiles: readonly string[],
+  isolationFiles: readonly string[],
+): string[];
