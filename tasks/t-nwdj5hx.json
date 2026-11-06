@@ -1,7 +1,11 @@
 {
   "id": "t-nwdj5hx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Required Check verifies only: isolation/Go by change detection, rules + task check in preflight; speed work in t-2f4cqda"
+  },
   "created": "2026-11-06",
   "priority": 0,
   "title": "Make Actions CI faster than t3code (all Theo tricks allowed)",
