@@ -7,7 +7,11 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const module = fileURLToPath(new URL('../../infra/ci/', import.meta.url));
-const receivers = ['TestProfileAcceptsEightCPUs', 'TestSpecMemoryUpperBound'];
+const receivers = [
+  'TestProfileAcceptsEightCPUs',
+  'TestSpecMemoryUpperBound',
+  'TestGuestMemoryToleranceScalesWithVMMemory',
+];
 
 test('executor accepts the raised CPU and memory bounds and rejects overcommit', (t) => {
   // The runner must report Go before the Go receivers can be proven or skipped.

@@ -215,8 +215,12 @@ func (e *execution) run(helperDigest string) error {
 	if err := e.query("vm-memory", &memory); err != nil {
 		return err
 	}
-	if !bounded(memory.Total, p.profile.VMMemoryMiB-256, p.profile.VMMemoryMiB+256) || memory.Available < p.spec.MemoryMiB+p.profile.VMHeadroomMiB {
-		return errors.New("VM memory/headroom unavailable")
+	// Guest kernel and firmware overhead grows with VM memory (322 MiB at
+	// 12 GiB), so the lower tolerance is max(256 MiB, 4%) of the profile.
+	low, high := p.profile.VMMemoryMiB-max(256, p.profile.VMMemoryMiB/25), p.profile.VMMemoryMiB+256
+	need := p.spec.MemoryMiB + p.profile.VMHeadroomMiB
+	if !bounded(memory.Total, low, high) || memory.Available < need {
+		return fmt.Errorf("VM memory/headroom unavailable: total %d MiB (want %d..%d), available %d MiB (need %d)", memory.Total, low, high, memory.Available, need)
 	}
 	version, err := e.call("incus-package", true, e.ctx)
 	if err != nil {
