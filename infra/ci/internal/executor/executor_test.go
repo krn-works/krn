@@ -860,3 +860,44 @@ func TestMissingNullAndDuplicateSummaryFieldsAreRejected(t *testing.T) {
 		}
 	}
 }
+
+// A 12 GiB gate VM reports MemTotal 11966 MiB (Jenkins ci/product/main #88): the
+// guest kernel and firmware overhead grows with VM memory, so a fixed 256 MiB
+// window refused every gate after the profile raise.
+func TestGuestMemoryToleranceScalesWithVMMemory(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		total, available int
+		pass             bool
+	}{
+		{"observed 12 GiB guest", 11966, 11298, true},
+		{"exact", 12288, 11600, true},
+		{"too small", 11700, 11298, false},
+		{"too large", 12600, 11298, false},
+		{"headroom short", 11966, 11263, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.profile.CPUCount, f.profile.VMMemoryMiB, f.profile.VMHeadroomMiB, f.profile.MaxJobMemoryMiB = 8, 12288, 2048, 9216
+			f.spec.MemoryMiB = 9216
+			f.replan()
+			f.results["vm-memory"] = ProcessResult{Stdout: jsonBytes(map[string]int{"MemTotal": tc.total, "MemAvailable": tc.available})}
+			r := f.execute()
+			// Later stages read back the fixture's 8 GiB instance, so only the
+			// memory admission outcome is asserted here.
+			refused := len(r.Errors) > 0 && strings.HasPrefix(r.Errors[0], "VM memory/headroom unavailable")
+			if tc.pass == refused {
+				t.Fatalf("origin %s errors %v", r.FailureOrigin, r.Errors)
+			}
+			if !tc.pass && (len(r.Errors) == 0 || !strings.Contains(r.Errors[0], "VM memory/headroom unavailable: total ") || !strings.Contains(r.Errors[0], fmt.Sprintf("total %d MiB", tc.total))) {
+				t.Fatalf("refusal must name observed values: %v", r.Errors)
+			}
+		})
+	}
+	// The 8 GiB production guest (MemTotal 7947, builds 80-87) still passes.
+	f := newFixture(t)
+	f.results["vm-memory"] = ProcessResult{Stdout: jsonBytes(map[string]int{"MemTotal": 7947, "MemAvailable": 7500})}
+	if r := f.execute(); r.Status != "PASS" {
+		t.Fatalf("8 GiB guest: %s %v", r.Status, r.Errors)
+	}
+}
