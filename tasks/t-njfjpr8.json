@@ -1,0 +1,12 @@
+{
+  "id": "t-njfjpr8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 1,
+  "title": "Install Go 1.27.3 in the gate guest image so Go receivers run in krn/gate",
+  "after": [],
+  "body": [
+    "Also install Go 1.27.3 (infra/ci/mise.toml pin) in the gate guest image so test/ci/gate-evidence-failures.test.ts runs its Go receivers in krn/gate instead of passing with a diagnostic (CI strict evidence rejects skips; decision 2026-11-05 in .krn/runs/lead/decisions.md).\nProof still open from t-6997d21: the >256 KiB red-gate check-run summary showing a 'not ok' line is to be observed on the first such red krn/gate."
+  ]
+}
