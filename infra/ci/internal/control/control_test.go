@@ -109,6 +109,117 @@ func TestAttemptRequiresCleanupBeforeNextAdmission(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestPrepareSkipsResetAfterVerifiedFinish(t *testing.T) {
+	s, f, spec := fixture(t)
+	if _, err := s.Prepare(context.Background(), spec, "/bundle"); err != nil {
+		t.Fatal(err)
+	}
+	finished, err := s.Finish(context.Background(), attemptA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		spec.AttemptID = []string{attemptB, "44444444-4444-4444-8444-444444444444"}[i]
+		prior := len(f.calls)
+		r, err := s.Prepare(context.Background(), spec, "/bundle")
+		if err != nil || r.PVEGeneration != finished.PVEGeneration || r.BootID != finished.BootID {
+			t.Fatalf("prepare %+v %v", r, err)
+		}
+		if got := strings.Join(f.calls[prior:], ","); got != "bundle,deliver" {
+			t.Fatal(got)
+		}
+		state, err := s.Store.Read()
+		if err != nil || state.Before == nil || state.Before.BootID != finished.BootID || state.After != nil {
+			t.Fatalf("trusted prepare state=%+v err=%v", state, err)
+		}
+		finished, err = s.Finish(context.Background(), spec.AttemptID)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestPrepareResetsWithoutTrustedCleanReady(t *testing.T) {
+	for name, tamper := range map[string]func(*State){
+		"old-ledger": func(s *State) { s.CleanReady = false },
+		"config":     func(s *State) { _ = s },
+		"snapshot":   func(s *State) { s.After.SnapshotSHA256 = strings.Repeat("0", 64) },
+		"policy":     func(s *State) { s.After.PolicySHA256 = strings.Repeat("0", 64) },
+		"manifest":   func(s *State) { s.After.ManifestSHA256 = strings.Repeat("0", 64) },
+		"boot":       func(s *State) { s.After.BootID = attemptB },
+		"generation": func(s *State) { s.After.Generation++ },
+		"request":    func(s *State) { s.After.RequestID = attemptB },
+	} {
+		t.Run(name, func(t *testing.T) {
+			s, f, spec := fixture(t)
+			if _, err := s.Prepare(context.Background(), spec, "/bundle"); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := s.Finish(context.Background(), attemptA); err != nil {
+				t.Fatal(err)
+			}
+			state, err := s.Store.Read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			tamper(&state)
+			if name == "config" {
+				s.Config.Runner.Host = "10.254.254.3"
+			}
+			if name == "old-ledger" {
+				raw := []byte(`{"schema_version":1,"phase":"idle","attempt_id":"` + attemptA + `","config_sha256":"` + digest(s.Config) + `","pve_generation":2,"last_boot_id":"` + state.LastBootID + `","reset_request_id":"` + state.ResetRequestID + `","after":`)
+				receipt, _ := json.Marshal(state.After)
+				raw = append(raw, receipt...)
+				raw = append(raw, '}')
+				if err := os.WriteFile(filepath.Join(s.Store.Directory, "control.json"), raw, 0600); err != nil {
+					t.Fatal(err)
+				}
+			} else if err := s.Store.save(state); err != nil {
+				t.Fatal(err)
+			}
+			prior := len(f.calls)
+			spec.AttemptID = attemptB
+			if _, err := s.Prepare(context.Background(), spec, "/bundle"); err != nil {
+				t.Fatal(err)
+			}
+			if got := strings.Join(f.calls[prior:], ","); got != "bundle,reset,deliver" {
+				t.Fatal(got)
+			}
+		})
+	}
+}
+
+func TestTrustedPrepareFailureRequiresFinish(t *testing.T) {
+	s, f, spec := fixture(t)
+	if _, err := s.Prepare(context.Background(), spec, "/bundle"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Finish(context.Background(), attemptA); err != nil {
+		t.Fatal(err)
+	}
+	f.fail = "deliver"
+	spec.AttemptID = attemptB
+	if _, err := s.Prepare(context.Background(), spec, "/bundle"); err == nil {
+		t.Fatal("delivery failure passed")
+	}
+	state, err := s.Store.Read()
+	if err != nil || state.CleanReady || state.Phase != "blocked" {
+		t.Fatalf("state=%+v err=%v", state, err)
+	}
+	f.fail = ""
+	if _, err = s.Finish(context.Background(), attemptB); err != nil {
+		t.Fatal(err)
+	}
+	prior := len(f.calls)
+	spec.AttemptID = "44444444-4444-4444-8444-444444444444"
+	if _, err = s.Prepare(context.Background(), spec, "/bundle"); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(f.calls[prior:], ","); got != "bundle,deliver" {
+		t.Fatal(got)
+	}
+}
 func TestFailureAndInterruptedPrepareRemainQuarantined(t *testing.T) {
 	for _, point := range []string{"reset", "deliver"} {
 		t.Run(point, func(t *testing.T) {

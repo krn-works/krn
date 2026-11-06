@@ -123,6 +123,7 @@ type State struct {
 	ResetRequestID string            `json:"reset_request_id"`
 	Before         *reset.Receipt    `json:"before"`
 	After          *reset.Receipt    `json:"after"`
+	CleanReady     bool              `json:"clean_ready"`
 }
 type Store struct{ Directory string }
 
@@ -239,6 +240,7 @@ func receipt(s State, err error) Receipt {
 }
 func (s Service) block(state State, cause error) (Receipt, error) {
 	state.Phase = "blocked"
+	state.CleanReady = false
 	if err := s.Store.save(state); err != nil {
 		return receipt(state, errors.New("control ledger write failed")), err
 	}
@@ -267,7 +269,7 @@ func (s Service) coldReset(ctx context.Context, state *State) error {
 		return transportErr
 	}
 	m := s.Config.ResetManifest
-	if !r.OK || r.Phase != "ready" || r.SchemaVersion != 1 || r.InstallationID != m.InstallationID || r.VMID != m.VMID || r.RequestID != id || r.Generation != state.PVEGeneration+1 || r.ManifestSHA256 != m.Digest() || r.SnapshotSHA256 != m.SnapshotSHA256 || r.PolicySHA256 != m.NFT.SHA256 || !uuid.MatchString(r.BootID) || r.BootID == state.LastBootID {
+	if !receiptIdentity(r, m) || r.RequestID != id || r.Generation != state.PVEGeneration+1 || r.BootID == state.LastBootID {
 		return errors.New("reset receipt identity mismatch")
 	}
 	state.PVEGeneration = r.Generation
@@ -278,6 +280,10 @@ func (s Service) coldReset(ctx context.Context, state *State) error {
 		state.After = &r
 	}
 	return s.Store.save(*state)
+}
+
+func receiptIdentity(r reset.Receipt, m reset.Manifest) bool {
+	return r.OK && r.Phase == "ready" && r.SchemaVersion == 1 && r.InstallationID == m.InstallationID && r.VMID == m.VMID && r.ManifestSHA256 == m.Digest() && r.SnapshotSHA256 == m.SnapshotSHA256 && r.PolicySHA256 == m.NFT.SHA256 && uuid.MatchString(r.BootID)
 }
 
 // Prepare is intentionally not an idempotent admission token: a lost response
@@ -307,18 +313,27 @@ func (s Service) Prepare(ctx context.Context, spec executor.JobSpec, bundle stri
 	if err != nil {
 		return Receipt{}, err
 	}
+	trusted := state.Phase == "idle" && state.CleanReady && state.After != nil && state.ConfigSHA256 == digest(s.Config) && receiptIdentity(*state.After, s.Config.ResetManifest) && state.After.Generation == state.PVEGeneration && state.After.BootID == state.LastBootID && state.After.RequestID == state.ResetRequestID
 	state.Phase = "preparing"
 	state.AttemptID = spec.AttemptID
 	state.Spec = &spec
 	state.ConfigSHA256 = digest(s.Config)
 	state.BundleSHA256 = hash
+	state.CleanReady = false
+	previousAfter := state.After
 	state.Before = nil
 	state.After = nil
+	if trusted {
+		before := *previousAfter
+		state.Before = &before
+	}
 	if err = s.Store.save(state); err != nil {
 		return Receipt{}, err
 	}
-	if err = s.coldReset(ctx, &state); err != nil {
-		return s.block(state, err)
+	if !trusted {
+		if err = s.coldReset(ctx, &state); err != nil {
+			return s.block(state, err)
+		}
 	}
 	if err = s.Backend.Deliver(ctx, bundle, spec, p, hash); err != nil {
 		return s.block(state, err)
@@ -355,6 +370,7 @@ func (s Service) Finish(ctx context.Context, attempt string) (Receipt, error) {
 		return receipt(state, nil), nil
 	}
 	state.Phase = "finishing"
+	state.CleanReady = false
 	if err = s.Store.save(state); err != nil {
 		return Receipt{}, err
 	}
@@ -362,6 +378,7 @@ func (s Service) Finish(ctx context.Context, attempt string) (Receipt, error) {
 		return s.block(state, err)
 	}
 	state.Phase = "idle"
+	state.CleanReady = true
 	if err = s.Store.save(state); err != nil {
 		return s.block(state, err)
 	}
