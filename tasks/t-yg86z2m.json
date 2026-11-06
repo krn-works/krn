@@ -1,7 +1,11 @@
 {
   "id": "t-yg86z2m",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "limit probes pin GOMAXPROCS=1, name their failure line and retry once"
+  },
   "created": "2026-11-06",
   "priority": 0,
   "title": "Stop the pids limit probe from failing gate jobs",
