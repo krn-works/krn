@@ -221,10 +221,15 @@ function fixture(t: { after(fn: () => void): void }) {
   const runner: NonNullable<
     import('../../src/deliver/delivery.ts').DeliveryRuntime['run']
   > = (command, args, cwd, input) => {
-    if (command === 'gh' || command === 'krn')
+    if (command === 'gh' || command.endsWith('/bin/krn'))
       return transport.run(
         process.execPath,
-        [script, configPath, command, ...args],
+        [
+          script,
+          configPath,
+          command.endsWith('/bin/krn') ? 'krn' : command,
+          ...args,
+        ],
         cwd,
         input,
       );

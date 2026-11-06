@@ -110,6 +110,9 @@ export async function dispatch(
   } else if (command === 'ci') {
     const { ciCommand } = await import('./ci.ts');
     await ciCommand(options);
+  } else if (command === 'ship') {
+    const { shipCommand } = await import('../deliver/ship.ts');
+    await shipCommand(options);
   } else if (command === 'deliver') {
     const { deliverCommand } = await import('../deliver/cli.ts');
     await deliverCommand(options);

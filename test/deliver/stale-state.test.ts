@@ -142,7 +142,7 @@ function fixture(t: test.TestContext) {
         };
       return { code: 0, stdout: '{}', stderr: '' };
     }
-    if (command === 'krn') {
+    if (command.endsWith('/bin/krn')) {
       if (args.includes('--dry-run'))
         return {
           code: 0,
