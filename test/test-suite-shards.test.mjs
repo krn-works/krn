@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { globSync } from 'node:fs';
+import { globSync, readFileSync } from 'node:fs';
 import {
   chmod,
   mkdir,
@@ -13,14 +13,7 @@ import { homedir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import {
-  configuredTestShardCount,
-  defaultTestShardCount,
-  mergeTestShardResults,
-  planTestShards,
-  SERIAL_TEST_FILES,
-  SERIAL_TEST_REASONS,
-} from '../scripts/lib/test-shards.mjs';
+import * as shards from '../scripts/lib/test-shards.mjs';
 import { TEST_FILE_GLOB } from '../scripts/test-suite.mjs';
 import { summarizeTestEvents } from '../scripts/test-summary-policy.mjs';
 
@@ -69,22 +62,29 @@ function globalSummary(count) {
 
 test('the shard plan covers every selected test file exactly once', () => {
   const files = globSync(TEST_FILE_GLOB, { cwd: projectRoot }).sort();
-  const plan = planTestShards(files, 3);
-  const planned = [...plan.shards.flat(), ...plan.serialFiles];
+  const plan = shards.planTestShards(files, 3);
+  const planned = [...plan.shards.flat(), ...plan.exclusiveFiles];
 
   assert.deepEqual([...planned].sort(), files);
   assert.equal(new Set(planned).size, files.length);
-  assert.deepEqual(plan.serialFiles, SERIAL_TEST_FILES);
-  assert.ok(SERIAL_TEST_FILES.every((file) => SERIAL_TEST_REASONS[file]));
+  assert.deepEqual(plan.exclusiveFiles, shards.EXCLUSIVE_TEST_FILES);
+  assert.ok(
+    shards.EXCLUSIVE_TEST_FILES.every(
+      (file) => shards.EXCLUSIVE_TEST_REASONS[file],
+    ),
+  );
 });
 
-test('the default shard count uses one shard per core up to four and supports an override', () => {
-  assert.equal(defaultTestShardCount(16), 4);
-  assert.equal(defaultTestShardCount(4), 4);
-  assert.equal(defaultTestShardCount(3), 3);
-  assert.equal(defaultTestShardCount(1), 1);
-  assert.equal(configuredTestShardCount('2', 16), 2);
-  assert.throws(() => configuredTestShardCount('0', 16), /positive integer/u);
+test('the default shard count uses one fewer lane than cores and supports an override', () => {
+  assert.equal(shards.defaultTestShardCount(16), 15);
+  assert.equal(shards.defaultTestShardCount(4), 3);
+  assert.equal(shards.defaultTestShardCount(3), 2);
+  assert.equal(shards.defaultTestShardCount(1), 1);
+  assert.equal(shards.configuredTestShardCount('2', 16), 2);
+  assert.throws(
+    () => shards.configuredTestShardCount('0', 16),
+    /positive integer/u,
+  );
 });
 
 test('merged shard evidence matches the serial file set and test count', () => {
@@ -95,7 +95,7 @@ test('merged shard evidence matches the serial file set and test count', () => {
     globalSummary(3),
   ];
   const serial = summarizeTestEvents(events, files, 0);
-  const merged = mergeTestShardResults(
+  const merged = shards.mergeTestShardResults(
     [
       {
         events: [...fileEvents(files[0], 2), globalSummary(2)],
@@ -650,7 +650,10 @@ test('a failure in each planned shard fails the strict suite command', async (t)
   const files = Array.from({ length: 3 }, (_, index) =>
     join(directory, `shard-${index}.test.mjs`),
   );
-  const plan = planTestShards(files, 3, []);
+  const plan = shards.planTestShards(files, 3, {
+    laneFiles: [],
+    exclusiveFiles: [],
+  });
 
   try {
     for (let shardIndex = 0; shardIndex < plan.shards.length; shardIndex += 1) {
@@ -699,7 +702,7 @@ test('a failure in each planned shard fails the strict suite command', async (t)
 
 test('a missing file or mismatched native test count rejects the merged summary', () => {
   const files = ['/repo/test/a.test.mjs', '/repo/test/b.test.mjs'];
-  const missingFile = mergeTestShardResults(
+  const missingFile = shards.mergeTestShardResults(
     [
       {
         events: [...fileEvents(files[0]), globalSummary(1)],
@@ -709,7 +712,7 @@ test('a missing file or mismatched native test count rejects the merged summary'
     files,
     { expectedTestCount: 1 },
   );
-  const wrongCount = mergeTestShardResults(
+  const wrongCount = shards.mergeTestShardResults(
     [
       {
         events: [
@@ -731,8 +734,24 @@ test('a missing file or mismatched native test count rejects the merged summary'
   );
 });
 
-test('the runner keeps the global event-directory observer in the final serial phase', () => {
-  assert.ok(SERIAL_TEST_FILES.includes('test/isolation-gate.test.ts'));
+test('isolation-gate is balanced normally and scope tests share one lane', () => {
+  for (const list of [
+    shards.EXCLUSIVE_TEST_FILES,
+    shards.SCOPE_LANE_TEST_FILES,
+  ])
+    assert.equal(list.includes('test/isolation-gate.test.ts'), false);
+  // Regular lanes run beside it: it must never create fixtures under test/,
+  // where repository-wide discovery in another lane would pick them up.
+  const source = readFileSync(
+    join(projectRoot, 'test/isolation-gate.test.ts'),
+    'utf8',
+  );
+  assert.doesNotMatch(source, /process\.cwd\(\),\s*'test\//u);
+  assert.ok(
+    shards.SCOPE_LANE_TEST_FILES.includes(
+      'test/hosts/codex-registration.test.ts',
+    ),
+  );
 });
 
 test('compact output retains failing TAP and summarizes passing groups', async () => {
@@ -781,4 +800,49 @@ test('invalid compact output mode exits before spawning tests', () => {
   assert.equal(result.status, 64);
   assert.match(result.stderr, /KRN_TEST_OUTPUT must be full or failures/u);
   assert.equal(result.stdout, '');
+});
+
+test('duration output records sorted integer per-file times and stays out of child environments', async () => {
+  const directory = await mkdtemp(
+    join(projectRoot, '.krn/tmp/duration-output-'),
+  );
+  const files = ['z.test.mjs', 'a.test.mjs'].map((name) =>
+    join(directory, name),
+  );
+  const output = join(directory, 'durations.json');
+  try {
+    for (const file of files)
+      await writeFile(
+        file,
+        `import assert from 'node:assert/strict';
+import { test } from 'node:test';
+test('measured', async () => {
+  assert.equal(process.env.KRN_TEST_DURATIONS_OUT, undefined);
+  await new Promise(resolve => setTimeout(resolve, 30));
+});
+`,
+      );
+    const result = spawnSync(process.execPath, [suitePath, ...files], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        KRN_TEST_SHARDS: '2',
+        KRN_TEST_DURATIONS_OUT: output,
+      },
+      timeout: 30_000,
+    });
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const table = JSON.parse(await readFile(output, 'utf8'));
+    assert.equal(table.version, 1);
+    assert.deepEqual(
+      Object.keys(table.files),
+      files.map((file) => file.slice(projectRoot.length + 1)).sort(),
+    );
+    for (const duration of Object.values(table.files)) {
+      assert.ok(Number.isSafeInteger(duration));
+      assert.ok(duration >= 30);
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

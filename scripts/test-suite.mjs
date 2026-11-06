@@ -11,6 +11,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  rename,
   rm,
   writeFile,
 } from 'node:fs/promises';
@@ -29,6 +30,7 @@ import {
   configuredTestShardCount,
   mergeTestShardResults,
   planTestShards,
+  scheduleTestGroups,
 } from './lib/test-shards.mjs';
 import { formatSlowestTests, slowestTests } from './lib/test-timings.mjs';
 import {
@@ -72,6 +74,7 @@ const childEnvironmentDenylist = new Set([
   'KRN_JENKINS_TOKEN',
   'KRN_TEST_SHARDS',
   'KRN_TEST_OUTPUT',
+  'KRN_TEST_DURATIONS_OUT',
   'KRN_TEST_EVENT_FILE',
 ]);
 
@@ -468,6 +471,48 @@ function defaultCapabilities() {
   return capabilities;
 }
 
+async function writeTestDurations(path, events) {
+  const summaries = new Map();
+  const totals = new Map();
+  for (const { type, data } of events) {
+    if (typeof data?.entryFile !== 'string') continue;
+    const file = relative(process.cwd(), resolve(data.entryFile))
+      .split(sep)
+      .join('/');
+    if (
+      type === 'test:summary' &&
+      Number.isFinite(data.duration_ms) &&
+      data.duration_ms >= 0
+    )
+      summaries.set(file, data.duration_ms);
+    else if (
+      (type === 'test:pass' || type === 'test:fail') &&
+      data.nesting === 0 &&
+      Number.isFinite(data.details?.duration_ms) &&
+      data.details.duration_ms >= 0
+    )
+      totals.set(file, (totals.get(file) ?? 0) + data.details.duration_ms);
+  }
+  const files = {};
+  for (const file of [
+    ...new Set([...summaries.keys(), ...totals.keys()]),
+  ].sort()) {
+    const duration = Math.round(summaries.get(file) ?? totals.get(file));
+    if (Number.isSafeInteger(duration) && duration >= 0) files[file] = duration;
+  }
+  const temporary = `${path}.${process.pid}.tmp`;
+  try {
+    await writeFile(
+      temporary,
+      `${JSON.stringify({ version: 1, files }, null, 2)}\n`,
+      { flag: 'wx' },
+    );
+    await rename(temporary, path);
+  } finally {
+    await rm(temporary, { force: true });
+  }
+}
+
 async function main() {
   const outputMode = process.env.KRN_TEST_OUTPUT ?? 'full';
   if (outputMode !== 'full' && outputMode !== 'failures') {
@@ -548,67 +593,48 @@ async function main() {
     await mkdir(stateDirectory, { recursive: true, mode: 0o700 });
     runDirectory = await mkdtemp(join(stateDirectory, 'test-suite-run-'));
 
-    let groups;
+    let phases;
     if (expectedFiles.length === 0) {
-      groups = [{ files: [], runnerArguments }];
+      phases = [[{ files: [], runnerArguments }]];
     } else {
       const requestedShards = configuredTestShardCount(
         process.env.KRN_TEST_SHARDS,
       );
       const plan = planTestShards(expectedFiles, requestedShards);
+      phases = scheduleTestGroups(plan, requestedShards);
       process.stdout.write(
-        `Test shard plan: K=${requestedShards}; ${requestedShards === 1 ? 'serial group=1' : `parallel groups=${plan.shards.length}`}; final serial files=${plan.serialFiles.length}\n`,
+        `Test shard plan: K=${requestedShards}; lanes=${phases[0]?.length ?? 0} (scope lane ${plan.laneFiles.map((file) => relative(process.cwd(), file)).join(', ')}); exclusive files=${plan.exclusiveFiles.length}\n`,
       );
-      if (requestedShards === 1) {
-        const serialRun = [...plan.shards.flat(), ...plan.serialFiles];
-        groups = serialRun.length > 0 ? [{ files: serialRun }] : [];
-      } else {
-        groups = plan.shards.map((files) => ({ files }));
-        if (plan.serialFiles.length > 0)
-          groups.push({ files: plan.serialFiles, finalSerial: true });
-      }
     }
-
-    let results = [];
-    if (groups.length > 0) {
-      const pnpmStoreDirectory = parentPnpmStoreDirectory();
-      const parallelCount = groups.at(-1)?.finalSerial
-        ? groups.length - 1
-        : groups.length;
-      const parallelGroups = groups.slice(0, parallelCount);
-      const serialGroups = groups.slice(parallelCount);
-      results = await Promise.all(
-        parallelGroups.map((group, index) =>
-          runTestGroup({
-            ...group,
-            index,
-            strict,
-            capabilities,
-            stateDirectory,
-            runDirectory,
-            pnpmStoreDirectory,
-            activeChildren,
-            getForwardedSignal: () => forwardedSignal,
-          }),
-        ),
+    const groups = phases.flat();
+    const results = [];
+    const pnpmStoreDirectory = parentPnpmStoreDirectory();
+    for (const phase of phases) {
+      if (forwardedSignal) break;
+      const offset = results.length;
+      results.push(
+        ...(await Promise.all(
+          phase.map((group, index) =>
+            runTestGroup({
+              ...group,
+              index: offset + index,
+              strict,
+              capabilities,
+              stateDirectory,
+              runDirectory,
+              pnpmStoreDirectory,
+              activeChildren,
+              getForwardedSignal: () => forwardedSignal,
+            }),
+          ),
+        )),
       );
-      if (!forwardedSignal) {
-        for (const [serialIndex, group] of serialGroups.entries()) {
-          const result = await runTestGroup({
-            ...group,
-            index: parallelGroups.length + serialIndex,
-            strict,
-            capabilities,
-            stateDirectory,
-            runDirectory,
-            pnpmStoreDirectory,
-            activeChildren,
-            getForwardedSignal: () => forwardedSignal,
-          });
-          results.push(result);
-        }
-      }
     }
+    if (process.env.KRN_TEST_DURATIONS_OUT)
+      await writeTestDurations(
+        process.env.KRN_TEST_DURATIONS_OUT,
+        results.flatMap((result) => result.events),
+      );
 
     let cleanupError;
     try {

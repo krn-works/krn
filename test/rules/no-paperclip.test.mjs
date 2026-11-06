@@ -22,6 +22,8 @@ test('retired tracker integration is absent from tracked Product inputs', () => 
       'spec/',
       'package.json',
       `:(exclude)${self}`,
+      // The duration table names this file by path.
+      ':(exclude)test/test-durations.json',
     ],
     { cwd: root, encoding: 'utf8' },
   );

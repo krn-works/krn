@@ -15,6 +15,7 @@
     "check": "tsc --noEmit",
     "lint": "biome check .",
     "test": "node scripts/test-suite.mjs",
+    "test:durations": "KRN_TEST_DURATIONS_OUT=test/test-durations.json node scripts/test-suite.mjs",
     "live": "node scripts/delivery-live.mjs",
     "live:worker": "node scripts/live-worker.mjs",
     "live:smoke": "node scripts/live-smoke.mjs",

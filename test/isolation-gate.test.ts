@@ -331,17 +331,27 @@ for (const [signal, exitCode] of [
   });
 }
 
+// Fixtures live under the repository state root, never under test/, so
+// concurrent lanes running repository-wide test discovery cannot see them.
+async function repositoryTempRoot(): Promise<string> {
+  const root = join(process.cwd(), '.krn/tmp');
+  await mkdir(root, { recursive: true });
+  return root;
+}
+
 async function assertTestSuiteSignal(
   signal: NodeJS.Signals,
   expectedExitCode: number,
   strictMode: boolean,
 ): Promise<void> {
-  const directory = await mkdtemp(join(process.cwd(), 'test/wrapper-signal-'));
+  const directory = await mkdtemp(
+    join(await repositoryTempRoot(), 'wrapper-signal-'),
+  );
   const fixture = join(directory, 'sleeping.test.mjs');
   const pidFile = join(directory, 'child.pid');
   const wrapper = new URL('../scripts/test-suite.mjs', import.meta.url)
     .pathname;
-  const eventStateRoot = join(process.cwd(), '.krn/tmp');
+  const eventStateRoot = join(directory, '.krn/tmp');
   await mkdir(eventStateRoot, { recursive: true });
   const existingEventDirectories = new Set(
     (await readdir(eventStateRoot)).filter((entry) =>
@@ -360,13 +370,17 @@ async function assertTestSuiteSignal(
   let testRunnerPid: number | undefined;
   let sleepingPid: number | undefined;
   try {
+    await writeFile(
+      join(directory, '.node-version'),
+      await readFile(join(process.cwd(), '.node-version'), 'utf8'),
+    );
     const wrapperEnv = { ...process.env };
     delete wrapperEnv.NODE_TEST_CONTEXT;
     delete wrapperEnv.KRN_SCOPE_PROBE;
     if (strictMode) wrapperEnv.KRN_REQUIRE_ZERO_ISOLATION_SKIPS = '1';
     else delete wrapperEnv.KRN_REQUIRE_ZERO_ISOLATION_SKIPS;
     const runningWrapper = spawn(process.execPath, [wrapper, fixture], {
-      cwd: process.cwd(),
+      cwd: directory,
       detached: true,
       env: wrapperEnv,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -615,7 +629,7 @@ async function runTestSuiteFixture(
   } = {},
 ): Promise<{ status: number | null; stdout: string; stderr: string }> {
   const directory = await mkdtemp(
-    join(process.cwd(), 'test/isolation-approval-'),
+    join(await repositoryTempRoot(), 'isolation-approval-'),
   );
   const fixture = join(directory, filename);
   const wrapper = new URL('../scripts/test-suite.mjs', import.meta.url)
