@@ -13,6 +13,7 @@ import { homedir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import * as testShards from '../scripts/lib/test-shards.mjs';
 import {
   configuredTestShardCount,
   defaultTestShardCount,
@@ -23,6 +24,16 @@ import {
 } from '../scripts/lib/test-shards.mjs';
 import { TEST_FILE_GLOB } from '../scripts/test-suite.mjs';
 import { summarizeTestEvents } from '../scripts/test-summary-policy.mjs';
+
+const newShardExports = {
+  configuredTestShardSelection: testShards.configuredTestShardSelection,
+  selectTestShardFiles: testShards.selectTestShardFiles,
+};
+function shardExport(name) {
+  const value = newShardExports[name];
+  assert.equal(typeof value, 'function', `${name} is exported`);
+  return value;
+}
 
 const projectRoot = process.cwd();
 const suitePath = fileURLToPath(
@@ -76,6 +87,41 @@ test('the shard plan covers every selected test file exactly once', () => {
   assert.equal(new Set(planned).size, files.length);
   assert.deepEqual(plan.serialFiles, SERIAL_TEST_FILES);
   assert.ok(SERIAL_TEST_FILES.every((file) => SERIAL_TEST_REASONS[file]));
+});
+
+test('shard selection puts every test file in exactly one of the runner shards', () => {
+  const selectTestShardFiles = shardExport('selectTestShardFiles');
+  const configuredTestShardSelection = shardExport(
+    'configuredTestShardSelection',
+  );
+  const files = globSync(TEST_FILE_GLOB, { cwd: projectRoot }).sort();
+  for (const total of [1, 2, 6, 7]) {
+    const selections = Array.from({ length: total }, (_, index) =>
+      selectTestShardFiles(files, index + 1, total),
+    );
+    const flat = selections.flat();
+    assert.deepEqual([...flat].sort(), files, `total ${total}`);
+    assert.equal(new Set(flat).size, files.length);
+    assert.deepEqual(
+      selections,
+      Array.from({ length: total }, (_, index) =>
+        selectTestShardFiles(files, index + 1, total),
+      ),
+    );
+  }
+  assert.throws(() => selectTestShardFiles(files, 0, 3), /between 1/u);
+  assert.throws(() => selectTestShardFiles(files, 4, 3), /between 1/u);
+  assert.deepEqual(
+    configuredTestShardSelection(undefined, undefined),
+    undefined,
+  );
+  assert.deepEqual(configuredTestShardSelection('2', '6'), {
+    index: 2,
+    total: 6,
+  });
+  assert.throws(() => configuredTestShardSelection('2', undefined), /both/u);
+  assert.throws(() => configuredTestShardSelection('7', '6'), /exceed/u);
+  assert.throws(() => configuredTestShardSelection('0', '6'), /both/u);
 });
 
 test('the default shard count uses one shard per core up to four and supports an override', () => {
@@ -781,4 +827,26 @@ test('invalid compact output mode exits before spawning tests', () => {
   assert.equal(result.status, 64);
   assert.match(result.stderr, /KRN_TEST_OUTPUT must be full or failures/u);
   assert.equal(result.stdout, '');
+});
+
+test('six CI shards hold every isolation test file exactly once', async () => {
+  const selectTestShardFiles = shardExport('selectTestShardFiles');
+  const { isolationFilesInSelection, selectIsolationTestFiles } = await import(
+    '../scripts/isolation-gate.mjs'
+  );
+  const root = fileURLToPath(new URL('..', import.meta.url));
+  const glob = 'test/**/*.test.{ts,js,mjs,cjs}';
+  const isolation = selectIsolationTestFiles(root, glob);
+  assert.ok(isolation.length > 0, 'the suite has isolation test files');
+  const all = globSync(glob, { cwd: root }).sort();
+  const held = [];
+  for (let index = 1; index <= 6; index += 1)
+    held.push(
+      ...isolationFilesInSelection(
+        root,
+        selectTestShardFiles(all, index, 6),
+        isolation,
+      ),
+    );
+  assert.deepEqual([...held].sort(), [...isolation].sort());
 });

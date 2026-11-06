@@ -74,3 +74,53 @@ test('malformed or non-regular base policy fails closed', () => {
     ),
   );
 });
+
+test('base policy can pin the GitHub Actions aggregate Check', () => {
+  let policy: ReturnType<typeof gateAdmissionPolicyFromBase> | undefined;
+  assert.doesNotThrow(() => {
+    policy = gateAdmissionPolicyFromBase(base, (args) => {
+      if (args[0] === 'ls-tree')
+        return `100644 blob ${'b'.repeat(40)}\tspec/ci-admission.json\n`;
+      if (args[0] === 'cat-file')
+        return JSON.stringify({
+          schemaVersion: 1,
+          checkRunName: 'Check',
+          appId: 15368,
+        });
+      throw new Error('unexpected Git read');
+    });
+  });
+  assert.ok(policy);
+  assert.deepEqual(policy, {
+    source: 'pinned-app',
+    checkRunName: 'Check',
+    appId: 15368,
+  });
+  assert.equal(
+    matchesGateCheckRun(
+      { name: 'Check', head_sha: base, app: { id: 15368 } },
+      base,
+      policy,
+    ),
+    true,
+  );
+  for (const check of [
+    { name: 'krn/gate', head_sha: base, app: { id: 5548482 } },
+    { name: 'Check', head_sha: base, app: { id: 5548482 } },
+    { name: 'Check', head_sha: 'c'.repeat(40), app: { id: 15368 } },
+  ])
+    assert.equal(matchesGateCheckRun(check, base, policy), false);
+  for (const mixed of [
+    { schemaVersion: 1, checkRunName: 'Check', appId: 5548482 },
+    { schemaVersion: 1, checkRunName: 'krn/gate', appId: 15368 },
+  ])
+    assert.throws(
+      () =>
+        gateAdmissionPolicyFromBase(base, (args) =>
+          args[0] === 'ls-tree'
+            ? `100644 blob ${'b'.repeat(40)}\tspec/ci-admission.json\n`
+            : JSON.stringify(mixed),
+        ),
+      /base gate policy is invalid/u,
+    );
+});

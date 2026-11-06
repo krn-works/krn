@@ -219,6 +219,17 @@ function projectRelativePath(root, file) {
   return relative(root, absolute).split(sep).join('/');
 }
 
+/**
+ * Keep the isolation files that a shard's planned file list holds. Both lists
+ * may be relative to root or absolute; they are compared by real path.
+ */
+export function isolationFilesInSelection(root, selectedFiles, isolationFiles) {
+  const projectRoot = realpathSync(root);
+  const real = (file) => realpathSync(resolve(projectRoot, file));
+  const selected = new Set(selectedFiles.map(real));
+  return isolationFiles.filter((file) => selected.has(real(file)));
+}
+
 export function isolationCoverage(summaryFiles, isolationFiles, root) {
   const projectRoot = resolve(root);
   const selected = Array.isArray(isolationFiles)

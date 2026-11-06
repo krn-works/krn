@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url';
 import {
   countIsolationSkips,
   isolationCoverage,
+  isolationFilesInSelection,
   isolationSummary,
   probeGoCapability,
   selectIsolationTestFiles,
@@ -27,8 +28,10 @@ import {
 } from './isolation-gate.mjs';
 import {
   configuredTestShardCount,
+  configuredTestShardSelection,
   mergeTestShardResults,
   planTestShards,
+  selectTestShardFiles,
 } from './lib/test-shards.mjs';
 import { formatSlowestTests, slowestTests } from './lib/test-timings.mjs';
 import {
@@ -71,6 +74,8 @@ const childEnvironmentDenylist = new Set([
   'KRN_JENKINS_USER',
   'KRN_JENKINS_TOKEN',
   'KRN_TEST_SHARDS',
+  'KRN_TEST_SHARD_INDEX',
+  'KRN_TEST_SHARD_TOTAL',
   'KRN_TEST_OUTPUT',
   'KRN_TEST_EVENT_FILE',
 ]);
@@ -543,6 +548,25 @@ async function main() {
       runnerArguments = expectedFiles;
     }
 
+    const shardSelection = configuredTestShardSelection(
+      process.env.KRN_TEST_SHARD_INDEX,
+      process.env.KRN_TEST_SHARD_TOTAL,
+    );
+    if (shardSelection && expectedFiles.length > 0) {
+      expectedFiles = selectTestShardFiles(
+        expectedFiles,
+        shardSelection.index,
+        shardSelection.total,
+      );
+      runnerArguments = expectedFiles;
+      process.stdout.write(
+        `Test shard selection: ${shardSelection.index}/${shardSelection.total}; files=${expectedFiles.length}\n`,
+      );
+      if (expectedFiles.length === 0)
+        throw new Error('test shard selection contains no files');
+    } else if (shardSelection)
+      throw new Error('test shard selection needs a planned file list');
+
     const capabilities = defaultCapabilities();
     stateDirectory = join(process.cwd(), '.krn/tmp');
     await mkdir(stateDirectory, { recursive: true, mode: 0o700 });
@@ -693,11 +717,31 @@ async function main() {
       if (requestedFiles.length === 0) {
         let coverage;
         try {
-          coverage = isolationCoverage(
-            result.summary.files,
-            selectIsolationTestFiles(process.cwd(), TEST_FILE_GLOB),
+          // A shard proves coverage for the isolation files it was assigned;
+          // the shards partition the full plan, so every shard passing proves
+          // whole-suite coverage.
+          const allIsolationFiles = selectIsolationTestFiles(
             process.cwd(),
+            TEST_FILE_GLOB,
           );
+          const isolationFiles = shardSelection
+            ? isolationFilesInSelection(
+                process.cwd(),
+                expectedFiles,
+                allIsolationFiles,
+              )
+            : allIsolationFiles;
+          coverage =
+            shardSelection && isolationFiles.length === 0
+              ? {
+                  ok: true,
+                  line: `Isolation coverage: shard ${shardSelection.index}/${shardSelection.total} holds no isolation files`,
+                }
+              : isolationCoverage(
+                  result.summary.files,
+                  isolationFiles,
+                  process.cwd(),
+                );
         } catch (error) {
           coverage = {
             ok: false,

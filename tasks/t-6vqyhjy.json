@@ -1,0 +1,14 @@
+{
+  "id": "t-6vqyhjy",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Actions CI (Changes, Lint, Typecheck, 6 strict test shards, aggregate Check) is the required check via spec/ci-admission.json; KRN-07 and ADR 0014 D30 Actions amendment updated"
+  },
+  "created": "2026-11-06",
+  "priority": 0,
+  "title": "Run the gate as sharded GitHub Actions jobs with one aggregate Check",
+  "after": [],
+  "body": []
+}

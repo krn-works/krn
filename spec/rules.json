@@ -25,7 +25,7 @@
     {
       "id": "KRN-07",
       "trigger": "review is complete and a change is ready for integration",
-      "action": "the author MUST obtain a successful full Product `krn/gate` check from GitHub App `5548482` on the exact reviewed HEAD",
+      "action": "the author MUST obtain a successful full Product aggregate `Check` from GitHub Actions (App `15368`) on the exact reviewed HEAD",
       "owner": "author",
       "enforcement": {
         "kind": "gate",
