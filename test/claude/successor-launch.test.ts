@@ -465,3 +465,61 @@ test('a tab reply without a pane ID stops without falling back', (t) => {
   assert.equal(readCalls(herdrCalls).length, 2);
   assert.equal(existsSync(agentCalls), false);
 });
+
+test('a Claude successor starts with bypassPermissions through Herdr and the fallback', async (t) => {
+  await t.test('herdr pane run', () => {
+    const { root, bin } = temporary(t);
+    const herdrCalls = join(root, 'herdr-calls.jsonl');
+    writeExecutable(join(bin, 'herdr'), herdrStub());
+    const result = spawnSync(
+      process.execPath,
+      [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
+      {
+        cwd: root,
+        env: {
+          ...herdrEnvironment(root, herdrCalls, bin),
+          KRN_SUCCESSOR_AGENT: 'claude',
+        },
+        encoding: 'utf8',
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const run = readCalls(herdrCalls).find(
+      (call) => call[0] === 'pane' && call[1] === 'run',
+    );
+    assert.deepEqual(run?.slice(3), [
+      '"$KRN_SUCCESSOR_AGENT"',
+      '--permission-mode',
+      'bypassPermissions',
+      '-n',
+      '"$KRN_SUCCESSOR_NAME"',
+      '"$KRN_SUCCESSOR_PROMPT"',
+    ]);
+  });
+
+  await t.test('claude --bg fallback', () => {
+    const { root, bin } = temporary(t);
+    const agentCalls = join(root, 'agent-calls.jsonl');
+    writeExecutable(join(bin, 'claude'), agentStub());
+    const result = spawnSync(
+      process.execPath,
+      [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
+      {
+        cwd: root,
+        env: { ...hostEnvironment, PATH: bin, AGENT_CALLS: agentCalls },
+        encoding: 'utf8',
+      },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(readCalls(agentCalls), [
+      [
+        '--permission-mode',
+        'bypassPermissions',
+        '--bg',
+        '-n',
+        'Next slice',
+        'First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Read handoff',
+      ],
+    ]);
+  });
+});

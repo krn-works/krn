@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export interface SuccessorLaunchOptions {
@@ -451,11 +451,17 @@ export function main(args: string[]): number {
   }
 
   const agent = process.env.KRN_SUCCESSOR_AGENT || 'claude';
+  // Operator 2026-11-06 (t-5av8etp): a relayed Claude lead never stops on
+  // permission prompts; other agents keep their own defaults.
+  const agentFlags =
+    basename(agent) === 'claude'
+      ? ['--permission-mode', 'bypassPermissions']
+      : [];
   const prompt = `First run \`node scripts/claude/successor-launch.ts --retire\` from the repository root. ${options.prompt}`;
   if (unavailable) {
     const fallback = run(
       agent,
-      ['--bg', '-n', options.name, prompt],
+      [...agentFlags, '--bg', '-n', options.name, prompt],
       options.cwd,
     );
     if (fallback.error || fallback.status !== 0) return exitFailure(fallback);
@@ -509,6 +515,7 @@ export function main(args: string[]): number {
     'run',
     ids.paneId,
     '"$KRN_SUCCESSOR_AGENT"',
+    ...agentFlags,
     '-n',
     '"$KRN_SUCCESSOR_NAME"',
     '"$KRN_SUCCESSOR_PROMPT"',
