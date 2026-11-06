@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   existsSync,
   lstatSync,
@@ -242,13 +242,23 @@ export async function workerCommand(args: string[]): Promise<void> {
       }
       if (existsSync(join(repo, 'package.json'))) {
         const missingDependencies = `dependencies missing: run pnpm install --frozen-lockfile in ${repo}`;
-        try {
-          if (!statSync(join(repo, 'node_modules/.bin')).isDirectory())
+        const installed = () => {
+          try {
+            return statSync(join(repo, 'node_modules/.bin')).isDirectory();
+          } catch (error) {
+            if (!isMissing(error) && !isMissing(error, 'ENOTDIR')) throw error;
+            return false;
+          }
+        };
+        // A fresh worktree has no dependencies: install them instead of refusing.
+        if (!installed()) {
+          const install = spawnSync(
+            process.env.KRN_PNPM_BIN ?? 'pnpm',
+            ['install', '--frozen-lockfile'],
+            { cwd: repo, stdio: ['ignore', 'ignore', 'inherit'] },
+          );
+          if (install.status !== 0 || !installed())
             throw new WorkerError(64, missingDependencies);
-        } catch (error) {
-          if (error instanceof WorkerError) throw error;
-          if (!isMissing(error) && !isMissing(error, 'ENOTDIR')) throw error;
-          throw new WorkerError(64, missingDependencies);
         }
       }
     } else {

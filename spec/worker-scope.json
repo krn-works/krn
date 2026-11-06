@@ -1,5 +1,5 @@
 {
-  "supportedVersions": ["0.166.0"],
+  "supportedVersions": ["0.166.0", "0.167.0"],
   "forbidden": [
     "**/AGENTS.md",
     "**/CLAUDE.md",
