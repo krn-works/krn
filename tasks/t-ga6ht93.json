@@ -1,0 +1,14 @@
+{
+  "id": "t-ga6ht93",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn ledger reports per-PR outcome cost; baseline in .krn/runs/lead/system-audit/ledger-baseline.md"
+  },
+  "created": "2026-11-06",
+  "priority": 0,
+  "title": "Record an accepted-outcome ledger per merged PR",
+  "after": [],
+  "body": []
+}

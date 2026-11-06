@@ -1,0 +1,29 @@
+[
+  {
+    "baseRefOid": "50995e092ff50b55e4b6780dae398984661617d5",
+    "createdAt": "2026-11-06T08:16:02Z",
+    "headRefOid": "56df755f4df4f28615e8f269f3b0c047bf8dd0e9",
+    "mergeCommit": { "oid": "aa4650256caebda29da14a40efe2d9e79ba37a3f" },
+    "mergedAt": "2026-11-06T08:34:17Z",
+    "number": 241,
+    "title": "fix(cli): pin Node and Go for every krn child process (t-g5vqm2q)"
+  },
+  {
+    "baseRefOid": "aa4650256caebda29da14a40efe2d9e79ba37a3f",
+    "createdAt": "2026-11-06T08:11:00Z",
+    "headRefOid": "7b07b26a2c5f63f4e35f054b3d38fbf21a6d3435",
+    "mergeCommit": { "oid": "9c9191cc390e913725ef318d8e0869d4f9d65c29" },
+    "mergedAt": "2026-11-06T09:58:24Z",
+    "number": 240,
+    "title": "fix(ci): complete orphaned krn/gate check runs and rerun them from deliver (t-dwkrwej)"
+  },
+  {
+    "baseRefOid": "5c83fd66117a0ecde3d8b0186dd0105ec145409c",
+    "createdAt": "2026-11-06T07:34:20Z",
+    "headRefOid": "12d932a94a2facdd124e7b8a3c4264e1753b4952",
+    "mergeCommit": { "oid": "ef40d9a29614bd88836970fcc33c8164b5572748" },
+    "mergedAt": "2026-11-06T07:46:43Z",
+    "number": 239,
+    "title": "test(flow): scope the red-first containment check to its own probe (t-xb5jghr)"
+  }
+]

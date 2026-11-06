@@ -80,7 +80,10 @@ export async function dispatch(
   runtime: { readonly delegate?: import('./delegate.ts').DelegateRuntime } = {},
 ): Promise<boolean> {
   const [command, ...options] = args;
-  if (command === 'start') {
+  if (command === 'ledger') {
+    const { ledgerCommand } = await import('./ledger.ts');
+    await ledgerCommand(options);
+  } else if (command === 'start') {
     const { startCommand } = await import('./start.ts');
     await startCommand(options);
   } else if (command === 'checkpoint') {
