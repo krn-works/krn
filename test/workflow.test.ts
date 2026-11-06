@@ -40,102 +40,98 @@ test('cheap preflight reuses local observers and documents manual impact and PR 
   }
 });
 
-test('CI workflow has one guarded gate job on the configured isolated runner', async () => {
-  const source = await readFile(workflowPath, 'utf8');
+function jobBlocks(source: string): Map<string, string> {
   const lines = source.split(/\r?\n/u);
   const jobsIndex = lines.indexOf('jobs:');
   assert.notEqual(jobsIndex, -1, 'workflow must define jobs');
-
-  const jobs: string[] = [];
+  const blocks = new Map<string, string[]>();
+  let current: string[] | undefined;
   for (const line of lines.slice(jobsIndex + 1)) {
     if (/^\S/u.test(line)) break;
     const match = line.match(/^ {2}([A-Za-z0-9_-]+):\s*$/u);
-    if (match) jobs.push(match[1] ?? '');
+    if (match) {
+      current = [];
+      blocks.set(match[1] ?? '', current);
+    } else current?.push(line);
   }
-  assert.deepEqual(jobs, ['gate']);
+  return new Map([...blocks].map(([name, body]) => [name, body.join('\n')]));
+}
 
-  const gateIndex = lines.indexOf('  gate:');
-  assert.notEqual(gateIndex, -1, 'workflow must define the gate job');
-  const gateLines: string[] = [];
-  for (const line of lines.slice(gateIndex + 1)) {
-    if (/^ {2}\S/u.test(line)) break;
-    gateLines.push(line);
+test('CI workflow runs lint, typecheck and six test shards on hosted runners behind one aggregate Check', async () => {
+  const source = await readFile(workflowPath, 'utf8');
+  const jobs = jobBlocks(source);
+  assert.deepEqual(
+    [...jobs.keys()],
+    ['changes', 'lint', 'typecheck', 'test', 'check'],
+  );
+  for (const [name, body] of jobs) {
+    assert.match(body, /^ {4}runs-on: ubuntu-24\.04$/mu, name);
+    assert.match(body, /^ {4}timeout-minutes: \d+$/mu, name);
   }
-  const scalar = (key: string): string | undefined => {
-    const line = gateLines.find((candidate) =>
-      candidate.startsWith(`    ${key}:`),
-    );
-    return line?.slice(line.indexOf(':') + 2);
-  };
+  assert.doesNotMatch(source, /krn-ci-isolated|vars\.CI_RUNNER/u);
 
-  assert.equal(scalar('name'), 'gate');
-  assert.equal(
-    scalar('if'),
-    `\${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}`,
+  const test = jobs.get('test') ?? '';
+  assert.match(test, /^ {8}shard: \[1, 2, 3, 4, 5, 6\]$/mu);
+  assert.match(test, /^ {10}KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1'$/mu);
+  assert.match(test, /^ {6}KRN_TEST_SHARD_INDEX: \$\{\{ matrix\.shard \}\}$/mu);
+  assert.match(test, /^ {6}KRN_TEST_SHARD_TOTAL: '6'$/mu);
+  assert.match(test, /^ {8}run: npm test$/mu);
+  assert.match(test, /^ {10}go: 'true'$/mu);
+  assert.match(jobs.get('lint') ?? '', /run: npm run lint$/mu);
+  assert.match(jobs.get('lint') ?? '', /run: npm run rules$/mu);
+  assert.match(
+    jobs.get('lint') ?? '',
+    /run: node src\/cli\/main\.ts task check$/mu,
   );
-  assert.equal(
-    scalar('runs-on'),
-    `\${{ fromJSON(vars.CI_RUNNER || '["self-hosted","linux","x64","krn-ci-isolated"]') }}`,
+  assert.match(jobs.get('typecheck') ?? '', /run: npm run check$/mu);
+
+  // A rename must not hide its deleted source path from the task-only filter.
+  assert.match(
+    jobs.get('changes') ?? '',
+    /git diff --name-only --no-renames "\$BASE\.\.\.\$HEAD"/u,
   );
+  const check = jobs.get('check') ?? '';
+  assert.match(check, /^ {4}name: Check$/mu);
+  assert.match(check, /^ {4}if: \$\{\{ always\(\) \}\}$/mu);
+  for (const need of ['changes', 'lint', 'typecheck', 'test'])
+    assert.match(check, new RegExp(`^ {6}- ${need}$`, 'mu'), need);
+  assert.match(
+    check,
+    /name === "test" && result === "skipped" && needs\.changes\?\.outputs\?\.test === "false"/u,
+  );
+  assert.match(check, /result !== "success" && !skipOk/u);
 });
 
-test('CI workflow prepares any runner outside the isolated fleet for isolation tests after install and before the gate', async () => {
+test('CI test shards pin Go and enable user namespaces after install and before the shard runs', async () => {
+  const action = await readFile(
+    new URL('../.github/actions/setup-ci/action.yml', import.meta.url),
+    'utf8',
+  );
+  const goIndex = action.indexOf('uses: actions/setup-go@');
+  const installIndex = action.indexOf('run: pnpm install --frozen-lockfile');
+  const sysctlIndex = action.indexOf(
+    'sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0',
+  );
+  assert.ok(installIndex !== -1 && installIndex < goIndex);
+  assert.ok(goIndex < sysctlIndex);
+  assert.equal(action.match(/sysctl/gu)?.length, 1);
+  assert.match(action, /infra\/ci\/mise\.toml/u);
+  assert.match(action, /uses: actions\/cache@/u);
+  const toml = await readFile(
+    new URL('../infra/ci/mise.toml', import.meta.url),
+    'utf8',
+  );
+  assert.match(toml, /^go = "\d+\.\d+\.\d+"$/mu);
+
   const source = await readFile(workflowPath, 'utf8');
-  const fleet = `vars.CI_RUNNER || '["self-hosted","linux","x64","krn-ci-isolated"]'`;
-  assert.ok(source.includes(`runs-on: \${{ fromJSON(${fleet}) }}`));
-  const outsideFleet = `        if: \${{ !contains(format(',{0},', join(fromJSON(${fleet}), ',')), ',krn-ci-isolated,') }}`;
-  // GitHub expression semantics: join returns a string unchanged and joins an
-  // array; contains on strings is a case-insensitive substring test.
-  const runsOutsideFleet = (variable: string): boolean => {
-    const runner: unknown = JSON.parse(
-      variable || '["self-hosted","linux","x64","krn-ci-isolated"]',
-    );
-    const joined = Array.isArray(runner) ? runner.join(',') : String(runner);
-    return !`,${joined},`.toLowerCase().includes(',krn-ci-isolated,');
-  };
-  for (const [variable, outside] of [
-    ['', false],
-    ['["self-hosted","linux","x64","krn-ci-isolated"]', false],
-    ['"krn-ci-isolated"', false],
-    ['"ubuntu-latest"', true],
-    ['"blacksmith-4vcpu-ubuntu-2404"', true],
-    ['"blacksmith-krn-ci-isolated"', true],
-    ['["self-hosted","linux","x64","krn-ci-isolated-shadow"]', true],
-  ] as const)
-    assert.equal(runsOutsideFleet(variable), outside, variable);
-  const step = [
-    '      - name: Set up mise outside the isolated fleet',
-    outsideFleet,
-    '        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2',
-    '        with:',
-    '          version: 2026.10.17',
-    '          install: false',
-    '          cache: false',
-    '',
-    '      - name: Prepare isolation outside the isolated fleet',
-    outsideFleet,
-    '        env:',
-    '          GITHUB_TOKEN: ${{ github.token }}',
-    '        run: |',
-    '          set -euo pipefail',
-    '          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0',
-    `          manager="$(node -p "require('./package.json').packageManager")"`,
-    '          mise install "$manager"',
-  ].join('\n');
-  const stepIndex = source.indexOf(step);
-  assert.notEqual(
-    stepIndex,
-    -1,
-    'workflow must define the guarded isolation step',
+  const jobs = jobBlocks(source);
+  const test = jobs.get('test') ?? '';
+  assert.ok(
+    test.indexOf('uses: ./.github/actions/setup-ci') <
+      test.indexOf('run: npm test'),
+    'setup must precede the shard run',
   );
-  assert.equal(source.indexOf(step, stepIndex + 1), -1);
-  assert.equal(source.match(/sysctl/gu)?.length, 1);
-  const installIndex = source.indexOf(
-    '        run: pnpm install --frozen-lockfile\n',
-  );
-  assert.ok(installIndex !== -1 && installIndex < stepIndex);
-  const gateIndex = source.indexOf('        run: npm run gate\n');
-  assert.ok(gateIndex > stepIndex, 'isolation step must run before the gate');
+  assert.match(test, /mise install "\$manager"/u);
   const adr = await readFile(
     new URL(
       '../docs/adr/0014-operator-decisions-2026-10-23.md',
@@ -149,7 +145,7 @@ test('CI workflow prepares any runner outside the isolated fleet for isolation t
   );
 });
 
-test('Product uses required exact-head App CI and optional local diagnostics', async () => {
+test('Product uses required exact-head Actions Check and optional local diagnostics', async () => {
   const manifest: unknown = JSON.parse(
     await readFile(new URL('../package.json', import.meta.url), 'utf8'),
   );
@@ -164,10 +160,15 @@ test('Product uses required exact-head App CI and optional local diagnostics', a
     scripts.gate,
     'npm run check && npm run lint && KRN_TEST_OUTPUT=failures npm test && node src/cli/main.ts task check && npm run rules',
   );
-  assert.match(
-    await readFile(workflowPath, 'utf8'),
-    /^ {8}run: npm run gate$/mu,
-  );
+  const workflow = await readFile(workflowPath, 'utf8');
+  for (const step of [
+    /run: npm run lint$/mu,
+    /run: npm run check$/mu,
+    /run: npm test$/mu,
+    /run: node src\/cli\/main\.ts task check$/mu,
+    /run: npm run rules$/mu,
+  ])
+    assert.match(workflow, step);
   for (const path of [
     'README.md',
     'docs/program/repository-workflow.md',
@@ -181,7 +182,7 @@ test('Product uses required exact-head App CI and optional local diagnostics', a
     );
     assert.match(source, /required CI on the exact HEAD/u, path);
     assert.match(source, /optional local diagnostics/u, path);
-    assert.match(source, /krn\/gate.*5548482/u, path);
+    assert.match(source, /`Check` \(App `15368`/u, path);
     assert.match(source, /npm run preflight/u, path);
     assert.doesNotMatch(
       source,
@@ -206,11 +207,18 @@ test('Product uses required exact-head App CI and optional local diagnostics', a
     /^\*\*D30 amendment.*Tak, opcja 1 — zmiana D30.*optional local diagnostics/mu,
   );
   assert.match(adr, /Tak, zgoda na ten zakres rulesetu/u);
+  assert.match(
+    adr,
+    /^\*\*D30 Actions amendment.*`Check`.*App ID `15368`.*t-sdcdxb2/mu,
+  );
   const agents = await readFile(
     new URL('../AGENTS.md', import.meta.url),
     'utf8',
   );
-  assert.match(agents, /KRN-07.*MUST.*krn\/gate.*5548482.*gate: npm run gate/u);
+  assert.match(
+    agents,
+    /KRN-07.*MUST.*`Check` from GitHub Actions \(App `15368`\).*gate: npm run gate/u,
+  );
   assert.doesNotMatch(agents, /KRN-07.*MUST pass `npm run gate:local`/u);
   assert.match(adr, /^\| D30 \|.*D11.*Product/mu);
   assert.match(adr, /Tak, zmień D11 \(Recommended\)/u);

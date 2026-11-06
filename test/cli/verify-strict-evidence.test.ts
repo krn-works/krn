@@ -78,7 +78,8 @@ test('targeted verify rejects approved isolation skips under strict CI evidence'
           const run = spawnSync(process.execPath, args.slice(suite), {
             cwd,
             encoding: 'utf8',
-            env: { ...process.env, ...env, PATH: '/usr/bin:/bin' },
+            // A PATH holding no tools proves the Go skip on hosts that ship /usr/bin/go.
+            env: { ...process.env, ...env, PATH: cwd },
           });
           writeFileSync(logPath, `${run.stdout ?? ''}${run.stderr ?? ''}`);
           return { exitCode: run.status };

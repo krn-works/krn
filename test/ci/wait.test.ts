@@ -74,7 +74,7 @@ test('wait times out with 75', async () => {
     api.waitCommand([...args, '--timeout-seconds', '1'], runtime(null)),
     {
       exitCode: 75,
-      message: `bounded wait timed out after 1s: krn/gate missing on ${head}; rerun the same command to resume`,
+      message: `bounded wait timed out after 1s: gate missing on ${head}; rerun the same command to resume`,
     },
   );
 });

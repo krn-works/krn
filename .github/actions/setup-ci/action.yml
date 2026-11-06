@@ -1,0 +1,69 @@
+name: Set up KRN CI
+description: Install the pinned Node.js, pnpm dependencies with a store cache, and optionally the pinned Go toolchain and user-namespace isolation.
+inputs:
+  go:
+    description: Install the Go toolchain pinned in infra/ci/mise.toml and enable unprivileged user namespaces.
+    default: 'false'
+runs:
+  using: composite
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version-file: .node-version
+
+    - name: Enable pnpm through Corepack
+      shell: bash
+      run: |
+        set -euo pipefail
+        corepack enable
+        pnpm --version
+        echo "PNPM_STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+    - name: Cache the pnpm store
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ env.PNPM_STORE_PATH }}
+        key: pnpm-store-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pnpm-lock.yaml') }}
+        restore-keys: |
+          pnpm-store-${{ runner.os }}-${{ runner.arch }}-
+
+    - name: Install dependencies
+      shell: bash
+      run: pnpm install --frozen-lockfile
+
+    - name: Read the pinned Go version
+      id: go
+      if: ${{ inputs.go == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        version="$(sed -n 's/^go *= *"\([0-9][0-9.]*\)".*/\1/p' infra/ci/mise.toml)"
+        test -n "$version"
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+
+    - name: Set up Go
+      if: ${{ inputs.go == 'true' }}
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version: ${{ steps.go.outputs.version }}
+        cache: false
+
+    - name: Allow unprivileged user namespaces for isolation tests
+      if: ${{ inputs.go == 'true' }}
+      shell: bash
+      run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
+    - name: Install bubblewrap for sandbox isolation tests
+      if: ${{ inputs.go == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        for attempt in 1 2 3; do
+          if timeout 90 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y -qq bubblewrap \
+            || { timeout 60 sudo apt-get -o Acquire::http::Timeout=20 update -qq && timeout 90 sudo apt-get install -y -qq bubblewrap; }; then
+            break
+          fi
+          test "$attempt" -lt 3 || { echo 'bubblewrap install failed' >&2; exit 1; }
+        done
+        bwrap --version

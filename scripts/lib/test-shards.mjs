@@ -120,6 +120,47 @@ export function planTestShards(
   return { shards, serialFiles: finalSerialFiles };
 }
 
+export function configuredTestShardSelection(index, total) {
+  if (index === undefined && total === undefined) return undefined;
+  const positive = /^[1-9]\d{0,5}$/u;
+  if (
+    typeof index !== 'string' ||
+    typeof total !== 'string' ||
+    !positive.test(index) ||
+    !positive.test(total)
+  )
+    throw new Error(
+      'KRN_TEST_SHARD_INDEX and KRN_TEST_SHARD_TOTAL must both be positive integers',
+    );
+  const selection = { index: Number(index), total: Number(total) };
+  if (selection.index > selection.total)
+    throw new Error(
+      'KRN_TEST_SHARD_INDEX must not exceed KRN_TEST_SHARD_TOTAL',
+    );
+  return selection;
+}
+
+// Splits the planned lanes across `total` runners deterministically: the
+// size-balanced lanes of planTestShards are distributed one lane per runner
+// and the serial files by sorted position, so every file lands in exactly one
+// selection. Shard `index` (1-based) returns its own files.
+export function selectTestShardFiles(
+  files,
+  index,
+  total,
+  serialFiles = SERIAL_TEST_FILES,
+) {
+  if (!Number.isSafeInteger(total) || total < 1)
+    throw new Error('test shard total must be a positive integer');
+  if (!Number.isSafeInteger(index) || index < 1 || index > total)
+    throw new Error('test shard index must be between 1 and the total');
+  const plan = planTestShards(files, total, serialFiles);
+  const selected = [...(plan.shards[index - 1] ?? [])];
+  for (const [position, file] of plan.serialFiles.entries())
+    if (position % total === index - 1) selected.push(file);
+  return selected.sort();
+}
+
 export function mergeTestShardResults(
   shardResults,
   expectedFiles,

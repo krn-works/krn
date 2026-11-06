@@ -22,7 +22,7 @@ First make red-first prove an assertion failure on base and a pass on head (`t-c
 
 ### 3. One merge path and delivery record
 
-Product merges only through GLOBAL `krn ship` with the base-declared verifier (`krn.ship.json` → `scripts/pr-preflight.mjs`); it pins the reviewed head through the pull request API under D21. The first real merges were #121 and #123. `t-5wbkv1w` and `t-c2pnpbq` are delivered (Product #127 and #129; GLOBAL #467–#469). Exit status: met; the API merge pins the reviewed head, and GitHub refused direct pushes and PRs missing required checks. CI stays on the self-hosted fleet.
+Product merges only through GLOBAL `krn ship` with the base-declared verifier (`krn.ship.json` → `scripts/pr-preflight.mjs`); it pins the reviewed head through the pull request API under D21. The first real merges were #121 and #123. `t-5wbkv1w` and `t-c2pnpbq` are delivered (Product #127 and #129; GLOBAL #467–#469). Exit status: met; the API merge pins the reviewed head, and GitHub refused direct pushes and PRs missing required checks. Required CI moved from the self-hosted Jenkins fleet to the GitHub-hosted Actions `Check` under the ADR 0014 D30 Actions amendment; the fleet is decommissioned by t-sdcdxb2.
 
 **Exit:** GitHub refuses a direct push and a PR missing a required check; one delivery record holds review, gate, CI, and merge evidence.
 
