@@ -21,6 +21,10 @@ import {
   redFirstSchema,
   reviewRecordSchema,
 } from '../../src/flow/types.ts';
+import {
+  populatedCheckScopes,
+  systemCheckScopeHost,
+} from '../helpers/check-scopes.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 import { systemdEnvironment as createSystemdEnvironment } from '../helpers/systemd-environment.ts';
 
@@ -693,7 +697,6 @@ test('red-first contains detached tests and blocks their network access', async 
     git(root, 'add', '.');
     git(root, 'commit', '-qm', 'add sandbox probe');
     const head = git(root, 'rev-parse', 'HEAD');
-    const before = populatedCheckScopes();
     const report = await redFirst(root, base, head);
     assert.equal(
       report.results[0]?.classification,
@@ -711,7 +714,12 @@ test('red-first contains detached tests and blocks their network access', async 
       'red-first test reached host network',
     );
     assert.deepEqual(
-      [...populatedCheckScopes()].filter((unit) => !before.has(unit)),
+      [
+        ...populatedCheckScopes(
+          systemCheckScopeHost(systemdEnvironment()),
+          target,
+        ),
+      ],
       [],
     );
   } finally {
@@ -734,49 +742,6 @@ async function waitForFile(path: string): Promise<string> {
     }
   }
   assert.fail(`timed out waiting for ${path}`);
-}
-
-function populatedCheckScopes(): Set<string> {
-  const listed = spawnSync(
-    'systemctl',
-    [
-      '--user',
-      'list-units',
-      '--all',
-      '--type=scope',
-      '--no-pager',
-      '--output=json',
-    ],
-    { encoding: 'utf8', env: systemdEnvironment() },
-  );
-  assert.equal(listed.status, 0, listed.stderr);
-  const scopes: unknown = JSON.parse(listed.stdout);
-  assert.ok(Array.isArray(scopes));
-  const populated = new Set<string>();
-  for (const scope of scopes) {
-    if (
-      typeof scope?.unit !== 'string' ||
-      !scope.unit.startsWith('krn-check-') ||
-      scope.active !== 'active'
-    )
-      continue;
-    const shown = spawnSync(
-      'systemctl',
-      ['--user', 'show', scope.unit, '--property=ControlGroup', '--value'],
-      { encoding: 'utf8', env: systemdEnvironment() },
-    );
-    const cgroup = shown.stdout.trim();
-    if (!cgroup.startsWith('/')) continue;
-    try {
-      if (
-        /^populated 1$/mu.test(
-          readFileSync(join('/sys/fs/cgroup', cgroup, 'cgroup.events'), 'utf8'),
-        )
-      )
-        populated.add(scope.unit);
-    } catch {}
-  }
-  return populated;
 }
 
 test('a judge response without a verdict cannot be parsed into a review record', () => {
