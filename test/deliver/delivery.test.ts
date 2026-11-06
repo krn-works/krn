@@ -858,7 +858,7 @@ test('delivery runs hygiene when main CI fails after the merge', async (t) => {
   const f = fixture(t, true);
   f.change({ mainCiFailure: true });
   const mainFailure =
-    /ci: gate concluded failure on [0-9a-f]{40}; failed at stage unknown: [^;]+; rerun: main has no lead rerun \(the lead Jenkins account builds PR jobs only\)/u;
+    /ci: gate concluded failure on [0-9a-f]{40}; failed at stage unknown: [^;]+; rerun: krn ci rerun --branch main --head [0-9a-f]{40}$/u;
   const branch = f.git(f.worktree, ['branch', '--show-current']);
   await assert.rejects(f.api.deliver(f.options, f.runtime), {
     stage: 'ci',
