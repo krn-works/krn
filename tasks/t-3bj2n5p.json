@@ -1,7 +1,11 @@
 {
   "id": "t-3bj2n5p",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "task ids bounded at 128 characters in isTaskId; check exits 65, commands 64"
+  },
   "created": "2026-10-26",
   "priority": 3,
   "title": "Bound task id length in task check",

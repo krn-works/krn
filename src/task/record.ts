@@ -13,6 +13,9 @@ const taskKeys = [
 
 const resolutionKeys = ['kind', 'ref', 'note'] as const;
 const taskIdPattern = /^[A-Za-z]+-[0-9A-Za-z]+$/u;
+// Ids name files (`tasks/<id>.json`, staged claim files), so they stay far
+// below the 255-byte file-name limit; generated ids have 9 characters.
+export const TASK_ID_MAX_LENGTH = 128;
 const taskKinds = ['done', 'dropped', 'duplicate', 'superseded'] as const;
 const crockford = '0123456789abcdefghjkmnpqrstvwxyz';
 
@@ -69,7 +72,11 @@ export class TaskCommandError extends Error {
 }
 
 export function isTaskId(value: unknown): value is TaskId {
-  return typeof value === 'string' && taskIdPattern.test(value);
+  return (
+    typeof value === 'string' &&
+    value.length <= TASK_ID_MAX_LENGTH &&
+    taskIdPattern.test(value)
+  );
 }
 
 export function createTaskId(): TaskId {
