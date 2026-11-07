@@ -1,0 +1,12 @@
+{
+  "id": "t-ge9hbq1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "Codex app-server replay transport with recorded JSON-RPC fixtures",
+  "after": [],
+  "body": [
+    "From t-tq04sec trick 3. Source: pingdotgg/t3code packages/effect-codex-app-server/src/replay.ts (expect_outbound / emit_inbound entries over a Stdio transport; everything above the transport stays real). KRN: add a ReplayTransport under src/hosts/codex-app-server.ts, record fixtures from scripts/live-worker.mjs with --record, first 3 scenarios. Proof: KRN-12 receiver capture without paid live smokes. M."
+  ]
+}

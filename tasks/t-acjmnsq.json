@@ -1,0 +1,12 @@
+{
+  "id": "t-acjmnsq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "AGENTS.md craft from t3code: ban pkill by pattern, lowest-layer tests",
+  "after": [],
+  "body": [
+    "From t-tq04sec trick 7/9. Source: pingdotgg/t3code AGENTS.md (ways to hurt yourself, hit every surface, tests at the lowest failing layer, extend before you add). KRN: add pkill-by-pattern ban and the test-layer rule to spec/rules.json then render. Mind the context-budget ratchet (spec/context-budget.json): AGENTS.md may only grow with a reason. S."
+  ]
+}

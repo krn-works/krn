@@ -19,6 +19,7 @@ import {
   workerUnit,
 } from './process.ts';
 import { git, loadPolicy } from './scope.ts';
+import { ensureSetup } from './setup-marker.ts';
 import {
   acceptanceValueSchema,
   alive,
@@ -230,16 +231,24 @@ export async function workerCommand(args: string[]): Promise<void> {
             return false;
           }
         };
-        // A fresh worktree has no dependencies: install them instead of refusing.
-        if (!installed()) {
+        // A fresh worktree has no dependencies: install them once (markers in .krn/setup), others wait.
+        const ok = ensureSetup(repo, installed, () => {
           const install = spawnSync(
             process.env.KRN_PNPM_BIN ?? 'pnpm',
             ['install', '--frozen-lockfile'],
-            { cwd: repo, stdio: ['ignore', 'ignore', 'inherit'] },
+            {
+              cwd: repo,
+              encoding: 'utf8',
+              stdio: ['ignore', 'ignore', 'pipe'],
+            },
           );
-          if (install.status !== 0 || !installed())
-            throw new WorkerError(64, missingDependencies);
-        }
+          process.stderr.write(install.stderr ?? '');
+          return {
+            ok: install.status === 0,
+            detail: `pnpm install exited ${install.status}\n${(install.stderr ?? '').slice(-4000)}`,
+          };
+        });
+        if (!ok) throw new WorkerError(64, missingDependencies);
       }
     } else {
       if (command === 'stop' && !existsSync(run)) return;
