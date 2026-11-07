@@ -1,7 +1,11 @@
 {
   "id": "t-ez90ycz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test/rules/test-hygiene.test.mjs: no fixed waits, skips need quarantine task, suppressions need reason; per-file allowlist with reasons"
+  },
   "created": "2026-11-07",
   "priority": 2,
   "title": "Lint rules: no waits or retries in tests, skips need quarantine task, suppressions need human",
