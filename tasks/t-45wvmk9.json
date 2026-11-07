@@ -7,6 +7,7 @@
   "title": "Deepen the top architecture candidates measured by depth.ts",
   "after": [],
   "body": [
-    "Follow-up of t-87ks15p: deepen the ranked candidates in .krn/runs/lead/architecture-candidates.md (scripts/architecture/depth.ts measures before/after): split the trace/index.ts hub (1457 lines), narrow verdict/sandbox.ts to execute, split hosts/codex.ts isolation modes into two adapters, split flow/types.ts by owner; extend depth.ts with unimported-export report and .mjs scan; enforce KRN-05 in Lint (dependency-cruiser, from t-phsq5re)."
+    "Follow-up of t-87ks15p: deepen the ranked candidates in .krn/runs/lead/architecture-candidates.md (scripts/architecture/depth.ts measures before/after): split the trace/index.ts hub (1457 lines), narrow verdict/sandbox.ts to execute, split hosts/codex.ts isolation modes into two adapters, split flow/types.ts by owner; extend depth.ts with unimported-export report and .mjs scan; enforce KRN-05 in Lint (dependency-cruiser, from t-phsq5re).",
+    "Progress (weakness hunt): done in PR #264 (depth.ts unimported-export report, .mjs scan, 33 exports narrowed, 7 dead helpers deleted), #265 (verdict/sandbox.ts split into trees.ts and process.ts; 16->8 exports, 1266->842 lines), #266 (trace/index.ts split into lock.ts and files.ts; 1457->890 lines). Still open and live after the deletions: hosts/codex.ts isolation-mode split (hub, 1031 lines), flow/types.ts split by owner (35 exports, fan-in 27), verdict/sandbox.ts still hub at 842 lines, KRN-05 enforcement in Lint (dependency-cruiser)."
   ]
 }

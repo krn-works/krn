@@ -38,13 +38,15 @@ import {
   processHasIdentity,
   processStartTicks,
 } from '../../src/hosts/systemd-scope.ts';
-import * as trace from '../../src/trace/index.ts';
 import {
   classifyTraceFdPathReadback,
+  traceFdPathVerificationDecision,
+} from '../../src/trace/files.ts';
+import * as trace from '../../src/trace/index.ts';
+import {
   failure,
   hasVerdict,
   readTraceSnapshot,
-  traceFdPathVerificationDecision,
   verdict,
 } from '../../src/trace/index.ts';
 import type { VerdictEvent } from '../../src/verdict/index.ts';
