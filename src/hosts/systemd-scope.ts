@@ -51,7 +51,9 @@ const registrationSchema = z.object({
   pid: z.number().int().positive().safe(),
   startTicks: z.string().regex(/^\d+$/u),
 });
-const registrationTimeoutMs = 5000;
+// The user manager can stall for several seconds under host load (observed 6 s);
+// a real launch failure ends the wait sooner through shouldStop on launcher exit.
+export const registrationTimeoutMs = 30_000;
 const registrationDrainQuietMs = 1000;
 const killVerifyMs = 5000;
 const cgroupPidByteLimit = 8 * 1024;
@@ -147,7 +149,9 @@ export async function waitForSystemdScopeRegistration(
     if (registration) return registration;
     await new Promise((done) => setTimeout(done, 20));
   }
-  throw new Error(`systemd scope ${unit} did not register a live process`);
+  throw new Error(
+    `systemd scope ${unit} did not register a live process within ${timeoutMs} ms`,
+  );
 }
 
 /** How long a drain may take and how long the scope must stay empty to count as drained. */
@@ -438,8 +442,12 @@ export function assertSystemdUserScopesAvailable(
   const unit = systemdScopeUnit('probe');
   const result = spawnSync(
     'systemd-run',
-    ['--user', '--scope', '--unit', unit, '--quiet', '/bin/true'],
-    { stdio: 'ignore', timeout: 5000, env: userManagerEnvironment() },
+    ['--user', '--scope', '--collect', '--unit', unit, '--quiet', '/bin/true'],
+    {
+      stdio: 'ignore',
+      timeout: registrationTimeoutMs,
+      env: userManagerEnvironment(),
+    },
   );
   if (result.error || result.status !== 0) throw new Error(refusalMessage);
   scopesAvailableFor = availabilityKey;
@@ -466,6 +474,9 @@ export function spawnSystemdScope(
     [
       '--user',
       '--scope',
+      // A scope whose launcher dies before attach fails with result 'resources';
+      // --collect unloads such failed units instead of leaving them on the manager.
+      '--collect',
       '--unit',
       unit,
       '--quiet',
