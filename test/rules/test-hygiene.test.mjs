@@ -74,10 +74,14 @@ const skipPattern = /\.skip\b|\bskip:|\.todo\b|\btodo:/u;
 const suppressionPattern =
   /biome-ignore|@ts-expect-error|@ts-ignore|@ts-nocheck/u;
 
-const files = execFileSync('git', ['ls-files', 'test'], {
-  cwd: root,
-  encoding: 'utf8',
-})
+const files = execFileSync(
+  'git',
+  ['ls-files', '--cached', '--others', '--exclude-standard', 'test'],
+  {
+    cwd: root,
+    encoding: 'utf8',
+  },
+)
   .split('\n')
   .filter(
     (file) =>
