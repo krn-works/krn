@@ -20,7 +20,13 @@ const script = fileURLToPath(
 const fixtures = new URL('../fixtures/herdr/', import.meta.url);
 // A session running inside Herdr must not leak its pane into the launcher.
 const hostEnvironment = Object.fromEntries(
-  Object.entries(process.env).filter(([name]) => !name.startsWith('HERDR_')),
+  Object.entries(process.env).filter(
+    ([name]) =>
+      !name.startsWith('HERDR_') &&
+      !name.startsWith('CODEX_') &&
+      !name.startsWith('CLAUDE') &&
+      name !== 'KRN_SUCCESSOR_AGENT',
+  ),
 );
 const api = await import('../../scripts/claude/successor-launch.ts').catch(
   () => undefined,
@@ -506,7 +512,12 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
       [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
       {
         cwd: root,
-        env: { ...hostEnvironment, PATH: bin, AGENT_CALLS: agentCalls },
+        env: {
+          ...hostEnvironment,
+          CLAUDECODE: '1',
+          PATH: bin,
+          AGENT_CALLS: agentCalls,
+        },
         encoding: 'utf8',
       },
     );
@@ -521,5 +532,75 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
         'First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Read handoff',
       ],
     ]);
+  });
+});
+
+test('the successor harness follows the runtime environment, never an assumption', async (t) => {
+  const launch = (marker: Record<string, string>, herdr: boolean) => {
+    const { root, bin } = temporary(t);
+    const herdrCalls = join(root, 'herdr-calls.jsonl');
+    const agentCalls = join(root, 'agent-calls.jsonl');
+    if (herdr) writeExecutable(join(bin, 'herdr'), herdrStub());
+    writeExecutable(join(bin, 'claude'), agentStub());
+    writeExecutable(join(bin, 'codex'), agentStub());
+    const { KRN_SUCCESSOR_AGENT: _agent, ...environment } = herdrEnvironment(
+      root,
+      herdrCalls,
+      bin,
+    );
+    const result = spawnSync(
+      process.execPath,
+      [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
+      { cwd: root, env: { ...environment, ...marker }, encoding: 'utf8' },
+    );
+    const exists = (path: string) => (existsSync(path) ? readCalls(path) : []);
+    return { result, herdr: exists(herdrCalls), agent: exists(agentCalls) };
+  };
+
+  await t.test(
+    'Codex session starts Codex in Herdr without Claude flags',
+    () => {
+      const { result, herdr, agent } = launch(
+        { CODEX_THREAD_ID: 'thread-1' },
+        true,
+      );
+      assert.equal(result.status, 0, result.stderr);
+      const create = herdr.find(
+        (call) => call[0] === 'tab' && call[1] === 'create',
+      );
+      assert.ok(create?.includes('KRN_SUCCESSOR_AGENT=codex'));
+      const run = herdr.find((call) => call[0] === 'pane' && call[1] === 'run');
+      assert.deepEqual(run?.slice(3), [
+        '"$KRN_SUCCESSOR_AGENT"',
+        '"$KRN_SUCCESSOR_PROMPT"',
+      ]);
+      assert.deepEqual(agent, []);
+    },
+  );
+
+  await t.test('Claude Code session starts Claude in Herdr', () => {
+    const { result, herdr } = launch({ CLAUDECODE: '1' }, true);
+    assert.equal(result.status, 0, result.stderr);
+    const create = herdr.find(
+      (call) => call[0] === 'tab' && call[1] === 'create',
+    );
+    assert.ok(create?.includes('KRN_SUCCESSOR_AGENT=claude'));
+  });
+
+  await t.test('Codex without Herdr stops instead of launching Claude', () => {
+    const { result, agent } = launch({ CODEX_THREAD_ID: 'thread-1' }, false);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /codex successor needs Herdr/u);
+    assert.deepEqual(agent, []);
+  });
+
+  await t.test('unknown and ambiguous environments stop explicitly', () => {
+    const unknown = launch({}, true);
+    assert.equal(unknown.result.status, 2);
+    assert.match(unknown.result.stderr, /unknown harness/u);
+    assert.deepEqual([unknown.herdr, unknown.agent], [[], []]);
+    const both = launch({ CODEX_THREAD_ID: 't', CLAUDECODE: '1' }, true);
+    assert.equal(both.result.status, 2);
+    assert.match(both.result.stderr, /ambiguous harness/u);
   });
 });
