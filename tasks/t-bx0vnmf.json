@@ -1,7 +1,11 @@
 {
   "id": "t-bx0vnmf",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "invalid option values (priority, title, append-body, task id) exit 64"
+  },
   "created": "2026-11-07",
   "priority": 3,
   "title": "task create: invalid option values exit 65 instead of 64",

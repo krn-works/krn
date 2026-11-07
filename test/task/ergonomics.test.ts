@@ -5,7 +5,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
+import {
+  serializeTask,
+  TASK_ID_MAX_LENGTH,
+  type TaskRecord,
+} from '../../src/task/record.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 const scratch =
@@ -28,6 +32,35 @@ test('task quickstart and each verb help print usage and exit zero', async () =>
     }
   } finally {
     await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('invalid option values exit 64 and overlong ids are refused', async () => {
+  const long = `T-${'a'.repeat(TASK_ID_MAX_LENGTH)}`;
+  const repo = await fixtureRepo('input-', [task('T-1')]);
+  try {
+    for (const args of [
+      ['create', '--title', 'x', '--priority', '9', '--json'],
+      ['create', '--title', 'x', '--priority', '-1', '--json'],
+      ['create', '--title', '', '--json'],
+      ['create', '--title', 'a\nb', '--json'],
+      ['edit', 'T-1', '--priority', 'one', '--json'],
+      ['edit', 'T-1', '--append-body', ' ', '--json'],
+      ['show', long, '--json'],
+      ['claim', long, '--actor', 'lead', '--json'],
+    ]) {
+      const result = runCli(repo, args);
+      assertError(result, 64);
+    }
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+  const stored = await fixtureRepo('long-id-', [task(long)]);
+  try {
+    const check = runCli(stored, ['check']);
+    assert.equal(check.status, 65, check.stderr);
+  } finally {
+    await rm(stored, { recursive: true, force: true });
   }
 });
 
@@ -63,7 +96,7 @@ test('edit validates changes, appends paragraphs, refuses closed tasks, and reop
     const noChange = runCli(repo, ['edit', 'T-1', '--json']);
     assertError(noChange, 64);
     const invalid = runCli(repo, ['edit', 'T-1', '--priority', '4', '--json']);
-    assertError(invalid, 65);
+    assertError(invalid, 64);
     const invalidTitle = runCli(repo, [
       'edit',
       'T-1',
@@ -71,7 +104,7 @@ test('edit validates changes, appends paragraphs, refuses closed tasks, and reop
       'Two\nlines',
       '--json',
     ]);
-    assertError(invalidTitle, 65);
+    assertError(invalidTitle, 64);
 
     const closed = runCli(repo, ['close', 'T-1', '--as', 'done', '--json']);
     assert.equal(closed.status, 0, closed.stderr);
@@ -201,11 +234,11 @@ test('JSON errors retain human stderr and matching exit codes', async () => {
     assert.equal(usageJson.error, usage.stderr.trim());
 
     const data = runCli(repo, [
-      'create',
-      '--title',
-      'Bad priority',
-      '--priority',
-      '9',
+      'dep',
+      'add',
+      'T-1',
+      '--after',
+      'T-2',
       '--json',
     ]);
     assertError(data, 65);

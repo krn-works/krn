@@ -21,6 +21,8 @@ import {
   type TaskComment,
 } from './comments.ts';
 import {
+  isTaskId,
+  TASK_ID_MAX_LENGTH,
   TaskDataError,
   type TaskId,
   type TaskRecord,
@@ -50,7 +52,7 @@ const quickstart = [
   'krn task — agent quickstart',
   'Lead runs the loop: krn task ready → krn task claim --next --actor lead → work in a worktree → krn task release ID or krn task close ID --as done in the delivering PR.',
   'Workers receive the task id in their brief and do not mutate tracker state.',
-  'Records: tasks/<id>.json (tracked); claims: .krn/task-claims/<id>.json (ignored, shared from the main checkout).',
+  `Records: tasks/<id>.json (tracked; ids at most ${TASK_ID_MAX_LENGTH} characters); claims: .krn/task-claims/<id>.json (ignored, shared from the main checkout).`,
   'Exit codes: 0 success; 64 usage; 65 invalid task data; 70 internal error; 75 held claim or no ready task.',
   '',
   'krn task ready',
@@ -165,16 +167,11 @@ function create(args: string[], json: boolean): CommandOutput {
     const option = args[index];
     if (option === '--title') {
       if (title !== undefined) throw usage('--title may be supplied once');
-      title = nextValue(args, index++, option);
+      title = parseTitle(nextValue(args, index++, option));
     } else if (option === '--priority') {
       if (priority !== undefined)
         throw usage('--priority may be supplied once');
-      const value = nextValue(args, index++, option);
-      if (!/^-?\d+$/u.test(value))
-        throw new TaskDataError([
-          'priority must be an integer between 0 and 3',
-        ]);
-      priority = Number(value);
+      priority = parsePriority(nextValue(args, index++, option));
     } else if (option === '--after') {
       after.push(requireId(nextValue(args, index++, option)));
     } else if (option === '--body-file') {
@@ -482,16 +479,11 @@ function edit(args: string[], json: boolean): CommandOutput {
     const option = options[index];
     if (option === '--title') {
       if (title !== undefined) throw usage('--title may be supplied once');
-      title = nextValue(options, index++, option);
+      title = parseTitle(nextValue(options, index++, option));
     } else if (option === '--priority') {
       if (priority !== undefined)
         throw usage('--priority may be supplied once');
-      const value = nextValue(options, index++, option);
-      if (!/^-?\d+$/u.test(value))
-        throw new TaskDataError([
-          'priority must be an integer between 0 and 3',
-        ]);
-      priority = Number(value);
+      priority = parsePriority(nextValue(options, index++, option));
     } else if (option === '--body-file') {
       if (bodyFile !== undefined)
         throw usage('--body-file may be supplied once');
@@ -500,8 +492,7 @@ function edit(args: string[], json: boolean): CommandOutput {
       if (appendBody !== undefined)
         throw usage('--append-body may be supplied once');
       const text = nextValue(options, index++, option);
-      if (text.trim() === '')
-        throw new TaskDataError(['append body must not be empty']);
+      if (text.trim() === '') throw usage('--append-body must not be empty');
       appendBody = splitBody(text);
     } else if (option === '--reopen') {
       if (reopen) throw usage('--reopen may be supplied once');
@@ -575,8 +566,24 @@ function parseResolution(value: string, note: string): TaskResolution {
 }
 
 function requireId(value: string): TaskId {
-  if (!/^[A-Za-z]+-[0-9A-Za-z]+$/u.test(value))
-    throw usage(`invalid task id "${value}"`);
+  if (!isTaskId(value))
+    throw usage(
+      `invalid task id "${value}" (letters, "-", alphanumerics; at most ${TASK_ID_MAX_LENGTH} characters)`,
+    );
+  return value;
+}
+
+// Option values are CLI input: a bad one is a usage error (64); 65 stays for
+// corrupt stored task data.
+function parsePriority(value: string): number {
+  if (!/^[0-3]$/u.test(value))
+    throw usage('--priority must be an integer between 0 and 3');
+  return Number(value);
+}
+
+function parseTitle(value: string): string {
+  if (value.trim() === '') throw usage('--title must not be empty');
+  if (/[\r\n]/u.test(value)) throw usage('--title must be a single line');
   return value;
 }
 
