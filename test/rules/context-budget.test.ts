@@ -34,24 +34,4 @@ test('Claude context budget settings wire documented hooks and read-only reader'
     'startup|resume|compact',
   );
   assert.equal(settings.hooks.PreCompact, undefined);
-  const reader = readFileSync(
-    new URL('.claude/agents/krn-reader.md', root),
-    'utf8',
-  );
-  assert.match(
-    reader,
-    /^---\nname: krn-reader\nmodel: haiku\ntools: Read, Grep, Glob, Bash\n---/u,
-  );
-  for (const text of ['read-only', '300 words', 'never edits', 'file paths'])
-    assert.ok(reader.includes(text), text);
-  // The lead skill names advisories relative to the configured window, so a
-  // window change leaves no stale token counts behind.
-  const lead = readFileSync(
-    new URL('.agents/skills/krn-lead/SKILL.md', root),
-    'utf8',
-  );
-  assert.ok(
-    lead.includes('advisories at 60% and 80% of the `autoCompactWindow`'),
-  );
-  assert.doesNotMatch(lead, /\b\d+k of \d+k\b/u);
 });

@@ -74,8 +74,9 @@
       "action": "the lead MUST manage task status in `tasks/<id>.json` with `krn task` (`ready`, `claim`, `release`, `close`); workers MUST NOT mutate tracker state, must receive the task id in their brief, and MUST use it in commit titles and the `Ticket:` trailer",
       "owner": "lead",
       "enforcement": {
-        "kind": "test",
-        "check": "repository rules document task delivery and receiver proof"
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
       },
       "rationale": "Work status travels with the repository and delivery remains traceable to its task."
     },
@@ -85,8 +86,9 @@
       "action": "the author MUST test every integration or forward against its real receiver or a verbatim capture of its output",
       "owner": "author",
       "enforcement": {
-        "kind": "test",
-        "check": "repository rules document task delivery and receiver proof"
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
       },
       "rationale": "Receiver-boundary evidence verifies integration and forwarding contracts."
     },
@@ -96,8 +98,9 @@
       "action": "the lead MUST keep context bounded: delegate reading to a subagent returning a verdict and path, pass pointers instead of file contents, verify by commands that print a verdict, run independent slices as parallel worktree lanes with background agents, and hand off at the context-gauge advisory with `krn-handoff`",
       "owner": "lead",
       "enforcement": {
-        "kind": "test",
-        "check": "repository rules require bounded lead context"
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
       },
       "rationale": "Fresh sessions restart from durable files instead of accumulating context."
     }

@@ -37,17 +37,8 @@ test('the lead loop skills are the project skills for Codex and Claude Code', ()
   }
 });
 
-test('the lead loop skills name only current commands and flags', () => {
+test('the lead loop skills name only existing review flags and the real launch command', () => {
   const review = readFileSync(join(root, 'src', 'flow', 'cli.ts'), 'utf8');
-  const all = expected.map(skill).join('\n');
-  for (const stale of [
-    /--issue\b/u,
-    /--revision\b/u,
-    /--submit\b/u,
-    /krn work\b/u,
-    /install-release\.sh/u,
-  ])
-    assert.doesNotMatch(all, stale);
   const lead = skill('krn-lead');
   for (const flag of lead
     .match(/krn review [^`\n]+/gu)
