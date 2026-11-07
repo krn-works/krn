@@ -3,7 +3,7 @@
   "check_runs": [
     {
       "id": 127556387471,
-      "name": "krn/gate",
+      "name": "Check",
       "node_id": "CR_kwDOVAgDxs8AAAAdsvQCjw",
       "head_sha": "43e93cb8c3bfc31d74f9313fba76e255dd3f943f",
       "external_id": "ci/product/PR-236#2",
@@ -15,7 +15,7 @@
       "started_at": "2026-11-05T21:50:07Z",
       "completed_at": "2026-11-05T22:02:05Z",
       "output": {
-        "title": "krn/gate",
+        "title": "Check",
         "summary": "Gate, archived evidence and final reset verified; source 43e93cb8c3bfc31d74f9313fba76e255dd3f943f; base ef13690f16a9083a14c29fdac59139d191ccd4c0; attempt 77d398c8-dfaa-421e-8426-9f8114485866",
         "text": "Attempt 77d398c8-dfaa-421e-8426-9f8114485866; evidence complete=true. Diagnostics are untrusted gate output.\n\nGate stderr (last 4096 bytes):\nRunning as unit: ci-77d398c8-dfaa-421e-8426-9f8114485866-gate.service\nFinished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\nService runtime: 5min 26.086s\nCPU time consumed: 12ms\nMemory peak: 2.4M (swap: 0B)\n\n\nGate stdout (last 4096 bytes):\n\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/tool-scope.test.ts\",\"tests\":1,\"passed\":1,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/trace/index.test.ts\",\"tests\":25,\"passed\":25,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/trace/lead-intervention.test.ts\",\"tests\":17,\"passed\":17,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/verdict/evaluator-surface.test.ts\",\"tests\":13,\"passed\":13,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/verdict/npm-runtime.test.mjs\",\"tests\":1,\"passed\":1,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/verdict/pnpm-fallback.test.ts\",\"tests\":3,\"passed\":3,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/verdict/sandbox-orphans.test.ts\",\"tests\":3,\"passed\":3,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/verdict/sandbox-temp-capacity.test.ts\",\"tests\":1,\"passed\":1,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/verdict/sandbox.test.ts\",\"tests\":23,\"passed\":23,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/verdict/tamper-canaries.test.ts\",\"tests\":7,\"passed\":7,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/verdict/verdict-owner-hardening.test.ts\",\"tests\":16,\"passed\":16,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/verdict/verdict-quarantine-all.test.ts\",\"tests\":1,\"passed\":1,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/verdict/verdict-quarantine-atomic.test.ts\",\"tests\":3,\"passed\":3,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/verdict/verdict-quarantine-intent.test.ts\",\"tests\":3,\"passed\":3,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/verdict/verdict-tree-sweep.test.ts\",\"tests\":17,\"passed\":17,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/worker/acceptance-checks.test.ts\",\"tests\":12,\"passed\":12,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/worker/compaction.test.ts\",\"tests\":6,\"passed\":6,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/worker/dependency-guard.test.ts\",\"tests\":9,\"passed\":9,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/worker/hardening.test.ts\",\"tests\":61,\"passed\":61,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/worker/input-bounds.test.ts\",\"tests\":67,\"passed\":67,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/worker/nontechnical-blocker.test.ts\",\"tests\":11,\"passed\":11,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/worker/recovery.test.ts\",\"tests\":22,\"passed\":22,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/worker/report-consistency.test.ts\",\"tests\":8,\"passed\":8,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/worker/report-outcome.test.ts\",\"tests\":21,\"passed\":21,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/worker/required-outputs.test.ts\",\"tests\":6,\"passed\":6,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/worker/scope-bypass.test.ts\",\"tests\":20,\"passed\":20,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/worker/session.test.ts\",\"tests\":25,\"passed\":25,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/worker/shared-refs.test.ts\",\"tests\":17,\"passed\":17,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/worker/state-trust.test.ts\",\"tests\":31,\"passed\":31,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0},{\"file\":\"/home/ci/source/test/workflow.test.ts\",\"tests\":5,\"passed\":5,\"failed\":0,\"skipped\":0,\"todo\":0,\"cancelled\":0}]}\nKRN isolation evidence: 28 isolation files, 0 isolation skips\nTask data is valid.\n\n> krn@0.1.0 rules\n> node scripts/render-agents.ts --check\n\n\n",
         "annotations_count": 0,
@@ -23,7 +23,7 @@
       },
       "check_suite": { "id": 114117416905 },
       "app": {
-        "id": 5548482,
+        "id": 15368,
         "client_id": "Iv23lif6JKIBHmMC1LSZ",
         "slug": "krn-works-ci",
         "node_id": "A_kwHOFDzIvc4AVKnC",
@@ -49,7 +49,7 @@
           "site_admin": false
         },
         "name": "krn-works-ci",
-        "description": "Private Jenkins CI on owned PVE",
+        "description": "Private CI on owned PVE",
         "external_url": "https://github.com/krn-works/krn",
         "html_url": "https://github.com/apps/krn-works-ci",
         "created_at": "2026-10-30T22:23:37Z",
@@ -66,7 +66,7 @@
     },
     {
       "id": 127549243386,
-      "name": "krn/gate",
+      "name": "Check",
       "node_id": "CR_kwDOVAgDxs8AAAAdsob_-g",
       "head_sha": "43e93cb8c3bfc31d74f9313fba76e255dd3f943f",
       "external_id": "ci/product/PR-236#1",
@@ -78,7 +78,7 @@
       "started_at": "2026-11-05T21:36:23Z",
       "completed_at": "2026-11-05T21:49:25Z",
       "output": {
-        "title": "krn/gate",
+        "title": "Check",
         "summary": "Attempt 47ab39ac-09ba-424d-842c-1b9ddf84ee33 failed or is unverified; base=ef13690f16a9083a14c29fdac59139d191ccd4c0; gate=false; cleanup=true; evidence=true",
         "text": "Primary: hudson.AbortException: Executor returned 1\n\n\nAttempt 47ab39ac-09ba-424d-842c-1b9ddf84ee33; evidence complete=true. Diagnostics are untrusted gate output.\n\nGate stderr (last 4096 bytes):\nRunning as unit: ci-47ab39ac-09ba-424d-842c-1b9ddf84ee33-gate.service\nFinished with result: exit-code\nMain processes terminated with: code=exited, status=1/FAILURE\nService runtime: 6min 51.765s\nCPU time consumed: 14ms\nMemory peak: 2.4M (swap: 0B)\n\n\nGate stdout (last 4096 bytes):\nted\":1,\"invalidFields\":0,\"missingRequiredTurns\":0,\"complete\":false,\"multiTurnSemantics\":\"single-turn\"},\"state\":\"complete\",\"role\":\"spec\",\"model\":\"gpt-6-luna\",\"reasoningEffort\":\"high\",\"verdict\":\"PASS\",\"declaredVerdict\":\"PASS\",\"findings\":[],\"droppedStyle\":0,\"sessionId\":\"session-5\",\"finalMessage\":\"{\\\\\"verdict\\\\\":\\\\\"PASS\\\\\",\\\\\"findings\\\\\":[],\\\\\"prior\\\\\":[{\\\\\"index\\\\\":0,\\\\\"status\\\\\":\\\\\"RESOLVED\\\\\",\\\\\"evidence\\\\\":\\\\\"Checked the fix.\\\\\"},{\\\\\"index\\\\\":1,\\\\\"status\\\\\":\\\\\"RESOLVED\\\\\",\\\\\"evidence\\\\\":\\\\\"Checked the fix.\\\\\"},{\\\\\"index\\\\\":2,\\\\\"status\\\\\":\\\\\"RESOLVED\\\\\",\\\\\"evidence\\\\\":\\\\\"Checked the fix.\\\\\"}]}\",\"prior\":[{\"index\":0,\"status\":\"RESOLVED\",\"evidence\":\"Checked the fix.\"},{\"index\":1,\"status\":\"RESOLVED\",\"evidence\":\"Checked the fix.\"},{\"index\":2,\"status\":\"RESOLVED\",\"evidence\":\"Checked the fix.\"}]},{\"timing\":{\"startedAt\":\"2026-11-05T21:43:09.515Z\",\"endedAt\":\"2026-11-05T21:43:09.547Z\",\"durationMs\":32.73330799999985},\"usage\":{\"state\":\"unknown\",\"reason\":\"No valid token counts reported by the host\",\"tokens\":{},\"turnsStarted\":1,\"turnsCompleted\":1,\"invalidFields\":0,\"missingRequiredTurns\":0,\"complete\":false,\"multiTurnSemantics\":\"single-turn\"},\"state\":\"complete\",\"role\":\"adversarial\",\"model\":\"gpt-6-luna\",\"reasoningEffort\":\"high\",\"verdict\":\"PASS\",\"declaredVerdict\":\"PASS\",\"findings\":[],\"droppedStyle\":0,\"sessionId\":\"session-6\",\"finalMessage\":\"{\\\\\"verdict\\\\\":\\\\\"PASS\\\\\",\\\\\"findings\\\\\":[],\\\\\"prior\\\\\":[{\\\\\"index\\\\\":0,\\\\\"status\\\\\":\\\\\"RESOLVED\\\\\",\\\\\"evidence\\\\\":\\\\\"Checked the fix.\\\\\"},{\\\\\"index\\\\\":1,\\\\\"status\\\\\":\\\\\"RESOLVED\\\\\",\\\\\"evidence\\\\\":\\\\\"Checked the fix.\\\\\"},{\\\\\"index\\\\\":2,\\\\\"status\\\\\":\\\\\"RESOLVED\\\\\",\\\\\"evidence\\\\\":\\\\\"Checked the fix.\\\\\"}]}\",\"prior\":[{\"index\":0,\"status\":\"RESOLVED\",\"evidence\":\"Checked the fix.\"},{\"index\":1,\"status\":\"RESOLVED\",\"evidence\":\"Checked the fix.\"},{\"index\":2,\"status\":\"RESOLVED\",\"evidence\":\"Checked the fix.\"}]}]}\n# Subtest: two reused first FAIL calls exhaust the PR budget before the fake host\nok 118 - two reused first FAIL calls exhaust the PR budget before the fake host\n  ---\n  duration_ms: 916.985652\n  type: 'test'\n  ...\n# Subtest: head, session, worktree, remote spelling and shifted main preserve the base repository series\nok 119 - head, session, worktree, remote spelling and shifted main preserve the base repository series\n  ---\n  duration_ms: 439.320339\n  type: 'test'\n  ...\n# Subtest: input and authoritative PR errors consume zero attempts\nok 120 - input and authoritative PR errors consume zero attempts\n  ---\n  duration_ms: 303.174844\n  type: 'test'\n  ...\n# Subtest: an established PR base ref is immutable and wrong exceptions consume nothing\nok 121 - an established PR base ref is immutable and wrong exceptions consume nothing\n  ---\n  duration_ms: 1438.034698\n  type: 'test'\n  ...\n# Subtest: receiver verifies exact record, reservation and PR binding\nok 122 - receiver verifies exact record, reservation and PR binding\n  ---\n  duration_ms: 898.383698\n  type: 'test'\n  ...\n# Subtest: help states prior panel roles, deterministic blocking and separate budget exceptions\nok 123 - help states prior panel roles, deterministic blocking and separate budget exceptions\n  ---\n  duration_ms: 193.151587\n  type: 'test'\n  ...\n# Subtest: series invalid JSON fails closed before host cost\nok 124 - series invalid JSON fails closed before host cost\n  ---\n  duration_ms: 273.621036\n  type: 'test'\n  ...\n# Subtest: series gap fails closed before host cost\nok 125 - series gap fails closed before host cost\n  ---\n  duration_ms: 305.809801\n  type: 'test'\n  ...\n# Subtest: series missing reservations fails closed before host cost\nok 126 - series missing reservations fails closed before host cost\n  ---\n  duration_ms: 352.796478\n  type: 'test'\n  ...\n# Subtest: series missing reservation file fails closed before host cost\nok 127 - series missing reservation file fails closed before host cost\n  ---\n  duration_ms: 291.640962\n  type: 'test'\n  ...\n# Subtest: series missing metadata fails closed before host cost\nok 128 - series missing metadata fails closed before host cost\n  ---\n  duration_ms: 297.570398\n  type: 'test'\n  ...\n# Subtest: series symlink fails \n",
         "annotations_count": 0,
@@ -86,7 +86,7 @@
       },
       "check_suite": { "id": 114117416905 },
       "app": {
-        "id": 5548482,
+        "id": 15368,
         "client_id": "Iv23lif6JKIBHmMC1LSZ",
         "slug": "krn-works-ci",
         "node_id": "A_kwHOFDzIvc4AVKnC",
@@ -112,7 +112,7 @@
           "site_admin": false
         },
         "name": "krn-works-ci",
-        "description": "Private Jenkins CI on owned PVE",
+        "description": "Private CI on owned PVE",
         "external_url": "https://github.com/krn-works/krn",
         "html_url": "https://github.com/apps/krn-works-ci",
         "created_at": "2026-10-30T22:23:37Z",

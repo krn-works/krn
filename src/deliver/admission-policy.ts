@@ -1,38 +1,23 @@
 import { z } from 'zod';
 
-export const KRN_CHECK_APP_ID = 5548482;
 /** GitHub Actions is GitHub App 15368; its aggregate job is named `Check`. */
 export const ACTIONS_APP_ID = 15368;
 export const GATE_ADMISSION_POLICY_PATH = 'spec/ci-admission.json';
 
 const sha = z.string().regex(/^(?:[a-f\d]{40}|[a-f\d]{64})$/u);
-const admissionPolicySchema = z.union([
-  z
-    .object({
-      schemaVersion: z.literal(1),
-      checkRunName: z.literal('krn/gate'),
-      appId: z.literal(KRN_CHECK_APP_ID),
-    })
-    .strict(),
-  z
-    .object({
-      schemaVersion: z.literal(1),
-      checkRunName: z.literal('Check'),
-      appId: z.literal(ACTIONS_APP_ID),
-    })
-    .strict(),
-]);
+const admissionPolicySchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    checkRunName: z.literal('Check'),
+    appId: z.literal(ACTIONS_APP_ID),
+  })
+  .strict();
 
 export type GateAdmissionPolicy =
   | {
       readonly source: 'legacy-actions';
       readonly checkRunName: 'gate';
       readonly appSlug: 'github-actions';
-    }
-  | {
-      readonly source: 'pinned-app';
-      readonly checkRunName: 'krn/gate';
-      readonly appId: typeof KRN_CHECK_APP_ID;
     }
   | {
       readonly source: 'pinned-app';
@@ -99,13 +84,11 @@ export function gateAdmissionPolicyFromBase(
   }
   const parsed = admissionPolicySchema.safeParse(decoded);
   if (!parsed.success) throw new Error('base gate policy is invalid');
-  return parsed.data.checkRunName === 'Check'
-    ? { source: 'pinned-app', checkRunName: 'Check', appId: ACTIONS_APP_ID }
-    : {
-        source: 'pinned-app',
-        checkRunName: 'krn/gate',
-        appId: KRN_CHECK_APP_ID,
-      };
+  return {
+    source: 'pinned-app',
+    checkRunName: 'Check',
+    appId: ACTIONS_APP_ID,
+  };
 }
 
 export function matchesGateCheckRun(

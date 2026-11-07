@@ -156,36 +156,3 @@ func TestEvidenceCLIBoundsLogAndSummaryAndRejectsOutputSymlink(t *testing.T) {
 		t.Fatal("output parent symlink accepted")
 	}
 }
-
-func TestProductAdmissionUsesStrictTrustedNativePolicy(t *testing.T) {
-	for _, fixture := range []struct {
-		data string
-		pass bool
-	}{
-		{`{"schemaVersion":1,"checkRunName":"krn/gate","appId":5548482}`, true},
-		{`{"SchemaVersion":1,"checkRunName":"krn/gate","appId":5548482}`, false},
-		{`{"schemaVersion":1,"CheckRunName":"krn/gate","appId":5548482}`, false},
-		{`{"schemaVersion":1,"checkRunName":"krn/gate","AppID":5548482}`, false},
-		{`{"schemaVersion":1,"SchemaVersion":1,"checkRunName":"krn/gate","appId":5548482}`, false},
-		{`{"schemaVersion":1.0,"checkRunName":"krn/gate","appId":5548482e0}`, true},
-		{`{"schemaVersion":true,"checkRunName":"krn/gate","appId":5548482}`, false},
-		{`{"schemaVersion":1,"checkRunName":{},"appId":5548482}`, false},
-		{`{"schemaVersion":1,"checkRunName":"krn/gate","appId":[5548482]}`, false},
-		{`{}`, false},
-		{`{"schemaVersion":1,"checkRunName":"krn/gate","appId":1}`, false},
-		{`{"schemaVersion":1,"checkRunName":"gate","appId":5548482}`, false},
-		{`{"schemaVersion":1,"checkRunName":"krn/gate","appId":5548482,"command":"echo pass"}`, false},
-		{`{"schemaVersion":1,"schemaVersion":1,"checkRunName":"krn/gate","appId":5548482}`, false},
-		{`{"schemaVersion":1,"checkRunName":"krn/gate","appId":"5548482"}`, false},
-		{`{"schemaVersion":1,"checkRunName":"krn/gate","appId":5548482}` + strings.Repeat(" ", 4096), false},
-	} {
-		var out, stderr bytes.Buffer
-		code := run([]string{"admission", "product-base"}, strings.NewReader(fixture.data), &out, &stderr)
-		if (code == 0) != fixture.pass {
-			t.Fatalf("policy=%s exit=%d stderr=%s", fixture.data, code, stderr.String())
-		}
-		if !fixture.pass && !strings.Contains(stderr.String(), "update branch from main or reconcile") {
-			t.Fatal("missing actionable refusal")
-		}
-	}
-}

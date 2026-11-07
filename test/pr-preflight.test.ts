@@ -186,7 +186,7 @@ async function fixture(t: test.TestContext, options: FixtureOptions = {}) {
     await mkdir(join(repo, 'spec'), { recursive: true });
     await writeFile(
       join(repo, 'spec', 'ci-admission.json'),
-      '{"schemaVersion":1,"checkRunName":"krn/gate","appId":5548482}\n',
+      '{"schemaVersion":1,"checkRunName":"Check","appId":15368}\n',
     );
   }
   if (taskFile === 'valid' || taskFile === 'invalid') {
@@ -318,9 +318,7 @@ function runHarness(
         {
           ...gateCheck(),
           head_sha: value.head,
-          ...(value.gatePolicy
-            ? { name: 'krn/gate', app: { id: 5548482 } }
-            : {}),
+          ...(value.gatePolicy ? { name: 'Check', app: { id: 15368 } } : {}),
         },
       ],
     })};
@@ -445,9 +443,9 @@ test('preflight selects App admission policy from base, not PR head', async (t) 
     url: 'https://github.com/krn-works/krn/actions/runs/1',
     status: 'completed',
     conclusion: 'success',
-    name: 'krn/gate',
+    name: 'Check',
     head: value.head,
-    appId: 5548482,
+    appId: 15368,
   });
 });
 
@@ -620,7 +618,7 @@ test('preflight ignores optional local diagnostic failures and skips', async (t)
 
 for (const [label, patch] of [
   ['wrong head', { head_sha: 'f'.repeat(40) }],
-  ['wrong App', { app: { id: 15368, slug: 'github-actions' } }],
+  ['wrong App', { app: { id: 1, slug: 'other-app' } }],
   ['wrong name', { name: 'gate' }],
   ['failed', { conclusion: 'failure' }],
   ['pending', { status: 'in_progress', conclusion: null }],
@@ -636,8 +634,8 @@ for (const [label, patch] of [
         : [
             {
               ...gateCheck(),
-              name: 'krn/gate',
-              app: { id: 5548482 },
+              name: 'Check',
+              app: { id: 15368 },
               head_sha: value.head,
               ...patch,
             },

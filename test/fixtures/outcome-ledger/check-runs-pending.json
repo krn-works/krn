@@ -3,7 +3,7 @@
   "check_runs": [
     {
       "id": 127442328242,
-      "name": "krn/gate",
+      "name": "Check",
       "node_id": "CR_kwDOVAgDxs8AAAAdrCeasg",
       "head_sha": "de9f3dc944c1dbeeb0c45403a0b1394913a84fe0",
       "external_id": "ci/product/PR-232#2",
@@ -15,7 +15,7 @@
       "started_at": "2026-11-05T18:21:41Z",
       "completed_at": "2026-11-05T18:34:29Z",
       "output": {
-        "title": "krn/gate",
+        "title": "Check",
         "summary": "Gate, archived evidence and final reset verified; source de9f3dc944c1dbeeb0c45403a0b1394913a84fe0; base e2bbd704722d97e1d087a9aafd47160a1d4ce070; attempt 33b62c65-e46d-4484-9cc8-5cec68df10c1",
         "text": "Attempt 33b62c65-e46d-4484-9cc8-5cec68df10c1; evidence complete=true. Diagnostics are untrusted gate output.\n\nGate stderr (last 4096 bytes):\nRunning as unit: ci-33b62c65-e46d-4484-9cc8-5cec68df10c1-gate.service\nFinished with result: success\nMain processes terminated with: code=exited, status=0/SUCCESS\nService runtime: 11min 30.607s\nCPU time consumed: 11ms\nMemory peak: 2.4M (swap: 0B)\n\n\nGate stdout (last 4096 bytes):\n504 - whole-file credential and binding scans stay within the hard two-second child bound\n  ---\n  duration_ms: 1426.508059\n  type: 'test'\n  ...\n# {\"testCase\":\"a-dashes\",\"elapsedMs\":215.6,\"status\":0,\"signal\":null}\n# {\"testCase\":\"jwt-prefixes\",\"elapsedMs\":245.3,\"status\":0,\"signal\":null}\n# {\"testCase\":\"short-sk-project\",\"elapsedMs\":182.9,\"status\":0,\"signal\":null}\n# {\"testCase\":\"short-slack\",\"elapsedMs\":185.9,\"status\":0,\"signal\":null}\n# {\"testCase\":\"password-words\",\"elapsedMs\":215.4,\"status\":0,\"signal\":null}\n# {\"testCase\":\"password-string\",\"elapsedMs\":198.5,\"status\":0,\"signal\":null}\n# {\"testCase\":\"password-empty\",\"elapsedMs\":181.1,\"status\":0,\"signal\":null}\n# Subtest: public delivery receiver refuses an unbound review even with passing delivery metadata\nok 505 - public delivery receiver refuses an unbound review even with passing delivery metadata\n  ---\n  duration_ms: 222.577584\n  type: 'test'\n  ...\n# Subtest: runJob commits contract-derived trailers and the public preflight admits that head\nok 506 - runJob commits contract-derived trailers and the public preflight admits that head\n  ---\n  duration_ms: 652.004032\n  type: 'test'\n  ...\n# Subtest: runJob and public preflight admit a contract with no R1-task declaration\nok 507 - runJob and public preflight admit a contract with no R1-task declaration\n  ---\n  duration_ms: 618.80665\n  type: 'test'\n  ...\n# Subtest: duplicate and malformed R1-task declarations stop before relay, trace, host, or projection writes\n    # Subtest: duplicate declarations\n    ok 1 - duplicate declarations\n      ---\n      duration_ms: 29.268971\n      type: 'test'\n      ...\n    # Subtest: malformed declaration\n    ok 2 - malformed declaration\n      ---\n      duration_ms: 27.755098\n      type: 'test'\n      ...\n    1..2\nok 508 - duplicate and malformed R1-task declarations stop before relay, trace, host, or projection writes\n  ---\n  duration_ms: 58.238314\n  type: 'test'\n  ...\n# Subtest: pending checkpoint recovery retains the accepted trailers and prepared commit\nok 509 - pending checkpoint recovery retains the accepted trailers and prepared commit\n  ---\n  duration_ms: 686.14993\n  type: 'test'\n  ...\n# Subtest: failed startup releases only the positively cancelled bound capsule lease\nok 510 - failed startup releases only the positively cancelled bound capsule lease\n  ---\n  duration_ms: 126.506543\n  type: 'test'\n  ...\n# Subtest: startup lease handback refuses a different owner, epoch, or lease state\nok 511 - startup lease handback refuses a different owner, epoch, or lease state\n  ---\n  duration_ms: 149.692951\n  type: 'test'\n  ...\n# Subtest: startup rejection without a successful bind preserves the existing owner\nok 512 - startup rejection without a successful bind preserves the existing owner\n  ---\n  duration_ms: 137.598302\n  type: 'test'\n  ...\n# Subtest: resuming a ready_for_review checkpoint re-verdicts without starting a session\nok 513 - resuming a ready_for_review checkpoint re-verdicts without starting a session\n  ---\n  duration_ms: 170.783441\n  type: 'test'\n  ...\n# Subtest: checkpoint interruption resumes one action in a fresh session\nok 514 - checkpoint interruption resumes one action in a fresh session\n  ---\n  duration_ms: 153.863743\n  type: 'test'\n  ...\n# Subtest: a dead scoped session without an end record is recovered as session_lost\nok 515 - a dead scoped session without an end record is recovered as session_lost\n  ---\n  duration_ms: 2.636597\n  type: 'test'\n  ...\n# Subtest: legacy persisted scoped session without registration proof stays already running\nok 516 - legacy persisted scoped session without registration proof stays already running\n  ---\n  duration_ms: 111.705878\n  type: 'test'\n  ...\n# Subtest: a concurrent run cannot replace the active capsule session\nok 517 - a concurrent run cannot replace the active capsule session\n  ---\n  duration_ms: 190.975723\n  type: 'test'\n  ...\n# Subtest: partial checkpoint recovers before trace.commit without another commit\nok 518 - partial checkpoint recovers before trace.commit without another commit\n  ---\n  duration_ms: 583.129835\n  type: 'test'\n  ...\n# Subte\n",
         "annotations_count": 0,
@@ -23,7 +23,7 @@
       },
       "check_suite": { "id": 114000087644 },
       "app": {
-        "id": 5548482,
+        "id": 15368,
         "client_id": "Iv23lif6JKIBHmMC1LSZ",
         "slug": "krn-works-ci",
         "node_id": "A_kwHOFDzIvc4AVKnC",
@@ -49,7 +49,7 @@
           "site_admin": false
         },
         "name": "krn-works-ci",
-        "description": "Private Jenkins CI on owned PVE",
+        "description": "Private CI on owned PVE",
         "external_url": "https://github.com/krn-works/krn",
         "html_url": "https://github.com/apps/krn-works-ci",
         "created_at": "2026-10-30T22:23:37Z",
@@ -66,7 +66,7 @@
     },
     {
       "id": 127399660730,
-      "name": "krn/gate",
+      "name": "Check",
       "node_id": "CR_kwDOVAgDxs8AAAAdqZyMug",
       "head_sha": "de9f3dc944c1dbeeb0c45403a0b1394913a84fe0",
       "external_id": "ci/product/PR-232#1",
@@ -78,7 +78,7 @@
       "started_at": "2026-11-05T17:06:23Z",
       "completed_at": null,
       "output": {
-        "title": "krn/gate",
+        "title": "Check",
         "summary": "Attempt 6b698608-464a-4228-985f-bd7cd1f92e27; source de9f3dc944c1dbeeb0c45403a0b1394913a84fe0; base e2bbd704722d97e1d087a9aafd47160a1d4ce070",
         "text": "",
         "annotations_count": 0,
@@ -86,7 +86,7 @@
       },
       "check_suite": { "id": 114000087644 },
       "app": {
-        "id": 5548482,
+        "id": 15368,
         "client_id": "Iv23lif6JKIBHmMC1LSZ",
         "slug": "krn-works-ci",
         "node_id": "A_kwHOFDzIvc4AVKnC",
@@ -112,7 +112,7 @@
           "site_admin": false
         },
         "name": "krn-works-ci",
-        "description": "Private Jenkins CI on owned PVE",
+        "description": "Private CI on owned PVE",
         "external_url": "https://github.com/krn-works/krn",
         "html_url": "https://github.com/apps/krn-works-ci",
         "created_at": "2026-10-30T22:23:37Z",

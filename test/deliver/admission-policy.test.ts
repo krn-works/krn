@@ -6,12 +6,6 @@ import {
 } from '../../src/deliver/admission-policy.ts';
 
 const base = 'a'.repeat(40);
-const policyBlob = JSON.stringify({
-  schemaVersion: 1,
-  checkRunName: 'krn/gate',
-  appId: 5548482,
-});
-
 test('missing base policy preserves the legacy Actions selector', () => {
   const policy = gateAdmissionPolicyFromBase(base, () => '');
   assert.equal(
@@ -24,35 +18,12 @@ test('missing base policy preserves the legacy Actions selector', () => {
   );
   assert.equal(
     matchesGateCheckRun(
-      { name: 'krn/gate', head_sha: base, app: { id: 5548482 } },
+      { name: 'Check', head_sha: base, app: { id: 15368 } },
       base,
       policy,
     ),
     false,
   );
-});
-
-test('base policy pins App ID, exact context, and exact check head', () => {
-  const policy = gateAdmissionPolicyFromBase(base, (args) => {
-    if (args[0] === 'ls-tree')
-      return `100644 blob ${'b'.repeat(40)}\tspec/ci-admission.json\n`;
-    if (args[0] === 'cat-file') return policyBlob;
-    throw new Error('unexpected Git read');
-  });
-  assert.equal(
-    matchesGateCheckRun(
-      { name: 'krn/gate', head_sha: base, app: { id: 5548482 } },
-      base,
-      policy,
-    ),
-    true,
-  );
-  for (const check of [
-    { name: 'gate', head_sha: base, app: { id: 5548482 } },
-    { name: 'krn/gate', head_sha: base, app: { id: 15368 } },
-    { name: 'krn/gate', head_sha: 'c'.repeat(40), app: { id: 5548482 } },
-  ])
-    assert.equal(matchesGateCheckRun(check, base, policy), false);
 });
 
 test('malformed or non-regular base policy fails closed', () => {
@@ -105,14 +76,14 @@ test('base policy can pin the GitHub Actions aggregate Check', () => {
     true,
   );
   for (const check of [
-    { name: 'krn/gate', head_sha: base, app: { id: 5548482 } },
-    { name: 'Check', head_sha: base, app: { id: 5548482 } },
+    { name: 'gate', head_sha: base, app: { id: 15368 } },
+    { name: 'Check', head_sha: base, app: { id: 1 } },
     { name: 'Check', head_sha: 'c'.repeat(40), app: { id: 15368 } },
   ])
     assert.equal(matchesGateCheckRun(check, base, policy), false);
   for (const mixed of [
-    { schemaVersion: 1, checkRunName: 'Check', appId: 5548482 },
-    { schemaVersion: 1, checkRunName: 'krn/gate', appId: 15368 },
+    { schemaVersion: 1, checkRunName: 'Check', appId: 1 },
+    { schemaVersion: 1, checkRunName: 'gate', appId: 15368 },
   ])
     assert.throws(
       () =>

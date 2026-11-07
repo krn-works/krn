@@ -861,7 +861,7 @@ func TestMissingNullAndDuplicateSummaryFieldsAreRejected(t *testing.T) {
 	}
 }
 
-// A 12 GiB gate VM reports MemTotal 11966 MiB (Jenkins ci/product/main #88): the
+// A 12 GiB gate VM reports MemTotal 11966 MiB (a recorded product gate run): the
 // guest kernel and firmware overhead grows with VM memory, so a fixed 256 MiB
 // window refused every gate after the profile raise.
 func TestGuestMemoryToleranceScalesWithVMMemory(t *testing.T) {

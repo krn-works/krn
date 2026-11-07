@@ -61,8 +61,8 @@ test('wait failure preserves rerun instruction and exits 74', async () => {
     (error: unknown) => {
       assert.ok(error instanceof Error);
       assert.equal(Reflect.get(error, 'exitCode'), 74);
-      assert.match(error.message, /gate concluded failure/);
-      assert.ok(error.message.includes(`krn ci rerun --pr 7 --head ${head}`));
+      assert.match(error.message, /concluded failure/);
+      assert.ok(error.message.includes('gh run rerun <run-id> --failed'));
       assert.ok(!error.message.includes('\n'));
       return true;
     },
@@ -111,8 +111,8 @@ for (const [status, printed] of [
         head,
         policy: {
           source: 'pinned-app',
-          checkRunName: 'krn/gate',
-          appId: 5548482,
+          checkRunName: 'Check',
+          appId: 15368,
         },
         gh: async () =>
           JSON.stringify([
@@ -123,11 +123,11 @@ for (const [status, printed] of [
                   : [
                       {
                         id: 1,
-                        name: 'krn/gate',
+                        name: 'Check',
                         head_sha: head,
                         status,
                         conclusion: null,
-                        app: { id: 5548482 },
+                        app: { id: 15368 },
                       },
                     ],
             },
@@ -145,7 +145,7 @@ for (const [status, printed] of [
         assert.equal(error.state, printed);
         assert.equal(
           error.message,
-          `bounded wait timed out after 2s: krn/gate ${printed} on ${head}; rerun the same command to resume`,
+          `bounded wait timed out after 2s: Check ${printed} on ${head}; rerun the same command to resume`,
         );
         assert.doesNotMatch(error.message, /[\p{Cc}\p{Cf}\u2028\u2029]/u);
         assert.ok(error.state.length <= 32);

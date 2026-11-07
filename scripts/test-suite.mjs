@@ -71,8 +71,6 @@ const childEnvironmentAllowlist = new Set([
 const childEnvironmentAllowlistPrefixes = ['KRN_', 'MISE_'];
 const childEnvironmentDenylist = new Set([
   'KRN_ISOLATION_APPROVAL_TOKEN',
-  'KRN_JENKINS_USER',
-  'KRN_JENKINS_TOKEN',
   'KRN_TEST_SHARDS',
   'KRN_TEST_SHARD_INDEX',
   'KRN_TEST_SHARD_TOTAL',

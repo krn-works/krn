@@ -119,8 +119,8 @@ function fixture(t: { after(fn: () => void): void }, pinnedApp = false) {
       join(main, 'spec/ci-admission.json'),
       JSON.stringify({
         schemaVersion: 1,
-        checkRunName: 'krn/gate',
-        appId: 5548482,
+        checkRunName: 'Check',
+        appId: 15368,
       }),
     );
   }
@@ -214,11 +214,11 @@ function fixture(t: { after(fn: () => void): void }, pinnedApp = false) {
           checkRuns: [
             {
               id: 1,
-              name: 'krn/gate',
+              name: 'Check',
               head_sha: head,
               status: 'completed',
               conclusion: 'success',
-              app: { id: 5548482 },
+              app: { id: 15368 },
             },
           ],
         }
@@ -385,13 +385,13 @@ for (const merged of [false, true]) {
         checkRuns: [
           {
             id: 1,
-            name: producer === 'App' ? 'krn/gate' : 'gate',
+            name: producer === 'App' ? 'Check' : 'gate',
             head_sha: f.config.head,
             status: 'completed',
             conclusion: 'success',
             app:
               producer === 'App'
-                ? { id: 5548482 }
+                ? { id: 15368 }
                 : { id: 15368, slug: 'github-actions' },
           },
         ],
@@ -422,20 +422,15 @@ for (const merged of [false, true]) {
           f.api.deliver(f.options, f.runtime),
           (error: unknown) => {
             assert.ok(error instanceof f.api.DeliveryFailure);
-            assert.equal(error.stage, merged ? 'ci-wait' : 'ci');
-            assert.equal(error.exitCode, merged ? 75 : 74);
-            if (merged) {
-              assert.ok(
-                error.message.includes(`krn/gate missing on ${f.config.head}`),
-              );
-              assert.match(error.message, /rerun the same command to resume/u);
-            }
-            assert.match(
-              error.message,
-              merged
-                ? /bounded wait timed out/u
-                : /base selects legacy GitHub Actions/u,
+            assert.equal(error.stage, 'ci-wait');
+            assert.equal(error.exitCode, 75);
+            assert.ok(
+              error.message.includes(
+                `${merged ? 'Check' : 'gate'} missing on ${f.config.head}`,
+              ),
             );
+            assert.match(error.message, /rerun the same command to resume/u);
+            assert.match(error.message, /bounded wait timed out/u);
             return true;
           },
         );
@@ -495,7 +490,7 @@ for (const status of ['missing', 'queued', 'in_progress', 'completed']) {
         if (status !== 'completed') {
           assert.equal(
             error.message,
-            `ci-wait: bounded wait timed out after 0s: krn/gate ${status} on ${f.config.head}; rerun the same command to resume`,
+            `ci-wait: bounded wait timed out after 0s: Check ${status} on ${f.config.head}; rerun the same command to resume`,
           );
         }
         return true;
@@ -532,7 +527,7 @@ test('main gate timeout runs hygiene, retains state and resumes from main', asyn
       assert.equal(error.exitCode, 75);
       assert.equal(
         error.message,
-        `ci-wait: bounded wait timed out after 0s: krn/gate in_progress on ${f.config.merge}; rerun the same command to resume`,
+        `ci-wait: bounded wait timed out after 0s: Check in_progress on ${f.config.merge}; rerun the same command to resume`,
       );
       return true;
     },

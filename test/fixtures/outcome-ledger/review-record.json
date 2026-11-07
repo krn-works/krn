@@ -7,7 +7,7 @@
     {
       "severity": "BLOCKING",
       "title": "GitHub requests can still hold the current build indefinitely",
-      "path": "infra/ci/jenkins/library/src/ci/Controller.groovy",
+      "path": "infra/ci/controller/library/src/ci/Controller.groovy",
       "line": 424,
       "defect": "For a sibling build with a matching check, if `getRepository`, `getCheckRuns`, or the update request stalls, the deadline is not checked until that synchronous call returns. The 20-second budget therefore does not bound the delay before checkout and runner admission.",
       "fix": "Apply a request timeout and shared deadline to every GitHub call in reconciliation, or move reconciliation off the current build’s synchronous path.",
@@ -16,7 +16,7 @@
     {
       "severity": "BLOCKING",
       "title": "[contract] Budżet nie ogranicza czasu trwającego żądania GitHub",
-      "path": "infra/ci/jenkins/library/src/ci/Controller.groovy",
+      "path": "infra/ci/controller/library/src/ci/Controller.groovy",
       "line": 426,
       "defect": "Przy wolnym lub zawieszonym żądaniu `getCheckRuns` (albo wcześniejszym `getRepository` lub późniejszym `create`) metoda czeka synchronicznie bez sprawdzenia deadline’u. Konkretna sytuacja: żądanie do GitHub nie odpowiada, więc bieżący build nie przechodzi do checkoutu mimo przekroczenia 20-sekundowego budżetu.",
       "fix": "Ustaw limit czasu żądań nie dłuższy niż pozostały budżet i przerwij reconciliację po jego upływie.",
@@ -53,7 +53,7 @@
   "panelVerdict": "FAIL",
   "redFirst": [
     {
-      "path": "test/deliver/gate-wait-orphan.test.ts",
+      "path": "test/deliver/gate-wait-pending.test.ts",
       "side": "base",
       "sha": "50995e092ff50b55e4b6780dae398984661617d5",
       "classification": "assertion",
@@ -63,7 +63,7 @@
       "summary": "\nERR_TEST_FAILURE\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   100\n- ]\n\nERR_ASSERTION\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   100\n- ]\n\nERR_TEST_FAILURE\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   100,\n-   200,\n-   300\n- ]\n\nERR_ASSERTION\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   100,\n-   200,\n-   300\n- ]\n\nERR_TEST_FAILURE\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   100\n- ]\n\nERR_ASSERTION\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   100\n- ]\n\nERR_TEST_FAILURE\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   190\n- ]\n\nERR_ASSERTION\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   190\n- ]\n\nERR_TEST_FAILURE\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   120000\n- ]\n\nERR_ASSERTION\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   120000\n- ]\n"
     },
     {
-      "path": "test/deliver/gate-wait-orphan.test.ts",
+      "path": "test/deliver/gate-wait-pending.test.ts",
       "side": "head",
       "sha": "a9d8ad3f6e97e34a88e66234b8b27cce28fd80fd",
       "classification": "pass",
@@ -76,10 +76,10 @@
   "contracts": [
     {
       "commit": "613ad8c838ace166ff83ac4275c4ae076450c6e3",
-      "path": "test/deliver/gate-wait-orphan.test.ts",
+      "path": "test/deliver/gate-wait-pending.test.ts",
       "kind": "red->green",
       "red": {
-        "path": "test/deliver/gate-wait-orphan.test.ts",
+        "path": "test/deliver/gate-wait-pending.test.ts",
         "side": "base",
         "sha": "117a8381e1ec185ff93344e6393978c6b5f941b7",
         "classification": "assertion",
@@ -89,7 +89,7 @@
         "summary": "\nERR_TEST_FAILURE\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   100\n- ]\n\nERR_ASSERTION\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   100\n- ]\n\nERR_TEST_FAILURE\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   100,\n-   200,\n-   300\n- ]\n\nERR_ASSERTION\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   100,\n-   200,\n-   300\n- ]\n\nERR_TEST_FAILURE\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   100\n- ]\n\nERR_ASSERTION\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   100\n- ]\n\nERR_TEST_FAILURE\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   190\n- ]\n\nERR_ASSERTION\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   190\n- ]\n\nERR_TEST_FAILURE\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   120000\n- ]\n\nERR_ASSERTION\nExpected values to be strictly deep-equal:\n+ actual - expected\n\n+ []\n- [\n-   120000\n- ]\n"
       },
       "green": {
-        "path": "test/deliver/gate-wait-orphan.test.ts",
+        "path": "test/deliver/gate-wait-pending.test.ts",
         "side": "head",
         "sha": "a9d8ad3f6e97e34a88e66234b8b27cce28fd80fd",
         "classification": "pass",
@@ -135,7 +135,7 @@
         {
           "severity": "BLOCKING",
           "title": "[contract] Budżet nie ogranicza czasu trwającego żądania GitHub",
-          "path": "infra/ci/jenkins/library/src/ci/Controller.groovy",
+          "path": "infra/ci/controller/library/src/ci/Controller.groovy",
           "line": 426,
           "defect": "Przy wolnym lub zawieszonym żądaniu `getCheckRuns` (albo wcześniejszym `getRepository` lub późniejszym `create`) metoda czeka synchronicznie bez sprawdzenia deadline’u. Konkretna sytuacja: żądanie do GitHub nie odpowiada, więc bieżący build nie przechodzi do checkoutu mimo przekroczenia 20-sekundowego budżetu.",
           "fix": "Ustaw limit czasu żądań nie dłuższy niż pozostały budżet i przerwij reconciliację po jego upływie."
@@ -143,7 +143,7 @@
       ],
       "droppedStyle": 0,
       "sessionId": "2ac2fb43-c0e1-41cf-9c52-d8b5ea8eff7e",
-      "finalMessage": "{\"verdict\":\"FAIL\",\"prior\":[{\"index\":0,\"status\":\"UNRESOLVED\",\"evidence\":\"Limit 20 s ogranicza sprawdzanie kolejnych buildów (Controller.groovy:401–411), ale wywołania GitHub są synchroniczne i bez widocznego limitu czasu (linia 424 oraz 426–437). Jeśli `getRepository`, `getCheckRuns` lub `create()` zawiesi się po upływie budżetu, bieżący build nadal czeka; komentarz przy metodzie wprost dopuszcza oczekiwanie na trwające żądanie.\"}],\"findings\":[{\"severity\":\"BLOCKING\",\"title\":\"[contract] Budżet nie ogranicza czasu trwającego żądania GitHub\",\"path\":\"infra/ci/jenkins/library/src/ci/Controller.groovy\",\"line\":426,\"defect\":\"Przy wolnym lub zawieszonym żądaniu `getCheckRuns` (albo wcześniejszym `getRepository` lub późniejszym `create`) metoda czeka synchronicznie bez sprawdzenia deadline’u. Konkretna sytuacja: żądanie do GitHub nie odpowiada, więc bieżący build nie przechodzi do checkoutu mimo przekroczenia 20-sekundowego budżetu.\",\"fix\":\"Ustaw limit czasu żądań nie dłuższy niż pozostały budżet i przerwij reconciliację po jego upływie.\"}]}",
+      "finalMessage": "{\"verdict\":\"FAIL\",\"prior\":[{\"index\":0,\"status\":\"UNRESOLVED\",\"evidence\":\"Limit 20 s ogranicza sprawdzanie kolejnych buildów (Controller.groovy:401–411), ale wywołania GitHub są synchroniczne i bez widocznego limitu czasu (linia 424 oraz 426–437). Jeśli `getRepository`, `getCheckRuns` lub `create()` zawiesi się po upływie budżetu, bieżący build nadal czeka; komentarz przy metodzie wprost dopuszcza oczekiwanie na trwające żądanie.\"}],\"findings\":[{\"severity\":\"BLOCKING\",\"title\":\"[contract] Budżet nie ogranicza czasu trwającego żądania GitHub\",\"path\":\"infra/ci/controller/library/src/ci/Controller.groovy\",\"line\":426,\"defect\":\"Przy wolnym lub zawieszonym żądaniu `getCheckRuns` (albo wcześniejszym `getRepository` lub późniejszym `create`) metoda czeka synchronicznie bez sprawdzenia deadline’u. Konkretna sytuacja: żądanie do GitHub nie odpowiada, więc bieżący build nie przechodzi do checkoutu mimo przekroczenia 20-sekundowego budżetu.\",\"fix\":\"Ustaw limit czasu żądań nie dłuższy niż pozostały budżet i przerwij reconciliację po jego upływie.\"}]}",
       "prior": [
         {
           "index": 0,
@@ -185,7 +185,7 @@
           "category": "contract",
           "severity": "BLOCKING",
           "title": "Żądanie GitHub może przekroczyć budżet uzgadniania",
-          "path": "infra/ci/jenkins/library/src/ci/Controller.groovy",
+          "path": "infra/ci/controller/library/src/ci/Controller.groovy",
           "line": 426,
           "defect": "Scenariusz: pojedyncze żądanie getCheckRuns dla sprawdzanego buildu zawiesza się na ponad 20 sekund. Pętla sprawdza deadline dopiero przed następnym buildem, więc synchroniczne żądanie opóźnia checkout i przydział runnera bieżącego buildu ponad deklarowany limit.",
           "fix": "Ogranicz każde żądanie GitHub pozostałym czasem budżetu, z timeoutem lub anulowaniem."
@@ -193,12 +193,12 @@
       ],
       "droppedStyle": 0,
       "sessionId": "935395f1-7fe4-4d3d-a23e-2b18de29b5c2",
-      "finalMessage": "{\"verdict\":\"FAIL\",\"prior\":[{\"index\":0,\"status\":\"UNRESOLVED\",\"evidence\":\"W [Controller.groovy](/repo/.krn/worktrees/orphan-check-runs/.krn/tmp/judge-spec-Y2esaH/repo/infra/ci/jenkins/library/src/ci/Controller.groovy:400) komentarz dopuszcza jedno trwające żądanie GitHub poza budżetem, a odczyt check run w linii 426 jest synchroniczny. Jeśli to żądanie trwa ponad 20 sekund, bieżący build nadal czeka przed checkoutem i przydziałem runnera.\"}],\"findings\":[{\"severity\":\"BLOCKING\",\"category\":\"contract\",\"title\":\"Żądanie GitHub może przekroczyć budżet uzgadniania\",\"path\":\"infra/ci/jenkins/library/src/ci/Controller.groovy\",\"line\":426,\"defect\":\"Scenariusz: pojedyncze żądanie getCheckRuns dla sprawdzanego buildu zawiesza się na ponad 20 sekund. Pętla sprawdza deadline dopiero przed następnym buildem, więc synchroniczne żądanie opóźnia checkout i przydział runnera bieżącego buildu ponad deklarowany limit.\",\"fix\":\"Ogranicz każde żądanie GitHub pozostałym czasem budżetu, z timeoutem lub anulowaniem.\"}]}",
+      "finalMessage": "{\"verdict\":\"FAIL\",\"prior\":[{\"index\":0,\"status\":\"UNRESOLVED\",\"evidence\":\"W [Controller.groovy](/repo/.krn/worktrees/orphan-check-runs/.krn/tmp/judge-spec-Y2esaH/repo/infra/ci/controller/library/src/ci/Controller.groovy:400) komentarz dopuszcza jedno trwające żądanie GitHub poza budżetem, a odczyt check run w linii 426 jest synchroniczny. Jeśli to żądanie trwa ponad 20 sekund, bieżący build nadal czeka przed checkoutem i przydziałem runnera.\"}],\"findings\":[{\"severity\":\"BLOCKING\",\"category\":\"contract\",\"title\":\"Żądanie GitHub może przekroczyć budżet uzgadniania\",\"path\":\"infra/ci/controller/library/src/ci/Controller.groovy\",\"line\":426,\"defect\":\"Scenariusz: pojedyncze żądanie getCheckRuns dla sprawdzanego buildu zawiesza się na ponad 20 sekund. Pętla sprawdza deadline dopiero przed następnym buildem, więc synchroniczne żądanie opóźnia checkout i przydział runnera bieżącego buildu ponad deklarowany limit.\",\"fix\":\"Ogranicz każde żądanie GitHub pozostałym czasem budżetu, z timeoutem lub anulowaniem.\"}]}",
       "prior": [
         {
           "index": 0,
           "status": "UNRESOLVED",
-          "evidence": "W [Controller.groovy](/repo/.krn/worktrees/orphan-check-runs/.krn/tmp/judge-spec-Y2esaH/repo/infra/ci/jenkins/library/src/ci/Controller.groovy:400) komentarz dopuszcza jedno trwające żądanie GitHub poza budżetem, a odczyt check run w linii 426 jest synchroniczny. Jeśli to żądanie trwa ponad 20 sekund, bieżący build nadal czeka przed checkoutem i przydziałem runnera."
+          "evidence": "W [Controller.groovy](/repo/.krn/worktrees/orphan-check-runs/.krn/tmp/judge-spec-Y2esaH/repo/infra/ci/controller/library/src/ci/Controller.groovy:400) komentarz dopuszcza jedno trwające żądanie GitHub poza budżetem, a odczyt check run w linii 426 jest synchroniczny. Jeśli to żądanie trwa ponad 20 sekund, bieżący build nadal czeka przed checkoutem i przydziałem runnera."
         }
       ]
     },
@@ -235,7 +235,7 @@
           "category": "contract",
           "severity": "BLOCKING",
           "title": "GitHub requests can still hold the current build indefinitely",
-          "path": "infra/ci/jenkins/library/src/ci/Controller.groovy",
+          "path": "infra/ci/controller/library/src/ci/Controller.groovy",
           "line": 424,
           "defect": "For a sibling build with a matching check, if `getRepository`, `getCheckRuns`, or the update request stalls, the deadline is not checked until that synchronous call returns. The 20-second budget therefore does not bound the delay before checkout and runner admission.",
           "fix": "Apply a request timeout and shared deadline to every GitHub call in reconciliation, or move reconciliation off the current build’s synchronous path."
@@ -243,7 +243,7 @@
       ],
       "droppedStyle": 0,
       "sessionId": "592c1df8-0252-4541-b729-01c14edb3a2c",
-      "finalMessage": "{\"verdict\":\"FAIL\",\"prior\":[{\"index\":0,\"status\":\"UNRESOLVED\",\"evidence\":\"`reconcileOrphans` checks its 20-second deadline only between iterations; its synchronous GitHub calls at `Controller.groovy:424,426,436` have no deadline or cancellation. A stalled GitHub request can therefore hold the build past the budget or indefinitely. The caller at `ownedCi.groovy:36` runs reconciliation before checkout.\"}],\"findings\":[{\"severity\":\"BLOCKING\",\"category\":\"contract\",\"title\":\"GitHub requests can still hold the current build indefinitely\",\"path\":\"infra/ci/jenkins/library/src/ci/Controller.groovy\",\"line\":424,\"defect\":\"For a sibling build with a matching check, if `getRepository`, `getCheckRuns`, or the update request stalls, the deadline is not checked until that synchronous call returns. The 20-second budget therefore does not bound the delay before checkout and runner admission.\",\"fix\":\"Apply a request timeout and shared deadline to every GitHub call in reconciliation, or move reconciliation off the current build’s synchronous path.\"}]}",
+      "finalMessage": "{\"verdict\":\"FAIL\",\"prior\":[{\"index\":0,\"status\":\"UNRESOLVED\",\"evidence\":\"`reconcileOrphans` checks its 20-second deadline only between iterations; its synchronous GitHub calls at `Controller.groovy:424,426,436` have no deadline or cancellation. A stalled GitHub request can therefore hold the build past the budget or indefinitely. The caller at `ownedCi.groovy:36` runs reconciliation before checkout.\"}],\"findings\":[{\"severity\":\"BLOCKING\",\"category\":\"contract\",\"title\":\"GitHub requests can still hold the current build indefinitely\",\"path\":\"infra/ci/controller/library/src/ci/Controller.groovy\",\"line\":424,\"defect\":\"For a sibling build with a matching check, if `getRepository`, `getCheckRuns`, or the update request stalls, the deadline is not checked until that synchronous call returns. The 20-second budget therefore does not bound the delay before checkout and runner admission.\",\"fix\":\"Apply a request timeout and shared deadline to every GitHub call in reconciliation, or move reconciliation off the current build’s synchronous path.\"}]}",
       "prior": [
         {
           "index": 0,
@@ -263,7 +263,7 @@
     "findings": [
       {
         "title": "Reconciliation can delay the current build",
-        "path": "infra/ci/jenkins/library/vars/ownedCi.groovy",
+        "path": "infra/ci/controller/library/vars/ownedCi.groovy",
         "line": 36,
         "defect": "For example, if GitHub requests for the 300 scanned builds are slow, this synchronous call holds the current build before checkout and runner admission. Swallowing exceptions does not bound that delay, contrary to the contract that reconciliation must not delay the current build.",
         "role": "prepass"
@@ -272,9 +272,9 @@
     "changedPaths": [
       "infra/ci/internal/executor/execute.go",
       "infra/ci/internal/executor/executor_test.go",
-      "infra/ci/jenkins/diagnostics-and-queue.md",
-      "infra/ci/jenkins/library/src/ci/Controller.groovy",
-      "infra/ci/jenkins/tests/pipeline_test.groovy",
+      "infra/ci/controller/diagnostics-and-queue.md",
+      "infra/ci/controller/library/src/ci/Controller.groovy",
+      "infra/ci/controller/tests/pipeline_test.groovy",
       "tasks/t-8ys2ke5.json",
       "test/ci/executor-profile-bounds.test.ts"
     ],
