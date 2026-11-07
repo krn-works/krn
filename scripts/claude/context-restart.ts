@@ -58,18 +58,13 @@ function claimActivity(path: string, claim: Record<string, unknown>): number {
   return latest;
 }
 
-try {
-  const input = hookInput(['SessionStart']);
-  if (
-    typeof input.source !== 'string' ||
-    !['startup', 'resume', 'clear', 'compact'].includes(input.source)
-  )
-    throw new Error('Invalid source');
+// The restart block for one project; shared by the Claude and Codex hooks.
+export function restartText(project: string, event: string): string {
   const [commonDirectory = '', sha = '', branch = ''] = execFileSync(
     'git',
     ['rev-parse', '--git-common-dir', 'HEAD', '--abbrev-ref', 'HEAD'],
     {
-      cwd: input.project,
+      cwd: project,
       encoding: 'utf8',
       timeout: 2000,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -77,7 +72,7 @@ try {
   )
     .trim()
     .split('\n');
-  const main = dirname(resolve(input.project, commonDirectory));
+  const main = dirname(resolve(project, commonDirectory));
   // Only state that changes per session; static rules live in CLAUDE.md.
   const lines = [`Branch: ${branch}; HEAD: ${sha.slice(0, 7)}`];
   const now = Date.now();
@@ -96,7 +91,7 @@ try {
         continue; // One unreadable claim must not hide the rest.
       }
       // A claim on a closed task is stale; a missing record stays visible.
-      if (closed(input.project, claim.id)) continue;
+      if (closed(project, claim.id)) continue;
       if (now - claimActivity(path, claim) > idleWindow) {
         idleClaims += 1;
         continue;
@@ -182,13 +177,25 @@ try {
   const length = (value: string) =>
     JSON.stringify({
       hookSpecificOutput: {
-        hookEventName: input.event,
+        hookEventName: event,
         additionalContext: value,
       },
     }).length;
   while (length(text) > 8000)
     text = text.slice(0, Math.max(0, text.length - (length(text) - 8000)));
-  emitContext(input.event, text);
-} catch {
-  /* Missing or unreadable state is not a reason to interrupt a session. */
+  return text;
+}
+
+if (import.meta.main) {
+  try {
+    const input = hookInput(['SessionStart']);
+    if (
+      typeof input.source !== 'string' ||
+      !['startup', 'resume', 'clear', 'compact'].includes(input.source)
+    )
+      throw new Error('Invalid source');
+    emitContext(input.event, restartText(input.project, input.event));
+  } catch {
+    /* Missing or unreadable state is not a reason to interrupt a session. */
+  }
 }

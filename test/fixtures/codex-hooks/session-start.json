@@ -1,0 +1,9 @@
+{
+  "session_id": "01a1b751-ff3a-7813-8219-03333c1265a4",
+  "transcript_path": "/fixture/codex/sessions/rollout-01a1b751-ff3a-7813-8219-03333c1265a4.jsonl",
+  "cwd": "/fixture/project",
+  "hook_event_name": "SessionStart",
+  "model": "gpt-6.1-sol",
+  "permission_mode": "bypassPermissions",
+  "source": "startup"
+}
