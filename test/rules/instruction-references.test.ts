@@ -11,11 +11,17 @@ const skills = readdirSync(join(root, '.agents', 'skills')).flatMap((name) =>
     .filter((file) => file.endsWith('.md'))
     .map((file) => `.agents/skills/${name}/${file}`),
 );
+const listed = (dir: string): string[] =>
+  readdirSync(join(root, dir))
+    .filter((file) => file.endsWith('.md'))
+    .map((file) => `${dir}/${file}`);
+// Every agent-facing page is checked as it appears; none is enumerated by hand.
 const documents = [
   'AGENTS.md',
-  'docs/program/lead-rules.md',
-  'docs/program/repository-workflow.md',
-  '.claude/agents/krn-reader.md',
+  'CONTEXT.md',
+  // proposals.md is the history register of retired mechanisms.
+  ...listed('docs/program').filter((file) => !file.endsWith('/proposals.md')),
+  ...listed('.claude/agents'),
   ...skills,
 ];
 // Pages that instructions name only to say KRN no longer creates them.
