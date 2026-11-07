@@ -75,6 +75,7 @@ const childEnvironmentDenylist = new Set([
   'KRN_TEST_SHARD_TOTAL',
   'KRN_TEST_OUTPUT',
   'KRN_TEST_EVENT_FILE',
+  'KRN_TEST_GROUP_TIMEOUT_MS',
 ]);
 
 function isInside(parent, path) {
@@ -293,6 +294,14 @@ function printStrictSummary(result) {
   );
 }
 
+// A group that outlives this budget is hung (a leaked child or open handle),
+// so the suite kills it and names its files instead of waiting for the CI
+// job timeout. The default stays well above the slowest healthy group.
+function groupTimeoutMs() {
+  const value = Number(process.env.KRN_TEST_GROUP_TIMEOUT_MS ?? 900_000);
+  return Number.isSafeInteger(value) && value >= 1 ? value : 900_000;
+}
+
 function signalExit(signal) {
   return signal === 'SIGINT' ? 130 : 143;
 }
@@ -316,6 +325,7 @@ async function runTestGroup({
   let stderr = '';
   let setupError;
   let runnerExitCode = 1;
+  let hung = false;
   let events = [];
   const workerDirectory = join(
     runDirectory,
@@ -388,6 +398,18 @@ async function runTestGroup({
       stderr += chunk;
     });
 
+    const watchdog = setTimeout(() => {
+      hung = true;
+      stderr += `Test group hung after ${groupTimeoutMs()} ms; killing it. Files: ${files.join(', ') || '(all)'}\n`;
+      try {
+        if (process.platform === 'win32') child.kill('SIGKILL');
+        else process.kill(-child.pid, 'SIGKILL');
+      } catch (error) {
+        if (error?.code !== 'ESRCH')
+          stderr += `Unable to kill hung test group: ${error.message}\n`;
+      }
+    }, groupTimeoutMs());
+    watchdog.unref();
     runnerExitCode = await new Promise((resolveRunner) => {
       let settled = false;
       child.once('error', (error) => {
@@ -405,6 +427,8 @@ async function runTestGroup({
         }
       });
     });
+    clearTimeout(watchdog);
+    if (hung) runnerExitCode = 124;
     const signal = getForwardedSignal();
     if (signal) runnerExitCode = signalExit(signal);
 

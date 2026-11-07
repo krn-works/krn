@@ -241,3 +241,30 @@ test('test wrapper includes failing tests and handles an empty duration summary'
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('test wrapper kills a hung group and names its files', async () => {
+  const { root, project } = await fixture();
+  try {
+    await writeFile(
+      join(project, 'test', 'hang.test.mjs'),
+      `import { spawn } from 'node:child_process';
+import { test } from 'node:test';
+test('leaks a child that never exits', () => {
+  spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'inherit' });
+  return new Promise(() => {});
+});`,
+    );
+    const result = run(project, ['test/hang.test.mjs'], {
+      KRN_TEST_SHARDS: '1',
+      KRN_TEST_GROUP_TIMEOUT_MS: '3000',
+    });
+    assert.equal(result.error, undefined);
+    assert.notEqual(result.status, 0);
+    assert.match(
+      result.stderr,
+      /Test group hung after 3000 ms; killing it\. Files: .*test\/hang\.test\.mjs/u,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

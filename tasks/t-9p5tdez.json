@@ -1,7 +1,11 @@
 {
   "id": "t-9p5tdez",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Culprit lived in retired src/trace and test/trace (trace/index serial file, deleted by #268/#272); remaining verdict and worker files pass in every grouping (K=1..4, 3 repeats). Added per-group watchdog (KRN_TEST_GROUP_TIMEOUT_MS, default 15 min) that kills a hung group, exits 124 and names its files, with a regression test."
+  },
   "created": "2026-11-07",
   "priority": 1,
   "title": "Fix order-dependent hang in verdict, worker report-outcome and trace/index tests",
