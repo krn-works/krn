@@ -167,17 +167,31 @@ test('grammar-valid model text is redacted in the session and inbox', async (t) 
   assert.equal(metrics.includes('sk-synthetic-model'), false);
 });
 
+// The value grammar is owned by the schemas; the CLI cases below only prove
+// each flag is checked before start or send writes anything.
+test('model and effort schemas refuse malformed and credential-like values', () => {
+  const { modelSchema, effortSchema } = worker();
+  for (const value of [
+    'Uppercase',
+    'bad/model',
+    'valid\n',
+    'a'.repeat(65),
+    'AUTH=synthetic-model',
+  ])
+    assert.equal(modelSchema.safeParse(value).success, false, value);
+  assert.equal(modelSchema.safeParse('a'.repeat(64)).success, true);
+  assert.equal(modelSchema.safeParse('gpt-6-luna').success, true);
+  for (const value of ['extreme', 'TOKEN: synthetic-effort'])
+    assert.equal(effortSchema.safeParse(value).success, false, value);
+  assert.equal(effortSchema.safeParse('xhigh').success, true);
+});
+
 test('invalid model and effort refuse start and send before writing', {
   concurrency: 6,
 }, async (t) => {
   for (const [key, value] of [
-    ['--model', 'Uppercase'],
     ['--model', 'bad/model'],
-    ['--model', 'valid\n'],
-    ['--model', 'a'.repeat(65)],
-    ['--model', 'AUTH=synthetic-model'],
     ['--effort', 'extreme'],
-    ['--effort', 'TOKEN: synthetic-effort'],
   ]) {
     t.test(`${key} ${value}`, async (t) => {
       const s = setup(t);
@@ -326,21 +340,27 @@ test('ignored ordinary roots cannot hide baseline instruction files or new symli
   }
 });
 
-test('.krn baseline enforces file-count and content bounds before launching a server', {
+// One owner per baseline bound: the file count is counted under .krn and the
+// byte total accumulates across roots, so neither a per-file size check nor an
+// uncounted .krn passes.
+test('untracked baseline enforces file-count and accumulated content bounds before launching a server', {
   concurrency: 6,
 }, async (t) => {
   for (const bound of ['files', 'bytes']) {
     t.test(bound, async (t) => {
       const s = setup(t);
-      const outsideRun = join(s.repo, '.krn/other');
-      fs.mkdirSync(outsideRun, { recursive: true });
       if (bound === 'files') {
+        const outsideRun = join(s.repo, '.krn/other');
+        fs.mkdirSync(outsideRun, { recursive: true });
         for (let i = 0; i <= 10000; i++)
           fs.writeFileSync(join(outsideRun, String(i)), 'x');
       } else {
-        const path = join(outsideRun, 'large');
-        fs.writeFileSync(path, '');
-        fs.truncateSync(path, 1024 * 1024 * 1024 + 1);
+        // Git lists untracked roots sorted, so the 1-byte root is summed
+        // first and the exactly-1 GB root crosses the total without being read.
+        fs.writeFileSync(join(s.repo, 'a-small'), 'x');
+        const large = join(s.repo, 'b-large');
+        fs.writeFileSync(large, '');
+        fs.truncateSync(large, 1024 * 1024 * 1024);
       }
       const result = await s.turn('ok', true);
       assert.equal(result.code, 65, result.stderr);
