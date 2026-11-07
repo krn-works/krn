@@ -1,7 +1,11 @@
 {
   "id": "t-t34x7a8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Scopes launch with collect (#326); test/hosts/systemd-scope-collect.test.ts asserts a timed-out scope leaves no unit (fails without collect). Full npm test 2026-11-07: failed krn-* before=0 after=0, exit 0."
+  },
   "created": "2026-11-07",
   "priority": 2,
   "title": "Codex host tests must reset their own failed systemd scopes",
