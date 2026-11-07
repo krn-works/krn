@@ -7,6 +7,7 @@
   "title": "Codex host tests must reset their own failed systemd scopes",
   "after": [],
   "body": [
-    "Codex host tests leave failed krn-* systemd scopes behind: on 2026-11-07 the user manager held 371 'loaded failed' krn-* units; one npm run fast over the 19 Codex-related tests added about 5 more and 5 parallel runs added 27. Acceptance: after a full test run, `systemctl --user list-units --all 'krn-*' --state=failed --no-legend | wc -l` is unchanged from before the run (tests reset-failed their own units in cleanup), with a test that asserts this for one launched scope."
+    "Codex host tests leave failed krn-* systemd scopes behind: on 2026-11-07 the user manager held 371 'loaded failed' krn-* units; one npm run fast over the 19 Codex-related tests added about 5 more and 5 parallel runs added 27. Acceptance: after a full test run, `systemctl --user list-units --all 'krn-*' --state=failed --no-legend | wc -l` is unchanged from before the run (tests reset-failed their own units in cleanup), with a test that asserts this for one launched scope.",
+    "Partial fix 2026-11-07 (#326, t-0c0gcmc): scope launches now pass --collect, which unloads units that end failed (verified: a failed transient unit without --collect stays 'loaded failed', with it is gone). The failures came from launchers killed before attach ('PID vanished before we could move it', result 'resources') after the user manager stalled ~6 s. Remaining acceptance: measure failed krn-* count before/after a full test run and add the asserting test."
   ]
 }
