@@ -1,0 +1,12 @@
+{
+  "id": "t-cz92be6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 1,
+  "title": "Exhaustive research: everything adoptable from t3code and external papers/repos/news",
+  "after": [],
+  "body": [
+    "Operator (2026-11-06, verbatim): \"pamietaj - zbadaj całe jego repo, wszystkie sztuczki, jakosc kodu, zasady, nie wiem cokolwiek, wynajdź wszystko co sexy, to samo względem innych paperów, repo, wzorców z rss news i tak dalej :-)\"; grant: \"wszystkie triki od theo są dozwolone szefie, to musi być superior tool\".\nScope: (a) exhaustive audit of pingdotgg/t3code — every workflow, script, lint/format/type config, AGENTS.md rules, code-quality conventions, test strategy, provider/agent driver patterns, release/dev tooling; (b) same lens over other papers, repos and news/RSS patterns for agent-driven delivery.\nOutputs: .krn/runs/lead/t3code-agentic/exhaustive.md and .krn/runs/lead/external-patterns/report.md — enumerate catalogs mechanically, report enumerated vs read (memory: research-enumerate-exhaustively); each finding = what, source path/URL, KRN fit, effort, proof idea.\nThen: split adoptable findings into tasks (existing: t-tq04sec t3code agentic tricks, t-nwdj5hx CI speed, t-fgr0es7 research report, t-kgcpy0y/t-mey03ws/t-5qwn3yy research)."
+  ]
+}

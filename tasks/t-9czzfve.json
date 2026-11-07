@@ -1,0 +1,13 @@
+{
+  "id": "t-9czzfve",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 0,
+  "title": "Ship admits only the base-selected required check, not every check run",
+  "after": [],
+  "body": [
+    "Blocks every delivery since the Actions cutover (ec17deb). Evidence: PR #248 head 725c758, review PASS (records/2.json), Actions Check success (run 42284720142), but `krn deliver` exits 76: \"check runs: 11; failing run index 11 is not completed successfully (status queued, conclusion missing)\". Run 11 is Jenkins krn/gate (App 5548482): Jenkins PR-248 builds #1/#2 fail fast with \"Exact Product base CI policy is missing or incompatible\" (base selects Actions) and never complete their check run, so it stays queued forever.\nCause: legacy `krn ship` (forwarded to ~/.codex/krn/current = releases/1eb17b8aa86e315fd1d1f1e0e67da5c47f1728dc, GLOBAL repo krn-works/krn-codex-skills, built from branch fix/codex-context-runtime, not main) `scripts/lib/ship/ship.mjs:65-79 checkRunsPassed` requires success on the newest run of EVERY (app,name) on the head; it never reads spec/ci-admission.json.\nDo: (1) ship considers only the required check selected by the PR base's spec/ci-admission.json (Product: name Check, app 15368) and ignores other apps' runs; red-first test in GLOBAL; seal + install via install-release.sh (standing grant memory:krn-install-seal); reconcile that the installed release is off-main. (2) Stop Jenkins publishing krn/gate on PRs (part of t-sdcdxb2) so no new orphans appear. Then rerun deliver for #248 from .krn/worktrees/ci-slim.\nNever fake a krn/gate success via the Jenkins App.",
+    "2026-11-06: fixed in GLOBAL #477 (315b6f0), sealed #478 (b41faae); PR #248 delivered with a PATH shim krn -> GLOBAL b41faae checkout. Host install NOT done: krn install apply exits 73 on operator-owned ~/.codex/AGENTS.md and ~/.config/opencode/AGENTS.md; resolution belongs to t-dsxc125. Close after the installed release (or Product-owned ship) admits only the base-selected check."
+  ]
+}

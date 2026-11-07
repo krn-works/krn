@@ -1,0 +1,12 @@
+{
+  "id": "t-dgc5n6q",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 0,
+  "title": "Treat stale agent instructions as blocking review findings",
+  "after": [],
+  "body": [
+    "Operator (2026-11-06, on PR #247 review \"NON_BLOCKING .agents/skills/krn-lead/SKILL.md:35 Instrukcja nadal wskazuje stare wymagane sprawdzenie\"): \"jak to non-blocking, to mega ważne jest szefunciu\".\nDefect class: an agent instruction (AGENTS.md, skills, docs/program, briefs) that names a mechanism the same PR retires or replaces. Agents follow instructions literally, so a stale instruction is a correctness defect, not style. On #247 the panel rated it NON_BLOCKING and the lead nearly delivered it.\nDo:\n1. Review panel: findings about instructions contradicting the PR's own change are BLOCKING (judge prompt + hardening checklist class).\n2. Deterministic check: when spec/ci-admission.json (or another selector) changes, agent instructions must not name the old selector except in history/ADR text — preflight observer.\n3. Lead rule: the lead never ships a NON_BLOCKING finding on agent instructions without fixing it or recording why.\nProof: replay PR #247 record .krn/runs/review-series/4a397cd3…/records/1.json — the finding must come out BLOCKING; the observer fails on archive/ci-actions-cb072e9 and passes on the fixed head."
+  ]
+}

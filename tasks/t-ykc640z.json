@@ -1,0 +1,12 @@
+{
+  "id": "t-ykc640z",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-03",
+  "priority": 2,
+  "title": "Align verify red-first with admission on isolation capability skips",
+  "after": [],
+  "body": [
+    "Outcome: `krn verify` red-first stops failing a changed test file whose only base/head result is an isolation capability skip (cause:capability), which review admission already ignores (deterministicCauses early return, src/flow/types.ts). Evidence: PR #179 (t-jgtaex2) changed two cases in test/flow/review.test.ts; verify reported 'red-first FAIL test/flow/review.test.ts base=cause:capability … base=skipped (not assertion)' on every head (.krn/runs/lead/override-predicate/verify.log), while review admission passed and npm test plus krn/gate were green. The red-first sandbox declares bwrap and systemdUserScope unavailable (src/flow/repository.ts:64-71), and verify changedRows require base pass|assertion (src/verify/index.ts:477-482). Acceptance: verify reports such a file as 'deferred to krn/gate (capability)' instead of FAIL, or the rule is shared with admission; a test shows a capability-only changed file does not fail verify, while an assertion-free skipped non-capability file still does."
+  ]
+}

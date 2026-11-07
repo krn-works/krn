@@ -1,0 +1,12 @@
+{
+  "id": "t-5fhremh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "Measure idleCompaction for long lead sessions",
+  "after": [],
+  "body": [
+    "Pilot t-hj92cp6 (.krn/runs/lead/t3-ab/report.md): T3 Code is not cheaper than native Claude Code, so port nothing by migration. Remaining native lever: idleCompaction is false in ~/.claude/settings.json:74. Measure one long lead session with idleCompaction on vs off (cache-write tokens after idle gaps over the cache TTL) and enable it in .claude/settings.json if it cuts cache writes."
+  ]
+}

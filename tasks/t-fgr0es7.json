@@ -1,0 +1,12 @@
+{
+  "id": "t-fgr0es7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 1,
+  "title": "Compute a shadow memory packet per slice and score it after review",
+  "after": [],
+  "body": [
+    "# Zadanie: ocena shadow packet na realnych sliceach (report #20, ADR 0014 D32)\nOutcome: dla każdego sliceu liczony jest deterministyczny pakiet pamięci (<=2k tokenów) zapisany pod .krn/ z revision, as-of i id rekordów; trafność mierzona po review, bez wpływu na brief.\nEvidence: D32 zezwala; brak implementacji (git grep shadow w src/scripts pusty); FR-40 niedomocowany (moc 0.002 przy 5 klastrach), więc shadow to jedyna ścieżka zbierania dowodu; t-gnpzkad to konsolidacja, nie shadow.\nProof: dla >=10 zmergowanych sliceów skrypt drukuje precision/recall pakietu vs pliki z diffu oraz listę pominiętego krytycznego kontekstu; test: brief z pakietem == brief bez (brak iniekcji).\nDobry retrieval nie odblokowuje bramki task-completion; zgodność z KRN-08 (stan pod .krn/)."
+  ]
+}

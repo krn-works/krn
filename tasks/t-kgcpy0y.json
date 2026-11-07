@@ -1,0 +1,12 @@
+{
+  "id": "t-kgcpy0y",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 1,
+  "title": "Inject faults at every effect/receipt boundary and prove recovery",
+  "after": [],
+  "body": [
+    "# Zadanie: fault injection na granicy efektu i potwierdzenia (report #13)\nOutcome: slice run/deliver po awarii między zdalnym skutkiem (utworzenie PR, merge) a lokalnym receipt wznawia się bez powielenia skutku.\nEvidence: reconcile #13 i plan 'C acceptance'; src/slice/journal.ts:14; zadania t-q90rzmq, t-gh06mpq, t-9z0mjgx naprawiają pojedyncze przypadki, nie wstrzykują awarii (KRN-12: dowód na prawdziwym receiverze lub wiernym capture).\nProof: harness zabija proces po 'PR created' przed zapisem receipt i po 'merged' przed zapisem; restart czyta odbiorcę i kończy z jednym PR i jednym merge; czerwony, gdy restart tworzy drugi PR.\nTimeout nie jest dowodem braku skutku; własność identyfikatora po stronie receivera."
+  ]
+}

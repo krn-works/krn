@@ -1,0 +1,12 @@
+{
+  "id": "t-8c53vb8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 1,
+  "title": "Remove Jenkins code and references from Product",
+  "after": [],
+  "body": [
+    "Jenkins and PVE VMs 108/109 are destroyed (2026-11-07). Product still has ~287 Jenkins references in 64 files (list in .krn/runs/lead/jenkins-off/global-ci.md): infra/ci/jenkins/, src/ci/rerun.ts + test, test/fixtures/jenkins/, ci-admission krn/gate leftovers, lead skill trap text. Delete them; keep ADRs as history. Also uninstall GitHub App 5548482 from krn-works if still installed."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-2h7c18m",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 0,
+  "title": "Measure delivery time per stage and rank the cuts",
+  "after": [],
+  "body": [
+    "Outcome: a committed, reproducible measurement of where delivery time goes, per stage, over the last 15 merged PRs: `krn/gate` stages (from Jenkins), `krn slice run` stages (from `.krn/runs/slice/*/journal.json` and landing logs), review panel duration, `pnpm install` in the worktree stage, and lead wait time; then a ranked list of cuts with an estimated saving each (sharding tests across executors, a dependency DAG instead of a serial gate, a pnpm store/cache for worktrees, skipping unchanged stages). Reference: t3code release.yml runs 8 server-test shards of ~2 min in parallel behind one preflight. Proof: a script under scripts/ that prints the per-stage table from real records, and a test that runs it on a verbatim capture."
+  ]
+}

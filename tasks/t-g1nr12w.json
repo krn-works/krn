@@ -1,0 +1,12 @@
+{
+  "id": "t-g1nr12w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 1,
+  "title": "Red-first sandbox leaks task slots until fork fails",
+  "after": [],
+  "body": [
+    "The red-first review sandbox (systemd-run --scope -p TasksMax=256, src/verdict/sandbox.ts ~1090) charges tasks of exited children until the scope hits 256: pids.current grew 21 -> 256 during one GLOBAL test/cli/ship.test.mjs run while only ~6 processes were alive, and git then failed with fork EAGAIN, so a passing observer classified as head=assertion (GLOBAL PR #477, diagnosis in the 2026-11-06 lead session). The same file in a plain scope with TasksMax=256 peaks at ~33. Find which process class leaks (bwrap --unshare-pid reaping, the preload/wrapper) and fix reaping or raise the limit with evidence; add an observer that runs a fork-heavy fixture under the sandbox."
+  ]
+}
