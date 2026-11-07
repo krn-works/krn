@@ -1,0 +1,14 @@
+{
+  "id": "t-tj26c9j",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "claims.test.ts 50s->14s: verbs run in-process via taskCommand, one real CLI spawn per verb kept"
+  },
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "Cut claims test runtime by running task verbs in-process",
+  "after": [],
+  "body": []
+}

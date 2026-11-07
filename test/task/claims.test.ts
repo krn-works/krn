@@ -38,15 +38,23 @@ beforeEach(async (t) => {
 test('claim --next claims a ready task and ready omits it', async () => {
   const repo = await tempRepo('claim-ready-');
   try {
-    const created = runCli(repo, ['create', '--title', 'Claimable task']);
+    const created = await runCli(
+      repo,
+      ['create', '--title', 'Claimable task'],
+      { spawn: true },
+    );
     assert.equal(created.status, 0, created.stderr);
     const id = created.stdout.trim();
 
-    const claimed = runCli(repo, ['claim', '--next', '--actor', 'worker']);
+    const claimed = await runCli(
+      repo,
+      ['claim', '--next', '--actor', 'worker'],
+      { spawn: true },
+    );
     assert.equal(claimed.status, 0, claimed.stderr);
     assert.equal(claimed.stdout.trim(), id);
 
-    const ready = runCli(repo, ['ready', '--json']);
+    const ready = await runCli(repo, ['ready', '--json'], { spawn: true });
     assert.equal(ready.status, 0, ready.stderr);
     assert.deepEqual(JSON.parse(ready.stdout).tasks, []);
   } finally {
@@ -78,7 +86,9 @@ test('ready unblocks only dependencies closed as done', async () => {
     task('T-8', { after: ['T-7'] }),
   ]);
   try {
-    assert.deepEqual(readyIds(runCli(repo, ['ready', '--json'])), ['T-2']);
+    assert.deepEqual(readyIds(await runCli(repo, ['ready', '--json'])), [
+      'T-2',
+    ]);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
@@ -90,7 +100,9 @@ test('ready excludes a task whose dependency remains open', async () => {
     task('T-2', { after: ['T-1'] }),
   ]);
   try {
-    assert.deepEqual(readyIds(runCli(repo, ['ready', '--json'])), ['T-1']);
+    assert.deepEqual(readyIds(await runCli(repo, ['ready', '--json'])), [
+      'T-1',
+    ]);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
@@ -103,7 +115,9 @@ test('ready resolves a three task dependency chain iteratively', async () => {
     task('T-3', { after: ['T-2'] }),
   ]);
   try {
-    assert.deepEqual(readyIds(runCli(repo, ['ready', '--json'])), ['T-1']);
+    assert.deepEqual(readyIds(await runCli(repo, ['ready', '--json'])), [
+      'T-1',
+    ]);
   } finally {
     await rm(repo, { recursive: true, force: true });
   }
@@ -117,7 +131,7 @@ test('ready orders by priority, created date, and id', async () => {
     task('T-1', { priority: 0, created: '2026-10-24' }),
   ]);
   try {
-    assert.deepEqual(readyIds(runCli(repo, ['ready', '--json'])), [
+    assert.deepEqual(readyIds(await runCli(repo, ['ready', '--json'])), [
       'T-1',
       'T-3',
       'T-2',
@@ -136,7 +150,7 @@ test('ready applies limit after sorting', async () => {
   ]);
   try {
     assert.deepEqual(
-      readyIds(runCli(repo, ['ready', '--json', '--limit', '2'])),
+      readyIds(await runCli(repo, ['ready', '--json', '--limit', '2'])),
       ['T-1', 'T-2'],
     );
   } finally {
@@ -147,15 +161,19 @@ test('ready applies limit after sorting', async () => {
 test('ready excludes live claims and show reports the claim', async () => {
   const repo = await fixtureRepo('ready-claimed-', [task('T-1'), task('T-2')]);
   try {
-    const claim = runCli(repo, ['claim', 'T-1', '--actor', 'worker']);
+    const claim = await runCli(repo, ['claim', 'T-1', '--actor', 'worker']);
     assert.equal(claim.status, 0, claim.stderr);
-    const held = runCli(repo, ['claim', 'T-1', '--actor', 'second']);
+    const held = await runCli(repo, ['claim', 'T-1', '--actor', 'second']);
     assert.equal(held.status, 75);
     assert.match(held.stderr, /actor worker/u);
     assert.match(held.stderr, /worktree .+ready-claimed-/u);
     assert.match(held.stderr, /branch main/u);
-    assert.deepEqual(readyIds(runCli(repo, ['ready', '--json'])), ['T-2']);
-    const show = runCli(repo, ['show', 'T-1', '--json']);
+    assert.deepEqual(readyIds(await runCli(repo, ['ready', '--json'])), [
+      'T-2',
+    ]);
+    const show = await runCli(repo, ['show', 'T-1', '--json'], {
+      spawn: true,
+    });
     assert.equal(show.status, 0, show.stderr);
     assert.equal(JSON.parse(show.stdout).claim.state, 'live');
     assert.equal(JSON.parse(show.stdout).claim.reason, 'live');
@@ -171,23 +189,30 @@ test('ready includes expired claims without deleting or rewriting them', async (
   const linked = join(dirname(repo), 'ready-expired-linked');
   try {
     addWorktree(repo, linked, 'ready-expired-branch');
-    const claim = runCli(linked, ['claim', 'T-1', '--actor', 'worker']);
+    const claim = await runCli(linked, ['claim', 'T-1', '--actor', 'worker']);
     assert.equal(claim.status, 0, claim.stderr);
     const claimFile = join(repo, '.krn', 'task-claims', 'T-1.json');
     const before = readFileSync(claimFile);
     git(repo, 'worktree', 'remove', '--force', linked);
 
-    assert.deepEqual(readyIds(runCli(repo, ['ready', '--json'])), ['T-1']);
+    assert.deepEqual(readyIds(await runCli(repo, ['ready', '--json'])), [
+      'T-1',
+    ]);
     assert.deepEqual(readFileSync(claimFile), before);
     assert.equal(
-      JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout).claim.state,
+      JSON.parse((await runCli(repo, ['show', 'T-1', '--json'])).stdout).claim
+        .state,
       'expired',
     );
     assert.equal(
-      JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout).claim.reason,
+      JSON.parse((await runCli(repo, ['show', 'T-1', '--json'])).stdout).claim
+        .reason,
       'expired: worktree path is missing',
     );
-    assert.equal(runCli(repo, ['release', 'T-1']).status, 0);
+    assert.equal(
+      (await runCli(repo, ['release', 'T-1'], { spawn: true })).status,
+      0,
+    );
     assert.equal(existsSync(claimFile), false);
   } finally {
     removeWorktree(repo, linked);
@@ -200,17 +225,23 @@ test('ready removes claims of tasks closed in the main checkout', async () => {
   const linked = join(dirname(repo), 'ready-closed-linked');
   try {
     addWorktree(repo, linked, 'ready-closed-branch');
-    assert.equal(runCli(linked, ['claim', 'T-1', '--actor', 'lead']).status, 0);
-    assert.equal(runCli(repo, ['claim', 'T-2', '--actor', 'lead']).status, 0);
-    const closed = runCli(linked, ['close', 'T-1', '--as', 'done']);
+    assert.equal(
+      (await runCli(linked, ['claim', 'T-1', '--actor', 'lead'])).status,
+      0,
+    );
+    assert.equal(
+      (await runCli(repo, ['claim', 'T-2', '--actor', 'lead'])).status,
+      0,
+    );
+    const closed = await runCli(linked, ['close', 'T-1', '--as', 'done']);
     assert.equal(closed.status, 0, closed.stderr);
     git(linked, 'commit', '-qam', 'close T-1');
     const claims = join(repo, '.krn', 'task-claims');
     // Closed only in the delivery branch: the claim still holds.
-    runCli(repo, ['ready', '--json']);
+    await runCli(repo, ['ready', '--json']);
     assert.ok(existsSync(join(claims, 'T-1.json')));
     git(repo, 'merge', '-q', 'ready-closed-branch');
-    assert.deepEqual(readyIds(runCli(repo, ['ready', '--json'])), []);
+    assert.deepEqual(readyIds(await runCli(repo, ['ready', '--json'])), []);
     assert.equal(existsSync(join(claims, 'T-1.json')), false);
     assert.ok(existsSync(join(claims, 'T-2.json')));
   } finally {
@@ -224,7 +255,7 @@ test('linked worktree claims land in the main checkout claim store', async () =>
   const linked = join(dirname(repo), 'claim-linked-store-linked');
   try {
     addWorktree(repo, linked, 'claim-linked-store-branch');
-    const claim = runCli(linked, ['claim', 'T-1', '--actor', 'worker']);
+    const claim = await runCli(linked, ['claim', 'T-1', '--actor', 'worker']);
     assert.equal(claim.status, 0, claim.stderr);
     const path = join(repo, '.krn', 'task-claims', 'T-1.json');
     assert.equal(existsSync(path), true);
@@ -260,10 +291,14 @@ test('claim --next reads readiness from its selected worktree', async () => {
   const linked = join(dirname(repo), 'claim-next-selected-linked');
   try {
     addWorktree(repo, linked, 'claim-next-selected-branch');
-    const created = runCli(linked, ['create', '--title', 'Linked-only task']);
+    const created = await runCli(linked, [
+      'create',
+      '--title',
+      'Linked-only task',
+    ]);
     assert.equal(created.status, 0, created.stderr);
     const id = created.stdout.trim();
-    const claimed = runCli(repo, [
+    const claimed = await runCli(repo, [
       'claim',
       '--next',
       '--actor',
@@ -274,7 +309,8 @@ test('claim --next reads readiness from its selected worktree', async () => {
     assert.equal(claimed.status, 0, claimed.stderr);
     assert.equal(claimed.stdout.trim(), id);
     assert.equal(
-      JSON.parse(runCli(linked, ['show', id, '--json']).stdout).claim.state,
+      JSON.parse((await runCli(linked, ['show', id, '--json'])).stdout).claim
+        .state,
       'live',
     );
   } finally {
@@ -369,17 +405,21 @@ test('removing a worktree expires its claim and makes the task ready', async () 
   const linked = join(dirname(repo), 'claim-worktree-removed-linked');
   try {
     addWorktree(repo, linked, 'claim-worktree-removed-branch');
-    const claim = runCli(linked, ['claim', 'T-1', '--actor', 'worker']);
+    const claim = await runCli(linked, ['claim', 'T-1', '--actor', 'worker']);
     assert.equal(claim.status, 0, claim.stderr);
     git(repo, 'worktree', 'remove', '--force', linked);
-    const show = JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout);
+    const show = JSON.parse(
+      (await runCli(repo, ['show', 'T-1', '--json'])).stdout,
+    );
     assert.equal(show.claim.state, 'expired');
     assert.equal(show.claim.reason, 'expired: worktree path is missing');
     assert.match(
-      runCli(repo, ['show', 'T-1']).stdout,
+      (await runCli(repo, ['show', 'T-1'])).stdout,
       /Claim: expired: worktree path is missing/u,
     );
-    assert.deepEqual(readyIds(runCli(repo, ['ready', '--json'])), ['T-1']);
+    assert.deepEqual(readyIds(await runCli(repo, ['ready', '--json'])), [
+      'T-1',
+    ]);
   } finally {
     removeWorktree(repo, linked);
     await rm(repo, { recursive: true, force: true });
@@ -391,16 +431,18 @@ test('deleting a claim branch expires its claim', async () => {
   const linked = join(dirname(repo), 'claim-branch-deleted-linked');
   try {
     addWorktree(repo, linked, 'claim-branch-deleted-branch');
-    const claim = runCli(linked, ['claim', 'T-1', '--actor', 'worker']);
+    const claim = await runCli(linked, ['claim', 'T-1', '--actor', 'worker']);
     assert.equal(claim.status, 0, claim.stderr);
     git(linked, 'switch', '--quiet', '--detach', 'HEAD');
     git(repo, 'branch', '-D', 'claim-branch-deleted-branch');
     assert.equal(
-      JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout).claim.state,
+      JSON.parse((await runCli(repo, ['show', 'T-1', '--json'])).stdout).claim
+        .state,
       'expired',
     );
     assert.equal(
-      JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout).claim.reason,
+      JSON.parse((await runCli(repo, ['show', 'T-1', '--json'])).stdout).claim
+        .reason,
       'expired: branch claim-branch-deleted-branch does not exist',
     );
   } finally {
@@ -415,17 +457,19 @@ test('closing the task in its claiming worktree expires the claim', async () => 
   try {
     addWorktree(repo, linked, 'claim-local-closed-branch');
     assert.equal(
-      runCli(linked, ['claim', 'T-1', '--actor', 'worker']).status,
+      (await runCli(linked, ['claim', 'T-1', '--actor', 'worker'])).status,
       0,
     );
-    const closed = runCli(linked, ['close', 'T-1', '--as', 'done']);
+    const closed = await runCli(linked, ['close', 'T-1', '--as', 'done']);
     assert.equal(closed.status, 0, closed.stderr);
     assert.equal(
-      JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout).claim.state,
+      JSON.parse((await runCli(repo, ['show', 'T-1', '--json'])).stdout).claim
+        .state,
       'expired',
     );
     assert.equal(
-      JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout).claim.reason,
+      JSON.parse((await runCli(repo, ['show', 'T-1', '--json'])).stdout).claim
+        .reason,
       'expired: task is closed in worktree',
     );
   } finally {
@@ -440,11 +484,11 @@ test('deleting the task file from the claiming worktree expires its claim', asyn
   try {
     addWorktree(repo, linked, 'claim-local-missing-branch');
     assert.equal(
-      runCli(linked, ['claim', 'T-1', '--actor', 'worker']).status,
+      (await runCli(linked, ['claim', 'T-1', '--actor', 'worker'])).status,
       0,
     );
     await rm(join(linked, 'tasks', 'T-1.json'));
-    const show = runCli(repo, ['show', 'T-1', '--json']);
+    const show = await runCli(repo, ['show', 'T-1', '--json']);
     assert.equal(show.status, 0, show.stderr);
     assert.equal(JSON.parse(show.stdout).claim.state, 'expired');
     assert.equal(
@@ -463,11 +507,11 @@ test('closing the task on origin main expires the linked worktree claim', async 
   try {
     addWorktree(repo, linked, 'claim-origin-closed-branch');
     assert.equal(
-      runCli(linked, ['claim', 'T-1', '--actor', 'worker']).status,
+      (await runCli(linked, ['claim', 'T-1', '--actor', 'worker'])).status,
       0,
     );
     // The live claim routes the close into the lane; the merge brings it to main.
-    const closed = runCli(repo, ['close', 'T-1', '--as', 'done']);
+    const closed = await runCli(repo, ['close', 'T-1', '--as', 'done']);
     assert.equal(closed.status, 0, closed.stderr);
     await copyFile(
       join(linked, 'tasks', 'T-1.json'),
@@ -477,7 +521,9 @@ test('closing the task on origin main expires the linked worktree claim', async 
     git(repo, 'add', 'tasks/T-1.json');
     git(repo, 'commit', '-qm', 'close task on origin main');
     git(repo, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
-    const show = JSON.parse(runCli(linked, ['show', 'T-1', '--json']).stdout);
+    const show = JSON.parse(
+      (await runCli(linked, ['show', 'T-1', '--json'])).stdout,
+    );
     assert.equal(show.claim.state, 'expired');
     assert.equal(show.claim.reason, 'expired: task is closed in origin/main');
   } finally {
@@ -506,7 +552,7 @@ test('corrupt claims fail safe, report all findings, and release clears them', a
         Buffer.from(`${JSON.stringify(corrupt, null, 2)}\n`),
       ]),
     );
-    const show = runCli(repo, ['show', 'T-1', '--json']);
+    const show = await runCli(repo, ['show', 'T-1', '--json']);
     assert.equal(show.status, 0, show.stderr);
     assert.equal(JSON.parse(show.stdout).claim.state, 'corrupt');
     assert.equal(JSON.parse(show.stdout).claim.reason, 'corrupt');
@@ -516,10 +562,10 @@ test('corrupt claims fail safe, report all findings, and release clears them', a
       '"actor" must be a string',
       '"reason" must be a string or null',
     ]);
-    const ready = runCli(repo, ['ready', '--json']);
+    const ready = await runCli(repo, ['ready', '--json']);
     assert.deepEqual(JSON.parse(ready.stdout).tasks, []);
     assert.match(ready.stderr, /"actor" must be a string/u);
-    const release = runCli(repo, ['release', 'T-1']);
+    const release = await runCli(repo, ['release', 'T-1']);
     assert.equal(release.status, 0, release.stderr);
     assert.equal(existsSync(join(directory, 'T-1.json')), false);
     assert.equal(git(repo, 'status', '--porcelain'), '');
@@ -541,29 +587,29 @@ test('unreadable claims stay live and can be released or taken over', {
   try {
     for (const id of ['T-1', 'T-2']) {
       assert.equal(
-        runCli(repo, ['claim', id, '--actor', `original-${id}`]).status,
+        (await runCli(repo, ['claim', id, '--actor', `original-${id}`])).status,
         0,
       );
       await chmod(join(repo, '.krn', 'task-claims', `${id}.json`), 0o000);
     }
 
-    const ready = runCli(repo, ['ready', '--json']);
+    const ready = await runCli(repo, ['ready', '--json']);
     assert.equal(ready.status, 0, ready.stderr);
     assert.deepEqual(JSON.parse(ready.stdout).tasks, []);
     assert.match(ready.stderr, /unable to read claim file/u);
 
-    const blocked = runCli(repo, ['claim', 'T-1', '--actor', 'blocked']);
+    const blocked = await runCli(repo, ['claim', 'T-1', '--actor', 'blocked']);
     assert.equal(blocked.status, 75);
     assert.match(blocked.stderr, /unable to read claim file/u);
 
-    const released = runCli(repo, ['release', 'T-1']);
+    const released = await runCli(repo, ['release', 'T-1']);
     assert.equal(released.status, 0, released.stderr);
     assert.equal(
       existsSync(join(repo, '.krn', 'task-claims', 'T-1.json')),
       false,
     );
 
-    const takeover = runCli(repo, [
+    const takeover = await runCli(repo, [
       'claim',
       'T-2',
       '--actor',
@@ -593,12 +639,12 @@ test('claim rejects unknown, closed, and dependency-blocked tasks', async () => 
     task('T-3', { after: ['T-2'] }),
   ]);
   try {
-    const unknown = runCli(repo, ['claim', 'T-9', '--actor', 'worker']);
+    const unknown = await runCli(repo, ['claim', 'T-9', '--actor', 'worker']);
     assert.equal(unknown.status, 65);
-    const closed = runCli(repo, ['claim', 'T-1', '--actor', 'worker']);
+    const closed = await runCli(repo, ['claim', 'T-1', '--actor', 'worker']);
     assert.equal(closed.status, 65);
     assert.match(closed.stderr, /task is closed/u);
-    const blocked = runCli(repo, ['claim', 'T-3', '--actor', 'worker']);
+    const blocked = await runCli(repo, ['claim', 'T-3', '--actor', 'worker']);
     assert.equal(blocked.status, 65);
     assert.match(blocked.stderr, /blocked by open after task/u);
   } finally {
@@ -611,13 +657,13 @@ test('claim refuses detached HEAD and an unregistered worktree path', async () =
   const unregistered = await tempRepo('claim-unregistered-');
   try {
     git(repo, 'switch', '--quiet', '--detach', 'HEAD');
-    const detached = runCli(repo, ['claim', 'T-1', '--actor', 'worker']);
+    const detached = await runCli(repo, ['claim', 'T-1', '--actor', 'worker']);
     assert.equal(detached.status, 64);
     assert.match(detached.stderr, /detached HEAD/u);
 
     const attached = await tempRepo('claim-attached-');
     try {
-      const invalid = runCli(attached, [
+      const invalid = await runCli(attached, [
         'claim',
         'T-1',
         '--actor',
@@ -639,9 +685,12 @@ test('claim refuses detached HEAD and an unregistered worktree path', async () =
 test('takeover requires a reason, reports the previous holder, and release removes it', async () => {
   const repo = await fixtureRepo('claim-takeover-', [task('T-1'), task('T-2')]);
   try {
-    assert.equal(runCli(repo, ['claim', 'T-1', '--actor', 'first']).status, 0);
+    assert.equal(
+      (await runCli(repo, ['claim', 'T-1', '--actor', 'first'])).status,
+      0,
+    );
     assert.equal(git(repo, 'status', '--porcelain'), '');
-    const withoutReason = runCli(repo, [
+    const withoutReason = await runCli(repo, [
       'claim',
       'T-1',
       '--actor',
@@ -650,7 +699,7 @@ test('takeover requires a reason, reports the previous holder, and release remov
     ]);
     assert.equal(withoutReason.status, 64);
     assert.equal(git(repo, 'status', '--porcelain'), '');
-    const takeover = runCli(repo, [
+    const takeover = await runCli(repo, [
       'claim',
       'T-1',
       '--actor',
@@ -661,17 +710,24 @@ test('takeover requires a reason, reports the previous holder, and release remov
     ]);
     assert.equal(takeover.status, 0, takeover.stderr);
     assert.match(takeover.stdout, /Previous holder: actor first/u);
-    const show = JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout);
+    const show = JSON.parse(
+      (await runCli(repo, ['show', 'T-1', '--json'])).stdout,
+    );
     assert.equal(show.claim.holder.actor, 'second');
     assert.equal(show.claim.holder.reason, 'reassigning work');
     assert.equal(git(repo, 'status', '--porcelain'), '');
-    const next = runCli(repo, ['claim', '--next', '--actor', 'next-worker']);
+    const next = await runCli(repo, [
+      'claim',
+      '--next',
+      '--actor',
+      'next-worker',
+    ]);
     assert.equal(next.status, 0, next.stderr);
     assert.equal(next.stdout.trim(), 'T-2');
     assert.equal(git(repo, 'status', '--porcelain'), '');
-    assert.equal(runCli(repo, ['release', 'T-1']).status, 0);
+    assert.equal((await runCli(repo, ['release', 'T-1'])).status, 0);
     assert.equal(git(repo, 'status', '--porcelain'), '');
-    assert.equal(runCli(repo, ['release', 'T-2']).status, 0);
+    assert.equal((await runCli(repo, ['release', 'T-2'])).status, 0);
     assert.equal(git(repo, 'status', '--porcelain'), '');
   } finally {
     await rm(repo, { recursive: true, force: true });
@@ -681,11 +737,11 @@ test('takeover requires a reason, reports the previous holder, and release remov
 test('release of a missing claim returns 65', async () => {
   const repo = await fixtureRepo('claim-release-missing-', [task('T-1')]);
   try {
-    const show = runCli(repo, ['show', 'T-1', '--json']);
+    const show = await runCli(repo, ['show', 'T-1', '--json']);
     assert.equal(show.status, 0, show.stderr);
     assert.equal(JSON.parse(show.stdout).claim.state, 'none');
-    assert.match(runCli(repo, ['show', 'T-1']).stdout, /Claim: none/u);
-    const release = runCli(repo, ['release', 'T-1']);
+    assert.match((await runCli(repo, ['show', 'T-1'])).stdout, /Claim: none/u);
+    const release = await runCli(repo, ['release', 'T-1']);
     assert.equal(release.status, 65);
     assert.match(release.stderr, /no claim to release/u);
   } finally {
@@ -696,8 +752,16 @@ test('release of a missing claim returns 65', async () => {
 test('claim --next returns 75 when no task is ready', async () => {
   const repo = await fixtureRepo('claim-next-empty-', [task('T-1')]);
   try {
-    assert.equal(runCli(repo, ['claim', 'T-1', '--actor', 'worker']).status, 0);
-    const next = runCli(repo, ['claim', '--next', '--actor', 'next-worker']);
+    assert.equal(
+      (await runCli(repo, ['claim', 'T-1', '--actor', 'worker'])).status,
+      0,
+    );
+    const next = await runCli(repo, [
+      'claim',
+      '--next',
+      '--actor',
+      'next-worker',
+    ]);
     assert.equal(next.status, 75);
     assert.match(next.stderr, /no ready tasks are available to claim/u);
   } finally {
@@ -711,8 +775,10 @@ test('stale task-write files do not affect readiness or claims and claim files s
     const staging = join(repo, '.krn', 'tmp', 'task-write');
     await mkdir(staging, { recursive: true });
     await writeFile(join(staging, '.T-9.stale.tmp'), '{ stale\n');
-    assert.deepEqual(readyIds(runCli(repo, ['ready', '--json'])), ['T-1']);
-    const claim = runCli(repo, ['claim', '--next', '--actor', 'worker']);
+    assert.deepEqual(readyIds(await runCli(repo, ['ready', '--json'])), [
+      'T-1',
+    ]);
+    const claim = await runCli(repo, ['claim', '--next', '--actor', 'worker']);
     assert.equal(claim.status, 0, claim.stderr);
     assert.deepEqual(await readdir(join(repo, '.krn', 'task-claims')), [
       'T-1.json',
@@ -730,8 +796,11 @@ test('removing the claim directory frees only the tasks it held', async () => {
     task('T-3'),
   ]);
   try {
-    assert.equal(runCli(repo, ['claim', 'T-2', '--actor', 'worker']).status, 0);
-    assert.deepEqual(readyIds(runCli(repo, ['ready', '--json'])), [
+    assert.equal(
+      (await runCli(repo, ['claim', 'T-2', '--actor', 'worker'])).status,
+      0,
+    );
+    assert.deepEqual(readyIds(await runCli(repo, ['ready', '--json'])), [
       'T-1',
       'T-3',
     ]);
@@ -739,7 +808,7 @@ test('removing the claim directory frees only the tasks it held', async () => {
       recursive: true,
       force: true,
     });
-    assert.deepEqual(readyIds(runCli(repo, ['ready', '--json'])), [
+    assert.deepEqual(readyIds(await runCli(repo, ['ready', '--json'])), [
       'T-1',
       'T-2',
       'T-3',
@@ -754,15 +823,18 @@ test('claiming after expiry removes and reports the prior claim', async () => {
   const linked = join(dirname(repo), 'claim-expiry-reclaim-linked');
   try {
     addWorktree(repo, linked, 'claim-expiry-reclaim-branch');
-    assert.equal(runCli(linked, ['claim', 'T-1', '--actor', 'old']).status, 0);
+    assert.equal(
+      (await runCli(linked, ['claim', 'T-1', '--actor', 'old'])).status,
+      0,
+    );
     git(linked, 'switch', '--quiet', '--detach', 'HEAD');
     git(repo, 'branch', '-D', 'claim-expiry-reclaim-branch');
-    const reclaimed = runCli(repo, ['claim', 'T-1', '--actor', 'new']);
+    const reclaimed = await runCli(repo, ['claim', 'T-1', '--actor', 'new']);
     assert.equal(reclaimed.status, 0, reclaimed.stderr);
     assert.match(reclaimed.stderr, /Expired claim for T-1 was removed/u);
     assert.equal(
-      JSON.parse(runCli(repo, ['show', 'T-1', '--json']).stdout).claim.holder
-        .actor,
+      JSON.parse((await runCli(repo, ['show', 'T-1', '--json'])).stdout).claim
+        .holder.actor,
       'new',
     );
   } finally {
@@ -778,7 +850,10 @@ test('expired claim has one winner across two worktrees and twenty claimers', as
   const second = join(dirname(repo), 'claim-expired-stress-second');
   try {
     addWorktree(repo, stale, 'claim-expired-stress-stale-branch');
-    assert.equal(runCli(stale, ['claim', 'T-1', '--actor', 'stale']).status, 0);
+    assert.equal(
+      (await runCli(stale, ['claim', 'T-1', '--actor', 'stale'])).status,
+      0,
+    );
     git(stale, 'switch', '--quiet', '--detach', 'HEAD');
     git(repo, 'branch', '-D', 'claim-expired-stress-stale-branch');
     addWorktree(repo, first, 'claim-expired-stress-first-branch');
@@ -1039,7 +1114,56 @@ interface CliResult {
   stderr: string;
 }
 
-function runCli(cwd: string, args: string[]): CliResult {
+// In-process by default: the CLI entry point is `taskCommand`, so calling it
+// avoids a node boot per assertion. Tests that prove the receiver boundary
+// pass `{ spawn: true }` to run the real binary.
+async function runCli(
+  cwd: string,
+  args: string[],
+  options?: { spawn: true },
+): Promise<CliResult> {
+  return options?.spawn ? runCliSpawn(cwd, args) : runCliInProcess(cwd, args);
+}
+
+async function runCliInProcess(
+  cwd: string,
+  args: string[],
+): Promise<CliResult> {
+  const { taskCommand } = await import('../../src/task/cli.ts');
+  const originalCwd = process.cwd();
+  const originalEnv = { ...process.env };
+  const stdoutWrite = process.stdout.write;
+  const stderrWrite = process.stderr.write;
+  const originalExitCode = process.exitCode;
+  let stdout = '';
+  let stderr = '';
+  for (const key of Object.keys(process.env))
+    if (key.startsWith('GIT_')) delete process.env[key];
+  process.env.KRN_HOOK_NOGIT_TMPDIR ??= scratch;
+  process.exitCode = undefined;
+  process.chdir(cwd);
+  process.stdout.write = ((chunk: string | Uint8Array) => {
+    stdout += chunk.toString();
+    return true;
+  }) as typeof process.stdout.write;
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    stderr += chunk.toString();
+    return true;
+  }) as typeof process.stderr.write;
+  try {
+    await taskCommand(args);
+    return { status: Number(process.exitCode ?? 0), stdout, stderr };
+  } finally {
+    process.stdout.write = stdoutWrite;
+    process.stderr.write = stderrWrite;
+    process.exitCode = originalExitCode;
+    process.chdir(originalCwd);
+    for (const key of Object.keys(process.env)) delete process.env[key];
+    Object.assign(process.env, originalEnv);
+  }
+}
+
+function runCliSpawn(cwd: string, args: string[]): CliResult {
   const result = spawnSync(process.execPath, [cli, 'task', ...args], {
     cwd,
     encoding: 'utf8',

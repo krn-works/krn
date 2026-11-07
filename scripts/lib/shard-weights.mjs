@@ -56,7 +56,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/rules/path-token-guard.test.mjs': 1,
   'test/rules/project-skills.test.ts': 1,
   'test/task/claim-lock.test.ts': 28,
-  'test/task/claims.test.ts': 38,
+  'test/task/claims.test.ts': 15,
   'test/task/ergonomics.test.ts': 21,
   'test/task/lane-records.test.ts': 13,
   'test/task/task.test.ts': 19,
