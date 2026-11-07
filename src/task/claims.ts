@@ -615,7 +615,7 @@ async function acquireTaskLock(mainRoot: string, id: TaskId): Promise<Server> {
     .digest('hex');
   const address = `\0krn-task-lock:${lockId}`;
 
-  const deadline = performance.now() + 2_000;
+  const deadline = performance.now() + lockWaitMs();
   while (true) {
     try {
       return await listenForTaskLock(address);
@@ -650,6 +650,17 @@ async function releaseTaskLock(server: Server): Promise<void> {
       else resolve();
     });
   });
+}
+
+function lockWaitMs(): number {
+  const override = Number(process.env.KRN_TASK_LOCK_WAIT_MS);
+  if (
+    process.env.NODE_ENV === 'test' &&
+    Number.isSafeInteger(override) &&
+    override >= 0
+  )
+    return override;
+  return 2_000;
 }
 
 async function holdTaskLockForTest(): Promise<void> {

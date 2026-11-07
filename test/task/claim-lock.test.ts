@@ -164,12 +164,11 @@ test('a live lock holder makes a contender return claim busy', {
     holder = startLockHolder(repo, 'T-1');
     await holder.locked;
 
-    const contender = await runCliAsync(repo, [
-      'claim',
-      'T-1',
-      '--actor',
-      'blocked',
-    ]);
+    const contender = await runCliAsync(
+      repo,
+      ['claim', 'T-1', '--actor', 'blocked'],
+      { ...process.env, NODE_ENV: 'test', KRN_TASK_LOCK_WAIT_MS: '100' },
+    );
     assert.equal(contender.status, 75, contender.stderr);
     assert.match(contender.stderr, /claim is busy/u);
   } finally {
@@ -322,11 +321,15 @@ interface CliResult {
   stderr: string;
 }
 
-function runCliAsync(root: string, args: string[]): Promise<CliResult> {
+function runCliAsync(
+  root: string,
+  args: string[],
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<CliResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cli, 'task', ...args], {
       cwd: root,
-      env: process.env,
+      env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     const stdout: Buffer[] = [];

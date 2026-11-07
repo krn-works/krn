@@ -1,0 +1,14 @@
+{
+  "id": "t-pe3hrkw",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Claim busy test waits 100ms via test-only KRN_TASK_LOCK_WAIT_MS instead of the 2s lock deadline"
+  },
+  "created": "2026-11-07",
+  "priority": 3,
+  "title": "Cut claim-lock test wall time",
+  "after": [],
+  "body": []
+}
