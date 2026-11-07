@@ -1,7 +1,11 @@
 {
   "id": "t-kw3qb72",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "slice run, deliver, ship, verify/red-first, brief check, pr-preflight, review budget removed (-18.6k lines); review and worker stay opt-in"
+  },
   "created": "2026-11-07",
   "priority": 1,
   "title": "Retire unused delivery ceremony after no-gates decision",
