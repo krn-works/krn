@@ -148,6 +148,8 @@ test('fast check lists deleted and renamed-away files as removed', () => {
       0,
     );
   git('init', '-q', '-b', 'main');
+  mkdirSync(join(dir, 'src'));
+  writeFileSync(join(dir, 'src/.keep'), '');
   writeFileSync(join(dir, 'gone.ts'), 'export const gone = 1;\n');
   writeFileSync(join(dir, 'moved.ts'), 'export const moved = 1;\n');
   writeFileSync(join(dir, 'unstaged.ts'), '1');
@@ -208,4 +210,51 @@ test('fast check uses the main checkout tools from a worktree without node_modul
   const result = runFast(tree);
   assert.notEqual(result.status, 64, result.stderr + result.stdout);
   assert.ok(existsSync(marker), result.stderr + result.stdout);
+});
+
+test('fast check --base replays a merged deleted-file commit without a reset', () => {
+  const { dir, git } = repoWithChange();
+  const bin = join(dir, 'node_modules/.bin');
+  mkdirSync(bin, { recursive: true });
+  for (const tool of ['tsc', 'biome']) {
+    writeFileSync(join(bin, tool), '#!/bin/sh\nexit 0\n');
+    chmodSync(join(bin, tool), 0o755);
+  }
+  mkdirSync(join(dir, 'src'));
+  writeFileSync(join(dir, 'src/.keep'), '');
+  writeFileSync(join(dir, 'gone.ts'), 'export const gone = 1;\n');
+  writeFileSync(
+    join(dir, 'test/ref.test.ts'),
+    "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { existsSync } from 'node:fs';\ntest('gone.ts stays', () => assert.ok(existsSync('gone.ts')));\n",
+  );
+  git('add', '-A');
+  git('commit', '-qm', 'base');
+  const base = spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd: dir,
+    encoding: 'utf8',
+  }).stdout.trim();
+  git('rm', '-q', 'gone.ts');
+  git('commit', '-qm', 'delete');
+  const plain = runFast(dir);
+  assert.match(plain.stdout, /PASS: no changed files/u);
+  const replay = spawnSync(process.execPath, [script, '--base', base], {
+    cwd: dir,
+    encoding: 'utf8',
+    env: { ...process.env, NODE_TEST_CONTEXT: undefined },
+  });
+  assert.equal(replay.status, 1, replay.stderr + replay.stdout);
+  assert.match(replay.stdout, /fast FAIL \(test\)/u);
+});
+
+test('fast check exits 64 for an unknown --base commit or a missing value', () => {
+  const { dir } = repoWithChange();
+  for (const args of [['--base', 'nope'], ['--base'], ['--bogus']]) {
+    const result = spawnSync(process.execPath, [script, ...args], {
+      cwd: dir,
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 64, result.stderr);
+    assert.match(result.stderr, /^fast: /u);
+    assert.equal(result.stdout, '');
+  }
 });

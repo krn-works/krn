@@ -85,13 +85,13 @@ function lines(text: string): string[] {
   return text.split('\n').filter(Boolean);
 }
 
-export function changedFiles(root: string): string[] {
+export function changedFiles(root: string, base?: string): string[] {
   const tracked = git(root, [
     'diff',
     '--name-only',
     '--no-renames',
     '--diff-filter=d',
-    mergeBase(root),
+    base ?? mergeBase(root),
   ]);
   const fresh = git(root, ['ls-files', '--others', '--exclude-standard']);
   return [...new Set(lines(`${tracked}\n${fresh}`))]
@@ -100,13 +100,13 @@ export function changedFiles(root: string): string[] {
 }
 
 /** Tracked files the change deletes or renames away since the merge base. */
-export function removedFiles(root: string): string[] {
+export function removedFiles(root: string, base?: string): string[] {
   const gone = git(root, [
     'diff',
     '--name-only',
     '--no-renames',
     '--diff-filter=D',
-    mergeBase(root),
+    base ?? mergeBase(root),
   ]);
   return lines(gone)
     .filter((file) => !existsSync(join(root, file)))
@@ -178,10 +178,44 @@ function run(
   });
 }
 
-export async function main(root: string): Promise<number> {
+/** Parses `--base <rev>` or `--base=<rev>`; a usage error names the problem. */
+export function parseArgs(
+  root: string,
+  argv: string[],
+): { base?: string } | { error: string } {
+  let base: string | undefined;
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i] ?? '';
+    if (arg === '--base' || arg.startsWith('--base=')) {
+      base = arg === '--base' ? argv[++i] : arg.slice('--base='.length);
+      if (!base || base.startsWith('-'))
+        return { error: '--base needs a commit' };
+    } else
+      return { error: `unknown argument ${arg}; usage: fast [--base <rev>]` };
+  }
+  if (base !== undefined) {
+    const resolved = git(root, [
+      'rev-parse',
+      '--verify',
+      '--quiet',
+      `${base}^{commit}`,
+    ]).trim();
+    if (!resolved)
+      return { error: `--base ${base} is not a commit in this repository` };
+    return { base: resolved };
+  }
+  return {};
+}
+
+export async function main(root: string, argv: string[] = []): Promise<number> {
   const started = performance.now();
-  const changed = changedFiles(root);
-  const removed = removedFiles(root);
+  const parsed = parseArgs(root, argv);
+  if ('error' in parsed) {
+    process.stderr.write(`fast: ${parsed.error}\n`);
+    return 64;
+  }
+  const changed = changedFiles(root, parsed.base);
+  const removed = removedFiles(root, parsed.base);
   if (changed.length + removed.length === 0) {
     process.stdout.write('fast PASS: no changed files\n');
     return 0;
@@ -274,4 +308,4 @@ export async function main(root: string): Promise<number> {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url))
-  process.exitCode = await main(process.cwd());
+  process.exitCode = await main(process.cwd(), process.argv.slice(2));
