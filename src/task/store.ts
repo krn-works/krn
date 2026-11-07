@@ -9,6 +9,7 @@ import {
   type Stats,
 } from 'node:fs';
 import { join } from 'node:path';
+import { commentFileTaskId, parseComments } from './comments.ts';
 import {
   createTaskId,
   isTaskId,
@@ -103,10 +104,18 @@ function scanTaskDirectory(root: string): {
     };
   }
 
+  const commentFiles: Array<{ name: string; taskId: string }> = [];
   for (const entry of entries.sort((left, right) =>
     compare(left.name, right.name),
   )) {
     const relativePath = `tasks/${entry.name}`;
+    const commentTaskId = commentFileTaskId(entry.name);
+    if (commentTaskId !== undefined) {
+      if (!entry.isFile())
+        findings.push(`${relativePath}: comment entry must be a regular file`);
+      else commentFiles.push({ name: entry.name, taskId: commentTaskId });
+      continue;
+    }
     if (!entry.name.endsWith('.json')) {
       findings.push(`${relativePath}: non-JSON file in tasks directory`);
       continue;
@@ -142,6 +151,22 @@ function scanTaskDirectory(root: string): {
     if (parsed.record === undefined) continue;
 
     records.set(parsed.record.id, parsed.record);
+  }
+
+  for (const file of commentFiles) {
+    const relativePath = `tasks/${file.name}`;
+    if (!ids.has(file.taskId))
+      findings.push(
+        `${relativePath}: comments for unknown task "${file.taskId}"`,
+      );
+    try {
+      for (const finding of parseComments(
+        readFileSync(join(directory, file.name)),
+      ).findings)
+        findings.push(`${relativePath}: ${finding}`);
+    } catch {
+      findings.push(`${relativePath}: unable to read comment file`);
+    }
   }
 
   for (const reference of references) {

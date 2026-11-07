@@ -14,6 +14,12 @@ import {
   taskRecordRoot,
 } from './claims.ts';
 import {
+  appendComment,
+  gitActor,
+  readComments,
+  type TaskComment,
+} from './comments.ts';
+import {
   TaskDataError,
   type TaskId,
   type TaskRecord,
@@ -52,6 +58,7 @@ const quickstart = [
   'krn task list --status all',
   'krn task create --title "Add a task" --priority 1 --body-file -',
   'krn task edit t-a1b2c3d --title "Update task"',
+  'krn task comment t-a1b2c3d --body-file -',
   'krn task dep add t-a1b2c3d --after t-b2c3d4e',
   'krn task close t-a1b2c3d --as done',
   'krn task release t-a1b2c3d',
@@ -74,6 +81,8 @@ const verbHelp: Record<string, string> = {
     'krn task close ID --as done|dropped|duplicate:ID|superseded:ID [--note TEXT] [--json]\nClose a task. Example: krn task close t-a1b2c3d --as done --json',
   dep: 'krn task dep add|rm ID --after ID [--json]\nChange a blocking dependency. Example: krn task dep add t-a1b2c3d --after t-b2c3d4e --json',
   edit: 'krn task edit ID [--title T] [--priority N] [--body-file FILE|-] [--append-body TEXT] [--reopen] [--json]\nEdit task fields; use --reopen for closed tasks. Example: krn task edit t-a1b2c3d --title "Updated task" --json',
+  comment:
+    'krn task comment ID --body-file FILE|- [--actor NAME] [--json]\nAppend a signed, dated comment; workers may comment but never change status. Actor defaults to git user.name. Example: krn task comment t-a1b2c3d --body-file - --json',
   check:
     'krn task check [--json]\nValidate task records and references. Example: krn task check --json',
 };
@@ -134,6 +143,7 @@ async function execute(args: string[], json: boolean): Promise<CommandOutput> {
   if (command === 'claim') return claim(options, json);
   if (command === 'release') return release(options, json);
   if (command === 'edit') return edit(options, json);
+  if (command === 'comment') return comment(options, json);
   throw usage(`unknown task verb "${command}"`);
 }
 
@@ -199,6 +209,43 @@ function create(args: string[], json: boolean): CommandOutput {
   return result({ task: record }, `${record.id}\n`, json);
 }
 
+function comment(args: string[], json: boolean): CommandOutput {
+  let id: string | undefined;
+  let bodyFile: string | undefined;
+  let actor: string | undefined;
+  for (let index = 0; index < args.length; index += 1) {
+    const option = args[index];
+    if (option === undefined) continue;
+    if (option === '--body-file') {
+      if (bodyFile !== undefined)
+        throw usage('--body-file may be supplied once');
+      bodyFile = nextValue(args, index++, option);
+    } else if (option === '--actor') {
+      if (actor !== undefined) throw usage('--actor may be supplied once');
+      actor = nextValue(args, index++, option);
+    } else if (id === undefined && !option.startsWith('--')) id = option;
+    else throw usage(`unexpected comment argument "${option}"`);
+  }
+  if (id === undefined || bodyFile === undefined)
+    throw usage('usage: krn task comment ID --body-file FILE|- [--actor NAME]');
+  const root = repositoryRoot();
+  const taskId = requireId(id);
+  getTask(root, taskId);
+  const text =
+    bodyFile === '-'
+      ? readFileSync(0, 'utf8')
+      : readFileSync(resolve(bodyFile), 'utf8');
+  const signer = actor ?? gitActor(root);
+  if (signer === undefined)
+    throw usage('comment requires --actor NAME (git user.name is not set)');
+  const entry = appendComment(root, taskId, { actor: signer, text });
+  return result(
+    { comment: entry },
+    `${taskId} ${entry.at} ${entry.actor}\n`,
+    json,
+  );
+}
+
 function show(args: string[], json: boolean): CommandOutput {
   if (args.length !== 1 || args[0] === undefined)
     throw usage('usage: krn task show ID [--json]');
@@ -207,10 +254,12 @@ function show(args: string[], json: boolean): CommandOutput {
   const record = getTask(root, id);
   const claim = inspectClaim(root, record.id);
   const details = showDetails(root, record);
+  const comments = readComments(root, id);
   if (json)
     return result(
       {
         task: record,
+        comments,
         ...details,
         claim: {
           state: claim.state,
@@ -219,10 +268,14 @@ function show(args: string[], json: boolean): CommandOutput {
           findings: claim.findings,
         },
       },
-      formatShow(record, details, claim),
+      formatShow(record, details, claim, comments),
       true,
     );
-  return result({ task: record }, formatShow(record, details, claim), false);
+  return result(
+    { task: record },
+    formatShow(record, details, claim, comments),
+    false,
+  );
 }
 
 function ready(args: string[], json: boolean): CommandOutput {
@@ -533,6 +586,7 @@ function formatShow(
   task: TaskRecord,
   details: ShowDetails,
   claim: ReturnType<typeof inspectClaim>,
+  comments: TaskComment[],
 ): string {
   const blocking = details.blockers
     .filter((dependency) => dependency.blocking)
@@ -540,7 +594,17 @@ function formatShow(
   return `${formatTask(task, [
     `Blockers: ${blocking.length === 0 ? 'none' : blocking.join(', ')}`,
     `Dependents: ${details.dependents.length === 0 ? 'none' : details.dependents.join(', ')}`,
-  ])}${formatClaim(claim).join('\n')}\n`;
+  ])}${formatClaim(claim).join('\n')}\n${formatComments(comments)}`;
+}
+
+function formatComments(comments: TaskComment[]): string {
+  if (comments.length === 0) return '';
+  return `\nComments (${comments.length}):\n${comments
+    .map(
+      (entry) =>
+        `- ${entry.at} ${entry.actor}: ${entry.text.replace(/\n/gu, '\n  ')}\n`,
+    )
+    .join('')}`;
 }
 
 interface TaskBlocker {
