@@ -426,6 +426,45 @@ function exitFailure(result: CommandResult): number {
   return 1;
 }
 
+export type Harness = 'claude' | 'codex' | 'other';
+
+/**
+ * The harness the lead is running in, read from the runtime environment.
+ * KRN_SUCCESSOR_AGENT is an explicit operator override; otherwise the
+ * variables each harness exports to its child processes decide. An unknown
+ * or ambiguous environment returns an error instead of a guess.
+ */
+export function detectHarness(
+  env: NodeJS.ProcessEnv,
+): { agent: string; harness: Harness } | { error: string } {
+  const override = env.KRN_SUCCESSOR_AGENT;
+  if (override)
+    return {
+      agent: override,
+      harness:
+        basename(override) === 'codex'
+          ? 'codex'
+          : basename(override) === 'claude'
+            ? 'claude'
+            : 'other',
+    };
+  const codex = Boolean(
+    env.CODEX_THREAD_ID || env.CODEX_SANDBOX || env.CODEX_CI,
+  );
+  const claude = env.CLAUDECODE === '1' || Boolean(env.CLAUDE_CODE_SESSION_ID);
+  if (codex && claude)
+    return {
+      error:
+        'ambiguous harness: both Codex and Claude Code markers are set; set KRN_SUCCESSOR_AGENT',
+    };
+  if (codex) return { agent: 'codex', harness: 'codex' };
+  if (claude) return { agent: 'claude', harness: 'claude' };
+  return {
+    error:
+      'unknown harness: no Codex or Claude Code marker in the environment; set KRN_SUCCESSOR_AGENT',
+  };
+}
+
 export function main(args: string[]): number {
   if (args[0] === '--retire') return retireMode(args.slice(1));
   let options: SuccessorLaunchOptions;
@@ -437,6 +476,13 @@ export function main(args: string[]): number {
     );
     return 2;
   }
+
+  const detected = detectHarness(process.env);
+  if ('error' in detected) {
+    process.stderr.write(`${detected.error}\n`);
+    return 2;
+  }
+  const { agent, harness } = detected;
 
   const status = run('herdr', ['status']);
   const paneId = process.env.HERDR_PANE_ID;
@@ -450,14 +496,18 @@ export function main(args: string[]): number {
     if (!workspaceId) unavailable = 'caller pane unavailable';
   }
 
-  const agent = process.env.KRN_SUCCESSOR_AGENT || 'claude';
   // Operator 2026-11-06 (t-5av8etp): a relayed Claude lead never stops on
   // permission prompts; other agents keep their own defaults.
   const agentFlags =
-    basename(agent) === 'claude'
-      ? ['--permission-mode', 'bypassPermissions']
-      : [];
+    harness === 'claude' ? ['--permission-mode', 'bypassPermissions'] : [];
   const prompt = `First run \`node scripts/claude/successor-launch.ts --retire\` from the repository root. ${options.prompt}`;
+  if (unavailable && harness === 'codex') {
+    // Codex has no background mode; never start Claude in its place.
+    process.stderr.write(
+      `codex successor needs Herdr (${unavailable}); no background launch exists\n`,
+    );
+    return 1;
+  }
   if (unavailable) {
     const fallback = run(
       agent,
@@ -516,8 +566,8 @@ export function main(args: string[]): number {
     ids.paneId,
     '"$KRN_SUCCESSOR_AGENT"',
     ...agentFlags,
-    '-n',
-    '"$KRN_SUCCESSOR_NAME"',
+    // Codex has no session-name flag; the Herdr tab label carries the name.
+    ...(harness !== 'codex' ? ['-n', '"$KRN_SUCCESSOR_NAME"'] : []),
     '"$KRN_SUCCESSOR_PROMPT"',
   ]);
   if (started.error || started.status !== 0) return exitFailure(started);

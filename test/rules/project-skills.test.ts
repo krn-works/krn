@@ -50,4 +50,8 @@ test('the lead loop skills name only existing review flags and the real launch c
     skill('krn-handoff'),
     /node scripts\/claude\/successor-launch\.ts --name "[^"]+" --prompt /u,
   );
+  assert.match(
+    skill('krn-handoff'),
+    /detects the harness the lead is running in from the runtime environment/u,
+  );
 });

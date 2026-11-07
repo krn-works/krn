@@ -1,7 +1,11 @@
 {
   "id": "t-ve0zsvy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Launcher detects the active harness (Codex or Claude Code) from the runtime environment, starts the successor in it, never falls back to Claude for Codex, and stops on unknown or ambiguous environments; tested against the real launcher script with stubbed herdr and agent binaries; krn-handoff documents it."
+  },
   "created": "2026-10-30",
   "priority": 0,
   "title": "Route fresh-session handoffs through the active harness",
