@@ -1,6 +1,6 @@
 ---
 name: typescript
-description: TypeScript only: inference, narrow exports, type-level boundaries (schemas at the edge, branded and discriminated types, no any or unsafe casts), tsconfig and module resolution, Node type-stripping limits, testing types. Use when writing or reviewing .ts code or tsconfig; for module design and seams use the architecture skill.
+description: Write, review or change TypeScript (.ts) code or tsconfig: types, inference, branded and discriminated types, narrow exports, no any or unsafe casts, module resolution, Node type-stripping limits. Use whenever the task writes or reviews TypeScript; module boundaries and seams belong to the architecture skill.
 ---
 
 # TypeScript

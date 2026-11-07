@@ -1,0 +1,112 @@
+[
+  {
+    "id": "handoff-pl",
+    "prompt": "Slice zmergowany, kontekst robi się duży. Zamknij sesję i przekaż pracę następnemu agentowi.",
+    "expect": "krn-handoff"
+  },
+  {
+    "id": "handoff-en",
+    "prompt": "The PR merged and my context is getting long. Write the handoff and start the next session fresh.",
+    "expect": "krn-handoff"
+  },
+  {
+    "id": "lead-pl",
+    "prompt": "Działaj jako lead KRN: wybierz następny slice, zakoduj go i puść przez auto-merge.",
+    "expect": "krn-lead"
+  },
+  {
+    "id": "lead-resume",
+    "prompt": "Wznów pętlę dostaw KRN od ostatniego handoffu i dowieź kolejne zadanie.",
+    "expect": "krn-lead"
+  },
+  {
+    "id": "retro-pl",
+    "prompt": "Slice właśnie się zmergował. Zrób krótką retrospektywę i zamień każdą lekcję w test, regułę albo zadanie.",
+    "expect": "krn-retro"
+  },
+  {
+    "id": "retro-en",
+    "prompt": "That slice stopped halfway. Run a quick retro and turn the lessons into executable checks.",
+    "expect": "krn-retro"
+  },
+  {
+    "id": "architecture-pl",
+    "prompt": "Ten moduł ma za dużo płytkich plików. Zaprojektuj granice tak, żeby każdy problem miał jednego właściciela.",
+    "expect": "architecture"
+  },
+  {
+    "id": "architecture-en",
+    "prompt": "Review the module structure of this service and decide where the seam between storage and policy belongs.",
+    "expect": "architecture"
+  },
+  {
+    "id": "typescript-pl",
+    "prompt": "Przejrzyj ten plik .ts: usuń any i rzutowania, dodaj typy dyskryminowane na granicy z walidacją schematu.",
+    "expect": "typescript"
+  },
+  {
+    "id": "typescript-config",
+    "prompt": "Fix our tsconfig module resolution so Node type stripping works with the .ts imports.",
+    "expect": "typescript"
+  },
+  {
+    "id": "none-question",
+    "prompt": "Ile plików testowych jest w katalogu test?",
+    "expect": null
+  },
+  {
+    "id": "none-bugfix",
+    "prompt": "Popraw literówkę w komunikacie błędu w pliku README i nic poza tym.",
+    "expect": null
+  },
+  {
+    "id": "none-python",
+    "prompt": "Write a Python function that parses ISO dates from a log line.",
+    "expect": null
+  },
+  {
+    "id": "none-lead-readonly",
+    "prompt": "Jednym zdaniem: czym jest krn-lead?",
+    "expect": null
+  },
+  {
+    "id": "explicit-lead",
+    "prompt": "Use the krn-lead skill. Read the handoff file and deliver the next task.",
+    "expect": "krn-lead"
+  },
+  {
+    "id": "retro-vs-handoff",
+    "prompt": "Zadanie zamknięte. Wyciągnij wnioski z tego slice'a i zamień je w reguły.",
+    "expect": "krn-retro"
+  },
+  {
+    "id": "handoff-context",
+    "prompt": "Mój kontekst ma już ponad 300k tokenów, odpal następną sesję od świeżego startu.",
+    "expect": "krn-handoff"
+  },
+  {
+    "id": "ts-vs-architecture",
+    "prompt": "Napisz w TypeScript funkcję z typem brandowanym dla identyfikatora zadania i wąskim eksportem.",
+    "expect": "typescript"
+  },
+  {
+    "id": "architecture-ts-module",
+    "prompt": "Czy ten zestaw modułów .ts ma głębokie moduły? Zrób przegląd podziału odpowiedzialności.",
+    "expect": "architecture"
+  },
+  {
+    "id": "none-bugfix-ts",
+    "prompt": "W pliku .ts zmień próg z 5 na 10 i uruchom test.",
+    "expect": null
+  },
+  {
+    "id": "none-lead-question",
+    "prompt": "Który task KRN jest teraz otwarty? Tylko odczyt, bez żadnej zmiany.",
+    "expect": null
+  },
+  {
+    "id": "none-docs",
+    "prompt": "Przetłumacz ten akapit z README na angielski.",
+    "expect": null
+  }
+]
