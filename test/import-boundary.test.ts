@@ -1,103 +1,95 @@
 import assert from 'node:assert/strict';
-import {
-  mkdir,
-  mkdtemp,
-  readdir,
-  readFile,
-  rm,
-  writeFile,
-} from 'node:fs/promises';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { check, LAYERS, specifiers } from '../scripts/boundaries.ts';
 
-async function sourceFiles(directory: string): Promise<string[]> {
-  const entries = await readdir(directory, { withFileTypes: true });
-  const nested = await Promise.all(
-    entries.map(async (entry) => {
-      const path = join(directory, entry.name);
-      if (entry.isDirectory()) return sourceFiles(path);
-      return entry.isFile() && entry.name.endsWith('.ts') ? [path] : [];
-    }),
-  );
-  return nested.flat();
+const repo = new URL('..', import.meta.url).pathname;
+
+function fixture(files: Record<string, string>): string {
+  const root = mkdtempSync(join(tmpdir(), 'krn-boundary-'));
+  for (const [path, source] of Object.entries(files)) {
+    mkdirSync(dirname(join(root, path)), { recursive: true });
+    writeFileSync(join(root, path), source);
+  }
+  return root;
 }
 
-function importsOutsideCore(
-  file: string,
-  source: string,
-  coreRoot: string,
-): boolean {
-  const specs = [
-    ...source.matchAll(
-      /(?:import|export)\s+(?:[^'";]*?\s+from\s*)?['"]([^'"]+)['"]/gu,
-    ),
-    ...source.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/gu),
-  ].map((match) => match[1] ?? '');
-  return specs.some((specifier) => {
-    if (!specifier.startsWith('.') && !isAbsolute(specifier)) return false;
-    const pathFromCore = relative(coreRoot, resolve(dirname(file), specifier));
-    return (
-      pathFromCore === '..' ||
-      pathFromCore.startsWith(`..${sep}`) ||
-      isAbsolute(pathFromCore)
-    );
+test('core imports only its own files, including nested files and every module form', () => {
+  const root = fixture({
+    'src/hosts/index.ts': 'export const h = 1;',
+    'src/core/nested/static.ts': "import { h } from '../../hosts/index.ts';",
+    'src/core/nested/type-only.ts':
+      "import type { h } from '../../hosts/index.ts';",
+    'src/core/nested/side-effect.ts': "import '../../hosts/index.ts';",
+    'src/core/nested/re-export.ts': "export { x } from '../../hosts/index.ts';",
+    'src/core/nested/star.ts': "export * from '../../hosts/index.ts';",
+    'src/core/nested/dynamic.ts': "await import('../../hosts/index.ts');",
+    'src/core/nested/multiline.ts':
+      "import {\n  a,\n  b,\n} from '../../hosts/index.ts';",
+    'src/core/nested/own.ts':
+      "import { x } from './dynamic.ts';\nimport 'node:fs';",
+    'src/core/nested/commented.ts':
+      "// import '../../hosts/index.ts';\n/* import('../../hosts/x.ts') */",
   });
-}
-
-test('core imports only its own files, including nested files and every module form', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'krn-boundary-'));
   try {
-    const coreRoot = join(directory, 'src', 'core');
-    await mkdir(join(coreRoot, 'nested'), { recursive: true });
-    await Promise.all(
-      ['hosts', 'ledger', 'trace'].map((name) =>
-        mkdir(join(directory, 'src', name)),
-      ),
+    const found = check(root, { core: [], hosts: [] });
+    assert.deepEqual(
+      found.map((v) => v.file.replace('src/core/nested/', '')).sort(),
+      [
+        'dynamic.ts',
+        'multiline.ts',
+        're-export.ts',
+        'side-effect.ts',
+        'star.ts',
+        'static.ts',
+        'type-only.ts',
+      ],
     );
-    await writeFile(
-      join(coreRoot, 'nested', 'side-effect.ts'),
-      "import '../../hosts/index.ts';",
-    );
-    await writeFile(
-      join(coreRoot, 'nested', 're-export.ts'),
-      "export { x } from '../../ledger/index.ts';",
-    );
-    await writeFile(
-      join(coreRoot, 'nested', 'dynamic.ts'),
-      "await import('../../trace/index.ts');",
-    );
-    const files = await sourceFiles(coreRoot);
-    const offenders = (
-      await Promise.all(
-        files.map(async (file) => ({
-          file,
-          source: await readFile(file, 'utf8'),
-        })),
-      )
-    ).filter(({ file, source }) => importsOutsideCore(file, source, coreRoot));
-    assert.equal(
-      offenders.length,
-      3,
-      'side-effect, re-export, and dynamic adapter imports must be found recursively',
-    );
+    assert.equal(found.find((v) => v.file.endsWith('multiline.ts'))?.line, 1);
+    assert.equal(found[0]?.edge, 'core -> hosts');
   } finally {
-    await rm(directory, { recursive: true, force: true });
+    rmSync(root, { recursive: true, force: true });
   }
 });
 
-test('core does not import host, ledger, or trace adapters', async () => {
-  const root = new URL('../src/core/', import.meta.url);
-  const coreRoot = new URL('.', root).pathname;
-  const files = await sourceFiles(coreRoot);
-  const sources = await Promise.all(
-    files.map(async (file) => ({ file, source: await readFile(file, 'utf8') })),
-  );
-  assert.equal(
-    sources.some(({ file, source }) =>
-      importsOutsideCore(file, source, coreRoot),
+test('file-level exceptions and unmapped areas are enforced', () => {
+  const root = fixture({
+    'scripts/a.mjs': '',
+    'scripts/b.mjs': '',
+    'src/flow/x.ts':
+      "import '../../scripts/a.mjs';\nimport '../../scripts/b.mjs';",
+    'src/new/y.ts': "import '../flow/x.ts';",
+  });
+  try {
+    const found = check(root, { flow: ['scripts/a.mjs'] });
+    assert.deepEqual(
+      found.map((v) => `${v.file}:${v.line} ${v.edge}`),
+      [
+        'src/flow/x.ts:2 flow -> scripts',
+        'src/new/y.ts:1 new -> flow (area "new" missing from LAYERS)',
+      ],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('specifiers finds every module form with its line', () => {
+  assert.deepEqual(
+    specifiers(
+      "import a from './a';\nexport * from './b';\nawait import('./c');",
     ),
-    false,
-    'core must remain independent of adapters',
+    [
+      { specifier: './a', line: 1 },
+      { specifier: './b', line: 2 },
+      { specifier: './c', line: 3 },
+    ],
   );
+});
+
+test('the repository obeys its layer map and core imports nothing', () => {
+  assert.deepEqual(LAYERS.core, []);
+  assert.deepEqual(check(repo), []);
 });

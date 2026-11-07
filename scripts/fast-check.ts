@@ -3,6 +3,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { check as checkBoundaries } from './boundaries.ts';
 
 const LINTABLE = /\.(?:ts|mts|cts|js|mjs|cjs|json|jsonc|css)$/u;
 const TEST_FILE = /^test\/.+\.test\.(?:ts|js|mjs|cjs)$/u;
@@ -121,6 +122,15 @@ export async function main(root: string): Promise<number> {
         ...files,
       ]),
     );
+  const violations = checkBoundaries(root);
+  steps.push({
+    name: 'boundaries',
+    ok: violations.length === 0,
+    seconds: 0,
+    output: violations
+      .map((v) => `${v.file}:${v.line}: forbidden import ${v.edge}`)
+      .join('\n'),
+  });
   const cache = join(root, '.krn/cache');
   mkdirSync(cache, { recursive: true });
   const related = selectTests(changed, listTests(root));
