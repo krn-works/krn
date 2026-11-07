@@ -162,6 +162,27 @@ test('harness notifications are not captured and old ones never block a handoff'
   }
 });
 
+test('compaction summaries and interrupt markers are not captured', () => {
+  const { root, submit } = fixture();
+  try {
+    assert.equal(
+      submit(
+        'This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion.',
+      ).status,
+      0,
+    );
+    assert.equal(
+      submit('[Request interrupted by user for tool use]').status,
+      0,
+    );
+    assert.equal(existsSync(join(root, '.krn/operator/inbox.jsonl')), false);
+    submit('This session should keep the real directive about tests');
+    assert.equal(existsSync(join(root, '.krn/operator/inbox.jsonl')), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('capture hook is registered and fast', () => {
   const config = JSON.parse(readFileSync(settings, 'utf8'));
   const commands = JSON.stringify(config.hooks.UserPromptSubmit);

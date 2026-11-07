@@ -1,0 +1,14 @@
+{
+  "id": "t-rwr8s1v",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "clear source served; compaction/interrupt text not captured; other findings in ledger"
+  },
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "Audit hook inputs against the harness contract",
+  "after": [],
+  "body": []
+}

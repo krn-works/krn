@@ -59,7 +59,7 @@ try {
   const input = hookInput(['SessionStart']);
   if (
     typeof input.source !== 'string' ||
-    !['startup', 'resume', 'compact'].includes(input.source)
+    !['startup', 'resume', 'clear', 'compact'].includes(input.source)
   )
     throw new Error('Invalid source');
   const [commonDirectory = '', sha = '', branch = ''] = execFileSync(

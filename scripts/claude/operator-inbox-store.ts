@@ -93,8 +93,13 @@ function lines<T>(path: string): T[] {
 const harnessWrapper =
   /^<(task-notification|system-reminder|local-command-[a-z]+|bash-(input|stdout|stderr)|command-(name|message|args))>/u;
 
+// Plain-text harness prompts seen in real transcripts: the compaction summary and the interrupt marker.
+const harnessSentence =
+  /^(This session is being continued from a previous conversation|\[Request interrupted by user)/u;
+
 export const isHarnessText = (text: string): boolean =>
-  harnessWrapper.test(text.trimStart());
+  harnessWrapper.test(text.trimStart()) ||
+  harnessSentence.test(text.trimStart());
 
 export function capture(root: string, session: string, prompt: string): void {
   if (isHarnessText(prompt)) return;
