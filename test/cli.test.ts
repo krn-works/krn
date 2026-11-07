@@ -121,6 +121,16 @@ test('unknown and retired commands exit 64 with a clear stderr message and print
   }
 });
 
+test('state exits 64 and points at the global install without forwarding', () => {
+  const result = spawnSync(process.execPath, [cli, 'state', 'resume'], {
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 64);
+  assert.equal(result.stdout, '');
+  assert.match(result.stderr, /unknown command "state"/);
+  assert.match(result.stderr, /global KRN install/);
+});
+
 test('krn --help lists only the owned commands and exits 0', () => {
   const result = spawnSync(process.execPath, [cli, '--help'], {
     encoding: 'utf8',

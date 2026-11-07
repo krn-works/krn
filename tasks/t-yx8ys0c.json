@@ -1,7 +1,11 @@
 {
   "id": "t-yx8ys0c",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "state stays with the global install; bin/krn state exits 64 with a pointer; docs and lead skill name the PATH krn"
+  },
   "created": "2026-11-07",
   "priority": 1,
   "title": "Own krn state in one place: bin/krn vs global install",
