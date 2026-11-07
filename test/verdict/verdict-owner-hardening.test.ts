@@ -15,7 +15,7 @@ import {
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import test, { type TestContext } from 'node:test';
-import * as sandbox from '../../src/verdict/sandbox.ts';
+import * as sandbox from '../../src/verdict/trees.ts';
 
 function fixture(t: TestContext) {
   const root = mkdtempSync(join(tmpdir(), 'krn-verdict-owner-hardening-'));

@@ -4,15 +4,14 @@ import { mkdirSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import type { Job } from '../core/index.ts';
 import { type Registry, resolveChecks, resolveRegistry } from './registry.ts';
+import { execute, TeardownUnconfirmed } from './sandbox.ts';
+import { evaluatorSurfaceChanges } from './surface.ts';
 import {
   addWorktree,
   cleanupWorktrees,
   createWorktreeDirectory,
-  execute,
   quarantineVerdictTrees,
-  TeardownUnconfirmed,
-} from './sandbox.ts';
-import { evaluatorSurfaceChanges } from './surface.ts';
+} from './trees.ts';
 
 export type CheckEvidence = {
   readonly id: string;

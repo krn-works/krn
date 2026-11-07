@@ -12,10 +12,10 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import test from 'node:test';
 import { pathToFileURL } from 'node:url';
-import * as sandbox from '../../src/verdict/sandbox.ts';
+import * as sandbox from '../../src/verdict/trees.ts';
 
 const sandboxUrl = pathToFileURL(
-  join(import.meta.dirname, '../../src/verdict/sandbox.ts'),
+  join(import.meta.dirname, '../../src/verdict/trees.ts'),
 ).href;
 
 test('a failed quarantine of one copy still protects every other copy', async (t) => {
