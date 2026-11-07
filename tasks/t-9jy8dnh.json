@@ -1,0 +1,12 @@
+{
+  "id": "t-9jy8dnh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "CI: consolidate redundant worker hardening and input-bounds tests",
+  "after": [],
+  "body": [
+    "Roadmap R4. CI baseline (.krn/runs/lead/weakness-hunt/ci-baseline.md): worker/hardening 137 s and worker/input-bounds 129 s of 1464 s total; tests-audit.md: the ~10000-file bound is tested in four places. Outcome: one owner test per bound, slowest shard at least 20 s faster, no behaviour lost (mutation of each bound still fails a test)."
+  ]
+}

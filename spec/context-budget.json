@@ -1,10 +1,10 @@
 {
   "files": {
     ".agents/skills/architecture/SKILL.md": 5072,
-    ".agents/skills/krn-handoff/SKILL.md": 4596,
+    ".agents/skills/krn-handoff/SKILL.md": 4687,
     ".agents/skills/krn-lead/SKILL.md": 5638,
     ".agents/skills/krn-lead/lanes.md": 2219,
-    ".agents/skills/krn-retro/SKILL.md": 2445,
+    ".agents/skills/krn-retro/SKILL.md": 2605,
     ".agents/skills/typescript/SKILL.md": 3167,
     "AGENTS.md": 3538,
     "docs/program/PLAN.md": 4699,
@@ -12,6 +12,7 @@
     "docs/program/hardening-checklist.md": 3183,
     "docs/program/lead-rules.md": 5334,
     "docs/program/proposals.md": 636,
-    "docs/program/repository-workflow.md": 6630
+    "docs/program/repository-workflow.md": 6630,
+    "docs/program/roadmap.md": 4852
   }
 }

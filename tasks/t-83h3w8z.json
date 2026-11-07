@@ -1,0 +1,12 @@
+{
+  "id": "t-83h3w8z",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 1,
+  "title": "fast: catch stale references and removed modules before push",
+  "after": [],
+  "body": [
+    "Roadmap R3. Flake census (.krn/runs/lead/weakness-hunt/flake-census.md): 11 of 24 failed CI attempts were real defects fixed by a later push (#259 five red shards, #261, #262, #283), mostly retire/refactor PRs breaking doc or rule tests. Outcome: when a change deletes or renames a tracked file, npm run fast also runs the rule and doc tests that reference it; a replay of #259's first push fails locally."
+  ]
+}

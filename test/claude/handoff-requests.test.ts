@@ -31,7 +31,7 @@ function fixture() {
   const check = (
     body: string,
     extra: string[] = [],
-    header = '# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `npm run fast`\n\n## Priorities\n- t-zzzzzzz later\n',
+    header = '# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `npm run fast`\n- Roadmap: unchanged (fixture)\n## Priorities\n- t-zzzzzzz later\n',
   ) => {
     const handoff = join(root, 'handoff.md');
     writeFileSync(handoff, `${header}${body}`);
@@ -94,7 +94,7 @@ test('handoff check passes when every request has a task, memory entry or close'
     const bom = check(
       '## Operator requests\n- none\n',
       [],
-      '\uFEFF## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `x`\n\n',
+      '\uFEFF## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `x`\n- Roadmap: unchanged (fixture)\n\n',
     );
     assert.match(bom.stdout, /^PASS /u, bom.stderr);
     assert.equal(bom.status, 0, bom.stderr);
@@ -271,17 +271,52 @@ test('handoff check refuses a handoff missing the resume fields', () => {
     assert.equal(bare.status, 1);
     assert.match(bare.stderr, /no "## Resume" section/u);
     for (const [field, resume] of [
-      ['Task', '- SHAs: 5e1ce47\n- Verify: `npm run fast`\n'],
-      ['SHAs', '- Task: t-abc1234\n- Verify: `npm run fast`\n'],
+      [
+        'Task',
+        '- SHAs: 5e1ce47\n- Verify: `npm run fast`\n- Roadmap: unchanged (fixture)\n',
+      ],
+      [
+        'SHAs',
+        '- Task: t-abc1234\n- Verify: `npm run fast`\n- Roadmap: unchanged (fixture)\n',
+      ],
       [
         'Verify',
-        '- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: npm run fast\n',
+        '- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: npm run fast\n- Roadmap: unchanged (fixture)\n',
+      ],
+      [
+        'Roadmap',
+        '- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `npm run fast`\n- Roadmap: unchanged\n',
       ],
     ] as const) {
       const result = lacking(`# Handoff\n\n## Resume\n${resume}\n`);
       assert.equal(result.status, 1, field);
       assert.match(result.stderr, new RegExp(`lacks "- ${field}:"`, 'u'));
     }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('handoff Roadmap line must name real roadmap rows', () => {
+  const { root, check } = fixture();
+  try {
+    const none = '## Operator requests\n- none\n';
+    const header = (line: string) =>
+      `# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: \`npm run fast\`\n- Roadmap: ${line}\n\n`;
+    const missing = check(none, [], header('R2 reranked after the slice'));
+    assert.equal(missing.status, 1);
+    assert.match(missing.stderr, /names R2, which has no row/u);
+    mkdirSync(join(root, 'docs/program'), { recursive: true });
+    writeFileSync(
+      join(root, 'docs/program/roadmap.md'),
+      '| Rank | Id | Opportunity |\n|---|---|---|\n| 1 | R2 | faster CI |\n',
+    );
+    assert.equal(check(none, [], header('R2 reranked')).status, 0);
+    assert.equal(check(none, [], header('R2 and R9')).status, 1);
+    assert.equal(
+      check(none, [], header('unchanged (no new evidence)')).status,
+      0,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

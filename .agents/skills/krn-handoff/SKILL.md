@@ -9,7 +9,7 @@ A fresh session with a short, precise handoff outperforms a long session that ca
 
 1. **Capsule.** Update `.krn/runs/delivery-loop/<outcome>/state.md` and run `krn state check --root .` until it reports clean.
 2. **Handoff.** Write `handoff.md` beside the capsule: at most one page, pointers only, never content already held by an ADR, task, commit, PR or record. Redact secrets. Include:
-   - `## Resume`, one consolidated block that SessionStart injects into the successor: three bullets `- Task: <task id>`, `- SHAs: <exact HEAD and in-flight SHAs>` and ``- Verify: `<one command>` `` (the done-condition or state check the successor runs before any other step); the check refuses a handoff missing any of them. The operator requests section below is injected verbatim beside it, so keep both short;
+   - `## Resume`, one consolidated block that SessionStart injects into the successor: four bullets `- Task: <task id>`, `- SHAs: <exact HEAD and in-flight SHAs>`, ``- Verify: `<one command>` `` (the done-condition or state check the successor runs before any other step) and `- Roadmap: <ids changed in docs/program/roadmap.md>` or `- Roadmap: unchanged (<reason>)`; the check refuses a handoff missing any of them. The operator requests section below is injected verbatim beside it, so keep both short;
    - the priority list, with the next slice and why it comes next;
    - in-flight PRs and runs with SHAs;
    - open operator decisions;
