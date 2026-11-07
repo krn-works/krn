@@ -38,7 +38,7 @@ jobs:
       # Fail open: pushes to main and any detection problem run everything.
       # A pull request that changes only task records skips tests; one that
       # changes only task records, non-agent documents or non-isolation tests
-      # skips the isolation-dependent tests and their Go/bubblewrap setup.
+      # skips the isolation-dependent tests and their bubblewrap setup.
       - name: Detect affected jobs
         id: detect
         env:
@@ -108,7 +108,7 @@ jobs:
       - name: Set up CI
         uses: ./.github/actions/setup-ci
         with:
-          go: ${{ needs.changes.outputs.isolation != 'false' }}
+          isolation: ${{ needs.changes.outputs.isolation != 'false' }}
 
       - name: Set up mise
         uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2

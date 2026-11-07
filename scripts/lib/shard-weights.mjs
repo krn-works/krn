@@ -69,8 +69,6 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/foreman/interrupted-resume.test.ts': 2,
   'test/foreman/review-readiness.test.ts': 2,
   'test/fs/local-read.test.ts': 1,
-  'test/gate-local-scope.test.ts': 2,
-  'test/gate-local-status-retry.test.mjs': 5,
   'test/gate-summary.test.ts': 16,
   'test/helpers/check-scopes.test.ts': 1,
   'test/helpers/systemd-environment.test.ts': 2,

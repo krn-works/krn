@@ -38,7 +38,6 @@ Use them only when they clearly save time; none is a prerequisite for a merge.
 
 - `bin/krn review --repo <path> --pr <n> --base <sha> --head <sha>` runs the review panel on demand, with no attempt budget.
 - `bin/krn worker start|send|stop` delegates bounded work to Codex; the lead commits its output.
-- `npm run gate:local` runs host isolation diagnostics.
 - Recon, inventories and log summaries go to Claude Sonnet or Haiku subagents; program decisions to two or three independent Opus lenses.
 
 ## Traps

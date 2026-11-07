@@ -6,7 +6,7 @@ import { selectIsolationTestFiles } from './isolation-gate.mjs';
 import { TEST_FILE_GLOB } from './test-suite.mjs';
 
 const TASK_RECORD = /^tasks\/[^/]+\.json$/u;
-// Paths whose change cannot affect sandbox, systemd-scope or Go behaviour.
+// Paths whose change cannot affect sandbox or systemd-scope behaviour.
 const DOCUMENT = /^(?:docs\/.+|[^/]+)\.md$/u;
 const AGENT_INSTRUCTIONS = /(?:^|\/)(?:AGENTS|CLAUDE)\.md$/u;
 const TEST_FILE = /^test\/.+\.test\.(?:ts|js|mjs|cjs)$/u;

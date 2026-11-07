@@ -10,7 +10,7 @@ export type DiffEntry = {
 
 function high(path: string): boolean {
   return (
-    /^(?:\.github\/|\.claude\/|\.agents\/|\.codex\/|docs\/adr\/|docs\/program\/|spec\/|src\/(?:flow|deliver|ci|slice|verify)\/|bin\/|scripts\/(?:pr-preflight\.mjs$|head-trailers\.mjs$|gate-local\.mjs$|(?:install|seal)[^/]*$))/.test(
+    /^(?:\.github\/|\.claude\/|\.agents\/|\.codex\/|docs\/adr\/|docs\/program\/|spec\/|src\/(?:flow|deliver|ci|slice|verify)\/|bin\/|scripts\/(?:pr-preflight\.mjs$|head-trailers\.mjs$|(?:install|seal)[^/]*$))/.test(
       path,
     ) ||
     /(?:^|\/)(?:AGENTS|CLAUDE)\.md$/.test(path) ||

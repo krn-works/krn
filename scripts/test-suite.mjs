@@ -22,7 +22,6 @@ import {
   isolationCoverage,
   isolationFilesInSelection,
   isolationSummary,
-  probeGoCapability,
   selectIsolationTestFiles,
   testSuiteExitCode,
 } from './isolation-gate.mjs';
@@ -460,14 +459,9 @@ function defaultCapabilities() {
     process.env.KRN_ISOLATION_CAPABILITIES
       ? JSON.parse(process.env.KRN_ISOLATION_CAPABILITIES)
       : undefined;
-  const capabilities = {
-    ...(inherited ?? probeIsolationCapabilities()),
-    go: inherited?.go ?? probeGoCapability(),
-  };
+  const capabilities = inherited ?? probeIsolationCapabilities();
   if (!inherited)
-    process.stdout.write(
-      `${formatIsolationProbe(capabilities)}; Go toolchain=${capabilities.go.available ? 'available' : 'unavailable'}\n`,
-    );
+    process.stdout.write(`${formatIsolationProbe(capabilities)}\n`);
   return capabilities;
 }
 
@@ -710,7 +704,6 @@ async function main() {
         '',
         `- Tests: ${testCount}`,
         `- ${legacySummary}`,
-        `- Go toolchain: ${formatCapability(capabilities.go)}`,
         `- bwrap: ${formatCapability(capabilities.bwrap)}`,
         `- systemd user scopes: ${formatCapability(capabilities.systemdUserScope)}`,
         '',
@@ -796,7 +789,7 @@ async function main() {
     }
     if (strict && skipCount > 0)
       process.stderr.write(
-        `gate:local requires zero isolation skips; observed ${skipCount}\n`,
+        `strict mode requires zero isolation skips; observed ${skipCount}\n`,
       );
   } catch (error) {
     process.stderr.write(`Test suite wrapper failed: ${error.message}\n`);
