@@ -1,6 +1,6 @@
 # Current proposal register
 
-This register keeps only proposals referenced by the current plan or ADRs. It does not create tasks or grant authority. `krn task` is the selected in-repository task-status source under ADR 0014 D8. Review and delivery evidence lives in local `krn review` records and git history.
+This register keeps only proposals referenced by the current plan or ADRs. It does not create tasks or grant authority. `krn task` is the selected in-repository task-status source under ADR 0014 D8. Delivery evidence lives in git history and PRs.
 
 | ID | Status | Current disposition |
 |---|---|---|

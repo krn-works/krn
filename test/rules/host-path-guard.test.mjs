@@ -21,10 +21,6 @@ const hostPathAllowlist = new Map([
     'src/hosts/systemd-scope.ts',
     'Systemd scopes derive the conventional user runtime when env omits it.',
   ],
-  [
-    'src/verdict/sandbox.ts',
-    'Sandbox systemd fallback derives the conventional user runtime for D-Bus.',
-  ],
 ]);
 
 function trackedCodePaths() {

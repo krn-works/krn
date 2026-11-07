@@ -16,7 +16,7 @@ Run the two-week proof of full KRN against a plain harness, plus a market review
 
 ### 2. Review evidence
 
-First make red-first prove an assertion failure on base and a pass on head (`t-c2pnpbq`); then replace two Codex judges with `codex review` and Claude Code `/code-review` (`t-809s3yc`). Keep the exact-head record.
+Replace two Codex judges with `codex review` and Claude Code `/code-review` (`t-809s3yc`). Keep the exact-head record.
 
 **Exit:** records show base=assertion/head=pass pairs and three distinct judge implementations.
 

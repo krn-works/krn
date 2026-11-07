@@ -45,7 +45,7 @@ test('the lead loop skills name only existing review flags and the real launch c
     ?.join(' ')
     .match(/--[a-z-]+/gu) ?? [])
     assert.ok(review.includes(flag), `krn review usage lacks ${flag}`);
-  assert.match(lead, /krn review --repo <path> --pr <n>/u);
+  assert.match(lead, /krn review --repo <path> --base <sha> --head <sha>/u);
   assert.match(
     skill('krn-handoff'),
     /node scripts\/claude\/successor-launch\.ts --name "[^"]+" --prompt /u,

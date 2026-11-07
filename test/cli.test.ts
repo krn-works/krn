@@ -78,52 +78,6 @@ test('krn review maps an invalid base revision to exit code 64', async () => {
   }
 });
 
-test('krn review maps a runtime failure to exit code 70', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'krn-review-runtime-'));
-  const outside = await mkdtemp(join(tmpdir(), 'krn-review-runtime-state-'));
-  try {
-    const lens = join(directory, 'lens.md');
-    await writeFile(lens, 'Review the change.\n');
-    const git = (...args: string[]) => {
-      const result = spawnSync('git', ['-C', directory, ...args], {
-        encoding: 'utf8',
-      });
-      assert.equal(result.status, 0, result.stderr);
-      return result.stdout.trim();
-    };
-    git('init', '--quiet');
-    git('config', 'user.name', 'KRN CLI test');
-    git('config', 'user.email', 'krn-test@example.invalid');
-    await writeFile(join(directory, 'README.md'), 'runtime fixture\n');
-    git('add', 'README.md', 'lens.md');
-    git('commit', '-qm', 'create review fixture');
-    const head = git('rev-parse', 'HEAD');
-    await symlink(outside, join(directory, '.krn'));
-    const result = spawnSync(
-      process.execPath,
-      [
-        cli,
-        'review',
-        '--repo',
-        directory,
-        '--base',
-        head,
-        '--head',
-        head,
-        '--lens',
-        lens,
-      ],
-      { encoding: 'utf8' },
-    );
-
-    assert.equal(result.status, 70, result.stderr);
-    assert.match(result.stderr, /unsafe repository state directory/u);
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-    await rm(outside, { recursive: true, force: true });
-  }
-});
-
 test('review verdict and error exit codes are stable', async () => {
   const mainSource = readFileSync(
     new URL('../src/cli/main.ts', import.meta.url),
@@ -144,7 +98,6 @@ test('review verdict and error exit codes are stable', async () => {
   assert.equal(reviewOutcomeExitCode('PASS'), 0);
   assert.equal(reviewOutcomeExitCode('FAIL'), 1);
   assert.equal(reviewOutcomeExitCode('INCOMPLETE'), 2);
-  assert.equal(reviewOutcomeExitCode('OVERRIDE'), 0);
   assert.equal(reviewErrorExitCode(new ReviewUsageError('bad arguments')), 64);
   assert.equal(reviewErrorExitCode(new Error('runtime failure')), 70);
 });

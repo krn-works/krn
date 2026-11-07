@@ -31,7 +31,7 @@
         "kind": "gate",
         "check": "npm run gate"
       },
-      "rationale": "Full required CI is the only gate: lint, typecheck and touched tests run locally, then auto-merge on the Check; review, red-first and local gates are opt-in."
+      "rationale": "Full required CI is the only gate: lint, typecheck and touched tests run locally, then auto-merge on the Check; review and local gates are opt-in."
     },
     {
       "id": "KRN-08",
