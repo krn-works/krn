@@ -23,7 +23,10 @@ export type Finding = {
     | 'INDEX-SIZE'
     | 'TOO-LARGE'
     | 'UNREADABLE'
-    | 'PENDING-LESSON';
+    | 'PENDING-LESSON'
+    | 'SUPERSEDED'
+    | 'EXPIRED'
+    | 'CHANGED';
   file: string;
   line: number;
   target: string;
@@ -58,6 +61,42 @@ function countLines(path: string): number {
     return previous === 0x0a || previous === 0x0d ? separators : separators + 1;
   } finally {
     closeSync(fd);
+  }
+}
+// Validity of one note from its frontmatter: `superseded_by` and a past `valid_to` retire it;
+// the as-of time is `modified` (or `as_of`), and a note without one is 'unknown'.
+export function noteValidity(
+  text: string,
+  now = Date.now(),
+): { state: 'current' | 'SUPERSEDED' | 'EXPIRED'; asOf: number | 'unknown' } {
+  const front = /^\uFEFF?---\r?\n([\s\S]*?)\r?\n---/u.exec(text)?.[1] ?? '';
+  const field = (key: string) =>
+    new RegExp(`^\\s*${key}:\\s*"?([^"\\r\\n]+?)"?\\s*$`, 'mu').exec(
+      front,
+    )?.[1];
+  const time = (value: string | undefined) => {
+    const parsed = value ? Date.parse(value) : Number.NaN;
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+  const asOf = time(field('as_of')) ?? time(field('modified')) ?? 'unknown';
+  if (field('superseded_by')) return { state: 'SUPERSEDED', asOf };
+  const until = time(field('valid_to'));
+  if (until !== undefined && until < now) return { state: 'EXPIRED', asOf };
+  return { state: 'current', asOf };
+}
+function changedAfter(main: string, path: string, since: number): boolean {
+  try {
+    const seconds = Number(
+      execFileSync('git', ['log', '-1', '--format=%ct', '--', path], {
+        cwd: main,
+        encoding: 'utf8',
+        timeout: 2000,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim(),
+    );
+    return Number.isFinite(seconds) && seconds * 1000 > since;
+  } catch {
+    return false;
   }
 }
 const safe = (text: string) =>
@@ -116,9 +155,12 @@ function read(path: string): string | undefined {
 export function checkMemory({
   root,
   memory,
+  changed = true,
 }: {
   root: string;
   memory: string;
+  // Comparing referenced files against git history costs one git call per reference.
+  changed?: boolean;
 }): { findings: Finding[]; files: number } {
   const directory = exists(memory);
   if (!directory?.isDirectory() || directory.isSymbolicLink())
@@ -185,6 +227,9 @@ export function checkMemory({
       (count > indexLineBudget || stat.size > indexBudget)
     )
       add('INDEX-SIZE', file, 0, `${count} lines ${stat.size} bytes`);
+    const validity = file === 'MEMORY.md' ? undefined : noteValidity(text);
+    if (validity && validity.state !== 'current')
+      add(validity.state, file, 1, '');
     for (const [index, line] of lines.entries()) {
       const number = index + 1;
       if (file === 'MEMORY.md')
@@ -243,6 +288,16 @@ export function checkMemory({
           ? join(homedir(), path.slice(2))
           : resolve(main, path);
         if (!exists(target)) add('DANGLING', file, number, token);
+        else if (
+          changed &&
+          validity &&
+          typeof validity.asOf === 'number' &&
+          !path.startsWith('~/') &&
+          !path.startsWith('/') &&
+          lstatSync(target).isFile() &&
+          changedAfter(main, path, validity.asOf)
+        )
+          add('CHANGED', file, number, token);
       }
     }
   }
@@ -271,6 +326,8 @@ function format(finding: Finding): string {
     'INDEX-SIZE',
     'TOO-LARGE',
     'UNREADABLE',
+    'SUPERSEDED',
+    'EXPIRED',
   ].includes(kind)
     ? safe(file)
     : `${safe(file)}:${line}`;
