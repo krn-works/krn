@@ -1,0 +1,12 @@
+{
+  "id": "t-9p5tdez",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 1,
+  "title": "Fix order-dependent hang in verdict, worker report-outcome and trace/index tests",
+  "after": [],
+  "body": [
+    "Files: test/verdict/evaluator-surface.test.ts, test/verdict/verdict-owner-hardening.test.ts, test/worker/report-outcome.test.ts, test/trace/index.test.ts (trace/index is in SERIAL_TEST_FILES).\nSymptom: `npm test -- <those 4 files>` never exits (3 parallel groups + 1 serial file; process tree stays inside nested isolation-gate runners, killed only by timeout). In CI it ran a nested whole-suite for 16 min until the 20-minute job timeout (PR #262 first attempts, shard 6/8, runs 42384155131 and 42384990325).\nRepro (observed): planTestShards in scripts/lib/test-shards.mjs seeded shardWeights with the serial files before assigning parallel files (`for (const [position,file] of finalSerialFiles.entries()) shardWeights[position % shardCount % effectiveShards] += weight`), which changes which parallel file lands in which group. With that seeding: `KRN_TEST_OUTPUT=failures timeout 150 npm test -- test/verdict/evaluator-surface.test.ts test/verdict/verdict-owner-hardening.test.ts test/worker/report-outcome.test.ts test/trace/index.test.ts` -> exit 124 every time (4 of 4). Without the seeding, plain LPT order -> exit 0 in ~49 s; origin/main -> 48 s. Each file alone passes (1-50 s); pairs and triples with trace/index also pass. The exact group-to-file assignment was not printed, so the offending ordering is not pinned down; the seeding patch was dropped, so reproduce by re-applying it or by permuting the group order in planTestShards.\nSuspect: a hidden shared resource between concurrent groups (worker/report-outcome spawns `krn worker start`; verdict tests use bwrap; trace/index asserts lock timings), only exposed by a particular group index assignment.\nDone when: the 4 files pass in every group order (add a test that runs them under permuted group assignment) or the shared resource is isolated per worker."
+  ]
+}
