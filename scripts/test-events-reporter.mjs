@@ -27,6 +27,7 @@ function eventRecord(event) {
     'todo',
     'testNumber',
     'success',
+    'duration_ms',
   ]) {
     if (Object.hasOwn(data, key)) retained[key] = data[key];
   }

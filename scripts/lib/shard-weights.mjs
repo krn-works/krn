@@ -1,13 +1,13 @@
-// Relative cost, in seconds, of each test file run alone under four-way
-// parallel load. planTestShards balances shards by these weights so the slowest
-// shard bounds CI wall-clock; a file missing here falls back to the median
-// weight. Refresh by timing `node --test <file>` per file (xargs -P 4) when
-// the slowest shard drifts well above the mean.
+// Relative cost, in seconds, of each test file. planTestShards balances
+// shards by these weights so the slowest shard bounds CI wall-clock; a file
+// missing here falls back to its size. Refresh from CI per-file durations with
+// `node scripts/shard-weights-refresh.mjs --write` (needs 5 main runs).
 export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/agents-render.test.ts': 1,
   'test/architecture/depth.test.ts': 1,
   'test/ci/ci-changes.test.ts': 1,
   'test/ci/idle-gap-cache.test.ts': 1,
+  'test/ci/shard-weights.test.mjs': 1,
   'test/ci/stage-time.test.ts': 1,
   'test/ci/wait.test.ts': 1,
   'test/claude/context-gauge.test.ts': 6,
