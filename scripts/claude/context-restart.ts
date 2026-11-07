@@ -10,7 +10,7 @@ const rules = [
   'delegate reading to a subagent (krn-reader) that returns a verdict and path',
   'pass pointers, not file contents',
   'verify by commands that print a verdict',
-  'one slice per session',
+  'parallel worktree lanes',
   'at a gauge advisory, finish the step and run krn-handoff',
 ];
 

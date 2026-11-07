@@ -95,7 +95,7 @@ test('restart hook emits bounded JSON with capsule fields, open claims, handoff 
       'verdict and path',
       'pointers, not file contents',
       'commands that print a verdict',
-      'one slice per session',
+      'parallel worktree lanes',
       'gauge advisory',
       'krn-handoff',
     ])
