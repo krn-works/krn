@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -13,6 +14,7 @@ import test from 'node:test';
 import {
   changedFiles,
   lintable,
+  removedFiles,
   selectTests,
   toolBin,
 } from '../scripts/fast-check.ts';
@@ -73,6 +75,39 @@ test('fast check resolves dynamic, side-effect and index specifiers', () => {
   ]);
 });
 
+test('fast check runs tests that reference a removed file by import, path or unique basename', () => {
+  const refs = new Map([
+    ['test/imports.test.ts', "import { x } from '../scripts/gone.mjs';"],
+    ['test/joined.test.ts', "spawn(join(root, 'scripts', 'gone.mjs'));"],
+    ['test/doc.test.ts', "read('docs/program/old-guide.md');"],
+    ['test/cli.test.ts', "run(join('src', 'deliver', 'cli.ts'));"],
+    ['test/unrelated.test.ts', "import '../src/kept.ts';"],
+  ]);
+  // Replay of #259's first push: deleting scripts/gone.mjs left tests spawning it by path.
+  assert.deepEqual(
+    selectTests([], refs, ['scripts/gone.mjs'], new Set(['src/kept.ts'])),
+    ['test/imports.test.ts', 'test/joined.test.ts'],
+  );
+  assert.deepEqual(
+    selectTests([], refs, ['docs/program/old-guide.md'], new Set()),
+    ['test/doc.test.ts'],
+  );
+  // A basename that a surviving file still carries is too broad to match alone.
+  assert.deepEqual(
+    selectTests([], refs, ['src/deliver/cli.ts'], new Set(['src/cli/cli.ts'])),
+    [],
+  );
+});
+
+test('fast check runs tests that name a changed non-code file by repository path', () => {
+  const refs = new Map([
+    ['test/workflow.test.ts', "read('docs/program/repository-workflow.md');"],
+  ]);
+  assert.deepEqual(selectTests(['docs/program/repository-workflow.md'], refs), [
+    'test/workflow.test.ts',
+  ]);
+});
+
 test('fast check lints code files and skips task records and prose', () => {
   assert.deepEqual(
     lintable(['a.ts', 'tasks/t-1.json', 'docs/x.md', 'b.mjs', 'c.json']),
@@ -101,6 +136,30 @@ test('fast check lists committed, modified and untracked files against the base'
   writeFileSync(join(dir, 'a.ts'), '2');
   writeFileSync(join(dir, 'new.ts'), '1');
   assert.deepEqual(changedFiles(dir), ['a.ts', 'new.ts', 'src/b.ts']);
+});
+
+test('fast check lists deleted and renamed-away files as removed', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fast-removed-'));
+  const git = (...args: string[]) =>
+    assert.equal(
+      spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+        cwd: dir,
+      }).status,
+      0,
+    );
+  git('init', '-q', '-b', 'main');
+  writeFileSync(join(dir, 'gone.ts'), 'export const gone = 1;\n');
+  writeFileSync(join(dir, 'moved.ts'), 'export const moved = 1;\n');
+  writeFileSync(join(dir, 'unstaged.ts'), '1');
+  git('add', '.');
+  git('commit', '-qm', 'base');
+  git('checkout', '-qb', 'work');
+  git('rm', '-q', 'gone.ts');
+  git('mv', 'moved.ts', 'renamed.ts');
+  git('commit', '-qm', 'work');
+  rmSync(join(dir, 'unstaged.ts'));
+  assert.deepEqual(removedFiles(dir), ['gone.ts', 'moved.ts', 'unstaged.ts']);
+  assert.deepEqual(changedFiles(dir), ['renamed.ts']);
 });
 
 function repoWithChange(): { dir: string; git: (...a: string[]) => void } {
