@@ -200,13 +200,15 @@ console.log('ActiveState=inactive\\nControlGroup=');
   return { root, repo, run, env, git, launch, turn, json, rows, requests };
 }
 
-test('run directory is strictly below the real repository .krn with no symlink components', async (t) => {
+test('run directory is strictly below the real repository .krn with no symlink components', {
+  concurrency: 6,
+}, async (t) => {
   for (const location of [
     'external/.krn/run',
     'main/.krn-other/run',
     'main/.krn',
   ]) {
-    await t.test(location, async (t) => {
+    t.test(location, async (t) => {
       const s = await setup(t);
       const result = await s.turn('ok', true, join(s.root, location)).result;
       assert.equal(result.code, 64, result.stderr);
@@ -214,7 +216,7 @@ test('run directory is strictly below the real repository .krn with no symlink c
     });
   }
   for (const component of ['.krn', '.krn/runs', '.krn/runs/worker']) {
-    await t.test(`symlink ${component}`, async (t) => {
+    t.test(`symlink ${component}`, async (t) => {
       const s = await setup(t);
       const target = join(s.root, 'target');
       mkdirSync(target);
@@ -229,9 +231,11 @@ test('run directory is strictly below the real repository .krn with no symlink c
   }
 });
 
-test('thread and turn grant only repository and tmp roots, and tell the worker the lead commits', async (t) => {
+test('thread and turn grant only repository and tmp roots, and tell the worker the lead commits', {
+  concurrency: 6,
+}, async (t) => {
   for (const worktree of [false, true]) {
-    await t.test(worktree ? 'linked worktree' : 'repository', async (t) => {
+    t.test(worktree ? 'linked worktree' : 'repository', async (t) => {
       const s = await setup(t, worktree);
       assert.equal((await s.turn('ok', true).result).code, 0);
       const requests = s.requests();
@@ -253,7 +257,9 @@ test('thread and turn grant only repository and tmp roots, and tell the worker t
   }
 });
 
-test('Git HEAD, packed refs, refs trees and top-level lock changes fail scope in repositories and worktrees', async (t) => {
+test('Git HEAD, packed refs, refs trees and top-level lock changes fail scope in repositories and worktrees', {
+  concurrency: 6,
+}, async (t) => {
   for (const worktree of [false, true]) {
     for (const name of [
       'HEAD',
@@ -262,33 +268,27 @@ test('Git HEAD, packed refs, refs trees and top-level lock changes fail scope in
       'HEAD.lock',
       'index.lock',
     ]) {
-      await t.test(
-        `${worktree ? 'worktree' : 'repository'} ${name}`,
-        async (t) => {
-          const s = await setup(t, worktree);
-          const gitDir = s.git(
-            'rev-parse',
-            '--path-format=absolute',
-            name === 'HEAD' ? '--git-dir' : '--git-common-dir',
-          );
-          const path = join(gitDir, name);
-          const result = await s.turn(`write ${relative(s.repo, path)}`, true)
-            .result;
-          assert.equal(result.code, 3, result.stderr);
-          assert.ok(result.stderr.includes(path), result.stderr);
-        },
-      );
+      t.test(`${worktree ? 'worktree' : 'repository'} ${name}`, async (t) => {
+        const s = await setup(t, worktree);
+        const gitDir = s.git(
+          'rev-parse',
+          '--path-format=absolute',
+          name === 'HEAD' ? '--git-dir' : '--git-common-dir',
+        );
+        const path = join(gitDir, name);
+        const result = await s.turn(`write ${relative(s.repo, path)}`, true)
+          .result;
+        assert.equal(result.code, 3, result.stderr);
+        assert.ok(result.stderr.includes(path), result.stderr);
+      });
     }
     for (const flag of ['--assume-unchanged', '--skip-worktree']) {
-      await t.test(
-        `${worktree ? 'worktree' : 'repository'} ${flag}`,
-        async (t) => {
-          const s = await setup(t, worktree);
-          const result = await s.turn(`index-flag ${flag}`, true).result;
-          assert.equal(result.code, 3, result.stderr);
-          assert.ok(result.stderr.includes('README.md'), result.stderr);
-        },
-      );
+      t.test(`${worktree ? 'worktree' : 'repository'} ${flag}`, async (t) => {
+        const s = await setup(t, worktree);
+        const result = await s.turn(`index-flag ${flag}`, true).result;
+        assert.equal(result.code, 3, result.stderr);
+        assert.ok(result.stderr.includes('README.md'), result.stderr);
+      });
     }
   }
 });
@@ -301,9 +301,11 @@ test('pre-existing index flags are baseline data and read-only Git checks preser
   assert.equal((await s.turn('ok').result).code, 0);
 });
 
-test('untracked baseline compares content, deletions, types and symlink targets through the tiers', async (t) => {
+test('untracked baseline compares content, deletions, types and symlink targets through the tiers', {
+  concurrency: 6,
+}, async (t) => {
   for (const action of ['write', 'delete', 'retype', 'relink']) {
-    await t.test(action, async (t) => {
+    t.test(action, async (t) => {
       const s = await setup(t);
       const path = join(s.repo, 'AGENTS.md');
       if (action === 'relink') symlinkSync('initial-target', path);
@@ -313,7 +315,7 @@ test('untracked baseline compares content, deletions, types and symlink targets 
       assert.ok(result.stderr.includes('AGENTS.md'), result.stderr);
     });
   }
-  await t.test('review tier and unchanged symlink', async (t) => {
+  t.test('review tier and unchanged symlink', async (t) => {
     const s = await setup(t);
     mkdirSync(join(s.repo, 'docs'));
     writeFileSync(join(s.repo, 'docs/guide.md'), 'before edit');
@@ -327,9 +329,11 @@ test('untracked baseline compares content, deletions, types and symlink targets 
   });
 });
 
-test('untracked baseline refuses more than 10000 files or 1 GB total before starting the server', async (t) => {
+test('untracked baseline refuses more than 10000 files or 1 GB total before starting the server', {
+  concurrency: 6,
+}, async (t) => {
   for (const bound of ['files', 'bytes']) {
-    await t.test(bound, async (t) => {
+    t.test(bound, async (t) => {
       const s = await setup(t);
       if (bound === 'files') {
         mkdirSync(join(s.repo, 'generated'));
@@ -350,14 +354,16 @@ test('untracked baseline refuses more than 10000 files or 1 GB total before star
   }
 });
 
-test('missing, mismatched and malformed usage fail closed, interrupt, stop scope and never persist zero metrics', async (t) => {
+test('missing, mismatched and malformed usage fail closed, interrupt, stop scope and never persist zero metrics', {
+  concurrency: 6,
+}, async (t) => {
   for (const action of [
     'no-usage',
     'wrong-thread-usage',
     'wrong-turn-usage',
     'bad-usage',
   ]) {
-    await t.test(action, async (t) => {
+    t.test(action, async (t) => {
       const s = await setup(t);
       // Missing usage on a later turn must not reuse the preceding metrics.
       assert.equal((await s.turn('ok', true).result).code, 0);
@@ -378,7 +384,7 @@ test('missing, mismatched and malformed usage fail closed, interrupt, stop scope
       assert.equal((await s.turn('ok').result).code, 5);
     });
   }
-  await t.test(
+  t.test(
     'first turn has no fabricated metrics or summary tokens',
     async (t) => {
       const s = await setup(t);
@@ -391,9 +397,11 @@ test('missing, mismatched and malformed usage fail closed, interrupt, stop scope
   );
 });
 
-test('start and stop reap the recorded server scope and process group after driver SIGKILL', async (t) => {
+test('start and stop reap the recorded server scope and process group after driver SIGKILL', {
+  concurrency: 6,
+}, async (t) => {
   for (const command of ['start', 'stop']) {
-    await t.test(command, async (t) => {
+    t.test(command, async (t) => {
       const s = await setup(t);
       const pending = s.turn('hang-orphan', true);
       await until(
@@ -527,14 +535,16 @@ test('PEM, AWS and credential assignments are redacted in start and send inboxes
   inspect(join(s.run, 'rounds/003/report.json'));
 });
 
-test('start refuses an --allow value that names a forbidden path before spawning', async (t) => {
+test('start refuses an --allow value that names a forbidden path before spawning', {
+  concurrency: 6,
+}, async (t) => {
   for (const value of [
     '.agents/skills/x/SKILL.md',
     'tasks/a.json',
     '.git/config',
     'docs/program/lead-rules.md',
   ]) {
-    await t.test(value, async (t) => {
+    t.test(value, async (t) => {
       const s = await setup(t);
       const result = await s.turn('ok', true, s.run, ['--allow', value]).result;
       assert.equal(result.code, 64, result.stderr);
@@ -548,7 +558,7 @@ test('start refuses an --allow value that names a forbidden path before spawning
   // A wildcard allow that overlaps forbidden globs is accepted on purpose:
   // `src/**` and `docs/**` overlap `**/AGENTS.md` and `docs/adr/**`, and the
   // scope check still fails any forbidden change under it (exit 3).
-  await t.test('wildcard allow still fails a forbidden change', async (t) => {
+  t.test('wildcard allow still fails a forbidden change', async (t) => {
     const s = await setup(t);
     const result = await s.turn(
       'write .agents/skills/x/SKILL.md',
@@ -563,7 +573,7 @@ test('start refuses an --allow value that names a forbidden path before spawning
     );
   });
   for (const value of ['src/**', 'docs/**', 'test/worker/x.test.ts']) {
-    await t.test(`accepts ${value}`, async (t) => {
+    t.test(`accepts ${value}`, async (t) => {
       const s = await setup(t);
       const result = await s.turn('ok', true, s.run, ['--allow', value]).result;
       assert.equal(result.code, 0, result.stderr);
