@@ -1,7 +1,11 @@
 {
   "id": "t-hj92cp6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "A/B 12 runs (Sonnet 5.5, 2 tasks x 3 runs/arm): T3 not cheaper (t1 +7% USD within spread; t2 median +48% USD); lead stays native. Report: .krn/runs/lead/t3-ab/report.md"
+  },
   "created": "2026-11-07",
   "priority": 0,
   "title": "T3 Code A/B token pilot; migrate lead if cheaper",
