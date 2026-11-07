@@ -25,7 +25,7 @@ const allowWait = new Map([
     'Polls for a spawned process marker under a deadline.',
   ],
   [
-    'test/worker/hardening.test.ts',
+    'test/worker/hardening-fixture.ts',
     'until() polls a condition under a deadline.',
   ],
   [
@@ -33,7 +33,7 @@ const allowWait = new Map([
     'until() polls a condition under a deadline.',
   ],
   [
-    'test/worker/scope-bypass.test.ts',
+    'test/worker/scope-bypass-fixture.ts',
     'until() polls a condition under a deadline.',
   ],
   [
@@ -41,7 +41,7 @@ const allowWait = new Map([
     'until() polls a condition under a deadline.',
   ],
   [
-    'test/worker/state-trust.test.ts',
+    'test/worker/state-trust-fixture.ts',
     'until() polls a condition under a deadline.',
   ],
   [
