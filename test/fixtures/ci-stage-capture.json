@@ -1,0 +1,1859 @@
+[
+  {
+    "number": 285,
+    "headRefOid": "8da211524e37d3461b3f442ec18dccb6b4b071d0",
+    "createdAt": "2026-11-07T17:43:30Z",
+    "mergedAt": "2026-11-07T17:45:11Z",
+    "firstCommitAt": "2026-11-07T17:43:26Z",
+    "runs": [
+      {
+        "id": 42397713661,
+        "head_sha": "8da211524e37d3461b3f442ec18dccb6b4b071d0",
+        "run_attempt": 1,
+        "jobs": [
+          {
+            "id": 128478573652,
+            "run_id": 42397713661,
+            "workflow_name": "CI",
+            "head_branch": "fix/state-owner",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42397713661",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6et0VA",
+            "head_sha": "8da211524e37d3461b3f442ec18dccb6b4b071d0",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128478573652",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42397713661/job/128478573652",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:43:34Z",
+            "started_at": "2026-11-07T17:43:36Z",
+            "completed_at": "2026-11-07T17:43:45Z",
+            "name": "Changes",
+            "steps": [],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128478573652",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002289,
+            "runner_name": "GitHub Actions 1000002289",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128478621200,
+            "run_id": 42397713661,
+            "workflow_name": "CI",
+            "head_branch": "fix/state-owner",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42397713661",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6ewuEA",
+            "head_sha": "8da211524e37d3461b3f442ec18dccb6b4b071d0",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128478621200",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42397713661/job/128478621200",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:43:45Z",
+            "started_at": "2026-11-07T17:43:48Z",
+            "completed_at": "2026-11-07T17:44:05Z",
+            "name": "Typecheck",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:43:51Z",
+                "completed_at": "2026-11-07T17:44:01Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:44:02Z",
+                "completed_at": "2026-11-07T17:44:02Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128478621200",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002305,
+            "runner_name": "GitHub Actions 1000002305",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128478621224,
+            "run_id": 42397713661,
+            "workflow_name": "CI",
+            "head_branch": "fix/state-owner",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42397713661",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6ewuKA",
+            "head_sha": "8da211524e37d3461b3f442ec18dccb6b4b071d0",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128478621224",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42397713661/job/128478621224",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:43:45Z",
+            "started_at": "2026-11-07T17:43:48Z",
+            "completed_at": "2026-11-07T17:44:05Z",
+            "name": "Lint",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:43:51Z",
+                "completed_at": "2026-11-07T17:44:01Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:44:02Z",
+                "completed_at": "2026-11-07T17:44:02Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128478621224",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002306,
+            "runner_name": "GitHub Actions 1000002306",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128478621251,
+            "run_id": 42397713661,
+            "workflow_name": "CI",
+            "head_branch": "fix/state-owner",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42397713661",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6ewuQw",
+            "head_sha": "8da211524e37d3461b3f442ec18dccb6b4b071d0",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128478621251",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42397713661/job/128478621251",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:43:45Z",
+            "started_at": "2026-11-07T17:43:48Z",
+            "completed_at": "2026-11-07T17:44:30Z",
+            "name": "Test (5/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:43:51Z",
+                "completed_at": "2026-11-07T17:44:06Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:44:09Z",
+                "completed_at": "2026-11-07T17:44:27Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:44:27Z",
+                "completed_at": "2026-11-07T17:44:27Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128478621251",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002301,
+            "runner_name": "GitHub Actions 1000002301",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128478621275,
+            "run_id": 42397713661,
+            "workflow_name": "CI",
+            "head_branch": "fix/state-owner",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42397713661",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6ewuWw",
+            "head_sha": "8da211524e37d3461b3f442ec18dccb6b4b071d0",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128478621275",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42397713661/job/128478621275",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:43:45Z",
+            "started_at": "2026-11-07T17:43:48Z",
+            "completed_at": "2026-11-07T17:44:40Z",
+            "name": "Test (7/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:43:51Z",
+                "completed_at": "2026-11-07T17:44:06Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:44:09Z",
+                "completed_at": "2026-11-07T17:44:37Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:44:38Z",
+                "completed_at": "2026-11-07T17:44:38Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128478621275",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002304,
+            "runner_name": "GitHub Actions 1000002304",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128478621277,
+            "run_id": 42397713661,
+            "workflow_name": "CI",
+            "head_branch": "fix/state-owner",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42397713661",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6ewuXQ",
+            "head_sha": "8da211524e37d3461b3f442ec18dccb6b4b071d0",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128478621277",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42397713661/job/128478621277",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:43:45Z",
+            "started_at": "2026-11-07T17:43:48Z",
+            "completed_at": "2026-11-07T17:44:54Z",
+            "name": "Test (1/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:43:50Z",
+                "completed_at": "2026-11-07T17:44:11Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:44:14Z",
+                "completed_at": "2026-11-07T17:44:52Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:44:52Z",
+                "completed_at": "2026-11-07T17:44:53Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128478621277",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002308,
+            "runner_name": "GitHub Actions 1000002308",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128478621287,
+            "run_id": 42397713661,
+            "workflow_name": "CI",
+            "head_branch": "fix/state-owner",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42397713661",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6ewuZw",
+            "head_sha": "8da211524e37d3461b3f442ec18dccb6b4b071d0",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128478621287",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42397713661/job/128478621287",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:43:45Z",
+            "started_at": "2026-11-07T17:43:48Z",
+            "completed_at": "2026-11-07T17:44:28Z",
+            "name": "Test (6/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:43:50Z",
+                "completed_at": "2026-11-07T17:44:04Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:44:07Z",
+                "completed_at": "2026-11-07T17:44:25Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:44:25Z",
+                "completed_at": "2026-11-07T17:44:25Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128478621287",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002302,
+            "runner_name": "GitHub Actions 1000002302",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128478621289,
+            "run_id": 42397713661,
+            "workflow_name": "CI",
+            "head_branch": "fix/state-owner",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42397713661",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6ewuaQ",
+            "head_sha": "8da211524e37d3461b3f442ec18dccb6b4b071d0",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128478621289",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42397713661/job/128478621289",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:43:45Z",
+            "started_at": "2026-11-07T17:43:48Z",
+            "completed_at": "2026-11-07T17:44:58Z",
+            "name": "Test (2/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:43:52Z",
+                "completed_at": "2026-11-07T17:44:17Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:44:20Z",
+                "completed_at": "2026-11-07T17:44:54Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:44:55Z",
+                "completed_at": "2026-11-07T17:44:55Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128478621289",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002303,
+            "runner_name": "GitHub Actions 1000002303",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128478621299,
+            "run_id": 42397713661,
+            "workflow_name": "CI",
+            "head_branch": "fix/state-owner",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42397713661",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6ewucw",
+            "head_sha": "8da211524e37d3461b3f442ec18dccb6b4b071d0",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128478621299",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42397713661/job/128478621299",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:43:45Z",
+            "started_at": "2026-11-07T17:43:48Z",
+            "completed_at": "2026-11-07T17:44:37Z",
+            "name": "Test (8/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:43:51Z",
+                "completed_at": "2026-11-07T17:44:17Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:44:20Z",
+                "completed_at": "2026-11-07T17:44:33Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:44:33Z",
+                "completed_at": "2026-11-07T17:44:33Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128478621299",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002307,
+            "runner_name": "GitHub Actions 1000002307",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128478621311,
+            "run_id": 42397713661,
+            "workflow_name": "CI",
+            "head_branch": "fix/state-owner",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42397713661",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6ewufw",
+            "head_sha": "8da211524e37d3461b3f442ec18dccb6b4b071d0",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128478621311",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42397713661/job/128478621311",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:43:45Z",
+            "started_at": "2026-11-07T17:43:48Z",
+            "completed_at": "2026-11-07T17:44:47Z",
+            "name": "Test (3/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:43:51Z",
+                "completed_at": "2026-11-07T17:44:09Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:44:12Z",
+                "completed_at": "2026-11-07T17:44:43Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:44:43Z",
+                "completed_at": "2026-11-07T17:44:43Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128478621311",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002309,
+            "runner_name": "GitHub Actions 1000002309",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128478621476,
+            "run_id": 42397713661,
+            "workflow_name": "CI",
+            "head_branch": "fix/state-owner",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42397713661",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6ewvJA",
+            "head_sha": "8da211524e37d3461b3f442ec18dccb6b4b071d0",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128478621476",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42397713661/job/128478621476",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:43:45Z",
+            "started_at": "2026-11-07T17:43:48Z",
+            "completed_at": "2026-11-07T17:44:26Z",
+            "name": "Test (4/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:43:51Z",
+                "completed_at": "2026-11-07T17:44:06Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:44:08Z",
+                "completed_at": "2026-11-07T17:44:23Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:44:23Z",
+                "completed_at": "2026-11-07T17:44:23Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128478621476",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002310,
+            "runner_name": "GitHub Actions 1000002310",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128478914621,
+            "run_id": 42397713661,
+            "workflow_name": "CI",
+            "head_branch": "fix/state-owner",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42397713661",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6fCoPQ",
+            "head_sha": "8da211524e37d3461b3f442ec18dccb6b4b071d0",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128478914621",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42397713661/job/128478914621",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:44:58Z",
+            "started_at": "2026-11-07T17:45:01Z",
+            "completed_at": "2026-11-07T17:45:04Z",
+            "name": "Check",
+            "steps": [],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128478914621",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002323,
+            "runner_name": "GitHub Actions 1000002323",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "number": 279,
+    "headRefOid": "165fdaeb395a06dca69dbbae3963e5f85794469d",
+    "createdAt": "2026-11-07T17:09:16Z",
+    "mergedAt": "2026-11-07T17:20:38Z",
+    "firstCommitAt": "2026-11-07T17:09:11Z",
+    "runs": [
+      {
+        "id": 42395702391,
+        "head_sha": "165fdaeb395a06dca69dbbae3963e5f85794469d",
+        "run_attempt": 1,
+        "jobs": [
+          {
+            "id": 128472494329,
+            "run_id": 42395702391,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42395702391",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Y6w-Q",
+            "head_sha": "165fdaeb395a06dca69dbbae3963e5f85794469d",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128472494329",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42395702391/job/128472494329",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:19:05Z",
+            "started_at": "2026-11-07T17:19:07Z",
+            "completed_at": "2026-11-07T17:19:15Z",
+            "name": "Changes",
+            "steps": [],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128472494329",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002145,
+            "runner_name": "GitHub Actions 1000002145",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128472539273,
+            "run_id": 42395702391,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42395702391",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Y9giQ",
+            "head_sha": "165fdaeb395a06dca69dbbae3963e5f85794469d",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128472539273",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42395702391/job/128472539273",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:19:16Z",
+            "started_at": "2026-11-07T17:19:18Z",
+            "completed_at": "2026-11-07T17:19:32Z",
+            "name": "Lint",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:19:20Z",
+                "completed_at": "2026-11-07T17:19:29Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:19:29Z",
+                "completed_at": "2026-11-07T17:19:29Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128472539273",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002150,
+            "runner_name": "GitHub Actions 1000002150",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128472539305,
+            "run_id": 42395702391,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42395702391",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Y9gqQ",
+            "head_sha": "165fdaeb395a06dca69dbbae3963e5f85794469d",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128472539305",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42395702391/job/128472539305",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:19:16Z",
+            "started_at": "2026-11-07T17:19:19Z",
+            "completed_at": "2026-11-07T17:19:34Z",
+            "name": "Typecheck",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:19:21Z",
+                "completed_at": "2026-11-07T17:19:31Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:19:31Z",
+                "completed_at": "2026-11-07T17:19:32Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128472539305",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002153,
+            "runner_name": "GitHub Actions 1000002153",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128472539403,
+            "run_id": 42395702391,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42395702391",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Y9hCw",
+            "head_sha": "165fdaeb395a06dca69dbbae3963e5f85794469d",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128472539403",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42395702391/job/128472539403",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:19:16Z",
+            "started_at": "2026-11-07T17:19:18Z",
+            "completed_at": "2026-11-07T17:20:11Z",
+            "name": "Test (7/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:19:22Z",
+                "completed_at": "2026-11-07T17:19:38Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:19:42Z",
+                "completed_at": "2026-11-07T17:20:07Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:20:07Z",
+                "completed_at": "2026-11-07T17:20:08Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128472539403",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002146,
+            "runner_name": "GitHub Actions 1000002146",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128472539404,
+            "run_id": 42395702391,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42395702391",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Y9hDA",
+            "head_sha": "165fdaeb395a06dca69dbbae3963e5f85794469d",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128472539404",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42395702391/job/128472539404",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:19:16Z",
+            "started_at": "2026-11-07T17:19:18Z",
+            "completed_at": "2026-11-07T17:20:01Z",
+            "name": "Test (5/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:19:21Z",
+                "completed_at": "2026-11-07T17:19:37Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:19:40Z",
+                "completed_at": "2026-11-07T17:19:59Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:19:59Z",
+                "completed_at": "2026-11-07T17:19:59Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128472539404",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002151,
+            "runner_name": "GitHub Actions 1000002151",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128472539410,
+            "run_id": 42395702391,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42395702391",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Y9hEg",
+            "head_sha": "165fdaeb395a06dca69dbbae3963e5f85794469d",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128472539410",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42395702391/job/128472539410",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:19:16Z",
+            "started_at": "2026-11-07T17:19:18Z",
+            "completed_at": "2026-11-07T17:20:11Z",
+            "name": "Test (6/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:19:24Z",
+                "completed_at": "2026-11-07T17:19:45Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:19:48Z",
+                "completed_at": "2026-11-07T17:20:07Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:20:07Z",
+                "completed_at": "2026-11-07T17:20:08Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128472539410",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002152,
+            "runner_name": "GitHub Actions 1000002152",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128472539411,
+            "run_id": 42395702391,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42395702391",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Y9hEw",
+            "head_sha": "165fdaeb395a06dca69dbbae3963e5f85794469d",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128472539411",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42395702391/job/128472539411",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:19:16Z",
+            "started_at": "2026-11-07T17:19:18Z",
+            "completed_at": "2026-11-07T17:20:23Z",
+            "name": "Test (1/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:19:21Z",
+                "completed_at": "2026-11-07T17:19:45Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:19:48Z",
+                "completed_at": "2026-11-07T17:20:20Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:20:20Z",
+                "completed_at": "2026-11-07T17:20:20Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128472539411",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002148,
+            "runner_name": "GitHub Actions 1000002148",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128472539424,
+            "run_id": 42395702391,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42395702391",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Y9hIA",
+            "head_sha": "165fdaeb395a06dca69dbbae3963e5f85794469d",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128472539424",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42395702391/job/128472539424",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:19:16Z",
+            "started_at": "2026-11-07T17:19:18Z",
+            "completed_at": "2026-11-07T17:20:14Z",
+            "name": "Test (2/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:19:20Z",
+                "completed_at": "2026-11-07T17:19:35Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:19:38Z",
+                "completed_at": "2026-11-07T17:20:12Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:20:12Z",
+                "completed_at": "2026-11-07T17:20:12Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128472539424",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002147,
+            "runner_name": "GitHub Actions 1000002147",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128472539439,
+            "run_id": 42395702391,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42395702391",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Y9hLw",
+            "head_sha": "165fdaeb395a06dca69dbbae3963e5f85794469d",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128472539439",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42395702391/job/128472539439",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:19:16Z",
+            "started_at": "2026-11-07T17:19:18Z",
+            "completed_at": "2026-11-07T17:19:53Z",
+            "name": "Test (4/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:19:20Z",
+                "completed_at": "2026-11-07T17:19:35Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:19:38Z",
+                "completed_at": "2026-11-07T17:19:51Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:19:51Z",
+                "completed_at": "2026-11-07T17:19:51Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128472539439",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002149,
+            "runner_name": "GitHub Actions 1000002149",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128472539454,
+            "run_id": 42395702391,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42395702391",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Y9hPg",
+            "head_sha": "165fdaeb395a06dca69dbbae3963e5f85794469d",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128472539454",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42395702391/job/128472539454",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:19:16Z",
+            "started_at": "2026-11-07T17:19:18Z",
+            "completed_at": "2026-11-07T17:20:15Z",
+            "name": "Test (3/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:19:21Z",
+                "completed_at": "2026-11-07T17:19:36Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:19:39Z",
+                "completed_at": "2026-11-07T17:20:12Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:20:12Z",
+                "completed_at": "2026-11-07T17:20:12Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128472539454",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002155,
+            "runner_name": "GitHub Actions 1000002155",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128472539489,
+            "run_id": 42395702391,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42395702391",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Y9hYQ",
+            "head_sha": "165fdaeb395a06dca69dbbae3963e5f85794469d",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128472539489",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42395702391/job/128472539489",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:19:16Z",
+            "started_at": "2026-11-07T17:19:18Z",
+            "completed_at": "2026-11-07T17:19:55Z",
+            "name": "Test (8/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:19:22Z",
+                "completed_at": "2026-11-07T17:19:35Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:19:38Z",
+                "completed_at": "2026-11-07T17:19:52Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:19:52Z",
+                "completed_at": "2026-11-07T17:19:52Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128472539489",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002154,
+            "runner_name": "GitHub Actions 1000002154",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128472824146,
+            "run_id": 42395702391,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42395702391",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6ZO5Ug",
+            "head_sha": "165fdaeb395a06dca69dbbae3963e5f85794469d",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128472824146",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42395702391/job/128472824146",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:20:24Z",
+            "started_at": "2026-11-07T17:20:27Z",
+            "completed_at": "2026-11-07T17:20:30Z",
+            "name": "Check",
+            "steps": [],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128472824146",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002156,
+            "runner_name": "GitHub Actions 1000002156",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          }
+        ]
+      },
+      {
+        "id": 42394887890,
+        "head_sha": "8606b3da2efb5ebe3170181806d4050e84c78f86",
+        "run_attempt": 1,
+        "jobs": [
+          {
+            "id": 128470026203,
+            "run_id": 42394887890,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42394887890",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6WkH2w",
+            "head_sha": "8606b3da2efb5ebe3170181806d4050e84c78f86",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128470026203",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42394887890/job/128470026203",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:09:20Z",
+            "started_at": "2026-11-07T17:09:23Z",
+            "completed_at": "2026-11-07T17:09:34Z",
+            "name": "Changes",
+            "steps": [],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128470026203",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002133,
+            "runner_name": "GitHub Actions 1000002133",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128470086289,
+            "run_id": 42394887890,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42394887890",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6WnykQ",
+            "head_sha": "8606b3da2efb5ebe3170181806d4050e84c78f86",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128470086289",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42394887890/job/128470086289",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:09:34Z",
+            "started_at": "2026-11-07T17:09:37Z",
+            "completed_at": "2026-11-07T17:09:50Z",
+            "name": "Typecheck",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:09:39Z",
+                "completed_at": "2026-11-07T17:09:47Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:09:48Z",
+                "completed_at": "2026-11-07T17:09:48Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128470086289",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002136,
+            "runner_name": "GitHub Actions 1000002136",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128470086339,
+            "run_id": 42394887890,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42394887890",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Wnyww",
+            "head_sha": "8606b3da2efb5ebe3170181806d4050e84c78f86",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128470086339",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42394887890/job/128470086339",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:09:34Z",
+            "started_at": "2026-11-07T17:09:37Z",
+            "completed_at": "2026-11-07T17:10:27Z",
+            "name": "Test (1/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:09:40Z",
+                "completed_at": "2026-11-07T17:09:49Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:09:52Z",
+                "completed_at": "2026-11-07T17:10:24Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:10:24Z",
+                "completed_at": "2026-11-07T17:10:24Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128470086339",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002135,
+            "runner_name": "GitHub Actions 1000002135",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128470086387,
+            "run_id": 42394887890,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42394887890",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Wny8w",
+            "head_sha": "8606b3da2efb5ebe3170181806d4050e84c78f86",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128470086387",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42394887890/job/128470086387",
+            "status": "completed",
+            "conclusion": "failure",
+            "created_at": "2026-11-07T17:09:34Z",
+            "started_at": "2026-11-07T17:09:37Z",
+            "completed_at": "2026-11-07T17:10:13Z",
+            "name": "Test (6/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:09:39Z",
+                "completed_at": "2026-11-07T17:09:48Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:09:51Z",
+                "completed_at": "2026-11-07T17:10:09Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:10:10Z",
+                "completed_at": "2026-11-07T17:10:10Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128470086387",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002138,
+            "runner_name": "GitHub Actions 1000002138",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128470086391,
+            "run_id": 42394887890,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42394887890",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Wny9w",
+            "head_sha": "8606b3da2efb5ebe3170181806d4050e84c78f86",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128470086391",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42394887890/job/128470086391",
+            "status": "completed",
+            "conclusion": "failure",
+            "created_at": "2026-11-07T17:09:34Z",
+            "started_at": "2026-11-07T17:09:37Z",
+            "completed_at": "2026-11-07T17:10:08Z",
+            "name": "Test (3/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:09:40Z",
+                "completed_at": "2026-11-07T17:09:52Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:09:54Z",
+                "completed_at": "2026-11-07T17:10:04Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:10:04Z",
+                "completed_at": "2026-11-07T17:10:05Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128470086391",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002137,
+            "runner_name": "GitHub Actions 1000002137",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128470086406,
+            "run_id": 42394887890,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42394887890",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6WnzBg",
+            "head_sha": "8606b3da2efb5ebe3170181806d4050e84c78f86",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128470086406",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42394887890/job/128470086406",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:09:34Z",
+            "started_at": "2026-11-07T17:09:37Z",
+            "completed_at": "2026-11-07T17:10:28Z",
+            "name": "Test (7/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:09:40Z",
+                "completed_at": "2026-11-07T17:09:50Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:09:53Z",
+                "completed_at": "2026-11-07T17:10:24Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:10:24Z",
+                "completed_at": "2026-11-07T17:10:25Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128470086406",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002134,
+            "runner_name": "GitHub Actions 1000002134",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128470086413,
+            "run_id": 42394887890,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42394887890",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6WnzDQ",
+            "head_sha": "8606b3da2efb5ebe3170181806d4050e84c78f86",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128470086413",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42394887890/job/128470086413",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:09:34Z",
+            "started_at": "2026-11-07T17:09:37Z",
+            "completed_at": "2026-11-07T17:09:58Z",
+            "name": "Lint",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:09:40Z",
+                "completed_at": "2026-11-07T17:09:55Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:09:55Z",
+                "completed_at": "2026-11-07T17:09:56Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128470086413",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002142,
+            "runner_name": "GitHub Actions 1000002142",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128470086430,
+            "run_id": 42394887890,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42394887890",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6WnzHg",
+            "head_sha": "8606b3da2efb5ebe3170181806d4050e84c78f86",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128470086430",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42394887890/job/128470086430",
+            "status": "completed",
+            "conclusion": "failure",
+            "created_at": "2026-11-07T17:09:34Z",
+            "started_at": "2026-11-07T17:09:37Z",
+            "completed_at": "2026-11-07T17:10:26Z",
+            "name": "Test (2/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:09:40Z",
+                "completed_at": "2026-11-07T17:09:50Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:09:53Z",
+                "completed_at": "2026-11-07T17:10:23Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:10:23Z",
+                "completed_at": "2026-11-07T17:10:23Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128470086430",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002140,
+            "runner_name": "GitHub Actions 1000002140",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128470086457,
+            "run_id": 42394887890,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42394887890",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6WnzOQ",
+            "head_sha": "8606b3da2efb5ebe3170181806d4050e84c78f86",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128470086457",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42394887890/job/128470086457",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:09:34Z",
+            "started_at": "2026-11-07T17:09:37Z",
+            "completed_at": "2026-11-07T17:10:09Z",
+            "name": "Test (8/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:09:40Z",
+                "completed_at": "2026-11-07T17:09:49Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:09:53Z",
+                "completed_at": "2026-11-07T17:10:05Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:10:05Z",
+                "completed_at": "2026-11-07T17:10:05Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128470086457",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002141,
+            "runner_name": "GitHub Actions 1000002141",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128470086476,
+            "run_id": 42394887890,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42394887890",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6WnzTA",
+            "head_sha": "8606b3da2efb5ebe3170181806d4050e84c78f86",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128470086476",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42394887890/job/128470086476",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:09:34Z",
+            "started_at": "2026-11-07T17:09:37Z",
+            "completed_at": "2026-11-07T17:10:19Z",
+            "name": "Test (4/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:09:40Z",
+                "completed_at": "2026-11-07T17:09:54Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:09:57Z",
+                "completed_at": "2026-11-07T17:10:16Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:10:16Z",
+                "completed_at": "2026-11-07T17:10:16Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128470086476",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002139,
+            "runner_name": "GitHub Actions 1000002139",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128470086491,
+            "run_id": 42394887890,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42394887890",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6WnzWw",
+            "head_sha": "8606b3da2efb5ebe3170181806d4050e84c78f86",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128470086491",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42394887890/job/128470086491",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T17:09:34Z",
+            "started_at": "2026-11-07T17:09:37Z",
+            "completed_at": "2026-11-07T17:10:13Z",
+            "name": "Test (5/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T17:09:40Z",
+                "completed_at": "2026-11-07T17:09:50Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T17:09:53Z",
+                "completed_at": "2026-11-07T17:10:10Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T17:10:10Z",
+                "completed_at": "2026-11-07T17:10:11Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128470086491",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002143,
+            "runner_name": "GitHub Actions 1000002143",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128470315159,
+            "run_id": 42394887890,
+            "workflow_name": "CI",
+            "head_branch": "chore/retire-skip-gate",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42394887890",
+            "run_attempt": 1,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6W1wlw",
+            "head_sha": "8606b3da2efb5ebe3170181806d4050e84c78f86",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128470315159",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42394887890/job/128470315159",
+            "status": "completed",
+            "conclusion": "failure",
+            "created_at": "2026-11-07T17:10:29Z",
+            "started_at": "2026-11-07T17:10:31Z",
+            "completed_at": "2026-11-07T17:10:37Z",
+            "name": "Check",
+            "steps": [],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128470315159",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002144,
+            "runner_name": "GitHub Actions 1000002144",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "number": 278,
+    "headRefOid": "ccebf08f13c4a1994865d1185064d3a81025bfbd",
+    "createdAt": "2026-11-07T16:47:42Z",
+    "mergedAt": "2026-11-07T16:58:08Z",
+    "firstCommitAt": "2026-11-07T16:47:38Z",
+    "runs": [
+      {
+        "id": 42393079751,
+        "head_sha": "ccebf08f13c4a1994865d1185064d3a81025bfbd",
+        "run_attempt": 2,
+        "jobs": [
+          {
+            "id": 128466920618,
+            "run_id": 42393079751,
+            "workflow_name": "CI",
+            "head_branch": "arch2-drop-red-first",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42393079751",
+            "run_attempt": 2,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Tmkqg",
+            "head_sha": "ccebf08f13c4a1994865d1185064d3a81025bfbd",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128466920618",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42393079751/job/128466920618",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T16:57:09Z",
+            "started_at": "2026-11-07T16:57:12Z",
+            "completed_at": "2026-11-07T16:57:58Z",
+            "name": "Test (4/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T16:57:15Z",
+                "completed_at": "2026-11-07T16:57:31Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T16:57:34Z",
+                "completed_at": "2026-11-07T16:57:55Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T16:57:55Z",
+                "completed_at": "2026-11-07T16:57:55Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128466920618",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002119,
+            "runner_name": "GitHub Actions 1000002119",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128466920795,
+            "run_id": 42393079751,
+            "workflow_name": "CI",
+            "head_branch": "arch2-drop-red-first",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42393079751",
+            "run_attempt": 2,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6TmlWw",
+            "head_sha": "ccebf08f13c4a1994865d1185064d3a81025bfbd",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128466920795",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42393079751/job/128466920795",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T16:57:09Z",
+            "started_at": "2026-11-07T16:47:49Z",
+            "completed_at": "2026-11-07T16:47:59Z",
+            "name": "Changes",
+            "steps": [],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128466920795",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002093,
+            "runner_name": "GitHub Actions 1000002093",
+            "runner_group_id": null,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128466921223,
+            "run_id": 42393079751,
+            "workflow_name": "CI",
+            "head_branch": "arch2-drop-red-first",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42393079751",
+            "run_attempt": 2,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6TmnBw",
+            "head_sha": "ccebf08f13c4a1994865d1185064d3a81025bfbd",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128466921223",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42393079751/job/128466921223",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T16:57:09Z",
+            "started_at": "2026-11-07T16:48:02Z",
+            "completed_at": "2026-11-07T16:48:19Z",
+            "name": "Lint",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T16:48:05Z",
+                "completed_at": "2026-11-07T16:48:15Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T16:48:16Z",
+                "completed_at": "2026-11-07T16:48:16Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128466921223",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002097,
+            "runner_name": "GitHub Actions 1000002097",
+            "runner_group_id": null,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128466921345,
+            "run_id": 42393079751,
+            "workflow_name": "CI",
+            "head_branch": "arch2-drop-red-first",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42393079751",
+            "run_attempt": 2,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6TmngQ",
+            "head_sha": "ccebf08f13c4a1994865d1185064d3a81025bfbd",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128466921345",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42393079751/job/128466921345",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T16:57:09Z",
+            "started_at": "2026-11-07T16:48:02Z",
+            "completed_at": "2026-11-07T16:48:51Z",
+            "name": "Test (5/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T16:48:06Z",
+                "completed_at": "2026-11-07T16:48:25Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T16:48:28Z",
+                "completed_at": "2026-11-07T16:48:48Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T16:48:48Z",
+                "completed_at": "2026-11-07T16:48:48Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128466921345",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002101,
+            "runner_name": "GitHub Actions 1000002101",
+            "runner_group_id": null,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128466921382,
+            "run_id": 42393079751,
+            "workflow_name": "CI",
+            "head_branch": "arch2-drop-red-first",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42393079751",
+            "run_attempt": 2,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Tmnpg",
+            "head_sha": "ccebf08f13c4a1994865d1185064d3a81025bfbd",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128466921382",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42393079751/job/128466921382",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T16:57:09Z",
+            "started_at": "2026-11-07T16:48:02Z",
+            "completed_at": "2026-11-07T16:48:54Z",
+            "name": "Test (1/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T16:48:04Z",
+                "completed_at": "2026-11-07T16:48:18Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T16:48:20Z",
+                "completed_at": "2026-11-07T16:48:51Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T16:48:51Z",
+                "completed_at": "2026-11-07T16:48:52Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128466921382",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002094,
+            "runner_name": "GitHub Actions 1000002094",
+            "runner_group_id": null,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128466921533,
+            "run_id": 42393079751,
+            "workflow_name": "CI",
+            "head_branch": "arch2-drop-red-first",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42393079751",
+            "run_attempt": 2,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6TmoPQ",
+            "head_sha": "ccebf08f13c4a1994865d1185064d3a81025bfbd",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128466921533",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42393079751/job/128466921533",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T16:57:09Z",
+            "started_at": "2026-11-07T16:48:03Z",
+            "completed_at": "2026-11-07T16:48:20Z",
+            "name": "Typecheck",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T16:48:05Z",
+                "completed_at": "2026-11-07T16:48:15Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T16:48:16Z",
+                "completed_at": "2026-11-07T16:48:17Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128466921533",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002099,
+            "runner_name": "GitHub Actions 1000002099",
+            "runner_group_id": null,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128466921647,
+            "run_id": 42393079751,
+            "workflow_name": "CI",
+            "head_branch": "arch2-drop-red-first",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42393079751",
+            "run_attempt": 2,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Tmorw",
+            "head_sha": "ccebf08f13c4a1994865d1185064d3a81025bfbd",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128466921647",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42393079751/job/128466921647",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T16:57:09Z",
+            "started_at": "2026-11-07T16:48:02Z",
+            "completed_at": "2026-11-07T16:49:01Z",
+            "name": "Test (3/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T16:48:05Z",
+                "completed_at": "2026-11-07T16:48:20Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T16:48:23Z",
+                "completed_at": "2026-11-07T16:48:57Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T16:48:58Z",
+                "completed_at": "2026-11-07T16:48:58Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128466921647",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002100,
+            "runner_name": "GitHub Actions 1000002100",
+            "runner_group_id": null,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128466921709,
+            "run_id": 42393079751,
+            "workflow_name": "CI",
+            "head_branch": "arch2-drop-red-first",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42393079751",
+            "run_attempt": 2,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6Tmo7Q",
+            "head_sha": "ccebf08f13c4a1994865d1185064d3a81025bfbd",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128466921709",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42393079751/job/128466921709",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T16:57:09Z",
+            "started_at": "2026-11-07T16:48:02Z",
+            "completed_at": "2026-11-07T16:48:39Z",
+            "name": "Test (7/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T16:48:05Z",
+                "completed_at": "2026-11-07T16:48:20Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T16:48:22Z",
+                "completed_at": "2026-11-07T16:48:36Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T16:48:36Z",
+                "completed_at": "2026-11-07T16:48:36Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128466921709",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002098,
+            "runner_name": "GitHub Actions 1000002098",
+            "runner_group_id": null,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128466921999,
+            "run_id": 42393079751,
+            "workflow_name": "CI",
+            "head_branch": "arch2-drop-red-first",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42393079751",
+            "run_attempt": 2,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6TmqDw",
+            "head_sha": "ccebf08f13c4a1994865d1185064d3a81025bfbd",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128466921999",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42393079751/job/128466921999",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T16:57:09Z",
+            "started_at": "2026-11-07T16:48:02Z",
+            "completed_at": "2026-11-07T16:48:35Z",
+            "name": "Test (8/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T16:48:05Z",
+                "completed_at": "2026-11-07T16:48:18Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T16:48:21Z",
+                "completed_at": "2026-11-07T16:48:33Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T16:48:33Z",
+                "completed_at": "2026-11-07T16:48:34Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128466921999",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002102,
+            "runner_name": "GitHub Actions 1000002102",
+            "runner_group_id": null,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128466922128,
+            "run_id": 42393079751,
+            "workflow_name": "CI",
+            "head_branch": "arch2-drop-red-first",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42393079751",
+            "run_attempt": 2,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6TmqkA",
+            "head_sha": "ccebf08f13c4a1994865d1185064d3a81025bfbd",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128466922128",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42393079751/job/128466922128",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T16:57:09Z",
+            "started_at": "2026-11-07T16:48:02Z",
+            "completed_at": "2026-11-07T16:48:48Z",
+            "name": "Test (6/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T16:48:05Z",
+                "completed_at": "2026-11-07T16:48:20Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T16:48:23Z",
+                "completed_at": "2026-11-07T16:48:45Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T16:48:45Z",
+                "completed_at": "2026-11-07T16:48:46Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128466922128",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002103,
+            "runner_name": "GitHub Actions 1000002103",
+            "runner_group_id": null,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128466955563,
+            "run_id": 42393079751,
+            "workflow_name": "CI",
+            "head_branch": "arch2-drop-red-first",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42393079751",
+            "run_attempt": 2,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6TotKw",
+            "head_sha": "ccebf08f13c4a1994865d1185064d3a81025bfbd",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128466955563",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42393079751/job/128466955563",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T16:57:18Z",
+            "started_at": "2026-11-07T16:48:02Z",
+            "completed_at": "2026-11-07T16:48:55Z",
+            "name": "Test (2/8)",
+            "steps": [
+              {
+                "name": "Set up CI",
+                "started_at": "2026-11-07T16:48:04Z",
+                "completed_at": "2026-11-07T16:48:17Z"
+              },
+              {
+                "name": "Run test shard",
+                "started_at": "2026-11-07T16:48:19Z",
+                "completed_at": "2026-11-07T16:48:52Z"
+              },
+              {
+                "name": "Post Set up CI",
+                "started_at": "2026-11-07T16:48:52Z",
+                "completed_at": "2026-11-07T16:48:52Z"
+              }
+            ],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128466955563",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002095,
+            "runner_name": "GitHub Actions 1000002095",
+            "runner_group_id": null,
+            "runner_group_name": "GitHub Actions"
+          },
+          {
+            "id": 128467114785,
+            "run_id": 42393079751,
+            "workflow_name": "CI",
+            "head_branch": "arch2-drop-red-first",
+            "run_url": "https://api.github.com/repos/krn-works/krn/actions/runs/42393079751",
+            "run_attempt": 2,
+            "node_id": "CR_kwDOVAgDxs8AAAAd6TybIQ",
+            "head_sha": "ccebf08f13c4a1994865d1185064d3a81025bfbd",
+            "url": "https://api.github.com/repos/krn-works/krn/actions/jobs/128467114785",
+            "html_url": "https://github.com/krn-works/krn/actions/runs/42393079751/job/128467114785",
+            "status": "completed",
+            "conclusion": "success",
+            "created_at": "2026-11-07T16:57:58Z",
+            "started_at": "2026-11-07T16:58:01Z",
+            "completed_at": "2026-11-07T16:58:04Z",
+            "name": "Check",
+            "steps": [],
+            "check_run_url": "https://api.github.com/repos/krn-works/krn/check-runs/128467114785",
+            "labels": ["ubuntu-24.04"],
+            "runner_id": 1000002120,
+            "runner_name": "GitHub Actions 1000002120",
+            "runner_group_id": 0,
+            "runner_group_name": "GitHub Actions"
+          },
+          { "name": "Test (4/8)", "conclusion": "failure", "steps": [] },
+          { "name": "Check", "conclusion": "failure", "steps": [] }
+        ]
+      }
+    ]
+  }
+]

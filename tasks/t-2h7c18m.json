@@ -1,7 +1,11 @@
 {
   "id": "t-2h7c18m",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Measured stages over PRs 253-285 (scripts/ci-stage-time.mjs); ranked cuts in .krn/runs/lead/weakness-hunt/stage-time.md; shipped early bwrap start and Changes without setup-node."
+  },
   "created": "2026-11-05",
   "priority": 0,
   "title": "Measure delivery time per stage and rank the cuts",

@@ -7,6 +7,26 @@ inputs:
 runs:
   using: composite
   steps:
+    # bubblewrap installs in the background from the first step, overlapping the
+    # pnpm cache restore and install, and is awaited before the tests start.
+    - name: Start installing bubblewrap for sandbox isolation tests
+      if: ${{ inputs.isolation == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        log="$RUNNER_TEMP/bubblewrap-install.log"
+        status="$RUNNER_TEMP/bubblewrap-install.status"
+        rm -f "$status"
+        setsid nohup bash -c '
+          for attempt in 1 2 3; do
+            if timeout 90 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y -qq bubblewrap \
+              || { timeout 60 sudo apt-get -o Acquire::http::Timeout=20 update -qq && timeout 90 sudo apt-get install -y -qq bubblewrap; }; then
+              echo 0 > "$1"; exit 0
+            fi
+          done
+          echo 1 > "$1"
+        ' _ "$status" > "$log" 2>&1 < /dev/null &
+
     - name: Set up Node.js
       uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
@@ -31,25 +51,6 @@ runs:
     - name: Install dependencies
       shell: bash
       run: pnpm install --frozen-lockfile
-
-    # bubblewrap installs in the background and is awaited before the tests start.
-    - name: Start installing bubblewrap for sandbox isolation tests
-      if: ${{ inputs.isolation == 'true' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        log="$RUNNER_TEMP/bubblewrap-install.log"
-        status="$RUNNER_TEMP/bubblewrap-install.status"
-        rm -f "$status"
-        setsid nohup bash -c '
-          for attempt in 1 2 3; do
-            if timeout 90 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y -qq bubblewrap \
-              || { timeout 60 sudo apt-get -o Acquire::http::Timeout=20 update -qq && timeout 90 sudo apt-get install -y -qq bubblewrap; }; then
-              echo 0 > "$1"; exit 0
-            fi
-          done
-          echo 1 > "$1"
-        ' _ "$status" > "$log" 2>&1 < /dev/null &
 
     - name: Allow unprivileged user namespaces for isolation tests
       if: ${{ inputs.isolation == 'true' }}
