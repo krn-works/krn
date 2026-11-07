@@ -34,7 +34,7 @@ When an outcome uses a delivery-loop capsule, its state belongs at `.krn/runs/de
 
 Briefs and reviews use the single [hardening checklist](hardening-checklist.md); `krn brief check` verifies brief coverage and `krn deliver` requires a review digest matching the head checklist.
 
-The lead follows the project skills in `.agents/skills` (also exposed to Claude Code through `.claude/skills`): `krn-lead` for the slice loop, `krn-retro` when a slice ends, `krn-architecture` when designing or reviewing module structure, and `krn-handoff` to start the next slice in a fresh session.
+The lead follows the project skills in `.agents/skills` (also exposed to Claude Code through `.claude/skills`): `krn-lead` for the slice loop, `krn-retro` when a slice ends, `architecture` when designing or reviewing module structure, `typescript` when writing or reviewing TypeScript, and `krn-handoff` to start the next slice in a fresh session.
 
 Merges go only through `krn ship`, which pins the reviewed head through the pull request API under D21.
 

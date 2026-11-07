@@ -6,7 +6,13 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const skillsRoot = join(root, '.agents', 'skills');
-const expected = ['krn-architecture', 'krn-handoff', 'krn-lead', 'krn-retro'];
+const expected = [
+  'architecture',
+  'krn-handoff',
+  'krn-lead',
+  'krn-retro',
+  'typescript',
+];
 
 function skill(name: string): string {
   return readFileSync(join(skillsRoot, name, 'SKILL.md'), 'utf8');

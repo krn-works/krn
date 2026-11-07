@@ -1,4 +1,4 @@
-// Measured depth check: per-module interface width, size, and coupling for src/. Skill: krn-architecture.
+// Measured depth check: per-module interface width, size, and coupling for src/. Skill: architecture.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

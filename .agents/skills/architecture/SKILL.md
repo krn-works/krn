@@ -1,17 +1,17 @@
 ---
-name: krn-architecture
-description: Find and design deeper TypeScript modules in KRN. Use when designing or refactoring a module, reviewing architecture, or deciding where a seam belongs; run the measured depth check first. Skip for bug fixes and single-file edits that keep the interface.
+name: architecture
+description: Language-agnostic architecture and code quality: deep modules, seams, one owner per concern, deletion test, design-it-twice. Use when designing, refactoring or reviewing module structure in any language, or deciding where a seam belongs; run the measured depth check first. Skip for bug fixes and edits that keep the interface.
 ---
 
-# KRN architecture
+# Architecture
 
-Goal: more behaviour behind a smaller interface, so changes and tests concentrate in one place. Adapted from mattpocock/skills `engineering/improve-codebase-architecture` and `engineering/codebase-design` at commit 6654f6b (MIT, Copyright (c) 2026 Matt Pocock; permission notice kept in the upstream LICENSE). KRN additions: measured depth check, TypeScript guidance, and KRN delivery.
+Goal: more behaviour behind a smaller interface, so changes and tests concentrate in one place. Adapted from mattpocock/skills `engineering/improve-codebase-architecture` and `engineering/codebase-design` at commit 6654f6b (MIT, Copyright (c) 2026 Matt Pocock; permission notice kept in the upstream LICENSE). KRN additions: measured depth check, core/adapter rule, and KRN delivery.
 
 ## Vocabulary
 
 Use these terms exactly; do not drift to "component", "service", "API", or "boundary".
 
-- **Module**: anything with an interface and an implementation (function, file, package). In KRN usually one `.ts` file or one `src/<area>/index.ts`.
+- **Module**: anything with an interface and an implementation (function, file, package). In this repo usually one `.ts` file or one `src/<area>/index.ts`.
 - **Interface**: everything a caller must know: types, invariants, ordering, error modes, configuration.
 - **Depth**: behaviour a caller or test can exercise per unit of interface. Deep = much behaviour behind a small interface; shallow = interface nearly as large as the implementation.
 - **Seam**: where behaviour can change without editing in place; where a module's interface lives.
@@ -29,12 +29,14 @@ Use these terms exactly; do not drift to "component", "service", "API", or "boun
 5. **Design it twice.** For the chosen candidate, produce two or three radically different interfaces (for example: minimal; flexible; caller-optimised) and compare by depth, leverage, and test surface. Pick one, or merge the best parts. Do not skip this for a new seam.
 6. **Deliver.** Turn each candidate into a `krn task` (lead only; workers get the id in the brief). One deepening per slice, behaviour unchanged, existing tests green, before/after numbers from the depth script in the PR.
 
-## TypeScript deep modules
+## Deep modules, any language
 
-- **Small public interface.** Export the few functions and types callers need; keep helpers, schemas, and constants module-private. An export nobody imports is interface cost with no leverage: delete the `export`.
-- **Hide the implementation.** Callers import the module entry (`index.ts`), not its internals; do not re-export internals through barrels. A file that only re-exports is a pass-through: delete it and import the owner.
-- **Narrow exports.** Prefer one function that does the job over several steps callers must order. Return results, accept dependencies; keep ordering constraints and invariants inside.
-- **Types describe the interface.** Use narrow types and discriminated unions at the seam so invalid callers fail to compile; keep `any` and casts behind the seam (see the `typescript-engineering` skill, if installed).
+- **Small public interface.** Expose the few operations callers need; keep helpers and constants private. An exported symbol nobody uses is interface cost with no leverage.
+- **Information hiding.** Callers use the module entry, not its internals; do not re-export internals. A module that only forwards is a pass-through: delete it and use the owner.
+- **One owner per concern.** One module owns each decision, format, or invariant; other code asks it. Duplicated knowledge across modules is the first deepening candidate.
+- **One call does the job.** Prefer one operation over steps callers must order. Return results, accept dependencies; keep ordering and invariants inside.
 - **Core stays independent (KRN-05).** `src/core` imports only its own files; adapters (hosts, trace, verdict) depend on core, never the reverse. A seam is real only when two adapters vary across it, such as a host and its test double.
-- **Test through the interface.** Tests import what callers import. A test that needs a private symbol is a signal to move the seam, not to export more.
-- **Types-only files** are shared vocabulary, not a deepening target; large ones are still worth splitting by owner.
+- **Test through the interface.** A test that needs a private symbol is a signal to move the seam, not to export more.
+- **Types-only files** are shared vocabulary, not a deepening target; split large ones by owner.
+
+For TypeScript expression of these rules (export minimisation, barrels, types at the seam) use the `typescript` skill.
