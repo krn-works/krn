@@ -24,3 +24,19 @@ test('every test file has a shard weight and every weight a test file', () => {
     'weights name deleted test files',
   );
 });
+
+// The heaviest test file bounds its CI shard wall: a runner splits its files
+// across 4 local lanes, so one file heavier than the lane average sets the
+// shard time (scripts/shard-wall-report.mjs, r=0.77 against r=-0.07 for the
+// summed weight). Keep every file under the bound by splitting it.
+const MAX_TEST_FILE_SECONDS = 20;
+
+test('no test file is heavy enough to bound its shard wall', () => {
+  assert.deepEqual(
+    Object.entries(TEST_FILE_WEIGHTS)
+      .filter(([, seconds]) => seconds > MAX_TEST_FILE_SECONDS)
+      .map(([file]) => file),
+    [],
+    `split test files above ${MAX_TEST_FILE_SECONDS} s so the slowest shard stays below 24 s`,
+  );
+});
