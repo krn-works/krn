@@ -1078,3 +1078,50 @@ exec /usr/bin/systemctl "$@"
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('registration outlasts a user-manager stall longer than five seconds', {
+  timeout: 20_000,
+}, async (t) => {
+  if (!requiresIsolation(t, 'late scope registration', ['systemdUserScope']))
+    return;
+  // Regression: the manager stalled ~6 s under load and a fixed 5 s deadline
+  // killed every pending launcher, failing the scopes with result 'resources'.
+  const unit = codexScopeUnit('late-registration', `owned-${process.pid}`);
+  const env = scopeEnvironment();
+  let child: ReturnType<typeof spawn> | undefined;
+  let exited: Promise<unknown> = Promise.resolve();
+  const late = setTimeout(() => {
+    child = spawn(
+      'systemd-run',
+      [
+        '--user',
+        '--scope',
+        '--collect',
+        '--quiet',
+        '--unit',
+        unit,
+        '/bin/sleep',
+        '60',
+      ],
+      { env, stdio: 'ignore' },
+    );
+    const launched = child;
+    exited = new Promise((resolveExit) => launched.once('close', resolveExit));
+  }, 5_500);
+  try {
+    const registration = await waitForSystemdScopeRegistration(
+      unit,
+      () => false,
+    );
+    assert.equal(registration.unit, unit);
+    assert.equal(registration.pid > 0, true);
+  } finally {
+    clearTimeout(late);
+    spawnSync(
+      '/usr/bin/systemctl',
+      ['--user', 'kill', '--signal=SIGKILL', unit],
+      { env, stdio: 'ignore' },
+    );
+    if (child) await exited;
+  }
+});
