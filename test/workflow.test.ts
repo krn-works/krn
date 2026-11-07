@@ -62,11 +62,11 @@ test('CI workflow runs lint, typecheck and eight test shards on hosted runners b
   assert.match(test, /^ {6}KRN_TEST_SHARD_INDEX: \$\{\{ matrix\.shard \}\}$/mu);
   assert.match(test, /^ {6}KRN_TEST_SHARD_TOTAL: '8'$/mu);
   assert.match(test, /^ {8}run: npm test$/mu);
-  // Go and isolation setup follow change detection; strict shards exclude
+  // Isolation setup follow change detection; strict shards exclude
   // the isolation files only when Changes reported isolation=false.
   assert.match(
     test,
-    /^ {10}go: \$\{\{ needs\.changes\.outputs\.isolation != 'false' \}\}$/mu,
+    /^ {10}isolation: \$\{\{ needs\.changes\.outputs\.isolation != 'false' \}\}$/mu,
   );
   assert.match(
     test,
@@ -99,26 +99,19 @@ test('CI workflow runs lint, typecheck and eight test shards on hosted runners b
   assert.match(check, /result !== "success" && !skipOk/u);
 });
 
-test('CI test shards pin Go and enable user namespaces after install and before the shard runs', async () => {
+test('CI test shards enable user namespaces after install and before the shard runs', async () => {
   const action = await readFile(
     new URL('../.github/actions/setup-ci/action.yml', import.meta.url),
     'utf8',
   );
-  const goIndex = action.indexOf('uses: actions/setup-go@');
   const installIndex = action.indexOf('run: pnpm install --frozen-lockfile');
   const sysctlIndex = action.indexOf(
     'sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0',
   );
-  assert.ok(installIndex !== -1 && installIndex < goIndex);
-  assert.ok(goIndex < sysctlIndex);
+  assert.ok(installIndex !== -1 && installIndex < sysctlIndex);
   assert.equal(action.match(/sysctl/gu)?.length, 1);
-  assert.match(action, /infra\/ci\/mise\.toml/u);
+  assert.doesNotMatch(action, /setup-go|infra\/ci/u);
   assert.match(action, /uses: actions\/cache@/u);
-  const toml = await readFile(
-    new URL('../infra/ci/mise.toml', import.meta.url),
-    'utf8',
-  );
-  assert.match(toml, /^go = "\d+\.\d+\.\d+"$/mu);
 
   const source = await readFile(workflowPath, 'utf8');
   const jobs = jobBlocks(source);

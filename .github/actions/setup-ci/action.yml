@@ -1,8 +1,8 @@
 name: Set up KRN CI
-description: Install the pinned Node.js, pnpm dependencies with a store cache, and optionally the pinned Go toolchain and user-namespace isolation.
+description: Install the pinned Node.js, pnpm dependencies with a store cache, and optionally user-namespace isolation for the sandbox tests.
 inputs:
-  go:
-    description: Install the Go toolchain pinned in infra/ci/mise.toml and enable unprivileged user namespaces.
+  isolation:
+    description: Enable unprivileged user namespaces and install bubblewrap for the sandbox tests.
     default: 'false'
 runs:
   using: composite
@@ -32,10 +32,9 @@ runs:
       shell: bash
       run: pnpm install --frozen-lockfile
 
-    # apt and the Go download use different resources, so bubblewrap installs
-    # in the background while setup-go runs and is awaited before the tests start.
+    # bubblewrap installs in the background and is awaited before the tests start.
     - name: Start installing bubblewrap for sandbox isolation tests
-      if: ${{ inputs.go == 'true' }}
+      if: ${{ inputs.isolation == 'true' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -52,30 +51,13 @@ runs:
           echo 1 > "$1"
         ' _ "$status" > "$log" 2>&1 < /dev/null &
 
-    - name: Read the pinned Go version
-      id: go
-      if: ${{ inputs.go == 'true' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        version="$(sed -n 's/^go *= *"\([0-9][0-9.]*\)".*/\1/p' infra/ci/mise.toml)"
-        test -n "$version"
-        echo "version=$version" >> "$GITHUB_OUTPUT"
-
-    - name: Set up Go
-      if: ${{ inputs.go == 'true' }}
-      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
-      with:
-        go-version: ${{ steps.go.outputs.version }}
-        cache: false
-
     - name: Allow unprivileged user namespaces for isolation tests
-      if: ${{ inputs.go == 'true' }}
+      if: ${{ inputs.isolation == 'true' }}
       shell: bash
       run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
     - name: Wait for bubblewrap
-      if: ${{ inputs.go == 'true' }}
+      if: ${{ inputs.isolation == 'true' }}
       shell: bash
       run: |
         set -euo pipefail

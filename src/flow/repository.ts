@@ -15,7 +15,6 @@ import {
 import { extname, isAbsolute, join, matchesGlob, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { z } from 'zod';
-import { resolveGoToolchain } from '../../scripts/isolation-gate.mjs';
 import { TEST_FILE_GLOB } from '../../scripts/test-suite.mjs';
 import type { Job } from '../core/index.ts';
 import { execute, TeardownUnconfirmed } from '../verdict/sandbox.ts';
@@ -61,11 +60,7 @@ const nodeTestReportPrefix = 'KRN_NODE_TEST_REPORT:';
 const runnerConfigErrorPrefix = 'KRN_RUNNER_CONFIG_ERROR:';
 // Review checks already run inside isolation; nested isolation is unavailable.
 // Share this declaration across the reporter parent and the candidate child.
-// The check sandbox mounts the caller's Go toolchain when the host resolves it.
 const reviewSandboxCapabilities = {
-  go: resolveGoToolchain()
-    ? { available: true, reason: '' }
-    : { available: false, reason: 'Go toolchain unavailable' },
   bwrap: {
     available: false,
     reason: 'review sandbox runs no nested isolation',
@@ -96,7 +91,7 @@ const missingModules = new Set();
 const capabilities = ${JSON.stringify(reviewSandboxCapabilities)};
 function capabilitySkip(reason) {
   if (typeof reason !== 'string') return false;
-  const labels = { 'bwrap user namespaces': 'bwrap', 'systemd user scopes': 'systemdUserScope', 'Go toolchain': 'go' };
+  const labels = { 'bwrap user namespaces': 'bwrap', 'systemd user scopes': 'systemdUserScope' };
   const missing = /^SKIP\\(isolation\\): .+ \\u{2014} missing (.+)$/u.exec(reason)?.[1]?.split(', ');
   return missing?.length > 0 && missing.every((label) => capabilities[labels[label]]?.available === false);
 }

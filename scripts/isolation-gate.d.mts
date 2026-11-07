@@ -1,8 +1,8 @@
-export type IsolationCapability = 'bwrap' | 'systemdUserScope' | 'go';
+export type IsolationCapability = 'bwrap' | 'systemdUserScope';
 export type IsolationCapabilities = Record<
-  Exclude<IsolationCapability, 'go'>,
+  IsolationCapability,
   { available: boolean; reason: string }
-> & { go?: { available: boolean; reason: string } };
+>;
 export type IsolationDecision =
   | { kind: 'run' }
   | { kind: 'skip'; line: string }
@@ -20,17 +20,8 @@ export function testSuiteExitCode(
   skipCount: number,
   requireZeroSkips: boolean,
 ): number;
-export function postGateStatusWhenClean(args: {
-  exitCode: number;
-  skipCount: number;
-  post: () => void | Promise<void>;
-}): Promise<boolean>;
 
 export const capabilityNames: readonly IsolationCapability[];
-export function resolveGoToolchain():
-  | { root: string; binary: string }
-  | undefined;
-export function probeGoCapability(): { available: boolean; reason: string };
 export function selectIsolationTestFiles(
   root: string,
   testFileGlob: string,

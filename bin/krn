@@ -53,20 +53,6 @@ fi
 export MISE_NODE_VERSION=$version
 PATH="$(dirname "$node"):$PATH"
 
-go_pin_file="$root/infra/ci/mise.toml"
-if [[ -f "$go_pin_file" ]]; then
-  go_version=$(sed -n 's/^go[[:space:]]*=[[:space:]]*"\([0-9][0-9.]*\)"[[:space:]]*$/\1/p' "$go_pin_file" | head -n 1)
-  if [[ -n "$go_version" ]]; then
-    go_bin=${MISE_DATA_DIR:-$HOME/.local/share/mise}/installs/go/$go_version/bin
-    if [[ ! -x "$go_bin/go" ]] && install=$(mise where "go@$go_version" 2>/dev/null); then
-      go_bin="$install/bin"
-    fi
-    if [[ -x "$go_bin/go" ]]; then
-      export MISE_GO_VERSION=$go_version
-      PATH="$go_bin:$PATH"
-    fi
-  fi
-fi
 export PATH
 
 exec "$node" "$root/src/cli/krn.mjs" "$@"

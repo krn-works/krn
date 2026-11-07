@@ -12,62 +12,7 @@ import {
 import { registerHooks } from 'node:module';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
-export const capabilityNames = ['bwrap', 'systemdUserScope', 'go'];
-// Resolve only the caller's toolchain, before entering any candidate tree.
-export function resolveGoToolchain() {
-  try {
-    const candidate = (process.env.PATH ?? '')
-      .split(':')
-      .filter((directory) => isAbsolute(directory))
-      .map((directory) => join(directory, 'go'))
-      .find((file) => {
-        try {
-          accessSync(file, constants.X_OK);
-          return statSync(file).isFile();
-        } catch {
-          return false;
-        }
-      });
-    if (!candidate) return undefined;
-    const result = spawnSync(candidate, ['env', 'GOROOT'], {
-      cwd: '/',
-      encoding: 'utf8',
-      timeout: 10_000,
-      maxBuffer: 4096,
-    });
-    if (result.error || result.status !== 0) return undefined;
-    const output = result.stdout.replace(/\r?\n$/u, '');
-    if (!output || /[\r\n]/u.test(output) || !isAbsolute(output))
-      return undefined;
-    const root = realpathSync(output);
-    if (!statSync(root).isDirectory()) return undefined;
-    const binary = realpathSync(join(root, 'bin', 'go'));
-    // The sandbox mounts only GOROOT, so the real binary must live inside it.
-    if (!binary.startsWith(`${root}${sep}`)) return undefined;
-    if (!statSync(binary).isFile()) return undefined;
-    accessSync(binary, constants.X_OK);
-    return { root, binary };
-  } catch {
-    return undefined;
-  }
-}
-
-export function probeGoCapability() {
-  const toolchain = resolveGoToolchain();
-  if (toolchain) {
-    const result = spawnSync(toolchain.binary, ['version'], {
-      cwd: '/',
-      encoding: 'utf8',
-      timeout: 10_000,
-      maxBuffer: 4096,
-      env: { ...process.env, GOTOOLCHAIN: 'local' },
-    });
-    if (!result.error && result.status === 0)
-      return { available: true, reason: '' };
-  }
-  return { available: false, reason: 'Go toolchain unavailable' };
-}
-
+export const capabilityNames = ['bwrap', 'systemdUserScope'];
 const testApiKey = 'krn.isolation-gate.test-api';
 const runtimeApiKey = 'krn.isolation-gate.runtime-api';
 const activeTest = new AsyncLocalStorage();
@@ -297,13 +242,12 @@ export function decideIsolation(testName, required, capabilities, isCI) {
   const labels = {
     bwrap: 'bwrap user namespaces',
     systemdUserScope: 'systemd user scopes',
-    go: 'Go toolchain',
   };
   const missing = required.filter((name) => !capabilities[name]?.available);
   if (missing.length === 0) return { kind: 'run' };
 
   const list = missing.map((name) => labels[name]).join(', ');
-  if (isCI || missing.every((name) => name === 'go'))
+  if (isCI)
     return {
       kind: 'skip',
       line: `SKIP(isolation): ${testName} — missing ${list}`,
@@ -325,12 +269,6 @@ export function countIsolationSkips(output) {
 export function testSuiteExitCode(exitCode, skipCount, requireZeroSkips) {
   if (exitCode !== 0) return exitCode || 1;
   return requireZeroSkips && skipCount > 0 ? 1 : 0;
-}
-
-export async function postGateStatusWhenClean({ exitCode, skipCount, post }) {
-  if (exitCode !== 0 || skipCount !== 0) return false;
-  await post();
-  return true;
 }
 
 function requiresIsolation(context, testName, required) {
@@ -403,11 +341,7 @@ function parseCapabilities(raw) {
 
   const snapshot = {};
   for (const name of capabilityNames) {
-    const capability =
-      parsed[name] ??
-      (name === 'go'
-        ? { available: false, reason: 'Go toolchain not probed' }
-        : undefined);
+    const capability = parsed[name];
     if (!capability || typeof capability.available !== 'boolean')
       throw new Error(`isolation capability probe omitted ${name}`);
     if (
