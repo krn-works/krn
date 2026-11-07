@@ -1,0 +1,50 @@
+name: Project CI self-test
+
+# Calls the shared project-ci.yml from this repository whenever it changes:
+# a green caller must pass and a caller with a failing shard must fail its
+# aggregate Check. The `expected-red / Check` run is red by design.
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/project-ci.yml
+      - .github/workflows/project-ci-selftest.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  green:
+    uses: ./.github/workflows/project-ci.yml
+    with:
+      install: node --version
+      lint: test -f package.json
+      typecheck: mise --version
+      test: test "$CI_SHARD_TOTAL" = 2 && echo "shard $CI_SHARD_INDEX of $CI_SHARD_TOTAL"
+      test-shards: 2
+      timeout-minutes: 5
+
+  expected-red:
+    uses: ./.github/workflows/project-ci.yml
+    with:
+      test: test "$CI_SHARD_INDEX" != 2
+      test-shards: 2
+      timeout-minutes: 5
+
+  verdict:
+    name: Self-test verdict
+    if: ${{ always() }}
+    needs:
+      - green
+      - expected-red
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Green caller passed and red caller failed
+        env:
+          GREEN: ${{ needs.green.result }}
+          RED: ${{ needs.expected-red.result }}
+        run: |
+          echo "green=$GREEN expected-red=$RED"
+          test "$GREEN" = success && test "$RED" = failure

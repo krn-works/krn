@@ -247,3 +247,26 @@ test('CI workflow cancels superseded pull request runs but preserves main runs',
   assert.equal(shouldCancel('refs/heads/main'), false);
   assert.equal(shouldCancel('refs/pull/42/merge'), true);
 });
+
+test('shared project CI pins its actions and ends in one aggregate Check that the self-test proves red and green', async () => {
+  const shared = await readFile(
+    new URL('../.github/workflows/project-ci.yml', import.meta.url),
+    'utf8',
+  );
+  assert.match(shared, /^ {2}workflow_call:$/mu);
+  for (const use of shared.matchAll(/^ +(?:- )?uses: (\S+)/gmu))
+    assert.match(use[1] ?? '', /@[0-9a-f]{40}$/u, use[1]);
+  const jobs = jobBlocks(shared);
+  assert.deepEqual(
+    [...jobs.keys()],
+    ['plan', 'lint', 'typecheck', 'test', 'check'],
+  );
+  assert.match(jobs.get('check') ?? '', /^ {4}name: Check$/mu);
+  assert.match(jobs.get('check') ?? '', /^ {4}if: \$\{\{ always\(\) \}\}$/mu);
+
+  const selftest = await readFile(
+    new URL('../.github/workflows/project-ci-selftest.yml', import.meta.url),
+    'utf8',
+  );
+  assert.match(selftest, /test "\$GREEN" = success && test "\$RED" = failure/u);
+});
