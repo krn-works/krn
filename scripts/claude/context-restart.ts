@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { emitContext, hookInput, object } from './context-io.ts';
+import { resumeBlock } from './handoff-resume.ts';
 import { openEntries } from './operator-inbox-store.ts';
 
 function closed(project: string, id: unknown): boolean {
@@ -136,6 +137,14 @@ try {
     /* The inbox must never interrupt startup. */
   }
   lines.splice(1, 0, `Newest handoff: ${newest?.path ?? 'none'}`);
+  if (newest) {
+    try {
+      const block = resumeBlock(readFileSync(newest.path, 'utf8'), 3000);
+      if (block) lines.splice(2, 0, block);
+    } catch {
+      /* An unreadable handoff leaves the pointer. */
+    }
+  }
   // Budget includes JSON escaping and the envelope, not just the context string.
   let text = lines.join('\n');
   const length = (value: string) =>

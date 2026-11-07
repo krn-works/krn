@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { resumeProblems } from './handoff-resume.ts';
 import { memoryDirectory } from './memory-directory.ts';
 import { markHandoff, openEntries } from './operator-inbox-store.ts';
 
@@ -167,6 +168,9 @@ for (const [index, line] of text
 endSection();
 if (sections === 0)
   failures.push(`FAIL ${handoff}: no "## Operator requests" section`);
+
+for (const problem of resumeProblems(text))
+  failures.push(`FAIL ${handoff}: ${problem}`);
 
 const file = (path: string) =>
   statSync(path, { throwIfNoEntry: false })?.isFile() === true;
