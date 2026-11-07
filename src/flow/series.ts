@@ -333,10 +333,6 @@ export function reserveReviewAttempt(
   for (;;) {
     const attempts = reservations(path, identity);
     const ordinal = attempts.length + 1;
-    if (ordinal > 2 && !exception)
-      throw new ReviewBudgetError(
-        'two attempts exhausted; supply --budget-exception for this exact ordinal/head',
-      );
     const parsed = reviewAttemptSchema.safeParse({
       ...identity,
       id: randomUUID(),
@@ -353,37 +349,6 @@ export function reserveReviewAttempt(
       );
     if (atomicReservation(path, parsed.data)) return parsed.data;
   }
-}
-
-export function checkReviewBudget(
-  repo: string,
-  identity: SeriesIdentity,
-  exceptionPath?: string,
-): void {
-  const exception =
-    exceptionPath === undefined
-      ? undefined
-      : budgetExceptionSchema.parse(readReviewJson(resolve(exceptionPath)));
-  const common = realpathSync(
-    git(repo, ['rev-parse', '--path-format=absolute', '--git-common-dir']),
-  );
-  const root = realpathSync(dirname(common));
-  let seriesRoot = root;
-  for (const part of ['.krn', 'runs', 'review-series']) {
-    seriesRoot = join(seriesRoot, part);
-    if (!safeDirectoryExists(seriesRoot)) return;
-  }
-  const key = createHash('sha256')
-    .update(`${identity.repository}\0${identity.pr}`)
-    .digest('hex');
-  if (!safeDirectoryExists(join(seriesRoot, key))) return;
-
-  const path = seriesPath(repo, identity, false);
-  const attempts = reservations(path, identity);
-  if (attempts.length + 1 > 2 && !exception)
-    throw new ReviewBudgetError(
-      'two attempts exhausted; supply --budget-exception for this exact ordinal/head',
-    );
 }
 
 export function attemptRecordPath(
