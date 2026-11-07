@@ -15,7 +15,7 @@ test('pearson r is 1 for a linear relation and -1 for an inverse one', () => {
 });
 
 test('predicted shard wall is the heaviest local lane, not the summed weight', () => {
-  const heavy = 'test/worker/hardening.test.ts';
+  const heavy = 'test/worker/recovery.test.ts';
   const light = [
     'test/task/claims.test.ts',
     'test/task/task.test.ts',
@@ -41,7 +41,7 @@ test('report pairs CI step seconds with predictions and gates the slowest p50', 
   const runs = ['1', '2', '3'].map((id, index) => ({
     id,
     jobs: [
-      job('Test (1/2)', 20 + index, ['test/worker/hardening.test.ts']),
+      job('Test (1/2)', 20 + index, ['test/worker/recovery.test.ts']),
       job('Test (2/2)', 10 + index, ['test/task/claims.test.ts']),
       job('Test (3/3)', undefined, ['test/task/task.test.ts']),
     ],
@@ -50,7 +50,7 @@ test('report pairs CI step seconds with predictions and gates the slowest p50', 
   assert.equal(report.rows.length, 6);
   assert.equal(
     report.rows[0].predicted,
-    TEST_FILE_WEIGHTS['test/worker/hardening.test.ts'],
+    TEST_FILE_WEIGHTS['test/worker/recovery.test.ts'],
   );
   assert.ok(report.laneR > 0.9);
   assert.equal(report.slowestP50, 21);
