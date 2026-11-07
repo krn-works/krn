@@ -315,6 +315,31 @@ test('show JSON sorts dependents and marks completed dependencies nonblocking', 
   }
 });
 
+test('value flags consume a next argument that begins with --', async () => {
+  const repo = await fixtureRepo('flag-dash-value-', [task('T-1')]);
+  try {
+    const closed = runCli(repo, [
+      'close',
+      'T-1',
+      '--as',
+      'done',
+      '--note',
+      '--x (#1) keeps dashes',
+      '--json',
+    ]);
+    assert.deepEqual(successJson(closed, 'task').task, {
+      ...task('T-1'),
+      status: 'closed',
+      resolution: { kind: 'done', ref: null, note: '--x (#1) keeps dashes' },
+    });
+    const missing = runCli(repo, ['close', 'T-1', '--as', 'done', '--note']);
+    assert.equal(missing.status, 64, missing.stderr);
+    assert.match(missing.stderr, /missing value for --note/u);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test('ready text lists one line per task without the body', async () => {
   const record = task('T-1', {
     created: '2026-10-25',

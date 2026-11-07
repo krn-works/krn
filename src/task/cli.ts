@@ -581,8 +581,7 @@ function requireId(value: string): TaskId {
 
 function nextValue(args: string[], index: number, option: string): string {
   const value = args[index + 1];
-  if (value === undefined || value.startsWith('--'))
-    throw usage(`missing value for ${option}`);
+  if (value === undefined) throw usage(`missing value for ${option}`);
   return value;
 }
 
