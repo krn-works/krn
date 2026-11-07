@@ -1,7 +1,11 @@
 {
   "id": "t-dgc5n6q",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Met mechanically: #300 instruction-references test fails CI on missing paths/npm scripts/krn commands; review ceremony retired. Residual gap closed here: test now auto-discovers docs/program/*.md, .claude/agents/*.md and CONTEXT.md (planted check found stale npm run gate:local in PLANS.md and forwarded krn ship in CONTEXT.md, both fixed; proposals.md excluded as history)."
+  },
   "created": "2026-11-06",
   "priority": 0,
   "title": "Treat stale agent instructions as blocking review findings",
