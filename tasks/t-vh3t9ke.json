@@ -1,0 +1,12 @@
+{
+  "id": "t-vh3t9ke",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "Retire the unused job machinery: krn start/checkpoint/stop/note/delegate, src/foreman, src/relay, src/flow review engine, isolation gate",
+  "after": [],
+  "body": [
+    "Audit (.krn/runs/lead/weakness-hunt/audit.md): after the no-gates loop these have no caller in the lead loop, skills or docs. Measure first (git grep callers, last use in .krn/runs), then delete what is unused with its tests. Sizes: src/flow 3961 lines, src/foreman 1976, src/relay 740, src/cli/delegate.ts 842, scripts/gate-local+isolation-gate+probe-isolation plus 6 isolation tests and CI Go/bubblewrap setup. test/ holds 53k lines against 20k in src."
+  ]
+}
