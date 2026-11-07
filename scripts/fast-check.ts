@@ -29,19 +29,37 @@ function importedPaths(testPath: string, source: string): Set<string> {
 /** Repository-wide rule tests scan every tracked file; they cost ~0.5 s, so any change runs them. */
 const RULE_TEST = /^test\/rules\//u;
 
-/** Tests to run: changed tests, tests whose imports resolve to a changed file, and the rule tests. */
+/**
+ * Tests to run: changed tests, tests whose imports resolve to a changed or removed file,
+ * tests that name a changed or removed file by repository path, and the rule tests.
+ * A removed file is also matched by its basename when no surviving file shares it, so
+ * `join(root, 'scripts', 'gone.mjs')` and doc assertions still find the reference.
+ */
 export function selectTests(
   changed: string[],
   tests: Map<string, string>,
+  removed: string[] = [],
+  surviving: ReadonlySet<string> = new Set(),
 ): string[] {
   const picked = new Set(changed.filter((file) => tests.has(file)));
-  if (changed.length > 0)
+  if (changed.length + removed.length > 0)
     for (const path of tests.keys()) if (RULE_TEST.test(path)) picked.add(path);
-  const code = new Set(changed.filter((name) => CODE.test(name)));
-  if (code.size > 0)
-    for (const [path, source] of tests)
-      for (const target of importedPaths(path, source))
-        if (code.has(target)) picked.add(path);
+  const targets = new Set(
+    [...changed, ...removed].filter((name) => !tests.has(name)),
+  );
+  const names = [...targets];
+  const taken = new Set([...surviving].map((file) => posix.basename(file)));
+  for (const file of removed) {
+    const base = posix.basename(file);
+    if (!taken.has(base)) names.push(base);
+  }
+  if (targets.size > 0)
+    for (const [path, source] of tests) {
+      if (names.some((name) => source.includes(name))) picked.add(path);
+      else
+        for (const target of importedPaths(path, source))
+          if (targets.has(target)) picked.add(path);
+    }
   return [...picked].sort();
 }
 
@@ -56,20 +74,51 @@ function git(root: string, args: string[]): string {
   return result.status === 0 ? result.stdout : '';
 }
 
-export function changedFiles(root: string): string[] {
+function mergeBase(root: string): string {
   let base = '';
   for (const ref of ['origin/main', 'main'])
     base ||= git(root, ['merge-base', 'HEAD', ref]).trim();
+  return base || 'HEAD';
+}
+
+function lines(text: string): string[] {
+  return text.split('\n').filter(Boolean);
+}
+
+export function changedFiles(root: string): string[] {
   const tracked = git(root, [
     'diff',
     '--name-only',
+    '--no-renames',
     '--diff-filter=d',
-    base || 'HEAD',
+    mergeBase(root),
   ]);
   const fresh = git(root, ['ls-files', '--others', '--exclude-standard']);
-  return [...new Set(`${tracked}\n${fresh}`.split('\n').filter(Boolean))]
+  return [...new Set(lines(`${tracked}\n${fresh}`))]
     .filter((file) => existsSync(join(root, file)))
     .sort();
+}
+
+/** Tracked files the change deletes or renames away since the merge base. */
+export function removedFiles(root: string): string[] {
+  const gone = git(root, [
+    'diff',
+    '--name-only',
+    '--no-renames',
+    '--diff-filter=D',
+    mergeBase(root),
+  ]);
+  return lines(gone)
+    .filter((file) => !existsSync(join(root, file)))
+    .sort();
+}
+
+function survivingFiles(root: string): Set<string> {
+  return new Set(
+    lines(
+      git(root, ['ls-files', '--cached', '--others', '--exclude-standard']),
+    ).filter((file) => existsSync(join(root, file))),
+  );
 }
 
 function listTests(root: string): Map<string, string> {
@@ -132,7 +181,8 @@ function run(
 export async function main(root: string): Promise<number> {
   const started = performance.now();
   const changed = changedFiles(root);
-  if (changed.length === 0) {
+  const removed = removedFiles(root);
+  if (changed.length + removed.length === 0) {
     process.stdout.write('fast PASS: no changed files\n');
     return 0;
   }
@@ -147,7 +197,12 @@ export async function main(root: string): Promise<number> {
   const files = lintable(changed);
   const cache = join(root, '.krn/cache');
   mkdirSync(cache, { recursive: true });
-  const related = selectTests(changed, listTests(root));
+  const related = selectTests(
+    changed,
+    listTests(root),
+    removed,
+    survivingFiles(root),
+  );
   const snapshot = (): string =>
     changed.map((file) => readFileSync(join(root, file), 'utf8')).join('\0');
   const verify = (): Promise<Step[]> =>
@@ -213,7 +268,7 @@ export async function main(root: string): Promise<number> {
       ? 'PASS'
       : `FAIL (${failed.map((step) => step.name).join(', ')})`;
   process.stdout.write(
-    `fast ${verdict}: ${changed.length} changed, ${files.length} linted, ${related.length} tests; ${timing}; total ${total}s\n`,
+    `fast ${verdict}: ${changed.length} changed, ${removed.length} removed, ${files.length} linted, ${related.length} tests; ${timing}; total ${total}s\n`,
   );
   return failed.length === 0 ? 0 : 1;
 }

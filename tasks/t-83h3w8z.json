@@ -1,7 +1,11 @@
 {
   "id": "t-83h3w8z",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast selects tests referencing removed/renamed files by import, path or unique basename; #259 replay selects 8/8 CI-failed files (old 5/8)"
+  },
   "created": "2026-11-07",
   "priority": 1,
   "title": "fast: catch stale references and removed modules before push",
