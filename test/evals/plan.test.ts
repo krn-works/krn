@@ -514,7 +514,7 @@ test('eval plan reports usage errors with the task JSON envelope and exit 64', a
       ['--json'],
       ['other', '--json'],
       ['plan', '--json'],
-      ['plan', '--experiment', '--json'],
+      ['plan', '--json', '--experiment'],
       ['plan', '--experiment', f.experiment, '--unknown', '--json'],
       ['plan', '--experiment', f.experiment, '--json', '--json'],
       ['plan', '--experiment', f.experiment, '--draft', '--draft', '--json'],

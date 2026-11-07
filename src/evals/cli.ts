@@ -1,4 +1,5 @@
 import { commandErrorExitCode } from '../cli/command-error.ts';
+import { flagValue } from '../cli/flag-value.ts';
 import { CliUsageError } from '../cli/usage-error.ts';
 import { EvalDataError, loadManifest } from './manifest.ts';
 import { maskCommand } from './mask.ts';
@@ -73,10 +74,11 @@ export async function evalCommand(args: string[]): Promise<void> {
 }
 
 function value(args: string[], index: number, usage: string): string {
-  const result = args[index + 1];
-  if (!result || result.startsWith('--'))
-    throw new CliUsageError(`missing value for ${args[index]}; ${usage}`);
-  return result;
+  return flagValue(
+    args,
+    index,
+    () => new CliUsageError(`missing value for ${args[index]}; ${usage}`),
+  );
 }
 
 type ExperimentOptions = { experiment: string; draft: boolean };

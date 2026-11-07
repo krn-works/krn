@@ -3,6 +3,7 @@ import {
   type LedgerOptions,
   renderLedger,
 } from '../outcome/ledger.ts';
+import { flagValue } from './flag-value.ts';
 import { CliUsageError } from './usage-error.ts';
 
 export async function ledgerCommand(args: string[]): Promise<void> {
@@ -25,9 +26,11 @@ export async function ledgerCommand(args: string[]): Promise<void> {
       ].includes(flag ?? '')
     )
       throw new CliUsageError(`Unknown ledger flag: ${flag}`);
-    const value = args[++i];
-    if (!value || value.startsWith('--'))
-      throw new CliUsageError(`Missing value for ${flag}`);
+    const value = flagValue(
+      args,
+      i++,
+      () => new CliUsageError(`Missing value for ${flag}`),
+    );
     if (flag === '--pr' || flag === '--limit') {
       if (
         !/^\d+$/.test(value) ||

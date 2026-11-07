@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { commandErrorExitCode } from '../cli/command-error.ts';
+import { flagValue } from '../cli/flag-value.ts';
 import {
   claimHolder,
   claimNext,
@@ -580,9 +581,7 @@ function requireId(value: string): TaskId {
 }
 
 function nextValue(args: string[], index: number, option: string): string {
-  const value = args[index + 1];
-  if (value === undefined) throw usage(`missing value for ${option}`);
-  return value;
+  return flagValue(args, index, () => usage(`missing value for ${option}`));
 }
 
 function formatShow(
