@@ -119,7 +119,7 @@ export function planTestShards(
     shardWeights[target] += size || 1;
   }
 
-  return { shards, serialFiles: finalSerialFiles };
+  return { shards, serialFiles: finalSerialFiles, weights: shardWeights };
 }
 
 export function configuredTestShardSelection(index, total) {
@@ -144,8 +144,9 @@ export function configuredTestShardSelection(index, total) {
 
 // Splits the planned lanes across `total` runners deterministically: the
 // size-balanced lanes of planTestShards are distributed one lane per runner
-// and the serial files by sorted position, so every file lands in exactly one
-// selection. Shard `index` (1-based) returns its own files.
+// and each serial file, heaviest first, to the runner with the least planned
+// weight, so it never lengthens the heaviest lane and every file lands in
+// exactly one selection. Shard `index` (1-based) returns its own files.
 export function selectTestShardFiles(
   files,
   index,
@@ -158,8 +159,23 @@ export function selectTestShardFiles(
     throw new Error('test shard index must be between 1 and the total');
   const plan = planTestShards(files, total, serialFiles);
   const selected = [...(plan.shards[index - 1] ?? [])];
-  for (const [position, file] of plan.serialFiles.entries())
-    if (position % total === index - 1) selected.push(file);
+  const load = Array.from(
+    { length: total },
+    (_, lane) => plan.weights[lane] ?? 0,
+  );
+  const serial = plan.serialFiles
+    .map((file) => ({ file, weight: fileWeight(file, 0) }))
+    .sort(
+      (left, right) =>
+        right.weight - left.weight || left.file.localeCompare(right.file),
+    );
+  for (const { file, weight } of serial) {
+    let lightest = 0;
+    for (let lane = 1; lane < total; lane += 1)
+      if (load[lane] < load[lightest]) lightest = lane;
+    load[lightest] += weight;
+    if (lightest === index - 1) selected.push(file);
+  }
   return selected.sort();
 }
 

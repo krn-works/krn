@@ -1,7 +1,11 @@
 {
   "id": "t-q625vvc",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Serial file joins the lightest CI lane; weights re-measured for all 92 files; worker session and state-trust subtest loops run concurrently (fixes a partial-line race in state-trust rows)"
+  },
   "created": "2026-11-01",
   "priority": 1,
   "title": "Cut PR CI wall time using measured wait, setup and run splits",

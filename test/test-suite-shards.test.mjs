@@ -109,6 +109,15 @@ test('shard selection puts every test file in exactly one of the runner shards',
       ),
     );
   }
+  for (const total of [2, 6, 8]) {
+    const plan = planTestShards(files, total);
+    const lightest = plan.weights.indexOf(Math.min(...plan.weights));
+    for (const file of SERIAL_TEST_FILES)
+      assert.ok(
+        selectTestShardFiles(files, lightest + 1, total).includes(file),
+        `total ${total}: ${file} must join the lightest lane ${lightest + 1}, not the heaviest`,
+      );
+  }
   assert.throws(() => selectTestShardFiles(files, 0, 3), /between 1/u);
   assert.throws(() => selectTestShardFiles(files, 4, 3), /between 1/u);
   assert.deepEqual(
