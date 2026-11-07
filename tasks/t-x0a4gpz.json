@@ -1,7 +1,11 @@
 {
   "id": "t-x0a4gpz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "PreToolUse hook scripts/claude/memory-budget.ts (Write|Edit, project settings) refuses MEMORY.md writes over the INDEX-SIZE budget; hook test covers refuse and allow."
+  },
   "created": "2026-11-05",
   "priority": 1,
   "title": "Enforce the memory index budget when a note is written",
