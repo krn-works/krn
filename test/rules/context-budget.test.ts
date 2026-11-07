@@ -33,5 +33,13 @@ test('Claude context budget settings wire documented hooks and read-only reader'
     settings.hooks.SessionStart[0].matcher,
     'startup|resume|clear|compact',
   );
+  const guard = settings.hooks.PreToolUse;
+  assert.equal(guard.length, 1);
+  assert.equal(guard[0].matcher, 'Write|Edit');
+  assert.equal(
+    guard[0].hooks[0].command,
+    'NODE_COMPILE_CACHE="$CLAUDE_PROJECT_DIR/.krn/cache/node" node "$CLAUDE_PROJECT_DIR/scripts/claude/memory-budget.ts"',
+  );
+  assert.ok(existsSync(new URL('scripts/claude/memory-budget.ts', root)));
   assert.equal(settings.hooks.PreCompact, undefined);
 });

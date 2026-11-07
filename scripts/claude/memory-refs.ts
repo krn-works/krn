@@ -32,7 +32,8 @@ export type Finding = {
 const limit = 256 * 1024;
 // About 600 tokens: the lead index holds operator preferences, grants and decisions only;
 // lessons move into checks, rules or host notes.
-const indexBudget = 2400;
+export const indexBudget = 2400;
+export const indexLineBudget = 200;
 
 // Counts lines of an oversized file in fixed chunks, splitting on CRLF, CR or LF like the
 // in-memory scan, without holding the file in memory.
@@ -179,7 +180,10 @@ export function checkMemory({
     if (text === undefined) continue;
     const lines = text.replace(/^\uFEFF/u, '').split(/\r\n|\r|\n/u);
     const count = lines.length - (lines.at(-1) === '' ? 1 : 0);
-    if (file === 'MEMORY.md' && (count > 200 || stat.size > indexBudget))
+    if (
+      file === 'MEMORY.md' &&
+      (count > indexLineBudget || stat.size > indexBudget)
+    )
       add('INDEX-SIZE', file, 0, `${count} lines ${stat.size} bytes`);
     for (const [index, line] of lines.entries()) {
       const number = index + 1;
