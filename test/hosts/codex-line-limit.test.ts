@@ -32,21 +32,14 @@ writeNext(0);
 `,
       { mode: 0o755 },
     );
-    const previousIsolation = process.env.KRN_ISOLATION;
-    process.env.KRN_ISOLATION = 'pid_namespace';
     host = new CodexHost({ executable });
-    try {
-      const session = await host.start({
-        cwd: root,
-        model: 'gpt-6-luna',
-        prompt: 'synthetic line-limit stream',
-        limits: { timeoutMs: 5000 },
-      });
-      return await session.wait();
-    } finally {
-      if (previousIsolation === undefined) delete process.env.KRN_ISOLATION;
-      else process.env.KRN_ISOLATION = previousIsolation;
-    }
+    const session = await host.start({
+      cwd: root,
+      model: 'gpt-6-luna',
+      prompt: 'synthetic line-limit stream',
+      limits: { timeoutMs: 5000 },
+    });
+    return await session.wait();
   } finally {
     try {
       await host?.cancelAll();
