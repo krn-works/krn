@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-const root = fileURLToPath(new URL('../', import.meta.url));
+const root = fileURLToPath(new URL('../../', import.meta.url));
 const budgetFile = join(root, 'spec/context-budget.json');
 const budget = JSON.parse(readFileSync(budgetFile, 'utf8')) as {
   files: Record<string, number>;
