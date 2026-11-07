@@ -1,7 +1,7 @@
 // One-command changed-files verify: biome --write, tsc and the related tests, one verdict line.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { check as checkBoundaries } from './boundaries.ts';
 
@@ -9,23 +9,34 @@ const LINTABLE = /\.(?:ts|mts|cts|js|mjs|cjs|json|jsonc|css)$/u;
 const TEST_FILE = /^test\/.+\.test\.(?:ts|js|mjs|cjs)$/u;
 const CODE = /^(?:src|scripts|bin)\/.+\.(?:ts|mts|js|mjs|cjs)$/u;
 
-const stem = (file: string): string => basename(file).replace(/\..+$/u, '');
+const SPECIFIER =
+  /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)(['"])(\.{1,2}\/[^'"]+)\1/gu;
+const EXTENSIONS = ['', '.ts', '.mts', '.js', '.mjs', '/index.ts', '/index.js'];
 
-/** Tests to run: changed tests, same-stem tests, and tests importing a changed module. */
+/** Repo paths a test source imports by relative specifier, resolved from the test's directory. */
+function importedPaths(testPath: string, source: string): Set<string> {
+  const found = new Set<string>();
+  const dir = posix.dirname(testPath);
+  for (const match of source.matchAll(SPECIFIER)) {
+    const target = posix.join(dir, match[2] ?? '');
+    for (const ext of EXTENSIONS) found.add(target + ext);
+    // A .js specifier may stand for a .ts source.
+    if (target.endsWith('.js')) found.add(`${target.slice(0, -3)}.ts`);
+  }
+  return found;
+}
+
+/** Tests to run: changed tests, plus tests whose imports resolve to a changed file. */
 export function selectTests(
   changed: string[],
   tests: Map<string, string>,
 ): string[] {
   const picked = new Set(changed.filter((file) => tests.has(file)));
-  for (const file of changed.filter((name) => CODE.test(name))) {
-    const name = stem(file);
-    const spec = new RegExp(
-      `['"][^'"]*/${name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&')}(?:\\.[a-z]+)?['"]`,
-      'u',
-    );
+  const code = new Set(changed.filter((name) => CODE.test(name)));
+  if (code.size > 0)
     for (const [path, source] of tests)
-      if (stem(path) === name || spec.test(source)) picked.add(path);
-  }
+      for (const target of importedPaths(path, source))
+        if (code.has(target)) picked.add(path);
   return [...picked].sort();
 }
 
@@ -111,53 +122,68 @@ export async function main(root: string): Promise<number> {
     return 0;
   }
   const bin = (name: string): string => join(root, 'node_modules/.bin', name);
-  const steps: Step[] = [];
   const files = lintable(changed);
-  if (files.length > 0)
-    steps.push(
-      await run(root, 'biome', bin('biome'), [
-        'check',
-        '--write',
-        '--no-errors-on-unmatched',
-        ...files,
+  const cache = join(root, '.krn/cache');
+  mkdirSync(cache, { recursive: true });
+  const related = selectTests(changed, listTests(root));
+  const snapshot = (): string =>
+    changed.map((file) => readFileSync(join(root, file), 'utf8')).join('\0');
+  const verify = (): Promise<Step[]> =>
+    Promise.all([
+      run(root, 'tsc', bin('tsc'), [
+        '--noEmit',
+        '--incremental',
+        '--tsBuildInfoFile',
+        join(cache, 'fast.tsbuildinfo'),
       ]),
-    );
+      ...(related.length > 0
+        ? [
+            run(root, 'test', process.execPath, [
+              '--test',
+              '--test-reporter=dot',
+              ...related,
+            ]),
+          ]
+        : []),
+    ]);
+  // tsc and tests start at once with biome; they are redone only if biome rewrote a file.
+  const before = snapshot();
+  const lint =
+    files.length > 0
+      ? run(root, 'biome', bin('biome'), [
+          'check',
+          '--write',
+          '--no-errors-on-unmatched',
+          ...files,
+        ])
+      : undefined;
+  let verified = verify();
+  const steps: Step[] = [];
+  if (lint) {
+    steps.push(await lint);
+    if (snapshot() !== before) {
+      await verified;
+      verified = verify();
+    }
+  }
+  const boundaryStart = performance.now();
   const violations = checkBoundaries(root);
   steps.push({
     name: 'boundaries',
     ok: violations.length === 0,
-    seconds: 0,
+    seconds: (performance.now() - boundaryStart) / 1000,
     output: violations
       .map((v) => `${v.file}:${v.line}: forbidden import ${v.edge}`)
       .join('\n'),
   });
-  const cache = join(root, '.krn/cache');
-  mkdirSync(cache, { recursive: true });
-  const related = selectTests(changed, listTests(root));
-  const parallel = [
-    run(root, 'tsc', bin('tsc'), [
-      '--noEmit',
-      '--incremental',
-      '--tsBuildInfoFile',
-      join(cache, 'fast.tsbuildinfo'),
-    ]),
-  ];
-  if (related.length > 0)
-    parallel.push(
-      run(root, 'test', process.execPath, [
-        '--test',
-        '--test-reporter=dot',
-        ...related,
-      ]),
-    );
-  steps.push(...(await Promise.all(parallel)));
+  steps.push(...(await verified));
   const failed = steps.filter((step) => !step.ok);
   for (const step of failed)
     process.stdout.write(
       `--- ${step.name} ---\n${step.output.trim().split('\n').slice(-60).join('\n')}\n`,
     );
   const timing = steps
-    .map((step) => `${step.name} ${step.seconds.toFixed(1)}s`)
+    .map((step) => `${step.name} ${Math.round(step.seconds * 1000)}ms`)
     .join(', ');
   const total = ((performance.now() - started) / 1000).toFixed(1);
   const verdict =

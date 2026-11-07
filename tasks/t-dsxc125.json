@@ -1,7 +1,11 @@
 {
   "id": "t-dsxc125",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "A/B round 4 on 1ef5e23: KRN $0.167/37s/lint 9/9 vs plain $0.190/38s/6/9 vs T3 $0.297/64s; reports .krn/runs/lead/krn-ab/report-v{1..4}.md"
+  },
   "created": "2026-11-06",
   "priority": 0,
   "title": "Audit: make KRN delivery cheaper than plain git+gh",
