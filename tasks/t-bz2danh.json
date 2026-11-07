@@ -1,7 +1,11 @@
 {
   "id": "t-bz2danh",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-xevd1d8",
+    "note": "backlog triage 2026-11-07: Isolated-HOME node fixture; folds into flake task"
+  },
   "created": "2026-10-31",
   "priority": 1,
   "title": "Use the pinned Node executable in checkpoint subprocess fixtures",

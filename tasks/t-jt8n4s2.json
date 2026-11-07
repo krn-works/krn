@@ -1,7 +1,11 @@
 {
   "id": "t-jt8n4s2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-kw3qb72",
+    "note": "backlog triage 2026-11-07: Improves retired delivery ceremony (briefs/review/verify/slice/deliver/worker/red-first/hardening checklist)"
+  },
   "created": "2026-11-02",
   "priority": 2,
   "title": "Make deliver dry-run run ship's repository verifier and report ship refusals",

@@ -1,7 +1,11 @@
 {
   "id": "t-pe9xpv1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-rperync",
+    "note": "backlog triage 2026-11-07: Gauge advisory text folds into context bound"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Restate slice goal, next command and elapsed time in gauge advisories",

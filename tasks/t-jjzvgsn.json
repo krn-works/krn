@@ -1,7 +1,11 @@
 {
   "id": "t-jjzvgsn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-kw3qb72",
+    "note": "backlog triage 2026-11-07: review/contract ceremony retired by operator no-gates decision 2026-11-07"
+  },
   "created": "2026-11-02",
   "priority": 1,
   "title": "Pin the brief Markdown grammar to CommonMark with a captured render oracle",

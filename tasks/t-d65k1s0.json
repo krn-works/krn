@@ -1,7 +1,11 @@
 {
   "id": "t-d65k1s0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-x0a4gpz",
+    "note": "backlog triage 2026-11-07: memory-refs edge cases fold in"
+  },
   "created": "2026-11-04",
   "priority": 3,
   "title": "memory-refs: regular-file index targets, unbounded task reads, per-id stale status",

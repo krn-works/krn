@@ -1,7 +1,11 @@
 {
   "id": "t-6e9kxsy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-8c53vb8",
+    "note": "backlog triage 2026-11-07: Jenkins/krn-gate/self-hosted CI only; gone"
+  },
   "created": "2026-11-06",
   "priority": 0,
   "title": "Trigger a Jenkins scan when a PR head has no krn/gate check run",

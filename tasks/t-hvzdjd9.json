@@ -1,7 +1,11 @@
 {
   "id": "t-hvzdjd9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "backlog triage 2026-11-07: Low value or research/measurement without a live defect; reopen on a real need"
+  },
   "created": "2026-11-02",
   "priority": 3,
   "title": "Decide whether KRN exposes its delivery surface as an MCP server over harnesses",

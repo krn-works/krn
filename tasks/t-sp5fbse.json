@@ -1,7 +1,11 @@
 {
   "id": "t-sp5fbse",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-8c53vb8",
+    "note": "backlog triage 2026-11-07: Jenkins/krn-gate/self-hosted CI only; gone"
+  },
   "created": "2026-11-06",
   "priority": 1,
   "title": "Complete the krn/gate check when a build fails before the gate",

@@ -1,7 +1,11 @@
 {
   "id": "t-yxdhtfk",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-jrjebkp",
+    "note": "backlog triage 2026-11-07: Recorded date on notes folds into memory validity"
+  },
   "created": "2026-11-05",
   "priority": 1,
   "title": "Require a recorded date and source on every memory note",

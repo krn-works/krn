@@ -1,7 +1,11 @@
 {
   "id": "t-3n08bc4",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-kw3qb72",
+    "note": "backlog triage 2026-11-07: review/contract ceremony retired by operator no-gates decision 2026-11-07"
+  },
   "created": "2026-10-30",
   "priority": 2,
   "title": "Normalize merge-level delivery contracts",

@@ -1,7 +1,11 @@
 {
   "id": "t-6vhm7we",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-dsxc125",
+    "note": "backlog triage 2026-11-07: KRN vs plain harness proof lives in t-dsxc125"
+  },
   "created": "2026-10-27",
   "priority": 1,
   "title": "Benchmark KRN delivery against a plain harness",

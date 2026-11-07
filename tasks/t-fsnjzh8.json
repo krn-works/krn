@@ -1,7 +1,11 @@
 {
   "id": "t-fsnjzh8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-rperync",
+    "note": "backlog triage 2026-11-07: Baseline guard line folds into context bound"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Warn when a lead session starts above its baseline",

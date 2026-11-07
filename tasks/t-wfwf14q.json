@@ -1,7 +1,11 @@
 {
   "id": "t-wfwf14q",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-xrcg8ms",
+    "note": "backlog triage 2026-11-07: Orphan PRs at session start folds into handoff"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Surface orphan PRs and idle claims at session start",

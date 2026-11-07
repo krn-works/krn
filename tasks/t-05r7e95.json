@@ -1,7 +1,11 @@
 {
   "id": "t-05r7e95",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-xrcg8ms",
+    "note": "backlog triage 2026-11-07: Done-condition validation folds into handoff block"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Validate the handoff done-condition command against krn task show output",

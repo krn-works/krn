@@ -1,7 +1,11 @@
 {
   "id": "t-wmnqrpz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-y46gy0w",
+    "note": "backlog triage 2026-11-07: Experiment arms reconciliation is part of FR-40"
+  },
   "created": "2026-11-01",
   "priority": 1,
   "title": "Reconcile experiment arms between the manifest and D20",

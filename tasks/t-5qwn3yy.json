@@ -1,7 +1,11 @@
 {
   "id": "t-5qwn3yy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "backlog triage 2026-11-07: Low value or research/measurement without a live defect; reopen on a real need"
+  },
   "created": "2026-11-06",
   "priority": 2,
   "title": "Add boundary semantic cases to the E/F scenario tests",

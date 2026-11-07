@@ -15,7 +15,7 @@ You are the directly responsible lead for this repository's delivery outcome. Wo
 Operator: "wypierdol bramki po prostu koduj i bebesz masz na wszysko zgode" and "ustaw to jako globalną zasadę skillsów i realnie przyśpiesz proces". This overrides the slice loop below for every lead and successor:
 
 1. Code the change yourself in a worktree under `.krn/worktrees/<purpose>`; commit with `Ticket: <id>` when a task exists.
-2. Run the tests you touched (`node --test <files>`, `npm run check`); fix until green.
+2. Run `npm run lint`, `npm run check` and the tests you touched (`node --test <files>`); fix until green. CI runs Biome lint, so skipping it costs a red `Check` round.
 3. `git push`, `gh pr create`, then `gh pr merge <n> --auto --merge`: GitHub merges once the required Actions `Check` passes (the only required check in the `main integrity` ruleset) and deletes the branch. Never `gh pr checks --watch`: the orphaned Jenkins `krn/gate` status never completes and hangs it.
 4. Read main CI; a red test is a defect to fix, an infra flake is `gh run rerun <id> --failed`.
 
@@ -63,11 +63,6 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 - **Trailer block.** `Ticket:`, `Change-contract:` and `Co-Authored-By:` sit in one final paragraph with no blank line between them. Check with `git log -1 --format=%B | git interpret-trailers --parse`.
 - **Merge message contracts are merge-level.** Declare only observers that are red at the PR base and green on the merged tree. Tracker commits (task records, the close commit) carry no `Change-contract`: admission refuses `none (...)` on a commit, and a PR with tracker commits only cannot deliver yet, so ship task records with a code PR (t-160zvad).
 - **Branch base.** The branch must contain the PR base: `git merge-base --is-ancestor <pr-base> HEAD`.
-- **Authoritative base (t-xxa04np).** With two lanes a parallel fetch moves the local `origin/main`: rebase onto the SHA from `git ls-remote origin main` or the PR's `baseRefOid`, and pass that exact SHA to `krn verify` and `krn review`, never the local `origin/main`.
-- **Deliver check runs lag (t-5f91xhs).** Right after a push, deliver can exit 76 "check runs unavailable" while `Check` is already reported or pending: rerun the same deliver command.
-- **Repo slug (t-dxna9xq).** `krn slice run --repo` takes the owner/repo of `git remote get-url origin` (`krn-works/krn`); a wrong slug passes until the pr stage: fix `repo` in `.krn/runs/slice/<task>/journal.json` before that stage.
-- **Shared remote refs (t-xa40ns5).** With two lanes a fetch in the other lane moves the shared `.git/refs/remotes`; a worker exit 3 that names only `.git/refs/remotes` paths is not a worker violation: check `git status` in the worktree and continue.
-- **Untracked record copy (t-jc27nbz).** When shipping an untracked task record from the main checkout, move it (copy into the worktree, then delete the main copy) before the close commit; after a deliver exit 77 on such a file, delete it and rerun deliver from the main checkout.
 - **GLOBAL.** `AGENTS.md` stays within its 90-line cap; run `npm run gate:fast` there as the cheap preflight.
 - **Decisions.** A task or brief must not contradict a recorded ADR; changing a decision is a request to the operator first.
 - **Host load.** Optional local diagnostics and review compete for host CPU; schedule optional host work separately. Delivery waits only for required GitHub CI, never for host load. `/tmp` is quota-limited; agent temp space lives on disk.
@@ -76,7 +71,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 
 Each open task whose body has a `Lead trap:` line is a known defect with its workaround above; `test/rules/lead-traps.test.ts` keeps this list equal to those tasks, and only `test/rules/lead-traps.test.ts` reads workaround text, so removing a fixed trap breaks no other test. When a fix ships, remove its id here and its workaround above in the same PR.
 
-t-160zvad, t-5f91xhs, t-8k6n32d, t-dxna9xq, t-jc27nbz, t-jt8n4s2, t-m991e6t, t-tf4qwnz, t-xa40ns5, t-xxa04np
+none (all ten closed by the 2026-11-07 backlog triage with the retired ceremony)
 
 ## Talking to the operator
 
