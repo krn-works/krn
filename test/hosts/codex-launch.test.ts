@@ -24,7 +24,7 @@ test('CodexHost defaults to high reasoning effort for bounded shell work', async
     const executable = join(directory, 'fake-codex');
     await writeFile(
       executable,
-      `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(argsFile)}, JSON.stringify(process.argv.slice(2)));\nprocess.stdout.write(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'ready' } }) + '\\n');\nprocess.stdout.write(JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } }) + '\\n');\n`,
+      `#!/usr/bin/env node\nawait new Promise((done) => { process.stdin.on("end", done); process.stdin.resume(); });\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(argsFile)}, JSON.stringify(process.argv.slice(2)));\nprocess.stdout.write(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'ready' } }) + '\\n');\nprocess.stdout.write(JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } }) + '\\n');\n`,
     );
     await chmod(executable, 0o755);
 
@@ -66,7 +66,7 @@ test('CodexHost launches an explicitly read-only bounded session', async (t) => 
     const executable = join(directory, 'fake-codex');
     await writeFile(
       executable,
-      `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(argsFile)}, JSON.stringify(process.argv.slice(2)));\nprocess.stdout.write(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'read-only result' } }) + '\\n');\nprocess.stdout.write(JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } }) + '\\n');\n`,
+      `#!/usr/bin/env node\nawait new Promise((done) => { process.stdin.on("end", done); process.stdin.resume(); });\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(argsFile)}, JSON.stringify(process.argv.slice(2)));\nprocess.stdout.write(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'read-only result' } }) + '\\n');\nprocess.stdout.write(JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } }) + '\\n');\n`,
     );
     await chmod(executable, 0o755);
 
@@ -104,7 +104,7 @@ test('CodexHost abort signal cancels its owned process tree', async (t) => {
     const executable = join(directory, 'fake-codex');
     await writeFile(
       executable,
-      '#!/usr/bin/env node\nsetInterval(() => {}, 1000);\n',
+      '#!/usr/bin/env node\nawait new Promise((done) => { process.stdin.on("end", done); process.stdin.resume(); });\nsetInterval(() => {}, 1000);\n',
     );
     await chmod(executable, 0o755);
 
@@ -143,7 +143,7 @@ test('an empty Codex final message is not a completed claim', async (t) => {
     const executable = join(directory, 'fake-codex');
     await writeFile(
       executable,
-      `#!/usr/bin/env node\nprocess.stdout.write(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: '' } }) + '\\n');\nprocess.stdout.write(JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } }) + '\\n');\n`,
+      `#!/usr/bin/env node\nawait new Promise((done) => { process.stdin.on("end", done); process.stdin.resume(); });\nprocess.stdout.write(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: '' } }) + '\\n');\nprocess.stdout.write(JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } }) + '\\n');\n`,
     );
     await chmod(executable, 0o755);
 

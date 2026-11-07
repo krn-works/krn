@@ -46,6 +46,7 @@ async function runStream(
     await writeFile(
       executable,
       `#!/usr/bin/env node
+await new Promise((done) => { process.stdin.on("end", done); process.stdin.resume(); });
 const stream = ${JSON.stringify(stream)};
 // Split JSONL records across writes, exercising the real adapter's buffer too.
 process.stdout.write(stream.slice(0, 37));
@@ -84,7 +85,7 @@ async function interruptedStream(): Promise<CodexSessionResult> {
     const executable = join(root, 'fake-codex');
     await writeFile(
       executable,
-      `#!/usr/bin/env node\nprocess.stdout.write(JSON.stringify({type:'turn.started'})+'\\n');\nawait import('node:fs/promises').then(({writeFile})=>writeFile(${JSON.stringify(marker)},'started'));\nsetInterval(()=>{},1000);\n`,
+      `#!/usr/bin/env node\nawait new Promise((done) => { process.stdin.on("end", done); process.stdin.resume(); });\nprocess.stdout.write(JSON.stringify({type:'turn.started'})+'\\n');\nawait import('node:fs/promises').then(({writeFile})=>writeFile(${JSON.stringify(marker)},'started'));\nsetInterval(()=>{},1000);\n`,
       { mode: 0o755 },
     );
     host = new CodexHost({ executable });

@@ -538,6 +538,7 @@ test('cancellation kills the Codex process tree and keeps the session identity',
     const pidFile = join(directory, 'pids');
     const executable = join(directory, 'fake-codex');
     const source = `#!/usr/bin/env node
+await new Promise((done) => { process.stdin.on("end", done); process.stdin.resume(); });
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 process.stdout.write(JSON.stringify({ type: 'thread.started', thread_id: 'thread-123' }) + '\\n');
