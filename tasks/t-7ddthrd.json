@@ -1,0 +1,16 @@
+{
+  "id": "t-7ddthrd",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "coverage assertion moved to test/rules/shard-weight-coverage.test.mjs; message names the manual weight"
+  },
+  "created": "2026-11-07",
+  "priority": 3,
+  "title": "Run the shard-weight coverage test on every fast check",
+  "after": [],
+  "body": [
+    "Retro of t-3wgr35d (#342): npm run fast passed while CI failed test/ci/shard-weights.test.mjs because two new test files lacked weights; fast selects that test only by import, and its message pointed at `shard-weights-refresh.mjs --write`, which keeps files without CI samples instead of adding them. Acceptance: the coverage assertion lives under test/rules/ (always run by fast) and its message says to add a weight by hand for files without CI samples."
+  ]
+}

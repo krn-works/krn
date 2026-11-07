@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, realpathSync } from 'node:fs';
-import { relative, sep } from 'node:path';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { TEST_FILE_WEIGHTS } from '../../scripts/lib/shard-weights.mjs';
@@ -11,33 +10,14 @@ import {
   repoTestPath,
   runDurations,
 } from '../../scripts/shard-weights-refresh.mjs';
-import { selectTestFiles } from '../../scripts/test-suite.mjs';
 import { summarizeTestEvents } from '../../scripts/test-summary-policy.mjs';
 
-const root = realpathSync(fileURLToPath(new URL('../..', import.meta.url)));
 const capture = readFileSync(
   fileURLToPath(
     new URL('../fixtures/ci-test-summary-job.log', import.meta.url),
   ),
   'utf8',
 );
-
-test('every test file has a shard weight and every weight a test file', () => {
-  const files = selectTestFiles([], root).map((file) =>
-    relative(root, file).split(sep).join('/'),
-  );
-  const weighted = Object.keys(TEST_FILE_WEIGHTS);
-  assert.deepEqual(
-    files.filter((file) => !Object.hasOwn(TEST_FILE_WEIGHTS, file)),
-    [],
-    'run `node scripts/shard-weights-refresh.mjs --write` or add a weight',
-  );
-  assert.deepEqual(
-    weighted.filter((file) => !files.includes(file)),
-    [],
-    'weights name deleted test files',
-  );
-});
 
 test('a verbatim CI job log yields its summary with repository paths', () => {
   const summary = parseJobSummary(capture);
