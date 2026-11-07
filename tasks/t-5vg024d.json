@@ -1,0 +1,12 @@
+{
+  "id": "t-5vg024d",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 1,
+  "title": "Operator inbox: skip prompts from headless and benchmark runs",
+  "after": [],
+  "body": [
+    "Found 2026-11-07 by the lead: headless runs started from a worktree or temp copy of this repository (claude -p for a permission check, an ad-hoc hook benchmark with session \"bench\" that wrote 60 \"hello bench\" entries) record their prompts in the lead operator inbox (.krn/operator/inbox.jsonl in the main checkout), because capture resolves the inbox to the main checkout and cannot tell an operator prompt from an automated one. Make capture skip non-interactive sessions (find the field in the real UserPromptSubmit payload of a claude -p run — capture it verbatim — or an env marker the runner sets), test with that captured payload, and dispose the existing noise."
+  ]
+}
