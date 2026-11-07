@@ -23,11 +23,26 @@ const settings = fileURLToPath(
   new URL('../../.claude/settings.json', import.meta.url),
 );
 
+const sessionId = '075c3201-76f7-4eb7-89ac-04c9d53234c3';
+// Hook environment of an interactive session and of a headless `claude -p` run (captured).
+const interactive = {
+  CLAUDE_CODE_ENTRYPOINT: 'cli',
+  CLAUDE_CODE_SESSION_ATTENDED: '1',
+};
+const headless = {
+  CLAUDE_CODE_ENTRYPOINT: 'sdk-cli',
+  CLAUDE_CODE_SESSION_ATTENDED: '0',
+};
+
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'operator-inbox-'));
   mkdirSync(join(root, 'tasks'));
   writeFileSync(join(root, 'tasks/t-abc1234.json'), '{}');
-  const submit = (prompt: string, session = 'sess-1') =>
+  const submit = (
+    prompt: string,
+    session = sessionId,
+    env: Record<string, string> = interactive,
+  ) =>
     spawnSync(process.execPath, [promptHook], {
       input: JSON.stringify({
         session_id: session,
@@ -36,7 +51,7 @@ function fixture() {
         hook_event_name: 'UserPromptSubmit',
         transcript_path: join(root, 'missing.jsonl'),
       }),
-      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+      env: { ...process.env, ...env, CLAUDE_PROJECT_DIR: root },
       encoding: 'utf8',
     });
   const run = (...args: string[]) =>
@@ -113,7 +128,7 @@ test('capture redacts secrets, bounds length, and never fails the prompt', () =>
     const entry = JSON.parse(raw);
     assert.match(entry.text, /\[REDACTED\]/u);
     assert.ok(entry.text.length <= 4000);
-    assert.equal(entry.session, 'sess-1');
+    assert.equal(entry.session, sessionId);
     assert.match(entry.time, /^\d{4}-\d\d-\d\dT.*Z$/u);
     assert.equal(
       spawnSync(process.execPath, [promptHook], {
@@ -181,6 +196,48 @@ test('compaction summaries and interrupt markers are not captured', () => {
     assert.equal(existsSync(join(root, '.krn/operator/inbox.jsonl')), false);
     submit('This session should keep the real directive about tests');
     assert.equal(existsSync(join(root, '.krn/operator/inbox.jsonl')), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// UserPromptSubmit payload of `claude -p "say ok"` (Claude Code 2.1.316), verbatim except
+// redacted paths; it has no headless field, only the hook environment differs.
+const headlessPayload =
+  '{"session_id":"075c3201-76f7-4eb7-89ac-04c9d53234c3","transcript_path":"/home/user/.claude/projects/-cap-proj/075c3201-76f7-4eb7-89ac-04c9d53234c3.jsonl","cwd":"/cap/proj","prompt_id":"bd14b07b-6378-42df-93ab-e0ce17336956","permission_mode":"auto","hook_event_name":"UserPromptSubmit","prompt":"say ok"}';
+
+test('headless runs and hand-fed benchmark payloads are not captured', () => {
+  const { root, submit } = fixture();
+  const file = join(root, '.krn/operator/inbox.jsonl');
+  try {
+    const payload = JSON.parse(headlessPayload);
+    const result = spawnSync(process.execPath, [promptHook], {
+      input: JSON.stringify({ ...payload, cwd: root, prompt: directive }),
+      env: { ...process.env, ...headless, CLAUDE_PROJECT_DIR: root },
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 0);
+    assert.equal(
+      submit(directive, sessionId, {
+        ...interactive,
+        CLAUDE_CODE_SESSION_ATTENDED: '0',
+      }).status,
+      0,
+    );
+    assert.equal(
+      submit(directive, sessionId, {
+        ...interactive,
+        CLAUDE_CODE_ENTRYPOINT: 'sdk-ts',
+      }).status,
+      0,
+    );
+    assert.equal(submit(`hello bench ${directive}`, 'bench').status, 0);
+    assert.equal(existsSync(file), false);
+    assert.equal(submit(directive).status, 0);
+    assert.equal(
+      readFileSync(file, 'utf8').split('\n').filter(Boolean).length,
+      1,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
