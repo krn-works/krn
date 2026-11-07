@@ -1,0 +1,12 @@
+{
+  "id": "t-wbkh87j",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 0,
+  "title": "Operator inbox: skip harness task notifications at capture",
+  "after": [],
+  "body": [
+    "Defect found 2026-11-07 by the lead: the UserPromptSubmit capture (scripts/claude/operator-inbox.ts, #260) records harness-injected <task-notification> blocks from background agents as operator prompts; one lead session collected ~20 such entries, so the handoff check blocked on noise. Skip prompts that start with <task-notification> (and other harness-injected wrappers such as <system-reminder>) at capture; test with a captured notification payload."
+  ]
+}

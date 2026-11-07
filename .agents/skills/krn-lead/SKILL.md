@@ -30,7 +30,7 @@ Operator: "wypierdol bramki po prostu koduj i bebesz masz na wszysko zgode". The
 6. **Read main CI.** A red test is a defect to fix; an infra flake (apt/network timeout, runner lost) is `gh run rerun <id> --failed`, never a re-push.
 7. **Close:** release any other claim with `krn task release <id>`, retire the worktree, update the capsule (`krn state check --root .` clean), run `krn-retro`, then `krn-handoff`.
 
-Parallel work: one lane per worktree, background agents for independent slices, one writer per outcome.
+Parallel work: one lane per worktree, background agents for independent slices, one writer per outcome. Start each lane brief with "First read `.agents/skills/krn-lead/lanes.md` and follow it exactly" (own worktree, `npm run fast`, ship with `--head` and auto-merge, wait for `Check`, rerun only infra flakes, ledger line, cleanup), then the task id, evidence paths and the measurable target. Lanes ship their own PRs; the lead reads verdicts, merges findings into the next lanes, and hands off only when no background agent is running.
 
 ## Opt-in tools
 
@@ -45,6 +45,8 @@ Use them only when they clearly save time; none is a prerequisite for a merge.
 - **Branch base.** A rebase needs `git push --force-with-lease`, never `--force`.
 - **Decisions.** A task must not contradict a recorded ADR; changing a decision is a request to the operator first.
 - **Host load.** `/tmp` is quota-limited; agent temp space lives on disk.
+- **Exit codes.** Never pipe a test run into `tail`/`grep` before reading its exit code (`cmd > log 2>&1; echo exit=$?`); a piped `npm test` reported `fail 0` while CI had 20 failures.
+- **`pkill -f`.** Its pattern matches its own shell and other lanes' processes; stop processes by PID or port.
 
 ## Open traps
 
