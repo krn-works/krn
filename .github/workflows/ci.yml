@@ -29,11 +29,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-
+      # The runner's own Node runs the dependency-free detector; skipping
+      # setup-node keeps this gating job off the critical path.
       # Fail open: pushes to main and any detection problem run everything.
       # A pull request that changes only task records skips tests.
       - name: Detect affected jobs
