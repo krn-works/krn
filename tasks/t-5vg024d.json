@@ -1,7 +1,11 @@
 {
   "id": "t-5vg024d",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "capture skips headless (CLAUDE_CODE_ENTRYPOINT sdk*/SESSION_ATTENDED=0) and non-UUID sessions; test uses captured claude -p payload; bench noise disposed"
+  },
   "created": "2026-11-07",
   "priority": 1,
   "title": "Operator inbox: skip prompts from headless and benchmark runs",

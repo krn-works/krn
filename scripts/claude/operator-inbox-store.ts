@@ -101,8 +101,27 @@ export const isHarnessText = (text: string): boolean =>
   harnessWrapper.test(text.trimStart()) ||
   harnessSentence.test(text.trimStart());
 
-export function capture(root: string, session: string, prompt: string): void {
-  if (isHarnessText(prompt)) return;
+// Headless `claude -p` runs carry no payload marker; Claude Code sets these in the hook
+// environment (interactive: cli / 1, headless: sdk-cli / 0). Interactive sessions always
+// have a UUID session id, so hand-fed benchmark payloads ("bench") are skipped too.
+const sessionId =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+export const isAutomatedSession = (
+  session: string,
+  env: NodeJS.ProcessEnv,
+): boolean =>
+  env.CLAUDE_CODE_SESSION_ATTENDED === '0' ||
+  (env.CLAUDE_CODE_ENTRYPOINT ?? '').startsWith('sdk') ||
+  !sessionId.test(session);
+
+export function capture(
+  root: string,
+  session: string,
+  prompt: string,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  if (isHarnessText(prompt) || isAutomatedSession(session, env)) return;
   const text = redact(prompt.trim()).slice(0, maxText);
   if (!text) return;
   mkdirSync(directory(root), { recursive: true });
