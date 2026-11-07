@@ -1,6 +1,6 @@
 ---
 name: architecture
-description: Language-agnostic architecture and code quality: deep modules, seams, one owner per concern, deletion test, design-it-twice. Use when designing, refactoring or reviewing module structure in any language, or deciding where a seam belongs; run the measured depth check first. Skip for bug fixes and edits that keep the interface.
+description: Judge or design module structure in any language, including sets of .ts modules: deep modules, seams, one owner per concern, deletion test, design-it-twice. Use for structure reviews, refactors and seam decisions, with the measured depth check first; skip for bug fixes and edits that keep the interface.
 ---
 
 # Architecture
