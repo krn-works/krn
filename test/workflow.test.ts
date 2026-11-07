@@ -43,7 +43,7 @@ function jobBlocks(source: string): Map<string, string> {
   return new Map([...blocks].map(([name, body]) => [name, body.join('\n')]));
 }
 
-test('CI workflow runs lint, typecheck and six test shards on hosted runners behind one aggregate Check', async () => {
+test('CI workflow runs lint, typecheck and eight test shards on hosted runners behind one aggregate Check', async () => {
   const source = await readFile(workflowPath, 'utf8');
   const jobs = jobBlocks(source);
   assert.deepEqual(
@@ -57,10 +57,10 @@ test('CI workflow runs lint, typecheck and six test shards on hosted runners beh
   assert.doesNotMatch(source, /krn-ci-isolated|vars\.CI_RUNNER/u);
 
   const test = jobs.get('test') ?? '';
-  assert.match(test, /^ {8}shard: \[1, 2, 3, 4, 5, 6\]$/mu);
+  assert.match(test, /^ {8}shard: \[1, 2, 3, 4, 5, 6, 7, 8\]$/mu);
   assert.match(test, /^ {10}KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1'$/mu);
   assert.match(test, /^ {6}KRN_TEST_SHARD_INDEX: \$\{\{ matrix\.shard \}\}$/mu);
-  assert.match(test, /^ {6}KRN_TEST_SHARD_TOTAL: '6'$/mu);
+  assert.match(test, /^ {6}KRN_TEST_SHARD_TOTAL: '8'$/mu);
   assert.match(test, /^ {8}run: npm test$/mu);
   // Go and isolation setup follow change detection; strict shards exclude
   // the isolation files only when Changes reported isolation=false.

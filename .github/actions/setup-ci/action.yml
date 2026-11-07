@@ -32,6 +32,26 @@ runs:
       shell: bash
       run: pnpm install --frozen-lockfile
 
+    # apt and the Go download use different resources, so bubblewrap installs
+    # in the background while setup-go runs and is awaited before the tests start.
+    - name: Start installing bubblewrap for sandbox isolation tests
+      if: ${{ inputs.go == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        log="$RUNNER_TEMP/bubblewrap-install.log"
+        status="$RUNNER_TEMP/bubblewrap-install.status"
+        rm -f "$status"
+        setsid nohup bash -c '
+          for attempt in 1 2 3; do
+            if timeout 90 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y -qq bubblewrap \
+              || { timeout 60 sudo apt-get -o Acquire::http::Timeout=20 update -qq && timeout 90 sudo apt-get install -y -qq bubblewrap; }; then
+              echo 0 > "$1"; exit 0
+            fi
+          done
+          echo 1 > "$1"
+        ' _ "$status" > "$log" 2>&1 < /dev/null &
+
     - name: Read the pinned Go version
       id: go
       if: ${{ inputs.go == 'true' }}
@@ -54,16 +74,19 @@ runs:
       shell: bash
       run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-    - name: Install bubblewrap for sandbox isolation tests
+    - name: Wait for bubblewrap
       if: ${{ inputs.go == 'true' }}
       shell: bash
       run: |
         set -euo pipefail
-        for attempt in 1 2 3; do
-          if timeout 90 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y -qq bubblewrap \
-            || { timeout 60 sudo apt-get -o Acquire::http::Timeout=20 update -qq && timeout 90 sudo apt-get install -y -qq bubblewrap; }; then
-            break
-          fi
-          test "$attempt" -lt 3 || { echo 'bubblewrap install failed' >&2; exit 1; }
+        status="$RUNNER_TEMP/bubblewrap-install.status"
+        for _ in $(seq 1 300); do
+          test -f "$status" && break
+          sleep 0.5
         done
+        if [ "$(cat "$status" 2>/dev/null || echo 1)" != 0 ]; then
+          cat "$RUNNER_TEMP/bubblewrap-install.log" >&2
+          echo 'bubblewrap install failed' >&2
+          exit 1
+        fi
         bwrap --version
