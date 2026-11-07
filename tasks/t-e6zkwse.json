@@ -1,7 +1,11 @@
 {
   "id": "t-e6zkwse",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Audit of repo-local Claude config: removed stale gate:local references, memory-budget hook now gated by if rules (Write/Edit **/MEMORY.md, verified with a live claude -p probe), instruction-references rule test checks npm scripts, paths and krn commands named by skills and docs. Global ~/.claude not touched."
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Audit Claude Code health, skills and settings, then simplify",
