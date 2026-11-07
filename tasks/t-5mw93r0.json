@@ -1,7 +1,11 @@
 {
   "id": "t-5mw93r0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Replayed fast on the 3 A/B task diffs x3 (v4 SHA 1ef5e23, 71cf992, main 864ceb6), load 2-8. Real repo fast = 1.2 s (8 tests). In the A/B bases fast is 12.2-14.5 s at load 4-8 (v4 SHA 7.7-13.0 s at load 2.3): the test step is bounded by the slowest file, test/rules/brief-hardening.test.ts (11 s alone), which exists only in the old A/B task bases; rule-test widening (1b0dec9) pulls it into every run (h: 2 -> 25 tests, +5 s; p,s +1-1.5 s). biome 0.2 s, boundaries 0 s, tsc 0.7 s warm (3.3 s cold) did not grow. The in-run 27-28 s vs 13 s replay is host load (3.7-7.8). No KRN code to cut; the base's own heavy rule test dominates."
+  },
   "created": "2026-11-07",
   "priority": 1,
   "title": "A/B v5: KRN arm 14 s slower; isolate npm run fast time on an idle host",
