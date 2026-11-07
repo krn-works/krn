@@ -1,0 +1,12 @@
+{
+  "id": "t-3wgr35d",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 3,
+  "title": "One shared CLI value-flag reader; free-text flags accept leading --",
+  "after": [],
+  "body": [
+    "Retro of t-1j0g4k1 (#340): the same 'value.startsWith(\"--\") means missing' shape remains in src/flow/cli.ts:34, src/evals/cli.ts:77, src/evals/session.ts:77, src/worker/cli.ts:132 and src/cli/ledger.ts:29. Acceptance: one shared reader treats only an absent argument as missing for free-text flags, each CLI uses it, and a rule test rejects new startsWith('--') missing-value checks in src."
+  ]
+}
