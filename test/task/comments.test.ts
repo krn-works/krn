@@ -235,3 +235,27 @@ test('two branches commenting the same task merge without losing either comment'
   );
   assert.equal((await runCliInProcess(repo, ['check'])).status, 0);
 });
+
+test('real process comment with an unreadable body file exits 64 naming the file', async () => {
+  const { repo, id } = await repoWithTask();
+  const failed = runCliSpawn(repo, [
+    'comment',
+    id,
+    '--body-file',
+    'missing.txt',
+  ]);
+  assert.equal(failed.status, 64);
+  assert.match(
+    failed.stderr,
+    /cannot read --body-file missing\.txt \(ENOENT\)/u,
+  );
+  assert.equal(failed.stdout, '');
+  const created = runCliSpawn(repo, [
+    'create',
+    '--title',
+    'x',
+    '--body-file',
+    'missing.txt',
+  ]);
+  assert.equal(created.status, 64);
+});

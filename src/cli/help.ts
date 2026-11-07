@@ -1,6 +1,6 @@
 // Usage text for the commands this CLI owns.
 const usage: Readonly<Record<string, string>> = {
-  task: 'krn task <ready|claim|show|list|create|edit|dep|close|release|check> [...]  repository work tracker; `krn task` lists verbs',
+  task: 'krn task <ready|claim|show|list|create|edit|comment|dep|close|release|check> [...]  repository work tracker; `krn task` lists verbs',
   review:
     'krn review --repo PATH --base REF --head SHA --lens PATH [--panel ...] [--pr N]  opt-in review panel; `krn review --help` lists all options',
   worker: 'krn worker start|send|stop --run DIR  opt-in Codex worker',
