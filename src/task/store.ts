@@ -23,14 +23,14 @@ import {
 } from './record.ts';
 import { atomicWrite } from './staged-write.ts';
 
-export interface NewTask {
+interface NewTask {
   title: string;
   priority?: number;
   after?: TaskId[];
   body?: string[];
 }
 
-export interface EditTask {
+interface EditTask {
   title?: string;
   priority?: number;
   body?: string[];
@@ -38,7 +38,7 @@ export interface EditTask {
   reopen?: boolean;
 }
 
-export interface TaskStoreOptions {
+interface TaskStoreOptions {
   makeId?: () => TaskId;
   uniquenessRoots?: string[];
 }

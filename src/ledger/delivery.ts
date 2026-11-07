@@ -10,15 +10,13 @@ const ticketPattern = /^[A-Z][A-Z0-9]*-[1-9]\d*$/u;
 const workReferenceLinePattern =
   /^R1-task:[ \t]*([A-Za-z0-9][A-Za-z0-9._-]{0,63})(?:[ \t]+\([^\r\n]*\))?[ \t]*$/u;
 
-export function parseDeliveryTicket(value: string): string | undefined {
+function parseDeliveryTicket(value: string): string | undefined {
   return ticketPattern.test(value) ? value : undefined;
 }
 
-export function parseWorkReference(line: string): string | undefined {
+function parseWorkReference(line: string): string | undefined {
   return workReferenceLinePattern.exec(line)?.[1];
 }
-
-export const parseR1TaskLine = parseWorkReference;
 
 export function deliveryTrailers(
   contract: Pick<Contract, 'identifier' | 'description'>,

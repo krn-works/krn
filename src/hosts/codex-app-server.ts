@@ -63,7 +63,7 @@ const envelopeSchema = z
     error: z.unknown().optional(),
   })
   .refine((v) => v.id !== undefined || v.method !== undefined);
-export type Notification = z.infer<typeof envelopeSchema>;
+type Notification = z.infer<typeof envelopeSchema>;
 export class CodexAppServer {
   readonly child: ReturnType<typeof spawnSystemdScope>;
   readonly unit: string;

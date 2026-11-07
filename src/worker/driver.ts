@@ -107,7 +107,7 @@ function reportPath(repo: string, path: string): string | undefined {
     return undefined;
   return normalized;
 }
-export async function drive(run: string): Promise<void> {
+async function drive(run: string): Promise<void> {
   secureDir(run, false);
   const readState = () => {
     const state = readJson(join(run, 'session.json'), sessionSchema);

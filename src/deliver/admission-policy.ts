@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 /** GitHub Actions is GitHub App 15368; its aggregate job is named `Check`. */
-export const ACTIONS_APP_ID = 15368;
-export const GATE_ADMISSION_POLICY_PATH = 'spec/ci-admission.json';
+const ACTIONS_APP_ID = 15368;
+const GATE_ADMISSION_POLICY_PATH = 'spec/ci-admission.json';
 
 const sha = z.string().regex(/^(?:[a-f\d]{40}|[a-f\d]{64})$/u);
 const admissionPolicySchema = z
@@ -25,7 +25,7 @@ export type GateAdmissionPolicy =
       readonly appId: typeof ACTIONS_APP_ID;
     };
 
-export interface GateCheckRun {
+interface GateCheckRun {
   readonly name: string;
   readonly head_sha: string;
   readonly app: {

@@ -60,7 +60,7 @@ export type SessionEnd = {
     readonly invalidFields: number;
   };
 };
-export type SessionResult = SessionEnd & { readonly finalMessage?: string };
+type SessionResult = SessionEnd & { readonly finalMessage?: string };
 export type Session = { readonly id: string; wait(): Promise<SessionResult> };
 
 export class AbortBeforeCheckpoint extends Error {
@@ -80,13 +80,13 @@ export type Outcome =
       readonly state: 'human_decision';
       readonly reasons: readonly string[];
     };
-export type Cas<T> =
+type Cas<T> =
   | { readonly applied: true; readonly value: T }
   | { readonly applied: false };
-export type Validation =
+type Validation =
   | { readonly ok: true }
   | { readonly ok: false; readonly reasons: readonly string[] };
-export type Budget = {
+type Budget = {
   readonly maxResets: number;
   readonly maxRepairs: number;
   readonly session: { readonly timeoutMs: number };

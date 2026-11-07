@@ -62,7 +62,7 @@ export type PullReader = (
   pr: number,
 ) => unknown | Promise<unknown>;
 
-export function githubRepository(remote: string): string | undefined {
+function githubRepository(remote: string): string | undefined {
   return /^(?:https?:\/\/github\.com\/|ssh:\/\/git@github\.com\/|git@github\.com:)([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/iu.exec(
     remote,
   )?.[1];
@@ -114,17 +114,6 @@ function safeDirectory(path: string): void {
     realpathSync(path) !== path
   )
     throw new ReviewBudgetError(`unsafe series directory: ${path}`);
-}
-
-function safeDirectoryExists(path: string): boolean {
-  try {
-    safeDirectory(path);
-    return true;
-  } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
-      return false;
-    throw error;
-  }
 }
 
 function ensureDirectory(path: string): void {
@@ -393,15 +382,4 @@ export function seriesRecordPaths(
     const record = join(path, 'records', `${attempt.ordinal}.json`);
     return record;
   });
-}
-
-export function currentReviewAttempts(
-  repo: string,
-  identity: SeriesIdentity,
-  head: string,
-): ReviewAttempt[] {
-  const path = seriesPath(repo, identity, false);
-  return reservations(path, identity).filter(
-    (attempt) => attempt.headSha === head,
-  );
 }
