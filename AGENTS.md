@@ -2,6 +2,8 @@
 <!-- krn-agent-workflow:start -->
 # KRN repository rules
 
+This file is already loaded as CLAUDE.md; do not read it again. Small change: edit, run `npm run fast` once (biome --write, tsc, related tests, one verdict), commit; CI runs the rest.
+
 - **KRN-05** When core code is changed, the author MUST keep imports within core _(owner: author; test: core imports only its own files, including nested files and every module form; Core stays independent of replaceable adapters.)_
 - **KRN-06** When the CLI receives an unknown command, the CLI MUST forward it to the configured legacy entry with a recursion guard _(owner: CLI; test: unknown commands forward arguments, streams, and exit code to the legacy binary; The strangler CLI preserves unmigrated commands.)_
 - **KRN-07** When a change is ready for integration, the author MUST obtain a successful full Product aggregate `Check` from GitHub Actions (App `15368`) on the exact HEAD _(owner: author; gate: npm run gate; Full required CI is the only gate: lint, typecheck and touched tests run locally, then auto-merge on the Check; review, red-first and local gates are opt-in.)_

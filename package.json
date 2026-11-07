@@ -13,6 +13,7 @@
   },
   "scripts": {
     "check": "tsc --noEmit",
+    "fast": "node scripts/fast-check.ts",
     "lint": "biome check .",
     "test": "node scripts/test-suite.mjs",
     "live": "node scripts/delivery-live.mjs",

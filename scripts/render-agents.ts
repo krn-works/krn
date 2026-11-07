@@ -31,6 +31,8 @@ export function render(): string {
     '<!-- krn-agent-workflow:start -->',
     '# KRN repository rules',
     '',
+    'This file is already loaded as CLAUDE.md; do not read it again. Small change: edit, run `npm run fast` once (biome --write, tsc, related tests, one verdict), commit; CI runs the rest.',
+    '',
     ...rules.map(renderRule),
     '<!-- krn-agent-workflow:end -->',
     '',
