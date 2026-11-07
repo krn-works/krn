@@ -61,8 +61,8 @@ function setup(
 function calls(path: string): string[][] {
   try {
     return readFileSync(path, 'utf8')
-      .trim()
       .split('\n')
+      .slice(0, -1)
       .filter(Boolean)
       .map((line) => JSON.parse(line));
   } catch {

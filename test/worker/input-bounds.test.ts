@@ -490,8 +490,8 @@ test('invalid model and effort in an inbox are refused before a turn is forwarde
   assert.equal(result.code, 65, result.stderr);
   const calls = fs
     .readFileSync(s.env.CODEX_TEST_WORKER_LOG ?? '', 'utf8')
-    .trim()
     .split('\n')
+    .slice(0, -1)
     .map((line) => JSON.parse(line));
   assert.equal(calls.filter((call) => call.method === 'turn/start').length, 1);
 });
@@ -530,8 +530,8 @@ test('driver derives writable roots instead of trusting persisted roots', async 
   await until(() => fs.existsSync(join(s.run, 'rounds/001/result.json')));
   const calls = fs
     .readFileSync(s.env.CODEX_TEST_WORKER_LOG ?? '', 'utf8')
-    .trim()
     .split('\n')
+    .slice(0, -1)
     .map((line) => JSON.parse(line));
   assert.deepEqual(
     calls.filter((call) => call.method === 'thread/start').at(-1).params.config

@@ -108,8 +108,8 @@ function herdrEnvironment(root: string, calls: string, bin: string) {
 
 function readCalls(path: string): string[][] {
   return readFileSync(path, 'utf8')
-    .trim()
     .split('\n')
+    .slice(0, -1)
     .map((line) => JSON.parse(line));
 }
 
