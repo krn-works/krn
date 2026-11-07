@@ -932,10 +932,16 @@ class RunningSession {
     )
       return;
     const startTicks = this.#launcherStartTicks;
-    if (!startTicks || !processHasIdentity(pid, startTicks))
+    // The launcher may have exited (or be an unreaped zombie) before Node has
+    // delivered its 'exit' event. Never signal it, but that is not a failure:
+    // the caller still awaits the exit event and the scope drain.
+    if (!startTicks) {
+      if (processStartTicks(pid) === undefined) return;
       throw new Error(
         'Codex launcher process identity is unavailable or changed',
       );
+    }
+    if (!processHasIdentity(pid, startTicks)) return;
     try {
       if (process.platform !== 'win32') process.kill(-pid, signal);
       else this.#child.kill(signal);
