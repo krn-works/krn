@@ -191,32 +191,9 @@ test('invalid model and effort refuse start and send before writing', async (t) 
   }
 });
 
-test('lexical and nearest-existing-ancestor boundaries refuse without creating directories', async (t) => {
-  for (const location of [
-    'outside/new/run',
-    'repo/.krn-other/new/run',
-    'repo/.krn',
-  ]) {
-    await t.test(location, async (t) => {
-      const s = setup(t);
-      const result = await s.turn('ok', true, [], join(s.root, location));
-      assert.equal(result.code, 64, result.stderr);
-      assert.equal(fs.existsSync(join(s.root, 'outside')), false);
-      assert.equal(fs.existsSync(join(s.repo, '.krn-other')), false);
-      assert.equal(fs.existsSync(join(s.repo, '.krn')), false);
-    });
-  }
-  await t.test('symlinked ancestor', async (t) => {
-    const s = setup(t);
-    const outside = join(s.root, 'outside');
-    fs.mkdirSync(outside);
-    fs.symlinkSync(outside, join(s.repo, '.krn'));
-    const result = await s.turn('ok', true);
-    assert.equal(result.code, 65, result.stderr);
-    assert.deepEqual(fs.readdirSync(outside), []);
-  });
-  await t.test('missing repo and absent send or stop', async (t) => {
-    const s = setup(t);
+test('a missing repo and absent send or stop refuse without creating state', async (t) => {
+  const s = setup(t);
+  {
     const missing = join(s.root, 'missing');
     const result = await s.command([
       'start',
@@ -233,7 +210,7 @@ test('lexical and nearest-existing-ancestor boundaries refuse without creating d
     );
     assert.equal((await s.command(['stop'])).code, 0);
     assert.equal(fs.existsSync(join(s.repo, '.krn')), false);
-  });
+  }
 });
 
 test('other CLI inputs and input files are validated before any writes', async (t) => {

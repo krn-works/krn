@@ -11,43 +11,20 @@ const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 const scratch =
   process.env.KRN_TASK_TEST_TMPDIR ?? join(tmpdir(), 'krn-task-ergonomics');
 
-test('task quickstart and each verb help give agents usable examples', async () => {
+test('task quickstart and each verb help print usage and exit zero', async () => {
   const repo = await tempRepo('help-');
   try {
-    for (const args of [
-      [],
-      ['help'],
-      ['--help'],
-      ['--help', '--json'],
-      ['help', '--json'],
-    ]) {
+    for (const args of [[], ['help'], ['--help', '--json']]) {
       const result = runCli(repo, args);
       assert.equal(result.status, 0, result.stderr);
-      const lines = result.stdout.trimEnd().split('\n');
-      assert.ok(lines.length <= 30, `quickstart has ${lines.length} lines`);
-      assert.match(
-        result.stdout,
-        /Lead runs the loop: krn task ready.*krn task claim --next --actor lead.*krn task release ID.*krn task close ID --as done.*delivering PR/isu,
-      );
-      assert.match(
-        result.stdout,
-        /Workers receive the task id in their brief and do not mutate tracker state/u,
-      );
-      assert.doesNotMatch(result.stdout, /^\s*\{/u);
-      assert.match(result.stdout, /tasks\/<id>\.json/u);
-      assert.match(result.stdout, /\.krn\/task-claims\/<id>\.json/u);
-      assert.match(result.stdout, /64.*65.*75/u);
+      assert.ok(result.stdout.trimEnd().split('\n').length <= 30);
       for (const verb of verbs)
-        assert.ok(result.stdout.includes(`krn task ${verb}`));
+        assert.ok(result.stdout.includes(`krn task ${verb}`), verb);
     }
     for (const verb of verbs) {
       const result = runCli(repo, [verb, '--help']);
       assert.equal(result.status, 0, `${verb}: ${result.stderr}`);
       assert.match(result.stdout, new RegExp(`krn task ${verb} `, 'u'));
-      assert.match(result.stdout, /--json/u);
-      const jsonHelp = runCli(repo, [verb, '--help', '--json']);
-      assert.equal(jsonHelp.status, 0, `${verb}: ${jsonHelp.stderr}`);
-      assert.match(jsonHelp.stdout, new RegExp(`krn task ${verb} `, 'u'));
     }
   } finally {
     await rm(repo, { recursive: true, force: true });

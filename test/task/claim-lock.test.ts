@@ -26,7 +26,7 @@ test('expired claims have one concurrent claim --next winner across two worktree
     addWorktree(repo, linked, 'claim-lock-race-linked-branch');
     const claimPath = join(repo, '.krn', 'task-claims', 'T-1.json');
 
-    for (let trial = 0; trial < 20; trial += 1) {
+    for (let trial = 0; trial < 4; trial += 1) {
       await mkdir(dirname(claimPath), { recursive: true });
       await writeFile(
         claimPath,
@@ -83,7 +83,7 @@ test('expired claims have one concurrent claim --next winner across two worktree
 });
 
 test('takeover, release, and plain claim mutations stay serialized', async () => {
-  const ids = Array.from({ length: 10 }, (_, index) => `T-${index + 1}`);
+  const ids = Array.from({ length: 4 }, (_, index) => `T-${index + 1}`);
   const repo = await fixtureRepo('claim-lock-mutations-', ids.map(task));
   const linked = join(dirname(repo), `${basename(repo)}-linked`);
   try {

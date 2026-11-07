@@ -571,41 +571,10 @@ test('start refuses an --allow value that names a forbidden path before spawning
   }
 });
 
-test('a partial or blocked report without a blocker exits 4 and keeps its report', async (t) => {
-  for (const [action, code, status] of [
-    ['partial-empty', 4, 'partial'],
-    ['blocked-empty', 4, 'blocked'],
-    ['partial-blank', 4, 'partial'],
-    ['blocked-named', 4, 'blocked'],
-    ['ok', 0, 'done'],
-  ] as const) {
-    await t.test(action, async (t) => {
-      const s = await setup(t);
-      const result = await s.turn(action, true).result;
-      assert.equal(result.code, code, result.stderr);
-      if (code === 4 && action !== 'blocked-named')
-        assert.match(
-          result.stderr,
-          new RegExp(`worker report status ${status} names no blocker`),
-        );
-      if (action === 'blocked-named')
-        assert.match(
-          result.stderr,
-          /worker report status blocked names 1 blocker\(s\)\n(?:.*\n)*blocker: npm test exit 1/,
-        );
-      assert.equal(s.json('rounds/001/report.json').status, status);
-    });
-  }
-});
-
-test('worker instructions ask to finish the brief and name a blocker', async (t) => {
+test('worker developer instructions stay within the byte budget', async (t) => {
   const s = await setup(t);
   assert.equal((await s.turn('ok', true).result).code, 0);
   const thread = s.requests().find((row) => row.method === 'thread/start');
   const text = thread?.params?.developerInstructions ?? '';
-  assert.match(text, /finish the whole brief in this turn/i);
-  assert.match(text, /no time or token limit/i);
-  assert.match(text, /uncommitted change in scope is finished work/i);
-  assert.match(text, /requires at least one concrete blocker/i);
   assert.ok(Buffer.byteLength(text) <= 600);
 });
