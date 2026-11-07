@@ -1,7 +1,11 @@
 {
   "id": "t-cejhgsf",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "npm run fast shipped; A/B v3 KRN arm: lint 9/9, USD 0.168 (plain 0.189), median 44 s (v2 52, plain 38); no AGENTS.md reads"
+  },
   "created": "2026-11-07",
   "priority": 1,
   "title": "One-command changed-files verify for agents",
