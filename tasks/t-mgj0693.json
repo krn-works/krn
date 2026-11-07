@@ -1,0 +1,12 @@
+{
+  "id": "t-mgj0693",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "Make shard weights predict CI shard wall time",
+  "after": [],
+  "body": [
+    "Outcome: shard planning predicts CI shard wall time, so the slowest Test step drops below 24 s.\nEvidence: after #344 (t-xwnd81m) the 8-shard plan is balanced at 45.6-45.7 weighted s, yet main run 42424391336 Test steps were 16-30 s (42420551206: 11-26 s; 42423998544: 15-24 s). Summed per-file medians do not predict shard wall (in-shard concurrency, setup, runner noise).\nAcceptance: a script prints predicted vs actual per-shard Test step for the last 5 main runs with a correlation verdict; if weak, the weight model changes (e.g. per-shard wall regression or max-file bound) and the slowest Test step p50 over 5 runs is below 24 s."
+  ]
+}
