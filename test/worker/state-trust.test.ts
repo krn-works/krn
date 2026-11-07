@@ -117,11 +117,12 @@ console.log('ActiveState=inactive\\nControlGroup=');
     }
     return result;
   }
+  // Polls race the fixture's appends, so only newline-terminated rows count.
   const rows = (path = log) =>
     existsSync(path)
       ? readFileSync(path, 'utf8')
-          .trim()
           .split('\n')
+          .slice(0, -1)
           .filter(Boolean)
           .map((line) => JSON.parse(line))
       : [];
@@ -142,7 +143,9 @@ console.log('ActiveState=inactive\\nControlGroup=');
   return { root, repo, run, env, scopes, launch, turn, state, rows, owned };
 }
 
-test('stop and stale start refuse forged process and scope identities without signalling a foreign process', async (t) => {
+test('stop and stale start refuse forged process and scope identities without signalling a foreign process', {
+  concurrency: 5,
+}, async (t) => {
   for (const command of ['stop', 'start']) {
     for (const forgery of [
       'foreign-pid',
@@ -154,7 +157,7 @@ test('stop and stale start refuse forged process and scope identities without si
       'executable',
       ...(command === 'stop' ? ['driver-pid'] : []),
     ]) {
-      await t.test(`${command} ${forgery}`, async (t) => {
+      t.test(`${command} ${forgery}`, async (t) => {
         const s = setup(t);
         assert.equal((await s.turn('ok', true)).code, 0);
         const pending = s.turn('hang-orphan');

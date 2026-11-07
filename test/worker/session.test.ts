@@ -133,7 +133,9 @@ test('live thread reuses identity, validates reports, accounts uncached tokens a
   const pid = Number(readFileSync(s.env.CODEX_TEST_WORKER_PID, 'utf8'));
   assert.throws(() => process.kill(pid, 0));
 });
-test('forbidden paths and symlinks fail even with allow, retain thread for repair', async (t) => {
+test('forbidden paths and symlinks fail even with allow, retain thread for repair', {
+  concurrency: 4,
+}, async (t) => {
   for (const path of [
     'tasks/x.json',
     'AGENTS.md',
@@ -143,7 +145,7 @@ test('forbidden paths and symlinks fail even with allow, retain thread for repai
     'mise.toml',
     'new-link',
   ]) {
-    await t.test(path, async (t) => {
+    t.test(path, async (t) => {
       const s = await setup(t);
       const result = await s.turn(
         `${path === 'new-link' ? 'link' : 'write'} ${path}`,
@@ -207,7 +209,9 @@ test('server crash fails promptly and next send refuses a dead thread', async (t
   assert.equal((await s.turn('crash', true)).code, 75);
   assert.equal((await s.turn('ok')).code, 5);
 });
-test('invalid reports and malformed protocol are bounded failures', async (t) => {
+test('invalid reports and malformed protocol are bounded failures', {
+  concurrency: 3,
+}, async (t) => {
   for (const [action, code] of [
     ['invalid', 4],
     ['oversized', 4],
@@ -216,7 +220,7 @@ test('invalid reports and malformed protocol are bounded failures', async (t) =>
     ['bom', 65],
     ['line-limit', 65],
   ] as const)
-    await t.test(action, async (t) => {
+    t.test(action, async (t) => {
       const s = await setup(t);
       assert.equal((await s.turn(action, true)).code, code);
     });
