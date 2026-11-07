@@ -50,6 +50,13 @@
         "hooks": [
           {
             "type": "command",
+            "if": "Write(**/MEMORY.md)",
+            "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/memory-budget.ts\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "if": "Edit(**/MEMORY.md)",
             "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/memory-budget.ts\"",
             "timeout": 5
           }
