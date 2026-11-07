@@ -18,8 +18,8 @@ import { z } from 'zod';
 import { resolveGoToolchain } from '../../scripts/isolation-gate.mjs';
 import { TEST_FILE_GLOB } from '../../scripts/test-suite.mjs';
 import type { Job } from '../core/index.ts';
-import { stateDirectory } from '../foreman/state.ts';
 import { execute, TeardownUnconfirmed } from '../verdict/sandbox.ts';
+import { stateDirectory } from '../verdict/state-directory.ts';
 import {
   createWorktreeDirectory,
   quarantineVerdictTree,

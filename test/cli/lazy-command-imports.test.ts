@@ -20,22 +20,16 @@ const cliEntries = [
 const hook = fileURLToPath(new URL('./module-load-hook.mjs', import.meta.url));
 const allCommandDirectories = [
   'ci',
-  'deliver',
   'evals',
   'flow',
-  'foreman',
   'hosts',
   'ledger',
-  'relay',
   'task',
-  'trace',
 ];
 
 test('CLI commands load only their command modules', async (t) => {
   const directory = await mkdtemp(join(tmpdir(), 'krn-cli-module-loads-'));
   try {
-    const legacy = join(directory, 'legacy.mjs');
-    await writeFile(legacy, 'process.exitCode = 0;\n');
     const unavailableCache = join(directory, 'cache-file');
     await writeFile(unavailableCache, '');
     const scenarios = [
@@ -56,28 +50,14 @@ test('CLI commands load only their command modules', async (t) => {
         stdout: 'krn 0.1.0\n',
       },
       {
-        name: 'forwarding',
-        args: ['legacy-module-probe'],
-        forbidden: allCommandDirectories,
-        env: { KRN_LEGACY_ENTRY: legacy, KRN_FORWARDED: '' },
-      },
-      {
         name: 'task list',
         args: ['task', 'list'],
-        forbidden: ['evals', 'flow', 'foreman', 'hosts'],
+        forbidden: ['evals', 'flow', 'hosts'],
       },
       {
         name: 'eval usage',
         args: ['eval', 'plan', '--json'],
-        forbidden: [
-          'flow',
-          'foreman',
-          'hosts',
-          'ledger',
-          'relay',
-          'task',
-          'trace',
-        ],
+        forbidden: ['flow', 'hosts', 'ledger', 'task'],
         status: 64,
       },
     ];

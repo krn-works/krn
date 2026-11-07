@@ -10,7 +10,6 @@ const files = [
   'test/verdict/sandbox.test.ts',
   'test/hosts/codex-registration.test.ts',
   'test/flow/review-parallel.test.ts',
-  'test/live-smoke-signal.test.ts',
   'test/task/claims.test.ts',
   'test/task/task.test.ts',
 ];

@@ -13,18 +13,10 @@ const COUNT_FIELDS = [
 ];
 
 export const SERIAL_TEST_REASONS = Object.freeze({
-  'test/cli/delegate.test.ts':
-    'preflight interruption asserts child termination under one second, which is sensitive to parallel shard CPU load',
-  'test/foreman/credential-shape.test.ts':
-    'whole-file credential scans enforce a hard two-second child bound, which is sensitive to parallel shard CPU load',
   'test/hosts/codex-stale-scope.test.ts':
     'asserts systemd scope teardown within the configured runtime grace plus 1.5 seconds',
   'test/isolation-gate.test.ts':
     'checks repo-global strict-test-events-* directory deltas while child wrappers start and exit',
-  'test/ship/delivery-isolation.test.ts':
-    'live process-tree and scope teardown checks share host resources and must run serially',
-  'test/trace/index.test.ts':
-    'trace lock refusal and reclaimer assertions require completion within five seconds, which is sensitive to parallel shard CPU load',
   'test/verdict/sandbox.test.ts':
     'live SIGTERM asserts verdict scope teardown within eight seconds and exercises systemd/bwrap cleanup',
 });

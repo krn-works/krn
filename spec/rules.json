@@ -14,13 +14,13 @@
     {
       "id": "KRN-06",
       "trigger": "the CLI receives an unknown command",
-      "action": "the CLI MUST forward it to the configured legacy entry with a recursion guard",
+      "action": "the CLI MUST fail with exit 64 and a message naming the command, and MUST NOT forward it to any other binary",
       "owner": "CLI",
       "enforcement": {
         "kind": "test",
-        "check": "unknown commands forward arguments, streams, and exit code to the legacy binary"
+        "check": "unknown and retired commands exit 64 with a clear stderr message and print nothing to stdout"
       },
-      "rationale": "The strangler CLI preserves unmigrated commands."
+      "rationale": "A removed command fails loudly instead of showing a stale legacy help screen with exit 0; no legacy install remains to forward to."
     },
     {
       "id": "KRN-07",

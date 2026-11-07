@@ -14,8 +14,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { type TestContext, test } from 'node:test';
 import { git, redFirst } from '../../src/flow/repository.ts';
-import { stateDirectory } from '../../src/foreman/state.ts';
 import type { execute } from '../../src/verdict/sandbox.ts';
+import { stateDirectory } from '../../src/verdict/state-directory.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 
 const addedTestPath = 'test/repository-metadata-added.test.mjs';

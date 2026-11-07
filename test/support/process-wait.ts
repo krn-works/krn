@@ -1,11 +1,7 @@
-import { TRACE_LOCK_WAIT_MS } from '../../src/trace/lock-wait.ts';
-
 const configuredWaitMs = process.env.KRN_TEST_PROCESS_WAIT_MS;
 
 export const SPAWNED_PROCESS_WAIT_MS =
-  configuredWaitMs === undefined
-    ? TRACE_LOCK_WAIT_MS
-    : Number(configuredWaitMs);
+  configuredWaitMs === undefined ? 30_000 : Number(configuredWaitMs);
 
 if (
   !Number.isSafeInteger(SPAWNED_PROCESS_WAIT_MS) ||
