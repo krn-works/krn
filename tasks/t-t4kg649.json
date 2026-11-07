@@ -1,7 +1,11 @@
 {
   "id": "t-t4kg649",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Added deterministic test: expired claim plus held lock must yield exit 75 with the claim file untouched; fails 5/5 with the lock removed, passes 10/10 on head. The old 12-process race test passed 6/6 even with the lock removed (kept as integration stress)."
+  },
   "created": "2026-10-26",
   "priority": 1,
   "title": "Test the claim race deterministically",

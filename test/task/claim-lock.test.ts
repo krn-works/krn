@@ -177,6 +177,42 @@ test('a live lock holder makes a contender return claim busy', {
   }
 });
 
+test('an expired claim cannot be taken while another claimer holds its lock', {
+  timeout: 15_000,
+}, async () => {
+  const repo = await fixtureRepo('claim-lock-expired-', [task('T-1')]);
+  const claimPath = join(repo, '.krn', 'task-claims', 'T-1.json');
+  let holder: ReturnType<typeof startLockHolder> | undefined;
+  try {
+    await mkdir(dirname(claimPath), { recursive: true });
+    const stale = serializeClaim({
+      id: 'T-1',
+      actor: 'stale',
+      worktree: join(dirname(repo), 'missing-worktree'),
+      branch: 'missing-branch',
+      claimed: '2026-10-26T00:00:00.000Z',
+      reason: null,
+    });
+    await writeFile(claimPath, stale);
+    assert.equal(inspectClaim(repo, 'T-1').state, 'expired');
+
+    holder = startLockHolder(repo, 'T-1');
+    await holder.locked;
+
+    const contender = await runCliAsync(
+      repo,
+      ['claim', '--next', '--actor', 'contender'],
+      { ...process.env, NODE_ENV: 'test', KRN_TASK_LOCK_WAIT_MS: '0' },
+    );
+    assert.equal(contender.status, 75, contender.stderr);
+    assert.match(contender.stderr, /claim is busy/u);
+    assert.equal(readFileSync(claimPath, 'utf8'), stale);
+  } finally {
+    await stopHolder(holder);
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test('repositories with the same task id have separate lock names', {
   timeout: 10_000,
 }, async () => {
