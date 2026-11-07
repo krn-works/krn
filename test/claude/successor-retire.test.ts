@@ -166,8 +166,8 @@ function makeRecord(paneId: string, sessionId = callerSession): LaunchRecord {
 function readCalls(path: string): string[][] {
   if (!existsSync(path)) return [];
   return readFileSync(path, 'utf8')
-    .trim()
     .split('\n')
+    .slice(0, -1)
     .filter(Boolean)
     .map((line) => JSON.parse(line));
 }
@@ -175,8 +175,8 @@ function readCalls(path: string): string[][] {
 function readLedger(path: string): LaunchRecord[] {
   if (!existsSync(path)) return [];
   return readFileSync(path, 'utf8')
-    .trim()
     .split('\n')
+    .slice(0, -1)
     .filter(Boolean)
     .map((line) => JSON.parse(line));
 }

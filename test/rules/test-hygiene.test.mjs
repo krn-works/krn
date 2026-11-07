@@ -146,3 +146,34 @@ test('hygiene allowlist entries still match a file that needs them', () => {
   }
   assert.deepEqual(stale, []);
 });
+
+// A polled JSONL log can end in a line its writer is still appending;
+// trim() keeps that partial line, so readers drop the unterminated tail.
+const partialJsonlPattern =
+  /\.trim\(\)\s*\.split\('\\n'\)(?:\s*\.filter\(Boolean\))?\s*\.map\(\(\w+\) => JSON\.parse/u;
+
+test('JSONL readers keep only newline-terminated rows', () => {
+  const offenders = files.filter(
+    (file) =>
+      file !== 'test/rules/test-hygiene.test.mjs' &&
+      partialJsonlPattern.test(readFileSync(`${root}/${file}`, 'utf8')),
+  );
+  assert.deepEqual(
+    offenders,
+    [],
+    "use .split('\\n').slice(0, -1) instead of .trim().split('\\n')",
+  );
+});
+
+test('partial JSONL pattern rejects trim-split readers and accepts terminated ones', () => {
+  assert.ok(
+    partialJsonlPattern.test(
+      "text.trim()\n  .split('\\n')\n  .filter(Boolean)\n  .map((line) => JSON.parse(line))",
+    ),
+  );
+  assert.ok(
+    !partialJsonlPattern.test(
+      "text.split('\\n')\n  .slice(0, -1)\n  .map((line) => JSON.parse(line))",
+    ),
+  );
+});

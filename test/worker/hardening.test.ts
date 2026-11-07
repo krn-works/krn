@@ -169,8 +169,8 @@ console.log('ActiveState=inactive\\nControlGroup=');
   function rows(path: string): unknown[] {
     return existsSync(path)
       ? readFileSync(path, 'utf8')
-          .trim()
           .split('\n')
+          .slice(0, -1)
           .filter(Boolean)
           .map((line) => JSON.parse(line))
       : [];

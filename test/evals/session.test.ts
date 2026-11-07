@@ -515,8 +515,8 @@ test('eval session resolves a planned arm, preserves raw bytes and accounts Code
       total_tokens: 36,
     });
     const calls = (await readFile(join(f.output(), 'calls.jsonl'), 'utf8'))
-      .trim()
       .split('\n')
+      .slice(0, -1)
       .map((line) => JSON.parse(line));
     assert.equal(calls.length, 2);
     assert.deepEqual(

@@ -162,8 +162,8 @@ console.log('ActiveState=inactive\\nControlGroup=');
   const rows = () =>
     existsSync(scopes)
       ? readFileSync(scopes, 'utf8')
-          .trim()
           .split('\n')
+          .slice(0, -1)
           .filter(Boolean)
           .map((line) => JSON.parse(line))
       : [];
