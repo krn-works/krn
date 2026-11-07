@@ -28,7 +28,6 @@ import {
   validateSha,
 } from './repository.ts';
 import {
-  checkReviewBudget,
   type PullReader,
   readPullRequest,
   reserveReviewAttempt,
@@ -193,8 +192,6 @@ export async function runReview(
           base,
           sha,
         );
-  if (identity !== undefined)
-    checkReviewBudget(root, identity, input.budgetException);
   const prior =
     input.priorRecord === undefined
       ? undefined

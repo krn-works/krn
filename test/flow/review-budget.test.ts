@@ -41,7 +41,6 @@ const reportSchema = z.object({
   reasons: z.array(z.string()),
   reviewRecords: z.array(z.record(z.string(), z.unknown())),
 });
-const preflightUrl = new URL('../../scripts/pr-preflight.mjs', import.meta.url);
 const blocking = {
   severity: 'BLOCKING',
   title: 'Empty input fails',
@@ -148,42 +147,6 @@ function fixture(t: TestContext) {
   const recordPath = (ordinal: number) =>
     records().find((path) => path.endsWith(`/records/${ordinal}.json`)) ??
     join(repo, '.krn/runs/review', heads[ordinal - 1] ?? '', 'record.json');
-  const verify = async (head: string) => {
-    const { runPreflight } = await import(preflightUrl.href);
-    assert.equal(typeof runPreflight, 'function');
-    const raw: unknown = await runPreflight(
-      { repo, base: currentBase, head, pr: 17 },
-      {
-        readPull: async () => ({ ok: true, value: pull(head) }),
-        readStatuses: async () => ({
-          ok: true,
-          value: [
-            {
-              context: 'krn/gate-local',
-              state: 'success',
-              creator: { login: 'fixture' },
-              description: 'Gate passed: 1 tests, 0 isolation skips',
-            },
-          ],
-        }),
-        readCheckRuns: async () => ({
-          ok: true,
-          value: [
-            {
-              id: 1,
-              name: 'gate',
-              head_sha: head,
-              app: { slug: 'github-actions' },
-              status: 'completed',
-              conclusion: 'success',
-              html_url: 'https://github.com/krn-works/krn/actions/runs/1',
-            },
-          ],
-        }),
-      },
-    );
-    return reportSchema.parse(raw);
-  };
   return {
     directory,
     repo,
@@ -197,7 +160,6 @@ function fixture(t: TestContext) {
     reservations,
     records,
     recordPath,
-    verify,
     metadata: (value: unknown) => {
       metadata = value;
     },
@@ -365,88 +327,6 @@ test('input and authoritative PR errors consume zero attempts', async (t) => {
   assert.equal(bound(record).ordinal, 1);
 });
 
-test('an established PR base ref is immutable and wrong exceptions consume nothing', async (t) => {
-  const f = fixture(t);
-  const host = mockHost(t);
-  await runReview(f.input(head(f, 0)));
-  f.baseRef('release');
-  await assert.rejects(runReview(f.input(head(f, 1))), /base ref/iu);
-  f.baseRef('main');
-  await runReview(f.input(head(f, 1)));
-  const path = join(f.directory, 'exception.json');
-  const exception = {
-    schemaVersion: 1,
-    repository: 'krn-works/krn',
-    pr: 17,
-    baseRef: 'main',
-    ordinal: 3,
-    headSha: head(f, 2),
-    authority: 'Explicit operator grant',
-    evidence: 'Verbatim exception for this ordinal and head',
-  };
-  for (const changed of [
-    { pr: 18 },
-    { repository: 'other/repo' },
-    { baseRef: 'release' },
-    { ordinal: 4 },
-    { headSha: head(f, 3) },
-    { authority: '' },
-    { unknown: true },
-  ]) {
-    writeFileSync(path, JSON.stringify({ ...exception, ...changed }));
-    await assert.rejects(
-      runReview({ ...f.input(head(f, 2)), budgetException: path }),
-    );
-  }
-  assert.equal(f.reservations().length, 2);
-  assert.equal(host.starts(), 6);
-  writeFileSync(path, JSON.stringify(exception));
-  const third = await runReview({
-    ...f.input(head(f, 2)),
-    budgetException: path,
-  });
-  assert.equal(bound(third).ordinal, 3);
-  assert.deepEqual(bound(third).exception, exception);
-  const admitted = await f.verify(head(f, 2));
-  assert.equal(admitted.verdict, 'pass', admitted.reasons.join('\n'));
-  await assert.rejects(
-    runReview({ ...f.input(head(f, 3)), budgetException: path }),
-    /exception/iu,
-  );
-  await assert.rejects(runReview(f.input(head(f, 3))), /budget/iu);
-  assert.equal(f.reservations().length, 3);
-});
-
-test('receiver verifies exact record, reservation and PR binding', async (t) => {
-  const f = fixture(t);
-  mockHost(t);
-  const target = head(f, 0);
-  const record = await runReview(f.input(target));
-  const path = f.recordPath(1);
-  assert.ok(path);
-  const attempt: unknown = Reflect.get(record, 'attempt');
-  assert.ok(typeof attempt === 'object' && attempt !== null);
-  for (const mismatch of [
-    { repository: 'other/repo' },
-    { pr: 18 },
-    { baseRef: 'release' },
-    { ordinal: 2 },
-    { id: '00000000-0000-4000-8000-000000000000' },
-    { baseSha: target },
-    { headSha: head(f, 1) },
-  ]) {
-    writeFileSync(
-      path,
-      JSON.stringify({ ...record, attempt: { ...attempt, ...mismatch } }),
-    );
-    const report = await f.verify(target);
-    assert.equal(report.verdict, 'fail');
-    assert.match(report.reasons.join('\n'), /binding|schema/iu);
-  }
-  writeFileSync(path, JSON.stringify(record));
-  assert.equal((await f.verify(target)).verdict, 'pass');
-});
-
 test('help states prior panel roles, deterministic blocking and separate budget exceptions', () => {
   const cli = new URL('../../src/cli/main.ts', import.meta.url);
   const result = spawnSync(
@@ -460,47 +340,6 @@ test('help states prior panel roles, deterministic blocking and separate budget 
   assert.match(result.stdout, /--budget-exception/u);
   assert.match(result.stdout, /override does not grant review budget/u);
 });
-
-for (const corruption of [
-  'invalid JSON',
-  'gap',
-  'missing reservations',
-  'missing reservation file',
-  'missing metadata',
-  'symlink',
-  'BOM',
-])
-  test(`series ${corruption} fails closed before host cost`, async (t) => {
-    const f = fixture(t);
-    const host = mockHost(t);
-    await runReview(f.input(head(f, 0)));
-    const reservation = f.reservations()[0];
-    assert.ok(reservation);
-    const series = dirname(dirname(dirname(reservation)));
-    if (corruption === 'invalid JSON') writeFileSync(reservation, '{}');
-    if (corruption === 'BOM')
-      writeFileSync(reservation, `\ufeff${readFileSync(reservation, 'utf8')}`);
-    if (corruption === 'gap') {
-      mkdirSync(join(series, 'attempts', '3'));
-      writeFileSync(
-        join(series, 'attempts', '3', 'reservation.json'),
-        readFileSync(reservation),
-      );
-    }
-    if (corruption === 'missing reservations')
-      rmSync(join(series, 'attempts'), { recursive: true });
-    if (corruption === 'missing reservation file') rmSync(reservation);
-    if (corruption === 'missing metadata') rmSync(join(series, 'series.json'));
-    if (corruption === 'symlink') {
-      const copy = join(f.directory, 'copy.json');
-      writeFileSync(copy, readFileSync(reservation));
-      rmSync(reservation);
-      symlinkSync(copy, reservation);
-    }
-    await assert.rejects(runReview(f.input(head(f, 1))));
-    assert.equal(host.starts(), 3);
-    assert.equal((await f.verify(head(f, 0))).verdict, 'fail');
-  });
 
 test('prior verification preserves panel roles before reserving an attempt', async (t) => {
   const f = fixture(t);
@@ -549,133 +388,6 @@ test('prior verification refuses duplicate roles in a legacy record', (t) => {
       }),
     /same panel roles/iu,
   );
-});
-
-test('current incomplete evidence refuses admission while complete attempt 2 may follow incomplete 1', async (t) => {
-  const f = fixture(t);
-  const host = mockHost(t);
-  host.incomplete(true);
-  await runReview(f.input(head(f, 0)));
-  assert.equal((await f.verify(head(f, 0))).verdict, 'fail');
-  host.incomplete(false);
-  await runReview(f.input(head(f, 1)));
-  const report = await f.verify(head(f, 1));
-  assert.equal(report.verdict, 'pass', report.reasons.join('\n'));
-  assert.deepEqual(
-    Object.keys(report.reviewRecords[0] ?? {}).sort(),
-    [
-      'path',
-      'sha256',
-      'headSha',
-      'base',
-      'panelVerdict',
-      'verdict',
-      'panel',
-      'judges',
-      'lensSha256',
-      'toolSha',
-      'redFirstCount',
-    ].sort(),
-  );
-  const path = f.recordPath(2);
-  assert.ok(path);
-  const bytes = readFileSync(path, 'utf8');
-  const raw: unknown = JSON.parse(bytes);
-  assert.ok(typeof raw === 'object' && raw !== null && 'attempt' in raw);
-  Reflect.deleteProperty(raw, 'attempt');
-  writeFileSync(path, JSON.stringify(raw));
-  const unbound = await f.verify(head(f, 1));
-  assert.equal(unbound.verdict, 'fail');
-  assert.match(unbound.reasons.join('\n'), /unbound legacy/iu);
-});
-
-test('an earlier PASS cannot hide the current incomplete attempt on the same exact head', async (t) => {
-  const f = fixture(t);
-  const host = mockHost(t);
-  const target = head(f, 0);
-  const first = await runReview(f.input(target));
-  host.incomplete(true);
-  await assert.doesNotReject(() => runReview(f.input(target)));
-  const report = await f.verify(target);
-  assert.equal(report.verdict, 'fail');
-  assert.match(report.reasons.join('\n'), /INCOMPLETE/u);
-  const currentPath = f.recordPath(2);
-  assert.ok(currentPath);
-  rmSync(currentPath);
-  const reservation = f
-    .reservations()
-    .find((path) => path.includes('/attempts/2/'));
-  assert.ok(reservation);
-  const raw: unknown = JSON.parse(readFileSync(reservation, 'utf8'));
-  assert.ok(typeof raw === 'object' && raw !== null);
-  Reflect.set(raw, 'id', bound(first).id);
-  writeFileSync(reservation, JSON.stringify(raw));
-  const missing = await f.verify(target);
-  assert.equal(missing.verdict, 'fail');
-  assert.match(missing.reasons.join('\n'), /incomplete/u);
-});
-
-test('acceptance override preserves PR binding and cannot bypass deterministic FAIL', async (t) => {
-  const f = fixture(t);
-  const host = mockHost(t);
-  host.fail(true);
-  const first = await runReview(f.input(head(f, 0)));
-  const target = head(f, 0);
-  await reviewCommand(
-    [
-      '--repo',
-      f.repo,
-      '--base',
-      f.base,
-      '--head',
-      target,
-      '--pr',
-      '17',
-      '--override',
-      '--reason',
-      'Operator accepts defect',
-      '--evidence',
-      'Concrete evidence',
-    ],
-    {
-      readPull: async () => f.pull(target),
-      readGateCheckRuns: async () => [],
-    },
-  );
-  const path = f.recordPath(1);
-  assert.ok(path);
-  const updated = reviewRecordSchema.parse(
-    JSON.parse(readFileSync(path, 'utf8')),
-  );
-  assert.deepEqual(bound(updated), bound(first));
-  assert.equal((await f.verify(target)).verdict, 'pass');
-  const failed = {
-    path: 'test/contract.test.ts',
-    side: 'head',
-    sha: target,
-    classification: 'assertion',
-    exitCode: 1,
-    durationMs: 0,
-    outputSha256: 'a'.repeat(64),
-    summary: 'assertion',
-  };
-  writeFileSync(
-    path,
-    JSON.stringify({
-      ...updated,
-      redFirst: [failed],
-      redFirstCauses: [
-        { path: failed.path, verdict: 'FAIL', cause: 'head: assertion' },
-      ],
-    }),
-  );
-  const refused = await f.verify(target);
-  assert.equal(refused.verdict, 'fail');
-  assert.match(refused.reasons.join('\n'), /deterministic red-first FAIL/u);
-  assert.throws(() =>
-    appendOverride(f.repo, target, { reason: 'retry', evidence: 'none' }),
-  );
-  assert.equal(host.starts(), 3);
 });
 
 // Separate processes exercise the same real API/CLI and atomic filesystem owner.
@@ -729,38 +441,4 @@ test('concurrent processes cannot reuse an ordinal or exceed two reservations', 
     JSON.stringify(outcomes),
   );
   assert.equal(outcomes.filter(({ code }) => code === 64).length, 2);
-});
-
-test('crash after reservation consumes one without a final record and later complete evidence admits', async (t) => {
-  const f = fixture(t);
-  const outcome = await childReview(f, head(f, 0), true);
-  assert.equal(outcome.code, 77, outcome.stderr);
-  assert.equal(f.reservations().length, 1);
-  assert.equal(f.records().length, 0);
-  const incomplete = await f.verify(head(f, 0));
-  assert.equal(incomplete.verdict, 'fail');
-  assert.match(incomplete.reasons.join('\n'), /incomplete/iu);
-  mockHost(t);
-  const second = await runReview(f.input(head(f, 0)));
-  assert.equal(bound(second).ordinal, 2);
-  const complete = await f.verify(head(f, 0));
-  assert.equal(complete.verdict, 'pass', complete.reasons.join('\n'));
-  assert.equal(reviewErrorExitCode(new Error('operational failure')), 70);
-  assert.equal(
-    existsSync(join(f.repo, '.krn/runs/review', head(f, 0), 'record.json')),
-    false,
-  );
-});
-
-test('missing reservation metadata after a crash never reopens its consumed slot', async (t) => {
-  const f = fixture(t);
-  const target = head(f, 0);
-  assert.equal((await childReview(f, target, true)).code, 77);
-  const reservation = f.reservations()[0];
-  assert.ok(reservation);
-  rmSync(reservation);
-  const host = mockHost(t);
-  await assert.rejects(runReview(f.input(head(f, 1))), /missing|corrupt/iu);
-  assert.equal(host.starts(), 0);
-  assert.equal((await f.verify(target)).verdict, 'fail');
 });

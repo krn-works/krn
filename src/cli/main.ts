@@ -156,11 +156,6 @@ export function main(args = process.argv.slice(2)): void {
       'task',
       'worker',
       'eval',
-      'deliver',
-      'ship',
-      'brief',
-      'verify',
-      'slice',
       'ci',
     ].includes(args[0] ?? '')
   ) {

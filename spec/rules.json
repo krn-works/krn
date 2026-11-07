@@ -24,14 +24,14 @@
     },
     {
       "id": "KRN-07",
-      "trigger": "review is complete and a change is ready for integration",
-      "action": "the author MUST obtain a successful full Product aggregate `Check` from GitHub Actions (App `15368`) on the exact reviewed HEAD",
+      "trigger": "a change is ready for integration",
+      "action": "the author MUST obtain a successful full Product aggregate `Check` from GitHub Actions (App `15368`) on the exact HEAD",
       "owner": "author",
       "enforcement": {
         "kind": "gate",
         "check": "npm run gate"
       },
-      "rationale": "D30 amendment: full required CI replaces mandatory local isolation diagnostics; cheap independent preflight and review remain required, while `npm run gate:local` is optional local diagnostics."
+      "rationale": "Full required CI is the only gate: lint, typecheck and touched tests run locally, then auto-merge on the Check; review, red-first and local gates are opt-in."
     },
     {
       "id": "KRN-08",

@@ -98,24 +98,9 @@ export async function dispatch(
   } else if (command === 'review') {
     const { reviewCommand } = await import('../flow/cli.ts');
     await reviewCommand(options);
-  } else if (command === 'brief') {
-    const { briefCommand } = await import('./brief.ts');
-    briefCommand(options);
-  } else if (command === 'verify') {
-    const { verifyCommand } = await import('./verify.ts');
-    await verifyCommand(options);
-  } else if (command === 'slice') {
-    const { sliceCommand } = await import('../slice/cli.ts');
-    await sliceCommand(options);
   } else if (command === 'ci') {
     const { ciCommand } = await import('./ci.ts');
     await ciCommand(options);
-  } else if (command === 'ship') {
-    const { shipCommand } = await import('../deliver/ship.ts');
-    await shipCommand(options);
-  } else if (command === 'deliver') {
-    const { deliverCommand } = await import('../deliver/cli.ts');
-    await deliverCommand(options);
   } else if (command === 'delegate') {
     const { delegateCommand } = await import('./delegate.ts');
     await delegateCommand(options, {

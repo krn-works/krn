@@ -1,6 +1,6 @@
 import { lstatSync, opendirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { readRegularFile } from '../brief/index.ts';
+import { readRegularFile } from '../fs/read-regular-file.ts';
 
 class WorkerBusyError extends Error {
   readonly exitCode = 75;
