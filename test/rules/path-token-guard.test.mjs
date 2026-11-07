@@ -25,7 +25,17 @@ function trackedCodePaths() {
         'src',
         'test',
       ]
-    : ['ls-files', '-z', '--', 'scripts', 'src', 'test'];
+    : [
+        'ls-files',
+        '-z',
+        '--cached',
+        '--others',
+        '--exclude-standard',
+        '--',
+        'scripts',
+        'src',
+        'test',
+      ];
   return execFileSync('git', args, {
     cwd: repositoryRoot,
     encoding: 'utf8',
