@@ -1,7 +1,11 @@
 {
   "id": "t-va4rzej",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast --base <rev> diffs against the given commit; unknown base or argument exits 64; replay test covers a deleted-file commit"
+  },
   "created": "2026-11-07",
   "priority": 3,
   "title": "fast: --base option to replay a merged PR without a soft reset",
