@@ -8,14 +8,13 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { ensureSetup } from '../../src/worker/setup-marker.ts';
 
 function repo(t: test.TestContext): string {
-  const dir = mkdtempSync(
-    join(process.env.TMPDIR ?? '/mnt/storage/tmp', 'krn-setup-'),
-  );
+  const dir = mkdtempSync(join(tmpdir(), 'krn-setup-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
