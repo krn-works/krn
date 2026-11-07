@@ -134,9 +134,7 @@ test('hygiene allowlist entries still match a file that needs them', () => {
     for (const file of map.keys()) {
       if (
         !existsSync(`${root}/${file}`) ||
-        !pattern.test(
-          readFileSync(`${root}/${file}`, 'utf8'),
-        )
+        !pattern.test(readFileSync(`${root}/${file}`, 'utf8'))
       ) {
         stale.push(file);
       }
