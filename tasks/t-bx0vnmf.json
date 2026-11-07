@@ -1,0 +1,12 @@
+{
+  "id": "t-bx0vnmf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 3,
+  "title": "task create: invalid option values exit 65 instead of 64",
+  "after": [],
+  "body": [
+    "Repro: krn task create --title x --priority 9 exits 65 (invalid task data) with 'priority must be an integer between 0 and 3'; the same class of bad CLI input (--title missing, bad --status, bad --as) exits 64. Expected: exit 64 for invalid option values; 65 only for corrupt stored data. Same check for edit --priority. Also krn task create --title '' exits 65."
+  ]
+}

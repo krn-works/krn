@@ -231,10 +231,7 @@ function comment(args: string[], json: boolean): CommandOutput {
   const root = repositoryRoot();
   const taskId = requireId(id);
   getTask(root, taskId);
-  const text =
-    bodyFile === '-'
-      ? readFileSync(0, 'utf8')
-      : readFileSync(resolve(bodyFile), 'utf8');
+  const text = readBodyFile(bodyFile);
   const signer = actor ?? gitActor(root);
   if (signer === undefined)
     throw usage('comment requires --actor NAME (git user.name is not set)');
@@ -540,11 +537,18 @@ function edit(args: string[], json: boolean): CommandOutput {
 }
 
 function readBody(path: string): string[] {
-  const contents =
-    path === '-'
+  return splitBody(readBodyFile(path));
+}
+
+function readBodyFile(path: string): string {
+  try {
+    return path === '-'
       ? readFileSync(0, 'utf8')
       : readFileSync(resolve(path), 'utf8');
-  return splitBody(contents);
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    throw usage(`cannot read --body-file ${path}${code ? ` (${code})` : ''}`);
+  }
 }
 
 function splitBody(contents: string): string[] {
