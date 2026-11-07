@@ -16,8 +16,6 @@ const COUNT_FIELDS = [
 export const SERIAL_TEST_REASONS = Object.freeze({
   'test/hosts/codex-stale-scope.test.ts':
     'asserts systemd scope teardown within the configured runtime grace plus 1.5 seconds',
-  'test/isolation-gate.test.ts':
-    'checks repo-global strict-test-events-* directory deltas while child wrappers start and exit',
 });
 
 export const SERIAL_TEST_FILES = Object.freeze(

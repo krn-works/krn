@@ -1,7 +1,11 @@
 {
   "id": "t-azz9me8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Obsolete: krn review already reduced to a thin panel in #278."
+  },
   "created": "2026-11-07",
   "priority": 2,
   "title": "Decide: retire opt-in krn review engine instead of splitting flow/types.ts",

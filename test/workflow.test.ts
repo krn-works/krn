@@ -58,20 +58,10 @@ test('CI workflow runs lint, typecheck and eight test shards on hosted runners b
 
   const test = jobs.get('test') ?? '';
   assert.match(test, /^ {8}shard: \[1, 2, 3, 4, 5, 6, 7, 8\]$/mu);
-  assert.match(test, /^ {10}KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1'$/mu);
+  assert.match(test, /^ {10}KRN_TEST_STRICT: '1'$/mu);
   assert.match(test, /^ {6}KRN_TEST_SHARD_INDEX: \$\{\{ matrix\.shard \}\}$/mu);
   assert.match(test, /^ {6}KRN_TEST_SHARD_TOTAL: '8'$/mu);
   assert.match(test, /^ {8}run: npm test$/mu);
-  // Isolation setup follow change detection; strict shards exclude
-  // the isolation files only when Changes reported isolation=false.
-  assert.match(
-    test,
-    /^ {10}isolation: \$\{\{ needs\.changes\.outputs\.isolation != 'false' \}\}$/mu,
-  );
-  assert.match(
-    test,
-    /^ {10}KRN_TEST_EXCLUDE_ISOLATION: \$\{\{ needs\.changes\.outputs\.isolation == 'false' && '1' \|\| '0' \}\}$/mu,
-  );
   const lint = jobs.get('lint') ?? '';
   assert.match(lint, /run: npm run lint$/mu);
   // Verification only: rules and task records belong to local preflight.

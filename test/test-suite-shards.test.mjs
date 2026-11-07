@@ -231,7 +231,7 @@ test('serial and sharded commands isolate worker paths and inherit only host run
         encoding: 'utf8',
         env: {
           ...process.env,
-          KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1',
+          KRN_TEST_STRICT: '1',
           KRN_TEST_SHARDS: String(shards),
           pnpm_config_store_dir: expectedPnpmStoreDirectory,
           ...expectedRuntimeBusEnvironment,
@@ -395,7 +395,7 @@ test('the parent resolves the pnpm store once and supplies it to every shard', a
 
     const env = {
       ...process.env,
-      KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1',
+      KRN_TEST_STRICT: '1',
       KRN_TEST_SHARDS: '2',
       PATH: [bin, dirname(process.execPath), process.env.PATH ?? ''].join(
         delimiter,
@@ -483,7 +483,7 @@ test('a failed parent store lookup warns once and leaves the shard store unset',
       ...process.env,
       HOME: parentHome,
       XDG_DATA_HOME: parentDataHome,
-      KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1',
+      KRN_TEST_STRICT: '1',
       KRN_TEST_SHARDS: '2',
       PATH: [bin, dirname(process.execPath)].join(delimiter),
     };
@@ -600,7 +600,7 @@ test('K=1,2,4 keep config writes isolated and resolve MISE_DATA_DIR from parent 
 
         const env = {
           ...process.env,
-          KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1',
+          KRN_TEST_STRICT: '1',
           PARENT_HOME_LEAK_SENTINEL: join(parentHome, '.parent-only'),
           KRN_TEST_SHARDS: String(shardCount),
         };
@@ -715,7 +715,7 @@ test('a failure in each planned shard fails the strict suite command', async (t)
           encoding: 'utf8',
           env: {
             ...process.env,
-            KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1',
+            KRN_TEST_STRICT: '1',
             KRN_TEST_SHARDS: '3',
           },
           timeout: 30_000,
@@ -777,10 +777,6 @@ test('a missing file or mismatched native test count rejects the merged summary'
   );
 });
 
-test('the runner keeps the global event-directory observer in the final serial phase', () => {
-  assert.ok(SERIAL_TEST_FILES.includes('test/isolation-gate.test.ts'));
-});
-
 test('compact output retains failing TAP and summarizes passing groups', async () => {
   const stateRoot = join(projectRoot, '.krn/tmp');
   await mkdir(stateRoot, { recursive: true });
@@ -799,7 +795,7 @@ test('compact output retains failing TAP and summarizes passing groups', async (
       encoding: 'utf8',
       env: {
         ...process.env,
-        KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1',
+        KRN_TEST_STRICT: '1',
         KRN_TEST_SHARDS: '3',
         KRN_TEST_OUTPUT: 'failures',
       },
@@ -827,54 +823,4 @@ test('invalid compact output mode exits before spawning tests', () => {
   assert.equal(result.status, 64);
   assert.match(result.stderr, /KRN_TEST_OUTPUT must be full or failures/u);
   assert.equal(result.stdout, '');
-});
-
-test('six CI shards hold every isolation test file exactly once', async () => {
-  const selectTestShardFiles = shardExport('selectTestShardFiles');
-  const { isolationFilesInSelection, selectIsolationTestFiles } = await import(
-    '../scripts/isolation-gate.mjs'
-  );
-  const root = fileURLToPath(new URL('..', import.meta.url));
-  const glob = 'test/**/*.test.{ts,js,mjs,cjs}';
-  const isolation = selectIsolationTestFiles(root, glob);
-  assert.ok(isolation.length > 0, 'the suite has isolation test files');
-  const all = globSync(glob, { cwd: root }).sort();
-  const held = [];
-  for (let index = 1; index <= 6; index += 1)
-    held.push(
-      ...isolationFilesInSelection(
-        root,
-        selectTestShardFiles(all, index, 6),
-        isolation,
-      ),
-    );
-  assert.deepEqual([...held].sort(), [...isolation].sort());
-});
-
-test('CI change detection excludes isolation files before the runner plans them', () => {
-  const root = fileURLToPath(new URL('..', import.meta.url));
-  const result = spawnSync(
-    process.execPath,
-    [
-      suitePath,
-      'test/ci/ci-changes.test.ts',
-      'test/hosts/codex-launch.test.ts',
-    ],
-    {
-      cwd: root,
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        KRN_TEST_EXCLUDE_ISOLATION: '1',
-        KRN_TEST_SHARDS: '1',
-        KRN_TEST_OUTPUT: 'failures',
-      },
-    },
-  );
-  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-  assert.match(
-    result.stdout,
-    /^Isolation tests excluded by change detection: 1 files$/mu,
-  );
-  assert.doesNotMatch(result.stdout, /sandbox\.test\.ts/u);
 });

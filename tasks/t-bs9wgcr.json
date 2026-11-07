@@ -1,7 +1,11 @@
 {
   "id": "t-bs9wgcr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Retired scripts/isolation-gate.mjs, its preload/skip-count/coverage/exclusion in test-suite, and the isolation change-detection output; live tests keep a small fail-loud capability helper and CI keeps bubblewrap for the test job."
+  },
   "created": "2026-11-07",
   "priority": 2,
   "title": "Retire isolation skip-gate machinery (scripts/isolation-gate.mjs, test-suite parts)",
