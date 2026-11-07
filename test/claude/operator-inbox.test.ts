@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 const path = (name: string) =>
   fileURLToPath(new URL(`../../scripts/claude/${name}`, import.meta.url));
 const inbox = path('operator-inbox.ts');
+const promptHook = path('context-gauge.ts');
 const handoffCheck = path('handoff-requests.ts');
 const restart = path('context-restart.ts');
 const settings = fileURLToPath(
@@ -26,8 +27,14 @@ function fixture() {
   mkdirSync(join(root, 'tasks'));
   writeFileSync(join(root, 'tasks/t-abc1234.json'), '{}');
   const submit = (prompt: string, session = 'sess-1') =>
-    spawnSync(process.execPath, [inbox, 'capture'], {
-      input: JSON.stringify({ session_id: session, prompt, cwd: root }),
+    spawnSync(process.execPath, [promptHook], {
+      input: JSON.stringify({
+        session_id: session,
+        prompt,
+        cwd: root,
+        hook_event_name: 'UserPromptSubmit',
+        transcript_path: join(root, 'missing.jsonl'),
+      }),
       env: { ...process.env, CLAUDE_PROJECT_DIR: root },
       encoding: 'utf8',
     });
@@ -105,7 +112,7 @@ test('capture redacts secrets, bounds length, and never fails the prompt', () =>
     assert.equal(entry.session, 'sess-1');
     assert.match(entry.time, /^\d{4}-\d\d-\d\dT.*Z$/u);
     assert.equal(
-      spawnSync(process.execPath, [inbox, 'capture'], {
+      spawnSync(process.execPath, [promptHook], {
         input: 'not json',
         env: { ...process.env, CLAUDE_PROJECT_DIR: root },
       }).status,
@@ -119,7 +126,7 @@ test('capture redacts secrets, bounds length, and never fails the prompt', () =>
 test('capture hook is registered and fast', () => {
   const config = JSON.parse(readFileSync(settings, 'utf8'));
   const commands = JSON.stringify(config.hooks.UserPromptSubmit);
-  assert.match(commands, /operator-inbox\.ts\\" capture/u);
+  assert.match(commands, /context-gauge\.ts/u);
   const { root, submit } = fixture();
   try {
     submit('warm up the module cache for this directive prompt');

@@ -6,8 +6,11 @@ export function object(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
-export function hookInput(eventNames: string[]) {
-  const input = object(JSON.parse(readFileSync(0, 'utf8')));
+export function hookInput(
+  eventNames: string[],
+  raw: string = readFileSync(0, 'utf8'),
+) {
+  const input = object(JSON.parse(raw));
   const { session_id, transcript_path, hook_event_name } = input;
   const project = process.env.CLAUDE_PROJECT_DIR;
   if (

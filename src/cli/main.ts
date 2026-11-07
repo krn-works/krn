@@ -3,6 +3,7 @@
 import { spawn } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { commandErrorExitCode } from './command-error.ts';
+import { commandHelp, topLevelHelp } from './help.ts';
 
 const version = '0.1.0';
 const recursionFlag = 'KRN_FORWARDED';
@@ -98,6 +99,15 @@ export function reviewErrorExitCode(error: unknown): number {
 }
 
 export function main(args = process.argv.slice(2)): void {
+  const help = commandHelp(args);
+  if (help !== undefined) {
+    process.stdout.write(help);
+    return;
+  }
+  // Top-level help lists the owned commands, then the legacy entry lists its own.
+  if (args[0] === '--help' || args[0] === '-h' || args.length === 0)
+    process.stdout.write(topLevelHelp());
+
   if (args[0] === '--version') {
     process.stdout.write(`krn ${version}\n`);
     return;

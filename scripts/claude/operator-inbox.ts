@@ -1,6 +1,5 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { memoryDirectory } from './memory-directory.ts';
 import {
   allEntries,
   capture,
@@ -37,6 +36,8 @@ if (command === 'capture') {
   }
   process.exit(0);
 }
+
+const { memoryDirectory } = await import('./memory-directory.ts');
 
 function flags(arguments_: string[]) {
   const values = new Map<string, string>();
