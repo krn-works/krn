@@ -1,0 +1,12 @@
+{
+  "id": "t-ztnavn1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 3,
+  "title": "Polled JSONL readers in tests ignore a partially appended line",
+  "after": [],
+  "body": [
+    "Outcome: no worker or eval test parses a JSONL log line the fixture is still appending.\nEvidence: t-q625vvc (#335) hit SyntaxError Unterminated string in state-trust rows() once its subtests ran concurrently; rows() used trim().split, which keeps a partial last line. Same trim().split shape in test/worker/input-bounds, hardening, recovery and test/evals/session.\nAcceptance: those readers keep only newline-terminated rows (split, slice(0,-1)), or a test-hygiene check rejects trim().split on polled JSONL logs."
+  ]
+}
