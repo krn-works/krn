@@ -105,7 +105,6 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/rules/host-path-guard.test.mjs': 1,
   'test/rules/lead-traps.test.ts': 1,
   'test/rules/memory-target-adr.test.ts': 1,
-  'test/rules/no-paperclip.test.mjs': 1,
   'test/rules/parallel-lanes.test.ts': 1,
   'test/rules/path-token-guard.test.mjs': 1,
   'test/rules/project-skills.test.ts': 1,
