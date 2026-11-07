@@ -1,7 +1,11 @@
 {
   "id": "t-45wvmk9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "codex.ts pid_namespace mode removed (PR 275, 1031->869 lines); flow/types.ts split superseded by t-azz9me8 (retire opt-in review engine decision)"
+  },
   "created": "2026-11-07",
   "priority": 1,
   "title": "Deepen the top architecture candidates measured by depth.ts",

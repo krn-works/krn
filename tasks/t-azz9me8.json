@@ -1,0 +1,12 @@
+{
+  "id": "t-azz9me8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "Decide: retire opt-in krn review engine instead of splitting flow/types.ts",
+  "after": [],
+  "body": [
+    "Candidate: retire the opt-in krn review engine (src/flow, 3933 lines, 11 files; test/flow 26 files; README/lead-rules/krn-lead/krn-retro mentions). It has no gate role (ADR 0014 D30) and is the only consumer of CodexHost besides workers. Deleting beats splitting src/flow/types.ts (856 lines, 35 exports, fan-in 26, types-only). Needs operator decision since it removes a documented command. If kept, split types.ts by owner (panel, prior, record, series)."
+  ]
+}
