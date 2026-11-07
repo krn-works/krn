@@ -1,7 +1,11 @@
 {
   "id": "t-2f4cqda",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Measured 20 runs: median 162 s push/PR to Check (PR 159, push 165) vs t3code PR median 226 s, so target met without Blacksmith. PR #262: duration-weighted shards + 8 shards + parallel bubblewrap; first PR run 115 s with shard spread 61-89 s (was 62-152 s). Faster runners, Go toolchain cache and Changes setup-node removal rejected as not worth it. Baseline in .krn/runs/lead/weakness-hunt/ci-baseline.md."
+  },
   "created": "2026-11-06",
   "priority": 0,
   "title": "Make Actions CI faster than t3code: runners, toolchain cache, shard rebalance",
