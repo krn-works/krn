@@ -1,7 +1,11 @@
 {
   "id": "t-xevd1d8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Not reproducible on origin/main after #280/#281: test/hosts/codex-registration.test.ts passed 20/20 (9/9 each, none skipped, real systemd user scope) under CPU load average ~40 on 16 cores; the case already uses positive readiness waitFor conditions, no fixed sleeps."
+  },
   "created": "2026-10-28",
   "priority": 1,
   "title": "Make Codex registration cancellation deterministic under host load",
