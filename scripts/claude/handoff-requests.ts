@@ -1,4 +1,4 @@
-import { readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { memoryDirectory } from './memory-directory.ts';
 
@@ -9,6 +9,35 @@ const usage =
 function fail(message: string, code: number): never {
   process.stderr.write(`${message}\n`);
   process.exit(code);
+}
+
+// A task body records an operator request when it quotes the operator verbatim or reports
+// what the operator asked or said.
+const operatorPattern =
+  /\bverbatim\b|\bOperator\b[^.\n]{0,80}?(?:\basked\b|\bsaid\b|\brequested\b|\):|:\s*["“])/u;
+
+function operatorTasks(root: string): string[] {
+  const directory = join(root, 'tasks');
+  let names: string[];
+  try {
+    names = readdirSync(directory);
+  } catch {
+    return [];
+  }
+  const ids: string[] = [];
+  for (const name of names.sort()) {
+    if (!/^t-[a-z0-9]{7}\.json$/u.test(name)) continue;
+    let task: { id?: unknown; status?: unknown; body?: unknown };
+    try {
+      task = JSON.parse(readFileSync(join(directory, name), 'utf8'));
+    } catch {
+      continue;
+    }
+    if (task.status !== 'open' || !Array.isArray(task.body)) continue;
+    if (operatorPattern.test(task.body.join('\n')))
+      ids.push(name.slice(0, -'.json'.length));
+  }
+  return ids;
 }
 
 function options(arguments_: string[]) {
@@ -177,6 +206,19 @@ for (const item of items) {
         `FAIL ${handoff}:${item.line}: memory:${slug} has no ${join(memory, `${slug}.md`)}`,
       );
 }
+
+// Carry-over: an open task that records an operator utterance must be named in the section,
+// so a hand-written handoff cannot silently drop a request the operator already made.
+const listed = new Set(
+  items.flatMap((item) =>
+    [...item.text.matchAll(/\bt-[a-z0-9]{7}\b/gu)].map((match) => match[0]),
+  ),
+);
+for (const id of operatorTasks(root))
+  if (!listed.has(id))
+    failures.push(
+      `FAIL ${handoff}: open operator request ${id} is missing from "## Operator requests"; carry it or close the task`,
+    );
 
 if (failures.length > 0) fail(failures.join('\n'), 1);
 process.stdout.write(

@@ -226,3 +226,31 @@ test('handoff check refuses requests without a durable record', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('an open task that records an operator request must be carried', () => {
+  const { root, check } = fixture();
+  try {
+    const task = (id: string, status: string, body: string) =>
+      writeFileSync(
+        join(root, `tasks/${id}.json`),
+        JSON.stringify({ id, status, body: [body] }),
+      );
+    task('t-op00001', 'open', 'Operator 2026-11-05 (verbatim): "dawaj"');
+    task('t-op00002', 'open', 'Operator asked for skills.');
+    task('t-op00003', 'closed', 'Operator asked earlier.');
+    task('t-plain01', 'open', 'Refactor the parser.');
+    const dropped = check('## Operator requests\n- open t-op00001\n');
+    assert.equal(dropped.status, 1, dropped.stderr);
+    assert.match(dropped.stderr, /open operator request t-op00002 is missing/u);
+    assert.doesNotMatch(
+      dropped.stderr,
+      /t-op00001 is missing|t-op00003|t-plain01/u,
+    );
+    const carried = check(
+      '## Operator requests\n- open t-op00001\n- skills t-op00002\n',
+    );
+    assert.equal(carried.status, 0, carried.stderr);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
