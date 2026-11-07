@@ -20,7 +20,7 @@
     "live:smoke": "node scripts/live-smoke.mjs",
     "render:agents": "node scripts/render-agents.ts --write",
     "rules": "node scripts/render-agents.ts --check",
-    "preflight": "npm run check && npm run lint && npm run rules && node scripts/head-trailers.mjs && node src/cli/main.ts task check && npm test -- test/workflow.test.ts test/import-boundary.test.ts test/rules",
+    "preflight": "npm run check && npm run lint && npm run rules && node src/cli/main.ts task check",
     "gate": "npm run check && npm run lint && KRN_TEST_OUTPUT=failures npm test && node src/cli/main.ts task check && npm run rules",
     "gate:local": "node scripts/gate-local.mjs",
     "context:report": "node scripts/claude/context-report.ts"
