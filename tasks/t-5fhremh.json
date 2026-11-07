@@ -1,7 +1,11 @@
 {
   "id": "t-5fhremh",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Measured 163 transcripts (15,960 turns, 1h TTL): 0 turns follow a gap over 1h; 3 follow >5m, writing 2,669 of 31.06M cache-write tokens (0.009%). idleCompaction has nothing to cut; keep it off. Script: scripts/idle-gap-cache.mjs."
+  },
   "created": "2026-11-07",
   "priority": 2,
   "title": "Measure idleCompaction for long lead sessions",
