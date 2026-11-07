@@ -1,7 +1,11 @@
 {
   "id": "t-jzdybq2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Operator 2026-11-07: focus on KRN, other projects were never requested. Six repos onboarded and kept (catalogue), brain-lab #317 and wilq-seo #264 closed."
+  },
   "created": "2026-11-07",
   "priority": 1,
   "title": "Onboard krn-works repositories onto shared project CI (wave 1)",
