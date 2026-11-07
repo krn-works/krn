@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { memoryDirectory } from './memory-directory.ts';
+import { markHandoff, openEntries } from './operator-inbox-store.ts';
 
 // A handoff must record every open operator request durably: a task, a memory entry, or an explicit close.
 const usage =
@@ -220,7 +221,14 @@ for (const id of operatorTasks(root))
       `FAIL ${handoff}: open operator request ${id} is missing from "## Operator requests"; carry it or close the task`,
     );
 
+// Inbox: every directive-like operator prompt since the last handoff needs a disposition.
+for (const entry of openEntries(root))
+  failures.push(
+    `FAIL ${handoff}: operator prompt ${entry.hash} has no disposition: "${entry.text.replace(/\s+/gu, ' ').slice(0, 100)}"; run node scripts/claude/operator-inbox.ts dispose ${entry.hash} --task <id> | --memory <slug> | --answered <reason>`,
+  );
+
 if (failures.length > 0) fail(failures.join('\n'), 1);
+markHandoff(root);
 process.stdout.write(
   `PASS ${handoff}: ${open} open operator request(s) recorded\n`,
 );

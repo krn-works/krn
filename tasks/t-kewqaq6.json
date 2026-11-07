@@ -1,7 +1,11 @@
 {
   "id": "t-kewqaq6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Capture hook, dispose/open/search CLI, handoff check refusal, SessionStart count, skill updated"
+  },
   "created": "2026-11-06",
   "priority": 0,
   "title": "Capture every operator directive and refuse a handoff that drops one",

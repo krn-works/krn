@@ -17,6 +17,8 @@ A fresh session with a short, precise handoff outperforms a long session that ca
    - the retro's top three;
    - suggested skills for the next session (`krn-lead` plus task-specific ones).
 
+   A UserPromptSubmit hook records every operator prompt in `.krn/operator/inbox.jsonl`; the same check fails while a directive-like prompt since the last handoff has no disposition. List them with `node scripts/claude/operator-inbox.ts open`, clear each with `dispose <hash> --task <id> | --memory <slug> | --answered <reason>`. Before telling the operator something was "not recorded", run `operator-inbox.ts search <words>`.
+
    Run `node scripts/claude/handoff-requests.ts <handoff path>` from the repository root until it prints PASS.
 3. **Transfer the writer, then start the next session.** Record in the capsule field "Current workflow owner and sole writer" that the next session is the writer, finish every write of this session (capsule, handoff, tracker), and only then, as this session's last action, start the next one from the repository root:
    `node scripts/claude/successor-launch.ts --name "<slice purpose>" --prompt "Use the krn-lead skill. Read <handoff path>, then deliver <task id>."`

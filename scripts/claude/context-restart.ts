@@ -2,9 +2,9 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { emitContext, hookInput, object } from './context-io.ts';
-
 import { memoryDirectory } from './memory-directory.ts';
 import { checkMemory } from './memory-refs.ts';
+import { openEntries } from './operator-inbox-store.ts';
 
 const rules = [
   'delegate reading to a subagent (krn-reader) that returns a verdict and path',
@@ -183,6 +183,20 @@ try {
     }
   }
   visit(join(main, '.krn/runs'));
+  try {
+    const open = openEntries(main);
+    if (open.length > 0)
+      lines.splice(
+        1,
+        0,
+        `Operator inbox: ${open.length} open prompt(s) without disposition (${open
+          .slice(0, 5)
+          .map((entry) => entry.hash)
+          .join(' ')}); run node scripts/claude/operator-inbox.ts open`,
+      );
+  } catch {
+    /* The inbox must never interrupt startup. */
+  }
   lines.splice(1, 0, `Newest handoff: ${newest?.path ?? 'none'}`);
   // Budget includes JSON escaping and the envelope, not just the context string.
   let text = lines.join('\n');
