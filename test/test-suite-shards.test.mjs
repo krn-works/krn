@@ -276,7 +276,16 @@ test('serial and sharded commands isolate worker paths and inherit only host run
     );
     const shardedSummary = summaryFrom(shardedResult);
 
-    assert.deepEqual(shardedSummary.files, serialSummary.files);
+    // Wall time differs run to run; every file must still report one.
+    const counted = (files) =>
+      files.map(({ durationMs, ...counts }) => {
+        assert.ok(Number.isSafeInteger(durationMs), counts.file);
+        return counts;
+      });
+    assert.deepEqual(
+      counted(shardedSummary.files),
+      counted(serialSummary.files),
+    );
     assert.equal(shardedSummary.counts.tests, serialSummary.counts.tests);
     assert.equal(shardedSummary.counts.tests, 3);
     const environments = await Promise.all(

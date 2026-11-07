@@ -1,0 +1,12 @@
+{
+  "id": "t-xwnd81m",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "Refresh shard weights from 5 CI runs",
+  "after": [],
+  "body": [
+    "Outcome: scripts/lib/shard-weights.mjs holds weights folded from CI, not the lead host.\nEvidence: t-aajfaqd added per-file durationMs to KRN_TEST_SUMMARY_JSON and scripts/shard-weights-refresh.mjs; the first refresh needs 5 successful main push runs that carry durations (only runs after that merge do).\nAcceptance: `node scripts/shard-weights-refresh.mjs --write` exits 0 with 5 runs, the PR lists the run ids, and the slowest Test shard step in the next main run is compared with run 42420551206 (26 s)."
+  ]
+}

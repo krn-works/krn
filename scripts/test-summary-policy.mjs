@@ -86,6 +86,11 @@ export function validateTestSummary(value) {
         errors.push(`file test totals are incoherent: ${file.file}`);
       if (file.tests < 1)
         errors.push(`file has no real test coverage: ${file.file}`);
+      if (
+        Object.hasOwn(file, 'durationMs') &&
+        !(Number.isSafeInteger(file.durationMs) && file.durationMs >= 0)
+      )
+        errors.push(`file duration is invalid: ${file.file}`);
       addCounts(totals, file);
     }
     if (!sameCounts(totals, value.counts))
@@ -230,12 +235,18 @@ export function summarizeTestEvents(events, expectedFiles, runnerExitCode = 0) {
 
   const files = expected.map((file) => {
     const summary = fileSummaries.get(file);
-    return {
-      file,
-      ...(summary && validCounts(summary.counts)
-        ? summary.counts
-        : zeroCounts()),
-    };
+    const counts =
+      summary && validCounts(summary.counts)
+        ? Object.fromEntries(
+            COUNT_FIELDS.map((field) => [field, summary.counts[field]]),
+          )
+        : zeroCounts();
+    // Wall time of the file's own test process; CI folds it into shard
+    // weights (scripts/shard-weights-refresh.mjs).
+    const duration = summary?.duration_ms;
+    return Number.isFinite(duration) && duration >= 0
+      ? { file, ...counts, durationMs: Math.round(duration) }
+      : { file, ...counts };
   });
   const result = {
     summary: { version: 1, success: errors.length === 0, counts, files },

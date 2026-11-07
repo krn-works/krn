@@ -1,7 +1,11 @@
 {
   "id": "t-aajfaqd",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "per-file durationMs in the CI test summary, refresh command folds 5 main runs, test fails on an unweighted file; first refresh tracked separately"
+  },
   "created": "2026-11-07",
   "priority": 2,
   "title": "Derive shard weights from CI per-file durations",
