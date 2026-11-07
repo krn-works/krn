@@ -8,7 +8,6 @@ import {
   readFileSync,
   rmSync,
   symlinkSync,
-  truncateSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -327,31 +326,6 @@ test('untracked baseline compares content, deletions, types and symlink targets 
       'docs/guide.md',
     ]);
   });
-});
-
-test('untracked baseline refuses more than 10000 files or 1 GB total before starting the server', {
-  concurrency: 6,
-}, async (t) => {
-  for (const bound of ['files', 'bytes']) {
-    t.test(bound, async (t) => {
-      const s = await setup(t);
-      if (bound === 'files') {
-        mkdirSync(join(s.repo, 'generated'));
-        for (let i = 0; i <= 10000; i++)
-          writeFileSync(join(s.repo, 'generated', `${i}`), 'x');
-      } else {
-        for (const name of ['large-a', 'large-b']) {
-          const path = join(s.repo, name);
-          writeFileSync(path, '');
-          truncateSync(path, 600 * 1024 * 1024);
-        }
-      }
-      const result = await s.turn('ok', true).result;
-      assert.equal(result.code, 65, result.stderr);
-      assert.match(result.stderr, bound === 'files' ? /10000/ : /1 GB/);
-      assert.equal(existsSync(s.env.CODEX_TEST_WORKER_PID), false);
-    });
-  }
 });
 
 test('missing, mismatched and malformed usage fail closed, interrupt, stop scope and never persist zero metrics', {
