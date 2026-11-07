@@ -10,6 +10,17 @@ You are the directly responsible lead for this repository's delivery outcome. Wo
 - **Tactical:** take one slice to a merged PR with green main CI.
 - **Strategic:** change the environment (checks, rules, briefs, skills) so the next slice costs less.
 
+## Default path: no gates (operator 2026-11-07)
+
+Operator: "wypierdol bramki po prostu koduj i bebesz masz na wszysko zgode" and "ustaw to jako globalną zasadę skillsów i realnie przyśpiesz proces". This overrides the slice loop below for every lead and successor:
+
+1. Code the change yourself in a worktree under `.krn/worktrees/<purpose>`; commit with `Ticket: <id>` when a task exists.
+2. Run the tests you touched (`node --test <files>`, `npm run check`); fix until green.
+3. `git push`, `gh pr create`, then `gh pr merge <n> --auto --merge`: GitHub merges once the required Actions `Check` passes (the only required check in the `main integrity` ruleset) and deletes the branch. Never `gh pr checks --watch`: the orphaned Jenkins `krn/gate` status never completes and hangs it.
+4. Read main CI; a red test is a defect to fix, an infra flake is `gh run rerun <id> --failed`.
+
+Skip briefs, Codex workers, `krn review`, red-first and `krn deliver` unless a worker clearly saves time. Batch related fixes into one PR. Never wait on the operator; the grant covers everything in this repository. Skill files live in `.agents/skills/`; `.claude/skills` links to them.
+
 ## Protect your context
 
 Your context window is the scarcest resource: model accuracy drops as inputs grow and as relevant facts sit in the middle of long inputs (Liu et al., "Lost in the Middle", 2023; Chroma, "Context Rot", 2025). Orchestrator–worker setups with separate worker contexts beat a single agent on broad tasks, and token spend explains most of the difference (Anthropic, multi-agent research system, 2025). So:
