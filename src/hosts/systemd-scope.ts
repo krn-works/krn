@@ -217,6 +217,7 @@ function readCgroupProcesses(path: string): CgroupProcesses | undefined {
   let fd: number | undefined;
   let result: CgroupProcesses | undefined;
   let failed = false;
+  let vanished = false;
   try {
     fd = openSync(path, 'r');
     const buffer = Buffer.alloc(cgroupPidByteLimit + 1);
@@ -232,14 +233,21 @@ function readCgroupProcesses(path: string): CgroupProcesses | undefined {
       try {
         count = readSync(fd, buffer, offset, buffer.length - offset, null);
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'EINTR') continue;
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === 'EINTR') continue;
+        // A cgroup removed between open and read reports ENODEV: it is gone.
+        if (code === 'ENODEV' || code === 'ENOENT') {
+          vanished = true;
+          break;
+        }
         failed = true;
         break;
       }
       if (count === 0) break;
       offset += count;
     }
-    if (!failed) {
+    if (vanished) result = { kind: 'observed', pids: [] };
+    else if (!failed) {
       if (offset > cgroupPidByteLimit) result = { kind: 'limit' };
       else {
         const fields = buffer
@@ -500,7 +508,8 @@ function systemdScopeRegistrationActive(
     if (!match) return null;
     populated = match[1] === '1';
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return null;
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== 'ENOENT' && code !== 'ENODEV') return null;
     populated = false;
   }
   // A live original PID outside a removed/empty group is not verified cleanup.
