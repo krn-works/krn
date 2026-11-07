@@ -48,8 +48,8 @@ const workerEnvironmentKeys = new Set([
   'no_proxy',
 ]);
 
-export type CodexIsolationMode = 'systemd_scope';
-export type CodexReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+type CodexIsolationMode = 'systemd_scope';
+type CodexReasoningEffort = 'low' | 'medium' | 'high' | 'xhigh' | 'max';
 export function workerEnvironment(
   source: NodeJS.ProcessEnv = process.env,
 ): NodeJS.ProcessEnv {
@@ -110,7 +110,7 @@ export function resolveCodexExecutable(home: string = homedir()): string {
 
 export const defaultCodexExecutable: string = resolveCodexExecutable();
 
-export type CodexUsage = {
+type CodexUsage = {
   readonly inputTokens: number;
   readonly outputTokens: number;
   readonly totalTokens: number;
@@ -259,16 +259,14 @@ export class CodexHost {
     });
     try {
       let registration: SystemdScopeRegistration | undefined;
-      if (scope) {
-        try {
-          registration = await waitForSystemdScopeRegistration(
-            scope,
-            () => running.cancelled || running.closed,
-          );
-          running.setScopeRegistration(registration);
-        } catch (error) {
-          await rejectUnstartedSession(running, error);
-        }
+      try {
+        registration = await waitForSystemdScopeRegistration(
+          scope,
+          () => running.cancelled || running.closed,
+        );
+        running.setScopeRegistration(registration);
+      } catch (error) {
+        await rejectUnstartedSession(running, error);
       }
       if (running.cancelled)
         await rejectStartedSession(
@@ -408,7 +406,7 @@ async function rejectStartedSession(
 class RunningSession {
   readonly #id: string;
   readonly #child: ChildProcess;
-  readonly #scope: string | undefined;
+  readonly #scope: string;
   #scopeRegistration: SystemdScopeRegistration | undefined;
   readonly #reapedScopes: readonly ReapedSystemdScope[];
   readonly #scopeEnvironment: NodeJS.ProcessEnv;
@@ -462,7 +460,7 @@ class RunningSession {
   constructor(
     id: string,
     child: ChildProcess,
-    scope?: string,
+    scope: string,
     reapedScopes: readonly ReapedSystemdScope[] = [],
   ) {
     this.#id = id;
@@ -495,12 +493,11 @@ class RunningSession {
         if (finished) return;
         finished = true;
         try {
-          if (this.#scope)
-            await drainSystemdScope(
-              this.#scope,
-              this.#scopeEnvironment,
-              this.#scopeRegistration,
-            );
+          await drainSystemdScope(
+            this.#scope,
+            this.#scopeEnvironment,
+            this.#scopeRegistration,
+          );
           const transportClosed = await this.raceWithTimeout(
             this.#transportClose.then(() => true),
             transportCloseGraceMs,
@@ -750,53 +747,37 @@ class RunningSession {
   }
 
   private async cancelOwnedProcesses(): Promise<void> {
-    if (this.#scope) {
-      const failures: unknown[] = [];
+    const failures: unknown[] = [];
+    try {
+      await this.signalOwnedLauncher('SIGTERM');
+    } catch (error) {
+      failures.push(error);
+    }
+    let exited = await this.waitForLauncherExit();
+    if (!exited) {
       try {
-        await this.signalOwnedLauncher('SIGTERM');
+        await this.signalOwnedLauncher('SIGKILL');
       } catch (error) {
         failures.push(error);
       }
-      let exited = await this.waitForLauncherExit();
-      if (!exited) {
-        try {
-          await this.signalOwnedLauncher('SIGKILL');
-        } catch (error) {
-          failures.push(error);
-        }
-        exited = await this.waitForLauncherExit();
-        if (!exited)
-          failures.push(
-            new Error(
-              'Codex systemd-scope launcher did not exit after SIGKILL',
-            ),
-          );
-      }
-      if (exited) {
-        try {
-          await this.#close;
-        } catch (error) {
-          failures.push(error);
-        }
-      }
-      if (failures.length)
-        throw new AggregateError(
-          failures,
-          'Codex systemd-scope cancellation could not be verified',
+      exited = await this.waitForLauncherExit();
+      if (!exited)
+        failures.push(
+          new Error('Codex systemd-scope launcher did not exit after SIGKILL'),
         );
-      return;
     }
-    if (this.#child.exitCode === null && this.#child.signalCode === null) {
-      signalTree(this.#child, 'SIGTERM');
-      let exited = await this.waitForLauncherExit();
-      if (!exited) {
-        signalTree(this.#child, 'SIGKILL');
-        exited = await this.waitForLauncherExit();
-        if (!exited)
-          throw new Error('Codex launcher did not exit after SIGKILL');
+    if (exited) {
+      try {
+        await this.#close;
+      } catch (error) {
+        failures.push(error);
       }
     }
-    await this.#close;
+    if (failures.length)
+      throw new AggregateError(
+        failures,
+        'Codex systemd-scope cancellation could not be verified',
+      );
   }
 
   private waitForLauncherExit(): Promise<boolean> {
@@ -865,28 +846,6 @@ class RunningSession {
 
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", `'\\''`)}'`;
-}
-
-function signalTree(child: ChildProcess, signal: NodeJS.Signals): void {
-  if (child.pid === undefined) return;
-  try {
-    if (process.platform !== 'win32') process.kill(-child.pid, signal);
-    else signalProcess(child, signal);
-  } catch (error) {
-    if (record(error).code !== 'ESRCH') throw error;
-  }
-}
-
-function signalProcess(child: ChildProcess, signal: NodeJS.Signals): void {
-  if (child.pid !== undefined) signalPid(child.pid, signal);
-}
-
-function signalPid(pid: number, signal: NodeJS.Signals): void {
-  try {
-    process.kill(pid, signal);
-  } catch (error) {
-    if (record(error).code !== 'ESRCH') throw error;
-  }
 }
 
 function detectIsolationMode(): CodexIsolationMode {
