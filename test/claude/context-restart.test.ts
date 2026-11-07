@@ -145,3 +145,44 @@ test('restart hook exits silently outside git', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('restart hook serves the clear source and rejects unknown ones', () => {
+  const root = mkdtempSync(join(tmpdir(), 'context-restart-'));
+  try {
+    const run = (source: string) =>
+      spawnSync(process.execPath, [script], {
+        cwd: root,
+        env: {
+          ...process.env,
+          CLAUDE_PROJECT_DIR: root,
+          GIT_CEILING_DIRECTORIES: dirname(root),
+        },
+        encoding: 'utf8',
+        input: JSON.stringify({
+          session_id: 'session',
+          transcript_path: join(root, 'transcript.jsonl'),
+          cwd: root,
+          hook_event_name: 'SessionStart',
+          source,
+        }),
+      });
+    for (const args of [
+      ['init', '-b', 'fixture'],
+      [
+        '-c',
+        'user.name=T',
+        '-c',
+        'user.email=t@example.invalid',
+        'commit',
+        '--allow-empty',
+        '-m',
+        'x',
+      ],
+    ])
+      spawnSync('git', args, { cwd: root });
+    assert.match(run('clear').stdout, /"additionalContext":"Branch: fixture/u);
+    assert.equal(run('bogus').stdout, '');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

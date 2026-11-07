@@ -31,7 +31,7 @@ test('Claude context budget settings wire documented hooks and read-only reader'
   assert.equal(settings.hooks.PostToolUse[0].matcher, '*');
   assert.equal(
     settings.hooks.SessionStart[0].matcher,
-    'startup|resume|compact',
+    'startup|resume|clear|compact',
   );
   assert.equal(settings.hooks.PreCompact, undefined);
 });
