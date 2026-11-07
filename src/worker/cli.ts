@@ -10,6 +10,7 @@ import {
 import { join, matchesGlob, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
+import { flagValue } from '../cli/flag-value.ts';
 import { defaultCodexExecutable } from '../hosts/codex.ts';
 import { reapAppServer } from '../hosts/codex-app-server.ts';
 import {
@@ -125,11 +126,13 @@ export async function workerCommand(args: string[]): Promise<void> {
     const observers: string[] = [];
     for (let i = 0; i < options.length; i += 2) {
       const key = options[i];
-      const value = options[i + 1];
+      const value = flagValue(
+        options,
+        i,
+        () => new WorkerError(64, 'invalid worker arguments'),
+      );
       if (
         !key ||
-        !value ||
-        value.startsWith('--') ||
         !optionNames.includes(key) ||
         (!['--allow', '--require', '--check', '--observer'].includes(key) &&
           values.has(key))

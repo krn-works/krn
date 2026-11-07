@@ -11,6 +11,7 @@ import {
 import { constants as osConstants } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { flagValue } from '../cli/flag-value.ts';
 import { CliUsageError } from '../cli/usage-error.ts';
 import {
   codexScopeRuntimeProperties,
@@ -73,9 +74,11 @@ function options(args: string[]) {
     if (seen.has(arg)) throw new CliUsageError(`${arg} may be supplied once`);
     seen.add(arg);
     if (arg === '--draft' || arg === '--json') continue;
-    const value = args[++index];
-    if (!value || value.startsWith('--'))
-      throw new CliUsageError(`missing value for ${arg}; ${usage}`);
+    const value = flagValue(
+      args,
+      index++,
+      () => new CliUsageError(`missing value for ${arg}; ${usage}`),
+    );
     values.set(arg, value);
   }
   function required(name: string) {

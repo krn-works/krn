@@ -1,6 +1,8 @@
 // `krn review`: opt-in parallel judge panel over base..head, no records or budgets.
+
 import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { flagValue } from '../cli/flag-value.ts';
 import { git } from './git.ts';
 import { judgeRole } from './panel.ts';
 import {
@@ -29,11 +31,10 @@ const usage = [
 ].join('\n');
 
 function value(args: readonly string[], flag: string): string {
+  const missing = () => new ReviewUsageError(`missing ${flag}`);
   const index = args.indexOf(flag);
-  const result = index < 0 ? undefined : args[index + 1];
-  if (!result || result.startsWith('--'))
-    throw new ReviewUsageError(`missing ${flag}`);
-  return result;
+  if (index < 0) throw missing();
+  return flagValue(args, index, missing);
 }
 
 function roles(args: readonly string[]): ReviewRole[] {
