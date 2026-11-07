@@ -1,0 +1,14 @@
+{
+  "id": "t-5975z2q",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Pruned prose, meta and duplicate tests; see weakness-hunt/tests-audit.md"
+  },
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "Prune the test surface to behaviour tests",
+  "after": [],
+  "body": []
+}

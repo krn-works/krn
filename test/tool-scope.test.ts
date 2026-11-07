@@ -29,7 +29,6 @@ test('project tools ignore nested worktree state', {
       ['npm', ['test']],
       ['npm', ['run', 'check']],
       ['npm', ['run', 'lint']],
-      ['npm', ['run', 'gate']],
     ] as const;
 
     for (const [command, args] of commands) {
