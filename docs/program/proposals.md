@@ -5,4 +5,4 @@ This register keeps only proposals referenced by the current plan or ADRs. It do
 | ID | Status | Current disposition |
 |---|---|---|
 | P-052 | proposed | Complete the caller inventory before runtime or repository ownership migration; see [ADR 0013](../adr/0013-repository-consolidation.md). |
-| P-060 | accepted; see the merge path in PLAN.md | Product declares `scripts/pr-preflight.mjs` in `krn.ship.json`; GLOBAL `krn ship` used this path for the first real merges #121 and #123. |
+| P-060 | superseded by GitHub auto-merge on the required `Check` | Earlier GLOBAL `krn ship` path (first real merges #121 and #123) is retired. |

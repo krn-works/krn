@@ -1,7 +1,11 @@
 {
   "id": "t-sfffjmy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "PreCompact hook and its unread snapshot deleted"
+  },
   "created": "2026-11-01",
   "priority": 3,
   "title": "Remove the unread PreCompact snapshot",

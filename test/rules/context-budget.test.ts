@@ -17,7 +17,6 @@ test('Claude context budget settings wire documented hooks and read-only reader'
   for (const [event, file] of Object.entries({
     UserPromptSubmit: 'context-gauge',
     PostToolUse: 'context-gauge',
-    PreCompact: 'context-precompact',
     SessionStart: 'context-restart',
   })) {
     const group = settings.hooks[event];
@@ -25,7 +24,7 @@ test('Claude context budget settings wire documented hooks and read-only reader'
     assert.equal(group[0].hooks[0].type, 'command');
     assert.equal(
       group[0].hooks[0].command,
-      `node "$CLAUDE_PROJECT_DIR/scripts/claude/${file}.ts"`,
+      `NODE_COMPILE_CACHE="$CLAUDE_PROJECT_DIR/.krn/cache/node" node "$CLAUDE_PROJECT_DIR/scripts/claude/${file}.ts"`,
     );
     assert.ok(existsSync(new URL(`scripts/claude/${file}.ts`, root)));
   }
@@ -34,7 +33,7 @@ test('Claude context budget settings wire documented hooks and read-only reader'
     settings.hooks.SessionStart[0].matcher,
     'startup|resume|compact',
   );
-  assert.equal(settings.hooks.PreCompact[0].hooks[0].timeout, 30);
+  assert.equal(settings.hooks.PreCompact, undefined);
   const reader = readFileSync(
     new URL('.claude/agents/krn-reader.md', root),
     'utf8',

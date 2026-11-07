@@ -65,7 +65,7 @@ const verbHelp: Record<string, string> = {
   show: 'krn task show ID [--json]\nShow task details, blockers, dependents, and claim. Example: krn task show t-a1b2c3d --json',
   list: 'krn task list [--status open|closed|all] [--json]\nList tasks. Example: krn task list --status all --json',
   ready:
-    'krn task ready [--limit N] [--explain ID] [--json]\nList ready tasks or explain one task. Example: krn task ready --explain t-a1b2c3d --json',
+    'krn task ready [--limit N] [--explain ID] [--json]\nList ready tasks one line each (see `krn task show ID` for the body), or explain one task. Example: krn task ready --explain t-a1b2c3d --json',
   claim:
     'krn task claim ID --actor NAME [--worktree PATH] [--reason TEXT] [--takeover --reason TEXT] [--json]\nOr use --next instead of ID. Example: krn task claim --next --actor lead --json',
   release:
@@ -273,7 +273,7 @@ function ready(args: string[], json: boolean): CommandOutput {
       tasks: readyResult.tasks,
       findings: readyResult.findings,
     },
-    readyResult.tasks.map((task) => formatTask(task)).join(''),
+    readyResult.tasks.map((task) => formatListTask(task)).join(''),
     json,
   );
 }

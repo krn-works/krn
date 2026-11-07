@@ -1,7 +1,11 @@
 {
   "id": "t-gmzxbxy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Obsolete after the no-gates loop: krn deliver/ship/review-gate ceremony is retired (PRs #258/#259), merges go through GitHub auto-merge."
+  },
   "created": "2026-10-27",
   "priority": 3,
   "title": "Stop archiving worktree state in krn ship cleanup",

@@ -338,7 +338,7 @@ test('show JSON sorts dependents and marks completed dependencies nonblocking', 
   }
 });
 
-test('ready text keeps the detailed task format with created date and body', async () => {
+test('ready text lists one line per task without the body', async () => {
   const record = task('T-1', {
     created: '2026-10-25',
     body: ['Detailed task body.'],
@@ -347,10 +347,7 @@ test('ready text keeps the detailed task format with created date and body', asy
   try {
     const ready = runCli(repo, ['ready']);
     assert.equal(ready.status, 0, ready.stderr);
-    assert.equal(
-      ready.stdout,
-      'T-1 Task T-1\nStatus: open\nPriority: 2\nCreated: 2026-10-25\nAfter: —\n\nDetailed task body.\n\n',
-    );
+    assert.equal(ready.stdout, 'T-1  P2  open  Task T-1  [after: —]\n');
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

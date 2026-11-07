@@ -97,9 +97,29 @@ function tail(path: string): string {
   }
 }
 
+async function capturePrompt(raw: string): Promise<void> {
+  try {
+    const input = object(JSON.parse(raw));
+    const root = process.env.CLAUDE_PROJECT_DIR ?? input.cwd;
+    if (
+      typeof input.prompt === 'string' &&
+      typeof root === 'string' &&
+      typeof input.session_id === 'string'
+    ) {
+      const { capture } = await import('./operator-inbox-store.ts');
+      capture(root, input.session_id, input.prompt);
+    }
+  } catch {
+    /* capture never blocks the gauge or the prompt */
+  }
+}
+
 if (import.meta.main) {
   try {
-    const input = hookInput(['UserPromptSubmit', 'PostToolUse']);
+    const raw = readFileSync(0, 'utf8');
+    // One process serves both prompt-time duties: record the prompt, then gauge.
+    if (raw.includes('"UserPromptSubmit"')) await capturePrompt(raw);
+    const input = hookInput(['UserPromptSubmit', 'PostToolUse'], raw);
     const { total, boundary } = gaugeReading(tail(input.transcriptPath));
     if (total === undefined) throw new Error('No usage');
     const window = budget(input.project);

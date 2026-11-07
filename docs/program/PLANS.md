@@ -19,5 +19,5 @@ Update progress and discoveries before a long command, handoff, commit, or inter
 - Each changed runtime contract needs a focused falsifier. Where applicable, observe it fail by assertion at the base before making it pass.
 - Never invent a before-state, acceptance, or clean result. Compare a failure with the base before attributing it to the change.
 - Do not weaken or remove an existing test or gate to reach green.
-- Run cheap `npm run preflight` checks before review. Under the ADR 0014 D30 amendment, the full Product gate is required CI on the exact HEAD (`npm run gate`): the aggregate GitHub Actions `Check` (App `15368`, `.github/workflows/ci.yml`), selected from the authoritative PR base. Independent preflight and review remain mandatory. `npm run gate:local` remains available for optional local diagnostics (source-selected isolation tests with zero isolation skips); delivery does not invoke it or wait for host load.
+- Delivery is the no-gates loop in `lead-rules.md`: `npm run lint`, `npm run check` and the touched tests locally (`npm run preflight` is the cheap local bundle), then auto-merge on required CI on the exact HEAD, the aggregate GitHub Actions `Check` (App `15368`; ADR 0014 D30). `krn review` and `npm run gate:local` are opt-in.
 - Label evidence claims as defined in [`lead-rules.md`](lead-rules.md).

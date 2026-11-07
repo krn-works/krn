@@ -1,7 +1,11 @@
 {
   "autoCompactWindow": 400000,
   "disableClaudeAiConnectors": true,
-  "deniedMcpServers": [{ "serverName": "rss_news" }],
+  "deniedMcpServers": [
+    {
+      "serverName": "rss_news"
+    }
+  ],
   "env": {
     "BASH_MAX_OUTPUT_LENGTH": "12000",
     "MAX_MCP_OUTPUT_TOKENS": "8000"
@@ -12,11 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/claude/context-gauge.ts\""
-          },
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/claude/operator-inbox.ts\" capture",
+            "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/context-gauge.ts\"",
             "timeout": 5
           }
         ]
@@ -28,18 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/claude/context-gauge.ts\""
-          }
-        ]
-      }
-    ],
-    "PreCompact": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/claude/context-precompact.ts\"",
-            "timeout": 30
+            "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/context-gauge.ts\""
           }
         ]
       }
@@ -50,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/claude/context-restart.ts\""
+            "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/context-restart.ts\""
           }
         ]
       }

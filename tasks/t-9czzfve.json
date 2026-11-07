@@ -1,7 +1,11 @@
 {
   "id": "t-9czzfve",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Obsolete after the no-gates loop: krn deliver/ship/review-gate ceremony is retired (PRs #258/#259), merges go through GitHub auto-merge."
+  },
   "created": "2026-11-06",
   "priority": 0,
   "title": "Ship admits only the base-selected required check, not every check run",

@@ -13,7 +13,6 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { finishCheckpoint } from '../../src/foreman/checkpoint.ts';
 import { writeCheckpointRequest } from '../../src/foreman/checkpoint-request.ts';
-import * as foreman from '../../src/foreman/index.ts';
 import { runJob } from '../../src/foreman/run.ts';
 import { recoverLease, runSession } from '../../src/foreman/session.ts';
 import { recordRepo, stateDirectory } from '../../src/foreman/state.ts';
@@ -470,10 +469,6 @@ test('checkpoint interruption resumes one action in a fresh session', async () =
     },
     stop: (_job, state, reasons) => ({ kind: 'stop' as const, state, reasons }),
   };
-  const runJob = Reflect.get(foreman, 'runJob') as (
-    job: { id: string; issue: string; worktree: string },
-    deps: Deps,
-  ) => Promise<unknown>;
 
   let outcome: unknown;
   await assert.doesNotReject(async () => {
