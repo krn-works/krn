@@ -1,0 +1,12 @@
+{
+  "id": "t-y1nx3kj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 1,
+  "title": "fast: select only tests importing the changed export and run tsc beside tests",
+  "after": [],
+  "body": [
+    "Roadmap R1. A/B v5 (.krn/runs/lead/krn-ab/report-v5.md): KRN arm 51 s vs 37 s in v4 and 15 s slower than plain; the fast tool call took 27-28 s in-run, tests 13-14 s of it. Outcome: npm run fast on a one-file change is at least 5 s faster on the same input, measured before/after, with no loss of tests that import the changed module."
+  ]
+}

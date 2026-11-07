@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { resumeProblems } from './handoff-resume.ts';
+import { resumeProblems, roadmapIds } from './handoff-resume.ts';
 import { memoryDirectory } from './memory-directory.ts';
 import { markHandoff, openEntries } from './operator-inbox-store.ts';
 
@@ -174,6 +174,22 @@ for (const problem of resumeProblems(text))
 
 const file = (path: string) =>
   statSync(path, { throwIfNoEntry: false })?.isFile() === true;
+
+// A named roadmap change must point at a real row of docs/program/roadmap.md.
+const changed = roadmapIds(text);
+if (changed.length > 0) {
+  let roadmap = '';
+  try {
+    roadmap = readFileSync(join(root, 'docs/program/roadmap.md'), 'utf8');
+  } catch {
+    /* reported per id below */
+  }
+  for (const id of changed)
+    if (!new RegExp(`^\\|[^|\\n]*\\|\\s*${id}\\s*\\|`, 'mu').test(roadmap))
+      failures.push(
+        `FAIL ${handoff}: Roadmap names ${id}, which has no row in docs/program/roadmap.md`,
+      );
+}
 const none = items.filter((item) => /^none\.?$/iu.test(item.text));
 if (none.length > 0 && items.length > 1)
   failures.push(

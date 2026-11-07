@@ -1,7 +1,11 @@
 {
   "id": "t-bcenqc3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "docs/program/roadmap.md ranked from hunt ledger, flake census, CI baseline and A/B v5; handoff Resume requires '- Roadmap:' and ids must exist (handoff-requests.ts); retro reranks"
+  },
   "created": "2026-11-05",
   "priority": 0,
   "title": "Keep a ranked improvement roadmap the lead updates every slice",

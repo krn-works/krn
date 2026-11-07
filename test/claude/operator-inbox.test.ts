@@ -62,7 +62,7 @@ function fixture() {
     const file = join(root, 'handoff.md');
     writeFileSync(
       file,
-      '# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `npm run fast`\n\n## Operator requests\n- none\n',
+      '# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `npm run fast`\n- Roadmap: unchanged (fixture)\n\n## Operator requests\n- none\n',
     );
     return spawnSync(
       process.execPath,
