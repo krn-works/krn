@@ -1,0 +1,12 @@
+{
+  "id": "t-va4rzej",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 3,
+  "title": "fast: --base option to replay a merged PR without a soft reset",
+  "after": [],
+  "body": [
+    "fast cannot replay a merged PR: merge-base(HEAD, origin/main) equals HEAD, so it reports 'no changed files'. Replaying #259 needed a detached worktree plus 'git reset --soft <PR base>'. Outcome: 'npm run fast -- --base <sha>' diffs against the given base; a test replays a deleted-file commit through --base and gets FAIL without a reset."
+  ]
+}
