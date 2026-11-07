@@ -13,9 +13,14 @@ const tests = new Map([
   ],
   ['test/cli.test.ts', "import { main } from '../src/cli/main.ts';"],
   ['test/other.test.ts', "import x from '../src/task/claimant.ts';"],
+  [
+    'test/dyn.test.ts',
+    "const m = await import('../src/task/lazy.ts');\nimport '../src/side.ts';",
+  ],
+  ['test/js.test.ts', "import { a } from '../src/pkg/index.js';"],
 ]);
 
-test('fast check selects changed tests, same-stem tests and importers of a changed module', () => {
+test('fast check selects changed tests and tests importing a changed module', () => {
   assert.deepEqual(selectTests(['src/task/claim.ts'], tests), [
     'test/task/claim.test.ts',
   ]);
@@ -26,6 +31,24 @@ test('fast check selects changed tests, same-stem tests and importers of a chang
     'test/other.test.ts',
   ]);
   assert.deepEqual(selectTests(['docs/x.md'], tests), []);
+});
+
+test('fast check ignores same-name modules and basename-only matches', () => {
+  assert.deepEqual(selectTests(['src/other/claim.ts'], tests), []);
+  assert.deepEqual(selectTests(['src/main.ts'], tests), []);
+  assert.deepEqual(selectTests(['src/task/claim.ts'], tests), [
+    'test/task/claim.test.ts',
+  ]);
+});
+
+test('fast check resolves dynamic, side-effect and index specifiers', () => {
+  assert.deepEqual(selectTests(['src/task/lazy.ts'], tests), [
+    'test/dyn.test.ts',
+  ]);
+  assert.deepEqual(selectTests(['src/side.ts'], tests), ['test/dyn.test.ts']);
+  assert.deepEqual(selectTests(['src/pkg/index.ts'], tests), [
+    'test/js.test.ts',
+  ]);
 });
 
 test('fast check lints code files and skips task records and prose', () => {
