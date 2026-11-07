@@ -175,14 +175,18 @@ export type CodexStartInput = {
 
 export class CodexHost {
   readonly #executable: string;
+  readonly #drainQuietMs: number | undefined;
   readonly #sessions = new Map<string, RunningSession>();
 
   constructor(
     options: {
       readonly executable?: string;
+      /** How long a closed session's scope must stay empty; tests shorten the production default. */
+      readonly drainQuietMs?: number;
     } = {},
   ) {
     this.#executable = options.executable ?? defaultCodexExecutable;
+    this.#drainQuietMs = options.drainQuietMs;
   }
 
   async start(input: CodexStartInput): Promise<CodexSession> {
@@ -246,7 +250,13 @@ export class CodexHost {
       env: userManagerEnvironment(workerEnvironment()),
       systemdProperties: codexScopeRuntimeProperties(input.limits.timeoutMs),
     });
-    const running = new RunningSession(id, child, scope, reapedScopes);
+    const running = new RunningSession(
+      id,
+      child,
+      scope,
+      reapedScopes,
+      this.#drainQuietMs,
+    );
     this.#sessions.set(id, running);
     const onAbort = () => void running.cancel().catch(() => undefined);
     input.signal?.addEventListener('abort', onAbort, { once: true });
@@ -462,6 +472,7 @@ class RunningSession {
     child: ChildProcess,
     scope: string,
     reapedScopes: readonly ReapedSystemdScope[] = [],
+    drainQuietMs?: number,
   ) {
     this.#id = id;
     this.#child = child;
@@ -497,6 +508,7 @@ class RunningSession {
             this.#scope,
             this.#scopeEnvironment,
             this.#scopeRegistration,
+            drainQuietMs === undefined ? {} : { quietMs: drainQuietMs },
           );
           const transportClosed = await this.raceWithTimeout(
             this.#transportClose.then(() => true),

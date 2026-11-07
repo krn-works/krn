@@ -92,7 +92,7 @@ test('Codex reports missing required counters for each completed turn', async (t
     `#!/usr/bin/env node\nawait new Promise((done) => { process.stdin.on("end", done); process.stdin.resume(); });\nprocess.stdout.write(${JSON.stringify(`${stream}\n`)});\n`,
     { mode: 0o700 },
   );
-  const host = new CodexHost({ executable });
+  const host = new CodexHost({ executable, drainQuietMs: 100 });
   try {
     const session = await host.start({
       cwd: root,

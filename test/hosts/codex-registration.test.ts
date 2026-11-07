@@ -83,7 +83,7 @@ IFS= read -r prompt || true
       [systemdRun, executable].map((path) => chmod(path, 0o755)),
     );
     process.env.PATH = `${fakeBin}:${previousPath ?? ''}`;
-    host = new CodexHost({ executable });
+    host = new CodexHost({ executable, drainQuietMs: 100 });
     const session = await host.start({
       cwd: directory,
       model: 'gpt-6-luna',
@@ -202,7 +202,7 @@ test('cancellation during onStarted cannot deliver a prompt or return a session'
   const directory = await mkdtemp(join(tmpdir(), 'krn-codex-callback-cancel-'));
   const executable = join(directory, 'fake-codex');
   const promptMarker = join(directory, 'prompt-delivered');
-  const host = new CodexHost({ executable });
+  const host = new CodexHost({ executable, drainQuietMs: 100 });
   let callbackEntered = false;
   let releaseCallback!: () => void;
   const callbackGate = new Promise<void>((resolve) => {
@@ -289,7 +289,7 @@ test('child exit during blocked onStarted remains cancellable and hands back the
   const directory = await mkdtemp(join(tmpdir(), 'krn-codex-closed-callback-'));
   const executable = join(directory, 'fake-codex');
   const workerPidFile = join(directory, 'worker-pid');
-  const host = new CodexHost({ executable });
+  const host = new CodexHost({ executable, drainQuietMs: 100 });
   let callbackEntered = false;
   let releaseCallback!: () => void;
   const callbackGate = new Promise<void>((resolve) => {
@@ -410,7 +410,7 @@ test('failed close verification retains an uncertain cancellation handle', {
   const unitFile = join(directory, 'owned-unit');
   const denyFile = join(directory, 'deny-owned-unit');
   const previousPath = process.env.PATH;
-  const host = new CodexHost({ executable });
+  const host = new CodexHost({ executable, drainQuietMs: 100 });
   let workerIdentity: { pid: number; startTicks: string } | undefined;
   let workerUnit: string | undefined;
   let callbackEntered = false;
@@ -791,7 +791,8 @@ test('traversal ControlGroup cannot supply a registration proof', async () => {
       'the owned temp canary contains this live process',
     );
     await assert.rejects(
-      waitForSystemdScopeRegistration(unit, () => false),
+      // The fake manager answers at once, so a short deadline suffices.
+      waitForSystemdScopeRegistration(unit, () => false, 300),
       /did not register a live process/u,
       'an owned temp cgroup.procs outside the cgroup root is not proof',
     );
@@ -828,7 +829,7 @@ test('cancelling a pending registration kills its owned launcher before callback
   const unitMarker = join(directory, 'launcher-unit');
   const promptMarker = join(directory, 'prompt-delivered');
   const previousPath = process.env.PATH;
-  const host = new CodexHost({ executable });
+  const host = new CodexHost({ executable, drainQuietMs: 100 });
   let callbacks = 0;
   let launcherPid: number | undefined;
   let launchedUnit: string | undefined;
@@ -1045,7 +1046,8 @@ exec /usr/bin/systemctl "$@"
       else process.env.PATH = previousPath;
     }
     await assert.rejects(
-      drainSystemdScope(unit, missingEnv, registration),
+      // The injected kill is a no-op, so any deadline ends unverified.
+      drainSystemdScope(unit, missingEnv, registration, { timeoutMs: 300 }),
       /did not become empty|cannot verify/,
     );
     assert.equal(

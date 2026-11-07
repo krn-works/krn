@@ -53,6 +53,7 @@ const registrationSchema = z.object({
 });
 const registrationTimeoutMs = 5000;
 const registrationDrainQuietMs = 1000;
+const killVerifyMs = 5000;
 const cgroupPidByteLimit = 8 * 1024;
 const cgroupPidCountLimit = 256;
 
@@ -135,8 +136,9 @@ function registrationCgroupPath(
 export async function waitForSystemdScopeRegistration(
   unit: string,
   shouldStop: () => boolean,
+  timeoutMs = registrationTimeoutMs,
 ): Promise<SystemdScopeRegistration> {
-  const deadline = Date.now() + registrationTimeoutMs;
+  const deadline = Date.now() + timeoutMs;
   const env = userManagerEnvironment();
   while (Date.now() < deadline) {
     if (shouldStop())
@@ -148,13 +150,21 @@ export async function waitForSystemdScopeRegistration(
   throw new Error(`systemd scope ${unit} did not register a live process`);
 }
 
+/** How long a drain may take and how long the scope must stay empty to count as drained. */
+export type DrainTiming = {
+  readonly timeoutMs?: number;
+  readonly quietMs?: number;
+};
+
 export async function drainSystemdScope(
   unit: string,
   env: NodeJS.ProcessEnv = userManagerEnvironment(),
   registration?: SystemdScopeRegistration,
+  timing: DrainTiming = {},
 ): Promise<void> {
+  const { timeoutMs = 7000, quietMs = registrationDrainQuietMs } = timing;
   const original = registration ?? observeSystemdScopeRegistration(unit, env);
-  const deadline = Date.now() + 7000;
+  const deadline = Date.now() + timeoutMs;
   let quietSince: number | undefined;
   while (Date.now() < deadline) {
     const active = systemdScopeActive(unit, env, original);
@@ -173,10 +183,15 @@ export async function drainSystemdScope(
     }
     if (active) {
       quietSince = undefined;
-      await killAndVerifyScope(unit, env, original);
+      await killAndVerifyScope(
+        unit,
+        env,
+        original,
+        Math.min(killVerifyMs, timeoutMs),
+      );
     } else {
       quietSince ??= Date.now();
-      if (Date.now() - quietSince >= registrationDrainQuietMs) return;
+      if (Date.now() - quietSince >= quietMs) return;
     }
     await new Promise((done) => setTimeout(done, 20));
   }
@@ -470,6 +485,7 @@ export async function killAndVerifyScope(
   unit: string,
   env: NodeJS.ProcessEnv = userManagerEnvironment(),
   registration?: SystemdScopeRegistration,
+  timeoutMs = killVerifyMs,
 ): Promise<void> {
   const original = registration ?? observeSystemdScopeRegistration(unit, env);
   const killed = spawnSync(
@@ -477,7 +493,7 @@ export async function killAndVerifyScope(
     ['--user', 'kill', '--kill-whom=all', '--signal=SIGKILL', unit],
     { encoding: 'utf8', env, timeout: 5000 },
   );
-  const deadline = Date.now() + 5000;
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const active = systemdScopeActive(unit, env, original);
     if (active === false) return;

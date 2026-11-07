@@ -28,7 +28,7 @@ test('CodexHost defaults to high reasoning effort for bounded shell work', async
     );
     await chmod(executable, 0o755);
 
-    const host = new CodexHost({ executable });
+    const host = new CodexHost({ executable, drainQuietMs: 100 });
     const session = await host.start({
       cwd: directory,
       model: 'gpt-6-luna',
@@ -70,7 +70,7 @@ test('CodexHost launches an explicitly read-only bounded session', async (t) => 
     );
     await chmod(executable, 0o755);
 
-    const host = new CodexHost({ executable });
+    const host = new CodexHost({ executable, drainQuietMs: 100 });
     const session = await host.start({
       cwd: directory,
       model: 'gpt-6-luna',
@@ -109,7 +109,7 @@ test('CodexHost abort signal cancels its owned process tree', async (t) => {
     await chmod(executable, 0o755);
 
     const controller = new AbortController();
-    const host = new CodexHost({ executable });
+    const host = new CodexHost({ executable, drainQuietMs: 100 });
     const session = await host.start({
       cwd: directory,
       model: 'gpt-6-luna',
@@ -147,7 +147,7 @@ test('an empty Codex final message is not a completed claim', async (t) => {
     );
     await chmod(executable, 0o755);
 
-    const host = new CodexHost({ executable });
+    const host = new CodexHost({ executable, drainQuietMs: 100 });
     const session = await host.start({
       cwd: directory,
       model: 'gpt-6-luna',

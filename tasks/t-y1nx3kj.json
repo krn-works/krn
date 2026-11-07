@@ -1,7 +1,11 @@
 {
   "id": "t-y1nx3kj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast on a one-file src/hosts/codex.ts change: related tests 20-27 s on main -> 6-12 s (19 tests, same selection). Cause: every CodexHost test waited the 1000 ms drain quiet period and two tests waited full 5-7 s deadlines; CodexHost takes drainQuietMs, drain/wait take deadlines, tests pass short ones. Export-level selection dropped: it would lose tests importing the changed module. Host-load registration flakes reproduce equally on main (t-0c0gcmc)."
+  },
   "created": "2026-11-07",
   "priority": 1,
   "title": "fast: select only tests importing the changed export and run tsc beside tests",

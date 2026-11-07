@@ -286,7 +286,7 @@ exec /usr/bin/systemctl "$@"
     const childSource = `
 import { readFileSync, writeFileSync } from 'node:fs';
 const { CodexHost } = await import(process.env.KRN_F2_MODULE_URL);
-const host = new CodexHost({ executable: process.env.KRN_F2_CODEX });
+const host = new CodexHost({ executable: process.env.KRN_F2_CODEX, drainQuietMs: 100 });
 const session = await host.start({
   cwd: process.env.KRN_F2_CWD,
   model: 'gpt-6-luna',

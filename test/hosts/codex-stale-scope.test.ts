@@ -83,7 +83,10 @@ test('a new host reaps an orphaned scope by prefix and owner metadata', async (t
     await closed;
 
     const completedFake = await fakeCodex(directory);
-    const host = new CodexHost({ executable: completedFake });
+    const host = new CodexHost({
+      executable: completedFake,
+      drainQuietMs: 100,
+    });
     const session = await host.start({
       cwd: directory,
       model: 'gpt-6-luna',
@@ -124,7 +127,7 @@ async function parentRunner(directory: string): Promise<string> {
   const hostModule = new URL('../../src/hosts/codex.ts', import.meta.url).href;
   await writeFile(
     runner,
-    `import { CodexHost } from ${JSON.stringify(hostModule)};\nimport { writeFileSync } from 'node:fs';\nconst host=new CodexHost({executable:process.env.KRN_FAKE_CODEX});\nconst session=await host.start({cwd:process.env.KRN_SCOPE_CWD,model:'gpt-6-luna',prompt:'wait',limits:{timeoutMs:Number(process.env.KRN_SESSION_TIMEOUT)}});\nwriteFileSync(process.env.KRN_PARENT_READY,String(process.pid));\nawait session.wait();\n`,
+    `import { CodexHost } from ${JSON.stringify(hostModule)};\nimport { writeFileSync } from 'node:fs';\nconst host=new CodexHost({executable:process.env.KRN_FAKE_CODEX,drainQuietMs:100});\nconst session=await host.start({cwd:process.env.KRN_SCOPE_CWD,model:'gpt-6-luna',prompt:'wait',limits:{timeoutMs:Number(process.env.KRN_SESSION_TIMEOUT)}});\nwriteFileSync(process.env.KRN_PARENT_READY,String(process.pid));\nawait session.wait();\n`,
   );
   return runner;
 }

@@ -33,7 +33,7 @@ writeNext(0);
 `,
       { mode: 0o755 },
     );
-    host = new CodexHost({ executable });
+    host = new CodexHost({ executable, drainQuietMs: 100 });
     const session = await host.start({
       cwd: root,
       model: 'gpt-6-luna',
