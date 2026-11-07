@@ -103,6 +103,18 @@
         "deadline": "2026-12-31"
       },
       "rationale": "Fresh sessions restart from durable files instead of accumulating context."
+    },
+    {
+      "id": "KRN-14",
+      "trigger": "a defect is fixed",
+      "action": "the author MUST add its regression test at the lowest layer that reproduces it",
+      "owner": "author",
+      "enforcement": {
+        "kind": "none",
+        "check": "manual review",
+        "deadline": "2026-12-31"
+      },
+      "rationale": "Low-layer tests fail fast and name the broken unit."
     }
   ]
 }

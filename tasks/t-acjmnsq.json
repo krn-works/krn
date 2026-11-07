@@ -1,7 +1,11 @@
 {
   "id": "t-acjmnsq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "pkill ban already mechanical (deny rule #306), no prose added; test-layer rule KRN-14 added"
+  },
   "created": "2026-11-07",
   "priority": 2,
   "title": "AGENTS.md craft from t3code: ban pkill by pattern, lowest-layer tests",
