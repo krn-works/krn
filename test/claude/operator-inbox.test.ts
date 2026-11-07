@@ -128,7 +128,7 @@ test('capture redacts secrets, bounds length, and never fails the prompt', () =>
 const notification = `<task-notification>
 <task-id>a9e853e5b65d4173a</task-id>
 <tool-use-id>toolu_01P7nh8okQXUjXGbtUe1bX3q</tool-use-id>
-<output-file>/mnt/storage/tmp/krn/claude/tasks/a9e853e5b65d4173a.output</output-file>
+<output-file>/tmp/claude/tasks/a9e853e5b65d4173a.output</output-file>
 <status>completed</status>
 <summary>Agent "Run KRN/plain/T3 A/B study" finished</summary>
 <note>A task-notification fires each time this agent stops with no live background children of its own.</note>
