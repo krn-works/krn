@@ -1,0 +1,12 @@
+{
+  "id": "t-aajfaqd",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "Derive shard weights from CI per-file durations",
+  "after": [],
+  "body": [
+    "Outcome: shard weights come from CI, not the lead host. The test summary (KRN_TEST_SUMMARY_JSON) records per-file wall time, and a script folds the last N runs into scripts/lib/shard-weights.mjs.\nEvidence: t-q625vvc (#335) measured weights locally at load 10-20 (same file 25-47 s across runs); CI logs carry no per-file durations. After #335 shard test steps were 11..26 s (run 42420551206), so the next lever is the largest single file (evals/session, input-bounds), not the plan.\nAcceptance: one command prints refreshed weights from at least 5 CI runs; a test fails when a test file has no weight."
+  ]
+}
