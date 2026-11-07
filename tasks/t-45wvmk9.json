@@ -1,0 +1,12 @@
+{
+  "id": "t-45wvmk9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 1,
+  "title": "Deepen the top architecture candidates measured by depth.ts",
+  "after": [],
+  "body": [
+    "Follow-up of t-87ks15p: deepen the ranked candidates in .krn/runs/lead/architecture-candidates.md (scripts/architecture/depth.ts measures before/after): split the trace/index.ts hub (1457 lines), narrow verdict/sandbox.ts to execute, split hosts/codex.ts isolation modes into two adapters, split flow/types.ts by owner; extend depth.ts with unimported-export report and .mjs scan; enforce KRN-05 in Lint (dependency-cruiser, from t-phsq5re)."
+  ]
+}

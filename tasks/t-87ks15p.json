@@ -1,7 +1,11 @@
 {
   "id": "t-87ks15p",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn-architecture skill + scripts/architecture/depth.ts; candidates ranked; follow-up t-45wvmk9"
+  },
   "created": "2026-11-05",
   "priority": 0,
   "title": "Adopt an architecture-review skill (codebase-design, improve-codebase-architecture) and run it on KRN hot spots",
