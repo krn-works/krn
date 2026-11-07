@@ -1,0 +1,12 @@
+{
+  "id": "t-yx8ys0c",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 1,
+  "title": "Own krn state in one place: bin/krn vs global install",
+  "after": [],
+  "body": [
+    "Found 2026-11-07: after #268 removed legacy forwarding, repo `bin/krn state ...` exits 64 (unknown command) while PATH `krn` (~/.local/bin/krn -> ~/.codex/krn/releases/<sha>/scripts/krn.mjs, GLOBAL install) still owns `state resume|check`. Skills say `krn state` (PATH) but also `bin/krn review`; a lead mixing them hits exit 64. Decide one owner: port `state resume|check` into Product bin/krn, or make skills/docs say explicitly that state lives in the global krn and bin/krn prints that pointer for `state`."
+  ]
+}
