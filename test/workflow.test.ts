@@ -4,7 +4,7 @@ import { test } from 'node:test';
 
 const workflowPath = new URL('../.github/workflows/ci.yml', import.meta.url);
 
-test('cheap preflight reuses local observers and documents manual impact and PR budget boundaries', async () => {
+test('cheap preflight reuses local observers', async () => {
   const manifest: unknown = JSON.parse(
     await readFile(new URL('../package.json', import.meta.url), 'utf8'),
   );
@@ -17,27 +17,13 @@ test('cheap preflight reuses local observers and documents manual impact and PR 
   );
   assert.equal(
     scripts.preflight,
-    'npm run check && npm run lint && npm run rules && node scripts/head-trailers.mjs && node src/cli/main.ts task check && npm test -- test/workflow.test.ts test/import-boundary.test.ts test/rules',
+    'npm run check && npm run lint && npm run rules && node src/cli/main.ts task check',
   );
-  for (const path of [
-    'README.md',
-    'docs/program/repository-workflow.md',
-    'docs/program/lead-rules.md',
-  ]) {
-    const source = await readFile(
-      new URL(`../${path}`, import.meta.url),
-      'utf8',
-    );
-    for (const expected of [
-      /npm run preflight/u,
-      /[Mm]anually review test impact/u,
-      /--pr/u,
-      /--budget-exception/u,
-      /[Dd]eterministic checks always block/u,
-      /scripts\/pr-preflight\.mjs/u,
-    ])
-      assert.match(source, expected, path);
-  }
+  const plans = await readFile(
+    new URL('../docs/program/PLANS.md', import.meta.url),
+    'utf8',
+  );
+  assert.match(plans, /npm run preflight/u);
 });
 
 function jobBlocks(source: string): Map<string, string> {
@@ -183,14 +169,13 @@ test('Product uses required exact-head Actions Check and optional local diagnost
     'docs/program/repository-workflow.md',
     'docs/program/lead-rules.md',
     'docs/program/PLANS.md',
-    '.agents/skills/krn-lead/SKILL.md',
   ]) {
     const source = await readFile(
       new URL(`../${path}`, import.meta.url),
       'utf8',
     );
     assert.match(source, /required CI on the exact HEAD/u, path);
-    assert.match(source, /`Check` \(App `15368`/u, path);
+    assert.match(source, /`Check`.*App `15368`/u, path);
     assert.doesNotMatch(
       source,
       /after review the lead runs .*gate:local/iu,

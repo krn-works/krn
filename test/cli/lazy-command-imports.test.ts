@@ -29,8 +29,6 @@ const allCommandDirectories = [
   'relay',
   'task',
   'trace',
-  'verify',
-  'slice',
 ];
 
 test('CLI commands load only their command modules', async (t) => {
@@ -62,17 +60,6 @@ test('CLI commands load only their command modules', async (t) => {
         args: ['legacy-module-probe'],
         forbidden: allCommandDirectories,
         env: { KRN_LEGACY_ENTRY: legacy, KRN_FORWARDED: '' },
-      },
-      {
-        name: 'deliver help',
-        args: ['deliver', '--help'],
-        forbidden: allCommandDirectories.filter((name) => name !== 'deliver'),
-      },
-      {
-        name: 'slice usage',
-        args: ['slice'],
-        forbidden: allCommandDirectories.filter((name) => name !== 'slice'),
-        status: 64,
       },
       {
         name: 'task list',

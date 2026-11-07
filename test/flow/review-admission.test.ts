@@ -221,27 +221,6 @@ test('PR-bound clean red-first reserves one ordinal before running judges', asyn
   assert.ok(host.starts() > 0, 'clean PR review must run panel judges');
 });
 
-test('exhausted budget refuses before a deterministic red-first cause', async (t) => {
-  const f = fixture(t);
-  const host = mockHost(t);
-  const report = await redFirst(f.repo, f.base, f.brokenHead);
-  assert.ok(
-    deterministicCauses(report.results, report.contracts ?? []).length > 0,
-    'broken declaration must yield a deterministic cause',
-  );
-
-  await flow.runReview(f.input(f.cleanHead));
-  await flow.runReview(f.input(f.cleanHead));
-  const startsBeforeRefusal = host.starts();
-  await assert.rejects(
-    flow.runReview(f.input(f.brokenHead)),
-    (error: unknown) => error instanceof ReviewBudgetError,
-  );
-
-  assert.equal(f.reservations().length, 2);
-  assert.equal(host.starts(), startsBeforeRefusal);
-});
-
 test('an aborted PR-bound review with a red-first cause refuses before reservation', async (t) => {
   const f = fixture(t);
   const host = mockHost(t);

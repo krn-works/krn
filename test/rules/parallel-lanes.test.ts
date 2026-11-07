@@ -18,8 +18,7 @@ test('lead rules bound parallel lanes to two isolated outcomes', () => {
     '.krn/runs/delivery-loop/<outcome>/',
     '.krn/task-claims',
     'One writer per outcome',
-    'review again',
-    'main advanced',
+    'rebase only on a conflict',
   ])
     assert.ok(
       lanes.includes(required),
