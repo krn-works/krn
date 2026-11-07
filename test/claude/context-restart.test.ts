@@ -16,7 +16,7 @@ const script = fileURLToPath(
   new URL('../../scripts/claude/context-restart.ts', import.meta.url),
 );
 
-test('restart hook emits bounded JSON with capsule fields, open claims, handoff and five rules', () => {
+test('restart hook emits bounded JSON with branch, open claims and newest handoff only', () => {
   assert.ok(existsSync(script), 'restart script exists');
   const root = mkdtempSync(join(tmpdir(), 'context-restart-'));
   const git = (args: string[]) => {
@@ -59,10 +59,6 @@ test('restart hook emits bounded JSON with capsule fields, open claims, handoff 
       recursive: true,
     });
     writeFileSync(
-      join(root, '.krn/runs/delivery-loop/outcome/state.md'),
-      `Outcome state: ACTIVE\nRestart state: ${'resume '.repeat(1000)}\nAuthority: must not include\n`,
-    );
-    writeFileSync(
       join(root, '.krn/runs/delivery-loop/outcome/handoff.md'),
       'pointer only',
     );
@@ -88,19 +84,14 @@ test('restart hook emits bounded JSON with capsule fields, open claims, handoff 
       'fixture',
       git(['rev-parse', '--short', 'HEAD']),
       'fixture-claim',
-      'Outcome state: ACTIVE',
-      'Restart state:',
       'handoff.md',
-      'delegate reading',
-      'verdict and path',
-      'pointers, not file contents',
-      'commands that print a verdict',
-      'parallel worktree lanes',
-      'gauge advisory',
-      'krn-handoff',
     ])
       assert.ok(output.additionalContext.includes(text), text);
-    assert.ok(!output.additionalContext.includes('Authority:'));
+    assert.ok(
+      !output.additionalContext.includes('Rule:'),
+      'static rules live in CLAUDE.md',
+    );
+    assert.ok(output.additionalContext.length < 500);
     assert.ok(
       !output.additionalContext.includes('stale-claim'),
       'claims on closed tasks are stale',
@@ -122,17 +113,6 @@ test('restart hook emits bounded JSON with capsule fields, open claims, handoff 
     assert.match(
       JSON.parse(resumed.stdout).hookSpecificOutput.additionalContext,
       /fixture-claim/u,
-    );
-    assert.match(
-      JSON.parse(resumed.stdout).hookSpecificOutput.additionalContext,
-      /Outcome state: ACTIVE/u,
-    );
-
-    assert.ok(
-      output.additionalContext
-        .split('\n')
-        .filter((line: string) => line.startsWith('Restart state:'))
-        .every((line: string) => line.length <= 400),
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
