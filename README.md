@@ -12,7 +12,7 @@ node src/cli/main.ts --version
 
 Install repository dependencies with `pnpm install --frozen-lockfile`.
 
-Product implements `--version`, `task`, `review`, `ci`, `worker`, `delegate`, `report journey`, `start`, `checkpoint`, `stop`, `note`, and `eval`. Unknown commands are forwarded to the Global KRN package under KRN-06. Merging is `gh pr merge --auto --merge` once the required `Check` passes.
+Product implements `--version`, `task`, `review`, `ci`, `worker`, `ledger`, and `eval`. Unknown commands exit 64 under KRN-06. Merging is `gh pr merge --auto --merge` once the required `Check` passes.
 
 ## Checks and delivery
 
@@ -42,32 +42,6 @@ For prior verification add `--prior-record <first-FAIL-record.json>` and retain 
 ```
 
 The exception is retained in the reservation and raw record; it cannot be reused for another ordinal or head. Acceptance override is separate: `krn review --repo <path> --pr <number> --base <exact-base-sha> --head <exact-head-sha> --override --reason <text> --evidence <text>`. It grants no budget and cannot bypass deterministic failure or incomplete exact-head evidence. An earlier consumed incomplete attempt may precede a later complete attempt on the same or a different head. PR metadata reads can be injected into the direct API for offline tests; local exception text uses the trusted lead boundary, without cryptographic operator authentication.
-
-## Paused foreman/live-delivery route (D23)
-
-The live foreman route is paused under D23 until the delivery proof metrics exist. The route contract below documents the paused implementation; it is not the current delivery path.
-
-The live foreman reads a local JSON contract:
-
-```sh
-KRN_LIVE=1 npm run live -- --repo /absolute/repo --job delivery --issue t-example --contract /absolute/contract.json
-```
-
-The contract supplies `issueId`, `identifier`, `title`, `description`, `revision`, `targetRepo` (`owner/repository` matching the origin remote), and a nonempty `checks` array of declared check IDs. For example:
-
-```json
-{
-  "issueId": "t-example",
-  "identifier": "t-example",
-  "title": "Implement the requested change",
-  "description": "Delivery requirements",
-  "revision": "1",
-  "targetRepo": "owner/repository",
-  "checks": ["typecheck", "lint", "rules"]
-}
-```
-
-Optional `--revision` must match the contract. Passing verification records local `ready_for_review` evidence; the live command does not publish reviews or deliveries to an external service.
 
 ## Start here
 

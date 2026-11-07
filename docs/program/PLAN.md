@@ -41,8 +41,6 @@ Capture only approved delivery fields as evidence. Review episodes, reusable les
 ## Paused until delivery proof
 
 - Qualified worker environment — paused; `t-7zm0211` covers the CI-image gate; prior exit: real-task qualification proves required tests and commits in an isolated worktree without secrets or host access.
-- Product delivery through `krn delegate` — paused; prior exit: one real delivery through `krn delegate` and `krn review` with independent exact-head reviews, gates, and CI.
-- Orchestration build-out (`foreman`, `relay`, `hosts`, `trace`) — paused until proof metrics exist.
 
 ## In-repository task tracker
 

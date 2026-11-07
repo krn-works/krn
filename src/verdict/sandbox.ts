@@ -8,7 +8,6 @@ import { basename, delimiter, dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import { resolveGoToolchain } from '../../scripts/isolation-gate.mjs';
 import type { Job } from '../core/index.ts';
-import { stateDirectory } from '../foreman/state.ts';
 import {
   parseSystemdScopeProperties,
   type SystemdScopeRegistration,
@@ -17,6 +16,7 @@ import {
 } from '../hosts/systemd-scope.ts';
 import type { CheckEvidence } from './index.ts';
 import { type CommandResult, git, run, sandboxEnv } from './process.ts';
+import { stateDirectory } from './state-directory.ts';
 
 export const MAX_CHECK_OUTPUT_BYTES = 8 * 1024 * 1024;
 export const CHECK_TMPDIR_SIZE_BYTES = 256 * 1024 * 1024;

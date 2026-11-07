@@ -63,8 +63,8 @@ import {
   panelRoles,
   reviewRecordSchema,
 } from '../../src/flow/types.ts';
-import { stateDirectory } from '../../src/foreman/state.ts';
 import type { execute } from '../../src/verdict/sandbox.ts';
+import { stateDirectory } from '../../src/verdict/state-directory.ts';
 
 const testPath = 'test/example.test.mjs';
 const passingTest =

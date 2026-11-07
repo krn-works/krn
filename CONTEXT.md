@@ -6,7 +6,7 @@
 - **Agent:** a model running through a harness.
 - **KRN:** the product for fast, low-noise software creation with agents. It is a software delivery layer above agent harnesses and is never called a harness. KRN measures its own delivery by merges per lane-hour, review rounds, conflicts, and flaky stalls.
 - **Host:** owns model sessions, tool execution, and host permissions.
-- **Product KRN:** owns this TypeScript CLI and runtime. It implements `--version`, `task`, `review`, `delegate`, `report journey`, `start`, `checkpoint`, `stop`, `note`, and `eval`. Unknown commands are forwarded under KRN-06; Product does not implement merge.
+- **Product KRN:** owns this TypeScript CLI and runtime. It implements `--version`, `task`, `review`, `ci`, `worker`, `ledger`, and `eval`. Unknown commands exit 64 under KRN-06; Product does not implement merge.
 - **Global KRN package:** owns the compatibility CLI, skills, hooks, and installer. The package boundary remains until the measured trigger in ADR 0013.
 
 ## Current control plane

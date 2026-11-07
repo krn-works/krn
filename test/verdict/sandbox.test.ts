@@ -20,7 +20,6 @@ import { createConnection } from 'node:net';
 import { delimiter, join } from 'node:path';
 import test, { mock } from 'node:test';
 import { redFirst } from '../../src/flow/repository.ts';
-import { recordRepo } from '../../src/foreman/state.ts';
 import * as systemdScope from '../../src/hosts/systemd-scope.ts';
 import { judge } from '../../src/verdict/index.ts';
 import * as sandbox from '../../src/verdict/sandbox.ts';
@@ -115,75 +114,6 @@ function waitForRunningCheck(root: string): Promise<string> {
     return copy && existsSync(join(copy, 'check-ready')) ? copy : undefined;
   }, 'the registered verdict worktree with its running check marker');
 }
-
-test('real SIGTERM during a running verdict check stops before review readiness and is traced', {
-  timeout: conditionTimeoutFor(2),
-}, async (t) => {
-  if (
-    !requiresIsolation(
-      t,
-      'real SIGTERM during a running verdict check stops before review readiness and is traced',
-      ['bwrap', 'systemdUserScope'],
-    )
-  )
-    return;
-  const f = fixture(heldCheck);
-  recordRepo(f.job, f.root);
-  const marker = join(f.root, 'ready-for-review-called');
-  const source = `
-    import { writeFileSync } from 'node:fs';
-    import { verifyCheckpoint } from ${JSON.stringify(new URL('../../src/foreman/verdict.ts', import.meta.url).href)};
-    import * as trace from ${JSON.stringify(new URL('../../src/trace/index.ts', import.meta.url).href)};
-    const job=${JSON.stringify(f.job)};
-    const controller=new AbortController();
-    process.once('SIGTERM',()=>controller.abort('SIGTERM'));
-    const capsule=${JSON.stringify({ jobId: f.job.id, issue: f.job.issue, contractRevision: 'r1', epoch: 0, base: f.base, head: f.sha, branch: 'main', worktree: f.root, nextAction: 'done', lease: 'checkpointed', blockers: [], decisions: [], rejectedApproaches: [], references: [] })};
-    const contract=${JSON.stringify({ issueId: f.job.issue, identifier: 'fixture', title: 'fixture', description: 'fixture', revision: 'r1', targetRepo: 'fixture/repo', checks: ['declared'] })};
-    const deps={budget:{maxRepairs:0},signal:controller.signal,trace:{verdict:trace.verdict,readyForReview:async()=>{writeFileSync(${JSON.stringify(marker)},'called')}},stop:(_job,state,reasons)=>({kind:'stop',state,reasons})};
-    const result=await verifyCheckpoint(job,capsule,${JSON.stringify(f.sha)},contract,0,deps);
-    if(controller.signal.aborted) await trace.stopped(job,'SIGTERM');
-    process.stdout.write(JSON.stringify(result)+'\\n');
-    if(controller.signal.aborted) process.exitCode=130;
-  `;
-  const child = spawn(process.execPath, ['--input-type=module', '-e', source], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  let output = '';
-  let errors = '';
-  child.stdout.setEncoding('utf8').on('data', (chunk) => (output += chunk));
-  child.stderr.setEncoding('utf8').on('data', (chunk) => (errors += chunk));
-  try {
-    await waitForRunningCheck(f.root);
-    assert.ok(child.pid);
-    process.kill(child.pid, 'SIGTERM');
-    const { code } = await waitForProcessExit(
-      child,
-      'the signalled verdict process to exit',
-    );
-    assert.equal(code, 130, errors);
-    assert.equal(
-      existsSync(marker),
-      false,
-      'SIGTERM must prevent local review readiness',
-    );
-    assert.match(output, /stopped/u);
-    assert.match(
-      readFileSync(
-        join(f.root, '.krn', 'runs', 'foreman', f.job.id, 'trace.jsonl'),
-        'utf8',
-      ),
-      /"kind":"stopped"/u,
-    );
-  } finally {
-    if (child.exitCode === null && child.signalCode === null)
-      child.kill('SIGKILL');
-    await waitForProcessExit(
-      child,
-      'the owned verdict child to exit during cleanup',
-    );
-    rmSync(f.root, { recursive: true, force: true });
-  }
-});
 
 test('worker HEAD registry edits cannot replace commands from the base registry', async (t) => {
   if (

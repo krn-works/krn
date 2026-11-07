@@ -1,13 +1,8 @@
 #!/usr/bin/env node
-// The CLI owns its name while unknown commands pass through to the configured legacy entry. ADR 0001.
-import { spawn } from 'node:child_process';
-import { realpathSync } from 'node:fs';
 import { commandErrorExitCode } from './command-error.ts';
 import { commandHelp, topLevelHelp } from './help.ts';
 
 const version = '0.1.0';
-const recursionFlag = 'KRN_FORWARDED';
-const entryFile = import.meta.filename;
 type ReviewCommandOutcome =
   | 'PASS'
   | 'FAIL'
@@ -15,69 +10,15 @@ type ReviewCommandOutcome =
   | 'OVERRIDE'
   | 'PREPASS_BLOCKING';
 
-async function dispatch(
-  args: string[],
-  runtime: { readonly delegate?: import('./delegate.ts').DelegateRuntime } = {},
-): Promise<boolean> {
+async function dispatch(args: string[]): Promise<boolean> {
   const { dispatch: run } = await import('./index.ts');
-  return run(args, runtime);
+  return run(args);
 }
 
 async function review(args: string[]): Promise<void> {
   const { reviewCommand } = await import('../flow/cli.ts');
   const outcome = await reviewCommand(args);
   if (outcome) process.exitCode = reviewOutcomeExitCode(outcome);
-}
-
-async function reportJourney(args: string[]): Promise<void> {
-  const { reportJourneyCommand } = await import('./report-journey.ts');
-  process.exitCode = reportJourneyCommand(args);
-}
-
-async function forward(args: string[]): Promise<void> {
-  if (process.env[recursionFlag] === '1') {
-    process.stderr.write('Legacy forwarding recursion blocked.\n');
-    process.exitCode = 70;
-    return;
-  }
-
-  let legacyBin = process.env.KRN_LEGACY_ENTRY;
-  if (!legacyBin) {
-    const [operatingSystem, path] = await Promise.all([
-      import('node:os'),
-      import('node:path'),
-    ]);
-    legacyBin = path.join(
-      operatingSystem.homedir(),
-      '.codex/krn/current/scripts/krn.mjs',
-    );
-  }
-  let resolvesToEntry: boolean;
-  try {
-    resolvesToEntry = realpathSync(legacyBin) === entryFile;
-  } catch {
-    const { resolve } = await import('node:path');
-    resolvesToEntry = resolve(legacyBin) === entryFile;
-  }
-  if (resolvesToEntry) {
-    process.stderr.write('Legacy forwarding recursion blocked.\n');
-    process.exitCode = 70;
-    return;
-  }
-
-  const child = spawn(process.execPath, [legacyBin, ...args], {
-    env: { ...process.env, [recursionFlag]: '1' },
-    stdio: 'inherit',
-  });
-  child.once('error', () => {
-    process.stderr.write(`Unable to start legacy command: ${legacyBin}\n`);
-    process.exitCode = 127;
-  });
-  child.once('close', (code, signal) => {
-    if (code !== null) process.exitCode = code;
-    else if (signal) process.exitCode = 128;
-    else process.exitCode ??= 1;
-  });
 }
 
 export function reviewOutcomeExitCode(outcome: ReviewCommandOutcome): number {
@@ -104,9 +45,10 @@ export function main(args = process.argv.slice(2)): void {
     process.stdout.write(help);
     return;
   }
-  // Top-level help lists the owned commands, then the legacy entry lists its own.
-  if (args[0] === '--help' || args[0] === '-h' || args.length === 0)
+  if (args[0] === '--help' || args[0] === '-h' || args.length === 0) {
     process.stdout.write(topLevelHelp());
+    return;
+  }
 
   if (args[0] === '--version') {
     process.stdout.write(`krn ${version}\n`);
@@ -123,52 +65,7 @@ export function main(args = process.argv.slice(2)): void {
     return;
   }
 
-  if (args[0] === 'report' && args[1] === 'journey') {
-    void reportJourney(args.slice(1));
-    return;
-  }
-
-  if (args[0] === 'delegate') {
-    const controller = new AbortController();
-    const interrupt = () => controller.abort();
-    process.on('SIGINT', interrupt);
-    process.on('SIGTERM', interrupt);
-    void dispatch(args, {
-      delegate: {
-        signal: controller.signal,
-        setExitCode: (code) => {
-          process.exitCode = code;
-        },
-      },
-    })
-      .catch((error: unknown) => {
-        process.stderr.write(
-          `${error instanceof Error ? error.message : String(error)}\n`,
-        );
-        process.exitCode = controller.signal.aborted
-          ? 130
-          : commandErrorExitCode(error);
-      })
-      .finally(() => {
-        process.removeListener('SIGINT', interrupt);
-        process.removeListener('SIGTERM', interrupt);
-      });
-    return;
-  }
-
-  if (
-    [
-      'ledger',
-      'start',
-      'checkpoint',
-      'stop',
-      'note',
-      'task',
-      'worker',
-      'eval',
-      'ci',
-    ].includes(args[0] ?? '')
-  ) {
+  if (['ledger', 'task', 'worker', 'eval', 'ci'].includes(args[0] ?? '')) {
     void dispatch(args).catch((error: unknown) => {
       process.stderr.write(
         `${error instanceof Error ? error.message : String(error)}\n`,
@@ -178,7 +75,10 @@ export function main(args = process.argv.slice(2)): void {
     return;
   }
 
-  void forward(args);
+  process.stderr.write(
+    `krn: unknown command "${args[0]}"\nRun \`krn --help\` for the commands this CLI owns.\n`,
+  );
+  process.exitCode = 64;
 }
 
 if (import.meta.main) main();

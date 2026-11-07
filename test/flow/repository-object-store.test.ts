@@ -18,11 +18,11 @@ import type { TestContext } from 'node:test';
 import { test } from 'node:test';
 import type { Job } from '../../src/core/index.ts';
 import { redFirst } from '../../src/flow/repository.ts';
-import { stateDirectory } from '../../src/foreman/state.ts';
 import {
   type execute,
   TeardownUnconfirmed,
 } from '../../src/verdict/sandbox.ts';
+import { stateDirectory } from '../../src/verdict/state-directory.ts';
 
 const fixtureTestPath = 'test/fixture.test.mjs';
 const baseTest = "import { test } from 'node:test'; test('base', () => {});\n";

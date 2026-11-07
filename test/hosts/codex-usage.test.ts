@@ -10,9 +10,7 @@ import {
 } from 'node:fs/promises';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { stateDirectory } from '../../src/foreman/state.ts';
 import { CodexHost, type CodexSessionResult } from '../../src/hosts/codex.ts';
-import * as trace from '../../src/trace/index.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 import {
   SPAWNED_PROCESS_WAIT_MS,
@@ -128,75 +126,6 @@ test('Codex protocol input12 output3 cached4 accounts for exactly15 tokens', asy
       reasoningOutputTokens: 1,
       outputTokens: 3,
       totalTokens: 15,
-    });
-  });
-});
-
-test('Codex multiple turns accumulate usage and preserve totals in trace', async (t) => {
-  if (!requiresIsolation(t, 'Codex multi-turn usage', ['systemdUserScope']))
-    return;
-  await runStream(fixture, async (result, root) => {
-    assert.deepEqual(result.usage, {
-      inputTokens: 20,
-      cachedInputTokens: 9,
-      cacheWriteInputTokens: 3,
-      reasoningOutputTokens: 2,
-      outputTokens: 5,
-      totalTokens: 25,
-    });
-    assert.deepEqual(Reflect.get(result, 'usageObservation'), {
-      turnsStarted: 2,
-      turnsCompleted: 2,
-      invalidFields: 0,
-      missingRequiredTurns: 0,
-      reportedFields: [
-        'inputTokens',
-        'outputTokens',
-        'cachedInputTokens',
-        'cacheWriteInputTokens',
-        'reasoningOutputTokens',
-      ],
-    });
-    assert.deepEqual(
-      JSON.parse(JSON.stringify(result.usageObservation)),
-      result.usageObservation,
-    );
-    const job = {
-      id: 'usage-fixture',
-      issue: 'fixture',
-      worktree: root,
-      repoRoot: root,
-    };
-    await trace.log(
-      job,
-      'usage-intent',
-      result.sessionId,
-      'session_ended',
-      result,
-    );
-    const event = JSON.parse(
-      (await readFile(join(stateDirectory(job), 'trace.jsonl'), 'utf8')).trim(),
-    );
-    assert.deepEqual(event.data.end.usage, {
-      inputTokens: 20,
-      cachedInputTokens: 9,
-      cacheWriteInputTokens: 3,
-      reasoningOutputTokens: 2,
-      outputTokens: 5,
-      totalTokens: 25,
-    });
-    assert.deepEqual(event.data.end.usageObservation, {
-      turnsStarted: 2,
-      turnsCompleted: 2,
-      invalidFields: 0,
-      missingRequiredTurns: 0,
-      reportedFields: [
-        'inputTokens',
-        'outputTokens',
-        'cachedInputTokens',
-        'cacheWriteInputTokens',
-        'reasoningOutputTokens',
-      ],
     });
   });
 });
