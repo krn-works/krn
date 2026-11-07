@@ -1,0 +1,12 @@
+{
+  "id": "t-5mw93r0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 1,
+  "title": "A/B v5: KRN arm 14 s slower; isolate npm run fast time on an idle host",
+  "after": [],
+  "body": [
+    "A/B round 5 (2026-11-07, report .krn/runs/lead/krn-ab/report-v5.md, SHA 71cf992): KRN arm cost unchanged ($0.166 vs plain $0.189, T3 $0.314), quality 9/9, but wall time 51 s vs 37 s in v4 and 36 s plain. Its single npm run fast took 27-28 s in-run vs 13-14 s replayed outside the run; host load 3.7-7.8 from parallel lanes. Rerun the KRN arm on an idle host (no lanes) and, if fast is still slower than v4, profile which part grew (rule tests added by #286/#300, related test selection, tsc) and cut it so KRN is not slower than plain."
+  ]
+}
