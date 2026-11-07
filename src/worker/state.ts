@@ -280,11 +280,14 @@ export function atomic(path: string, value: unknown): void {
     throw new WorkerError(65, 'worker record exceeds 2 MB');
   secureDir(dirname(path));
   const temporary = `${path}.${process.pid}.tmp`;
+  // A temp name carries our PID, so an existing one is debris from a killed
+  // process whose PID was reused; clear it instead of failing forever.
+  rmSync(temporary, { force: true });
   try {
     writeFileSync(temporary, text, { flag: 'wx', mode: 0o600 });
     renameSync(temporary, path);
   } catch (error) {
-    if (!isMissing(error, 'EEXIST')) rmSync(temporary, { force: true });
+    rmSync(temporary, { force: true });
     throw error;
   }
 }
