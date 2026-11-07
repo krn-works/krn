@@ -50,7 +50,7 @@ test('Codex worker does not receive service credentials', async (t) => {
       `#!/usr/bin/env node\nawait new Promise((done) => { process.stdin.on("end", done); process.stdin.resume(); });\nimport { writeFileSync } from 'node:fs';\nwriteFileSync(${JSON.stringify(envFile)}, JSON.stringify(process.env));\nprocess.stdout.write(JSON.stringify({ type: 'item.completed', item: { type: 'agent_message', text: 'ready' } }) + '\\n');\nprocess.stdout.write(JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } }) + '\\n');\n`,
     );
     await chmod(executable, 0o755);
-    const host = new CodexHost({ executable });
+    const host = new CodexHost({ executable, drainQuietMs: 100 });
     const session = await host.start({
       cwd: directory,
       model: 'gpt-6-luna',

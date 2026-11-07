@@ -54,7 +54,7 @@ setImmediate(() => process.stdout.write(stream.slice(37)));
 `,
       { mode: 0o755 },
     );
-    host = new CodexHost({ executable });
+    host = new CodexHost({ executable, drainQuietMs: 100 });
     const session = await host.start({
       cwd: root,
       model: 'gpt-6-luna',
@@ -88,7 +88,7 @@ async function interruptedStream(): Promise<CodexSessionResult> {
       `#!/usr/bin/env node\nawait new Promise((done) => { process.stdin.on("end", done); process.stdin.resume(); });\nprocess.stdout.write(JSON.stringify({type:'turn.started'})+'\\n');\nawait import('node:fs/promises').then(({writeFile})=>writeFile(${JSON.stringify(marker)},'started'));\nsetInterval(()=>{},1000);\n`,
       { mode: 0o755 },
     );
-    host = new CodexHost({ executable });
+    host = new CodexHost({ executable, drainQuietMs: 100 });
     const session = await host.start({
       cwd: root,
       model: 'gpt-6-luna',
