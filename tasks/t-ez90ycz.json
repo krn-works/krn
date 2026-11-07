@@ -1,0 +1,12 @@
+{
+  "id": "t-ez90ycz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "Lint rules: no waits or retries in tests, skips need quarantine task, suppressions need human",
+  "after": [],
+  "body": [
+    "From t-tq04sec trick 4. Source: pingdotgg/t3code oxlint-plugin-t3code/rules (no-real-time-wait-in-tests, no-polling-loop-in-tests, no-test-timeout-or-unreasoned-skip). KRN: small check in scripts/ run by npm run lint: no sleep/setTimeout waits or retry in test/, skip needs '// quarantine: t-xxxx'. Plus deliver gate: diff adding biome-ignore/@ts-ignore/skip needs a human (trick 5). S-M."
+  ]
+}

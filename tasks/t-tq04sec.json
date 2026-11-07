@@ -1,7 +1,11 @@
 {
   "id": "t-tq04sec",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Shipped: worktree setup markers (.krn/setup/running|done|failed, PID wait) in src/worker/setup-marker.ts, instruction-bytes ratchet spec/context-budget.json + test. Changed-only verify already existed. Remaining tricks split into follow-up tasks (replay transport, lint rules, AGENTS craft)."
+  },
   "created": "2026-11-06",
   "priority": 1,
   "title": "Adopt t3code agent-workflow tricks (changed-only verify, context ratchet, replay fixtures, worktree markers)",
