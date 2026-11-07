@@ -1,10 +1,21 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { changedFiles, lintable, selectTests } from '../scripts/fast-check.ts';
+import {
+  changedFiles,
+  lintable,
+  selectTests,
+  toolBin,
+} from '../scripts/fast-check.ts';
 
 const tests = new Map([
   [
@@ -79,4 +90,52 @@ test('fast check lists committed, modified and untracked files against the base'
   writeFileSync(join(dir, 'a.ts'), '2');
   writeFileSync(join(dir, 'new.ts'), '1');
   assert.deepEqual(changedFiles(dir), ['a.ts', 'new.ts', 'src/b.ts']);
+});
+
+function repoWithChange(): { dir: string; git: (...a: string[]) => void } {
+  const dir = mkdtempSync(join(tmpdir(), 'fast-tools-'));
+  const git = (...args: string[]) =>
+    assert.equal(
+      spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+        cwd: dir,
+      }).status,
+      0,
+    );
+  git('init', '-q', '-b', 'main');
+  mkdirSync(join(dir, 'test'));
+  writeFileSync(join(dir, 'test/keep.txt'), '');
+  writeFileSync(join(dir, 'a.ts'), '1');
+  git('add', '.');
+  git('commit', '-qm', 'base');
+  writeFileSync(join(dir, 'a.ts'), '2');
+  return { dir, git };
+}
+
+const script = join(import.meta.dirname, '../scripts/fast-check.ts');
+const runFast = (cwd: string) =>
+  spawnSync(process.execPath, [script], { cwd, encoding: 'utf8' });
+
+test('fast check exits 64 naming the fix when no node_modules exists', () => {
+  const { dir } = repoWithChange();
+  const result = runFast(dir);
+  assert.equal(result.status, 64);
+  assert.match(result.stderr, /npm ci/u);
+  assert.match(result.stderr, /ln -s/u);
+  assert.doesNotMatch(result.stdout, /fast FAIL/u);
+});
+
+test('fast check uses the main checkout tools from a worktree without node_modules', () => {
+  const { dir, git } = repoWithChange();
+  const bin = join(dir, 'node_modules/.bin');
+  mkdirSync(bin, { recursive: true });
+  const marker = join(dir, 'tsc-ran');
+  writeFileSync(join(bin, 'tsc'), `#!/bin/sh\ntouch ${marker}\n`);
+  chmodSync(join(bin, 'tsc'), 0o755);
+  const tree = join(dir, 'wt');
+  git('worktree', 'add', '-q', '-b', 'lane', tree, 'HEAD');
+  assert.equal(toolBin(tree), bin);
+  writeFileSync(join(tree, 'a.ts'), '3');
+  const result = runFast(tree);
+  assert.notEqual(result.status, 64, result.stderr + result.stdout);
+  assert.ok(existsSync(marker), result.stderr + result.stdout);
 });
