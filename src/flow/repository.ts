@@ -19,13 +19,12 @@ import { resolveGoToolchain } from '../../scripts/isolation-gate.mjs';
 import { TEST_FILE_GLOB } from '../../scripts/test-suite.mjs';
 import type { Job } from '../core/index.ts';
 import { stateDirectory } from '../foreman/state.ts';
+import { execute, TeardownUnconfirmed } from '../verdict/sandbox.ts';
 import {
   createWorktreeDirectory,
-  execute,
   quarantineVerdictTree,
   removeVerdictTreeOwner,
-  TeardownUnconfirmed,
-} from '../verdict/sandbox.ts';
+} from '../verdict/trees.ts';
 import {
   type ChangeContract,
   type RedFirstResult,

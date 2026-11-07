@@ -15,7 +15,8 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import test, { type TestContext } from 'node:test';
 import { redFirst } from '../../src/flow/repository.ts';
-import * as sandbox from '../../src/verdict/sandbox.ts';
+import { TeardownUnconfirmed } from '../../src/verdict/sandbox.ts';
+import * as sandbox from '../../src/verdict/trees.ts';
 import {
   waitForCondition,
   waitForProcessExit,
@@ -70,7 +71,7 @@ test('the next allocation removes a SIGKILLed owner tree and record', async (t) 
   const script = join(f.root, 'owner.mjs');
   writeFileSync(
     script,
-    `import * as sandbox from ${JSON.stringify(new URL('../../src/verdict/sandbox.ts', import.meta.url).href)};
+    `import * as sandbox from ${JSON.stringify(new URL('../../src/verdict/trees.ts', import.meta.url).href)};
 process.on('message', () => {});
 const copy = await sandbox.createWorktreeDirectory(${JSON.stringify(f.directory)}, ${JSON.stringify(f.root)});
 process.send(copy);
@@ -314,7 +315,7 @@ for (const quarantined of [false, true]) {
     );
     const head = commit();
     const error = quarantined
-      ? new sandbox.TeardownUnconfirmed('fixture scope readback failed')
+      ? new TeardownUnconfirmed('fixture scope readback failed')
       : new Error('fixture confirmed cancellation');
     const controller = new AbortController();
     let copy: string | undefined;
