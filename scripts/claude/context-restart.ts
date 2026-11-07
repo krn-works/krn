@@ -2,17 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { emitContext, hookInput, object } from './context-io.ts';
-import { memoryDirectory } from './memory-directory.ts';
-import { checkMemory } from './memory-refs.ts';
 import { openEntries } from './operator-inbox-store.ts';
-
-const rules = [
-  'delegate reading to a subagent (krn-reader) that returns a verdict and path',
-  'pass pointers, not file contents',
-  'verify by commands that print a verdict',
-  'parallel worktree lanes',
-  'at a gauge advisory, finish the step and run krn-handoff',
-];
 
 function closed(project: string, id: unknown): boolean {
   if (typeof id !== 'string' || !/^[a-z0-9-]+$/u.test(id)) return false;
@@ -72,27 +62,25 @@ try {
     !['startup', 'resume', 'compact'].includes(input.source)
   )
     throw new Error('Invalid source');
-  const git = (...arguments_: string[]) =>
-    execFileSync('git', ['rev-parse', ...arguments_], {
+  const [commonDirectory = '', sha = '', branch = ''] = execFileSync(
+    'git',
+    ['rev-parse', '--git-common-dir', 'HEAD', '--abbrev-ref', 'HEAD'],
+    {
       cwd: input.project,
       encoding: 'utf8',
       timeout: 2000,
       stdio: ['ignore', 'pipe', 'pipe'],
-    }).trim();
-  const branch = git('--abbrev-ref', 'HEAD');
-  const head = git('--short', 'HEAD');
-  const main = dirname(resolve(input.project, git('--git-common-dir')));
-  // Keep the mandatory rules before optional repository data, so truncation preserves them.
-  const lines = [
-    `Branch: ${branch}; HEAD: ${head}`,
-    ...rules.map((rule) => `Rule: ${rule}`),
-  ];
+    },
+  )
+    .trim()
+    .split('\n');
+  const main = dirname(resolve(input.project, commonDirectory));
+  // Only state that changes per session; static rules live in CLAUDE.md.
+  const lines = [`Branch: ${branch}; HEAD: ${sha.slice(0, 7)}`];
   const now = Date.now();
   let idleClaims = 0;
-  let inactiveCapsules = 0;
   const claims = join(main, '.krn/task-claims');
   if (existsSync(claims)) {
-    lines.push(`Claims directory: ${claims}`);
     for (const entry of readdirSync(claims, { withFileTypes: true }).sort(
       (a, b) => a.name.localeCompare(b.name),
     )) {
@@ -115,56 +103,9 @@ try {
       );
     }
   }
-  const capsules = join(main, '.krn/runs/delivery-loop');
-  if (existsSync(capsules)) {
-    for (const entry of readdirSync(capsules, { withFileTypes: true }).sort(
-      (a, b) => a.name.localeCompare(b.name),
-    )) {
-      if (!entry.isDirectory()) continue;
-      const path = join(capsules, entry.name, 'state.md');
-      if (!existsSync(path)) continue;
-      const text = readFileSync(path, 'utf8');
-      // Same fieldLine semantics as GLOBAL capsule-abi.mjs: first trimmed label line.
-      const fields = ['Outcome state', 'Restart state'].flatMap((label) => {
-        const line = text
-          .split('\n')
-          .find((line) => line.trimStart().startsWith(`${label}:`));
-        return line ? [line.trimStart().slice(0, 400)] : [];
-      });
-      const complete = fields.some((line) =>
-        /^Outcome state:\s*COMPLETE\b/u.test(line),
-      );
-      const touched = Math.max(
-        mtime(path),
-        mtime(join(capsules, entry.name, 'handoff.md')),
-      );
-      if (complete || now - touched > idleWindow) {
-        inactiveCapsules += 1;
-        continue;
-      }
-      lines.push(`Capsule: ${path}`, ...fields);
-    }
-  }
-  // The count sits right after the rules, so truncation of the entries never drops it.
-  if (idleClaims + inactiveCapsules > 0)
-    lines.splice(
-      1 + rules.length,
-      0,
-      `Hidden: ${idleClaims} idle claims, ${inactiveCapsules} inactive capsules (idle over 24h or COMPLETE)`,
-    );
-  try {
-    const memory = memoryDirectory(input.project);
-    if (existsSync(memory)) {
-      const { findings } = checkMemory({ root: input.project, memory });
-      lines.push(
-        findings.length > 0
-          ? `Memory: ${findings.length} findings; run node scripts/claude/memory-refs.ts`
-          : 'Memory: clean',
-      );
-    }
-  } catch {
-    /* Memory hygiene must never interrupt startup. */
-  }
+  // The count sits right after the branch, so truncation of the entries never drops it.
+  if (idleClaims > 0)
+    lines.splice(1, 0, `Hidden: ${idleClaims} idle claims (idle over 24h)`);
   let newest: { path: string; mtime: number } | undefined;
   function visit(directory: string) {
     if (!existsSync(directory)) return;
@@ -189,10 +130,7 @@ try {
       lines.splice(
         1,
         0,
-        `Operator inbox: ${open.length} open prompt(s) without disposition (${open
-          .slice(0, 5)
-          .map((entry) => entry.hash)
-          .join(' ')}); run node scripts/claude/operator-inbox.ts open`,
+        `Operator inbox: ${open.length} open prompt(s); run node scripts/claude/operator-inbox.ts open`,
       );
   } catch {
     /* The inbox must never interrupt startup. */

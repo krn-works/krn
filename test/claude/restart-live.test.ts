@@ -17,7 +17,7 @@ const script = fileURLToPath(
 );
 const day = 24 * 60 * 60 * 1000;
 
-test('restart block shows only live claims and capsules and counts the hidden ones', () => {
+test('restart block shows only live claims and counts the hidden ones', () => {
   const root = mkdtempSync(join(tmpdir(), 'restart-live-'));
   const git = (args: string[], cwd = root, env: NodeJS.ProcessEnv = {}) => {
     const result = spawnSync('git', args, {
@@ -84,20 +84,6 @@ test('restart block shows only live claims and capsules and counts the hidden on
     );
     claim('dead-undated', {}, true);
 
-    const capsule = (name: string, state: string, aged: boolean) => {
-      const directory = join(root, '.krn/runs/delivery-loop', name);
-      mkdirSync(directory, { recursive: true });
-      const path = join(directory, 'state.md');
-      writeFileSync(
-        path,
-        `Outcome state: ${state}\nRestart state: ${name}/handoff.md\n`,
-      );
-      if (aged) utimesSync(path, old, old);
-    };
-    capsule('live-capsule', 'ACTIVE', false);
-    capsule('dead-complete', 'COMPLETE', false);
-    capsule('dead-stale', 'ACTIVE', true);
-
     const run = () => {
       const result = spawnSync(process.execPath, [script], {
         env: {
@@ -117,21 +103,16 @@ test('restart block shows only live claims and capsules and counts the hidden on
       return JSON.parse(result.stdout).hookSpecificOutput
         .additionalContext as string;
     };
-    const hidden =
-      'Hidden: 3 idle claims, 2 inactive capsules (idle over 24h or COMPLETE)';
+    const hidden = 'Hidden: 3 idle claims (idle over 24h)';
     const text = run();
-    for (const live of ['live-fresh', 'live-busy', 'live-capsule'])
+    for (const live of ['live-fresh', 'live-busy'])
       assert.ok(text.includes(live), `${live} is shown`);
     const dead = text
       .split('\n')
       .filter((line) => line.includes('dead-'))
       .join('\n');
     // Dead share of the claim and capsule lines: the task target is below 0.10.
-    assert.equal(
-      dead,
-      '',
-      'idle, gone, undated and complete entries are hidden',
-    );
+    assert.equal(dead, '', 'idle, gone and undated entries are hidden');
     assert.ok(
       text.includes(hidden),
       'hidden entries are counted, not silently dropped',

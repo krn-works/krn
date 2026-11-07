@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 const script = fileURLToPath(
   new URL('../../scripts/claude/memory-refs.ts', import.meta.url),
 );
-test('checks memory references, text grammar and restart receiver', () => {
+test('checks memory references, text and text grammar', () => {
   assert.ok(existsSync(script), 'memory checker exists');
   const root = mkdtempSync(join(tmpdir(), 'memory-refs-'));
   const memory = join(
@@ -70,29 +70,7 @@ test('checks memory references, text grammar and restart receiver', () => {
       result.stdout,
       'MISSING-INDEX MEMORY.md:2 gone\nSTALE-TASK a.md:1 t-aaaaaaa\nMISSING-TASK a.md:3 t-ccccccc\nDANGLING a.md:7 docs/missing.ts\nDANGLING a.md:12 docs/missing.ts:12\nUNINDEXED b.md\nmemory-refs: 6 findings in 3 files\n',
     );
-    const restart = fileURLToPath(
-      new URL('../../scripts/claude/context-restart.ts', import.meta.url),
-    );
-    const hook = () =>
-      spawnSync(process.execPath, [restart], {
-        env: { ...process.env, HOME: root, CLAUDE_PROJECT_DIR: root },
-        encoding: 'utf8',
-        input: JSON.stringify({
-          session_id: 'fixture',
-          transcript_path: 'unused',
-          hook_event_name: 'SessionStart',
-          source: 'startup',
-        }),
-      });
-    assert.match(
-      JSON.parse(hook().stdout).hookSpecificOutput.additionalContext,
-      /Memory: 6 findings; run node scripts\/claude\/memory-refs.ts/u,
-    );
     rmSync(memory, { recursive: true });
-    assert.doesNotMatch(
-      JSON.parse(hook().stdout).hookSpecificOutput.additionalContext,
-      /Memory:/u,
-    );
     assert.equal(run().status, 64);
     mkdirSync(memory);
     writeFileSync(join(memory, 'MEMORY.md'), '\uFEFF[c](c.md)\r\n');
