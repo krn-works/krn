@@ -22,7 +22,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 
 Operator: "wypierdol bramki po prostu koduj i bebesz masz na wszysko zgode". The grant covers everything in this repository; never wait on the operator.
 
-1. **Resume.** `krn state resume --root .`, `krn task ready`, `git fetch --prune`, open PRs, main CI. A second lane follows "Parallel lanes" in `docs/program/lead-rules.md`.
+1. **Resume.** global `krn state resume --root .` (PATH; `bin/krn` has no `state`), `krn task ready`, `git fetch --prune`, open PRs, main CI. A second lane follows "Parallel lanes" in `docs/program/lead-rules.md`.
 2. **Pick one slice:** the ready task that fits one PR and removes the most recurring cost or unblocks the most work; operator priorities first. Say what you defer. Claim it with `krn task claim <id> --actor lead --worktree <path> --reason <text>`.
 3. **Code** in a worktree under `.krn/worktrees/<purpose>`, yourself. Commit with `Ticket: <id>` when a task exists and `krn task close <id> --as done --note <text>` in the same PR. Batch related fixes into one PR.
 4. **Check locally:** run `npm run fast` once before commit (Biome `--write` and tsc on changed files, tests for changed and importing modules, one PASS/FAIL line); CI runs the rest. AGENTS.md is already in your context as CLAUDE.md; do not `cat` it.
