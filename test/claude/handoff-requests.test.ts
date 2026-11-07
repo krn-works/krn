@@ -242,7 +242,10 @@ test('an open task that records an operator request must be carried', () => {
     const dropped = check('## Operator requests\n- open t-op00001\n');
     assert.equal(dropped.status, 1, dropped.stderr);
     assert.match(dropped.stderr, /open operator request t-op00002 is missing/u);
-    assert.doesNotMatch(dropped.stderr, /t-op00001 is missing|t-op00003|t-plain01/u);
+    assert.doesNotMatch(
+      dropped.stderr,
+      /t-op00001 is missing|t-op00003|t-plain01/u,
+    );
     const carried = check(
       '## Operator requests\n- open t-op00001\n- skills t-op00002\n',
     );
