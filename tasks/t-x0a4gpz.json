@@ -1,0 +1,12 @@
+{
+  "id": "t-x0a4gpz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 1,
+  "title": "Enforce the memory index budget when a note is written",
+  "after": [],
+  "body": [
+    "Outcome: the memory index budget (INDEX-SIZE, scripts/claude/memory-refs.ts:35,182: 2400 bytes or 200 lines) is enforced when a note is written, not only reported at session start: a PreToolUse hook on Write/Edit into the auto-memory directory refuses a write that would push MEMORY.md over budget and names the budget, so the writer consolidates first (write-time cap, as Hermes does; a read-time cap lets stale and current notes coexist, as in Grok Bot's shared pool). Proof: a hook test where an oversize MEMORY.md write exits non-zero and an in-budget write exits 0."
+  ]
+}

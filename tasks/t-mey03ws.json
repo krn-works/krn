@@ -1,0 +1,12 @@
+{
+  "id": "t-mey03ws",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 2,
+  "title": "Prove cancel leaves no residual work running or claimed",
+  "after": [],
+  "body": [
+    "# Zadanie: zmierzyć pracę pozostającą po cancel (report #12)\nOutcome: dla panelu review i workera Codex znany jest czas do zakończenia procesów potomnych i dalsze naliczenia po AbortSignal/cancelTree; luka albo zamknięta, albo udokumentowana jako brak.\nEvidence: Cloudflare - 358/446 anulowanych jobów dalej działało; src/hosts/codex.ts i src/flow/panel.ts mają AbortSignal/cancelTree bez pomiaru; reconcile #12 (warunek akceptacji opcji C).\nProof: test cancel w połowie etapu: po cancel w <=N s brak żywych potomków (ps po pgid) i zero nowych usage w journalu; test czerwony na base z wyłączonym cancelTree.\nNie dodawać nowego mechanizmu cancel bez wykazanej luki."
+  ]
+}

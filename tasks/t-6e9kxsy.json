@@ -1,0 +1,12 @@
+{
+  "id": "t-6e9kxsy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 0,
+  "title": "Trigger a Jenkins scan when a PR head has no krn/gate check run",
+  "after": [],
+  "body": [
+    "Outcome: when deliver finds no krn/gate check run for the exact PR head after a bounded grace period, it triggers a Jenkins branch-source scan (lead permission) instead of waiting until its wait times out, and prints that it did.\nEvidence 2026-11-06: PR #238 head ff6f460 pushed during the CI rollback had no krn/gate until Jenkins indexed it later (PR-238 build #1 at 07:14).\nProof: a deliver/gate-wait test with no check run for the head past the grace period issues exactly one scan request to the captured endpoint and keeps waiting; with a check run present it issues none.\nOperator 2026-11-06: stop choking on gates."
+  ]
+}

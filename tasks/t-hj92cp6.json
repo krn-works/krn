@@ -1,0 +1,12 @@
+{
+  "id": "t-hj92cp6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 0,
+  "title": "T3 Code A/B token pilot; migrate lead if cheaper",
+  "after": [],
+  "body": [
+    "Operator 2026-11-07: \"Dawaj nightly to definitywny must\", \"zainstalowane, odpalaj A/B\". Evidence: Aaron Delasy table (x.com, quoted by Theo): native CLI 95.5M tok/$35.16 vs T3 Code 56.2M/$25.30 on 2 tickets. Our research (.krn/runs/lead/t3code-tokens/report.md) found T3 wraps Claude Code via Agent SDK; savings likely from trimmed MCP schemas (Day 23 \"79% less context\") and IdleCompaction. Do: A/B on 2-3 small KRN tasks, same base worktree/model/effort, >=3 runs per arm alternating; native `claude` TUI vs T3 Code desktop (t3code-nightly 0.1.8_nightly.20261107.4314, /usr/bin/t3code-nightly; CLI t3 pinned in mise) with a separate CLAUDE_CONFIG_DIR copy; sum message.usage by unique message.id from ~/.claude/projects/**.jsonl split by entrypoint (cli vs t3-code); record cost and 5h-limit deltas. Decide: migrate lead to T3 if median tokens+cost lower beyond spread; otherwise port its mechanisms natively (idleCompaction, autoCompactWindow, ENABLE_TOOL_SEARCH, leaner tools)."
+  ]
+}

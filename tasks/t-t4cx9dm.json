@@ -7,6 +7,7 @@
   "title": "Worker scope check ignores ignored .krn agent state",
   "after": [],
   "body": [
-    "Outcome: `krn worker` scope check ignores git-ignored agent state under `.krn/` (node compile cache in `.krn/tmp/node-compile-cache`, lead files in `.krn/runs`). Evidence: t-2t4fmn2 rounds 1-2 reported 'scope violation' listing only `.krn/tmp/node-compile-cache/*` and `.krn/runs/local-read/round2.md` while all tracked changes were inside --allow (.krn/runs/lead/local-read/round1.txt, round2.txt). Proof: an observer where a worker turn writes only ignored `.krn/` files plus allowed paths exits 0 without a violation; a tracked out-of-scope file still exits 3."
+    "Outcome: `krn worker` scope check ignores git-ignored agent state under `.krn/` (node compile cache in `.krn/tmp/node-compile-cache`, lead files in `.krn/runs`). Evidence: t-2t4fmn2 rounds 1-2 reported 'scope violation' listing only `.krn/tmp/node-compile-cache/*` and `.krn/runs/local-read/round2.md` while all tracked changes were inside --allow (.krn/runs/lead/local-read/round1.txt, round2.txt). Proof: an observer where a worker turn writes only ignored `.krn/` files plus allowed paths exits 0 without a violation; a tracked out-of-scope file still exits 3.",
+    "The .krn/tmp part shipped in PR #231 (t-qms15mt, e2bbd70: ignored .krn/tmp is scratch, symlinks still violations). Remaining: lead files under other .krn/runs/<slice> in the worktree."
   ]
 }

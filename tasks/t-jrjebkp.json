@@ -1,0 +1,12 @@
+{
+  "id": "t-jrjebkp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 1,
+  "title": "Invalidate memory notes whose source changed or expired",
+  "after": [],
+  "body": [
+    "# Zadanie: ważność i unieważnianie wiedzy w notatkach pamięci (report #21)\nOutcome: notatka pamięci może zostać oznaczona jako zastąpiona/wygasła, a odczyt nie podaje nieaktualnej wskazówki jako faktu.\nEvidence: ADR 0002 (valid_from/valid_to, wzajemna supersession) bez implementacji; dziś jedyna data to 'modified'; t-yxdhtfk dodaje tylko Recorded/źródło.\nProof: fixture z dwiema sprzecznymi notatkami (starsza zastąpiona) -> memory-refs raportuje starszą jako SUPERSEDED i nie liczy jej jako aktualnej; notatka bez as-of -> 'unknown'; zmiana API po zapisie -> wskazówka odrzucona lub z niepewnością.\nRozszerza t-yxdhtfk; nie nowy magazyn (D33)."
+  ]
+}

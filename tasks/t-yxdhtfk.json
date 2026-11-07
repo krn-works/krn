@@ -1,0 +1,12 @@
+{
+  "id": "t-yxdhtfk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 1,
+  "title": "Require a recorded date and source on every memory note",
+  "after": [],
+  "body": [
+    "Outcome: every live memory note carries one `Recorded: YYYY-MM-DD via <session|commit|ADR Dnn>` line, and memory-refs reports a note without it as NO-PROVENANCE, so a reader can rank two contradicting notes by date and source (the per-line date and source tag Grok Bot injects). Extends t-j8hc9v4 (path to primary evidence). Proof: a fixture note without the line yields a NO-PROVENANCE finding; a note with it is clean."
+  ]
+}

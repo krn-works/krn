@@ -1,0 +1,12 @@
+{
+  "id": "t-28tx2g6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 1,
+  "title": "Pick a supported Codex app-server release for workers",
+  "after": [],
+  "body": [
+    "worker start exits 65 \"unsupported Codex app-server version\": resolveCodexExecutable (src/hosts/codex.ts:79) picks the newest ~/.codex/packages/app-server-daemon release (0.167.0) while spec/worker-scope.json supportedVersions is [0.166.0].\nWorkaround used in t-ga6ht93: KRN_CODEX_BIN=~/.codex/packages/app-server-daemon/releases/0.166.0-x86_64-unknown-linux-musl/bin/codex.\nFix: prefer the newest release whose version is in supportedVersions, or add 0.167.0 after a live worker check."
+  ]
+}

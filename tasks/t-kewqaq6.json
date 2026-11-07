@@ -1,0 +1,13 @@
+{
+  "id": "t-kewqaq6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 0,
+  "title": "Capture every operator directive and refuse a handoff that drops one",
+  "after": [],
+  "body": [
+    "Outcome: no operator directive is lost between sessions. Evidence: 2026-11-05 17:50 (session 00a727ba) the operator asked why T3's CI works and ours does not; it never became a task, memory or handoff request, and on 2026-11-06 the lead had no record of it (\"co zaaplikowałeś z jego standardów CI?\" — nothing).\nCause: capture is voluntary — a directive survives only if the lead chooses to write it; handoff \"Operator requests\" is hand-maintained; recall is a one-line index.\nFix: (1) a UserPromptSubmit hook appends every operator message (text only, secrets redacted, bounded) to .krn/operator/inbox.jsonl with session id and time; (2) krn-handoff and `krn state check` refuse to close a session while an inbox entry since the last handoff has no disposition (task id, memory name, answered-and-closed with reason); (3) session start injects open inbox entries.\nProof: a test replays a transcript with a directive the lead never recorded and the handoff check fails naming it; with a disposition it passes.",
+    "Second fixture (2026-11-06): the 2026-11-05 skills recommendation (session 4feed9e1…, ~20:45Z) produced t-87ks15p/t-jdjdvc7/t-4akerav/t-k41gjwg but the TypeScript skill had no task, and on 11-06 a lead answered 'not recorded in any task' (session 93e6175e…, idx 1744/1779) — false for four tasks. Capture must also check claims of absence against tasks/. Map: .krn/runs/lead/skills-research/lost-recommendation.md; follow-up t-phsq5re."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-sp5fbse",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 1,
+  "title": "Complete the krn/gate check when a build fails before the gate",
+  "after": [],
+  "body": [
+    "Outcome: a Jenkins build that fails before the gate (executor/session stage) completes its GitHub `krn/gate` check run as failure. Main #97 (141ce49) ended FAILURE while check run 127889270747 stayed in_progress, so deliver and krn ci wait cannot see the red result.\nProof: a failing pre-gate stage produces a completed check run with conclusion failure and the stage in its summary."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-bcenqc3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-05",
+  "priority": 0,
+  "title": "Keep a ranked improvement roadmap the lead updates every slice",
+  "after": [],
+  "body": [
+    "Outcome: the lead keeps a ranked improvement roadmap instead of reacting only to links the operator sends. `docs/program/roadmap.md` (or the existing program owner of plans) lists measured opportunities across delivery speed, CI, memory and review, each with evidence, expected saving and a task id; every `krn-retro` and every handoff adds or reranks at least one entry from evidence seen in the slice, and external material the operator shares is triaged into it the same session. Proof: a rule test that fails when a handoff has no roadmap entry change or explicit `roadmap: unchanged (<reason>)` line."
+  ]
+}

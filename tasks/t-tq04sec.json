@@ -1,0 +1,12 @@
+{
+  "id": "t-tq04sec",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 1,
+  "title": "Adopt t3code agent-workflow tricks (changed-only verify, context ratchet, replay fixtures, worktree markers)",
+  "after": [],
+  "body": [
+    "Operator (2026-11-06): \"w kodzie ... poszukaj sztuczek w pracy agentowej i potencjalnie znajdź co nam sie moze przydać\"; grant: \"wszystkie triki od theo są dozwolone szefie, to musi być superior tool\".\nRecon of pingdotgg/t3code: .krn/runs/lead/t3code-agentic/report.md (ranked). Candidates, each its own slice, proof = measured on a real slice:\n1. Changed-only verify with cached verdict per diff (t3code scripts/check-changed.ts) -> `krn verify --changed`. M.\n2. Agent context budget ratchet (agentContextBudget.json + CI job): instruction bytes may not grow without a label; KRN has context:report. S.\n3. Codex app-server JSON-RPC transcript replay fixtures for src/hosts/codex-app-server.ts (KRN-12 receiver proof). M.\n4. Lint rules instead of prose: no sleep/poll/retry in tests; skip needs `// quarantine: <task>`. S-M.\n5. Review agents as md files with model/globs/budget/requires: Check; PRs adding suppressions need a human. S-M.\n6. Worktree setup markers (setup-running/done/failed + PID) so agents wait instead of racing installs — fixes \"new worktrees lack node_modules\". S.\n7. AGENTS.md craft: \"ways to hurt yourself\", \"hit every surface\" checklist, tests at the lowest failing layer. S.\nFirst slice suggestion: 2+4+6."
+  ]
+}

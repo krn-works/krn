@@ -1,0 +1,12 @@
+{
+  "id": "t-5qwn3yy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-06",
+  "priority": 2,
+  "title": "Add boundary semantic cases to the E/F scenario tests",
+  "after": [],
+  "body": [
+    "# Zadanie: przypadki graniczne w testach E/F (report #25)\nOutcome: testy pomijania main gate (E) i cache verify (F) zawierają poprawne-składniowo, ale wrogie przypadki: stale SHA, obca tożsamość receivera, traversal/symlink w ścieżkach zmian.\nEvidence: reconcile #25 (wpleść dwa przypadki w E/F); t-36bvkbr pokrywa tylko klasę symlinków; opcja G (tasks/** przez symlink) bez własnego testu.\nProof: fixture z poprawnym JSON-em i stale SHA / receiverem innej tożsamości / zmianą przez symlink poza tasks/** nie wywołuje pominięcia gate ani trafienia cache; przypadek prawidłowy nadal przechodzi (para negatyw/pozytyw).\nZależy od wdrożenia E/F; zadanie pomocnicze, nie osobna platforma."
+  ]
+}

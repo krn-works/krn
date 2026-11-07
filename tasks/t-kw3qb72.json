@@ -1,0 +1,12 @@
+{
+  "id": "t-kw3qb72",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 1,
+  "title": "Retire unused delivery ceremony after no-gates decision",
+  "after": [],
+  "body": [
+    "Operator 2026-11-07 \"wypierdol bramki po prostu koduj\": the lead skill now defaults to push+PR+auto-merge on Check. Remove or shrink the unused ceremony code paths (krn slice run, krn deliver review/judge-status requirements, krn review panel as default, red-first in verify) or make them opt-in, and delete their lead traps; fix krn-handoff/krn-retro to match. Measure: one-file fix median from first edit to merge (PR #251 took ~3 min)."
+  ]
+}
