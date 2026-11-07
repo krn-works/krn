@@ -113,7 +113,7 @@ async function fakeCodex(directory: string, pidFile?: string): Promise<string> {
     : "process.stdout.write(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:'done'}})+'\\n'); process.stdout.write(JSON.stringify({type:'turn.completed',usage:{input_tokens:1,output_tokens:1,total_tokens:2}})+'\\n');";
   await writeFile(
     executable,
-    `#!/usr/bin/env node\nimport { writeFileSync } from 'node:fs';\n${behavior}\n`,
+    `#!/usr/bin/env node\nawait new Promise((done) => { process.stdin.on("end", done); process.stdin.resume(); });\nimport { writeFileSync } from 'node:fs';\n${behavior}\n`,
   );
   await chmod(executable, 0o700);
   return executable;

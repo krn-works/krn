@@ -89,7 +89,7 @@ test('Codex reports missing required counters for each completed turn', async (t
   const executable = join(root, 'codex-stream');
   await writeFile(
     executable,
-    `#!/usr/bin/env node\nprocess.stdout.write(${JSON.stringify(`${stream}\n`)});\n`,
+    `#!/usr/bin/env node\nawait new Promise((done) => { process.stdin.on("end", done); process.stdin.resume(); });\nprocess.stdout.write(${JSON.stringify(`${stream}\n`)});\n`,
     { mode: 0o700 },
   );
   const host = new CodexHost({ executable });

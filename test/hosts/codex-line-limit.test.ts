@@ -19,6 +19,7 @@ async function runStream(stream: string): Promise<CodexSessionResult> {
     await writeFile(
       executable,
       `#!/usr/bin/env node
+await new Promise((done) => { process.stdin.on("end", done); process.stdin.resume(); });
 const stream = ${JSON.stringify(stream)};
 const chunkSize = 8192;
 function writeNext(offset) {
