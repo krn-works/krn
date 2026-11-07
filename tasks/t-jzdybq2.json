@@ -1,0 +1,12 @@
+{
+  "id": "t-jzdybq2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 1,
+  "title": "Onboard krn-works repositories onto shared project CI (wave 1)",
+  "after": [],
+  "body": [
+    "Onboard every krn-works repository listed as wave 1 in docs/ci/catalogue.md onto .github/workflows/project-ci.yml, one bounded PR per repository, keeping that repository's own install/lint/typecheck/test commands and permissions.\nAcceptance: each repository's PR runs `ci / Check` green on hosted runners (or a recorded real failure handed to that repository's owner), its ruleset requires `ci / Check`, and the catalogue row moves to done with the run URL. Start with a Python (krn-ekologus-brain-lab or wilq-seo), a Go (krn-ogar) and a JavaScript (krn-codex-skills) repository to prove the template across toolchains, then the rest.\nWaves 2 (korneliuszburian) and 3 (Rekurencja, client-owned; needs the operator's per-repository approval) follow the same template after this proves it."
+  ]
+}
