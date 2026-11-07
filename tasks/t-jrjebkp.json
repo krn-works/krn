@@ -1,7 +1,11 @@
 {
   "id": "t-jrjebkp",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "memory-refs reports SUPERSEDED/EXPIRED/CHANGED; SessionStart prints one bounded stale-note line; unknown as-of via noteValidity"
+  },
   "created": "2026-11-06",
   "priority": 1,
   "title": "Invalidate memory notes whose source changed or expired",

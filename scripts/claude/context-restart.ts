@@ -3,6 +3,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { emitContext, hookInput, object } from './context-io.ts';
 import { resumeBlock } from './handoff-resume.ts';
+import { memoryDirectory } from './memory-directory.ts';
+import { checkMemory } from './memory-refs.ts';
 import { openEntries } from './operator-inbox-store.ts';
 
 function closed(project: string, id: unknown): boolean {
@@ -135,6 +137,36 @@ try {
       );
   } catch {
     /* The inbox must never interrupt startup. */
+  }
+  try {
+    const stale = new Set<string>();
+    for (const finding of checkMemory({
+      root: main,
+      memory: memoryDirectory(main),
+      changed: false,
+    }).findings)
+      if (
+        [
+          'SUPERSEDED',
+          'EXPIRED',
+          'CHANGED',
+          'STALE-TASK',
+          'MISSING-TASK',
+          'DANGLING',
+        ].includes(finding.kind)
+      )
+        stale.add(finding.file);
+    if (stale.size > 0)
+      lines.splice(
+        1,
+        0,
+        `Memory: ${stale.size} stale note(s) ${[...stale].slice(0, 5).join(', ')}${stale.size > 5 ? ', ...' : ''}; update or delete (node scripts/claude/memory-refs.ts)`.slice(
+          0,
+          300,
+        ),
+      );
+  } catch {
+    /* Memory checks must never interrupt startup. */
   }
   lines.splice(1, 0, `Newest handoff: ${newest?.path ?? 'none'}`);
   if (newest) {
