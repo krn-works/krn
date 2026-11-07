@@ -1,7 +1,11 @@
 {
   "id": "t-xwnd81m",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "weights folded from main runs 42423998544 42423725164 42422925548 42422828828 42422500539; 8-shard plan balanced at 45.6-45.7 weighted s, heaviest file 24.7 < shard mean, so no file split"
+  },
   "created": "2026-11-07",
   "priority": 2,
   "title": "Refresh shard weights from 5 CI runs",
