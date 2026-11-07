@@ -1,0 +1,185 @@
+name: Project CI
+
+# Shared hosted CI for every operator project, built like KRN's own ci.yml:
+# lint, typecheck and sharded tests run as parallel jobs and one aggregate
+# job decides. A caller keeps its own commands and permissions:
+#
+#   jobs:
+#     ci:
+#       uses: krn-works/krn/.github/workflows/project-ci.yml@<sha>
+#       with:
+#         install: npm ci
+#         lint: npm run lint
+#         test: npm test
+#
+# The required status check is then `ci / Check`. Each command runs in bash
+# from the repository root after mise installs the project's pinned tools
+# (mise.toml or .tool-versions). An empty command skips its job; tests see
+# CI_SHARD_INDEX and CI_SHARD_TOTAL.
+
+on:
+  workflow_call:
+    inputs:
+      install:
+        description: Command that installs dependencies before every job
+        type: string
+        default: ''
+      lint:
+        description: Lint command; empty skips the job
+        type: string
+        default: ''
+      typecheck:
+        description: Typecheck or build command; empty skips the job
+        type: string
+        default: ''
+      test:
+        description: Test command, run once per shard; empty skips the job
+        type: string
+        default: ''
+      test-shards:
+        description: Number of parallel test shards (1-16)
+        type: number
+        default: 1
+      runner:
+        description: Hosted runner label
+        type: string
+        default: ubuntu-24.04
+      timeout-minutes:
+        description: Timeout of each job
+        type: number
+        default: 20
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      shards: ${{ steps.plan.outputs.shards }}
+    steps:
+      - name: Validate inputs and plan test shards
+        id: plan
+        env:
+          SHARDS: ${{ inputs.test-shards }}
+          LINT: ${{ inputs.lint }}
+          TYPECHECK: ${{ inputs.typecheck }}
+          TEST: ${{ inputs.test }}
+        run: |
+          set -euo pipefail
+          case "$SHARDS" in
+            [1-9]|1[0-6]) ;;
+            *) echo "::error::test-shards must be 1-16, got '$SHARDS'"; exit 1 ;;
+          esac
+          if [ -z "$LINT$TYPECHECK$TEST" ]; then
+            echo "::error::set at least one of lint, typecheck or test"
+            exit 1
+          fi
+          printf 'shards=[%s]\n' "$(seq -s, 1 "$SHARDS")" >> "$GITHUB_OUTPUT"
+
+  lint:
+    name: Lint
+    needs: plan
+    if: ${{ inputs.lint != '' }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install pinned tools with mise
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+        with:
+          version: 2026.10.17
+
+      - name: Install dependencies
+        if: ${{ inputs.install != '' }}
+        run: ${{ inputs.install }}
+
+      - name: Lint
+        run: ${{ inputs.lint }}
+
+  typecheck:
+    name: Typecheck
+    needs: plan
+    if: ${{ inputs.typecheck != '' }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install pinned tools with mise
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+        with:
+          version: 2026.10.17
+
+      - name: Install dependencies
+        if: ${{ inputs.install != '' }}
+        run: ${{ inputs.install }}
+
+      - name: Typecheck
+        run: ${{ inputs.typecheck }}
+
+  test:
+    name: Test (${{ matrix.shard }}/${{ inputs.test-shards }})
+    needs: plan
+    if: ${{ inputs.test != '' }}
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    env:
+      CI_SHARD_INDEX: ${{ matrix.shard }}
+      CI_SHARD_TOTAL: ${{ inputs.test-shards }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install pinned tools with mise
+        uses: jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8 # v5.1.2
+        with:
+          version: 2026.10.17
+
+      - name: Install dependencies
+        if: ${{ inputs.install != '' }}
+        run: ${{ inputs.install }}
+
+      - name: Test shard
+        run: ${{ inputs.test }}
+
+  check:
+    name: Check
+    if: ${{ always() }}
+    needs:
+      - plan
+      - lint
+      - typecheck
+      - test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      # A job may be skipped only because its command is empty; any other
+      # skip, failure or cancellation fails the aggregate.
+      - name: Require every configured job to succeed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          CONFIGURED: ${{ toJSON(inputs) }}
+        run: |
+          set -euo pipefail
+          node -e '
+            const needs = JSON.parse(process.env.RESULTS);
+            const inputs = JSON.parse(process.env.CONFIGURED);
+            let bad = 0;
+            for (const [name, { result }] of Object.entries(needs)) {
+              const configured = name === "plan" || inputs[name] !== "";
+              const ok = configured ? result === "success" : result === "skipped";
+              console.log(`${name}: ${result}${configured ? "" : " (not configured)"}`);
+              if (!ok) bad += 1;
+            }
+            process.exit(bad ? 1 : 0);
+          '

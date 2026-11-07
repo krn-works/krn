@@ -1,7 +1,11 @@
 {
   "id": "t-crxrfg4",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-jzdybq2",
+    "note": "Operator 2026-11-06 direction (CI like T3, hosted Actions, Jenkins destroyed) replaced the 2026-10-30 leave-GitHub-Actions brief. Delivered: catalogue of 63 repos with billing evidence and waves (docs/ci/catalogue.md), shared workflow_call CI with aggregate Check and red/green self-test (PR #320). Onboarding continues in t-jzdybq2."
+  },
   "created": "2026-10-30",
   "priority": 0,
   "title": "Design and deliver independent CI for every project",
