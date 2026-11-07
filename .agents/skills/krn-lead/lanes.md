@@ -1,7 +1,7 @@
 # Lane brief: common rules for background agents
 - Repository /mnt/storage/coding/krn/active/krn, remote krn-works/krn. Create your own worktree: `git -C /mnt/storage/coding/krn/active/krn fetch -q origin main && git -C /mnt/storage/coding/krn/active/krn worktree add -b <branch> .krn/worktrees/<branch-slug> origin/main`; work only there. Never edit the main checkout, other worktrees, ~/.claude or ~/.agents (operator: nothing global). Temp files under /mnt/storage/tmp, never /tmp. Never `pkill -f`; stop processes by PID.
 - Operator grant (verbatim): "Na wszystko masz zgodę as long as we will achieve a fucking breakthrough"; "wypierdol bramki po prostu koduj". No briefs/review ceremony.
-- Delivery: `npm run lint` (0 errors), `npm run check`, touched tests via `node --test <files>`, and for wide changes `npm test > /mnt/storage/tmp/<slug>-test.log 2>&1; echo exit=$?` (never hide exit codes behind a pipe). Commit titles end with `(<task-id>)`; final trailer paragraph exactly:
+- Delivery: `npm run fast` before every commit (format, tsc, related + rule tests), and for wide changes `npm test > /mnt/storage/tmp/<slug>-test.log 2>&1; echo exit=$?` (never hide exit codes behind a pipe). Commit titles end with `(<task-id>)`; final trailer paragraph exactly:
   Ticket: <task-id>
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   Task records: create new tasks with `bin/krn task create` and close yours with `bin/krn task close <id> --as done --note ...` run INSIDE your worktree (cd there first) so the record ships with your PR.
