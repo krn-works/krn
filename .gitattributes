@@ -1,1 +1,2 @@
 tasks/*.json text eol=lf
+tasks/*.comments.jsonl text eol=lf merge=union
