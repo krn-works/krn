@@ -776,7 +776,11 @@ class RunningSession {
     if (failures.length)
       throw new AggregateError(
         failures,
-        'Codex systemd-scope cancellation could not be verified',
+        `Codex systemd-scope cancellation could not be verified: ${failures
+          .map((failure) =>
+            failure instanceof Error ? failure.message : String(failure),
+          )
+          .join('; ')}`,
       );
   }
 
