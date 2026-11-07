@@ -1,0 +1,12 @@
+{
+  "id": "t-y3q6sey",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 0,
+  "title": "5-hour weakness hunt: find and fix KRN weak spots",
+  "after": [],
+  "body": [
+    "Operator 2026-11-07 ~15:45 (verbatim): \"Dawaj badaj to dogłębnie, przez najblizsze 5 godzin masz totalnie naciskać na znajdowanie słabych stron krn i masz dociskać wszystko jak najlepiej - szperaj, deep researchuj, wyndajduj słabe miejsca, wszystko polepszaj aż nie osiągniemy perfekcji\".\nRun until ~20:45 Europe/Warsaw: parallel lanes (worktrees + background agents), each finding becomes a merged fix or a task; ledger of findings and merged PRs in .krn/runs/lead/weakness-hunt/ledger.md. Inputs: A/B v2 report (.krn/runs/lead/krn-ab/report-v2.md), architecture candidates (t-45wvmk9), operator-directive capture (t-kewqaq6 remainder), CI speed (t-2f4cqda)."
+  ]
+}

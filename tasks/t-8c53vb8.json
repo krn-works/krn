@@ -4,7 +4,7 @@
   "resolution": {
     "kind": "done",
     "ref": null,
-    "note": "Jenkins infra, krn/gate support, krn ci rerun and Go Jenkins-fence packages removed; App 5548482 uninstall pending (needs app JWT or org UI)"
+    "note": "Jenkins infra, krn/gate support, krn ci rerun and Go Jenkins-fence packages removed (#258); GitHub App 5548482 uninstalled by the operator 2026-11-07"
   },
   "created": "2026-11-07",
   "priority": 1,

@@ -93,7 +93,7 @@
     {
       "id": "KRN-13",
       "trigger": "the lead works in this repository",
-      "action": "the lead MUST keep context bounded: delegate reading to a subagent returning a verdict and path, pass pointers instead of file contents, verify by commands that print a verdict, keep one slice per session, and hand off at the context-gauge advisory with `krn-handoff`",
+      "action": "the lead MUST keep context bounded: delegate reading to a subagent returning a verdict and path, pass pointers instead of file contents, verify by commands that print a verdict, run independent slices as parallel worktree lanes with background agents, and hand off at the context-gauge advisory with `krn-handoff`",
       "owner": "lead",
       "enforcement": {
         "kind": "test",
