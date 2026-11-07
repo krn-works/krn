@@ -88,7 +88,16 @@ function lines<T>(path: string): T[] {
   return out;
 }
 
+// Claude Code submits background-agent notifications and other harness wrappers
+// through UserPromptSubmit; they are not operator words.
+const harnessWrapper =
+  /^<(task-notification|system-reminder|local-command-[a-z]+|bash-(input|stdout|stderr)|command-(name|message|args))>/u;
+
+export const isHarnessText = (text: string): boolean =>
+  harnessWrapper.test(text.trimStart());
+
 export function capture(root: string, session: string, prompt: string): void {
+  if (isHarnessText(prompt)) return;
   const text = redact(prompt.trim()).slice(0, maxText);
   if (!text) return;
   mkdirSync(directory(root), { recursive: true });
@@ -140,7 +149,8 @@ function lastHandoff(root: string): string {
 // Short acknowledgements, questions and slash commands need no durable record.
 export function looksLikeDirective(text: string): boolean {
   const body = text.trim();
-  if (body.length < 25 || body.startsWith('/')) return false;
+  if (body.length < 25 || body.startsWith('/') || isHarnessText(body))
+    return false;
   if (body.endsWith('?') && !/\n/u.test(body) && body.length < 300)
     return false;
   return true;

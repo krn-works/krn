@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -118,6 +119,44 @@ test('capture redacts secrets, bounds length, and never fails the prompt', () =>
       }).status,
       0,
     );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// Verbatim shape of a captured Claude Code background-agent notification.
+const notification = `<task-notification>
+<task-id>a9e853e5b65d4173a</task-id>
+<tool-use-id>toolu_01P7nh8okQXUjXGbtUe1bX3q</tool-use-id>
+<output-file>/tmp/claude/tasks/a9e853e5b65d4173a.output</output-file>
+<status>completed</status>
+<summary>Agent "Run KRN/plain/T3 A/B study" finished</summary>
+<note>A task-notification fires each time this agent stops with no live background children of its own.</note>
+<result>Runda 2 jest gotowa: 27 przebiegów, wszystkie dokończone bez błędu.</result>
+</task-notification>`;
+
+test('harness notifications are not captured and old ones never block a handoff', () => {
+  const { root, submit, handoff } = fixture();
+  try {
+    assert.equal(submit(notification).status, 0);
+    assert.equal(
+      submit(`<system-reminder>\n${directive}\n</system-reminder>`).status,
+      0,
+    );
+    assert.equal(existsSync(join(root, '.krn/operator/inbox.jsonl')), false);
+    // Entries captured before this fix must not block a handoff either.
+    mkdirSync(join(root, '.krn/operator'), { recursive: true });
+    const entry = {
+      hash: 'abc123def456',
+      session: 's',
+      time: new Date().toISOString(),
+      text: notification,
+    };
+    writeFileSync(
+      join(root, '.krn/operator/inbox.jsonl'),
+      `${JSON.stringify(entry)}\n`,
+    );
+    assert.equal(handoff().status, 0);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
