@@ -56,12 +56,12 @@ const registrationDrainQuietMs = 1000;
 const cgroupPidByteLimit = 8 * 1024;
 const cgroupPidCountLimit = 256;
 
-export type SystemdScopeProperties = {
+type SystemdScopeProperties = {
   readonly activeState: string;
   readonly controlGroup: string;
 };
 
-export function parseSystemdScopeProperties(
+function parseSystemdScopeProperties(
   output: string,
 ): SystemdScopeProperties | undefined {
   const lines = output.split(/\r?\n/u);
@@ -335,7 +335,7 @@ const scopeListSchema = z.array(
 );
 export const codexScopeRuntimeGraceMs = 3000;
 
-export function codexScopeOwnerDescription(): string {
+function codexScopeOwnerDescription(): string {
   const uid = process.getuid?.();
   if (uid === undefined)
     throw new Error('Codex systemd scope owner requires a process uid');
@@ -483,38 +483,7 @@ export async function killAndVerifyScope(
   );
 }
 
-// Observe the launched process directly, before systemd can collect the unit.
-export function systemdScopeProcessRegistration(
-  unit: string,
-  pid: number | undefined,
-): SystemdScopeRegistration | undefined {
-  if (pid === undefined) return undefined;
-  try {
-    const controlGroup = readFileSync(`/proc/${pid}/cgroup`, 'utf8')
-      .split('\n')
-      .find((line) => line.startsWith('0::'))
-      ?.slice(3);
-    const startTicks = processStartTicks(pid);
-    const registration = validateSystemdScopeRegistration(
-      { unit, controlGroup, pid, startTicks },
-      unit,
-    );
-    if (!registration || !processHasIdentity(pid, registration.startTicks))
-      return undefined;
-    const path = registrationCgroupPath(registration.controlGroup, unit);
-    if (!path) return undefined;
-    const membership = readCgroupProcesses(join(path, 'cgroup.procs'));
-    return membership?.kind === 'observed' &&
-      membership.pids.includes(pid) &&
-      processHasIdentity(pid, registration.startTicks)
-      ? registration
-      : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-export function systemdScopeRegistrationActive(
+function systemdScopeRegistrationActive(
   registration: SystemdScopeRegistration,
 ): boolean | null {
   const validated = validateSystemdScopeRegistration(
