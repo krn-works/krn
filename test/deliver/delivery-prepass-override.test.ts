@@ -91,7 +91,7 @@ function fixture(t: { after(fn: () => void): void }) {
       ]);
       return { code: 0, stdout: JSON.stringify(pull), stderr: '' };
     }
-    if (command === 'krn') {
+    if (command.endsWith('/bin/krn')) {
       assert.equal(args[0], 'ship');
       assert.ok(args.includes('--dry-run'));
       return { code: 0, stdout: '{}', stderr: '' };
@@ -169,7 +169,7 @@ test('deliver admits an overridden blocking prepass-only record', async (t) => {
   );
   if (!outcome.ok) return;
   assert.equal(outcome.value.status, 'dry-run');
-  assert.ok(f.calls.some(([command]) => command === 'krn'));
+  assert.ok(f.calls.some(([command]) => command?.endsWith('/bin/krn')));
 });
 
 test('deliver refuses a blocking prepass-only record without override', async (t) => {
@@ -181,7 +181,7 @@ test('deliver refuses a blocking prepass-only record without override', async (t
     return true;
   });
   assert.equal(
-    f.calls.some(([command]) => command === 'krn'),
+    f.calls.some(([command]) => command?.endsWith('/bin/krn')),
     false,
   );
 });
@@ -195,7 +195,7 @@ test('deliver refuses an override on an advisory-only prepass', async (t) => {
     return true;
   });
   assert.equal(
-    f.calls.some(([command]) => command === 'krn'),
+    f.calls.some(([command]) => command?.endsWith('/bin/krn')),
     false,
   );
 });

@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { reserveReviewAttempt } from '../../src/flow/series.ts';
@@ -246,10 +246,15 @@ function fixture(t: { after(fn: () => void): void }, pinnedApp = false) {
   const runner: NonNullable<
     import('../../src/deliver/delivery.ts').DeliveryRuntime['run']
   > = (command, args, cwd, input) => {
-    if (command === 'gh' || command === 'krn')
+    if (command === 'gh' || command.endsWith('/bin/krn'))
       return transport.run(
         process.execPath,
-        [script, configPath, command, ...args],
+        [
+          script,
+          configPath,
+          command.endsWith('/bin/krn') ? 'krn' : command,
+          ...args,
+        ],
         cwd,
         input,
       );

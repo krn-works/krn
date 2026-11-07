@@ -424,7 +424,7 @@ export async function deliver(
         try {
           writeFileSync(messageFile, message);
           const result = runner(
-            'krn',
+            join(main, 'bin', 'krn'),
             [
               'ship',
               '--repo',
@@ -593,7 +593,13 @@ export async function deliver(
       // ship may retire the calling worktree: change cwd before invoking it.
       if (!runtime.cwd) process.chdir(main);
       const dry = JSON.parse(
-        checked(runner('krn', [...args, '--dry-run', '--json'], main)),
+        checked(
+          runner(
+            join(main, 'bin', 'krn'),
+            [...args, '--dry-run', '--json'],
+            main,
+          ),
+        ),
       );
       const dryResult = z
         .object({ head: sha, dryRun: z.literal(true), precheckedTree: sha })
@@ -601,7 +607,9 @@ export async function deliver(
       if (dryResult.head !== state.head)
         throw new Error('ship dry-run head mismatch');
       const result = shipSchema.parse(
-        JSON.parse(checked(runner('krn', [...args, '--json'], main))),
+        JSON.parse(
+          checked(runner(join(main, 'bin', 'krn'), [...args, '--json'], main)),
+        ),
       );
       if (result.head !== state.head)
         throw new Error('ship result head mismatch');
@@ -615,14 +623,29 @@ export async function deliver(
       }
       stage = 'ship';
       if (!state.merge) {
-        const recovered = shipSchema.parse(
-          JSON.parse(
-            readFileSync(
-              join(main, '.krn', 'runs', 'ship', `pr-${options.pr}.json`),
-              'utf8',
-            ),
-          ),
+        const recordPath = join(
+          main,
+          '.krn',
+          'runs',
+          'ship',
+          `pr-${options.pr}.json`,
         );
+        if (!lstatIfPresent(recordPath)?.isFile())
+          throw new Error('ship recovery record is not a regular file');
+        const recovered = shipSchema
+          .extend({
+            status: z.literal('published'),
+            publication: z.object({ status: z.literal('merged') }),
+            mergeContained: z.literal(true),
+          })
+          .parse(
+            JSON.parse(
+              readFileSync(
+                join(main, '.krn', 'runs', 'ship', `pr-${options.pr}.json`),
+                'utf8',
+              ),
+            ),
+          );
         if (
           recovered.head !== state.head ||
           recovered.merge !== pull.merge_commit_sha

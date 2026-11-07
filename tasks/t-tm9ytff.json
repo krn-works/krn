@@ -1,0 +1,16 @@
+{
+  "id": "t-tm9ytff",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "native ship in Product; deliver calls <main>/bin/krn ship"
+  },
+  "created": "2026-11-06",
+  "priority": 0,
+  "title": "Native krn ship in Product; deliver stops calling the legacy install",
+  "after": [],
+  "body": [
+    "From the t-dsxc125 audit (.krn/runs/lead/dsxc125/ship-inventory.md): Product delivery shells out to `krn ship` on PATH, which is the legacy GLOBAL install (release 1eb17b8, not the fixed b41faae). The 2026-11-06 session lost ~3 h to it (orphaned Jenkins krn/gate check, foreign-file collision on install, PATH shim). Port ship into Product as `src/deliver/ship.ts` with the same CLI and JSON contract and make deliver invoke `<main checkout>/bin/krn ship`, so the merge authority is merged code and no host install sits on the delivery path."
+  ]
+}

@@ -249,10 +249,15 @@ function fixture(t: { after(fn: () => void): void }, pinnedApp = false) {
   const runner: NonNullable<
     import('../../src/deliver/delivery.ts').DeliveryRuntime['run']
   > = (command, args, cwd, input) => {
-    if (command === 'gh' || command === 'krn')
+    if (command === 'gh' || command.endsWith('/bin/krn'))
       return transport.run(
         process.execPath,
-        [script, configPath, command, ...args],
+        [
+          script,
+          configPath,
+          command.endsWith('/bin/krn') ? 'krn' : command,
+          ...args,
+        ],
         cwd,
         input,
       );
@@ -938,4 +943,22 @@ test('merge-only preserves state and plain delivery resumes from the same cwd', 
   const resumed = await f.api.deliver(f.options, f.runtime);
   assert.equal(resumed.status, 'delivered');
   assert.ok(!existsSync(f.worktree));
+});
+
+test('delivery invokes ship only through main checkout launcher', async (t) => {
+  const f = fixture(t);
+  const original = f.runtime.run;
+  let calls = 0;
+  const result = await f.api.deliver(f.options, {
+    ...f.runtime,
+    run: (command, args, cwd, input) => {
+      if (args[0] === 'ship') {
+        assert.equal(command, join(f.main, 'bin', 'krn'));
+        calls++;
+      }
+      return original(command, args, cwd, input);
+    },
+  });
+  assert.equal(result.status, 'delivered');
+  assert.equal(calls, 2);
 });

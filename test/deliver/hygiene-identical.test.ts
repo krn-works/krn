@@ -252,10 +252,15 @@ function fixture(t: { after(fn: () => void): void }, tracked = false) {
   const runner: NonNullable<
     import('../../src/deliver/delivery.ts').DeliveryRuntime['run']
   > = (command, args, cwd, input) => {
-    if (command === 'gh' || command === 'krn')
+    if (command === 'gh' || command.endsWith('/bin/krn'))
       return transport.run(
         process.execPath,
-        [script, configPath, command, ...args],
+        [
+          script,
+          configPath,
+          command.endsWith('/bin/krn') ? 'krn' : command,
+          ...args,
+        ],
         cwd,
         input,
       );
@@ -419,7 +424,7 @@ test('staged deletion of a HEAD path with identical bytes is never unlinked', as
     readFileSync(join(f.main, 'value.txt'), 'utf8'),
     'PR head refined\n',
   );
-  assert.match(f.git(f.main, ['status', '--porcelain']), /^D  value\.txt/mu);
+  assert.match(f.git(f.main, ['status', '--porcelain']), /^D {2}value\.txt/mu);
 });
 
 test('unrelated untracked and modified files survive successful delivery', async (t) => {

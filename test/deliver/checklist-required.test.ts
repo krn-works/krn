@@ -121,6 +121,7 @@ function fixture(
   const calls: string[][] = [];
   const runner: Runner = (command, args, cwd, input) => {
     calls.push([command, ...args]);
+    assert.notEqual(command, 'krn', 'deliver must not run krn from PATH');
     if (command === 'gh') {
       assert.deepEqual(args, [
         'api',
@@ -128,7 +129,7 @@ function fixture(
       ]);
       return { code: 0, stdout: JSON.stringify(pull), stderr: '' };
     }
-    if (command === 'krn') {
+    if (command.endsWith('/bin/krn')) {
       assert.equal(args[0], 'ship');
       assert.ok(args.includes('--dry-run'));
       return { code: 0, stdout: '{}', stderr: '' };
@@ -177,7 +178,7 @@ test('deliver refuses missing or stale digests, symlinks, deletion and directori
       return true;
     });
     assert.equal(
-      f.calls.some(([command]) => command === 'krn'),
+      f.calls.some(([command]) => command?.endsWith('/bin/krn')),
       false,
     );
   }
@@ -192,7 +193,7 @@ async function assertChecklistEvidenceRefused(f: ReturnType<typeof fixture>) {
     return true;
   });
   assert.equal(
-    f.calls.some(([command]) => command === 'krn'),
+    f.calls.some(([command]) => command?.endsWith('/bin/krn')),
     false,
   );
 }
@@ -233,8 +234,12 @@ test('deliver accepts matching bytes and legacy trees without a checklist', asyn
         sessionId: 'prepass-session',
       };
     }
-    assert.equal((await f.run()).status, 'dry-run');
-    assert.ok(f.calls.some(([command]) => command === 'krn'));
+    // A rejected delivery stays an assertion failure, not a thrown error.
+    const result = await f
+      .run()
+      .catch((error: unknown) => ({ status: String(error) }));
+    assert.equal(result.status, 'dry-run');
+    assert.ok(f.calls.some(([command]) => command?.endsWith('/bin/krn')));
   }
 });
 
