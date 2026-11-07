@@ -3,12 +3,7 @@ import { commandErrorExitCode } from './command-error.ts';
 import { commandHelp, topLevelHelp } from './help.ts';
 
 const version = '0.1.0';
-type ReviewCommandOutcome =
-  | 'PASS'
-  | 'FAIL'
-  | 'INCOMPLETE'
-  | 'OVERRIDE'
-  | 'PREPASS_BLOCKING';
+type ReviewCommandOutcome = 'PASS' | 'FAIL' | 'INCOMPLETE';
 
 async function dispatch(args: string[]): Promise<boolean> {
   const { dispatch: run } = await import('./index.ts');
@@ -24,14 +19,11 @@ async function review(args: string[]): Promise<void> {
 export function reviewOutcomeExitCode(outcome: ReviewCommandOutcome): number {
   switch (outcome) {
     case 'PASS':
-    case 'OVERRIDE':
       return 0;
     case 'FAIL':
       return 1;
     case 'INCOMPLETE':
       return 2;
-    case 'PREPASS_BLOCKING':
-      return 3;
   }
 }
 

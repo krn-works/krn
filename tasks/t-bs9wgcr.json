@@ -1,0 +1,12 @@
+{
+  "id": "t-bs9wgcr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "Retire isolation skip-gate machinery (scripts/isolation-gate.mjs, test-suite parts)",
+  "after": [],
+  "body": [
+    "Follow-up of t-45wvmk9: after #272 and red-first/verdict deletion, evaluate removing scripts/isolation-gate.mjs, test/isolation-*.test, test/helpers/isolation.ts and the isolation parts of scripts/test-suite.mjs, ci-changes.mjs, ci.yml. Keep live sandbox tests (codex host, evals)."
+  ]
+}

@@ -855,7 +855,11 @@ test('CI change detection excludes isolation files before the runner plans them'
   const root = fileURLToPath(new URL('..', import.meta.url));
   const result = spawnSync(
     process.execPath,
-    [suitePath, 'test/ci/ci-changes.test.ts', 'test/verdict/sandbox.test.ts'],
+    [
+      suitePath,
+      'test/ci/ci-changes.test.ts',
+      'test/hosts/codex-launch.test.ts',
+    ],
     {
       cwd: root,
       encoding: 'utf8',

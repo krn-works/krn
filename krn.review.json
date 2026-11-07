@@ -1,4 +1,0 @@
-{
-  "version": 1,
-  "testFile": { "import": ["scripts/isolation-gate.mjs"] }
-}
