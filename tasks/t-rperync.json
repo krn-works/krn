@@ -1,7 +1,11 @@
 {
   "id": "t-rperync",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Met on origin/main, design evolved: L1 autoCompactWindow 400000 (deliberate, pinned by test/rules/context-budget.test.ts; gauge thresholds are 60%/80% of it, scripts/claude/context-gauge.ts, test/claude/context-gauge.test.ts 7 pass incl. verbatim captures and fail-silent). L2 hooks wired in .claude/settings.json; state in .krn/runs/claude/context-gauge/<session>.json (live sessions recorded, highest>0 in some). L3 PreCompact for Claude removed on purpose (test pins undefined; Codex keeps it); SessionStart startup|resume|clear|compact runs scripts/claude/context-restart.ts (#288, #296; test/claude/context-restart.test.ts pass). L4 env BASH_MAX_OUTPUT_LENGTH 12000, MAX_MCP_OUTPUT_TOKENS 8000, .claude/agents/krn-reader.md haiku 300 words. L5 KRN-13 in spec/rules.json, krn-lead SKILL context budget, test/rules/context-budget.test.ts. L6 scripts/claude/context-report.ts, test pass."
+  },
   "created": "2026-10-29",
   "priority": 1,
   "title": "Bound lead context: compaction ceiling, gauge, deterministic restart",
