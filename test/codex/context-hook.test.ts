@@ -52,11 +52,15 @@ function fixtureProject(managed = true) {
   return root;
 }
 
-function run(root: string, payload: Record<string, unknown>) {
+function run(
+  root: string,
+  payload: Record<string, unknown>,
+  extra: Record<string, string> = {},
+) {
   const result = spawnSync('node', [script], {
     input: JSON.stringify({ ...sessionStart, cwd: root, ...payload }),
     encoding: 'utf8',
-    env: { ...process.env, CLAUDE_PROJECT_DIR: '' },
+    env: { ...process.env, CLAUDE_PROJECT_DIR: '', ...extra },
   });
   assert.equal(result.status, 0, result.stderr);
   return result.stdout;
@@ -196,7 +200,17 @@ test('a work tree without the KRN workflow gets no output and no writes', () => 
         '',
       );
     assert.equal(existsSync(join(root, '.krn')), false);
-    assert.equal(run(tmpdir(), {}), '', 'not a work tree');
+    // The runner's temp directory may itself sit inside a checkout.
+    const bare = mkdtempSync(join(tmpdir(), 'codex-hook-bare-'));
+    try {
+      assert.equal(
+        run(bare, {}, { GIT_CEILING_DIRECTORIES: tmpdir() }),
+        '',
+        'not a work tree',
+      );
+    } finally {
+      rmSync(bare, { recursive: true, force: true });
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
