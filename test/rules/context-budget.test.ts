@@ -42,4 +42,10 @@ test('Claude context budget settings wire documented hooks and read-only reader'
   );
   assert.ok(existsSync(new URL('scripts/claude/memory-budget.ts', root)));
   assert.equal(settings.hooks.PreCompact, undefined);
+  // Pattern kills hit other lanes' processes; agents stop processes by PID.
+  assert.deepEqual(settings.permissions.deny, [
+    'Bash(pkill -f:*)',
+    'Bash(pkill --full:*)',
+    'Bash(killall:*)',
+  ]);
 });
