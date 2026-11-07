@@ -39,8 +39,8 @@ Four repositories have runs whose jobs never started, with the annotation "The j
 ## Waves
 
 - **0** `krn-works/krn`: done (own `ci.yml`, ruleset `Check`).
-- **1** other `krn-works` repositories: adopt `project-ci.yml` in bounded PRs per repository, keeping each repository's own commands.
-- **2** `korneliuszburian` personal repositories: same, after wave 1 proves the template on Python, Go and JavaScript.
+- **1** other `krn-works` repositories: stopped 2026-11-07 by the operator (focus on KRN itself). Already onboarded and kept, each with a green `ci / Check` and a ruleset requiring it: krn-ogar, krn-portfolio, krn-onboarding-demo, krn-pokemon, krn-frontend, krn-codex-skills (main red on a PR commit without a change contract). Not onboarded: krn-ekologus-brain-lab, wilq-seo (PRs closed), krn-memory and krn-onboarding (nothing to run).
+- **2** `korneliuszburian` personal repositories: not planned; only on the operator's request.
 - **3** `Rekurencja` client repositories: owned by the client organisation; onboard only with the operator's explicit per-repository approval, never imposed.
 
 ## Catalogue
