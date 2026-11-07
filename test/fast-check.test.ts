@@ -44,6 +44,17 @@ test('fast check selects changed tests and tests importing a changed module', ()
   assert.deepEqual(selectTests(['docs/x.md'], tests), []);
 });
 
+test('fast check runs the repository rule tests for any change', () => {
+  const withRules = new Map([
+    ...tests,
+    ['test/rules/host-path-guard.test.mjs', ''],
+  ]);
+  assert.deepEqual(selectTests(['docs/x.md'], withRules), [
+    'test/rules/host-path-guard.test.mjs',
+  ]);
+  assert.deepEqual(selectTests([], withRules), []);
+});
+
 test('fast check ignores same-name modules and basename-only matches', () => {
   assert.deepEqual(selectTests(['src/other/claim.ts'], tests), []);
   assert.deepEqual(selectTests(['src/main.ts'], tests), []);

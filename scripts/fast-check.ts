@@ -26,12 +26,17 @@ function importedPaths(testPath: string, source: string): Set<string> {
   return found;
 }
 
-/** Tests to run: changed tests, plus tests whose imports resolve to a changed file. */
+/** Repository-wide rule tests scan every tracked file; they cost ~0.5 s, so any change runs them. */
+const RULE_TEST = /^test\/rules\//u;
+
+/** Tests to run: changed tests, tests whose imports resolve to a changed file, and the rule tests. */
 export function selectTests(
   changed: string[],
   tests: Map<string, string>,
 ): string[] {
   const picked = new Set(changed.filter((file) => tests.has(file)));
+  if (changed.length > 0)
+    for (const path of tests.keys()) if (RULE_TEST.test(path)) picked.add(path);
   const code = new Set(changed.filter((name) => CODE.test(name)));
   if (code.size > 0)
     for (const [path, source] of tests)
