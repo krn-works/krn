@@ -1,0 +1,12 @@
+{
+  "id": "t-1j0g4k1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 3,
+  "title": "krn task value flags must accept values starting with --",
+  "after": [],
+  "body": [
+    "krn task close --note (and other value flags) rejects a value that begins with '--': 'krn task close t-t34x7a8 --as done --note \"--collect (#326) ...\"' exited 64 with 'missing value for --note' on 2026-11-07. Acceptance: a value flag consumes the next argument verbatim even when it begins with '--', with a CLI test for --note \"--x\"."
+  ]
+}
