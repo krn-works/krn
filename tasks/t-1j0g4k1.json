@@ -1,7 +1,11 @@
 {
   "id": "t-1j0g4k1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "nextValue treats only a missing argument as missing; --note \"--x\" CLI test"
+  },
   "created": "2026-11-07",
   "priority": 3,
   "title": "krn task value flags must accept values starting with --",
