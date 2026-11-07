@@ -1,7 +1,11 @@
 {
   "id": "t-vh3t9ke",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Retired in PRs 268 (job machinery, legacy forwarding), 270 (SessionStart), 272 (isolation gate, Go CI). Review engine in src/flow kept: krn review is opt-in and still uses it."
+  },
   "created": "2026-11-07",
   "priority": 2,
   "title": "Retire the unused job machinery: krn start/checkpoint/stop/note/delegate, src/foreman, src/relay, src/flow review engine, isolation gate",
