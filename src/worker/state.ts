@@ -21,7 +21,7 @@ export class WorkerError extends Error {
     this.exitCode = exitCode;
   }
 }
-export const count = z.number().int().nonnegative().safe();
+const count = z.number().int().nonnegative().safe();
 const processId = count.max(2147483647).refine((value) => value !== 1);
 export const modelSchema = z
   .string()
@@ -48,7 +48,7 @@ export const pathSchema = z
       ) &&
       redact(value) === value,
   );
-export const requiredPathSchema = pathSchema.refine(
+const requiredPathSchema = pathSchema.refine(
   (value) =>
     !value.startsWith('/') &&
     !/[*?[\]{}]/u.test(value) &&
@@ -76,7 +76,7 @@ export const requestSchema = z.object({
   effort: effortSchema,
   compact: z.enum(['auto', 'always']).default('auto'),
 });
-export const usageSchema = z.object({
+const usageSchema = z.object({
   input: count,
   cached: count,
   output: count,

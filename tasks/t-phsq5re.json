@@ -1,7 +1,11 @@
 {
   "id": "t-phsq5re",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "deep-modules guidance in krn-architecture; measured refactor src/worker/state.ts exports 31->28; rest in t-45wvmk9"
+  },
   "created": "2026-11-06",
   "priority": 1,
   "title": "Adopt the TypeScript deep-modules skill and prove it on a real slice",
