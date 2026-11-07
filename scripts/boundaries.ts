@@ -27,16 +27,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   ],
   task: ['cli', 'fs'],
   evals: ['cli', 'hosts'],
-  cli: [
-    'ci',
-    'core',
-    'evals',
-    'flow',
-    'hosts',
-    'outcome',
-    'task',
-    'worker',
-  ],
+  cli: ['ci', 'core', 'evals', 'flow', 'hosts', 'outcome', 'task', 'worker'],
 };
 
 export type Violation = {
