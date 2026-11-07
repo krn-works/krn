@@ -1,0 +1,12 @@
+{
+  "id": "t-t34x7a8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 2,
+  "title": "Codex host tests must reset their own failed systemd scopes",
+  "after": [],
+  "body": [
+    "Codex host tests leave failed krn-* systemd scopes behind: on 2026-11-07 the user manager held 371 'loaded failed' krn-* units; one npm run fast over the 19 Codex-related tests added about 5 more and 5 parallel runs added 27. Acceptance: after a full test run, `systemctl --user list-units --all 'krn-*' --state=failed --no-legend | wc -l` is unchanged from before the run (tests reset-failed their own units in cleanup), with a test that asserts this for one launched scope."
+  ]
+}

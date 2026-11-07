@@ -7,6 +7,7 @@
   "title": "Identify and fix the codex-registration cancellation flake from its CI cause",
   "after": [],
   "body": [
-    "test/hosts/codex-registration.test.ts \"child exit during blocked onStarted...\" still fails in CI (#247, #253, main) with \"Codex systemd-scope cancellation could not be verified\". Not reproducible locally: 0/60 under load 36 and 0/60 pinned to 2 cores under 8 busy loops. The AggregateError message now lists its causes; read the cause from the next CI failure and fix it. Hypothesis already hardened: cgroup removed between open and read reports ENODEV (now treated as empty). If the cause differs, fix that instead. Supersedes the not-reproducible closure of t-xevd1d8."
+    "test/hosts/codex-registration.test.ts \"child exit during blocked onStarted...\" still fails in CI (#247, #253, main) with \"Codex systemd-scope cancellation could not be verified\". Not reproducible locally: 0/60 under load 36 and 0/60 pinned to 2 cores under 8 busy loops. The AggregateError message now lists its causes; read the cause from the next CI failure and fix it. Hypothesis already hardened: cgroup removed between open and read reports ENODEV (now treated as empty). If the cause differs, fix that instead. Supersedes the not-reproducible closure of t-xevd1d8.",
+    "Evidence 2026-11-07 (t-y1nx3kj): under host load 6-16 the 19 Codex-related tests failed 3 of 5 runs on main b28a1de and similarly on the PR #324 branch; the failures are the first test of each file at 'systemd scope ... did not register a live process' after the 5 s registration deadline, when ~8 files launch scopes at once."
   ]
 }
