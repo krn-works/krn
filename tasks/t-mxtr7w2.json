@@ -1,7 +1,11 @@
 {
   "id": "t-mxtr7w2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast-check resolves tools from the main checkout or exits 64 naming the fix"
+  },
   "created": "2026-11-07",
   "priority": 1,
   "title": "npm run fast: explain missing node_modules in fresh worktrees",

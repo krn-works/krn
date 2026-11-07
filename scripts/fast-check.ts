@@ -1,7 +1,7 @@
 // One-command changed-files verify: biome --write, tsc and the related tests, one verdict line.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
-import { join, posix } from 'node:path';
+import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { check as checkBoundaries } from './boundaries.ts';
 
@@ -81,6 +81,16 @@ function listTests(root: string): Map<string, string> {
   return tests;
 }
 
+/** Directory holding tool binaries: this checkout's, else the main checkout's (fresh worktrees have none). */
+export function toolBin(root: string): string | undefined {
+  const own = join(root, 'node_modules/.bin');
+  if (existsSync(join(own, 'tsc'))) return own;
+  const common = git(root, ['rev-parse', '--git-common-dir']).trim();
+  if (!common) return undefined;
+  const main = join(dirname(resolve(root, common)), 'node_modules/.bin');
+  return existsSync(join(main, 'tsc')) ? main : undefined;
+}
+
 type Step = { name: string; ok: boolean; seconds: number; output: string };
 
 function run(
@@ -121,7 +131,14 @@ export async function main(root: string): Promise<number> {
     process.stdout.write('fast PASS: no changed files\n');
     return 0;
   }
-  const bin = (name: string): string => join(root, 'node_modules/.bin', name);
+  const tools = toolBin(root);
+  if (!tools) {
+    process.stderr.write(
+      `fast: no node_modules in ${root} or the main checkout; run \`npm ci\` or \`ln -s <main checkout>/node_modules node_modules\`\n`,
+    );
+    return 64;
+  }
+  const bin = (name: string): string => join(tools, name);
   const files = lintable(changed);
   const cache = join(root, '.krn/cache');
   mkdirSync(cache, { recursive: true });
