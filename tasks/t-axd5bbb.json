@@ -1,7 +1,11 @@
 {
   "id": "t-axd5bbb",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-8c53vb8",
+    "note": "backlog triage 2026-11-07: Jenkins/krn-gate/self-hosted CI only; gone"
+  },
   "created": "2026-11-02",
   "priority": 2,
   "title": "Publish isolation coverage in the krn/gate check-run text",

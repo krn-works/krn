@@ -1,7 +1,11 @@
 {
   "id": "t-vq1k9mz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-xrcg8ms",
+    "note": "backlog triage 2026-11-07: restart block hardening owned by t-xrcg8ms"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Harden the restart block against malformed handoffs",

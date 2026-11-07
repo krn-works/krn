@@ -1,7 +1,11 @@
 {
   "id": "t-01yr1qf",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-2h7c18m",
+    "note": "backlog triage 2026-11-07: Benchmark coordination overhead; same measurement"
+  },
   "created": "2026-11-02",
   "priority": 2,
   "title": "Report coordination overhead per completed change in the delivery benchmark",

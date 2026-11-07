@@ -1,7 +1,11 @@
 {
   "id": "t-wqzzmcg",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-xrcg8ms",
+    "note": "backlog triage 2026-11-07: State loss at session start folds into handoff"
+  },
   "created": "2026-11-02",
   "priority": 2,
   "title": "Report lost delivery state at session start",

@@ -1,7 +1,11 @@
 {
   "id": "t-zj9k9ek",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "backlog triage 2026-11-07: Low value or research/measurement without a live defect; reopen on a real need"
+  },
   "created": "2026-10-27",
   "priority": 2,
   "title": "Build a reviewer evaluation set from escaped defects",

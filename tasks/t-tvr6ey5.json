@@ -1,7 +1,11 @@
 {
   "id": "t-tvr6ey5",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-8c53vb8",
+    "note": "backlog triage 2026-11-07: Jenkins/krn-gate/self-hosted CI only; gone"
+  },
   "created": "2026-11-05",
   "priority": 2,
   "title": "Give the lead Jenkins tunnel a health verdict and detached restart",

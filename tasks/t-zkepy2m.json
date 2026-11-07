@@ -1,7 +1,11 @@
 {
   "id": "t-zkepy2m",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "backlog triage 2026-11-07: Low value or research/measurement without a live defect; reopen on a real need"
+  },
   "created": "2026-10-28",
   "priority": 1,
   "title": "Move host lead policy into GLOBAL and install it by release",

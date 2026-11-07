@@ -1,7 +1,11 @@
 {
   "id": "t-jgz82z2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "backlog triage 2026-11-07: Low value or research/measurement without a live defect; reopen on a real need"
+  },
   "created": "2026-10-30",
   "priority": 1,
   "title": "Measure whether PASS signals bias exact-head reviewers",

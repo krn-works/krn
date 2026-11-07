@@ -1,7 +1,11 @@
 {
   "id": "t-ewrh2pb",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-rperync",
+    "note": "backlog triage 2026-11-07: Restart-class cost folds into context bound"
+  },
   "created": "2026-11-02",
   "priority": 2,
   "title": "Measure handoff cost per restart class: warm cache, long pause, after compaction",

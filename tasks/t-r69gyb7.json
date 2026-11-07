@@ -1,7 +1,11 @@
 {
   "id": "t-r69gyb7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-2f4cqda",
+    "note": "backlog triage 2026-11-07: Shard rebalance and flaky retry; same owner"
+  },
   "created": "2026-11-05",
   "priority": 0,
   "title": "Split gate shards by measured duration, retry a failed file once as flaky evidence, print failures first",

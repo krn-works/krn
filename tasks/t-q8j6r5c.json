@@ -1,7 +1,11 @@
 {
   "id": "t-q8j6r5c",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-2f4cqda",
+    "note": "backlog triage 2026-11-07: CI speed owned by t-2f4cqda"
+  },
   "created": "2026-11-05",
   "priority": 0,
   "title": "Shard, cache and tier the required gate so low-risk PRs go green in minutes",

@@ -1,7 +1,11 @@
 {
   "id": "t-vrhfjbf",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-xrcg8ms",
+    "note": "backlog triage 2026-11-07: state resume liveness folds into handoff"
+  },
   "created": "2026-11-02",
   "priority": 2,
   "title": "Report existing run directories as live in state resume",

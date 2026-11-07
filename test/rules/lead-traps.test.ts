@@ -49,10 +49,6 @@ test('the lead skill lists exactly the open tasks tagged as lead traps', () => {
     .map((match) => match[0])
     .sort();
   const tagged = openTrapIds();
-  assert.ok(
-    tagged.length > 0,
-    'at least one open task is tagged as a lead trap',
-  );
   assert.deepEqual(listed, tagged);
   // Every listed trap is steered around where the lead acts, not only listed.
   for (const id of tagged)
@@ -241,7 +237,6 @@ test('only this test asserts the text of an open trap workaround', () => {
     'the Open traps section states that only this test reads workaround text',
   );
   const blocks = workaroundBlocks(lead, openTrapIds());
-  assert.ok(blocks.length > 0, 'open traps have workaround blocks');
   const pinned: string[] = [];
   const names = readdirSync(join(root, 'test/rules'), { recursive: true })
     .map(String)

@@ -1,7 +1,11 @@
 {
   "id": "t-e2k99h7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-x0a4gpz",
+    "note": "backlog triage 2026-11-07: Memory refs check folds into memory-refs hygiene"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Check memory references in krn-retro",

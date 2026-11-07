@@ -1,7 +1,11 @@
 {
   "id": "t-3hs8q66",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-xrcg8ms",
+    "note": "backlog triage 2026-11-07: Refuse handoff with live agents folds in"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Refuse handoff while background agents are still running",

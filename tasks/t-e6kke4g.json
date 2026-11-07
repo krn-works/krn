@@ -1,7 +1,11 @@
 {
   "id": "t-e6kke4g",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-xrcg8ms",
+    "note": "backlog triage 2026-11-07: Ledger retirement failures fold into handoff"
+  },
   "created": "2026-11-03",
   "priority": 1,
   "title": "Ledger retirement reports lookup failures and stays in its workspace",

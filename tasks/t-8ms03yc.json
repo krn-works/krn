@@ -1,7 +1,11 @@
 {
   "id": "t-8ms03yc",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-2h7c18m",
+    "note": "backlog triage 2026-11-07: Journey time split; same measurement"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Split delivery journey time into model, tools, CI, review and operator wait",

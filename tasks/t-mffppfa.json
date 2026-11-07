@@ -1,7 +1,11 @@
 {
   "id": "t-mffppfa",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-kw3qb72",
+    "note": "backlog triage 2026-11-07: gate:local failure output; local gate optional"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Keep the failing test output when the local gate rejects test evidence",

@@ -1,7 +1,11 @@
 {
   "id": "t-4x9r5ab",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-2f4cqda",
+    "note": "backlog triage 2026-11-07: Parallel static checks; same owner"
+  },
   "created": "2026-11-05",
   "priority": 1,
   "title": "Run gate static checks in parallel with tests, trial tsgo, measure queue vs run time",

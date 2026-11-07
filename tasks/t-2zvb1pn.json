@@ -1,7 +1,11 @@
 {
   "id": "t-2zvb1pn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-xrcg8ms",
+    "note": "backlog triage 2026-11-07: Handoff history per outcome folds into handoff block"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Keep handoff history per outcome",

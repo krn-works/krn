@@ -1,0 +1,16 @@
+{
+  "id": "t-ps3ap2e",
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-87ks15p",
+    "note": "lead created it without searching; scope lives in t-87ks15p and t-phsq5re"
+  },
+  "created": "2026-11-07",
+  "priority": 1,
+  "title": "Repo-local architecture skill: TypeScript deep modules with a measured depth check",
+  "after": [],
+  "body": [
+    "Operator 2026-11-07 asked for skills for TypeScript deep modules, codebase architecture and design. None exist in .agents/skills (only krn-lead, krn-handoff, krn-retro). Add a repo-local skill (never global, operator rule) krn-architecture: deep modules (small interface, large hidden implementation), information hiding, one owner per concern, core/adapter boundary (KRN-05), and module depth measured by a script (exports vs lines per module, shallow pass-through modules, import fan-in/fan-out) that prints a verdict. Reuse ideas from user skill ~/.agents/skills/typescript-engineering (inference, boundaries, public APIs) and test-audit (retention bar). Prove value: run the depth script on src/ and land one measured refactor of the shallowest hot module."
+  ]
+}

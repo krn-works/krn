@@ -1,7 +1,11 @@
 {
   "id": "t-tqn5daj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-xevd1d8",
+    "note": "backlog triage 2026-11-07: Load-flaky test; folds into flake task"
+  },
   "created": "2026-11-03",
   "priority": 2,
   "title": "Stop review admission timing out worker hardening tests under host load",

@@ -1,7 +1,11 @@
 {
   "id": "t-mr1a70f",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-kw3qb72",
+    "note": "backlog triage 2026-11-07: review/contract ceremony retired by operator no-gates decision 2026-11-07"
+  },
   "created": "2026-10-30",
   "priority": 0,
   "title": "Accept native multi-entry change contracts at the Product receiver",

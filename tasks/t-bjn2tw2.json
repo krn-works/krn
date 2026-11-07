@@ -1,7 +1,11 @@
 {
   "id": "t-bjn2tw2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-xevd1d8",
+    "note": "backlog triage 2026-11-07: GLOBAL host-lock load flake; folds in"
+  },
   "created": "2026-10-27",
   "priority": 2,
   "title": "Make GLOBAL host-lock tests load resilient",

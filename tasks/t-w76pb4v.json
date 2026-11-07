@@ -1,7 +1,11 @@
 {
   "id": "t-w76pb4v",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-kw3qb72",
+    "note": "backlog triage 2026-11-07: Improves retired delivery ceremony (briefs/review/verify/slice/deliver/worker/red-first/hardening checklist)"
+  },
   "created": "2026-11-03",
   "priority": 2,
   "title": "Brief CLI deadline test fails under host load",

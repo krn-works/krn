@@ -1,7 +1,11 @@
 {
   "id": "t-bk2h4b5",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-8c53vb8",
+    "note": "backlog triage 2026-11-07: Self-hosted CI egress reconcile; fleet gone"
+  },
   "created": "2026-10-29",
   "priority": 1,
   "title": "Reconcile add-only CI egress drift automatically",

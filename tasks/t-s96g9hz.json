@@ -1,7 +1,11 @@
 {
   "id": "t-s96g9hz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "backlog triage 2026-11-07: Low value or research/measurement without a live defect; reopen on a real need"
+  },
   "created": "2026-11-02",
   "priority": 3,
   "title": "Narrow a task body before closing it when scope is split",

@@ -1,7 +1,11 @@
 {
   "id": "t-ste3f73",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-2h7c18m",
+    "note": "backlog triage 2026-11-07: delivery metrics owned by t-2h7c18m"
+  },
   "created": "2026-10-27",
   "priority": 1,
   "title": "Record delivery metrics with every merge",

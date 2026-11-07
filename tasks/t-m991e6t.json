@@ -1,7 +1,11 @@
 {
   "id": "t-m991e6t",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-kw3qb72",
+    "note": "backlog triage 2026-11-07: Improves retired delivery ceremony (briefs/review/verify/slice/deliver/worker/red-first/hardening checklist)"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Make the lead skill name a review command that works",

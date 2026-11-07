@@ -1,7 +1,11 @@
 {
   "id": "t-sdcdxb2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-8c53vb8",
+    "note": "backlog triage 2026-11-07: Jenkins removal owned by t-8c53vb8"
+  },
   "created": "2026-11-06",
   "priority": 0,
   "title": "Decommission Jenkins/PVE CI after the Actions cutover",

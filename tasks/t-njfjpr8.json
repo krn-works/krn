@@ -1,7 +1,11 @@
 {
   "id": "t-njfjpr8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-8c53vb8",
+    "note": "backlog triage 2026-11-07: Jenkins/krn-gate/self-hosted CI only; gone"
+  },
   "created": "2026-11-06",
   "priority": 1,
   "title": "Install Go 1.27.3 in the gate guest image so Go receivers run in krn/gate",

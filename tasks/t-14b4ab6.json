@@ -1,7 +1,11 @@
 {
   "id": "t-14b4ab6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-ve0zsvy",
+    "note": "backlog triage 2026-11-07: Handoff across Claude/Codex; same outcome"
+  },
   "created": "2026-11-05",
   "priority": 1,
   "title": "Make Herdr session handoff measurable, acknowledged and single-writer for Claude and Codex",

@@ -1,7 +1,11 @@
 {
   "id": "t-gdct2bc",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "backlog triage 2026-11-07: Low value or research/measurement without a live defect; reopen on a real need"
+  },
   "created": "2026-10-28",
   "priority": 1,
   "title": "Align GLOBAL instructions with D10-D13, D18, D21 and D22",

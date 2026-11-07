@@ -1,7 +1,11 @@
 {
   "id": "t-ymbw0jb",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-xevd1d8",
+    "note": "backlog triage 2026-11-07: Load-flaky test; folds into flake task"
+  },
   "created": "2026-10-28",
   "priority": 1,
   "title": "Make orphan fixture readiness deterministic under host load",

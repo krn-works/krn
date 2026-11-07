@@ -1,7 +1,11 @@
 {
   "id": "t-kjp1zp1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-rperync",
+    "note": "backlog triage 2026-11-07: First-turn context decomposition folds in"
+  },
   "created": "2026-11-01",
   "priority": 3,
   "title": "Decompose the interactive first-turn context",

@@ -1,7 +1,11 @@
 {
   "id": "t-mey03ws",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "backlog triage 2026-11-07: Low value or research/measurement without a live defect; reopen on a real need"
+  },
   "created": "2026-11-06",
   "priority": 2,
   "title": "Prove cancel leaves no residual work running or claimed",

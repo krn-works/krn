@@ -1,7 +1,11 @@
 {
   "id": "t-6kqjkmr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-rperync",
+    "note": "backlog triage 2026-11-07: Mid-task cuts fold into context bound"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Measure mid-task cuts and hand off at verified work boundaries",
