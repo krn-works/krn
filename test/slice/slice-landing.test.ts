@@ -433,7 +433,7 @@ test('gate failure preserves PASS and resumes without another review', async (t)
   const { root, options, krn } = await fixture(t);
   const receiver = stub(root, {});
   let code = 74;
-  const gateLine = `gate concluded failure; ${'cause '.repeat(45)}rerun: krn ci rerun --pr 7 --head ${HEAD}`;
+  const gateLine = `gate concluded failure; ${'cause '.repeat(45)}rerun: gh run rerun <run-id> --failed`;
   const runtime = {
     root,
     krn,

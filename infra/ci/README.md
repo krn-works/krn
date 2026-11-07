@@ -1,13 +1,9 @@
 # CI on owned infrastructure
 
-Status: the baseline has historical native Product pilot evidence on VM108/109;
-that does not qualify subsequent source changes or describe fresh host state.
-The diagnostics/queue changes require the qualification in
-[`jenkins/diagnostics-and-queue.md`](jenkins/diagnostics-and-queue.md).
-The baseline is one persistent Jenkins controller, one static PVE
-runner VM and one serial job slot. The VM is powered off and restored to its
-enrolled disk snapshot between attempts. Incus supplies an unprivileged system
-container inside that VM. No new paid services are part of this baseline.
+Status: the Go platform here (reset, network, executor) is retained
+historical tooling. The Jenkins controller and its VMs are retired; the only
+required CI is the GitHub Actions `Check`. Nothing here describes live host
+state, and no new paid services are part of this baseline.
 
 The trusted executor profile may explicitly set `nesting:true` when the gate
 needs nested user/PID/mount namespaces (including bubblewrap mounting procfs).
@@ -47,7 +43,6 @@ exercise rendering; they are not allocations. `network render --config FILE
 | `internal/reset` | Fixed enrolled VM, snapshot and all disk identities; host/owner/HA/policy checks; persistent generation and flock; cold rollback, stopped readback, start and new boot ID | Exact installed PVE/QGA output, snapshot support for every disk, timeout/recovery behavior |
 | `internal/network` | Validated configuration, scoped nft/bridge and interfaces rendering, owned-table digest | IPAM, integration with existing firewall, real packet tests and boot ordering |
 | `internal/executor` | Immutable job identity, approved command tiers, Incus execution and cleanup accounting | Image, actual logind session, cgroups, DNS, process exit/signal/timeout cases on the allocated runner |
-| `jenkins/` | Controller and trusted pipeline seed | Credential enrollment, exact plugin lock, lifecycle adapter and check publisher |
 
 ## Reset authority and protocol
 
@@ -85,23 +80,6 @@ snapshot; qualify storage and root-owned snapshot management separately.
 The nft hash covers both owned tables; counters and handles are volatile. It
 does not certify rules outside these tables. A periodic guard has a detection
 window, so it cannot be described as instantaneous fail-closed isolation.
-
-## Admission is deliberately incomplete
-
-Do not connect untrusted PRs to this seed. Before enabling Jenkins execution,
-implement and qualify the controller-owned single-slot lifecycle adapter:
-reserve an authorized attempt; reset and verify its receipt; bring up exactly
-one trusted agent; deliver a credential-free exact-SHA bundle; collect the
-result; terminate the agent; reset again on success, failure, timeout, cancel
-and controller recovery. The next attempt must stay blocked on cleanup failure.
-The runner must never call the reset helper itself. A reset receipt alone is
-not evidence that a gate passed.
-
-The publisher must use a separate controller-only GitHub App and bind repo,
-source/config/image identity, attempt and check ID before publishing an actual
-outcome. It must handle duplicate/out-of-order events and stale PR heads. Gates
-remain blocking until that boundary, exact-head testing and post-merge main
-build are implemented. No arbitrary PR Jenkinsfile is evaluated.
 
 Existing KRN delivery code still assumes GitHub Actions as a producer; generic
 ship also considers latest checks from every producer. This package changes

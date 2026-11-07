@@ -122,8 +122,8 @@ function fixture(t: { after(fn: () => void): void }, pinnedApp = false) {
       join(main, 'spec/ci-admission.json'),
       JSON.stringify({
         schemaVersion: 1,
-        checkRunName: 'krn/gate',
-        appId: 5548482,
+        checkRunName: 'Check',
+        appId: 15368,
       }),
     );
   }
@@ -217,11 +217,11 @@ function fixture(t: { after(fn: () => void): void }, pinnedApp = false) {
           checkRuns: [
             {
               id: 1,
-              name: 'krn/gate',
+              name: 'Check',
               head_sha: head,
               status: 'completed',
               conclusion: 'success',
-              app: { id: 5548482 },
+              app: { id: 15368 },
             },
           ],
         }
@@ -513,48 +513,6 @@ test('command failures retain receiver stdout reason and the first gate failure'
   );
 });
 
-for (const [status, conclusion] of [
-  ['queued', null],
-  ['in_progress', null],
-  ['completed', 'failure'],
-  ['completed', 'success'],
-] as const) {
-  test(`delivery refuses a legacy base on the first poll when native CI is ${status}/${conclusion}`, async (t) => {
-    const f = fixture(t);
-    f.change({
-      checkRuns: [
-        {
-          id: 1,
-          name: 'krn/gate',
-          head_sha: f.config.head,
-          status,
-          conclusion,
-          app: { id: 5548482 },
-        },
-      ],
-    });
-    await assert.rejects(
-      f.api.deliver(f.options, f.runtime),
-      (error: unknown) => {
-        assert.ok(error instanceof f.api.DeliveryFailure);
-        assert.equal(error.stage, 'ci');
-        assert.match(error.message, /base selects legacy GitHub Actions/u);
-        assert.match(error.message, /update branch from main/u);
-        return true;
-      },
-    );
-    assert.equal(
-      f
-        .calls()
-        .filter((call) => call.args.some((arg) => arg.includes('/check-runs?')))
-        .length,
-      1,
-    );
-    assert.equal(f.calls().filter((call) => call.role === 'krn').length, 0);
-    assert.ok(existsSync(f.worktree));
-  });
-}
-
 for (const patch of [
   { name: 'gate' },
   { head_sha: 'f'.repeat(40) },
@@ -567,11 +525,11 @@ for (const patch of [
       checkRuns: [
         {
           id: 1,
-          name: 'krn/gate',
+          name: 'Check',
           head_sha: f.config.head,
           status: 'completed',
           conclusion: 'success',
-          app: { id: 5548482 },
+          app: { id: 15368 },
           ...patch,
         },
       ],
@@ -794,7 +752,7 @@ for (const legacyGate of [false, undefined] as const) {
       f.change({ ciPending: false, ciFailure: true });
       await assert.rejects(
         f.api.deliver(f.options, f.runtime),
-        /ci: gate concluded failure/u,
+        /ci: Check concluded failure/u,
       );
       f.change({ ciFailure: false });
       assert.equal(
@@ -827,9 +785,9 @@ test('delivery rejects a malformed legacy gate field before receiver calls', asy
 
 for (const [label, patch] of [
   ['wrong head', { head_sha: 'e'.repeat(40) }],
-  ['wrong App', { app: { id: 15368, slug: 'github-actions' } }],
+  ['wrong App', { app: { id: 1, slug: 'other-app' } }],
   ['wrong name', { name: 'gate' }],
-  ['malformed', { app: { id: '5548482' } }],
+  ['malformed', { app: { id: '15368' } }],
 ] as const) {
   test(`delivery refuses ${label} Product CI before ready and ship`, async (t) => {
     const f = fixture(t, true);
@@ -837,11 +795,11 @@ for (const [label, patch] of [
       checkRuns: [
         {
           id: 1,
-          name: 'krn/gate',
+          name: 'Check',
           head_sha: f.config.head,
           status: 'completed',
           conclusion: 'success',
-          app: { id: 5548482 },
+          app: { id: 15368 },
           ...patch,
         },
       ],
@@ -863,7 +821,7 @@ test('delivery runs hygiene when main CI fails after the merge', async (t) => {
   const f = fixture(t, true);
   f.change({ mainCiFailure: true });
   const mainFailure =
-    /ci: gate concluded failure on [0-9a-f]{40}; failed at stage unknown: [^;]+; rerun: krn ci rerun --branch main --head [0-9a-f]{40}$/u;
+    /ci: Check concluded failure on [0-9a-f]{40}; rerun: gh run rerun <run-id> --failed \(gh run list --commit [0-9a-f]{40}\)$/u;
   const branch = f.git(f.worktree, ['branch', '--show-current']);
   await assert.rejects(f.api.deliver(f.options, f.runtime), {
     stage: 'ci',

@@ -58,7 +58,7 @@ function fixture(
   if (basePolicy === 'pinned')
     writeFileSync(
       policyPath,
-      '{"schemaVersion":1,"checkRunName":"krn/gate","appId":5548482}\n',
+      '{"schemaVersion":1,"checkRunName":"Check","appId":15368}\n',
     );
   if (basePolicy === 'invalid')
     writeFileSync(policyPath, '{"schemaVersion":2}\n');
@@ -70,7 +70,7 @@ function fixture(
   if (options.headPolicy)
     writeFileSync(
       policyPath,
-      '{"schemaVersion":1,"checkRunName":"krn/gate","appId":5548482}\n',
+      '{"schemaVersion":1,"checkRunName":"Check","appId":15368}\n',
     );
   git(repo, 'add', '.');
   git(repo, 'commit', '-qm', 'feat: clean candidate');
@@ -161,10 +161,10 @@ function gateRun(
 ): ReviewGateCheckRun {
   return {
     id: 41,
-    name: 'krn/gate',
+    name: 'Check',
     head_sha: headSha,
     status: 'completed',
-    app: { id: 5548482 },
+    app: { id: 15368 },
     conclusion: 'failure',
     started_at: '2026-11-02T06:27:20Z',
     html_url: 'https://github.com/krn-works/krn/runs/41',
@@ -194,8 +194,8 @@ test('a failed exact-head gate refuses before a PR review attempt is reserved', 
       ),
     );
     assert.equal(captured.length, 1);
-    assert.equal(captured[0]?.name, 'krn/gate');
-    assert.equal(captured[0]?.app?.id, 5548482);
+    assert.equal(captured[0]?.name, 'Check');
+    assert.equal(captured[0]?.app?.id, 15368);
     assert.equal(captured[0]?.conclusion, 'failure');
     return captured.map((check) => ({ ...check, head_sha: headSha }));
   };
@@ -210,7 +210,7 @@ test('a failed exact-head gate refuses before a PR review attempt is reserved', 
     'a failed exact-head gate must refuse before reserving an attempt',
   );
   assert.ok(result instanceof flow.ReviewAdmissionError);
-  assert.match(result.message, /krn\/gate/u);
+  assert.match(result.message, /Check/u);
   assert.match(result.message, /failure/u);
   assert.match(
     result.message,
@@ -233,7 +233,7 @@ test('a failed exact-head gate refuses before a PR review attempt is reserved', 
       assert.equal(reviewErrorExitCode(error), 64);
       assert.match(
         error instanceof Error ? error.message : String(error),
-        /krn\/gate/u,
+        /Check/u,
       );
       assert.match(
         error instanceof Error ? error.message : String(error),
@@ -456,10 +456,10 @@ for (const malformed of [
         check_runs: [
           {
             id: 2,
-            name: 'krn/gate',
+            name: 'Check',
             head_sha: 'a'.repeat(40),
             status: 'completed',
-            app: { id: 5548482 },
+            app: { id: 15368 },
             conclusion: null,
             started_at: '2026-11-02T06:27:20Z',
             html_url: 'https://github.com/krn-works/krn/runs/2',
@@ -657,7 +657,7 @@ test('a failed gate with a long check run URL refuses with a bounded cause', asy
     );
   assert.equal(f.reservations().length, 0);
   assert.ok(result instanceof flow.ReviewAdmissionError);
-  assert.match(result.message, /krn\/gate/u);
+  assert.match(result.message, /Check/u);
   assert.doesNotMatch(result.message, /gate check read failed/u);
   for (const line of result.message.split('\n'))
     assert.ok(line.length <= 260, `cause line is bounded: ${line.length}`);
@@ -723,7 +723,7 @@ test('unusual check runs from other apps do not block a gate decision', async (t
       (error: unknown) => error,
     );
   assert.ok(refused instanceof flow.ReviewAdmissionError);
-  assert.match(refused.message, /krn\/gate/u);
+  assert.match(refused.message, /Check/u);
   assert.equal(g.reservations().length, 0);
 });
 

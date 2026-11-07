@@ -9,7 +9,6 @@ import {
   run,
   sleep,
 } from '../deliver/transport.ts';
-import { rerun } from './rerun.ts';
 
 export async function waitCommand(
   args: string[],
@@ -73,14 +72,6 @@ export async function waitCommand(
     await waitForGate({
       ...options,
       policy,
-      orphanRerun:
-        process.env.KRN_JENKINS_USER && process.env.KRN_JENKINS_TOKEN
-          ? () =>
-              rerun({ pr: options.pr, head: options.head, repo: options.repo })
-          : undefined,
-      log: (line) => {
-        process.stderr.write(`${line}\n`);
-      },
       gh: runtime.gh ?? ((args) => github(args, cwd, runner, wait)),
       sleep: wait,
       now: runtime.now ?? Date.now,

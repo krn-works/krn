@@ -258,7 +258,7 @@ export function gateTotals(responses: unknown[]) {
   const groups = responses.map((r) =>
     array(object(r).check_runs)
       .map(object)
-      .filter((c) => c.name === 'krn/gate' && object(c.app).id === 5548482),
+      .filter((c) => c.name === 'Check' && object(c.app).id === 15368),
   );
   const runs = groups.flat();
   return {

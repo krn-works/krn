@@ -1,10 +1,8 @@
 import { z } from 'zod';
 import {
   type GateAdmissionPolicy,
-  KRN_CHECK_APP_ID,
   matchesGateCheckRun,
 } from './admission-policy.ts';
-import { gateFailureLine } from './gate-failure.ts';
 
 const sha = z.string().regex(/^[a-f\d]{40}$/u);
 const checksSchema = z.array(
@@ -39,9 +37,6 @@ export interface GateWaitOptions {
   now: () => number;
   pollMs: number;
   timeoutMs: number;
-  orphanRerun?: (() => Promise<string>) | undefined;
-  orphanAfterMs?: number;
-  log?: (line: string) => void;
 }
 export class GateTimeout extends Error {
   readonly state: string;
@@ -50,7 +45,7 @@ export class GateTimeout extends Error {
     timeoutMs: number,
     state: string,
     head: string,
-    checkRunName = 'krn/gate',
+    checkRunName = 'Check',
   ) {
     const seconds = Math.floor(timeoutMs / 1000);
     const safeState = (state.split(/[\n\r\u2028\u2029]/u)[0] ?? '')
@@ -65,23 +60,15 @@ export class GateTimeout extends Error {
 }
 export async function waitForGate({
   repo,
-  pr,
   head,
-  onMain = false,
   policy,
   gh,
   sleep,
   now,
   pollMs,
   timeoutMs,
-  orphanRerun,
-  orphanAfterMs = 120000,
-  log,
 }: GateWaitOptions): Promise<string> {
   let state = 'missing';
-  let pendingId: number | undefined;
-  let pendingSince = 0;
-  let probing = true;
   const poll = async (condition: () => Promise<boolean>) => {
     const deadline = now() + timeoutMs;
     while (!(await condition())) {
@@ -103,73 +90,15 @@ export async function waitForGate({
       ),
     );
     const checks = pages.flatMap((page) => page.check_runs);
-    if (
-      policy.source === 'legacy-actions' &&
-      checks.some((check) =>
-        matchesGateCheckRun(check, head, {
-          source: 'pinned-app',
-          checkRunName: 'krn/gate',
-          appId: KRN_CHECK_APP_ID,
-        }),
-      )
-    )
-      throw new Error(
-        'base selects legacy GitHub Actions but native CI is present; update branch from main or reconcile base CI policy',
-      );
     const gate = checks
       .filter((check) => matchesGateCheckRun(check, head, policy))
       .sort((a, b) => b.id - a.id)[0];
     state = gate?.status ?? 'missing';
-    if (gate?.status !== 'completed') {
-      if (gate && (gate.status === 'queued' || gate.status === 'in_progress')) {
-        if (pendingId !== gate.id) {
-          pendingId = gate.id;
-          pendingSince = now();
-        }
-        if (
-          !onMain &&
-          orphanRerun &&
-          probing &&
-          now() - pendingSince >= orphanAfterMs
-        ) {
-          let line: string | undefined;
-          try {
-            line = await orphanRerun();
-            probing = false;
-          } catch (error) {
-            if (
-              typeof error === 'object' &&
-              error !== null &&
-              'exitCode' in error &&
-              error.exitCode === 75
-            ) {
-              pendingSince = now();
-            } else {
-              line = error instanceof Error ? error.message : String(error);
-              probing = false;
-            }
-          }
-          if (line !== undefined)
-            log?.(
-              `orphan: ${(line.split(/[\n\r\u2028\u2029]/u)[0] ?? '').replace(
-                /[\p{Cc}\p{Cf}]/gu,
-                '',
-              )}`,
-            );
-        }
-      } else {
-        pendingId = undefined;
-      }
-      return false;
-    }
+    if (gate?.status !== 'completed') return false;
     conclusion = gate.conclusion ?? 'unknown';
     if (conclusion !== 'success')
       throw new Error(
-        `gate concluded ${conclusion} on ${head}; ${gateFailureLine(gate.output)}; rerun: ${
-          onMain
-            ? `krn ci rerun --branch main --head ${head}`
-            : `krn ci rerun --pr ${pr} --head ${head}`
-        }`,
+        `${policy.checkRunName} concluded ${conclusion} on ${head}; rerun: gh run rerun <run-id> --failed (gh run list --commit ${head})`,
       );
     return true;
   });

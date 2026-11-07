@@ -1,7 +1,11 @@
 {
   "id": "t-8c53vb8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Jenkins infra, krn/gate support, krn ci rerun and Go Jenkins-fence packages removed; App 5548482 uninstall pending (needs app JWT or org UI)"
+  },
   "created": "2026-11-07",
   "priority": 1,
   "title": "Remove Jenkins code and references from Product",

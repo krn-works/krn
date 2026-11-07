@@ -14,7 +14,7 @@ function high(path: string): boolean {
       path,
     ) ||
     /(?:^|\/)(?:AGENTS|CLAUDE)\.md$/.test(path) ||
-    ['package.json', 'pnpm-lock.yaml', 'Jenkinsfile'].includes(path)
+    ['package.json', 'pnpm-lock.yaml'].includes(path)
   );
 }
 function low(path: string): boolean {

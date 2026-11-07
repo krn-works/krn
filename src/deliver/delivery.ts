@@ -15,7 +15,6 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { rerun } from '../ci/rerun.ts';
 import {
   currentReviewAttempts,
   readReviewJson,
@@ -495,15 +494,6 @@ export async function deliver(
         head,
         onMain,
         policy: gatePolicy,
-        orphanRerun:
-          !onMain &&
-          process.env.KRN_JENKINS_USER &&
-          process.env.KRN_JENKINS_TOKEN
-            ? () => rerun({ pr: options.pr, head, repo: options.repo })
-            : undefined,
-        log: (line) => {
-          process.stderr.write(`${line}\n`);
-        },
         gh: (args) => gh(args, main),
         sleep: wait,
         now,

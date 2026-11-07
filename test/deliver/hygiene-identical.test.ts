@@ -118,8 +118,8 @@ function fixture(t: { after(fn: () => void): void }, tracked = false) {
     join(main, 'spec/ci-admission.json'),
     JSON.stringify({
       schemaVersion: 1,
-      checkRunName: 'krn/gate',
-      appId: 5548482,
+      checkRunName: 'Check',
+      appId: 15368,
     }),
   );
   if (tracked) {
@@ -221,11 +221,11 @@ function fixture(t: { after(fn: () => void): void }, tracked = false) {
       checkRuns: [
         {
           id: 1,
-          name: 'krn/gate',
+          name: 'Check',
           head_sha: head,
           status: 'completed',
           conclusion: 'success',
-          app: { id: 5548482 },
+          app: { id: 15368 },
         },
       ],
     },
