@@ -1,77 +1,57 @@
 ---
 name: krn-lead
-description: Lead KRN delivery in this repository as its chief of staff — pick the next slice, brief and delegate it, verify by commands, ship it, and make the next slice cheaper. Use when acting as the KRN lead or resuming the delivery loop; skip for a single read-only question.
+description: Lead KRN delivery in this repository as its chief of staff — pick the next slice, code it, ship it through auto-merge, and make the next slice cheaper. Use when acting as the KRN lead or resuming the delivery loop; skip for a single read-only question.
 ---
 
 # KRN lead
 
-You are the directly responsible lead for this repository's delivery outcome. Work on two tracks at once:
-
-- **Tactical:** take one slice to a merged PR with green main CI.
-- **Strategic:** change the environment (checks, rules, briefs, skills) so the next slice costs less.
-
-## Default path: no gates (operator 2026-11-07)
-
-Operator: "wypierdol bramki po prostu koduj i bebesz masz na wszysko zgode" and "ustaw to jako globalną zasadę skillsów i realnie przyśpiesz proces". This overrides the slice loop below for every lead and successor:
-
-1. Code the change yourself in a worktree under `.krn/worktrees/<purpose>`; commit with `Ticket: <id>` when a task exists.
-2. Run `npm run lint`, `npm run check` and the tests you touched (`node --test <files>`); fix until green. CI runs Biome lint, so skipping it costs a red `Check` round.
-3. `git push` (after a rebase: `git push --force-with-lease`), `gh pr create --head <branch> --base main` (without `--head`, gh takes the branch of the current directory, which in a multi-worktree session opened a PR from the wrong branch), then `gh pr merge <n> --auto --merge`: GitHub merges once the required Actions `Check` passes (the only required check in the `main integrity` ruleset) and deletes the branch.
-4. Read main CI; a red test is a defect to fix, an infra flake is `gh run rerun <id> --failed`.
-
-Skip briefs, Codex workers, `krn review`, red-first and `krn deliver` unless a worker clearly saves time. Batch related fixes into one PR. Never wait on the operator; the grant covers everything in this repository. Skill files live in `.agents/skills/`; `.claude/skills` links to them.
+You are the directly responsible lead for this repository's delivery outcome. Tactical: take one slice to a merged PR with green main CI. Strategic: change the environment (checks, rules, skills) so the next slice costs less.
 
 ## Protect your context
 
-Your context window is the scarcest resource: model accuracy drops as inputs grow and as relevant facts sit in the middle of long inputs (Liu et al., "Lost in the Middle", 2023; Chroma, "Context Rot", 2025). Orchestrator–worker setups with separate worker contexts beat a single agent on broad tasks, and token spend explains most of the difference (Anthropic, multi-agent research system, 2025). So:
+Your context window is the scarcest resource: model accuracy drops as inputs grow and as relevant facts sit in the middle of long inputs (Liu et al., "Lost in the Middle", 2023; Chroma, "Context Rot", 2025). So:
 
-- Delegate reading. Logs, diffs, test output and audits go to a worker or subagent that writes a file and returns a short verdict with its path. Read verdicts, not raw output.
+- Delegate reading. Logs, diffs, test output and audits go to a subagent that writes a file and returns a short verdict with its path. Read verdicts, not raw output.
 - Communicate by pointers: paths, SHAs, task ids, record files. Never paste what a file already holds.
 - Verify with commands that print a verdict (exit code, PASS/FAIL, counts). If a check needs reading, script it.
 - One slice per session. When the slice merges, run `krn-retro`, then `krn-handoff`, and stop.
 
 - **Context budget:** obey `context-gauge` advisories at 60% and 80% of the `autoCompactWindow` set in `.claude/settings.json`; use `krn-reader` for reading verdicts and paths, finish the current step at an advisory, then run `krn-handoff`.
 
-## The slice loop
+## The loop: no gates (operator 2026-11-07)
 
-`krn slice run <task-id> --brief <file> --message <file> --name <kebab> --repo <owner/repo> --model <id> --effort <level> [--worker none] [--stop-after <stage>] [--budget-exception <file>]` chains steps 3–8 below from the main checkout with a resumable journal in `.krn/runs/slice/<task>/journal.json`: rerun it with the same arguments after any stop; `--stop-after claim` leaves room for lead edits, and `--worker none` skips (or closes a failed) worker, then runs the brief's observers and `test/rules` on the uncommitted lead edits and stops at stage `worker` with their exit code before any commit (output in `.krn/runs/slice/<task>/pre-commit.log`). The message file is the implementation commit message without trailers; the runner appends `Ticket:` and `Change-contract:`. A same-ref rebase keeps the review series count (D10 keys it by PR and baseRef); after two attempts it exits 64 before review and names the exception path, and `--budget-exception <file>` passes the operator exception to the next attempt. After a review FAIL on an unchanged head a plain rerun exits 65; fix and commit, or rerun with `--override --reason <text> --evidence <text>` to record the override and deliver. The `review` stage runs `krn ci wait` for the PR's required check (`Check` from GitHub Actions, selected by `spec/ci-admission.json` at the PR base) beside the review panel, the `gate` stage fails with exit 74 on a red gate and exits 75 when the bounded wait times out (rerun slice run to resume) (after rerunning the failed Actions jobs, rerun slice run; no new review attempt), and `deliver` runs `krn deliver --merge-only`, then starts the plain `krn deliver` detached for main CI and hygiene and returns: rerun slice run later to read `landing: running|delivered|failed exit <n>, log <path>` from `.krn/runs/slice/<task>/landing.*`. The manual steps stay the reference for each stage.
+Operator: "wypierdol bramki po prostu koduj i bebesz masz na wszysko zgode". The grant covers everything in this repository; never wait on the operator.
 
-1. **Resume.** `krn state resume --root .`, `krn task ready`, `git fetch --prune`, open PRs, main CI. Confirm no other writer on this outcome; a second lane follows "Parallel lanes" in `docs/program/lead-rules.md`.
-2. **Pick one slice:** the ready task that fits one PR and removes the most recurring cost or unblocks the most work; operator priorities first. Say what you defer.
-3. **Claim.** `krn task claim <id> --actor lead --worktree <path> --reason <text>`; branch and worktree under `.krn/worktrees/<purpose>`. While a lane is active, create tasks with `krn task create --worktree <lane worktree>`; `close`, `edit` and `dep` on a live-claimed task write into the claim's worktree, so the main checkout never holds a second copy.
-4. **Brief** (at most one page, `.krn/runs/<owner>/<slice>/brief.md`): outcome and the operator grant verbatim; settled decisions; facts with path:line; the exact `--allow` list; consumers from `git grep -l` with explicit `:(glob)` pathspecs at the exact base; a readiness matrix of boundary cases; a `## Hardening` section answering every class in `docs/program/hardening-checklist.md`, a `## Steps` numbered list whose first step writes the `## Proof` observer and runs it red; all checked by `krn brief check <brief> --repo <worktree> --model <id>`, which refuses an Allowed path that `spec/worker-scope.json` forbids and prints the `--allow`/`--require`/`--observer` argv to pass verbatim (`worker start` refuses an `--allow` list that differs from the brief); proof (new or changed observers fail at the base by assertion and pass at head; check `typeof` before calling a new export); stop rules.
-5. **Delegate** by difficulty (table below) with `bin/krn worker start --run <worktree>/.krn/runs/<slice> --repo <worktree> --brief <file> --allow <path>... [--require <path>...] [--check <cmd>...] [--observer <test file>...] --model <id> --effort <level>`; it blocks until the turn ends and prints the result line, then the report's `status:`, each `blocker:` and each `failing check:` and each `acceptance:` line (exit 3: scope violation; exit 4: a `partial` or `blocked` report, a `--require` path that is not a changed regular file since the session start, or a report whose `changed_paths` differ from the cumulative diff since the session start or that says `done` with a failing check, or a declared `--check`/`--observer` that the driver ran after the turn in the Codex workspace-write sandbox and that exited non-zero, timed out or was missing; each entry's exit code lands in `result.json` `acceptance` and its output in `rounds/NNN/acceptance-<k>.log`); `rounds/NNN/result.json` records the Codex `rollout_path`. Fix rounds reuse the thread: `bin/krn worker send --run <dir> --message <file> [--model <id>] [--effort <level>] [--compact always]` (compaction runs before a turn whose previous input exceeded 250k tokens or half the window, or on `--compact always`; at most three turns and 1M uncached tokens, ADR 0014 D13 amendment), then `bin/krn worker stop --run <dir>`. Each round's cost is in `rounds/NNN/metrics.json`; `node scripts/rollout-usage.ts --run <dir>` reports the same unit from the rollout. The scope check sees every worktree change since start, so commit lead edits before `start` and never edit the worktree during a turn. Workers never commit: the brief asks for uncommitted changes and the lead commits after the turn. `start` refuses an `--allow` that names a forbidden path (exit 64); the lead makes those edits. A turn that reports `partial` or `blocked` exits 4; send one continuation round that lists the remaining work. When that report changes nothing and no blocker names a command with its exit code or a timeout, the message ends `blocker not technical: send a continuation` and `result.json` has `nontechnical_blocker: true`: send the continuation without reading the rollout. Copy `closed-session.json` and `rounds/` to the lead run dir before hygiene removes the worktree. Recon goes to Claude subagents; the host wrapper `~/.claude/skills/delegate-codex/scripts/codex-worker` (untracked until t-zkepy2m) remains only for `--browser` or `--add-dir` runs. A clear, bounded edit may be done by the lead; independent review still applies.
-6. **Close, then verify by commands.** First commit `krn task close <id> --as done --note <text>` as the last commit (review does not yet refuse a head that leaves the ticket open, t-tf4qwnz). Then, on that final head and before every review attempt, run `bin/krn verify --base <pr-base> --task <id> --observer <file>` to perform lint, type checking, targeted tests, red-first, preflight, diff checking, and the Ticket trailer check (every `Ticket:` in base..head must name the PR task, as deliver requires) in order. Red-first accepts only base `assertion` as red and fails on `other`, `procedural`, `timeout`, `skipped`, and `missing-module`, which is stricter than review admission. For targeted host isolation tests, pass `XDG_RUNTIME_DIR` and `DBUS_SESSION_BUS_ADDRESS` through the caller environment. `npm` is unusable inside the red-first sandbox; a CLI observer needs a PATH shim. Squash corrections into one implementation commit after an `archive/` tag: `git commit --fixup <implementation commit>`, then `GIT_SEQUENCE_EDITOR=true git rebase -i --autosquash <commit below it>`, so the close commit stays last; every new head needs `krn verify` again before its review attempt.
-7. **Review.** Push, open a draft PR whose title ends with `(<task-id>)` (deliver `--dry-run` does not check it, t-jt8n4s2), then, for every PR, run the trusted base reviewer from the main checkout at the PR base: `bin/krn review --repo <path> --pr <n> --base <exact-base> --head <exact-head> --lens <lens> --prepass --risk-tier --checklist <checklist>`, where `<path>` is the PR worktree, `<lens>` is the lens file generated by `krn brief lens <brief> > <lens>` (the brief's Settled decisions verbatim, then its non-N/A Hardening answers as accepted residuals, so review does not re-decide or re-flag them) and `<checklist>` is that worktree's `docs/program/hardening-checklist.md`. Every path is absolute (a relative `--repo` exits 64, t-m991e6t; `--lens` and `--checklist` resolve against the current directory). Head code never writes its own review record: preflight refuses a record whose `toolSha` is not an ancestor of the PR base, and the base schema verifies what the base reviewer writes. `--risk-tier` sizes the panel by the diff (low: one `spec` judge; medium: full panel; high: full panel plus a `notice:` line, ADR 0014 D30 review-tier amendment); `krn slice run` passes it. Always pass the checklist; at most two attempts per PR and base ref (D10); the second also uses `--prior-record <first FAIL record>`, also after a prepass-only FAIL (judges: 0), where the panel then runs its full first pass and verifies the prepass findings. Afterwards the lead decides: `bin/krn review --repo <path> --pr <n> --base <exact-base> --head <exact-head> --override --reason <text> --evidence <text>` accepts a recorded panel FAIL or a prepass-only FAIL on the exact head; an extra attempt needs an operator exception file (`--budget-exception`) and takes no `--prior-record` (a second-round record exits 64).
-8. **Gate and ship.** After a PASS review, run `(cd <PR worktree> && bin/krn deliver --repo <owner/repo> --pr <n> --record <record.json> --task <id>)`: `bin/krn` puts the pinned Node (`.node-version`) and Go (`infra/ci/mise.toml`) first on PATH for every child, so Go observers prove red-first instead of skipping; the first run starts from the PR worktree in a subshell (from the main checkout it exits 71), and after hygiene removes that worktree you resume from the main checkout (t-8k6n32d). Hygiene removes main-checkout leftovers byte-identical to what the merge brings before it fast-forwards; a differing file still exits 77. Deliver creates the ship subject from the PR title without a trailing task suffix plus `(#<pr>)`, runs the steps below (statuses, required CI, ready, ship, main CI, hygiene) and resumes where it stopped; add `--dry-run` first, which also consults `ship --dry-run`. Ship verifies review records with the base schema and drops only keys it does not know; it never guesses an unknown enum value. Under the ADR 0014 D30 amendment, full Product the aggregate GitHub Actions `Check` (App `15368`, `.github/workflows/ci.yml`) is required CI on the exact HEAD, selected from the authoritative PR base. Keep independent `npm run preflight` and review mandatory; `npm run gate:local` is optional local diagnostics, with no host-load wait in delivery. Deliver exits 75 (stage `ci-wait`) when the required `Check` is still missing, queued or in progress at the end of its bounded wait: rerun the same command, it resumes at the wait; exit 74 means a red gate. A red `Check` caused by runner infrastructure (apt/network timeout, runner lost) on an unchanged head is re-attempted with `gh run rerun <run-id> --failed` (find the run with `gh run list --branch <branch> --workflow ci.yml`; on main: `--branch main`), never by re-pushing the tree; a red test is a defect, not a rerun. By hand: wait for that required CI; mark the PR ready; `krn ship --repo <owner/repo> --pr <n> --message-file <file> --dry-run`, then without `--dry-run`, from the main checkout; read main CI.
-9. **Close.** The close commit from step 6 makes the merge close the task and expire its claim; release any other claim with `krn task release <id>`. Hygiene (retire the branch and worktree, archive review-series state, fast-forward main); capsule update and `krn state check --root .` clean; `krn-retro`; `krn-handoff`.
+1. **Resume.** `krn state resume --root .`, `krn task ready`, `git fetch --prune`, open PRs, main CI. A second lane follows "Parallel lanes" in `docs/program/lead-rules.md`.
+2. **Pick one slice:** the ready task that fits one PR and removes the most recurring cost or unblocks the most work; operator priorities first. Say what you defer. Claim it with `krn task claim <id> --actor lead --worktree <path> --reason <text>`.
+3. **Code** in a worktree under `.krn/worktrees/<purpose>`, yourself. Commit with `Ticket: <id>` when a task exists and `krn task close <id> --as done --note <text>` in the same PR. Batch related fixes into one PR.
+4. **Check locally:** `npm run lint` (CI runs Biome, so skipping it costs a red `Check` round), `npm run check`, and the tests you touched (`node --test <files>`).
+5. **Ship:** `git push` (after a rebase: `git push --force-with-lease`), `gh pr create --head <branch> --base main` (without `--head`, gh takes the branch of the current directory, which in a multi-worktree session opened a PR from the wrong branch), then `gh pr merge <n> --auto --merge`. GitHub merges once the required Actions `Check` (App `15368`, the only required check in the `main integrity` ruleset) passes and deletes the branch.
+6. **Read main CI.** A red test is a defect to fix; an infra flake (apt/network timeout, runner lost) is `gh run rerun <id> --failed`, never a re-push.
+7. **Close:** release any other claim with `krn task release <id>`, retire the worktree, update the capsule (`krn state check --root .` clean), run `krn-retro`, then `krn-handoff`.
 
-## Models by difficulty
+Parallel work: one lane per worktree, background agents for independent slices, one writer per outcome.
 
-| Work | Model |
-|---|---|
-| Lead: planning, briefs, acceptance, decisions | Claude Opus |
-| Default implementation and judges (D18) | `gpt-6-luna` |
-| Hard implementation or refactor, more than 3 changed non-test files, or effort M (D18) | `gpt-6.1-sol` |
-| Bounded fixes when the operator names it as a main worker | `gpt-6.1-terra` |
-| Recon, inventories, log summaries | Claude Sonnet or Haiku subagents |
-| Program decisions (D18) | two or three independent Opus lenses |
-| Exact-head review | `krn review` panel |
+## Opt-in tools
 
-## Traps that each cost a review round or an operator exception
+Use them only when they clearly save time; none is a prerequisite for a merge.
 
-- **Trailer block.** `Ticket:`, `Change-contract:` and `Co-Authored-By:` sit in one final paragraph with no blank line between them. Check with `git log -1 --format=%B | git interpret-trailers --parse`.
-- **Merge message contracts are merge-level.** Declare only observers that are red at the PR base and green on the merged tree. Tracker commits (task records, the close commit) carry no `Change-contract`: admission refuses `none (...)` on a commit, and a PR with tracker commits only cannot deliver yet, so ship task records with a code PR (t-160zvad).
-- **Branch base.** The branch must contain the PR base: `git merge-base --is-ancestor <pr-base> HEAD`.
-- **GLOBAL.** `AGENTS.md` stays within its 90-line cap; run `npm run gate:fast` there as the cheap preflight.
-- **Decisions.** A task or brief must not contradict a recorded ADR; changing a decision is a request to the operator first.
-- **Host load.** Optional local diagnostics and review compete for host CPU; schedule optional host work separately. Delivery waits only for required GitHub CI, never for host load. `/tmp` is quota-limited; agent temp space lives on disk.
+- `bin/krn review --repo <path> --pr <n> --base <sha> --head <sha>` runs the review panel on demand, with no attempt budget.
+- `bin/krn worker start|send|stop` delegates bounded work to Codex; the lead commits its output.
+- `npm run gate:local` runs host isolation diagnostics.
+- Recon, inventories and log summaries go to Claude Sonnet or Haiku subagents; program decisions to two or three independent Opus lenses.
+
+## Traps
+
+- **Branch base.** A rebase needs `git push --force-with-lease`, never `--force`.
+- **Decisions.** A task must not contradict a recorded ADR; changing a decision is a request to the operator first.
+- **Host load.** `/tmp` is quota-limited; agent temp space lives on disk.
 
 ## Open traps
 
 Each open task whose body has a `Lead trap:` line is a known defect with its workaround above; `test/rules/lead-traps.test.ts` keeps this list equal to those tasks, and only `test/rules/lead-traps.test.ts` reads workaround text, so removing a fixed trap breaks no other test. When a fix ships, remove its id here and its workaround above in the same PR.
 
-none (all ten closed by the 2026-11-07 backlog triage with the retired ceremony)
+none
 
 ## Talking to the operator
 

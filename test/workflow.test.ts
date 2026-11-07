@@ -190,9 +190,7 @@ test('Product uses required exact-head Actions Check and optional local diagnost
       'utf8',
     );
     assert.match(source, /required CI on the exact HEAD/u, path);
-    assert.match(source, /optional local diagnostics/u, path);
     assert.match(source, /`Check` \(App `15368`/u, path);
-    assert.match(source, /npm run preflight/u, path);
     assert.doesNotMatch(
       source,
       /after review the lead runs .*gate:local/iu,

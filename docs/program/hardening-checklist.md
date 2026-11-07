@@ -1,6 +1,6 @@
 # Hardening checklist
 
-Every worker brief carries a `## Hardening` section that answers each class below for the inputs and state the change adds or touches, one list item per class: `- <id>: <required behaviour and its readiness case>`, or `- <id>: N/A: <reason>`. `krn brief check <brief>` refuses a brief that misses a class. Every review runs `krn review ... --prepass --checklist docs/program/hardening-checklist.md`, and `krn deliver` refuses a review record made without this file. When a review blocks on a class this list lacks, `krn-retro` adds it here.
+Optional aid for `krn review ... --prepass --checklist docs/program/hardening-checklist.md` and for writing a worker brief: answer each class below for the inputs and state the change adds or touches. Nothing refuses a change that skips it. When a review blocks on a class this list lacks, `krn-retro` adds it here.
 
 - `symlink`: a symlink or non-directory at every created or read path, ancestors included, is refused or never followed out of its root (`lstat`, `O_NOFOLLOW`, realpath equals the expected path).
 - `malformed`: a malformed, partial or empty record is treated as missing, is reported, and never blocks the valid records beside it.
