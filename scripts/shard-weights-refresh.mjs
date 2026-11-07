@@ -111,7 +111,16 @@ function gh(args, attempts = 2) {
   }
 }
 
-function fetchRuns(repo, wanted) {
+// Seconds the job's `Run test shard` step took, or undefined without one.
+export function testStepSeconds(job) {
+  const step = job?.steps?.find((entry) => entry.name === 'Run test shard');
+  if (!step?.started_at || !step?.completed_at) return undefined;
+  return (Date.parse(step.completed_at) - Date.parse(step.started_at)) / 1000;
+}
+
+// The newest `wanted` successful main push runs whose every `Test (k/N)` job
+// printed per-file durations: [{ id, jobs: [{ name, seconds, summary }] }].
+export function fetchShardRuns(repo, wanted) {
   const listed = JSON.parse(
     gh([
       'run',
@@ -133,14 +142,13 @@ function fetchRuns(repo, wanted) {
     ]),
   );
   const runs = [];
-  const ids = [];
   for (const { databaseId } of listed) {
     if (runs.length >= wanted) break;
     const jobs = JSON.parse(
       gh(['api', `repos/${repo}/actions/runs/${databaseId}/jobs?per_page=100`]),
     ).jobs.filter((job) => job.name.startsWith('Test ('));
     if (jobs.length === 0) continue;
-    const summaries = [];
+    const measured = [];
     for (const job of jobs) {
       const summary = parseJobSummary(
         gh([
@@ -151,15 +159,22 @@ function fetchRuns(repo, wanted) {
       );
       // One job without durations makes the whole run unusable.
       if (!runDurations([summary])) break;
-      summaries.push(summary);
+      measured.push({ name: job.name, seconds: testStepSeconds(job), summary });
     }
-    if (summaries.length !== jobs.length) continue;
-    const durations = runDurations(summaries);
-    if (!durations) continue;
-    runs.push(durations);
-    ids.push(String(databaseId));
+    if (measured.length !== jobs.length) continue;
+    runs.push({ id: String(databaseId), jobs: measured });
   }
-  return { runs, ids };
+  return runs;
+}
+
+function fetchRuns(repo, wanted) {
+  const shardRuns = fetchShardRuns(repo, wanted);
+  return {
+    runs: shardRuns.map((run) =>
+      runDurations(run.jobs.map((job) => job.summary)),
+    ),
+    ids: shardRuns.map((run) => run.id),
+  };
 }
 
 async function main(argv) {
