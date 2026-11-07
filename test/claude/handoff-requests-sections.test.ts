@@ -18,7 +18,10 @@ function fixture() {
   writeFileSync(join(root, 'memory/herdr-tabs.md'), 'fixture');
   const check = (body: string) => {
     const handoff = join(root, 'handoff.md');
-    writeFileSync(handoff, `# Handoff\n\n${body}`);
+    writeFileSync(
+      handoff,
+      `# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: \`npm run fast\`\n\n${body}`,
+    );
     return spawnSync(
       process.execPath,
       [script, handoff, '--root', root, '--memory', join(root, 'memory')],

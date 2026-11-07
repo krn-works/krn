@@ -186,3 +186,78 @@ test('restart hook serves the clear source and rejects unknown ones', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('restart hook injects one consolidated block from the newest handoff within its budget', () => {
+  const root = mkdtempSync(join(tmpdir(), 'context-restart-block-'));
+  try {
+    for (const args of [
+      ['init', '-b', 'fixture'],
+      [
+        '-c',
+        'user.name=Test',
+        '-c',
+        'user.email=test@example.invalid',
+        'commit',
+        '--allow-empty',
+        '-m',
+        'fixture',
+      ],
+    ])
+      assert.equal(
+        spawnSync('git', args, { cwd: root, encoding: 'utf8' }).status,
+        0,
+      );
+    mkdirSync(join(root, '.krn/runs/outcome'), { recursive: true });
+    const request = 'Never drop this operator request: t-abc1234';
+    writeFileSync(
+      join(root, '.krn/runs/outcome/handoff.md'),
+      [
+        '# Handoff',
+        '',
+        '## Resume',
+        '- Task: t-abc1234',
+        '- SHAs: 5e1ce47abc',
+        '- Verify: `npm run fast`',
+        '',
+        '## Priorities',
+        'x'.repeat(20000),
+        '',
+        '## Operator requests',
+        `- ${request}`,
+        '',
+      ].join('\n'),
+    );
+    const started = Date.now();
+    const result = spawnSync(process.execPath, [script], {
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: root,
+        GIT_CEILING_DIRECTORIES: dirname(root),
+      },
+      encoding: 'utf8',
+      input: JSON.stringify({
+        session_id: 'session',
+        transcript_path: join(root, 'transcript'),
+        hook_event_name: 'SessionStart',
+        source: 'clear',
+      }),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(Date.now() - started < 2000, 'SessionStart stays fast');
+    assert.ok(result.stdout.length <= 8000);
+    const context: string = JSON.parse(result.stdout).hookSpecificOutput
+      .additionalContext;
+    for (const text of [
+      'run the Verify command before any other step',
+      '- Task: t-abc1234',
+      '- SHAs: 5e1ce47abc',
+      '- Verify: `npm run fast`',
+      request,
+    ])
+      assert.ok(context.includes(text), text);
+    assert.ok(!context.includes('xxxxx'), 'other sections stay out');
+    assert.ok(context.length < 1000);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

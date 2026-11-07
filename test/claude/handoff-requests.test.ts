@@ -31,7 +31,7 @@ function fixture() {
   const check = (
     body: string,
     extra: string[] = [],
-    header = '# Handoff\n\n## Priorities\n- t-zzzzzzz later\n',
+    header = '# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `npm run fast`\n\n## Priorities\n- t-zzzzzzz later\n',
   ) => {
     const handoff = join(root, 'handoff.md');
     writeFileSync(handoff, `${header}${body}`);
@@ -91,7 +91,11 @@ test('handoff check passes when every request has a task, memory entry or close'
       const result = check(body);
       assert.equal(result.status, 0, `${body}\n${result.stderr}`);
     }
-    const bom = check('## Operator requests\n- none\n', [], '\uFEFF');
+    const bom = check(
+      '## Operator requests\n- none\n',
+      [],
+      '\uFEFF## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: `x`\n\n',
+    );
     assert.match(bom.stdout, /^PASS /u, bom.stderr);
     assert.equal(bom.status, 0, bom.stderr);
     const none = check('## Operator requests\n- none\n');
@@ -111,7 +115,7 @@ test('handoff check refuses requests without a durable record', () => {
       ['## Operator requests\n\n## Grants\n', /empty section; write "- none"/u],
       [
         '## Operator requests\n- open herdr tabs for successors\n',
-        /:6: request has no task id, memory:<slug> or "closed: <reason>" prefix/u,
+        /:11: request has no task id, memory:<slug> or "closed: <reason>" prefix/u,
       ],
       [
         '## Operator requests\n- tabs t-0000000\n',
@@ -134,10 +138,13 @@ test('handoff check refuses requests without a durable record', () => {
         '## Operator requests\n- none\n## Operator requests\n- unrecorded\n',
         /"none" cannot sit beside other requests/u,
       ],
-      ['## Operator requests\n-\n- t-abc1234\n', /:6: request has no task id/u],
+      [
+        '## Operator requests\n-\n- t-abc1234\n',
+        /:11: request has no task id/u,
+      ],
       [
         '## Operator requests\n- closed:resolved\n',
-        /:6: request has no task id/u,
+        /:11: request has no task id/u,
       ],
       [
         '## Operator requests\n- t-dir0000\n',
@@ -146,63 +153,63 @@ test('handoff check refuses requests without a durable record', () => {
       ['## Operator requests\n- memory:dir\n', /memory:dir has no /u],
       [
         '## Operator requests\nloose request\n',
-        /:6: write each operator request as a top-level bullet/u,
+        /:11: write each operator request as a top-level bullet/u,
       ],
       [
         '## Operator requests\n- t-abc1234\n  ```\n- unrecorded request\n',
-        /:7: indented lines are not allowed in the operator requests section/u,
+        /:12: indented lines are not allowed in the operator requests section/u,
       ],
       [
         '## Operator requests\n- t-abc1234\n```inline` code\n- unrecorded request\n',
-        /:7: fenced code is not allowed/u,
+        /:12: fenced code is not allowed/u,
       ],
       [
         '## Operator requests\n- t-abc1234\n```\n## Grants\n- loose\n```\n',
-        /:7: fenced code is not allowed/u,
+        /:12: fenced code is not allowed/u,
       ],
       [
         '## Operator requests\n- t-abc1234\n  - unrecorded request\n',
-        /:7: indented lines are not allowed/u,
+        /:12: indented lines are not allowed/u,
       ],
       [
         '## Operator requests\n- t-abc1234\n  1. unrecorded request\n',
-        /:7: indented lines are not allowed/u,
+        /:12: indented lines are not allowed/u,
       ],
       [
         '## Operator requests\n- unrecorded request\n\n t-abc1234\n',
-        /:8: indented lines are not allowed/u,
+        /:13: indented lines are not allowed/u,
       ],
       [
         '## Operator requests\n- t-abc1234\n  ### Grants\n- unrecorded request\n',
-        /:7: indented lines are not allowed/u,
+        /:12: indented lines are not allowed/u,
       ],
       [
         '- a\n  ```\n## Operator requests\n- none\n',
-        /:7: "operator requests" is ambiguous outside a "## Operator requests" heading/u,
+        /:12: "operator requests" is ambiguous outside a "## Operator requests" heading/u,
       ],
       [
         'intro\r## Operator requests\r- unrecorded request\n## Operator requests\n- none\n',
-        /:7: request has no task id/u,
+        /:12: request has no task id/u,
       ],
       [
         'Operator requests\n---\n- unrecorded request\n\n## Operator requests\n- none\n',
-        /:5: "operator requests" is ambiguous/u,
+        /:10: "operator requests" is ambiguous/u,
       ],
       [
         '> ## Operator requests\n> - unrecorded request\n## Operator requests\n- none\n',
-        /:5: "operator requests" is ambiguous/u,
+        /:10: "operator requests" is ambiguous/u,
       ],
       [
         '## Operator requests\n- t-abc1234\n##\n- unrecorded request\n',
-        /:7: empty headings are not allowed/u,
+        /:12: empty headings are not allowed/u,
       ],
       [
         '## Operator requests\n- t-abc1234\n### Later\n- unrecorded request\n',
-        /:7: subheadings are not allowed/u,
+        /:12: subheadings are not allowed/u,
       ],
       [
         '  ```\n## Operator requests\n- unrecorded\n```\n## Operator requests\n- none\n',
-        /:6: "operator requests" is ambiguous/u,
+        /:11: "operator requests" is ambiguous/u,
       ],
       [
         '## Operator requests\n- memory:a/../../etc/passwd\n',
@@ -210,7 +217,7 @@ test('handoff check refuses requests without a durable record', () => {
       ],
       [
         '## Operator requests\r\n- unrecorded\r\n',
-        /:6: request has no task id/u,
+        /:11: request has no task id/u,
       ],
     ];
     for (const [body, expected] of cases) {
@@ -250,6 +257,31 @@ test('an open task that records an operator request must be carried', () => {
       '## Operator requests\n- open t-op00001\n- skills t-op00002\n',
     );
     assert.equal(carried.status, 0, carried.stderr);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('handoff check refuses a handoff missing the resume fields', () => {
+  const { root, check } = fixture();
+  try {
+    const none = '## Operator requests\n- none\n';
+    const lacking = (header: string) => check(none, [], header);
+    const bare = lacking('# Handoff\n\n');
+    assert.equal(bare.status, 1);
+    assert.match(bare.stderr, /no "## Resume" section/u);
+    for (const [field, resume] of [
+      ['Task', '- SHAs: 5e1ce47\n- Verify: `npm run fast`\n'],
+      ['SHAs', '- Task: t-abc1234\n- Verify: `npm run fast`\n'],
+      [
+        'Verify',
+        '- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: npm run fast\n',
+      ],
+    ] as const) {
+      const result = lacking(`# Handoff\n\n## Resume\n${resume}\n`);
+      assert.equal(result.status, 1, field);
+      assert.match(result.stderr, new RegExp(`lacks "- ${field}:"`, 'u'));
+    }
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

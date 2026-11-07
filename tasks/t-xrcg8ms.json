@@ -1,7 +1,11 @@
 {
   "id": "t-xrcg8ms",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "SessionStart injects the Resume and Operator requests block; handoff-requests refuses missing Task, SHAs, Verify"
+  },
   "created": "2026-11-01",
   "priority": 1,
   "title": "Inject one consolidated handoff block and verify first at session start",
