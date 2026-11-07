@@ -65,7 +65,7 @@ const task = z.strictObject({
   suiteChecks: z.array(argv).min(1),
 });
 
-export const manifestSchema = z
+const manifestSchema = z
   .strictObject({
     id: identifier,
     frozen: z.boolean(),

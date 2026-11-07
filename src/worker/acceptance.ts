@@ -11,7 +11,7 @@ import { defaultCodexExecutable, workerEnvironment } from '../hosts/codex.ts';
 import { redact, secureDir } from './state.ts';
 import { workerTmp } from './trust.ts';
 
-export type Acceptance = {
+type Acceptance = {
   kind: 'check' | 'observer';
   cmd: string;
   exit_code: number | null;

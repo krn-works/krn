@@ -19,7 +19,7 @@ const requestSchema = z.object({
   next: z.string().min(1).max(200),
   decision: z.string().max(500).optional(),
 });
-export type CheckpointRequest = z.infer<typeof requestSchema>;
+type CheckpointRequest = z.infer<typeof requestSchema>;
 
 function mailbox(job: Job, sessionId: string): string {
   if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(sessionId))

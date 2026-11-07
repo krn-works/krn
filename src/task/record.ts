@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
-export const taskKeys = [
+const taskKeys = [
   'id',
   'status',
   'resolution',
@@ -18,7 +18,7 @@ const crockford = '0123456789abcdefghjkmnpqrstvwxyz';
 
 export type TaskId = string;
 export type TaskStatus = 'open' | 'closed';
-export type TaskResolutionKind = (typeof taskKinds)[number];
+type TaskResolutionKind = (typeof taskKinds)[number];
 
 export interface TaskResolution {
   kind: TaskResolutionKind;
@@ -37,7 +37,7 @@ export interface TaskRecord {
   body: string[];
 }
 
-export interface ParsedTask {
+interface ParsedTask {
   record?: TaskRecord;
   findings: string[];
   id: string | undefined;

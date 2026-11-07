@@ -24,7 +24,8 @@ function walk(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) return walk(path);
-    return entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')
+    return (entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) ||
+      entry.name.endsWith('.mjs')
       ? [path]
       : [];
   });
@@ -85,11 +86,107 @@ function passThrough(code: string): boolean {
   return rest === '' && /export\s/u.test(joined);
 }
 
+function exportedNames(code: string): string[] {
+  const names = [
+    ...code.matchAll(
+      /^export\s+(?:declare\s+)?(?:async\s+)?(?:function\*?|const|let|var|class|abstract\s+class|type|interface|enum)\s+(\w+)/gmu,
+    ),
+  ].map((m) => m[1] ?? '');
+  for (const match of code.matchAll(
+    /^export\s+(?:type\s+)?\{([^}]*)\}\s*(?!from)/gmu,
+  ))
+    for (const part of (match[1] ?? '').split(',')) {
+      const name =
+        part
+          .trim()
+          .split(/\s+as\s+/u)
+          .pop() ?? '';
+      if (name) names.push(name);
+    }
+  return names.filter((n) => n !== '');
+}
+
+// Names a file takes from a module: 'all' for namespace, star, or dynamic imports.
+function importedNames(code: string): Map<string, Set<string> | 'all'> {
+  const result = new Map<string, Set<string> | 'all'>();
+  const add = (spec: string, names: Set<string> | 'all') => {
+    const prior = result.get(spec);
+    if (prior === 'all' || names === 'all') result.set(spec, 'all');
+    else result.set(spec, new Set([...(prior ?? []), ...names]));
+  };
+  for (const m of code.matchAll(
+    /(?:^|[\s;])(?:import|export)\s+(type\s+)?([^'";]*?)\s*from\s*['"]([^'"]+)['"]/gu,
+  )) {
+    const spec = m[3] ?? '';
+    if (!spec.startsWith('.')) continue;
+    const clause = m[2] ?? '';
+    const named = /\{([^}]*)\}/u.exec(clause);
+    const hasStar = /\*/u.test(clause);
+    if (hasStar) add(spec, 'all');
+    else {
+      const names = new Set<string>();
+      if (named)
+        for (const part of (named[1] ?? '').split(',')) {
+          const name =
+            part
+              .trim()
+              .replace(/^type\s+/u, '')
+              .split(/\s+as\s+/u)[0] ?? '';
+          if (name) names.add(name);
+        }
+      if (/^\s*\w+\s*(,|$)/u.test(clause)) names.add('default');
+      add(spec, names);
+    }
+  }
+  for (const m of code.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/gu))
+    if ((m[1] ?? '').startsWith('.')) add(m[1] ?? '', 'all');
+  // A relative .ts path held in a string (dynamic import through a variable, spawned script) uses the whole module.
+  for (const m of code.matchAll(
+    /(?<!\bfrom\s*)(?<!\bimport\s*\(?\s*)['"`](\.{1,2}\/[^'"`\s]+\.ts)['"`]/gu,
+  ))
+    add(m[1] ?? '', 'all');
+  return result;
+}
+
+export type UnimportedExport = { readonly path: string; readonly name: string };
+
+// Exports no other src, test, or scripts file imports: drop the export keyword or delete the code.
+export function unimportedExports(
+  srcRoot: string,
+  extraRoots: readonly string[] = [],
+): UnimportedExport[] {
+  const srcFiles = walk(srcRoot).filter((f) => f.endsWith('.ts'));
+  const known = new Set(srcFiles);
+  const used = new Map<string, Set<string> | 'all'>();
+  const consumers = [...srcFiles, ...extraRoots.flatMap((r) => walk(r))];
+  for (const file of consumers) {
+    for (const [spec, names] of importedNames(
+      strip(readFileSync(file, 'utf8')),
+    )) {
+      const base = resolve(dirname(file), spec);
+      const target = [base, `${base}.ts`, join(base, 'index.ts')].find(
+        (p) => known.has(p) && p !== file,
+      );
+      if (!target) continue;
+      const prior = used.get(target);
+      if (prior === 'all' || names === 'all') used.set(target, 'all');
+      else used.set(target, new Set([...(prior ?? []), ...names]));
+    }
+  }
+  return srcFiles.flatMap((file) => {
+    const taken = used.get(file);
+    if (taken === 'all') return [];
+    return exportedNames(strip(readFileSync(file, 'utf8')))
+      .filter((name) => !taken?.has(name))
+      .map((name) => ({ path: relative(dirname(srcRoot), file), name }));
+  });
+}
+
 export function analyze(
   srcRoot: string,
   extraRoots: readonly string[] = [],
 ): ModuleDepth[] {
-  const files = walk(srcRoot);
+  const files = walk(srcRoot).filter((f) => f.endsWith('.ts'));
   const known = new Set(files);
   const fanIn = new Map<string, number>(files.map((f) => [f, 0]));
   const rows = files.map((file) => {
@@ -153,7 +250,11 @@ export function analyze(
     .sort((a, b) => a.path.localeCompare(b.path));
 }
 
-export function report(modules: readonly ModuleDepth[], top = 10): string {
+export function report(
+  modules: readonly ModuleDepth[],
+  top = 10,
+  unimported: readonly UnimportedExport[] = [],
+): string {
   const pad = (s: string | number, n: number) => String(s).padStart(n);
   const lines = [
     `${'module'.padEnd(44)} ${pad('exp', 4)} ${pad('lines', 6)} ${pad('in', 4)} ${pad('out', 4)}  flags`,
@@ -171,6 +272,10 @@ export function report(modules: readonly ModuleDepth[], top = 10): string {
   );
   for (const m of flagged.slice(0, top))
     lines.push(`  ${pad(m.score, 7)}  ${m.path}  [${m.flags.join(',')}]`);
+  if (unimported.length > 0) {
+    lines.push('', `exports no other file imports (${unimported.length})`);
+    for (const u of unimported) lines.push(`  ${u.path}  ${u.name}`);
+  }
   const kinds = (flag: Flag) =>
     modules.filter((m) => m.flags.includes(flag)).length;
   lines.push(
@@ -183,7 +288,8 @@ export function report(modules: readonly ModuleDepth[], top = 10): string {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const root = fileURLToPath(new URL('../../', import.meta.url));
   const srcRoot = resolve(process.argv[2] ?? join(root, 'src'));
+  const extra = [join(root, 'test'), join(root, 'scripts')];
   console.log(
-    report(analyze(srcRoot, [join(root, 'test'), join(root, 'scripts')])),
+    report(analyze(srcRoot, extra), 10, unimportedExports(srcRoot, extra)),
   );
 }

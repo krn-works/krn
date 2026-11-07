@@ -12,7 +12,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
-export function stageWrite(
+function stageWrite(
   root: string,
   target: string,
   contents: string | Buffer,
@@ -35,7 +35,7 @@ export function stageWrite(
   }
 }
 
-export function publishStagedWrite(
+function publishStagedWrite(
   temporary: string,
   target: string,
   replace = false,
@@ -44,12 +44,8 @@ export function publishStagedWrite(
   else linkSync(temporary, target);
 }
 
-export function discardStagedWrite(temporary: string): void {
+function discardStagedWrite(temporary: string): void {
   if (existsSync(temporary)) unlinkSync(temporary);
-}
-
-export function uniqueStagingPath(root: string, target: string): string {
-  return stagedPath(stagingDirectory(root), target);
 }
 
 export function atomicWrite(

@@ -24,7 +24,7 @@ const recordSchema = z.object({
     .regex(/^[0-9a-f]{40,64}$/iu)
     .optional(),
 });
-export type RepoRecord = z.infer<typeof recordSchema>;
+type RepoRecord = z.infer<typeof recordSchema>;
 
 export function repoRecord(job: Job): RepoRecord {
   const common = spawnSync(
@@ -135,10 +135,6 @@ export function recordRepo(
 
 export function stateDirectory(job: Job): string {
   return join(repoRecord(job).repoRoot, '.krn', 'runs', 'foreman', job.id);
-}
-
-export function projectionDirectory(job: Job): string {
-  return join(job.worktree, '.krn', 'runs', 'delivery-loop', job.id);
 }
 
 export function ensureProjectionDirectory(job: Job): string {

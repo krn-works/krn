@@ -8,7 +8,7 @@ export type GitFacts = Readonly<{
   isDirty: boolean | null;
 }>;
 
-export type JourneyRefusalCode =
+type JourneyRefusalCode =
   | 'invalid_arguments'
   | 'trace_unavailable'
   | 'git_unavailable'
@@ -24,7 +24,7 @@ export type JourneyRefusalCode =
   | 'head_mismatch'
   | 'incomplete_final_outcome';
 
-export type JourneyCheck = Readonly<{
+type JourneyCheck = Readonly<{
   id: string;
   ok: boolean;
   evidence?: string;
@@ -79,7 +79,7 @@ type SessionUsageReason =
   | 'session_total_overflow'
   | 'session_counter_saturated';
 
-export type JourneyFacts = Readonly<{
+type JourneyFacts = Readonly<{
   jobId: string;
   trace: TraceFacts;
   git: GitFacts;
@@ -117,7 +117,7 @@ type CompletedJourneyFacts = Omit<JourneyFacts, 'interruption' | 'resumed'> &
     resumed: Exclude<JourneyFacts['resumed'], null>;
   }>;
 
-export type JourneyReport =
+type JourneyReport =
   | Readonly<{
       schemaVersion: 1;
       kind: 'journey';

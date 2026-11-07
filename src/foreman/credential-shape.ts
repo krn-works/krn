@@ -15,14 +15,13 @@ const CREDENTIAL_MARKERS = [
   /\bAIza[A-Za-z0-9_-]{35}\b/u,
   /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/u,
 ] as const;
-const ASCII_WORD_CHARACTER = /[A-Za-z0-9_]/u;
 const JWT_CHARACTER = /[A-Za-z0-9_-]/u;
 const URI_WORD_CHARACTER = /\w/iu;
 const URI_SCHEME_FIRST = /[a-z]/iu;
 const URI_SCHEME_CHARACTER = /[a-z\d+.-]/iu;
 const URI_TEXT_TERMINATOR = /[\s<>"']/u;
 
-export type CredentialShapeKind =
+type CredentialShapeKind =
   | 'explicit credential marker'
   | 'URL credentials'
   | 'URL credential parameter';
