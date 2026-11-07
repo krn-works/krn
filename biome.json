@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!tasks/**"]
+    "includes": ["**", "!tasks"]
   },
   "formatter": {
     "indentStyle": "space",

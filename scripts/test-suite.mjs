@@ -18,14 +18,6 @@ import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  countIsolationSkips,
-  isolationCoverage,
-  isolationFilesInSelection,
-  isolationSummary,
-  selectIsolationTestFiles,
-  testSuiteExitCode,
-} from './isolation-gate.mjs';
-import {
   configuredTestShardCount,
   configuredTestShardSelection,
   mergeTestShardResults,
@@ -41,9 +33,6 @@ import {
 export const TEST_FILE_GLOB = 'test/**/*.test.{ts,js,mjs,cjs}';
 const eventReporter = fileURLToPath(
   new URL('./test-events-reporter.mjs', import.meta.url),
-);
-const isolationGate = fileURLToPath(
-  new URL('./isolation-gate.mjs', import.meta.url),
 );
 const childEnvironmentAllowlist = new Set([
   'CI',
@@ -258,14 +247,13 @@ function childEnvironment(
       join(process.cwd(), '.krn/tmp/node-compile-cache'),
     KRN_TEST_EVENT_FILE: eventFile,
     KRN_ISOLATION_CAPABILITIES: JSON.stringify(capabilities),
-    KRN_ISOLATION_GATE_PRELOAD: '1',
   };
   if (pnpmStoreDirectory !== undefined)
     env.pnpm_config_store_dir = pnpmStoreDirectory;
   if (strict) {
     delete env.NODE_OPTIONS;
     delete env.KRN_SCOPE_PROBE;
-    delete env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS;
+    delete env.KRN_TEST_STRICT;
     for (const key of Object.keys(env)) {
       if (key.startsWith('NODE_TEST_')) delete env[key];
     }
@@ -357,8 +345,6 @@ async function runTestGroup({
       throw new Error('interrupted before test runner start');
 
     const runnerArgs = [
-      '--import',
-      isolationGate,
       '--test',
       '--test-concurrency=1',
       '--test-reporter=tap',
@@ -495,7 +481,7 @@ async function main() {
     process.stderr.write('KRN_TEST_OUTPUT must be full or failures\n');
     return 64;
   }
-  const strict = process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS === '1';
+  const strict = process.env.KRN_TEST_STRICT === '1';
   const probeRequested = process.env.KRN_SCOPE_PROBE === '1';
   const inheritedTestContext = Boolean(process.env.NODE_TEST_CONTEXT);
   const activeChildren = new Set();
@@ -562,29 +548,6 @@ async function main() {
       if (expectedFiles.length === 0)
         throw new Error('test selection contains no files');
       runnerArguments = expectedFiles;
-    }
-
-    // CI change detection may exclude the isolation-dependent files when a
-    // change cannot affect them; strict mode then reports the exclusion.
-    const excludeIsolation = process.env.KRN_TEST_EXCLUDE_ISOLATION === '1';
-    if (excludeIsolation) {
-      if (expectedFiles.length === 0)
-        throw new Error('isolation exclusion needs a planned file list');
-      const isolation = new Set(
-        isolationFilesInSelection(
-          process.cwd(),
-          expectedFiles,
-          selectIsolationTestFiles(process.cwd(), TEST_FILE_GLOB),
-        ).map((file) => realpathSync(resolve(process.cwd(), file))),
-      );
-      const before = expectedFiles.length;
-      expectedFiles = expectedFiles.filter(
-        (file) => !isolation.has(realpathSync(resolve(process.cwd(), file))),
-      );
-      runnerArguments = expectedFiles;
-      process.stdout.write(
-        `Isolation tests excluded by change detection: ${before - expectedFiles.length} files\n`,
-      );
     }
 
     const shardSelection = configuredTestShardSelection(
@@ -681,9 +644,7 @@ async function main() {
       cleanupError = `unable to clean shard state: ${error.message}`;
     }
 
-    let stdout = '';
     for (const [index, result] of results.entries()) {
-      stdout += result.stdout;
       if (outputMode === 'failures') {
         if (
           result.runnerExitCode === 0 &&
@@ -701,19 +662,16 @@ async function main() {
       } else process.stdout.write(result.stdout);
       if (result.stderr) process.stderr.write(result.stderr);
     }
-    const skipCount = countIsolationSkips(stdout);
     const testCount = results.reduce(
       (total, result) => total + (result.nativeTestCount ?? 0),
       0,
     );
     process.stdout.write(`# tests ${testCount}\n`);
-    const legacySummary = isolationSummary(skipCount);
     const timings = formatSlowestTests(
       slowestTests(results.flatMap((result) => result.events)),
     );
     process.stdout.write(timings);
     timingsWritten = true;
-    process.stdout.write(`${legacySummary}\n`);
     if (cleanupError) process.stderr.write(`${cleanupError}\n`);
 
     if (
@@ -727,7 +685,6 @@ async function main() {
         '## CI test summary',
         '',
         `- Tests: ${testCount}`,
-        `- ${legacySummary}`,
         `- bwrap: ${formatCapability(capabilities.bwrap)}`,
         `- systemd user scopes: ${formatCapability(capabilities.systemdUserScope)}`,
         '',
@@ -751,70 +708,20 @@ async function main() {
         result.summary.success = false;
         result.ok = false;
       }
-      let coverageLine;
-      if (requestedFiles.length === 0 && excludeIsolation) {
-        coverageLine =
-          'Isolation coverage: excluded by CI change detection (no isolation-relevant path changed)';
-      } else if (requestedFiles.length === 0) {
-        let coverage;
-        try {
-          // A shard proves coverage for the isolation files it was assigned;
-          // the shards partition the full plan, so every shard passing proves
-          // whole-suite coverage.
-          const allIsolationFiles = selectIsolationTestFiles(
-            process.cwd(),
-            TEST_FILE_GLOB,
-          );
-          const isolationFiles = shardSelection
-            ? isolationFilesInSelection(
-                process.cwd(),
-                expectedFiles,
-                allIsolationFiles,
-              )
-            : allIsolationFiles;
-          coverage =
-            shardSelection && isolationFiles.length === 0
-              ? {
-                  ok: true,
-                  line: `Isolation coverage: shard ${shardSelection.index}/${shardSelection.total} holds no isolation files`,
-                }
-              : isolationCoverage(
-                  result.summary.files,
-                  isolationFiles,
-                  process.cwd(),
-                );
-        } catch (error) {
-          coverage = {
-            ok: false,
-            errors: [`isolation selection failed: ${error.message}`],
-          };
-        }
-        if (coverage.ok) coverageLine = coverage.line;
-        else {
-          result.errors.push(...coverage.errors);
-          result.summary.success = false;
-          result.ok = false;
-        }
-      }
       if (!result.ok)
         process.stderr.write(
           `Strict test evidence rejected: ${result.errors.join('; ')}\n`,
         );
       printStrictSummary(result);
-      if (coverageLine) process.stderr.write(`${coverageLine}\n`);
       structuredSummaryWritten = true;
       exitCode = forwardedSignal
         ? signalExit(forwardedSignal)
-        : result.ok && testSuiteExitCode(gateExitCode, skipCount, true) === 0
+        : result.ok && gateExitCode === 0
           ? 0
           : 1;
     } else {
       exitCode = forwardedSignal ? signalExit(forwardedSignal) : gateExitCode;
     }
-    if (strict && skipCount > 0)
-      process.stderr.write(
-        `strict mode requires zero isolation skips; observed ${skipCount}\n`,
-      );
   } catch (error) {
     process.stderr.write(`Test suite wrapper failed: ${error.message}\n`);
     if (!timingsWritten) process.stdout.write(formatSlowestTests([]));

@@ -35,7 +35,7 @@ function run(project: string, files: string[], extra: NodeJS.ProcessEnv = {}) {
   }
   delete env.NODE_COMPILE_CACHE;
   delete env.KRN_SCOPE_PROBE;
-  delete env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS;
+  delete env.KRN_TEST_STRICT;
   delete env.GITHUB_STEP_SUMMARY;
   return spawnSync(process.execPath, [wrapper, ...files], {
     cwd: project,
@@ -97,7 +97,7 @@ test('${name} top level', async (t) => {
       }
       const env = {
         KRN_TEST_SHARDS: '2',
-        KRN_REQUIRE_ZERO_ISOLATION_SKIPS: strict ? '1' : '0',
+        KRN_TEST_STRICT: strict ? '1' : '0',
         KRN_EXPECTED_VALUE: 'original',
         GITHUB_STEP_SUMMARY: summary,
       };
@@ -106,9 +106,10 @@ test('${name} top level', async (t) => {
       passed(first);
       assert.match(first.stdout, /## Slowest tests \(top-level\)/u);
       const tableStart = first.stdout.indexOf('## Slowest tests');
+      const summaryAt = first.stdout.indexOf('KRN_TEST_SUMMARY_JSON=');
       const table = first.stdout.slice(
         tableStart,
-        first.stdout.indexOf('Isolation-dependent tests skipped:', tableStart),
+        summaryAt > tableStart ? summaryAt : undefined,
       );
       assert.match(
         table,
@@ -178,7 +179,7 @@ test('caller cache', () => {
           NODE_COMPILE_CACHE: preset,
           KRN_EXPECTED_CACHE: preset,
           KRN_CACHE_ENABLED: '1',
-          KRN_REQUIRE_ZERO_ISOLATION_SKIPS: strict,
+          KRN_TEST_STRICT: strict,
         }),
       );
     }
@@ -200,7 +201,7 @@ test('caller cache', () => {
           NODE_COMPILE_CACHE: unwritable,
           KRN_EXPECTED_CACHE: unwritable,
           KRN_CACHE_ENABLED: process.getuid?.() === 0 ? '1' : '0',
-          KRN_REQUIRE_ZERO_ISOLATION_SKIPS: '1',
+          KRN_TEST_STRICT: '1',
         }),
       );
     } finally {
@@ -221,7 +222,7 @@ test('test wrapper includes failing tests and handles an empty duration summary'
     );
     for (const strict of ['0', '1']) {
       const failed = run(project, [file], {
-        KRN_REQUIRE_ZERO_ISOLATION_SKIPS: strict,
+        KRN_TEST_STRICT: strict,
       });
       assert.equal(failed.status, 1, failed.stderr);
       assert.match(
@@ -232,7 +233,7 @@ test('test wrapper includes failing tests and handles an empty duration summary'
     await rm(join(project, file));
     for (const strict of ['0', '1']) {
       const empty = run(project, [file], {
-        KRN_REQUIRE_ZERO_ISOLATION_SKIPS: strict,
+        KRN_TEST_STRICT: strict,
       });
       assert.equal(empty.status, 1);
       assert.match(empty.stdout, /No test durations recorded\./u);

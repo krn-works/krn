@@ -44,13 +44,13 @@ function fixtureEnv(): NodeJS.ProcessEnv {
   for (const key of Object.keys(env)) {
     if (key.startsWith('NODE_TEST_')) delete env[key];
   }
-  env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS = '1';
+  env.KRN_TEST_STRICT = '1';
   return env;
 }
 
 function nonStrictFixtureEnv(): NodeJS.ProcessEnv {
   const env = fixtureEnv();
-  delete env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS;
+  delete env.KRN_TEST_STRICT;
   return env;
 }
 
@@ -388,7 +388,7 @@ test('strict wrapper requires real native test evidence for every selected file'
           "test('nested probe is discovery-only', () => {",
           String.raw`  appendFileSync(${JSON.stringify(marker)}, 'run\n');`,
           '  assert.ok(process.env.NODE_TEST_CONTEXT);',
-          '  assert.equal(process.env.KRN_REQUIRE_ZERO_ISOLATION_SKIPS, undefined);',
+          '  assert.equal(process.env.KRN_TEST_STRICT, undefined);',
           `  const probe = spawnSync(process.execPath, [${JSON.stringify(testSuite)}], { cwd: ${JSON.stringify(project)}, encoding: 'utf8', timeout: 10000, env: { ...process.env, KRN_SCOPE_PROBE: '1' } });`,
           '  assert.equal(probe.error, undefined, probe.stderr);',
           "  assert.equal(probe.status, 0, [probe.stdout, probe.stderr].join('\\n'));",

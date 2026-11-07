@@ -1,37 +1,38 @@
+import { createRequire } from 'node:module';
 import type { TestContext } from 'node:test';
-import type { IsolationCapability } from '../../scripts/isolation-gate.mjs';
 
-type RunnerApi = {
-  requiresIsolation: (
-    context: TestContext,
-    testName: string,
-    required: readonly IsolationCapability[],
-  ) => boolean;
+export type IsolationCapability = 'bwrap' | 'systemdUserScope';
+type Capabilities = Record<
+  IsolationCapability,
+  { available: boolean; reason?: string }
+>;
+
+const require = createRequire(import.meta.url);
+const { probeIsolationCapabilities } =
+  require('../../scripts/probe-isolation.mjs') as {
+    probeIsolationCapabilities: () => Capabilities;
+  };
+
+const labels: Record<IsolationCapability, string> = {
+  bwrap: 'bwrap user namespaces',
+  systemdUserScope: 'systemd user scopes',
 };
 
-function isRunnerApi(value: unknown): value is RunnerApi {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'requiresIsolation' in value &&
-    typeof value.requiresIsolation === 'function'
-  );
-}
+let capabilities: Capabilities | undefined;
 
-function getRunnerApi(value: unknown): RunnerApi {
-  if (!isRunnerApi(value))
-    throw new Error('test-suite isolation approval preloader did not run');
-  return value;
-}
-
-const runnerApi = getRunnerApi(
-  Reflect.get(globalThis, Symbol.for('krn.isolation-gate.runtime-api')),
-);
-
+/** Live sandbox tests need the real capability; a missing one fails loudly. */
 export function requiresIsolation(
-  context: TestContext,
+  _context: TestContext,
   testName: string,
   required: readonly IsolationCapability[],
 ): boolean {
-  return runnerApi.requiresIsolation(context, testName, required);
+  capabilities ??= process.env.KRN_ISOLATION_CAPABILITIES
+    ? (JSON.parse(process.env.KRN_ISOLATION_CAPABILITIES) as Capabilities)
+    : probeIsolationCapabilities();
+  const missing = required.filter((name) => !capabilities?.[name]?.available);
+  if (missing.length > 0)
+    throw new Error(
+      `Isolation requirements failed for ${testName}: missing ${missing.map((name) => labels[name]).join(', ')}`,
+    );
+  return true;
 }
