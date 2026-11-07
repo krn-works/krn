@@ -1,5 +1,11 @@
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, readFileSync, statSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  readFileSync,
+  statSync,
+  truncateSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { type TaskId, TaskUsageError } from './record.ts';
 
@@ -49,14 +55,17 @@ export function appendComment(
     text,
   };
   const path = commentsPath(root, id);
-  // Repair a missing final newline so the new entry never fuses with the last.
-  const prefix =
-    existsSync(path) &&
-    statSync(path).size > 0 &&
-    !readFileSync(path, 'utf8').endsWith('\n')
-      ? '\n'
-      : '';
-  appendFileSync(path, `${prefix}${JSON.stringify(comment)}\n`);
+  // A writer killed mid-append leaves an unterminated tail; drop it so the
+  // new entry starts on its own line and the fragment never becomes a line.
+  if (existsSync(path) && statSync(path).size > 0) {
+    const current = readFileSync(path, 'utf8');
+    if (!current.endsWith('\n'))
+      truncateSync(
+        path,
+        Buffer.byteLength(current.slice(0, current.lastIndexOf('\n') + 1)),
+      );
+  }
+  appendFileSync(path, `${JSON.stringify(comment)}\n`);
   return comment;
 }
 
@@ -83,11 +92,12 @@ export function parseComments(contents: Buffer | string): {
     return { comments: [], findings: ['file is not valid UTF-8'] };
   }
   if (text.includes('\r')) findings.push('contains CR characters');
-  if (text !== '' && !text.endsWith('\n'))
-    findings.push('missing trailing newline');
   const comments: TaskComment[] = [];
   const lines = text.split('\n');
-  if (lines.at(-1) === '') lines.pop();
+  // The unterminated tail is an append in flight or one torn by a killed
+  // writer: never acknowledged, so it is skipped, not a finding that would
+  // stop every krn task command. The next append drops it.
+  lines.pop();
   for (const [index, line] of lines.entries()) {
     const label = `line ${index + 1}`;
     if (/^(?:<{7,}|={7,}|>{7,})(?: |$)/u.test(line)) {

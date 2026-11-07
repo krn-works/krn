@@ -83,7 +83,7 @@ test('a failed publish keeps the existing target and removes its staging file', 
   }
 });
 
-test('a torn trailing comment line keeps earlier comments, is reported, and is not fused by the next append', () => {
+test('a torn trailing comment line keeps earlier comments, blocks nothing, and is dropped by the next append', () => {
   const root = fixture();
   try {
     const id = 't-4' as Parameters<typeof appendComment>[1];
@@ -98,17 +98,16 @@ test('a torn trailing comment line keeps earlier comments, is reported, and is n
       `${readFileSync(path, 'utf8')}{"actor":"b","at":"2026-11-07T00:00:01.0`,
     );
     assert.deepEqual(readComments(root, id), [first]);
-    assert.ok(
-      parseComments(readFileSync(path)).findings.some((f) =>
-        f.includes('invalid JSON'),
-      ),
-    );
+    // An unacknowledged torn tail must not stop every krn task command.
+    assert.deepEqual(parseComments(readFileSync(path)).findings, []);
     const next = appendComment(root, id, {
       actor: 'c',
       text: 'three',
       at: '2026-11-07T00:00:02.000Z',
     });
     assert.deepEqual(readComments(root, id), [first, next]);
+    assert.doesNotMatch(readFileSync(path, 'utf8'), /00:00:01/u);
+    assert.deepEqual(parseComments(readFileSync(path)).findings, []);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
