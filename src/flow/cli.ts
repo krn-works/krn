@@ -1,7 +1,7 @@
 // Parse the explicit local review command and print its exact SHA-bound result.
 import { lstatSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { readRegularFile } from '../brief/index.ts';
+import { readRegularFile } from '../fs/read-regular-file.ts';
 import { oneLine } from './findings.ts';
 import type { GateCheckRunReader } from './gate-admission.ts';
 import { ReviewAdmissionError, runReview } from './index.ts';
