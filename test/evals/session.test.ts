@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   chmod,
@@ -151,6 +151,22 @@ async function fixture() {
       encoding: 'utf8',
       timeout: 30_000,
     });
+  const invokeAsync = (args: string[]) =>
+    new Promise<{ status: number | null; stdout: string; stderr: string }>(
+      (done, fail) => {
+        const child = spawn(process.execPath, [cli, 'eval', ...args], { env });
+        let stdout = '';
+        let stderr = '';
+        const timer = setTimeout(() => child.kill('SIGKILL'), 30_000);
+        child.stdout.setEncoding('utf8').on('data', (c) => (stdout += c));
+        child.stderr.setEncoding('utf8').on('data', (c) => (stderr += c));
+        child.once('error', fail);
+        child.once('close', (status) => {
+          clearTimeout(timer);
+          done({ status, stdout, stderr });
+        });
+      },
+    );
   const planned = invoke(['plan', '--experiment', experiment, '--json']);
   assert.equal(planned.status, 0, planned.stderr);
   const runs: { arm: string; runId: string }[] = JSON.parse(
@@ -208,12 +224,25 @@ async function fixture() {
     prompt,
     promptFile,
     invoke,
+    invokeAsync,
     args,
     output,
     scenario,
     runId,
     cleanup: () => rm(directory, { recursive: true, force: true }),
   };
+}
+
+async function refusedAsync(
+  f: Awaited<ReturnType<typeof fixture>>,
+  args: string[],
+  code = 65,
+) {
+  const observed = await f.invokeAsync(args);
+  assert.equal(observed.status, code, observed.stderr);
+  const envelope = JSON.parse(observed.stdout);
+  assert.equal(envelope.ok, false);
+  assert.equal(envelope.code, code);
 }
 
 function refused(
@@ -555,7 +584,9 @@ test('eval usage accounts captured Codex tokens with cached input as a subset', 
   });
 });
 
-test('eval session distinguishes incomplete streams, invalid usage and infrastructure failures', async (t) => {
+test('eval session distinguishes incomplete streams, invalid usage and infrastructure failures', {
+  concurrency: 4,
+}, async (t) => {
   if (!requiresIsolation(t, t.name, ['bwrap', 'systemdUserScope'])) return;
   const cases = [
     {
@@ -606,11 +637,11 @@ test('eval session distinguishes incomplete streams, invalid usage and infrastru
     },
   ];
   for (const c of cases)
-    await t.test(c.name, async () => {
+    t.test(c.name, async () => {
       const f = await fixture();
       try {
         await f.scenario(c.stream, c.exit);
-        const observed = f.invoke(f.args(c.arm));
+        const observed = await f.invokeAsync(f.args(c.arm));
         assert.equal(observed.status, c.exit, observed.stderr);
         const record = JSON.parse(
           await readFile(join(f.output(c.arm), 'session.json'), 'utf8'),
@@ -662,12 +693,16 @@ test('eval session timeout drains the scope including a detached network listene
 test('eval session refuses unknown runs and harnesses, invalid paths and CLI options before writing', async () => {
   const f = await fixture();
   try {
+    const jobs: Promise<void>[] = [];
+    const refuse = (args: string[], code = 65) => {
+      jobs.push(refusedAsync(f, args, code));
+    };
     const replace = (name: string, value: string) => {
       const args = f.args();
       args[args.indexOf(name) + 1] = value;
       return args;
     };
-    refused(f, replace('--run', 'unknown'));
+    refuse(replace('--run', 'unknown'));
     for (const option of ['--root', '--slot', '--prompt-file']) {
       for (const value of [
         'relative',
@@ -675,7 +710,7 @@ test('eval session refuses unknown runs and harnesses, invalid paths and CLI opt
         `${f.directory}/bad\\path`,
         `${f.directory}/${'x'.repeat(260)}`,
       ])
-        refused(f, replace(option, value));
+        refuse(replace(option, value));
     }
     for (const value of [
       f.experiment,
@@ -683,23 +718,21 @@ test('eval session refuses unknown runs and harnesses, invalid paths and CLI opt
       join(f.slot, 'repo'),
       f.directory,
     ])
-      refused(f, replace('--root', value));
+      refuse(replace('--root', value));
     for (const value of ['0', '-1', 'NaN', '1.5'])
-      refused(f, [...f.args(), '--timeout', value]);
+      refuse([...f.args(), '--timeout', value]);
     for (const extra of [
       ['--json'],
       ['--wat'],
       ['--run', f.runId()],
       ['--timeout'],
     ])
-      refused(f, [...f.args(), ...extra], 64);
+      refuse([...f.args(), ...extra], 64);
     const alias = join(f.directory, 'alias');
     await symlink(f.directory, alias);
-    refused(
-      f,
-      replace('--slot', join(alias, 'root', f.manifest.id, 'workspace')),
-    );
-    refused(f, replace('--prompt-file', join(alias, 'prompt')));
+    refuse(replace('--slot', join(alias, 'root', f.manifest.id, 'workspace')));
+    refuse(replace('--prompt-file', join(alias, 'prompt')));
+    await Promise.all(jobs);
     const arm = f.manifest.arms.find((arm) => arm.id === 'A');
     assert.ok(arm);
     arm.harness = 'unknown';
@@ -805,7 +838,7 @@ test('eval mask refuses credential aliases, non-files, unsafe destinations and d
     const fileAlias = join(f.directory, 'auth-alias');
     await symlink(auth, fileAlias);
     const invoke = (credentials: string[]) =>
-      f.invoke([
+      f.invokeAsync([
         'mask',
         '--slot',
         f.slot,
@@ -813,7 +846,7 @@ test('eval mask refuses credential aliases, non-files, unsafe destinations and d
         '--',
         '/usr/bin/true',
       ]);
-    for (const value of [
+    for (const job of [
       `${fileAlias}=/w/codex/auth.json`,
       `${alias}/.codex/auth.json=/w/codex/auth.json`,
       `${f.home}=/w/codex/auth.json`,
@@ -827,20 +860,27 @@ test('eval mask refuses credential aliases, non-files, unsafe destinations and d
       `${auth}=relative`,
       `${auth}=/w`,
       `${auth}=/w/codex\\auth.json`,
-    ]) {
-      const observed = invoke([value]);
-      assert.equal(observed.status, 65, `${value}: ${observed.stderr}`);
+    ].map((value) => ({ value, observed: invoke([value]) }))) {
+      const observed = await job.observed;
+      assert.equal(observed.status, 65, `${job.value}: ${observed.stderr}`);
     }
     assert.equal(
-      invoke([`${auth}=/w/codex/auth.json`, `${auth}=/w/codex/auth.json`])
-        .status,
+      (
+        await invoke([
+          `${auth}=/w/codex/auth.json`,
+          `${auth}=/w/codex/auth.json`,
+        ])
+      ).status,
       65,
     );
     await mkdir(join(f.slot, 'codex'));
     await symlink('../repo', join(f.slot, 'codex', 'alias'));
-    assert.equal(invoke([`${auth}=/w/codex/alias/auth.json`]).status, 65);
+    assert.equal(
+      (await invoke([`${auth}=/w/codex/alias/auth.json`])).status,
+      65,
+    );
     await chmod(auth, 0o000);
-    assert.equal(invoke([`${auth}=/w/codex/auth.json`]).status, 65);
+    assert.equal((await invoke([`${auth}=/w/codex/auth.json`])).status, 65);
     await chmod(auth, 0o600);
   } finally {
     await f.cleanup();

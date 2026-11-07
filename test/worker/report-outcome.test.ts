@@ -110,7 +110,9 @@ test('partial-named exits 4', async (t) => {
   assert.match(result.stderr, /status: partial\nblocker: tests missing/);
 });
 
-test('report outcomes are visible on start and send', async (t) => {
+test('report outcomes are visible on start and send', {
+  concurrency: 6,
+}, async (t) => {
   for (const [action, code, pattern] of [
     ['blocked-named', 4, /status: blocked\nblocker: npm test exit 1/],
     ['partial-empty', 4, /names no blocker.*\nstatus: partial/s],
@@ -123,7 +125,7 @@ test('report outcomes are visible on start and send', async (t) => {
     ['scope-partial', 3, /scope violation/],
     ['invalid', 4, /status: none/],
   ] as const) {
-    await t.test(action, async (t) => {
+    t.test(action, async (t) => {
       const s = await setup(t);
       for (const first of [true, false]) {
         if (action === 'scope-partial' && !first) break;
@@ -141,7 +143,9 @@ test('report outcomes are visible on start and send', async (t) => {
   }
 });
 
-test('rollout path is bounded, absolute, redacted and present each round', async (t) => {
+test('rollout path is bounded, absolute, redacted and present each round', {
+  concurrency: 6,
+}, async (t) => {
   for (const path of [
     '/tmp/rollout.jsonl',
     'relative',
@@ -149,7 +153,7 @@ test('rollout path is bounded, absolute, redacted and present each round', async
     `/${'ą'.repeat(2048)}`,
     '/tmp/sk-synthetic-secret',
   ]) {
-    await t.test(String(path)?.slice(0, 40) ?? 'null', async (t) => {
+    t.test(String(path)?.slice(0, 40) ?? 'null', async (t) => {
       const s = await setup(t);
       s.env.CODEX_TEST_WORKER_THREAD_PATH = JSON.stringify(path);
       for (const [round, first] of [

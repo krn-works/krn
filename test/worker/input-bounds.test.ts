@@ -167,7 +167,9 @@ test('grammar-valid model text is redacted in the session and inbox', async (t) 
   assert.equal(metrics.includes('sk-synthetic-model'), false);
 });
 
-test('invalid model and effort refuse start and send before writing', async (t) => {
+test('invalid model and effort refuse start and send before writing', {
+  concurrency: 6,
+}, async (t) => {
   for (const [key, value] of [
     ['--model', 'Uppercase'],
     ['--model', 'bad/model'],
@@ -177,7 +179,7 @@ test('invalid model and effort refuse start and send before writing', async (t) 
     ['--effort', 'extreme'],
     ['--effort', 'TOKEN: synthetic-effort'],
   ]) {
-    await t.test(`${key} ${value}`, async (t) => {
+    t.test(`${key} ${value}`, async (t) => {
       const s = setup(t);
       const first = await s.turn('ok', true, [key ?? '', value ?? '']);
       assert.equal(first.code, 64, first.stderr);
@@ -213,7 +215,9 @@ test('a missing repo and absent send or stop refuse without creating state', asy
   }
 });
 
-test('other CLI inputs and input files are validated before any writes', async (t) => {
+test('other CLI inputs and input files are validated before any writes', {
+  concurrency: 6,
+}, async (t) => {
   for (const extra of [
     ['--timeout-min', 'NaN'],
     ['--timeout-min', '1e300'],
@@ -221,24 +225,24 @@ test('other CLI inputs and input files are validated before any writes', async (
     Array.from({ length: 101 }, () => ['--allow', '**']).flat(),
     ['--allow', 'AUTH=synthetic-secret'],
   ]) {
-    await t.test(extra[0] ?? 'arguments', async (t) => {
+    t.test(extra[0] ?? 'arguments', async (t) => {
       const s = setup(t);
       const result = await s.turn('ok', true, extra);
       assert.equal(result.code, 64, result.stderr);
       assert.equal(fs.existsSync(join(s.repo, '.krn')), false);
     });
   }
-  await t.test('missing brief', async (t) => {
+  t.test('missing brief', async (t) => {
     const s = setup(t);
     assert.equal((await s.command(['start', '--repo', s.repo])).code, 64);
     assert.equal(fs.existsSync(join(s.repo, '.krn')), false);
   });
-  await t.test('oversized brief', async (t) => {
+  t.test('oversized brief', async (t) => {
     const s = setup(t);
     assert.equal((await s.turn('x'.repeat(256 * 1024 + 1), true)).code, 65);
     assert.equal(fs.existsSync(join(s.repo, '.krn')), false);
   });
-  await t.test('missing input file', async (t) => {
+  t.test('missing input file', async (t) => {
     const s = setup(t);
     const result = await s.command([
       'start',
@@ -250,20 +254,19 @@ test('other CLI inputs and input files are validated before any writes', async (
     assert.equal(result.code, 65, result.stderr);
     assert.equal(fs.existsSync(join(s.repo, '.krn')), false);
   });
-  await t.test(
-    'redaction expansion is bounded before publication',
-    async (t) => {
-      const s = setup(t);
-      const result = await s.turn('AUTH=x\n'.repeat(18000), true);
-      assert.equal(result.code, 65, result.stderr);
-      assert.equal(fs.existsSync(join(s.repo, '.krn')), false);
-    },
-  );
+  t.test('redaction expansion is bounded before publication', async (t) => {
+    const s = setup(t);
+    const result = await s.turn('AUTH=x\n'.repeat(18000), true);
+    assert.equal(result.code, 65, result.stderr);
+    assert.equal(fs.existsSync(join(s.repo, '.krn')), false);
+  });
 });
 
-test('unsafe inbox and temporary-directory ancestors are refused before partial start state', async (t) => {
+test('unsafe inbox and temporary-directory ancestors are refused before partial start state', {
+  concurrency: 6,
+}, async (t) => {
   for (const name of ['inbox', 'tmp']) {
-    await t.test(name, async (t) => {
+    t.test(name, async (t) => {
       const s = setup(t);
       const outside = join(s.root, 'outside');
       fs.mkdirSync(outside);
@@ -277,9 +280,11 @@ test('unsafe inbox and temporary-directory ancestors are refused before partial 
   }
 });
 
-test('ignored .krn baseline detects changed, created, deleted and retyped paths outside its run', async (t) => {
+test('ignored .krn baseline detects changed, created, deleted and retyped paths outside its run', {
+  concurrency: 6,
+}, async (t) => {
   for (const action of ['write', 'delete', 'retype', 'relink']) {
-    await t.test(action, async (t) => {
+    t.test(action, async (t) => {
       const s = setup(t);
       const path = '.krn/runs/other/record';
       fs.mkdirSync(dirname(join(s.repo, path)), { recursive: true });
@@ -290,7 +295,7 @@ test('ignored .krn baseline detects changed, created, deleted and retyped paths 
       assert.ok(result.stderr.includes(path), result.stderr);
     });
   }
-  await t.test('new path after an unchanged turn', async (t) => {
+  t.test('new path after an unchanged turn', async (t) => {
     const s = setup(t);
     fs.mkdirSync(join(s.repo, '.krn/runs/other'), { recursive: true });
     assert.equal((await s.turn('ok', true)).code, 0);
@@ -307,9 +312,11 @@ test('ignored forbidden roots also remain in the baseline', async (t) => {
   assert.equal(result.code, 3, result.stderr);
 });
 
-test('ignored ordinary roots cannot hide baseline instruction files or new symlinks', async (t) => {
+test('ignored ordinary roots cannot hide baseline instruction files or new symlinks', {
+  concurrency: 6,
+}, async (t) => {
   for (const action of ['write private/AGENTS.md', 'link private/new-link']) {
-    await t.test(action, async (t) => {
+    t.test(action, async (t) => {
       const s = setup(t);
       fs.mkdirSync(join(s.repo, 'private'));
       fs.writeFileSync(join(s.repo, 'private/AGENTS.md'), 'before edit');
@@ -319,9 +326,11 @@ test('ignored ordinary roots cannot hide baseline instruction files or new symli
   }
 });
 
-test('.krn baseline enforces file-count and content bounds before launching a server', async (t) => {
+test('.krn baseline enforces file-count and content bounds before launching a server', {
+  concurrency: 6,
+}, async (t) => {
   for (const bound of ['files', 'bytes']) {
-    await t.test(bound, async (t) => {
+    t.test(bound, async (t) => {
       const s = setup(t);
       const outsideRun = join(s.repo, '.krn/other');
       fs.mkdirSync(outsideRun, { recursive: true });
@@ -376,14 +385,16 @@ test('scope path text is redacted before persistence and CLI output', async (t) 
   assert.equal(text.includes('synthetic-path'), false);
 });
 
-test('persisted protocol identifiers and derived token totals have bounds', async (t) => {
+test('persisted protocol identifiers and derived token totals have bounds', {
+  concurrency: 6,
+}, async (t) => {
   for (const scenario of [
     'long-thread',
     'secret-thread',
     'newline-thread',
     'unsafe-usage',
   ]) {
-    await t.test(scenario, async (t) => {
+    t.test(scenario, async (t) => {
       const s = setup(t);
       s.env.CODEX_TEST_WORKER_INPUT = scenario;
       const result = await s.turn('ok', true);
@@ -401,7 +412,9 @@ test('persisted protocol identifiers and derived token totals have bounds', asyn
   }
 });
 
-test('invalid persisted session fields refuse send without publishing an inbox', async (t) => {
+test('invalid persisted session fields refuse send without publishing an inbox', {
+  concurrency: 6,
+}, async (t) => {
   for (const patch of [
     { model: 'Uppercase' },
     { effort: 'extreme' },
@@ -415,7 +428,7 @@ test('invalid persisted session fields refuse send without publishing an inbox',
     { rounds: 4 },
     { unit: 'other.scope' },
   ]) {
-    await t.test(Object.keys(patch)[0] ?? 'record', async (t) => {
+    t.test(Object.keys(patch)[0] ?? 'record', async (t) => {
       const s = setup(t);
       assert.equal((await s.turn('ok', true)).code, 0);
       const path = join(s.run, 'session.json');
