@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   lstatSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   unlinkSync,
@@ -111,10 +112,36 @@ export function readyTasks(root: string, limit?: number): ReadyTasks {
       findings.push({ id: task.id, findings: claim.findings });
     if (claim.state === 'none' || claim.state === 'expired') ready.push(task);
   }
+  pruneClosedClaims(mainRoot);
   return {
     tasks: ready,
     findings,
   };
+}
+
+/**
+ * A task closes inside its delivery branch, so its claim in the main checkout
+ * outlives the merge. Once the main checkout's record says closed, the claim
+ * holds nothing and is removed; claims of open or unknown tasks stay.
+ */
+function pruneClosedClaims(mainRoot: string): void {
+  let names: string[];
+  try {
+    names = readdirSync(join(mainRoot, '.krn', 'task-claims'));
+  } catch {
+    return;
+  }
+  const index = loadTaskIndex(mainRoot);
+  for (const name of names) {
+    if (!name.endsWith('.json')) continue;
+    const id = name.slice(0, -'.json'.length) as TaskId;
+    if (index.get(id)?.status !== 'closed') continue;
+    try {
+      unlinkSync(claimPath(mainRoot, id));
+    } catch {
+      /* Another ready may have removed it first. */
+    }
+  }
 }
 
 export function inspectClaim(root: string, id: TaskId): ClaimInspection {

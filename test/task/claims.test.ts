@@ -195,6 +195,30 @@ test('ready includes expired claims without deleting or rewriting them', async (
   }
 });
 
+test('ready removes claims of tasks closed in the main checkout', async () => {
+  const repo = await fixtureRepo('ready-closed-', [task('T-1'), task('T-2')]);
+  const linked = join(dirname(repo), 'ready-closed-linked');
+  try {
+    addWorktree(repo, linked, 'ready-closed-branch');
+    assert.equal(runCli(linked, ['claim', 'T-1', '--actor', 'lead']).status, 0);
+    assert.equal(runCli(repo, ['claim', 'T-2', '--actor', 'lead']).status, 0);
+    const closed = runCli(linked, ['close', 'T-1', '--as', 'done']);
+    assert.equal(closed.status, 0, closed.stderr);
+    git(linked, 'commit', '-qam', 'close T-1');
+    const claims = join(repo, '.krn', 'task-claims');
+    // Closed only in the delivery branch: the claim still holds.
+    runCli(repo, ['ready', '--json']);
+    assert.ok(existsSync(join(claims, 'T-1.json')));
+    git(repo, 'merge', '-q', 'ready-closed-branch');
+    assert.deepEqual(readyIds(runCli(repo, ['ready', '--json'])), []);
+    assert.equal(existsSync(join(claims, 'T-1.json')), false);
+    assert.ok(existsSync(join(claims, 'T-2.json')));
+  } finally {
+    removeWorktree(repo, linked);
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test('linked worktree claims land in the main checkout claim store', async () => {
   const repo = await fixtureRepo('claim-linked-store-', [task('T-1')]);
   const linked = join(dirname(repo), 'claim-linked-store-linked');
