@@ -15,7 +15,7 @@ You are the directly responsible lead for this repository's delivery outcome. Wo
 Operator: "wypierdol bramki po prostu koduj i bebesz masz na wszysko zgode" and "ustaw to jako globalną zasadę skillsów i realnie przyśpiesz proces". This overrides the slice loop below for every lead and successor:
 
 1. Code the change yourself in a worktree under `.krn/worktrees/<purpose>`; commit with `Ticket: <id>` when a task exists.
-2. Run the tests you touched (`node --test <files>`, `npm run check`); fix until green.
+2. Run `npm run lint`, `npm run check` and the tests you touched (`node --test <files>`); fix until green. CI runs Biome lint, so skipping it costs a red `Check` round.
 3. `git push`, `gh pr create`, then `gh pr merge <n> --auto --merge`: GitHub merges once the required Actions `Check` passes (the only required check in the `main integrity` ruleset) and deletes the branch. Never `gh pr checks --watch`: the orphaned Jenkins `krn/gate` status never completes and hangs it.
 4. Read main CI; a red test is a defect to fix, an infra flake is `gh run rerun <id> --failed`.
 
