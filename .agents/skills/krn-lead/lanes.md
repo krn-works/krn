@@ -1,0 +1,11 @@
+# Lane brief: common rules for background agents
+- Repository /mnt/storage/coding/krn/active/krn, remote krn-works/krn. Create your own worktree: `git -C /mnt/storage/coding/krn/active/krn fetch -q origin main && git -C /mnt/storage/coding/krn/active/krn worktree add -b <branch> .krn/worktrees/<branch-slug> origin/main`; work only there. Never edit the main checkout, other worktrees, ~/.claude or ~/.agents (operator: nothing global). Temp files under /mnt/storage/tmp, never /tmp. Never `pkill -f`; stop processes by PID.
+- Operator grant (verbatim): "Na wszystko masz zgodę as long as we will achieve a fucking breakthrough"; "wypierdol bramki po prostu koduj". No briefs/review ceremony.
+- Delivery: `npm run lint` (0 errors), `npm run check`, touched tests via `node --test <files>`, and for wide changes `npm test > /mnt/storage/tmp/<slug>-test.log 2>&1; echo exit=$?` (never hide exit codes behind a pipe). Commit titles end with `(<task-id>)`; final trailer paragraph exactly:
+  Ticket: <task-id>
+  Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+  Task records: create new tasks with `bin/krn task create` and close yours with `bin/krn task close <id> --as done --note ...` run INSIDE your worktree (cd there first) so the record ships with your PR.
+- Ship: `git push -u origin <branch>` (after a rebase `--force-with-lease`), `gh pr create --head <branch> --base main --title "... (<task-id>)" --body "...\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"`, `gh pr merge <n> --auto --merge`. Then wait for the PR (poll `gh pr view <n> --json state,statusCheckRollup` every 60s, max 40 min; never `gh pr checks --watch`). Red `Check`: read `gh run view <id> --log-failed` into a file, grep it; a real test failure is your defect — fix and push; an infra flake (runner/network) — `gh run rerun <id> --failed`. If main moved and conflicts, rebase onto origin/main.
+- When done remove your worktree (`git worktree remove`) and local branch.
+- Append one line per finding/PR to .krn/runs/lead/<campaign>/ledger.md: `- <lane>: <finding> -> PR #n merged|task t-xxx|dropped (<reason>)`.
+- Final reply ≤10 lines: PRs with merge state, tasks created, measured before/after numbers.

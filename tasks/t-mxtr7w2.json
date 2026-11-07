@@ -1,0 +1,12 @@
+{
+  "id": "t-mxtr7w2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-07",
+  "priority": 1,
+  "title": "npm run fast: explain missing node_modules in fresh worktrees",
+  "after": [],
+  "body": [
+    "Finding 2026-11-07 (lead): in a fresh worktree without node_modules, `npm run fast` prints \"fast FAIL (tsc)\" after 24 ms with no reason; agents then misread it as a type error. Make fast-check detect missing node_modules and either say so (exit 64, \"run npm ci or link node_modules\") or resolve tools from the main checkout; consider linking node_modules automatically when the lead creates a worktree."
+  ]
+}
