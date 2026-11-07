@@ -2,6 +2,7 @@ import { statSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import { isAbsolute, relative, sep } from 'node:path';
 import { summarizeTestEvents } from '../test-summary-policy.mjs';
+import { TEST_FILE_WEIGHTS } from './test-weights.mjs';
 
 const COUNT_FIELDS = [
   'tests',
@@ -72,6 +73,18 @@ export function configuredTestShardCount(override, coreCount) {
   return count;
 }
 
+const MEDIAN_WEIGHT = (() => {
+  const sorted = Object.values(TEST_FILE_WEIGHTS).sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? 1;
+})();
+
+// Measured seconds when recorded; otherwise the file size ranks it among its
+// unmeasured peers and the median keeps it commensurate with measured files.
+function fileWeight(file, size) {
+  const measured = TEST_FILE_WEIGHTS[normalizedFile(file)];
+  return measured ?? (size > 0 ? Math.max(1, size / 4096) : MEDIAN_WEIGHT);
+}
+
 export function planTestShards(
   files,
   shardCount,
@@ -91,9 +104,10 @@ export function planTestShards(
     .filter((file) => !serialNames.has(normalizedFile(file)))
     .map((file) => {
       try {
-        return { file, size: statSync(file).size };
+        const size = statSync(file).size;
+        return { file, size: fileWeight(file, size) };
       } catch {
-        return { file, size: 0 };
+        return { file, size: fileWeight(file, 0) };
       }
     })
     .sort(
@@ -103,6 +117,15 @@ export function planTestShards(
   const effectiveShards = Math.min(shardCount, parallelFiles.length);
   const shards = Array.from({ length: effectiveShards }, () => []);
   const shardWeights = Array.from({ length: effectiveShards }, () => 0);
+  // selectTestShardFiles hands serial file N to shard N mod total, so that
+  // load is fixed before the parallel files are balanced around it.
+  for (const [position, file] of effectiveShards
+    ? finalSerialFiles.entries()
+    : [])
+    shardWeights[(position % shardCount) % effectiveShards] += fileWeight(
+      file,
+      0,
+    );
   for (const { file, size } of parallelFiles) {
     let target = 0;
     for (let index = 1; index < effectiveShards; index += 1) {
