@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import type { AgentInfo } from '../../scripts/claude/successor-launch.ts';
 
 const script = fileURLToPath(
   new URL('../../scripts/claude/successor-launch.ts', import.meta.url),
@@ -65,8 +66,13 @@ function herdrStub(): string {
     "} else if (args[0] === 'pane' && args[1] === 'get') {",
     '  process.stdout.write(readFileSync(process.env.PANE_FIXTURE));',
     "} else if (args[0] === 'agent' && args[1] === 'get') {",
+    '  // The new pane answers its fixtures in order, the last one repeating.',
+    "  const asked = readFileSync(process.env.HERDR_CALLS, 'utf8')",
+    "    .split('\\n')",
+    '    .filter((line) => line === JSON.stringify(args)).length;',
+    "  const replies = process.env.NEW_PANE_FIXTURE.split('\\n');",
     '  const name = args[2] === process.env.NEW_PANE',
-    '    ? process.env.NEW_PANE_FIXTURE',
+    '    ? replies[Math.min(asked, replies.length) - 1]',
     '    : process.env.AGENT_FIXTURE;',
     '  // Herdr prints a reply on stdout and a server error on stderr, exit 1.',
     "  if (name.endsWith('.stderr.jsonl')) {",
@@ -85,6 +91,8 @@ function herdrStub(): string {
     "    process.stderr.write('pane launch failed\\n');",
     '    process.exit(23);',
     '  }',
+    "} else if (args[0] === 'tab' && args[1] === 'rename') {",
+    '  process.stdout.write(readFileSync(process.env.RENAME_FIXTURE));',
     '} else {',
     '  process.exit(64);',
     '}',
@@ -122,6 +130,7 @@ function herdrEnvironment(root: string, calls: string, bin: string) {
     AGENT_FIXTURE: fixturePath('agent-get-working-claude.reply.jsonl'),
     NEW_PANE: newPane,
     NEW_PANE_FIXTURE: fixturePath('agent-get-working-claude.reply.jsonl'),
+    RENAME_FIXTURE: fixturePath('tab-rename.reply.jsonl'),
     AGENT_CALLS: join(root, 'agent-calls.jsonl'),
     KRN_SUCCESSOR_AGENT: 'successor-agent',
   };
@@ -474,31 +483,92 @@ test('a successor Herdr never shows fails the launch and keeps the predecessor t
   );
 });
 
+test('a successor held on a startup dialog is reported with its pane and the handoff stands', (t) => {
+  const { root, bin } = temporary(t);
+  const herdrCalls = join(root, 'herdr-calls.jsonl');
+  const cwd = join(root, 'project');
+  mkdirSync(cwd);
+  writeExecutable(join(bin, 'herdr'), herdrStub());
+  const created = JSON.parse(
+    fixture('tab-create.reply.jsonl').toString('utf8'),
+  ).result;
+  const caller = JSON.parse(
+    fixture('agent-get-working-claude.reply.jsonl').toString('utf8'),
+  ).result.agent;
+
+  const result = spawnSync(
+    process.execPath,
+    [script, '--name', 'Next slice', '--prompt', 'Read handoff', '--cwd', cwd],
+    {
+      cwd: root,
+      env: {
+        ...herdrEnvironment(root, herdrCalls, bin),
+        HERDR_PANE_ID: 'caller-pane',
+        KRN_SUCCESSOR_AGENT: 'claude',
+        // Herdr 0.9.1 showed the folder-trust dialog as unknown, then blocked.
+        NEW_PANE_FIXTURE: [
+          fixturePath('agent-get-unknown-claude.reply.jsonl'),
+          fixturePath('agent-get-blocked-claude.reply.jsonl'),
+        ].join('\n'),
+      },
+      encoding: 'utf8',
+    },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    result.stdout,
+    `successor: herdr tab ${created.tab.tab_id} pane ${created.root_pane.pane_id} agent claude blocked\n`,
+  );
+  assert.equal(
+    result.stderr,
+    `successor waits on a startup dialog: answer it in herdr pane ${created.root_pane.pane_id} (tab ${created.tab.tab_id})\n`,
+  );
+  assert.deepEqual(readCalls(herdrCalls).slice(-4), [
+    ['agent', 'get', created.root_pane.pane_id],
+    ['agent', 'get', created.root_pane.pane_id],
+    ['agent', 'get', 'caller-pane'],
+    ['tab', 'rename', caller.tab_id, 'handed off → Next slice'],
+  ]);
+  assert.equal(
+    existsSync(join(cwd, '.krn', 'successors', 'launches.jsonl')),
+    true,
+  );
+});
+
+// A captured `agent get` reply on the stream Herdr prints it on.
+function captured(name: string) {
+  return name.endsWith('.stderr.jsonl')
+    ? { status: 1, stdout: '', stderr: fixture(name).toString('utf8') }
+    : { status: 0, stdout: fixture(name).toString('utf8'), stderr: '' };
+}
+
+function clock() {
+  let time = 0;
+  const pauses: number[] = [];
+  return {
+    pauses,
+    now: () => time,
+    pause: (seconds: number) => {
+      pauses.push(seconds);
+      time += seconds * 1000;
+    },
+  };
+}
+
+// Answers the infos in order, the last one repeating.
+function sequence(...infos: AgentInfo[]) {
+  let index = 0;
+  return () => infos[Math.min(index++, infos.length - 1)] ?? {};
+}
+
 test('the start wait polls Herdr until the expected agent shows, then stops at its deadline', () => {
   assert.equal(typeof api?.awaitAgent, 'function');
   assert.ok(api);
-  const reply = (name: string) =>
-    name.endsWith('.stderr.jsonl')
-      ? { status: 1, stdout: '', stderr: fixture(name).toString('utf8') }
-      : { status: 0, stdout: fixture(name).toString('utf8'), stderr: '' };
-  const shell = api.agentInfo(reply('agent-get-shell.stderr.jsonl'));
-  const claude = api.agentInfo(reply('agent-get-working-claude.reply.jsonl'));
-  const clock = () => {
-    let time = 0;
-    const pauses: number[] = [];
-    return {
-      pauses,
-      now: () => time,
-      pause: (seconds: number) => {
-        pauses.push(seconds);
-        time += seconds * 1000;
-      },
-    };
-  };
-  const sequence = (...infos: (typeof shell)[]) => {
-    let index = 0;
-    return () => infos[Math.min(index++, infos.length - 1)] ?? {};
-  };
+  const shell = api.agentInfo(captured('agent-get-shell.stderr.jsonl'));
+  const claude = api.agentInfo(
+    captured('agent-get-working-claude.reply.jsonl'),
+  );
 
   const late = clock();
   assert.deepEqual(
@@ -539,6 +609,48 @@ test('the start wait polls Herdr until the expected agent shows, then stops at i
     claude,
   );
   assert.deepEqual(override.pauses, []);
+});
+
+test('the start wait runs on while Herdr cannot classify the agent and answers its first classified status', () => {
+  assert.ok(api);
+  // Herdr 0.9.1 on a Claude held by its folder-trust dialog: no agent, then
+  // unknown for seconds, then blocked.
+  const shell = api.agentInfo(captured('agent-get-shell.stderr.jsonl'));
+  const unknown = api.agentInfo(
+    captured('agent-get-unknown-claude.reply.jsonl'),
+  );
+  const blocked = api.agentInfo(
+    captured('agent-get-blocked-claude.reply.jsonl'),
+  );
+  assert.equal(unknown.status, 'unknown');
+  assert.equal(blocked.status, 'blocked');
+
+  const dialog = clock();
+  assert.deepEqual(
+    api.awaitAgent(
+      sequence(shell, unknown, unknown, blocked),
+      'claude',
+      60,
+      dialog.pause,
+      dialog.now,
+    ),
+    blocked,
+  );
+  assert.deepEqual(dialog.pauses, [1, 1, 1]);
+
+  // A live agent Herdr never classifies still counts as started.
+  const unclassified = clock();
+  assert.deepEqual(
+    api.awaitAgent(
+      sequence(unknown),
+      'claude',
+      2,
+      unclassified.pause,
+      unclassified.now,
+    ),
+    unknown,
+  );
+  assert.deepEqual(unclassified.pauses, [1, 1]);
 });
 
 test('missing Herdr falls back to claude background launch once', (t) => {

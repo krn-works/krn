@@ -321,7 +321,11 @@ export function agentInfo(result: CommandResult): AgentInfo {
  * herdr skill v0.9.5), so a launch counts as started only once Herdr shows
  * the expected agent in the new pane. That pane hosts only its shell, so when
  * Herdr cannot name the agent in advance (an override), any agent it reports
- * there is the successor. Answers the agent, or undefined at the deadline.
+ * there is the successor. Herdr reports `unknown` while it cannot classify the
+ * agent yet; a Claude held on its folder-trust dialog read `unknown` for
+ * seconds, then `blocked` (Herdr 0.9.1 captures), so the wait runs on to the
+ * first classified status. Answers the agent with that status, the agent still
+ * `unknown` at the deadline, or undefined when no agent showed.
  */
 export function awaitAgent(
   probe: () => AgentInfo,
@@ -333,10 +337,13 @@ export function awaitAgent(
   const deadline = now() + seconds * 1000;
   for (;;) {
     const info = probe();
-    if (info.agent && (expected === undefined || info.agent === expected))
+    const shown =
+      info.agent !== undefined &&
+      (expected === undefined || info.agent === expected);
+    if (shown && info.status !== undefined && info.status !== 'unknown')
       return info;
     const remaining = deadline - now();
-    if (remaining <= 0) return undefined;
+    if (remaining <= 0) return shown ? info : undefined;
     pause(Math.min(POLL_SECONDS, remaining / 1000));
   }
 }
@@ -707,6 +714,13 @@ export function main(args: string[]): number {
   process.stdout.write(
     `successor: herdr tab ${ids.tabId} pane ${ids.paneId} agent ${successor.agent} ${successor.status ?? 'unknown'}\n`,
   );
+  // A startup dialog (folder trust, an MCP approval, a login) holds a live
+  // successor before its prompt. Failing the launch would invite a duplicate
+  // successor, so the handoff stands and the operator learns the pane.
+  if (successor.status === 'blocked')
+    process.stderr.write(
+      `successor waits on a startup dialog: answer it in herdr pane ${ids.paneId} (tab ${ids.tabId})\n`,
+    );
   if (paneId) retirePredecessors(options, paneId);
   return 0;
 }
