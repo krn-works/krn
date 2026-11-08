@@ -63,4 +63,8 @@ the ratio; GO retrieval also needs B-S >= +10 pp. Both hold.
   config is fixed and has no provider override, and the real receiver is stronger
   evidence (KRN-12).
 - `scripts/boundaries.ts` (imported by the core-imports scorer, not hashed by the
-  manifest: t-16dkc64) had sha256 `a28802e1…8266867` while scoring.
+  manifest while scoring) had sha256 `a28802e1…8266867` then. The manifest now
+  hashes every file the scorer imports from outside evals/fr40 into
+  `scorer-imports.json` (t-16dkc64), now `1fc04179…f55d4bd8`;
+  the only change since scoring adds `src/brain/worker-packet.ts` to the worker
+  module's allowed imports and leaves core-imports verdicts unchanged.
