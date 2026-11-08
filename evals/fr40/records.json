@@ -1,0 +1,173 @@
+[
+  {
+    "id": "r-core-imports",
+    "type": "rule",
+    "text": "When core code is changed, keep imports within core: src/core imports only its own files, including nested files and every module form. Core stays independent of replaceable adapters; scripts/boundaries.ts holds the layer map and fails on a forbidden import.",
+    "recorded_at": "2026-10-07",
+    "valid_from": "2026-10-07",
+    "valid_to": null,
+    "source": "AGENTS.md KRN-05"
+  },
+  {
+    "id": "r-unknown-command",
+    "type": "rule",
+    "text": "When the CLI receives an unknown command it fails with exit 64 and a message naming the command, and never forwards it to another binary.",
+    "recorded_at": "2026-10-07",
+    "valid_from": "2026-10-07",
+    "valid_to": null,
+    "source": "AGENTS.md KRN-06"
+  },
+  {
+    "id": "r-required-check",
+    "type": "rule",
+    "text": "A change is integrated only after the full aggregate Check from GitHub Actions passes on the exact HEAD; lint, typecheck and touched tests run locally with npm run fast, then the PR auto-merges on the Check.",
+    "recorded_at": "2026-10-07",
+    "valid_from": "2026-10-07",
+    "valid_to": null,
+    "source": "AGENTS.md KRN-07"
+  },
+  {
+    "id": "r-agent-state",
+    "type": "rule",
+    "text": "Agent state written for this repository stays under .krn/: notes, plans, logs and scratch files go to ignored .krn/runs/<owner>/ or .krn/tmp/ paths, never to tracked project files or the repository root.",
+    "recorded_at": "2026-10-08",
+    "valid_from": "2026-10-08",
+    "valid_to": null,
+    "source": "AGENTS.md KRN-08; docs/program/repository-workflow.md"
+  },
+  {
+    "id": "r-tracker-owner",
+    "type": "rule",
+    "text": "Task status lives in tasks/<id>.json and only the lead changes it with krn task (ready, claim, release, close). A worker never edits, closes or deletes a tracker file, even when its task is finished.",
+    "recorded_at": "2026-10-09",
+    "valid_from": "2026-10-09",
+    "valid_to": null,
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md"
+  },
+  {
+    "id": "r-commit-title-id",
+    "type": "rule",
+    "text": "A worker receives the task id in its brief and uses it in every commit title, ending the title with the id in parentheses, for example `Add a parser (<task id>)`.",
+    "recorded_at": "2026-10-09",
+    "valid_from": "2026-10-09",
+    "valid_to": null,
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md"
+  },
+  {
+    "id": "r-trailer",
+    "type": "convention",
+    "text": "Commits for a managed task carry a `Ticket: <id>` trailer when the change completes the task, or a `Refs: <id>` trailer when it is one step and leaves the task open; no other trailer is required.",
+    "recorded_at": "2026-11-08",
+    "valid_from": "2026-11-08",
+    "valid_to": null,
+    "source": "docs/program/repository-workflow.md"
+  },
+  {
+    "id": "r-receiver-tests",
+    "type": "rule",
+    "text": "Every integration or forward is tested against its real receiver or a verbatim capture of its output.",
+    "recorded_at": "2026-10-09",
+    "valid_from": "2026-10-09",
+    "valid_to": null,
+    "source": "AGENTS.md KRN-12"
+  },
+  {
+    "id": "r-bounded-context",
+    "type": "rule",
+    "text": "The lead keeps context bounded: delegate reading to a subagent returning a verdict and path, pass pointers instead of file contents, and verify with commands that print a verdict.",
+    "recorded_at": "2026-10-09",
+    "valid_from": "2026-10-09",
+    "valid_to": null,
+    "source": "AGENTS.md KRN-13"
+  },
+  {
+    "id": "r-regression-layer",
+    "type": "rule",
+    "text": "When a defect is fixed, its regression test goes at the lowest layer that reproduces it.",
+    "recorded_at": "2026-10-09",
+    "valid_from": "2026-10-09",
+    "valid_to": null,
+    "source": "AGENTS.md KRN-14"
+  },
+  {
+    "id": "r-role-names",
+    "type": "convention",
+    "text": "Name files, functions, tests and work by purpose and role, never by phase, slice, ticket, round, date or version: no task ids or dates in new file names or identifiers.",
+    "recorded_at": "2026-10-23",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "source": "docs/program/repository-workflow.md; global contract"
+  },
+  {
+    "id": "r-conventional-commits",
+    "type": "convention",
+    "text": "Use Conventional Commits for authored commits, PR titles and squash subjects.",
+    "recorded_at": "2026-10-23",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "source": "docs/program/repository-workflow.md"
+  },
+  {
+    "id": "r-biome-clean",
+    "type": "convention",
+    "text": "Code and JSON must pass Biome: run npm run fast (biome --write, tsc, related tests) before committing so formatting and lint are clean on every changed file.",
+    "recorded_at": "2026-10-23",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "source": "docs/program/repository-workflow.md; CLAUDE.md"
+  },
+  {
+    "id": "r-state-paths",
+    "type": "convention",
+    "text": "KRN-created state uses ignored .krn/worktrees/<branch>/, .krn/runs/<owner>/, .krn/sources/, .krn/tmp/ or .krn/task-claims/ paths; host tool configuration is exempt.",
+    "recorded_at": "2026-10-28",
+    "valid_from": "2026-10-28",
+    "valid_to": null,
+    "source": "docs/program/repository-workflow.md"
+  },
+  {
+    "id": "r-deep-modules",
+    "type": "convention",
+    "text": "Prefer deep modules with small interfaces and substantial work behind them.",
+    "recorded_at": "2026-10-23",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "source": "docs/program/repository-workflow.md"
+  },
+  {
+    "id": "r-one-writer",
+    "type": "convention",
+    "text": "Use one writer per outcome at a time; parallel implementation uses isolated worktrees and returns through one integration.",
+    "recorded_at": "2026-10-23",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "source": "docs/program/repository-workflow.md"
+  },
+  {
+    "id": "r-piped-checks",
+    "type": "lesson",
+    "text": "Never pipe a check run into a filter: redirect it to a log, read the exit code, then read the log.",
+    "recorded_at": "2026-11-08",
+    "valid_from": "2026-11-08",
+    "valid_to": null,
+    "source": ".agents/skills/krn-lead/SKILL.md"
+  },
+  {
+    "id": "r-shard-weights",
+    "type": "lesson",
+    "text": "A new test file needs a weight in scripts/lib/shard-weights.mjs; npm run fast reports a missing one.",
+    "recorded_at": "2026-11-07",
+    "valid_from": "2026-11-07",
+    "valid_to": null,
+    "source": "tasks/ (closed task bodies)"
+  },
+  {
+    "id": "r-node-test",
+    "type": "convention",
+    "text": "Tests use node:test and node:assert/strict under test/, mirroring the src area they cover.",
+    "recorded_at": "2026-10-07",
+    "valid_from": "2026-10-07",
+    "valid_to": null,
+    "source": "package.json; test/"
+  }
+]

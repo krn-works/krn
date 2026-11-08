@@ -7,6 +7,9 @@ import { fileURLToPath } from 'node:url';
 /** The fixed KRN base every scratch repository is cloned at (main before the FR-40 convention tasks). */
 export const BASE = '8386db1a968dee587bdea8f17971a03d488b6e99';
 
+/** Commit date of BASE: arm material is built only from records known on this day. */
+export const BASE_DATE = '2026-11-08';
+
 export const TEMPLATES = [
   'commit-title-id',
   'trailer',

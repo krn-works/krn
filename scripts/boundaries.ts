@@ -18,7 +18,18 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   flow: ['hosts', 'src/cli/flag-value.ts'],
   task: ['cli', 'fs'],
   evals: ['cli', 'hosts'],
-  cli: ['ci', 'core', 'evals', 'flow', 'hosts', 'outcome', 'task', 'worker'],
+  brain: ['cli', 'evals/fr40/tasks.ts'],
+  cli: [
+    'brain',
+    'ci',
+    'core',
+    'evals',
+    'flow',
+    'hosts',
+    'outcome',
+    'task',
+    'worker',
+  ],
 };
 
 export type Violation = {
