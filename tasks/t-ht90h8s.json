@@ -1,7 +1,11 @@
 {
   "id": "t-ht90h8s",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn-research agent type with tool allowlist; lanes.md names both lane types; test/rules/research-agent.test.ts"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Run research lanes as an agent type with a tool allowlist and no sub-agents",
