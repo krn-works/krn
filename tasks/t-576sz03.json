@@ -1,7 +1,11 @@
 {
   "id": "t-576sz03",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "thread/start turns off hooks, plugins, apps and every MCP server; live first call 19,630 -> 18,954 input tokens, zero hook/MCP frames"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Worker app-server threads start the operator's MCP servers and run the lead's Codex hooks",

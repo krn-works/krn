@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import type { Readable } from 'node:stream';
@@ -117,11 +117,49 @@ function eachLine(
   stream.on('end', end);
 }
 
+/** MCP server names the recorded thread/start turned off, in order. */
+export function recordedServers(transcript: string): { name: string }[] {
+  for (const line of transcript.split('\n')) {
+    if (!line.startsWith('> ')) continue;
+    const frame = JSON.parse(line.slice(2));
+    if (frame.method !== 'thread/start') continue;
+    return Object.keys(frame.params?.config ?? {}).flatMap((key) => {
+      const name = key.match(/^mcp_servers\.(.+)\.enabled$/)?.[1];
+      return name ? [{ name }] : [];
+    });
+  }
+  return [];
+}
+
+// `mcp list --json` runs before thread/start, outside the pipe: replay
+// answers with the names its transcript turned off, record asks the target
+// and keeps only the names (the full list carries host commands and env).
+function mcpList(replay: string | undefined, target: string | undefined) {
+  if (replay) {
+    process.stdout.write(
+      `${JSON.stringify(recordedServers(readFileSync(replay, 'utf8')))}\n`,
+    );
+    return 0;
+  }
+  const listed = spawnSync(target ?? '', ['mcp', 'list', '--json'], {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'inherit'],
+  });
+  if (listed.status !== 0) return listed.status ?? 1;
+  const names = (JSON.parse(listed.stdout) as { name: string }[]).map(
+    ({ name }) => ({ name }),
+  );
+  process.stdout.write(`${JSON.stringify(names)}\n`);
+  return 0;
+}
+
 function main(): void {
   const log = process.env.CODEX_KRN_LOG;
   const replay = process.env.CODEX_KRN_REPLAY;
   const target = process.env.CODEX_KRN_TARGET;
   const args = process.argv.slice(2);
+  if (log && !replay !== !target && args.join(' ') === 'mcp list --json')
+    process.exit(mcpList(replay, target));
   if (
     !log ||
     !replay === !target ||

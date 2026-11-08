@@ -8,19 +8,19 @@
       "name": "compact",
       "question": "Does a forced compaction end with its own item before the next turn starts, and does every turn report its token usage?",
       "file": "compact.rpc",
-      "sha256": "6bb2a772ad9f6150ef19494782d02d8f96ec3eb9557861ef66c13bd5f2f17943"
+      "sha256": "a40d681585b7d5c46b8076e1af9626c3b0472e7fdc9eb133d3b9a193eaeb6956"
     },
     {
       "name": "failed-turn",
       "question": "How does a turn on a model the receiver does not know end?",
       "file": "failed-turn.rpc",
-      "sha256": "82b856c995525ba63eb1f6d56f60a37526e45098119f0ff4c9a6db8d210ebd33"
+      "sha256": "f56c0af9da4ee4f499dbfe83febe8f2912950b18e080329a22fdab75f4625e48"
     },
     {
       "name": "interrupt",
       "question": "What does turn/interrupt answer while a command runs, and how does the interrupted turn complete?",
       "file": "interrupt.rpc",
-      "sha256": "f8c91c8f8daafd618e055dca212b9bbab8ae1361d2fb827a0aa5f3681dfd23d0"
+      "sha256": "211c47ac79aab890de88d9d2497e9478bf8b886751bd9b485eff018a7d699782"
     }
   ]
 }

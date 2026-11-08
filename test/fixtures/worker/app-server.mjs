@@ -15,6 +15,12 @@ import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { setTimeout as delay } from 'node:timers/promises';
 
+// The driver lists MCP servers to turn them off; this host has none.
+if (process.argv.slice(2).join(' ') === 'mcp list --json') {
+  process.stdout.write('[]\n');
+  process.exit(0);
+}
+
 if (process.argv[2] === 'sandbox') {
   const args = process.argv.slice(3);
   const marker = args.indexOf('--');
