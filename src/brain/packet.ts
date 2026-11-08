@@ -118,15 +118,9 @@ function line(record: BrainRecord): string {
   return `- [${record.id}] ${record.text}`;
 }
 
-/** A record that governs a task id (`task id`, `<id>`) only applies to a brief that names one. */
-const NEEDS_TASK_ID = /\btask id\b|<id>/u;
-const TASK_ID = /\bt-[a-z0-9]{7}\b/u;
-
 /**
  * Arm B: rank known records by IDF-weighted term overlap with the task text (ties by id),
- * then add them greedily while the packet stays within the budget. Task-id records are
- * left out when the query names no task id: FR-40 agent-state units without one invented
- * tracker files or withheld their commit after reading them.
+ * then add them greedily while the packet stays within the budget.
  */
 export function brainPacket(input: {
   readonly task: string;
@@ -135,12 +129,7 @@ export function brainPacket(input: {
   readonly asOf: string;
   readonly budget: number;
 }): Packet {
-  const hasTaskId = TASK_ID.test(input.query);
-  const pool = input.records.filter(
-    (record) =>
-      known(record, input.asOf) &&
-      (hasTaskId || !NEEDS_TASK_ID.test(record.text)),
-  );
+  const pool = input.records.filter((record) => known(record, input.asOf));
   const bags = new Map(pool.map((record) => [record.id, terms(record.text)]));
   const frequency = new Map<string, number>();
   for (const bag of bags.values())
