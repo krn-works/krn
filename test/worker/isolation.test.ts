@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { recordedServers } from '../../scripts/codex/app-server-replay.ts';
 import { isolationConfig } from '../../src/worker/isolation.ts';
 import { WorkerError } from '../../src/worker/state.ts';
 
-test('isolation turns off hooks, plugins and every listed MCP server', () => {
+test('isolation turns off hooks, plugins, the skills catalog, web search and every listed MCP server', () => {
   const config = isolationConfig(
     JSON.stringify([
       { name: 'figma', enabled: true, transport: { type: 'stdio' } },
@@ -15,6 +16,9 @@ test('isolation turns off hooks, plugins and every listed MCP server', () => {
   assert.equal(config['features.hooks'], false);
   assert.equal(config['features.plugins'], false);
   assert.equal(config['features.apps'], false);
+  assert.equal(config['skills.include_instructions'], false);
+  assert.equal(config.web_search, 'disabled');
+  assert.equal(config['features.goals'], false);
   assert.deepEqual(
     Object.keys(config).filter((key) => key.startsWith('mcp_servers.')),
     ['mcp_servers.asana.enabled', 'mcp_servers.figma.enabled'],
@@ -48,4 +52,13 @@ test('replay answers mcp list with the names its thread/start turned off', () =>
     ),
     [{ name: 'figma' }, { name: 'node_repl' }],
   );
+});
+
+test('a recorded worker first call stays below 15,000 input tokens', () => {
+  const log = readFileSync(
+    new URL('../fixtures/codex-app-server/compact.rpc', import.meta.url),
+    'utf8',
+  );
+  const first = Number(log.match(/"inputTokens":(\d+)/)?.[1]);
+  assert.ok(first > 0 && first < 15_000, `first call took ${first} tokens`);
 });

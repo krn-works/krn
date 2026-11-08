@@ -1,7 +1,11 @@
 {
   "id": "t-q5cfpv0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "worker first call 18,954 -> 10,048 input tokens (compact.rpc); skills catalog, web search, goals, usage instructions, sleep and view_image off"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Cut the worker's first call below 15,000 input tokens by dropping the operator's skills catalog and global instructions",
