@@ -73,6 +73,22 @@ const completionSchema = z.object({
   ),
 });
 const compactionItem = z.object({ type: z.literal('contextCompaction') });
+// Notifications a worker never reads: streamed text and output, which
+// turn/completed carries whole, and the account, remote-control, MCP and hook
+// status of the operator's Codex home. Codex 0.166.0 and 0.167.0 name them so.
+const quietNotifications = [
+  'account/rateLimits/updated',
+  'account/updated',
+  'hook/completed',
+  'hook/started',
+  'item/agentMessage/delta',
+  'item/commandExecution/outputDelta',
+  'item/reasoning/summaryPartAdded',
+  'item/reasoning/summaryTextDelta',
+  'item/reasoning/textDelta',
+  'mcpServer/startupStatus/updated',
+  'remoteControl/status/changed',
+];
 // A blocker is technical when it names a command with its exit code or a timeout.
 const technicalBlocker =
   /\S\s+(?:exit(?:ed)?(?:\s+with)?(?:\s+(?:exit\s+)?(?:code|status))?\s*:?\s*-?\d+\b)|\btimed\s+out\b/i;
@@ -184,7 +200,10 @@ async function drive(run: string): Promise<void> {
       }),
       await server.request('initialize', {
         clientInfo: { name: 'krn', version: '0.1.0' },
-        capabilities: { experimentalApi: true },
+        capabilities: {
+          experimentalApi: true,
+          optOutNotificationMethods: quietNotifications,
+        },
       }),
     );
     const version =

@@ -14,6 +14,17 @@ import { join, resolve } from 'node:path';
 
 export const cli = resolve('src/cli/krn.mjs');
 export const fixture = resolve('test/fixtures/worker/app-server.mjs');
+/** Writes systemd stubs into bin: the scope runs its command inline and reads as gone. */
+export function stubSystemd(bin: string): void {
+  for (const [name, source] of Object.entries({
+    'systemd-run':
+      '#!/bin/sh\nwhile [ "$#" -gt 0 ]; do case "$1" in --unit) shift 2;; --*) shift;; *) exec "$@";; esac; done\n',
+    systemctl: '#!/bin/sh\nprintf "ActiveState=inactive\\nControlGroup=\\n"\n',
+  })) {
+    writeFileSync(join(bin, name), source);
+    chmodSync(join(bin, name), 0o755);
+  }
+}
 export async function setup(t: import('node:test').TestContext) {
   const root = mkdtempSync(join(tmpdir(), 'krn-worker-'));
   const repo = join(root, 'repo');
@@ -41,14 +52,7 @@ export async function setup(t: import('node:test').TestContext) {
     ],
   ])
     assert.equal(spawnSync('git', ['-C', repo, ...args]).status, 0);
-  for (const [name, source] of Object.entries({
-    'systemd-run':
-      '#!/bin/sh\nwhile [ "$#" -gt 0 ]; do case "$1" in --unit) shift 2;; --*) shift;; *) exec "$@";; esac; done\n',
-    systemctl: '#!/bin/sh\nprintf "ActiveState=inactive\\nControlGroup=\\n"\n',
-  })) {
-    writeFileSync(join(bin, name), source);
-    chmodSync(join(bin, name), 0o755);
-  }
+  stubSystemd(bin);
   const env = {
     ...process.env,
     PATH: `${bin}:${process.env.PATH}`,

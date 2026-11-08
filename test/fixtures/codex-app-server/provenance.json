@@ -1,0 +1,26 @@
+{
+  "receiver": "codex-cli 0.167.0",
+  "captured": "2026-11-08",
+  "command": "KRN_LIVE=1 node scripts/live-worker.mjs --record",
+  "setup": "scripts/codex/worker-scenarios.ts runs each scenario: a git repository with spec/worker-scope.json and a.txt in one commit, then the krn worker steps with KRN_CODEX_BIN on scripts/codex/app-server-replay.ts, which runs the real app-server in between and logs every frame.",
+  "captures": [
+    {
+      "name": "compact",
+      "question": "Does a forced compaction end with its own item before the next turn starts, and does every turn report its token usage?",
+      "file": "compact.rpc",
+      "sha256": "6bb2a772ad9f6150ef19494782d02d8f96ec3eb9557861ef66c13bd5f2f17943"
+    },
+    {
+      "name": "failed-turn",
+      "question": "How does a turn on a model the receiver does not know end?",
+      "file": "failed-turn.rpc",
+      "sha256": "82b856c995525ba63eb1f6d56f60a37526e45098119f0ff4c9a6db8d210ebd33"
+    },
+    {
+      "name": "interrupt",
+      "question": "What does turn/interrupt answer while a command runs, and how does the interrupted turn complete?",
+      "file": "interrupt.rpc",
+      "sha256": "f8c91c8f8daafd618e055dca212b9bbab8ae1361d2fb827a0aa5f3681dfd23d0"
+    }
+  ]
+}
