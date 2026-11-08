@@ -1,31 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const repository = fileURLToPath(new URL('../..', import.meta.url));
 const cliEntry = join(repository, 'src', 'cli', 'main.ts');
-
-function outsideRepositoryDirectory(): string {
-  const candidates = [process.env.KRN_HOOK_NOGIT_TMPDIR, '/tmp', tmpdir()];
-  for (const candidate of candidates) {
-    if (candidate === undefined || !existsSync(candidate)) continue;
-    const path = relative(resolve(repository), resolve(candidate));
-    if (
-      path !== '' &&
-      path !== '..' &&
-      !path.startsWith(`..${sep}`) &&
-      !isAbsolute(path)
-    )
-      continue;
-    return candidate;
-  }
-  throw new Error('no existing directory outside the repository is available');
-}
 
 function git(repositoryPath: string, ...args: string[]): string {
   const result = spawnSync('git', ['-C', repositoryPath, ...args], {

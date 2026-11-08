@@ -63,7 +63,10 @@ test('a dead installer pid does not block; a live one is waited for', async (t) 
     ensureSetup(
       dir,
       () => installs > 0,
-      () => (installs++, { ok: true, detail: '' }),
+      () => {
+        installs++;
+        return { ok: true, detail: '' };
+      },
     ),
     true,
   );
@@ -96,7 +99,10 @@ test('a dead installer pid does not block; a live one is waited for', async (t) 
   const ok = ensureSetup(
     other,
     () => !holderAlive(),
-    () => (ran++, { ok: true, detail: '' }),
+    () => {
+      ran++;
+      return { ok: true, detail: '' };
+    },
   );
   assert.equal(ok, true);
   assert.equal(ran, 0);

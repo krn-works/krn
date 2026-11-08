@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { TEST_FILE_WEIGHTS } from '../../scripts/lib/shard-weights.mjs';
 import {
   fetchShardRuns,
   foldShardWeights,

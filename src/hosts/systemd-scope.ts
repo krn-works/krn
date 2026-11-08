@@ -335,14 +335,13 @@ function observeSystemdScopeRegistration(
   if (!cgroupPath) return undefined;
   const cgroupProcs = join(cgroupPath, 'cgroup.procs');
   const membership = readCgroupProcesses(cgroupProcs);
-  if (!membership || membership.kind !== 'observed') return undefined;
+  if (membership?.kind !== 'observed') return undefined;
   for (const pid of membership.pids) {
     const startTicks = processStartTicks(pid);
     if (!startTicks || !processHasIdentity(pid, startTicks)) continue;
     const stillPresent = readCgroupProcesses(cgroupProcs);
     if (
-      !stillPresent ||
-      stillPresent.kind !== 'observed' ||
+      stillPresent?.kind !== 'observed' ||
       !stillPresent.pids.includes(pid) ||
       !processHasIdentity(pid, startTicks)
     )

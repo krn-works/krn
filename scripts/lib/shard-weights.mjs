@@ -89,6 +89,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/rules/instruction-bytes.test.ts': 0.1,
   'test/rules/instruction-references.test.ts': 0.1,
   'test/rules/lead-traps.test.ts': 0.1,
+  'test/rules/lint-warnings.test.ts': 1,
   'test/rules/local-settings-ignore.test.ts': 0.1,
   'test/rules/path-token-guard.test.mjs': 0.1,
   'test/rules/project-skills.test.ts': 0.1,
