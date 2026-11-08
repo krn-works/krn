@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -64,7 +65,7 @@ function herdrStub(): string {
     "} else if (args[0] === 'pane' && args[1] === 'get') {",
     '  process.stdout.write(readFileSync(process.env.PANE_FIXTURE));',
     "} else if (args[0] === 'agent' && args[1] === 'get') {",
-    '  process.stdout.write(\'{"result":{"agent":{"agent":"claude","agent_status":"working","agent_session":{"value":"6d5dd06a-49cf-4b74-8309-cf67dcb7fe68"},"tab_id":"w2E:tH"}}}\\n\');',
+    '  process.stdout.write(readFileSync(process.env.AGENT_FIXTURE));',
     "} else if (args[0] === 'tab' && args[1] === 'create') {",
     "  if (process.env.HERDR_MODE === 'invalid-create') {",
     "    process.stdout.write('not a Herdr reply\\n');",
@@ -101,6 +102,9 @@ function herdrEnvironment(root: string, calls: string, bin: string) {
     STATUS_FIXTURE: fileURLToPath(new URL('server-status.txt', fixtures)),
     CREATE_FIXTURE: fileURLToPath(new URL('tab-create.reply.jsonl', fixtures)),
     PANE_FIXTURE: fileURLToPath(new URL('pane-get.reply.jsonl', fixtures)),
+    AGENT_FIXTURE: fileURLToPath(
+      new URL('agent-get-working-claude.reply.jsonl', fixtures),
+    ),
     AGENT_CALLS: join(root, 'agent-calls.jsonl'),
     KRN_SUCCESSOR_AGENT: 'successor-agent',
   };
@@ -131,6 +135,25 @@ test('captured Herdr replies expose the IDs returned by the real server', () => 
     fixture('server-status.txt').toString('utf8'),
     /status: running/u,
   );
+});
+
+test('captured Herdr replies sit on the stream Herdr prints them on', () => {
+  const names = readdirSync(fixtures).filter((name) => name.endsWith('.jsonl'));
+  assert.ok(names.some((name) => name.endsWith('.stderr.jsonl')));
+  for (const name of names) {
+    const lines = fixture(name).toString('utf8').split('\n');
+    assert.equal(lines.pop(), '', `${name} ends with a newline`);
+    for (const line of lines) {
+      const reply = JSON.parse(line);
+      if (name.endsWith('.stderr.jsonl')) {
+        assert.equal(typeof reply.error?.code, 'string', name);
+        assert.equal(reply.result, undefined, name);
+      } else {
+        assert.equal(typeof reply.result?.type, 'string', name);
+        assert.equal(reply.error, undefined, name);
+      }
+    }
+  }
 });
 
 test('argument parser accepts the required flags and resolves cwd', () => {
@@ -297,6 +320,9 @@ test('caller pane workspace is passed to the new tab', (t) => {
   const created = JSON.parse(
     fixture('tab-create.reply.jsonl').toString('utf8'),
   );
+  const caller = JSON.parse(
+    fixture('agent-get-working-claude.reply.jsonl').toString('utf8'),
+  ).result.agent;
 
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(readCalls(herdrCalls), [
@@ -321,7 +347,7 @@ test('caller pane workspace is passed to the new tab', (t) => {
       '--env',
       `KRN_PREDECESSOR_PANE=caller-pane`,
       '--env',
-      `KRN_PREDECESSOR_SESSION=6d5dd06a-49cf-4b74-8309-cf67dcb7fe68`,
+      `KRN_PREDECESSOR_SESSION=${caller.agent_session.value}`,
       '--no-focus',
     ],
     [
@@ -334,7 +360,7 @@ test('caller pane workspace is passed to the new tab', (t) => {
       '"$KRN_SUCCESSOR_PROMPT"',
     ],
     ['agent', 'get', 'caller-pane'],
-    ['tab', 'rename', 'w2E:tH', 'handed off → Next slice'],
+    ['tab', 'rename', caller.tab_id, 'handed off → Next slice'],
   ]);
 });
 

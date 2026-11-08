@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -18,26 +19,13 @@ const script = fileURLToPath(
   new URL('../../scripts/claude/successor-launch.ts', import.meta.url),
 );
 const fixtures = new URL('../fixtures/herdr/', import.meta.url);
-// Replies captured verbatim from the live Herdr server, with the host path
-// replaced by /work/repo. They live in this
-// file so the observer runs unchanged against a tree without new fixtures.
-const captures: Record<string, string> = {
-  'agent-get-idle-claude.reply.jsonl':
-    '{"id":"cli:agent:get","result":{"agent":{"agent":"claude","agent_session":{"agent":"claude","kind":"id","source":"herdr:claude","value":"6d5dd06a-49cf-4b74-8309-cf67dcb7fe68"},"agent_status":"idle","cwd":"/work/repo","focused":false,"foreground_cwd":"/work/repo","pane_id":"w1D:p53","revision":2,"state_change_seq":1661,"tab_id":"w1D:t4Z","terminal_id":"term_65f2350762bb861","terminal_title":"✳ session continuity","terminal_title_stripped":"session continuity","workspace_id":"w1D"},"type":"agent_info"}}\n',
-  'agent-get-working-claude.reply.jsonl':
-    '{"id":"cli:agent:get","result":{"agent":{"agent":"claude","agent_session":{"agent":"claude","kind":"id","source":"herdr:claude","value":"3f1b641a-c2c9-4bce-a4dd-9e7461a378a7"},"agent_status":"working","cwd":"/work/repo","focused":true,"foreground_cwd":"/work/repo","pane_id":"w1D:p5G","revision":2,"state_change_seq":1945,"tab_id":"w1D:t5C","terminal_id":"term_65f376c89a7b66f","terminal_title":"◐ continuity synthesis","terminal_title_stripped":"continuity synthesis","workspace_id":"w1D"},"type":"agent_info"}}\n',
-  'agent-get-shell.reply.jsonl':
-    '{"error":{"code":"agent_not_found","message":"agent target w1D:p5J not found"},"id":"cli:agent:get"}\n',
-  'agent-get-missing.reply.jsonl':
-    '{"error":{"code":"agent_not_found","message":"agent target w1D:pZZZ not found"},"id":"cli:agent:get"}\n',
-  'tab-rename.reply.jsonl':
-    '{"id":"cli:tab:rename","result":{"tab":{"agent_status":"unknown","focused":false,"label":"handed off → probe","number":174,"pane_count":1,"tab_id":"w1D:t5E","workspace_id":"w1D"},"type":"tab_info"}}\n',
-  'pane-close.reply.jsonl': '{"id":"cli:pane:close","result":{"type":"ok"}}\n',
-};
+// Replies captured verbatim from the live Herdr server (test/fixtures/README.md).
+// A `*.reply.jsonl` file is what Herdr printed on stdout; a `*.stderr.jsonl`
+// file is the JSON error it printed on stderr with exit 1.
 const callerPane = 'caller-pane';
 const callerTab = 'caller-tab';
 const callerSession = JSON.parse(
-  captures['agent-get-idle-claude.reply.jsonl'] as string,
+  readFileSync(new URL('agent-get-idle-claude.reply.jsonl', fixtures), 'utf8'),
 ).result.agent.agent_session.value as string;
 const hostEnvironment = Object.fromEntries(
   Object.entries(process.env).filter(([name]) => !name.startsWith('HERDR_')),
@@ -68,16 +56,8 @@ function temporary(t: { after(fn: () => void): void }) {
   mkdirSync(bin);
   const replies = join(root, 'fixtures');
   mkdirSync(replies);
-  for (const name of [
-    'server-status.txt',
-    'pane-get.reply.jsonl',
-    'tab-create.reply.jsonl',
-  ]) {
+  for (const name of readdirSync(fixtures))
     writeFileSync(join(replies, name), readFileSync(new URL(name, fixtures)));
-  }
-  for (const [name, contents] of Object.entries(captures)) {
-    writeFileSync(join(replies, name), contents);
-  }
   return { root, bin };
 }
 
@@ -110,19 +90,20 @@ function herdrStub(): string {
     "} else if (args[0] === 'agent' && args[1] === 'get') {",
     '  const replies = JSON.parse(readFileSync(process.env.HERDR_AGENT_REPLIES));',
     '  const reply = replies[args[2]];',
-    '  if (!reply) {',
-    '    process.stdout.write(readFileSync(process.env.MISSING_FIXTURE));',
-    '    process.exit(1);',
+    '  const name = reply ? reply.fixture : "agent-get-missing.stderr.jsonl";',
+    '  const raw = readFileSync(process.env.FIXTURE_DIR + name, "utf8");',
+    '  // Herdr prints a reply on stdout and a server error on stderr, exit 1.',
+    '  if (name.endsWith(".stderr.jsonl")) {',
+    '    process.stderr.write(raw);',
+    '    process.exit(Number(reply?.exit ?? 1));',
     '  }',
-    '  const result = JSON.parse(readFileSync(process.env.FIXTURE_DIR + reply.fixture));',
-    '  if (result.result?.agent) {',
-    '    const agent = result.result.agent;',
-    '    if (reply.agent) agent.agent = reply.agent;',
-    '    if (reply.status) agent.agent_status = reply.status;',
-    '    if (reply.sessionId) agent.agent_session.value = reply.sessionId;',
-    '    if (reply.paneId) agent.pane_id = reply.paneId;',
-    '    if (reply.tabId) agent.tab_id = reply.tabId;',
-    '  }',
+    '  const result = JSON.parse(raw);',
+    '  const agent = result.result.agent;',
+    '  if (reply.agent) agent.agent = reply.agent;',
+    '  if (reply.status) agent.agent_status = reply.status;',
+    '  if (reply.sessionId) agent.agent_session.value = reply.sessionId;',
+    '  if (reply.paneId) agent.pane_id = reply.paneId;',
+    '  if (reply.tabId) agent.tab_id = reply.tabId;',
     '  process.stdout.write(JSON.stringify(result) + "\\n");',
     '  process.exit(Number(reply.exit ?? 0));',
     "} else if (args[0] === 'pane' && args[1] === 'close') {",
@@ -218,9 +199,12 @@ function launch(
         tabId: callerTab,
         sessionId: callerSession,
         ...(options.paneId === 'caller-fails'
-          ? { exit: 1, fixture: 'agent-get-missing.reply.jsonl' }
+          ? { exit: 1, fixture: 'agent-get-missing.stderr.jsonl' }
           : {}),
-        ...(options.paneId === 'caller-shell' ? { agent: 'shell' } : {}),
+        // Herdr answers agent_not_found for a pane that hosts only a shell.
+        ...(options.paneId === 'caller-shell'
+          ? { exit: 1, fixture: 'agent-get-shell.stderr.jsonl' }
+          : {}),
       },
       ...options.replies,
     }),
@@ -245,11 +229,6 @@ function launch(
         CREATE_FIXTURE: join(root, 'fixtures', 'tab-create.reply.jsonl'),
         CLOSE_FIXTURE: join(root, 'fixtures', 'pane-close.reply.jsonl'),
         RENAME_FIXTURE: join(root, 'fixtures', 'tab-rename.reply.jsonl'),
-        MISSING_FIXTURE: join(
-          root,
-          'fixtures',
-          'agent-get-missing.reply.jsonl',
-        ),
         FIXTURE_DIR: `${join(root, 'fixtures')}/`,
         AGENT_CALLS: agentCalls,
         KRN_SUCCESSOR_AGENT: 'successor-agent',
@@ -344,7 +323,7 @@ test('reused pane with a different session is dropped without closing', (t) => {
 test('agent_not_found predecessor is dropped', (t) => {
   const run = launch(t, {
     records: [makeRecord('predecessor-pane')],
-    replies: predecessorReply('agent-get-missing.reply.jsonl', { exit: 1 }),
+    replies: predecessorReply('agent-get-missing.stderr.jsonl', { exit: 1 }),
   });
 
   assert.equal(run.result.status, 0, run.result.stderr);

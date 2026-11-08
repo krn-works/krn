@@ -100,11 +100,12 @@ function run(
   command: string,
   args: string[],
   cwd = process.cwd(),
+  timeout = 15000,
 ): CommandResult {
   const result = spawnSync(command, args, {
     cwd,
     encoding: 'utf8',
-    timeout: 15000,
+    timeout,
   });
   return {
     status: result.status,
@@ -203,15 +204,14 @@ export function retireMode(
   if (predPane && predSession) {
     const deadline = now() + waitSeconds * 1000;
     for (;;) {
-      const result = run('herdr', ['agent', 'get', predPane]);
-      const info =
-        result.status === 0 && !result.error ? agentInfo(result.stdout) : {};
+      const info = agentInfo(run('herdr', ['agent', 'get', predPane]));
       if (info.notFound || (info.sessionId && info.sessionId !== predSession))
         break;
+      const settled = info.status === 'idle' || info.status === 'done';
       if (
         info.agent === 'claude' &&
         info.sessionId === predSession &&
-        (info.status === 'idle' || info.status === 'done')
+        settled
       ) {
         const closed = run('herdr', ['pane', 'close', predPane]);
         process.stderr.write(
@@ -219,11 +219,15 @@ export function retireMode(
         );
         break;
       }
-      if (now() >= deadline) {
+      const remaining = deadline - now();
+      if (remaining <= 0) {
         process.stderr.write('retire: predecessor still working\n');
         break;
       }
-      pause(Math.min(5, Math.max(0, (deadline - now()) / 1000)));
+      // A settled agent returns from the wait at once, so only a working one
+      // is waited on; every other path pauses and keeps the loop bounded.
+      if (settled || !waitUntilSettled(predPane, remaining))
+        pause(Math.min(5, remaining / 1000));
     }
   }
   const ledgerPath = join(cwd, '.krn', 'successors', 'launches.jsonl');
@@ -261,24 +265,55 @@ export function retireMode(
   return 0;
 }
 
-function agentInfo(output: string): AgentInfo {
-  try {
-    const root = record(JSON.parse(output));
-    const error = record(root?.error);
-    if (error?.code === 'agent_not_found') return { notFound: true };
-
-    const payload = record(root?.result);
-    const agent = record(payload?.agent);
-    const session = record(agent?.agent_session);
-    return {
-      agent: text(agent?.agent),
-      status: text(agent?.agent_status),
-      sessionId: text(session?.value),
-      tabId: text(agent?.tab_id),
-    };
-  } catch {
-    return {};
+// Herdr prints a reply on stdout and a server error as JSON on stderr with
+// exit 1 (CLI reference; skill: "CLI server errors are JSON on stderr").
+function replyOf(result: CommandResult): Record<string, unknown> | undefined {
+  for (const stream of [result.stdout, result.stderr]) {
+    try {
+      const root = record(JSON.parse(stream));
+      if (root) return root;
+    } catch {}
   }
+  return undefined;
+}
+
+function agentInfo(result: CommandResult): AgentInfo {
+  const root = replyOf(result);
+  if (record(root?.error)?.code === 'agent_not_found')
+    return { notFound: true };
+  if (result.error || result.status !== 0) return {};
+
+  const agent = record(record(root?.result)?.agent);
+  const session = record(agent?.agent_session);
+  return {
+    agent: text(agent?.agent),
+    status: text(agent?.agent_status),
+    sessionId: text(session?.value),
+    tabId: text(agent?.tab_id),
+  };
+}
+
+// `herdr agent wait` blocks on the server until the agent is idle or done; its
+// own timeout and any other failure answer false.
+function waitUntilSettled(paneId: string, timeoutMs: number): boolean {
+  const milliseconds = Math.max(1, Math.ceil(timeoutMs));
+  const result = run(
+    'herdr',
+    [
+      'agent',
+      'wait',
+      paneId,
+      '--until',
+      'idle',
+      '--until',
+      'done',
+      '--timeout',
+      String(milliseconds),
+    ],
+    undefined,
+    milliseconds + 5000,
+  );
+  return result.status === 0 && !result.error;
 }
 
 // Malformed lines are skipped one by one so a damaged entry never stops
@@ -323,7 +358,7 @@ function retireLedger(
   for (const launch of launches) {
     if (launch.pane_id === callerPaneId) continue;
     const result = run('herdr', ['agent', 'get', launch.pane_id]);
-    const info = agentInfo(result.stdout);
+    const info = agentInfo(result);
     if (info.notFound) continue;
     if (result.error || result.status !== 0) {
       kept.push(launch);
@@ -363,11 +398,7 @@ function retirePredecessors(
   options: SuccessorLaunchOptions,
   callerPaneId: string,
 ): void {
-  const callerResult = run('herdr', ['agent', 'get', callerPaneId]);
-  const caller =
-    callerResult.status === 0 && !callerResult.error
-      ? agentInfo(callerResult.stdout)
-      : {};
+  const caller = agentInfo(run('herdr', ['agent', 'get', callerPaneId]));
   if (
     caller.agent !== 'claude' ||
     !caller.sessionId ||
@@ -576,9 +607,9 @@ export function main(args: string[]): number {
   );
   let predecessorSession: string | undefined;
   if (paneId && workspaceId) {
-    const caller = run('herdr', ['agent', 'get', paneId]);
-    if (caller.status === 0 && !caller.error)
-      predecessorSession = agentInfo(caller.stdout).sessionId;
+    predecessorSession = agentInfo(
+      run('herdr', ['agent', 'get', paneId]),
+    ).sessionId;
     if (predecessorSession)
       createArgs.push(
         '--env',
