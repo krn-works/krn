@@ -12,7 +12,9 @@
 // than 30% (`drift: none` when no file does).
 // `--since <sha>` keeps only runs whose head is <sha> or descends from it, so
 // a window never mixes shard plans; the first line, for example
-// `runs: 2 of 5 wanted since 2194438`, shows a window that is still short.
+// `runs: 2 of 5 wanted since 2194438`, shows a window that is still short,
+// and ends with `, 3 of 50 Test steps untimed` when GitHub returned a Test job
+// without step timing; such a window never prints PASS.
 // It needs a checkout of the repository and fetches origin main once when a
 // commit is missing locally. Exit 64 for a usage error (an unknown <sha>
 // included), 1 for any other failure. Fetching needs an authenticated `gh`;
@@ -181,9 +183,15 @@ export function shardWallReport(
   { wanted = runs.length, since } = {},
 ) {
   const rows = [];
+  let steps = 0;
+  let untimed = 0;
   for (const run of runs)
     for (const job of run.jobs) {
-      if (job.seconds === undefined) continue;
+      steps += 1;
+      if (job.seconds === undefined) {
+        untimed += 1;
+        continue;
+      }
       const files = job.summary.files.map((entry) => repoTestPath(entry.file));
       rows.push({
         run: run.id,
@@ -202,7 +210,7 @@ export function shardWallReport(
     )
     .filter(Number.isFinite);
   return {
-    window: { used: runs.length, wanted, since },
+    window: { used: runs.length, wanted, since, steps, untimed },
     rows,
     summedR: pearson(
       actual,
@@ -220,9 +228,20 @@ export function shardWallReport(
 }
 
 // How many runs the report used against how many were wanted, so a window
-// that is still short is visible.
-export function windowLine({ used, wanted, since }) {
-  return `runs: ${used} of ${wanted} wanted${since === undefined ? '' : ` since ${since}`}`;
+// that is still short is visible, and how many Test steps GitHub returned
+// without timing (a job with `steps: []`), whose samples every step verdict
+// lacks.
+export function windowLine({ used, wanted, since, steps, untimed = 0 }) {
+  const window = `runs: ${used} of ${wanted} wanted${since === undefined ? '' : ` since ${since}`}`;
+  return untimed > 0
+    ? `${window}, ${untimed} of ${steps} Test steps untimed`
+    : window;
+}
+
+// An untimed step can only hide a slower one, so it blocks a PASS, not a FAIL.
+function slowestVerdict({ slowestP50, window }) {
+  if (slowestP50 >= SLOWEST_SHARD_TARGET_SECONDS) return 'FAIL';
+  return Number.isNaN(slowestP50) || window.untimed > 0 ? 'INCOMPLETE' : 'PASS';
 }
 
 function driftLines(drift) {
@@ -263,7 +282,7 @@ export function renderReport(report) {
   lines.push(
     `summed-weight model: r=${report.summedR.toFixed(2)} (${verdict(report.summedR)})`,
     `heaviest-lane model: r=${report.laneR.toFixed(2)} (${verdict(report.laneR)})`,
-    `slowest Test step p50: ${report.slowestP50} s, target < ${SLOWEST_SHARD_TARGET_SECONDS} s: ${report.slowestP50 < SLOWEST_SHARD_TARGET_SECONDS ? 'PASS' : 'FAIL'}`,
+    `slowest Test step p50: ${report.slowestP50} s, target < ${SLOWEST_SHARD_TARGET_SECONDS} s: ${slowestVerdict(report)}`,
     shardP50Line(report.shardP50),
     overBoundLine(report.overBound),
     ...driftLines(report.drift),

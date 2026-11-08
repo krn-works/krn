@@ -75,12 +75,18 @@ test('report pairs CI step seconds with predictions and gates the slowest p50', 
   assert.equal(report.slowestP50, 21);
   const rendered = renderReport(report);
   assert.match(rendered, /heaviest-lane model: r=0\.\d+ \(strong\)/u);
+  // Every run's Test (3/3) came back untimed, as GitHub returns a job with
+  // `steps: []`: the window says so, a FAIL stands and a PASS cannot.
+  assert.match(rendered, /^runs: 3 of 3 wanted, 3 of 9 Test steps untimed$/mu);
   assert.match(rendered, /slowest Test step p50: 21 s, target < 18 s: FAIL/u);
   assert.match(
     renderReport({ ...report, slowestP50: 17 }),
-    /slowest Test step p50: 17 s, target < 18 s: PASS/u,
+    /slowest Test step p50: 17 s, target < 18 s: INCOMPLETE/u,
   );
-  assert.match(rendered, /^runs: 3 of 3 wanted$/mu);
+  const timed = { ...report.window, untimed: 0 };
+  const passed = renderReport({ ...report, slowestP50: 17, window: timed });
+  assert.match(passed, /slowest Test step p50: 17 s, target < 18 s: PASS/u);
+  assert.match(passed, /^runs: 3 of 3 wanted$/mu);
 });
 
 // A 10-shard fixture window of three runs: jobs arrive in reverse order, so
