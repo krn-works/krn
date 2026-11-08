@@ -1,0 +1,12 @@
+{
+  "id": "t-yys360b",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 3,
+  "title": "Name the failing run and its ci logs command when ci wait fails",
+  "after": [],
+  "body": [
+    "Outcome: a failed krn ci wait (exit 74) names the failing run id and the exact bin/krn ci logs --run <id> command, so the lead reads the failure in one step instead of looking up the run.\nEvidence: t-9s89hgs shipped bin/krn ci logs; the wait failure message still says only gh run rerun <run-id> --failed, leaving the run id lookup to the lead.\nAcceptance: test/ci/wait.test.ts asserts the exit-74 message contains the run id from the check run details and the ci logs command; captured check-run JSON drives it."
+  ]
+}

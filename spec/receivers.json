@@ -1,6 +1,18 @@
 {
   "schemaVersion": 1,
   "modules": {
+    "src/ci/logs.ts": {
+      "receivers": ["gh"],
+      "capture": [
+        "test/fixtures/gh/run-42486987437-attempt.stdout.txt",
+        "test/fixtures/gh/run-42486987437-jobs-attempt-1.stdout.json",
+        "test/fixtures/gh/run-42486987437-jobs-attempt-2.stdout.json",
+        "test/fixtures/gh/job-128750929767-log.stdout.log",
+        "test/fixtures/gh/job-128751105094-log.stdout.log",
+        "test/fixtures/gh/job-128751399200-log.stdout.log"
+      ],
+      "test": "test/ci/logs-capture.test.ts"
+    },
     "src/ci/wait.ts": {
       "receivers": ["git", "gh"],
       "capture": ["test/fixtures/github-check-runs/review-gate-failure.json"],

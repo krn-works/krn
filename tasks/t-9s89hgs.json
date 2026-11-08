@@ -1,7 +1,11 @@
 {
   "id": "t-9s89hgs",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "bin/krn ci logs prints failed-job log tails across every run attempt; proven on captures of run 42486987437"
+  },
   "created": "2026-11-08",
   "priority": 3,
   "title": "Print failing job logs across every attempt of a CI run",

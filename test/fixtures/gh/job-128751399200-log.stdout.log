@@ -1,0 +1,72 @@
+﻿2026-11-08T13:54:12.9001157Z Current runner version: '2.338.2'
+2026-11-08T13:54:12.9023552Z ##[group]Runner Image Provisioner
+2026-11-08T13:54:12.9024193Z Hosted Compute Agent
+2026-11-08T13:54:12.9024681Z Version: 20261028.624
+2026-11-08T13:54:12.9025072Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-08T13:54:12.9025508Z Build Date: 2026-10-28T21:51:42Z
+2026-11-08T13:54:12.9026030Z Worker ID: {c3197458-467a-4025-9b08-a2929814cc89}
+2026-11-08T13:54:12.9026464Z Region: centralus
+2026-11-08T13:54:12.9026879Z Cloud: Azure
+2026-11-08T13:54:12.9027223Z ##[endgroup]
+2026-11-08T13:54:12.9028108Z ##[group]Operating System
+2026-11-08T13:54:12.9028554Z Ubuntu
+2026-11-08T13:54:12.9028888Z 24.04.5
+2026-11-08T13:54:12.9029268Z LTS
+2026-11-08T13:54:12.9029612Z ##[endgroup]
+2026-11-08T13:54:12.9029956Z ##[group]Runner Image
+2026-11-08T13:54:12.9030398Z Image: ubuntu-24.04
+2026-11-08T13:54:12.9030758Z Version: 20261101.360.1
+2026-11-08T13:54:12.9031651Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-08T13:54:12.9032532Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261101.360
+2026-11-08T13:54:12.9033167Z ##[endgroup]
+2026-11-08T13:54:12.9033989Z ##[group]GITHUB_TOKEN Permissions
+2026-11-08T13:54:12.9035422Z Contents: read
+2026-11-08T13:54:12.9035783Z Metadata: read
+2026-11-08T13:54:12.9036178Z ##[endgroup]
+2026-11-08T13:54:12.9037710Z Secret source: Actions
+2026-11-08T13:54:12.9038372Z Cache mode: write
+2026-11-08T13:54:12.9038832Z Prepare workflow directory
+2026-11-08T13:54:12.9346417Z Prepare all required actions
+2026-11-08T13:54:12.9393300Z Complete job name: Check
+2026-11-08T13:54:13.0509988Z ##[group]Run set -euo pipefail
+2026-11-08T13:54:13.0510677Z [36;1mset -euo pipefail[0m
+2026-11-08T13:54:13.0511199Z [36;1mprintf '%s' "$RESULTS" | node -e '[0m
+2026-11-08T13:54:13.0512115Z [36;1m  const needs = JSON.parse(require("node:fs").readFileSync(0, "utf8"));[0m
+2026-11-08T13:54:13.0512840Z [36;1m  let bad = 0;[0m
+2026-11-08T13:54:13.0513661Z [36;1m  for (const [name, { result }] of Object.entries(needs)) {[0m
+2026-11-08T13:54:13.0514298Z [36;1m    console.log(`${name}: ${result}`);[0m
+2026-11-08T13:54:13.0515110Z [36;1m    const skipOk = name === "test" && result === "skipped" && needs.changes?.outputs?.test === "false";[0m
+2026-11-08T13:54:13.0515967Z [36;1m    if (result !== "success" && !skipOk) bad += 1;[0m
+2026-11-08T13:54:13.0516533Z [36;1m  }[0m
+2026-11-08T13:54:13.0516920Z [36;1m  process.exit(bad ? 1 : 0);[0m
+2026-11-08T13:54:13.0517407Z [36;1m'[0m
+2026-11-08T13:54:13.1002284Z shell: /usr/bin/bash -e {0}
+2026-11-08T13:54:13.1002847Z env:
+2026-11-08T13:54:13.1003179Z   KRN_LIVE: 
+2026-11-08T13:54:13.1004177Z   RESULTS: {
+  "changes": {
+    "result": "success",
+    "outputs": {
+      "test": "true"
+    }
+  },
+  "lint": {
+    "result": "success",
+    "outputs": {}
+  },
+  "typecheck": {
+    "result": "success",
+    "outputs": {}
+  },
+  "test": {
+    "result": "cancelled",
+    "outputs": {}
+  }
+}
+2026-11-08T13:54:13.1005085Z ##[endgroup]
+2026-11-08T13:54:13.2797415Z changes: success
+2026-11-08T13:54:13.2797884Z lint: success
+2026-11-08T13:54:13.2798143Z typecheck: success
+2026-11-08T13:54:13.2798421Z test: cancelled
+2026-11-08T13:54:13.2830791Z ##[error]Process completed with exit code 1.
+2026-11-08T13:54:13.2949546Z Cleaning up orphan processes

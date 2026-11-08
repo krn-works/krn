@@ -2,3 +2,5 @@
 /ci-test-shard-job.json
 /gh/pr-not-found.stdout.json
 /codex-cli-0.167.0/mcp-list.stdout.json
+/gh/run-42486987437-jobs-attempt-1.stdout.json
+/gh/run-42486987437-jobs-attempt-2.stdout.json

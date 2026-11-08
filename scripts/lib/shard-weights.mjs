@@ -9,6 +9,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/ci/ci-changes.test.ts': 0.3,
   'test/ci/idle-gap-cache.test.ts': 0.1,
   'test/ci/shard-wall-report.test.mjs': 0.5,
+  'test/ci/logs-capture.test.ts': 0.1,
   'test/ci/shard-weights.test.mjs': 0.1,
   'test/ci/stage-time.test.ts': 0.2,
   'test/ci/test-summary-policy.test.mjs': 0.3,

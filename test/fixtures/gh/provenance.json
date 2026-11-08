@@ -14,6 +14,60 @@
         "file": "pr-not-found.stderr.log",
         "sha256": "d2c8985c89b29a842ac4946d13bdbc297709f44f20bb968faf9682664b211db6"
       }
+    },
+    {
+      "name": "run-42486987437-attempt",
+      "command": "gh api repos/krn-works/krn/actions/runs/42486987437 --jq .run_attempt",
+      "exitCode": 0,
+      "stdout": {
+        "file": "run-42486987437-attempt.stdout.txt",
+        "sha256": "53c234e5e8472b6ac51c1ae1cab3fe06fad053beb8ebfd8977b010655bfdd3c3"
+      }
+    },
+    {
+      "name": "run-42486987437-jobs-attempt-1",
+      "command": "gh api --paginate --slurp repos/krn-works/krn/actions/runs/42486987437/attempts/1/jobs?per_page=100",
+      "exitCode": 0,
+      "stdout": {
+        "file": "run-42486987437-jobs-attempt-1.stdout.json",
+        "sha256": "5585574c96a9fad96a2fe181fadfd5d3eaa64689318dd02240687f68fa3fa7ff"
+      }
+    },
+    {
+      "name": "run-42486987437-jobs-attempt-2",
+      "command": "gh api --paginate --slurp repos/krn-works/krn/actions/runs/42486987437/attempts/2/jobs?per_page=100",
+      "exitCode": 0,
+      "stdout": {
+        "file": "run-42486987437-jobs-attempt-2.stdout.json",
+        "sha256": "c3ad5284922838446f62a0caaa9ecb617aa0405fdcba0e0d23604c287cf8f075"
+      }
+    },
+    {
+      "name": "job-128750929767-log",
+      "command": "gh api --allow-escape-sequences repos/krn-works/krn/actions/jobs/128750929767/logs",
+      "exitCode": 0,
+      "stdout": {
+        "file": "job-128750929767-log.stdout.log",
+        "sha256": "1918a460043a159ec7797b3d535d878907e46cbc1ea9b34bcc26b7ca2a28d6bd"
+      }
+    },
+    {
+      "name": "job-128751105094-log",
+      "command": "gh api --allow-escape-sequences repos/krn-works/krn/actions/jobs/128751105094/logs",
+      "exitCode": 0,
+      "stdout": {
+        "file": "job-128751105094-log.stdout.log",
+        "sha256": "9e909c4a344d985aac43754f88151d9f9e0c2668ac50c9ee3a0d8170ef196a66"
+      }
+    },
+    {
+      "name": "job-128751399200-log",
+      "command": "gh api --allow-escape-sequences repos/krn-works/krn/actions/jobs/128751399200/logs",
+      "exitCode": 0,
+      "stdout": {
+        "file": "job-128751399200-log.stdout.log",
+        "sha256": "133a762f4867bbd3715bea153bc4280cfacbf2807d79e760749c31cbe151f544"
+      }
     }
   ]
 }
