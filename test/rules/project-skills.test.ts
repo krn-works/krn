@@ -82,3 +82,40 @@ test('every slice ships as one squash-merged PR with the template sections and i
   assert.match(skill('krn-lead'), /gh pr merge <n> --auto --squash/u);
   assert.match(skill('krn-retro'), /never open a separate retro PR/u);
 });
+
+function frontmatter(path: string): Map<string, string> {
+  const text = readFileSync(join(root, path), 'utf8');
+  const block = /^---\n([\s\S]*?)\n---\n/u.exec(text);
+  assert.ok(block, `${path} needs frontmatter`);
+  return new Map(
+    (block[1] ?? '').split('\n').map((line) => {
+      const at = line.indexOf(':');
+      return [line.slice(0, at).trim(), line.slice(at + 1).trim()];
+    }),
+  );
+}
+
+test('research lanes read untrusted content without a shell, an editor or sub-agents', () => {
+  const fields = frontmatter('.claude/agents/krn-research.md');
+  assert.equal(fields.get('name'), 'krn-research');
+  assert.ok(fields.get('model'), 'krn-research needs an explicit model');
+  const tools = (fields.get('tools') ?? '')
+    .split(',')
+    .map((tool) => tool.trim());
+  assert.deepEqual(tools, [
+    'Read',
+    'Grep',
+    'Glob',
+    'WebFetch',
+    'WebSearch',
+    'Write',
+  ]);
+  for (const banned of ['Agent', 'Task', 'Bash', 'Edit', 'MultiEdit'])
+    assert.ok(!tools.includes(banned), `krn-research must not get ${banned}`);
+  const lanes = readFileSync(
+    join(root, '.agents/skills/krn-lead/lanes.md'),
+    'utf8',
+  );
+  assert.match(lanes, /`krn-research`/u);
+  assert.match(lanes, /general-purpose lane/u);
+});
