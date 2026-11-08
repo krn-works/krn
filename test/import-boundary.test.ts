@@ -76,6 +76,15 @@ test('file-level exceptions and unmapped areas are enforced', () => {
   }
 });
 
+test('a root without src has no violations instead of failing', () => {
+  const root = fixture({ 'a.ts': "import './b.ts';" });
+  try {
+    assert.deepEqual(check(root), []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('specifiers finds every module form with its line', () => {
   assert.deepEqual(
     specifiers(

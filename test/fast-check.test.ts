@@ -148,8 +148,6 @@ test('fast check lists deleted and renamed-away files as removed', () => {
       0,
     );
   git('init', '-q', '-b', 'main');
-  mkdirSync(join(dir, 'src'));
-  writeFileSync(join(dir, 'src/.keep'), '');
   writeFileSync(join(dir, 'gone.ts'), 'export const gone = 1;\n');
   writeFileSync(join(dir, 'moved.ts'), 'export const moved = 1;\n');
   writeFileSync(join(dir, 'unstaged.ts'), '1');
@@ -220,8 +218,6 @@ test('fast check --base replays a merged deleted-file commit without a reset', (
     writeFileSync(join(bin, tool), '#!/bin/sh\nexit 0\n');
     chmodSync(join(bin, tool), 0o755);
   }
-  mkdirSync(join(dir, 'src'));
-  writeFileSync(join(dir, 'src/.keep'), '');
   writeFileSync(join(dir, 'gone.ts'), 'export const gone = 1;\n');
   writeFileSync(
     join(dir, 'test/ref.test.ts'),

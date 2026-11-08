@@ -1,0 +1,16 @@
+{
+  "id": "t-bwqeddt",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "check() returns [] without src/; regression test RED on base (ENOENT) and GREEN on head; src/.keep workarounds removed"
+  },
+  "created": "2026-11-08",
+  "priority": 1,
+  "title": "Boundary check crashes on a root without src/",
+  "after": [],
+  "body": [
+    "Outcome: the import-boundary check returns no violations for a root without src/ instead of throwing ENOENT, so the fast-check worktree test is deterministic.\nEvidence: main run 42429658909 (2194438) failed Test (7/10): 'fast check uses the main checkout tools from a worktree without node_modules' crashed in scripts/boundaries.ts walk() with ENOENT scandir <fixture>/wt/src; the fixture repo has no src/, so check() always threw and the test passed only when the tsc stub touched its marker before the process died. Two fast-check fixtures carried src/.keep to dodge the same crash.\nAcceptance: check(root) on a root without src/ returns [] (regression test in test/import-boundary.test.ts, RED on base with ENOENT, GREEN on head); the src/.keep fixture workarounds are gone and test/fast-check.test.ts passes."
+  ]
+}
