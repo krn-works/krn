@@ -1,10 +1,12 @@
 // Shard wall report: does the shard plan predict CI shard wall time?
 //   node scripts/shard-wall-report.mjs [--runs 5] [--since <sha>] [--repo owner/name] [--lanes 4]
 // For each `Test (k/N)` job of the newest successful main runs it prints the
-// actual `Run test shard` step seconds next to two predictions from the
-// current weights: the summed shard weight, and the heaviest of the `--lanes`
-// local lanes test-suite.mjs runs in parallel on the runner (plus final serial
-// files). It ends with each model's Pearson r, the slowest-shard p50, one
+// actual `Run test shard` step seconds (to a tenth from the job log, whole
+// seconds from the jobs API only when the log lacks the step) next to two
+// predictions from the current weights: the summed shard weight, and the
+// heaviest of the `--lanes` local lanes test-suite.mjs runs in parallel on the
+// runner (plus final serial files). It ends with each model's Pearson r, the
+// slowest-shard p50, one
 // `shard p50` line (every shard's median Test step and the highest median's
 // excess over the mean of the shard medians), one line of the test files whose
 // median CI duration exceeds the file bound, and a drift section: every test
@@ -15,7 +17,9 @@
 // `runs: 2 of 5 wanted since 2194438`, shows a window that is still short,
 // and ends with `, 3 of 50 Test steps untimed` when a Test step has timing in
 // neither the jobs API (GitHub sometimes returns `steps: []`) nor its job log;
-// such a window never prints PASS.
+// such a window never prints PASS. While a window is short, the slowest-step
+// verdict ends `, decided` once the missing runs cannot change it and
+// `, provisional` while they can.
 // It needs a checkout of the repository and fetches origin main once when a
 // commit is missing locally. Exit 64 for a usage error (an unknown <sha>
 // included), 1 for any other failure. Fetching needs an authenticated `gh`;
@@ -203,6 +207,7 @@ export function shardWallReport(
       });
     }
   const actual = rows.map((row) => row.actual);
+  // Each run's slowest timed Test step; a run with no timed step has none.
   const slowest = runs
     .map((run) =>
       Math.max(
@@ -221,7 +226,11 @@ export function shardWallReport(
       actual,
       rows.map((row) => row.predicted),
     ),
-    slowestP50: slowest.length > 0 ? median(slowest) : Number.NaN,
+    slowest,
+    // To a hundredth: the median of two tenths can end in 5, and a tenth
+    // would round 17.95 s across the 18 s target.
+    slowestP50:
+      slowest.length > 0 ? Math.round(median(slowest) * 100) / 100 : Number.NaN,
     shardP50: shardP50(rows),
     overBound: filesOverBound(runs),
     drift: weightDrift(runs),
@@ -239,9 +248,25 @@ export function windowLine({ used, wanted, since, steps, untimed = 0 }) {
 }
 
 // An untimed step can only hide a slower one, so it blocks a PASS, not a FAIL.
-function slowestVerdict({ slowestP50, window }) {
+function targetVerdict({ slowestP50, window }) {
   if (slowestP50 >= SLOWEST_SHARD_TARGET_SECONDS) return 'FAIL';
   return Number.isNaN(slowestP50) || window.untimed > 0 ? 'INCOMPLETE' : 'PASS';
+}
+
+// A window short of `wanted` runs is decided once more than half of `wanted`
+// slowest steps sit on one side of the target: the missing runs cannot move
+// the median of `wanted` across it. An untimed step can hide a slower one, so
+// it leaves only the FAIL side to decide.
+function slowestVerdict(report) {
+  const { slowest, window } = report;
+  const verdict = targetVerdict(report);
+  if (window.used >= window.wanted) return verdict;
+  const over = slowest.filter(
+    (seconds) => seconds >= SLOWEST_SHARD_TARGET_SECONDS,
+  ).length;
+  const under = window.untimed > 0 ? 0 : slowest.length - over;
+  const decided = Math.max(over, under) > window.wanted / 2;
+  return `${verdict}, ${decided ? 'decided' : 'provisional'}`;
 }
 
 function driftLines(drift) {

@@ -148,14 +148,17 @@ export function logStepSeconds(logText) {
   return Math.round((end.at - start.at) / 100) / 10;
 }
 
-// Seconds the job's `Run test shard` step took: its jobs API timing, else its
-// span in the job log, because GitHub sometimes returns a job with `steps: []`.
-// Undefined when neither holds the step.
+// Seconds the job's `Run test shard` step took: its span in the job log, to a
+// tenth, else its jobs API timing, which keeps whole seconds (a 19.7 s step
+// reads 20 s) and so can flip a verdict within 1 s of a target; GitHub also
+// sometimes returns a job with `steps: []`. Undefined when neither holds it.
 export function testStepSeconds(job, logText = '') {
+  const logged = logStepSeconds(logText);
+  if (logged !== undefined) return logged;
   const step = job?.steps?.find((entry) => entry.name === 'Run test shard');
   if (step?.started_at && step?.completed_at)
     return (Date.parse(step.completed_at) - Date.parse(step.started_at)) / 1000;
-  return logStepSeconds(logText);
+  return undefined;
 }
 
 // The newest `wanted` successful main push runs whose every `Test (k/N)` job

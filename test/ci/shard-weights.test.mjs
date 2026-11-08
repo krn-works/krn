@@ -46,14 +46,14 @@ const fixture = (name) =>
 const shardLog = fixture('ci-test-shard-job.log');
 const shardJob = JSON.parse(fixture('ci-test-shard-job.json'));
 
-test('the test step spans its jobs API timing within 1 s in a verbatim job log', () => {
+test('the test step is timed from its log to a tenth, from the jobs API only when the log lacks it', () => {
   // The API keeps whole seconds, 04:25:30Z to 04:25:50Z; the log runs from
   // `##[group]Run npm test` at 04:25:30.94 to `Post job cleanup.` at 04:25:50.63.
-  const api = testStepSeconds(shardJob);
-  const logged = logStepSeconds(shardLog);
-  assert.equal(api, 20);
-  assert.equal(logged, 19.7);
-  assert.ok(Math.abs(api - logged) <= 1);
+  assert.equal(logStepSeconds(shardLog), 19.7);
+  assert.equal(testStepSeconds(shardJob, shardLog), 19.7);
+  // The excerpt capture lacks the step's start, so the API timing stands in.
+  assert.equal(testStepSeconds(shardJob, capture), 20);
+  assert.equal(testStepSeconds(shardJob), 20);
 });
 
 test('a job returned with steps: [] is timed from its log', () => {
@@ -76,21 +76,29 @@ test('a log without the step boundaries leaves the step untimed', () => {
   assert.equal(logStepSeconds(cut), undefined);
 });
 
-test('fetchShardRuns times a steps: [] job from the log it fetched', () => {
+test('fetchShardRuns times each job from the log it fetched, with or without API steps', () => {
+  const bare = { ...shardJob, id: shardJob.id + 1, name: 'Test (8/10)' };
+  const jobs = [shardJob, { ...bare, steps: [] }];
   const runGh = (args) => {
     if (args[0] === 'run')
       return JSON.stringify([
         { databaseId: shardJob.run_id, headSha: shardJob.head_sha },
       ]);
-    if (args.at(-1).includes('/jobs?'))
-      return JSON.stringify({ jobs: [{ ...shardJob, steps: [] }] });
-    assert.equal(args.at(-1), `repos/o/r/actions/jobs/${shardJob.id}/logs`);
+    if (args.at(-1).includes('/jobs?')) return JSON.stringify({ jobs });
+    assert.ok(
+      jobs.some(
+        ({ id }) => args.at(-1) === `repos/o/r/actions/jobs/${id}/logs`,
+      ),
+    );
     return shardLog;
   };
   const [run] = fetchShardRuns('o/r', 1, { runGh });
   assert.deepEqual(
     run.jobs.map(({ name, seconds }) => [name, seconds]),
-    [['Test (7/10)', 19.7]],
+    [
+      ['Test (7/10)', 19.7],
+      ['Test (8/10)', 19.7],
+    ],
   );
 });
 

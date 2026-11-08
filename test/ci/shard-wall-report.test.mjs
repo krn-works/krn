@@ -77,16 +77,56 @@ test('report pairs CI step seconds with predictions and gates the slowest p50', 
   assert.match(rendered, /heaviest-lane model: r=0\.\d+ \(strong\)/u);
   // Every run's Test (3/3) came back untimed, as a job with `steps: []` whose
   // log lacks the step: the window says so, a FAIL stands and a PASS cannot.
+  // A full window is final, so its verdict carries no decided suffix.
   assert.match(rendered, /^runs: 3 of 3 wanted, 3 of 9 Test steps untimed$/mu);
-  assert.match(rendered, /slowest Test step p50: 21 s, target < 18 s: FAIL/u);
+  assert.match(rendered, /slowest Test step p50: 21 s, target < 18 s: FAIL$/mu);
   assert.match(
     renderReport({ ...report, slowestP50: 17 }),
-    /slowest Test step p50: 17 s, target < 18 s: INCOMPLETE/u,
+    /slowest Test step p50: 17 s, target < 18 s: INCOMPLETE$/mu,
   );
   const timed = { ...report.window, untimed: 0 };
   const passed = renderReport({ ...report, slowestP50: 17, window: timed });
-  assert.match(passed, /slowest Test step p50: 17 s, target < 18 s: PASS/u);
+  assert.match(passed, /slowest Test step p50: 17 s, target < 18 s: PASS$/mu);
   assert.match(passed, /^runs: 3 of 3 wanted$/mu);
+});
+
+// Runs whose slowest Test steps are `slowest`, each beside a 10 s step; with
+// `untimed`, the first run's 10 s step came back untimed.
+const slowestRuns = (slowest, untimed = false) =>
+  slowest.map((seconds, index) => ({
+    id: String(index + 1),
+    jobs: [
+      job('Test (1/2)', seconds, [heavy]),
+      job('Test (2/2)', untimed && index === 0 ? undefined : 10, [light[0]]),
+    ],
+  }));
+const slowestLine = (runs, options) =>
+  /^slowest Test step p50: .+$/mu.exec(
+    renderReport(shardWallReport(runs, 4, options)),
+  )[0];
+
+test('a short window says whether two more runs could still flip its verdict', () => {
+  const at3of5 = (slowest, untimed) =>
+    slowestLine(slowestRuns(slowest, untimed), { wanted: 5, since: 'e79cb01' })
+      .split(': ')
+      .at(-1);
+  // Three of five slowest steps at or over 18 s hold the median of five there.
+  assert.equal(at3of5([20.3, 19.7, 18]), 'FAIL, decided');
+  assert.equal(at3of5([20.3, 19.7, 16]), 'FAIL, provisional');
+  assert.equal(at3of5([16.2, 15.8, 17.9]), 'PASS, decided');
+  assert.equal(at3of5([16.2, 15.8, 19]), 'PASS, provisional');
+  // An untimed step may hide a slower one: it keeps a PASS open, not a FAIL.
+  assert.equal(at3of5([16.2, 15.8, 17.9], true), 'INCOMPLETE, provisional');
+  assert.equal(at3of5([20.3, 19.7, 18], true), 'FAIL, decided');
+});
+
+test('the slowest p50 keeps the hundredth a median of two tenths can carry', () => {
+  // The mean of 17.3 and 18.6 computes as 17.950000000000003, and a tenth
+  // would round it up to the 18 s target.
+  assert.equal(
+    slowestLine(slowestRuns([17.3, 18.6])),
+    'slowest Test step p50: 17.95 s, target < 18 s: PASS',
+  );
 });
 
 // A 10-shard fixture window of three runs: jobs arrive in reverse order, so

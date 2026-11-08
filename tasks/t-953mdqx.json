@@ -1,12 +1,17 @@
 {
   "id": "t-953mdqx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "log-precision step times; short windows end decided or provisional; live e79cb01 at 3 of 5: FAIL, decided"
+  },
   "created": "2026-11-08",
   "priority": 3,
   "title": "Judge shard windows on log-precision step times and say when a short window is decided",
   "after": [],
   "body": [
-    "Outcome: the shard wall report's slowest-step verdict uses sub-second step times and says whether a short window is already decided, so the lead acts on a window as soon as its verdict cannot change.\nEvidence: GitHub's jobs API keeps whole seconds: Test (7/10) of run 42446730414 reads 04:25:30Z to 04:25:50Z (20 s) while its log spans 04:25:30.94 to 04:25:50.63 (19.7 s). Over all 100 Test jobs of the 10 newest main runs at 183dcf3, |api - log| reached 0.9 s, and at e9ebc8f the slowest p50 read 19 s from the API but 19.3 s from the logs, so a p50 within 1 s of the 18 s target can flip on truncation. At 183dcf3, node scripts/shard-wall-report.mjs --since e79cb01 printed 'runs: 3 of 5 wanted since e79cb01' and FAIL at a 20 s p50 with every slowest step at 20-21 s: the 5-run median is already at least 20 s, yet the line reads like a FAIL that two more runs could reverse, because slowestVerdict judges whatever runs it has.\nAcceptance: testStepSeconds prefers logStepSeconds and uses the API timing only when the log lacks the step. While used < wanted the verdict ends 'decided' when more than wanted/2 slowest steps sit on one side of the target (a PASS also needs no untimed step) and 'provisional' otherwise; tests cover both at 3 of 5. Live, --since e79cb01 prints a decided FAIL."
+    "Outcome: the shard wall report's slowest-step verdict uses sub-second step times and says whether a short window is already decided, so the lead acts on a window as soon as its verdict cannot change.\nEvidence: GitHub's jobs API keeps whole seconds: Test (7/10) of run 42446730414 reads 04:25:30Z to 04:25:50Z (20 s) while its log spans 04:25:30.94 to 04:25:50.63 (19.7 s). Over all 100 Test jobs of the 10 newest main runs at 183dcf3, |api - log| reached 0.9 s, and at e9ebc8f the slowest p50 read 19 s from the API but 19.3 s from the logs, so a p50 within 1 s of the 18 s target can flip on truncation. At 183dcf3, node scripts/shard-wall-report.mjs --since e79cb01 printed 'runs: 3 of 5 wanted since e79cb01' and FAIL at a 20 s p50 with every slowest step at 20-21 s: the 5-run median is already at least 20 s, yet the line reads like a FAIL that two more runs could reverse, because slowestVerdict judges whatever runs it has.\nAcceptance: testStepSeconds prefers logStepSeconds and uses the API timing only when the log lacks the step. While used < wanted the verdict ends 'decided' when more than wanted/2 slowest steps sit on one side of the target (a PASS also needs no untimed step) and 'provisional' otherwise; tests cover both at 3 of 5. Live, --since e79cb01 prints a decided FAIL.",
+    "Delivered: testStepSeconds prefers the job log span and falls back to the jobs API only when the log lacks the step; the slowest p50 keeps a hundredth (17.3/18.6 median 17.95, not 18); a short window's verdict ends ', decided' or ', provisional'. Live at d010149 through the real gh receiver: the e79cb01 window bounded to its three runs before 49dacad (42447847831@183dcf3, 42446730414@6d833e5, 42446268339@af9afa4) printed 'runs: 3 of 5 wanted since e79cb01' and 'slowest Test step p50: 20.1 s, target < 18 s: FAIL, decided' (20 s from the API); unbounded, --since e79cb01 now spans the 7866a48 plan at 5 of 5. --since 7866a48 printed 2 of 5 and 'p50: 15.5 s ... PASS, provisional' (16 s from the API)."
   ]
 }
