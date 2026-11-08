@@ -5,10 +5,9 @@
   "created": "2026-11-08",
   "priority": 3,
   "title": "Serve the launcher tests' Herdr replies from a builtin-only sh stub",
-  "after": [
-    "t-wm22s14"
-  ],
+  "after": [],
   "body": [
-    "Outcome: test/claude/successor-launch.test.ts, successor-retire.test.ts and successor-handed-off.test.ts serve their verbatim Herdr captures from a /bin/sh stub that runs only shell builtins, like the stub in test/claude/successor-probe.test.ts, so a launcher change runs its tests in seconds locally and in CI.\nEvidence: a node-script stub costs 57 ms per call against 4 ms for a builtin-only sh stub (20-call bench on the lead host, 2026-11-08). The three files take 7978, 11370 and 3329 ms locally (22.7 s; CI medians 3.6, 8.4 and 2.7 s in scripts/lib/shard-weights.mjs), while successor-probe.test.ts runs the real launcher over 11 paths with about 13 sh stub calls each in 891 ms. It starts after t-wm22s14 so the shard window measures one plan.\nProof: every assertion and capture stays; the three files sum below 9 s of local duration_ms on the lead host (baseline 22.7 s), and their refreshed CI weights drop."
+    "Outcome: test/claude/successor-launch.test.ts, successor-retire.test.ts and successor-handed-off.test.ts serve their verbatim Herdr captures from a /bin/sh stub that runs only shell builtins, like the stub in test/claude/successor-probe.test.ts, so a launcher change runs its tests in seconds locally and in CI.\nEvidence: a node-script stub costs 57 ms per call against 4 ms for a builtin-only sh stub (20-call bench on the lead host, 2026-11-08). The three files take 7978, 11370 and 3329 ms locally (22.7 s; CI medians 3.6, 8.4 and 2.7 s in scripts/lib/shard-weights.mjs), while successor-probe.test.ts runs the real launcher over 11 paths with about 13 sh stub calls each in 891 ms. It starts after t-wm22s14 so the shard window measures one plan.\nProof: every assertion and capture stays; the three files sum below 9 s of local duration_ms on the lead host (baseline 22.7 s), and their refreshed CI weights drop.",
+    "The shard window it waited on closed 5 of 5 since e9ebc8f (FAIL, see t-wm22s14), so this stub no longer perturbs a window; it now lands before the next shard refresh so the refresh folds its durations (successor-retire ran at a 12.4 s CI median in that window, over the 11 s file bound)."
   ]
 }

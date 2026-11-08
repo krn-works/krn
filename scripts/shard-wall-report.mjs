@@ -6,7 +6,8 @@
 // local lanes test-suite.mjs runs in parallel on the runner (plus final serial
 // files). It ends with each model's Pearson r, the slowest-shard p50, one
 // `shard p50` line (every shard's median Test step and the highest median's
-// excess over the mean of the shard medians) and a drift section: every test
+// excess over the mean of the shard medians), one line of the test files whose
+// median CI duration exceeds the file bound, and a drift section: every test
 // file whose median CI duration over those runs exceeds its weight by more
 // than 30% (`drift: none` when no file does).
 // `--since <sha>` keeps only runs whose head is <sha> or descends from it, so
@@ -27,8 +28,14 @@ import {
 } from './shard-weights-refresh.mjs';
 
 export const STRONG_CORRELATION = 0.7;
-export const SLOWEST_SHARD_TARGET_SECONDS = 24;
+export const SLOWEST_SHARD_TARGET_SECONDS = 18;
 export const DRIFT_TOLERANCE = 0.3;
+// The heaviest test file bounds its CI shard wall: a runner splits a shard's
+// files across 4 local lanes, so one file heavier than the lane average sets
+// the shard time whatever the plan sums. Files above it are split; the rule
+// test holds weights to it, and this report holds CI medians to it, because
+// weights lag a re-plan (one file rose from weight 10.1 to a 15.5 s median).
+export const MAX_TEST_FILE_SECONDS = 11;
 
 export class UsageError extends Error {}
 
@@ -79,12 +86,11 @@ export function runsSince(listed, since, isAncestor) {
   return listed.filter((run) => isAncestor(since, run.headSha));
 }
 
-// Test files whose CI median exceeds their weight by more than
-// DRIFT_TOLERANCE, largest excess in seconds first. Weights are seconds and
-// `durationMs` is milliseconds, so the median is taken as a weight is
-// (weightSeconds): a weight folded from these runs never drifts against them.
-// A file without a weight is not in the plan, so it is skipped.
-export function weightDrift(runs, weights = TEST_FILE_WEIGHTS) {
+// Each planned test file's CI median over the runs, as [file, seconds, weight].
+// Weights are seconds and `durationMs` is milliseconds, so the median is taken
+// as a weight is (weightSeconds): a weight folded from these runs never drifts
+// against them. A file without a weight is not in the plan, so it is skipped.
+function fileMedians(runs, weights) {
   const samples = new Map();
   for (const run of runs)
     for (const job of run.jobs)
@@ -93,18 +99,34 @@ export function weightDrift(runs, weights = TEST_FILE_WEIGHTS) {
         if (!samples.has(path)) samples.set(path, []);
         samples.get(path).push(durationMs);
       }
-  const drift = [];
-  for (const [file, durations] of samples) {
-    const weight = weights[file];
-    if (weight === undefined) continue;
-    const seconds = weightSeconds(durations);
-    if (seconds > weight * (1 + DRIFT_TOLERANCE))
-      drift.push({ file, median: seconds, weight });
-  }
+  return [...samples]
+    .filter(([file]) => weights[file] !== undefined)
+    .map(([file, durations]) => [
+      file,
+      weightSeconds(durations),
+      weights[file],
+    ]);
+}
+
+// Test files whose CI median exceeds their weight by more than
+// DRIFT_TOLERANCE, largest excess in seconds first.
+export function weightDrift(runs, weights = TEST_FILE_WEIGHTS) {
+  const drift = fileMedians(runs, weights)
+    .filter(([, median, weight]) => median > weight * (1 + DRIFT_TOLERANCE))
+    .map(([file, median, weight]) => ({ file, median, weight }));
   const excess = (row) => round(row.median - row.weight);
   return drift.sort(
     (a, b) => excess(b) - excess(a) || a.file.localeCompare(b.file),
   );
+}
+
+// Test files whose CI median exceeds MAX_TEST_FILE_SECONDS, longest first:
+// each one sets its shard's wall, so it is the next file to split.
+export function filesOverBound(runs, weights = TEST_FILE_WEIGHTS) {
+  return fileMedians(runs, weights)
+    .filter(([, median]) => median > MAX_TEST_FILE_SECONDS)
+    .map(([file, median]) => ({ file, median }))
+    .sort((a, b) => b.median - a.median || a.file.localeCompare(b.file));
 }
 
 // `Test (k/N)` is shard k of an N-shard plan; any other job name stays whole
@@ -192,6 +214,7 @@ export function shardWallReport(
     ),
     slowestP50: slowest.length > 0 ? median(slowest) : Number.NaN,
     shardP50: shardP50(rows),
+    overBound: filesOverBound(runs),
     drift: weightDrift(runs),
   };
 }
@@ -213,6 +236,11 @@ function driftLines(drift) {
         `${file} ${median} ${weight} +${Math.round((median / weight - 1) * 100)}%`,
     ),
   ];
+}
+
+function overBoundLine(files) {
+  const listed = files.map(({ file, median }) => `${file} ${median} s`);
+  return `files over the ${MAX_TEST_FILE_SECONDS} s bound: ${listed.length === 0 ? 'none' : listed.join(', ')}`;
 }
 
 function shardP50Line({ shards, mean, highest }) {
@@ -237,6 +265,7 @@ export function renderReport(report) {
     `heaviest-lane model: r=${report.laneR.toFixed(2)} (${verdict(report.laneR)})`,
     `slowest Test step p50: ${report.slowestP50} s, target < ${SLOWEST_SHARD_TARGET_SECONDS} s: ${report.slowestP50 < SLOWEST_SHARD_TARGET_SECONDS ? 'PASS' : 'FAIL'}`,
     shardP50Line(report.shardP50),
+    overBoundLine(report.overBound),
     ...driftLines(report.drift),
   );
   return `${lines.join('\n')}\n`;
