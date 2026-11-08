@@ -38,7 +38,12 @@ runs:
         set -euo pipefail
         corepack enable
         pnpm --version
-        echo "PNPM_STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+        store="$(pnpm store path --silent)"
+        echo "PNPM_STORE_PATH=$store" >> "$GITHUB_ENV"
+        # The test suite hands this store to every shard worker. Setting it here
+        # keeps the shards off `mise where pnpm`, whose pnpm and mise downloads
+        # come from github.com releases and fail every shard during an outage.
+        echo "pnpm_config_store_dir=$store" >> "$GITHUB_ENV"
 
     - name: Cache the pnpm store
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
