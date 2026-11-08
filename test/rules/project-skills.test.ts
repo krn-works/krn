@@ -95,22 +95,15 @@ function frontmatter(path: string): Map<string, string> {
   );
 }
 
-test('research lanes read untrusted content without a shell, an editor or sub-agents', () => {
+test('research lanes read untrusted content without a shell, file writes or sub-agents', () => {
   const fields = frontmatter('.claude/agents/krn-research.md');
   assert.equal(fields.get('name'), 'krn-research');
   assert.ok(fields.get('model'), 'krn-research needs an explicit model');
   const tools = (fields.get('tools') ?? '')
     .split(',')
     .map((tool) => tool.trim());
-  assert.deepEqual(tools, [
-    'Read',
-    'Grep',
-    'Glob',
-    'WebFetch',
-    'WebSearch',
-    'Write',
-  ]);
-  for (const banned of ['Agent', 'Task', 'Bash', 'Edit', 'MultiEdit'])
+  assert.deepEqual(tools, ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch']);
+  for (const banned of ['Agent', 'Task', 'Bash', 'Edit', 'MultiEdit', 'Write'])
     assert.ok(!tools.includes(banned), `krn-research must not get ${banned}`);
   const lanes = readFileSync(
     join(root, '.agents/skills/krn-lead/lanes.md'),

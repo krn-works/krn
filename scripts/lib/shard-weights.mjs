@@ -135,6 +135,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/worker/input-bounds-persisted.test.ts': 9.3,
   'test/worker/input-bounds.test.ts': 6.3,
   'test/worker/isolation.test.ts': 0.5,
+  'test/worker/mock-provider-failures.test.ts': 10,
   'test/worker/mock-provider.test.ts': 5.5,
   'test/worker/nontechnical-blocker-exits.test.ts': 3.6,
   'test/worker/nontechnical-blocker.test.ts': 9.6,
