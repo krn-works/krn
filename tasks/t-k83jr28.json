@@ -1,7 +1,11 @@
 {
   "id": "t-k83jr28",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Generator evals/fr40/tasks.ts emits 133 tasks (7 templates x 19 scenarios); one pass+fail scorer test per template; evals/fr40/convention-power.json: below-power under template clustering (powered only if icc <= 0.044/0.016/0 at discordance 0.05/0.10/0.15; icc 1 gives <= 0.018). Operator decision required before t-bsb9d9z."
+  },
   "created": "2026-11-08",
   "priority": 1,
   "title": "Generate FR-40 convention tasks with deterministic scorers",

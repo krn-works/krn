@@ -68,6 +68,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/evals/checks-working-directory-paths.test.ts': 3.8,
   'test/evals/codex-captures.test.ts': 0.1,
   'test/evals/codex-receiver.test.ts': 1,
+  'test/evals/fr40-conventions.test.ts': 4.5,
   'test/evals/fr40-validity.test.ts': 0.6,
   'test/evals/plan.test.ts': 9.1,
   'test/evals/session-classification.test.ts': 6.8,

@@ -1,0 +1,49 @@
+{
+  "task": "t-k83jr28",
+  "parent": "t-y46gy0w",
+  "generator": "evals/fr40/tasks.ts",
+  "scorers": "evals/fr40/scorers.ts",
+  "units": 133,
+  "clusters": 7,
+  "clustering": "template (units sharing a template are one cluster)",
+  "design": {
+    "test": "one-sided exact McNemar on effective units",
+    "effect": 0.15,
+    "alpha": 0.05,
+    "target": 0.8,
+    "discordance": [0.05, 0.1, 0.15],
+    "designEffect": "Kish 1 + (m - 1) * icc, m = units / clusters"
+  },
+  "unitsForTargetPower": [74, 103, 132],
+  "byIcc": [
+    {
+      "icc": 0,
+      "effectiveUnits": 133,
+      "goPower": [0.969, 0.889, 0.803]
+    },
+    {
+      "icc": 0.01,
+      "effectiveUnits": 112,
+      "goPower": [0.938, 0.833, 0.733]
+    },
+    {
+      "icc": 0.05,
+      "effectiveUnits": 70,
+      "goPower": [0.781, 0.631, 0.536]
+    },
+    {
+      "icc": 0.2,
+      "effectiveUnits": 28,
+      "goPower": [0.314, 0.257, 0.231]
+    },
+    {
+      "icc": 1,
+      "effectiveUnits": 7,
+      "goPower": [0.004, 0.01, 0.018]
+    }
+  ],
+  "maxIccForTarget": [0.044, 0.016, 0],
+  "verdict": "below-power",
+  "reading": "With template as the cluster the 0.8 target holds only if intra-template correlation stays at or below 0.044 (discordance 0.05), 0.016 (0.10) or 0 (0.15); at icc 1 the seven templates give power at most 0.018. Compliance with one convention is expected to correlate strongly across its scenarios, so the template set does not reach 0.8 power.",
+  "action": "Stop before t-bsb9d9z and ask the operator: (1) restrict the claim to these seven conventions and analyse templates as fixed strata (stratified exact McNemar on the 133 units); (2) measure icc in an arm-A pilot and proceed only if it is at or below the recorded bound; or (3) close FR-40 as below-power."
+}
