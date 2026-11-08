@@ -27,6 +27,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/claude/restart-live.test.ts': 0.5,
   'test/claude/successor-handed-off.test.ts': 2.7,
   'test/claude/successor-launch.test.ts': 3.6,
+  'test/claude/successor-probe.test.ts': 0.7,
   'test/claude/successor-retire.test.ts': 8.4,
   'test/cli.test.ts': 0.9,
   'test/cli/exit-code-classification.test.ts': 0.8,
