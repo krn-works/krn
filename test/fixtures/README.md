@@ -5,6 +5,7 @@ KRN-12 captures are committed verbatim except for redaction, and redaction has o
 - A host path (repository root, home or runtime directory) becomes the placeholder `/work/repo`.
 - A Claude transcript `cwd` becomes `.`, and transcript message content becomes `[]`.
 - Nothing else is rewritten: ids, counters, key order and byte format stay as captured.
+- A compact JSON capture, such as raw `gh api` output, is listed in its directory's `.ignore` so Biome skips it; otherwise `npm run fast` (Biome `--write`) reformats it.
 
 `/work/repo` is not a forbidden root, so the host-path guard (`test/rules/host-path-guard.test.mjs`) accepts it and pins that in a test. Reviewers treat the placeholder as verbatim and flag only other edits.
 
