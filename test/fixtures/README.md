@@ -8,4 +8,6 @@ KRN-12 captures are committed verbatim except for redaction, and redaction has o
 
 `/work/repo` is not a forbidden root, so the host-path guard (`test/rules/host-path-guard.test.mjs`) accepts it and pins that in a test. Reviewers treat the placeholder as verbatim and flag only other edits.
 
+A Herdr capture also records its stream. The CLI prints a reply on stdout and a server error as JSON on stderr with exit 1 (Herdr CLI reference, "Output waits"), so `*.reply.jsonl` holds stdout, `*.stderr.jsonl` holds stderr, and a stub prints each on the stream its name says.
+
 `scripts/claude/capture-fixture.ts` applies the convention to Claude transcript JSONL: `node scripts/claude/capture-fixture.ts <transcript.jsonl>` writes fixture lines to stdout. `test/claude/capture-fixture.test.ts` proves the fixtures under `test/claude/fixtures` are unchanged by it. Herdr replies under `test/fixtures/herdr` use the same placeholder.
