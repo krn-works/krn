@@ -57,6 +57,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/flow/review.test.ts': 0.5,
   'test/gate-summary.test.ts': 6.8,
   'test/helpers/check-scopes.test.ts': 0.1,
+  'test/helpers/herdr-stub.test.ts': 0.2,
   'test/helpers/systemd-environment.test.ts': 0.1,
   'test/hosts/codex-cancel.test.ts': 4.2,
   'test/hosts/codex-env.test.ts': 0.3,
