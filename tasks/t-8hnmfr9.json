@@ -1,7 +1,11 @@
 {
   "id": "t-8hnmfr9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Sector plan in docs/program/roadmap.md: next three slices R1 t-576sz03, R2 t-7dk0vgk (new, PA05), R3 t-rkkbv9d; synthesis .krn/runs/lead/sector-plan/sectors.md"
+  },
   "created": "2026-11-08",
   "priority": 1,
   "title": "Plan the next tracks by sector: worker system versus memory, ranked from research",
