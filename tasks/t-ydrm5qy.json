@@ -1,7 +1,11 @@
 {
   "id": "t-ydrm5qy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test/workflow.test.ts runs the Check run block against 7 needs fixtures; three mutants each fail a case"
+  },
   "created": "2026-11-08",
   "priority": 1,
   "title": "Test the real Check aggregator step against red and green job results",

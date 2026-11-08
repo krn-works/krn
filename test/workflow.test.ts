@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
@@ -96,11 +97,120 @@ test('CI workflow runs lint, typecheck and eight test shards on hosted runners b
   assert.match(check, /^ {4}if: \$\{\{ always\(\) \}\}$/mu);
   for (const need of ['changes', 'lint', 'typecheck', 'test'])
     assert.match(check, new RegExp(`^ {6}- ${need}$`, 'mu'), need);
-  assert.match(
-    check,
-    /name === "test" && result === "skipped" && needs\.changes\?\.outputs\?\.test === "false"/u,
-  );
-  assert.match(check, /result !== "success" && !skipOk/u);
+});
+
+// Extracts the literal `run: |` block of the Check job's aggregator step.
+function checkAggregatorScript(check: string): string {
+  const lines = check.split('\n');
+  const start = lines.findIndex((line) => /^ {8}run: \|$/u.test(line));
+  assert.notEqual(start, -1, 'Check job must have a run block');
+  const body: string[] = [];
+  for (const line of lines.slice(start + 1)) {
+    if (line.trim() !== '' && !line.startsWith(' '.repeat(10))) break;
+    body.push(line.slice(10));
+  }
+  return body.join('\n');
+}
+
+type Job = { result: string; outputs?: Record<string, string> };
+const ok: Job = { result: 'success', outputs: { test: 'true' } };
+const needsCases: ReadonlyArray<{
+  name: string;
+  needs: Record<string, Job>;
+  exit: 0 | 1;
+}> = [
+  {
+    name: 'all success',
+    needs: { changes: ok, lint: ok, typecheck: ok, test: ok },
+    exit: 0,
+  },
+  {
+    name: 'test skipped by the change filter',
+    needs: {
+      changes: { result: 'success', outputs: { test: 'false' } },
+      lint: ok,
+      typecheck: ok,
+      test: { result: 'skipped' },
+    },
+    exit: 0,
+  },
+  {
+    name: 'test skipped while the filter said run',
+    needs: {
+      changes: ok,
+      lint: ok,
+      typecheck: ok,
+      test: { result: 'skipped' },
+    },
+    exit: 1,
+  },
+  {
+    name: 'lint failure',
+    needs: {
+      changes: ok,
+      lint: { result: 'failure' },
+      typecheck: ok,
+      test: ok,
+    },
+    exit: 1,
+  },
+  {
+    name: 'changes failure',
+    needs: {
+      changes: { result: 'failure' },
+      lint: ok,
+      typecheck: ok,
+      test: { result: 'skipped' },
+    },
+    exit: 1,
+  },
+  {
+    name: 'typecheck cancelled',
+    needs: {
+      changes: ok,
+      lint: ok,
+      typecheck: { result: 'cancelled' },
+      test: ok,
+    },
+    exit: 1,
+  },
+  {
+    name: 'changes outputs missing while test skipped',
+    needs: {
+      changes: { result: 'success' },
+      lint: ok,
+      typecheck: ok,
+      test: { result: 'skipped' },
+    },
+    exit: 1,
+  },
+];
+
+function aggregatorMisses(script: string): string[] {
+  return needsCases
+    .filter(({ needs, exit }) => {
+      const run = spawnSync('bash', ['-c', script], {
+        env: { ...process.env, RESULTS: JSON.stringify(needs) },
+        encoding: 'utf8',
+      });
+      return run.status !== exit;
+    })
+    .map(({ name }) => name);
+}
+
+test('Check aggregator step passes only green or filter-skipped needs', async () => {
+  const check = jobBlocks(await readFile(workflowPath, 'utf8')).get('check');
+  const script = checkAggregatorScript(check ?? '');
+  assert.deepEqual(aggregatorMisses(script), []);
+  for (const [from, to] of [
+    ['process.exit(bad ? 1 : 0)', 'process.exit(0)'],
+    ['bad += 1', 'bad += 0'],
+    ['Object.entries(needs)', 'Object.entries({})'],
+  ] as const) {
+    const mutant = script.replace(from, to);
+    assert.notEqual(mutant, script, from);
+    assert.notDeepEqual(aggregatorMisses(mutant), [], `mutant: ${to}`);
+  }
 });
 
 test('CI test shards enable user namespaces after install and before the shard runs', async () => {
