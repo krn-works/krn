@@ -133,7 +133,8 @@ export type WozManifest = z.infer<typeof wozSchema>;
 
 // FR-40 (ADR 0014 D20): convention tasks in fixed strata (one per template),
 // arms A (none), B (brain packet) and S (static standards) at one token budget.
-// The check argv is the scorer; {experiment}, {repo} and {task} are substituted.
+// The check argv is the scorer; {experiment}, {repo}, {task} and {base} are substituted;
+// a {base} argument is dropped when the run has no setup commit.
 const fr40Arm = z.strictObject({
   id: z.enum(['A', 'B', 'S']),
   model: label,
