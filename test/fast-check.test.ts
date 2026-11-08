@@ -254,3 +254,32 @@ test('fast check exits 64 for an unknown --base commit or a missing value', () =
     assert.equal(result.stdout, '');
   }
 });
+
+test('fast check exits 2 naming the git command when cwd is outside any repository', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fast-norepo-'));
+  const result = spawnSync(process.execPath, [script], {
+    cwd: dir,
+    encoding: 'utf8',
+    env: { ...process.env, GIT_CEILING_DIRECTORIES: tmpdir() },
+  });
+  assert.equal(result.status, 2, result.stderr + result.stdout);
+  assert.match(result.stderr, /^fast: `git [^`]+` failed/u);
+  assert.doesNotMatch(result.stdout, /PASS/u);
+});
+
+test('fast check exits 2 naming the git command when the index is corrupt', () => {
+  const { dir } = repoWithChange();
+  writeFileSync(join(dir, '.git/index'), 'not an index');
+  const result = runFast(dir);
+  assert.equal(result.status, 2, result.stderr + result.stdout);
+  assert.match(result.stderr, /^fast: `git [^`]+` failed/u);
+  assert.doesNotMatch(result.stdout, /PASS/u);
+});
+
+test('fast check exits 2 when no merge base exists instead of diffing HEAD', () => {
+  const { dir, git } = repoWithChange();
+  git('branch', '-m', 'main', 'topic');
+  const result = runFast(dir);
+  assert.equal(result.status, 2, result.stderr + result.stdout);
+  assert.match(result.stderr, /no merge base .* pass --base/u);
+});
