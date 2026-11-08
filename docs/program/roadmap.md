@@ -10,7 +10,7 @@ Maintenance:
 
 | Rank | Id | Opportunity | Area | Evidence | Expected saving | Task |
 |---|---|---|---|---|---|---|
-| 1 | R1 | Trim always-loaded instruction files in adopter projects (Swieta AGENTS.md 35.9 KB, wilq AGENTS.md 13 KB) | memory | `tasks/t-kfydr8a.json`: ~9k tokens in every Claude session and Codex worker; Codex first turn 36k vs 27k for krn (its cited audit files are not on disk) | ~9k tokens per session start (about 25% of a 36k first turn) | t-kfydr8a |
+| 1 | R1 | Trim always-loaded instruction files in adopter projects (Swieta done 8.2 KB at b93106a; wilq 7.2 KB waits on owner review in krn-works/wilq-seo#265) | memory | `tasks/t-kfydr8a.json`: Codex first turn Swieta 24708 -> 22199, wilq 26797 -> 25552 tokens | ~9k tokens per session start (about 25% of a 36k first turn) | t-kfydr8a |
 
 Sector plan (t-8hnmfr9): token cost per slice ranks first; every remaining row waits on the operator or leaves KRN-only scope (git failures fail `npm run fast` since t-zk3ekbm) (worker first call cut to 10,048 tokens by t-q5cfpv0; identifier index after compaction shipped by t-7dk0vgk at recall 0.72 against 0.61 for the summary); FR-40 returned GO (evals/fr40/results.md), packet injection shipped (t-b9zs937) and workers stay in the scored checkout (t-r2nm8df); the PA04 precision floor waits until it is built.
 
