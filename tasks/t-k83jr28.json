@@ -1,0 +1,12 @@
+{
+  "id": "t-k83jr28",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 1,
+  "title": "Generate FR-40 convention tasks with deterministic scorers",
+  "after": [],
+  "body": [
+    "FR-40 slice 1 of 4 (parent t-y46gy0w; operator GO 2026-11-08, .krn/runs/lead/decisions.md). Convention tasks and their deterministic scorers.\nWhat: a generator under evals/fr40/ that emits synthetic convention tasks against a fixed KRN base, each with a prompt and one scorer that reads only the scratch repository after the session (git log, diff, filesystem) and prints pass/fail. Conventions with a mechanical check: task id at the end of the commit title; `Ticket:` vs `Refs:` trailer by whether the task closes; agent state only under `.krn/` (KRN-08); worker never edits `tasks/*.json` (KRN-11); core imports stay in core (`scripts/boundaries.ts`, KRN-05); unknown CLI command exits 64 (KRN-06); names by role, not task id or date; Biome clean. Prefer conventions recorded outside `AGENTS.md` (docs/program/repository-workflow.md, ADRs, lead decisions) so the packet arm can matter while AGENTS.md is on in every arm.\nIndependence: units sharing a template are one cluster. Record template ids; `evals/fr40/power.ts` must accept the cluster count and the slice reports whether the template set reaches 0.8 power at discordance 0.05–0.15 (74–132 units in evals/fr40/validity.json). If it cannot, stop and report to the operator before slice 2.\nConstraints: no file under evals/fr40 may contain the forbidden SHA prefixes (test/evals/fr40-validity.test.ts). Scorers are tested against hand-made passing and failing scratch repos (KRN-12, KRN-14).\nAcceptance: `node evals/fr40/<generator>` emits ≥74 tasks with template ids; each template has a scorer test with one pass and one fail case; the power report for the template clustering is recorded in evals/fr40/."
+  ]
+}
