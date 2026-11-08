@@ -73,8 +73,21 @@ function fileWeight(file, size) {
   return measured ?? (size > 0 ? Math.max(1, size / 4096) : MEDIAN_WEIGHT);
 }
 
+// A family is the files in one directory whose names share their first word,
+// as a split keeps its parent's name: input-bounds-baseline and
+// input-bounds-persisted are both `test/worker/input`.
+export function testFileFamily(file) {
+  const path = normalizedFile(file);
+  const slash = path.lastIndexOf('/');
+  return path.slice(0, slash + 1) + path.slice(slash + 1).split(/[-.]/u)[0];
+}
+
 // `seedWeights[k]` pre-loads bin k before parallel files are balanced, so a
-// bin that already carries serial work receives less parallel work.
+// bin that already carries serial work receives less parallel work. Each file
+// goes to a bin holding the fewest files of its family, the lightest of
+// those: same-family files load the same resource, and side by side in one
+// CI runner they ran up to twice their apart median (input-bounds-baseline
+// 17.4 s against 8.7 s in main runs since e79cb01).
 export function planTestShards(
   files,
   shardCount,
@@ -111,18 +124,24 @@ export function planTestShards(
     { length: effectiveShards },
     (_, index) => seedWeights[index] ?? 0,
   );
+  const families = Array.from({ length: effectiveShards }, () => new Map());
   for (const { file, size } of parallelFiles) {
+    const family = testFileFamily(file);
+    const kin = (index) => families[index].get(family) ?? 0;
     let target = 0;
     for (let index = 1; index < effectiveShards; index += 1) {
       if (
-        shardWeights[index] < shardWeights[target] ||
-        (shardWeights[index] === shardWeights[target] &&
-          shards[index].length < shards[target].length)
+        kin(index) < kin(target) ||
+        (kin(index) === kin(target) &&
+          (shardWeights[index] < shardWeights[target] ||
+            (shardWeights[index] === shardWeights[target] &&
+              shards[index].length < shards[target].length)))
       )
         target = index;
     }
     shards[target].push(file);
     shardWeights[target] += size || 1;
+    families[target].set(family, kin(target) + 1);
   }
 
   return { shards, serialFiles: finalSerialFiles, weights: shardWeights };
