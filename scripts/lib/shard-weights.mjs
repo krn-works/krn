@@ -109,6 +109,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/task/receiver-faults.test.ts': 0.7,
   'test/task/task-check.test.ts': 5.4,
   'test/task/task-commands.test.ts': 3.8,
+  'test/task/task-evidence.test.ts': 3.0,
   'test/task/task.test.ts': 2.6,
   'test/task/worker-busy.test.ts': 2.4,
   'test/test-suite-failures.test.ts': 3.3,

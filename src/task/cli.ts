@@ -21,6 +21,7 @@ import {
   readComments,
   type TaskComment,
 } from './comments.ts';
+import { evidenceMisses, formatEvidenceMiss } from './evidence.ts';
 import {
   isTaskId,
   TASK_ID_MAX_LENGTH,
@@ -68,6 +69,7 @@ const quickstart = [
   'krn task close t-a1b2c3d --as done',
   'krn task release t-a1b2c3d',
   'krn task check',
+  'krn task check --evidence',
   'Use `krn task <verb> --help` for options. Add --json for machine-readable output.',
 ].join('\n');
 
@@ -89,7 +91,7 @@ const verbHelp: Record<string, string> = {
   comment:
     'krn task comment ID --body-file FILE|- [--actor NAME] [--json]\nAppend a signed, dated comment; workers may comment but never change status. Actor defaults to git user.name. Example: krn task comment t-a1b2c3d --body-file - --json',
   check:
-    'krn task check [--base REV [--head REV]] [--json]\nValidate task records and references; with --base, also refuse a Ticket: trailer in base..head (head defaults to HEAD) whose task is open or missing. Example: krn task check --base origin/main --json',
+    'krn task check [--base REV [--head REV]] [--evidence [--recovery DIR]] [--json]\nValidate task records and references; with --base, also refuse a Ticket: trailer in base..head (head defaults to HEAD) whose task is open or missing; with --evidence, also refuse an open task citing a .krn/runs/ path missing from the main checkout, naming its copy under --recovery DIR when one exists. Example: krn task check --evidence --json',
 };
 
 export async function taskCommand(args: string[]): Promise<void> {
@@ -155,9 +157,18 @@ async function execute(args: string[], json: boolean): Promise<CommandOutput> {
 function check(args: string[], json: boolean): CommandOutput {
   let base: string | undefined;
   let head: string | undefined;
+  let evidence = false;
+  let recovery: string | undefined;
   for (let index = 0; index < args.length; index += 1) {
     const option = args[index];
-    if (option === '--base') {
+    if (option === '--evidence') {
+      if (evidence) throw usage('--evidence may be supplied once');
+      evidence = true;
+    } else if (option === '--recovery') {
+      if (recovery !== undefined)
+        throw usage('--recovery may be supplied once');
+      recovery = nextValue(args, index++, option);
+    } else if (option === '--base') {
       if (base !== undefined) throw usage('--base may be supplied once');
       base = nextValue(args, index++, option);
     } else if (option === '--head') {
@@ -167,11 +178,21 @@ function check(args: string[], json: boolean): CommandOutput {
   }
   if (head !== undefined && base === undefined)
     throw usage('--head requires --base');
+  if (recovery !== undefined && !evidence)
+    throw usage('--recovery requires --evidence');
   const root = repositoryRoot();
   const findings = checkTaskDirectory(root);
   if (findings.length === 0 && base !== undefined)
     findings.push(
       ...branchTicketFindings(root, loadTaskIndex(root), base, head ?? 'HEAD'),
+    );
+  if (findings.length === 0 && evidence)
+    findings.push(
+      ...evidenceMisses(
+        loadTaskIndex(root).values(),
+        mainCheckoutRoot(root),
+        recovery,
+      ).map(formatEvidenceMiss),
     );
   if (findings.length > 0) throw new TaskDataError(findings);
   return result({ findings: [] }, 'Task data is valid.\n', json);
