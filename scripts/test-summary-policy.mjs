@@ -115,7 +115,10 @@ export function summarizeTestEvents(events, expectedFiles, runnerExitCode = 0) {
   const expectedSet = new Set(expected);
   const fileSummaries = new Map();
   const fileEvents = new Map(
-    expected.map((file) => [file, { tests: 0, passed: 0, failed: 0 }]),
+    expected.map((file) => [
+      file,
+      { tests: 0, passed: 0, failed: 0, enqueued: 0, settled: 0 },
+    ]),
   );
   const globalSummaries = [];
 
@@ -162,6 +165,12 @@ export function summarizeTestEvents(events, expectedFiles, runnerExitCode = 0) {
       }
     }
 
+    if (typeof data.entryFile === 'string' && expectedSet.has(data.entryFile)) {
+      const seen = fileEvents.get(data.entryFile);
+      if (type === 'test:enqueue') seen.enqueued += 1;
+      if (type === 'test:pass' || type === 'test:fail') seen.settled += 1;
+    }
+
     if (
       (type === 'test:pass' || type === 'test:fail') &&
       data.details?.type === 'test' &&
@@ -179,7 +188,24 @@ export function summarizeTestEvents(events, expectedFiles, runnerExitCode = 0) {
   for (const file of expected) {
     const summary = fileSummaries.get(file);
     if (!summary) {
-      errors.push(`missing per-file summary: ${file}`);
+      // The child's own summary is its last event and is occasionally lost
+      // after every test reported (CI run 42486987437). Accept the file only
+      // when every test it enqueued settled as a pass, so a file that stopped
+      // early still fails.
+      const seen = fileEvents.get(file);
+      if (
+        seen.tests > 0 &&
+        seen.failed === 0 &&
+        seen.enqueued > 0 &&
+        seen.enqueued === seen.settled
+      ) {
+        fileSummaries.set(file, {
+          success: true,
+          counts: { ...zeroCounts(), tests: seen.tests, passed: seen.passed },
+        });
+      } else {
+        errors.push(`missing per-file summary: ${file}`);
+      }
       continue;
     }
     if (summary.success !== true) errors.push(`file summary failed: ${file}`);

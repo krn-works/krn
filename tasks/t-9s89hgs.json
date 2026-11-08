@@ -1,0 +1,12 @@
+{
+  "id": "t-9s89hgs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 3,
+  "title": "Print failing job logs across every attempt of a CI run",
+  "after": [],
+  "body": [
+    "Outcome: one command prints the failing step's tail for a PR's required Check across every run attempt, so the lead never reads a cancelled re-run attempt instead of the attempt that failed.\nEvidence: t-s6tq5ay diagnosis; run 42486987437 attempt 2 was cancelled and gh run view --log-failed showed only the aggregate Check, while the rejection sat in attempt 1 job 128750929767; finding it took six gh calls.\nAcceptance: bin/krn ci a log subcommand (or an extension of krn ci) given a run id lists each attempt's failed jobs and prints the last N lines of each failed step; a test drives it against a verbatim capture of the GitHub jobs API."
+  ]
+}
