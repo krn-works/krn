@@ -4,7 +4,8 @@ import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * Allowed imports per src area (src/<dir>). An entry is another area name or an exact repo-relative file.
+ * Allowed imports per src area (src/<dir>). An entry is another area name, a top-level directory as
+ * `root:<dir>`, or an exact repo-relative file.
  * Core imports nothing. Mutual pairs (hosts/worker, cli/evals, cli/task) are accepted couplings, not a rule.
  */
 export const LAYERS: Readonly<Record<string, readonly string[]>> = {
@@ -69,9 +70,10 @@ export function specifiers(
   }));
 }
 
+/** src/<dir> is area `<dir>`; any other top-level directory is `root:<dir>`, so `evals` never means `evals/`. */
 function area(path: string): string {
-  const [top, name] = path.split('/');
-  return top === 'src' && name ? name : (top ?? '');
+  const [top = '', name] = path.split('/');
+  return top === 'src' && name ? name : `root:${top}`;
 }
 
 /** Check every src file against the layer map; rel paths use `/`. A root without src/ has nothing to check. */

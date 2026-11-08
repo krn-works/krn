@@ -1,7 +1,11 @@
 {
   "id": "t-rmty4j1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "area() names top-level dirs root:<dir>; regression test added; FR-40 manifest refrozen"
+  },
   "created": "2026-11-08",
   "priority": 3,
   "title": "Separate top-level evals/ from the src/evals layer in the boundary check",

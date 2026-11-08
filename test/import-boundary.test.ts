@@ -67,9 +67,32 @@ test('file-level exceptions and unmapped areas are enforced', () => {
     assert.deepEqual(
       found.map((v) => `${v.file}:${v.line} ${v.edge}`),
       [
-        'src/flow/x.ts:2 flow -> scripts',
+        'src/flow/x.ts:2 flow -> root:scripts',
         'src/new/y.ts:1 new -> flow (area "new" missing from LAYERS)',
       ],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a src area name never allows the top-level directory of the same name', () => {
+  const root = fixture({
+    'evals/fr40/tasks.ts': '',
+    'src/evals/run.ts': '',
+    'src/brain/x.ts':
+      "import '../evals/run.ts';\nimport '../../evals/fr40/tasks.ts';",
+  });
+  try {
+    assert.deepEqual(
+      check(root, { brain: ['evals'], evals: [] }).map(
+        (v) => `${v.file}:${v.line} ${v.edge}`,
+      ),
+      ['src/brain/x.ts:2 brain -> root:evals'],
+    );
+    assert.deepEqual(
+      check(root, { brain: ['evals', 'root:evals'], evals: [] }),
+      [],
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
