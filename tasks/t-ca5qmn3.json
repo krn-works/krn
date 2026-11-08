@@ -1,7 +1,11 @@
 {
   "id": "t-ca5qmn3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "shard-wall-report prints a drift section: files whose median CI durationMs, in weight seconds, exceeds their weight by more than 30%, or 'drift: none'; tested on a fixture run, units checked"
+  },
   "created": "2026-11-08",
   "priority": 3,
   "title": "Flag shard weight drift against CI durations",

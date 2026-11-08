@@ -1,7 +1,11 @@
 {
   "id": "t-5q96j21",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "shard-wall-report --since <sha> keeps main runs whose head is the commit or descends from it (git merge-base --is-ancestor injected into a pure runsSince, tested); prints 'runs: N of M wanted since <sha>'; unknown sha exits 64"
+  },
   "created": "2026-11-08",
   "priority": 3,
   "title": "Shard wall report: --since <sha> window",
