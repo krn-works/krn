@@ -1,0 +1,1 @@
+{"id":"cli:agent:get","result":{"agent":{"agent":"codex","agent_status":"idle","cwd":"/work/repo","focused":false,"foreground_cwd":"/work/repo","pane_id":"w1D:pAV","revision":2,"state_change_seq":565,"tab_id":"w1D:tAP","terminal_id":"term_65fb9933578f353","terminal_title":"codex-capture","terminal_title_stripped":"codex-capture","workspace_id":"w1D"},"type":"agent_info"}}

@@ -1,0 +1,12 @@
+{
+  "id": "t-g1cwxm2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Report a successor that waits on a startup dialog",
+  "after": [],
+  "body": [
+    "Outcome: the launcher's success line shows the successor's first settled Herdr status, and a successor waiting on a startup dialog (`blocked`) is reported to the operator with its pane instead of passing as a clean handoff.\nEvidence: the t-p4akh87 live probe (Herdr 0.9.1, untrusted scratch cwd) printed `successor: herdr tab w1D:tAR pane w1D:pAX agent claude unknown` within 3 s while the pane sat on Claude's folder-trust dialog; `herdr agent get` reported `blocked` seconds later. A project MCP approval or a login prompt would stall a real handoff the same way. The official `agent start` fails with agent_not_ready on such a dialog while the agent is live, so failing the launch risks a duplicate successor (t-tdkpgag): report, do not fail.\nProof: a test with a verbatim blocked `agent get` capture (redacted per test/fixtures/README.md) where the new pane goes from unknown to blocked prints `agent claude blocked` and exits 0; the krn-handoff skill tells the predecessor to name that pane in its report."
+  ]
+}
