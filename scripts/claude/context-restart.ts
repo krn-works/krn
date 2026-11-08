@@ -1,7 +1,9 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { emitContext, hookInput, object } from './context-io.ts';
+import { pressureLines, probe } from './disk-pressure.ts';
 import { resumeBlock } from './handoff-resume.ts';
 import { memoryDirectory } from './memory-directory.ts';
 import { checkMemory } from './memory-refs.ts';
@@ -171,6 +173,12 @@ export function restartText(project: string, event: string): string {
     } catch {
       /* An unreadable handoff leaves the pointer. */
     }
+  }
+  // A full disk fails builds and git silently; name it right after the branch.
+  try {
+    lines.splice(1, 0, ...pressureLines(probe([homedir(), main])));
+  } catch {
+    /* Disk checks must never interrupt startup. */
   }
   // Budget includes JSON escaping and the envelope, not just the context string.
   let text = lines.join('\n');

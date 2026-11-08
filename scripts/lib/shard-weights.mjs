@@ -16,6 +16,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/claude/context-gauge.test.ts': 1.8,
   'test/claude/context-report.test.ts': 0.3,
   'test/claude/context-restart.test.ts': 0.9,
+  'test/claude/disk-pressure.test.ts': 0.1,
   'test/claude/handoff-requests-sections.test.ts': 0.7,
   'test/claude/handoff-requests.test.ts': 3.3,
   'test/claude/memory-budget-hook.test.ts': 1.6,
