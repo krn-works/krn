@@ -32,7 +32,7 @@ test('every test file has a shard weight and every weight a test file', () => {
 // CI-measured (`node scripts/shard-weights-refresh.mjs --write`) under 4-lane
 // contention, about 2x a local estimate, so a split's local-estimate weights
 // must be refreshed from CI before they are trusted.
-const MAX_TEST_FILE_SECONDS = 15;
+const MAX_TEST_FILE_SECONDS = 11;
 
 test('no test file is heavy enough to bound its shard wall', () => {
   assert.deepEqual(

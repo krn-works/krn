@@ -268,3 +268,10 @@ export async function installFakeBwrap(
     { mode: 0o755 },
   );
 }
+
+export const rejectedConfigMessages = [
+  '`features.skills` is ignored',
+  'The configuration setting `features.skills` is ignored.',
+  'Unrecognized configuration key: features.unknown',
+  'Unrecognised config setting: features.unknown',
+];

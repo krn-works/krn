@@ -112,3 +112,23 @@ export const doneReport = (changed_paths: string[]) =>
     unverified: [],
     blockers: [],
   });
+export async function checkReportPaths(
+  t: import('node:test').TestContext,
+  kinds: ('dot' | 'absolute' | 'outside' | 'control')[],
+) {
+  for (const kind of kinds) {
+    const s = await setup(t);
+    assert.equal((await s.turn('write a.txt', true)).code, 0);
+    const path =
+      kind === 'dot'
+        ? './a.txt'
+        : kind === 'absolute'
+          ? join(s.repo, 'a.txt')
+          : kind === 'outside'
+            ? '../outside'
+            : 'bad\npath';
+    writeFileSync(s.env.CODEX_TEST_WORKER_REPORT ?? '', doneReport([path]));
+    const r = await s.turn('custom-report');
+    assert.equal(r.code, ['dot', 'absolute'].includes(kind) ? 0 : 4, r.stderr);
+  }
+}
