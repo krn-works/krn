@@ -1,0 +1,14 @@
+{
+  "id": "t-qfrsv08",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Capture the usage-limit and failed-compaction receiver frames from the mock Responses provider",
+  "after": [
+    "t-m1jmgcv"
+  ],
+  "body": [
+    "Outcome: worker-failure-class and compaction-turn tests read frames the real codex app-server wrote, produced by scripts/codex/mock-responses.ts serving a 429 usage-limit reply and a failed compaction, instead of hand-written frames.\nEvidence: test/worker/mock-provider.test.ts (t-m1jmgcv) drives codex 0.167.0 through krn worker against the mock in about 5 s with no account; startMockProvider already accepts `{ status, body, headers }` replies.\nAcceptance: two scenarios run against the mock in CI (the shard that installs codex), assert the worker failure class `usageLimitExceeded` (retryable, reset_at from the reply) and the compaction failure outcome, and no frame matches `accountKey` from scripts/codex/app-server-replay.ts."
+  ]
+}
