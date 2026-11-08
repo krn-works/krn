@@ -27,6 +27,9 @@ const callerTab = 'caller-tab';
 const callerSession = JSON.parse(
   readFileSync(new URL('agent-get-idle-claude.reply.jsonl', fixtures), 'utf8'),
 ).result.agent.agent_session.value as string;
+const newPane = JSON.parse(
+  readFileSync(new URL('tab-create.reply.jsonl', fixtures), 'utf8'),
+).result.root_pane.pane_id as string;
 const hostEnvironment = Object.fromEntries(
   Object.entries(process.env).filter(([name]) => !name.startsWith('HERDR_')),
 );
@@ -193,6 +196,11 @@ function launch(
   writeFileSync(
     repliesPath,
     JSON.stringify({
+      // The started successor, which the launch waits for in its new pane.
+      [newPane]: {
+        fixture: 'agent-get-working-claude.reply.jsonl',
+        paneId: newPane,
+      },
       [callerPane]: {
         fixture: 'agent-get-idle-claude.reply.jsonl',
         paneId: callerPane,
@@ -375,12 +383,13 @@ test('caller agent lookup failure skips retirement and rename but keeps launch s
     [
       'pane',
       'run',
-      'w2E:pH',
+      newPane,
       '"$KRN_SUCCESSOR_AGENT"',
       '-n',
       '"$KRN_SUCCESSOR_NAME"',
       '"$KRN_SUCCESSOR_PROMPT"',
     ],
+    ['agent', 'get', newPane],
     ['agent', 'get', callerPane],
   ]);
 });

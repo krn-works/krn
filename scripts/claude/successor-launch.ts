@@ -9,16 +9,31 @@ export interface SuccessorLaunchOptions {
   cwd: string;
   model?: string;
   effort?: Effort;
+  startSeconds?: number;
 }
 
 export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
 export type Effort = (typeof EFFORTS)[number];
 
+// How long a launch waits for Herdr to show the successor's agent, and how
+// often it asks; a cold Claude start on a loaded host takes seconds.
+const START_SECONDS = 60;
+const POLL_SECONDS = 1;
+
 function isEffort(value: string): value is Effort {
   return (EFFORTS as readonly string[]).includes(value);
 }
 
-type CommandResult = {
+// A bounded wait in whole seconds, shared by the launch and retire modes.
+function waitSeconds(value: string | undefined): number | undefined {
+  return value !== undefined &&
+    /^(0|[1-9]\d*)$/u.test(value) &&
+    Number(value) <= 600
+    ? Number(value)
+    : undefined;
+}
+
+export type CommandResult = {
   status: number | null;
   stdout: string;
   stderr: string;
@@ -33,7 +48,7 @@ type LaunchRecord = {
   recorded_at: string;
 };
 
-type AgentInfo = {
+export type AgentInfo = {
   agent?: string | undefined;
   status?: string | undefined;
   sessionId?: string | undefined;
@@ -60,8 +75,16 @@ export function parseArgs(
   let cwd = defaultCwd;
   let model: string | undefined;
   let effort: Effort | undefined;
+  let startSeconds: number | undefined;
   const seen = new Set<string>();
-  const flags = new Set(['--name', '--prompt', '--cwd', '--model', '--effort']);
+  const flags = new Set([
+    '--name',
+    '--prompt',
+    '--cwd',
+    '--model',
+    '--effort',
+    '--start-seconds',
+  ]);
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index] ?? '';
@@ -82,6 +105,10 @@ export function parseArgs(
       if (!isEffort(value))
         throw new Error(`--effort must be one of ${EFFORTS.join(', ')}`);
       effort = value;
+    } else if (flag === '--start-seconds') {
+      startSeconds = waitSeconds(value);
+      if (startSeconds === undefined)
+        throw new Error('--start-seconds must be a whole number from 0 to 600');
     } else cwd = resolve(defaultCwd, value);
   }
 
@@ -93,6 +120,7 @@ export function parseArgs(
     cwd,
     ...(model === undefined ? {} : { model }),
     ...(effort === undefined ? {} : { effort }),
+    ...(startSeconds === undefined ? {} : { startSeconds }),
   };
 }
 
@@ -167,18 +195,13 @@ export function retireMode(
   pause: (seconds: number) => void = sleep,
   now: () => number = Date.now,
 ): number {
-  let waitSeconds = 180;
+  let wait = 180;
   let cwd = process.cwd();
   for (let i = 0; i < args.length; i += 1) {
     const flag = args[i];
     const value = args[++i];
-    if (
-      flag === '--wait-seconds' &&
-      value !== undefined &&
-      /^(0|[1-9]\d*)$/u.test(value) &&
-      Number(value) <= 600
-    )
-      waitSeconds = Number(value);
+    const seconds = waitSeconds(value);
+    if (flag === '--wait-seconds' && seconds !== undefined) wait = seconds;
     else if (flag === '--cwd' && value) cwd = resolve(cwd, value);
     else {
       process.stderr.write('invalid retire arguments\n');
@@ -202,7 +225,7 @@ export function retireMode(
   const predPane = process.env.KRN_PREDECESSOR_PANE;
   const predSession = process.env.KRN_PREDECESSOR_SESSION;
   if (predPane && predSession) {
-    const deadline = now() + waitSeconds * 1000;
+    const deadline = now() + wait * 1000;
     for (;;) {
       const info = agentInfo(run('herdr', ['agent', 'get', predPane]));
       if (info.notFound || (info.sessionId && info.sessionId !== predSession))
@@ -277,7 +300,7 @@ function replyOf(result: CommandResult): Record<string, unknown> | undefined {
   return undefined;
 }
 
-function agentInfo(result: CommandResult): AgentInfo {
+export function agentInfo(result: CommandResult): AgentInfo {
   const root = replyOf(result);
   if (record(root?.error)?.code === 'agent_not_found')
     return { notFound: true };
@@ -291,6 +314,31 @@ function agentInfo(result: CommandResult): AgentInfo {
     sessionId: text(session?.value),
     tabId: text(agent?.tab_id),
   };
+}
+
+/**
+ * `herdr pane run` acknowledges admission, not command execution (official
+ * herdr skill v0.9.5), so a launch counts as started only once Herdr shows
+ * the expected agent in the new pane. That pane hosts only its shell, so when
+ * Herdr cannot name the agent in advance (an override), any agent it reports
+ * there is the successor. Answers the agent, or undefined at the deadline.
+ */
+export function awaitAgent(
+  probe: () => AgentInfo,
+  expected: string | undefined,
+  seconds: number,
+  pause: (seconds: number) => void = sleep,
+  now: () => number = Date.now,
+): AgentInfo | undefined {
+  const deadline = now() + seconds * 1000;
+  for (;;) {
+    const info = probe();
+    if (info.agent && (expected === undefined || info.agent === expected))
+      return info;
+    const remaining = deadline - now();
+    if (remaining <= 0) return undefined;
+    pause(Math.min(POLL_SECONDS, remaining / 1000));
+  }
 }
 
 // `herdr agent wait` blocks on the server until the agent is idle or done; its
@@ -640,8 +688,24 @@ export function main(args: string[]): number {
   ]);
   if (started.error || started.status !== 0) return exitFailure(started);
 
+  // Herdr names claude and codex itself; an override's binary may be a
+  // wrapper, so only Herdr's own kinds are matched by name.
+  const expected = harness === 'other' ? undefined : harness;
+  const seconds = options.startSeconds ?? START_SECONDS;
+  const successor = awaitAgent(
+    () => agentInfo(run('herdr', ['agent', 'get', ids.paneId])),
+    expected,
+    seconds,
+  );
+  if (!successor) {
+    process.stderr.write(
+      `successor not started: herdr pane ${ids.paneId} shows no ${expected ? `${expected} ` : ''}agent after ${seconds} s; tab ${ids.tabId} kept for inspection\n`,
+    );
+    return 1;
+  }
+
   process.stdout.write(
-    `successor: herdr tab ${ids.tabId} pane ${ids.paneId}\n`,
+    `successor: herdr tab ${ids.tabId} pane ${ids.paneId} agent ${successor.agent} ${successor.status ?? 'unknown'}\n`,
   );
   if (paneId) retirePredecessors(options, paneId);
   return 0;

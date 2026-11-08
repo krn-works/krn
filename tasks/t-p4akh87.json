@@ -1,7 +1,11 @@
 {
   "id": "t-p4akh87",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "The launcher polls herdr agent get on the new pane (1 s interval, 60 s default, --start-seconds) and prints success and renames the predecessor tab only once Herdr shows claude or codex (any agent for an override); otherwise it exits 1 naming the pane and keeps the tab. Live probe from a scratch pane: successor: herdr tab w1D:tAR pane w1D:pAX agent claude unknown, exit 0 within 3 s. Verbatim Codex capture agent-get-idle-codex.reply.jsonl. Follow-up t-g1cwxm2: a successor blocked on a startup dialog."
+  },
   "created": "2026-11-08",
   "priority": 1,
   "title": "Confirm the successor agent started before the launcher reports success",
