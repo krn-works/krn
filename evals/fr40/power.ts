@@ -114,3 +114,31 @@ export function unitsForPower(
 
 export const round3 = (value: number): number =>
   Math.round(value * 1000) / 1000;
+
+/**
+ * Effective independent units for `units` split evenly into `clusters` with intra-cluster
+ * correlation `icc` (Kish design effect 1 + (m − 1)·icc). icc 1 counts each cluster once.
+ */
+export function effectiveUnits(
+  units: number,
+  clusters: number,
+  icc: number,
+): number {
+  const size = units / clusters;
+  return Math.floor(units / (1 + (size - 1) * icc) + 1e-9);
+}
+
+/** Largest icc (rounded down to 0.001) whose effective units still reach `needed`; null when none does. */
+export function maxIcc(
+  units: number,
+  clusters: number,
+  needed: number,
+): number | null {
+  if (units < needed) return null;
+  const size = units / clusters;
+  if (size <= 1) return 1;
+  return Math.min(
+    1,
+    Math.floor(((units / needed - 1) / (size - 1)) * 1000) / 1000,
+  );
+}
