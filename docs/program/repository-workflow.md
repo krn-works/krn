@@ -24,6 +24,8 @@ When an outcome uses a delivery-loop capsule, its state belongs at `.krn/runs/de
 
 Run the changed behavior's tests and real receiver proof yourself; `krn review` is optional for risky changes.
 
+A session is the lead only when the operator or its brief names that role or invokes `krn-lead`. Any other session works and commits in the checkout it was started in: it creates no worktree, branch or task, claims nothing, and skips the lead skills.
+
 The lead follows the project skills in `.agents/skills` (also exposed to Claude Code through `.claude/skills`): `krn-lead` for the no-gates loop, `krn-retro` when a slice ends, `architecture` when designing or reviewing module structure, `typescript` when writing or reviewing TypeScript, and `krn-handoff` to start the next slice in a fresh session.
 
 Merges go through `gh pr merge --auto --squash` once the `Check` passes; the `main integrity` ruleset requires it and allows only squash, so a PR is one commit on main. Bodies follow `.github/pull_request_template.md`; retro edits ride in the slice PR.

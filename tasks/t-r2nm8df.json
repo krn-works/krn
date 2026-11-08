@@ -1,7 +1,11 @@
 {
   "id": "t-r2nm8df",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "repository-workflow.md scopes the lead role to an explicit brief; other sessions commit in their own checkout. Cause runs: a571f02e, 3704c335, e2a289fe, 5ab5806b (B), fc0cfa02 (S); test/rules/session-role.test.ts."
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Stop workers committing into their own .krn worktree when the brief asks for none",
