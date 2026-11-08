@@ -14,6 +14,7 @@ const checksSchema = z.array(
         head_sha: sha,
         status: z.string(),
         conclusion: z.string().nullable(),
+        details_url: z.string().nullable().optional(),
         output: z.unknown().optional(),
         app: z
           .object({
@@ -119,10 +120,16 @@ export async function waitForGate({
       .sort((a, b) => b.id - a.id)[0];
     if (gate?.status === 'completed') {
       const conclusion = gate.conclusion ?? 'unknown';
-      if (conclusion !== 'success')
+      if (conclusion !== 'success') {
+        const runId = /\/actions\/runs\/(\d+)\//u.exec(
+          gate.details_url ?? '',
+        )?.[1];
         throw new Error(
-          `${policy.checkRunName} concluded ${conclusion} on ${head}; rerun: gh run rerun <run-id> --failed (gh run list --commit ${head})`,
+          runId === undefined
+            ? `${policy.checkRunName} concluded ${conclusion} on ${head}; rerun: gh run rerun <run-id> --failed (gh run list --commit ${head})`
+            : `${policy.checkRunName} concluded ${conclusion} on ${head} in run ${runId}; logs: bin/krn ci logs --run ${runId}; rerun: gh run rerun ${runId} --failed`,
         );
+      }
       return conclusion;
     }
     const state = gate?.status ?? 'missing';
