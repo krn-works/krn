@@ -5,6 +5,7 @@
   Ticket: <task-id>
   Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
   Task records: create new tasks with `bin/krn task create` and close yours with `bin/krn task close <id> --as done --note ...` run INSIDE your worktree (cd there first) so the record ships with your PR.
+- Hooks: never bypass git hooks (`--no-verify`, `-c core.hooksPath=...`, `HUSKY=0`); if a hook blocks or misfires, fix the hook in your PR or report it in your final reply.
 - Ship: `git push -u origin <branch>` (after a rebase `--force-with-lease`), `gh pr create --head <branch> --base main --title "... (<task-id>)" --body "...\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)"`, `gh pr merge <n> --auto --merge`. Then wait for the PR (poll `gh pr view <n> --json state,statusCheckRollup` every 60s, max 40 min; never `gh pr checks --watch`). Red `Check`: read `gh run view <id> --log-failed` into a file, grep it; a real test failure is your defect — fix and push; an infra flake (runner/network) — `gh run rerun <id> --failed`. If main moved and conflicts, rebase onto origin/main.
 - When done remove your worktree (`git worktree remove`) and local branch.
 - Append one line per finding/PR to .krn/runs/lead/<campaign>/ledger.md: `- <lane>: <finding> -> PR #n merged|task t-xxx|dropped (<reason>)`.
