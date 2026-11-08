@@ -1,0 +1,14 @@
+{
+  "id": "t-j5xq3zn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 1,
+  "title": "Freeze the FR-40 manifest and add eval scoring and reporting",
+  "after": [
+    "t-bsb9d9z"
+  ],
+  "body": [
+    "FR-40 slice 3 of 4 (parent t-y46gy0w). Freeze the manifest, run and score.\nWhat: extend src/evals/manifest.ts for an FR-40 shape (arms A none, B packet, S standards; task check = scorer argv) without breaking the WoZ A/B/C/R shape; amend ADR 0014 D20 to the convention-task design (cite the 2026-11-08 operator GO and evals/fr40/validity.json); add `krn eval score` (runs the scorer in the slot after the session) and `krn eval report` (per-arm pass rates, B−A and B−S with exact one-sided McNemar on discordant units at the cluster level, Bonett-Price 90% interval, token ratio, sequential stop after 20 tasks if B is not ahead); commit the frozen manifest with input hashes before any session.\nAcceptance: frozen manifest committed; `krn eval plan` on it lists 3 arms × N tasks; `krn eval report` on a mock-provider run (scripts/codex/mock-responses.ts) prints the verdict table and thresholds."
+  ]
+}
