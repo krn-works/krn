@@ -2,6 +2,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const cp = require('node:child_process');
 
+if (process.argv[2] === '--version') {
+  process.stdout.write(`${process.env.KRN_FIXTURE_CODEX_VERSION}\n`);
+  process.exit(0);
+}
 const scenario = JSON.parse(fs.readFileSync('/w/repo/scenario.json', 'utf8'));
 const args = process.argv.slice(2);
 const home = '/w/codex';

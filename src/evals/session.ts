@@ -23,6 +23,7 @@ import {
 import { EvalDataError, loadManifest } from './manifest.ts';
 import { assertToolDirectoryAllowed, credentialMounts } from './mask.ts';
 import { planExperiment } from './plan.ts';
+import { capturedCodexVersion } from './receiver.ts';
 import { SessionUsage } from './usage.ts';
 
 // These bytes (including the pinned model) are hashed as the session's config.
@@ -216,6 +217,7 @@ export async function sessionCommand(args: string[]): Promise<void> {
     output: string,
     prompt: Buffer,
     binary: string,
+    receiver: string,
     credential: string;
   try {
     const experiment = await inspect(resolve(input.experiment), 'directory');
@@ -282,6 +284,8 @@ export async function sessionCommand(args: string[]): Promise<void> {
           `tool directory overlaps protected session paths: ${tool}`,
         );
     }
+    // Run the binary only after its directory passed the checks above.
+    receiver = await capturedCodexVersion(binary);
     // Validate every destination before the first write.
     await mkdir(dirname(output), { recursive: true });
     await mkdir(output);
@@ -409,6 +413,7 @@ export async function sessionCommand(args: string[]): Promise<void> {
     arm: run.arm,
     harness,
     model: arm.model,
+    receiver,
     configSha256: digest(config),
     promptSha256: digest(prompt),
     startedAt,

@@ -139,6 +139,10 @@ export async function fixture() {
     ...process.env,
     HOME: home,
     KRN_EVAL_CODEX_BIN: binary,
+    // The fake replays the captured `codex --version` line.
+    KRN_FIXTURE_CODEX_VERSION: (
+      await readFile(join(codexCaptures, 'version.stdout.txt'), 'utf8')
+    ).trim(),
   };
   const invoke = (args: string[], extraEnv: NodeJS.ProcessEnv = {}) =>
     spawnSync(process.execPath, [cli, 'eval', ...args], {

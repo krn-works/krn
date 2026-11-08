@@ -26,6 +26,11 @@
       "receivers": ["bwrap"],
       "real": "test/evals/session-mask.test.ts"
     },
+    "src/evals/receiver.ts": {
+      "receivers": ["codex"],
+      "capture": ["test/fixtures/eval/codex-0.167.0/version.stdout.txt"],
+      "test": "test/evals/codex-receiver.test.ts"
+    },
     "src/evals/workspace.ts": {
       "receivers": ["git"],
       "real": "test/evals/workspace.test.ts"

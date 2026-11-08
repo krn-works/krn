@@ -1,7 +1,11 @@
 {
   "id": "t-7e8a0xx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "session.json records the codex --version line; src/evals/receiver.ts pins captured versions (test keeps them equal to test/fixtures/eval/codex-<version>); krn eval session exits 65 naming them; scripts/evals/capture-codex.ts re-captures the five cases plus version (re-run on 0.167.0: same exit codes, deterministic files byte-identical)"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Pin eval sessions to a captured Codex receiver version",
