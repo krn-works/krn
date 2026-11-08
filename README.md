@@ -12,7 +12,7 @@ node src/cli/main.ts --version
 
 Install repository dependencies with `pnpm install --frozen-lockfile`.
 
-Product implements `--version`, `task`, `review`, `ci`, `worker`, `ledger`, and `eval`. Unknown commands exit 64 under KRN-06. Merging is `gh pr merge --auto --merge` once the required `Check` passes.
+Product implements `--version`, `task`, `review`, `ci`, `worker`, `ledger`, and `eval`. Unknown commands exit 64 under KRN-06. Merging is `gh pr merge --auto --squash` once the required `Check` passes.
 
 ## Checks and delivery
 

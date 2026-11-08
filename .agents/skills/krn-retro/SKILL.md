@@ -1,15 +1,15 @@
 ---
 name: krn-retro
-description: Run a short retrospective when a KRN slice merges or stops, and turn each lesson into an executable check, a repository rule or a task. Use at the end of a slice; skip mid-slice.
+description: Run a short retrospective before a KRN slice's last commit or when it stops, and turn each lesson into an executable check, a repository rule or a task. Use at the end of a slice; skip mid-slice.
 ---
 
 # KRN retro
 
-Goal: the next slice is cheaper. Use the slice's own evidence by pointer (capsule, run folder, CI runs, PR), not memory.
+Goal: the next slice is cheaper. Its edits ship in the slice PR; never open a separate retro PR. Use the slice's own evidence by pointer (capsule, run folder, CI runs, PR), not memory.
 
 ## Measure first
 
-From the records: wall time from claim to merge; worker time; CI reruns and why; operator interventions and why; defects that reached main. Numbers come from files and runs, not impressions.
+From the records: wall time from claim to PR ready; worker time; CI reruns and why; operator interventions and why; defects that reached main. Numbers come from files and runs, not impressions.
 
 ## Find candidates
 

@@ -16,7 +16,7 @@ Safety comes from system boundaries, not shell parsing ([ADR 0014 D9](../adr/001
 
 Use the selected in-repository `krn task` tracker as the task-status source: store each task in one canonical JSON file at `tasks/<id>.json` and compute the index in memory for each command. Comments live beside a task in append-only `tasks/<id>.comments.jsonl` (`merge=union`, so parallel branches keep both entries); add one with `krn task comment ID --body-file`. Task dependencies, readiness, and claiming are supported by one command. The tracker format follows ADR 0015.
 
-The tracker records task status, not PR acceptance. Delivery has one gate: required CI on the exact HEAD (`npm run gate` locally; the aggregate GitHub Actions `Check`, App `15368`, `.github/workflows/ci.yml`). Before committing run `npm run fast` once (Biome `--write` and tsc on changed files plus tests touching changed or deleted files, one PASS/FAIL line; CI runs the rest); then `gh pr create --head <branch>` and `gh pr merge --auto --merge`. `krn review` (parallel `standards`, `spec` and `adversarial` judges, [`src/flow/types.ts`](../../src/flow/types.ts)) and `npm run gate` stay available on demand; no record, budget, brief or contract trailer is required for a merge.
+The tracker records task status, not PR acceptance. Delivery has one gate: required CI on the exact HEAD (`npm run gate` locally; the aggregate GitHub Actions `Check`, App `15368`, `.github/workflows/ci.yml`). Before committing run `npm run fast` once (Biome `--write` and tsc on changed files plus tests touching changed or deleted files, one PASS/FAIL line; CI runs the rest); then `gh pr create --head <branch>` and `gh pr merge --auto --squash`. `krn review` (parallel `standards`, `spec` and `adversarial` judges, [`src/flow/types.ts`](../../src/flow/types.ts)) and `npm run gate` stay available on demand; no record, budget, brief or contract trailer is required for a merge.
 
 When an outcome uses a delivery-loop capsule, its state belongs at `.krn/runs/delivery-loop/<outcome-id>/state.md`. The delivery-loop owner is its sole writer; use the global KRN install's `krn state check` (PATH, not `bin/krn`, which exits 64 for `state`) to validate it and `krn state resume` to resume it. Durable repository decisions belong in `CONTEXT.md` and `docs/adr/`. Native Goals, transcripts, and personal memory are not durable repository truth.
 
@@ -26,7 +26,7 @@ Run the changed behavior's tests and real receiver proof yourself; `krn review` 
 
 The lead follows the project skills in `.agents/skills` (also exposed to Claude Code through `.claude/skills`): `krn-lead` for the no-gates loop, `krn-retro` when a slice ends, `architecture` when designing or reviewing module structure, `typescript` when writing or reviewing TypeScript, and `krn-handoff` to start the next slice in a fresh session.
 
-Merges go through `gh pr merge --auto --merge` once the `Check` passes; the `main integrity` ruleset requires it.
+Merges go through `gh pr merge --auto --squash` once the `Check` passes; the `main integrity` ruleset requires it and allows only squash, so a PR is one commit on main. Bodies follow `.github/pull_request_template.md`; retro edits ride in the slice PR.
 
 - **Lead:** follows [lead rules](lead-rules.md) and owns the outcome loop. Do not treat a task update or worker handoff as acceptance.
 - **Worker:** optional Codex delegation (`krn worker start|send|stop`) for bounded work; it returns uncommitted changes, evidence and limits, and the lead commits. Use `codex exec --resume` only for an interrupted run.
