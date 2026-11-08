@@ -8,7 +8,7 @@ Accepted target, unbuilt (ADR 0014 D31). FR-40 (ADR 0014 D20) returned GO for
 packets and retrieval on 2026-11-08 (`evals/fr40/results.md`: B-A +21.1 pp,
 B-S +11.3 pp, token ratio 1.086); packet injection into worker context is shipped:
 `krn worker start` prepends the arm-B packet over the seven measured conventions to the
-brief and records its ids and sha256 in the run's `packet.json`
+brief when the target repository holds `evals/fr40/records.json`, and records its ids and sha256 in the run's `packet.json`
 (`src/brain/worker-packet.ts`), and a wider pool needs a wider run; shadow packets
 are permitted (ADR 0014 D32); the GLOBAL
 v1 store is frozen (ADR 0014 D33). The Wizard-of-Oz set is a harness pilot only,

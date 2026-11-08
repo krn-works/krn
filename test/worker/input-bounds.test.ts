@@ -161,6 +161,11 @@ test('worker start prepends the brain packet and records its ids and digest', as
   s.env.CODEX_TEST_WORKER_INITIALIZE_GATE = release;
   const brief =
     'You are working on task t-abc1234. Add to src/cli/slug.ts a function slugify, with a node:test file under test/. Commit your work when it is done.';
+  fs.mkdirSync(join(s.repo, 'evals/fr40'), { recursive: true });
+  fs.copyFileSync(
+    join(import.meta.dirname, '../../evals/fr40/records.json'),
+    join(s.repo, 'evals/fr40/records.json'),
+  );
   const pending = s.turn(brief, true);
   try {
     const path = join(s.run, 'inbox/001.json');
