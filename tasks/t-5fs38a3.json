@@ -1,0 +1,12 @@
+{
+  "id": "t-5fs38a3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 3,
+  "title": "Print per-shard p50 in the shard wall report",
+  "after": [],
+  "body": [
+    "Outcome: the shard wall report prints each shard's median Test step over its window, so an overloaded shard is a printed verdict instead of 50 rows read by hand.\nEvidence: t-wm22s14's note says Pearson r cannot judge a balanced plan and asks for per-shard medians; the #371 lead computed them with throwaway scratch scripts. Baseline (5 runs to 1dd36d6): shard p50 11-16 s, shard 3 highest. First refreshed-plan runs: slowest shard 7 at 19 s (main 42438874107) and shard 6 at 19 s (PR 42438789064).\nAcceptance: node scripts/shard-wall-report.mjs prints one `shard p50` line with every shard's median Test step seconds and the highest shard's excess over the mean of the shard medians, tested on a fixture run in test/ci/shard-wall-report.test.mjs."
+  ]
+}
