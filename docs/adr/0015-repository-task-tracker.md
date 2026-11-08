@@ -76,9 +76,12 @@ Product executable configured by `KRN_PRODUCT_ENTRY` or
 points to Product `bin/krn`, which runs the Node version pinned in
 `.node-version`. The entry must not be the lead working checkout, whose commit
 moves with every branch switch. `scripts/product-release.sh` keeps a detached
-worktree at `.krn/product-release` on `origin/main`; run it after each merge and
-point the entry at it with `scripts/product-release.sh --entry`. Its default
-output prints the entry path and the pinned commit. A forwarded `krn task`
+worktree at `.krn/product-release` on `origin/main`; `krn ci wait` runs it once
+it observes an auto-merged PR merge, and the entry points at it via
+`scripts/product-release.sh --entry`. The candidate must pass `bin/krn doctor`
+before it stays; a failed smoke restores the previous commit, names it and
+exits 78. Its default output prints the entry path, the previous commit and the
+pinned commit. A forwarded `krn task`
 (`KRN_FORWARDED` set) fails closed with exit 78 when its checkout is not the
 pinned worktree or its HEAD differs from the local `origin/main`, naming both
 commits, the refresh command and a `which -a krn` hint. `krn doctor` reports

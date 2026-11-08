@@ -271,3 +271,106 @@ for (const [status, printed] of [
     );
   });
 }
+
+function mergeRuntime(
+  pulls: Array<Record<string, unknown>>,
+  refresh: { code: number; stdout: string; stderr: string },
+) {
+  let time = 0;
+  const runs: Array<[string, string[]]> = [];
+  const fake = strictGh('o/r', 7, head, {
+    pull: () =>
+      JSON.stringify({
+        head: { sha: head },
+        mergeable_state: 'blocked',
+        ...(pulls.length > 1 ? pulls.shift() : pulls[0]),
+      }),
+    checks: () =>
+      JSON.stringify([{ check_runs: [checkRun('completed', 'success')] }]),
+  });
+  return {
+    runs,
+    gh: fake.gh,
+    now: () => time,
+    sleep: async (ms: number) => {
+      time += ms;
+    },
+    run: (command: string, args: string[]) => {
+      runs.push([command, args]);
+      return command === 'bash' ? refresh : { code: 0, stdout: '', stderr: '' };
+    },
+  };
+}
+const merge = 'c'.repeat(40);
+const autoMerge = { auto_merge: { merge_method: 'squash' }, state: 'open' };
+
+test('wait refreshes the pinned Product entry once the auto-merging PR merges', async () => {
+  const receiver = mergeRuntime(
+    [
+      autoMerge,
+      autoMerge,
+      { state: 'closed', merged: true, merge_commit_sha: merge },
+    ],
+    {
+      code: 0,
+      stdout: `entry=/x/bin/krn\nprevious=${base}\ncommit=${merge}\n`,
+      stderr: '',
+    },
+  );
+  assert.equal(
+    await waitCommand(args, receiver),
+    [
+      `gate: success ${head}`,
+      `merged: ${merge}`,
+      'release: entry=/x/bin/krn',
+      `release: previous=${base}`,
+      `release: commit=${merge}`,
+    ].join('\n'),
+  );
+  const refreshes = receiver.runs.filter(([command]) => command === 'bash');
+  assert.equal(refreshes.length, 1);
+  assert.match(refreshes[0]?.[1][0] ?? '', /scripts\/product-release\.sh$/u);
+});
+
+test('a failed refresh exits 78 and names the previous commit it kept', async () => {
+  const receiver = mergeRuntime(
+    [autoMerge, { state: 'closed', merged: true, merge_commit_sha: merge }],
+    {
+      code: 78,
+      stdout: '',
+      stderr: `product-release: candidate ${merge} failed bin/krn doctor; kept previous=${base}\n`,
+    },
+  );
+  await assert.rejects(
+    waitCommand(args, receiver),
+    (error: Error & { exitCode?: number }) => {
+      assert.equal(error.exitCode, 78);
+      assert.match(error.message, new RegExp(`kept previous=${base}`, 'u'));
+      return true;
+    },
+  );
+});
+
+test('wait without auto-merge skips the refresh; an unseen merge prints the manual step', async () => {
+  const plain = mergeRuntime([{ auto_merge: null }], {
+    code: 1,
+    stdout: '',
+    stderr: '',
+  });
+  assert.equal(await waitCommand(args, plain), `gate: success ${head}`);
+  assert.equal(plain.runs.filter(([command]) => command === 'bash').length, 0);
+
+  const pending = mergeRuntime([autoMerge], {
+    code: 1,
+    stdout: '',
+    stderr: '',
+  });
+  assert.equal(
+    await waitCommand([...args, '--merge-timeout-seconds', '30'], pending),
+    `gate: success ${head}\nmerge: not observed within 30s; after it merges run scripts/product-release.sh`,
+  );
+  assert.equal(
+    pending.runs.filter(([command]) => command === 'bash').length,
+    0,
+  );
+});
