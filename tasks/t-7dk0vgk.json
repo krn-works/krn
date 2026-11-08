@@ -1,12 +1,17 @@
 {
   "id": "t-7dk0vgk",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "identifier index after compaction; recall 0.72 vs 0.61 summary on 33 boundaries"
+  },
   "created": "2026-11-08",
   "priority": 1,
   "title": "Re-inject a mechanical identifier index after Claude compaction",
   "after": [],
   "body": [
-    "Source: finding PA05 of t-cz92be6 (`.krn/runs/lead/external-patterns/lanes/*/findings.json`), ranked first in the memory sector by the t-8hnmfr9 sector plan. It is the only memory step measurable now: it needs no FR-40 power (`evals/fr40/validity.json`: below-power, do not build FR-40).\nProblem: after compaction the lead re-discovers paths, SHAs, PR numbers and task ids by reading files again; the paper cited in PA05 measures LLM summaries keeping at most 16.0% of recurring details against 79.1% for a mechanical identifier index.\nDeliver: a Claude SessionStart(compact) hook that parses `transcript_path` for paths, SHAs, PR numbers, task ids and error types (at most 40 per type, newest first) and adds a block of at most 1.5 KB beside the handoff Resume block; offline, no model calls. An offline evaluator replays local compaction boundaries.\nAcceptance: on at least 15 local compaction boundaries the index recalls at least 0.70 of the identifiers used in the next 3 to 8 tool calls, with the summary-only baseline printed beside it; the block stays at most 1.5 KB; a missing or unreadable transcript degrades to no block with exit 0. Codex parity stays with t-b6v615x."
+    "Source: finding PA05 of t-cz92be6 (`.krn/runs/lead/external-patterns/lanes/*/findings.json`), ranked first in the memory sector by the t-8hnmfr9 sector plan. It is the only memory step measurable now: it needs no FR-40 power (`evals/fr40/validity.json`: below-power, do not build FR-40).\nProblem: after compaction the lead re-discovers paths, SHAs, PR numbers and task ids by reading files again; the paper cited in PA05 measures LLM summaries keeping at most 16.0% of recurring details against 79.1% for a mechanical identifier index.\nDeliver: a Claude SessionStart(compact) hook that parses `transcript_path` for paths, SHAs, PR numbers, task ids and error types (at most 40 per type, newest first) and adds a block of at most 1.5 KB beside the handoff Resume block; offline, no model calls. An offline evaluator replays local compaction boundaries.\nAcceptance: on at least 15 local compaction boundaries the index recalls at least 0.70 of the identifiers used in the next 3 to 8 tool calls, with the summary-only baseline printed beside it; the block stays at most 1.5 KB; a missing or unreadable transcript degrades to no block with exit 0. Codex parity stays with t-b6v615x.",
+    "Delivered: scripts/claude/identifier-index.ts feeds SessionStart(compact) through scripts/claude/context-restart.ts; evals/compact-index/run.ts replays local boundaries. Result on 33 KRN boundaries (main and subagent transcripts, 207 reused identifiers): index recall 0.720, summary-only 0.609, max block 1500 B; half-life 500/1000/2000 gives 0.72/0.72/0.70. Every local project (--all, 366 boundaries): index 0.532, summary 0.451. The block budget, not ranking, bound recall: global greedy fill and brace-tree paths raised 0.66 to 0.72."
   ]
 }

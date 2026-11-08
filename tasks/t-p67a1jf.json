@@ -1,0 +1,12 @@
+{
+  "id": "t-p67a1jf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Ignore local Claude settings in the repository, not only the operator's global excludes",
+  "after": [],
+  "body": [
+    "Source: operator-shared news triage 2026-11-08 (Apiiro: agents' \"Don't Ask Again\" grants committed in 1,122 public settings files).\nEvidence: `git check-ignore -v .claude/settings.local.json` matches only the operator's global `~/.config/git/ignore:1`; the repository `.gitignore` has no entry, so a fresh clone, CI runner or worker on another host can commit permission grants.\nDeliver: ignore `.claude/settings.local.json` (and `.codex` local equivalents if any) in the repository `.gitignore` and in the adopter init template, with a test that `git check-ignore` matches with an empty global excludes file.\nAcceptance: the test runs with `GIT_CONFIG_GLOBAL=/dev/null` and `core.excludesFile` unset and passes; the init template test asserts the entry."
+  ]
+}
