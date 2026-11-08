@@ -1,7 +1,11 @@
 {
   "id": "t-mgj0693",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "5 of 5 main runs of the 10-shard plan since 2194438 (42429805266, 42430428146, 42430864780, 42431526060, 42432143731): slowest Test step 18/18/18/17/15 s, p50 18 s < 24 s PASS (node scripts/shard-wall-report.mjs --since 2194438 --runs 5). Weight model changed (#354 CI weights, #355 serial seeding, #356 split files and 10 shards); both models still correlate weakly (summed r=0.35, heaviest-lane r=-0.20) because balanced predictions barely vary; shard 3 stays heaviest -> t-wm22s14."
+  },
   "created": "2026-11-07",
   "priority": 2,
   "title": "Make shard weights predict CI shard wall time",
