@@ -1,0 +1,17 @@
+{
+  "id": "t-a5z5yqn",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Test shards no longer download mise or pnpm from GitHub releases"
+  },
+  "created": "2026-11-08",
+  "priority": 1,
+  "title": "Keep CI test shards working when GitHub release downloads return 5xx",
+  "after": [],
+  "body": [
+    "Outcome: an outage of github.com release downloads no longer fails the Test shards: the mise binary and the pinned package manager come from a cache or a fallback route, verified by checksum.\nEvidence: main run 42468167813 (head 0486d86, after #395): attempt 1 failed 7 of 10 Test shards (1, 2, 4, 6, 7, 8, 10) in `Set up mise`, attempt 2 failed 4 of them (4, 7, 8, 10); the Test 8/10 log shows `curl -fsSL https://github.com/jdx/mise/releases/download/v2026.10.17/mise-v2026.10.17-linux-x64.tar.zst` failing with exit code 22 under the action's own retry loop (`Retrying in 2 seconds (1/5)`), so in-action retries exist and do not bridge a multi-minute outage; the release route answered 302 again when probed later and https://mise.jdx.dev/v2026.10.17/mise-v2026.10.17-linux-x64.tar.zst answers 200. .github/workflows/ci.yml:121-126 sets `cache: false`; ci.yml:128-133 installs the pinned package manager with `mise install`; project-ci.yml:93,115,144 use the same action. flake-census.md has no entry for this class; t-2f4cqda and t-nwdj5hx measured toolchain caching for speed only.\nSource: lead observation while reading main CI during t-cz92be6; flake census .krn/runs/lead/weakness-hunt/flake-census.md has no entry for this class.\nAcceptance: the mise download lives in one script (scripts/ci/install-mise.mjs) called by ci.yml (project-ci.yml follows only if still used); a node:test runs it against a local HTTP server: when the primary URL answers 504 and the fallback URL (mise.jdx.dev route or a cache hit) serves the real artifact, the script installs from the fallback after at most one failed primary attempt and exits 0; when the artifact's SHA-256 differs from the pinned checksum it exits non-zero and installs nothing; on the PR run, the `Set up mise` step p50 (node scripts/shard-wall-report.mjs) stays within 2 s of its value on main.",
+    "Delivered differently than the acceptance proposed: the shards used mise only for `mise where pnpm` (scripts/test-suite.mjs parentPnpmStoreDirectory), and `mise install pnpm` also downloads from github.com releases, so a mise fallback alone would still fail. The test job now drops both mise steps and setup-ci exports pnpm_config_store_dir from the Corepack pnpm (npm registry), so the shards download nothing from GitHub releases and the Set up mise step time goes to zero; test/workflow.test.ts asserts the test job names no mise. project-ci.yml (adopter workflow) keeps mise-action because adopters pin their tools there."
+  ]
+}

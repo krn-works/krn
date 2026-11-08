@@ -125,7 +125,18 @@ test('CI test shards enable user namespaces after install and before the shard r
       test.indexOf('run: npm test'),
     'setup must precede the shard run',
   );
-  assert.match(test, /mise install "\$manager"/u);
+  // A github.com release outage (main run 42468167813) failed every shard in
+  // the mise download; the shards take the pnpm store from setup-ci instead.
+  assert.doesNotMatch(
+    test,
+    /mise/u,
+    'test shards download nothing from GitHub releases',
+  );
+  assert.match(
+    action,
+    /echo "pnpm_config_store_dir=\$store" >> "\$GITHUB_ENV"/u,
+    'setup-ci hands the pnpm store to the test suite',
+  );
   const adr = await readFile(
     new URL(
       '../docs/adr/0014-operator-decisions-2026-10-23.md',
