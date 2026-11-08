@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createConnection, createServer } from 'node:net';
-import { dirname, join } from 'node:path';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import { requiresIsolation } from '../helpers/isolation.ts';
 import { digest, fixture, output } from './checks-fixture.ts';
@@ -20,13 +21,20 @@ test('eval check isolates network, evaluator tools and other inputs and preserve
     const inputs = new Map<string, Buffer>();
     for (const name of ['manifest.json', ...Object.keys(f.value.inputs)])
       inputs.set(name, await readFile(join(f.experiment, name)));
+    // krn eval check mounts the pinned Node from its mise install.
+    const nodeBin = join(
+      process.env.MISE_DATA_DIR ?? join(homedir(), '.local/share/mise'),
+      'installs/node',
+      process.versions.node,
+      'bin',
+    );
     await f.testFile(`const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path');
       test('environment', () => {
         assert.equal(process.cwd(), '/w/repo/package');
         assert.equal(process.env.NODE_OPTIONS, '--test-reporter=tap');
         const paths = process.env.PATH.split(':');
         assert.equal(paths[0], '/w/repo/package/node_modules/.bin');
-        assert.equal(paths[2], ${JSON.stringify(dirname(process.execPath))});
+        assert.equal(paths[2], ${JSON.stringify(nodeBin)});
         assert.equal(paths[3], '/usr/bin');
         for (const name of ['npm', 'npx', 'scripts.json']) assert.throws(() => fs.writeFileSync(path.join(paths[1], name), 'true'), {code: 'EROFS'});
         for (const file of ${JSON.stringify([join(f.experiment, 'packet.md'), join(other, 'canary'), join(source, 'canary')])}) assert.throws(() => fs.readFileSync(file), {code: 'ENOENT'});
