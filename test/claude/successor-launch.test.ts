@@ -376,6 +376,8 @@ test('caller pane workspace is passed to the new tab', (t) => {
   ).result.agent;
 
   assert.equal(result.status, 0, result.stderr);
+  // A Herdr call the stub cannot answer surfaces here, never silently.
+  assert.equal(result.stderr, '');
   assert.deepEqual(readCalls(herdrCalls), [
     ['status'],
     ['pane', 'get', 'caller-pane'],

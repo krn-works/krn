@@ -1,0 +1,12 @@
+{
+  "id": "t-8hs32xq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 3,
+  "title": "Script the launcher's live Herdr probe",
+  "after": [],
+  "body": [
+    "Outcome: one command proves a successor-launch change against the real Herdr: it creates a scratch shell tab, runs scripts/claude/successor-launch.ts there with an untrusted scratch cwd (the successor holds on Claude's folder-trust dialog and spends no tokens), prints the launcher's stdout, stderr and exit plus the successor's `herdr agent get` status as one verdict line, and closes both tabs; it never runs the launcher from the caller's own pane.\nEvidence: t-tdkpgag (#361), t-p4akh87 (#364) and t-g1cwxm2 (#369) each hand-built this probe from a task body (herdr tab create, pane run, a polling loop, two tab closes). Run from the lead's pane instead, the probe renames the lead's tab and the probe successor's --retire closes the lead pane once idle.\nProof: a test drives the probe's Herdr calls through a stub serving the verbatim captures in test/fixtures/herdr and asserts both tabs close on every exit path; one live run prints the verdict with `agent claude blocked`, exit 0, and leaves no probe tab."
+  ]
+}
