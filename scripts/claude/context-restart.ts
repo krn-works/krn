@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { emitContext, hookInput, object } from './context-io.ts';
+import { cutText } from './cut-text.ts';
 import { pressureLines, probe } from './disk-pressure.ts';
 import { resumeBlock } from './handoff-resume.ts';
 import { compactIndex } from './identifier-index.ts';
@@ -191,18 +192,19 @@ export function restartText(
   } catch {
     /* Disk checks must never interrupt startup. */
   }
-  // Budget includes JSON escaping and the envelope, not just the context string.
-  let text = lines.join('\n');
-  const length = (value: string) =>
-    JSON.stringify({
-      hookSpecificOutput: {
-        hookEventName: event,
-        additionalContext: value,
-      },
-    }).length;
-  while (length(text) > 8000)
-    text = text.slice(0, Math.max(0, text.length - (length(text) - 8000)));
-  return text;
+  return fitEnvelope(event, lines.join('\n'));
+}
+
+// Budget includes JSON escaping and the envelope, not just the context string.
+export function fitEnvelope(event: string, text: string, limit = 8000): string {
+  return cutText(
+    text,
+    limit,
+    (value) =>
+      JSON.stringify({
+        hookSpecificOutput: { hookEventName: event, additionalContext: value },
+      }).length,
+  );
 }
 
 if (import.meta.main) {

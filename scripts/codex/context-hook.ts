@@ -13,6 +13,7 @@ import {
 import { join } from 'node:path';
 import { object } from '../claude/context-io.ts';
 import { restartText } from '../claude/context-restart.ts';
+import { cutText } from '../claude/cut-text.ts';
 
 // Codex hook entry for a KRN lead: one process serves SessionStart (restart
 // block), UserPromptSubmit and PostToolUse (usage advisories) and PreCompact
@@ -111,10 +112,7 @@ export function bounded(event: string, text: string): string {
   const size = (value: string) => Buffer.byteLength(envelope(event, value));
   if (size(text) <= outputLimit) return text;
   const marker = '\n[truncated: restart block exceeded the hook output limit]';
-  let cut = text;
-  while (cut.length > 0 && size(cut + marker) > outputLimit)
-    cut = cut.slice(0, Math.max(0, cut.length - 64));
-  return cut + marker;
+  return cutText(text, outputLimit, (cut) => size(cut + marker)) + marker;
 }
 
 function emit(event: string, text: string) {
