@@ -3,9 +3,10 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { importClosure } from '../../evals/fr40/freeze.ts';
 import { generate } from '../../evals/fr40/tasks.ts';
 import {
   fr40Manifest,
@@ -128,6 +129,26 @@ test('the frozen FR-40 manifest loads, plans 3 arms x 133 tasks and matches its 
     { encoding: 'utf8' },
   );
   assert.equal(drift.status, 0, drift.stderr);
+});
+
+test('the frozen FR-40 manifest hashes every local file the scorer imports', async () => {
+  const manifest = fr40Manifest(await loadManifest(frozen));
+  const imports = JSON.parse(
+    await readFile(join(frozen, 'scorer-imports.json'), 'utf8'),
+  ) as Record<string, string>;
+  assert.ok(Object.hasOwn(manifest.inputs as object, 'scorer-imports.json'));
+  for (const file of importClosure(['scorers.ts', 'tasks.ts'])) {
+    const path = relative(frozen, file);
+    if (!path.startsWith('..'))
+      assert.ok(Object.hasOwn(manifest.inputs as object, path), path);
+    else
+      assert.equal(
+        imports[relative(repoRoot, file)],
+        sha256(await readFile(file, 'utf8')),
+        `${relative(repoRoot, file)} is not hashed`,
+      );
+  }
+  assert.ok(Object.hasOwn(imports, 'scripts/boundaries.ts'));
 });
 
 function git(repo: string, ...args: string[]): string {

@@ -1,7 +1,11 @@
 {
   "id": "t-16dkc64",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "freeze.ts hashes the scorer's transitive local import closure; manifest re-frozen; test asserts boundaries.ts is hashed"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Hash every file the FR-40 scorer imports in the frozen manifest",

@@ -1,19 +1,46 @@
 // Freeze the FR-40 experiment: write tasks.json (every convention task),
 // material.json (arm B brain packet and arm S static standards per task) and
-// manifest.json (arms, fixed strata, scorer argv, D20 thresholds, input hashes).
+// scorer-imports.json (hashes of files the scorer imports from outside evals/fr40)
+// and manifest.json (arms, fixed strata, scorer argv, D20 thresholds, input hashes).
 // `--check` regenerates in memory and exits 1 when a committed file drifted.
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fr40Packet } from '../../src/brain/cli.ts';
 import { generate } from './tasks.ts';
 
 const here = new URL('./', import.meta.url);
 
-/** Hashed beside the generated files: the scorer, its task source and the arm material sources. */
+const dir = fileURLToPath(here);
+const repo = resolve(dir, '../..');
+
+/** Local imports of the given entries, transitively, as absolute paths. */
+export function importClosure(entries: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const visit = (file: string) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    const text = readFileSync(file, 'utf8');
+    for (const [, specifier] of text.matchAll(
+      /(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/gu,
+    ))
+      visit(resolve(dirname(file), specifier as string));
+  };
+  for (const entry of entries) visit(resolve(dir, entry));
+  return [...seen];
+}
+
+const SCORER = ['scorers.ts', 'tasks.ts'];
+
+/**
+ * Hashed beside the generated files: the scorer, its task source and the arm
+ * material sources. Manifest inputs stay inside the experiment, so files the
+ * scorer imports from elsewhere (scripts/boundaries.ts decides core-imports)
+ * are hashed into the generated scorer-imports.json.
+ */
 const SOURCES = [
-  'scorers.ts',
-  'tasks.ts',
+  ...SCORER,
   'records.json',
   'standards.md',
   'validity.json',
@@ -37,6 +64,17 @@ export function freeze(): Record<string, string> {
             standards: fr40Packet(task.id, 'static').text,
           },
         ]),
+      ),
+    ),
+    'scorer-imports.json': json(
+      Object.fromEntries(
+        importClosure(SCORER)
+          .filter((file) => !file.startsWith(dir))
+          .map((file) => [
+            relative(repo, file),
+            sha256(readFileSync(file, 'utf8')),
+          ])
+          .sort(([a], [b]) => (a as string).localeCompare(b as string)),
       ),
     ),
   };
