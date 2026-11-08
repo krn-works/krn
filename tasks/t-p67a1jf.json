@@ -1,7 +1,11 @@
 {
   "id": "t-p67a1jf",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Repository .gitignore ignores .claude/settings.local.json; test/rules/local-settings-ignore.test.ts proves it with global and system git config disabled. No adopter init template exists in this repository, and Codex has no local settings file, so neither needed an entry."
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Ignore local Claude settings in the repository, not only the operator's global excludes",
