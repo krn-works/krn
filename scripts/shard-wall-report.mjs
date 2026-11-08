@@ -13,7 +13,8 @@
 // file whose median CI duration over those runs exceeds its weight by more
 // than 30% (`drift: none` when no file does).
 // `--since <sha>` keeps only runs whose head is <sha> or descends from it, so
-// a window never mixes shard plans; the first line, for example
+// a window holds one shard plan only until the next plan merges (judge it
+// before then: `, decided` below says when); the first line, for example
 // `runs: 2 of 5 wanted since 2194438`, shows a window that is still short,
 // and ends with `, 3 of 50 Test steps untimed` when a Test step has timing in
 // neither the jobs API (GitHub sometimes returns `steps: []`) nor its job log;
