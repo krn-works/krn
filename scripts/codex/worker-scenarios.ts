@@ -88,6 +88,20 @@ export const scenarios: readonly Scenario[] = [
       },
       { command: 'stop', exit: 0 },
     ],
+    // The failure is data: class and retryability, never the provider text.
+    check: (run) => {
+      const path = join(run, 'rounds/001/result.json');
+      if (!existsSync(path)) return 'round 1 wrote no result.json';
+      const result = readFileSync(path, 'utf8');
+      const { failure, message } = JSON.parse(result);
+      if (failure?.class !== 'modelNotFound' || failure?.retryable !== false)
+        return `round 1 failure ${JSON.stringify(failure)}, expected modelNotFound, not retryable`;
+      if (message !== 'worker turn failed: modelNotFound')
+        return `round 1 message ${JSON.stringify(message)}`;
+      return result.includes('krn-replay-unknown-model')
+        ? 'round 1 result.json carries provider text'
+        : undefined;
+    },
   },
   {
     name: 'interrupt',

@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!tasks"]
+    "includes": ["**", "!tasks", "!test/fixtures/codex-app-server-schema"]
   },
   "formatter": {
     "indentStyle": "space",

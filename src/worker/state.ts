@@ -14,11 +14,14 @@ import {
 } from 'node:fs';
 import { dirname, isAbsolute, join, parse, relative, resolve } from 'node:path';
 import { z } from 'zod';
+import type { TurnFailure } from './failure.ts';
 export class WorkerError extends Error {
   readonly exitCode: number;
-  constructor(exitCode: number, message: string) {
+  readonly failure: TurnFailure | undefined;
+  constructor(exitCode: number, message: string, failure?: TurnFailure) {
     super(message);
     this.exitCode = exitCode;
+    this.failure = failure;
   }
 }
 const count = z.number().int().nonnegative().safe();
@@ -143,6 +146,16 @@ export const resultSchema = z.object({
     )
     .default([]),
   nontechnical_blocker: z.boolean().default(false),
+  failure: z
+    .object({
+      class: z.string(),
+      retryable: z.boolean(),
+      code: z.number().int().optional(),
+      exit_status: z.number().int().nullable().optional(),
+      signal: z.string().nullable().optional(),
+      reset_at: z.string().optional(),
+    })
+    .optional(),
 });
 export const reportSchema = z.strictObject({
   status: z.enum(['done', 'blocked', 'partial']),

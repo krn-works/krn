@@ -140,6 +140,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/worker/scope-bypass-records.test.ts': 7.7,
   'test/worker/scope-bypass.test.ts': 4.4,
   'test/worker/session-failures.test.ts': 7.7,
+  'test/worker/failure.test.ts': 0.3,
   'test/worker/session.test.ts': 9.5,
   'test/worker/setup-marker.test.ts': 0.8,
   'test/worker/shared-refs.test.ts': 1.1,

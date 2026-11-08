@@ -1,0 +1,17 @@
+{
+  "receiver": "codex-cli 0.167.0",
+  "captured": "2026-11-08",
+  "command": "codex app-server generate-json-schema --out <dir>",
+  "files": [
+    {
+      "file": "ErrorNotification.json",
+      "origin": "verbatim: <dir>/v2/ErrorNotification.json; defines CodexErrorInfo",
+      "sha256": "4b6e588b00241f0d1565b92991ec83b73bfdcf8dea0b96707278834ce719b444"
+    },
+    {
+      "file": "usage-limit.synthetic.json",
+      "origin": "synthetic: a failed turn/completed frame with codexErrorInfo usageLimitExceeded shaped by ErrorNotification.json; no live usage-limit capture exists (t-m1jmgcv)",
+      "sha256": "752c4cee1059cc32c5ec9c573accde2e6862740818bbe7d6d1e4733945c8e5f0"
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
+import { rpcErrorCode } from '../worker/failure.ts';
 import {
   assertServerIdentity,
   executablePath,
@@ -104,8 +105,15 @@ export class CodexAppServer {
     this.child.on('error', () =>
       this.fail(new WorkerError(75, 'app-server launch failed')),
     );
-    this.child.on('close', () =>
-      this.fail(new WorkerError(75, 'app-server disconnected')),
+    this.child.on('close', (status, signal) =>
+      this.fail(
+        new WorkerError(75, 'app-server disconnected', {
+          class: 'appServerExited',
+          retryable: false,
+          exit_status: status,
+          signal,
+        }),
+      ),
     );
     this.child.stdin?.on('error', () =>
       this.fail(new WorkerError(75, 'app-server input closed')),
@@ -138,9 +146,16 @@ export class CodexAppServer {
                 : undefined;
             if (!pending) throw new Error('unknown response');
             this.#pending.delete(Number(event.id));
-            if (event.error !== undefined)
-              pending.reject(new WorkerError(70, 'app-server request failed'));
-            else pending.resolve(event.result);
+            if (event.error !== undefined) {
+              const code = rpcErrorCode(event.error);
+              pending.reject(
+                new WorkerError(70, 'app-server request failed', {
+                  class: 'requestFailed',
+                  retryable: false,
+                  ...(code === undefined ? {} : { code }),
+                }),
+              );
+            } else pending.resolve(event.result);
           } else {
             if (
               event.method === 'turn/completed' ||

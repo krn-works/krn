@@ -1,12 +1,17 @@
 {
   "id": "t-pepp256",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "failed worker turns record class, retryability, code, exit status and reset time"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Record class, code, retryability and reset time of a failed worker turn",
   "after": [],
   "body": [
-    "Outcome: a failed worker round still exits 75, and result.json and error.json carry failure.class (from turn.error.codexErrorInfo), the JSON-RPC code, the process exit status, retryable and resetAt when present, without provider text.\nEvidence: src/worker/driver.ts:367-369 throws one generic WorkerError(75, 'worker turn interrupted or failed'); driver.ts:64-74 completionSchema omits error; src/hosts/codex-app-server.ts:108,142 drop the exit status and the JSON-RPC code; test/fixtures/codex-app-server/failed-turn.rpc:15 holds the verbatim error notification with codexErrorInfo that KRN discards.\nSource: finding CX2 in .krn/runs/lead/t3code-agentic/lanes/t3-codex-driver.md and OR3 in t3-orchestration.md (t3code types provider failures as class, code, retryable, resetAt; only usage_limit drives behaviour there).\nAcceptance: (1) a replay test over failed-turn.rpc (a real capture) writes failure {class: modelNotFound, retryable: false} and no message text to result.json and error.json while the exit stays 75; (2) a table test covers every CodexErrorInfo variant named in the schema produced by `codex app-server generate-json-schema` (committed under test/fixtures/codex-app-server with provenance), so a new variant fails the test; (3) resetAt is covered by a frame labelled synthetic in provenance.json, or by a real-receiver capture produced by the mock-provider task (add `after: mock-provider`)."
+    "Outcome: a failed worker round still exits 75, and result.json and error.json carry failure.class (from turn.error.codexErrorInfo), the JSON-RPC code, the process exit status, retryable and resetAt when present, without provider text.\nEvidence: src/worker/driver.ts:367-369 throws one generic WorkerError(75, 'worker turn interrupted or failed'); driver.ts:64-74 completionSchema omits error; src/hosts/codex-app-server.ts:108,142 drop the exit status and the JSON-RPC code; test/fixtures/codex-app-server/failed-turn.rpc:15 holds the verbatim error notification with codexErrorInfo that KRN discards.\nSource: finding CX2 in .krn/runs/lead/t3code-agentic/lanes/t3-codex-driver.md and OR3 in t3-orchestration.md (t3code types provider failures as class, code, retryable, resetAt; only usage_limit drives behaviour there).\nAcceptance: (1) a replay test over failed-turn.rpc (a real capture) writes failure {class: modelNotFound, retryable: false} and no message text to result.json and error.json while the exit stays 75; (2) a table test covers every CodexErrorInfo variant named in the schema produced by `codex app-server generate-json-schema` (committed under test/fixtures/codex-app-server with provenance), so a new variant fails the test; (3) resetAt is covered by a frame labelled synthetic in provenance.json, or by a real-receiver capture produced by the mock-provider task (add `after: mock-provider`).",
+    "Delivered: failure {class, retryable, code?, exit_status?, signal?, reset_at?} in result.json and error.json; reset_at from account/rateLimits/read after limit classes (synthetic frame in test/fixtures/codex-app-server-schema); live usage-limit capture waits on t-m1jmgcv."
   ]
 }
