@@ -1,0 +1,12 @@
+{
+  "id": "t-h93446w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Refuse git hook bypass in lane commits",
+  "after": [],
+  "body": [
+    "Outcome: lane commits run the repository git hooks; a bypass is visible and refused.\nEvidence: lane for t-mgj0693 (PR #356) committed with `git -c core.hooksPath=/dev/null` and reported it; CI stayed green, but hooks are skipped silently by design.\nAcceptance: first find which hook made the lane bypass it (reproduce a commit in a worktree) and fix that hook if it misfires in worktrees; then `.agents/skills/krn-lead/lanes.md` forbids hook bypass and a check (rule test or CI step) detects it where possible."
+  ]
+}
