@@ -110,8 +110,11 @@ export async function fixture(
       control: 'control.md',
       contract: 'contract.md',
       checklist: 'checklist.md',
+      node: process.version.slice(1),
+      workingDirectory: '.',
+      scripts: { test: 'node --test' },
       focusedCheck: ['node', '--test'],
-      suiteChecks: [['npm', 'test']],
+      suiteChecks: [{ argv: ['npm', 'test'], tests: true }],
     })),
     inputs,
   };

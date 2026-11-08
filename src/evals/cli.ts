@@ -1,6 +1,7 @@
 import { commandErrorExitCode } from '../cli/command-error.ts';
 import { flagValue } from '../cli/flag-value.ts';
 import { CliUsageError } from '../cli/usage-error.ts';
+import { checkCommand } from './checks.ts';
 import { EvalDataError, loadManifest } from './manifest.ts';
 import { maskCommand } from './mask.ts';
 import { planExperiment } from './plan.ts';
@@ -17,6 +18,10 @@ export async function evalCommand(args: string[]): Promise<void> {
   // A wrapped command owns every argument after "--", including "--json".
   const json = args[0] !== 'mask' && args.includes('--json');
   try {
+    if (args[0] === 'check') {
+      await checkCommand(args.slice(1));
+      return;
+    }
     if (args[0] === 'session') {
       const { sessionCommand } = await import('./session.ts');
       await sessionCommand(args.slice(1));
