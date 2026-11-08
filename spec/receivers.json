@@ -14,7 +14,14 @@
       ],
       "test": "test/ci/gate-wait-capture.test.ts"
     },
-    "src/deliver/transport.ts": { "receivers": ["gh"], "pending": "t-5b632zt" },
+    "src/deliver/transport.ts": {
+      "receivers": ["gh"],
+      "capture": [
+        "test/fixtures/gh/pr-not-found.stderr.log",
+        "test/fixtures/gh/pr-not-found.stdout.json"
+      ],
+      "test": "test/deliver/transport-capture.test.ts"
+    },
     "src/evals/mask.ts": {
       "receivers": ["bwrap"],
       "real": "test/evals/session-mask.test.ts"
@@ -29,7 +36,11 @@
     },
     "src/flow/panel.ts": {
       "receivers": ["codex", "git"],
-      "pending": "t-5b632zt"
+      "capture": [
+        "test/fixtures/codex-cli-0.167.0/exec-invalid-verdict.stdout.jsonl",
+        "test/fixtures/codex-cli-0.167.0/exec-pass.stdout.jsonl"
+      ],
+      "test": "test/hosts/codex-exec-capture.test.ts"
     },
     "src/hosts/codex-app-server.ts": {
       "receivers": ["codex app-server"],
@@ -42,7 +53,8 @@
     },
     "src/hosts/codex.ts": {
       "receivers": ["codex exec"],
-      "pending": "t-5b632zt"
+      "capture": ["test/fixtures/codex-cli-0.167.0/exec-pass.stdout.jsonl"],
+      "test": "test/hosts/codex-exec-capture.test.ts"
     },
     "src/hosts/systemd-scope.ts": {
       "receivers": ["systemd-run", "systemctl"],
@@ -76,7 +88,8 @@
     },
     "src/worker/acceptance.ts": {
       "receivers": ["codex"],
-      "pending": "t-5b632zt"
+      "capture": ["test/fixtures/codex-cli-0.167.0/sandbox-observer.log"],
+      "test": "test/worker/acceptance-capture.test.ts"
     },
     "src/worker/cli.ts": {
       "receivers": ["codex app-server", "git"],
@@ -93,7 +106,8 @@
     },
     "src/worker/isolation.ts": {
       "receivers": ["codex mcp list"],
-      "pending": "t-5b632zt"
+      "capture": ["test/fixtures/codex-cli-0.167.0/mcp-list.stdout.json"],
+      "test": "test/worker/isolation.test.ts"
     },
     "src/worker/untracked.ts": {
       "receivers": ["git"],

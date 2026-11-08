@@ -1,2 +1,4 @@
 /gh-run-list-main.json
 /ci-test-shard-job.json
+/gh/pr-not-found.stdout.json
+/codex-cli-0.167.0/mcp-list.stdout.json

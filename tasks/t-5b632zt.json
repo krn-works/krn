@@ -1,7 +1,11 @@
 {
   "id": "t-5b632zt",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Captures for gh, codex mcp list, codex sandbox and codex exec; spec/receivers.json has no pending entry."
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Record receiver captures for the modules KRN-12 lists as pending",
