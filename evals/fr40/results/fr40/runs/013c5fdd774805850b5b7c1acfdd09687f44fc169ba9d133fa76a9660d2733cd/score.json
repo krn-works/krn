@@ -1,0 +1,9 @@
+{
+  "runId": "013c5fdd774805850b5b7c1acfdd09687f44fc169ba9d133fa76a9660d2733cd",
+  "task": "fr40-agent-state-chunk",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-agent-state-chunk: notes kept under .krn/runs or .krn/tmp"
+}

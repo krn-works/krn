@@ -1,0 +1,9 @@
+{
+  "runId": "3e0a8313a266f776966731684cea288d50d65a952527ae60c7f8b4f074c0e364",
+  "task": "fr40-tracker-untouched-groups",
+  "arm": "B",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-tracker-untouched-groups: no commit after base"
+}

@@ -1,0 +1,22 @@
+{
+  "runId": "9a604684d604329b2390bbc8e1e53ce22568346c0c20add3ecfab721cd32efa6",
+  "arm": "B",
+  "harness": "codex",
+  "model": "gpt-6-luna",
+  "receiver": "codex-cli 0.167.0",
+  "configSha256": "1611c2e52b41820f9c9a8c98e17602139fb181977d7df80df18b027a2ac88810",
+  "promptSha256": "6d3c4091cd56e9888944c76b45df91dfccab13274ff7b82659dff999e3877438",
+  "startedAt": "2026-11-08T20:23:26.656Z",
+  "endedAt": "2026-11-08T20:24:45.701Z",
+  "exitCode": 0,
+  "status": "completed",
+  "usage": {
+    "status": "complete",
+    "input_tokens": 321350,
+    "output_tokens": 1726,
+    "cached_input_tokens": 301440,
+    "reasoning_output_tokens": 79,
+    "total_tokens": 323076
+  },
+  "scope": "krn-eval-session-716609f3-ef16-42b0-a6af-c261bd6fc30d.scope"
+}

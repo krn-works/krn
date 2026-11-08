@@ -1,0 +1,9 @@
+{
+  "runId": "e3d19478a23f1b454d0f35a682fc3d4a84a98abe7d257e6d442828da92556fe1",
+  "task": "fr40-commit-title-id-percent",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-commit-title-id-percent: every commit title ends with (t-b7dgcrn)"
+}

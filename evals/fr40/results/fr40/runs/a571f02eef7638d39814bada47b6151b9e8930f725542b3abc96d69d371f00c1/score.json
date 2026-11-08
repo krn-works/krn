@@ -1,0 +1,9 @@
+{
+  "runId": "a571f02eef7638d39814bada47b6151b9e8930f725542b3abc96d69d371f00c1",
+  "task": "fr40-agent-state-mask",
+  "arm": "B",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-mask: no commit after base"
+}

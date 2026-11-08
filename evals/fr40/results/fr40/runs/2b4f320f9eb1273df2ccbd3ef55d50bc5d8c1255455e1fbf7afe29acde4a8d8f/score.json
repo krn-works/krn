@@ -1,0 +1,9 @@
+{
+  "runId": "2b4f320f9eb1273df2ccbd3ef55d50bc5d8c1255455e1fbf7afe29acde4a8d8f",
+  "task": "fr40-trailer-plural",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-trailer-plural: commit \"feat(cli): add noun plural helper\" lacks Ticket: t-7i2qtpk"
+}

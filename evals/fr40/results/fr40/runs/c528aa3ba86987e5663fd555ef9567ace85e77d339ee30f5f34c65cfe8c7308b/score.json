@@ -1,0 +1,9 @@
+{
+  "runId": "c528aa3ba86987e5663fd555ef9567ace85e77d339ee30f5f34c65cfe8c7308b",
+  "task": "fr40-commit-title-id-range",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-range: commit title does not end with (t-o6zrfyl): feat(cli): add range parser"
+}

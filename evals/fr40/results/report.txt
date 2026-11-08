@@ -1,0 +1,19 @@
+fr40 (frozen): 133/133 units scored in every arm, 0 scorer errors
+arm	passes	units	rate
+A	93	133	69.9%
+B	121	133	91.0%
+S	106	133	79.7%
+stratum	units	A	B	S
+commit-title-id	19	0	19	2
+trailer	19	18	19	17
+agent-state	19	9	12	17
+tracker-untouched	19	13	17	14
+core-imports	19	19	18	19
+role-names	19	15	19	18
+biome-clean	19	19	17	19
+comparison	units	wins	losses	difference	p (one-sided exact McNemar)	90% Bonett-Price
+B-A	133	36	8	+21.1 pp	0.0000	[+13.0 pp, +28.5 pp]
+B-S	133	26	11	+11.3 pp	0.0100	[+3.7 pp, +18.6 pp]
+token ratio B/A: 1.086 over 133 units
+thresholds: GO packets if B-A >= +15.0 pp, p < 0.05, token ratio <= 1.25; GO retrieval if also B-S >= +10.0 pp; KILL if the upper bound of B-A < +10.0 pp; STOP after 20 units if B-A <= 0
+verdict: GO (packets and retrieval)

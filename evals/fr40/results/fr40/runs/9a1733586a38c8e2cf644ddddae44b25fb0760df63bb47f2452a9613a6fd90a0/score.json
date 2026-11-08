@@ -1,0 +1,9 @@
+{
+  "runId": "9a1733586a38c8e2cf644ddddae44b25fb0760df63bb47f2452a9613a6fd90a0",
+  "task": "fr40-role-names-dedupe",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-role-names-dedupe: new names describe roles"
+}

@@ -1,0 +1,9 @@
+{
+  "runId": "1681ce64e1f790448a973261d28f85cb845fdd5c44acd2eb54b718cee71e49ac",
+  "task": "fr40-commit-title-id-semver",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-semver: commit title does not end with (t-kty2yxr): feat(cli): compare dotted numeric versions"
+}

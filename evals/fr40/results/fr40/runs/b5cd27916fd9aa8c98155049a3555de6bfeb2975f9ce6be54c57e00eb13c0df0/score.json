@@ -1,0 +1,9 @@
+{
+  "runId": "b5cd27916fd9aa8c98155049a3555de6bfeb2975f9ce6be54c57e00eb13c0df0",
+  "task": "fr40-agent-state-retry",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-agent-state-retry: notes kept under .krn/runs or .krn/tmp"
+}

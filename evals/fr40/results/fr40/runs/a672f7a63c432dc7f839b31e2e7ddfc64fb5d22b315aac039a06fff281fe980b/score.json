@@ -1,0 +1,9 @@
+{
+  "runId": "a672f7a63c432dc7f839b31e2e7ddfc64fb5d22b315aac039a06fff281fe980b",
+  "task": "fr40-commit-title-id-truncate",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-truncate: commit title does not end with (t-tas1wp6): feat(cli): add middle truncation helper"
+}

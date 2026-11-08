@@ -1,0 +1,9 @@
+{
+  "runId": "12c4ab44c27778f2023829a6415f015201c5cc638fa64681d0cba065b0d866b0",
+  "task": "fr40-commit-title-id-groups",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-groups: commit title does not end with (t-l5cu85z): feat(cli): add ordered groupBy helper"
+}

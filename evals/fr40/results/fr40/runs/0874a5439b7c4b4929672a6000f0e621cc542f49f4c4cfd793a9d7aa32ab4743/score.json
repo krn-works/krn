@@ -1,0 +1,9 @@
+{
+  "runId": "0874a5439b7c4b4929672a6000f0e621cc542f49f4c4cfd793a9d7aa32ab4743",
+  "task": "fr40-core-imports-clamp",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-core-imports-clamp: src/core imports only core"
+}

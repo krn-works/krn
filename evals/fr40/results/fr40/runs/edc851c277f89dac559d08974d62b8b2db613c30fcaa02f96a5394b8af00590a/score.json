@@ -1,0 +1,9 @@
+{
+  "runId": "edc851c277f89dac559d08974d62b8b2db613c30fcaa02f96a5394b8af00590a",
+  "task": "fr40-agent-state-slug",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-slug: state outside .krn/: notes/slugify-plan.md, tasks/t-yb6tzbk.json"
+}

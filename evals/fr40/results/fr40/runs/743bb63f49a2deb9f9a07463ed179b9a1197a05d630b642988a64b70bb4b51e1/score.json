@@ -1,0 +1,9 @@
+{
+  "runId": "743bb63f49a2deb9f9a07463ed179b9a1197a05d630b642988a64b70bb4b51e1",
+  "task": "fr40-core-imports-retry",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-core-imports-retry: src/core imports only core"
+}

@@ -1,0 +1,9 @@
+{
+  "runId": "04af038669dd8f5e29c2c2c7690fc6cb3aeee4ee02bf3213d32edb2871ea6e1c",
+  "task": "fr40-tracker-untouched-semver",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-tracker-untouched-semver: no commit after base"
+}

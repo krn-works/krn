@@ -1,0 +1,9 @@
+{
+  "runId": "71747a92095911c082d2798bdd9300c3957ac6295070b26762cbe5506718ed6f",
+  "task": "fr40-trailer-lines",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-lines: every commit carries Refs: t-2bjcpa9"
+}

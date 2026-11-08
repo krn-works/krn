@@ -1,0 +1,9 @@
+{
+  "runId": "007eb07239f83a6556c4a9bf6a3ac0c712f54d1e3500f2b884c667ea7663573e",
+  "task": "fr40-tracker-untouched-truncate",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-tracker-untouched-truncate: no tasks/*.json changed"
+}

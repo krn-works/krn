@@ -1,0 +1,9 @@
+{
+  "runId": "54f953d5bcfe063a63c1d613a911a22731c7ed68b5a4e1c7a562744daa95b21d",
+  "task": "fr40-agent-state-median",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-agent-state-median: notes kept under .krn/runs or .krn/tmp"
+}

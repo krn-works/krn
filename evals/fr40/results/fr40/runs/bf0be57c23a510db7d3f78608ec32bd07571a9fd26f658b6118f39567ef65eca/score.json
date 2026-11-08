@@ -1,0 +1,9 @@
+{
+  "runId": "bf0be57c23a510db7d3f78608ec32bd07571a9fd26f658b6118f39567ef65eca",
+  "task": "fr40-agent-state-percent",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-agent-state-percent: notes kept under .krn/runs or .krn/tmp"
+}

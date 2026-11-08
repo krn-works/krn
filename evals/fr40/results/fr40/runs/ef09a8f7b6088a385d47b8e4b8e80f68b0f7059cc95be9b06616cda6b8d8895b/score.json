@@ -1,0 +1,9 @@
+{
+  "runId": "ef09a8f7b6088a385d47b8e4b8e80f68b0f7059cc95be9b06616cda6b8d8895b",
+  "task": "fr40-role-names-median",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-role-names-median: new names describe roles"
+}

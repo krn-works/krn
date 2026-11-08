@@ -1,0 +1,9 @@
+{
+  "runId": "20dc539dfd23bd8bc2d42be10633036158fd20170dbbbcbbb61c4327895bd87c",
+  "task": "fr40-trailer-dedupe",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-dedupe: every commit carries Ticket: t-wm6ynmx"
+}

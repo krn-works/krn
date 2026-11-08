@@ -1,0 +1,9 @@
+{
+  "runId": "4d6beae922ec683d1c4113a8e02f56ff3196f510f6789417c6e939c286fe5764",
+  "task": "fr40-agent-state-truncate",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-truncate: state outside .krn/: notes/truncate-middle-plan.md"
+}

@@ -1,0 +1,9 @@
+{
+  "runId": "7223a8ec978dc61798afe06a1fde0bd7043c966f6388cf711c768426cc2d829f",
+  "task": "fr40-core-imports-percent",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-core-imports-percent: src/core imports only core"
+}

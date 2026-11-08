@@ -1,0 +1,9 @@
+{
+  "runId": "20815ab339622ddede9b6d1ece375bd5354ff1b2e46cffab4701246df1c612cb",
+  "task": "fr40-agent-state-clamp",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-clamp: state outside .krn/: tasks/t-46br4z4.json"
+}

@@ -1,0 +1,9 @@
+{
+  "runId": "2cc18df7a73340b1c10333ce5ca4b51f09f4879ee93940f1f6cf3a82625f2e9f",
+  "task": "fr40-core-imports-median",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-core-imports-median: src/core imports only core"
+}

@@ -1,0 +1,9 @@
+{
+  "runId": "4d2426528df9a890b7ffdb2f929768c370cd25b40e811a34a7c99a55ccb074ae",
+  "task": "fr40-commit-title-id-wrap",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-wrap: commit title does not end with (t-om07fup): feat(cli): add text wrapping helper"
+}

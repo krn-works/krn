@@ -1,0 +1,9 @@
+{
+  "runId": "f4f4e8148dc97864fb2a3273432b9903b9e2dd0390316ff4462c038335f84530",
+  "task": "fr40-commit-title-id-plural",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-plural: commit title does not end with (t-3154kp5): feat(cli): add plural helper"
+}

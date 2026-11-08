@@ -1,0 +1,9 @@
+{
+  "runId": "ae0a7fe242dd7f6b93e515a34cebfd9b41cb3fa77fc1b3ca3816b4f1662cfbcf",
+  "task": "fr40-trailer-duration",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-trailer-duration: commit \"feat: add CLI duration formatter\" lacks Ticket: t-0w3k78m"
+}

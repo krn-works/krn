@@ -1,0 +1,9 @@
+{
+  "runId": "3fb1f10eb9ab3c4f12325455f15f2044d0140673029c3a4816dcb7e28067e43f",
+  "task": "fr40-commit-title-id-table",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-table: commit title does not end with (t-3dbnctp): feat(cli): add aligned table renderer"
+}

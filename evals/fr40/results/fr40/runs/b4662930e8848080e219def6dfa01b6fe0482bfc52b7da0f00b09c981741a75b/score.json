@@ -1,0 +1,9 @@
+{
+  "runId": "b4662930e8848080e219def6dfa01b6fe0482bfc52b7da0f00b09c981741a75b",
+  "task": "fr40-trailer-groups",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-groups: every commit carries Ticket: t-wk3s5t5"
+}

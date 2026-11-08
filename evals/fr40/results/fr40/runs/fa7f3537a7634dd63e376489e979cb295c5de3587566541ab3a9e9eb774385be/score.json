@@ -1,0 +1,9 @@
+{
+  "runId": "fa7f3537a7634dd63e376489e979cb295c5de3587566541ab3a9e9eb774385be",
+  "task": "fr40-role-names-median",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-role-names-median: no commit after base"
+}
