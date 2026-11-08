@@ -3,6 +3,7 @@
     "deny": ["Bash(pkill -f:*)", "Bash(pkill --full:*)", "Bash(killall:*)"]
   },
   "autoCompactWindow": 400000,
+  "effortLevel": "medium",
   "disableClaudeAiConnectors": true,
   "deniedMcpServers": [
     {
@@ -11,7 +12,9 @@
   ],
   "env": {
     "BASH_MAX_OUTPUT_LENGTH": "12000",
-    "MAX_MCP_OUTPUT_TOKENS": "8000"
+    "MAX_MCP_OUTPUT_TOKENS": "8000",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "claude-sonnet-5-5",
+    "CLAUDE_CODE_SUBAGENT_EFFORT": "medium"
   },
   "hooks": {
     "UserPromptSubmit": [

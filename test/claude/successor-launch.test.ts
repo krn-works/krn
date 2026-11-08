@@ -183,7 +183,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
         '--model',
         'claude-opus-5-5',
         '--effort',
-        'max',
+        'medium',
       ],
       '/repo',
     ),
@@ -192,12 +192,16 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       prompt: 'p',
       cwd: '/repo',
       model: 'claude-opus-5-5',
-      effort: 'max',
+      effort: 'medium',
     },
   );
   assert.throws(
     () => api.parseArgs(['--name', 'n', '--prompt', 'p', '--effort', 'huge']),
-    /--effort must be one of low, medium, high, xhigh, max/u,
+    /--effort must be one of low, medium, high, xhigh/u,
+  );
+  assert.throws(
+    () => api.parseArgs(['--name', 'n', '--prompt', 'p', '--effort', 'max']),
+    /--effort max is refused/u,
   );
   assert.deepEqual(
     api.parseArgs(
@@ -734,7 +738,7 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
         '--model',
         'claude-opus-5-5',
         '--effort',
-        'max',
+        'medium',
       ],
       {
         cwd: root,
@@ -753,7 +757,7 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
       '--model',
       'claude-opus-5-5',
       '--effort',
-      'max',
+      'medium',
       '-n',
       '"$KRN_SUCCESSOR_NAME"',
       '"$KRN_SUCCESSOR_PROMPT"',
@@ -775,7 +779,7 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
         '--model',
         'claude-opus-5-5',
         '--effort',
-        'max',
+        'medium',
       ],
       {
         cwd: root,
@@ -791,7 +795,7 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
         '--model',
         'claude-opus-5-5',
         '--effort',
-        'max',
+        'medium',
         '--bg',
         '-n',
         'Next slice',
@@ -865,7 +869,7 @@ test('the successor harness follows the runtime environment, never an assumption
     const { result, herdr, agent } = launch(
       { CODEX_THREAD_ID: 'thread-1' },
       herdrReplies(),
-      ['--effort', 'max'],
+      ['--effort', 'medium'],
     );
     assert.equal(result.status, 2);
     assert.match(result.stderr, /apply only to Claude successors/u);

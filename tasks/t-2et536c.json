@@ -1,0 +1,16 @@
+{
+  "id": "t-2et536c",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "successor-launch refuses max; handoff skill launches at medium; settings effortLevel medium, subagents Sonnet at medium"
+  },
+  "created": "2026-11-08",
+  "priority": 0,
+  "title": "Cap KRN session effort at xhigh, default medium, and run subagents on Sonnet",
+  "after": [],
+  "body": [
+    "Operator (2026-11-08, verbatim): \"najlepiej od razu odpal sesję jak należy i realnie zmniejsz do medium a jesli to nie bedzie wystarczające to potem na high, MAXIMUM TO EXTRA HIGH MASZ TO ZASTOSOWAĆ JAK NAJSZYBCIEJ\"; also: give krn-lead subagents a cheaper model.\nEvidence: the operator's usage report found 16 lead sessions and 26 general-purpose subagents at max effort in 24 h, all from .agents/skills/krn-handoff/SKILL.md:25 (successor-launch.ts --effort max, 844 calls in transcripts); subagents inherit the session effort unless CLAUDE_CODE_SUBAGENT_EFFORT is set (Claude Code 2.1.316 binary strings: CLAUDE_CODE_SUBAGENT_MODEL, CLAUDE_CODE_SUBAGENT_EFFORT, effortLevel).\nOutcome: successor-launch.ts refuses --effort max and accepts low, medium, high and xhigh; the handoff skill launches at medium; .claude/settings.json sets effortLevel medium and runs subagents on claude-sonnet-5-5 at medium unless a call names another model."
+  ]
+}

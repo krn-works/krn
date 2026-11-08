@@ -48,7 +48,7 @@ test('the lead loop skills name only existing review flags and the real launch c
   assert.match(lead, /krn review --repo <path> --base <sha> --head <sha>/u);
   assert.match(
     skill('krn-handoff'),
-    /node scripts\/claude\/successor-launch\.ts --name "[^"]+" --model claude-opus-5-5 --effort max --prompt /u,
+    /node scripts\/claude\/successor-launch\.ts --name "[^"]+" --model claude-opus-5-5 --effort medium --prompt /u,
   );
   assert.match(
     skill('krn-handoff'),

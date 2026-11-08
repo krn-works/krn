@@ -16,7 +16,9 @@ export interface SuccessorLaunchOptions {
   startSeconds?: number;
 }
 
-export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+// The operator capped every KRN session: medium by default, high when medium is
+// not enough, xhigh at most; max is refused.
+export const EFFORTS = ['low', 'medium', 'high', 'xhigh'] as const;
 export type Effort = (typeof EFFORTS)[number];
 
 // How long a launch waits for Herdr to show the successor's agent, and how
@@ -106,6 +108,10 @@ export function parseArgs(
     else if (flag === '--prompt') prompt = value;
     else if (flag === '--model') model = value;
     else if (flag === '--effort') {
+      if (value === 'max')
+        throw new Error(
+          '--effort max is refused: KRN sessions run at medium, high when medium is not enough, xhigh at most',
+        );
       if (!isEffort(value))
         throw new Error(`--effort must be one of ${EFFORTS.join(', ')}`);
       effort = value;
