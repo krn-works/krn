@@ -1,7 +1,4 @@
-import { waitCommand } from '../ci/wait.ts';
-
-const usage =
-  'Usage: krn ci wait --repo <owner/repo> --pr <n> --head <sha> --base <sha> [--timeout-seconds <n>]';
+import { waitUsage as usage, waitCommand } from '../ci/wait.ts';
 
 export async function ciCommand(args: string[]): Promise<void> {
   const [subcommand, ...rest] = args;

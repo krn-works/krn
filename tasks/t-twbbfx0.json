@@ -1,7 +1,11 @@
 {
   "id": "t-twbbfx0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn ci wait reads pulls/<n> each poll: 76 conflict, 77 head moved, 69 never started (--start-timeout-seconds, default 300); strict fake gh; captures for PR 414"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Make krn ci wait stop early on a conflict, a moved head or CI that never started",

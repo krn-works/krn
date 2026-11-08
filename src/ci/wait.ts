@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
 import { gateAdmissionPolicyFromBase } from '../deliver/admission-policy.ts';
-import { GateTimeout, waitForGate } from '../deliver/gate-wait.ts';
+import { GateStopped, GateTimeout, waitForGate } from '../deliver/gate-wait.ts';
 import {
   checked,
   github,
@@ -9,6 +9,15 @@ import {
   run,
   sleep,
 } from '../deliver/transport.ts';
+
+/** Exit codes for a wait that stopped before its gate concluded. */
+export const stopExitCodes = {
+  conflict: 76,
+  'head-moved': 77,
+  'never-started': 69,
+} as const;
+export const waitUsage =
+  'Usage: krn ci wait --repo <owner/repo> --pr <n> --head <sha> --base <sha> [--timeout-seconds <n>] [--start-timeout-seconds <n>]; exits 0 success, 64 usage, 74 failed gate, 75 timeout, 76 conflict, 77 head moved, 69 never started';
 
 export async function waitCommand(
   args: string[],
@@ -26,6 +35,7 @@ export async function waitCommand(
     head: string;
     base: string;
     timeoutMs: number;
+    startTimeoutMs: number;
   };
   try {
     const flags = args.filter((_, index) => index % 2 === 0);
@@ -39,6 +49,7 @@ export async function waitCommand(
         head: { type: 'string' },
         base: { type: 'string' },
         'timeout-seconds': { type: 'string' },
+        'start-timeout-seconds': { type: 'string' },
       },
     });
     const sha = z.string().regex(/^(?:[a-f\d]{40}|[a-f\d]{64})$/u);
@@ -49,18 +60,15 @@ export async function waitCommand(
         head: sha,
         base: sha,
         timeoutMs: z.number().positive().finite(),
+        startTimeoutMs: z.number().positive().finite(),
       })
       .parse({
         ...values,
         timeoutMs: Number(values['timeout-seconds'] ?? 1800) * 1000,
+        startTimeoutMs: Number(values['start-timeout-seconds'] ?? 300) * 1000,
       });
   } catch {
-    throw Object.assign(
-      new Error(
-        'Usage: krn ci wait --repo <owner/repo> --pr <n> --head <sha> --base <sha> [--timeout-seconds <n>]',
-      ),
-      { exitCode: 64 },
-    );
+    throw Object.assign(new Error(waitUsage), { exitCode: 64 });
   }
   try {
     const cwd = runtime.cwd ?? process.cwd();
@@ -81,7 +89,14 @@ export async function waitCommand(
   } catch (error) {
     throw Object.assign(
       error instanceof Error ? error : new Error(String(error)),
-      { exitCode: error instanceof GateTimeout ? 75 : 74 },
+      {
+        exitCode:
+          error instanceof GateStopped
+            ? stopExitCodes[error.reason]
+            : error instanceof GateTimeout
+              ? 75
+              : 74,
+      },
     );
   }
 }

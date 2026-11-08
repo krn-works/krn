@@ -26,6 +26,11 @@ const checksSchema = z.array(
   }),
 );
 
+const pullSchema = z.object({
+  head: z.object({ sha }),
+  mergeable_state: z.string(),
+});
+
 export interface GateWaitOptions {
   repo: string;
   pr: number;
@@ -37,6 +42,16 @@ export interface GateWaitOptions {
   now: () => number;
   pollMs: number;
   timeoutMs: number;
+  startTimeoutMs?: number;
+}
+/** Why a wait stopped before its gate concluded; each reason owns an exit code. */
+export type GateStopReason = 'conflict' | 'head-moved' | 'never-started';
+export class GateStopped extends Error {
+  readonly reason: GateStopReason;
+  constructor(reason: GateStopReason, message: string) {
+    super(message);
+    this.reason = reason;
+  }
 }
 export class GateTimeout extends Error {
   readonly state: string;
@@ -60,6 +75,7 @@ export class GateTimeout extends Error {
 }
 export async function waitForGate({
   repo,
+  pr,
   head,
   policy,
   gh,
@@ -67,18 +83,26 @@ export async function waitForGate({
   now,
   pollMs,
   timeoutMs,
+  startTimeoutMs = timeoutMs,
 }: GateWaitOptions): Promise<string> {
-  let state = 'missing';
-  const poll = async (condition: () => Promise<boolean>) => {
-    const deadline = now() + timeoutMs;
-    while (!(await condition())) {
-      if (now() >= deadline)
-        throw new GateTimeout(timeoutMs, state, head, policy.checkRunName);
-      await sleep(pollMs);
-    }
-  };
-  let conclusion = 'pending';
-  await poll(async () => {
+  const started = now();
+  const deadline = started + timeoutMs;
+  for (;;) {
+    // GitHub starts no pull_request workflow for a conflicting PR and none
+    // for an old head, so both stop the wait instead of polling to the bound.
+    const pull = pullSchema.parse(
+      JSON.parse(await gh(['api', `repos/${repo}/pulls/${pr}`])),
+    );
+    if (pull.head.sha !== head)
+      throw new GateStopped(
+        'head-moved',
+        `head moved: PR #${pr} is at ${pull.head.sha}, not ${head}; wait on the new head`,
+      );
+    if (pull.mergeable_state === 'dirty')
+      throw new GateStopped(
+        'conflict',
+        `PR #${pr} conflicts with its base; rebase it, push, and wait on the new head`,
+      );
     const pages = checksSchema.parse(
       JSON.parse(
         await gh([
@@ -89,18 +113,26 @@ export async function waitForGate({
         ]),
       ),
     );
-    const checks = pages.flatMap((page) => page.check_runs);
-    const gate = checks
+    const gate = pages
+      .flatMap((page) => page.check_runs)
       .filter((check) => matchesGateCheckRun(check, head, policy))
       .sort((a, b) => b.id - a.id)[0];
-    state = gate?.status ?? 'missing';
-    if (gate?.status !== 'completed') return false;
-    conclusion = gate.conclusion ?? 'unknown';
-    if (conclusion !== 'success')
-      throw new Error(
-        `${policy.checkRunName} concluded ${conclusion} on ${head}; rerun: gh run rerun <run-id> --failed (gh run list --commit ${head})`,
+    if (gate?.status === 'completed') {
+      const conclusion = gate.conclusion ?? 'unknown';
+      if (conclusion !== 'success')
+        throw new Error(
+          `${policy.checkRunName} concluded ${conclusion} on ${head}; rerun: gh run rerun <run-id> --failed (gh run list --commit ${head})`,
+        );
+      return conclusion;
+    }
+    const state = gate?.status ?? 'missing';
+    if (gate === undefined && now() - started >= startTimeoutMs)
+      throw new GateStopped(
+        'never-started',
+        `${policy.checkRunName} never started on ${head} within ${Math.floor(startTimeoutMs / 1000)}s; check the PR's workflows`,
       );
-    return true;
-  });
-  return conclusion;
+    if (now() >= deadline)
+      throw new GateTimeout(timeoutMs, state, head, policy.checkRunName);
+    await sleep(pollMs);
+  }
 }
