@@ -1,0 +1,12 @@
+{
+  "id": "t-twbbfx0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Make krn ci wait stop early on a conflict, a moved head or CI that never started",
+  "after": [],
+  "body": [
+    "Outcome: waitForGate reads the PR head and mergeability together with its check-runs and rejects at once, with its own exit code, when the PR conflicts, its head moved, or no check started within a bound; its tests decode the committed GitHub check-run captures through a strict fake gh.\nEvidence: src/deliver/gate-wait.ts:61-106 polls check-runs only (state `missing` at :96, GateTimeout at :76) and src/ci/wait.ts:55 defaults to 1800 s, so a conflicting PR, for which GitHub starts no pull_request workflow, waits the full 30 minutes; test/ci/wait.test.ts:17 uses a fake gh that ignores its arguments; test/fixtures/github-check-runs/gate-success.json and review-gate-failure.json are committed captures that no test reads (KRN-12).\nSource: findings OR1 and OR4 in .krn/runs/lead/t3code-agentic/lanes/t3-orchestration.md (t3code pullRequestWatch.ts evaluator; source-control test fakes that fail on any unexpected call).\nAcceptance: unit tests with a fake clock and a strict fake gh that fails on any unexpected request: (1) a pull request with mergeable_state `dirty` and no check-runs rejects on the first poll with a conflict exit code; (2) `pulls/<n>` head.sha different from `--head` rejects on the first poll with a head-moved exit code and the message `head moved`; (3) no check-run for the head after `--start-timeout-seconds` (fake clock advanced) rejects with a never-started exit code long before 1800 s; the three codes differ from 64, 74 and 75 and appear in the usage text; (4) the strict fake gh asserts the exact `gh api` arguments and each committed capture decoded through it resolves to its recorded conclusion; (5) dropping `filter=all` or `per_page=100` from the request fails a test."
+  ]
+}

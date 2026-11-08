@@ -1,7 +1,11 @@
 {
   "id": "t-cz92be6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Second pass: 9 lanes, 99 findings (t3code 64 at 09a54f01, external 35); reports .krn/runs/lead/t3code-agentic/exhaustive.md and .krn/runs/lead/external-patterns/report.md; 17 tasks created, evidence appended to t-576sz03, t-7e8a0xx, t-z1rn4s0, t-b6v615x; roadmap R2-R8 added; D23 amended"
+  },
   "created": "2026-11-06",
   "priority": 1,
   "title": "Exhaustive research: everything adoptable from t3code and external papers/repos/news",

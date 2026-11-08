@@ -1,0 +1,12 @@
+{
+  "id": "t-v1pw5mq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "End worker compaction on the compaction turn's completion and fail fast on failure",
+  "after": [],
+  "body": [
+    "Outcome: after thread/compact/start the worker driver also waits for the compaction turn's turn/completed; a status other than completed exits 75 at once with the failure class instead of waiting out the round deadline.\nEvidence: src/worker/driver.ts:307-330 waits only for thread/compacted or item/completed contextCompaction until remaining() (default 30 min, src/worker/cli.ts:201) and then exits 124; closed t-37y1wpw built the item-based wait but not the failed or overlapping cases.\nSource: finding CX3 in .krn/runs/lead/t3code-agentic/lanes/t3-codex-driver.md (t3code CodexAdapterV2 compaction handling).\nAcceptance: replay or fake-receiver tests driven by a controllable clock and gated frames, with no wall-clock assertions: (1) the compact.rpc ordering replayed with the compaction `turn/completed` held back until the test releases it: the driver writes no `turn/start` before the release; (2) a compaction `turn/completed` with status failed (frame shape from failed-turn.rpc:17, labelled synthetic in provenance.json) makes the round exit 75 with the failure class without the round deadline advancing; (3) `thread/compacted` with no compaction turn still completes."
+  ]
+}

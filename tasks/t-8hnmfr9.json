@@ -1,0 +1,12 @@
+{
+  "id": "t-8hnmfr9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 1,
+  "title": "Plan the next tracks by sector: worker system versus memory, ranked from research",
+  "after": [],
+  "body": [
+    "Operator (2026-11-08, verbatim): \"jak dogłębny research wskazuje resztę sektorów? Bo tutaj maltretujemy prędkość dowożenia i testy od 3 dni [...] no i potem musimy rozplanować dalsze plany realizacji, czy to memory, czy to realnego systemu - na ten moment górujemy w zużyciu tokenowym i oby tak dalej.\"\nInputs: the t-cz92be6 reports .krn/runs/lead/t3code-agentic/exhaustive.md and .krn/runs/lead/external-patterns/report.md (99 findings; full fields in each lane findings.json); roadmap R1 t-576sz03; FR-40 status in evals/fr40/validity.json (below power, do not build) and findings PA04 and PA05 (measurable memory steps).\nOutcome: a decision-ready brief to the operator in Polish and matching roadmap rows: findings grouped by sector (worker system, memory and context, review and evals, process and PR, CI and tests, safety) with the top three of every sector, a recommendation between the worker-system track and the memory track with token cost per slice as a first-class metric, the next three slices, and what is deferred and why.\nAcceptance: the brief and the roadmap name the same next three slices, each with a task id and a measurable target."
+  ]
+}

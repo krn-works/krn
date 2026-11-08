@@ -1,0 +1,12 @@
+{
+  "id": "t-9yrzn7m",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 1,
+  "title": "Make each slice one readable PR: t3code-style body, squash merge, retro inside",
+  "after": [],
+  "body": [
+    "Operator (2026-11-08, verbatim): \"mam takie jakies dziwne wrażenie że mamy zduplikowane merge i commity momentami, wczoraj np widziałem dwa pry które wskazywały te same liczby + formatowanie tych prów / opisy muszą być fajniejsze, tak jak w t3 - bo u nas to tak z dupy wygląda trochę, także realnie to też spróbuj ogarnąć\".\nEvidence (2026-11-08): of 200 PRs merged in 7 days, 25 are separate chore(retro) PRs that repeat the slice task id and numbers (#393 and #394 for t-ge9hbq1; #391, #392 and #395 for t-eya2kzf; t-mgj0693 across 10 PRs); 0 identical titles and 0 duplicate patch-ids among the last 300 commits, so nothing is merged twice; every PR lands as a merge commit plus its own commit because the krn-lead skill merges with --merge, while the repository allows squash (title COMMIT_OR_PR_TITLE, message COMMIT_MESSAGES). t3code squashes (one commit per PR ending in (#N)), its titles state the outcome in plain language, and its .github/pull_request_template.md asks for Problem, Change, Scope and approval, Verification, and the model and harness that did the work.\nOutcome: (1) .github/pull_request_template.md with Problem, Change, Verification and Task sections plus the agent line, and the krn-lead skill and lanes.md ship steps write titles and bodies in that shape (no SHAs or run ids in titles); (2) PRs merge with --squash after an audit of every KRN reader of merge commits or trailers (Ticket:, Refs:, \"Merge pull request\"); (3) the retro tracker and roadmap edits ride in the slice PR, so a slice is one PR.\nAcceptance: the next five merged PRs each add one commit to main and carry the template sections, none is a chore(retro) PR, and every test that reads git history passes (listed in the PR)."
+  ]
+}

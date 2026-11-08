@@ -1,0 +1,12 @@
+{
+  "id": "t-hdda6w8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Pick and probe a captured Codex receiver version before starting a worker",
+  "after": [],
+  "body": [
+    "Outcome: KRN resolves the newest installed Codex release that spec/worker-scope.json supports, probes it with `codex app-server --print-startup-config` (same -c overrides) before creating the worker scope, and every supported version has a capture listed in test/fixtures/codex-app-server/provenance.json.\nEvidence: src/hosts/codex.ts:69-109 picks the highest release directory with no supportedVersions filter and runs at import (:111) before any repository policy is known; src/worker/driver.ts:209-218 checks the version only after spawn and initialize; spec/worker-scope.json:2 lists supportedVersions [\"0.166.0\", \"0.167.0\"] while every capture is 0.167.0 (provenance.json `receiver: codex-cli 0.167.0`) and 0.166.0 is not installed; `codex app-server --print-startup-config` ran in 45 ms in an empty CODEX_HOME, wrote no file, printed `appServerVersion`, and exited 1 with a configLoad error for an invalid approval_policy, sandbox_mode or model_provider; the earlier variant t-28tx2g6 was superseded by a backlog triage, not fixed.\nSource: findings CX4 and CX6 in .krn/runs/lead/t3code-agentic/lanes/t3-codex-driver.md; eval sessions are pinned separately by t-7e8a0xx.\nAcceptance: (1) with release directories 0.166.0 (supported) and 0.168.0 (not) the resolver, given the policy list loaded at worker start rather than at import, returns 0.166.0; with only 0.168.0 `krn worker start` exits 65 before any systemd scope exists; (2) provenance.json gains one entry per supported version and a test fails while supportedVersions holds a version without an entry; 0.166.0 leaves spec/worker-scope.json in the same change unless a 0.166.0 capture is added; (3) the probe's `appServerVersion` must equal the chosen release's version, else exit 65."
+  ]
+}

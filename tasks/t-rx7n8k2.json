@@ -1,0 +1,12 @@
+{
+  "id": "t-rx7n8k2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 3,
+  "title": "Fail the Biome check on warnings after clearing the 18 existing ones",
+  "after": [],
+  "body": [
+    "Outcome: npm run lint runs `biome check --error-on-warnings`, so a new warning or an unused suppression fails the lint step.\nEvidence: package.json lint is `biome check . && node scripts/boundaries.ts` without --error-on-warnings; `npx biome lint .` on 0486d86 reports 18 warnings and 3 infos (7 dead code, 7 noTemplateCurlyInString), in files such as scripts/fast-check.ts, src/hosts/systemd-scope.ts and test/helpers/herdr-stub.ts.\nSource: finding LT4 in .krn/runs/lead/t3code-agentic/lanes/t3-lint-test.md (t3code reports unused disable directives as errors).\nAcceptance: `biome check --error-on-warnings .` exits 0 on main and is the lint step; a seeded unused import or unused suppression fails npm run lint."
+  ]
+}

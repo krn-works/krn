@@ -1,0 +1,12 @@
+{
+  "id": "t-72ara08",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Mechanize KRN-12: require a capture or replay test for every receiver-facing module",
+  "after": [],
+  "body": [
+    "Outcome: a rule test fails when a module that talks to an external receiver (gh, codex app-server, herdr, systemd, git) is absent from `spec/receivers.json`, which maps each module to its evidence, a verbatim capture under test/fixtures read by a named test, or a named test that drives the real receiver; spec/rules.json KRN-12 gets a test enforcement instead of manual review and AGENTS.md is re-rendered.\nEvidence: spec/rules.json:88-91 records KRN-12 with enforcement none, check manual review and a 2026-12-31 deadline; test/rules/capture-privacy-guard.test.mjs guards captures but nothing requires one per receiver module; test/fixtures/github-check-runs/ holds two committed captures that no test reads while test/ci/wait.test.ts uses a fake gh that ignores its arguments.\nSource: finding HI2 in .krn/runs/lead/t3code-agentic/lanes/t3-history.md (t3code reverted fourteen fixes that passed CI but never ran against a real client, #22222, and made real-client verification a default step); OR4 in t3-orchestration.md.\nAcceptance: `node --test test/rules/receiver-evidence.test.mjs` passes on main with a baseline in spec/receivers.json covering the 17 child_process modules plus src/ci/wait.ts and src/deliver/gate-wait.ts; entries without evidence today carry `pending: <task id>` and the test requires an open task (the quarantine shape of test-hygiene); it fails on a temporary copy where a new src/hosts module is not in the registry and where a listed capture file is deleted; KRN-12 in spec/rules.json names that test and `npm run rules` exits 0. Sequence after ci-wait-early (or list gate-wait as pending until it lands)."
+  ]
+}
