@@ -1,7 +1,11 @@
 {
   "id": "t-h7xt8m3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "successor-launch takes --model/--effort for Claude; krn-handoff passes claude-opus-5-5 max"
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Let successor launch pass model and effort",

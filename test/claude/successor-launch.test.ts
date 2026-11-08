@@ -184,6 +184,32 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       ]),
     /duplicate argument: --cwd/u,
   );
+  assert.deepEqual(
+    api.parseArgs(
+      [
+        '--name',
+        'n',
+        '--prompt',
+        'p',
+        '--model',
+        'claude-opus-5-5',
+        '--effort',
+        'max',
+      ],
+      '/repo',
+    ),
+    {
+      name: 'n',
+      prompt: 'p',
+      cwd: '/repo',
+      model: 'claude-opus-5-5',
+      effort: 'max',
+    },
+  );
+  assert.throws(
+    () => api.parseArgs(['--name', 'n', '--prompt', 'p', '--effort', 'huge']),
+    /--effort must be one of low, medium, high, xhigh, max/u,
+  );
 });
 
 test('Herdr launch uses the captured pane and tab IDs without starting fallback', (t) => {
@@ -479,7 +505,17 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
     writeExecutable(join(bin, 'herdr'), herdrStub());
     const result = spawnSync(
       process.execPath,
-      [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
+      [
+        script,
+        '--name',
+        'Next slice',
+        '--prompt',
+        'Read handoff',
+        '--model',
+        'claude-opus-5-5',
+        '--effort',
+        'max',
+      ],
       {
         cwd: root,
         env: {
@@ -497,6 +533,10 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
       '"$KRN_SUCCESSOR_AGENT"',
       '--permission-mode',
       'bypassPermissions',
+      '--model',
+      'claude-opus-5-5',
+      '--effort',
+      'max',
       '-n',
       '"$KRN_SUCCESSOR_NAME"',
       '"$KRN_SUCCESSOR_PROMPT"',
@@ -509,7 +549,17 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
     writeExecutable(join(bin, 'claude'), agentStub());
     const result = spawnSync(
       process.execPath,
-      [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
+      [
+        script,
+        '--name',
+        'Next slice',
+        '--prompt',
+        'Read handoff',
+        '--model',
+        'claude-opus-5-5',
+        '--effort',
+        'max',
+      ],
       {
         cwd: root,
         env: {
@@ -526,6 +576,10 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
       [
         '--permission-mode',
         'bypassPermissions',
+        '--model',
+        'claude-opus-5-5',
+        '--effort',
+        'max',
         '--bg',
         '-n',
         'Next slice',
@@ -536,7 +590,11 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
 });
 
 test('the successor harness follows the runtime environment, never an assumption', async (t) => {
-  const launch = (marker: Record<string, string>, herdr: boolean) => {
+  const launch = (
+    marker: Record<string, string>,
+    herdr: boolean,
+    extra: string[] = [],
+  ) => {
     const { root, bin } = temporary(t);
     const herdrCalls = join(root, 'herdr-calls.jsonl');
     const agentCalls = join(root, 'agent-calls.jsonl');
@@ -550,7 +608,7 @@ test('the successor harness follows the runtime environment, never an assumption
     );
     const result = spawnSync(
       process.execPath,
-      [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
+      [script, '--name', 'Next slice', '--prompt', 'Read handoff', ...extra],
       { cwd: root, env: { ...environment, ...marker }, encoding: 'utf8' },
     );
     const exists = (path: string) => (existsSync(path) ? readCalls(path) : []);
@@ -585,6 +643,21 @@ test('the successor harness follows the runtime environment, never an assumption
       (call) => call[0] === 'tab' && call[1] === 'create',
     );
     assert.ok(create?.includes('KRN_SUCCESSOR_AGENT=claude'));
+  });
+
+  await t.test('Codex refuses Claude-only model and effort flags', () => {
+    const { result, herdr, agent } = launch(
+      { CODEX_THREAD_ID: 'thread-1' },
+      true,
+      ['--effort', 'max'],
+    );
+    assert.equal(result.status, 2);
+    assert.match(result.stderr, /apply only to Claude successors/u);
+    assert.deepEqual(
+      herdr.filter((call) => call[0] === 'tab' && call[1] === 'create'),
+      [],
+    );
+    assert.deepEqual(agent, []);
   });
 
   await t.test('Codex without Herdr stops instead of launching Claude', () => {
