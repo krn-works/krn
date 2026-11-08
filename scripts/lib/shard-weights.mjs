@@ -42,6 +42,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/codex/context-hook.test.ts': 3,
   'test/deliver/admission-policy.test.ts': 0.1,
   'test/deliver/transport.test.ts': 0.1,
+  'test/evals/codex-captures.test.ts': 0.2,
   'test/evals/fr40-validity.test.ts': 0.9,
   'test/evals/plan.test.ts': 8.1,
   'test/evals/session-classification.test.ts': 7.4,

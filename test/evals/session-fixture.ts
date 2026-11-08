@@ -44,6 +44,7 @@ export const turn = (
     reasoning_output_tokens: reasoning,
   },
 });
+// One turn per session, as codex exec emits it (captures in codexCaptures).
 export const codexStream = jsonl([
   { type: 'thread.started', thread_id: 'fixture' },
   { type: 'turn.started' },
@@ -52,8 +53,6 @@ export const codexStream = jsonl([
     item: { type: 'command_execution', command: 'true' },
   },
   turn(11, 5, 7, 3),
-  { type: 'turn.started' },
-  turn(13, 7, 9, 4),
 ]);
 export async function tree(root: string): Promise<Record<string, string>> {
   const files: Record<string, string> = {};
@@ -269,9 +268,33 @@ export async function installFakeBwrap(
   );
 }
 
-export const rejectedConfigMessages = [
-  '`features.skills` is ignored',
-  'The configuration setting `features.skills` is ignored.',
-  'Unrecognized configuration key: features.unknown',
-  'Unrecognised config setting: features.unknown',
-];
+// Verbatim codex-cli 0.167.0 receiver captures; provenance.json records each
+// command, exit code and sha256.
+export const codexCaptures = fileURLToPath(
+  new URL('../fixtures/eval/codex-0.167.0/', import.meta.url),
+);
+type CaptureFile = { file: string; sha256: string };
+export type CodexCapture = {
+  name: string;
+  exitCode: number;
+  stdout: CaptureFile;
+  stderr: CaptureFile;
+};
+export async function codexProvenance(): Promise<{
+  receiver: string;
+  captures: CodexCapture[];
+}> {
+  return JSON.parse(
+    await readFile(join(codexCaptures, 'provenance.json'), 'utf8'),
+  );
+}
+export async function codexCapture(name: string) {
+  const capture = (await codexProvenance()).captures.find(
+    (entry) => entry.name === name,
+  );
+  assert.ok(capture, `unknown capture: ${name}`);
+  return {
+    exitCode: capture.exitCode,
+    stdout: await readFile(join(codexCaptures, capture.stdout.file)),
+  };
+}

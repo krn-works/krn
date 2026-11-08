@@ -11,3 +11,5 @@ KRN-12 captures are committed verbatim except for redaction, and redaction has o
 A Herdr capture also records its stream. The CLI prints a reply on stdout and a server error as JSON on stderr with exit 1 (Herdr CLI reference, "Output waits"), so `*.reply.jsonl` holds stdout, `*.stderr.jsonl` holds stderr, and a stub prints each on the stream its name says.
 
 `scripts/claude/capture-fixture.ts` applies the convention to Claude transcript JSONL: `node scripts/claude/capture-fixture.ts <transcript.jsonl>` writes fixture lines to stdout. `test/claude/capture-fixture.test.ts` proves the fixtures under `test/claude/fixtures` are unchanged by it. Herdr replies under `test/fixtures/herdr` use the same placeholder.
+
+A Codex eval capture under `test/fixtures/eval/codex-<version>` keeps stdout (`*.stdout.jsonl`) and stderr (`*.stderr.log`) byte for byte; `provenance.json` records the command, receiver version, exit code and sha256 of every file, and `test/evals/codex-captures.test.ts` fails when a file changes or is not listed.

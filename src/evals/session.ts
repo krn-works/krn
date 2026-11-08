@@ -403,19 +403,7 @@ export async function sessionCommand(args: string[]): Promise<void> {
   accounting.finish();
   if (timedOut) exitCode = 124;
   else if (launchError) exitCode = 70;
-  const status = accounting.configRejected
-    ? 'harness_error'
-    : timedOut
-      ? 'timeout'
-      : launchError
-        ? 'harness_error'
-        : exitCode !== 0 || accounting.error
-          ? exitCode !== 0 && accounting.error && !accounting.toolCalled
-            ? 'harness_error'
-            : 'agent_error'
-          : accounting.truncated
-            ? 'truncated'
-            : 'completed';
+  const status = accounting.status({ exitCode, timedOut, launchError });
   const session = {
     runId: run.runId,
     arm: run.arm,

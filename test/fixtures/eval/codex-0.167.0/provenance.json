@@ -1,0 +1,88 @@
+{
+  "receiver": "codex-cli 0.167.0",
+  "captured": "2026-11-08",
+  "command": "node src/cli/main.ts eval mask --slot <slot> --network --tool <codex-bin-dir> --tool <node-bin-dir> --credential <login>=/w/codex/auth.json --credential <slot>/codex/config.toml=/w/codex/config.toml -- /usr/bin/env CODEX_HOME=/w/codex <codex> exec --json --ephemeral --model <model> --sandbox workspace-write --cd /w/repo --color never -",
+  "setup": "The argv krn eval session passes to the mask (src/evals/session.ts), run without the systemd scope. stdin is the prompt \"Reply with OK.\\n\". <slot> holds repo/ (a git repository with one empty commit) and codex/config.toml (mode 0444); <codex> is the mise install of codex 0.167.0; <login> is ~/.codex/auth.json unless a capture says otherwise. Each capture records stdout and stderr byte for byte; nothing was redacted.",
+  "source": [
+    "https://github.com/openai/codex/blob/rust-v0.167.0/codex-rs/exec/src/exec_events.rs: TurnFailedEvent has only error; TurnCompletedEvent has usage",
+    "https://github.com/openai/codex/blob/rust-v0.167.0/codex-rs/exec/src/event_processor_with_jsonl_output.rs: turn.completed usage is the thread total; a terminal turn shuts exec down; ConfigWarning, DeprecationNotice and Warning become item.completed error items",
+    "https://github.com/openai/codex/blob/rust-v0.167.0/codex-rs/exec/src/lib.rs: exec exits 1 only after an error without will_retry or a failed or interrupted turn"
+  ],
+  "captures": [
+    {
+      "name": "turn-failed",
+      "question": "Does turn.failed carry usage?",
+      "model": "krn-capture-unknown-model",
+      "config": "the session config for the model, byte for byte",
+      "exitCode": 1,
+      "stdout": {
+        "file": "turn-failed.stdout.jsonl",
+        "sha256": "241b81d88dc03658998bcc34c18609ad43a974bb2ca096be4ebd071b675e55d3"
+      },
+      "stderr": {
+        "file": "turn-failed.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "config-ignored",
+      "question": "How does Codex report an ignored or unrecognised setting in --json mode?",
+      "model": "gpt-6.1-sol",
+      "config": "the session config for the model plus `skills = false` under [features]",
+      "exitCode": 0,
+      "stdout": {
+        "file": "config-ignored.stdout.jsonl",
+        "sha256": "970643a4ccf7e716385689e3a214687592a689ea1262d0cac731b8435cf8bf4f"
+      },
+      "stderr": {
+        "file": "config-ignored.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "mask-exit-70",
+      "question": "What does the session see when the mask exits 70?",
+      "model": "gpt-6.1-sol",
+      "config": "the session config for the model; the mask ran with PATH=/nonexistent, so spawning bwrap failed and Codex never started",
+      "exitCode": 70,
+      "stdout": {
+        "file": "mask-exit-70.stdout.jsonl",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "file": "mask-exit-70.stderr.log",
+        "sha256": "b9e41a0f5945f15a93d003a84f0eec9cbaeb2a805d2881371782361f9def6c9e"
+      }
+    },
+    {
+      "name": "startup-failed",
+      "question": "What does Codex print when it fails before its first event?",
+      "model": "gpt-6.1-sol",
+      "config": "the session config for the model with `skills = false` run into its last line (`memories = falseskills = false`), which TOML rejects",
+      "exitCode": 1,
+      "stdout": {
+        "file": "startup-failed.stdout.jsonl",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "stderr": {
+        "file": "startup-failed.stderr.log",
+        "sha256": "0c851c0cec01d5394aa20198ebe7cc6eceb379fb7705886f21fe30d848fb233f"
+      }
+    },
+    {
+      "name": "retry-failed",
+      "question": "How does Codex report a retried request?",
+      "model": "gpt-6.1-sol",
+      "config": "the session config for the model; <login> was a file holding {} so ChatGPT authentication failed on every retry",
+      "exitCode": 1,
+      "stdout": {
+        "file": "retry-failed.stdout.jsonl",
+        "sha256": "b9904479b320a908aba65cd3abfca63f9a1c730dc9b2830028859eeab12f3eea"
+      },
+      "stderr": {
+        "file": "retry-failed.stderr.log",
+        "sha256": "8cc7b2a1ccc79bb6211caf2014047a9248e664e1ca131ea34b82330cf19cd0d6"
+      }
+    }
+  ]
+}
