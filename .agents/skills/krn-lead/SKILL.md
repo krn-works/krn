@@ -43,7 +43,7 @@ Use them only when they clearly save time; none is a prerequisite for a merge.
 ## Traps
 
 - **Branch base.** A rebase needs `git push --force-with-lease`, never `--force`.
-- **Decisions.** A task must not contradict a recorded ADR; changing a decision is a request to the operator first.
+- **Decisions.** A task must not contradict a recorded ADR; amend the ADR first and cite the grant that covers it.
 - **Host load.** `/tmp` is quota-limited; agent temp space lives on disk.
 - **Exit codes.** Never pipe a test run into `tail`/`grep` before reading its exit code (`cmd > log 2>&1; echo exit=$?`); a piped `npm test` reported `fail 0` while CI had 20 failures.
 - **`pkill -f`.** Its pattern matches its own shell and other lanes' processes; stop processes by PID or port.
