@@ -152,12 +152,14 @@ function run(
   name: string,
   command: string,
   args: string[],
+  env: NodeJS.ProcessEnv = process.env,
 ): Promise<Step> {
   const started = performance.now();
   return new Promise((resolve) => {
     let output = '';
     const child = spawn(command, args, {
       cwd: root,
+      env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     child.stdout.on('data', (chunk) => {
@@ -249,11 +251,21 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
       ]),
       ...(related.length > 0
         ? [
-            run(root, 'test', process.execPath, [
-              '--test',
-              '--test-reporter=dot',
-              ...related,
-            ]),
+            run(
+              root,
+              'test',
+              process.execPath,
+              ['--test', '--test-reporter=dot', ...related],
+              // Tests start Node children (CLIs under test); like the suite
+              // runner, they share its compile cache instead of recompiling
+              // unchanged sources in every child.
+              {
+                ...process.env,
+                NODE_COMPILE_CACHE:
+                  process.env.NODE_COMPILE_CACHE ??
+                  join(root, '.krn/tmp/node-compile-cache'),
+              },
+            ),
           ]
         : []),
     ]);

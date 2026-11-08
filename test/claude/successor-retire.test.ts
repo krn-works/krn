@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
-  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
-  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -14,27 +12,34 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import {
+  capture,
+  captureReply,
+  failure,
+  installAgent,
+  installHerdr,
+  ok,
+  type Replies,
+  type Reply,
+  readCalls,
+} from '../helpers/herdr-stub.ts';
 
 const script = fileURLToPath(
   new URL('../../scripts/claude/successor-launch.ts', import.meta.url),
 );
-const fixtures = new URL('../fixtures/herdr/', import.meta.url);
-// Replies captured verbatim from the live Herdr server (test/fixtures/README.md).
-// A `*.reply.jsonl` file is what Herdr printed on stdout; a `*.stderr.jsonl`
-// file is the JSON error it printed on stderr with exit 1.
 const callerPane = 'caller-pane';
 const callerTab = 'caller-tab';
-const callerSession = JSON.parse(
-  readFileSync(new URL('agent-get-idle-claude.reply.jsonl', fixtures), 'utf8'),
-).result.agent.agent_session.value as string;
-const newPane = JSON.parse(
-  readFileSync(new URL('tab-create.reply.jsonl', fixtures), 'utf8'),
-).result.root_pane.pane_id as string;
+const callerSession = JSON.parse(capture('agent-get-idle-claude.reply.jsonl'))
+  .result.agent.agent_session.value as string;
+const newPane = JSON.parse(capture('tab-create.reply.jsonl')).result.root_pane
+  .pane_id as string;
 const hostEnvironment = Object.fromEntries(
   Object.entries(process.env).filter(([name]) => !name.startsWith('HERDR_')),
 );
 
-type Reply = {
+// The capture `herdr agent get` answers for one pane, with the fields a test is
+// about replaced.
+type AgentReply = {
   fixture: string;
   exit?: number;
   agent?: string;
@@ -57,84 +62,55 @@ function temporary(t: { after(fn: () => void): void }) {
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const bin = join(root, 'bin');
   mkdirSync(bin);
-  const replies = join(root, 'fixtures');
-  mkdirSync(replies);
-  for (const name of readdirSync(fixtures))
-    writeFileSync(join(replies, name), readFileSync(new URL(name, fixtures)));
   return { root, bin };
 }
 
-function writeExecutable(path: string, contents: string) {
-  writeFileSync(path, contents);
-  chmodSync(path, 0o755);
+// A capture printed on its own stream; a replaced field reprints the reply
+// compact, as the server's JSON stays one line.
+function agentReply(reply: AgentReply): Reply {
+  const raw = capture(reply.fixture);
+  if (reply.fixture.endsWith('.stderr.jsonl'))
+    return failure(raw, reply.exit ?? 1);
+  const parsed = JSON.parse(raw);
+  const agent = parsed.result.agent;
+  if (reply.agent) agent.agent = reply.agent;
+  if (reply.status) agent.agent_status = reply.status;
+  if (reply.sessionId) agent.agent_session.value = reply.sessionId;
+  if (reply.paneId) agent.pane_id = reply.paneId;
+  if (reply.tabId) agent.tab_id = reply.tabId;
+  return { stdout: `${JSON.stringify(parsed)}\n`, status: reply.exit ?? 0 };
 }
 
-function herdrStub(): string {
-  return [
-    `#!${process.execPath}`,
-    "import { appendFileSync, readFileSync } from 'node:fs';",
-    'const args = process.argv.slice(2);',
-    'appendFileSync(process.env.HERDR_CALLS, JSON.stringify(args) + "\\n");',
-    "if (args[0] === 'status') {",
-    "  if (process.env.HERDR_MODE === 'server-fails') {",
-    "    process.stderr.write('cannot reach server\\n');",
-    '    process.exit(1);',
-    '  }',
-    '  process.stdout.write(readFileSync(process.env.STATUS_FIXTURE));',
-    "} else if (args[0] === 'pane' && args[1] === 'get') {",
-    '  process.stdout.write(readFileSync(process.env.PANE_FIXTURE));',
-    "} else if (args[0] === 'tab' && args[1] === 'create') {",
-    '  process.stdout.write(readFileSync(process.env.CREATE_FIXTURE));',
-    "} else if (args[0] === 'pane' && args[1] === 'run') {",
-    "  if (process.env.HERDR_MODE === 'launch-fails') {",
-    "    process.stderr.write('pane launch failed\\n');",
-    '    process.exit(23);',
-    '  }',
-    "} else if (args[0] === 'agent' && args[1] === 'get') {",
-    '  const replies = JSON.parse(readFileSync(process.env.HERDR_AGENT_REPLIES));',
-    '  const reply = replies[args[2]];',
-    '  const name = reply ? reply.fixture : "agent-get-missing.stderr.jsonl";',
-    '  const raw = readFileSync(process.env.FIXTURE_DIR + name, "utf8");',
-    '  // Herdr prints a reply on stdout and a server error on stderr, exit 1.',
-    '  if (name.endsWith(".stderr.jsonl")) {',
-    '    process.stderr.write(raw);',
-    '    process.exit(Number(reply?.exit ?? 1));',
-    '  }',
-    '  const result = JSON.parse(raw);',
-    '  const agent = result.result.agent;',
-    '  if (reply.agent) agent.agent = reply.agent;',
-    '  if (reply.status) agent.agent_status = reply.status;',
-    '  if (reply.sessionId) agent.agent_session.value = reply.sessionId;',
-    '  if (reply.paneId) agent.pane_id = reply.paneId;',
-    '  if (reply.tabId) agent.tab_id = reply.tabId;',
-    '  process.stdout.write(JSON.stringify(result) + "\\n");',
-    '  process.exit(Number(reply.exit ?? 0));',
-    "} else if (args[0] === 'pane' && args[1] === 'close') {",
-    "  if (process.env.HERDR_MODE === 'close-fails') {",
-    "    process.stderr.write('pane close failed\\n');",
-    '    process.exit(17);',
-    '  }',
-    '  process.stdout.write(readFileSync(process.env.CLOSE_FIXTURE));',
-    "} else if (args[0] === 'tab' && args[1] === 'rename') {",
-    "  if (process.env.HERDR_MODE === 'rename-fails') {",
-    "    process.stderr.write('tab rename failed\\n');",
-    '    process.exit(18);',
-    '  }',
-    '  process.stdout.write(readFileSync(process.env.RENAME_FIXTURE));',
-    '} else {',
-    '  process.exit(64);',
-    '}',
-    '',
-  ].join('\n');
-}
+const modes = {
+  success: {},
+  'server-fails': { status: failure('cannot reach server\n') },
+  'launch-fails': { 'pane run': failure('pane launch failed\n', 23) },
+  'close-fails': { 'pane close': failure('pane close failed\n', 17) },
+  'rename-fails': { 'tab rename': failure('tab rename failed\n', 18) },
+} satisfies Record<string, Replies>;
 
-function agentStub(): string {
-  return [
-    `#!${process.execPath}`,
-    "import { appendFileSync } from 'node:fs';",
-    'appendFileSync(process.env.AGENT_CALLS, JSON.stringify(process.argv.slice(2)) + "\\n");',
-    '',
-  ].join('\n');
+// Herdr as captured; `agent get` on a pane no test names answers
+// agent_not_found.
+function herdrReplies(
+  agents: Record<string, AgentReply>,
+  mode: keyof typeof modes,
+): Replies {
+  return {
+    status: captureReply('server-status.txt'),
+    'pane get': captureReply('pane-get.reply.jsonl'),
+    'tab create': captureReply('tab-create.reply.jsonl'),
+    'pane run': ok(''),
+    'agent get': captureReply('agent-get-missing.stderr.jsonl'),
+    ...Object.fromEntries(
+      Object.entries(agents).map(([pane, reply]) => [
+        `agent get ${pane}`,
+        agentReply(reply),
+      ]),
+    ),
+    'pane close': captureReply('pane-close.reply.jsonl'),
+    'tab rename': captureReply('tab-rename.reply.jsonl'),
+    ...modes[mode],
+  };
 }
 
 function makeRecord(paneId: string, sessionId = callerSession): LaunchRecord {
@@ -145,15 +121,6 @@ function makeRecord(paneId: string, sessionId = callerSession): LaunchRecord {
     name: 'Previous lead',
     recorded_at: '2026-10-31T10:00:00.000Z',
   };
-}
-
-function readCalls(path: string): string[][] {
-  if (!existsSync(path)) return [];
-  return readFileSync(path, 'utf8')
-    .split('\n')
-    .slice(0, -1)
-    .filter(Boolean)
-    .map((line) => JSON.parse(line));
 }
 
 function readLedger(path: string): LaunchRecord[] {
@@ -170,8 +137,8 @@ function launch(
   options: {
     records?: LaunchRecord[];
     extraLines?: string[];
-    replies?: Record<string, Reply>;
-    mode?: string;
+    replies?: Record<string, AgentReply>;
+    mode?: keyof typeof modes;
     paneId?: string;
   } = {},
 ) {
@@ -190,35 +157,33 @@ function launch(
     );
   }
 
-  const herdrCalls = join(root, 'herdr-calls.jsonl');
-  const agentCalls = join(root, 'agent-calls.jsonl');
-  const repliesPath = join(root, 'agent-replies.json');
-  writeFileSync(
-    repliesPath,
-    JSON.stringify({
-      // The started successor, which the launch waits for in its new pane.
-      [newPane]: {
-        fixture: 'agent-get-working-claude.reply.jsonl',
-        paneId: newPane,
-      },
-      [callerPane]: {
-        fixture: 'agent-get-idle-claude.reply.jsonl',
-        paneId: callerPane,
-        tabId: callerTab,
-        sessionId: callerSession,
-        ...(options.paneId === 'caller-fails'
-          ? { exit: 1, fixture: 'agent-get-missing.stderr.jsonl' }
-          : {}),
-        // Herdr answers agent_not_found for a pane that hosts only a shell.
-        ...(options.paneId === 'caller-shell'
-          ? { exit: 1, fixture: 'agent-get-shell.stderr.jsonl' }
-          : {}),
-      },
-      ...options.replies,
-    }),
+  const agents = {
+    // The started successor, which the launch waits for in its new pane.
+    [newPane]: {
+      fixture: 'agent-get-working-claude.reply.jsonl',
+      paneId: newPane,
+    },
+    [callerPane]: {
+      fixture: 'agent-get-idle-claude.reply.jsonl',
+      paneId: callerPane,
+      tabId: callerTab,
+      sessionId: callerSession,
+      ...(options.paneId === 'caller-fails'
+        ? { exit: 1, fixture: 'agent-get-missing.stderr.jsonl' }
+        : {}),
+      // Herdr answers agent_not_found for a pane that hosts only a shell.
+      ...(options.paneId === 'caller-shell'
+        ? { exit: 1, fixture: 'agent-get-shell.stderr.jsonl' }
+        : {}),
+    },
+    ...options.replies,
+  };
+  const herdrCalls = installHerdr(
+    bin,
+    herdrReplies(agents, options.mode ?? 'success'),
   );
-  writeExecutable(join(bin, 'herdr'), herdrStub());
-  writeExecutable(join(bin, 'successor-agent'), agentStub());
+  const agentCalls = join(root, 'agent-calls');
+  installAgent(bin, 'successor-agent', agentCalls);
 
   const result = spawnSync(
     process.execPath,
@@ -229,16 +194,6 @@ function launch(
         ...hostEnvironment,
         PATH: bin,
         HERDR_PANE_ID: callerPane,
-        HERDR_CALLS: herdrCalls,
-        HERDR_AGENT_REPLIES: repliesPath,
-        HERDR_MODE: options.mode ?? 'success',
-        STATUS_FIXTURE: join(root, 'fixtures', 'server-status.txt'),
-        PANE_FIXTURE: join(root, 'fixtures', 'pane-get.reply.jsonl'),
-        CREATE_FIXTURE: join(root, 'fixtures', 'tab-create.reply.jsonl'),
-        CLOSE_FIXTURE: join(root, 'fixtures', 'pane-close.reply.jsonl'),
-        RENAME_FIXTURE: join(root, 'fixtures', 'tab-rename.reply.jsonl'),
-        FIXTURE_DIR: `${join(root, 'fixtures')}/`,
-        AGENT_CALLS: agentCalls,
         KRN_SUCCESSOR_AGENT: 'successor-agent',
       },
       encoding: 'utf8',
@@ -256,8 +211,8 @@ function launch(
 
 function predecessorReply(
   fixtureName: string,
-  overrides: Partial<Reply> = {},
-): Record<string, Reply> {
+  overrides: Partial<AgentReply> = {},
+): Record<string, AgentReply> {
   return {
     'predecessor-pane': {
       fixture: fixtureName,
@@ -412,10 +367,9 @@ test('failed pane run does not write the ledger or retire predecessors', (t) => 
 
 test('fallback launch makes no Herdr agent calls and writes no ledger', (t) => {
   const { root, bin } = temporary(t);
-  const herdrCalls = join(root, 'herdr-calls.jsonl');
-  const agentCalls = join(root, 'agent-calls.jsonl');
-  writeExecutable(join(bin, 'herdr'), herdrStub());
-  writeExecutable(join(bin, 'successor-agent'), agentStub());
+  const herdrCalls = installHerdr(bin, herdrReplies({}, 'server-fails'));
+  const agentCalls = join(root, 'agent-calls');
+  installAgent(bin, 'successor-agent', agentCalls);
 
   const result = spawnSync(
     process.execPath,
@@ -426,9 +380,6 @@ test('fallback launch makes no Herdr agent calls and writes no ledger', (t) => {
         ...hostEnvironment,
         PATH: bin,
         HERDR_PANE_ID: callerPane,
-        HERDR_CALLS: herdrCalls,
-        HERDR_MODE: 'server-fails',
-        AGENT_CALLS: agentCalls,
         KRN_SUCCESSOR_AGENT: 'successor-agent',
       },
       encoding: 'utf8',

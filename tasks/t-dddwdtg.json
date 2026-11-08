@@ -1,7 +1,11 @@
 {
   "id": "t-dddwdtg",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "The three launcher tests answer Herdr from one builtin-only sh stub, test/helpers/herdr-stub.ts (about 7 ms a call against 57 ms); every assertion and capture stays. Cold node --test on the lead host: 22.7 s to 10.0 s, over the 9 s target, because 34 launcher starts compile TypeScript at about 177 ms each and one test polls a real 1 s. With the compile cache that npm run fast now passes to tests, as npm test and CI already run them: 18.7 s to 5.9 s. CI weights fold at the next shard refresh (t-wm22s14)."
+  },
   "created": "2026-11-08",
   "priority": 3,
   "title": "Serve the launcher tests' Herdr replies from a builtin-only sh stub",
