@@ -27,10 +27,15 @@ const checksSchema = z.array(
   }),
 );
 
-const pullSchema = z.object({
+export const pullSchema = z.object({
   head: z.object({ sha }),
   mergeable_state: z.string(),
+  state: z.string().optional(),
+  merged: z.boolean().optional(),
+  merge_commit_sha: sha.nullable().optional(),
+  auto_merge: z.unknown().optional(),
 });
+export type Pull = z.infer<typeof pullSchema>;
 
 export interface GateWaitOptions {
   repo: string;
@@ -44,6 +49,8 @@ export interface GateWaitOptions {
   pollMs: number;
   timeoutMs: number;
   startTimeoutMs?: number;
+  /** Receives every pull read, so a caller can see auto-merge without another request. */
+  onPull?: (pull: Pull) => void;
 }
 /** Why a wait stopped before its gate concluded; each reason owns an exit code. */
 export type GateStopReason = 'conflict' | 'head-moved' | 'never-started';
@@ -85,6 +92,7 @@ export async function waitForGate({
   pollMs,
   timeoutMs,
   startTimeoutMs = timeoutMs,
+  onPull,
 }: GateWaitOptions): Promise<string> {
   const started = now();
   const deadline = started + timeoutMs;
@@ -94,6 +102,7 @@ export async function waitForGate({
     const pull = pullSchema.parse(
       JSON.parse(await gh(['api', `repos/${repo}/pulls/${pr}`])),
     );
+    onPull?.(pull);
     if (pull.head.sha !== head)
       throw new GateStopped(
         'head-moved',

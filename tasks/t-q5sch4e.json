@@ -1,7 +1,11 @@
 {
   "id": "t-q5sch4e",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn ci wait waits for the auto-merge, runs scripts/product-release.sh, which smokes the candidate with bin/krn doctor and restores the previous commit on failure (exit 78)"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Refresh the pinned Product entry after each merge",

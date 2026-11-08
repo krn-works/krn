@@ -11,7 +11,6 @@ Maintenance:
 | Rank | Id | Opportunity | Area | Evidence | Expected saving | Task |
 |---|---|---|---|---|---|---|
 | 1 | R1 | Trim always-loaded instruction files in adopter projects (Swieta AGENTS.md 35.9 KB, wilq AGENTS.md 13 KB) | memory | `tasks/t-kfydr8a.json`: ~9k tokens in every Claude session and Codex worker; Codex first turn 36k vs 27k for krn (its cited audit files are not on disk) | ~9k tokens per session start (about 25% of a 36k first turn) | t-kfydr8a |
-| 2 | R2 | Refresh the pinned `krn task` entry automatically after each merge | delivery speed | `tasks/t-q5sch4e.json`: since t-z1rn4s0 a forwarded `krn task` exits 78 until `scripts/product-release.sh` runs after a merge | one manual step per merged PR removed | t-q5sch4e |
 
 Sector plan (t-8hnmfr9): token cost per slice ranks first; every remaining row waits on the operator or leaves KRN-only scope (git failures fail `npm run fast` since t-zk3ekbm) (worker first call cut to 10,048 tokens by t-q5cfpv0; identifier index after compaction shipped by t-7dk0vgk at recall 0.72 against 0.61 for the summary); FR-40 and the PA04 precision floor wait until packet injection is built.
 

@@ -9,7 +9,7 @@ const usage: Readonly<Record<string, string>> = {
   eval: 'krn eval <plan|prepare|...> --experiment DIR  memory experiment harness; `krn eval` lists verbs',
   doctor:
     'krn doctor  reports the host `krn task` entry, its commit and origin/main; exit 78 when stale or unpinned',
-  ci: 'krn ci wait|logs  wait: --repo OWNER/REPO --pr N --head SHA --base SHA [--timeout-seconds N] [--start-timeout-seconds N]; logs: --repo OWNER/REPO --run ID [--lines N] prints failed-job log tails across every attempt',
+  ci: 'krn ci wait|logs  wait: --repo OWNER/REPO --pr N --head SHA --base SHA [--timeout-seconds N] [--start-timeout-seconds N] [--merge-timeout-seconds N] (auto-merge: waits for the merge, refreshes the pinned Product entry); logs: --repo OWNER/REPO --run ID [--lines N] prints failed-job log tails across every attempt',
 };
 
 export function commandHelp(args: string[]): string | undefined {
