@@ -4,9 +4,11 @@
 // actual `Run test shard` step seconds next to two predictions from the
 // current weights: the summed shard weight, and the heaviest of the `--lanes`
 // local lanes test-suite.mjs runs in parallel on the runner (plus final serial
-// files). It ends with each model's Pearson r, the slowest-shard p50 and a
-// drift section: every test file whose median CI duration over those runs
-// exceeds its weight by more than 30% (`drift: none` when no file does).
+// files). It ends with each model's Pearson r, the slowest-shard p50, one
+// `shard p50` line (every shard's median Test step and the highest median's
+// excess over the mean of the shard medians) and a drift section: every test
+// file whose median CI duration over those runs exceeds its weight by more
+// than 30% (`drift: none` when no file does).
 // `--since <sha>` keeps only runs whose head is <sha> or descends from it, so
 // a window never mixes shard plans; the first line, for example
 // `runs: 2 of 5 wanted since 2194438`, shows a window that is still short.
@@ -105,6 +107,50 @@ export function weightDrift(runs, weights = TEST_FILE_WEIGHTS) {
   );
 }
 
+// `Test (k/N)` is shard k of an N-shard plan; any other job name stays whole
+// and sorts after the plans.
+const SHARD_JOB = /^Test \((\d+)\/(\d+)\)$/u;
+function shardOf(job) {
+  const match = SHARD_JOB.exec(job);
+  return match === null
+    ? { shard: job, plan: Infinity, index: 0 }
+    : {
+        shard: `${match[1]}/${match[2]}`,
+        plan: Number(match[2]),
+        index: Number(match[1]),
+      };
+}
+
+// Every shard's median Test step seconds over the window, in plan then shard
+// order, and the highest median's excess over the mean of the shard medians,
+// so an overloaded shard is named instead of read off the rows.
+function shardP50(rows) {
+  const samples = new Map();
+  for (const { job, actual } of rows) {
+    if (!samples.has(job)) samples.set(job, []);
+    samples.get(job).push(actual);
+  }
+  const shards = [...samples]
+    .map(([job, seconds]) => ({ ...shardOf(job), p50: round(median(seconds)) }))
+    .sort(
+      (a, b) =>
+        a.plan - b.plan || a.index - b.index || a.shard.localeCompare(b.shard),
+    )
+    .map(({ shard, p50 }) => ({ shard, p50 }));
+  if (shards.length === 0) return { shards };
+  const mean = round(
+    shards.reduce((sum, { p50 }) => sum + p50, 0) / shards.length,
+  );
+  const highest = shards.reduce((top, entry) =>
+    entry.p50 > top.p50 ? entry : top,
+  );
+  return {
+    shards,
+    mean,
+    highest: { ...highest, excess: round(highest.p50 - mean) },
+  };
+}
+
 // runs: [{ id, jobs: [{ name, seconds, summary }] }] as fetchShardRuns returns;
 // `wanted` and `since` only label the window the runs were drawn from.
 export function shardWallReport(
@@ -145,6 +191,7 @@ export function shardWallReport(
       rows.map((row) => row.predicted),
     ),
     slowestP50: slowest.length > 0 ? median(slowest) : Number.NaN,
+    shardP50: shardP50(rows),
     drift: weightDrift(runs),
   };
 }
@@ -168,6 +215,12 @@ function driftLines(drift) {
   ];
 }
 
+function shardP50Line({ shards, mean, highest }) {
+  if (shards.length === 0) return 'shard p50: n/a';
+  const medians = shards.map(({ shard, p50 }) => `${shard}=${p50}`).join(' ');
+  return `shard p50: ${medians} s; highest ${highest.shard} +${highest.excess} s over the mean ${mean} s`;
+}
+
 export function renderReport(report) {
   const lines = [
     windowLine(report.window),
@@ -183,6 +236,7 @@ export function renderReport(report) {
     `summed-weight model: r=${report.summedR.toFixed(2)} (${verdict(report.summedR)})`,
     `heaviest-lane model: r=${report.laneR.toFixed(2)} (${verdict(report.laneR)})`,
     `slowest Test step p50: ${report.slowestP50} s, target < ${SLOWEST_SHARD_TARGET_SECONDS} s: ${report.slowestP50 < SLOWEST_SHARD_TARGET_SECONDS ? 'PASS' : 'FAIL'}`,
+    shardP50Line(report.shardP50),
     ...driftLines(report.drift),
   );
   return `${lines.join('\n')}\n`;

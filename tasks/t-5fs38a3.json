@@ -1,7 +1,11 @@
 {
   "id": "t-5fs38a3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "shard-wall-report prints one 'shard p50' line: every shard's median Test step (plan then shard order, numeric) and the highest median's excess over the mean of the shard medians, 'n/a' without measured steps; tested on a 10-shard fixture window in test/ci/shard-wall-report.test.mjs (mutants: lexicographic order, mean for median, no empty guard all fail)"
+  },
   "created": "2026-11-08",
   "priority": 3,
   "title": "Print per-shard p50 in the shard wall report",
