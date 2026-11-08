@@ -10,6 +10,7 @@ import {
 import { join, matchesGlob, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
+import { packetBrief, workerPacket } from '../brain/worker-packet.ts';
 import { flagValue } from '../cli/flag-value.ts';
 import { reapAppServer } from '../hosts/codex-app-server.ts';
 import {
@@ -316,6 +317,7 @@ export async function workerCommand(args: string[]): Promise<void> {
       }
       for (const name of [
         'error.json',
+        'packet.json',
         'rounds',
         'closed-session.json',
         'inbox',
@@ -361,9 +363,18 @@ export async function workerCommand(args: string[]): Promise<void> {
       };
       secureDir(join(run, 'tmp'));
       atomic(statePath, state);
+      // FR-40 GO: the brief carries the measured-convention packet; its ids and digest stay with the run.
+      const packet = workerPacket(text, new Date().toISOString().slice(0, 10));
+      atomic(join(run, 'packet.json'), {
+        records: packet.records,
+        sha256: packet.sha256,
+        tokens: packet.tokens,
+        budget: packet.budget,
+        asOf: packet.asOf,
+      });
       secureDir(join(run, 'inbox'));
       atomic(join(run, 'inbox/001.json'), {
-        text: redact(text),
+        text: redact(packetBrief(packet, text)),
         model: redact(state.model),
         effort: redact(state.effort),
       });

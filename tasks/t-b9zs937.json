@@ -1,7 +1,11 @@
 {
   "id": "t-b9zs937",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Worker briefs carry the measured-convention brain packet (packet.json in the run); task-id records need a task id in the brief, so all 19 agent-state packets keep r-agent-state and drop task-id records; follow-up t-r2nm8df"
+  },
   "created": "2026-11-08",
   "priority": 1,
   "title": "Inject brain packets into worker briefs after the FR-40 GO",

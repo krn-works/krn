@@ -6,14 +6,14 @@ import { BASE_DATE, generate } from '../../evals/fr40/tasks.ts';
 import { CliUsageError } from '../cli/usage-error.ts';
 import {
   type Arm,
+  BUDGET,
   brainPacket,
   type Packet,
   parseRecords,
   staticPacket,
 } from './packet.ts';
 
-/** One token budget for both arms; budget equality is checked by test/brain/packet.test.ts. */
-export const BUDGET = 400;
+export { BUDGET };
 
 export const usage =
   'usage: krn brain packet <fr40-task-id> [--arm brain|static] [--write] [--json]';

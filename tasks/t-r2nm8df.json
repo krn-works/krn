@@ -1,0 +1,12 @@
+{
+  "id": "t-r2nm8df",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Stop workers committing into their own .krn worktree when the brief asks for none",
+  "after": [],
+  "body": [
+    "FR-40 arm B lost 4 of 19 agent-state units (clamp, dedupe, mask, slug) to \"no commit after base\": the agent committed on a branch in .krn/worktrees/<name> instead of the scored checkout (final messages in .krn/runs/fr40-campaign/evidence/fr40/runs/*/stream.jsonl for those units; arm S lost 1 the same way). The other 3 B losses came from task-id records in a brief without a task id, fixed in t-b9zs937 by the task-id precondition in src/brain/packet.ts.\nFind which packet record or repository instruction sends a worker into its own worktree when the brief does not ask for one, and fix it at the owner (packet text, record, or lead-only instruction scope).\nAcceptance: a test names the cause (for example: no measured record tells a worker to create a worktree, or krn-lead worktree steps are scoped to the lead); the fix cites the four run ids."
+  ]
+}

@@ -7,6 +7,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/agents-render.test.ts': 2.3,
   'test/architecture/depth.test.ts': 0.1,
   'test/brain/packet.test.ts': 0.3,
+  'test/brain/worker-packet.test.ts': 0.1,
   'test/ci/ci-changes.test.ts': 0.3,
   'test/ci/idle-gap-cache.test.ts': 0.1,
   'test/ci/shard-wall-report.test.mjs': 0.5,

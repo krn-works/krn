@@ -13,7 +13,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   outcome: [],
   deliver: [],
   ci: ['deliver'],
-  worker: ['hosts', 'src/cli/flag-value.ts'],
+  worker: ['hosts', 'src/cli/flag-value.ts', 'src/brain/worker-packet.ts'],
   hosts: ['worker'],
   flow: ['hosts', 'src/cli/flag-value.ts'],
   task: ['cli', 'fs'],

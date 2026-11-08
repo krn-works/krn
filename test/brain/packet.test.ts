@@ -51,7 +51,7 @@ test('parseRecords rejects extra fields, bad dates and duplicate ids', () => {
 test('a brain packet holds only records known at the as-of date', () => {
   const packet = brainPacket({
     task: 't',
-    query: 'commit titles task id',
+    query: 'commit titles task id t-abc1234',
     records: [
       record({ id: 'r-known' }),
       record({
@@ -110,4 +110,33 @@ test('an unknown task id is a usage error', () => {
     () => fr40Packet('fr40-none', 'brain'),
     (error: Error & { exitCode?: number }) => error.exitCode === 64,
   );
+});
+
+test('agent-state packets carry the .krn state record and no task-id record', () => {
+  const agentState = tasks.filter((task) => task.template === 'agent-state');
+  assert.equal(agentState.length, 19);
+  for (const task of agentState) {
+    const { records } = fr40Packet(task.id, 'brain');
+    assert.ok(
+      records.includes('r-agent-state'),
+      `${task.id} lacks r-agent-state`,
+    );
+    for (const id of ['r-commit-title-id', 'r-trailer', 'r-tracker-owner'])
+      assert.ok(
+        !records.includes(id),
+        `${task.id} carries ${id} without a task id`,
+      );
+  }
+});
+
+test('a brief that names a task id keeps its task-id records', () => {
+  for (const template of ['commit-title-id', 'trailer', 'tracker-untouched']) {
+    const want =
+      template === 'tracker-untouched' ? 'r-tracker-owner' : `r-${template}`;
+    for (const task of tasks.filter((t) => t.template === template))
+      assert.ok(
+        fr40Packet(task.id, 'brain').records.includes(want),
+        `${task.id} lacks ${want}`,
+      );
+  }
 });
