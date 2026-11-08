@@ -1,0 +1,9 @@
+{
+  "runId": "53e197984889ddc70fcd17661f5fa3bda07f3ab312886e16f12f23030a129abe",
+  "task": "fr40-commit-title-id-chunk",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-chunk: commit title does not end with (t-6ja4q4u): feat: add list chunk helper"
+}

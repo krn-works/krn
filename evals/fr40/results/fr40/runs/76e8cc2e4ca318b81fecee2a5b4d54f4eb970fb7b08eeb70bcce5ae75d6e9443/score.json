@@ -1,0 +1,9 @@
+{
+  "runId": "76e8cc2e4ca318b81fecee2a5b4d54f4eb970fb7b08eeb70bcce5ae75d6e9443",
+  "task": "fr40-commit-title-id-retry",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-retry: commit title does not end with (t-x02y6nz): feat(cli): add capped retry backoff (Refs: t-x02y6nz)"
+}

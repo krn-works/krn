@@ -1,0 +1,9 @@
+{
+  "runId": "f919df6ee30b884305c5c57c5f8759e6b9f2afa69fc14fee03443cbbfac11dec",
+  "task": "fr40-tracker-untouched-wrap",
+  "arm": "B",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-tracker-untouched-wrap: no commit after base"
+}

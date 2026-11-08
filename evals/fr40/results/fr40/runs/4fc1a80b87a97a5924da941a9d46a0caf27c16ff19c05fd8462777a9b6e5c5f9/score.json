@@ -1,0 +1,9 @@
+{
+  "runId": "4fc1a80b87a97a5924da941a9d46a0caf27c16ff19c05fd8462777a9b6e5c5f9",
+  "task": "fr40-commit-title-id-median",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-median: no commit after base"
+}

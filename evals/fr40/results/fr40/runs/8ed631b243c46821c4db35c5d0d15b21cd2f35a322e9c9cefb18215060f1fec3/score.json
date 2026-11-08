@@ -1,0 +1,9 @@
+{
+  "runId": "8ed631b243c46821c4db35c5d0d15b21cd2f35a322e9c9cefb18215060f1fec3",
+  "task": "fr40-role-names-slug",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-role-names-slug: new names describe roles"
+}

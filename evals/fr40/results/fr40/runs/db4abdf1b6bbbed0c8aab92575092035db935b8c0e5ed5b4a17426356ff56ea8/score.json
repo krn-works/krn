@@ -1,0 +1,9 @@
+{
+  "runId": "db4abdf1b6bbbed0c8aab92575092035db935b8c0e5ed5b4a17426356ff56ea8",
+  "task": "fr40-agent-state-dedupe",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-dedupe: state outside .krn/: notes/dedupe-plan.md"
+}

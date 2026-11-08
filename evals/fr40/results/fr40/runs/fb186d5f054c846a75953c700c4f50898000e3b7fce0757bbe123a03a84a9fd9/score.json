@@ -1,0 +1,9 @@
+{
+  "runId": "fb186d5f054c846a75953c700c4f50898000e3b7fce0757bbe123a03a84a9fd9",
+  "task": "fr40-biome-clean-chunk",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-biome-clean-chunk: biome clean on 3 file(s)"
+}

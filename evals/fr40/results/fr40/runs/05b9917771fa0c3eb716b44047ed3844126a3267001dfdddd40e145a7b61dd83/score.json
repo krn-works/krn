@@ -1,0 +1,9 @@
+{
+  "runId": "05b9917771fa0c3eb716b44047ed3844126a3267001dfdddd40e145a7b61dd83",
+  "task": "fr40-core-imports-groups",
+  "arm": "A",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-core-imports-groups: src/core imports only core"
+}

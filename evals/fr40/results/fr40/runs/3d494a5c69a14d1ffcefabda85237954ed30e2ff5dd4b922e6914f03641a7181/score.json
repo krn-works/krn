@@ -1,0 +1,9 @@
+{
+  "runId": "3d494a5c69a14d1ffcefabda85237954ed30e2ff5dd4b922e6914f03641a7181",
+  "task": "fr40-trailer-percent",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-percent: every commit carries Ticket: t-1mebebq"
+}

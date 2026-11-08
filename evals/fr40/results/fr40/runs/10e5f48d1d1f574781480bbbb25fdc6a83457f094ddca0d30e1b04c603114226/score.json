@@ -1,0 +1,9 @@
+{
+  "runId": "10e5f48d1d1f574781480bbbb25fdc6a83457f094ddca0d30e1b04c603114226",
+  "task": "fr40-tracker-untouched-percent",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-tracker-untouched-percent: no commit after base"
+}

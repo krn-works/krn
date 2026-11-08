@@ -1,0 +1,9 @@
+{
+  "runId": "9c42b0e9b05c06ba7d9da98f12705da7cfae801f0ba01c17587ded4be0a6a67d",
+  "task": "fr40-biome-clean-semver",
+  "arm": "A",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-biome-clean-semver: biome clean on 3 file(s)"
+}

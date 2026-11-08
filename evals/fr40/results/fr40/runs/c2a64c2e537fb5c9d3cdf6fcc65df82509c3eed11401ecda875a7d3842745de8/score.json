@@ -1,0 +1,9 @@
+{
+  "runId": "c2a64c2e537fb5c9d3cdf6fcc65df82509c3eed11401ecda875a7d3842745de8",
+  "task": "fr40-trailer-chunk",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-chunk: every commit carries Refs: t-tznd2kd"
+}

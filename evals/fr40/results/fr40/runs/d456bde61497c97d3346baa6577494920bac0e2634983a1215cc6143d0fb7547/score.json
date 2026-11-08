@@ -1,0 +1,9 @@
+{
+  "runId": "d456bde61497c97d3346baa6577494920bac0e2634983a1215cc6143d0fb7547",
+  "task": "fr40-trailer-median",
+  "arm": "A",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-median: every commit carries Refs: t-re5qbgh"
+}

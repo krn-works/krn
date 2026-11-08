@@ -1,0 +1,9 @@
+{
+  "runId": "3332d64defe22a12556565b9d543600d6983bc5201a280f845c10da2cf8b96fc",
+  "task": "fr40-trailer-truncate",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-truncate: every commit carries Ticket: t-aiotx2a"
+}

@@ -1,0 +1,9 @@
+{
+  "runId": "c55927a049bb400a6aa7e07f9d59d67142b2c8af019a5878563be2343c4e041e",
+  "task": "fr40-trailer-retry",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-retry: every commit carries Refs: t-68jie2k"
+}

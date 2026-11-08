@@ -1,0 +1,9 @@
+{
+  "runId": "8ebe273d9236201bb2cf71ca546cc302ac25ce38b56a8a19e741489614d03da1",
+  "task": "fr40-commit-title-id-percent",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-percent: commit title does not end with (t-b7dgcrn): feat(cli): add percentage formatter"
+}

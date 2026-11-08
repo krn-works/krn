@@ -1,0 +1,9 @@
+{
+  "runId": "fc0cfa028ed6ac0b8c5b57bc1c1a147f42c9c5a5142e3f5d016a3de887d019f1",
+  "task": "fr40-agent-state-range",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-range: no commit after base"
+}

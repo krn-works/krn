@@ -565,6 +565,7 @@
     "{experiment}/scorers.ts",
     "{experiment}/tasks.json",
     "{repo}",
+    "{base}",
     "--task",
     "{task}"
   ],

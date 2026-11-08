@@ -27,7 +27,7 @@ assert.deepEqual(args, [
   '--model',
   scenario.model,
   '--sandbox',
-  'workspace-write',
+  'danger-full-access',
   '--cd',
   '/w/repo',
   '--color',

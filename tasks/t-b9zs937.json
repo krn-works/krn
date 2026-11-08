@@ -1,0 +1,12 @@
+{
+  "id": "t-b9zs937",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 1,
+  "title": "Inject brain packets into worker briefs after the FR-40 GO",
+  "after": [],
+  "body": [
+    "FR-40 returned GO for packets and retrieval (evals/fr40/results.md: B-A +21.1 pp, B-S +11.3 pp, token ratio 1.086 over 133 units). Build what it licensed: `krn worker` briefs prepend the `krn brain packet <task>` packet (400-token budget, same selection as arm B), limited to the seven measured conventions.\nFirst fix the measured retrieval gap: on agent-state tasks B passed 12/19 against S 17/19, because the packet does not always pick the `.krn/` state record for a \"write a notes file\" job.\nAcceptance: a worker brief carries the packet with its record ids and sha256 in the run record; the agent-state packets for the 19 FR-40 tasks all contain the .krn state record (test); ADR 0002 status names the shipped injection."
+  ]
+}

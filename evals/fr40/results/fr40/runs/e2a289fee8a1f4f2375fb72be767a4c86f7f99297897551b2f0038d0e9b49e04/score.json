@@ -1,0 +1,9 @@
+{
+  "runId": "e2a289fee8a1f4f2375fb72be767a4c86f7f99297897551b2f0038d0e9b49e04",
+  "task": "fr40-agent-state-dedupe",
+  "arm": "B",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-dedupe: no commit after base"
+}

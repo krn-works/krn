@@ -1,0 +1,9 @@
+{
+  "runId": "8b4b302312492d83401e5a183f5363517cd62c2f283cb876073591b5d7ebe3c0",
+  "task": "fr40-commit-title-id-bytes",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-bytes: commit title does not end with (t-icwm5xf): feat(cli): add byte formatter"
+}

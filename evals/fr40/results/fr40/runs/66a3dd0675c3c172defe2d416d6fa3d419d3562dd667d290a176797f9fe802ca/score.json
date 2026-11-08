@@ -1,0 +1,9 @@
+{
+  "runId": "66a3dd0675c3c172defe2d416d6fa3d419d3562dd667d290a176797f9fe802ca",
+  "task": "fr40-tracker-untouched-clamp",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-tracker-untouched-clamp: no commit after base"
+}

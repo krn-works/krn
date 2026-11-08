@@ -1,0 +1,9 @@
+{
+  "runId": "cab5c87be4e53c2568a5df660eee9f07e32154063b7c1601aba7bf63f5d73492",
+  "task": "fr40-commit-title-id-mask",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-mask: commit title does not end with (t-3adae1l): feat(cli): add secret masking helper"
+}

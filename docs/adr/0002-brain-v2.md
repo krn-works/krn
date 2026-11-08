@@ -4,8 +4,11 @@ Date: 2026-10-08
 
 ## Status
 
-Accepted target, unbuilt (ADR 0014 D31). Injection into worker context is gated
-by FR-40 (ADR 0014 D20); shadow packets are permitted (ADR 0014 D32); the GLOBAL
+Accepted target, unbuilt (ADR 0014 D31). FR-40 (ADR 0014 D20) returned GO for
+packets and retrieval on 2026-11-08 (`evals/fr40/results.md`: B-A +21.1 pp,
+B-S +11.3 pp, token ratio 1.086), so packet injection into worker context may be
+built, limited to the seven measured conventions until a wider run; shadow packets
+are permitted (ADR 0014 D32); the GLOBAL
 v1 store is frozen (ADR 0014 D33). The Wizard-of-Oz set is a harness pilot only,
 and this does not change the operator's selected scope or client-isolation policy.
 

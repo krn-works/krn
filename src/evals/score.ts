@@ -7,7 +7,7 @@ import { EvalDataError, fr40Manifest, loadManifest } from './manifest.ts';
 import { planExperiment } from './plan.ts';
 
 const usage =
-  'usage: krn eval score --experiment <dir> --root <dir> --run <runId> --slot <dir> [--draft] [--json]';
+  'usage: krn eval score --experiment <dir> --root <dir> --run <runId> --slot <dir> [--base <commit>] [--draft] [--json]';
 
 export type ScoreRecord = {
   readonly runId: string;
@@ -33,7 +33,9 @@ function parse(args: readonly string[]) {
     const option = args[index] ?? '';
     if (option === '--draft') draft = true;
     else if (option === '--json') json = true;
-    else if (['--experiment', '--root', '--run', '--slot'].includes(option)) {
+    else if (
+      ['--experiment', '--root', '--run', '--slot', '--base'].includes(option)
+    ) {
       if (values.has(option))
         throw new CliUsageError(`${option} may be supplied once`);
       values.set(
@@ -59,6 +61,7 @@ function parse(args: readonly string[]) {
     root: required('--root'),
     run: required('--run'),
     slot: required('--slot'),
+    base: values.get('--base'),
     draft,
     json,
   };
@@ -77,11 +80,14 @@ export async function scoreCommand(args: string[]): Promise<void> {
     repo: resolve(options.slot, 'repo'),
     task: run.task,
   };
-  const [command = '', ...rest] = manifest.check.map((part) =>
-    part.replace(/\{(experiment|repo|task)\}/gu, (_, key: string) => {
-      return fields[key] ?? '';
-    }),
-  );
+  // {base} is the slot's setup commit; a slot without setup commits uses the task's own base.
+  const [command = '', ...rest] = manifest.check
+    .filter((part) => part !== '{base}' || options.base !== undefined)
+    .map((part) =>
+      part.replace(/\{(experiment|repo|task|base)\}/gu, (_, key: string) => {
+        return key === 'base' ? (options.base ?? '') : (fields[key] ?? '');
+      }),
+    );
   const result = spawnSync(
     command === 'node' ? process.execPath : command,
     rest,

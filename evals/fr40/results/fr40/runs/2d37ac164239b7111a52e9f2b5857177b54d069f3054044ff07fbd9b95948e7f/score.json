@@ -1,0 +1,9 @@
+{
+  "runId": "2d37ac164239b7111a52e9f2b5857177b54d069f3054044ff07fbd9b95948e7f",
+  "task": "fr40-agent-state-dedupe",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-agent-state-dedupe: notes kept under .krn/runs or .krn/tmp"
+}

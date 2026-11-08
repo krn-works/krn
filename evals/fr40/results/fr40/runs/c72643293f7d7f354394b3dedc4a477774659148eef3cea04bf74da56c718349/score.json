@@ -1,0 +1,9 @@
+{
+  "runId": "c72643293f7d7f354394b3dedc4a477774659148eef3cea04bf74da56c718349",
+  "task": "fr40-role-names-percent",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-role-names-percent: new names describe roles"
+}

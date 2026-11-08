@@ -1,0 +1,9 @@
+{
+  "runId": "ff945cc2830be6d9424685f1158bb25f4ca91d093e992f8a3bd8eba30b7ac2dc",
+  "task": "fr40-role-names-clamp",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-role-names-clamp: new names describe roles"
+}

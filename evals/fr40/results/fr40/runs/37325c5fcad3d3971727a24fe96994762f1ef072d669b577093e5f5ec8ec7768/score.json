@@ -1,0 +1,9 @@
+{
+  "runId": "37325c5fcad3d3971727a24fe96994762f1ef072d669b577093e5f5ec8ec7768",
+  "task": "fr40-biome-clean-percent",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-biome-clean-percent: biome clean on 3 file(s)"
+}

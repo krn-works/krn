@@ -28,8 +28,10 @@ import { SessionUsage } from './usage.ts';
 
 // These bytes (including the pinned model) are hashed as the session's config.
 // Empty config homes plus the mask remove ambient MCP, skills and history.
+// The mask is the isolation boundary; Codex's own workspace-write sandbox would make
+// .git read-only, so a session could not commit, and every FR-40 convention reads commits.
 export const CODEX_CONFIG = `approval_policy = "never"
-sandbox_mode = "workspace-write"
+sandbox_mode = "danger-full-access"
 cli_auth_credentials_store = "file"
 web_search = "disabled"
 [history]
@@ -196,6 +198,12 @@ async function executable(): Promise<string> {
   throw new EvalDataError('cannot resolve executable for codex');
 }
 
+/** The harness, Node and Node's lib (npm lives there, so `npm run` works in the slot). */
+function toolDirectories(binary: string): string[] {
+  const node = dirname(process.execPath);
+  return [...new Set([dirname(binary), node, join(dirname(node), 'lib')])];
+}
+
 export async function sessionCommand(args: string[]): Promise<void> {
   const input = options(args);
   const manifest = await loadManifest(input.experiment);
@@ -269,7 +277,7 @@ export async function sessionCommand(args: string[]): Promise<void> {
     credential = `${join(home, '.codex', credentialName)}=/w/codex/${credentialName}`;
     await credentialMounts([credential], slot);
     binary = await executable();
-    const tools = [...new Set([dirname(binary), dirname(process.execPath)])];
+    const tools = toolDirectories(binary);
     for (const tool of tools) {
       await assertToolDirectoryAllowed(tool, home);
       if (
@@ -309,7 +317,7 @@ export async function sessionCommand(args: string[]): Promise<void> {
     '--model',
     arm.model,
     '--sandbox',
-    'workspace-write',
+    'danger-full-access',
     '--cd',
     '/w/repo',
     '--color',
@@ -323,9 +331,7 @@ export async function sessionCommand(args: string[]): Promise<void> {
     '--slot',
     slot,
     '--network',
-    ...[...new Set([dirname(binary), dirname(process.execPath)])].flatMap(
-      (path) => ['--tool', path],
-    ),
+    ...toolDirectories(binary).flatMap((path) => ['--tool', path]),
     '--credential',
     credential,
     '--credential',

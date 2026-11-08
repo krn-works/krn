@@ -64,6 +64,7 @@ export function freeze(): Record<string, string> {
       '{experiment}/scorers.ts',
       '{experiment}/tasks.json',
       '{repo}',
+      '{base}',
       '--task',
       '{task}',
     ],

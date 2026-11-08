@@ -1,0 +1,9 @@
+{
+  "runId": "060a41f9a87852790b218963146d8a8020d270829885b03917aca2a8952ad2d2",
+  "task": "fr40-role-names-mask",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-role-names-mask: no commit after base"
+}

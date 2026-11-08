@@ -1,0 +1,9 @@
+{
+  "runId": "9a604684d604329b2390bbc8e1e53ce22568346c0c20add3ecfab721cd32efa6",
+  "task": "fr40-trailer-wrap",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-wrap: every commit carries Ticket: t-47l9uh7"
+}

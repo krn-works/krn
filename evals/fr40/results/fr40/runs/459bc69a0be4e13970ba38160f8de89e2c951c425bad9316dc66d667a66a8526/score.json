@@ -1,0 +1,9 @@
+{
+  "runId": "459bc69a0be4e13970ba38160f8de89e2c951c425bad9316dc66d667a66a8526",
+  "task": "fr40-core-imports-wrap",
+  "arm": "A",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-core-imports-wrap: src/core imports only core"
+}

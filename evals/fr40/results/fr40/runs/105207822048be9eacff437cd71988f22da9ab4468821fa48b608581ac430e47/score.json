@@ -1,0 +1,9 @@
+{
+  "runId": "105207822048be9eacff437cd71988f22da9ab4468821fa48b608581ac430e47",
+  "task": "fr40-tracker-untouched-semver",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-tracker-untouched-semver: no tasks/*.json changed"
+}

@@ -1,0 +1,9 @@
+{
+  "runId": "774ac96d150df43007b9dd2f1690e68b0070de030f90c0df11ca851f84eeb988",
+  "task": "fr40-trailer-table",
+  "arm": "A",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-table: every commit carries Refs: t-ozzpnr3"
+}

@@ -1,0 +1,9 @@
+{
+  "runId": "2d9158442ea41b50a070c77acf176f0f338d6e12cd24e01a7e6475434055eb24",
+  "task": "fr40-agent-state-retry",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-retry: state outside .krn/: notes/backoff-delays-plan.md"
+}

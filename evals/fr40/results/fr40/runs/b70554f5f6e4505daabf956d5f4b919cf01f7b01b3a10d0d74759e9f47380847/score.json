@@ -1,0 +1,9 @@
+{
+  "runId": "b70554f5f6e4505daabf956d5f4b919cf01f7b01b3a10d0d74759e9f47380847",
+  "task": "fr40-core-imports-bytes",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-core-imports-bytes: src/core imports only core"
+}

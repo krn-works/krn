@@ -1,0 +1,9 @@
+{
+  "runId": "232c45f7c9d0b048f593115bdf47d1518c9b15fc156f15c61073e5753e7e9718",
+  "task": "fr40-trailer-mask",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-mask: every commit carries Refs: t-6y17r7m"
+}

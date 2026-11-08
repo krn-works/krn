@@ -1,0 +1,9 @@
+{
+  "runId": "54347e3f22dd17a7c8cb1c5ec4046d52790c8850866f90ce21d18f12809dccc1",
+  "task": "fr40-tracker-untouched-mask",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-tracker-untouched-mask: no tasks/*.json changed"
+}

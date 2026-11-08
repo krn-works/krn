@@ -1,0 +1,9 @@
+{
+  "runId": "d03a157583a6695bf3cd70d836411b1cd619c79bb8784e1ef0a87b29a2357d72",
+  "task": "fr40-commit-title-id-duration",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-duration: commit title does not end with (t-1mhu444): feat(cli): add duration formatter"
+}

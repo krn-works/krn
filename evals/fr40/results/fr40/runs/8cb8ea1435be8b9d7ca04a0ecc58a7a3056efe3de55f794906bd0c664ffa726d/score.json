@@ -1,0 +1,9 @@
+{
+  "runId": "8cb8ea1435be8b9d7ca04a0ecc58a7a3056efe3de55f794906bd0c664ffa726d",
+  "task": "fr40-agent-state-truncate",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-agent-state-truncate: notes kept under .krn/runs or .krn/tmp"
+}

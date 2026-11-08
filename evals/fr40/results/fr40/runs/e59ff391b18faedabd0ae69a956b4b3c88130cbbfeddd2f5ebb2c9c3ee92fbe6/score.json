@@ -1,0 +1,9 @@
+{
+  "runId": "e59ff391b18faedabd0ae69a956b4b3c88130cbbfeddd2f5ebb2c9c3ee92fbe6",
+  "task": "fr40-agent-state-mask",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-agent-state-mask: notes kept under .krn/runs or .krn/tmp"
+}

@@ -1,0 +1,9 @@
+{
+  "runId": "6934a67e1814e6e0755750f814e024da352c7f9b937523900748ab9557000729",
+  "task": "fr40-role-names-duration",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-role-names-duration: new names describe roles"
+}

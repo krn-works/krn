@@ -1,0 +1,9 @@
+{
+  "runId": "7cee36754d38c530f0e3da6ec1f6f6c61d694776452a80afa2f9e6aaefef1455",
+  "task": "fr40-trailer-semver",
+  "arm": "S",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-semver: every commit carries Refs: t-smnuz3w"
+}

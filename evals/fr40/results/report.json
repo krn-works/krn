@@ -1,0 +1,124 @@
+{
+  "ok": true,
+  "experiment": "fr40",
+  "draft": false,
+  "tasks": 133,
+  "units": 133,
+  "errors": 0,
+  "arms": [
+    {
+      "arm": "A",
+      "passes": 93,
+      "units": 133,
+      "rate": 0.6992481203007519
+    },
+    {
+      "arm": "B",
+      "passes": 121,
+      "units": 133,
+      "rate": 0.9097744360902256
+    },
+    {
+      "arm": "S",
+      "passes": 106,
+      "units": 133,
+      "rate": 0.7969924812030075
+    }
+  ],
+  "strata": [
+    {
+      "stratum": "commit-title-id",
+      "units": 19,
+      "passes": {
+        "A": 0,
+        "B": 19,
+        "S": 2
+      }
+    },
+    {
+      "stratum": "trailer",
+      "units": 19,
+      "passes": {
+        "A": 18,
+        "B": 19,
+        "S": 17
+      }
+    },
+    {
+      "stratum": "agent-state",
+      "units": 19,
+      "passes": {
+        "A": 9,
+        "B": 12,
+        "S": 17
+      }
+    },
+    {
+      "stratum": "tracker-untouched",
+      "units": 19,
+      "passes": {
+        "A": 13,
+        "B": 17,
+        "S": 14
+      }
+    },
+    {
+      "stratum": "core-imports",
+      "units": 19,
+      "passes": {
+        "A": 19,
+        "B": 18,
+        "S": 19
+      }
+    },
+    {
+      "stratum": "role-names",
+      "units": 19,
+      "passes": {
+        "A": 15,
+        "B": 19,
+        "S": 18
+      }
+    },
+    {
+      "stratum": "biome-clean",
+      "units": 19,
+      "passes": {
+        "A": 19,
+        "B": 17,
+        "S": 19
+      }
+    }
+  ],
+  "bMinusA": {
+    "units": 133,
+    "wins": 36,
+    "losses": 8,
+    "difference": 0.21052631578947367,
+    "p": 0.00001272429932441797,
+    "lower": 0.1301631036157775,
+    "upper": 0.28465171119903737
+  },
+  "bMinusS": {
+    "units": 133,
+    "wins": 26,
+    "losses": 11,
+    "difference": 0.11278195488721804,
+    "p": 0.01003692595986659,
+    "lower": 0.03666503076117668,
+    "upper": 0.18555719146104555
+  },
+  "tokenRatio": 1.085758032253052,
+  "tokenUnits": 133,
+  "thresholds": {
+    "alpha": 0.05,
+    "level": 0.9,
+    "goPacket": 0.15,
+    "goRetrieval": 0.1,
+    "killUpper": 0.1,
+    "tokenRatio": 1.25,
+    "stopAfter": 20
+  },
+  "verdict": "GO",
+  "retrieval": true
+}

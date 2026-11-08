@@ -1,0 +1,9 @@
+{
+  "runId": "55952c032b8806e08439a3a681c3c5c59ee5a7feadad603323ee02839f91927c",
+  "task": "fr40-commit-title-id-slug",
+  "arm": "S",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-slug: commit title does not end with (t-7ko8od0): feat(cli): add slugify utility"
+}

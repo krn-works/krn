@@ -1,0 +1,9 @@
+{
+  "runId": "9268f63148502d9b47d2332bfa725189907232e3c49e9191e69eb33ed8bbdd77",
+  "task": "fr40-commit-title-id-clamp",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-commit-title-id-clamp: commit title does not end with (t-qndpoyz): feat(cli): add numeric clamp"
+}
