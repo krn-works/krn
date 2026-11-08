@@ -57,10 +57,10 @@ test('CI workflow runs lint, typecheck and eight test shards on hosted runners b
   assert.doesNotMatch(source, /krn-ci-isolated|vars\.CI_RUNNER/u);
 
   const test = jobs.get('test') ?? '';
-  assert.match(test, /^ {8}shard: \[1, 2, 3, 4, 5, 6, 7, 8\]$/mu);
+  assert.match(test, /^ {8}shard: \[1, 2, 3, 4, 5, 6, 7, 8, 9, 10\]$/mu);
   assert.match(test, /^ {10}KRN_TEST_STRICT: '1'$/mu);
   assert.match(test, /^ {6}KRN_TEST_SHARD_INDEX: \$\{\{ matrix\.shard \}\}$/mu);
-  assert.match(test, /^ {6}KRN_TEST_SHARD_TOTAL: '8'$/mu);
+  assert.match(test, /^ {6}KRN_TEST_SHARD_TOTAL: '10'$/mu);
   assert.match(test, /^ {8}run: npm test$/mu);
   const lint = jobs.get('lint') ?? '';
   assert.match(lint, /run: npm run lint$/mu);

@@ -10,6 +10,7 @@ import {
   codexStream,
   fixture,
   jsonl,
+  rejectedConfigMessages,
   turn,
 } from './session-fixture.ts';
 
@@ -39,13 +40,6 @@ test('eval Codex config disables ambient integrations with recognised settings',
   );
 });
 
-const rejectedConfigMessages = [
-  '`features.skills` is ignored',
-  'The configuration setting `features.skills` is ignored.',
-  'Unrecognized configuration key: features.unknown',
-  'Unrecognised config setting: features.unknown',
-];
-
 test('eval Codex stream remembers rejected configuration after a completed tool turn', () => {
   for (const message of rejectedConfigMessages) {
     const accounting = new SessionUsage();
@@ -67,26 +61,6 @@ test('eval Codex stream remembers rejected configuration after a completed tool 
     accounting.push(Buffer.from(jsonl([event]) + codexStream));
     accounting.finish();
     assert.equal(accounting.configRejected, false);
-  }
-});
-
-test('eval session classifies a rejected Codex config as harness_error despite completion', async (t) => {
-  if (!requiresIsolation(t, t.name, ['bwrap', 'systemdUserScope'])) return;
-  for (const message of rejectedConfigMessages) {
-    const f = await fixture();
-    try {
-      await f.scenario(jsonl([{ type: 'error', message }]) + codexStream);
-      const observed = f.invoke(f.args());
-      assert.equal(observed.status, 0, observed.stderr);
-      const record = JSON.parse(
-        await readFile(join(f.output(), 'session.json'), 'utf8'),
-      );
-      assert.equal(record.status, 'harness_error');
-      assert.equal(record.reason, 'config_rejected');
-      assert.equal(record.exitCode, 0);
-    } finally {
-      await f.cleanup();
-    }
   }
 });
 
