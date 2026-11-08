@@ -51,13 +51,15 @@ test('start refuses every prior session artefact by name before spawning a drive
 test('restart after an initialization error and stop refuses the old error without a new driver', async (t) => {
   const s = await setup(t);
   s.env.CODEX_TEST_WORKER_VERSION = '0.0.0';
+  s.env.CODEX_TEST_WORKER_PROBE_VERSION = '0.167.0';
   assert.equal((await s.turn('ok', true).result).code, 65);
   await until(
     () => existsSync(join(s.run, 'summary.json')) && !alive(s.state().pid),
   );
   assert.equal((await s.launch('stop').result).code, 0);
   const before = s.rows();
-  s.env.CODEX_TEST_WORKER_VERSION = '0.166.0';
+  s.env.CODEX_TEST_WORKER_VERSION = '0.167.0';
+  s.env.CODEX_TEST_WORKER_PROBE_VERSION = '';
   const result = await s.turn('ok', true).result;
   assert.equal(result.code, 75, result.stderr);
   assert.match(result.stderr, /error\.json/);

@@ -65,7 +65,7 @@ export function setup(t: TestContext) {
     CODEX_TEST_WORKER_LOG: join(root, 'requests.jsonl'),
     CODEX_TEST_WORKER_PID: join(root, 'pid'),
     CODEX_TEST_WORKER_REPORT: join(root, 'report'),
-    CODEX_TEST_WORKER_VERSION: '0.166.0',
+    CODEX_TEST_WORKER_VERSION: '0.167.0',
   };
   function command(args: string[], directory = run) {
     const child = spawn(

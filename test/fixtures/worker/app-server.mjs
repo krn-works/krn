@@ -21,6 +21,17 @@ if (process.argv.slice(2).join(' ') === 'mcp list --json') {
   process.exit(0);
 }
 
+// The worker start probe; the shape is test/fixtures/codex-app-server-startup/startup-config.stdout.txt.
+if (
+  process.argv[2] === 'app-server' &&
+  process.argv.includes('--print-startup-config')
+) {
+  process.stdout.write(
+    `${JSON.stringify({ appServerVersion: process.env.CODEX_TEST_WORKER_PROBE_VERSION || process.env.CODEX_TEST_WORKER_VERSION || '0.167.0', configRequirements: { supportsIndependentSpeedModes: true, requirements: null } })}\n`,
+  );
+  process.exit(0);
+}
+
 if (process.argv[2] === 'sandbox') {
   const args = process.argv.slice(3);
   const marker = args.indexOf('--');
@@ -138,8 +149,8 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
     return emit({
       id,
       result: {
-        userAgent: `krn/0.166.0`,
-        version: process.env.CODEX_TEST_WORKER_VERSION ?? '0.166.0',
+        userAgent: `krn/0.167.0`,
+        version: process.env.CODEX_TEST_WORKER_VERSION ?? '0.167.0',
       },
     });
   }
@@ -154,7 +165,7 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
             process.env.CODEX_TEST_WORKER_THREAD_PATH ??
               '"/tmp/codex-rollout.jsonl"',
           ),
-          cliVersion: process.env.CODEX_TEST_WORKER_VERSION ?? '0.166.0',
+          cliVersion: process.env.CODEX_TEST_WORKER_VERSION ?? '0.167.0',
         },
       },
     });

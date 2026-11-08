@@ -7,7 +7,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { defaultCodexExecutable, workerEnvironment } from '../hosts/codex.ts';
+import { workerEnvironment } from '../hosts/codex.ts';
 import { redact, secureDir } from './state.ts';
 import { workerTmp } from './trust.ts';
 
@@ -34,6 +34,7 @@ export async function runAcceptance(
   roundDir: string,
   checks: string[],
   observers: string[],
+  executable: string,
 ): Promise<Acceptance[]> {
   const entries = [
     ...checks.map((cmd) => ({
@@ -99,7 +100,7 @@ export async function runAcceptance(
           ...entry.argv,
         ];
         await new Promise<void>((done) => {
-          const child = spawn(defaultCodexExecutable, args, {
+          const child = spawn(executable, args, {
             cwd: repo,
             env: { ...workerEnvironment(), TMPDIR: workerTmp(run) },
             detached: true,

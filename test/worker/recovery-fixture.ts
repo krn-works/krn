@@ -83,7 +83,8 @@ export async function setup(t: TestContext) {
     CODEX_TEST_WORKER_LOG: join(root, 'requests.jsonl'),
     CODEX_TEST_WORKER_PID: join(root, 'server-pid'),
     CODEX_TEST_WORKER_ORPHAN_PID: orphan,
-    CODEX_TEST_WORKER_VERSION: '0.166.0',
+    CODEX_TEST_WORKER_VERSION: '0.167.0',
+    CODEX_TEST_WORKER_PROBE_VERSION: '',
   };
   for (const [name, source] of Object.entries({
     'systemd-run':

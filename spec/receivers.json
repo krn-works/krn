@@ -61,6 +61,14 @@
       "capture": ["test/fixtures/codex-cli-0.167.0/exec-pass.stdout.jsonl"],
       "test": "test/hosts/codex-exec-capture.test.ts"
     },
+    "src/hosts/codex-probe.ts": {
+      "receivers": ["codex app-server --print-startup-config"],
+      "capture": [
+        "test/fixtures/codex-app-server-startup/startup-config.stdout.txt",
+        "test/fixtures/codex-app-server-startup/startup-config-invalid.stdout.txt"
+      ],
+      "test": "test/hosts/codex-probe.test.ts"
+    },
     "src/hosts/systemd-scope.ts": {
       "receivers": ["systemd-run", "systemctl"],
       "real": "test/hosts/systemd-scope-collect.test.ts"
