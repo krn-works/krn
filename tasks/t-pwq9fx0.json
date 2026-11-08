@@ -1,7 +1,11 @@
 {
   "id": "t-pwq9fx0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Placeholder /work/repo documented in test/fixtures/README.md; host-path guard pins it."
+  },
   "created": "2026-11-01",
   "priority": 2,
   "title": "Define how receiver captures redact host paths",
