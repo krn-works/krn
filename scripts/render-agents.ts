@@ -43,10 +43,10 @@ async function checkRegistry(): Promise<string[]> {
   const { scripts } = JSON.parse(
     await readFile(new URL('package.json', root), 'utf8'),
   ) as { scripts: Record<string, string> };
-  const testFiles = await readdir(new URL('test/', root));
+  const testFiles = await readdir(new URL('test/', root), { recursive: true });
   const testSources = await Promise.all(
     testFiles
-      .filter((file) => file.endsWith('.test.ts'))
+      .filter((file) => /\.test\.[cm]?[jt]s$/u.test(file))
       .map((file) => readFile(new URL(`test/${file}`, root), 'utf8')),
   );
   const titles = new Set(

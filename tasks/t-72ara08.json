@@ -1,7 +1,11 @@
 {
   "id": "t-72ara08",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "spec/receivers.json + test/rules/receiver-evidence.test.mjs enforce KRN-12; gate-wait and ci wait read the github-check-runs captures; five modules pending t-5b632zt"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Mechanize KRN-12: require a capture or replay test for every receiver-facing module",

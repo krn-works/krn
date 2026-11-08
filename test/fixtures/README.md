@@ -2,6 +2,8 @@
 
 KRN-12 captures are committed verbatim except for redaction, and redaction has one sanctioned form.
 
+`spec/receivers.json` maps every `src` module that spawns a receiver to its evidence: a capture here plus the test that reads it, a test that drives the real receiver, or `pending: <open task>`; `test/rules/receiver-evidence.test.mjs` fails on an unlisted module, a missing capture or a closed pending task.
+
 - A host path (repository root, home or runtime directory) becomes the placeholder `/work/repo`.
 - A Claude transcript `cwd` becomes `.`, and transcript message content becomes `[]`.
 - Nothing else is rewritten: ids, counters, key order and byte format stay as captured.

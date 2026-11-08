@@ -1,0 +1,12 @@
+{
+  "id": "t-5b632zt",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Record receiver captures for the modules KRN-12 lists as pending",
+  "after": [],
+  "body": [
+    "Outcome: each module listed with `pending` in spec/receivers.json gets KRN-12 evidence, a verbatim capture under test/fixtures read by a named test or a named test that drives the real receiver, and its entry drops `pending`.\nEvidence: test/rules/receiver-evidence.test.mjs lists the pending modules; recon found src/deliver/transport.ts tests use a hand-written gh stderr, src/flow/panel.ts and src/worker/acceptance.ts run a fake codex, src/worker/isolation.ts parses hand-written `codex mcp list --json`, and test/fixtures/codex/rust-v0.162.1.jsonl read by test/hosts/codex-usage.test.ts is synthetic, not captured.\nAcceptance: `node --test test/rules/receiver-evidence.test.mjs` passes with no entry naming this task; captures follow test/fixtures/README.md (redaction, provenance, no account state)."
+  ]
+}
