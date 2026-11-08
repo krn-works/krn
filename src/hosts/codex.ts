@@ -66,46 +66,58 @@ export function workerEnvironment(
   return env;
 }
 
-export function resolveCodexExecutable(home: string = homedir()): string {
-  const override = process.env.KRN_CODEX_BIN;
-  if (override) return override;
+type CodexRelease = { readonly executable: string; readonly version: string };
 
+/** Installed Codex releases with an executable, newest first; undefined when none are installed. */
+function codexReleases(home: string): CodexRelease[] | undefined {
   const releases = join(home, '.codex/packages/app-server-daemon/releases');
-  if (!existsSync(releases)) return 'codex';
-
-  const candidates = readdirSync(releases, { withFileTypes: true })
-    .filter(
-      (entry) =>
-        entry.isDirectory() &&
-        /^\d+\.\d+\.\d+-[0-9A-Za-z][0-9A-Za-z._-]*$/.test(entry.name),
-    )
-    .map((entry) => {
+  if (!existsSync(releases)) return undefined;
+  return readdirSync(releases, { withFileTypes: true })
+    .flatMap((entry) => {
       const match = /^(\d+)\.(\d+)\.(\d+)-[0-9A-Za-z][0-9A-Za-z._-]*$/.exec(
         entry.name,
       );
-      if (!match) return undefined;
+      if (!entry.isDirectory() || !match) return [];
       const executable = join(releases, entry.name, 'bin/codex');
       return existsSync(executable)
-        ? {
-            executable,
-            version: [
-              Number(match[1]),
-              Number(match[2]),
-              Number(match[3]),
-            ] as const,
-          }
-        : undefined;
+        ? [
+            {
+              executable,
+              version: `${match[1]}.${match[2]}.${match[3]}`,
+              parts: [Number(match[1]), Number(match[2]), Number(match[3])],
+            },
+          ]
+        : [];
     })
-    .filter((candidate) => candidate !== undefined)
-    .sort((left, right) => {
-      return (
-        right.version[0] - left.version[0] ||
-        right.version[1] - left.version[1] ||
-        right.version[2] - left.version[2]
-      );
-    });
+    .sort(
+      (left, right) =>
+        (right.parts[0] ?? 0) - (left.parts[0] ?? 0) ||
+        (right.parts[1] ?? 0) - (left.parts[1] ?? 0) ||
+        (right.parts[2] ?? 0) - (left.parts[2] ?? 0),
+    )
+    .map(({ executable, version }) => ({ executable, version }));
+}
 
-  return candidates[0]?.executable ?? 'codex';
+export function resolveCodexExecutable(home: string = homedir()): string {
+  const override = process.env.KRN_CODEX_BIN;
+  if (override) return override;
+  return codexReleases(home)?.[0]?.executable ?? 'codex';
+}
+
+/**
+ * The Codex receiver for a worker: the operator override or `codex` on PATH
+ * (version unknown until probed), else the newest installed release whose
+ * version is in `supported`; undefined when releases exist but none is supported.
+ */
+export function resolveSupportedCodex(
+  supported: readonly string[],
+  home: string = homedir(),
+): { readonly executable: string; readonly version?: string } | undefined {
+  const override = process.env.KRN_CODEX_BIN;
+  if (override) return { executable: override };
+  const releases = codexReleases(home);
+  if (!releases?.length) return { executable: 'codex' };
+  return releases.find((release) => supported.includes(release.version));
 }
 
 export const defaultCodexExecutable: string = resolveCodexExecutable();

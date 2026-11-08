@@ -41,6 +41,7 @@ test('acceptance records the captured codex sandbox output and exit code verbati
     round,
     [],
     ['check.test.mjs'],
+    codex,
   );
   assert.equal(result?.kind, 'observer');
   assert.equal(result?.exit_code, 1);

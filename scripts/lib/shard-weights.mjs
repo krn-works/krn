@@ -69,6 +69,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/hosts/codex-cancel.test.ts': 5.3,
   'test/hosts/codex-env.test.ts': 0.3,
   'test/hosts/codex-exec-capture.test.ts': 3.6,
+  'test/hosts/codex-probe.test.ts': 2.1,
   'test/hosts/codex-executable.test.ts': 0.1,
   'test/hosts/codex-launch.test.ts': 1.2,
   'test/hosts/codex-line-limit.test.ts': 1.9,

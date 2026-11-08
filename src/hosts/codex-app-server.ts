@@ -9,7 +9,7 @@ import {
 } from '../worker/process.ts';
 import { alive, type Session, WorkerError } from '../worker/state.ts';
 import { workerTmp } from '../worker/trust.ts';
-import { defaultCodexExecutable, workerEnvironment } from './codex.ts';
+import { workerEnvironment } from './codex.ts';
 import {
   spawnSystemdScope,
   systemdScopeActive,
@@ -29,7 +29,7 @@ export async function reapAppServer(
   run: string,
   allowMissing = false,
 ): Promise<void> {
-  assertServerIdentity(state, run, defaultCodexExecutable, allowMissing);
+  assertServerIdentity(state, run, allowMissing);
   const { unit, serverPid: pid } = state;
   // No asynchronous boundary between the identity check and signalling.
   spawnSync('systemctl', ['--user', 'stop', unit], {
@@ -37,7 +37,7 @@ export async function reapAppServer(
     stdio: 'ignore',
     timeout: 5000,
   });
-  if (assertServerIdentity(state, run, defaultCodexExecutable, true)) {
+  if (assertServerIdentity(state, run, true)) {
     try {
       process.kill(-state.serverGroup, 'SIGKILL');
     } catch (error) {

@@ -153,6 +153,30 @@ function mcpList(replay: string | undefined, target: string | undefined) {
   return 0;
 }
 
+// The worker start probe also runs outside the pipe: replay answers with the
+// startup config captured from the same receiver, record asks the target.
+function startupConfig(
+  replay: string | undefined,
+  target: string | undefined,
+  args: string[],
+) {
+  if (replay) {
+    process.stdout.write(
+      readFileSync(
+        new URL(
+          '../../test/fixtures/codex-app-server-startup/startup-config.stdout.txt',
+          import.meta.url,
+        ),
+      ),
+    );
+    return 0;
+  }
+  return (
+    spawnSync(target ?? '', args, { stdio: ['ignore', 'inherit', 'inherit'] })
+      .status ?? 1
+  );
+}
+
 function main(): void {
   const log = process.env.CODEX_KRN_LOG;
   const replay = process.env.CODEX_KRN_REPLAY;
@@ -160,6 +184,13 @@ function main(): void {
   const args = process.argv.slice(2);
   if (log && !replay !== !target && args.join(' ') === 'mcp list --json')
     process.exit(mcpList(replay, target));
+  if (
+    log &&
+    !replay !== !target &&
+    args[0] === 'app-server' &&
+    args.at(-1) === '--print-startup-config'
+  )
+    process.exit(startupConfig(replay, target, args));
   if (
     !log ||
     !replay === !target ||

@@ -1,7 +1,11 @@
 {
   "id": "t-hdda6w8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn worker start picks the newest installed release in spec/worker-scope.json supportedVersions, probes it with codex app-server --print-startup-config and exits 65 before any scope; 0.166.0 left the spec"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Pick and probe a captured Codex receiver version before starting a worker",

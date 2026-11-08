@@ -1,0 +1,27 @@
+{
+  "receiver": "codex-cli 0.167.0",
+  "captured": "2026-11-08",
+  "setup": "An empty CODEX_HOME and working directory; the release binary under ~/.codex/packages/app-server-daemon/releases/0.167.0-x86_64-unknown-linux-musl. stderr only carried a PATH-alias warning naming the temporary directory and was not kept.",
+  "captures": [
+    {
+      "name": "startup-config",
+      "question": "What does the worker start probe print for a valid configuration?",
+      "command": "codex app-server -c 'approval_policy=\"never\"' -c 'sandbox_mode=\"workspace-write\"' --print-startup-config",
+      "exitCode": 0,
+      "stdout": {
+        "file": "startup-config.stdout.txt",
+        "sha256": "a9e7ac97ecf4f4ba6ef4caab372395c17f3c293c46d5dde55bfdcad4614819bc"
+      }
+    },
+    {
+      "name": "startup-config-invalid",
+      "question": "How does the same probe refuse an invalid approval_policy?",
+      "command": "codex app-server -c 'approval_policy=\"sometimes\"' -c 'sandbox_mode=\"workspace-write\"' --print-startup-config",
+      "exitCode": 1,
+      "stdout": {
+        "file": "startup-config-invalid.stdout.txt",
+        "sha256": "f201283f4d10f80c982ce1df835a0981403e7cd6bc89302d097382a77c20b1ac"
+      }
+    }
+  ]
+}

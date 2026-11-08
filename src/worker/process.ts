@@ -99,13 +99,10 @@ export function assertServerIdentity(
     | 'serverGroup'
   >,
   run: string,
-  executable: string,
   allowMissing = false,
 ): boolean {
   if (state.unit !== workerUnit(run))
     throw new WorkerError(65, 'worker unit identity mismatch');
-  if (state.serverExecutable !== executablePath(executable))
-    throw new WorkerError(65, 'worker executable identity mismatch');
   const stat = processStat(state.serverPid);
   if (!stat || stat.state === 'Z') {
     if (allowMissing) return false;

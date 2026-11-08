@@ -55,7 +55,7 @@ export async function setup(t: import('node:test').TestContext) {
     KRN_CODEX_BIN: fixture,
     KRN_LEGACY_ENTRY: cli,
     CODEX_TEST_WORKER_LOG: join(root, 'requests.jsonl'),
-    CODEX_TEST_WORKER_VERSION: '0.166.0',
+    CODEX_TEST_WORKER_VERSION: '0.167.0',
     CODEX_TEST_WORKER_PID: join(root, 'pid'),
     CODEX_TEST_WORKER_REPORT: join(root, 'report'),
   };

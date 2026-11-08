@@ -11,7 +11,6 @@ import { join, matchesGlob, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
 import { flagValue } from '../cli/flag-value.ts';
-import { defaultCodexExecutable } from '../hosts/codex.ts';
 import { reapAppServer } from '../hosts/codex-app-server.ts';
 import {
   assertDriverIdentity,
@@ -19,6 +18,7 @@ import {
   executablePath,
   workerUnit,
 } from './process.ts';
+import { pickCodexReceiver } from './receiver.ts';
 import { git, loadPolicy } from './scope.ts';
 import { ensureSetup } from './setup-marker.ts';
 import {
@@ -209,6 +209,7 @@ export async function workerCommand(args: string[]): Promise<void> {
     let text: string | undefined;
     let startCommit: string | undefined;
     let saved: Session | undefined;
+    let executable: string | undefined;
     if (command === 'start') {
       repo = validateRun(resolve(required('--repo')), run);
       validateRun(repo, join(run, 'inbox'));
@@ -224,6 +225,7 @@ export async function workerCommand(args: string[]): Promise<void> {
           64,
           `--allow ${forbidden} names a forbidden path`,
         );
+      executable = pickCodexReceiver(policy.supportedVersions, repo);
       if (existsSync(join(repo, 'package.json'))) {
         const missingDependencies = `dependencies missing: run pnpm install --frozen-lockfile in ${repo}`;
         const installed = () => {
@@ -283,7 +285,7 @@ export async function workerCommand(args: string[]): Promise<void> {
     if (command === 'stop') {
       if (!saved) throw new WorkerError(65, 'worker state missing');
       const state = saved;
-      assertServerIdentity(state, run, defaultCodexExecutable, true);
+      assertServerIdentity(state, run, true);
       if (assertDriverIdentity(state, run, true)) {
         try {
           process.kill(state.pid, 'SIGTERM');
@@ -332,7 +334,7 @@ export async function workerCommand(args: string[]): Promise<void> {
           `worker run contains ${name}; choose a fresh directory`,
         );
       }
-      if (!startCommit || text === undefined)
+      if (!startCommit || text === undefined || !executable)
         throw new WorkerError(70, 'missing prepared worker start');
       state = {
         repo,
@@ -352,7 +354,7 @@ export async function workerCommand(args: string[]): Promise<void> {
         serverPid: 0,
         serverStartTime: null,
         serverGroup: 0,
-        serverExecutable: executablePath(defaultCodexExecutable),
+        serverExecutable: executablePath(executable),
         unit: workerUnit(run),
         rounds: 0,
         status: 'running',
