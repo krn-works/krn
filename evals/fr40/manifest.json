@@ -1,0 +1,590 @@
+{
+  "id": "fr40",
+  "design": "fr40",
+  "frozen": true,
+  "seed": "fr40-2026-11-08",
+  "replicas": 1,
+  "arms": [
+    {
+      "id": "A",
+      "model": "gpt-6-luna",
+      "harness": "codex",
+      "material": "none"
+    },
+    {
+      "id": "B",
+      "model": "gpt-6-luna",
+      "harness": "codex",
+      "material": "packet"
+    },
+    {
+      "id": "S",
+      "model": "gpt-6-luna",
+      "harness": "codex",
+      "material": "standards"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "fr40-commit-title-id-duration",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-bytes",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-slug",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-chunk",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-dedupe",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-wrap",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-semver",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-plural",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-clamp",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-table",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-retry",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-env",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-range",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-percent",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-truncate",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-groups",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-lines",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-mask",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-commit-title-id-median",
+      "stratum": "commit-title-id"
+    },
+    {
+      "id": "fr40-trailer-duration",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-bytes",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-slug",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-chunk",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-dedupe",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-wrap",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-semver",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-plural",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-clamp",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-table",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-retry",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-env",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-range",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-percent",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-truncate",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-groups",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-lines",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-mask",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-trailer-median",
+      "stratum": "trailer"
+    },
+    {
+      "id": "fr40-agent-state-duration",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-bytes",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-slug",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-chunk",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-dedupe",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-wrap",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-semver",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-plural",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-clamp",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-table",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-retry",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-env",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-range",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-percent",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-truncate",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-groups",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-lines",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-mask",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-agent-state-median",
+      "stratum": "agent-state"
+    },
+    {
+      "id": "fr40-tracker-untouched-duration",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-bytes",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-slug",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-chunk",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-dedupe",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-wrap",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-semver",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-plural",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-clamp",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-table",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-retry",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-env",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-range",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-percent",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-truncate",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-groups",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-lines",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-mask",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-tracker-untouched-median",
+      "stratum": "tracker-untouched"
+    },
+    {
+      "id": "fr40-core-imports-duration",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-bytes",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-slug",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-chunk",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-dedupe",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-wrap",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-semver",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-plural",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-clamp",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-table",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-retry",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-env",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-range",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-percent",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-truncate",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-groups",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-lines",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-mask",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-core-imports-median",
+      "stratum": "core-imports"
+    },
+    {
+      "id": "fr40-role-names-duration",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-bytes",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-slug",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-chunk",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-dedupe",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-wrap",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-semver",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-plural",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-clamp",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-table",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-retry",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-env",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-range",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-percent",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-truncate",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-groups",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-lines",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-mask",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-role-names-median",
+      "stratum": "role-names"
+    },
+    {
+      "id": "fr40-biome-clean-duration",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-bytes",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-slug",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-chunk",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-dedupe",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-wrap",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-semver",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-plural",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-clamp",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-table",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-retry",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-env",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-range",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-percent",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-truncate",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-groups",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-lines",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-mask",
+      "stratum": "biome-clean"
+    },
+    {
+      "id": "fr40-biome-clean-median",
+      "stratum": "biome-clean"
+    }
+  ],
+  "taskFile": "tasks.json",
+  "material": "material.json",
+  "check": [
+    "node",
+    "{experiment}/scorers.ts",
+    "{experiment}/tasks.json",
+    "{repo}",
+    "--task",
+    "{task}"
+  ],
+  "analysis": {
+    "alpha": 0.05,
+    "level": 0.9,
+    "goPacket": 0.15,
+    "goRetrieval": 0.1,
+    "killUpper": 0.1,
+    "tokenRatio": 1.25,
+    "stopAfter": 20
+  },
+  "inputs": {
+    "convention-power.json": "3defb40f4ceeab3f8f0094de4ec849fa75f2adcbf78597c9289d6d0b21bf6098",
+    "material.json": "dacd679724b5df83f449552c73766c778d4c10d33a1572f22bf8a9c2a5c537c7",
+    "records.json": "cc5b0319daaae37febe4e0bdfe0bd043f80bdf00df1a7c357f0f23d4ca80f349",
+    "scorers.ts": "66c48ac27df209bc4e617df2c288fe2ab47241c91e40bb86ed1013ba6be5030c",
+    "standards.md": "1ee67c315d3d5038b2f563913227ae5518312943d3fa16ee9fe2ba83d159af2e",
+    "tasks.json": "cde75f50aba0aa449f4e13e5c7494990b08bcfa14624a25f8c2f90b115c8683a",
+    "tasks.ts": "39bbbf3c437dac118c2c24fcfc22b361834b06d6eb4c353c4c78f65ce423f683",
+    "validity.json": "d878f17059aa43d40008de3d533b351d4b9d9088d39ad1404caa7975d2a13e78"
+  }
+}

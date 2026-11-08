@@ -1,7 +1,11 @@
 {
   "id": "t-j5xq3zn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Frozen evals/fr40/manifest.json (3 arms x 133 tasks, fixed strata, input hashes; freeze.ts --check), ADR 0014 D20 amended, krn eval score and krn eval report (pooled exact McNemar, Bonett-Price 90%, token ratio, stop rule). Mock-provider session run moves to t-v3wy363."
+  },
   "created": "2026-11-08",
   "priority": 1,
   "title": "Freeze the FR-40 manifest and add eval scoring and reporting",

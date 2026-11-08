@@ -182,12 +182,27 @@ export function score(
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const [taskPath, repo, base] = process.argv.slice(2);
-  if (!taskPath || !repo) {
-    process.stderr.write('usage: scorers.ts <task.json> <repo> [base]\n');
+  // `<task.json> <repo> [base]`, or `<tasks.json> <repo> --task <id>` for the frozen task file.
+  const args = process.argv.slice(2);
+  const flag = args.indexOf('--task');
+  const id = flag === -1 ? undefined : args.splice(flag, 2)[1];
+  const [taskPath, repo, base] = args;
+  if (!taskPath || !repo || (flag !== -1 && !id)) {
+    process.stderr.write(
+      'usage: scorers.ts <task.json> <repo> [base] | <tasks.json> <repo> --task <id>\n',
+    );
     process.exit(64);
   }
-  const task = JSON.parse(readFileSync(taskPath, 'utf8')) as ConventionTask;
+  const parsed = JSON.parse(readFileSync(taskPath, 'utf8')) as
+    | ConventionTask
+    | ConventionTask[];
+  const task = Array.isArray(parsed)
+    ? parsed.find((candidate) => candidate.id === id)
+    : parsed;
+  if (task === undefined) {
+    process.stderr.write(`unknown task ${id}\n`);
+    process.exit(65);
+  }
   const verdict = score(task, repo, base);
   process.stdout.write(
     `${verdict.pass ? 'pass' : 'fail'} ${task.id}: ${verdict.reason}\n`,

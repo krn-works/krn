@@ -59,6 +59,10 @@
       "capture": ["test/fixtures/eval/codex-0.167.0/version.stdout.txt"],
       "test": "test/evals/codex-receiver.test.ts"
     },
+    "src/evals/score.ts": {
+      "receivers": ["node"],
+      "real": "test/evals/fr40-report.test.ts"
+    },
     "src/evals/workspace.ts": {
       "receivers": ["git"],
       "real": "test/evals/workspace.test.ts"
