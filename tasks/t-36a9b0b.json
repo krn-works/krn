@@ -1,7 +1,11 @@
 {
   "id": "t-36a9b0b",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn task check --evidence reports open tasks naming a feat/, fix/ or chore/ branch missing locally and on origin"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Report open tasks that name a branch that no longer exists",

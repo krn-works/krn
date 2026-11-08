@@ -107,6 +107,10 @@
       ],
       "test": "test/outcome/ledger.test.ts"
     },
+    "src/task/branch-evidence.ts": {
+      "receivers": ["git"],
+      "real": "test/task/task-branch-evidence.test.ts"
+    },
     "src/task/branch-tickets.ts": {
       "receivers": ["git"],
       "real": "test/task/task-check.test.ts"

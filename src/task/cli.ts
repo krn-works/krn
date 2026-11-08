@@ -2,6 +2,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { commandErrorExitCode } from '../cli/command-error.ts';
 import { flagValue } from '../cli/flag-value.ts';
+import {
+  branchMisses,
+  formatBranchMiss,
+  gitBranchExists,
+} from './branch-evidence.ts';
 import { branchTicketFindings } from './branch-tickets.ts';
 import {
   claimHolder,
@@ -91,7 +96,7 @@ const verbHelp: Record<string, string> = {
   comment:
     'krn task comment ID --body-file FILE|- [--actor NAME] [--json]\nAppend a signed, dated comment; workers may comment but never change status. Actor defaults to git user.name. Example: krn task comment t-a1b2c3d --body-file - --json',
   check:
-    'krn task check [--base REV [--head REV]] [--evidence [--recovery DIR]] [--json]\nValidate task records and references; with --base, also refuse a Ticket: trailer in base..head (head defaults to HEAD) whose task is open or missing; with --evidence, also refuse an open task citing a .krn/runs/ path missing from the main checkout, naming its copy under --recovery DIR when one exists. Example: krn task check --evidence --json',
+    'krn task check [--base REV [--head REV]] [--evidence [--recovery DIR]] [--json]\nValidate task records and references; with --base, also refuse a Ticket: trailer in base..head (head defaults to HEAD) whose task is open or missing; with --evidence, also refuse an open task citing a .krn/runs/ path missing from the main checkout, naming its copy under --recovery DIR when one exists, or naming a feat/, fix/ or chore/ branch that exists neither locally nor on origin. Example: krn task check --evidence --json',
 };
 
 export async function taskCommand(args: string[]): Promise<void> {
@@ -193,6 +198,9 @@ function check(args: string[], json: boolean): CommandOutput {
         mainCheckoutRoot(root),
         recovery,
       ).map(formatEvidenceMiss),
+      ...branchMisses(loadTaskIndex(root).values(), (branch) =>
+        gitBranchExists(root, branch),
+      ).map(formatBranchMiss),
     );
   if (findings.length > 0) throw new TaskDataError(findings);
   return result({ findings: [] }, 'Task data is valid.\n', json);
