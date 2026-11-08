@@ -1,38 +1,40 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { stopExitCodes, waitCommand, waitUsage } from '../../src/ci/wait.ts';
+import { GateTimeout, waitForGate } from '../../src/deliver/gate-wait.ts';
+import { checkRunArgs, pull, pullArgs, strictGh } from './strict-gh.ts';
 
-const api = await import('../../src/ci/wait.ts').catch(() => undefined);
 const head = 'a'.repeat(40),
   base = 'b'.repeat(40);
 const args = ['--repo', 'o/r', '--pr', '7', '--head', head, '--base', base];
-function runtime(conclusion: string | null) {
+const checkRun = (status: string, conclusion: string | null) => ({
+  id: 1,
+  name: 'gate',
+  head_sha: head,
+  status,
+  conclusion,
+  app: { slug: 'github-actions' },
+  output: { title: 'failure cause' },
+});
+function runtime(
+  checks: () => unknown[],
+  pullBody: () => string = () => pull(head),
+) {
   let time = 0;
   const gitReads: string[][] = [];
+  const fake = strictGh('o/r', 7, head, {
+    pull: pullBody,
+    checks: () => JSON.stringify([{ check_runs: checks() }]),
+  });
   return {
     gitReads,
+    calls: fake.calls,
+    elapsed: () => time,
     run: (_command: string, args: string[]) => {
       gitReads.push(args);
       return { code: 0, stdout: '', stderr: '' };
     },
-    gh: async () =>
-      JSON.stringify([
-        {
-          check_runs:
-            conclusion === null
-              ? []
-              : [
-                  {
-                    id: 1,
-                    name: 'gate',
-                    head_sha: head,
-                    status: 'completed',
-                    conclusion,
-                    app: { slug: 'github-actions' },
-                    output: { title: 'failure cause' },
-                  },
-                ],
-        },
-      ]),
+    gh: fake.gh,
     now: () => time,
     sleep: async (ms: number) => {
       time += ms;
@@ -40,12 +42,8 @@ function runtime(conclusion: string | null) {
   };
 }
 test('wait succeeds and reads policy at exact base', async () => {
-  assert.equal(typeof api?.waitCommand, 'function');
-  const gate = await import('../../src/deliver/gate-wait.ts');
-  assert.equal(typeof gate.waitForGate, 'function');
-  assert.ok(api);
-  const receiver = runtime('success');
-  assert.equal(await api.waitCommand(args, receiver), `gate: success ${head}`);
+  const receiver = runtime(() => [checkRun('completed', 'success')]);
+  assert.equal(await waitCommand(args, receiver), `gate: success ${head}`);
   assert.deepEqual(receiver.gitReads[0], [
     'ls-tree',
     '--full-tree',
@@ -53,11 +51,17 @@ test('wait succeeds and reads policy at exact base', async () => {
     '--',
     'spec/ci-admission.json',
   ]);
+  assert.deepEqual(receiver.calls, [
+    pullArgs('o/r', 7),
+    checkRunArgs('o/r', head),
+  ]);
 });
 test('wait failure preserves rerun instruction and exits 74', async () => {
-  assert.ok(api);
   await assert.rejects(
-    api.waitCommand(args, runtime('failure')),
+    waitCommand(
+      args,
+      runtime(() => [checkRun('completed', 'failure')]),
+    ),
     (error: unknown) => {
       assert.ok(error instanceof Error);
       assert.equal(Reflect.get(error, 'exitCode'), 74);
@@ -68,26 +72,84 @@ test('wait failure preserves rerun instruction and exits 74', async () => {
     },
   );
 });
-test('wait times out with 75', async () => {
-  assert.ok(api);
+test('wait times out with 75 while the gate is queued', async () => {
   await assert.rejects(
-    api.waitCommand([...args, '--timeout-seconds', '1'], runtime(null)),
+    waitCommand(
+      [...args, '--timeout-seconds', '1'],
+      runtime(() => [checkRun('queued', null)]),
+    ),
     {
       exitCode: 75,
-      message: `bounded wait timed out after 1s: gate missing on ${head}; rerun the same command to resume`,
+      message: `bounded wait timed out after 1s: gate queued on ${head}; rerun the same command to resume`,
     },
   );
 });
+test('a conflicting PR without check-runs stops on the first poll', async () => {
+  const receiver = runtime(
+    () => [],
+    () => pull(head, 'dirty'),
+  );
+  await assert.rejects(waitCommand(args, receiver), {
+    exitCode: stopExitCodes.conflict,
+    message: /PR #7 conflicts with its base/u,
+  });
+  assert.equal(receiver.elapsed(), 0);
+  assert.equal(receiver.calls.length, 1);
+});
+test('a moved head stops on the first poll', async () => {
+  const receiver = runtime(
+    () => [checkRun('completed', 'success')],
+    () => pull('c'.repeat(40)),
+  );
+  await assert.rejects(waitCommand(args, receiver), {
+    exitCode: stopExitCodes['head-moved'],
+    message: /^head moved: PR #7 is at c{40}, not a{40}/u,
+  });
+  assert.equal(receiver.elapsed(), 0);
+});
+test('a gate that never starts stops at the start bound, long before 1800 s', async () => {
+  const receiver = runtime(() => []);
+  await assert.rejects(
+    waitCommand([...args, '--start-timeout-seconds', '60'], receiver),
+    {
+      exitCode: stopExitCodes['never-started'],
+      message: `gate never started on ${head} within 60s; check the PR's workflows`,
+    },
+  );
+  assert.equal(receiver.elapsed(), 60_000);
+});
+test('a gate that starts in time is not cut by the start bound', async () => {
+  let polls = 0;
+  const receiver = runtime(() =>
+    ++polls < 3
+      ? []
+      : [checkRun(polls < 5 ? 'in_progress' : 'completed', 'success')],
+  );
+  assert.equal(
+    await waitCommand([...args, '--start-timeout-seconds', '30'], receiver),
+    `gate: success ${head}`,
+  );
+  assert.equal(receiver.elapsed(), 40_000);
+});
+test('stop exit codes are distinct, avoid 64/74/75 and appear in the usage', () => {
+  const codes = Object.values(stopExitCodes);
+  assert.equal(new Set(codes).size, codes.length);
+  for (const code of codes) {
+    assert.ok(![0, 64, 74, 75].includes(code));
+    assert.match(waitUsage, new RegExp(`\\b${code}\\b`, 'u'));
+  }
+  assert.match(waitUsage, /--start-timeout-seconds/u);
+});
 test('wait refuses usage with 64 before reading git', async () => {
-  assert.ok(api);
   for (const invalid of [
     [],
     [...args, '--bad'],
     [...args, '--pr', '2'],
     [...args.slice(0, -2)],
     [...args, '--timeout-seconds', '0'],
+    [...args, '--start-timeout-seconds', '0'],
   ])
-    await assert.rejects(api.waitCommand(invalid), { exitCode: 64 });
+    await assert.rejects(waitCommand(invalid), { exitCode: 64 });
 });
 
 for (const [status, printed] of [
@@ -100,38 +162,35 @@ for (const [status, printed] of [
   ['q'.repeat(40), 'q'.repeat(32)],
 ]) {
   test(`timeout reports the last seen state safely: ${JSON.stringify(status)}`, async () => {
-    const { waitForGate, GateTimeout } = await import(
-      '../../src/deliver/gate-wait.ts'
-    );
     let time = 0;
+    const { gh } = strictGh('o/r', 7, head, {
+      pull: () => pull(head),
+      checks: () =>
+        JSON.stringify([
+          {
+            check_runs:
+              time === 0
+                ? []
+                : [
+                    {
+                      id: 1,
+                      name: 'Check',
+                      head_sha: head,
+                      status,
+                      conclusion: null,
+                      app: { id: 15368 },
+                    },
+                  ],
+          },
+        ]),
+    });
     await assert.rejects(
       waitForGate({
         repo: 'o/r',
         pr: 7,
         head,
-        policy: {
-          source: 'pinned-app',
-          checkRunName: 'Check',
-          appId: 15368,
-        },
-        gh: async () =>
-          JSON.stringify([
-            {
-              check_runs:
-                time === 0
-                  ? []
-                  : [
-                      {
-                        id: 1,
-                        name: 'Check',
-                        head_sha: head,
-                        status,
-                        conclusion: null,
-                        app: { id: 15368 },
-                      },
-                    ],
-            },
-          ]),
+        policy: { source: 'pinned-app', checkRunName: 'Check', appId: 15368 },
+        gh,
         now: () => time,
         sleep: async (ms) => {
           time += ms;
