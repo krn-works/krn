@@ -18,6 +18,13 @@ import type { Readable } from 'node:stream';
 
 const placeholder = '/work/repo';
 
+/**
+ * A JSON key of account state (credit balance, usage, installation id) that
+ * no committed or test-produced capture may carry.
+ */
+export const accountKey: RegExp =
+  /"(?:accountId|balance|email|installationId|planType|usedPercent)"\s*:/u;
+
 type Frame = { readonly outbound: boolean; readonly text: string };
 
 function redact(line: string, roots: readonly string[]): string {

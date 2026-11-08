@@ -1,7 +1,11 @@
 {
   "id": "t-m1jmgcv",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test/worker/mock-provider.test.ts drives codex 0.167.0 through krn worker against a loopback /v1/responses mock; CI installs the pinned binary from the npm registry in the background"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Test the real Codex app-server against a scripted mock Responses provider",

@@ -4,6 +4,9 @@ inputs:
   isolation:
     description: Enable unprivileged user namespaces and install bubblewrap for the sandbox tests.
     default: 'false'
+  codex:
+    description: Install the codex binary pinned in spec/worker-scope.json for the receiver tests.
+    default: 'false'
 runs:
   using: composite
   steps:
@@ -26,6 +29,30 @@ runs:
           done
           echo 1 > "$1"
         ' _ "$status" > "$log" 2>&1 < /dev/null &
+
+    # The pinned codex binary comes from the npm registry, which checks the
+    # tarball integrity, never from a github.com release download; it
+    # downloads in the background and is awaited before the tests start.
+    - name: Start installing the pinned codex binary
+      if: ${{ inputs.codex == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        version="$(node -p 'require("./spec/worker-scope.json").supportedVersions[0]')"
+        dir="$RUNNER_TEMP/codex"
+        mkdir -p "$dir/bin"
+        rm -f "$dir/status"
+        echo "$dir/bin" >> "$GITHUB_PATH"
+        setsid nohup bash -c '
+          cd "$1"
+          for attempt in 1 2 3; do
+            if timeout 120 npm pack --silent "@openai/codex@$2-linux-x64" > pack.name \
+              && tar -xzf "$(cat pack.name)" --strip-components=4 -C bin package/vendor/x86_64-unknown-linux-musl/bin/codex; then
+              rm -f "$(cat pack.name)"; echo 0 > status; exit 0
+            fi
+          done
+          echo 1 > status
+        ' _ "$dir" "$version" > "$dir/install.log" 2>&1 < /dev/null &
 
     - name: Set up Node.js
       uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -78,3 +105,20 @@ runs:
           exit 1
         fi
         bwrap --version
+
+    - name: Wait for codex
+      if: ${{ inputs.codex == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        dir="$RUNNER_TEMP/codex"
+        for _ in $(seq 1 600); do
+          test -f "$dir/status" && break
+          sleep 0.5
+        done
+        if [ "$(cat "$dir/status" 2>/dev/null || echo 1)" != 0 ]; then
+          cat "$dir/install.log" >&2
+          echo 'codex install failed' >&2
+          exit 1
+        fi
+        codex --version
