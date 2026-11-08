@@ -14,7 +14,7 @@ Safety comes from system boundaries, not shell parsing ([ADR 0014 D9](../adr/001
 
 ## Control plane and durable state
 
-Use the selected in-repository `krn task` tracker as the task-status source: store each task in one canonical JSON file at `tasks/<id>.json` and compute the index in memory for each command. Comments live beside a task in append-only `tasks/<id>.comments.jsonl` (`merge=union`, so parallel branches keep both entries); add one with `krn task comment ID --body-file`. Task dependencies, readiness, and claiming are supported by one command. This replaces the legacy Git-ref `krn task` queue and host-SQLite `krn work`. The tracker format follows ADR 0015. No legacy board data is imported; its Product integration is removed.
+Use the selected in-repository `krn task` tracker as the task-status source: store each task in one canonical JSON file at `tasks/<id>.json` and compute the index in memory for each command. Comments live beside a task in append-only `tasks/<id>.comments.jsonl` (`merge=union`, so parallel branches keep both entries); add one with `krn task comment ID --body-file`. Task dependencies, readiness, and claiming are supported by one command. The tracker format follows ADR 0015.
 
 The tracker records task status, not PR acceptance. Delivery has one gate: required CI on the exact HEAD (`npm run gate` locally; the aggregate GitHub Actions `Check`, App `15368`, `.github/workflows/ci.yml`). Before committing run `npm run fast` once (Biome `--write` and tsc on changed files plus tests touching changed or deleted files, one PASS/FAIL line; CI runs the rest); then `gh pr create --head <branch>` and `gh pr merge --auto --merge`. `krn review` (parallel `standards`, `spec` and `adversarial` judges, [`src/flow/types.ts`](../../src/flow/types.ts)) and `npm run gate` stay available on demand; no record, budget, brief or contract trailer is required for a merge.
 
@@ -40,7 +40,7 @@ KRN tooling does not enforce or create the standalone `docs/research/workflow-le
 
 Backups are temporary: back up, edit, verify, and delete in the same step. Host migrations may retain one only for the observation window.
 
-Use Conventional Commits for authored commits, PR titles and squash subjects. Commits for a managed task carry a `Ticket: <id>` trailer; no other trailer is required.
+Use Conventional Commits for authored commits, PR titles and squash subjects. Commits for a managed task carry a `Ticket: <id>` trailer and their PR closes it (CI enforces this), or `Refs: <id>` if the PR leaves it open; no other trailer is required.
 
 
 At every terminal PR, `$delivery-loop` records each owned branch and worktree as retired under recorded deletion authority after preserving needed evidence, or retained with one owner, consumer, and removal trigger. A merged head branch is retired locally and remotely and its worktree removed in the same closeout. For a closed unmerged or superseded PR, retain a branch or worktree only while a named successor or evidence consumer needs it; otherwise preserve needed evidence and retire it under deletion authority. PR closure grants no deletion authority. Do not delete another owner's ref or worktree, and leave none unowned.

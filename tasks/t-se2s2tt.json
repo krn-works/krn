@@ -1,12 +1,17 @@
 {
   "id": "t-se2s2tt",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "CI refuses an open Ticket task; in-delivery claims stay live (ADR 0015 amended)"
+  },
   "created": "2026-10-29",
   "priority": 1,
   "title": "Keep in-delivery claims live and enforce closure on merge",
   "after": [],
   "body": [
-    "Tracker judge 2026-10-29: when a delivery branch closes its task (as ADR 0015 asks), the lead claim expires under the ADR 0015 liveness rule and krn task ready lists the task again until the PR merges (t-8zvy7c5 during #135); merged PRs #133 and #134 left their tasks open on main, so claim --next could hand out finished work. Changing claim liveness amends ADR 0015, so it needs an operator decision first.\nAcceptance: first, the operator decides whether to amend ADR 0015 so a claim stays live as in delivery while its worktree has closed the task and origin/main still has it open; the decision is recorded in ADR 0015. Independently of that decision: krn task check refuses a branch whose commits carry Ticket: <id> while that task is open on the branch, with observers RED on base and GREEN on head. If the liveness amendment is rejected, keep only the closure check."
+    "Tracker judge 2026-10-29: when a delivery branch closes its task (as ADR 0015 asks), the lead claim expires under the ADR 0015 liveness rule and krn task ready lists the task again until the PR merges (t-8zvy7c5 during #135); merged PRs #133 and #134 left their tasks open on main, so claim --next could hand out finished work. Changing claim liveness amends ADR 0015, so it needs an operator decision first.\nAcceptance: first, the operator decides whether to amend ADR 0015 so a claim stays live as in delivery while its worktree has closed the task and origin/main still has it open; the decision is recorded in ADR 0015. Independently of that decision: krn task check refuses a branch whose commits carry Ticket: <id> while that task is open on the branch, with observers RED on base and GREEN on head. If the liveness amendment is rejected, keep only the closure check.",
+    "Delivered: krn task check --base REV [--head REV] refuses a Ticket: trailer in base..head whose task is open or missing (src/task/branch-tickets.ts); the CI Lint job runs it on every pull request (fetch-depth 0). The literal acceptance conflicted with practice: on origin/main 71 of 345 Ticket references named a task the PR left open (16 multi-PR steps that edited the task, 27 that did not, 28 task-creating commits; e.g. t-wm22s14 across #371-#388), so work that leaves a task open now carries Refs: <id>. Liveness: the lead amended ADR 0015 under the operator's full project control grant (2026-11-03, covers ADR amendments): a task closed in its claiming worktree keeps the claim live in delivery until origin/main closes it, so ready and claim --next skip it. Red on origin/main code, green on head: the task-check file, both in-delivery tests, the merged liveness case and the workflow lint step."
   ]
 }

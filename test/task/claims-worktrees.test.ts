@@ -149,7 +149,7 @@ test('deleting a claim branch expires its claim', async () => {
   }
 });
 
-test('closing the task in its claiming worktree expires the claim', async () => {
+test('a task closed in its claiming worktree stays claimed until origin main closes it', async () => {
   const repo = await fixtureRepo('claim-local-closed-', [task('T-1')]);
   const linked = join(dirname(repo), 'claim-local-closed-linked');
   try {
@@ -160,16 +160,28 @@ test('closing the task in its claiming worktree expires the claim', async () => 
     );
     const closed = await runCli(linked, ['close', 'T-1', '--as', 'done']);
     assert.equal(closed.status, 0, closed.stderr);
-    assert.equal(
-      JSON.parse((await runCli(repo, ['show', 'T-1', '--json'])).stdout).claim
-        .state,
-      'expired',
+    const delivering = JSON.parse(
+      (await runCli(repo, ['show', 'T-1', '--json'])).stdout,
+    ).claim;
+    assert.equal(delivering.state, 'live');
+    assert.equal(delivering.reason, 'live: in delivery, closed in worktree');
+    // While the delivery PR is open, main still lists T-1 as open: nobody else gets it.
+    assert.deepEqual(readyIds(await runCli(repo, ['ready', '--json'])), []);
+    const next = await runCli(repo, ['claim', '--next', '--actor', 'other']);
+    assert.equal(next.status, 75, next.stderr);
+
+    await copyFile(
+      join(linked, 'tasks', 'T-1.json'),
+      join(repo, 'tasks', 'T-1.json'),
     );
-    assert.equal(
-      JSON.parse((await runCli(repo, ['show', 'T-1', '--json'])).stdout).claim
-        .reason,
-      'expired: task is closed in worktree',
-    );
+    git(repo, 'add', 'tasks/T-1.json');
+    git(repo, 'commit', '-qm', 'merge the delivery branch');
+    git(repo, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+    const merged = JSON.parse(
+      (await runCli(repo, ['show', 'T-1', '--json'])).stdout,
+    ).claim;
+    assert.equal(merged.state, 'expired');
+    assert.equal(merged.reason, 'expired: task is closed in origin/main');
   } finally {
     removeWorktree(repo, linked);
     await rm(repo, { recursive: true, force: true });

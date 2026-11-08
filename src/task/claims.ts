@@ -470,19 +470,16 @@ export function claimLiveness(
     return live();
   }
   const localParsed = parseTaskDocument(localTask);
-  if (
-    localParsed.findings.length === 0 &&
-    localParsed.record?.id === claim.id
-  ) {
-    if (localParsed.record.status === 'closed')
-      return expired('task is closed in worktree');
-    if (localParsed.record.status !== 'open') return live();
-  } else return live();
+  if (localParsed.findings.length !== 0 || localParsed.record?.id !== claim.id)
+    return live();
+  // A task closed in its worktree is in delivery: the claim stays live until
+  // the merge closes it in origin/main, so ready never offers it meanwhile.
+  const state = localParsed.record.status === 'closed' ? inDelivery() : live();
 
   const originRef = probes.originRef(mainRoot);
-  if (!probeSucceeded(originRef)) return live();
+  if (!probeSucceeded(originRef)) return state;
   const originTask = probes.originTask(mainRoot, claim.id);
-  if (!probeSucceeded(originTask)) return live();
+  if (!probeSucceeded(originTask)) return state;
   const originParsed = parseTaskDocument(originTask.stdout);
   if (
     originParsed.findings.length === 0 &&
@@ -490,7 +487,7 @@ export function claimLiveness(
     originParsed.record.status === 'closed'
   )
     return expired('task is closed in origin/main');
-  return live();
+  return state;
 }
 
 function defaultClaimLivenessProbes(): ClaimLivenessProbes {
@@ -533,6 +530,10 @@ function probeSucceeded(probe: ClaimGitProbe): boolean {
 
 function live(): { state: 'live'; reason: string } {
   return { state: 'live', reason: 'live' };
+}
+
+function inDelivery(): { state: 'live'; reason: string } {
+  return { state: 'live', reason: 'live: in delivery, closed in worktree' };
 }
 
 function expired(evidence: string): { state: 'expired'; reason: string } {

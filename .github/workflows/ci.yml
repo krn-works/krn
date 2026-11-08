@@ -57,14 +57,28 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
 
       - name: Set up CI
         uses: ./.github/actions/setup-ci
 
-      # Rendered rules and task records are checked by `npm run preflight`
-      # before review; CI only verifies the code.
+      # Rendered rules are checked by `npm run preflight`.
       - name: Biome
         run: npm run lint
+
+      # A pull request whose commits carry `Ticket: <id>` must close that task;
+      # work that leaves it open carries `Refs: <id>` (ADR 0015).
+      - name: Task records
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -n "$BASE" ]; then
+            node src/cli/main.ts task check --base "$BASE" --head "$HEAD"
+          else
+            node src/cli/main.ts task check
+          fi
 
   typecheck:
     name: Typecheck
