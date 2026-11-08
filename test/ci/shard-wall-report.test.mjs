@@ -78,6 +78,48 @@ test('report pairs CI step seconds with predictions and gates the slowest p50', 
   assert.match(rendered, /^runs: 3 of 3 wanted$/mu);
 });
 
+// A 10-shard fixture window of three runs: jobs arrive in reverse order, so
+// 10/10 must sort after 9/10; shard 2 and 10 lose one step each, so their
+// medians come from an even count; shard 3 carries the overload.
+test('one shard p50 line names every shard median and the highest excess over their mean', () => {
+  const steps = {
+    1: [12, 10, 11],
+    2: [10, 11, undefined],
+    3: [14, 18, 18],
+    10: [13, 14, undefined],
+  };
+  const runs = ['1', '2', '3'].map((id, index) => ({
+    id,
+    jobs: [10, 9, 8, 7, 6, 5, 4, 3, 2, 1].map((shard) =>
+      job(`Test (${shard}/10)`, shard in steps ? steps[shard][index] : 11, []),
+    ),
+  }));
+  const report = shardWallReport(runs, 4);
+  assert.deepEqual(report.shardP50, {
+    shards: [
+      { shard: '1/10', p50: 11 },
+      { shard: '2/10', p50: 10.5 },
+      { shard: '3/10', p50: 18 },
+      ...[4, 5, 6, 7, 8, 9].map((shard) => ({ shard: `${shard}/10`, p50: 11 })),
+      { shard: '10/10', p50: 13.5 },
+    ],
+    mean: 11.9,
+    highest: { shard: '3/10', p50: 18, excess: 6.1 },
+  });
+  const lines = renderReport(report)
+    .split('\n')
+    .filter((line) => line.startsWith('shard p50'));
+  assert.deepEqual(lines, [
+    'shard p50: 1/10=11 2/10=10.5 3/10=18 4/10=11 5/10=11 6/10=11 7/10=11 8/10=11 9/10=11 10/10=13.5 s; highest 3/10 +6.1 s over the mean 11.9 s',
+  ]);
+
+  const unmeasured = [{ id: '1', jobs: [job('Test (1/1)', undefined, [])] }];
+  assert.match(
+    renderReport(shardWallReport(unmeasured, 4)),
+    /^shard p50: n\/a$/mu,
+  );
+});
+
 const fixture = (name) =>
   readFileSync(
     fileURLToPath(new URL(`../fixtures/${name}`, import.meta.url)),
