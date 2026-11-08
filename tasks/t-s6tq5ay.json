@@ -1,7 +1,11 @@
 {
   "id": "t-s6tq5ay",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Strict evidence accepts a file whose own summary is lost only when every enqueued test passed; regression test on real runner events"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Stop strict test evidence from rejecting a shard whose successor-launch test ran but lacks a per-file summary",
