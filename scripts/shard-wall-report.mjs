@@ -13,8 +13,9 @@
 // `--since <sha>` keeps only runs whose head is <sha> or descends from it, so
 // a window never mixes shard plans; the first line, for example
 // `runs: 2 of 5 wanted since 2194438`, shows a window that is still short,
-// and ends with `, 3 of 50 Test steps untimed` when GitHub returned a Test job
-// without step timing; such a window never prints PASS.
+// and ends with `, 3 of 50 Test steps untimed` when a Test step has timing in
+// neither the jobs API (GitHub sometimes returns `steps: []`) nor its job log;
+// such a window never prints PASS.
 // It needs a checkout of the repository and fetches origin main once when a
 // commit is missing locally. Exit 64 for a usage error (an unknown <sha>
 // included), 1 for any other failure. Fetching needs an authenticated `gh`;
@@ -228,9 +229,8 @@ export function shardWallReport(
 }
 
 // How many runs the report used against how many were wanted, so a window
-// that is still short is visible, and how many Test steps GitHub returned
-// without timing (a job with `steps: []`), whose samples every step verdict
-// lacks.
+// that is still short is visible, and how many Test steps neither the jobs API
+// nor the job log timed, whose samples every step verdict lacks.
 export function windowLine({ used, wanted, since, steps, untimed = 0 }) {
   const window = `runs: ${used} of ${wanted} wanted${since === undefined ? '' : ` since ${since}`}`;
   return untimed > 0

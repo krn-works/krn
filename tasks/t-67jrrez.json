@@ -1,7 +1,11 @@
 {
   "id": "t-67jrrez",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "logStepSeconds times the step that printed KRN_TEST_SUMMARY_JSON from its job log when the jobs API lacks the step; verbatim job capture test (API 20 s, log 19.7 s). Live: 100 Test jobs of 10 main runs all carry both, max |api-log| 0.9 s; --since e9ebc8f prints 5 of 5 with 0 untimed (FAIL 19 s), and 0 untimed (FAIL 19.3 s) with steps: [] forced on all 50 jobs."
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Time Test steps from job logs when GitHub returns no steps",
