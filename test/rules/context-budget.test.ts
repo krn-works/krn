@@ -34,13 +34,19 @@ test('Claude context budget settings wire documented hooks and read-only reader'
     'startup|resume|clear|compact',
   );
   const guard = settings.hooks.PreToolUse;
-  assert.equal(guard.length, 1);
-  assert.equal(guard[0].matcher, 'Write|Edit');
+  assert.deepEqual(
+    guard.map((entry: { matcher: string }) => entry.matcher),
+    ['Write|Edit', 'Bash'],
+  );
   assert.equal(
     guard[0].hooks[0].command,
     'NODE_COMPILE_CACHE="$CLAUDE_PROJECT_DIR/.krn/cache/node" node "$CLAUDE_PROJECT_DIR/scripts/claude/memory-budget.ts"',
   );
   assert.ok(existsSync(new URL('scripts/claude/memory-budget.ts', root)));
+  assert.equal(
+    guard[1].hooks[0].command,
+    'NODE_COMPILE_CACHE="$CLAUDE_PROJECT_DIR/.krn/cache/node" node "$CLAUDE_PROJECT_DIR/scripts/claude/piped-check.ts"',
+  );
   assert.equal(settings.hooks.PreCompact, undefined);
   // Pattern kills hit other lanes' processes; agents stop processes by PID.
   assert.deepEqual(settings.permissions.deny, [
