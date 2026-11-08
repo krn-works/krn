@@ -109,6 +109,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/test-suite-failures.test.ts': 3.3,
   'test/test-suite-shards.test.mjs': 8.2,
   'test/test-suite-speed.test.ts': 3.9,
+  'test/test-timeout.test.ts': 4,
   'test/test-timings.test.mjs': 0.1,
   'test/tool-scope.test.ts': 2.4,
   'test/worker/acceptance-capture.test.ts': 0.3,

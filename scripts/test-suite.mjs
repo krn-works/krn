@@ -24,6 +24,7 @@ import {
   planTestShards,
   selectTestShardFiles,
 } from './lib/test-shards.mjs';
+import { testCeilingArguments } from './lib/test-timeout.ts';
 import { formatSlowestTests, slowestTests } from './lib/test-timings.mjs';
 import {
   formatIsolationProbe,
@@ -347,6 +348,7 @@ async function runTestGroup({
     const runnerArgs = [
       '--test',
       '--test-concurrency=1',
+      ...testCeilingArguments(),
       '--test-reporter=tap',
       '--test-reporter-destination=stdout',
       `--test-reporter=${eventReporter}`,

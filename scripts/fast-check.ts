@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { check as checkBoundaries } from './boundaries.ts';
+import { testCeilingArguments } from './lib/test-timeout.ts';
 
 const LINTABLE = /\.(?:ts|mts|cts|js|mjs|cjs|json|jsonc|css)$/u;
 const TEST_FILE = /^test\/.+\.test\.(?:ts|js|mjs|cjs)$/u;
@@ -24,6 +25,19 @@ function importedPaths(testPath: string, source: string): Set<string> {
     if (target.endsWith('.js')) found.add(`${target.slice(0, -3)}.ts`);
   }
   return found;
+}
+
+/** node argv for the related tests, under the suite's timeout ceiling. */
+export function testRunnerArgs(
+  files: readonly string[],
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
+  return [
+    '--test',
+    '--test-reporter=dot',
+    ...testCeilingArguments(env),
+    ...files,
+  ];
 }
 
 /** Repository-wide rule tests scan every tracked file; they cost ~0.5 s, so any change runs them. */
@@ -278,7 +292,7 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
               root,
               'test',
               process.execPath,
-              ['--test', '--test-reporter=dot', ...related],
+              testRunnerArgs(related),
               // Tests start Node children (CLIs under test); like the suite
               // runner, they share its compile cache instead of recompiling
               // unchanged sources in every child.

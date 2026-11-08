@@ -225,9 +225,7 @@ wait
   assert.equal(acknowledgements, 0);
 });
 
-test('timeout cleanup verification failure reaches wait without an unhandled rejection', {
-  timeout: 20_000,
-}, async (t) => {
+test('timeout cleanup verification failure reaches wait without an unhandled rejection', async (t) => {
   if (
     !requiresIsolation(
       t,

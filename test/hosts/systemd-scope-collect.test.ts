@@ -18,9 +18,7 @@ function unitState(unit: string, env: NodeJS.ProcessEnv) {
   return shown.stdout.trim().split('\n').sort().join(' ');
 }
 
-test('a launched scope that ends failed leaves no failed unit behind', {
-  timeout: 20_000,
-}, async (t) => {
+test('a launched scope that ends failed leaves no failed unit behind', async (t) => {
   if (!requiresIsolation(t, 'failed scope collection', ['systemdUserScope']))
     return;
   // Regression: scopes that ended failed stayed 'loaded failed' on the user
