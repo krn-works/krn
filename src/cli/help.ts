@@ -6,7 +6,7 @@ const usage: Readonly<Record<string, string>> = {
   worker: 'krn worker start|send|stop --run DIR  opt-in Codex worker',
   ledger:
     'krn ledger [--since YYYY-MM-DD] [--pr N] [--limit N] [--repo OWNER/REPO] [--root DIR] [--transcripts DIR] [--json]  outcome ledger',
-  eval: 'krn eval <plan|prepare|...> --experiment DIR  memory experiment harness; `krn eval` lists verbs',
+  eval: 'krn eval <plan|prepare|score|report|...> --experiment DIR  memory experiment harness; `krn eval` lists verbs',
   brain:
     'krn brain packet <fr40-task-id> [--arm brain|static] [--write] [--json]  FR-40 shadow packet: record ids, as-of date, tokens',
   doctor:

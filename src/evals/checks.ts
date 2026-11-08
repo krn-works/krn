@@ -8,7 +8,7 @@ import { flagValue } from '../cli/flag-value.ts';
 import { CliUsageError } from '../cli/usage-error.ts';
 import { checkDirectory, checkNode, separate } from './check-paths.ts';
 import { writeCheckTools } from './check-shims.ts';
-import { EvalDataError, loadManifest } from './manifest.ts';
+import { EvalDataError, loadManifest, wozManifest } from './manifest.ts';
 
 const usage =
   'usage: krn eval check --experiment <dir> --task <id> --slot <dir> --check focused|suite:<index> [--draft] [--timeout <seconds>] [--json]';
@@ -147,7 +147,7 @@ function counts(stdout: Buffer) {
 
 export async function checkCommand(args: string[]): Promise<void> {
   const options = parse(args);
-  const manifest = await loadManifest(options.experiment);
+  const manifest = wozManifest(await loadManifest(options.experiment));
   if (!manifest.frozen && !options.draft)
     throw new EvalDataError(
       'experiment must be frozen; use --draft to run draft checks',

@@ -9,6 +9,7 @@
     "t-j5xq3zn"
   ],
   "body": [
-    "FR-40 slice 4 of 4 (parent t-y46gy0w). Run the experiment and record the verdict.\nWhat: run the frozen manifest with `krn eval session` (Codex gpt-6-luna, mask on, AGENTS.md on in every arm) in the planned shuffled order; stop after 20 tasks if B is not ahead; record every run's session.json and score; arms that cannot run are reported invalid with reasons.\nAcceptance: results table and GO/KILL/inconclusive verdicts against D20 thresholds committed under evals/fr40/; t-y46gy0w closed with the verdict; ADR 0002 status updated only if GO."
+    "FR-40 slice 4 of 4 (parent t-y46gy0w). Run the experiment and record the verdict.\nWhat: run the frozen manifest with `krn eval session` (Codex gpt-6-luna, mask on, AGENTS.md on in every arm) in the planned shuffled order; stop after 20 tasks if B is not ahead; record every run's session.json and score; arms that cannot run are reported invalid with reasons.\nAcceptance: results table and GO/KILL/inconclusive verdicts against D20 thresholds committed under evals/fr40/; t-y46gy0w closed with the verdict; ADR 0002 status updated only if GO.",
+    "From t-j5xq3zn: krn eval score/report and the frozen evals/fr40/manifest.json exist. The runner composes each run's prompt (task prompt from evals/fr40/tasks.json plus arm material from material.json: none, packet, standards) for krn eval session --prompt-file, runs the first session end to end against scripts/codex/mock-responses.ts, then scores and reports it. That mock-provider run is the open part of t-j5xq3zn's acceptance; the report is proven on real scorer verdicts in test/evals/fr40-report.test.ts."
   ]
 }

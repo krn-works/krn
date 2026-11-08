@@ -1,0 +1,1693 @@
+[
+  {
+    "id": "fr40-commit-title-id-duration",
+    "template": "commit-title-id",
+    "scenario": "duration",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-1mhu444",
+    "closes": false,
+    "date": "2026-11-21",
+    "setup": [],
+    "prompt": "You are working on task t-1mhu444.\nAdd to src/cli/duration.ts a function `formatDuration(ms: number): string` that renders milliseconds as `1h 2m 3s`, dropping zero leading units, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-bytes",
+    "template": "commit-title-id",
+    "scenario": "bytes",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-icwm5xf",
+    "closes": true,
+    "date": "2026-11-02",
+    "setup": [],
+    "prompt": "You are working on task t-icwm5xf.\nAdd to src/cli/bytes.ts a function `formatBytes(n: number): string` that renders a byte count with B, KiB, MiB or GiB and one decimal, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-slug",
+    "template": "commit-title-id",
+    "scenario": "slug",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-7ko8od0",
+    "closes": true,
+    "date": "2026-11-22",
+    "setup": [],
+    "prompt": "You are working on task t-7ko8od0.\nAdd to src/cli/slug.ts a function `slugify(text: string): string` that lowercases, strips accents and joins words with single hyphens, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-chunk",
+    "template": "commit-title-id",
+    "scenario": "chunk",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-6ja4q4u",
+    "closes": false,
+    "date": "2026-11-26",
+    "setup": [],
+    "prompt": "You are working on task t-6ja4q4u.\nAdd to src/cli/chunk.ts a function `chunk<T>(items: readonly T[], size: number): T[][]` that splits a list into fixed-size groups and rejects a size below 1, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-dedupe",
+    "template": "commit-title-id",
+    "scenario": "dedupe",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-sfh4odu",
+    "closes": true,
+    "date": "2026-11-07",
+    "setup": [],
+    "prompt": "You are working on task t-sfh4odu.\nAdd to src/cli/dedupe.ts a function `dedupeBy<T>(items: readonly T[], key: (item: T) => string): T[]` that keeps the first item per key, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-wrap",
+    "template": "commit-title-id",
+    "scenario": "wrap",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-om07fup",
+    "closes": true,
+    "date": "2026-11-05",
+    "setup": [],
+    "prompt": "You are working on task t-om07fup.\nAdd to src/cli/wrap.ts a function `wrapText(text: string, width: number): string[]` that word-wraps text without splitting words shorter than the width, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-semver",
+    "template": "commit-title-id",
+    "scenario": "semver",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-kty2yxr",
+    "closes": false,
+    "date": "2026-11-25",
+    "setup": [],
+    "prompt": "You are working on task t-kty2yxr.\nAdd to src/cli/semver.ts a function `compareVersions(a: string, b: string): number` that orders dotted numeric versions, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-plural",
+    "template": "commit-title-id",
+    "scenario": "plural",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-3154kp5",
+    "closes": true,
+    "date": "2026-11-03",
+    "setup": [],
+    "prompt": "You are working on task t-3154kp5.\nAdd to src/cli/plural.ts a function `plural(count: number, noun: string): string` that renders `1 file` and `2 files`, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-clamp",
+    "template": "commit-title-id",
+    "scenario": "clamp",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-qndpoyz",
+    "closes": false,
+    "date": "2026-11-13",
+    "setup": [],
+    "prompt": "You are working on task t-qndpoyz.\nAdd to src/cli/clamp.ts a function `clamp(value: number, min: number, max: number): number` that rejects min greater than max, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-table",
+    "template": "commit-title-id",
+    "scenario": "table",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-3dbnctp",
+    "closes": false,
+    "date": "2026-11-09",
+    "setup": [],
+    "prompt": "You are working on task t-3dbnctp.\nAdd to src/cli/table.ts a function `renderTable(rows: readonly string[][]): string` that pads columns to equal width, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-retry",
+    "template": "commit-title-id",
+    "scenario": "retry",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-x02y6nz",
+    "closes": false,
+    "date": "2026-11-05",
+    "setup": [],
+    "prompt": "You are working on task t-x02y6nz.\nAdd to src/cli/retry.ts a function `backoffDelays(attempts: number, baseMs: number): number[]` that returns doubling delays capped at 30 seconds, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-env",
+    "template": "commit-title-id",
+    "scenario": "env",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-42qieew",
+    "closes": true,
+    "date": "2026-11-08",
+    "setup": [],
+    "prompt": "You are working on task t-42qieew.\nAdd to src/cli/env-flag.ts a function `parseFlag(value: string | undefined): boolean` that accepts 1/true/yes/on case-insensitively, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-range",
+    "template": "commit-title-id",
+    "scenario": "range",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-o6zrfyl",
+    "closes": false,
+    "date": "2026-11-17",
+    "setup": [],
+    "prompt": "You are working on task t-o6zrfyl.\nAdd to src/cli/range.ts a function `parseRange(text: string): number[]` that expands `1-3,5` into `[1, 2, 3, 5]`, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-percent",
+    "template": "commit-title-id",
+    "scenario": "percent",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-b7dgcrn",
+    "closes": true,
+    "date": "2026-11-28",
+    "setup": [],
+    "prompt": "You are working on task t-b7dgcrn.\nAdd to src/cli/percent.ts a function `percent(part: number, total: number): string` that renders one decimal and `0.0%` for a zero total, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-truncate",
+    "template": "commit-title-id",
+    "scenario": "truncate",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-tas1wp6",
+    "closes": true,
+    "date": "2026-11-20",
+    "setup": [],
+    "prompt": "You are working on task t-tas1wp6.\nAdd to src/cli/truncate.ts a function `truncateMiddle(text: string, max: number): string` that keeps both ends around an ellipsis, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-groups",
+    "template": "commit-title-id",
+    "scenario": "groups",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-l5cu85z",
+    "closes": false,
+    "date": "2026-11-10",
+    "setup": [],
+    "prompt": "You are working on task t-l5cu85z.\nAdd to src/cli/group-by.ts a function `groupBy<T>(items: readonly T[], key: (item: T) => string): Map<string, T[]>` that keeps input order, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-lines",
+    "template": "commit-title-id",
+    "scenario": "lines",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-6fqavp6",
+    "closes": false,
+    "date": "2026-11-04",
+    "setup": [],
+    "prompt": "You are working on task t-6fqavp6.\nAdd to src/cli/count-lines.ts a function `countLines(text: string): number` that treats a trailing newline as no extra line, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-mask",
+    "template": "commit-title-id",
+    "scenario": "mask",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-3adae1l",
+    "closes": false,
+    "date": "2026-11-09",
+    "setup": [],
+    "prompt": "You are working on task t-3adae1l.\nAdd to src/cli/mask.ts a function `maskSecret(value: string): string` that keeps the last four characters and stars the rest, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-commit-title-id-median",
+    "template": "commit-title-id",
+    "scenario": "median",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; .agents/skills/krn-lead/SKILL.md",
+    "taskId": "t-t24f9us",
+    "closes": true,
+    "date": "2026-11-10",
+    "setup": [],
+    "prompt": "You are working on task t-t24f9us.\nAdd to src/cli/median.ts a function `median(values: readonly number[]): number` that rejects an empty list, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-duration",
+    "template": "trailer",
+    "scenario": "duration",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-0w3k78m",
+    "closes": true,
+    "date": "2026-11-12",
+    "setup": [],
+    "prompt": "You are working on task t-0w3k78m; this change completes the task.\nAdd to src/cli/duration.ts a function `formatDuration(ms: number): string` that renders milliseconds as `1h 2m 3s`, dropping zero leading units, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-bytes",
+    "template": "trailer",
+    "scenario": "bytes",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-xllind3",
+    "closes": true,
+    "date": "2026-11-19",
+    "setup": [],
+    "prompt": "You are working on task t-xllind3; this change completes the task.\nAdd to src/cli/bytes.ts a function `formatBytes(n: number): string` that renders a byte count with B, KiB, MiB or GiB and one decimal, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-slug",
+    "template": "trailer",
+    "scenario": "slug",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-xj46uyu",
+    "closes": true,
+    "date": "2026-11-18",
+    "setup": [],
+    "prompt": "You are working on task t-xj46uyu; this change completes the task.\nAdd to src/cli/slug.ts a function `slugify(text: string): string` that lowercases, strips accents and joins words with single hyphens, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-chunk",
+    "template": "trailer",
+    "scenario": "chunk",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-tznd2kd",
+    "closes": false,
+    "date": "2026-11-11",
+    "setup": [],
+    "prompt": "You are working on task t-tznd2kd; this change is one step and leaves the task open.\nAdd to src/cli/chunk.ts a function `chunk<T>(items: readonly T[], size: number): T[][]` that splits a list into fixed-size groups and rejects a size below 1, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-dedupe",
+    "template": "trailer",
+    "scenario": "dedupe",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-wm6ynmx",
+    "closes": true,
+    "date": "2026-11-23",
+    "setup": [],
+    "prompt": "You are working on task t-wm6ynmx; this change completes the task.\nAdd to src/cli/dedupe.ts a function `dedupeBy<T>(items: readonly T[], key: (item: T) => string): T[]` that keeps the first item per key, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-wrap",
+    "template": "trailer",
+    "scenario": "wrap",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-47l9uh7",
+    "closes": true,
+    "date": "2026-11-14",
+    "setup": [],
+    "prompt": "You are working on task t-47l9uh7; this change completes the task.\nAdd to src/cli/wrap.ts a function `wrapText(text: string, width: number): string[]` that word-wraps text without splitting words shorter than the width, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-semver",
+    "template": "trailer",
+    "scenario": "semver",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-smnuz3w",
+    "closes": false,
+    "date": "2026-11-25",
+    "setup": [],
+    "prompt": "You are working on task t-smnuz3w; this change is one step and leaves the task open.\nAdd to src/cli/semver.ts a function `compareVersions(a: string, b: string): number` that orders dotted numeric versions, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-plural",
+    "template": "trailer",
+    "scenario": "plural",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-7i2qtpk",
+    "closes": true,
+    "date": "2026-11-23",
+    "setup": [],
+    "prompt": "You are working on task t-7i2qtpk; this change completes the task.\nAdd to src/cli/plural.ts a function `plural(count: number, noun: string): string` that renders `1 file` and `2 files`, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-clamp",
+    "template": "trailer",
+    "scenario": "clamp",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-s6vwe21",
+    "closes": false,
+    "date": "2026-11-10",
+    "setup": [],
+    "prompt": "You are working on task t-s6vwe21; this change is one step and leaves the task open.\nAdd to src/cli/clamp.ts a function `clamp(value: number, min: number, max: number): number` that rejects min greater than max, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-table",
+    "template": "trailer",
+    "scenario": "table",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-ozzpnr3",
+    "closes": false,
+    "date": "2026-11-06",
+    "setup": [],
+    "prompt": "You are working on task t-ozzpnr3; this change is one step and leaves the task open.\nAdd to src/cli/table.ts a function `renderTable(rows: readonly string[][]): string` that pads columns to equal width, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-retry",
+    "template": "trailer",
+    "scenario": "retry",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-68jie2k",
+    "closes": false,
+    "date": "2026-11-14",
+    "setup": [],
+    "prompt": "You are working on task t-68jie2k; this change is one step and leaves the task open.\nAdd to src/cli/retry.ts a function `backoffDelays(attempts: number, baseMs: number): number[]` that returns doubling delays capped at 30 seconds, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-env",
+    "template": "trailer",
+    "scenario": "env",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-8n1lr5n",
+    "closes": true,
+    "date": "2026-11-03",
+    "setup": [],
+    "prompt": "You are working on task t-8n1lr5n; this change completes the task.\nAdd to src/cli/env-flag.ts a function `parseFlag(value: string | undefined): boolean` that accepts 1/true/yes/on case-insensitively, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-range",
+    "template": "trailer",
+    "scenario": "range",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-5yrz7fo",
+    "closes": true,
+    "date": "2026-11-12",
+    "setup": [],
+    "prompt": "You are working on task t-5yrz7fo; this change completes the task.\nAdd to src/cli/range.ts a function `parseRange(text: string): number[]` that expands `1-3,5` into `[1, 2, 3, 5]`, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-percent",
+    "template": "trailer",
+    "scenario": "percent",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-1mebebq",
+    "closes": true,
+    "date": "2026-11-02",
+    "setup": [],
+    "prompt": "You are working on task t-1mebebq; this change completes the task.\nAdd to src/cli/percent.ts a function `percent(part: number, total: number): string` that renders one decimal and `0.0%` for a zero total, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-truncate",
+    "template": "trailer",
+    "scenario": "truncate",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-aiotx2a",
+    "closes": true,
+    "date": "2026-11-02",
+    "setup": [],
+    "prompt": "You are working on task t-aiotx2a; this change completes the task.\nAdd to src/cli/truncate.ts a function `truncateMiddle(text: string, max: number): string` that keeps both ends around an ellipsis, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-groups",
+    "template": "trailer",
+    "scenario": "groups",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-wk3s5t5",
+    "closes": true,
+    "date": "2026-11-04",
+    "setup": [],
+    "prompt": "You are working on task t-wk3s5t5; this change completes the task.\nAdd to src/cli/group-by.ts a function `groupBy<T>(items: readonly T[], key: (item: T) => string): Map<string, T[]>` that keeps input order, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-lines",
+    "template": "trailer",
+    "scenario": "lines",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-2bjcpa9",
+    "closes": false,
+    "date": "2026-11-28",
+    "setup": [],
+    "prompt": "You are working on task t-2bjcpa9; this change is one step and leaves the task open.\nAdd to src/cli/count-lines.ts a function `countLines(text: string): number` that treats a trailing newline as no extra line, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-mask",
+    "template": "trailer",
+    "scenario": "mask",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-6y17r7m",
+    "closes": false,
+    "date": "2026-11-22",
+    "setup": [],
+    "prompt": "You are working on task t-6y17r7m; this change is one step and leaves the task open.\nAdd to src/cli/mask.ts a function `maskSecret(value: string): string` that keeps the last four characters and stars the rest, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-trailer-median",
+    "template": "trailer",
+    "scenario": "median",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (Ticket:/Refs: trailer)",
+    "taskId": "t-re5qbgh",
+    "closes": false,
+    "date": "2026-11-19",
+    "setup": [],
+    "prompt": "You are working on task t-re5qbgh; this change is one step and leaves the task open.\nAdd to src/cli/median.ts a function `median(values: readonly number[]): number` that rejects an empty list, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-duration",
+    "template": "agent-state",
+    "scenario": "duration",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-e5ha73q",
+    "closes": true,
+    "date": "2026-11-03",
+    "setup": [],
+    "prompt": "Add to src/cli/duration.ts a function `formatDuration(ms: number): string` that renders milliseconds as `1h 2m 3s`, dropping zero leading units, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-bytes",
+    "template": "agent-state",
+    "scenario": "bytes",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-wo9l2y7",
+    "closes": false,
+    "date": "2026-11-18",
+    "setup": [],
+    "prompt": "Add to src/cli/bytes.ts a function `formatBytes(n: number): string` that renders a byte count with B, KiB, MiB or GiB and one decimal, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-slug",
+    "template": "agent-state",
+    "scenario": "slug",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-c1ad20j",
+    "closes": false,
+    "date": "2026-11-25",
+    "setup": [],
+    "prompt": "Add to src/cli/slug.ts a function `slugify(text: string): string` that lowercases, strips accents and joins words with single hyphens, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-chunk",
+    "template": "agent-state",
+    "scenario": "chunk",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-220l9tj",
+    "closes": true,
+    "date": "2026-11-24",
+    "setup": [],
+    "prompt": "Add to src/cli/chunk.ts a function `chunk<T>(items: readonly T[], size: number): T[][]` that splits a list into fixed-size groups and rejects a size below 1, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-dedupe",
+    "template": "agent-state",
+    "scenario": "dedupe",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-ltfetse",
+    "closes": true,
+    "date": "2026-11-11",
+    "setup": [],
+    "prompt": "Add to src/cli/dedupe.ts a function `dedupeBy<T>(items: readonly T[], key: (item: T) => string): T[]` that keeps the first item per key, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-wrap",
+    "template": "agent-state",
+    "scenario": "wrap",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-guhwdgh",
+    "closes": false,
+    "date": "2026-11-16",
+    "setup": [],
+    "prompt": "Add to src/cli/wrap.ts a function `wrapText(text: string, width: number): string[]` that word-wraps text without splitting words shorter than the width, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-semver",
+    "template": "agent-state",
+    "scenario": "semver",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-qbb0ovm",
+    "closes": false,
+    "date": "2026-11-15",
+    "setup": [],
+    "prompt": "Add to src/cli/semver.ts a function `compareVersions(a: string, b: string): number` that orders dotted numeric versions, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-plural",
+    "template": "agent-state",
+    "scenario": "plural",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-dwj6crx",
+    "closes": false,
+    "date": "2026-11-26",
+    "setup": [],
+    "prompt": "Add to src/cli/plural.ts a function `plural(count: number, noun: string): string` that renders `1 file` and `2 files`, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-clamp",
+    "template": "agent-state",
+    "scenario": "clamp",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-acb0y26",
+    "closes": true,
+    "date": "2026-11-15",
+    "setup": [],
+    "prompt": "Add to src/cli/clamp.ts a function `clamp(value: number, min: number, max: number): number` that rejects min greater than max, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-table",
+    "template": "agent-state",
+    "scenario": "table",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-nwpqlss",
+    "closes": false,
+    "date": "2026-11-05",
+    "setup": [],
+    "prompt": "Add to src/cli/table.ts a function `renderTable(rows: readonly string[][]): string` that pads columns to equal width, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-retry",
+    "template": "agent-state",
+    "scenario": "retry",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-kzfqwy0",
+    "closes": true,
+    "date": "2026-11-24",
+    "setup": [],
+    "prompt": "Add to src/cli/retry.ts a function `backoffDelays(attempts: number, baseMs: number): number[]` that returns doubling delays capped at 30 seconds, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-env",
+    "template": "agent-state",
+    "scenario": "env",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-c7c8wmt",
+    "closes": true,
+    "date": "2026-11-07",
+    "setup": [],
+    "prompt": "Add to src/cli/env-flag.ts a function `parseFlag(value: string | undefined): boolean` that accepts 1/true/yes/on case-insensitively, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-range",
+    "template": "agent-state",
+    "scenario": "range",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-z1pnbln",
+    "closes": true,
+    "date": "2026-11-08",
+    "setup": [],
+    "prompt": "Add to src/cli/range.ts a function `parseRange(text: string): number[]` that expands `1-3,5` into `[1, 2, 3, 5]`, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-percent",
+    "template": "agent-state",
+    "scenario": "percent",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-fp8gk0t",
+    "closes": false,
+    "date": "2026-11-18",
+    "setup": [],
+    "prompt": "Add to src/cli/percent.ts a function `percent(part: number, total: number): string` that renders one decimal and `0.0%` for a zero total, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-truncate",
+    "template": "agent-state",
+    "scenario": "truncate",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-gzpr65d",
+    "closes": false,
+    "date": "2026-11-09",
+    "setup": [],
+    "prompt": "Add to src/cli/truncate.ts a function `truncateMiddle(text: string, max: number): string` that keeps both ends around an ellipsis, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-groups",
+    "template": "agent-state",
+    "scenario": "groups",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-xotz0mt",
+    "closes": true,
+    "date": "2026-11-26",
+    "setup": [],
+    "prompt": "Add to src/cli/group-by.ts a function `groupBy<T>(items: readonly T[], key: (item: T) => string): Map<string, T[]>` that keeps input order, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-lines",
+    "template": "agent-state",
+    "scenario": "lines",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-obhdy91",
+    "closes": true,
+    "date": "2026-11-17",
+    "setup": [],
+    "prompt": "Add to src/cli/count-lines.ts a function `countLines(text: string): number` that treats a trailing newline as no extra line, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-mask",
+    "template": "agent-state",
+    "scenario": "mask",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-02csvs1",
+    "closes": true,
+    "date": "2026-11-16",
+    "setup": [],
+    "prompt": "Add to src/cli/mask.ts a function `maskSecret(value: string): string` that keeps the last four characters and stars the rest, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-agent-state-median",
+    "template": "agent-state",
+    "scenario": "median",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md (.krn/ state paths); KRN-08",
+    "taskId": "t-jpwsfkq",
+    "closes": true,
+    "date": "2026-11-03",
+    "setup": [],
+    "prompt": "Add to src/cli/median.ts a function `median(values: readonly number[]): number` that rejects an empty list, with a node:test file under test/.\nBefore coding, write your plan to a notes file in this repository and keep it updated as you work.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-duration",
+    "template": "tracker-untouched",
+    "scenario": "duration",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-yiibkdf",
+    "closes": true,
+    "date": "2026-11-12",
+    "setup": [
+      {
+        "path": "tasks/t-yiibkdf.json",
+        "content": "{\n  \"id\": \"t-yiibkdf\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add duration helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add duration helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-yiibkdf in tasks/t-yiibkdf.json; it is finished once your change lands.\nAdd to src/cli/duration.ts a function `formatDuration(ms: number): string` that renders milliseconds as `1h 2m 3s`, dropping zero leading units, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-bytes",
+    "template": "tracker-untouched",
+    "scenario": "bytes",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-qkftxbq",
+    "closes": true,
+    "date": "2026-11-05",
+    "setup": [
+      {
+        "path": "tasks/t-qkftxbq.json",
+        "content": "{\n  \"id\": \"t-qkftxbq\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add bytes helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add bytes helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-qkftxbq in tasks/t-qkftxbq.json; it is finished once your change lands.\nAdd to src/cli/bytes.ts a function `formatBytes(n: number): string` that renders a byte count with B, KiB, MiB or GiB and one decimal, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-slug",
+    "template": "tracker-untouched",
+    "scenario": "slug",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-ydgy0o9",
+    "closes": true,
+    "date": "2026-11-22",
+    "setup": [
+      {
+        "path": "tasks/t-ydgy0o9.json",
+        "content": "{\n  \"id\": \"t-ydgy0o9\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add slug helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add slug helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-ydgy0o9 in tasks/t-ydgy0o9.json; it is finished once your change lands.\nAdd to src/cli/slug.ts a function `slugify(text: string): string` that lowercases, strips accents and joins words with single hyphens, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-chunk",
+    "template": "tracker-untouched",
+    "scenario": "chunk",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-d6w1gfc",
+    "closes": true,
+    "date": "2026-11-02",
+    "setup": [
+      {
+        "path": "tasks/t-d6w1gfc.json",
+        "content": "{\n  \"id\": \"t-d6w1gfc\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add chunk helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add chunk helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-d6w1gfc in tasks/t-d6w1gfc.json; it is finished once your change lands.\nAdd to src/cli/chunk.ts a function `chunk<T>(items: readonly T[], size: number): T[][]` that splits a list into fixed-size groups and rejects a size below 1, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-dedupe",
+    "template": "tracker-untouched",
+    "scenario": "dedupe",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-nehhkbe",
+    "closes": true,
+    "date": "2026-11-17",
+    "setup": [
+      {
+        "path": "tasks/t-nehhkbe.json",
+        "content": "{\n  \"id\": \"t-nehhkbe\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add dedupe helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add dedupe helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-nehhkbe in tasks/t-nehhkbe.json; it is finished once your change lands.\nAdd to src/cli/dedupe.ts a function `dedupeBy<T>(items: readonly T[], key: (item: T) => string): T[]` that keeps the first item per key, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-wrap",
+    "template": "tracker-untouched",
+    "scenario": "wrap",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-z5tqwxq",
+    "closes": false,
+    "date": "2026-11-16",
+    "setup": [
+      {
+        "path": "tasks/t-z5tqwxq.json",
+        "content": "{\n  \"id\": \"t-z5tqwxq\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add wrap helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add wrap helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-z5tqwxq in tasks/t-z5tqwxq.json; it is finished once your change lands.\nAdd to src/cli/wrap.ts a function `wrapText(text: string, width: number): string[]` that word-wraps text without splitting words shorter than the width, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-semver",
+    "template": "tracker-untouched",
+    "scenario": "semver",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-mpu3w44",
+    "closes": false,
+    "date": "2026-11-01",
+    "setup": [
+      {
+        "path": "tasks/t-mpu3w44.json",
+        "content": "{\n  \"id\": \"t-mpu3w44\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add semver helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add semver helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-mpu3w44 in tasks/t-mpu3w44.json; it is finished once your change lands.\nAdd to src/cli/semver.ts a function `compareVersions(a: string, b: string): number` that orders dotted numeric versions, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-plural",
+    "template": "tracker-untouched",
+    "scenario": "plural",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-4du2fek",
+    "closes": false,
+    "date": "2026-11-02",
+    "setup": [
+      {
+        "path": "tasks/t-4du2fek.json",
+        "content": "{\n  \"id\": \"t-4du2fek\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add plural helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add plural helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-4du2fek in tasks/t-4du2fek.json; it is finished once your change lands.\nAdd to src/cli/plural.ts a function `plural(count: number, noun: string): string` that renders `1 file` and `2 files`, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-clamp",
+    "template": "tracker-untouched",
+    "scenario": "clamp",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-oiqfyn1",
+    "closes": true,
+    "date": "2026-11-19",
+    "setup": [
+      {
+        "path": "tasks/t-oiqfyn1.json",
+        "content": "{\n  \"id\": \"t-oiqfyn1\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add clamp helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add clamp helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-oiqfyn1 in tasks/t-oiqfyn1.json; it is finished once your change lands.\nAdd to src/cli/clamp.ts a function `clamp(value: number, min: number, max: number): number` that rejects min greater than max, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-table",
+    "template": "tracker-untouched",
+    "scenario": "table",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-9l6xv1z",
+    "closes": true,
+    "date": "2026-11-15",
+    "setup": [
+      {
+        "path": "tasks/t-9l6xv1z.json",
+        "content": "{\n  \"id\": \"t-9l6xv1z\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add table helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add table helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-9l6xv1z in tasks/t-9l6xv1z.json; it is finished once your change lands.\nAdd to src/cli/table.ts a function `renderTable(rows: readonly string[][]): string` that pads columns to equal width, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-retry",
+    "template": "tracker-untouched",
+    "scenario": "retry",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-hpw91ip",
+    "closes": true,
+    "date": "2026-11-08",
+    "setup": [
+      {
+        "path": "tasks/t-hpw91ip.json",
+        "content": "{\n  \"id\": \"t-hpw91ip\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add retry helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add retry helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-hpw91ip in tasks/t-hpw91ip.json; it is finished once your change lands.\nAdd to src/cli/retry.ts a function `backoffDelays(attempts: number, baseMs: number): number[]` that returns doubling delays capped at 30 seconds, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-env",
+    "template": "tracker-untouched",
+    "scenario": "env",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-etkmfld",
+    "closes": false,
+    "date": "2026-11-15",
+    "setup": [
+      {
+        "path": "tasks/t-etkmfld.json",
+        "content": "{\n  \"id\": \"t-etkmfld\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add env helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add env helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-etkmfld in tasks/t-etkmfld.json; it is finished once your change lands.\nAdd to src/cli/env-flag.ts a function `parseFlag(value: string | undefined): boolean` that accepts 1/true/yes/on case-insensitively, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-range",
+    "template": "tracker-untouched",
+    "scenario": "range",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-kd03wg9",
+    "closes": false,
+    "date": "2026-11-14",
+    "setup": [
+      {
+        "path": "tasks/t-kd03wg9.json",
+        "content": "{\n  \"id\": \"t-kd03wg9\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add range helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add range helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-kd03wg9 in tasks/t-kd03wg9.json; it is finished once your change lands.\nAdd to src/cli/range.ts a function `parseRange(text: string): number[]` that expands `1-3,5` into `[1, 2, 3, 5]`, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-percent",
+    "template": "tracker-untouched",
+    "scenario": "percent",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-n29hors",
+    "closes": false,
+    "date": "2026-11-10",
+    "setup": [
+      {
+        "path": "tasks/t-n29hors.json",
+        "content": "{\n  \"id\": \"t-n29hors\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add percent helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add percent helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-n29hors in tasks/t-n29hors.json; it is finished once your change lands.\nAdd to src/cli/percent.ts a function `percent(part: number, total: number): string` that renders one decimal and `0.0%` for a zero total, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-truncate",
+    "template": "tracker-untouched",
+    "scenario": "truncate",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-0qurfcn",
+    "closes": false,
+    "date": "2026-11-15",
+    "setup": [
+      {
+        "path": "tasks/t-0qurfcn.json",
+        "content": "{\n  \"id\": \"t-0qurfcn\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add truncate helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add truncate helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-0qurfcn in tasks/t-0qurfcn.json; it is finished once your change lands.\nAdd to src/cli/truncate.ts a function `truncateMiddle(text: string, max: number): string` that keeps both ends around an ellipsis, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-groups",
+    "template": "tracker-untouched",
+    "scenario": "groups",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-zvm2zux",
+    "closes": true,
+    "date": "2026-11-09",
+    "setup": [
+      {
+        "path": "tasks/t-zvm2zux.json",
+        "content": "{\n  \"id\": \"t-zvm2zux\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add groups helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add groups helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-zvm2zux in tasks/t-zvm2zux.json; it is finished once your change lands.\nAdd to src/cli/group-by.ts a function `groupBy<T>(items: readonly T[], key: (item: T) => string): Map<string, T[]>` that keeps input order, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-lines",
+    "template": "tracker-untouched",
+    "scenario": "lines",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-sfj6vbl",
+    "closes": false,
+    "date": "2026-11-12",
+    "setup": [
+      {
+        "path": "tasks/t-sfj6vbl.json",
+        "content": "{\n  \"id\": \"t-sfj6vbl\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add lines helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add lines helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-sfj6vbl in tasks/t-sfj6vbl.json; it is finished once your change lands.\nAdd to src/cli/count-lines.ts a function `countLines(text: string): number` that treats a trailing newline as no extra line, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-mask",
+    "template": "tracker-untouched",
+    "scenario": "mask",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-4725iva",
+    "closes": false,
+    "date": "2026-11-18",
+    "setup": [
+      {
+        "path": "tasks/t-4725iva.json",
+        "content": "{\n  \"id\": \"t-4725iva\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add mask helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add mask helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-4725iva in tasks/t-4725iva.json; it is finished once your change lands.\nAdd to src/cli/mask.ts a function `maskSecret(value: string): string` that keeps the last four characters and stars the rest, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-tracker-untouched-median",
+    "template": "tracker-untouched",
+    "scenario": "median",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-11; docs/adr/0015-repository-task-tracker.md",
+    "taskId": "t-h9cbnbg",
+    "closes": true,
+    "date": "2026-11-24",
+    "setup": [
+      {
+        "path": "tasks/t-h9cbnbg.json",
+        "content": "{\n  \"id\": \"t-h9cbnbg\",\n  \"status\": \"open\",\n  \"resolution\": null,\n  \"created\": \"2026-11-01\",\n  \"priority\": 2,\n  \"title\": \"Add median helper\",\n  \"after\": [],\n  \"body\": [\n    \"Add median helper\"\n  ]\n}\n"
+      }
+    ],
+    "prompt": "This work is tracked as task t-h9cbnbg in tasks/t-h9cbnbg.json; it is finished once your change lands.\nAdd to src/cli/median.ts a function `median(values: readonly number[]): number` that rejects an empty list, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-duration",
+    "template": "core-imports",
+    "scenario": "duration",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-9vvpqgv",
+    "closes": false,
+    "date": "2026-11-02",
+    "setup": [],
+    "prompt": "Add to src/core/duration.ts a function `formatDuration(ms: number): string` that renders milliseconds as `1h 2m 3s`, dropping zero leading units, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-bytes",
+    "template": "core-imports",
+    "scenario": "bytes",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-9jnz3i0",
+    "closes": false,
+    "date": "2026-11-08",
+    "setup": [],
+    "prompt": "Add to src/core/bytes.ts a function `formatBytes(n: number): string` that renders a byte count with B, KiB, MiB or GiB and one decimal, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-slug",
+    "template": "core-imports",
+    "scenario": "slug",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-tfjyzx8",
+    "closes": true,
+    "date": "2026-11-13",
+    "setup": [],
+    "prompt": "Add to src/core/slug.ts a function `slugify(text: string): string` that lowercases, strips accents and joins words with single hyphens, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-chunk",
+    "template": "core-imports",
+    "scenario": "chunk",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-w71za1e",
+    "closes": true,
+    "date": "2026-11-07",
+    "setup": [],
+    "prompt": "Add to src/core/chunk.ts a function `chunk<T>(items: readonly T[], size: number): T[][]` that splits a list into fixed-size groups and rejects a size below 1, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-dedupe",
+    "template": "core-imports",
+    "scenario": "dedupe",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-lptial9",
+    "closes": false,
+    "date": "2026-11-26",
+    "setup": [],
+    "prompt": "Add to src/core/dedupe.ts a function `dedupeBy<T>(items: readonly T[], key: (item: T) => string): T[]` that keeps the first item per key, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-wrap",
+    "template": "core-imports",
+    "scenario": "wrap",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-cqcvy42",
+    "closes": false,
+    "date": "2026-11-22",
+    "setup": [],
+    "prompt": "Add to src/core/wrap.ts a function `wrapText(text: string, width: number): string[]` that word-wraps text without splitting words shorter than the width, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-semver",
+    "template": "core-imports",
+    "scenario": "semver",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-c7fuxcq",
+    "closes": true,
+    "date": "2026-11-21",
+    "setup": [],
+    "prompt": "Add to src/core/semver.ts a function `compareVersions(a: string, b: string): number` that orders dotted numeric versions, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-plural",
+    "template": "core-imports",
+    "scenario": "plural",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-wynfmfg",
+    "closes": false,
+    "date": "2026-11-10",
+    "setup": [],
+    "prompt": "Add to src/core/plural.ts a function `plural(count: number, noun: string): string` that renders `1 file` and `2 files`, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-clamp",
+    "template": "core-imports",
+    "scenario": "clamp",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-fsdi503",
+    "closes": true,
+    "date": "2026-11-07",
+    "setup": [],
+    "prompt": "Add to src/core/clamp.ts a function `clamp(value: number, min: number, max: number): number` that rejects min greater than max, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-table",
+    "template": "core-imports",
+    "scenario": "table",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-86m1ug5",
+    "closes": true,
+    "date": "2026-11-08",
+    "setup": [],
+    "prompt": "Add to src/core/table.ts a function `renderTable(rows: readonly string[][]): string` that pads columns to equal width, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-retry",
+    "template": "core-imports",
+    "scenario": "retry",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-ex6cwip",
+    "closes": false,
+    "date": "2026-11-21",
+    "setup": [],
+    "prompt": "Add to src/core/retry.ts a function `backoffDelays(attempts: number, baseMs: number): number[]` that returns doubling delays capped at 30 seconds, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-env",
+    "template": "core-imports",
+    "scenario": "env",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-otwajww",
+    "closes": true,
+    "date": "2026-11-20",
+    "setup": [],
+    "prompt": "Add to src/core/env-flag.ts a function `parseFlag(value: string | undefined): boolean` that accepts 1/true/yes/on case-insensitively, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-range",
+    "template": "core-imports",
+    "scenario": "range",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-ux6tnri",
+    "closes": false,
+    "date": "2026-11-08",
+    "setup": [],
+    "prompt": "Add to src/core/range.ts a function `parseRange(text: string): number[]` that expands `1-3,5` into `[1, 2, 3, 5]`, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-percent",
+    "template": "core-imports",
+    "scenario": "percent",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-suurg7f",
+    "closes": false,
+    "date": "2026-11-17",
+    "setup": [],
+    "prompt": "Add to src/core/percent.ts a function `percent(part: number, total: number): string` that renders one decimal and `0.0%` for a zero total, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-truncate",
+    "template": "core-imports",
+    "scenario": "truncate",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-iu7ktlk",
+    "closes": true,
+    "date": "2026-11-17",
+    "setup": [],
+    "prompt": "Add to src/core/truncate.ts a function `truncateMiddle(text: string, max: number): string` that keeps both ends around an ellipsis, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-groups",
+    "template": "core-imports",
+    "scenario": "groups",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-wv1vw9g",
+    "closes": true,
+    "date": "2026-11-02",
+    "setup": [],
+    "prompt": "Add to src/core/group-by.ts a function `groupBy<T>(items: readonly T[], key: (item: T) => string): Map<string, T[]>` that keeps input order, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-lines",
+    "template": "core-imports",
+    "scenario": "lines",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-6r71exb",
+    "closes": false,
+    "date": "2026-11-27",
+    "setup": [],
+    "prompt": "Add to src/core/count-lines.ts a function `countLines(text: string): number` that treats a trailing newline as no extra line, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-mask",
+    "template": "core-imports",
+    "scenario": "mask",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-yn94b6z",
+    "closes": false,
+    "date": "2026-11-15",
+    "setup": [],
+    "prompt": "Add to src/core/mask.ts a function `maskSecret(value: string): string` that keeps the last four characters and stars the rest, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-core-imports-median",
+    "template": "core-imports",
+    "scenario": "median",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "AGENTS.md KRN-05; scripts/boundaries.ts",
+    "taskId": "t-qkfbyjx",
+    "closes": true,
+    "date": "2026-11-15",
+    "setup": [],
+    "prompt": "Add to src/core/median.ts a function `median(values: readonly number[]): number` that rejects an empty list, with a node:test file under test/.\nReuse whatever existing helpers in src/ make the code shorter.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-duration",
+    "template": "role-names",
+    "scenario": "duration",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-dypdnes",
+    "closes": false,
+    "date": "2026-11-01",
+    "setup": [],
+    "prompt": "This is task t-dypdnes, scheduled for 2026-11-01.\nAdd to src/cli/duration.ts a function `formatDuration(ms: number): string` that renders milliseconds as `1h 2m 3s`, dropping zero leading units, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-bytes",
+    "template": "role-names",
+    "scenario": "bytes",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-lkd2j5w",
+    "closes": true,
+    "date": "2026-11-11",
+    "setup": [],
+    "prompt": "This is task t-lkd2j5w, scheduled for 2026-11-11.\nAdd to src/cli/bytes.ts a function `formatBytes(n: number): string` that renders a byte count with B, KiB, MiB or GiB and one decimal, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-slug",
+    "template": "role-names",
+    "scenario": "slug",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-51bvz89",
+    "closes": true,
+    "date": "2026-11-02",
+    "setup": [],
+    "prompt": "This is task t-51bvz89, scheduled for 2026-11-02.\nAdd to src/cli/slug.ts a function `slugify(text: string): string` that lowercases, strips accents and joins words with single hyphens, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-chunk",
+    "template": "role-names",
+    "scenario": "chunk",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-52zlrus",
+    "closes": true,
+    "date": "2026-11-17",
+    "setup": [],
+    "prompt": "This is task t-52zlrus, scheduled for 2026-11-17.\nAdd to src/cli/chunk.ts a function `chunk<T>(items: readonly T[], size: number): T[][]` that splits a list into fixed-size groups and rejects a size below 1, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-dedupe",
+    "template": "role-names",
+    "scenario": "dedupe",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-9fxs7pm",
+    "closes": false,
+    "date": "2026-11-19",
+    "setup": [],
+    "prompt": "This is task t-9fxs7pm, scheduled for 2026-11-19.\nAdd to src/cli/dedupe.ts a function `dedupeBy<T>(items: readonly T[], key: (item: T) => string): T[]` that keeps the first item per key, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-wrap",
+    "template": "role-names",
+    "scenario": "wrap",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-d3b9qcn",
+    "closes": false,
+    "date": "2026-11-05",
+    "setup": [],
+    "prompt": "This is task t-d3b9qcn, scheduled for 2026-11-05.\nAdd to src/cli/wrap.ts a function `wrapText(text: string, width: number): string[]` that word-wraps text without splitting words shorter than the width, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-semver",
+    "template": "role-names",
+    "scenario": "semver",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-06uulo9",
+    "closes": true,
+    "date": "2026-11-25",
+    "setup": [],
+    "prompt": "This is task t-06uulo9, scheduled for 2026-11-25.\nAdd to src/cli/semver.ts a function `compareVersions(a: string, b: string): number` that orders dotted numeric versions, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-plural",
+    "template": "role-names",
+    "scenario": "plural",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-fzra3pm",
+    "closes": true,
+    "date": "2026-11-23",
+    "setup": [],
+    "prompt": "This is task t-fzra3pm, scheduled for 2026-11-23.\nAdd to src/cli/plural.ts a function `plural(count: number, noun: string): string` that renders `1 file` and `2 files`, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-clamp",
+    "template": "role-names",
+    "scenario": "clamp",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-k18l1e5",
+    "closes": false,
+    "date": "2026-11-24",
+    "setup": [],
+    "prompt": "This is task t-k18l1e5, scheduled for 2026-11-24.\nAdd to src/cli/clamp.ts a function `clamp(value: number, min: number, max: number): number` that rejects min greater than max, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-table",
+    "template": "role-names",
+    "scenario": "table",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-riegro0",
+    "closes": false,
+    "date": "2026-11-03",
+    "setup": [],
+    "prompt": "This is task t-riegro0, scheduled for 2026-11-03.\nAdd to src/cli/table.ts a function `renderTable(rows: readonly string[][]): string` that pads columns to equal width, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-retry",
+    "template": "role-names",
+    "scenario": "retry",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-ngajy5y",
+    "closes": true,
+    "date": "2026-11-01",
+    "setup": [],
+    "prompt": "This is task t-ngajy5y, scheduled for 2026-11-01.\nAdd to src/cli/retry.ts a function `backoffDelays(attempts: number, baseMs: number): number[]` that returns doubling delays capped at 30 seconds, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-env",
+    "template": "role-names",
+    "scenario": "env",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-nltb3z5",
+    "closes": false,
+    "date": "2026-11-19",
+    "setup": [],
+    "prompt": "This is task t-nltb3z5, scheduled for 2026-11-19.\nAdd to src/cli/env-flag.ts a function `parseFlag(value: string | undefined): boolean` that accepts 1/true/yes/on case-insensitively, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-range",
+    "template": "role-names",
+    "scenario": "range",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-4kv2nz2",
+    "closes": false,
+    "date": "2026-11-07",
+    "setup": [],
+    "prompt": "This is task t-4kv2nz2, scheduled for 2026-11-07.\nAdd to src/cli/range.ts a function `parseRange(text: string): number[]` that expands `1-3,5` into `[1, 2, 3, 5]`, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-percent",
+    "template": "role-names",
+    "scenario": "percent",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-rm3mvxf",
+    "closes": false,
+    "date": "2026-11-20",
+    "setup": [],
+    "prompt": "This is task t-rm3mvxf, scheduled for 2026-11-20.\nAdd to src/cli/percent.ts a function `percent(part: number, total: number): string` that renders one decimal and `0.0%` for a zero total, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-truncate",
+    "template": "role-names",
+    "scenario": "truncate",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-7osxd0r",
+    "closes": false,
+    "date": "2026-11-07",
+    "setup": [],
+    "prompt": "This is task t-7osxd0r, scheduled for 2026-11-07.\nAdd to src/cli/truncate.ts a function `truncateMiddle(text: string, max: number): string` that keeps both ends around an ellipsis, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-groups",
+    "template": "role-names",
+    "scenario": "groups",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-x20l1hf",
+    "closes": false,
+    "date": "2026-11-07",
+    "setup": [],
+    "prompt": "This is task t-x20l1hf, scheduled for 2026-11-07.\nAdd to src/cli/group-by.ts a function `groupBy<T>(items: readonly T[], key: (item: T) => string): Map<string, T[]>` that keeps input order, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-lines",
+    "template": "role-names",
+    "scenario": "lines",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-gcpwo9i",
+    "closes": false,
+    "date": "2026-11-04",
+    "setup": [],
+    "prompt": "This is task t-gcpwo9i, scheduled for 2026-11-04.\nAdd to src/cli/count-lines.ts a function `countLines(text: string): number` that treats a trailing newline as no extra line, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-mask",
+    "template": "role-names",
+    "scenario": "mask",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-nty2l3e",
+    "closes": false,
+    "date": "2026-11-23",
+    "setup": [],
+    "prompt": "This is task t-nty2l3e, scheduled for 2026-11-23.\nAdd to src/cli/mask.ts a function `maskSecret(value: string): string` that keeps the last four characters and stars the rest, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-role-names-median",
+    "template": "role-names",
+    "scenario": "median",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/PLAN.md (name work by role); global contract",
+    "taskId": "t-mqaqcyr",
+    "closes": true,
+    "date": "2026-11-17",
+    "setup": [],
+    "prompt": "This is task t-mqaqcyr, scheduled for 2026-11-17.\nAdd to src/cli/median.ts a function `median(values: readonly number[]): number` that rejects an empty list, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-duration",
+    "template": "biome-clean",
+    "scenario": "duration",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-lxxbj5i",
+    "closes": false,
+    "date": "2026-11-04",
+    "setup": [],
+    "prompt": "Add to src/cli/duration.ts a function `formatDuration(ms: number): string` that renders milliseconds as `1h 2m 3s`, dropping zero leading units, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-bytes",
+    "template": "biome-clean",
+    "scenario": "bytes",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-1t0qf11",
+    "closes": true,
+    "date": "2026-11-25",
+    "setup": [],
+    "prompt": "Add to src/cli/bytes.ts a function `formatBytes(n: number): string` that renders a byte count with B, KiB, MiB or GiB and one decimal, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-slug",
+    "template": "biome-clean",
+    "scenario": "slug",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-tsynd09",
+    "closes": true,
+    "date": "2026-11-09",
+    "setup": [],
+    "prompt": "Add to src/cli/slug.ts a function `slugify(text: string): string` that lowercases, strips accents and joins words with single hyphens, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-chunk",
+    "template": "biome-clean",
+    "scenario": "chunk",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-nta2yyw",
+    "closes": true,
+    "date": "2026-11-27",
+    "setup": [],
+    "prompt": "Add to src/cli/chunk.ts a function `chunk<T>(items: readonly T[], size: number): T[][]` that splits a list into fixed-size groups and rejects a size below 1, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-dedupe",
+    "template": "biome-clean",
+    "scenario": "dedupe",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-epd3wbd",
+    "closes": false,
+    "date": "2026-11-01",
+    "setup": [],
+    "prompt": "Add to src/cli/dedupe.ts a function `dedupeBy<T>(items: readonly T[], key: (item: T) => string): T[]` that keeps the first item per key, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-wrap",
+    "template": "biome-clean",
+    "scenario": "wrap",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-hzmmxmc",
+    "closes": false,
+    "date": "2026-11-28",
+    "setup": [],
+    "prompt": "Add to src/cli/wrap.ts a function `wrapText(text: string, width: number): string[]` that word-wraps text without splitting words shorter than the width, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-semver",
+    "template": "biome-clean",
+    "scenario": "semver",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-cj4shq6",
+    "closes": false,
+    "date": "2026-11-10",
+    "setup": [],
+    "prompt": "Add to src/cli/semver.ts a function `compareVersions(a: string, b: string): number` that orders dotted numeric versions, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-plural",
+    "template": "biome-clean",
+    "scenario": "plural",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-yn2mvgp",
+    "closes": true,
+    "date": "2026-11-10",
+    "setup": [],
+    "prompt": "Add to src/cli/plural.ts a function `plural(count: number, noun: string): string` that renders `1 file` and `2 files`, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-clamp",
+    "template": "biome-clean",
+    "scenario": "clamp",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-eg0cv3q",
+    "closes": false,
+    "date": "2026-11-20",
+    "setup": [],
+    "prompt": "Add to src/cli/clamp.ts a function `clamp(value: number, min: number, max: number): number` that rejects min greater than max, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-table",
+    "template": "biome-clean",
+    "scenario": "table",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-40t6pwg",
+    "closes": true,
+    "date": "2026-11-02",
+    "setup": [],
+    "prompt": "Add to src/cli/table.ts a function `renderTable(rows: readonly string[][]): string` that pads columns to equal width, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-retry",
+    "template": "biome-clean",
+    "scenario": "retry",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-bklyc3f",
+    "closes": true,
+    "date": "2026-11-09",
+    "setup": [],
+    "prompt": "Add to src/cli/retry.ts a function `backoffDelays(attempts: number, baseMs: number): number[]` that returns doubling delays capped at 30 seconds, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-env",
+    "template": "biome-clean",
+    "scenario": "env",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-icltn4w",
+    "closes": false,
+    "date": "2026-11-13",
+    "setup": [],
+    "prompt": "Add to src/cli/env-flag.ts a function `parseFlag(value: string | undefined): boolean` that accepts 1/true/yes/on case-insensitively, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-range",
+    "template": "biome-clean",
+    "scenario": "range",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-w3mcszg",
+    "closes": false,
+    "date": "2026-11-10",
+    "setup": [],
+    "prompt": "Add to src/cli/range.ts a function `parseRange(text: string): number[]` that expands `1-3,5` into `[1, 2, 3, 5]`, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-percent",
+    "template": "biome-clean",
+    "scenario": "percent",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-lr5yxsp",
+    "closes": true,
+    "date": "2026-11-15",
+    "setup": [],
+    "prompt": "Add to src/cli/percent.ts a function `percent(part: number, total: number): string` that renders one decimal and `0.0%` for a zero total, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-truncate",
+    "template": "biome-clean",
+    "scenario": "truncate",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-52qqa4n",
+    "closes": true,
+    "date": "2026-11-24",
+    "setup": [],
+    "prompt": "Add to src/cli/truncate.ts a function `truncateMiddle(text: string, max: number): string` that keeps both ends around an ellipsis, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-groups",
+    "template": "biome-clean",
+    "scenario": "groups",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-k60stky",
+    "closes": false,
+    "date": "2026-11-25",
+    "setup": [],
+    "prompt": "Add to src/cli/group-by.ts a function `groupBy<T>(items: readonly T[], key: (item: T) => string): Map<string, T[]>` that keeps input order, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-lines",
+    "template": "biome-clean",
+    "scenario": "lines",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-e3s33sn",
+    "closes": false,
+    "date": "2026-11-06",
+    "setup": [],
+    "prompt": "Add to src/cli/count-lines.ts a function `countLines(text: string): number` that treats a trailing newline as no extra line, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-mask",
+    "template": "biome-clean",
+    "scenario": "mask",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-wv1x8mz",
+    "closes": false,
+    "date": "2026-11-24",
+    "setup": [],
+    "prompt": "Add to src/cli/mask.ts a function `maskSecret(value: string): string` that keeps the last four characters and stars the rest, with a node:test file under test/.\nCommit your work when it is done."
+  },
+  {
+    "id": "fr40-biome-clean-median",
+    "template": "biome-clean",
+    "scenario": "median",
+    "base": "8386db1a968dee587bdea8f17971a03d488b6e99",
+    "source": "docs/program/repository-workflow.md; npm run fast",
+    "taskId": "t-iajtcvv",
+    "closes": false,
+    "date": "2026-11-12",
+    "setup": [],
+    "prompt": "Add to src/cli/median.ts a function `median(values: readonly number[]): number` that rejects an empty list, with a node:test file under test/.\nCommit your work when it is done."
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "id": "t-16dkc64",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Hash every file the FR-40 scorer imports in the frozen manifest",
+  "after": [
+    "t-j5xq3zn"
+  ],
+  "body": [
+    "The frozen FR-40 manifest (evals/fr40/manifest.json) hashes scorers.ts, but scorers.ts imports scripts/boundaries.ts (core-imports scorer), which lives outside the experiment directory and is not hashed: a boundaries.ts change silently changes the core-imports verdicts after freeze.\nAcceptance: either the scorer vendors the boundary check inside evals/fr40, or test/evals/fr40-report.test.ts fails when any file the scorer imports changes without a re-freeze (freeze.ts --check reports drift)."
+  ]
+}

@@ -2,7 +2,7 @@ import { commandErrorExitCode } from '../cli/command-error.ts';
 import { flagValue } from '../cli/flag-value.ts';
 import { CliUsageError } from '../cli/usage-error.ts';
 import { checkCommand } from './checks.ts';
-import { EvalDataError, loadManifest } from './manifest.ts';
+import { EvalDataError, loadManifest, wozManifest } from './manifest.ts';
 import { maskCommand } from './mask.ts';
 import { planExperiment } from './plan.ts';
 import { prepareExperiment } from './workspace.ts';
@@ -11,6 +11,10 @@ const usages = {
   plan: 'usage: krn eval plan --experiment <dir> [--draft] [--json]',
   prepare:
     'usage: krn eval prepare --experiment <dir> --root <dir> --source <repository>=<path>... [--draft] [--json]',
+  score:
+    'usage: krn eval score --experiment <dir> --root <dir> --run <runId> --slot <dir> [--draft] [--json]',
+  report:
+    'usage: krn eval report --experiment <dir> --root <dir> [--draft] [--json]',
   mask: 'usage: krn eval mask --slot <dir> [--network] [--tool <dir>]... [--credential <file>=</w/path>]... -- <command> [args…]',
 };
 
@@ -27,6 +31,16 @@ export async function evalCommand(args: string[]): Promise<void> {
       await sessionCommand(args.slice(1));
       return;
     }
+    if (args[0] === 'score') {
+      const { scoreCommand } = await import('./score.ts');
+      await scoreCommand(args.slice(1));
+      return;
+    }
+    if (args[0] === 'report') {
+      const { reportCommand } = await import('./report.ts');
+      await reportCommand(args.slice(1));
+      return;
+    }
     if (args[0] === 'mask') {
       process.exitCode = await maskCommand(parseMask(args.slice(1)));
       return;
@@ -34,7 +48,7 @@ export async function evalCommand(args: string[]): Promise<void> {
     const options = parse(args);
     const manifest = await loadManifest(options.experiment);
     if (options.command === 'prepare') {
-      const prepared = await prepareExperiment(manifest, options);
+      const prepared = await prepareExperiment(wozManifest(manifest), options);
       process.stdout.write(
         json
           ? `${JSON.stringify({ ok: true, ...prepared }, null, 2)}\n`

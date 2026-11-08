@@ -11,7 +11,7 @@ import {
 } from 'node:path';
 import { promisify } from 'node:util';
 import { CliUsageError } from '../cli/usage-error.ts';
-import { EvalDataError, type ExperimentManifest } from './manifest.ts';
+import { EvalDataError, type WozManifest } from './manifest.ts';
 
 const execute = promisify(execFile);
 
@@ -189,7 +189,7 @@ async function verifySnapshot(repo: string, base: string, exemplar: string) {
 }
 
 export async function prepareExperiment(
-  manifest: ExperimentManifest,
+  manifest: WozManifest,
   options: {
     experiment: string;
     root: string;
