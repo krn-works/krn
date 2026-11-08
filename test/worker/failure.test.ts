@@ -113,8 +113,8 @@ test('an unknown, missing or ambiguous CodexErrorInfo is an unknown, non-retryab
   });
 });
 
-test('a usage limit resets at the latest exhausted window of account/rateLimits/read (synthetic frame)', () => {
-  const frame = read('usage-limit.synthetic.json');
+test('a usage limit resets at the latest exhausted window of account/rateLimits/read (captured frame)', () => {
+  const frame = read('usage-limit.json');
   const failure = codexTurnFailure(frame.params.turn.error.codexErrorInfo);
   assert.deepEqual(failure, { class: 'usageLimitExceeded', retryable: true });
   assert.equal(limitClass(failure), true);

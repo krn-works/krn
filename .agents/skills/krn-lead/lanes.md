@@ -10,4 +10,4 @@
 - When done remove your worktree (`git worktree remove`) and local branch.
 - Append one line per finding/PR to .krn/runs/lead/<campaign>/ledger.md: `- <lane>: <finding> -> PR #n merged|task t-xxx|dropped (<reason>)`.
 - Final reply ≤10 lines: PRs with merge state, tasks created, measured before/after numbers.
-- Lane types: a lane that reads untrusted content (web pages, papers, third-party clones under .krn/sources) runs as the `krn-research` agent (`.claude/agents/krn-research.md`: no Bash, Edit or sub-agents; writes one report under .krn/runs). A lane that must run probes, tests or commands is a general-purpose lane and reads no untrusted page.
+- Lane types: a lane that reads untrusted content (web pages, papers, third-party clones under .krn/sources) runs as the `krn-research` agent (`.claude/agents/krn-research.md`: read-only, no sub-agents; lead saves its report under .krn/runs). A lane that runs probes, tests or commands is a general-purpose lane and reads no untrusted page.

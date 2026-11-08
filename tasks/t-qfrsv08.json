@@ -1,7 +1,11 @@
 {
   "id": "t-qfrsv08",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Two mock-provider scenarios capture the real codex 0.167.0 usage-limit and failed-compaction frames; usage-limit.json replaces the synthetic frame. Without an account, account/rateLimits/read is refused (-32600), so reset_at stays absent: the reply's reset reaches the client only through account/rateLimits/updated, which carries account keys and stays opted out."
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Capture the usage-limit and failed-compaction receiver frames from the mock Responses provider",
