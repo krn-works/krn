@@ -65,6 +65,10 @@ the ratio; GO retrieval also needs B-S >= +10 pp. Both hold.
 - `scripts/boundaries.ts` (imported by the core-imports scorer, not hashed by the
   manifest while scoring) had sha256 `a28802e1…8266867` then. The manifest now
   hashes every file the scorer imports from outside evals/fr40 into
-  `scorer-imports.json` (t-16dkc64), now `1fc04179…f55d4bd8`;
-  the only change since scoring adds `src/brain/worker-packet.ts` to the worker
-  module's allowed imports and leaves core-imports verdicts unchanged.
+  `scorer-imports.json` (t-16dkc64), now `6054e0e3…bca92606b`.
+  Changes since scoring: `src/brain/worker-packet.ts` joined the worker module's
+  allowed imports, and top-level directories became areas `root:<dir>` so a src
+  area name no longer allows the same-named top-level directory (t-rmty4j1).
+  Core allows nothing, so core-imports verdicts are unchanged; the only edge that
+  flips is src/core importing a top-level `core/` directory, which this repository
+  (the slots' base) does not have.
