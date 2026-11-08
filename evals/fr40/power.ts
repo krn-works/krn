@@ -5,10 +5,12 @@
 const logFactorials: number[] = [0];
 
 function logFactorial(n: number): number {
+  let last = logFactorials.at(-1) ?? 0;
   for (let i = logFactorials.length; i <= n; i += 1) {
-    logFactorials.push(logFactorials[i - 1] + Math.log(i));
+    last += Math.log(i);
+    logFactorials.push(last);
   }
-  return logFactorials[n];
+  return logFactorials[n] ?? 0;
 }
 
 function logChoose(n: number, k: number): number {

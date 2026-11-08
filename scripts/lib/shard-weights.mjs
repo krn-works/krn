@@ -93,6 +93,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/rules/project-skills.test.ts': 0.1,
   'test/rules/shard-weight-coverage.test.mjs': 0.1,
   'test/rules/test-hygiene.test.mjs': 0.1,
+  'test/rules/typecheck-coverage.test.ts': 0.1,
   'test/rules/receiver-evidence.test.mjs': 0.5,
   'test/task/claim-lock.test.ts': 6.2,
   'test/task/claims-recovery.test.ts': 4.4,

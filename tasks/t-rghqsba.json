@@ -1,7 +1,11 @@
 {
   "id": "t-rghqsba",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "tsconfig includes evals/; rule test test/rules/typecheck-coverage.test.ts fails on any tracked .ts outside the includes"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Typecheck every tracked .ts file, including evals/",
