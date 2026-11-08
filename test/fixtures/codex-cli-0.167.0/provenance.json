@@ -1,0 +1,46 @@
+{
+  "receiver": "codex-cli 0.167.0",
+  "captured": "2026-11-08",
+  "captures": [
+    {
+      "name": "mcp-list",
+      "command": "CODEX_HOME=<home> codex mcp list --json",
+      "setup": "<home> holds only config.toml declaring [mcp_servers.fixture-server] command = \"true\" and [mcp_servers.fixture_disabled] command = \"true\", enabled = false; no auth. stderr (a PATH-alias warning naming <home>) is not kept, since src/worker/isolation.ts ignores it.",
+      "exitCode": 0,
+      "stdout": {
+        "file": "mcp-list.stdout.json",
+        "sha256": "788446e1a56e7f8a6721d6637b5e84b538642447b8001353b8158cdac8442333"
+      }
+    },
+    {
+      "name": "sandbox-observer",
+      "command": "codex sandbox -c 'sandbox_mode=\"workspace-write\"' -c 'sandbox_workspace_write.writable_roots=[\"<repo>\",\"<tmp>\"]' -c 'sandbox_workspace_write.network_access=true' -- node --test check.test.mjs",
+      "setup": "The argv src/worker/acceptance.ts passes for an observer, run from <repo> with stdout and stderr merged as acceptance collects them. check.test.mjs writes inside.txt in <repo> and then /var/tmp/krn-sandbox-probe, outside the writable roots. <repo> became the placeholder /work/repo; nothing else was rewritten.",
+      "exitCode": 1,
+      "output": {
+        "file": "sandbox-observer.log",
+        "sha256": "742acc778f5209e736b0b238b756e871a80e2654ac6476a3fdce5ab9ca0d275b"
+      }
+    },
+    {
+      "name": "exec-pass",
+      "command": "codex exec --json --ephemeral --model gpt-6-luna -c model_reasoning_effort=medium -c project_doc_max_bytes=0 --sandbox read-only --cd <repo> --color never -",
+      "setup": "The argv src/hosts/codex.ts builds for a judge after the read-only launcher in src/flow/panel.ts, without the systemd scope and at medium effort. <repo> is a git repository whose one commit adds one.ts exporting 1. stdin asks to run `cat one.ts` and return only {\"verdict\":\"PASS\"|\"FAIL\",\"findings\":[]}. stderr was empty.",
+      "exitCode": 0,
+      "stdout": {
+        "file": "exec-pass.stdout.jsonl",
+        "sha256": "a928de163b8988d8752d06295befa1285898a230ff08d1578e54c0f2e5207c6c"
+      }
+    },
+    {
+      "name": "exec-invalid-verdict",
+      "command": "codex exec --json --ephemeral --model gpt-6-luna -c model_reasoning_effort=low -c project_doc_max_bytes=0 --sandbox read-only --cd <repo> --color never -",
+      "setup": "As exec-pass at low effort, without asking for `cat`; the model answered FAIL with no findings, which src/flow/panel.ts must reject. stderr was empty.",
+      "exitCode": 0,
+      "stdout": {
+        "file": "exec-invalid-verdict.stdout.jsonl",
+        "sha256": "091d15d813e54b8a95fa484eec303be6393a9355b21c271fa803304044a17be5"
+      }
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "receiver": "gh version 2.101.0 (2026-09-15)",
+  "captured": "2026-11-08",
+  "captures": [
+    {
+      "name": "pr-not-found",
+      "command": "gh api repos/krn-works/krn/pulls/999999",
+      "exitCode": 1,
+      "stdout": {
+        "file": "pr-not-found.stdout.json",
+        "sha256": "7fe148a00b708ac81b9b6182eb8d263af7730beb8ed1cc56c08698ebaed076a6"
+      },
+      "stderr": {
+        "file": "pr-not-found.stderr.log",
+        "sha256": "d2c8985c89b29a842ac4946d13bdbc297709f44f20bb968faf9682664b211db6"
+      }
+    }
+  ]
+}

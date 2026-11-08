@@ -4,6 +4,7 @@ import { test } from 'node:test';
 import { recordedServers } from '../../scripts/codex/app-server-replay.ts';
 import { isolationConfig } from '../../src/worker/isolation.ts';
 import { WorkerError } from '../../src/worker/state.ts';
+import { capture } from '../receivers/capture.ts';
 
 test('isolation turns off hooks, plugins, the skills catalog, web search and every listed MCP server', () => {
   const config = isolationConfig(
@@ -61,4 +62,18 @@ test('a recorded worker first call stays below 15,000 input tokens', () => {
   );
   const first = Number(log.match(/"inputTokens":(\d+)/)?.[1]);
   assert.ok(first > 0 && first < 15_000, `first call took ${first} tokens`);
+});
+
+test('isolation turns off every server a captured codex mcp list names', () => {
+  // KRN-12: codex 0.167.0 `mcp list --json` (test/fixtures/codex-cli-0.167.0).
+  const listed = capture('fixtures/codex-cli-0.167.0', 'mcp-list');
+  assert.equal(listed.exitCode, 0);
+  const config = isolationConfig(listed.streams.stdout?.toString('utf8') ?? '');
+  assert.deepEqual(
+    Object.keys(config).filter((key) => key.startsWith('mcp_servers.')),
+    [
+      'mcp_servers.fixture-server.enabled',
+      'mcp_servers.fixture_disabled.enabled',
+    ],
+  );
 });

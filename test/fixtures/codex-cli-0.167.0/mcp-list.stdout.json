@@ -1,0 +1,34 @@
+[
+  {
+    "name": "fixture-server",
+    "enabled": true,
+    "disabled_reason": null,
+    "transport": {
+      "type": "stdio",
+      "command": "true",
+      "args": [],
+      "env": null,
+      "env_vars": [],
+      "cwd": null
+    },
+    "startup_timeout_sec": null,
+    "tool_timeout_sec": null,
+    "auth_status": "unsupported"
+  },
+  {
+    "name": "fixture_disabled",
+    "enabled": false,
+    "disabled_reason": null,
+    "transport": {
+      "type": "stdio",
+      "command": "true",
+      "args": [],
+      "env": null,
+      "env_vars": [],
+      "cwd": null
+    },
+    "startup_timeout_sec": null,
+    "tool_timeout_sec": null,
+    "auth_status": "unsupported"
+  }
+]
