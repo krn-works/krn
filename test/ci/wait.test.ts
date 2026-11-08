@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { stopExitCodes, waitCommand, waitUsage } from '../../src/ci/wait.ts';
 import { GateTimeout, waitForGate } from '../../src/deliver/gate-wait.ts';
@@ -68,6 +69,63 @@ test('wait failure preserves rerun instruction and exits 74', async () => {
       assert.match(error.message, /concluded failure/);
       assert.ok(error.message.includes('gh run rerun <run-id> --failed'));
       assert.ok(!error.message.includes('\n'));
+      return true;
+    },
+  );
+});
+test('wait failure on a captured Actions Check names its run and ci logs command', async () => {
+  // Verbatim `gh api --paginate --slurp .../check-runs` for a PR head whose
+  // Check failed twice in Actions run 42470866515 (KRN-12).
+  const captured = '8fba0398db07784982a5e8d6a4d61392fa452857';
+  const page = await readFile(
+    new URL(
+      '../fixtures/github-check-runs/actions-check-failure.json',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+  const policy = await readFile(
+    new URL('../../spec/ci-admission.json', import.meta.url),
+    'utf8',
+  );
+  const blob = 'c'.repeat(40);
+  const { gh } = strictGh('krn-works/krn', 1, captured, {
+    pull: () => pull(captured),
+    checks: () => page,
+  });
+  await assert.rejects(
+    waitCommand(
+      [
+        '--repo',
+        'krn-works/krn',
+        '--pr',
+        '1',
+        '--head',
+        captured,
+        '--base',
+        base,
+      ],
+      {
+        gh,
+        run: (_command: string, gitArgs: string[]) => ({
+          code: 0,
+          stdout:
+            gitArgs[0] === 'ls-tree'
+              ? `100644 blob ${blob}\tspec/ci-admission.json\n`
+              : policy,
+          stderr: '',
+        }),
+        sleep: async () => {},
+        now: () => 0,
+      },
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(Reflect.get(error, 'exitCode'), 74);
+      assert.equal(
+        error.message,
+        `Check concluded failure on ${captured} in run 42470866515; logs: bin/krn ci logs --run 42470866515; rerun: gh run rerun 42470866515 --failed`,
+      );
       return true;
     },
   );
