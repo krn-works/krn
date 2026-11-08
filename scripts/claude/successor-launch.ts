@@ -7,6 +7,15 @@ export interface SuccessorLaunchOptions {
   name: string;
   prompt: string;
   cwd: string;
+  model?: string;
+  effort?: Effort;
+}
+
+export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const;
+export type Effort = (typeof EFFORTS)[number];
+
+function isEffort(value: string): value is Effort {
+  return (EFFORTS as readonly string[]).includes(value);
 }
 
 type CommandResult = {
@@ -49,8 +58,10 @@ export function parseArgs(
   let name: string | undefined;
   let prompt: string | undefined;
   let cwd = defaultCwd;
+  let model: string | undefined;
+  let effort: Effort | undefined;
   const seen = new Set<string>();
-  const flags = new Set(['--name', '--prompt', '--cwd']);
+  const flags = new Set(['--name', '--prompt', '--cwd', '--model', '--effort']);
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index] ?? '';
@@ -66,12 +77,23 @@ export function parseArgs(
 
     if (flag === '--name') name = value;
     else if (flag === '--prompt') prompt = value;
-    else cwd = resolve(defaultCwd, value);
+    else if (flag === '--model') model = value;
+    else if (flag === '--effort') {
+      if (!isEffort(value))
+        throw new Error(`--effort must be one of ${EFFORTS.join(', ')}`);
+      effort = value;
+    } else cwd = resolve(defaultCwd, value);
   }
 
   if (!name) throw new Error('required argument missing: --name');
   if (!prompt) throw new Error('required argument missing: --prompt');
-  return { name, prompt, cwd };
+  return {
+    name,
+    prompt,
+    cwd,
+    ...(model === undefined ? {} : { model }),
+    ...(effort === undefined ? {} : { effort }),
+  };
 }
 
 function run(
@@ -498,8 +520,23 @@ export function main(args: string[]): number {
 
   // Operator 2026-11-06 (t-5av8etp): a relayed Claude lead never stops on
   // permission prompts; other agents keep their own defaults.
+  // Operator 2026-11-01 (t-h7xt8m3): krn-handoff passes the successor's
+  // model and effort; only Claude takes these flags.
+  if (harness !== 'claude' && (options.model || options.effort)) {
+    process.stderr.write(
+      '--model and --effort apply only to Claude successors\n',
+    );
+    return 2;
+  }
   const agentFlags =
-    harness === 'claude' ? ['--permission-mode', 'bypassPermissions'] : [];
+    harness === 'claude'
+      ? [
+          '--permission-mode',
+          'bypassPermissions',
+          ...(options.model ? ['--model', options.model] : []),
+          ...(options.effort ? ['--effort', options.effort] : []),
+        ]
+      : [];
   const prompt = `First run \`node scripts/claude/successor-launch.ts --retire\` from the repository root. ${options.prompt}`;
   if (unavailable && harness === 'codex') {
     // Codex has no background mode; never start Claude in its place.

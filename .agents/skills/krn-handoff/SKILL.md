@@ -5,7 +5,7 @@ description: End a KRN lead session — update the capsule, write a one-page poi
 
 # KRN handoff
 
-A fresh session with a short, precise handoff outperforms a long session that carries every earlier detail; the handoff file, the capsule and the tracker are the memory, not the conversation.
+A fresh session with a short handoff beats a long session carrying every earlier detail; the handoff file, the capsule and the tracker are the memory, not the conversation.
 
 1. **Capsule.** Update `.krn/runs/delivery-loop/<outcome>/state.md` and run `krn state check --root .` until it reports clean.
 2. **Handoff.** Write `handoff.md` beside the capsule: at most one page, pointers only, never content already held by an ADR, task, commit, PR or record. Redact secrets. Include:
@@ -22,9 +22,9 @@ A fresh session with a short, precise handoff outperforms a long session that ca
 
    Run `node scripts/claude/handoff-requests.ts <handoff path>` from the repository root until it prints PASS.
 3. **Transfer the writer, then start the next session.** Record in the capsule field "Current workflow owner and sole writer" that the next session is the writer, finish every write of this session (capsule, handoff, tracker), and only then, as this session's last action, start the next one from the repository root:
-   `node scripts/claude/successor-launch.ts --name "<slice purpose>" --prompt "Use the krn-lead skill. Read <handoff path>, then deliver <task id>."`
+   `node scripts/claude/successor-launch.ts --name "<slice purpose>" --model claude-opus-5-5 --effort max --prompt "Use the krn-lead skill. Read <handoff path>, then deliver <task id>."`
    The launcher detects the harness the lead is running in from the runtime environment (Codex: `CODEX_THREAD_ID`; Claude Code: `CLAUDECODE`) and starts the successor in that same harness: Claude with `--permission-mode bypassPermissions -n`, Codex with the prompt only (the tab label carries the name; Codex has no background mode, so it requires Herdr and never falls back to Claude). An unknown or ambiguous environment stops with exit 2 and a message; set `KRN_SUCCESSOR_AGENT` only to override deliberately. Retirement of the predecessor tab applies to Claude leads only.
-   After this command the current session writes nothing. The launcher renames this tab "handed off → <name>" and tells the successor to run `node scripts/claude/successor-launch.ts --retire` first; that closes this tab once its agent is idle or done, plus every other idle "handed off → …" tab of the same Herdr workspace, never other workspaces or working agents. If the next slice needs an operator decision, do not start a session; ask the operator with a decision-ready brief.
+   After this command the current session writes nothing. The launcher renames this tab "handed off → <name>" and tells the successor to run `node scripts/claude/successor-launch.ts --retire` first; that closes this tab once idle or done, plus other idle "handed off → …" tabs of the same Herdr workspace, never other workspaces or working agents. If the next slice needs an operator decision, do not start a session; ask the operator with a decision-ready brief.
 4. **Report.** Tell the operator in Polish:
    - what merged (SHAs, runs);
    - which session started (its name);
