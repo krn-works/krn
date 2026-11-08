@@ -74,6 +74,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/hosts/systemd-scope-collect.test.ts': 1.4,
   'test/import-boundary.test.ts': 0.1,
   'test/outcome/ledger.test.ts': 2,
+  'test/rules/capture-privacy-guard.test.mjs': 0.1,
   'test/rules/context-budget.test.ts': 0.1,
   'test/rules/flag-value-reader.test.ts': 0.1,
   'test/rules/host-path-guard.test.mjs': 0.2,
