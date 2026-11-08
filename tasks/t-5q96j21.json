@@ -1,0 +1,12 @@
+{
+  "id": "t-5q96j21",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 3,
+  "title": "Shard wall report: --since <sha> window",
+  "after": [],
+  "body": [
+    "Outcome: the shard wall report measures only runs after a given commit, so acceptance windows exclude runs from an older shard plan.\nEvidence: t-mgj0693 acceptance (p50 over 5 main runs) mixed 8-shard runs with the 10-shard plan of #356 (2194438).\nAcceptance: node scripts/shard-wall-report.mjs --since <sha> keeps only main runs whose head descends from <sha> (git merge-base --is-ancestor), with a test."
+  ]
+}

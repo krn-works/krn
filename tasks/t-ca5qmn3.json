@@ -1,0 +1,12 @@
+{
+  "id": "t-ca5qmn3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 3,
+  "title": "Flag shard weight drift against CI durations",
+  "after": [],
+  "body": [
+    "Outcome: a test file whose CI duration drifts above its shard weight is flagged before it skews the plan.\nEvidence: #349/#350 split files with local-estimate weights (~0.5x CI); shard 6/8 then held ~80 CI-seconds and ran 22-26 s on main (runs 42427889516, 42428030805) while predicted at 16 s, until #354 refreshed weights from CI.\nAcceptance: node scripts/shard-wall-report.mjs (or the refresh script) prints files whose median CI durationMs exceeds their weight by more than 30% over the fetched runs, with a test on a fixture run; the lead runs it after any split."
+  ]
+}
