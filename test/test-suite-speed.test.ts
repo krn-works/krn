@@ -1,59 +1,15 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
 import {
   chmod,
   mkdir,
-  mkdtemp,
   readdir,
   readFile,
   rm,
   writeFile,
 } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { join } from 'node:path';
 import { test } from 'node:test';
-import { fileURLToPath } from 'node:url';
-
-const wrapper = fileURLToPath(
-  new URL('../scripts/test-suite.mjs', import.meta.url),
-);
-
-async function fixture() {
-  const state = resolve('.krn/tmp');
-  await mkdir(state, { recursive: true });
-  const root = await mkdtemp(join(state, 'test-suite-speed-'));
-  const project = join(root, 'project');
-  await mkdir(join(project, 'test'), { recursive: true });
-  await writeFile(join(project, '.node-version'), process.version.slice(1));
-  await writeFile(join(project, 'package.json'), '{"type":"module"}');
-  return { root, project };
-}
-
-function run(project: string, files: string[], extra: NodeJS.ProcessEnv = {}) {
-  const env = { ...process.env };
-  for (const key of Object.keys(env)) {
-    if (key.startsWith('NODE_TEST_') || key === 'NODE_OPTIONS') delete env[key];
-  }
-  delete env.NODE_COMPILE_CACHE;
-  delete env.KRN_SCOPE_PROBE;
-  delete env.KRN_TEST_STRICT;
-  delete env.GITHUB_STEP_SUMMARY;
-  return spawnSync(process.execPath, [wrapper, ...files], {
-    cwd: project,
-    env: {
-      ...env,
-      CI: 'true',
-      pnpm_config_store_dir: join(project, '.krn/store'),
-      ...extra,
-    },
-    encoding: 'utf8',
-    timeout: 30_000,
-  });
-}
-
-function passed(result: ReturnType<typeof run>) {
-  assert.equal(result.error, undefined);
-  assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
-}
+import { fixture, passed, run } from './test-suite-fixture.ts';
 
 for (const strict of [false, true]) {
   test(`test wrapper shares a persistent compile cache and reports durations (strict=${strict})`, async () => {
@@ -207,64 +163,6 @@ test('caller cache', () => {
     } finally {
       await chmod(unwritable, 0o700);
     }
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
-
-test('test wrapper includes failing tests and handles an empty duration summary', async () => {
-  const { root, project } = await fixture();
-  try {
-    const file = 'test/outcome.test.mjs';
-    await writeFile(
-      join(project, file),
-      "import { test } from 'node:test'; test('failed outcome', () => { throw Error('expected failure'); });",
-    );
-    for (const strict of ['0', '1']) {
-      const failed = run(project, [file], {
-        KRN_TEST_STRICT: strict,
-      });
-      assert.equal(failed.status, 1, failed.stderr);
-      assert.match(
-        failed.stdout,
-        /\| failed outcome \| test\/outcome.test.mjs \| \d+\.\d{3} \|/u,
-      );
-    }
-    await rm(join(project, file));
-    for (const strict of ['0', '1']) {
-      const empty = run(project, [file], {
-        KRN_TEST_STRICT: strict,
-      });
-      assert.equal(empty.status, 1);
-      assert.match(empty.stdout, /No test durations recorded\./u);
-    }
-  } finally {
-    await rm(root, { recursive: true, force: true });
-  }
-});
-
-test('test wrapper kills a hung group and names its files', async () => {
-  const { root, project } = await fixture();
-  try {
-    await writeFile(
-      join(project, 'test', 'hang.test.mjs'),
-      `import { spawn } from 'node:child_process';
-import { test } from 'node:test';
-test('leaks a child that never exits', () => {
-  spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'inherit' });
-  return new Promise(() => {});
-});`,
-    );
-    const result = run(project, ['test/hang.test.mjs'], {
-      KRN_TEST_SHARDS: '1',
-      KRN_TEST_GROUP_TIMEOUT_MS: '3000',
-    });
-    assert.equal(result.error, undefined);
-    assert.notEqual(result.status, 0);
-    assert.match(
-      result.stderr,
-      /Test group hung after 3000 ms; killing it\. Files: .*test\/hang\.test\.mjs/u,
-    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
