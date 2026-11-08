@@ -37,14 +37,11 @@ test('systemd scope ends after parent SIGKILL within timeout plus grace', async 
     await waitFor(() => readyPid(launched.ready) === parent?.pid);
     assert.equal(parent.kill('SIGKILL'), true);
     await closed;
-    const stoppedAt = Date.now();
+    // systemd must reap the child within the configured runtime grace.
     await waitFor(
       () =>
         !isProcessAlive(scope?.pid ?? -1) && !scopeIsPopulated(scope?.cgroup),
-    );
-    assert.ok(
-      Date.now() - stoppedAt <= codexScopeRuntimeGraceMs + 1500,
-      'systemd must reap the child within the configured runtime grace',
+      codexScopeRuntimeGraceMs + 1500,
     );
     assertScopeInactive(scope.unit);
   } finally {
@@ -192,8 +189,9 @@ async function readScope(pidFile: string): Promise<{
 
 async function waitFor<T>(
   read: () => T | undefined | Promise<T | undefined>,
+  withinMs = 10000,
 ): Promise<NonNullable<T>> {
-  const deadline = Date.now() + 10000;
+  const deadline = Date.now() + withinMs;
   while (Date.now() < deadline) {
     const value = await read();
     if (value) return value as NonNullable<T>;

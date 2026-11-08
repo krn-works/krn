@@ -82,14 +82,22 @@ test('a dead installer pid does not block; a live one is waited for', async (t) 
     `${holder}
 `,
   );
-  const started = Date.now();
+  // Setup is ready only once the holder exits, so a true result without an
+  // install proves the caller waited for the live holder.
+  const holderAlive = () => {
+    try {
+      process.kill(Number(holder), 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
   let ran = 0;
   const ok = ensureSetup(
     other,
-    () => Date.now() - started > 600,
+    () => !holderAlive(),
     () => (ran++, { ok: true, detail: '' }),
   );
   assert.equal(ok, true);
   assert.equal(ran, 0);
-  assert.ok(Date.now() - started >= 600);
 });

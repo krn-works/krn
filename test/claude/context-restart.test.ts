@@ -272,8 +272,9 @@ test('restart hook injects one consolidated block from the newest handoff within
         '',
       ].join('\n'),
     );
-    const started = Date.now();
     const result = spawnSync(process.execPath, [script], {
+      // SessionStart stays fast: a slow hook is killed and fails below.
+      timeout: 5_000,
       env: {
         ...process.env,
         CLAUDE_PROJECT_DIR: root,
@@ -287,8 +288,8 @@ test('restart hook injects one consolidated block from the newest handoff within
         source: 'clear',
       }),
     });
+    assert.equal(result.error, undefined, 'SessionStart stays fast');
     assert.equal(result.status, 0, result.stderr);
-    assert.ok(Date.now() - started < 2000, 'SessionStart stays fast');
     assert.ok(result.stdout.length <= 8000);
     const context: string = JSON.parse(result.stdout).hookSpecificOutput
       .additionalContext;

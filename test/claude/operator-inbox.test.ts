@@ -22,6 +22,14 @@ const restart = path('context-restart.ts');
 const settings = fileURLToPath(
   new URL('../../.claude/settings.json', import.meta.url),
 );
+// Claude Code kills the capture hook after its configured timeout, so every
+// fixture run must finish inside it.
+const captureHook = JSON.parse(readFileSync(settings, 'utf8'))
+  .hooks.UserPromptSubmit.flatMap(
+    (entry: { hooks: { command: string; timeout?: number }[] }) => entry.hooks,
+  )
+  .find((hook: { command: string }) => /context-gauge\.ts/u.test(hook.command));
+const captureTimeoutMs = Number(captureHook?.timeout) * 1000;
 
 const sessionId = '075c3201-76f7-4eb7-89ac-04c9d53234c3';
 // Hook environment of an interactive session and of a headless `claude -p` run (captured).
@@ -53,6 +61,7 @@ function fixture() {
       }),
       env: { ...process.env, ...env, CLAUDE_PROJECT_DIR: root },
       encoding: 'utf8',
+      timeout: captureTimeoutMs,
     });
   const run = (...args: string[]) =>
     spawnSync(process.execPath, [inbox, ...args, '--root', root], {
@@ -243,22 +252,17 @@ test('headless runs and hand-fed benchmark payloads are not captured', () => {
   }
 });
 
-test('capture hook is registered and fast', () => {
-  const config = JSON.parse(readFileSync(settings, 'utf8'));
-  const commands = JSON.stringify(config.hooks.UserPromptSubmit);
-  assert.match(commands, /context-gauge\.ts/u);
+test('capture hook is registered with a timeout every run finishes inside', () => {
+  assert.ok(captureTimeoutMs > 0, 'context-gauge hook needs a timeout');
   const { root, submit } = fixture();
   try {
-    submit('warm up the module cache for this directive prompt');
-    const times: number[] = [];
     for (let index = 0; index < 5; index++) {
-      const start = performance.now();
-      submit(`directive number ${index} that is long enough to count`);
-      times.push(performance.now() - start);
+      const result = submit(
+        `directive number ${index} that is long enough to count`,
+      );
+      assert.equal(result.error, undefined, 'hook outlived its timeout');
+      assert.equal(result.status, 0, result.stderr);
     }
-    times.sort((a, b) => a - b);
-    // Generous bound against loaded CI runners; typical is a node start-up (~40 ms).
-    assert.ok((times[2] ?? 0) < 400, `median ${times[2]} ms`);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

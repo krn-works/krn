@@ -63,9 +63,7 @@ test('every scenario has one recorded transcript, listed with its sha256', () =>
 });
 
 for (const scenario of scenarios)
-  test(`the worker replays the recorded ${scenario.name} session`, {
-    timeout: 60000,
-  }, async (t) => {
+  test(`the worker replays the recorded ${scenario.name} session`, async (t) => {
     const root = realpathSync(mkdtempSync(join(tmpdir(), 'krn-replay-')));
     t.after(() => rmSync(root, { recursive: true, force: true }));
     const bin = join(root, 'bin');

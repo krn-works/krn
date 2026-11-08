@@ -1,7 +1,11 @@
 {
   "id": "t-6np1gz9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scripts/lib/test-timeout.ts gives npm test, CI shards and npm run fast --test-timeout=60000 plus --test-force-exit; test/test-timeout.test.ts proves a never-settling test fails by name in both runners; test-hygiene bans wall-clock deltas and per-test timeouts (seeded fixture set, 2 allowlisted files with reasons); 0 unallowlisted violations remain in test/."
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Give tests one timeout ceiling and ban wall-clock assertions in tests",

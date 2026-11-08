@@ -17,9 +17,7 @@ import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/krn.mjs', import.meta.url));
 
-test('expired claims have one concurrent claim --next winner across two worktrees', {
-  timeout: 180_000,
-}, async () => {
+test('expired claims have one concurrent claim --next winner across two worktrees', async () => {
   const repo = await fixtureRepo('claim-lock-race-', [task('T-1')]);
   const linked = join(dirname(repo), `${basename(repo)}-linked`);
   try {
@@ -128,9 +126,7 @@ test('takeover, release, and plain claim mutations stay serialized', async () =>
   }
 });
 
-test('a killed lock holder releases the task name to the next claimer', {
-  timeout: 15_000,
-}, async () => {
+test('a killed lock holder releases the task name to the next claimer', async () => {
   const repo = await fixtureRepo('claim-lock-killed-', [task('T-1')]);
   let holder: ReturnType<typeof startLockHolder> | undefined;
   try {
@@ -155,9 +151,7 @@ test('a killed lock holder releases the task name to the next claimer', {
   }
 });
 
-test('a live lock holder makes a contender return claim busy', {
-  timeout: 15_000,
-}, async () => {
+test('a live lock holder makes a contender return claim busy', async () => {
   const repo = await fixtureRepo('claim-lock-live-', [task('T-1')]);
   let holder: ReturnType<typeof startLockHolder> | undefined;
   try {
@@ -177,9 +171,7 @@ test('a live lock holder makes a contender return claim busy', {
   }
 });
 
-test('an expired claim cannot be taken while another claimer holds its lock', {
-  timeout: 15_000,
-}, async () => {
+test('an expired claim cannot be taken while another claimer holds its lock', async () => {
   const repo = await fixtureRepo('claim-lock-expired-', [task('T-1')]);
   const claimPath = join(repo, '.krn', 'task-claims', 'T-1.json');
   let holder: ReturnType<typeof startLockHolder> | undefined;
@@ -213,9 +205,7 @@ test('an expired claim cannot be taken while another claimer holds its lock', {
   }
 });
 
-test('repositories with the same task id have separate lock names', {
-  timeout: 10_000,
-}, async () => {
+test('repositories with the same task id have separate lock names', async () => {
   const first = await fixtureRepo('claim-lock-repository-first-', [
     task('T-1'),
   ]);
@@ -258,9 +248,7 @@ test('a 100-character task id can be claimed and released', async () => {
   }
 });
 
-test('long task ids with the same prefix have separate lock names', {
-  timeout: 10_000,
-}, async () => {
+test('long task ids with the same prefix have separate lock names', async () => {
   const prefix = `T-${'a'.repeat(97)}`;
   const firstId = `${prefix}1`;
   const secondId = `${prefix}2`;

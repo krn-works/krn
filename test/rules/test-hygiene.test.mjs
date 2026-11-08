@@ -73,6 +73,48 @@ const waitPattern =
 const skipPattern = /\.skip\b|\bskip:|\.todo\b|\btodo:/u;
 const suppressionPattern =
   /biome-ignore|@ts-expect-error|@ts-ignore|@ts-nocheck/u;
+// Elapsed-time assertions flake on loaded runners; poll a condition under a deadline instead.
+const wallClockPattern =
+  /\b(?:Date|performance)\.now\(\)\s*-\s*[A-Za-z_$]|\bprocess\.hrtime\b/u;
+// The runner's --test-timeout ceiling (scripts/lib/test-timeout.ts) bounds every test.
+const testTimeoutPattern =
+  /\b(?:test|it|describe|suite)(?:\.\w+)?\(\s*(['"`])(?:(?!\1)[^\\]|\\.)*\1\s*,\s*\{[^}]*?\btimeout\s*:/gu;
+
+// Each entry is one file and one reason, as for waits.
+const allowWallClock = new Map();
+const allowTestTimeout = new Map([
+  [
+    'test/hosts/codex-registration.test.ts',
+    'conditionTimeoutFor sizes each test to its 120 s condition waits, above the ceiling.',
+  ],
+  [
+    'test/hosts/codex-usage.test.ts',
+    'testTimeoutFor sizes each test to its spawned-process waits, above the ceiling.',
+  ],
+]);
+
+/** Wall-clock deltas and per-test timeouts in one file's text, as "file:line message". */
+export function clockProblems(file, text) {
+  const problems = [];
+  if (!allowWallClock.has(file)) {
+    text.split('\n').forEach((line, index) => {
+      if (wallClockPattern.test(line)) {
+        problems.push(
+          `${file}:${index + 1} wall-clock delta; assert on a condition or add a one-line allowlist reason`,
+        );
+      }
+    });
+  }
+  if (!allowTestTimeout.has(file)) {
+    for (const match of text.matchAll(testTimeoutPattern)) {
+      const line = text.slice(0, match.index).split('\n').length;
+      problems.push(
+        `${file}:${line} per-test timeout; the runner ceiling bounds every test`,
+      );
+    }
+  }
+  return problems;
+}
 
 const files = execFileSync(
   'git',
@@ -129,11 +171,50 @@ test('tests never wait on the clock, skip without quarantine, or suppress withou
   assert.deepEqual(problems, []);
 });
 
+test('tests never assert on wall-clock deltas or set a per-test timeout', () => {
+  const problems = files
+    .filter((file) => file !== 'test/rules/test-hygiene.test.mjs')
+    .flatMap((file) =>
+      clockProblems(file, readFileSync(`${root}/${file}`, 'utf8')),
+    );
+  assert.deepEqual(problems, []);
+});
+
+test('the clock rule reports exactly the seeded violations', () => {
+  const seeded = [
+    'const started = Date.now();\nassert.ok(Date.now() - started < 2000);',
+    'const t0 = performance.now();\ntimes.push(performance.now() - t0);',
+    'const t0 = process.hrtime.bigint();',
+    "test('slow', {\n  timeout: 180_000,\n}, async () => {});",
+    "t.test('inner', { skip: false, timeout: 5 }, () => {});",
+    'describe("suite", { timeout: 1 }, () => {});',
+  ].join('\n');
+  const clean = [
+    'const deadline = Date.now() + 10_000;',
+    'while (Date.now() < deadline) {}',
+    'const old = new Date(Date.now() - 3 * day);',
+    "spawnSync('git', [], { encoding: 'utf8', timeout: 10_000 });",
+    "test('fast', async () => {});",
+    "test('object', { concurrency: 1 }, async () => {});",
+  ].join('\n');
+  assert.deepEqual(clockProblems('seeded.test.ts', seeded), [
+    'seeded.test.ts:2 wall-clock delta; assert on a condition or add a one-line allowlist reason',
+    'seeded.test.ts:4 wall-clock delta; assert on a condition or add a one-line allowlist reason',
+    'seeded.test.ts:5 wall-clock delta; assert on a condition or add a one-line allowlist reason',
+    'seeded.test.ts:6 per-test timeout; the runner ceiling bounds every test',
+    'seeded.test.ts:9 per-test timeout; the runner ceiling bounds every test',
+    'seeded.test.ts:10 per-test timeout; the runner ceiling bounds every test',
+  ]);
+  assert.deepEqual(clockProblems('clean.test.ts', clean), []);
+});
+
 test('hygiene allowlist entries still match a file that needs them', () => {
   const stale = [];
   for (const [map, pattern] of [
     [allowWait, waitPattern],
     [allowSkip, skipPattern],
+    [allowWallClock, wallClockPattern],
+    [allowTestTimeout, new RegExp(testTimeoutPattern.source, 'u')],
   ]) {
     for (const file of map.keys()) {
       if (
