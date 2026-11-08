@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "modules": {
+    "src/ci/wait.ts": {
+      "receivers": ["git", "gh"],
+      "capture": ["test/fixtures/github-check-runs/review-gate-failure.json"],
+      "test": "test/ci/gate-wait-capture.test.ts"
+    },
+    "src/deliver/gate-wait.ts": {
+      "receivers": ["gh"],
+      "capture": [
+        "test/fixtures/github-check-runs/gate-success.json",
+        "test/fixtures/github-check-runs/review-gate-failure.json"
+      ],
+      "test": "test/ci/gate-wait-capture.test.ts"
+    },
+    "src/deliver/transport.ts": { "receivers": ["gh"], "pending": "t-5b632zt" },
+    "src/evals/mask.ts": {
+      "receivers": ["bwrap"],
+      "real": "test/evals/session-mask.test.ts"
+    },
+    "src/evals/workspace.ts": {
+      "receivers": ["git"],
+      "real": "test/evals/workspace.test.ts"
+    },
+    "src/flow/git.ts": {
+      "receivers": ["git"],
+      "real": "test/flow/review.test.ts"
+    },
+    "src/flow/panel.ts": {
+      "receivers": ["codex", "git"],
+      "pending": "t-5b632zt"
+    },
+    "src/hosts/codex-app-server.ts": {
+      "receivers": ["codex app-server"],
+      "capture": [
+        "test/fixtures/codex-app-server/compact.rpc",
+        "test/fixtures/codex-app-server/failed-turn.rpc",
+        "test/fixtures/codex-app-server/interrupt.rpc"
+      ],
+      "test": "test/worker/codex-replay.test.ts"
+    },
+    "src/hosts/codex.ts": {
+      "receivers": ["codex exec"],
+      "pending": "t-5b632zt"
+    },
+    "src/hosts/systemd-scope.ts": {
+      "receivers": ["systemd-run", "systemctl"],
+      "real": "test/hosts/systemd-scope-collect.test.ts"
+    },
+    "src/outcome/ledger.ts": {
+      "receivers": ["gh"],
+      "capture": [
+        "test/fixtures/outcome-ledger/check-runs-pending.json",
+        "test/fixtures/outcome-ledger/check-runs-rerun.json",
+        "test/fixtures/outcome-ledger/pr-list.json",
+        "test/fixtures/outcome-ledger/review-record.json"
+      ],
+      "test": "test/outcome/ledger.test.ts"
+    },
+    "src/task/branch-tickets.ts": {
+      "receivers": ["git"],
+      "real": "test/task/task-check.test.ts"
+    },
+    "src/task/claims.ts": {
+      "receivers": ["git"],
+      "real": "test/task/claim-lock.test.ts"
+    },
+    "src/task/comments.ts": {
+      "receivers": ["git"],
+      "real": "test/task/comments.test.ts"
+    },
+    "src/task/store.ts": {
+      "receivers": ["git"],
+      "real": "test/task/task.test.ts"
+    },
+    "src/worker/acceptance.ts": {
+      "receivers": ["codex"],
+      "pending": "t-5b632zt"
+    },
+    "src/worker/cli.ts": {
+      "receivers": ["codex app-server", "git"],
+      "capture": [
+        "test/fixtures/codex-app-server/compact.rpc",
+        "test/fixtures/codex-app-server/failed-turn.rpc",
+        "test/fixtures/codex-app-server/interrupt.rpc"
+      ],
+      "test": "test/worker/codex-replay.test.ts"
+    },
+    "src/worker/git.ts": {
+      "receivers": ["git"],
+      "real": "test/worker/shared-refs.test.ts"
+    },
+    "src/worker/isolation.ts": {
+      "receivers": ["codex mcp list"],
+      "pending": "t-5b632zt"
+    },
+    "src/worker/untracked.ts": {
+      "receivers": ["git"],
+      "real": "test/worker/hardening-baseline.test.ts"
+    }
+  }
+}

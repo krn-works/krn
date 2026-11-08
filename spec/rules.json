@@ -86,11 +86,10 @@
       "action": "the author MUST test every integration or forward against its real receiver or a verbatim capture of its output",
       "owner": "author",
       "enforcement": {
-        "kind": "none",
-        "check": "manual review",
-        "deadline": "2026-12-31"
+        "kind": "test",
+        "check": "receiver modules name their evidence"
       },
-      "rationale": "Receiver-boundary evidence verifies integration and forwarding contracts."
+      "rationale": "Integrations are proven at their receiver."
     },
     {
       "id": "KRN-13",
