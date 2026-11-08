@@ -1,7 +1,11 @@
 {
   "id": "t-d85j162",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scripts/claude/capture-fixture.ts with test; existing fixtures unchanged by it."
+  },
   "created": "2026-11-01",
   "priority": 3,
   "title": "Provide a tracked redacting capture tool for transcript fixtures",

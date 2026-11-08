@@ -12,6 +12,10 @@ const forbiddenRoots = [
   `${slash}run${slash}user${slash}`,
   `${slash}tmp${slash}claude-`,
 ];
+// Receiver captures (KRN-12) redact a host path to this placeholder; see
+// test/fixtures/README.md. It is not a
+// forbidden root, and the test below pins that so the convention stays valid.
+const capturePlaceholder = `${slash}work${slash}repo`;
 const hostPathAllowlist = new Map([
   [
     'scripts/probe-isolation.mjs',
@@ -268,6 +272,14 @@ test('tracked test, script, and source literals avoid host-specific paths', () =
     assert.ok(reason.trim().length > 0, `${path} needs a one-line reason.`);
     assert.ok(!reason.includes('\n'), `${path} reason must fit on one line.`);
   }
+});
+
+test('the receiver-capture placeholder is accepted by the guard', () => {
+  const placeholderLiteral = JSON.stringify({ cwd: capturePlaceholder });
+  assert.deepEqual(literalPathLines(placeholderLiteral), []);
+  assert.ok(
+    !forbiddenRoots.some((root) => capturePlaceholder.startsWith(root)),
+  );
 });
 
 function hostPath(...parts) {
