@@ -7,6 +7,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { TEST_FILE_WEIGHTS } from '../../scripts/lib/shard-weights.mjs';
 import {
+  filesOverBound,
   gitIsAncestor,
   parseArgs,
   pearson,
@@ -74,7 +75,11 @@ test('report pairs CI step seconds with predictions and gates the slowest p50', 
   assert.equal(report.slowestP50, 21);
   const rendered = renderReport(report);
   assert.match(rendered, /heaviest-lane model: r=0\.\d+ \(strong\)/u);
-  assert.match(rendered, /slowest Test step p50: 21 s, target < 24 s: PASS/u);
+  assert.match(rendered, /slowest Test step p50: 21 s, target < 18 s: FAIL/u);
+  assert.match(
+    renderReport({ ...report, slowestP50: 17 }),
+    /slowest Test step p50: 17 s, target < 18 s: PASS/u,
+  );
   assert.match(rendered, /^runs: 3 of 3 wanted$/mu);
 });
 
@@ -215,7 +220,7 @@ const driftRuns = [
       'test/over.test.ts': 13100,
       'test/near.test.ts': near,
       'test/tiny.test.ts': tiny,
-      'test/gone.test.ts': 9000,
+      'test/gone.test.ts': 12000,
     }),
   ],
 }));
@@ -228,6 +233,20 @@ test('drift lists files whose CI median exceeds the weight by more than 30%', ()
     { file: 'test/over.test.ts', median: 13.1, weight: 10 },
     { file: 'test/slow.test.ts', median: 4.2, weight: 2 },
   ]);
+});
+
+test('files whose CI median exceeds the file bound are listed longest first', () => {
+  // over (13.1 s) and edge (13 s) exceed 11 s whatever their weight; gone
+  // runs 12 s but has no weight, so it is not in the plan.
+  const over = filesOverBound(driftRuns, weights);
+  assert.deepEqual(over, [
+    { file: 'test/over.test.ts', median: 13.1 },
+    { file: 'test/edge.test.ts', median: 13 },
+  ]);
+  assert.match(
+    renderReport({ ...shardWallReport([], 4), overBound: over }),
+    /^files over the 11 s bound: test\/over\.test\.ts 13\.1 s, test\/edge\.test\.ts 13 s$/mu,
+  );
 });
 
 test('a weight folded from the runs never drifts against them', () => {
@@ -253,6 +272,7 @@ test('the report prints the run window and either the drifting files or drift: n
   );
   assert.match(steady, /^runs: 2 of 5 wanted since 2194438$/mu);
   assert.match(steady, /^drift: none$/mu);
+  assert.match(steady, /^files over the 11 s bound: none$/mu);
   assert.doesNotMatch(steady, /^file median_s/mu);
 
   const drifted = renderReport(
