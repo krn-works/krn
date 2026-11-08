@@ -22,7 +22,7 @@ Replace two Codex judges with `codex review` and Claude Code `/code-review` (`t-
 
 ### 3. One merge path and delivery record
 
-Product merges through GitHub auto-merge: the author pushes, opens the PR and runs `gh pr merge --auto --merge`; GitHub merges once the required Actions `Check` (App `15368`) passes on the exact HEAD (ADR 0014 D30). GitHub refuses direct pushes and PRs missing the required check.
+Product merges through GitHub auto-merge: the author pushes, opens the PR and runs `gh pr merge --auto --squash`; GitHub merges once the required Actions `Check` (App `15368`) passes on the exact HEAD (ADR 0014 D30). GitHub refuses direct pushes and PRs missing the required check.
 
 **Exit:** GitHub refuses a direct push and a PR missing a required check; one delivery record holds review, gate, CI, and merge evidence.
 

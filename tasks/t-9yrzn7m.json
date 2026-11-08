@@ -1,7 +1,11 @@
 {
   "id": "t-9yrzn7m",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "squash-only ruleset, PR template, retro inside the slice PR"
+  },
   "created": "2026-11-08",
   "priority": 1,
   "title": "Make each slice one readable PR: t3code-style body, squash merge, retro inside",

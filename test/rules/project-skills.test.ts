@@ -55,3 +55,30 @@ test('the lead loop skills name only existing review flags and the real launch c
     /detects the harness the lead is running in from the runtime environment/u,
   );
 });
+
+test('every slice ships as one squash-merged PR with the template sections and its retro inside', () => {
+  const template = readFileSync(
+    join(root, '.github', 'pull_request_template.md'),
+    'utf8',
+  );
+  for (const section of ['Problem', 'Change', 'Verification', 'Task'])
+    assert.match(template, new RegExp(`^## ${section}$`, 'mu'));
+  assert.match(template, /^Agent:/mu);
+  const shipping = [
+    skill('krn-lead'),
+    readFileSync(join(skillsRoot, 'krn-lead', 'lanes.md'), 'utf8'),
+    readFileSync(join(root, 'docs', 'program', 'lead-rules.md'), 'utf8'),
+    readFileSync(
+      join(root, 'docs', 'program', 'repository-workflow.md'),
+      'utf8',
+    ),
+    readFileSync(join(root, 'docs', 'program', 'PLAN.md'), 'utf8'),
+    readFileSync(join(root, 'README.md'), 'utf8'),
+  ];
+  for (const text of shipping) {
+    assert.doesNotMatch(text, /gh pr merge[^`\n]*--merge/u);
+    assert.doesNotMatch(text, /gh pr merge[^`\n]*--rebase/u);
+  }
+  assert.match(skill('krn-lead'), /gh pr merge <n> --auto --squash/u);
+  assert.match(skill('krn-retro'), /never open a separate retro PR/u);
+});
