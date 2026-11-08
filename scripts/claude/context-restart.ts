@@ -5,6 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { emitContext, hookInput, object } from './context-io.ts';
 import { pressureLines, probe } from './disk-pressure.ts';
 import { resumeBlock } from './handoff-resume.ts';
+import { compactIndex } from './identifier-index.ts';
 import { memoryDirectory } from './memory-directory.ts';
 import { checkMemory } from './memory-refs.ts';
 import { openEntries } from './operator-inbox-store.ts';
@@ -60,8 +61,13 @@ function claimActivity(path: string, claim: Record<string, unknown>): number {
   return latest;
 }
 
-// The restart block for one project; shared by the Claude and Codex hooks.
-export function restartText(project: string, event: string): string {
+// The restart block for one project; shared by the Claude and Codex hooks. A transcript
+// (SessionStart after compaction) adds the identifier index beside the resume block.
+export function restartText(
+  project: string,
+  event: string,
+  transcriptPath?: string,
+): string {
   const [commonDirectory = '', sha = '', branch = ''] = execFileSync(
     'git',
     ['rev-parse', '--git-common-dir', 'HEAD', '--abbrev-ref', 'HEAD'],
@@ -166,13 +172,18 @@ export function restartText(project: string, event: string): string {
     /* Memory checks must never interrupt startup. */
   }
   lines.splice(1, 0, `Newest handoff: ${newest?.path ?? 'none'}`);
+  let next = 2;
   if (newest) {
     try {
       const block = resumeBlock(readFileSync(newest.path, 'utf8'), 3000);
-      if (block) lines.splice(2, 0, block);
+      if (block) lines.splice(next++, 0, block);
     } catch {
       /* An unreadable handoff leaves the pointer. */
     }
+  }
+  if (transcriptPath) {
+    const index = compactIndex(transcriptPath, [project, main]);
+    if (index) lines.splice(next, 0, index);
   }
   // A full disk fails builds and git silently; name it right after the branch.
   try {
@@ -202,7 +213,14 @@ if (import.meta.main) {
       !['startup', 'resume', 'clear', 'compact'].includes(input.source)
     )
       throw new Error('Invalid source');
-    emitContext(input.event, restartText(input.project, input.event));
+    emitContext(
+      input.event,
+      restartText(
+        input.project,
+        input.event,
+        input.source === 'compact' ? input.transcriptPath : undefined,
+      ),
+    );
   } catch {
     /* Missing or unreadable state is not a reason to interrupt a session. */
   }

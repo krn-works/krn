@@ -110,9 +110,54 @@ test('restart hook emits bounded JSON with branch, open claims and newest handof
     });
     assert.equal(resumed.status, 0, resumed.stderr);
     assert.ok(resumed.stdout.length <= 8000);
+    const resumedContext = JSON.parse(resumed.stdout).hookSpecificOutput
+      .additionalContext;
+    assert.match(resumedContext, /fixture-claim/u);
+    assert.doesNotMatch(
+      resumedContext,
+      /Identifiers before compaction/u,
+      'an unreadable transcript degrades to no index block',
+    );
+    const transcript = join(root, 'transcript.jsonl');
+    writeFileSync(
+      transcript,
+      [
+        {
+          type: 'assistant',
+          message: {
+            role: 'assistant',
+            content: [
+              {
+                type: 'tool_use',
+                name: 'Read',
+                input: { file_path: `${linked}/scripts/claude/gauge.ts` },
+              },
+            ],
+          },
+        },
+        {
+          type: 'system',
+          subtype: 'compact_boundary',
+          content: 'Conversation compacted',
+        },
+      ]
+        .map((entry) => JSON.stringify(entry))
+        .join('\n'),
+    );
+    const compacted = spawnSync(process.execPath, [script], {
+      env: { ...process.env, CLAUDE_PROJECT_DIR: linked },
+      encoding: 'utf8',
+      input: JSON.stringify({
+        session_id: 'session',
+        transcript_path: transcript,
+        hook_event_name: 'SessionStart',
+        source: 'compact',
+      }),
+    });
+    assert.equal(compacted.status, 0, compacted.stderr);
     assert.match(
-      JSON.parse(resumed.stdout).hookSpecificOutput.additionalContext,
-      /fixture-claim/u,
+      JSON.parse(compacted.stdout).hookSpecificOutput.additionalContext,
+      /Identifiers before compaction[^\n]*\n- Paths: scripts\/claude\/gauge\.ts/u,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

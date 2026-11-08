@@ -19,6 +19,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/claude/disk-pressure.test.ts': 0.1,
   'test/claude/handoff-requests-sections.test.ts': 0.7,
   'test/claude/handoff-requests.test.ts': 3.3,
+  'test/claude/identifier-index.test.ts': 0.2,
   'test/claude/memory-budget-hook.test.ts': 1.6,
   'test/claude/memory-index-budget.test.ts': 0.3,
   'test/claude/memory-pending-lesson.test.ts': 0.3,
