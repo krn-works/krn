@@ -1,7 +1,11 @@
 {
   "id": "t-g1cwxm2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "The launcher waits past Herdr's unknown to the successor's first classified status and prints it; a blocked successor exits 0 with a stderr line naming its pane and tab, and the handoff stands. Verbatim Herdr 0.9.1 captures agent-get-unknown-claude and agent-get-blocked-claude (folder-trust dialog). Live probe from a scratch shell pane: successor: herdr tab w1D:tAX pane w1D:pB2 agent claude blocked, exit 0 in 6 s. krn-handoff relays that line and never relaunches."
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Report a successor that waits on a startup dialog",
