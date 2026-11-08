@@ -14,13 +14,14 @@ test('pearson r is 1 for a linear relation and -1 for an inverse one', () => {
   assert.ok(Number.isNaN(pearson([1], [1])));
 });
 
+// Derived from the live weights so a weight refresh never breaks the tests.
+const byWeight = Object.keys(TEST_FILE_WEIGHTS).sort(
+  (a, b) => TEST_FILE_WEIGHTS[b] - TEST_FILE_WEIGHTS[a],
+);
+const heavy = byWeight[0];
+const light = byWeight.slice(-3);
+
 test('predicted shard wall is the heaviest local lane, not the summed weight', () => {
-  const heavy = 'test/worker/recovery.test.ts';
-  const light = [
-    'test/task/claims.test.ts',
-    'test/task/task.test.ts',
-    'test/evals/plan.test.ts',
-  ];
   const files = [heavy, ...light];
   const summed = files.reduce((sum, file) => sum + TEST_FILE_WEIGHTS[file], 0);
   assert.equal(predictShardWall(files, 4), TEST_FILE_WEIGHTS[heavy]);
@@ -41,17 +42,14 @@ test('report pairs CI step seconds with predictions and gates the slowest p50', 
   const runs = ['1', '2', '3'].map((id, index) => ({
     id,
     jobs: [
-      job('Test (1/2)', 20 + index, ['test/worker/recovery.test.ts']),
-      job('Test (2/2)', 10 + index, ['test/task/claims.test.ts']),
-      job('Test (3/3)', undefined, ['test/task/task.test.ts']),
+      job('Test (1/2)', 20 + index, [heavy]),
+      job('Test (2/2)', 10 + index, [light[0]]),
+      job('Test (3/3)', undefined, [light[1]]),
     ],
   }));
   const report = shardWallReport(runs, 4);
   assert.equal(report.rows.length, 6);
-  assert.equal(
-    report.rows[0].predicted,
-    TEST_FILE_WEIGHTS['test/worker/recovery.test.ts'],
-  );
+  assert.equal(report.rows[0].predicted, TEST_FILE_WEIGHTS[heavy]);
   assert.ok(report.laneR > 0.9);
   assert.equal(report.slowestP50, 21);
   const rendered = renderReport(report);

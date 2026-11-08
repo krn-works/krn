@@ -28,8 +28,11 @@ test('every test file has a shard weight and every weight a test file', () => {
 // The heaviest test file bounds its CI shard wall: a runner splits its files
 // across 4 local lanes, so one file heavier than the lane average sets the
 // shard time (scripts/shard-wall-report.mjs, r=0.77 against r=-0.07 for the
-// summed weight). Keep every file under the bound by splitting it.
-const MAX_TEST_FILE_SECONDS = 12;
+// summed weight). Keep every file under the bound by splitting it. Weights are
+// CI-measured (`node scripts/shard-weights-refresh.mjs --write`) under 4-lane
+// contention, about 2x a local estimate, so a split's local-estimate weights
+// must be refreshed from CI before they are trusted.
+const MAX_TEST_FILE_SECONDS = 15;
 
 test('no test file is heavy enough to bound its shard wall', () => {
   assert.deepEqual(
