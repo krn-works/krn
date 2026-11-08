@@ -23,6 +23,7 @@ import {
   RUNNER_LOCAL_LANES,
   SERIAL_TEST_FILES,
   SERIAL_TEST_REASONS,
+  testFileFamily,
 } from '../scripts/lib/test-shards.mjs';
 import { TEST_FILE_GLOB } from '../scripts/test-suite.mjs';
 import { summarizeTestEvents } from '../scripts/test-summary-policy.mjs';
@@ -160,6 +161,51 @@ test('shard selection puts every test file in exactly one of the runner shards',
   assert.throws(() => configuredTestShardSelection('2', undefined), /both/u);
   assert.throws(() => configuredTestShardSelection('7', '6'), /exceed/u);
   assert.throws(() => configuredTestShardSelection('0', '6'), /both/u);
+});
+
+// In main runs since e79cb01 one runner held input-bounds-baseline and
+// input-bounds-persisted and ran them at 17.4 and 12.2 s, against 8.7 and
+// 9.3 s on separate runners, and was the slowest Test step in every run.
+test('shard selection spreads each test family evenly across the runners', () => {
+  const selectTestShardFiles = shardExport('selectTestShardFiles');
+  assert.equal(
+    testFileFamily('test/worker/input-bounds-baseline.test.ts'),
+    testFileFamily('test/worker/input-bounds-persisted.test.ts'),
+  );
+  assert.equal(
+    testFileFamily('test/evals/workspace.test.ts'),
+    testFileFamily('test/evals/workspace-mask.test.ts'),
+  );
+  assert.notEqual(
+    testFileFamily('test/evals/session.test.ts'),
+    testFileFamily('test/worker/session.test.ts'),
+  );
+  const files = globSync(TEST_FILE_GLOB, { cwd: projectRoot }).sort();
+  const parallel = files.filter((file) => !SERIAL_TEST_FILES.includes(file));
+  const familySize = new Map();
+  for (const file of parallel) {
+    const family = testFileFamily(file);
+    familySize.set(family, (familySize.get(family) ?? 0) + 1);
+  }
+  assert.ok(
+    [...familySize.values()].some((size) => size > 1),
+    'the suite has split families to spread',
+  );
+  for (const total of [2, 6, 8, 10]) {
+    for (let index = 1; index <= total; index += 1) {
+      const kin = new Map();
+      for (const file of selectTestShardFiles(files, index, total)) {
+        if (SERIAL_TEST_FILES.includes(file)) continue;
+        const family = testFileFamily(file);
+        kin.set(family, (kin.get(family) ?? 0) + 1);
+      }
+      for (const [family, count] of kin)
+        assert.ok(
+          count <= Math.ceil((familySize.get(family) ?? 0) / total),
+          `total ${total}: runner ${index} holds ${count} of the ${familySize.get(family)} ${family} files`,
+        );
+    }
+  }
 });
 
 test('the default shard count uses one shard per core up to four and supports an override', () => {
