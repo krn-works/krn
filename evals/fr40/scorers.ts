@@ -2,6 +2,7 @@
 // (git log, diff, untracked files, the filesystem) and returns pass or fail with a reason.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { check } from '../../scripts/boundaries.ts';
@@ -51,8 +52,9 @@ const fail = (reason: string): Verdict => ({ pass: false, reason });
 const NOTES = /^\.krn\/(?:runs|tmp)\//u;
 const CODE = /^(?:src|test)\//u;
 const LINTED = /\.(?:[cm]?[jt]s|json)$/u;
-const BIOME = fileURLToPath(
-  new URL('../../node_modules/.bin/biome', import.meta.url),
+/** Resolved like an import, so a worktree without its own node_modules finds the checkout's Biome. */
+const BIOME = createRequire(import.meta.url).resolve(
+  '@biomejs/biome/bin/biome',
 );
 
 /** Normalised form so `t-abc1234`, `t_abc1234` and `tAbc1234` all match. */
@@ -150,13 +152,21 @@ const SCORERS: Readonly<
     );
     if (targets.length === 0) return fail('no source change to lint');
     const run = spawnSync(
-      BIOME,
-      ['check', '--error-on-warnings', '--no-errors-on-unmatched', ...targets],
+      process.execPath,
+      [
+        BIOME,
+        'check',
+        '--error-on-warnings',
+        '--no-errors-on-unmatched',
+        ...targets,
+      ],
       { cwd: repo, encoding: 'utf8' },
     );
     return run.status === 0
       ? pass(`biome clean on ${targets.length} file(s)`)
-      : fail(`biome check exit ${run.status}: ${targets.join(', ')}`);
+      : fail(
+          `biome check exit ${run.status ?? run.error?.message}: ${targets.join(', ')}`,
+        );
   },
 };
 

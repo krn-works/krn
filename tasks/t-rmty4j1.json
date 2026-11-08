@@ -1,0 +1,12 @@
+{
+  "id": "t-rmty4j1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 3,
+  "title": "Separate top-level evals/ from the src/evals layer in the boundary check",
+  "after": [],
+  "body": [
+    "scripts/boundaries.ts area() names both src/evals and the top-level evals/ directory \"evals\", so a LAYERS entry 'evals' silently allows imports of evals/ experiment files too (found while wiring src/brain, which had to use the exact file entry evals/fr40/tasks.ts instead).\nAcceptance: area() distinguishes top-level directories from src areas (for example by a leading './' or 'root:' prefix), test/import-boundary.test.ts has a case where an area allowed 'evals' importing evals/fr40/tasks.ts is a violation, and the existing layer map still passes."
+  ]
+}

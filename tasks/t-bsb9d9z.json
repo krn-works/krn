@@ -1,7 +1,11 @@
 {
   "id": "t-bsb9d9z",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn brain packet builds arm B and arm S packets for every FR-40 task deterministically within one 400-token budget"
+  },
   "created": "2026-11-08",
   "priority": 1,
   "title": "Build FR-40 arm material: brain records, packets and static standards",
@@ -10,6 +14,7 @@
   ],
   "body": [
     "FR-40 slice 2 of 4 (parent t-y46gy0w). Arm material: brain records, packet builder (arm B) and static standards (arm S).\nWhat: the minimal ADR 0002 record shape (id, type, text, recorded_at, valid_from, valid_to, source) as reviewed JSON files, built from sources dated before the task base (ADRs, docs/program, decisions log, closed task bodies); a deterministic packet builder (D32: a Product module outside core under its own command, shadow packets under `.krn/`, never injected outside FR-40 arms) that selects records by task text with recorded_at ≤ base date and a fixed token budget; arm S material: the same token budget of static AGENTS.md/workflow standards, identical for every task.\nLeak guard: a packet must not contain the scorer's literal expected answer beyond the convention text itself; test it.\nAcceptance: `krn` command builds a packet for a task id and prints its record ids, as-of date and token count; budget equality between B and S is checked by a test; packets for all slice-1 tasks build deterministically (same sha256 twice).",
-    "Blocked on operator decision (2026-11-08): evals/fr40/convention-power.json verdict below-power under template clustering. Options recorded in its action field: fixed-strata stratified McNemar with a claim restricted to the seven conventions (recommended), an arm-A icc pilot, or closing FR-40."
+    "Blocked on operator decision (2026-11-08): evals/fr40/convention-power.json verdict below-power under template clustering. Options recorded in its action field: fixed-strata stratified McNemar with a claim restricted to the seven conventions (recommended), an arm-A icc pilot, or closing FR-40.",
+    "Decision 2026-11-08 (lead, operator grant \"decyduj i leć\"; .krn/runs/lead/decisions.md): fixed strata. The claim is restricted to the seven recorded conventions; templates are fixed strata; the primary test is a stratified exact McNemar over the 133 units with a per-template table. t-j5xq3zn encodes it in the manifest and amends ADR 0014 D20. Unblocked by that decision. Delivered: src/brain (krn brain packet), evals/fr40/records.json (19 reviewed records), evals/fr40/standards.md (arm S), budget 400 tokens for both arms."
   ]
 }
