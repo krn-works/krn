@@ -29,7 +29,7 @@ const allowWait = new Map([
     'until() polls a condition under a deadline.',
   ],
   [
-    'test/worker/recovery.test.ts',
+    'test/worker/recovery-fixture.ts',
     'until() polls a condition under a deadline.',
   ],
   [

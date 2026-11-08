@@ -1,7 +1,11 @@
 {
   "id": "t-mp2ea4r",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Memory capsule .krn/runs/delivery-loop/memory (fixed point ab1b0e6) deleted: grep found only t-mp2ea4r naming it, every task it named is closed, and its open work t-y46gy0w (which absorbed the D32 shadow packets via t-fgr0es7) is named in the session-continuity capsule. Of its 7 cleanup folders, lead/memory-index-budget, lead/fr40-validity and lead/adr-index were deleted (no open task, tracked file or capsule pointed into them); lead/restart-live, memory-lessons, memory-refs and memory-takeover are cited by closed tasks (t-33mv33n, t-tkr794n, t-1wptm66, t-35d0kca, t-d65k1s0, t-pfdady9, t-xa40ns5, t-6tgx2js), so they stay as evidence listed in the session-continuity cleanup (krn state check errors orphaned-run on any unlisted run folder). krn state check --root . exit 0, status clean, warnings []."
+  },
   "created": "2026-11-08",
   "priority": 3,
   "title": "Retire the finished memory capsule so state check runs quiet",
