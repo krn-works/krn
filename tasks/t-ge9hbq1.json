@@ -1,7 +1,11 @@
 {
   "id": "t-ge9hbq1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Replay transport at the stdio pipe: scripts/codex/app-server-replay.ts stands in as KRN_CODEX_BIN (record tees the real app-server, replay plays a transcript and fails at the first divergent frame), so the CLI, driver, CodexAppServer, process identity and reap stay real and production code gains no test seam. Three transcripts recorded from codex-cli 0.167.0 by KRN_LIVE=1 node scripts/live-worker.mjs --record (compact, failed-turn, interrupt) replay in test/worker/codex-replay.test.ts in about 1.5 s each. The driver now opts out of 11 notifications it never reads (deltas, account, remote-control, MCP, hook status), which kept the operator's account data out of the public fixtures and cut them from 136 KB to 45 KB."
+  },
   "created": "2026-11-07",
   "priority": 2,
   "title": "Codex app-server replay transport with recorded JSON-RPC fixtures",

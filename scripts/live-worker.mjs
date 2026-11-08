@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   copyFileSync,
   mkdirSync,
@@ -7,61 +8,61 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { resolveCodexExecutable } from '../src/hosts/codex.ts';
+import { play, problems, scenarios } from './codex/worker-scenarios.ts';
 
-if (process.env.KRN_LIVE !== '1') {
-  console.error('live:worker requires KRN_LIVE=1');
+// Paid live smoke: runs every worker scenario against the real Codex
+// app-server through the recorder. --record also refreshes the replay
+// transcripts under test/fixtures/codex-app-server.
+const args = process.argv.slice(2);
+if (process.env.KRN_LIVE !== '1' || args.some((arg) => arg !== '--record')) {
+  console.error('usage: KRN_LIVE=1 node scripts/live-worker.mjs [--record]');
   process.exit(64);
 }
 const parent = resolve('.krn/runs');
 mkdirSync(parent, { recursive: true });
-const root = mkdtempSync(join(parent, 'worker-live-'));
-const repo = join(root, 'repo');
-const run = join(repo, '.krn', 'worker');
-mkdirSync(join(repo, 'spec'), { recursive: true });
-copyFileSync('spec/worker-scope.json', join(repo, 'spec/worker-scope.json'));
-writeFileSync(join(repo, 'a.txt'), 'alpha\n');
-function execute(command, args) {
-  const result = spawnSync(command, args, { stdio: 'inherit' });
-  if (result.status !== 0)
-    throw new Error(`${command} exited ${result.status}`);
+const evidence = mkdtempSync(join(parent, 'worker-live-'));
+const target = resolveCodexExecutable();
+const failures = [];
+const captures = [];
+for (const scenario of scenarios) {
+  const root = join(evidence, scenario.name);
+  mkdirSync(root);
+  const played = await play(scenario, root, {
+    ...process.env,
+    CODEX_KRN_TARGET: target,
+  });
+  failures.push(...problems(scenario, played));
+  captures.push({ scenario, log: played.log });
 }
-for (const args of [
-  ['init', '-q'],
-  ['add', '.'],
-  [
-    '-c',
-    'user.name=worker',
-    '-c',
-    'user.email=worker@example.invalid',
-    'commit',
-    '-qm',
-    'base',
-  ],
-])
-  execute('git', ['-C', repo, ...args]);
-const cli = resolve('src/cli/krn.mjs');
-const brief = join(root, 'brief.md');
-const message = join(root, 'message.md');
-writeFileSync(
-  brief,
-  'Read a.txt. Return a complete worker report with its content in summary. Do not change files.',
-);
-writeFileSync(
-  message,
-  'Without tools, return a complete worker report with the word count of that file in summary.',
-);
-try {
-  const worker = (...args) =>
-    execute(process.execPath, [cli, 'worker', ...args, '--run', run]);
-  worker('start', '--repo', repo, '--brief', brief);
-  // A live compaction must finish before the fix turn starts.
-  worker('send', '--message', message, '--compact', 'always');
-  const metrics = JSON.parse(
-    readFileSync(join(run, 'rounds', '002', 'metrics.json'), 'utf8'),
+if (args.includes('--record')) {
+  const fixtures = resolve('test/fixtures/codex-app-server');
+  mkdirSync(fixtures, { recursive: true });
+  const receiver = spawnSync(target, ['--version'], {
+    encoding: 'utf8',
+  }).stdout.trim();
+  for (const { scenario, log } of captures)
+    copyFileSync(log, join(fixtures, `${scenario.name}.rpc`));
+  const provenance = {
+    receiver,
+    captured: new Date().toISOString().slice(0, 10),
+    command: 'KRN_LIVE=1 node scripts/live-worker.mjs --record',
+    setup:
+      'scripts/codex/worker-scenarios.ts runs each scenario: a git repository with spec/worker-scope.json and a.txt in one commit, then the krn worker steps with KRN_CODEX_BIN on scripts/codex/app-server-replay.ts, which runs the real app-server in between and logs every frame.',
+    captures: captures.map(({ scenario, log }) => ({
+      name: scenario.name,
+      question: scenario.question,
+      file: `${scenario.name}.rpc`,
+      sha256: createHash('sha256').update(readFileSync(log)).digest('hex'),
+    })),
+  };
+  writeFileSync(
+    join(fixtures, 'provenance.json'),
+    `${JSON.stringify(provenance, null, 2)}\n`,
   );
-  if (metrics.compacted !== true)
-    throw new Error('live worker round 2 did not compact');
-} finally {
-  execute(process.execPath, [cli, 'worker', 'stop', '--run', run]);
 }
-console.log(`live worker evidence: ${root}`);
+console.log(`live worker evidence: ${evidence}`);
+if (failures.length) {
+  console.error(failures.join('\n'));
+  process.exit(1);
+}
