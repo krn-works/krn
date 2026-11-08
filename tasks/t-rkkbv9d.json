@@ -1,0 +1,12 @@
+{
+  "id": "t-rkkbv9d",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 1,
+  "title": "Refuse piped test, typecheck and lint runs in the lead's Bash with a hook",
+  "after": [],
+  "body": [
+    "Outcome: a PreToolUse(Bash) hook in the repository's .claude/settings.json (a node script under scripts/claude/, fail-open: any input it cannot classify exits 0) exits 2 only for a command whose first pipeline stage is a test, typecheck or lint run (`npm test`, `npm run fast|check|lint|gate|preflight`, `node --test`, `tsc`, `biome`) piped into head, tail, grep, rg, sed or awk; its refusal text names the fix (redirect to a log, read the exit code, then read the log). It never judges safety (ADR 0014 D9 removed that class of guard).\nEvidence: the krn-lead skill keeps this rule as prose under Traps (a piped npm test reported fail 0 while CI had 20 failures); .claude/settings.json PreToolUse has only the MEMORY.md Write|Edit matcher (scripts/claude/memory-budget.ts) and no Bash hook; the operator asked for mechanical refusals instead of prose rules (memory lead-mistakes-need-checks).\nSource: finding RP-02 in .krn/runs/lead/external-patterns/lanes/ext-repos.md (HumanLayer's 45-line block-test-output-filtering hook and its learning test at f9bd735).\nAcceptance: a node:test feeds the hook PreToolUse payloads. Refused with exit 2 and the redirect-and-read-exit text: `npm test | tail`, `npm run fast 2>&1 | grep FAIL`, `node --test test/a.test.ts | head`. Allowed with exit 0: `npm test`, `npm test > log 2>&1; echo exit=$?`, `grep FAIL log`, `tail -n 20 log`, `git log | head`, `rg foo src | head`, an empty command and malformed JSON. In the same PR the Traps sentence at SKILL.md:48 becomes a pointer to the hook."
+  ]
+}

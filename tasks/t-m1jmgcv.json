@@ -1,0 +1,12 @@
+{
+  "id": "t-m1jmgcv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Test the real Codex app-server against a scripted mock Responses provider",
+  "after": [],
+  "body": [
+    "Outcome: one node:test drives the real codex binary through `krn worker` with a temporary CODEX_HOME whose model provider points at a local mock /v1/responses server, so receiver-boundary tests run without an account, network access to OpenAI or a KRN_LIVE recording.\nEvidence: KRN replays recorded frames at the stdio pipe (scripts/codex/app-server-replay.ts), but every new recording needs `KRN_LIVE=1 node scripts/live-worker.mjs --record`, which is paid and account-bound (the first capture carried account data, #393 and #394); rg finds no model_provider or base_url mock in src, scripts or test.\nSource: finding RP-03 in .krn/runs/lead/external-patterns/lanes/ext-repos.md (openai/codex app-server tests: codex-rs/app-server/tests/common/config.rs:136-181 and mock_model_server.rs:11-50 at 748ab55).\nAcceptance: CI installs the codex version pinned in spec/worker-scope.json in the shard that runs the test, through a route that is not a bare github.com release download, adding at most 5 s to that shard's p50 (scripts/shard-wall-report.mjs); `node --test test/worker/mock-provider.test.ts` drives the real binary through `krn worker` with a temporary CODEX_HOME whose provider base_url is a local /v1/responses server, runs a two-line brief, asserts the mock saw the expected request sequence and that no frame matches the `accountKey` pattern of test/rules/capture-privacy-guard.test.mjs; the test fails (does not skip) when the binary is missing, and reads no secret. The mock may also serve a 429 usage-limit and a failed compaction to produce the real-receiver captures that worker-failure-class and compaction-turn lack."
+  ]
+}

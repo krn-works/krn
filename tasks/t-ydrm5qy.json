@@ -1,0 +1,12 @@
+{
+  "id": "t-ydrm5qy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 1,
+  "title": "Test the real Check aggregator step against red and green job results",
+  "after": [],
+  "body": [
+    "Outcome: test/workflow.test.ts executes the `check` job's run block from .github/workflows/ci.yml against needs fixtures instead of pinning its text.\nEvidence: .github/workflows/ci.yml:142-167 is the only required merge signal; test/workflow.test.ts:94-103 matches its text with regexes, and three mutants (always exit 0, never count failures, ignore needs) pass every current assertion (probe /mnt/storage/tmp/krn/research/check-mutation.mjs).\nSource: finding CI2 in .krn/runs/lead/t3code-agentic/lanes/t3-ci-scripts.md (t3code extracts the real run text of a named workflow step and runs it with stub shell functions).\nAcceptance: a fixture matrix of at least 7 needs combinations (all success; test skipped by the change filter; test skipped while the filter said run; lint failure; changes failure; cancelled; missing key) passes on the current script, and each of the three mutants fails at least one case."
+  ]
+}

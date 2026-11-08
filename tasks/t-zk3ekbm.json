@@ -1,0 +1,12 @@
+{
+  "id": "t-zk3ekbm",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 1,
+  "title": "Make npm run fast fail when git fails instead of printing PASS",
+  "after": [],
+  "body": [
+    "Outcome: `npm run fast` exits non-zero and names the git command whenever git fails; only the merge-base probes may fall back, and a missing base is an explicit failure.\nEvidence: scripts/fast-check.ts:72-75 returns '' for any non-zero git exit, :77-82 falls back to HEAD, :221-224 prints PASS on an empty file list, so a cwd outside any repository or a corrupt .git/index prints `fast PASS: no changed files` with exit 0 (reproduced by the research lane under /mnt/storage/tmp/krn/research/fast-falsegreen); test/fast-check.test.ts has no git-failure case.\nSource: finding CI1 in .krn/runs/lead/t3code-agentic/lanes/t3-ci-scripts.md (t3code splits strict git calls from tolerant merge-base probes).\nAcceptance: two tests in test/fast-check.test.ts (cwd outside any repository; corrupt .git/index) expect a non-zero exit with stderr naming the git command; both fail on 0486d86 and pass after the change."
+  ]
+}

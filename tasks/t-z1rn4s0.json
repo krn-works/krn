@@ -7,6 +7,7 @@
   "title": "Route krn task to a pinned Product checkout",
   "after": [],
   "body": [
-    "`~/.config/krn/product-entry` points at the lead working checkout, so `krn task` runs whatever commit is checked out there; on an older commit the frontier fails and claims run without the lock (review N4/A1). Route the entry to a checkout that only moves to `origin/main` (e.g. a detached release worktree updated after each merge) or to an installed Product release.\nAcceptance: switching the working checkout to another branch does not change the code `krn task` runs; doctor reports the entry commit."
+    "`~/.config/krn/product-entry` points at the lead working checkout, so `krn task` runs whatever commit is checked out there; on an older commit the frontier fails and claims run without the lock (review N4/A1). Route the entry to a checkout that only moves to `origin/main` (e.g. a detached release worktree updated after each merge) or to an installed Product release.\nAcceptance: switching the working checkout to another branch does not change the code `krn task` runs; doctor reports the entry commit.",
+    "2026-11-08 research (t-cz92be6): acceptance detail: the entry fails closed with the exact fix when it runs a stale or mismatched build, naming the entry commit, the release commit and a `which -a krn` hint (OR5 in .krn/runs/lead/t3code-agentic/lanes/t3-orchestration.md, after t3code's launcher protocol preflight); before moving the pinned checkout, check the candidate and record the previous commit for a one-step rollback (RD04 in t3-rules-docs.md)."
   ]
 }

@@ -1,0 +1,12 @@
+{
+  "id": "t-rghqsba",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Typecheck every tracked .ts file, including evals/",
+  "after": [],
+  "body": [
+    "Outcome: tsc covers every tracked .ts file, and a rule test fails when a tracked .ts file sits outside the tsconfig include.\nEvidence: tsconfig.json:16 includes src, scripts and test only; evals/fr40/power.ts, evals/skill-selection/parse.ts and evals/skill-selection/run.ts are never typechecked and hold 7 errors (lane probe with the repository's tsc).\nSource: finding LT3 in .krn/runs/lead/t3code-agentic/lanes/t3-lint-test.md (t3code typechecks every workspace, evals included).\nAcceptance: `tsc --noEmit --listFilesOnly` lists the three evals files and `npm run check` exits 0; a seeded stray .ts file outside the includes fails the rule test."
+  ]
+}

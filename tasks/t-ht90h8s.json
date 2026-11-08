@@ -1,0 +1,12 @@
+{
+  "id": "t-ht90h8s",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Run research lanes as an agent type with a tool allowlist and no sub-agents",
+  "after": [],
+  "body": [
+    "Outcome: untrusted-content research (web pages, papers, third-party repositories read from a local clone under .krn/sources) runs as `.claude/agents/krn-research.md` with an explicit `model` and `tools: Read, Grep, Glob, WebFetch, WebSearch, Write` (no Agent, no Bash, no Edit; the report goes to a file under .krn/runs by instruction); lanes that must run probes stay general-purpose lanes and read no untrusted page; .agents/skills/krn-lead/lanes.md names both.\nEvidence: on 2026-11-08 the nine t-cz92be6 research lanes ran as general-purpose agents; several started their own sub-agents (the orchestration lane alone started six), the account hit its 5-hour limit near 08:50 and eight lanes stopped until 10:30; one lane tried `pkill -f`, which settings denied; .claude/agents/krn-reader.md restricts tools for reading but no agent exists for web or PDF ingest.\nSource: finding PA08 in .krn/runs/lead/external-patterns/lanes/ext-papers.md; the lane brief .krn/runs/lead/t3code-agentic/lanes/BRIEF.md.\nAcceptance: a node:test parses the frontmatter of .claude/agents/krn-research.md and asserts `tools` contains none of Agent, Bash, Edit and that `model` is set, and that lanes.md names the agent; the canary-page dry run and the zero-sub-agent run are recorded in the retro, not in the task."
+  ]
+}

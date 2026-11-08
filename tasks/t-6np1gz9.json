@@ -1,0 +1,12 @@
+{
+  "id": "t-6np1gz9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Give tests one timeout ceiling and ban wall-clock assertions in tests",
+  "after": [],
+  "body": [
+    "Outcome: every node --test run (npm test, the CI shards, npm run fast) passes a global --test-timeout so a hung test fails by name; tests may not assert on wall-clock deltas or set per-test timeouts without an allowlisted reason.\nEvidence: scripts/test-suite.mjs:348-352 builds the node --test argv without --test-timeout; test/task/claim-lock.test.ts:20-22 sets a 180 s override; test/rules/test-hygiene.test.mjs:71-73 catches sleep shapes only; wall-clock assertions live in test/hosts/codex-stale-scope.test.ts:40-46, test/worker/setup-marker.test.ts:85-94, test/claude/context-restart.test.ts and two more files named in the lane report.\nSource: findings LT1 and LT2 in .krn/runs/lead/t3code-agentic/lanes/t3-lint-test.md (t3code no-wall-clock-in-tests and no-test-timeout-or-unreasoned-skip rules, 60 s ceiling); Biome GritQL plugins can express the ban (probed on Biome 2.5.15).\nAcceptance: a fixture test that never settles fails by name at the ceiling under npm test and npm run fast; the rule reports exactly the seeded violations in a fixture set; 0 unallowlisted wall-clock deltas remain in test/."
+  ]
+}

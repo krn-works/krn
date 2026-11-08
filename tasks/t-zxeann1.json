@@ -1,0 +1,12 @@
+{
+  "id": "t-zxeann1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Cut hook and CLI text on code points so a truncated emoji never reaches a provider",
+  "after": [],
+  "body": [
+    "Outcome: every KRN truncation whose output is persisted or printed into Claude or Codex context cuts on code points, so a split emoji never becomes a lone surrogate in a session.\nEvidence: KRN cuts by UTF-16 code unit at scripts/claude/handoff-resume.ts:77, scripts/codex/context-hook.ts:116, scripts/claude/context-restart.ts:193, scripts/claude/operator-inbox.ts:59, and at two sites the lane missed: scripts/claude/operator-inbox-store.ts:125 (the cut text is persisted to the inbox JSONL, then printed on every `operator-inbox open`) and scripts/claude/handoff-requests.ts:247. src/worker/cli.ts:64-77 already cuts by character. A lone surrogate serializes as an escape that provider JSON parsers reject; Codex 0.167.0 answered an `initialize` request holding one with nothing within 6 s (t3-codex-driver.md CX10).\nSource: finding OR2 in .krn/runs/lead/t3code-agentic/lanes/t3-orchestration.md; receiver probe in .krn/runs/lead/t3code-agentic/lanes/t3-codex-driver.md.\nAcceptance: one `cutText(text, limit)` helper (code-point safe, an optional byte budget for context-hook) is used by all six sites; unit tests feed the helper, `resumeBlock` and `bounded` a string whose astral character straddles the bound, and feed the extracted callers at context-restart.ts:184-194, operator-inbox.ts:58-59, operator-inbox-store.ts:125 and handoff-requests.ts:247 the same; every result satisfies isWellFormed() and stays within the bound; the same tests fail on the current slice() calls."
+  ]
+}
