@@ -1,5 +1,5 @@
 // Import-boundary check for src/ (KRN-05). The layer map below is the single definition of "core" and its neighbours.
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -63,13 +63,14 @@ function area(path: string): string {
   return top === 'src' && name ? name : (top ?? '');
 }
 
-/** Check every src file against the layer map; rel paths use `/`. */
+/** Check every src file against the layer map; rel paths use `/`. A root without src/ has nothing to check. */
 export function check(
   root: string,
   layers: Readonly<Record<string, readonly string[]>> = LAYERS,
 ): Violation[] {
   const violations: Violation[] = [];
-  for (const file of walk(join(root, 'src'))) {
+  const source = join(root, 'src');
+  for (const file of existsSync(source) ? walk(source) : []) {
     const rel = relative(root, file).split(sep).join('/');
     const from = area(rel);
     const allowed = layers[from];
