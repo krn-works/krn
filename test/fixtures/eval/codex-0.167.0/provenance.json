@@ -83,6 +83,20 @@
         "file": "retry-failed.stderr.log",
         "sha256": "8cc7b2a1ccc79bb6211caf2014047a9248e664e1ca131ea34b82330cf19cd0d6"
       }
+    },
+    {
+      "name": "version",
+      "question": "What does codex --version print? krn eval session records this line and refuses an uncaptured version.",
+      "command": "<codex> --version",
+      "exitCode": 0,
+      "stdout": {
+        "file": "version.stdout.txt",
+        "sha256": "ff63aca76f41814af0725bba286b7311709b1cfd7fbb17df9e17d18eaa3c5e62"
+      },
+      "stderr": {
+        "file": "version.stderr.log",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
     }
   ]
 }

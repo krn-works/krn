@@ -33,6 +33,7 @@ test('eval session resolves a planned arm, preserves raw bytes and accounts Code
     assert.equal(record.arm, 'A');
     assert.equal(record.model, 'fixture-model');
     assert.equal(record.harness, 'codex');
+    assert.equal(record.receiver, 'codex-cli 0.167.0');
     assert.equal(record.promptSha256, hash(f.prompt));
     const config = await readFile(join(f.slot, 'codex', 'config.toml'));
     assert.equal(record.configSha256, hash(config));
