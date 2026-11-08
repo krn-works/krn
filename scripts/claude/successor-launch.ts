@@ -3,6 +3,10 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// Prove a change here against the live Herdr with
+// `node scripts/claude/successor-probe.ts`: run by hand from a lead pane, the
+// launcher renames the lead's tab and its successor's --retire closes the pane.
+
 export interface SuccessorLaunchOptions {
   name: string;
   prompt: string;
@@ -124,7 +128,7 @@ export function parseArgs(
   };
 }
 
-function run(
+export function run(
   command: string,
   args: string[],
   cwd = process.cwd(),
@@ -165,7 +169,10 @@ function callerWorkspace(paneId: string): string | undefined {
   }
 }
 
-function paneInfo(output: string): { workspaceId?: string; tabId?: string } {
+export function paneInfo(output: string): {
+  workspaceId?: string;
+  tabId?: string;
+} {
   try {
     const root = record(JSON.parse(output));
     const pane = record(record(root?.result)?.pane);
@@ -504,9 +511,9 @@ function retirePredecessors(
   }
 }
 
-function createdIds(
+export function createdIds(
   output: string,
-): { tabId: string; paneId: string } | undefined {
+): { tabId: string; paneId: string; workspaceId?: string } | undefined {
   try {
     const root = record(JSON.parse(output));
     const payload = record(root?.result);
@@ -514,7 +521,10 @@ function createdIds(
     const pane = record(payload?.root_pane);
     const tabId = text(tab?.tab_id);
     const paneId = text(pane?.pane_id);
-    return tabId && paneId ? { tabId, paneId } : undefined;
+    const workspaceId = text(tab?.workspace_id);
+    return tabId && paneId
+      ? { tabId, paneId, ...(workspaceId ? { workspaceId } : {}) }
+      : undefined;
   } catch {
     return undefined;
   }

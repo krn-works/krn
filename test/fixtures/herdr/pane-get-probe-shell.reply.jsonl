@@ -1,0 +1,1 @@
+{"id":"cli:pane:get","result":{"pane":{"agent_status":"unknown","cwd":"/work/repo","focused":false,"foreground_cwd":"/work/repo","pane_id":"w1D:pB5","revision":0,"scroll":{"max_offset_from_bottom":0,"offset_from_bottom":0,"viewport_rows":59},"tab_id":"w1D:tA0","terminal_id":"term_65fbade137a0d5d","workspace_id":"w1D"},"type":"pane_info"}}

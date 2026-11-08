@@ -1,7 +1,11 @@
 {
   "id": "t-8hs32xq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "node scripts/claude/successor-probe.ts creates a scratch shell tab (label successor-probe-shell) in the caller's workspace, types /bin/sh <scratch>/launch.sh into it to run the launcher with KRN_SUCCESSOR_AGENT=claude, --model haiku and an untrusted mkdtemp cwd, waits for the launcher's exit file, reads herdr agent get on the reported successor pane, and prints one verdict line (exit 0 only for launcher exit 0 and claude blocked). It closes the successor tab, then the shell tab, on every exit path including SIGINT, SIGTERM and SIGHUP: the reported ids plus every tab carrying a probe label in the workspace, never the caller's tab, so a killed probe's tabs close on the next run. test/claude/successor-probe.test.ts runs the real launcher through a sh stub serving verbatim Herdr 0.9.1 captures (9 new in test/fixtures/herdr) over 11 paths; mutants without the label sweep or the signal trap fail it. Live run from the lead pane: successor-probe: PASS; launcher exit 0; agent claude blocked; closed tabs w1D:tB3 w1D:tB2, exit 0 in 5 s, no probe tab or scratch cwd left, lead tab label unchanged."
+  },
   "created": "2026-11-08",
   "priority": 3,
   "title": "Script the launcher's live Herdr probe",
