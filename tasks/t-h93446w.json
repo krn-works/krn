@@ -1,7 +1,11 @@
 {
   "id": "t-h93446w",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "No git hook exists (core.hooksPath unset, .git/hooks holds only samples, git hook list empty for all events); a plain commit in a fresh worktree exits 0 and runs no hook, so the PR #356 bypass skipped nothing and nothing misfired. lanes.md now forbids bypass. A bypass leaves no trace in a commit; CI re-running lint, typecheck and all tests on the exact head (pinned by test/workflow.test.ts) makes it gain nothing."
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Refuse git hook bypass in lane commits",
