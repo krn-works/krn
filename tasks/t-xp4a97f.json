@@ -4,13 +4,14 @@
   "resolution": {
     "kind": "done",
     "ref": null,
-    "note": "the runs line appends 'N of M Test steps untimed' when GitHub returns a Test job with steps: [], and the slowest-step verdict prints INCOMPLETE instead of PASS for such a window (FAIL stands); tested in test/ci/shard-wall-report.test.mjs (mutants: PASS on a partial window, silent window line both fail)"
+    "note": "the runs line appends 'N of M Test steps untimed' when GitHub returns a Test job with steps: [], and the slowest-step verdict prints INCOMPLETE instead of PASS for such a window (FAIL stands); tested in test/ci/shard-wall-report.test.mjs (mutants: PASS on a partial window, silent window line both fail) (#377)"
   },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Show untimed Test steps in the shard wall report",
   "after": [],
   "body": [
-    "Outcome: the shard wall report shows Test jobs whose Run test shard step GitHub returned without timing, and never prints PASS from a partial window.\nEvidence: at 2026-11-08 03:35Z GitHub returned steps: [] for 15 of 50 Test jobs of the five e9ebc8f window runs (run jobs, single-job and attempt endpoints alike; run 42441356963 lost 6 of 10), which had full steps at 03:27Z; the report dropped those samples silently and its shard p50 line moved (10/10 from 18 to 14 s, 7/10 from 16 to 18 s) under an unchanged runs: 5 of 5 line.\nAcceptance: node scripts/shard-wall-report.mjs appends 'N of M Test steps untimed' to the runs line when any step lacks timing, and the slowest-step verdict prints INCOMPLETE instead of PASS for such a window (FAIL stays FAIL, since untimed steps can only hide a slower one), tested in test/ci/shard-wall-report.test.mjs."
+    "Outcome: the shard wall report shows Test jobs whose Run test shard step GitHub returned without timing, and never prints PASS from a partial window.\nEvidence: at 2026-11-08 03:35Z GitHub returned steps: [] for 15 of 50 Test jobs of the five e9ebc8f window runs (run jobs, single-job and attempt endpoints alike; run 42441356963 lost 6 of 10), which had full steps at 03:27Z; the report dropped those samples silently and its shard p50 line moved (10/10 from 18 to 14 s, 7/10 from 16 to 18 s) under an unchanged runs: 5 of 5 line.\nAcceptance: node scripts/shard-wall-report.mjs appends 'N of M Test steps untimed' to the runs line when any step lacks timing, and the slowest-step verdict prints INCOMPLETE instead of PASS for such a window (FAIL stays FAIL, since untimed steps can only hide a slower one), tested in test/ci/shard-wall-report.test.mjs.",
+    "Correction, from the report output files' modification times: the 03:20Z fetch had all 50 Test steps timed, the 03:26Z fetch returned 15 untimed (not 03:35Z and 03:27Z as written above, and not an hour apart as the #377 commit says), and the 03:31Z live run of the fix printed 'runs: 5 of 5 wanted since e9ebc8f, 25 of 50 Test steps untimed' with 'target < 18 s: FAIL'."
   ]
 }
