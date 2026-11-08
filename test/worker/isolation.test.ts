@@ -1,0 +1,51 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { recordedServers } from '../../scripts/codex/app-server-replay.ts';
+import { isolationConfig } from '../../src/worker/isolation.ts';
+import { WorkerError } from '../../src/worker/state.ts';
+
+test('isolation turns off hooks, plugins and every listed MCP server', () => {
+  const config = isolationConfig(
+    JSON.stringify([
+      { name: 'figma', enabled: true, transport: { type: 'stdio' } },
+      { name: 'asana', enabled: false },
+      { name: 'figma' },
+    ]),
+  );
+  assert.equal(config['features.hooks'], false);
+  assert.equal(config['features.plugins'], false);
+  assert.equal(config['features.apps'], false);
+  assert.deepEqual(
+    Object.keys(config).filter((key) => key.startsWith('mcp_servers.')),
+    ['mcp_servers.asana.enabled', 'mcp_servers.figma.enabled'],
+  );
+});
+
+test('an unreadable MCP server list fails closed', () => {
+  for (const text of ['', '{}', '[{"name":"a.b c"}]', '[{}]'])
+    assert.throws(
+      () => isolationConfig(text),
+      (error) => error instanceof WorkerError && error.exitCode === 65,
+      text,
+    );
+});
+
+test('replay answers mcp list with the names its thread/start turned off', () => {
+  const frame = {
+    id: 2,
+    method: 'thread/start',
+    params: {
+      config: {
+        'features.hooks': false,
+        'mcp_servers.figma.enabled': false,
+        'mcp_servers.node_repl.enabled': false,
+      },
+    },
+  };
+  assert.deepEqual(
+    recordedServers(
+      `> {"id":1,"method":"initialize"}\n> ${JSON.stringify(frame)}\n`,
+    ),
+    [{ name: 'figma' }, { name: 'node_repl' }],
+  );
+});

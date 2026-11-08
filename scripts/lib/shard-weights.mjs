@@ -120,6 +120,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/worker/input-bounds-ignored.test.ts': 10.1,
   'test/worker/input-bounds-persisted.test.ts': 9.3,
   'test/worker/input-bounds.test.ts': 6.3,
+  'test/worker/isolation.test.ts': 0.5,
   'test/worker/nontechnical-blocker-exits.test.ts': 3.6,
   'test/worker/nontechnical-blocker.test.ts': 9.6,
   'test/worker/recovery-artefacts.test.ts': 5.2,

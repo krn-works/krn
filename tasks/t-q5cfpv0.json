@@ -1,0 +1,12 @@
+{
+  "id": "t-q5cfpv0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Cut the worker's first call below 15,000 input tokens by dropping the operator's skills catalog and global instructions",
+  "after": [],
+  "body": [
+    "Evidence (2026-11-08, t-576sz03): with hooks, plugins, apps, browser, computer use, image generation and every MCP server off, the first call of a two-line worker brief still takes 18,954 input tokens (test/fixtures/codex-app-server/compact.rpc, first thread/tokenUsage/updated; before 19,630). A scratch probe on the operator's Codex home put the hook and MCP share at about 2,300 tokens; the rest is Codex base instructions, the operator's skills catalog (~/.codex/config.toml [[skills.config]], ~/.codex/skills) and the global ~/.codex/AGENTS.md, which carry lead context a worker does not need.\nAcceptance: measure the share of each source first (a probe that toggles one source per thread), then turn off the ones a worker does not need through thread/start config built in src/worker/isolation.ts (never a copied auth file; a private CODEX_HOME must not replace the operator's auth.json by rename). Proof: `KRN_LIVE=1 node scripts/live-worker.mjs --record` reports first-call inputTokens below 15,000, and the PR lists before and after per source."
+  ]
+}

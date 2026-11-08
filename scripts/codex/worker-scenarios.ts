@@ -231,6 +231,14 @@ export function problems(scenario: Scenario, played: Played): string[] {
           `${scenario.name} step ${index + 1} (${step.command}) exited ${outcome?.code}, expected ${step.exit}: ${outcome?.stderr.trim()}`,
         ];
   });
+  // Worker threads run without the operator's hooks and MCP servers.
+  const leaked = readFileSync(played.log, 'utf8').match(
+    /"method":"(?:hook\/started|hook\/completed|mcpServer\/startupStatus\/updated)"/g,
+  );
+  if (leaked)
+    found.push(
+      `${scenario.name}: ${leaked.length} hook or MCP frame(s) reached a worker thread`,
+    );
   const record = scenario.check?.(played.run);
   return record ? [...found, `${scenario.name}: ${record}`] : found;
 }
