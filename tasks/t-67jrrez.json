@@ -1,0 +1,12 @@
+{
+  "id": "t-67jrrez",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Time Test steps from job logs when GitHub returns no steps",
+  "after": [],
+  "body": [
+    "Outcome: the shard wall report times every Test job whose `Run test shard` step appears in its job log, even when GitHub's jobs API returns that job with steps: [], so a window can print 'target < 18 s: PASS' instead of INCOMPLETE.\nEvidence: node scripts/shard-wall-report.mjs --since e9ebc8f at d2a2baf printed 'runs: 5 of 5 wanted since e9ebc8f, 22 of 50 Test steps untimed'; t-xp4a97f saw 15 and 25 of 50 untimed minutes apart for the same runs. slowestVerdict in scripts/shard-wall-report.mjs returns INCOMPLETE whenever any step is untimed, so the t-wm22s14 window (close condition 'target < 18 s: PASS') can pass only by luck. fetchShardRuns already downloads each Test job's raw log for KRN_TEST_SUMMARY_JSON, and every log line carries a timestamp; the step starts at its '##[group]Run' line, and the next '##[group]Run' or 'Post job cleanup' line ends it.\nAcceptance: testStepSeconds falls back to the step's span in the job log when the API step lacks timing. It is tested against a verbatim captured Test job log (KRN-12), and its seconds match the API step timing within 1 s on jobs that carry both. node scripts/shard-wall-report.mjs --since e9ebc8f reports untimed only for jobs whose log lacks the step."
+  ]
+}
