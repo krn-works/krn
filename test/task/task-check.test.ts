@@ -3,14 +3,19 @@ import { writeFileSync } from 'node:fs';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import test from 'node:test';
+import { branchTicketFindings } from '../../src/task/branch-tickets.ts';
 import {
   parseTaskDocument,
   serializeTask,
   type TaskRecord,
+  TaskUsageError,
 } from '../../src/task/record.ts';
-import { checkTaskDirectory } from '../../src/task/store.ts';
+import { checkTaskDirectory, loadTaskIndex } from '../../src/task/store.ts';
+import { runCliInProcess } from './claims-fixture.ts';
 import {
+  git,
   rawTask,
+  runCli,
   runCliAsync,
   tempRepo,
   useScratch,
@@ -225,6 +230,121 @@ test('task check handles a 20,000 task dependency chain iteratively', async () =
     const result = await runCliAsync(repo, ['check']);
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout, 'Task data is valid.\n');
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+async function ticketRepo(): Promise<string> {
+  const repo = await tempRepo('branch-tickets-');
+  await writeTask(repo, { ...validTask, id: 'T-1' });
+  await writeTask(repo, {
+    ...validTask,
+    id: 'T-2',
+    status: 'closed',
+    resolution: { kind: 'done', ref: null, note: '' },
+  });
+  git(repo, 'add', 'tasks');
+  git(repo, 'commit', '-qm', 'add tasks');
+  git(repo, 'switch', '--quiet', '--create', 'work');
+  return repo;
+}
+
+function commit(repo: string, subject: string, trailers: string): string {
+  git(repo, 'commit', '--allow-empty', '-qm', subject, '-m', trailers);
+  return git(repo, 'rev-parse', '--short', 'HEAD');
+}
+
+function openTicket(id: string, commits: string[]): string {
+  return `Ticket: ${id} (${commits.join(', ')}): the task is open on this branch; close it with \`krn task close ${id} --as done --note TEXT\`, or use Refs: ${id} for work that leaves it open`;
+}
+
+test('branch ticket findings refuse open and unknown Ticket tasks once each within base..head', async () => {
+  const repo = await ticketRepo();
+  try {
+    const first = commit(repo, 'feat: work (T-1)', 'Ticket: T-1');
+    const progress = commit(repo, 'chore: progress (T-1)', 'Refs: T-1');
+    commit(repo, 'chore(retro): lessons (T-2)', 'Ticket: T-2');
+    const last = commit(repo, 'fix: wrong ids', 'ticket: T-9, T-1');
+    const index = loadTaskIndex(repo);
+    assert.deepEqual(branchTicketFindings(repo, index, 'main', 'HEAD'), [
+      openTicket('T-1', [first, last]),
+      `Ticket: T-9 (${last}) names no task`,
+    ]);
+    assert.deepEqual(branchTicketFindings(repo, index, 'main', first), [
+      openTicket('T-1', [first]),
+    ]);
+    assert.deepEqual(branchTicketFindings(repo, index, first, 'HEAD~1'), []);
+    assert.deepEqual(branchTicketFindings(repo, index, first, progress), []);
+    const unusable: Array<[string, string]> = [
+      ['missing', '--base missing is not a commit here'],
+      ['-p', '--base must name a commit'],
+    ];
+    for (const [base, message] of unusable)
+      assert.throws(
+        () => branchTicketFindings(repo, index, base, 'HEAD'),
+        (error) =>
+          error instanceof TaskUsageError && error.message.startsWith(message),
+      );
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('task check --base exits 65 while the branch leaves its Ticket task open and 0 once it closes it', async () => {
+  const repo = await ticketRepo();
+  try {
+    const work = commit(
+      repo,
+      'feat: work (T-1)',
+      'Ticket: T-1\nCo-Authored-By: KRN <krn@example.invalid>',
+    );
+    const refused = runCli(repo, ['check', '--base', 'main']);
+    assert.equal(refused.status, 65);
+    assert.equal(refused.stdout, '');
+    assert.equal(refused.stderr, `${openTicket('T-1', [work])}\n`);
+
+    await writeTask(repo, {
+      ...validTask,
+      id: 'T-1',
+      status: 'closed',
+      resolution: { kind: 'done', ref: null, note: 'delivered' },
+    });
+    git(repo, 'commit', '-qam', 'chore(tasks): close T-1', '-m', 'Ticket: T-1');
+    const closed = runCli(repo, ['check', '--base', 'main', '--json']);
+    assert.equal(closed.status, 0, closed.stderr);
+    assert.deepEqual(JSON.parse(closed.stdout), { ok: true, findings: [] });
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('task check takes --head only with --base and each option once', async () => {
+  const repo = await ticketRepo();
+  try {
+    commit(repo, 'feat: work (T-1)', 'Ticket: T-1');
+    const bounded = await runCliInProcess(repo, [
+      'check',
+      '--base',
+      'main',
+      '--head',
+      'main',
+      '--json',
+    ]);
+    assert.equal(bounded.status, 0, bounded.stderr);
+    const usages: Array<[string[], string]> = [
+      [['check', '--head', 'HEAD'], '--head requires --base\n'],
+      [
+        ['check', '--base', 'main', '--base', 'main'],
+        '--base may be supplied once\n',
+      ],
+      [['check', '--since', 'main'], 'unknown check option "--since"\n'],
+    ];
+    for (const [args, message] of usages) {
+      const result = await runCliInProcess(repo, args);
+      assert.equal(result.status, 64, args.join(' '));
+      assert.equal(result.stderr, message);
+    }
   } finally {
     await rm(repo, { recursive: true, force: true });
   }

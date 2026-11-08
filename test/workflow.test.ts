@@ -64,8 +64,22 @@ test('CI workflow runs lint, typecheck and eight test shards on hosted runners b
   assert.match(test, /^ {8}run: npm test$/mu);
   const lint = jobs.get('lint') ?? '';
   assert.match(lint, /run: npm run lint$/mu);
-  // Verification only: rules and task records belong to local preflight.
-  assert.doesNotMatch(lint, /npm run rules|task check/u);
+  // Rendered rules belong to local preflight.
+  assert.doesNotMatch(lint, /npm run rules/u);
+  // A pull request may not carry `Ticket: <id>` while that task stays open.
+  assert.match(lint, /^ {10}fetch-depth: 0$/mu);
+  assert.match(
+    lint,
+    /^ {10}BASE: \$\{\{ github\.event\.pull_request\.base\.sha \}\}$/mu,
+  );
+  assert.match(
+    lint,
+    /^ {10}HEAD: \$\{\{ github\.event\.pull_request\.head\.sha \}\}$/mu,
+  );
+  assert.match(
+    lint,
+    /^ {12}node src\/cli\/main\.ts task check --base "\$BASE" --head "\$HEAD"$/mu,
+  );
   assert.match(
     jobs.get('changes') ?? '',
     /node scripts\/ci-changes\.mjs "\$listing" \| tee -a "\$GITHUB_OUTPUT"/u,

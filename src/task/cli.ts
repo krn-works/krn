@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { commandErrorExitCode } from '../cli/command-error.ts';
 import { flagValue } from '../cli/flag-value.ts';
+import { branchTicketFindings } from './branch-tickets.ts';
 import {
   claimHolder,
   claimNext,
@@ -38,6 +39,7 @@ import {
   editTask,
   getTask,
   listTasks,
+  loadTaskIndex,
   repositoryRoot,
 } from './store.ts';
 import { assertWorkerIdle } from './worker-busy.ts';
@@ -87,7 +89,7 @@ const verbHelp: Record<string, string> = {
   comment:
     'krn task comment ID --body-file FILE|- [--actor NAME] [--json]\nAppend a signed, dated comment; workers may comment but never change status. Actor defaults to git user.name. Example: krn task comment t-a1b2c3d --body-file - --json',
   check:
-    'krn task check [--json]\nValidate task records and references. Example: krn task check --json',
+    'krn task check [--base REV [--head REV]] [--json]\nValidate task records and references; with --base, also refuse a Ticket: trailer in base..head (head defaults to HEAD) whose task is open or missing. Example: krn task check --base origin/main --json',
 };
 
 export async function taskCommand(args: string[]): Promise<void> {
@@ -151,8 +153,26 @@ async function execute(args: string[], json: boolean): Promise<CommandOutput> {
 }
 
 function check(args: string[], json: boolean): CommandOutput {
-  if (args.length > 0) throw usage('task check takes no options');
-  const findings = checkTaskDirectory(repositoryRoot());
+  let base: string | undefined;
+  let head: string | undefined;
+  for (let index = 0; index < args.length; index += 1) {
+    const option = args[index];
+    if (option === '--base') {
+      if (base !== undefined) throw usage('--base may be supplied once');
+      base = nextValue(args, index++, option);
+    } else if (option === '--head') {
+      if (head !== undefined) throw usage('--head may be supplied once');
+      head = nextValue(args, index++, option);
+    } else throw usage(`unknown check option "${option}"`);
+  }
+  if (head !== undefined && base === undefined)
+    throw usage('--head requires --base');
+  const root = repositoryRoot();
+  const findings = checkTaskDirectory(root);
+  if (findings.length === 0 && base !== undefined)
+    findings.push(
+      ...branchTicketFindings(root, loadTaskIndex(root), base, head ?? 'HEAD'),
+    );
   if (findings.length > 0) throw new TaskDataError(findings);
   return result({ findings: [] }, 'Task data is valid.\n', json);
 }

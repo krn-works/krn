@@ -71,7 +71,7 @@
     {
       "id": "KRN-11",
       "trigger": "a work item is managed",
-      "action": "the lead MUST manage task status in `tasks/<id>.json` with `krn task` (`ready`, `claim`, `release`, `close`); workers MUST NOT mutate tracker state, must receive the task id in their brief, and MUST use it in commit titles and the `Ticket:` trailer",
+      "action": "the lead MUST manage task status in `tasks/<id>.json` with `krn task` (`ready`, `claim`, `release`, `close`); workers MUST NOT mutate tracker state, must receive the task id in their brief, and MUST use it in commit titles and the `Ticket:` trailer (`Refs:` while the task stays open)",
       "owner": "lead",
       "enforcement": {
         "kind": "none",

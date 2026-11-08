@@ -415,12 +415,6 @@ test('claim liveness expires only on positive evidence', () => {
     'expired: task file is missing from worktree',
   );
 
-  const closedLocalTask = claimLiveness('/main', livenessClaim(), {
-    ...probes,
-    taskFile: () => Buffer.from(closedLocal),
-  });
-  assert.equal(closedLocalTask.reason, 'expired: task is closed in worktree');
-
   const closedOriginTask = claimLiveness('/main', livenessClaim(), {
     ...probes,
     originTask: () => gitProbe(0, Buffer.from(closedLocal)),
@@ -429,6 +423,40 @@ test('claim liveness expires only on positive evidence', () => {
     closedOriginTask.reason,
     'expired: task is closed in origin/main',
   );
+
+  const merged = claimLiveness('/main', livenessClaim(), {
+    ...probes,
+    taskFile: () => Buffer.from(closedLocal),
+    originTask: () => gitProbe(0, Buffer.from(closedLocal)),
+  });
+  assert.equal(merged.reason, 'expired: task is closed in origin/main');
+});
+
+test('a task closed in its worktree keeps the claim live until origin main closes it', () => {
+  const closedLocal = serializeTask(
+    task('T-1', {
+      status: 'closed',
+      resolution: { kind: 'done', ref: null, note: '' },
+    }),
+  );
+  const probes = baseLivenessProbes();
+  const delivering: Array<[string, Partial<ClaimLivenessProbes>]> = [
+    ['origin main still has it open', {}],
+    ['origin main is missing', { originRef: () => gitProbe(1) }],
+    ['origin main lacks the task', { originTask: () => gitProbe(128) }],
+  ];
+  for (const [name, overrides] of delivering) {
+    const result = claimLiveness('/main', livenessClaim(), {
+      ...probes,
+      taskFile: () => Buffer.from(closedLocal),
+      ...overrides,
+    });
+    assert.deepEqual(
+      result,
+      { state: 'live', reason: 'live: in delivery, closed in worktree' },
+      name,
+    );
+  }
 });
 
 test('claim liveness keeps unknown and failed probes live', () => {
