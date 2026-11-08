@@ -21,7 +21,7 @@ const allowWait = new Map([
     'Polls the cgroup until the scope drains under a deadline.',
   ],
   [
-    'test/worker/acceptance-checks-observers.test.ts',
+    'test/worker/acceptance-checks-containment.test.ts',
     'Polls for a spawned process marker under a deadline.',
   ],
   [
