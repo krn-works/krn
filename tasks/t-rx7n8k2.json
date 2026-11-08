@@ -1,7 +1,11 @@
 {
   "id": "t-rx7n8k2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lint and fast run biome check --error-on-warnings; 18 warnings cleared; test/rules/lint-warnings.test.ts seeds unused import and suppression"
+  },
   "created": "2026-11-08",
   "priority": 3,
   "title": "Fail the Biome check on warnings after clearing the 18 existing ones",

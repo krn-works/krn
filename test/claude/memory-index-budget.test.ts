@@ -26,7 +26,7 @@ test('lead memory index stays within about 600 tokens', () => {
     // At the budget the index is clean.
     writeFileSync(
       join(memory, 'MEMORY.md'),
-      entry + 'x'.repeat(2400 - Buffer.byteLength(entry) - 1) + '\n',
+      `${entry + 'x'.repeat(2400 - Buffer.byteLength(entry) - 1)}\n`,
     );
     const within = run();
     assert.equal(within.stdout.includes('INDEX-SIZE'), false, within.stdout);
@@ -34,7 +34,7 @@ test('lead memory index stays within about 600 tokens', () => {
     // One byte over, in a few lines, the index is reported with its size.
     writeFileSync(
       join(memory, 'MEMORY.md'),
-      entry + 'x'.repeat(2400 - Buffer.byteLength(entry)) + '\n',
+      `${entry + 'x'.repeat(2400 - Buffer.byteLength(entry))}\n`,
     );
     const over = run();
     assert.match(over.stdout, /INDEX-SIZE MEMORY.md 2 lines 2401 bytes/u);

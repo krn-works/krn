@@ -8,7 +8,6 @@ import { testCeilingArguments } from './lib/test-timeout.ts';
 
 const LINTABLE = /\.(?:ts|mts|cts|js|mjs|cjs|json|jsonc|css)$/u;
 const TEST_FILE = /^test\/.+\.test\.(?:ts|js|mjs|cjs)$/u;
-const CODE = /^(?:src|scripts|bin)\/.+\.(?:ts|mts|js|mjs|cjs)$/u;
 
 const SPECIFIER =
   /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)(['"])(\.{1,2}\/[^'"]+)\1/gu;
@@ -313,6 +312,7 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
       ? run(root, 'biome', bin('biome'), [
           'check',
           '--write',
+          '--error-on-warnings',
           '--no-errors-on-unmatched',
           ...files,
         ])

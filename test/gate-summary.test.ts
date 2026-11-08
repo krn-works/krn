@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   access,
-  chmod,
   mkdir,
   mkdtemp,
   readdir,
@@ -11,7 +10,7 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises';
-import { delimiter, join, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 

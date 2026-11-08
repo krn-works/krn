@@ -1,0 +1,12 @@
+{
+  "id": "t-s6tq5ay",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Stop strict test evidence from rejecting a shard whose successor-launch test ran but lacks a per-file summary",
+  "after": [],
+  "body": [
+    "Outcome: a shard where every test passed is accepted by the strict evidence check.\nEvidence: run 42486987437 (PR #422, 5175404), job Test 9/10: 168/168 passed, then \"Strict test evidence rejected: missing per-file summary: test/claude/successor-launch.test.ts\"; the JSON summary lists that file with tests: 0 while the timing table shows its test ran (1.144 s). Main runs for 4b8b232 and earlier were green, so it is intermittent.\nAcceptance: a regression test reproduces a per-file summary missing for a file whose test ran, and the reporter or validator handles it; no retry policy."
+  ]
+}

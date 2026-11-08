@@ -14,7 +14,7 @@
   "scripts": {
     "check": "tsc --noEmit",
     "fast": "node scripts/fast-check.ts",
-    "lint": "biome check . && node scripts/boundaries.ts",
+    "lint": "biome check --error-on-warnings . && node scripts/boundaries.ts",
     "test": "node scripts/test-suite.mjs",
     "live:worker": "node scripts/live-worker.mjs",
     "render:agents": "node scripts/render-agents.ts --write",

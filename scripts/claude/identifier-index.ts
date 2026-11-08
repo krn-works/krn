@@ -42,10 +42,6 @@ export function normalizePath(raw: string, roots: Roots): string {
   return path.replace(/^\.\//u, '');
 }
 
-function matches(pattern: RegExp, text: string): string[] {
-  return [...text.matchAll(pattern)].map((match) => match[1] ?? match[0]);
-}
-
 // Identifiers in one text, in order of appearance (duplicates kept).
 export function extractIdentifiers(text: string, root: Roots): Identifier[] {
   const found: { at: number; id: Identifier }[] = [];
