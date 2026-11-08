@@ -1,7 +1,11 @@
 {
   "id": "t-280ce6p",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn task check --evidence lists open-task .krn/runs pointers missing from the main checkout; current misses quoted into task bodies"
+  },
   "created": "2026-11-08",
   "priority": 3,
   "title": "Report open-task evidence pointers that left the checkout",
