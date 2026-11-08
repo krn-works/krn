@@ -1,7 +1,11 @@
 {
   "id": "t-y7dfa22",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Named sites (hooks-guard, opencode adapter, lane publication-gate/runner-contract tests) no longer exist on main and never held in git history; remaining {ok:false} task envelopes in test/cli/exit-code-classification.test.ts and internal-error-exit.test.ts come from the real CLI with real exit codes 64/65/70."
+  },
   "created": "2026-10-26",
   "priority": 3,
   "title": "Capture Product error envelopes verbatim in GLOBAL fixtures",
