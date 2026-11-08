@@ -1,0 +1,12 @@
+{
+  "id": "t-mp2ea4r",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 3,
+  "title": "Retire the finished memory capsule so state check runs quiet",
+  "after": [],
+  "body": [
+    "Outcome: krn state check --root . prints no warnings at session start; the memory lane's finished capsule stops adding noise to every resume.\nEvidence: .krn/runs/delivery-loop/memory/state.md (parallel lane B, fixed point ab1b0e6 at #221) warns disposition-without-evidence and stale-fixed-point on every check (2026-11-08 at 5cc3f2e); every next action it names (t-vwsz7hs, t-8wes0jn, t-z2wbk07, t-v7jkfb7, t-33mv33n) is closed; its cleanup list keeps 7 .krn/runs/lead folders 'delete when the memory lane completes'. The installed krn state check turns a COMPLETE capsule with a stale HEAD anchor into an error, so a finished capsule has to leave rather than stay COMPLETE.\nAcceptance: open memory work (t-y46gy0w) is named in the session-continuity capsule; the memory capsule and the cleanup folders it lists are deleted after grep shows no open task, tracked file or other capsule points into them; krn state check --root . exits 0 with an empty warnings list."
+  ]
+}
