@@ -1,7 +1,11 @@
 {
   "id": "t-rkkbv9d",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "PreToolUse Bash hook scripts/claude/piped-check.ts refuses piped check runs"
+  },
   "created": "2026-11-08",
   "priority": 1,
   "title": "Refuse piped test, typecheck and lint runs in the lead's Bash with a hook",
