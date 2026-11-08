@@ -78,7 +78,11 @@ points to Product `bin/krn`, which runs the Node version pinned in
 moves with every branch switch. `scripts/product-release.sh` keeps a detached
 worktree at `.krn/product-release` on `origin/main`; run it after each merge and
 point the entry at it with `scripts/product-release.sh --entry`. Its default
-output prints the entry path and the pinned commit.
+output prints the entry path and the pinned commit. A forwarded `krn task`
+(`KRN_FORWARDED` set) fails closed with exit 78 when its checkout is not the
+pinned worktree or its HEAD differs from the local `origin/main`, naming both
+commits, the refresh command and a `which -a krn` hint. `krn doctor` reports
+the configured entry, its commit and `origin/main`, with the same exit.
 
 ## Consequences and delivery
 

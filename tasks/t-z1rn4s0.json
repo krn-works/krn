@@ -1,7 +1,11 @@
 {
   "id": "t-z1rn4s0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn task forwarded via the host entry fails closed (exit 78) unless it runs the pinned .krn/product-release at origin/main; krn doctor reports entry and commits; host entry switched"
+  },
   "created": "2026-10-26",
   "priority": 2,
   "title": "Route krn task to a pinned Product checkout",

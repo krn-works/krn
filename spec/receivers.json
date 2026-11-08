@@ -13,6 +13,10 @@
       ],
       "test": "test/ci/logs-capture.test.ts"
     },
+    "src/cli/entry-pin.ts": {
+      "receivers": ["git"],
+      "real": "test/cli/entry-pin.test.ts"
+    },
     "src/ci/wait.ts": {
       "receivers": ["git", "gh"],
       "capture": ["test/fixtures/github-check-runs/review-gate-failure.json"],
