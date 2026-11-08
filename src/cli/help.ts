@@ -7,7 +7,7 @@ const usage: Readonly<Record<string, string>> = {
   ledger:
     'krn ledger [--since YYYY-MM-DD] [--pr N] [--limit N] [--repo OWNER/REPO] [--root DIR] [--transcripts DIR] [--json]  outcome ledger',
   eval: 'krn eval <plan|prepare|...> --experiment DIR  memory experiment harness; `krn eval` lists verbs',
-  ci: 'krn ci wait --repo OWNER/REPO --pr N --head SHA --base SHA [--timeout-seconds N] [--start-timeout-seconds N]',
+  ci: 'krn ci wait|logs  wait: --repo OWNER/REPO --pr N --head SHA --base SHA [--timeout-seconds N] [--start-timeout-seconds N]; logs: --repo OWNER/REPO --run ID [--lines N] prints failed-job log tails across every attempt',
 };
 
 export function commandHelp(args: string[]): string | undefined {
