@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { workerEnvironment } from '../hosts/codex.ts';
 import { CodexAppServer } from '../hosts/codex-app-server.ts';
 import { runAcceptance } from './acceptance.ts';
+import { awaitCompaction } from './compaction.ts';
 import {
   codexTurnFailure,
   limitClass,
@@ -83,7 +84,6 @@ const completionSchema = z.object({
     .nullable()
     .optional(),
 });
-const compactionItem = z.object({ type: z.literal('contextCompaction') });
 // Notifications a worker never reads: streamed text and output, which
 // turn/completed carries whole, and the account and remote-control status of
 // the operator's Codex home. Codex 0.167.0 names them so. Hook and
@@ -328,17 +328,7 @@ async function drive(run: string): Promise<void> {
             { threadId },
             remaining(),
           );
-          // Compaction ends with its own contextCompaction item (or the
-          // deprecated thread/compacted); other items must not start the turn.
-          await server.wait(
-            (event) =>
-              event.params?.threadId === threadId &&
-              (event.method === 'thread/compacted' ||
-                (event.method === 'item/completed' &&
-                  compactionItem.safeParse(event.params?.item).success)),
-            remaining(),
-            stopped,
-          );
+          await awaitCompaction(server, threadId, remaining, stopped);
           compacted = true;
           if (Date.now() - began >= state.timeoutMs)
             throw new WorkerError(124, 'worker turn timeout');

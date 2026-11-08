@@ -1,7 +1,11 @@
 {
   "id": "t-v1pw5mq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "awaitCompaction waits for the compaction turn's turn/completed; failed/interrupted exits 75 with the failure class; compact.rpc re-recorded live on codex-cli 0.167.0"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "End worker compaction on the compaction turn's completion and fail fast on failure",

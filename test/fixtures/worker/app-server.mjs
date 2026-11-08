@@ -173,17 +173,30 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
   if (method === 'thread/compact/start') {
     await delay(Number(process.env.CODEX_TEST_WORKER_COMPACT_ACK_MS ?? 0));
     emit({ id, result: {} });
-    if (process.env.CODEX_TEST_WORKER_SLOW_COMPACTION !== '1')
-      return emit({
-        method: 'item/completed',
+    // Like codex 0.167.0 (codex-app-server/compact.rpc): compaction is a turn
+    // of its own whose turn/completed follows its contextCompaction item.
+    const done = () =>
+      emit({
+        method: 'turn/completed',
         params: {
           threadId,
-          turnId: 'compact',
-          item: { type: 'contextCompaction', id: 'compact' },
+          turn: { id: 'compact', items: [], status: 'completed', error: null },
         },
       });
+    const item = {
+      method: 'item/completed',
+      params: {
+        threadId,
+        turnId: 'compact',
+        item: { type: 'contextCompaction', id: 'compact' },
+      },
+    };
+    if (process.env.CODEX_TEST_WORKER_SLOW_COMPACTION !== '1') {
+      emit(item);
+      return done();
+    }
     // Like a live compaction: other items finish first, and a turn started
-    // before the compaction item arrives races the summary.
+    // before the compaction turn completes races the summary.
     compacting = true;
     emit({
       method: 'item/completed',
@@ -202,22 +215,18 @@ createInterface({ input: process.stdin }).on('line', async (line) => {
       },
     });
     await delay(300);
+    // The deprecated thread/compacted names no compaction turn to complete.
+    if (process.env.CODEX_TEST_WORKER_COMPACTED_NOTIFICATION === '1') {
+      compacting = false;
+      return emit({
+        method: 'thread/compacted',
+        params: { threadId, turnId: 'compact' },
+      });
+    }
+    emit(item);
+    await delay(100);
     compacting = false;
-    return emit(
-      process.env.CODEX_TEST_WORKER_COMPACTED_NOTIFICATION === '1'
-        ? {
-            method: 'thread/compacted',
-            params: { threadId, turnId: 'compact' },
-          }
-        : {
-            method: 'item/completed',
-            params: {
-              threadId,
-              turnId: 'compact',
-              item: { type: 'contextCompaction', id: 'compact' },
-            },
-          },
-    );
+    return done();
   }
   if (method === 'turn/interrupt') {
     emit({ id, result: {} });

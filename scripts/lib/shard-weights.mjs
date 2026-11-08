@@ -122,6 +122,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/worker/atomic-faults.test.ts': 1.3,
   'test/worker/codex-replay.test.ts': 9,
   'test/worker/compaction-options.test.ts': 6.7,
+  'test/worker/compaction-wait.test.ts': 0.2,
   'test/worker/compaction.test.ts': 4.3,
   'test/worker/dependency-guard.test.ts': 6,
   'test/worker/hardening-allow.test.ts': 4.6,
