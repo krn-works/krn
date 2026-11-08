@@ -1,0 +1,12 @@
+{
+  "id": "t-280ce6p",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 3,
+  "title": "Report open-task evidence pointers that left the checkout",
+  "after": [],
+  "body": [
+    "Open tasks cite agent-state evidence under `.krn/runs/` that is no longer in the checkout. On 2026-11-08, 11 such references in open tasks: 7 missing locally, 4 of them only in the recovery copy (~/recovery-runs/krn/active/krn), 3 gone. Resolving t-1hg9s06 cost a filesystem-wide search because its body pointed at a removed `.krn/runs/claude/eval-arm/deliver/override-beafe1f.md`.\nAcceptance: a repository check the lead runs at resume lists every open-task `.krn/runs/` reference that is missing, with the recovery-copy path when one exists, and exits non-zero while any is listed; the 7 current misses are resolved by quoting the needed evidence into the task body or by closing the task; the check then prints zero misses."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-7e8a0xx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Pin eval sessions to a captured Codex receiver version",
+  "after": [],
+  "body": [
+    "Eval sessions do not record which Codex binary produced a stream, and nothing stops a run on a version whose stream semantics were never captured. The receiver moved from rust-v0.162.1 (test/fixtures/codex, 2026-10-15) to 0.167.0 within weeks, and the first captures of 0.167.0 (#366, test/fixtures/eval/codex-0.167.0) found three classifier defects written against an uncaptured version. The FR-40 run (t-y46gy0w) should not start on an uncaptured version.\nAcceptance: session.json records the `codex --version` line; src/evals declares the captured receiver versions and a test keeps that list equal to the test/fixtures/eval/codex-<version> directories; `krn eval session` exits 65 naming the captured versions when the binary reports another; one committed command re-captures the five cases of provenance.json into a new directory, building config.toml from CODEX_CONFIG itself (a shell `$(...)` strips its final newline and Codex then rejects the TOML, as in the startup-failed capture)."
+  ]
+}
