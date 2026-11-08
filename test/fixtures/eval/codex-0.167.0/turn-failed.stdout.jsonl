@@ -1,0 +1,5 @@
+{"type":"thread.started","thread_id":"01a1b8cc-4640-79a1-b761-283acfb14f16"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"Model metadata for `krn-capture-unknown-model` not found. Defaulting to fallback metadata; this can degrade performance and cause issues."}}
+{"type":"turn.started"}
+{"type":"error","message":"The 'krn-capture-unknown-model' model is not supported when using Codex with a ChatGPT account."}
+{"type":"turn.failed","error":{"message":"The 'krn-capture-unknown-model' model is not supported when using Codex with a ChatGPT account."}}

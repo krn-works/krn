@@ -44,20 +44,19 @@ test('eval session resolves a planned arm, preserves raw bytes and accounts Code
     );
     assert.deepEqual(record.usage, {
       status: 'complete',
-      input_tokens: 24,
-      output_tokens: 12,
-      cached_input_tokens: 16,
-      reasoning_output_tokens: 7,
-      total_tokens: 36,
+      input_tokens: 11,
+      output_tokens: 5,
+      cached_input_tokens: 7,
+      reasoning_output_tokens: 3,
+      total_tokens: 16,
     });
     const calls = (await readFile(join(f.output(), 'calls.jsonl'), 'utf8'))
       .split('\n')
       .slice(0, -1)
       .map((line) => JSON.parse(line));
-    assert.equal(calls.length, 2);
     assert.deepEqual(
       calls.map((call) => call.index),
-      [1, 2],
+      [1],
     );
     assert.equal(calls[0].kind, 'turn.completed');
     assert.equal(calls[0].usage.cached_input_tokens, 7);

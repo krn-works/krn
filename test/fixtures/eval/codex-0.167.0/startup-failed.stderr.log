@@ -1,0 +1,5 @@
+Error loading config.toml:
+/w/codex/config.toml:20:24: unexpected key or value, expected newline, `#`
+   |
+20 | memories = falseskills = false
+   |                        ^

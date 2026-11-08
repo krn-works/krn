@@ -10,7 +10,6 @@ import {
   codexStream,
   fixture,
   jsonl,
-  rejectedConfigMessages,
   turn,
 } from './session-fixture.ts';
 
@@ -38,30 +37,6 @@ test('eval Codex config disables ambient integrations with recognised settings',
     CODEX_CONFIG,
     /^(skills|multi_agent|goals|tool_suggest) =/mu,
   );
-});
-
-test('eval Codex stream remembers rejected configuration after a completed tool turn', () => {
-  for (const message of rejectedConfigMessages) {
-    const accounting = new SessionUsage();
-    accounting.push(
-      Buffer.from(jsonl([{ type: 'error', message }]) + codexStream),
-    );
-    accounting.finish();
-    assert.equal(accounting.configRejected, true, message);
-    assert.equal(accounting.truncated, false);
-  }
-  for (const event of [
-    { type: 'error', message: 'provider unavailable' },
-    { type: 'error', message: 'ignored command output' },
-    { type: 'error', message: 'unrecognized model' },
-    { type: 'error', message: { config: 'ignored' } },
-    { type: 'item.completed', message: rejectedConfigMessages[0] },
-  ]) {
-    const accounting = new SessionUsage();
-    accounting.push(Buffer.from(jsonl([event]) + codexStream));
-    accounting.finish();
-    assert.equal(accounting.configRejected, false);
-  }
 });
 
 test('eval session accounts the captured Codex stream through the harness', async (t) => {
@@ -133,9 +108,17 @@ test('eval session distinguishes incomplete streams, invalid usage and infrastru
       exit: 9,
     },
     {
+      name: 'mask exit 70 without a turn',
+      arm: 'A',
+      stream: '',
+      status: 'harness_error',
+      exit: 70,
+    },
+    {
       name: 'error after tool',
       arm: 'A',
       stream: jsonl([
+        { type: 'turn.started' },
         { type: 'item.started', item: { type: 'command_execution' } },
         { type: 'turn.failed', error: { message: 'failed' } },
       ]),

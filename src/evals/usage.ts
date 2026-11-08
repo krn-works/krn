@@ -1,5 +1,14 @@
 // Codex stream events are untrusted input; only validated token counts enter
 // session totals, while each turn's original usage stays in the call ledger.
+//
+// Receiver semantics of codex-cli 0.167.0, verified by the verbatim captures in
+// test/fixtures/eval/codex-0.167.0 (sources listed in its provenance.json):
+// - exec ends after one terminal turn; turn.completed carries the thread's
+//   total usage and turn.failed carries none, so only a stream whose single
+//   turn completed has accountable usage;
+// - a top-level error is a diagnostic, emitted per retry ("Reconnecting...")
+//   and before turn.failed; failure is turn.failed or a non-zero exit;
+// - an ignored or unrecognised setting arrives as an item.completed error item.
 type RecordValue = Record<string, unknown>;
 
 function record(value: unknown): RecordValue {
@@ -15,6 +24,17 @@ const fields = [
   'reasoning_output_tokens',
 ] as const;
 
+// The ConfigWarning summary Codex prints for settings it drops.
+const ignoredSetting =
+  /^Codex is ignoring \d+ unrecognized configuration settings?\./u;
+
+type SessionStatus =
+  | 'completed'
+  | 'truncated'
+  | 'timeout'
+  | 'agent_error'
+  | 'harness_error';
+
 export class SessionUsage {
   readonly calls: { index: number; kind: string; usage: unknown }[] = [];
   private readonly decoder = new TextDecoder('utf-8', {
@@ -26,8 +46,9 @@ export class SessionUsage {
   private invalidUsage = false;
   private terminal = false;
   private activeTurn: number | undefined;
+  turnStarted = false;
   toolCalled = false;
-  error = false;
+  failed = false;
   configRejected = false;
 
   push(bytes: Buffer): void {
@@ -96,6 +117,7 @@ export class SessionUsage {
     }
     if (event.type === 'turn.started') {
       this.terminal = false;
+      this.turnStarted = true;
       if (this.activeTurn !== undefined) this.invalid = true;
       this.activeTurn = this.calls.length;
       this.calls.push({
@@ -114,18 +136,18 @@ export class SessionUsage {
       ].includes(String(item.type))
     )
       this.toolCalled = true;
-    if (event.type === 'error' || event.type === 'turn.failed')
-      this.error = true;
     if (
-      event.type === 'error' &&
-      typeof event.message === 'string' &&
-      /\b(?:config(?:uration)?|settings?|features?)\b/iu.test(event.message) &&
-      /\b(?:ignored|unrecogni[sz]ed)\b/iu.test(event.message)
+      event.type === 'item.completed' &&
+      item.type === 'error' &&
+      typeof item.message === 'string' &&
+      ignoredSetting.test(item.message)
     )
       this.configRejected = true;
+    if (event.type === 'turn.failed') this.failed = true;
     if (event.type === 'turn.failed' || event.type === 'turn.completed') {
       this.terminal = true;
-      if (!this.validUsage(event.usage)) this.invalidUsage = true;
+      if (event.type === 'turn.completed' && !this.validUsage(event.usage))
+        this.invalidUsage = true;
       const call =
         this.activeTurn === undefined ? undefined : this.calls[this.activeTurn];
       if (call) {
@@ -146,24 +168,21 @@ export class SessionUsage {
       status: 'missing' as const,
       total_tokens: null,
     });
+    const [call, ...later] = this.calls;
     if (
       interrupted ||
       this.truncated ||
       this.invalidUsage ||
-      this.calls.length === 0
+      call?.kind !== 'turn.completed' ||
+      later.length > 0
     )
       return missing();
+    const usage = record(call.usage);
     const totals: Record<string, number> = {};
-    for (const field of fields) totals[field] = 0;
-    for (const call of this.calls) {
-      const usage = record(call.usage);
-      for (const field of fields) {
-        const value = usage[field];
-        if (typeof value !== 'number') return missing();
-        const total = (totals[field] ?? 0) + value;
-        if (!Number.isSafeInteger(total)) return missing();
-        totals[field] = total;
-      }
+    for (const field of fields) {
+      const value = usage[field];
+      if (typeof value !== 'number') return missing();
+      totals[field] = value;
     }
     // Cached and reasoning tokens are subsets of Codex input and output.
     const total = (totals.input_tokens ?? 0) + (totals.output_tokens ?? 0);
@@ -173,5 +192,24 @@ export class SessionUsage {
       ...totals,
       total_tokens: total,
     };
+  }
+
+  status(run: {
+    exitCode: number;
+    timedOut: boolean;
+    launchError: boolean;
+  }): SessionStatus {
+    if (this.configRejected) return 'harness_error';
+    if (run.timedOut) return 'timeout';
+    if (run.launchError) return 'harness_error';
+    if (run.exitCode !== 0 || this.failed)
+      // Without a turn the agent never ran: the mask exits 70 and Codex exits 1
+      // before their first turn. A turn that failed before any tool call is a
+      // provider, login or model failure.
+      return !this.turnStarted ||
+        (run.exitCode !== 0 && this.failed && !this.toolCalled)
+        ? 'harness_error'
+        : 'agent_error';
+    return this.truncated ? 'truncated' : 'completed';
   }
 }
