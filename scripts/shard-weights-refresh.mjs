@@ -57,6 +57,13 @@ function median(values) {
     : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
+// A weight is the median of a file's `durationMs` samples in seconds, to a
+// tenth, at least 0.1: the unit and rounding every comparison with a weight
+// must share (the drift section of shard-wall-report.mjs calls this too).
+export function weightSeconds(durationsMs) {
+  return Math.max(0.1, Math.round(median(durationsMs) / 100) / 10);
+}
+
 // Median seconds per file, to a tenth, at least 0.1. Files present now but
 // absent from every run keep their previous weight; deleted files drop out.
 export function foldShardWeights(runs, currentFiles, previous = {}) {
@@ -71,7 +78,7 @@ export function foldShardWeights(runs, currentFiles, previous = {}) {
   for (const file of [...currentFiles].sort()) {
     const values = samples.get(file);
     if (values) {
-      weights[file] = Math.max(0.1, Math.round(median(values) / 100) / 10);
+      weights[file] = weightSeconds(values);
     } else {
       unmeasured.push(file);
       if (previous[file] !== undefined) weights[file] = previous[file];
@@ -119,10 +126,18 @@ export function testStepSeconds(job) {
 }
 
 // The newest `wanted` successful main push runs whose every `Test (k/N)` job
-// printed per-file durations: [{ id, jobs: [{ name, seconds, summary }] }].
-export function fetchShardRuns(repo, wanted) {
-  const listed = JSON.parse(
-    gh([
+// printed per-file durations:
+// [{ id, headSha, jobs: [{ name, seconds, summary }] }].
+// `select` narrows the listed runs ([{ databaseId, headSha }], newest first)
+// before the newest `wanted` are taken, so a window never runs short because
+// older runs came first; `runGh` stands in for the `gh` receiver.
+export function fetchShardRuns(
+  repo,
+  wanted,
+  { select = (listed) => listed, runGh = gh } = {},
+) {
+  const newest = JSON.parse(
+    runGh([
       'run',
       'list',
       '--repo',
@@ -138,20 +153,24 @@ export function fetchShardRuns(repo, wanted) {
       '--limit',
       '40',
       '--json',
-      'databaseId',
+      'databaseId,headSha',
     ]),
   );
+  const listed = select(newest);
   const runs = [];
-  for (const { databaseId } of listed) {
+  for (const { databaseId, headSha } of listed) {
     if (runs.length >= wanted) break;
     const jobs = JSON.parse(
-      gh(['api', `repos/${repo}/actions/runs/${databaseId}/jobs?per_page=100`]),
+      runGh([
+        'api',
+        `repos/${repo}/actions/runs/${databaseId}/jobs?per_page=100`,
+      ]),
     ).jobs.filter((job) => job.name.startsWith('Test ('));
     if (jobs.length === 0) continue;
     const measured = [];
     for (const job of jobs) {
       const summary = parseJobSummary(
-        gh([
+        runGh([
           'api',
           '--allow-escape-sequences',
           `repos/${repo}/actions/jobs/${job.id}/logs`,
@@ -162,7 +181,7 @@ export function fetchShardRuns(repo, wanted) {
       measured.push({ name: job.name, seconds: testStepSeconds(job), summary });
     }
     if (measured.length !== jobs.length) continue;
-    runs.push({ id: String(databaseId), jobs: measured });
+    runs.push({ id: String(databaseId), headSha, jobs: measured });
   }
   return runs;
 }

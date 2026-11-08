@@ -9,6 +9,7 @@ import {
   renderWeightsModule,
   repoTestPath,
   runDurations,
+  weightSeconds,
 } from '../../scripts/shard-weights-refresh.mjs';
 import { summarizeTestEvents } from '../../scripts/test-summary-policy.mjs';
 
@@ -77,6 +78,14 @@ test('fold takes the per-file median across runs and keeps unmeasured files', ()
     'test/c.test.ts': 7,
   });
   assert.deepEqual(unmeasured, ['test/c.test.ts', 'test/d.test.ts']);
+});
+
+test('a weight is the median durationMs in seconds, to a tenth, at least 0.1', () => {
+  assert.equal(weightSeconds([4249]), 4.2);
+  assert.equal(weightSeconds([4250]), 4.3);
+  assert.equal(weightSeconds([2000, 6000]), 4);
+  assert.equal(weightSeconds([1000, 1000, 90000]), 1);
+  assert.equal(weightSeconds([20, 30, 40]), 0.1);
 });
 
 test('a run missing any file duration is rejected', () => {
