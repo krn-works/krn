@@ -1,0 +1,427 @@
+﻿2026-11-08T04:25:15.2703232Z Current runner version: '2.338.2'
+2026-11-08T04:25:15.2728418Z ##[group]Runner Image Provisioner
+2026-11-08T04:25:15.2729432Z Hosted Compute Agent
+2026-11-08T04:25:15.2730065Z Version: 20261028.624
+2026-11-08T04:25:15.2730703Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-08T04:25:15.2731506Z Build Date: 2026-10-28T21:51:42Z
+2026-11-08T04:25:15.2732211Z Worker ID: {0997b1ad-7fdd-46cd-8eb0-551785689992}
+2026-11-08T04:25:15.2733365Z Region: westus
+2026-11-08T04:25:15.2734033Z Cloud: Azure
+2026-11-08T04:25:15.2734590Z ##[endgroup]
+2026-11-08T04:25:15.2736168Z ##[group]Operating System
+2026-11-08T04:25:15.2736839Z Ubuntu
+2026-11-08T04:25:15.2737397Z 24.04.5
+2026-11-08T04:25:15.2738198Z LTS
+2026-11-08T04:25:15.2738744Z ##[endgroup]
+2026-11-08T04:25:15.2739354Z ##[group]Runner Image
+2026-11-08T04:25:15.2740072Z Image: ubuntu-24.04
+2026-11-08T04:25:15.2740639Z Version: 20261101.360.1
+2026-11-08T04:25:15.2741975Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-08T04:25:15.2743560Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261101.360
+2026-11-08T04:25:15.2744665Z ##[endgroup]
+2026-11-08T04:25:15.2745826Z ##[group]GITHUB_TOKEN Permissions
+2026-11-08T04:25:15.2747757Z Contents: read
+2026-11-08T04:25:15.2748782Z Metadata: read
+2026-11-08T04:25:15.2749487Z ##[endgroup]
+2026-11-08T04:25:15.2751912Z Secret source: Actions
+2026-11-08T04:25:15.2753142Z Cache mode: write
+2026-11-08T04:25:15.2753841Z Prepare workflow directory
+2026-11-08T04:25:15.3341544Z Prepare all required actions
+2026-11-08T04:25:15.3390604Z Getting action download info
+2026-11-08T04:25:15.6746340Z Download action repository 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' (SHA:11bd71901bbe5b1630ceea73d27597364c9af683)
+2026-11-08T04:25:15.8037210Z Download action repository 'jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8' (SHA:08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8)
+2026-11-08T04:25:16.3507126Z Complete job name: Test (7/10)
+2026-11-08T04:25:16.4508486Z ##[group]Run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+2026-11-08T04:25:16.4509682Z with:
+2026-11-08T04:25:16.4510133Z   repository: krn-works/krn
+2026-11-08T04:25:16.4514213Z   token: ***
+2026-11-08T04:25:16.4514672Z   ssh-strict: true
+2026-11-08T04:25:16.4515130Z   ssh-user: git
+2026-11-08T04:25:16.4515596Z   persist-credentials: true
+2026-11-08T04:25:16.4516101Z   clean: true
+2026-11-08T04:25:16.4516553Z   sparse-checkout-cone-mode: true
+2026-11-08T04:25:16.4517101Z   fetch-depth: 1
+2026-11-08T04:25:16.4517558Z   fetch-tags: false
+2026-11-08T04:25:16.4518310Z   show-progress: true
+2026-11-08T04:25:16.4518774Z   lfs: false
+2026-11-08T04:25:16.4519202Z   submodules: false
+2026-11-08T04:25:16.4519668Z   set-safe-directory: true
+2026-11-08T04:25:16.4520443Z env:
+2026-11-08T04:25:16.4520867Z   KRN_LIVE: 
+2026-11-08T04:25:16.4521313Z   KRN_TEST_SHARD_INDEX: 7
+2026-11-08T04:25:16.4521812Z   KRN_TEST_SHARD_TOTAL: 10
+2026-11-08T04:25:16.4522306Z ##[endgroup]
+2026-11-08T04:25:16.7316910Z Syncing repository: krn-works/krn
+2026-11-08T04:25:16.7319109Z ##[group]Getting Git version info
+2026-11-08T04:25:16.7319832Z Working directory is '/home/runner/work/krn/krn'
+2026-11-08T04:25:16.7320847Z [command]/usr/bin/git version
+2026-11-08T04:25:16.7417827Z git version 2.56.0
+2026-11-08T04:25:16.7440631Z ##[endgroup]
+2026-11-08T04:25:16.7455853Z Temporarily overriding HOME='/home/runner/work/_temp/32d6ec57-38f3-45b9-b39c-878ce343c2c1' before making global git config changes
+2026-11-08T04:25:16.7458363Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-08T04:25:16.7462165Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/krn/krn
+2026-11-08T04:25:16.7541589Z Deleting the contents of '/home/runner/work/krn/krn'
+2026-11-08T04:25:16.7551833Z ##[group]Initializing the repository
+2026-11-08T04:25:16.7563605Z [command]/usr/bin/git init /home/runner/work/krn/krn
+2026-11-08T04:25:16.7679906Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-08T04:25:16.7682132Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-08T04:25:16.7683273Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-08T04:25:16.7684332Z hint: call:
+2026-11-08T04:25:16.7685121Z hint:
+2026-11-08T04:25:16.7685905Z hint: 	git config --global init.defaultBranch <name>
+2026-11-08T04:25:16.7686840Z hint:
+2026-11-08T04:25:16.7687670Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-08T04:25:16.7689290Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-08T04:25:16.7690378Z hint:
+2026-11-08T04:25:16.7690980Z hint: 	git branch -m <name>
+2026-11-08T04:25:16.7691670Z hint:
+2026-11-08T04:25:16.7692480Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-08T04:25:16.7699662Z Initialized empty Git repository in /home/runner/work/krn/krn/.git/
+2026-11-08T04:25:16.7715852Z [command]/usr/bin/git remote add origin https://github.com/krn-works/krn
+2026-11-08T04:25:16.7769564Z ##[endgroup]
+2026-11-08T04:25:16.7770912Z ##[group]Disabling automatic garbage collection
+2026-11-08T04:25:16.7774568Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-08T04:25:16.7810535Z ##[endgroup]
+2026-11-08T04:25:16.7811940Z ##[group]Setting up auth
+2026-11-08T04:25:16.7819831Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-08T04:25:16.7858596Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-08T04:25:16.8269200Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-08T04:25:16.8315534Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-08T04:25:16.8557565Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-08T04:25:16.8606699Z ##[endgroup]
+2026-11-08T04:25:16.8607528Z ##[group]Fetching the repository
+2026-11-08T04:25:16.8665923Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +6d833e549d27b1e5ea713c3e9ab3c0f2287d7029:refs/remotes/origin/main
+2026-11-08T04:25:17.8209275Z From https://github.com/krn-works/krn
+2026-11-08T04:25:17.8211130Z  * [new ref]         6d833e549d27b1e5ea713c3e9ab3c0f2287d7029 -> origin/main
+2026-11-08T04:25:17.8216250Z ##[endgroup]
+2026-11-08T04:25:17.8217515Z ##[group]Determining the checkout info
+2026-11-08T04:25:17.8220340Z ##[endgroup]
+2026-11-08T04:25:17.8226476Z [command]/usr/bin/git sparse-checkout disable
+2026-11-08T04:25:17.8290234Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-08T04:25:17.8329655Z ##[group]Checking out the ref
+2026-11-08T04:25:17.8334326Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-08T04:25:17.8816122Z Switched to a new branch 'main'
+2026-11-08T04:25:17.8822548Z branch 'main' set up to track 'origin/main'.
+2026-11-08T04:25:17.8829295Z ##[endgroup]
+2026-11-08T04:25:17.8882611Z [command]/usr/bin/git log -1 --format=%H
+2026-11-08T04:25:17.8917499Z 6d833e549d27b1e5ea713c3e9ab3c0f2287d7029
+2026-11-08T04:25:17.9271623Z Prepare all required actions
+2026-11-08T04:25:17.9272621Z Getting action download info
+2026-11-08T04:25:18.0670291Z Download action repository 'actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1' (SHA:949feb2413d6458794dcd2491c4babbbce0c15c1)
+2026-11-08T04:25:18.1502234Z Download action repository 'actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9' (SHA:55cc8345863c7cc4c66a329aec7e433d2d1c52a9)
+2026-11-08T04:25:18.2878766Z ##[group]Run ./.github/actions/setup-ci
+2026-11-08T04:25:18.2879279Z with:
+2026-11-08T04:25:18.2879896Z   isolation: true
+2026-11-08T04:25:18.2880282Z env:
+2026-11-08T04:25:18.2880639Z   KRN_LIVE: 
+2026-11-08T04:25:18.2881037Z   KRN_TEST_SHARD_INDEX: 7
+2026-11-08T04:25:18.2881478Z   KRN_TEST_SHARD_TOTAL: 10
+2026-11-08T04:25:18.2881905Z ##[endgroup]
+2026-11-08T04:25:18.2945914Z ##[start-action display=Start installing bubblewrap for sandbox isolation tests;id=__self.__run]
+2026-11-08T04:25:18.3005546Z ##[group]Run set -euo pipefail
+2026-11-08T04:25:18.3006178Z [36;1mset -euo pipefail[0m
+2026-11-08T04:25:18.3006722Z [36;1mlog="$RUNNER_TEMP/bubblewrap-install.log"[0m
+2026-11-08T04:25:18.3007353Z [36;1mstatus="$RUNNER_TEMP/bubblewrap-install.status"[0m
+2026-11-08T04:25:18.3008102Z [36;1mrm -f "$status"[0m
+2026-11-08T04:25:18.3008563Z [36;1msetsid nohup bash -c '[0m
+2026-11-08T04:25:18.3009040Z [36;1m  for attempt in 1 2 3; do[0m
+2026-11-08T04:25:18.3009792Z [36;1m    if timeout 90 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y -qq bubblewrap \[0m
+2026-11-08T04:25:18.3010874Z [36;1m      || { timeout 60 sudo apt-get -o Acquire::http::Timeout=20 update -qq && timeout 90 sudo apt-get install -y -qq bubblewrap; }; then[0m
+2026-11-08T04:25:18.3011707Z [36;1m      echo 0 > "$1"; exit 0[0m
+2026-11-08T04:25:18.3012164Z [36;1m    fi[0m
+2026-11-08T04:25:18.3012549Z [36;1m  done[0m
+2026-11-08T04:25:18.3012946Z [36;1m  echo 1 > "$1"[0m
+2026-11-08T04:25:18.3013414Z [36;1m' _ "$status" > "$log" 2>&1 < /dev/null &[0m
+2026-11-08T04:25:18.3038261Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-08T04:25:18.3038846Z env:
+2026-11-08T04:25:18.3039224Z   KRN_LIVE: 
+2026-11-08T04:25:18.3039622Z   KRN_TEST_SHARD_INDEX: 7
+2026-11-08T04:25:18.3040056Z   KRN_TEST_SHARD_TOTAL: 10
+2026-11-08T04:25:18.3040480Z ##[endgroup]
+2026-11-08T04:25:18.3137037Z ##[end-action id=__self.__run;outcome=success;conclusion=success;duration_ms=18]
+2026-11-08T04:25:18.3140872Z ##[start-action display=Set up Node.js;id=__self.__actions_setup-node]
+2026-11-08T04:25:18.3228748Z ##[group]Run actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+2026-11-08T04:25:18.3229391Z with:
+2026-11-08T04:25:18.3229817Z   node-version-file: .node-version
+2026-11-08T04:25:18.3230303Z   check-latest: false
+2026-11-08T04:25:18.3233578Z   token: ***
+2026-11-08T04:25:18.3234006Z   package-manager-cache: true
+2026-11-08T04:25:18.3234455Z env:
+2026-11-08T04:25:18.3234835Z   KRN_LIVE: 
+2026-11-08T04:25:18.3235248Z   KRN_TEST_SHARD_INDEX: 7
+2026-11-08T04:25:18.3235712Z   KRN_TEST_SHARD_TOTAL: 10
+2026-11-08T04:25:18.3236150Z ##[endgroup]
+2026-11-08T04:25:18.4576758Z Node version file is not JSON file
+2026-11-08T04:25:18.4582627Z Node version file is not TOML file
+2026-11-08T04:25:18.4589075Z Resolved .node-version as 24.22.1
+2026-11-08T04:25:18.4603411Z Attempting to download 24.22.1...
+2026-11-08T04:25:19.3926491Z Acquiring 24.22.1 - x64 from https://github.com/actions/node-versions/releases/download/24.22.1-39619001896/node-24.22.1-linux-x64.tar.gz
+2026-11-08T04:25:19.8750640Z Extracting ...
+2026-11-08T04:25:19.8903072Z [command]/usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/e1a7f6f9-a5f0-404f-a6fa-3b0fdfe92703 -f /home/runner/work/_temp/b5ba86fe-2388-4e2a-a23e-3eba437266b0
+2026-11-08T04:25:21.1882272Z Adding to the cache ...
+2026-11-08T04:25:23.0983434Z ##[group]Environment details
+2026-11-08T04:25:23.3665832Z node: v24.22.1
+2026-11-08T04:25:23.3666594Z npm: 11.19.1
+2026-11-08T04:25:23.3666979Z yarn: 1.22.22
+2026-11-08T04:25:23.3668643Z ##[endgroup]
+2026-11-08T04:25:23.3828969Z ##[end-action id=__self.__actions_setup-node;outcome=success;conclusion=success;duration_ms=5068]
+2026-11-08T04:25:23.3832401Z ##[start-action display=Enable pnpm through Corepack;id=__self.__run_2]
+2026-11-08T04:25:23.3859203Z ##[group]Run set -euo pipefail
+2026-11-08T04:25:23.3859509Z [36;1mset -euo pipefail[0m
+2026-11-08T04:25:23.3859756Z [36;1mcorepack enable[0m
+2026-11-08T04:25:23.3860006Z [36;1mpnpm --version[0m
+2026-11-08T04:25:23.3860383Z [36;1mecho "PNPM_STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"[0m
+2026-11-08T04:25:23.3885143Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-08T04:25:23.3885534Z env:
+2026-11-08T04:25:23.3885724Z   KRN_LIVE: 
+2026-11-08T04:25:23.3885935Z   KRN_TEST_SHARD_INDEX: 7
+2026-11-08T04:25:23.3886185Z   KRN_TEST_SHARD_TOTAL: 10
+2026-11-08T04:25:23.3886416Z ##[endgroup]
+2026-11-08T04:25:23.5105480Z ! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-12.10.1.tgz
+2026-11-08T04:25:24.0688224Z Downloading the pnpm 12.10.1 binary for linux-x64...
+2026-11-08T04:25:24.8133200Z 12.10.1
+2026-11-08T04:25:24.9130716Z ##[end-action id=__self.__run_2;outcome=success;conclusion=success;duration_ms=1529]
+2026-11-08T04:25:24.9133283Z ##[start-action display=Cache the pnpm store;id=__self.__actions_cache]
+2026-11-08T04:25:24.9841446Z ##[group]Run actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+2026-11-08T04:25:24.9841836Z with:
+2026-11-08T04:25:24.9842072Z   path: /home/runner/.local/share/pnpm/store/v11
+2026-11-08T04:25:24.9842638Z   key: pnpm-store-Linux-X64-f366329378dd6d458518e7f732a9b5f9b3a592f1328d0d820e04928f3aed721f
+2026-11-08T04:25:24.9843199Z   restore-keys: pnpm-store-Linux-X64-
+
+2026-11-08T04:25:24.9843497Z   enableCrossOsArchive: false
+2026-11-08T04:25:24.9843759Z   fail-on-cache-miss: false
+2026-11-08T04:25:24.9843996Z   lookup-only: false
+2026-11-08T04:25:24.9844211Z   save-always: false
+2026-11-08T04:25:24.9844407Z env:
+2026-11-08T04:25:24.9844597Z   KRN_LIVE: 
+2026-11-08T04:25:24.9844794Z   KRN_TEST_SHARD_INDEX: 7
+2026-11-08T04:25:24.9845019Z   KRN_TEST_SHARD_TOTAL: 10
+2026-11-08T04:25:24.9845307Z   PNPM_STORE_PATH: /home/runner/.local/share/pnpm/store/v11
+2026-11-08T04:25:24.9845625Z ##[endgroup]
+2026-11-08T04:25:25.3853662Z Cache hit for: pnpm-store-Linux-X64-f366329378dd6d458518e7f732a9b5f9b3a592f1328d0d820e04928f3aed721f
+2026-11-08T04:25:26.6771421Z Received 26089302 of 34477910 (75.7%), 24.9 MBs/sec
+2026-11-08T04:25:26.7224272Z Received 34477910 of 34477910 (100.0%), 31.4 MBs/sec
+2026-11-08T04:25:26.7226760Z Cache Size: ~33 MB (34477910 B)
+2026-11-08T04:25:26.7269804Z [command]/usr/bin/tar -xf /home/runner/work/_temp/450251e4-b4af-4572-86bd-9cfdc290aa05/cache.tzst -P -C /home/runner/work/krn/krn --use-compress-program unzstd
+2026-11-08T04:25:26.9631251Z Cache restored successfully
+2026-11-08T04:25:26.9831407Z Cache restored from key: pnpm-store-Linux-X64-f366329378dd6d458518e7f732a9b5f9b3a592f1328d0d820e04928f3aed721f
+2026-11-08T04:25:26.9947363Z ##[end-action id=__self.__actions_cache;outcome=success;conclusion=success;duration_ms=2081]
+2026-11-08T04:25:26.9951079Z ##[start-action display=Install dependencies;id=__self.__run_3]
+2026-11-08T04:25:26.9991669Z ##[group]Run pnpm install --frozen-lockfile
+2026-11-08T04:25:26.9992025Z [36;1mpnpm install --frozen-lockfile[0m
+2026-11-08T04:25:27.0012636Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-08T04:25:27.0012990Z env:
+2026-11-08T04:25:27.0013182Z   KRN_LIVE: 
+2026-11-08T04:25:27.0013395Z   KRN_TEST_SHARD_INDEX: 7
+2026-11-08T04:25:27.0013648Z   KRN_TEST_SHARD_TOTAL: 10
+2026-11-08T04:25:27.0013959Z   PNPM_STORE_PATH: /home/runner/.local/share/pnpm/store/v11
+2026-11-08T04:25:27.0014295Z ##[endgroup]
+2026-11-08T04:25:27.0939639Z ? Verifying lockfile against supply-chain policies (33 entries)...
+2026-11-08T04:25:27.1452708Z Packages are hard linked from the content-addressable store to the virtual store.
+2026-11-08T04:25:27.1454140Z   Content-addressable store is at: /home/runner/.local/share/pnpm/store/v11
+2026-11-08T04:25:27.1455562Z   Virtual store is at:             node_modules/.pnpm
+2026-11-08T04:25:28.0710361Z ✓ Lockfile passes supply-chain policies (33 entries in 977ms)
+2026-11-08T04:25:28.0711365Z Lockfile is up to date, resolution step is skipped
+2026-11-08T04:25:28.0996838Z Packages: +7
+2026-11-08T04:25:28.0997272Z +++++++
+2026-11-08T04:25:28.1012525Z Progress: resolved 7, reused 7, downloaded 0, added 7, done
+2026-11-08T04:25:28.1081317Z 
+2026-11-08T04:25:28.1081730Z dependencies:
+2026-11-08T04:25:28.1082046Z + zod 4.6.5
+2026-11-08T04:25:28.1088666Z 
+2026-11-08T04:25:28.1089556Z devDependencies:
+2026-11-08T04:25:28.1090073Z + @biomejs/biome 2.5.15
+2026-11-08T04:25:28.1090422Z + @types/node 24.6.2
+2026-11-08T04:25:28.1090725Z + typescript 7.0.2
+2026-11-08T04:25:28.1090921Z 
+2026-11-08T04:25:28.1092391Z Done in 1s using pnpm v12.10.1
+2026-11-08T04:25:28.1301257Z ##[end-action id=__self.__run_3;outcome=success;conclusion=success;duration_ms=1134]
+2026-11-08T04:25:28.1303876Z ##[start-action display=Allow unprivileged user namespaces for isolation tests;id=__self.__run_4]
+2026-11-08T04:25:28.1325759Z ##[group]Run sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+2026-11-08T04:25:28.1326294Z [36;1msudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0[0m
+2026-11-08T04:25:28.1346575Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-08T04:25:28.1346919Z env:
+2026-11-08T04:25:28.1347110Z   KRN_LIVE: 
+2026-11-08T04:25:28.1347316Z   KRN_TEST_SHARD_INDEX: 7
+2026-11-08T04:25:28.1347552Z   KRN_TEST_SHARD_TOTAL: 10
+2026-11-08T04:25:28.1348148Z   PNPM_STORE_PATH: /home/runner/.local/share/pnpm/store/v11
+2026-11-08T04:25:28.1348506Z ##[endgroup]
+2026-11-08T04:25:28.1457682Z kernel.apparmor_restrict_unprivileged_userns = 0
+2026-11-08T04:25:28.1473557Z ##[end-action id=__self.__run_4;outcome=success;conclusion=success;duration_ms=16]
+2026-11-08T04:25:28.1475490Z ##[start-action display=Wait for bubblewrap;id=__self.__run_5]
+2026-11-08T04:25:28.1493694Z ##[group]Run set -euo pipefail
+2026-11-08T04:25:28.1493974Z [36;1mset -euo pipefail[0m
+2026-11-08T04:25:28.1494279Z [36;1mstatus="$RUNNER_TEMP/bubblewrap-install.status"[0m
+2026-11-08T04:25:28.1494623Z [36;1mfor _ in $(seq 1 300); do[0m
+2026-11-08T04:25:28.1494888Z [36;1m  test -f "$status" && break[0m
+2026-11-08T04:25:28.1495146Z [36;1m  sleep 0.5[0m
+2026-11-08T04:25:28.1495354Z [36;1mdone[0m
+2026-11-08T04:25:28.1495626Z [36;1mif [ "$(cat "$status" 2>/dev/null || echo 1)" != 0 ]; then[0m
+2026-11-08T04:25:28.1496014Z [36;1m  cat "$RUNNER_TEMP/bubblewrap-install.log" >&2[0m
+2026-11-08T04:25:28.1496366Z [36;1m  echo 'bubblewrap install failed' >&2[0m
+2026-11-08T04:25:28.1496649Z [36;1m  exit 1[0m
+2026-11-08T04:25:28.1496846Z [36;1mfi[0m
+2026-11-08T04:25:28.1497043Z [36;1mbwrap --version[0m
+2026-11-08T04:25:28.1515159Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-08T04:25:28.1515505Z env:
+2026-11-08T04:25:28.1515704Z   KRN_LIVE: 
+2026-11-08T04:25:28.1515919Z   KRN_TEST_SHARD_INDEX: 7
+2026-11-08T04:25:28.1516154Z   KRN_TEST_SHARD_TOTAL: 10
+2026-11-08T04:25:28.1516451Z   PNPM_STORE_PATH: /home/runner/.local/share/pnpm/store/v11
+2026-11-08T04:25:28.1516782Z ##[endgroup]
+2026-11-08T04:25:28.1603552Z bubblewrap 0.9.0
+2026-11-08T04:25:28.1611833Z ##[end-action id=__self.__run_5;outcome=success;conclusion=success;duration_ms=13]
+2026-11-08T04:25:28.1702667Z ##[group]Run jdx/mise-action@08ae2a091c038e1e05ec6f5115dc5c69d5a2a6b8
+2026-11-08T04:25:28.1703063Z with:
+2026-11-08T04:25:28.1703258Z   version: 2026.10.17
+2026-11-08T04:25:28.1703490Z   install: false
+2026-11-08T04:25:28.1703689Z   cache: false
+2026-11-08T04:25:28.1703883Z   auto_update: false
+2026-11-08T04:25:28.1704100Z   minimum_release_age: 24h
+2026-11-08T04:25:28.1704334Z   bootstrap: false
+2026-11-08T04:25:28.1704533Z   cache_save: true
+2026-11-08T04:25:28.1704738Z   cache_save_post: false
+2026-11-08T04:25:28.1704971Z   cache_key_prefix: mise-v1
+2026-11-08T04:25:28.1705203Z   experimental: false
+2026-11-08T04:25:28.1705421Z   log_level: info
+2026-11-08T04:25:28.1705616Z   reshim: false
+2026-11-08T04:25:28.1705814Z   add_shims_to_path: true
+2026-11-08T04:25:28.1709008Z   github_token: ***
+2026-11-08T04:25:28.1709244Z   persist_github_token: false
+2026-11-08T04:25:28.1709488Z   fetch_from_github: true
+2026-11-08T04:25:28.1709701Z   env: true
+2026-11-08T04:25:28.1709946Z   export_path: true
+2026-11-08T04:25:28.1710159Z   wings_enabled: false
+2026-11-08T04:25:28.1710365Z env:
+2026-11-08T04:25:28.1710542Z   KRN_LIVE: 
+2026-11-08T04:25:28.1710737Z   KRN_TEST_SHARD_INDEX: 7
+2026-11-08T04:25:28.1711159Z   KRN_TEST_SHARD_TOTAL: 10
+2026-11-08T04:25:28.1711454Z   PNPM_STORE_PATH: /home/runner/.local/share/pnpm/store/v11
+2026-11-08T04:25:28.1711783Z ##[endgroup]
+2026-11-08T04:25:28.3017591Z `minimum_release_age` is ignored because an explicit mise version was provided
+2026-11-08T04:25:28.3059628Z [command]/usr/bin/ldd --version
+2026-11-08T04:25:28.3154039Z ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39
+2026-11-08T04:25:28.3154607Z Copyright (C) 2024 Free Software Foundation, Inc.
+2026-11-08T04:25:28.3155194Z This is free software; see the source for copying conditions.  There is NO
+2026-11-08T04:25:28.3155891Z warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+2026-11-08T04:25:28.3156456Z Written by Roland McGrath and Ulrich Drepper.
+2026-11-08T04:25:28.3180669Z ##[group]Download mise@2026.10.17
+2026-11-08T04:25:28.3196377Z [command]/usr/local/bin/zstd --version
+2026-11-08T04:25:28.3226433Z *** Zstandard CLI (64-bit) v1.5.7, by Yann Collet ***
+2026-11-08T04:25:28.3242208Z [command]/usr/bin/tar --zstd --version
+2026-11-08T04:25:28.3276277Z tar (GNU tar) 1.35
+2026-11-08T04:25:28.3276916Z Copyright (C) 2023 Free Software Foundation, Inc.
+2026-11-08T04:25:28.3278276Z License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+2026-11-08T04:25:28.3279488Z This is free software: you are free to change and redistribute it.
+2026-11-08T04:25:28.3281451Z There is NO WARRANTY, to the extent permitted by law.
+2026-11-08T04:25:28.3282443Z 
+2026-11-08T04:25:28.3282909Z Written by John Gilmore and Jay Fenlason.
+2026-11-08T04:25:28.3315338Z Using curl to download mise
+2026-11-08T04:25:28.3332556Z [command]/usr/bin/curl -fsSL https://github.com/jdx/mise/releases/download/v2026.10.17/mise-v2026.10.17-linux-x64.tar.zst --output /tmp/mise-action-HUoOCf/mise-v2026.10.17-linux-x64.tar.zst
+2026-11-08T04:25:29.2211614Z Verified mise-v2026.10.17-linux-x64.tar.zst against signed checksums
+2026-11-08T04:25:29.2226416Z [command]/usr/bin/tar --zstd -xf /tmp/mise-action-HUoOCf/mise-v2026.10.17-linux-x64.tar.zst -C /tmp/mise-action-HUoOCf
+2026-11-08T04:25:29.5187249Z [command]/usr/bin/mv /tmp/mise-action-HUoOCf/mise/bin/mise /home/runner/.local/share/mise/bin/mise
+2026-11-08T04:25:29.5332064Z ##[group]Setting env vars
+2026-11-08T04:25:29.5332471Z Setting MISE_LOG_LEVEL=info
+2026-11-08T04:25:29.5336276Z Setting MISE_TRUSTED_CONFIG_PATHS=/home/runner/work/krn/krn
+2026-11-08T04:25:29.5336916Z Setting MISE_YES=1
+2026-11-08T04:25:29.5337272Z Adding /home/runner/.local/share/mise/shims to PATH
+2026-11-08T04:25:29.5344655Z ##[group]Running mise --version
+2026-11-08T04:25:29.5359628Z [command]/home/runner/.local/share/mise/bin/mise --version
+2026-11-08T04:25:29.5440564Z 2026.10.17 linux-x64 (2026-10-21)
+2026-11-08T04:25:29.5463950Z ##[endgroup]
+2026-11-08T04:25:29.5467743Z ##[group]Running mise ls
+2026-11-08T04:25:29.5485550Z [command]/home/runner/.local/share/mise/bin/mise ls
+2026-11-08T04:25:29.5616016Z node  24.22.1 (missing)  ~/work/krn/krn/mise.toml  24.22.1
+2026-11-08T04:25:29.5630275Z ##[endgroup]
+2026-11-08T04:25:29.5779225Z ##[group]Exporting mise environment variables
+2026-11-08T04:25:29.5941068Z [command]/home/runner/.local/share/mise/bin/mise env --json
+2026-11-08T04:25:29.6062195Z {
+2026-11-08T04:25:29.6064551Z   "PATH": "/home/runner/.local/share/mise/shims:/home/runner/.local/share/mise/bin:/opt/hostedtoolcache/node/24.22.1/x64/bin:/snap/bin:/home/runner/.local/bin:/opt/pipx_bin:/home/runner/.cargo/bin:/home/runner/.config/composer/vendor/bin:/usr/local/.ghcup/bin:/home/runner/.dotnet/tools:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games"
+2026-11-08T04:25:29.6066169Z }
+2026-11-08T04:25:29.6078714Z ##[endgroup]
+2026-11-08T04:25:29.6223594Z ##[group]Run set -euo pipefail
+2026-11-08T04:25:29.6223934Z [36;1mset -euo pipefail[0m
+2026-11-08T04:25:29.6224298Z [36;1mmanager="$(node -p "require('./package.json').packageManager")"[0m
+2026-11-08T04:25:29.6224692Z [36;1mmise install "$manager"[0m
+2026-11-08T04:25:29.6245660Z shell: /usr/bin/bash -e {0}
+2026-11-08T04:25:29.6246116Z env:
+2026-11-08T04:25:29.6246302Z   KRN_LIVE: 
+2026-11-08T04:25:29.6246504Z   KRN_TEST_SHARD_INDEX: 7
+2026-11-08T04:25:29.6246743Z   KRN_TEST_SHARD_TOTAL: 10
+2026-11-08T04:25:29.6247050Z   PNPM_STORE_PATH: /home/runner/.local/share/pnpm/store/v11
+2026-11-08T04:25:29.6247385Z   MISE_LOG_LEVEL: info
+2026-11-08T04:25:29.6247655Z   MISE_TRUSTED_CONFIG_PATHS: /home/runner/work/krn/krn
+2026-11-08T04:25:29.6248230Z   MISE_YES: 1
+2026-11-08T04:25:29.6251346Z   GITHUB_TOKEN: ***
+2026-11-08T04:25:29.6251577Z ##[endgroup]
+2026-11-08T04:25:29.6652803Z [2mmise[0m [2mby @jdx[0m – installing 1 tool
+2026-11-08T04:25:30.8986526Z [2mmise[0m [38;5;10m✓[0m [34mpnpm[0m@12.10.1  1.2s  [2mpnpm-linux-x64.tar.gz[0m
+2026-11-08T04:25:30.8987437Z [2mmise[0m [36m████████████████[0m[31m[0m[2m[0m 1/1 · installed 1 tool in 1.2s
+2026-11-08T04:25:30.9336861Z [33mmise[0m [33mWARN[0m  pnpm installed but not activated — it is not in any config file.
+2026-11-08T04:25:30.9337811Z To install and activate, run:
+2026-11-08T04:25:30.9338592Z   mise use pnpm
+2026-11-08T04:25:30.9405667Z ##[group]Run npm test
+2026-11-08T04:25:30.9406147Z [36;1mnpm test[0m
+2026-11-08T04:25:30.9426896Z shell: /usr/bin/bash -e {0}
+2026-11-08T04:25:30.9427264Z env:
+2026-11-08T04:25:30.9427570Z   KRN_LIVE: 
+2026-11-08T04:25:30.9480826Z   KRN_TEST_SHARD_INDEX: 7
+2026-11-08T04:25:30.9481233Z   KRN_TEST_SHARD_TOTAL: 10
+2026-11-08T04:25:30.9481706Z   PNPM_STORE_PATH: /home/runner/.local/share/pnpm/store/v11
+2026-11-08T04:25:30.9482196Z   MISE_LOG_LEVEL: info
+2026-11-08T04:25:30.9482569Z   MISE_TRUSTED_CONFIG_PATHS: /home/runner/work/krn/krn
+2026-11-08T04:25:30.9483016Z   MISE_YES: 1
+2026-11-08T04:25:30.9483319Z   KRN_TEST_OUTPUT: failures
+2026-11-08T04:25:30.9483683Z   KRN_TEST_STRICT: 1
+2026-11-08T04:25:30.9484019Z ##[endgroup]
+2026-11-08T04:25:31.0398822Z 
+2026-11-08T04:25:31.0399581Z > krn@0.1.0 test
+2026-11-08T04:25:31.0399991Z > node scripts/test-suite.mjs
+2026-11-08T04:25:31.0400221Z 
+2026-11-08T04:25:31.1103283Z Test shard selection: 7/10; files=13
+2026-11-08T04:25:31.1382954Z Isolation capability probe: bwrap=available; systemd user scope=available
+2026-11-08T04:25:31.1393654Z Test shard plan: K=4; parallel groups=4; final serial files=0
+2026-11-08T04:25:50.6014549Z # group 1: ok, 47 tests, 3 files
+2026-11-08T04:25:50.6014976Z # group 2: ok, 12 tests, 2 files
+2026-11-08T04:25:50.6015293Z # group 3: ok, 13 tests, 4 files
+2026-11-08T04:25:50.6015860Z # group 4: ok, 19 tests, 4 files
+2026-11-08T04:25:50.6016258Z # tests 91
+2026-11-08T04:25:50.6022369Z ## Slowest tests (top-level)
+2026-11-08T04:25:50.6022976Z 
+2026-11-08T04:25:50.6023450Z | Test | File | Seconds |
+2026-11-08T04:25:50.6024153Z | --- | --- | ---: |
+2026-11-08T04:25:50.6025190Z | exactly 10000 .krn files fit the file bound, with the own run excluded | test/worker/input-bounds-baseline.test.ts | 7.311 |
+2026-11-08T04:25:50.6026199Z | 8: invalid or start-only options refuse before state or spawn | test/worker/acceptance-checks-validation.test.ts | 6.457 |
+2026-11-08T04:25:50.6027366Z | untracked baseline enforces file-count and accumulated content bounds before launching a server | test/worker/input-bounds-baseline.test.ts | 6.008 |
+2026-11-08T04:25:50.6028982Z | invalid persisted session fields refuse send without publishing an inbox | test/worker/input-bounds-persisted.test.ts | 5.891 |
+2026-11-08T04:25:50.6030960Z | report refuses paths outside the repository and control characters | test/worker/report-paths-invalid.test.ts | 3.212 |
+2026-11-08T04:25:50.6032911Z | Git config, hooks and info changes are forbidden in repositories and linked worktrees | test/worker/scope-bypass.test.ts | 3.031 |
+2026-11-08T04:25:50.6034889Z | 11: a private key across the log limit or past the capture is redacted | test/worker/acceptance-checks-reruns.test.ts | 2.979 |
+2026-11-08T04:25:50.6036567Z | 7: send reruns stored acceptance checks | test/worker/acceptance-checks-reruns.test.ts | 2.752 |
+2026-11-08T04:25:50.6039193Z | direct driver input validates its repository boundary before acquiring a lock | test/worker/input-bounds-persisted.test.ts | 2.451 |
+2026-11-08T04:25:50.6041490Z | driver derives writable roots instead of trusting persisted roots | test/worker/input-bounds-persisted.test.ts | 2.276 |
+2026-11-08T04:25:50.6069350Z KRN_TEST_SUMMARY_JSON={"version":1,"success":true,"counts":{"tests":91,"passed":91,"failed":0,"skipped":0,"todo":0,"cancelled":0},"files":[{"file":"/home/runner/work/krn/krn/test/claude/handoff-requests-sections.test.ts","tests":2,"passed":2,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":1631},{"file":"/home/runner/work/krn/krn/test/claude/successor-probe.test.ts","tests":11,"passed":11,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":1361},{"file":"/home/runner/work/krn/krn/test/cli.test.ts","tests":7,"passed":7,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":2888},{"file":"/home/runner/work/krn/krn/test/helpers/check-scopes.test.ts","tests":2,"passed":2,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":53},{"file":"/home/runner/work/krn/krn/test/rules/host-path-guard.test.mjs","tests":18,"passed":18,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":264},{"file":"/home/runner/work/krn/krn/test/rules/lead-traps.test.ts","tests":1,"passed":1,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":134},{"file":"/home/runner/work/krn/krn/test/worker/acceptance-checks-reruns.test.ts","tests":3,"passed":3,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":6845},{"file":"/home/runner/work/krn/krn/test/worker/acceptance-checks-validation.test.ts","tests":3,"passed":3,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":8360},{"file":"/home/runner/work/krn/krn/test/worker/input-bounds-baseline.test.ts","tests":11,"passed":11,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":16747},{"file":"/home/runner/work/krn/krn/test/worker/input-bounds-persisted.test.ts","tests":18,"passed":18,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":11813},{"file":"/home/runner/work/krn/krn/test/worker/report-paths-invalid.test.ts","tests":1,"passed":1,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":3222},{"file":"/home/runner/work/krn/krn/test/worker/report-paths-valid.test.ts","tests":1,"passed":1,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":1519},{"file":"/home/runner/work/krn/krn/test/worker/scope-bypass.test.ts","tests":13,"passed":13,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":4959}]}
+2026-11-08T04:25:50.6295821Z Post job cleanup.
+2026-11-08T04:25:50.7808509Z Post job cleanup.
+2026-11-08T04:25:50.7812589Z ##[start-action display=Cache the pnpm store;id=__22e82b3a-6733-46c6-a884-0cb2053e755b.__actions_cache]
+2026-11-08T04:25:50.8447271Z Post job cleanup.
+2026-11-08T04:25:50.9774693Z Cache hit occurred on the primary key pnpm-store-Linux-X64-f366329378dd6d458518e7f732a9b5f9b3a592f1328d0d820e04928f3aed721f, not saving cache.
+2026-11-08T04:25:50.9859179Z ##[end-action id=__22e82b3a-6733-46c6-a884-0cb2053e755b.__actions_cache;outcome=success;conclusion=success;duration_ms=204]
+2026-11-08T04:25:50.9863269Z ##[start-action display=Set up Node.js;id=__22e82b3a-6733-46c6-a884-0cb2053e755b.__actions_setup-node]
+2026-11-08T04:25:50.9937505Z Post job cleanup.
+2026-11-08T04:25:51.1220064Z ##[end-action id=__22e82b3a-6733-46c6-a884-0cb2053e755b.__actions_setup-node;outcome=success;conclusion=success;duration_ms=135]
+2026-11-08T04:25:51.1304784Z Post job cleanup.
+2026-11-08T04:25:51.2231906Z [command]/usr/bin/git version
+2026-11-08T04:25:51.2276494Z git version 2.56.0
+2026-11-08T04:25:51.2322059Z Temporarily overriding HOME='/home/runner/work/_temp/16c427d4-bfde-4ae8-8ea7-5e69883cc838' before making global git config changes
+2026-11-08T04:25:51.2324065Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-08T04:25:51.2330342Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/krn/krn
+2026-11-08T04:25:51.2375086Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-08T04:25:51.2417035Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-08T04:25:51.2741886Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-08T04:25:51.2772537Z http.https://github.com/.extraheader
+2026-11-08T04:25:51.2783946Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-08T04:25:51.2824024Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-08T04:25:51.3262179Z Cleaning up orphan processes
+2026-11-08T04:25:51.3768527Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

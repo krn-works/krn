@@ -118,11 +118,44 @@ function gh(args, attempts = 2) {
   }
 }
 
-// Seconds the job's `Run test shard` step took, or undefined without one.
-export function testStepSeconds(job) {
+// A job log line opens with its timestamp; the first line opens with a byte
+// order mark before it.
+// A step's log opens with `##[group]Run <command>`, a post step's with
+// `Post job cleanup.`.
+const LOG_LINE = /^\uFEFF?(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z) (.*)$/u;
+const RUN_STEP = /^##\[group\]Run /u;
+const POST_STEP = /^Post job cleanup\.$/u;
+
+// Seconds, to a tenth, that the step which printed the summary line spans in a
+// job log: from the last step start before that line to the first step or
+// post step start after it. Undefined when the log lacks either boundary.
+export function logStepSeconds(logText) {
+  const lines = [];
+  for (const line of logText.split(/\r?\n/u)) {
+    const match = LOG_LINE.exec(line);
+    if (match !== null)
+      lines.push({ at: Date.parse(match[1]), text: match[2] });
+  }
+  const summary = lines.findIndex(({ text }) => text.includes(SUMMARY_PREFIX));
+  if (summary === -1) return undefined;
+  const start = lines
+    .slice(0, summary)
+    .findLast(({ text }) => RUN_STEP.test(text));
+  const end = lines
+    .slice(summary + 1)
+    .find(({ text }) => RUN_STEP.test(text) || POST_STEP.test(text));
+  if (start === undefined || end === undefined) return undefined;
+  return Math.round((end.at - start.at) / 100) / 10;
+}
+
+// Seconds the job's `Run test shard` step took: its jobs API timing, else its
+// span in the job log, because GitHub sometimes returns a job with `steps: []`.
+// Undefined when neither holds the step.
+export function testStepSeconds(job, logText = '') {
   const step = job?.steps?.find((entry) => entry.name === 'Run test shard');
-  if (!step?.started_at || !step?.completed_at) return undefined;
-  return (Date.parse(step.completed_at) - Date.parse(step.started_at)) / 1000;
+  if (step?.started_at && step?.completed_at)
+    return (Date.parse(step.completed_at) - Date.parse(step.started_at)) / 1000;
+  return logStepSeconds(logText);
 }
 
 // The newest `wanted` successful main push runs whose every `Test (k/N)` job
@@ -169,16 +202,19 @@ export function fetchShardRuns(
     if (jobs.length === 0) continue;
     const measured = [];
     for (const job of jobs) {
-      const summary = parseJobSummary(
-        runGh([
-          'api',
-          '--allow-escape-sequences',
-          `repos/${repo}/actions/jobs/${job.id}/logs`,
-        ]),
-      );
+      const log = runGh([
+        'api',
+        '--allow-escape-sequences',
+        `repos/${repo}/actions/jobs/${job.id}/logs`,
+      ]);
+      const summary = parseJobSummary(log);
       // One job without durations makes the whole run unusable.
       if (!runDurations([summary])) break;
-      measured.push({ name: job.name, seconds: testStepSeconds(job), summary });
+      measured.push({
+        name: job.name,
+        seconds: testStepSeconds(job, log),
+        summary,
+      });
     }
     if (measured.length !== jobs.length) continue;
     runs.push({ id: String(databaseId), headSha, jobs: measured });

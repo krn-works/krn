@@ -75,8 +75,8 @@ test('report pairs CI step seconds with predictions and gates the slowest p50', 
   assert.equal(report.slowestP50, 21);
   const rendered = renderReport(report);
   assert.match(rendered, /heaviest-lane model: r=0\.\d+ \(strong\)/u);
-  // Every run's Test (3/3) came back untimed, as GitHub returns a job with
-  // `steps: []`: the window says so, a FAIL stands and a PASS cannot.
+  // Every run's Test (3/3) came back untimed, as a job with `steps: []` whose
+  // log lacks the step: the window says so, a FAIL stands and a PASS cannot.
   assert.match(rendered, /^runs: 3 of 3 wanted, 3 of 9 Test steps untimed$/mu);
   assert.match(rendered, /slowest Test step p50: 21 s, target < 18 s: FAIL/u);
   assert.match(

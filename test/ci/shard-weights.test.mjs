@@ -4,11 +4,14 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { TEST_FILE_WEIGHTS } from '../../scripts/lib/shard-weights.mjs';
 import {
+  fetchShardRuns,
   foldShardWeights,
+  logStepSeconds,
   parseJobSummary,
   renderWeightsModule,
   repoTestPath,
   runDurations,
+  testStepSeconds,
   weightSeconds,
 } from '../../scripts/shard-weights-refresh.mjs';
 import { summarizeTestEvents } from '../../scripts/test-summary-policy.mjs';
@@ -29,6 +32,66 @@ test('a verbatim CI job log yields its summary with repository paths', () => {
   // The capture predates durationMs, so the run is not usable.
   assert.equal(runDurations([summary]), undefined);
   assert.equal(parseJobSummary('no summary here\n'), undefined);
+});
+
+// Verbatim output of `gh api --allow-escape-sequences
+// repos/krn-works/krn/actions/jobs/128627133801/logs` and of
+// `gh api repos/krn-works/krn/actions/jobs/128627133801`: Test (7/10) of main
+// run 42446730414 at 6d833e5, whose jobs API carried its steps.
+const fixture = (name) =>
+  readFileSync(
+    fileURLToPath(new URL(`../fixtures/${name}`, import.meta.url)),
+    'utf8',
+  );
+const shardLog = fixture('ci-test-shard-job.log');
+const shardJob = JSON.parse(fixture('ci-test-shard-job.json'));
+
+test('the test step spans its jobs API timing within 1 s in a verbatim job log', () => {
+  // The API keeps whole seconds, 04:25:30Z to 04:25:50Z; the log runs from
+  // `##[group]Run npm test` at 04:25:30.94 to `Post job cleanup.` at 04:25:50.63.
+  const api = testStepSeconds(shardJob);
+  const logged = logStepSeconds(shardLog);
+  assert.equal(api, 20);
+  assert.equal(logged, 19.7);
+  assert.ok(Math.abs(api - logged) <= 1);
+});
+
+test('a job returned with steps: [] is timed from its log', () => {
+  const bare = { ...shardJob, steps: [] };
+  assert.equal(testStepSeconds(bare, shardLog), 19.7);
+  assert.equal(testStepSeconds(bare), undefined);
+});
+
+test('a log without the step boundaries leaves the step untimed', () => {
+  const lines = shardLog.split('\n');
+  const summaryAt = lines.findIndex((line) =>
+    line.includes('KRN_TEST_SUMMARY_JSON='),
+  );
+  // Without the summary no step printed it; the excerpt capture lacks the
+  // step's start, and a log cut after the summary lacks its end.
+  const unsummarized = lines.filter((_, index) => index !== summaryAt);
+  assert.equal(logStepSeconds(unsummarized.join('\n')), undefined);
+  assert.equal(logStepSeconds(capture), undefined);
+  const cut = lines.slice(0, summaryAt + 1).join('\n');
+  assert.equal(logStepSeconds(cut), undefined);
+});
+
+test('fetchShardRuns times a steps: [] job from the log it fetched', () => {
+  const runGh = (args) => {
+    if (args[0] === 'run')
+      return JSON.stringify([
+        { databaseId: shardJob.run_id, headSha: shardJob.head_sha },
+      ]);
+    if (args.at(-1).includes('/jobs?'))
+      return JSON.stringify({ jobs: [{ ...shardJob, steps: [] }] });
+    assert.equal(args.at(-1), `repos/o/r/actions/jobs/${shardJob.id}/logs`);
+    return shardLog;
+  };
+  const [run] = fetchShardRuns('o/r', 1, { runGh });
+  assert.deepEqual(
+    run.jobs.map(({ name, seconds }) => [name, seconds]),
+    [['Test (7/10)', 19.7]],
+  );
 });
 
 test('summary records each file duration from its native summary event', () => {
