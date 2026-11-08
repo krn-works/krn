@@ -1,0 +1,12 @@
+{
+  "id": "t-p4akh87",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 1,
+  "title": "Confirm the successor agent started before the launcher reports success",
+  "after": [],
+  "body": [
+    "Outcome: scripts/claude/successor-launch.ts prints success and renames the predecessor tab only after Herdr shows the expected agent in the new pane; a successor that never started fails the launch and names the pane.\nEvidence: the official herdr skill (herdrdev/herdr skills/herdr/SKILL.md, v0.9.5 line 189) says `pane run` success \"acknowledges admission, not command execution\", yet the launcher treats exit 0 of `herdr pane run` as started (also recorded in t-14b4ab6, closed as a duplicate without this fix). The official `agent start` is not a drop-in (t-tdkpgag): it rejects any argument with a control character (src/app/agents.rs), needs a unique [a-z][a-z0-9_-]{0,31} name, starts Herdr's canonical executable instead of KRN_SUCCESSOR_AGENT, fails with agent_not_ready on a startup dialog while the agent is live, and its reply cannot be captured without creating a pane. Poll `herdr agent get <new pane>` for the expected agent instead (read-only; verbatim captures in test/fixtures/herdr).\nProof: a test with the verbatim agent get captures where the new pane reports no agent until a deadline fails the launch, leaves the predecessor tab name alone and exits non-zero; the lead runs one live launch in a scratch pane and sees the poll report a started Claude."
+  ]
+}
