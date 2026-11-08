@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { appendFileSync, mkdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { cutText } from './cut-text.ts';
 
 // The operator inbox records every operator prompt under .krn/operator so a directive cannot
 // vanish between sessions. Imports stay minimal: the capture hook runs on every prompt.
@@ -115,6 +116,14 @@ export const isAutomatedSession = (
   (env.CLAUDE_CODE_ENTRYPOINT ?? '').startsWith('sdk') ||
   !sessionId.test(session);
 
+// What the inbox stores for a prompt: redacted, trimmed, at most maxText.
+export const inboxText = (prompt: string): string =>
+  cutText(redact(prompt.trim()), maxText);
+
+// A prompt flattened to one line of at most `length` UTF-16 units.
+export const oneLine = (text: string, length: number): string =>
+  cutText(text.replace(/\s+/gu, ' '), length);
+
 export function capture(
   root: string,
   session: string,
@@ -122,7 +131,7 @@ export function capture(
   env: NodeJS.ProcessEnv = process.env,
 ): void {
   if (isHarnessText(prompt) || isAutomatedSession(session, env)) return;
-  const text = redact(prompt.trim()).slice(0, maxText);
+  const text = inboxText(prompt);
   if (!text) return;
   mkdirSync(directory(root), { recursive: true });
   const entry: InboxEntry = {

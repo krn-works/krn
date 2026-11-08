@@ -1,3 +1,5 @@
+import { cutText } from './cut-text.ts';
+
 // One owner for the handoff's consolidated resume block: the fields krn-handoff requires and
 // the section text SessionStart injects.
 export const resumeFields = [
@@ -74,5 +76,5 @@ export function resumeBlock(text: string, limit: number): string | undefined {
   ].flatMap(([title, body]) => (body ? [`${title}:\n${body}`] : []));
   if (parts.length === 0) return undefined;
   const block = `Handoff (run the Verify command before any other step):\n${parts.join('\n')}`;
-  return block.length > limit ? `${block.slice(0, limit - 1)}…` : block;
+  return block.length > limit ? `${cutText(block, limit - 1)}…` : block;
 }

@@ -4,6 +4,7 @@ import {
   allEntries,
   capture,
   dispose,
+  oneLine,
   openEntries,
 } from './operator-inbox-store.ts';
 
@@ -55,8 +56,6 @@ function flags(arguments_: string[]) {
 
 const { values, positional } = flags(rest);
 const root = resolve(values.get('--root') ?? process.cwd());
-const oneLine = (text: string, length: number) =>
-  text.replace(/\s+/gu, ' ').slice(0, length);
 
 if (command === 'open') {
   const open = openEntries(root);

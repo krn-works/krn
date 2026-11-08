@@ -1,7 +1,11 @@
 {
   "id": "t-zxeann1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "cutText in scripts/claude/cut-text.ts serves all six sites; test/claude/cut-text.test.ts fails on the old slice() cuts"
+  },
   "created": "2026-11-08",
   "priority": 2,
   "title": "Cut hook and CLI text on code points so a truncated emoji never reaches a provider",
