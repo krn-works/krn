@@ -34,6 +34,18 @@
       ],
       "test": "test/deliver/transport-capture.test.ts"
     },
+    "src/evals/check-paths.ts": {
+      "receivers": ["node"],
+      "real": "test/evals/checks-slot-paths.test.ts"
+    },
+    "src/evals/check-shims.ts": {
+      "receivers": ["sh", "node"],
+      "real": "test/evals/checks-arguments.test.ts"
+    },
+    "src/evals/checks.ts": {
+      "receivers": ["bwrap", "node"],
+      "real": "test/evals/checks-scripts.test.ts"
+    },
     "src/evals/mask.ts": {
       "receivers": ["bwrap"],
       "real": "test/evals/session-mask.test.ts"

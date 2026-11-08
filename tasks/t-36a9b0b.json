@@ -1,0 +1,12 @@
+{
+  "id": "t-36a9b0b",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Report open tasks that name a branch that no longer exists",
+  "after": [],
+  "body": [
+    "A handoff said t-9ser2tw's implementation \"waits on branch feat/eval-checks\"; the branch had been deleted with its worktree and the work survived only as dangling commit 52fad6c. The resume step trusted the sentence. scripts/claude/unpushed-delete.ts now refuses such deletes; this task covers the read side.\nAcceptance: `bin/krn task check --evidence` reports an open task whose body names a branch (feat/..., fix/..., chore/...) that exists neither locally nor on origin, with the task id and branch name; a test drives it through the real CLI."
+  ]
+}

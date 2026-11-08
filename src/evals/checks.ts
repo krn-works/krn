@@ -4,6 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { constants } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { flagValue } from '../cli/flag-value.ts';
 import { CliUsageError } from '../cli/usage-error.ts';
 import { checkDirectory, checkNode, separate } from './check-paths.ts';
 import { writeCheckTools } from './check-shims.ts';
@@ -35,8 +36,8 @@ function parse(args: string[]) {
       throw new CliUsageError(`${option} may be supplied once`);
     seen.add(option);
     if (option === '--draft' || option === '--json') continue;
-    const value = args[++index];
-    if (!value || value.startsWith('--')) throw new CliUsageError(usage);
+    const value = flagValue(args, index++, () => new CliUsageError(usage));
+    if (value === '') throw new CliUsageError(usage);
     values.set(option, value);
   }
   const experiment = values.get('--experiment');
