@@ -69,16 +69,34 @@ export function lintable(changed: string[]): string[] {
   );
 }
 
+/** A git command that failed; main() reports it and exits 2 instead of treating it as "no changes". */
+export class GitError extends Error {}
+
+/** Strict git: any non-zero exit throws a GitError naming the command and git's stderr. */
 function git(root: string, args: string[]): string {
   const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
-  return result.status === 0 ? result.stdout : '';
+  if (result.status === 0) return result.stdout;
+  const detail = (result.stderr || result.error?.message || '').trim();
+  throw new GitError(
+    `\`git ${args.join(' ')}\` failed (exit ${result.status ?? 'none'})${detail ? `: ${detail}` : ''}`,
+  );
+}
+
+/** Tolerant probe: only for questions whose "no" is an answer (merge base, ref lookup). */
+function probe(root: string, args: string[]): string {
+  const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
+  return result.status === 0 ? result.stdout.trim() : '';
 }
 
 function mergeBase(root: string): string {
-  let base = '';
-  for (const ref of ['origin/main', 'main'])
-    base ||= git(root, ['merge-base', 'HEAD', ref]).trim();
-  return base || 'HEAD';
+  git(root, ['rev-parse', '--verify', 'HEAD']);
+  for (const ref of ['origin/main', 'main']) {
+    const base = probe(root, ['merge-base', 'HEAD', ref]);
+    if (base) return base;
+  }
+  throw new GitError(
+    'no merge base between HEAD and origin/main or main; pass --base <rev>',
+  );
 }
 
 function lines(text: string): string[] {
@@ -139,7 +157,7 @@ function listTests(root: string): Map<string, string> {
 export function toolBin(root: string): string | undefined {
   const own = join(root, 'node_modules/.bin');
   if (existsSync(join(own, 'tsc'))) return own;
-  const common = git(root, ['rev-parse', '--git-common-dir']).trim();
+  const common = probe(root, ['rev-parse', '--git-common-dir']);
   if (!common) return undefined;
   const main = join(dirname(resolve(root, common)), 'node_modules/.bin');
   return existsSync(join(main, 'tsc')) ? main : undefined;
@@ -196,12 +214,12 @@ export function parseArgs(
       return { error: `unknown argument ${arg}; usage: fast [--base <rev>]` };
   }
   if (base !== undefined) {
-    const resolved = git(root, [
+    const resolved = probe(root, [
       'rev-parse',
       '--verify',
       '--quiet',
       `${base}^{commit}`,
-    ]).trim();
+    ]);
     if (!resolved)
       return { error: `--base ${base} is not a commit in this repository` };
     return { base: resolved };
@@ -216,8 +234,18 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
     process.stderr.write(`fast: ${parsed.error}\n`);
     return 64;
   }
-  const changed = changedFiles(root, parsed.base);
-  const removed = removedFiles(root, parsed.base);
+  let changed: string[];
+  let removed: string[];
+  let surviving: Set<string>;
+  try {
+    changed = changedFiles(root, parsed.base);
+    removed = removedFiles(root, parsed.base);
+    surviving = survivingFiles(root);
+  } catch (error) {
+    if (!(error instanceof GitError)) throw error;
+    process.stderr.write(`fast: ${error.message}\n`);
+    return 2;
+  }
   if (changed.length + removed.length === 0) {
     process.stdout.write('fast PASS: no changed files\n');
     return 0;
@@ -233,12 +261,7 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
   const files = lintable(changed);
   const cache = join(root, '.krn/cache');
   mkdirSync(cache, { recursive: true });
-  const related = selectTests(
-    changed,
-    listTests(root),
-    removed,
-    survivingFiles(root),
-  );
+  const related = selectTests(changed, listTests(root), removed, surviving);
   const snapshot = (): string =>
     changed.map((file) => readFileSync(join(root, file), 'utf8')).join('\0');
   const verify = (): Promise<Step[]> =>

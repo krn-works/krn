@@ -1,7 +1,11 @@
 {
   "id": "t-zk3ekbm",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "git failures exit 2 naming the command; merge-base probes stay tolerant; missing base fails"
+  },
   "created": "2026-11-08",
   "priority": 1,
   "title": "Make npm run fast fail when git fails instead of printing PASS",
