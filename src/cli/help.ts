@@ -7,6 +7,8 @@ const usage: Readonly<Record<string, string>> = {
   ledger:
     'krn ledger [--since YYYY-MM-DD] [--pr N] [--limit N] [--repo OWNER/REPO] [--root DIR] [--transcripts DIR] [--json]  outcome ledger',
   eval: 'krn eval <plan|prepare|...> --experiment DIR  memory experiment harness; `krn eval` lists verbs',
+  doctor:
+    'krn doctor  reports the host `krn task` entry, its commit and origin/main; exit 78 when stale or unpinned',
   ci: 'krn ci wait|logs  wait: --repo OWNER/REPO --pr N --head SHA --base SHA [--timeout-seconds N] [--start-timeout-seconds N]; logs: --repo OWNER/REPO --run ID [--lines N] prints failed-job log tails across every attempt',
 };
 

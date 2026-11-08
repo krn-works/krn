@@ -1,4 +1,14 @@
 // Command router; each command loads on demand.
+import { realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+function productRoot(): string {
+  return realpathSync(fileURLToPath(new URL('../..', import.meta.url))).replace(
+    /\/$/u,
+    '',
+  );
+}
+
 export async function dispatch(args: string[]): Promise<boolean> {
   const [command, ...options] = args;
   if (command === 'ledger') {
@@ -14,8 +24,23 @@ export async function dispatch(args: string[]): Promise<boolean> {
     const { workerCommand } = await import('../worker/cli.ts');
     await workerCommand(options);
   } else if (command === 'task') {
+    if (process.env.KRN_FORWARDED !== undefined) {
+      // The host entry forwarded this call: refuse a stale or unpinned build.
+      const pin = await import('./entry-pin.ts');
+      const state = pin.readEntryPin(productRoot());
+      if (!pin.isFresh(state)) {
+        process.stderr.write(pin.staleEntryMessage(state));
+        process.exitCode = pin.staleEntryExit;
+        return true;
+      }
+    }
     const { taskCommand } = await import('../task/cli.ts');
     await taskCommand(options);
+  } else if (command === 'doctor') {
+    const pin = await import('./entry-pin.ts');
+    const report = pin.doctorReport(pin.configuredEntryRoot());
+    process.stdout.write(report.text);
+    process.exitCode = report.exitCode;
   } else if (command === 'eval') {
     const { evalCommand } = await import('../evals/cli.ts');
     await evalCommand(options);

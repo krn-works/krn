@@ -1,0 +1,12 @@
+{
+  "id": "t-q5sch4e",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-08",
+  "priority": 2,
+  "title": "Refresh the pinned Product entry after each merge",
+  "after": [],
+  "body": [
+    "Since t-z1rn4s0 a forwarded `krn task` exits 78 when `.krn/product-release` lags the local `origin/main`, so every merge needs a manual `scripts/product-release.sh`. Refresh it where the lead already observes the merge (e.g. `krn ci wait` on MERGED), checking the candidate first and recording the previous commit for rollback (RD04 in .krn/runs/lead/t3code-agentic/lanes/t3-rules-docs.md).\nAcceptance: after `krn ci wait` reports a merge, `bin/krn doctor` prints status=fresh without a manual step; a failed refresh leaves the previous commit and prints it."
+  ]
+}

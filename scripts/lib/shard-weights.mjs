@@ -45,6 +45,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/cli/launcher-toolchain.test.ts': 0.1,
   'test/cli/launcher.test.ts': 0.2,
   'test/cli/lazy-command-imports.test.ts': 1.7,
+  'test/cli/entry-pin.test.ts': 0.5,
   'test/cli/product-release.test.ts': 0.5,
   'test/codex/app-server-replay.test.ts': 2,
   'test/codex/context-hook.test.ts': 0.9,
