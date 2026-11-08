@@ -79,6 +79,9 @@ export function parseRecords(value: unknown): BrainRecord[] {
   });
 }
 
+/** Token budget FR-40 measured for both arms; equality is checked by test/brain/packet.test.ts. */
+export const BUDGET = 400;
+
 /** Budget unit shared by both arms: four characters per token, rounded up. */
 export function tokens(text: string): number {
   return Math.ceil(text.length / 4);

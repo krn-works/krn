@@ -154,3 +154,37 @@ test('unsafe inbox and temporary-directory ancestors are refused before partial 
     });
   }
 });
+
+test('worker start prepends the brain packet and records its ids and digest', async (t) => {
+  const s = setup(t);
+  const release = join(s.root, 'initialize-release');
+  s.env.CODEX_TEST_WORKER_INITIALIZE_GATE = release;
+  const brief =
+    'You are working on task t-abc1234. Add to src/cli/slug.ts a function slugify, with a node:test file under test/. Commit your work when it is done.';
+  fs.mkdirSync(join(s.repo, 'evals/fr40'), { recursive: true });
+  fs.copyFileSync(
+    join(import.meta.dirname, '../../evals/fr40/records.json'),
+    join(s.repo, 'evals/fr40/records.json'),
+  );
+  const pending = s.turn(brief, true);
+  try {
+    const path = join(s.run, 'inbox/001.json');
+    await until(() => fs.existsSync(path));
+    const packet = JSON.parse(
+      fs.readFileSync(join(s.run, 'packet.json'), 'utf8'),
+    );
+    assert.ok(packet.records.includes('r-commit-title-id'));
+    assert.match(packet.sha256, /^[a-f0-9]{64}$/u);
+    const inbox = JSON.parse(fs.readFileSync(path, 'utf8'));
+    assert.ok(
+      inbox.text.startsWith(
+        `Repository conventions (brain packet ${packet.sha256.slice(0, 12)}):\n`,
+      ),
+    );
+    assert.ok(inbox.text.endsWith(brief));
+  } finally {
+    fs.writeFileSync(release, 'release');
+  }
+  const result = await pending;
+  assert.equal(result.code, 0, result.stderr);
+});
