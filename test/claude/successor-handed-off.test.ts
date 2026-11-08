@@ -1,39 +1,23 @@
 import assert from 'node:assert/strict';
-import {
-  chmodSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import {
+  capture,
+  failure,
+  installHerdr,
+  ok,
+  type Replies,
+  type Reply,
+  readCalls,
+} from '../helpers/herdr-stub.ts';
 
 const api = await import('../../scripts/claude/successor-launch.ts');
-const fixtures = new URL('../fixtures/herdr/', import.meta.url);
 let ledgerRoot = '';
 
-// What the stub `herdr` prints for one call: a reply on stdout, or a server
-// error on stderr with exit 1, as the real CLI does (test/fixtures/README.md).
-// Every reply below is a verbatim capture, varied only in the fields a test
-// is about.
-type Reply = { stdout?: string; stderr?: string; status?: number };
-type Replies = Record<string, Reply | Reply[]>;
-
-function capture(name: string): string {
-  return readFileSync(new URL(name, fixtures), 'utf8');
-}
-
-function ok(stdout: string): Reply {
-  return { stdout };
-}
-
-function failure(stderr: string): Reply {
-  return { stderr, status: 1 };
-}
-
+// Every reply below is a verbatim Herdr capture, varied only in the fields a
+// test is about.
 const own = JSON.parse(capture('pane-get.reply.jsonl')).result.pane as {
   workspace_id: string;
   tab_id: string;
@@ -80,34 +64,6 @@ function tabs(): Reply {
   return ok(`${JSON.stringify(reply)}\n`);
 }
 
-function herdrStub(): string {
-  return [
-    `#!${process.execPath}`,
-    "import { appendFileSync, readFileSync } from 'node:fs';",
-    'const args = process.argv.slice(2);',
-    'const prior = (() => {',
-    '  try {',
-    "    return readFileSync(process.env.CALLS, 'utf8').split('\\n').filter(Boolean).map(JSON.parse);",
-    '  } catch {',
-    '    return [];',
-    '  }',
-    '})();',
-    'appendFileSync(process.env.CALLS, JSON.stringify(args) + "\\n");',
-    // A reply is keyed "group verb target" or "group verb"; a list answers
-    // the 1st, 2nd... call in turn and its last entry repeats.
-    'const replies = JSON.parse(process.env.REPLIES);',
-    'const key = [args.slice(0, 3).join(" "), args.slice(0, 2).join(" ")].find((name) => name in replies);',
-    'if (key === undefined) process.exit(64);',
-    'const same = prior.filter((call) => call.slice(0, key.split(" ").length).join(" ") === key).length;',
-    'const list = [].concat(replies[key]);',
-    'const { stdout = "", stderr = "", status = 0 } = list[Math.min(same, list.length - 1)];',
-    'process.stdout.write(stdout);',
-    'process.stderr.write(stderr);',
-    'process.exit(status);',
-    '',
-  ].join('\n');
-}
-
 function retire(
   args: string[],
   pause?: (seconds: number) => void,
@@ -135,40 +91,22 @@ function setup(
   });
   const bin = join(root, 'bin');
   mkdirSync(bin);
-  const calls = join(root, 'calls.jsonl');
-  const executable = join(bin, 'herdr');
-  writeFileSync(executable, herdrStub());
-  chmodSync(executable, 0o755);
-  for (const key of Object.keys(process.env))
-    if (key.startsWith('HERDR_') || key.startsWith('KRN_PREDECESSOR_'))
-      delete process.env[key];
-  const replies: Replies = {
+  const calls = installHerdr(bin, {
     'pane get': ok(capture('pane-get.reply.jsonl')),
     'tab list': ok(capture('tab-list.reply.jsonl')),
     'pane close': ok(capture('pane-close.reply.jsonl')),
     'tab close': ok(capture('tab-close.reply.jsonl')),
     ...options.replies,
-  };
+  });
+  for (const key of Object.keys(process.env))
+    if (key.startsWith('HERDR_') || key.startsWith('KRN_PREDECESSOR_'))
+      delete process.env[key];
   Object.assign(process.env, {
     PATH: `${bin}:${previousEnv.PATH}`,
-    CALLS: calls,
     HERDR_PANE_ID: 'self',
-    REPLIES: JSON.stringify(replies),
     ...options.env,
   });
   return { calls, root };
-}
-
-function calls(path: string): string[][] {
-  try {
-    return readFileSync(path, 'utf8')
-      .split('\n')
-      .slice(0, -1)
-      .filter(Boolean)
-      .map((line) => JSON.parse(line));
-  } catch {
-    return [];
-  }
 }
 
 function stderrOf(run: () => number): { status: number; stderr: string } {
@@ -205,7 +143,7 @@ test('idle matching immediate predecessor and eligible handed-off tabs close; ot
     replies: { 'agent get pred': agent('idle'), 'tab list': tabs() },
   });
   assert.equal(retire(['--wait-seconds', '0']), 0);
-  const c = calls(x.calls);
+  const c = readCalls(x.calls);
   assert.ok(c.some((a) => a.join(' ') === 'pane close pred'));
   assert.ok(c.some((a) => a.join(' ') === 'tab close idle'));
   assert.ok(c.some((a) => a.join(' ') === 'tab close done'));
@@ -224,8 +162,8 @@ test('working predecessor at zero wait remains open and reports timeout', (t) =>
   const { status, stderr } = stderrOf(() => retire(['--wait-seconds', '0']));
   assert.equal(status, 0);
   assert.match(stderr, /predecessor still working/u);
-  assert.ok(!calls(x.calls).some((a) => a[1] === 'close'));
-  assert.ok(!calls(x.calls).some((a) => a[1] === 'wait'));
+  assert.ok(!readCalls(x.calls).some((a) => a[1] === 'close'));
+  assert.ok(!readCalls(x.calls).some((a) => a[1] === 'wait'));
 });
 test('predecessor that settles during the wait closes without polling', (t) => {
   const x = setup(t, {
@@ -237,7 +175,7 @@ test('predecessor that settles during the wait closes without polling', (t) => {
   });
   const timing = clock();
   assert.equal(retire(['--wait-seconds', '5'], timing.pause, timing.now), 0);
-  const agentCalls = calls(x.calls).filter((a) => a[0] === 'agent');
+  const agentCalls = readCalls(x.calls).filter((a) => a[0] === 'agent');
   assert.deepEqual(agentCalls, [
     ['agent', 'get', 'pred'],
     [
@@ -254,7 +192,7 @@ test('predecessor that settles during the wait closes without polling', (t) => {
     ['agent', 'get', 'pred'],
   ]);
   assert.deepEqual(timing.pauses, []);
-  assert.ok(calls(x.calls).some((a) => a.join(' ') === 'pane close pred'));
+  assert.ok(readCalls(x.calls).some((a) => a.join(' ') === 'pane close pred'));
 });
 test('a wait that times out pauses, re-reads and leaves a working predecessor open', (t) => {
   const x = setup(t, {
@@ -271,7 +209,7 @@ test('a wait that times out pauses, re-reads and leaves a working predecessor op
   assert.equal(status, 0);
   assert.match(stderr, /predecessor still working/u);
   assert.deepEqual(timing.pauses, [5]);
-  assert.ok(!calls(x.calls).some((a) => a[1] === 'close'));
+  assert.ok(!readCalls(x.calls).some((a) => a[1] === 'close'));
 });
 test('a settled predecessor whose session cannot be verified is polled, never waited on', (t) => {
   const reply = JSON.parse(capture('agent-get-idle-claude.reply.jsonl'));
@@ -286,7 +224,9 @@ test('a settled predecessor whose session cannot be verified is polled, never wa
   );
   assert.match(stderr, /predecessor still working/u);
   assert.deepEqual(timing.pauses, [5, 5]);
-  assert.ok(!calls(x.calls).some((a) => a[1] === 'wait' || a[1] === 'close'));
+  assert.ok(
+    !readCalls(x.calls).some((a) => a[1] === 'wait' || a[1] === 'close'),
+  );
 });
 test('different predecessor session is not closed', (t) => {
   const x = setup(t, {
@@ -294,7 +234,7 @@ test('different predecessor session is not closed', (t) => {
     replies: { 'agent get pred': agent('idle', 'other') },
   });
   retire(['--wait-seconds', '0']);
-  assert.ok(!calls(x.calls).some((a) => a[1] === 'close'));
+  assert.ok(!readCalls(x.calls).some((a) => a[1] === 'close'));
 });
 test('a predecessor pane that is already gone ends the wait at once', (t) => {
   // Herdr reports it as a JSON error on stderr, exit 1, not on stdout.
@@ -313,11 +253,11 @@ test('a predecessor pane that is already gone ends the wait at once', (t) => {
   assert.deepEqual(timing.pauses, []);
   assert.doesNotMatch(stderr, /still working/u);
   assert.deepEqual(
-    calls(x.calls).filter((a) => a[0] === 'agent'),
+    readCalls(x.calls).filter((a) => a[0] === 'agent'),
     [['agent', 'get', 'pred']],
   );
   assert.ok(
-    calls(x.calls).some((a) => a.join(' ') === 'tab close idle'),
+    readCalls(x.calls).some((a) => a.join(' ') === 'tab close idle'),
     'the handed-off tab sweep still runs',
   );
 });
@@ -339,26 +279,26 @@ test('a predecessor that closes during the wait is recognised on the next read',
   assert.equal(status, 0);
   assert.doesNotMatch(stderr, /still working/u);
   assert.deepEqual(
-    calls(x.calls).filter((a) => a[0] === 'agent' && a[1] === 'get'),
+    readCalls(x.calls).filter((a) => a[0] === 'agent' && a[1] === 'get'),
     [
       ['agent', 'get', 'pred'],
       ['agent', 'get', 'pred'],
     ],
   );
-  assert.ok(!calls(x.calls).some((a) => a[1] === 'close'));
+  assert.ok(!readCalls(x.calls).some((a) => a[1] === 'close'));
 });
 test('missing Herdr context makes no Herdr calls', (t) => {
   const x = setup(t);
   delete process.env.HERDR_PANE_ID;
   assert.equal(retire([]), 0);
-  assert.deepEqual(calls(x.calls), []);
+  assert.deepEqual(readCalls(x.calls), []);
 });
 test('pane get failure is best effort and does not close tabs', (t) => {
   const x = setup(t, {
     replies: { 'pane get': failure(capture('pane-get-missing.stderr.jsonl')) },
   });
   assert.equal(retire([]), 0);
-  assert.ok(!calls(x.calls).some((a) => a.includes('close')));
+  assert.ok(!readCalls(x.calls).some((a) => a.includes('close')));
 });
 test('wait bounds reject invalid values with usage status 64', (t) => {
   setup(t);

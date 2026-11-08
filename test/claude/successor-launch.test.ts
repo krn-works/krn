@@ -1,20 +1,27 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
-  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
-  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import type { AgentInfo } from '../../scripts/claude/successor-launch.ts';
+import {
+  captureReply,
+  failure,
+  installAgent,
+  installHerdr,
+  ok,
+  type Replies,
+  readCalls,
+} from '../helpers/herdr-stub.ts';
 
 const script = fileURLToPath(
   new URL('../../scripts/claude/successor-launch.ts', import.meta.url),
@@ -46,101 +53,34 @@ function temporary(t: { after(fn: () => void): void }) {
   return { root, bin };
 }
 
-function writeExecutable(path: string, contents: string) {
-  writeFileSync(path, contents);
-  chmodSync(path, 0o755);
-}
-
-function herdrStub(): string {
-  return [
-    `#!${process.execPath}`,
-    "import { appendFileSync, readFileSync } from 'node:fs';",
-    'const args = process.argv.slice(2);',
-    'appendFileSync(process.env.HERDR_CALLS, JSON.stringify(args) + "\\n");',
-    "if (args[0] === 'status') {",
-    "  if (process.env.HERDR_MODE === 'server-fails') {",
-    "    process.stderr.write('cannot reach server\\n');",
-    '    process.exit(1);',
-    '  }',
-    '  process.stdout.write(readFileSync(process.env.STATUS_FIXTURE));',
-    "} else if (args[0] === 'pane' && args[1] === 'get') {",
-    '  process.stdout.write(readFileSync(process.env.PANE_FIXTURE));',
-    "} else if (args[0] === 'agent' && args[1] === 'get') {",
-    '  // The new pane answers its fixtures in order, the last one repeating.',
-    "  const asked = readFileSync(process.env.HERDR_CALLS, 'utf8')",
-    "    .split('\\n')",
-    '    .filter((line) => line === JSON.stringify(args)).length;',
-    "  const replies = process.env.NEW_PANE_FIXTURE.split('\\n');",
-    '  const name = args[2] === process.env.NEW_PANE',
-    '    ? replies[Math.min(asked, replies.length) - 1]',
-    '    : process.env.AGENT_FIXTURE;',
-    '  // Herdr prints a reply on stdout and a server error on stderr, exit 1.',
-    "  if (name.endsWith('.stderr.jsonl')) {",
-    '    process.stderr.write(readFileSync(name));',
-    '    process.exit(1);',
-    '  }',
-    '  process.stdout.write(readFileSync(name));',
-    "} else if (args[0] === 'tab' && args[1] === 'create') {",
-    "  if (process.env.HERDR_MODE === 'invalid-create') {",
-    "    process.stdout.write('not a Herdr reply\\n');",
-    '  } else {',
-    '    process.stdout.write(readFileSync(process.env.CREATE_FIXTURE));',
-    '  }',
-    "} else if (args[0] === 'pane' && args[1] === 'run') {",
-    "  if (process.env.HERDR_MODE === 'launch-fails') {",
-    "    process.stderr.write('pane launch failed\\n');",
-    '    process.exit(23);',
-    '  }',
-    "} else if (args[0] === 'tab' && args[1] === 'rename') {",
-    '  process.stdout.write(readFileSync(process.env.RENAME_FIXTURE));',
-    '} else {',
-    '  process.exit(64);',
-    '}',
-    '',
-  ].join('\n');
-}
-
-function agentStub(): string {
-  return [
-    `#!${process.execPath}`,
-    "import { appendFileSync } from 'node:fs';",
-    'appendFileSync(process.env.AGENT_CALLS, JSON.stringify(process.argv.slice(2)) + "\\n");',
-    'process.exit(Number(process.env.AGENT_EXIT ?? 0));',
-    '',
-  ].join('\n');
-}
-
 // The pane `herdr tab create` returned; `agent get` on it answers what Herdr
 // shows there once `pane run` was admitted.
 const newPane = JSON.parse(fixture('tab-create.reply.jsonl').toString('utf8'))
   .result.root_pane.pane_id as string;
 
-function fixturePath(name: string): string {
-  return fileURLToPath(new URL(name, fixtures));
-}
-
-function herdrEnvironment(root: string, calls: string, bin: string) {
+// Herdr as captured: the caller's pane and its working Claude, a created tab
+// whose pane then hosts a working Claude, and an admitted `pane run`.
+function herdrReplies(overrides: Replies = {}): Replies {
   return {
-    ...hostEnvironment,
-    PATH: bin,
-    HERDR_CALLS: calls,
-    STATUS_FIXTURE: fixturePath('server-status.txt'),
-    CREATE_FIXTURE: fixturePath('tab-create.reply.jsonl'),
-    PANE_FIXTURE: fixturePath('pane-get.reply.jsonl'),
-    AGENT_FIXTURE: fixturePath('agent-get-working-claude.reply.jsonl'),
-    NEW_PANE: newPane,
-    NEW_PANE_FIXTURE: fixturePath('agent-get-working-claude.reply.jsonl'),
-    RENAME_FIXTURE: fixturePath('tab-rename.reply.jsonl'),
-    AGENT_CALLS: join(root, 'agent-calls.jsonl'),
-    KRN_SUCCESSOR_AGENT: 'successor-agent',
+    status: captureReply('server-status.txt'),
+    'pane get': captureReply('pane-get.reply.jsonl'),
+    'agent get': captureReply('agent-get-working-claude.reply.jsonl'),
+    [`agent get ${newPane}`]: captureReply(
+      'agent-get-working-claude.reply.jsonl',
+    ),
+    'tab create': captureReply('tab-create.reply.jsonl'),
+    'pane run': ok(''),
+    'tab rename': captureReply('tab-rename.reply.jsonl'),
+    ...overrides,
   };
 }
 
-function readCalls(path: string): string[][] {
-  return readFileSync(path, 'utf8')
-    .split('\n')
-    .slice(0, -1)
-    .map((line) => JSON.parse(line));
+function launcherEnvironment(bin: string) {
+  return {
+    ...hostEnvironment,
+    PATH: bin,
+    KRN_SUCCESSOR_AGENT: 'successor-agent',
+  };
 }
 
 test('captured Herdr replies expose the IDs returned by the real server', () => {
@@ -284,24 +224,16 @@ test('argument parser accepts the required flags and resolves cwd', () => {
 
 test('Herdr launch uses the captured pane and tab IDs without starting fallback', (t) => {
   const { root, bin } = temporary(t);
-  const herdrCalls = join(root, 'herdr-calls.jsonl');
-  const agentCalls = join(root, 'agent-calls.jsonl');
+  const herdrCalls = installHerdr(bin, herdrReplies());
+  const agentCalls = join(root, 'agent-calls');
+  installAgent(bin, 'successor-agent', agentCalls);
   const cwd = join(root, 'project');
   mkdirSync(cwd);
-  writeExecutable(join(bin, 'herdr'), herdrStub());
-  writeExecutable(join(bin, 'successor-agent'), agentStub());
 
   const result = spawnSync(
     process.execPath,
     [script, '--name', 'Next slice', '--prompt', 'Read handoff', '--cwd', cwd],
-    {
-      cwd: root,
-      env: {
-        ...herdrEnvironment(root, herdrCalls, bin),
-        HERDR_MODE: 'success',
-      },
-      encoding: 'utf8',
-    },
+    { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
   const captured = JSON.parse(
     fixture('tab-create.reply.jsonl').toString('utf8'),
@@ -347,21 +279,17 @@ test('Herdr launch uses the captured pane and tab IDs without starting fallback'
 
 test('caller pane workspace is passed to the new tab', (t) => {
   const { root, bin } = temporary(t);
-  const herdrCalls = join(root, 'herdr-calls.jsonl');
+  const herdrCalls = installHerdr(bin, herdrReplies());
+  installAgent(bin, 'successor-agent', join(root, 'agent-calls'));
   const cwd = join(root, 'project');
   mkdirSync(cwd);
-  writeExecutable(join(bin, 'herdr'), herdrStub());
-  writeExecutable(join(bin, 'successor-agent'), agentStub());
 
   const result = spawnSync(
     process.execPath,
     [script, '--name', 'Next slice', '--prompt', 'Read handoff', '--cwd', cwd],
     {
       cwd: root,
-      env: {
-        ...herdrEnvironment(root, herdrCalls, bin),
-        HERDR_PANE_ID: 'caller-pane',
-      },
+      env: { ...launcherEnvironment(bin), HERDR_PANE_ID: 'caller-pane' },
       encoding: 'utf8',
     },
   );
@@ -420,10 +348,15 @@ test('caller pane workspace is passed to the new tab', (t) => {
 
 test('a successor Herdr never shows fails the launch and keeps the predecessor tab', (t) => {
   const { root, bin } = temporary(t);
-  const herdrCalls = join(root, 'herdr-calls.jsonl');
+  const herdrCalls = installHerdr(
+    bin,
+    herdrReplies({
+      // `pane run` was admitted, yet the pane still hosts only its shell.
+      [`agent get ${newPane}`]: captureReply('agent-get-shell.stderr.jsonl'),
+    }),
+  );
   const cwd = join(root, 'project');
   mkdirSync(cwd);
-  writeExecutable(join(bin, 'herdr'), herdrStub());
   const created = JSON.parse(
     fixture('tab-create.reply.jsonl').toString('utf8'),
   ).result;
@@ -444,11 +377,9 @@ test('a successor Herdr never shows fails the launch and keeps the predecessor t
     {
       cwd: root,
       env: {
-        ...herdrEnvironment(root, herdrCalls, bin),
+        ...launcherEnvironment(bin),
         HERDR_PANE_ID: 'caller-pane',
         KRN_SUCCESSOR_AGENT: 'claude',
-        // `pane run` was admitted, yet the pane still hosts only its shell.
-        NEW_PANE_FIXTURE: fixturePath('agent-get-shell.stderr.jsonl'),
       },
       encoding: 'utf8',
     },
@@ -487,10 +418,18 @@ test('a successor Herdr never shows fails the launch and keeps the predecessor t
 
 test('a successor held on a startup dialog is reported with its pane and the handoff stands', (t) => {
   const { root, bin } = temporary(t);
-  const herdrCalls = join(root, 'herdr-calls.jsonl');
+  const herdrCalls = installHerdr(
+    bin,
+    herdrReplies({
+      // Herdr 0.9.1 showed the folder-trust dialog as unknown, then blocked.
+      [`agent get ${newPane}`]: [
+        captureReply('agent-get-unknown-claude.reply.jsonl'),
+        captureReply('agent-get-blocked-claude.reply.jsonl'),
+      ],
+    }),
+  );
   const cwd = join(root, 'project');
   mkdirSync(cwd);
-  writeExecutable(join(bin, 'herdr'), herdrStub());
   const created = JSON.parse(
     fixture('tab-create.reply.jsonl').toString('utf8'),
   ).result;
@@ -504,14 +443,9 @@ test('a successor held on a startup dialog is reported with its pane and the han
     {
       cwd: root,
       env: {
-        ...herdrEnvironment(root, herdrCalls, bin),
+        ...launcherEnvironment(bin),
         HERDR_PANE_ID: 'caller-pane',
         KRN_SUCCESSOR_AGENT: 'claude',
-        // Herdr 0.9.1 showed the folder-trust dialog as unknown, then blocked.
-        NEW_PANE_FIXTURE: [
-          fixturePath('agent-get-unknown-claude.reply.jsonl'),
-          fixturePath('agent-get-blocked-claude.reply.jsonl'),
-        ].join('\n'),
       },
       encoding: 'utf8',
     },
@@ -657,22 +591,13 @@ test('the start wait runs on while Herdr cannot classify the agent and answers i
 
 test('missing Herdr falls back to claude background launch once', (t) => {
   const { root, bin } = temporary(t);
-  const agentCalls = join(root, 'agent-calls.jsonl');
-  writeExecutable(join(bin, 'successor-agent'), agentStub());
+  const agentCalls = join(root, 'agent-calls');
+  installAgent(bin, 'successor-agent', agentCalls);
 
   const result = spawnSync(
     process.execPath,
     [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
-    {
-      cwd: root,
-      env: {
-        ...hostEnvironment,
-        PATH: bin,
-        AGENT_CALLS: agentCalls,
-        KRN_SUCCESSOR_AGENT: 'successor-agent',
-      },
-      encoding: 'utf8',
-    },
+    { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
   assert.equal(result.status, 0, result.stderr);
@@ -692,22 +617,17 @@ test('missing Herdr falls back to claude background launch once', (t) => {
 
 test('a failed Herdr server probe falls back without creating a tab', (t) => {
   const { root, bin } = temporary(t);
-  const herdrCalls = join(root, 'herdr-calls.jsonl');
-  const agentCalls = join(root, 'agent-calls.jsonl');
-  writeExecutable(join(bin, 'herdr'), herdrStub());
-  writeExecutable(join(bin, 'successor-agent'), agentStub());
+  const herdrCalls = installHerdr(
+    bin,
+    herdrReplies({ status: failure('cannot reach server\n') }),
+  );
+  const agentCalls = join(root, 'agent-calls');
+  installAgent(bin, 'successor-agent', agentCalls);
 
   const result = spawnSync(
     process.execPath,
     [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
-    {
-      cwd: root,
-      env: {
-        ...herdrEnvironment(root, herdrCalls, bin),
-        HERDR_MODE: 'server-fails',
-      },
-      encoding: 'utf8',
-    },
+    { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
   assert.equal(result.status, 0, result.stderr);
@@ -725,23 +645,17 @@ test('a failed Herdr server probe falls back without creating a tab', (t) => {
 
 test('a failed fallback agent returns its non-zero exit code', (t) => {
   const { root, bin } = temporary(t);
-  const herdrCalls = join(root, 'herdr-calls.jsonl');
-  const agentCalls = join(root, 'agent-calls.jsonl');
-  writeExecutable(join(bin, 'herdr'), herdrStub());
-  writeExecutable(join(bin, 'successor-agent'), agentStub());
+  const herdrCalls = installHerdr(
+    bin,
+    herdrReplies({ status: failure('cannot reach server\n') }),
+  );
+  const agentCalls = join(root, 'agent-calls');
+  installAgent(bin, 'successor-agent', agentCalls, 19);
 
   const result = spawnSync(
     process.execPath,
     [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
-    {
-      cwd: root,
-      env: {
-        ...herdrEnvironment(root, herdrCalls, bin),
-        HERDR_MODE: 'server-fails',
-        AGENT_EXIT: '19',
-      },
-      encoding: 'utf8',
-    },
+    { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
   assert.equal(result.status, 19);
@@ -760,24 +674,19 @@ test('a failed fallback agent returns its non-zero exit code', (t) => {
 
 test('a pane run failure does not launch the fallback agent', (t) => {
   const { root, bin } = temporary(t);
-  const herdrCalls = join(root, 'herdr-calls.jsonl');
-  const agentCalls = join(root, 'agent-calls.jsonl');
+  const herdrCalls = installHerdr(
+    bin,
+    herdrReplies({ 'pane run': failure('pane launch failed\n', 23) }),
+  );
+  const agentCalls = join(root, 'agent-calls');
+  installAgent(bin, 'successor-agent', agentCalls);
   const cwd = join(root, 'project');
   mkdirSync(cwd);
-  writeExecutable(join(bin, 'herdr'), herdrStub());
-  writeExecutable(join(bin, 'successor-agent'), agentStub());
 
   const result = spawnSync(
     process.execPath,
     [script, '--name', 'Next slice', '--prompt', 'Read handoff', '--cwd', cwd],
-    {
-      cwd: root,
-      env: {
-        ...herdrEnvironment(root, herdrCalls, bin),
-        HERDR_MODE: 'launch-fails',
-      },
-      encoding: 'utf8',
-    },
+    { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
   assert.equal(result.status, 23);
@@ -791,22 +700,17 @@ test('a pane run failure does not launch the fallback agent', (t) => {
 
 test('a tab reply without a pane ID stops without falling back', (t) => {
   const { root, bin } = temporary(t);
-  const herdrCalls = join(root, 'herdr-calls.jsonl');
-  const agentCalls = join(root, 'agent-calls.jsonl');
-  writeExecutable(join(bin, 'herdr'), herdrStub());
-  writeExecutable(join(bin, 'successor-agent'), agentStub());
+  const herdrCalls = installHerdr(
+    bin,
+    herdrReplies({ 'tab create': ok('not a Herdr reply\n') }),
+  );
+  const agentCalls = join(root, 'agent-calls');
+  installAgent(bin, 'successor-agent', agentCalls);
 
   const result = spawnSync(
     process.execPath,
     [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
-    {
-      cwd: root,
-      env: {
-        ...herdrEnvironment(root, herdrCalls, bin),
-        HERDR_MODE: 'invalid-create',
-      },
-      encoding: 'utf8',
-    },
+    { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
   assert.equal(result.status, 1);
@@ -818,8 +722,7 @@ test('a tab reply without a pane ID stops without falling back', (t) => {
 test('a Claude successor starts with bypassPermissions through Herdr and the fallback', async (t) => {
   await t.test('herdr pane run', () => {
     const { root, bin } = temporary(t);
-    const herdrCalls = join(root, 'herdr-calls.jsonl');
-    writeExecutable(join(bin, 'herdr'), herdrStub());
+    const herdrCalls = installHerdr(bin, herdrReplies());
     const result = spawnSync(
       process.execPath,
       [
@@ -835,10 +738,7 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
       ],
       {
         cwd: root,
-        env: {
-          ...herdrEnvironment(root, herdrCalls, bin),
-          KRN_SUCCESSOR_AGENT: 'claude',
-        },
+        env: { ...launcherEnvironment(bin), KRN_SUCCESSOR_AGENT: 'claude' },
         encoding: 'utf8',
       },
     );
@@ -862,8 +762,8 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
 
   await t.test('claude --bg fallback', () => {
     const { root, bin } = temporary(t);
-    const agentCalls = join(root, 'agent-calls.jsonl');
-    writeExecutable(join(bin, 'claude'), agentStub());
+    const agentCalls = join(root, 'agent-calls');
+    installAgent(bin, 'claude', agentCalls);
     const result = spawnSync(
       process.execPath,
       [
@@ -879,12 +779,7 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
       ],
       {
         cwd: root,
-        env: {
-          ...hostEnvironment,
-          CLAUDECODE: '1',
-          PATH: bin,
-          AGENT_CALLS: agentCalls,
-        },
+        env: { ...hostEnvironment, CLAUDECODE: '1', PATH: bin },
         encoding: 'utf8',
       },
     );
@@ -909,38 +804,38 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
 test('the successor harness follows the runtime environment, never an assumption', async (t) => {
   const launch = (
     marker: Record<string, string>,
-    herdr: boolean,
+    herdr?: Replies,
     extra: string[] = [],
   ) => {
     const { root, bin } = temporary(t);
-    const herdrCalls = join(root, 'herdr-calls.jsonl');
-    const agentCalls = join(root, 'agent-calls.jsonl');
-    if (herdr) writeExecutable(join(bin, 'herdr'), herdrStub());
-    writeExecutable(join(bin, 'claude'), agentStub());
-    writeExecutable(join(bin, 'codex'), agentStub());
-    const { KRN_SUCCESSOR_AGENT: _agent, ...environment } = herdrEnvironment(
-      root,
-      herdrCalls,
-      bin,
-    );
+    const herdrCalls = herdr && installHerdr(bin, herdr);
+    const agentCalls = join(root, 'agent-calls');
+    installAgent(bin, 'claude', agentCalls);
+    installAgent(bin, 'codex', agentCalls);
+    const { KRN_SUCCESSOR_AGENT: _agent, ...environment } =
+      launcherEnvironment(bin);
     const result = spawnSync(
       process.execPath,
       [script, '--name', 'Next slice', '--prompt', 'Read handoff', ...extra],
       { cwd: root, env: { ...environment, ...marker }, encoding: 'utf8' },
     );
-    const exists = (path: string) => (existsSync(path) ? readCalls(path) : []);
-    return { result, herdr: exists(herdrCalls), agent: exists(agentCalls) };
+    return {
+      result,
+      herdr: herdrCalls ? readCalls(herdrCalls) : [],
+      agent: readCalls(agentCalls),
+    };
   };
 
   await t.test(
     'Codex session starts Codex in Herdr without Claude flags',
     () => {
       const { result, herdr, agent } = launch(
-        {
-          CODEX_THREAD_ID: 'thread-1',
-          NEW_PANE_FIXTURE: fixturePath('agent-get-idle-codex.reply.jsonl'),
-        },
-        true,
+        { CODEX_THREAD_ID: 'thread-1' },
+        herdrReplies({
+          [`agent get ${newPane}`]: captureReply(
+            'agent-get-idle-codex.reply.jsonl',
+          ),
+        }),
       );
       assert.equal(result.status, 0, result.stderr);
       assert.match(result.stdout, /agent codex idle\n$/u);
@@ -958,7 +853,7 @@ test('the successor harness follows the runtime environment, never an assumption
   );
 
   await t.test('Claude Code session starts Claude in Herdr', () => {
-    const { result, herdr } = launch({ CLAUDECODE: '1' }, true);
+    const { result, herdr } = launch({ CLAUDECODE: '1' }, herdrReplies());
     assert.equal(result.status, 0, result.stderr);
     const create = herdr.find(
       (call) => call[0] === 'tab' && call[1] === 'create',
@@ -969,7 +864,7 @@ test('the successor harness follows the runtime environment, never an assumption
   await t.test('Codex refuses Claude-only model and effort flags', () => {
     const { result, herdr, agent } = launch(
       { CODEX_THREAD_ID: 'thread-1' },
-      true,
+      herdrReplies(),
       ['--effort', 'max'],
     );
     assert.equal(result.status, 2);
@@ -982,18 +877,21 @@ test('the successor harness follows the runtime environment, never an assumption
   });
 
   await t.test('Codex without Herdr stops instead of launching Claude', () => {
-    const { result, agent } = launch({ CODEX_THREAD_ID: 'thread-1' }, false);
+    const { result, agent } = launch({ CODEX_THREAD_ID: 'thread-1' });
     assert.equal(result.status, 1);
     assert.match(result.stderr, /codex successor needs Herdr/u);
     assert.deepEqual(agent, []);
   });
 
   await t.test('unknown and ambiguous environments stop explicitly', () => {
-    const unknown = launch({}, true);
+    const unknown = launch({}, herdrReplies());
     assert.equal(unknown.result.status, 2);
     assert.match(unknown.result.stderr, /unknown harness/u);
     assert.deepEqual([unknown.herdr, unknown.agent], [[], []]);
-    const both = launch({ CODEX_THREAD_ID: 't', CLAUDECODE: '1' }, true);
+    const both = launch(
+      { CODEX_THREAD_ID: 't', CLAUDECODE: '1' },
+      herdrReplies(),
+    );
     assert.equal(both.result.status, 2);
     assert.match(both.result.stderr, /ambiguous harness/u);
   });
