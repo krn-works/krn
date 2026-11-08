@@ -13,12 +13,14 @@ import { homedir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { TEST_FILE_WEIGHTS } from '../scripts/lib/shard-weights.mjs';
 import * as testShards from '../scripts/lib/test-shards.mjs';
 import {
   configuredTestShardCount,
   defaultTestShardCount,
   mergeTestShardResults,
   planTestShards,
+  RUNNER_LOCAL_LANES,
   SERIAL_TEST_FILES,
   SERIAL_TEST_REASONS,
 } from '../scripts/lib/test-shards.mjs';
@@ -109,14 +111,41 @@ test('shard selection puts every test file in exactly one of the runner shards',
       ),
     );
   }
+  // A serial file runs alone after the runner's local lanes, so its runner
+  // takes RUNNER_LOCAL_LANES times its weight off the parallel balance.
+  const weightOf = (list) =>
+    list.reduce((sum, file) => sum + (TEST_FILE_WEIGHTS[file] ?? 1), 0);
   for (const total of [2, 6, 8]) {
-    const plan = planTestShards(files, total);
-    const lightest = plan.weights.indexOf(Math.min(...plan.weights));
-    for (const file of SERIAL_TEST_FILES)
-      assert.ok(
-        selectTestShardFiles(files, lightest + 1, total).includes(file),
-        `total ${total}: ${file} must join the lightest lane ${lightest + 1}, not the heaviest`,
+    const selections = Array.from({ length: total }, (_, index) =>
+      selectTestShardFiles(files, index + 1, total),
+    );
+    const walls = selections.map((selection) => {
+      const serial = selection.filter((file) =>
+        SERIAL_TEST_FILES.includes(file),
       );
+      const parallel = selection.filter(
+        (file) => !SERIAL_TEST_FILES.includes(file),
+      );
+      return weightOf(parallel) / RUNNER_LOCAL_LANES + weightOf(serial);
+    });
+    const heaviestFile = Math.max(
+      ...files.map((file) => TEST_FILE_WEIGHTS[file] ?? 1),
+    );
+    assert.ok(
+      Math.max(...walls) - Math.min(...walls) <= heaviestFile,
+      `total ${total}: runner walls ${walls.map((w) => w.toFixed(1)).join(' ')} must stay within one file`,
+    );
+    const carrier = selections.findIndex((selection) =>
+      selection.some((file) => SERIAL_TEST_FILES.includes(file)),
+    );
+    const parallelLoads = selections.map((selection) =>
+      weightOf(selection.filter((file) => !SERIAL_TEST_FILES.includes(file))),
+    );
+    assert.equal(
+      parallelLoads[carrier],
+      Math.min(...parallelLoads),
+      `total ${total}: the serial runner must carry the least parallel work`,
+    );
   }
   assert.throws(() => selectTestShardFiles(files, 0, 3), /between 1/u);
   assert.throws(() => selectTestShardFiles(files, 4, 3), /between 1/u);

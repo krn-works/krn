@@ -73,10 +73,13 @@ function fileWeight(file, size) {
   return measured ?? (size > 0 ? Math.max(1, size / 4096) : MEDIAN_WEIGHT);
 }
 
+// `seedWeights[k]` pre-loads bin k before parallel files are balanced, so a
+// bin that already carries serial work receives less parallel work.
 export function planTestShards(
   files,
   shardCount,
   serialFiles = SERIAL_TEST_FILES,
+  seedWeights = [],
 ) {
   if (!Number.isSafeInteger(shardCount) || shardCount < 1)
     throw new Error('test shard count must be a positive integer');
@@ -104,7 +107,10 @@ export function planTestShards(
     );
   const effectiveShards = Math.min(shardCount, parallelFiles.length);
   const shards = Array.from({ length: effectiveShards }, () => []);
-  const shardWeights = Array.from({ length: effectiveShards }, () => 0);
+  const shardWeights = Array.from(
+    { length: effectiveShards },
+    (_, index) => seedWeights[index] ?? 0,
+  );
   for (const { file, size } of parallelFiles) {
     let target = 0;
     for (let index = 1; index < effectiveShards; index += 1) {
@@ -142,10 +148,15 @@ export function configuredTestShardSelection(index, total) {
   return selection;
 }
 
-// Splits the planned lanes across `total` runners deterministically: the
-// size-balanced lanes of planTestShards are distributed one lane per runner
-// and each serial file, heaviest first, to the runner with the least planned
-// weight, so it never lengthens the heaviest lane and every file lands in
+// CI runners run their parallel files on this many local lanes and their
+// serial files afterwards, so a serial second costs a whole runner second.
+export const RUNNER_LOCAL_LANES = 4;
+
+// Splits the files across `total` runners deterministically: each serial
+// file, heaviest first, goes to the least-loaded runner at RUNNER_LOCAL_LANES
+// times its weight (it runs alone after the lanes), then the parallel files
+// are balanced on top of those seeds, so the runner that carries a serial
+// file gets correspondingly less parallel work and every file lands in
 // exactly one selection. Shard `index` (1-based) returns its own files.
 export function selectTestShardFiles(
   files,
@@ -157,25 +168,25 @@ export function selectTestShardFiles(
     throw new Error('test shard total must be a positive integer');
   if (!Number.isSafeInteger(index) || index < 1 || index > total)
     throw new Error('test shard index must be between 1 and the total');
-  const plan = planTestShards(files, total, serialFiles);
-  const selected = [...(plan.shards[index - 1] ?? [])];
-  const load = Array.from(
-    { length: total },
-    (_, lane) => plan.weights[lane] ?? 0,
-  );
-  const serial = plan.serialFiles
-    .map((file) => ({ file, weight: fileWeight(file, 0) }))
+  const serialNames = new Set(serialFiles.map(normalizedFile));
+  const serial = [...new Set(files)]
+    .filter((file) => serialNames.has(normalizedFile(file)))
+    .map((file) => ({ file, weight: fileWeight(file, 0) || 1 }))
     .sort(
       (left, right) =>
         right.weight - left.weight || left.file.localeCompare(right.file),
     );
+  const seeds = Array.from({ length: total }, () => 0);
+  const selected = [];
   for (const { file, weight } of serial) {
     let lightest = 0;
-    for (let lane = 1; lane < total; lane += 1)
-      if (load[lane] < load[lightest]) lightest = lane;
-    load[lightest] += weight;
+    for (let runner = 1; runner < total; runner += 1)
+      if (seeds[runner] < seeds[lightest]) lightest = runner;
+    seeds[lightest] += weight * RUNNER_LOCAL_LANES;
     if (lightest === index - 1) selected.push(file);
   }
+  const plan = planTestShards(files, total, serialFiles, seeds);
+  selected.push(...(plan.shards[index - 1] ?? []));
   return selected.sort();
 }
 
