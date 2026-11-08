@@ -17,7 +17,7 @@ import prompts from './prompts.json' with { type: 'json' };
 
 const arg = (name: string, fallback: string) => {
   const i = process.argv.indexOf(`--${name}`);
-  return i > 0 ? process.argv[i + 1] : fallback;
+  return (i > 0 ? process.argv[i + 1] : undefined) ?? fallback;
 };
 const model = arg('model', 'claude-haiku-5-5');
 const budget = arg('budget', '0.15');
