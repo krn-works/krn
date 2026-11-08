@@ -25,6 +25,12 @@ test('timeout interrupts and stop reaps the owned server', async (t) => {
 test('server crash fails promptly and next send refuses a dead thread', async (t) => {
   const s = await setup(t);
   assert.equal((await s.turn('crash', true)).code, 75);
+  assert.deepEqual(s.json('rounds/001/result.json').failure, {
+    class: 'appServerExited',
+    retryable: false,
+    exit_status: 17,
+    signal: null,
+  });
   assert.equal((await s.turn('ok')).code, 5);
 });
 test('invalid reports and malformed protocol are bounded failures', {

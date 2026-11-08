@@ -5,6 +5,12 @@ import { z } from 'zod';
 import { defaultCodexExecutable, workerEnvironment } from '../hosts/codex.ts';
 import { CodexAppServer } from '../hosts/codex-app-server.ts';
 import { runAcceptance } from './acceptance.ts';
+import {
+  codexTurnFailure,
+  limitClass,
+  resetAt,
+  type TurnFailure,
+} from './failure.ts';
 import { workerIsolation } from './isolation.ts';
 import { processStat, workerUnit } from './process.ts';
 import { loadPolicy, scopeBaseline } from './scope.ts';
@@ -72,6 +78,10 @@ const completionSchema = z.object({
       phase: z.string().nullable().optional(),
     }),
   ),
+  error: z
+    .object({ codexErrorInfo: z.unknown().optional() })
+    .nullable()
+    .optional(),
 });
 const compactionItem = z.object({ type: z.literal('contextCompaction') });
 // Notifications a worker never reads: streamed text and output, which
@@ -288,6 +298,7 @@ async function drive(run: string): Promise<void> {
       let code = 0;
       let reason = 'done';
       let nontechnicalBlocker = false;
+      let turnFailure: TurnFailure | undefined;
       let turnId = '';
       let compacted = false;
       let report: z.infer<typeof reportSchema> | undefined;
@@ -368,6 +379,22 @@ async function drive(run: string): Promise<void> {
           stopped,
         );
         const completed = data(completionSchema, event.params?.turn);
+        if (completed.status === 'failed') {
+          const failed = codexTurnFailure(completed.error?.codexErrorInfo);
+          if (limitClass(failed)) {
+            const reset = resetAt(
+              await server
+                .request('account/rateLimits/read', undefined, 5000)
+                .catch(() => undefined),
+            );
+            if (reset) failed.reset_at = reset;
+          }
+          throw new WorkerError(
+            75,
+            `worker turn failed: ${failed.class}`,
+            failed,
+          );
+        }
         if (completed.status !== 'completed')
           throw new WorkerError(75, 'worker turn interrupted or failed');
         if (!usage || usageTurnId !== turnId)
@@ -392,6 +419,7 @@ async function drive(run: string): Promise<void> {
         const problem = failure(error);
         code = problem.exitCode;
         reason = problem.message;
+        turnFailure = problem.failure;
         if (code === 65 || code === 124 || stopped()) {
           // Without a turn id (e.g. a compaction timeout) there is no turn
           // to interrupt or await; the dead thread is reaped by stop.
@@ -583,6 +611,7 @@ async function drive(run: string): Promise<void> {
         ),
         acceptance,
         nontechnical_blocker: nontechnicalBlocker,
+        ...(turnFailure ? { failure: turnFailure } : {}),
       });
       if (state.status === 'dead') break;
     }
@@ -598,6 +627,7 @@ async function drive(run: string): Promise<void> {
     atomic(join(run, 'error.json'), {
       exit_code: problem.exitCode,
       message: redact(problem.message),
+      ...(problem.failure ? { failure: problem.failure } : {}),
     });
   } finally {
     try {
