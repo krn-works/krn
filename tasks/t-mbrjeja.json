@@ -1,0 +1,16 @@
+{
+  "id": "t-mbrjeja",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Lever 1 dead in Claude Code 2.1.319 (external Bun bundle): GrowthBook Ll.getEnvironmentOverrides() is stubbed to return null, readConfigOverrides() returns undefined and setConfigOverride is a no-op, so CLAUDE_INTERNAL_FC_OVERRIDES (with or without CLAUDE_CODE_EVAL_ALLOW_FLAG_OVERRIDES) never reaches pn('tengu_jiggly_blossom'); the flag stays remote-served (default off -> planner rZr returns undefined). The planner needs idle >3900s measured from transcript message timestamps, >=27 clearable tool uses, clear_at_least 20000 input tokens. Probe: haiku headless, 35 Read calls of ~4KB random files (~100k tokens context), transcript timestamps aged 3h, resumed twice with the override set: 78 context_management fields, all clear_thinking_20251015 or null, zero clear_tool_uses_20250919 (cost 0.24 USD). Lever 2 knobs (SLEEP_COMPACT, IDLE_COMPACT_MIN_TOKENS, COLD_COMPACT) gate summary compaction, not clear_tool_uses edits; TRANSCRIPT_SLIM_TOOL_RESULTS only affects SDK-url transcripts. Lever 3 needs an operator decision. Revisit when a release implements getEnvironmentOverrides or the flag is served remotely."
+  },
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Turn on Claude Code's built-in stale tool-result clearing for lead sessions",
+  "after": [],
+  "body": [
+    "Outcome: the lead's long sessions get stale tool results cleared through a lever that runs inside Claude Code, proven by `context_management.applied_edits` entries of type `clear_tool_uses_20250919` in a real transcript and a lower median per-turn context (scripts/claude/context-report.ts), or a recorded proof that each lever below is unavailable.\nWhy: operator 2026-11-09: \"jak znajdziesz na to realnie dojebany sposób to nie opuszczaj tej idei\". t-c8nb5xr (#515) closed as no lever, but the Claude Code 2.1.319 binary contains a built-in client: `tengu_tool_result_clearing_after_idle_*`, a planner that sends `{type:\"clear_tool_uses_20250919\", trigger, keep, clear_at_least}` with beta `context-management-2025-06-27` after an idle return, gated by remote flag `tengu_jiggly_blossom` (values off|shadow|on, default off). Flags read local overrides from env `CLAUDE_INTERNAL_FC_OVERRIDES` (GrowthBook `readEnvironmentOverrides`); `CLAUDE_CODE_EVAL_ALLOW_FLAG_OVERRIDES` may gate it.\nLevers to probe, in order: (1) `CLAUDE_INTERNAL_FC_OVERRIDES='{\"tengu_jiggly_blossom\":\"on\"}'` (with and without CLAUDE_CODE_EVAL_ALLOW_FLAG_OVERRIDES=1) in a headless probe session that makes tool calls, idles past the trigger, and resumes; read applied_edits from its transcript; (2) other env knobs found in the binary: CLAUDE_CODE_AUTO_COMPACT_WINDOW, CLAUDE_CODE_COLD_COMPACT, CLAUDE_CODE_SLEEP_COMPACT(_AFTER_MS), CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS, CLAUDE_CODE_TRANSCRIPT_SLIM_TOOL_RESULTS; (3) a localhost proxy via ANTHROPIC_BASE_URL that injects context_management is out of bounds without an operator decision (global rule: never route Anthropic credentials elsewhere).\nProof: a committed probe script and its verbatim captured transcript lines; if a lever works, enable it in project settings env with a test pinning it.\nScope: scripts/claude, .claude/settings.json, test/claude."
+  ]
+}
