@@ -1,0 +1,16 @@
+{
+  "id": "t-0sdf216",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Rule test scans tracked agent config for token shapes"
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Refuse committed agent settings that carry secrets",
+  "after": [],
+  "body": [
+    "Outcome: `npm run fast` and CI refuse a tracked .claude/settings*.json, .codex config or .mcp.json that holds a token-shaped value (API keys, bearer tokens, GitHub/Anthropic/OpenAI/Cloudflare token prefixes) in env or headers.\nWhy: Ars Technica 2026-11 (https://arstechnica.com/ai/2026/11/claude-code-settings-files-expose-thousands-of-secrets-on-github/, found by the rss radar 2026-11-09): Claude Code settings files leak thousands of secrets on GitHub. KRN tracks .claude/settings.json and the global contract says never persist secrets.\nProof: a test seeds a settings file with a fake token and expects the check to fail naming the file and key, and the real tracked files pass.\nScope: scripts or test/rules, the CI check that already lints tracked config."
+  ]
+}
