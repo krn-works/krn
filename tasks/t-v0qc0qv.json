@@ -1,0 +1,16 @@
+{
+  "id": "t-v0qc0qv",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn-reader has a description; rule test requires name and description on every project agent."
+  },
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Load the krn-reader subagent by giving it a description",
+  "after": [],
+  "body": [
+    "Outcome: every .claude/agents/*.md has name and description, so Claude Code loads it.\nWhy: on 2026-11-09 the session agent list lacked krn-reader; its frontmatter had no description, so the reader lane the lead skill prescribes was never available.\nProof: a rule test fails when an agent file lacks name or description.\nScope: .claude/agents/krn-reader.md, test/rules/project-skills.test.ts."
+  ]
+}

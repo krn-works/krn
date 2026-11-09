@@ -95,6 +95,16 @@ function frontmatter(path: string): Map<string, string> {
   );
 }
 
+// Claude Code skips an agent file without a description: krn-reader went
+// missing from every session's agent list until 2026-11-09.
+test('every project agent has a name and a description', () => {
+  for (const file of readdirSync(join(root, '.claude/agents'))) {
+    const fields = frontmatter(`.claude/agents/${file}`);
+    assert.equal(fields.get('name'), file.replace(/\.md$/u, ''), file);
+    assert.ok(fields.get('description'), `${file} needs a description`);
+  }
+});
+
 test('read-only agents cap their turns so a recon lane cannot grow its context unbounded', () => {
   for (const file of ['krn-reader', 'krn-research', 'krn-lane']) {
     const turns = Number(
