@@ -1,7 +1,11 @@
 {
   "id": "t-sqkp4py",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn lane start shipped with test/cli/lane.test.ts; lanes.md and SKILL.md updated"
+  },
   "created": "2026-11-09",
   "priority": 3,
   "title": "Start a lane worktree in one call: krn lane start prints the ready path",

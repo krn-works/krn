@@ -46,6 +46,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/cli/exit-code-classification.test.ts': 0.7,
   'test/cli/flag-value.test.ts': 0.1,
   'test/cli/internal-error-exit.test.ts': 0.7,
+  'test/cli/lane.test.ts': 1,
   'test/cli/launcher-node-version.test.ts': 0.3,
   'test/cli/launcher-toolchain.test.ts': 0.1,
   'test/cli/launcher.test.ts': 0.2,

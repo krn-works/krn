@@ -36,6 +36,9 @@ export async function dispatch(args: string[]): Promise<boolean> {
     }
     const { taskCommand } = await import('../task/cli.ts');
     await taskCommand(options);
+  } else if (command === 'lane') {
+    const { laneCommand } = await import('./lane.ts');
+    await laneCommand(options);
   } else if (command === 'state') {
     const { stateCommand } = await import('./state.ts');
     stateCommand(options);
