@@ -1,0 +1,13 @@
+{
+  "id": "t-9zd1ev0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Dedupe Codex restart injection, add the fork source, and bound the owner capsule",
+  "after": [],
+  "body": [
+    "Follow-up of t-b6v615x (runtime accepted 2026-11-09, captures under .krn/runs/codex/acceptance/).\n1. After `codex exec resume` triggered auto-compaction, the KRN restart block and the global capsule block were each injected twice in the same turn (rollout lines 36-39 of rollout-compact.jsonl); capture the SessionStart sources and inject once per turn.\n2. The SessionStart matcher lacks `fork` (openai/codex generated schema lists startup, resume, clear, compact, fork). Changing .codex/hooks.json changes its trusted_hash, so the operator must re-trust the new definition; ask with the exact diff.\n3. Owner-side: global krn-codex-skills krn_capsule.py still drops any SessionStart output over 4096 B (a 5161 B capture was lost); emit bounded pointers with a truncation marker like scripts/codex/context-hook.ts `bounded`, with a 4096 B overflow test at the owner.",
+    "Probe recipe (retro of t-b6v615x): verify by reading the rollout, not the model's answer, because Codex refuses to quote developer messages. Content items with content_item_kinds hooks.additional_context and provenance hook:true are the injected hook output. Controlled compaction: `codex exec resume <id> -c model_auto_compact_token_limit=20000`; advisory: a ~630 KB stdin prompt (`codex exec -`) then a short resume. Script this as one probe that prints PASS/FAIL per event before re-trusting the changed definition."
+  ]
+}
