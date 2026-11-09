@@ -1,7 +1,11 @@
 {
   "id": "t-gm82yth",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast-check caches a PASS keyed by tree hash plus base"
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Reuse a cached npm run fast pass on an unchanged tree",
