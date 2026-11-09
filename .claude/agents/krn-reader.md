@@ -1,6 +1,7 @@
 ---
 name: krn-reader
 model: haiku
+maxTurns: 40
 tools: Read, Grep, Glob, Bash
 ---
 
