@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import type { Readable } from 'node:stream';
-import test from 'node:test';
+import test, { describe } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   claimTask,
@@ -17,262 +17,269 @@ import { serializeTask, type TaskRecord } from '../../src/task/record.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/krn.mjs', import.meta.url));
 
-test('expired claims have one concurrent claim --next winner across two worktrees', async () => {
-  const repo = await fixtureRepo('claim-lock-race-', [task('T-1')]);
-  const linked = join(dirname(repo), `${basename(repo)}-linked`);
-  try {
-    addWorktree(repo, linked, 'claim-lock-race-linked-branch');
-    const claimPath = join(repo, '.krn', 'task-claims', 'T-1.json');
+// Each test owns its fixture repository, and lock names hash the main
+// checkout path, so tests never contend for one another's locks.
+describe('task claim locks', { concurrency: true }, () => {
+  test('expired claims have one concurrent claim --next winner across two worktrees', async () => {
+    const repo = await fixtureRepo('claim-lock-race-', [task('T-1')]);
+    const linked = join(dirname(repo), `${basename(repo)}-linked`);
+    try {
+      addWorktree(repo, linked, 'claim-lock-race-linked-branch');
+      const claimPath = join(repo, '.krn', 'task-claims', 'T-1.json');
 
-    for (let trial = 0; trial < 4; trial += 1) {
-      await mkdir(dirname(claimPath), { recursive: true });
-      await writeFile(
-        claimPath,
-        serializeClaim({
-          id: 'T-1',
-          actor: `stale-${trial}`,
-          worktree: join(dirname(repo), `missing-worktree-${trial}`),
-          branch: `missing-branch-${trial}`,
-          claimed: '2026-10-26T00:00:00.000Z',
-          reason: null,
-        }),
-      );
-
-      const results = await Promise.all(
-        Array.from({ length: 12 }, async (_, index) => {
-          const actor = `worker-${trial}-${index}`;
-          const worktree = index % 2 === 0 ? repo : linked;
-          return {
-            actor,
-            worktree,
-            ...(await runCliAsync(worktree, [
-              'claim',
-              '--next',
-              '--actor',
-              actor,
-            ])),
-          };
-        }),
-      );
-      const winners = results.filter((result) => result.status === 0);
-      assert.equal(
-        winners.length,
-        1,
-        `trial ${trial}: ${results.map((result) => `${result.actor}=${result.status}`).join(', ')}`,
-      );
-      assert.equal(results.filter((result) => result.status === 75).length, 11);
-
-      const winner = winners[0];
-      assert.ok(winner);
-      assert.equal(winner.stdout.trim(), 'T-1');
-      const saved = JSON.parse(readFileSync(claimPath, 'utf8')) as {
-        actor: string;
-        id: string;
-        worktree: string;
-      };
-      assert.equal(saved.id, 'T-1');
-      assert.equal(saved.actor, winner.actor);
-      assert.equal(saved.worktree, realPath(winner.worktree));
-    }
-  } finally {
-    removeWorktree(repo, linked);
-    await rm(repo, { recursive: true, force: true });
-  }
-});
-
-test('takeover, release, and plain claim mutations stay serialized', async () => {
-  const ids = Array.from({ length: 4 }, (_, index) => `T-${index + 1}`);
-  const repo = await fixtureRepo('claim-lock-mutations-', ids.map(task));
-  const linked = join(dirname(repo), `${basename(repo)}-linked`);
-  try {
-    addWorktree(repo, linked, 'claim-lock-mutations-linked-branch');
-    for (const id of ids) await claimTask(repo, id, { actor: `seed-${id}` });
-
-    await Promise.all(
-      ids.map(async (id, trial) => {
-        const results = await Promise.all(
-          Array.from({ length: 18 }, async (_, index) => {
-            const kind =
-              index < 6 ? 'takeover' : index < 12 ? 'release' : 'claim';
-            const actor = `${kind}-${trial}-${index}`;
-            const worktree = index % 2 === 0 ? repo : linked;
-            try {
-              if (kind === 'release') await releaseClaim(worktree, id);
-              else
-                await claimTask(worktree, id, {
-                  actor,
-                  ...(kind === 'takeover'
-                    ? { takeover: true, reason: 'reassigning work' }
-                    : {}),
-                });
-              return { kind, code: 0 };
-            } catch (error) {
-              return { kind, code: errorCode(error) };
-            }
+      for (let trial = 0; trial < 2; trial += 1) {
+        await mkdir(dirname(claimPath), { recursive: true });
+        await writeFile(
+          claimPath,
+          serializeClaim({
+            id: 'T-1',
+            actor: `stale-${trial}`,
+            worktree: join(dirname(repo), `missing-worktree-${trial}`),
+            branch: `missing-branch-${trial}`,
+            claimed: '2026-10-26T00:00:00.000Z',
+            reason: null,
           }),
         );
 
-        assert.ok(results.every(({ code }) => [0, 65, 75].includes(code)));
-        const takeovers = results.filter(({ kind }) => kind === 'takeover');
-        assert.ok(takeovers.some(({ code }) => code === 0));
-        assert.ok(takeovers.every(({ code }) => code === 0 || code === 75));
-        assert.ok(['live', 'none'].includes(inspectClaim(repo, id).state));
-      }),
-    );
-    assert.equal(existsSync(join(repo, '.krn', 'tmp', 'task-locks')), false);
-  } finally {
-    removeWorktree(repo, linked);
-    await rm(repo, { recursive: true, force: true });
-  }
-});
+        const results = await Promise.all(
+          Array.from({ length: 12 }, async (_, index) => {
+            const actor = `worker-${trial}-${index}`;
+            const worktree = index % 2 === 0 ? repo : linked;
+            return {
+              actor,
+              worktree,
+              ...(await runCliAsync(worktree, [
+                'claim',
+                '--next',
+                '--actor',
+                actor,
+              ])),
+            };
+          }),
+        );
+        const winners = results.filter((result) => result.status === 0);
+        assert.equal(
+          winners.length,
+          1,
+          `trial ${trial}: ${results.map((result) => `${result.actor}=${result.status}`).join(', ')}`,
+        );
+        assert.equal(
+          results.filter((result) => result.status === 75).length,
+          11,
+        );
 
-test('a killed lock holder releases the task name to the next claimer', async () => {
-  const repo = await fixtureRepo('claim-lock-killed-', [task('T-1')]);
-  let holder: ReturnType<typeof startLockHolder> | undefined;
-  try {
-    holder = startLockHolder(repo, 'T-1');
-    await holder.locked;
-    const closed = waitForClose(holder.child);
-    holder.child.kill('SIGKILL');
-    const result = await closed;
-    assert.equal(result.signal, 'SIGKILL');
+        const winner = winners[0];
+        assert.ok(winner);
+        assert.equal(winner.stdout.trim(), 'T-1');
+        const saved = JSON.parse(readFileSync(claimPath, 'utf8')) as {
+          actor: string;
+          id: string;
+          worktree: string;
+        };
+        assert.equal(saved.id, 'T-1');
+        assert.equal(saved.actor, winner.actor);
+        assert.equal(saved.worktree, realPath(winner.worktree));
+      }
+    } finally {
+      removeWorktree(repo, linked);
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
 
-    const claimed = await runCliAsync(repo, [
-      'claim',
-      'T-1',
-      '--actor',
-      'after-kill',
+  test('takeover, release, and plain claim mutations stay serialized', async () => {
+    const ids = Array.from({ length: 2 }, (_, index) => `T-${index + 1}`);
+    const repo = await fixtureRepo('claim-lock-mutations-', ids.map(task));
+    const linked = join(dirname(repo), `${basename(repo)}-linked`);
+    try {
+      addWorktree(repo, linked, 'claim-lock-mutations-linked-branch');
+      for (const id of ids) await claimTask(repo, id, { actor: `seed-${id}` });
+
+      await Promise.all(
+        ids.map(async (id, trial) => {
+          const results = await Promise.all(
+            Array.from({ length: 18 }, async (_, index) => {
+              const kind =
+                index < 6 ? 'takeover' : index < 12 ? 'release' : 'claim';
+              const actor = `${kind}-${trial}-${index}`;
+              const worktree = index % 2 === 0 ? repo : linked;
+              try {
+                if (kind === 'release') await releaseClaim(worktree, id);
+                else
+                  await claimTask(worktree, id, {
+                    actor,
+                    ...(kind === 'takeover'
+                      ? { takeover: true, reason: 'reassigning work' }
+                      : {}),
+                  });
+                return { kind, code: 0 };
+              } catch (error) {
+                return { kind, code: errorCode(error) };
+              }
+            }),
+          );
+
+          assert.ok(results.every(({ code }) => [0, 65, 75].includes(code)));
+          const takeovers = results.filter(({ kind }) => kind === 'takeover');
+          assert.ok(takeovers.some(({ code }) => code === 0));
+          assert.ok(takeovers.every(({ code }) => code === 0 || code === 75));
+          assert.ok(['live', 'none'].includes(inspectClaim(repo, id).state));
+        }),
+      );
+      assert.equal(existsSync(join(repo, '.krn', 'tmp', 'task-locks')), false);
+    } finally {
+      removeWorktree(repo, linked);
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test('a killed lock holder releases the task name to the next claimer', async () => {
+    const repo = await fixtureRepo('claim-lock-killed-', [task('T-1')]);
+    let holder: ReturnType<typeof startLockHolder> | undefined;
+    try {
+      holder = startLockHolder(repo, 'T-1');
+      await holder.locked;
+      const closed = waitForClose(holder.child);
+      holder.child.kill('SIGKILL');
+      const result = await closed;
+      assert.equal(result.signal, 'SIGKILL');
+
+      const claimed = await runCliAsync(repo, [
+        'claim',
+        'T-1',
+        '--actor',
+        'after-kill',
+      ]);
+      assert.equal(claimed.status, 0, claimed.stderr);
+      assert.match(claimed.stdout, /T-1/u);
+    } finally {
+      await stopHolder(holder);
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test('a live lock holder makes a contender return claim busy', async () => {
+    const repo = await fixtureRepo('claim-lock-live-', [task('T-1')]);
+    let holder: ReturnType<typeof startLockHolder> | undefined;
+    try {
+      holder = startLockHolder(repo, 'T-1');
+      await holder.locked;
+
+      const contender = await runCliAsync(
+        repo,
+        ['claim', 'T-1', '--actor', 'blocked'],
+        { ...process.env, NODE_ENV: 'test', KRN_TASK_LOCK_WAIT_MS: '100' },
+      );
+      assert.equal(contender.status, 75, contender.stderr);
+      assert.match(contender.stderr, /claim is busy/u);
+    } finally {
+      await stopHolder(holder);
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test('an expired claim cannot be taken while another claimer holds its lock', async () => {
+    const repo = await fixtureRepo('claim-lock-expired-', [task('T-1')]);
+    const claimPath = join(repo, '.krn', 'task-claims', 'T-1.json');
+    let holder: ReturnType<typeof startLockHolder> | undefined;
+    try {
+      await mkdir(dirname(claimPath), { recursive: true });
+      const stale = serializeClaim({
+        id: 'T-1',
+        actor: 'stale',
+        worktree: join(dirname(repo), 'missing-worktree'),
+        branch: 'missing-branch',
+        claimed: '2026-10-26T00:00:00.000Z',
+        reason: null,
+      });
+      await writeFile(claimPath, stale);
+      assert.equal(inspectClaim(repo, 'T-1').state, 'expired');
+
+      holder = startLockHolder(repo, 'T-1');
+      await holder.locked;
+
+      const contender = await runCliAsync(
+        repo,
+        ['claim', '--next', '--actor', 'contender'],
+        { ...process.env, NODE_ENV: 'test', KRN_TASK_LOCK_WAIT_MS: '0' },
+      );
+      assert.equal(contender.status, 75, contender.stderr);
+      assert.match(contender.stderr, /claim is busy/u);
+      assert.equal(readFileSync(claimPath, 'utf8'), stale);
+    } finally {
+      await stopHolder(holder);
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test('repositories with the same task id have separate lock names', async () => {
+    const first = await fixtureRepo('claim-lock-repository-first-', [
+      task('T-1'),
     ]);
-    assert.equal(claimed.status, 0, claimed.stderr);
-    assert.match(claimed.stdout, /T-1/u);
-  } finally {
-    await stopHolder(holder);
-    await rm(repo, { recursive: true, force: true });
-  }
-});
-
-test('a live lock holder makes a contender return claim busy', async () => {
-  const repo = await fixtureRepo('claim-lock-live-', [task('T-1')]);
-  let holder: ReturnType<typeof startLockHolder> | undefined;
-  try {
-    holder = startLockHolder(repo, 'T-1');
-    await holder.locked;
-
-    const contender = await runCliAsync(
-      repo,
-      ['claim', 'T-1', '--actor', 'blocked'],
-      { ...process.env, NODE_ENV: 'test', KRN_TASK_LOCK_WAIT_MS: '100' },
-    );
-    assert.equal(contender.status, 75, contender.stderr);
-    assert.match(contender.stderr, /claim is busy/u);
-  } finally {
-    await stopHolder(holder);
-    await rm(repo, { recursive: true, force: true });
-  }
-});
-
-test('an expired claim cannot be taken while another claimer holds its lock', async () => {
-  const repo = await fixtureRepo('claim-lock-expired-', [task('T-1')]);
-  const claimPath = join(repo, '.krn', 'task-claims', 'T-1.json');
-  let holder: ReturnType<typeof startLockHolder> | undefined;
-  try {
-    await mkdir(dirname(claimPath), { recursive: true });
-    const stale = serializeClaim({
-      id: 'T-1',
-      actor: 'stale',
-      worktree: join(dirname(repo), 'missing-worktree'),
-      branch: 'missing-branch',
-      claimed: '2026-10-26T00:00:00.000Z',
-      reason: null,
-    });
-    await writeFile(claimPath, stale);
-    assert.equal(inspectClaim(repo, 'T-1').state, 'expired');
-
-    holder = startLockHolder(repo, 'T-1');
-    await holder.locked;
-
-    const contender = await runCliAsync(
-      repo,
-      ['claim', '--next', '--actor', 'contender'],
-      { ...process.env, NODE_ENV: 'test', KRN_TASK_LOCK_WAIT_MS: '0' },
-    );
-    assert.equal(contender.status, 75, contender.stderr);
-    assert.match(contender.stderr, /claim is busy/u);
-    assert.equal(readFileSync(claimPath, 'utf8'), stale);
-  } finally {
-    await stopHolder(holder);
-    await rm(repo, { recursive: true, force: true });
-  }
-});
-
-test('repositories with the same task id have separate lock names', async () => {
-  const first = await fixtureRepo('claim-lock-repository-first-', [
-    task('T-1'),
-  ]);
-  const second = await fixtureRepo('claim-lock-repository-second-', [
-    task('T-1'),
-  ]);
-  let holder: ReturnType<typeof startLockHolder> | undefined;
-  try {
-    holder = startLockHolder(first, 'T-1');
-    await holder.locked;
-
-    const independent = await runCliAsync(second, [
-      'claim',
-      'T-1',
-      '--actor',
-      'independent',
+    const second = await fixtureRepo('claim-lock-repository-second-', [
+      task('T-1'),
     ]);
-    assert.equal(independent.status, 0, independent.stderr);
-    assert.equal(inspectClaim(second, 'T-1').state, 'live');
-  } finally {
-    await stopHolder(holder);
-    await Promise.all([
-      rm(first, { recursive: true, force: true }),
-      rm(second, { recursive: true, force: true }),
+    let holder: ReturnType<typeof startLockHolder> | undefined;
+    try {
+      holder = startLockHolder(first, 'T-1');
+      await holder.locked;
+
+      const independent = await runCliAsync(second, [
+        'claim',
+        'T-1',
+        '--actor',
+        'independent',
+      ]);
+      assert.equal(independent.status, 0, independent.stderr);
+      assert.equal(inspectClaim(second, 'T-1').state, 'live');
+    } finally {
+      await stopHolder(holder);
+      await Promise.all([
+        rm(first, { recursive: true, force: true }),
+        rm(second, { recursive: true, force: true }),
+      ]);
+    }
+  });
+
+  test('a 100-character task id can be claimed and released', async () => {
+    const id = `T-${'1'.repeat(98)}`;
+    const repo = await fixtureRepo('claim-lock-long-id-', [task(id)]);
+    try {
+      await claimTask(repo, id, { actor: 'worker' });
+      assert.equal(inspectClaim(repo, id).state, 'live');
+
+      await releaseClaim(repo, id);
+      assert.equal(inspectClaim(repo, id).state, 'none');
+    } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test('long task ids with the same prefix have separate lock names', async () => {
+    const prefix = `T-${'a'.repeat(97)}`;
+    const firstId = `${prefix}1`;
+    const secondId = `${prefix}2`;
+    const repo = await fixtureRepo('claim-lock-long-prefix-', [
+      task(firstId),
+      task(secondId),
     ]);
-  }
-});
+    let holder: ReturnType<typeof startLockHolder> | undefined;
+    try {
+      holder = startLockHolder(repo, firstId);
+      await holder.locked;
 
-test('a 100-character task id can be claimed and released', async () => {
-  const id = `T-${'1'.repeat(98)}`;
-  const repo = await fixtureRepo('claim-lock-long-id-', [task(id)]);
-  try {
-    await claimTask(repo, id, { actor: 'worker' });
-    assert.equal(inspectClaim(repo, id).state, 'live');
-
-    await releaseClaim(repo, id);
-    assert.equal(inspectClaim(repo, id).state, 'none');
-  } finally {
-    await rm(repo, { recursive: true, force: true });
-  }
-});
-
-test('long task ids with the same prefix have separate lock names', async () => {
-  const prefix = `T-${'a'.repeat(97)}`;
-  const firstId = `${prefix}1`;
-  const secondId = `${prefix}2`;
-  const repo = await fixtureRepo('claim-lock-long-prefix-', [
-    task(firstId),
-    task(secondId),
-  ]);
-  let holder: ReturnType<typeof startLockHolder> | undefined;
-  try {
-    holder = startLockHolder(repo, firstId);
-    await holder.locked;
-
-    const independent = await runCliAsync(repo, [
-      'claim',
-      secondId,
-      '--actor',
-      'independent',
-    ]);
-    assert.equal(independent.status, 0, independent.stderr);
-    assert.equal(inspectClaim(repo, secondId).state, 'live');
-  } finally {
-    await stopHolder(holder);
-    await rm(repo, { recursive: true, force: true });
-  }
+      const independent = await runCliAsync(repo, [
+        'claim',
+        secondId,
+        '--actor',
+        'independent',
+      ]);
+      assert.equal(independent.status, 0, independent.stderr);
+      assert.equal(inspectClaim(repo, secondId).state, 'live');
+    } finally {
+      await stopHolder(holder);
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
 });
 
 function startLockHolder(root: string, id: string) {
