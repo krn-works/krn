@@ -1,7 +1,11 @@
 {
   "id": "t-r7vesw1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ledger on 30 PRs: 38-45 s (was >600 s); rows unchanged except flaky-network gates; .krn/runs/ledger-speed/proof.md"
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Make krn ledger on 30 PRs finish in under a minute",

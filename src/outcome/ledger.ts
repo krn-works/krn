@@ -311,8 +311,49 @@ export function gateTotals(responses: unknown[]) {
 
 export type Run = (cmd: string, args: string[]) => string | Promise<string>;
 const exec = promisify(execFile);
-const defaultRun: Run = async (cmd, args) =>
-  (await exec(cmd, args, { maxBuffer: 16 * 1024 * 1024 })).stdout;
+/**
+ * GitHub calls answer in about 0.7 s but sometimes hang (one took 218 s) or
+ * fail a TLS handshake; a call ends after this and is tried again.
+ */
+const CALL_TIMEOUT_MS = 5_000;
+const CALL_ATTEMPTS = 3;
+const defaultRun: Run = async (cmd, args) => {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return (
+        await exec(cmd, args, {
+          maxBuffer: 16 * 1024 * 1024,
+          timeout: CALL_TIMEOUT_MS,
+        })
+      ).stdout;
+    } catch (error) {
+      if (attempt >= CALL_ATTEMPTS) throw error;
+    }
+  }
+};
+/** PR rows fetched at once: each row waits on GitHub calls, not on CPU. */
+const ROW_CONCURRENCY = 12;
+/** Transcript files read at once. */
+const FILE_CONCURRENCY = 8;
+/** Map items with at most `limit` in flight, keeping input order. */
+export async function mapLimited<T, R>(
+  items: T[],
+  limit: number,
+  f: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      results[i] = await f(items[i] as T);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, worker),
+  );
+  return results;
+}
 export type LedgerOptions = {
   root?: string;
   transcripts?: string;
@@ -400,27 +441,36 @@ async function jsonlFiles(path: string) {
 }
 // Lead sessions are the top-level transcripts; each session's subagents live in <session>/subagents/.
 async function sessions(paths: string[]) {
-  const lead: Session[] = [];
-  const subagents: Transcript[] = [];
-  for (const file of (await Promise.all(paths.map(jsonlFiles))).flat()) {
+  const files = (await Promise.all(paths.map(jsonlFiles))).flat();
+  // Files are read concurrently so disk waits overlap; results keep file order.
+  const entries = await mapLimited(files, FILE_CONCURRENCY, async (file) => {
     const session = await readSession(file);
-    if (!session) continue;
-    lead.push(session);
-    for (const sub of await jsonlFiles(
+    if (!session) return null;
+    const subs = await jsonlFiles(
       join(file.slice(0, -'.jsonl'.length), 'subagents'),
-    )) {
+    );
+    const subagents = await mapLimited(subs, FILE_CONCURRENCY, async (sub) => {
       const parsed = await readSession(sub, true);
-      if (!parsed) continue;
+      if (!parsed) return null;
       const meta = object(parse(await read(`${sub.slice(0, -6)}.meta.json`)));
-      subagents.push({
+      const transcript: Transcript = {
         role: `subagent:${string(meta.agentType) || 'unknown'}`,
         turns: parsed.turns,
         malformed: parsed.malformed,
         ...(string(meta.toolUseId)
           ? { parentTool: string(meta.toolUseId) }
           : {}),
-      });
-    }
+      };
+      return transcript;
+    });
+    return { session, subagents };
+  });
+  const lead: Session[] = [];
+  const subagents: Transcript[] = [];
+  for (const entry of entries) {
+    if (!entry) continue;
+    lead.push(entry.session);
+    for (const sub of entry.subagents) if (sub) subagents.push(sub);
   }
   return { lead, subagents };
 }
@@ -550,6 +600,60 @@ export async function collectLedger(options: LedgerOptions = {}) {
       merge: string(object(p.mergeCommit).oid),
     }))
     .sort((a, b) => (time(b.mergedAt) ?? 0) - (time(a.mergedAt) ?? 0));
+  // One request per commit, shared by concurrent rows.
+  const gates = new Map<string, Promise<unknown>>();
+  const gate = (sha: string): Promise<unknown> => {
+    if (!sha) return Promise.resolve(null);
+    const cached = gates.get(sha);
+    if (cached) return cached;
+    const pending = Promise.resolve()
+      .then(() =>
+        run('gh', [
+          'api',
+          `repos/${repo}/commits/${sha}/check-runs?filter=all&per_page=100`,
+        ]),
+      )
+      .then(parse, () => null);
+    gates.set(sha, pending);
+    return pending;
+  };
+  const selected = [...prs.entries()]
+    .filter(
+      ([, pr]) =>
+        (options.pr === undefined || pr.number === options.pr) &&
+        (!options.since ||
+          (time(pr.mergedAt) ?? 0) >= Date.parse(options.since)),
+    )
+    .slice(0, options.limit ?? 15);
+  // GitHub answers arrive while the transcripts below are read.
+  const github = mapLimited(selected, ROW_CONCURRENCY, async ([, pr]) => {
+    let commits: unknown[] | null = null;
+    try {
+      const response = object(
+        parse(
+          await run('gh', [
+            'pr',
+            'view',
+            String(pr.number),
+            '--repo',
+            repo,
+            '--json',
+            'commits',
+          ]),
+        ),
+      );
+      if (Array.isArray(response.commits)) commits = response.commits;
+    } catch {
+      /* Unknown PR gate. */
+    }
+    const shas = commits
+      ? [...new Set(commits.map((c) => string(object(c).oid)))]
+      : [];
+    return {
+      prGate: gateTotals(await Promise.all(shas.map(gate))),
+      mainGate: gateTotals([await gate(pr.merge)]),
+    };
+  });
   const runs = await walk(join(root, '.krn/runs'));
   const archive = await walk(join(root, '.krn/archive'));
   const records = await Promise.all(
@@ -579,133 +683,91 @@ export async function collectLedger(options: LedgerOptions = {}) {
     if (pr !== null)
       attributed.set(pr, [...(attributed.get(pr) ?? []), session]);
   }
-  const gates = new Map<string, unknown>();
-  const gate = async (sha: string) => {
-    if (!sha) return null;
-    if (!gates.has(sha)) {
-      try {
-        gates.set(
-          sha,
-          parse(
-            await run('gh', [
-              'api',
-              `repos/${repo}/commits/${sha}/check-runs?filter=all&per_page=100`,
-            ]),
-          ),
-        );
-      } catch {
-        gates.set(sha, null);
+  const rows = await mapLimited(
+    selected.map((entry, position) => [position, ...entry] as const),
+    ROW_CONCURRENCY,
+    async ([position, index, pr]) => {
+      const checks = (await github)[position];
+      if (!checks) throw new Error(`no GitHub row for #${pr.number}`);
+      const task = /\((t-[0-9a-z]{7})\)\s*$/.exec(pr.title)?.[1];
+      const dirs = new Set<string>();
+      if (task) {
+        for (const dir of runs.dirs) if (basename(dir) === task) dirs.add(dir);
+        const journalPath = join(root, '.krn/runs/slice', task, 'journal.json');
+        const journal = (await isPlainFile(journalPath))
+          ? object(parse(await read(journalPath)))
+          : {};
+        const briefDir = string(journal.brief)
+          ? await realDirectoryInside(
+              root,
+              dirname(resolve(root, string(journal.brief))),
+            )
+          : null;
+        if (briefDir) dirs.add(briefDir);
       }
-    }
-    return gates.get(sha);
-  };
-  const rows = [];
-  for (const [index, pr] of prs.entries()) {
-    if (rows.length >= (options.limit ?? 15)) break;
-    if (options.pr !== undefined && pr.number !== options.pr) continue;
-    if (options.since && (time(pr.mergedAt) ?? 0) < Date.parse(options.since))
-      continue;
-    const task = /\((t-[0-9a-z]{7})\)\s*$/.exec(pr.title)?.[1];
-    const dirs = new Set<string>();
-    if (task) {
-      for (const dir of runs.dirs) if (basename(dir) === task) dirs.add(dir);
-      const journalPath = join(root, '.krn/runs/slice', task, 'journal.json');
-      const journal = (await isPlainFile(journalPath))
-        ? object(parse(await read(journalPath)))
-        : {};
-      const briefDir = string(journal.brief)
-        ? await realDirectoryInside(
-            root,
-            dirname(resolve(root, string(journal.brief))),
+      // Assign each metrics path to its closest run directory, avoiding nested-root double counting.
+      const groups: unknown[][] = [];
+      const hashes = new Map<unknown, string>();
+      const seenPaths = new Set<string>();
+      for (const dir of [...dirs].sort((a, b) => b.length - a.length)) {
+        const metrics = [];
+        const fromRuns = relative(join(root, '.krn/runs'), dir);
+        const depth = fromRuns.startsWith('..')
+          ? 0
+          : fromRuns.split(sep).filter(Boolean).length;
+        if (depth > 8) continue;
+        for (const file of (await walk(dir, depth)).files) {
+          if (
+            !/(?:^|\/)rounds\/\d+\/metrics\.json$/.test(relative(dir, file)) ||
+            seenPaths.has(file)
           )
-        : null;
-      if (briefDir) dirs.add(briefDir);
-    }
-    // Assign each metrics path to its closest run directory, avoiding nested-root double counting.
-    const groups: unknown[][] = [];
-    const hashes = new Map<unknown, string>();
-    const seenPaths = new Set<string>();
-    for (const dir of [...dirs].sort((a, b) => b.length - a.length)) {
-      const metrics = [];
-      const fromRuns = relative(join(root, '.krn/runs'), dir);
-      const depth = fromRuns.startsWith('..')
-        ? 0
-        : fromRuns.split(sep).filter(Boolean).length;
-      if (depth > 8) continue;
-      for (const file of (await walk(dir, depth)).files) {
-        if (
-          !/(?:^|\/)rounds\/\d+\/metrics\.json$/.test(relative(dir, file)) ||
-          seenPaths.has(file)
-        )
-          continue;
-        seenPaths.add(file);
-        const content = await read(file);
-        const raw = parse(content);
-        if (raw !== null) {
-          hashes.set(raw, createHash('sha256').update(content).digest('hex'));
-          metrics.push(raw);
+            continue;
+          seenPaths.add(file);
+          const content = await read(file);
+          const raw = parse(content);
+          if (raw !== null) {
+            hashes.set(raw, createHash('sha256').update(content).digest('hex'));
+            metrics.push(raw);
+          }
         }
+        groups.push(metrics);
       }
-      groups.push(metrics);
-    }
-    const own = attributed.get(pr.number) ?? [];
-    const cost = costs.get(pr.number);
-    const lead: Tokens = cost?.leadTokens ?? unknownTokens();
-    // A deliver launch belongs to the PR its `--pr` names, in any session; one without `--pr` belongs to its session's PR.
-    const launches = all.flatMap((s) =>
-      s.launches.filter(
-        (_, i) =>
-          s.launchPrs[i] === pr.number ||
-          (s.launchPrs[i] === null && own.includes(s)),
-      ),
-    );
-    if (task) {
-      const exit = (
-        await read(join(root, '.krn/runs/slice', task, 'landing.exit'))
-      ).trim();
-      if (/^\d+$/.test(exit)) launches.push(Number(exit));
-    }
-    let commits: unknown[] | null = null;
-    try {
-      const response = object(
-        parse(
-          await run('gh', [
-            'pr',
-            'view',
-            String(pr.number),
-            '--repo',
-            repo,
-            '--json',
-            'commits',
-          ]),
+      const own = attributed.get(pr.number) ?? [];
+      const cost = costs.get(pr.number);
+      const lead: Tokens = cost?.leadTokens ?? unknownTokens();
+      // A deliver launch belongs to the PR its `--pr` names, in any session; one without `--pr` belongs to its session's PR.
+      const launches = all.flatMap((s) =>
+        s.launches.filter(
+          (_, i) =>
+            s.launchPrs[i] === pr.number ||
+            (s.launchPrs[i] === null && own.includes(s)),
         ),
       );
-      if (Array.isArray(response.commits)) commits = response.commits;
-    } catch {
-      /* Unknown PR gate. */
-    }
-    const shas = commits
-      ? [...new Set(commits.map((c) => string(object(c).oid)))]
-      : [];
-    rows.push({
-      number: pr.number,
-      title: pr.title,
-      task: task ?? null,
-      openToMergeMinutes: round(duration(pr.createdAt, pr.mergedAt)),
-      mergeToMergeMinutes: round(
-        duration(prs[index + 1]?.mergedAt, pr.mergedAt),
-      ),
-      prGate: gateTotals(await Promise.all(shas.map(gate))),
-      mainGate: gateTotals([await gate(pr.merge)]),
-      review: reviewTotals(records, repo, pr.number),
-      worker: workerTotals(groups, hashes),
-      deliver: launches.length ? launches : null,
-      lead,
-      leadUncachedInput: sum([lead.input, lead.cache_creation]),
-      cost: cost ?? null,
-      outcome: await outcome(run, root, options.now ?? Date.now(), pr),
-    });
-  }
+      if (task) {
+        const exit = (
+          await read(join(root, '.krn/runs/slice', task, 'landing.exit'))
+        ).trim();
+        if (/^\d+$/.test(exit)) launches.push(Number(exit));
+      }
+      return {
+        number: pr.number,
+        title: pr.title,
+        task: task ?? null,
+        openToMergeMinutes: round(duration(pr.createdAt, pr.mergedAt)),
+        mergeToMergeMinutes: round(
+          duration(prs[index + 1]?.mergedAt, pr.mergedAt),
+        ),
+        ...checks,
+        review: reviewTotals(records, repo, pr.number),
+        worker: workerTotals(groups, hashes),
+        deliver: launches.length ? launches : null,
+        lead,
+        leadUncachedInput: sum([lead.input, lead.cache_creation]),
+        cost: cost ?? null,
+        outcome: await outcome(run, root, options.now ?? Date.now(), pr),
+      };
+    },
+  );
   const median = (values: Value[]) => {
     const known = values
       .filter((n): n is number => n !== null)

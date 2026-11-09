@@ -409,3 +409,19 @@ test('transcriptDirs finds the root and its worktree project directories only', 
     await rm(projects, { recursive: true, force: true });
   }
 });
+
+test('mapLimited keeps input order and never runs more than the limit at once', async () => {
+  let active = 0;
+  let peak = 0;
+  const delays = [30, 5, 20, 1, 10, 2];
+  const out = await ledger.mapLimited(delays, 2, async (ms: number) => {
+    active++;
+    peak = Math.max(peak, active);
+    await new Promise((r) => setTimeout(r, ms));
+    active--;
+    return ms * 10;
+  });
+  assert.deepEqual(out, [300, 50, 200, 10, 100, 20]);
+  assert.equal(peak, 2);
+  assert.deepEqual(await ledger.mapLimited([], 4, async () => 1), []);
+});
