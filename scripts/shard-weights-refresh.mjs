@@ -41,10 +41,16 @@ export function runDurations(summaries) {
   for (const summary of summaries) {
     if (!Array.isArray(summary?.files) || summary.files.length === 0)
       return undefined;
-    for (const entry of summary.files) {
-      if (!Number.isSafeInteger(entry?.durationMs)) return undefined;
+    const timed = summary.files.filter((entry) =>
+      Number.isSafeInteger(entry?.durationMs),
+    );
+    // A summary from before durationMs times no file. One whose child lost its
+    // own summary (scripts/test-summary-policy.mjs) leaves only that file
+    // untimed: it misses one sample instead of dropping the whole run
+    // (main run 42579707304, test/claude/successor-launch.test.ts).
+    if (timed.length === 0) return undefined;
+    for (const entry of timed)
       durations.set(repoTestPath(entry.file), entry.durationMs);
-    }
   }
   return durations;
 }

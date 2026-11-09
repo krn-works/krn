@@ -158,7 +158,7 @@ test('a weight is the median durationMs in seconds, to a tenth, at least 0.1', (
   assert.equal(weightSeconds([20, 30, 40]), 0.1);
 });
 
-test('a run missing any file duration is rejected', () => {
+test('a run whose job times no file is rejected', () => {
   const good = { files: [{ file: '/r/test/a.test.ts', durationMs: 5 }] };
   const bad = { files: [{ file: '/r/test/b.test.ts' }] };
   assert.deepEqual([...(runDurations([good]) ?? [])], [['test/a.test.ts', 5]]);
@@ -174,4 +174,23 @@ test('rendered module round-trips through import', async () => {
   );
   assert.deepEqual({ ...module.TEST_FILE_WEIGHTS }, { 'test/a.test.ts': 1.5 });
   assert.match(source, /runs\n\/\/ 1 2\./u);
+});
+
+// Main run 42579707304: one child lost its own summary, so the policy
+// synthesised its counts without durationMs; the other files stay timed.
+test('a file without a duration misses one sample, not the whole run', () => {
+  const partial = {
+    files: [
+      { file: '/r/test/a.test.ts', durationMs: 5 },
+      { file: '/r/test/lost.test.ts', tests: 23, passed: 23 },
+    ],
+  };
+  const other = { files: [{ file: '/r/test/b.test.ts', durationMs: 7 }] };
+  assert.deepEqual(
+    [...(runDurations([partial, other]) ?? [])],
+    [
+      ['test/a.test.ts', 5],
+      ['test/b.test.ts', 7],
+    ],
+  );
 });
