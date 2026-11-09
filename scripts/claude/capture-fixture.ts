@@ -46,7 +46,7 @@ function serialize(value: unknown): string {
   );
 }
 
-// Elide message content, point cwd at the repository, redact host paths.
+// Elide message content and tool output, point cwd at the repository, redact host paths.
 export function captureFixtureLine(line: string): string {
   const entry: unknown = JSON.parse(line);
   if (entry === null || typeof entry !== 'object' || Array.isArray(entry))
@@ -59,6 +59,9 @@ export function captureFixtureLine(line: string): string {
     !Array.isArray(message)
   )
     fields.message = { ...message, content: [] };
+  // Tool inputs and outputs are repeated outside the message; elide them too.
+  for (const key of ['toolUseResult', 'wireToolInputs'])
+    if (fields[key] !== undefined) fields[key] = {};
   if (typeof fields.cwd === 'string') fields.cwd = '.';
   return serialize(redact(fields));
 }

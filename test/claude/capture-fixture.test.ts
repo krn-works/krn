@@ -24,6 +24,18 @@ test('capture elides message content, resets cwd and redacts host paths', () => 
   );
 });
 
+test('capture elides tool inputs and outputs repeated outside the message', () => {
+  const line = JSON.stringify({
+    type: 'user',
+    toolUseResult: { stdout: 'secret' },
+    wireToolInputs: { toolu_1: { command: 'secret' } },
+  });
+  assert.equal(
+    captureFixtureLine(line),
+    '{"type": "user", "toolUseResult": {}, "wireToolInputs": {}}',
+  );
+});
+
 test('capture keeps non-ASCII escaped like the harness transcript', () => {
   assert.equal(
     captureFixtureLine('{"a":"z\\u00f3\\u0142w"}'),
