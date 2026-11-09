@@ -1,0 +1,18 @@
+{
+  "id": "t-nb0gww4",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Project PreToolUse gauge matcher covers Bash|Read|Glob|Grep; drift test ties it to refusesAtCeiling; live probe denied npm past the ceiling."
+  },
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Gate Bash, Read, Glob and Grep with the live context ceiling",
+  "after": [],
+  "body": [
+    "Defect: .claude/settings.json wires context-gauge.ts on PreToolUse only for Agent|Task|Workflow|WebFetch|WebSearch|NotebookEdit|Write|Edit, so the live ceiling never sees Bash, Read, Glob or Grep; the handoff-only Bash allowlist and bounded Read (#458) are proven only by the in-process replay. The host install (~/.claude/settings.json, #461) already matches Bash|Read|Glob|Grep.",
+    "Acceptance: the project PreToolUse gauge matcher covers Bash, Read, Glob and Grep; a test asserts every tool refusesAtCeiling decides on is in the project matcher; a live claude -p probe past the ceiling shows a Bash npm command denied.",
+    "Live probe (claude -p, Haiku, temporary autoCompactWindow 200000, context 218k): first Bash 'echo one' admitted, second Bash 'npm --version' denied with 'Context at 218k is past the 180k ceiling'. The first tool call of a fresh session has no usage in the transcript yet, so the gauge cannot gate it. Probe lesson: a live probe past the ceiling follows the denial into krn-handoff and launches a real successor; run such probes with --disallowedTools Skill."
+  ]
+}
