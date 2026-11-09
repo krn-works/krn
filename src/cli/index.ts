@@ -20,6 +20,9 @@ export async function dispatch(args: string[]): Promise<boolean> {
   } else if (command === 'ci') {
     const { ciCommand } = await import('./ci.ts');
     await ciCommand(options);
+  } else if (command === 'pr') {
+    const { prCommand } = await import('./pr.ts');
+    await prCommand(options);
   } else if (command === 'worker') {
     const { workerCommand } = await import('../worker/cli.ts');
     await workerCommand(options);

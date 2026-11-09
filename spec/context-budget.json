@@ -2,8 +2,8 @@
   "files": {
     ".agents/skills/architecture/SKILL.md": 5072,
     ".agents/skills/krn-handoff/SKILL.md": 5338,
-    ".agents/skills/krn-lead/SKILL.md": 6064,
-    ".agents/skills/krn-lead/lanes.md": 2898,
+    ".agents/skills/krn-lead/SKILL.md": 5963,
+    ".agents/skills/krn-lead/lanes.md": 2768,
     ".agents/skills/krn-retro/SKILL.md": 2738,
     ".agents/skills/typescript/SKILL.md": 3167,
     "AGENTS.md": 3574,

@@ -79,7 +79,7 @@ test('every slice ships as one squash-merged PR with the template sections and i
     assert.doesNotMatch(text, /gh pr merge[^`\n]*--merge/u);
     assert.doesNotMatch(text, /gh pr merge[^`\n]*--rebase/u);
   }
-  assert.match(skill('krn-lead'), /gh pr merge <n> --auto --squash/u);
+  assert.match(skill('krn-lead'), /krn pr ship/u);
   assert.match(skill('krn-retro'), /never open a separate retro PR/u);
 });
 
