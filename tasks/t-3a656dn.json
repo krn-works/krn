@@ -1,0 +1,13 @@
+{
+  "id": "t-3a656dn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Generate the handoff and retro text from state, tasks and merged PRs",
+  "after": [],
+  "body": [
+    "Outcome: the handoff's Resume fields and the retro skeleton are generated from `krn state`, the task record and the merged PRs, as `krn pr body` (t-56eqw8q) does for PR text, and the krn-handoff and krn-retro skills drop the text the generator owns.\nWhy: cost scan 11-09 put ~$29 on hand-written handoff, retro and PR text; t-56eqw8q shipped only the PR body generator (~$0.10/PR estimated) and left the handoff and retro parts.\nProof: a test renders a handoff from a fixture capsule and task; the skill byte budget in spec/context-budget.json shrinks.\nScope: src/cli, .agents/skills/krn-handoff, .agents/skills/krn-retro, test/cli.",
+    "Lesson from the first use (roadmap-rerank PR): krn pr body puts the task's Why under Problem; a PR that also fixes something beyond the task (red main) needs a --problem override or a commit-derived Problem."
+  ]
+}

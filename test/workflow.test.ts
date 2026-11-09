@@ -60,11 +60,11 @@ test('CI workflow runs lint, typecheck and twelve test shards on hosted runners 
   const test = jobs.get('test') ?? '';
   assert.match(
     test,
-    /^ {8}shard: \[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12\]$/mu,
+    /^ {8}shard: \[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13\]$/mu,
   );
   assert.match(test, /^ {10}KRN_TEST_STRICT: '1'$/mu);
   assert.match(test, /^ {6}KRN_TEST_SHARD_INDEX: \$\{\{ matrix\.shard \}\}$/mu);
-  assert.match(test, /^ {6}KRN_TEST_SHARD_TOTAL: '12'$/mu);
+  assert.match(test, /^ {6}KRN_TEST_SHARD_TOTAL: '13'$/mu);
   assert.match(test, /^ {8}run: npm test$/mu);
   const lint = jobs.get('lint') ?? '';
   assert.match(lint, /run: npm run lint$/mu);
