@@ -10,13 +10,13 @@ import {
   filesOverBound,
   gitIsAncestor,
   parseArgs,
-  pearson,
   predictShardWall,
   renderReport,
   resolveSince,
   runsSince,
   shardWallReport,
   sinceSelector,
+  slowestShards,
   UsageError,
   weightDrift,
 } from '../../scripts/shard-wall-report.mjs';
@@ -25,12 +25,6 @@ import {
   foldShardWeights,
   runDurations,
 } from '../../scripts/shard-weights-refresh.mjs';
-
-test('pearson r is 1 for a linear relation and -1 for an inverse one', () => {
-  assert.equal(pearson([1, 2, 3], [2, 4, 6]).toFixed(6), '1.000000');
-  assert.equal(pearson([1, 2, 3], [6, 4, 2]).toFixed(6), '-1.000000');
-  assert.ok(Number.isNaN(pearson([1], [1])));
-});
 
 // Derived from the live weights so a weight refresh never breaks the tests.
 const byWeight = Object.keys(TEST_FILE_WEIGHTS).sort(
@@ -71,10 +65,12 @@ test('report pairs CI step seconds with predictions and gates the slowest p50', 
   const report = shardWallReport(runs, 4);
   assert.equal(report.rows.length, 6);
   assert.equal(report.rows[0].predicted, TEST_FILE_WEIGHTS[heavy]);
-  assert.ok(report.laneR > 0.9);
   assert.equal(report.slowestP50, 21);
   const rendered = renderReport(report);
-  assert.match(rendered, /heaviest-lane model: r=0\.\d+ \(strong\)/u);
+  assert.match(
+    rendered,
+    /^slowest shard per run: 1\/2x3 over 3 runs: stacked$/mu,
+  );
   // Every run's Test (3/3) came back untimed, as a job with `steps: []` whose
   // log lacks the step: the window says so, a FAIL stands and a PASS cannot.
   // A full window is final, so its verdict carries no decided suffix.
@@ -493,4 +489,40 @@ test('a file without a duration in one run keeps its other samples', () => {
   assert.deepEqual(filesOverBound(runs, weights), [
     { file: 'test/over.test.ts', median: 12 },
   ]);
+});
+
+test('slowest shard per run tells a stacked shard from max-of-N noise', () => {
+  const run = (id, a, b) => ({
+    id,
+    jobs: [job('Test (1/2)', a, [heavy]), job('Test (2/2)', b, [light[0]])],
+  });
+  const stacked = slowestShards([
+    run('1', 19, 12),
+    run('2', 18, 14),
+    run('3', 12, 17),
+  ]);
+  assert.deepEqual(stacked, {
+    timed: 3,
+    leaders: [
+      { shard: '1/2', runs: 2 },
+      { shard: '2/2', runs: 1 },
+    ],
+    stacked: true,
+  });
+  const noise = slowestShards([run('1', 19, 12), run('2', 12, 18)]);
+  assert.equal(noise.stacked, false);
+  assert.match(
+    renderReport(shardWallReport([run('1', 19, 12), run('2', 12, 18)], 4)),
+    /^slowest shard per run: 1\/2x1 2\/2x1 over 2 runs: noise$/mu,
+  );
+  // One run decides nothing; an untimed run counts for no shard.
+  const single = shardWallReport(
+    [run('1', 19, 12), run('2', undefined, undefined)],
+    4,
+  );
+  assert.equal(single.slowestShards.timed, 1);
+  assert.match(
+    renderReport(single),
+    /^slowest shard per run: 1\/2x1 over 1 runs: n\/a$/mu,
+  );
 });

@@ -5,8 +5,9 @@
 // seconds from the jobs API only when the log lacks the step) next to two
 // predictions from the current weights: the summed shard weight, and the
 // heaviest of the `--lanes` local lanes test-suite.mjs runs in parallel on the
-// runner (plus final serial files). It ends with each model's Pearson r, the
-// slowest-shard p50, one
+// runner (plus final serial files). It ends with a `slowest shard per run`
+// line (`stacked` when one shard leads most runs, `noise` when the lead
+// moves), the slowest-shard p50, one
 // `shard p50` line (every shard's median Test step and the highest median's
 // excess over the mean of the shard medians), one line of the test files whose
 // median CI duration exceeds the file bound, and a drift section: every test
@@ -35,7 +36,6 @@ import {
   weightSeconds,
 } from './shard-weights-refresh.mjs';
 
-export const STRONG_CORRELATION = 0.7;
 export const SLOWEST_SHARD_TARGET_SECONDS = 18;
 export const DRIFT_TOLERANCE = 0.3;
 // The heaviest test file bounds its CI shard wall: a runner splits a shard's
@@ -65,23 +65,6 @@ export function predictShardWall(files, lanes) {
     0,
   );
   return heaviestLane + serial;
-}
-
-export function pearson(xs, ys) {
-  const n = xs.length;
-  if (n < 2 || ys.length !== n) return Number.NaN;
-  const mean = (values) => values.reduce((sum, value) => sum + value, 0) / n;
-  const mx = mean(xs);
-  const my = mean(ys);
-  let covariance = 0;
-  let vx = 0;
-  let vy = 0;
-  for (let index = 0; index < n; index += 1) {
-    covariance += (xs[index] - mx) * (ys[index] - my);
-    vx += (xs[index] - mx) ** 2;
-    vy += (ys[index] - my) ** 2;
-  }
-  return covariance / Math.sqrt(vx * vy);
 }
 
 function median(values) {
@@ -189,6 +172,32 @@ function shardP50(rows) {
   };
 }
 
+// Which shard ran each run's slowest timed Test step, counted per shard, most
+// frequent first. A rebalance cannot fix a balanced plan's max-of-N runner
+// noise (a different shard each run), but a shard that leads most runs is
+// stacked; Pearson r could not tell the two apart over near-equal predictions.
+export function slowestShards(runs) {
+  const counts = new Map();
+  let timed = 0;
+  for (const run of runs) {
+    let top;
+    for (const job of run.jobs)
+      if (
+        job.seconds !== undefined &&
+        (top === undefined || job.seconds > top.seconds)
+      )
+        top = job;
+    if (top === undefined) continue;
+    timed += 1;
+    const { shard } = shardOf(top.name);
+    counts.set(shard, (counts.get(shard) ?? 0) + 1);
+  }
+  const leaders = [...counts]
+    .map(([shard, runs]) => ({ shard, runs }))
+    .sort((a, b) => b.runs - a.runs || a.shard.localeCompare(b.shard));
+  return { timed, leaders, stacked: timed >= 2 && leaders[0].runs > timed / 2 };
+}
+
 // runs: [{ id, jobs: [{ name, seconds, summary }] }] as fetchShardRuns returns;
 // `wanted` and `since` only label the window the runs were drawn from.
 export function shardWallReport(
@@ -215,7 +224,6 @@ export function shardWallReport(
         predicted: round(predictShardWall(files, lanes)),
       });
     }
-  const actual = rows.map((row) => row.actual);
   // Each run's slowest timed Test step; a run with no timed step has none.
   const slowest = runs
     .map((run) =>
@@ -227,14 +235,7 @@ export function shardWallReport(
   return {
     window: { used: runs.length, wanted, since, steps, untimed },
     rows,
-    summedR: pearson(
-      actual,
-      rows.map((row) => row.summed),
-    ),
-    laneR: pearson(
-      actual,
-      rows.map((row) => row.predicted),
-    ),
+    slowestShards: slowestShards(runs),
     slowest,
     // To a hundredth: the median of two tenths can end in 5, and a tenth
     // would round 17.95 s across the 18 s target.
@@ -302,6 +303,15 @@ function shardP50Line({ shards, mean, highest }) {
   return `shard p50: ${medians} s; highest ${highest.shard} +${highest.excess} s over the mean ${mean} s`;
 }
 
+// `stacked`: one shard leads more than half the timed runs, so cap or move its
+// heavy files; `noise`: the lead moves between shards, so cut the mean instead.
+function slowestShardLine({ timed, leaders, stacked }) {
+  if (timed === 0) return 'slowest shard per run: n/a';
+  const counts = leaders.map(({ shard, runs }) => `${shard}x${runs}`).join(' ');
+  const verdict = timed < 2 ? 'n/a' : stacked ? 'stacked' : 'noise';
+  return `slowest shard per run: ${counts} over ${timed} runs: ${verdict}`;
+}
+
 export function renderReport(report) {
   const lines = [
     windowLine(report.window),
@@ -311,11 +321,8 @@ export function renderReport(report) {
     lines.push(
       `${row.run} ${row.job} ${row.actual} ${row.summed} ${row.predicted}`,
     );
-  const verdict = (r) =>
-    r >= STRONG_CORRELATION ? 'strong' : Number.isNaN(r) ? 'n/a' : 'weak';
   lines.push(
-    `summed-weight model: r=${report.summedR.toFixed(2)} (${verdict(report.summedR)})`,
-    `heaviest-lane model: r=${report.laneR.toFixed(2)} (${verdict(report.laneR)})`,
+    slowestShardLine(report.slowestShards),
     `slowest Test step p50: ${report.slowestP50} s, target < ${SLOWEST_SHARD_TARGET_SECONDS} s: ${slowestVerdict(report)}`,
     shardP50Line(report.shardP50),
     overBoundLine(report.overBound),
