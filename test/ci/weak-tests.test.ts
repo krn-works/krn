@@ -24,7 +24,7 @@ const run = (diff: string, body = '', targets: string[] = []) =>
 test('removed assertion fails', () => {
   const r = run(modify('test/a.test.ts', ['  assert.equal(a, 1);'], []));
   assert.equal(r.ok, false);
-  assert.match(r.findings[0] ?? "", /assertion/);
+  assert.match(r.findings[0] ?? '', /assertion/);
 });
 
 test('swapped assertion passes', () => {
