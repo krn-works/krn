@@ -1,0 +1,16 @@
+{
+  "id": "t-6gyrdmb",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn-radar agent, roadmap line and tests shipped"
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Add a krn-radar subagent that turns the operator's RSS radar into roadmap candidates",
+  "after": [],
+  "body": [
+    "Outcome: `.claude/agents/krn-radar.md` reads the operator's rss-news CLI read-only and returns at most 300 words of KRN-applicable patterns with source URLs; the roadmap maintenance names it as an input of the proactive refill scan, while the rss_news MCP server stays denied for the lead.\nWhy: 2026-11-09 the operator asked for RSS news in KRN loaded only when needed. rss_news is denied in .claude/settings.json since b87beca (13 tools, ~10 kB schemas, multi-kB results in the lead's context). A manual radar run (krn-reader, `node bin/digest.js --hours 168 --top 120`, 117 items) returned one concrete pattern (secret scan of committed agent settings) at zero lead context beyond the verdict.\nProof: test/rules/project-skills.test.ts checks krn-radar has a model, maxTurns, no Edit/Write/Agent tools, and the roadmap names it; the rss_news denial stays.\nScope: .claude/agents/krn-radar.md, docs/program/roadmap.md, test/rules/project-skills.test.ts."
+  ]
+}

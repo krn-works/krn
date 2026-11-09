@@ -5,6 +5,7 @@ The lead's ranked list of measured opportunities across delivery speed, CI, memo
 Maintenance:
 
 - Every `krn-retro` and every handoff adds, reranks or removes at least one row from evidence seen in the slice, or records why not. The handoff's `## Resume` carries `- Roadmap: <ids changed>` or `- Roadmap: unchanged (<reason>)`; `scripts/claude/handoff-requests.ts` refuses a handoff without that line or naming an id with no row here.
+- The proactive refill scan runs `krn-radar` and triages each pattern into a row or a rejection.
 - External material the operator shares is triaged into a row (or explicitly rejected) in the same session.
 - Ids are stable: a new row takes an id above every id used before (R10 onward; positional ids reached R9), and an id is never renumbered or reused. Table order is the rank; rerank by moving rows.
 - A row leaves the table after its task closes: lanes close tasks without touching this file, and the lead runs `node scripts/claude/roadmap-prune.ts` in its next slice, so parallel lanes never rebase the table onto each other.
