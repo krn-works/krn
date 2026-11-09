@@ -1,0 +1,12 @@
+{
+  "id": "t-akp44kt",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Cut subagent spend, now 47% of lead-session dollars",
+  "after": [],
+  "body": [
+    "Outcome: subagent dollars per merged PR fall measurably (cost-scan.py), by type and model, without more lead turns per PR.\nWhy: .krn/runs/roadmap-refill-2/tokens.md: since 2026-11-07 subagents cost $216 of $462 over 121 PRs; lead median $1.62 and 41 turns per PR.\nProof: `python3 -I .krn/runs/token-cost/cost-scan.py` before and after, split by subagent type.\nScope: this repository."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-4f3r88w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Record cost, author model and a 7-day outcome per PR in krn ledger",
+  "after": [],
+  "body": [
+    "Outcome: `bin/krn ledger` rows carry dollars, lead/subagent split, author role and model, and a 7-day outcome (reverted or same lines changed again) per merged PR; one PR is attributed only the turns of its slice.\nWhy: .krn/runs/strategy-review/report.md: the metric is cost per accepted change, but the ledger lacks dollars, model and outcome, and attributes 271M cache-read tokens to #474 (a whole session).\nProof: ledger output for the last 30 PRs with no PR above the per-slice p99, recorded under .krn/runs/.\nScope: this repository."
+  ]
+}

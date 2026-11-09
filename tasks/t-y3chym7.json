@@ -1,0 +1,16 @@
+{
+  "id": "t-y3chym7",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Roadmap ranks R1-R5 with open tasks (t-ez3nsc3, t-4f3r88w, t-akp44kt, t-5rhd7xn, t-zz33vhy); deleted docs/ci/catalogue.md and evals/journeys/j1-baseline.json (0 readers); ADR 0014 D17 and the D30 review-tier amendment marked superseded."
+  },
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Refill the roadmap from the post-#478 scan and the strategy review",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/roadmap.md ranks new measured rows with open tasks; the zero-reader docs/ci/catalogue.md and evals/journeys/j1-baseline.json are gone; ADR 0014 marks D17 and the D30 review-tier amendment superseded.\nWhy: roadmap held one data-gated row; .krn/runs/roadmap-refill-2/{tokens,junk}.md and .krn/runs/strategy-review/report.md hold the evidence.\nProof: npm run fast PASS; test/rules/roadmap-open-tasks.test.ts green.\nScope: this repository."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-ez3nsc3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Point krn on PATH at the repository CLI",
+  "after": [],
+  "body": [
+    "Outcome: `command -v krn` resolves to this repository's CLI (or a current sealed release of it); `krn nosuchcmd` exits 64 with nothing on stdout (KRN-06) and `krn ledger --help` works.\nWhy: ~/.local/bin/krn runs the legacy release ~/.codex/krn/releases/1eb17b8…/scripts/krn.mjs: unknown commands print 25 usage lines on stdout, and ledger, worker, eval and review only print usage (observed 2026-11-09). Lead skills call global `krn state` and `krn task`.\nProof: the two commands above, outputs recorded under .krn/runs/.\nScope: this repository plus the host link (standing install grant, memory krn-install-seal); back up the old link first."
+  ]
+}
