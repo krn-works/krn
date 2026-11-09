@@ -64,7 +64,11 @@ test('agent instruction bytes stay within the recorded budget', () => {
 // (the t-7g0prdk lane rebased on this file on 2026-11-09).
 test('budget entries are blank-line separated so parallel bumps merge', () => {
   const text = readFileSync(budgetFile, 'utf8');
-  assert.doesNotMatch(text, /\d,\n {4}"/u, 'separate entries with a blank line');
+  assert.doesNotMatch(
+    text,
+    /\d,\n {4}"/u,
+    'separate entries with a blank line',
+  );
   const dir = mkdtempSync(join(tmpdir(), 'budget-merge-'));
   try {
     const bump = (from: string, to: string) => text.replace(from, to);
@@ -75,10 +79,14 @@ test('budget entries are blank-line separated so parallel bumps merge', () => {
     writeFileSync(join(dir, 'base'), text);
     writeFileSync(join(dir, 'ours'), bump(...line(first, 1)));
     writeFileSync(join(dir, 'theirs'), bump(...line(second, 1)));
-    const merge = spawnSync('git', ['merge-file', '-p', 'ours', 'base', 'theirs'], {
-      cwd: dir,
-      encoding: 'utf8',
-    });
+    const merge = spawnSync(
+      'git',
+      ['merge-file', '-p', 'ours', 'base', 'theirs'],
+      {
+        cwd: dir,
+        encoding: 'utf8',
+      },
+    );
     assert.equal(merge.status, 0, merge.stdout);
   } finally {
     rmSync(dir, { recursive: true, force: true });
