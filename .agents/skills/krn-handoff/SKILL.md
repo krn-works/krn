@@ -7,8 +7,8 @@ description: End a KRN lead session — update the capsule, write a one-page poi
 
 A fresh session with a short handoff beats a long session carrying every earlier detail; the handoff file, the capsule and the tracker are the memory, not the conversation.
 
-1. **Capsule.** Update `.krn/runs/delivery-loop/<outcome>/state.md` and run `krn state check --root .` until it reports clean.
-2. **Handoff.** Write `handoff.md` beside the capsule: at most one page, pointers only, never content already held by an ADR, task, commit, PR or record. Redact secrets. Include:
+1. **Capsule.** Never hand-edit `.krn/runs/delivery-loop/<outcome>/state.md`: write fields with `krn state set <field> <value> [<field> <value>...]` (field = unambiguous label word, e.g. `next`, `evidence`; `--capsule <id>` when several capsules) and acceptance entries with `krn state accept <criterion> todo|pass|drop:<why>` (commas and semicolons are stripped). Then run `krn state check --root .` until it reports clean.
+2. **Handoff.** Generate `handoff.md` beside the capsule with `krn state handoff [--task <id>] [--sha <text>] [--verify <cmd>] [--roadmap <text>] [--request <text>]... [--priority <text>]...` (rewrites `## Resume`; defaults: task from the next action, HEAD, the state check, roadmap unchanged; `--request` and `--priority` replace those sections; other sections are kept, edit them directly). At most one page: at most one page, pointers only, never content already held by an ADR, task, commit, PR or record. Redact secrets. Include:
    - `## Resume`, one consolidated block that SessionStart injects into the successor: four bullets `- Task: <task id>`, `- SHAs: <exact HEAD and in-flight SHAs>`, ``- Verify: `<one command>` `` (the done-condition or state check the successor runs before any other step) and `- Roadmap: <ids changed in docs/program/roadmap.md>` or `- Roadmap: unchanged (<reason>)`; the check refuses a handoff missing any of them. The operator requests section below is injected verbatim beside it, so keep both short;
    - the priority list, with the next slice and why it comes next;
    - in-flight PRs and runs with SHAs;
