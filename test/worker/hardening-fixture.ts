@@ -14,6 +14,7 @@ import { join, resolve } from 'node:path';
 import type { TestContext } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
+import { systemctlStub } from './systemctl-stub.ts';
 
 export const cli = resolve('src/cli/krn.mjs');
 export const fixture = resolve('test/fixtures/worker/app-server.mjs');
@@ -109,11 +110,7 @@ export async function setup(t: TestContext, worktree = false) {
   for (const [name, source] of Object.entries({
     'systemd-run':
       '#!/bin/sh\nwhile [ "$#" -gt 0 ]; do case "$1" in --unit) shift 2;; --*) shift;; *) exec "$@";; esac; done\n',
-    systemctl: `#!/usr/bin/env node
-import { appendFileSync } from 'node:fs';
-appendFileSync(process.env.CODEX_TEST_WORKER_SCOPE_LOG, JSON.stringify(process.argv.slice(2)) + '\\n');
-console.log('ActiveState=inactive\\nControlGroup=');
-`,
+    systemctl: systemctlStub(join(root, 'scopes.jsonl')),
   })) {
     writeFileSync(join(bin, name), source);
     chmodSync(join(bin, name), 0o755);
