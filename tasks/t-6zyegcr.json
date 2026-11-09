@@ -1,0 +1,16 @@
+{
+  "id": "t-6zyegcr",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "roadmap ranks token rows by dollars and per-turn context; .krn/runs/token-cost/cost.md"
+  },
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Measure lead token cost in dollars and per-turn context instead of raw input tokens",
+  "after": [],
+  "body": [
+    "Outcome: the roadmap ranks token rows by dollar cost per merged PR and by per-turn context size, not by input tokens including cache reads.\nWhy: cache reads cost ~10% of input and do not count toward API input rate limits (claude-api skill, shared/prompt-caching.md), so \"5.24M input tokens per merged PR, 98% cache reads\" overstates cost; context size still matters for accuracy and latency. Operator request 2026-11-09.\nProof: .krn/runs/token-cost/cost.md with the rerun command; roadmap Sector plan and t-bdhn7mw cite the new numbers.\nScope: this repository."
+  ]
+}
