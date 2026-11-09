@@ -71,3 +71,69 @@ test('repository settings wire the piped check hook to Bash', () => {
     ),
   );
 });
+
+const pollScript = fileURLToPath(
+  new URL('../../scripts/claude/ci-poll.ts', import.meta.url),
+);
+const poll = (command: string) =>
+  spawnSync(process.execPath, [pollScript], {
+    encoding: 'utf8',
+    input: JSON.stringify({ tool_name: 'Bash', tool_input: { command } }),
+  });
+
+test('ci poll hook refuses gh watch and sleep loops around gh and names krn ci wait', () => {
+  for (const command of [
+    'gh run watch 123',
+    'gh pr checks 5 --watch',
+    'gh pr checks --fail-fast --watch 5',
+    'while true; do gh pr view 5 --json state; sleep 60; done',
+    'until gh run view 9 --json conclusion | grep success; do sleep 30; done',
+    'for i in 1 2 3; do sleep 60; gh api repos/krn-works/krn/commits/x/status; done',
+    `python3 -c "import subprocess,time
+while True:
+    subprocess.run(['gh','pr','view','5'])
+    time.${'sle' + 'ep'}(60)"`,
+  ]) {
+    const result = poll(command);
+    assert.equal(result.status, 2, command);
+    assert.match(
+      result.stderr,
+      /bin\/krn ci wait --repo krn-works\/krn --pr <n> --head <sha> --base <sha>/u,
+    );
+    assert.match(result.stderr, /40-char/u);
+  }
+});
+
+test('ci poll hook allows krn ci wait, single gh calls and loops not touching gh', () => {
+  for (const command of [
+    'bin/krn ci wait --repo krn-works/krn --pr 5 --head a --base b',
+    'gh pr view 5 --json state',
+    'gh run list --limit 3',
+    'gh pr checks 5',
+    'sleep 5; gh pr view 5',
+    'while ! test -f /tmp/x; do sleep 1; done',
+    'for f in a b; do echo $f; done',
+    '',
+  ]) {
+    const result = poll(command);
+    assert.equal(result.status, 0, command);
+    assert.equal(result.stderr, '', command);
+  }
+  assert.equal(
+    spawnSync(process.execPath, [pollScript], { input: '{bad' }).status,
+    0,
+  );
+});
+
+test('repository settings wire the ci poll hook to Bash', () => {
+  const hooks = JSON.parse(readFileSync(settings, 'utf8')).hooks.PreToolUse as {
+    matcher: string;
+    hooks: { command: string }[];
+  }[];
+  const entry = hooks.find((hook) => hook.matcher === 'Bash');
+  assert.ok(
+    entry?.hooks.some((hook) =>
+      hook.command.includes('scripts/claude/ci-poll.ts'),
+    ),
+  );
+});
