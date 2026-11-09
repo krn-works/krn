@@ -12,9 +12,6 @@ Maintenance:
 | Id | Opportunity | Area | Evidence | Expected saving | Task |
 |---|---|---|---|---|---|
 | R10 | Ship a PR in one call: push, create, auto-merge, wait, cleanup | tokens | `.krn/runs/roadmap-refill-4/scripts/`: delivery sequences 1021 lead turns, $83.1 (19% of lead $) in 99 sessions | ~$0.5 per PR | t-3ag9eqn |
-| R11 | State and handoff writes that cannot be malformed | tokens | `.krn/runs/roadmap-refill-4/scripts/`: 301 turns, $30.8; 63 `malformed-acceptance` failures in 40 sessions | ~$20 per 100 sessions | t-7g0prdk |
-| R12 | `krn ci wait` finishes through the merge verdict | tokens | `.krn/runs/roadmap-refill-4/scripts/`: 231 PR-state turns after `ci wait`, $19.6 | ~$12 per 100 sessions | t-1a53cf8 |
-| R13 | Start a lane worktree in one call | tokens | `.krn/runs/roadmap-refill-4/scripts/`: 224 worktree setup turns, $15.8 | ~$12 per 100 sessions | t-sqkp4py |
 | R2 | Cut subagent spend | tokens | `.krn/runs/roadmap-refill-2/tokens.md`: $216 of $462 since 11-07 | up to ~47% of slice dollars | t-akp44kt |
 | R3 | Confirm the #472 read refusal on 20 sessions | tokens | `.krn/runs/roadmap-refill/post-472-n7.md`: 7 sessions, 47% | decides a second step | t-zz33vhy |
 
