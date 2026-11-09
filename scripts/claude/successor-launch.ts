@@ -124,6 +124,12 @@ export function parseArgs(
 
   if (!name) throw new Error('required argument missing: --name');
   if (!prompt) throw new Error('required argument missing: --prompt');
+  // The SessionStart hook injects the handoff; a prompt that names it makes the
+  // successor read it again (t-qdzy8w7: 81% of sessions re-read it).
+  if (/handoff\.md|\bread\b[^.]*\bhandoff\b/iu.test(prompt))
+    throw new Error(
+      '--prompt must not tell the successor to read the handoff: the SessionStart hook injects it; say "run its Verify command" instead',
+    );
   return {
     name,
     prompt,

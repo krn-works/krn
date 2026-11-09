@@ -1,7 +1,11 @@
 {
   "id": "t-qdzy8w7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn-handoff prompt runs the injected Verify; successor-launch refuses a prompt naming a handoff read"
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Stop the successor prompt from re-reading the injected handoff",
