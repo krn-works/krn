@@ -1,0 +1,12 @@
+{
+  "id": "t-brje6zv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 3,
+  "title": "Bring claim-lock tests under the 11 s CI bound",
+  "after": [],
+  "body": [
+    "Outcome: test/task/claim-lock.test.ts, the last file over the 11 s CI bound after t-ed32603 (11.8 s in the window since c1be8de), drops below it. Evidence: eight independent top-level tests total 14.05 s locally (3.4 + 5.5 + 0.9 + 0.7 + 0.6 + 1.1 + 0.5 + 1.0 s); the two slow tests dominate. Risk: the tests race on locks and assert \"claim busy\", so concurrency may change their timing; prefer cutting the per-test cost of the two slow tests before running them concurrently. Acceptance: the file passes 20 local runs under load and its CI median in node scripts/shard-wall-report.mjs drops under 11 s."
+  ]
+}

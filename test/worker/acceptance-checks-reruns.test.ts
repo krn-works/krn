@@ -28,7 +28,9 @@ test('10: output is capped and redacted', async (t) => {
   assert.match(log, /\[truncated at 1048576 bytes\]\n$/);
   assert.ok(Buffer.byteLength(log) <= 1048576);
 });
-test('11: a private key across the log limit or past the capture is redacted', async (t) => {
+test('11: a private key across the log limit or past the capture is redacted', {
+  concurrency: 6,
+}, async (t) => {
   for (const [label, tail] of [
     [
       'straddling',
@@ -36,17 +38,19 @@ test('11: a private key across the log limit or past the capture is redacted', a
     ],
     ['unterminated', 'head -c 2200000 /dev/zero | tr "\\000" y'],
   ]) {
-    const s = await setup(t);
-    const r = await s.turn('done-clean', true, [
-      '--check',
-      `head -c 1048500 /dev/zero | tr "\\000" x; printf "\\n-----BEGIN RSA PRIV""ATE KEY-----\\nMIIEsecretbody\\n"; ${tail}`,
-    ]);
-    assert.equal(r.code, 0, `${label}: ${r.stderr}`);
-    const log = readFileSync(
-      join(s.run, 'rounds/001/acceptance-1.log'),
-      'utf8',
-    );
-    assert.doesNotMatch(log, /BEGIN RSA PRIVATE KEY|MIIEsecretbody/, label);
-    assert.ok(Buffer.byteLength(log) <= 1048576, label);
+    t.test(label, async (t) => {
+      const s = await setup(t);
+      const r = await s.turn('done-clean', true, [
+        '--check',
+        `head -c 1048500 /dev/zero | tr "\\000" x; printf "\\n-----BEGIN RSA PRIV""ATE KEY-----\\nMIIEsecretbody\\n"; ${tail}`,
+      ]);
+      assert.equal(r.code, 0, `${label}: ${r.stderr}`);
+      const log = readFileSync(
+        join(s.run, 'rounds/001/acceptance-1.log'),
+        'utf8',
+      );
+      assert.doesNotMatch(log, /BEGIN RSA PRIVATE KEY|MIIEsecretbody/, label);
+      assert.ok(Buffer.byteLength(log) <= 1048576, label);
+    });
   }
 });
