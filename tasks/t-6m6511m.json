@@ -1,0 +1,16 @@
+{
+  "id": "t-6m6511m",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Budget entries are blank-line separated; test enforces it and replays two adjacent bumps through git merge-file."
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Let parallel lanes bump instruction budgets without merge conflicts",
+  "after": [],
+  "body": [
+    "Outcome: parallel lanes that bump different entries of spec/context-budget.json merge without conflicts.\nWhy: on 2026-11-09 the t-7g0prdk lane (#504) rebased twice, once on spec/context-budget.json, because lanes editing different skills bump adjacent budget lines; git conflicts on adjacent line changes.\nProof: entries are blank-line separated, enforced by test/rules/instruction-bytes.test.ts; a git merge-file replay of two adjacent bumps merges cleanly.\nScope: spec/context-budget.json, test/rules/instruction-bytes.test.ts."
+  ]
+}
