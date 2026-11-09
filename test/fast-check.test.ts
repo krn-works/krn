@@ -296,7 +296,7 @@ function stubTools(dir: string, tsc: string): void {
 
 test('fast check reuses a cached pass on an unchanged tree and any edit invalidates it', () => {
   const { dir } = repoWithChange();
-  const runs = join(dir, 'tsc-runs');
+  const runs = `${dir}-tsc-runs`;
   stubTools(dir, `echo x >> ${runs}`);
   const count = () => readFileSync(runs, 'utf8').split('\n').length - 1;
   const first = runFast(dir);
