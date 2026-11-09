@@ -1,0 +1,12 @@
+{
+  "id": "t-zz33vhy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 3,
+  "title": "Confirm the lead file-read refusal on twenty sessions and extend it if reads still dominate",
+  "after": [],
+  "body": [
+    "Outcome: lead Bash read-family bytes (cat, sed -n, grep, head, tail, ls, wc) are measured on at least 20 lead sessions after d395d05 (#472); if they still exceed half of lead Bash result bytes, the refusal in scripts/claude/lead-file-read.ts tightens to the measured largest families.\nWhy: before #472 read families were 54% of 13.3 MB lead Bash results (~61 kB per session, .krn/runs/relay-no-merge/rerun.md section 6). The first 2 sessions after #472 show 58% of 50 kB (~25 kB per session), provisional: .krn/runs/roadmap-refill/post-472.md. Same sample: 0 of 37 turns over 150k after #470 (.krn/runs/roadmap-refill/post-470.md, baseline 52 of 218 sessions crossed).\nProof: `python3 -I .krn/runs/roadmap-refill/post-cut.py 1794238239 \"d395d05 (#472)\"` on 20+ sessions, result recorded under .krn/runs/.\nScope: this repository."
+  ]
+}
