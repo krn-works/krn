@@ -1,7 +1,11 @@
 {
   "id": "t-bdhn7mw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Measured first-turn context by source (.krn/runs/startup-context/measure.py, result.md): median 25.3k tokens, KRN-owned text ~2.2k. Cut: deny AskUserQuestion+ListAgents schemas, 6595 chars ~1.65k tokens/request (~112k cache_read/session). Headless proof: tools 20235->19006 chars. External sources (tool schemas 6.1k, global skills 3.6k, system prompt 1.9k) reported only."
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Cut the KRN-owned share of the lead startup context",

@@ -70,7 +70,9 @@ test('Claude context budget settings wire documented hooks and read-only reader'
   // A bare tool deny drops that schema from every request: these five harness
   // tools cost ~21k of the ~42k fresh-session baseline (`npm run
   // context:report` "largest tools") and KRN uses none of them.
-  // ReportFindings stays: /code-review reports through it.
+  // AskUserQuestion (~1.3k) and ListAgents (~0.3k) go too: the operator grant
+  // means the lead never blocks on a dialog, and relays use Herdr, not
+  // ListAgents. ReportFindings stays: /code-review reports through it.
   assert.deepEqual(settings.permissions.deny, [
     'Bash(pkill -f:*)',
     'Bash(pkill --full:*)',
@@ -80,6 +82,8 @@ test('Claude context budget settings wire documented hooks and read-only reader'
     'Workflow',
     'Artifact',
     'SendFeedback',
+    'AskUserQuestion',
+    'ListAgents',
   ]);
 });
 
