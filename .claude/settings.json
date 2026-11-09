@@ -89,6 +89,11 @@
             "type": "command",
             "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/unpushed-delete.ts\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/lead-file-read.ts\"",
+            "timeout": 5
           }
         ]
       },
@@ -108,6 +113,16 @@
           {
             "type": "command",
             "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/subagent-model.ts\"",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/lead-file-read.ts\"",
             "timeout": 5
           }
         ]

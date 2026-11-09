@@ -42,8 +42,15 @@ test('Claude context budget settings wire documented hooks and read-only reader'
       'Agent|Task|Workflow|WebFetch|WebSearch|NotebookEdit|Write|Edit|Bash|Read|Glob|Grep',
       // Built-in Explore and Plan get the configured subagent model.
       'Agent|Task',
+      // The lead gets no whole-file dump; subagents read freely.
+      'Read',
     ],
   );
+  const reader =
+    'NODE_COMPILE_CACHE="$CLAUDE_PROJECT_DIR/.krn/cache/node" node "$CLAUDE_PROJECT_DIR/scripts/claude/lead-file-read.ts"';
+  assert.equal(guard[1].hooks[2].command, reader);
+  assert.equal(guard[4].hooks[0].command, reader);
+  assert.ok(existsSync(new URL('scripts/claude/lead-file-read.ts', root)));
   // The context ceiling refuses tools that start new work past 90%.
   assert.equal(
     guard[2].hooks[0].command,
