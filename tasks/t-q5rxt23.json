@@ -1,0 +1,12 @@
+{
+  "id": "t-q5rxt23",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Stop the lead reading files through Bash cat, sed and grep",
+  "after": [],
+  "body": [
+    "Outcome: lead file reads through Bash cat, sed -n and grep fall by half per merged PR.\nWhy: those three families return 7.1 MB, 54% of the lead's 13.2 MB Bash results since 2026-11-01, and every byte is re-read from cache on each later turn (.krn/runs/roadmap-refill/token-per-slice.md, section 6); krn-lead says to delegate reading but nothing enforces it.\nProof: a PreToolUse rule or an output cap with a test, then token-scan.py section 6 on new sessions.\nScope: scripts/claude hooks, krn-lead skill, tests."
+  ]
+}

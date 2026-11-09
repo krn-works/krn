@@ -1,7 +1,11 @@
 {
   "id": "t-389d2je",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Roadmap R1-R4 measured; tasks t-9k7eha3 t-f6q8gcp t-q5rxt23 t-amfcywj"
+  },
   "created": "2026-11-09",
   "priority": 1,
   "title": "Refill the empty roadmap with measured opportunities",

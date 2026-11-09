@@ -1,0 +1,12 @@
+{
+  "id": "t-f6q8gcp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Find why relay sessions end without a merge and cut the cause",
+  "after": [],
+  "body": [
+    "Outcome: lead relay sessions over 20 turns that merge nothing drop from 37 to under 10 per 200 sessions.\nWhy: 83 lead sessions merged no PR and used 616M cache_read (39%); 37 of them are relay sessions over 20 turns (329M, 53% of that) (.krn/runs/roadmap-refill/token-per-slice.md, section 7; classes are heuristic).\nProof: a classification of the 37 sessions by stop cause (operator wait, CI wait, scope research, handoff churn) saved under .krn/runs/, one fix per top cause, and a rerun of token-scan.py.\nScope: this repository's lead skill, handoff and resume flow."
+  ]
+}
