@@ -20,6 +20,7 @@ const [lead, subagent] = readFileSync(
 
 const dir = mkdtempSync(join(tmpdir(), 'lead-file-read-'));
 writeFileSync(join(dir, 'big.md'), `${'line of text\n'.repeat(1000)}`);
+writeFileSync(join(dir, 'mid.md'), 'line of text\n'.repeat(600));
 writeFileSync(join(dir, 'small.md'), 'one\ntwo\n');
 
 const run = (base: Record<string, unknown> | undefined, tool_input: object) =>
@@ -64,6 +65,9 @@ test('lead file read hook allows slices, bounded searches, writes and subagents'
     'rg -l TODO',
     'cat > out.md <<EOF\ncat big.md\nEOF',
     'cat missing.md',
+    'cat small.md; cat small.md',
+    'cat mid.md; wc -l mid.md; grep -c line mid.md',
+    'cat mid.md; echo "exit=$?"',
   ]) {
     const result = run(lead, { command });
     assert.equal(result.status, 0, `${command}: ${result.stderr}`);
@@ -78,4 +82,17 @@ test('lead file read hook allows slices, bounded searches, writes and subagents'
     0,
   );
   assert.equal(run(lead, { file_path: join(dir, 'small.md') }).status, 0);
+});
+
+test('lead file read hook refuses reads chained past the budget in one call', () => {
+  for (const command of [
+    'cat mid.md; cat mid.md',
+    'cat mid.md && cat mid.md',
+    "cat mid.md; sed -n '1,70p' mid.md; sed -n '1,70p' mid.md",
+    `cd ${dir} && cat mid.md; cat mid.md`,
+  ]) {
+    const result = run(lead, { command });
+    assert.equal(result.status, 2, command);
+    assert.match(result.stderr, /chained in this Bash call/u, command);
+  }
 });
