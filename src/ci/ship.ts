@@ -1,4 +1,4 @@
-import { dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import {
   checked,
@@ -11,7 +11,7 @@ import { titleProblem } from './commit-title.ts';
 import { releaseRefreshExit, waitCommand } from './wait.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force]; run inside the branch worktree: pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits like `krn ci wait` (74 failed gate, 75 timeout, 76 conflict, 77 head moved, 78 refresh failed after the merge), 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>]; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits like `krn ci wait` (74 failed gate, 75 timeout, 76 conflict, 77 head moved, 78 refresh failed after the merge), 64 usage or refused title';
 
 function usageError(message: string): Error {
   return Object.assign(new Error(message), { exitCode: 64 });
@@ -39,7 +39,12 @@ export async function shipCommand(
   const problem = titleProblem(title);
   if (problem !== undefined) throw usageError(`refused title: ${problem}`);
 
-  const cwd = runtime.cwd ?? process.cwd();
+  const caller = runtime.cwd ?? process.cwd();
+  // Shipping from the root keeps the caller's shell in a directory that
+  // survives the cleanup below.
+  const cwd =
+    values.worktree === undefined ? caller : resolve(caller, values.worktree);
+  const body = resolve(caller, bodyFile);
   const runner = runtime.run ?? run;
   const wait = runtime.sleep ?? sleep;
   const gh = runtime.gh ?? ((a) => github(a, cwd, runner, wait));
@@ -108,7 +113,7 @@ export async function shipCommand(
       '--title',
       title,
       '--body-file',
-      bodyFile,
+      body,
     ]);
     pr = Number(/\/pull\/(\d+)\s*$/u.exec(created.trim())?.[1]);
     if (!Number.isInteger(pr))
@@ -123,7 +128,7 @@ export async function shipCommand(
       '--title',
       title,
       '--body-file',
-      bodyFile,
+      body,
     ]);
   }
   await gh(['pr', 'merge', String(pr), '--repo', repo, '--auto', '--squash']);
@@ -181,11 +186,13 @@ function parse(args: string[]) {
       'body-file': { type: 'string' },
       repo: { type: 'string' },
       force: { type: 'boolean' },
+      worktree: { type: 'string' },
     },
   });
   return {
     title: values.title,
     bodyFile: values['body-file'],
+    worktree: values.worktree,
     repo: values.repo,
     force: values.force === true,
   };

@@ -20,6 +20,7 @@ function receiver(options: {
 }) {
   let time = 0;
   const calls: string[] = [];
+  const dirs: string[] = [];
   const pulls = [...options.pulls];
   const gh = async (a: string[]): Promise<string> => {
     calls.push(`gh ${a.join(' ')}`);
@@ -53,8 +54,9 @@ function receiver(options: {
       ]);
     assert.fail(`unexpected gh call ${a.join(' ')}`);
   };
-  const run = (command: string, a: string[]) => {
+  const run = (command: string, a: string[], at?: string) => {
     calls.push(`${command} ${a.join(' ')}`);
+    dirs.push(`${at} ${command} ${a[0]}`);
     const out = (stdout: string) => ({ code: 0, stdout, stderr: '' });
     if (command === 'bash') return out(`commit=${merge}\n`);
     const line = a.join(' ');
@@ -72,6 +74,7 @@ function receiver(options: {
   };
   return {
     calls,
+    dirs,
     run,
     gh,
     cwd: '/r/.krn/worktrees/feat-x',
@@ -155,4 +158,19 @@ test('a refused title, main branch or dirty tree exits 64 before any push', asyn
     });
     assert.ok(!rec.calls.some((c) => c.includes('push')));
   }
+});
+
+test('ship --worktree runs from the repository root and cleans up the named worktree', async () => {
+  const r = { ...receiver({ pulls: [auto, merged] }), cwd: '/r' };
+  const out = await shipCommand(
+    [...args, '--worktree', '.krn/worktrees/feat-x'],
+    r,
+  );
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  for (const step of ['git status', 'git push'])
+    assert.ok(
+      r.dirs.includes(`/r/.krn/worktrees/feat-x ${step}`),
+      `${step} ran outside the worktree: ${r.dirs.join('\n')}`,
+    );
+  assert.ok(r.calls.some((c) => c.includes('--body-file /r/body.md')));
 });

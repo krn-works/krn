@@ -1,0 +1,16 @@
+{
+  "id": "t-7t8zpyf",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn pr ship --worktree ships from the root; skills use it"
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Ship from the repository root so cleanup never deletes the shell's directory",
+  "after": [],
+  "body": [
+    "Outcome: `krn pr ship --worktree <path>` ships a branch worktree from the repository root; the lead and lane briefs use it, so a merged ship no longer ends the Bash call with exit 1.\nWhy: on 2026-11-09 both ships in session 3e700b2a printed `verdict: merged` and then `pwd: error retrieving current directory`, exit 1, because ship removed the worktree the shell stood in; every ship reads as a failure.\nProof: test/ci/ship.test.ts ships with runtime cwd at the root and --worktree, and every git call runs in the worktree.\nScope: src/ci/ship.ts, test/ci/ship.test.ts, .agents/skills/krn-lead/SKILL.md, .agents/skills/krn-lead/lanes.md."
+  ]
+}
