@@ -2,6 +2,7 @@
 """Lead and subagent dollars per merged PR inside a time window.
 Usage: spend-window.py <start-iso> <end-iso> [transcript-dir] [repo]
 Lead turns are priced by message timestamp; subagent turns likewise, grouped by agentType.
+Sessions started inside a worktree (<transcript-dir>--krn-worktrees-*) count as lead and subagent spend too.
 PRs are first-parent main commits titled "(#n)" committed inside the window."""
 import collections, datetime as dt, glob, json, os, re, subprocess, sys
 
@@ -49,9 +50,10 @@ def turns(path):
 log = subprocess.run(['git', '-C', repo, 'log', '--first-parent', 'origin/main', '--format=%cI\t%s'],
                      capture_output=True, text=True, check=True).stdout.splitlines()
 prs = sum(1 for l in log if a <= ts(l.split('\t')[0]) < b and re.search(r'\(#\d+\)$', l))
-lead = sum(price(m, u) for f in glob.glob(f'{root}/*.jsonl') for _, m, u in turns(f))
+roots = [root] + sorted(glob.glob(glob.escape(root.rstrip('/')) + '--krn-worktrees-*'))
+lead = sum(price(m, u) for r in roots for f in glob.glob(f'{r}/*.jsonl') for _, m, u in turns(f))
 by = collections.defaultdict(lambda: [0, 0.0, 0])
-for f in glob.glob(f'{root}/*/subagents/*.jsonl'):
+for f in (f for r in roots for f in glob.glob(f'{r}/*/subagents/*.jsonl')):
     t = turns(f)
     if not t:
         continue
@@ -65,7 +67,7 @@ for f in glob.glob(f'{root}/*/subagents/*.jsonl'):
     r[2] += len(t)
 sub = sum(r[1] for r in by.values())
 n = max(prs, 1)
-print(f'{sys.argv[1]}..{sys.argv[2]}: {prs} PRs')
+print(f'{sys.argv[1]}..{sys.argv[2]}: {prs} PRs, {len(roots)} transcript dirs')
 print(f'lead ${lead:.2f} = ${lead / n:.2f}/PR; subagents ${sub:.2f} = ${sub / n:.2f}/PR; total ${(lead + sub) / n:.2f}/PR')
 for k, r in sorted(by.items(), key=lambda x: -x[1][1]):
     print(f'  {k:18s} agents={r[0]:3d} turns={r[2]:5d} ${r[1]:7.2f}')
