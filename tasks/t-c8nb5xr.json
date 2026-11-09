@@ -1,0 +1,17 @@
+{
+  "id": "t-c8nb5xr",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Not feasible: clear_tool_uses is server-flagged (tengu_jiggly_blossom, default off), no setting; updatedToolOutput only rewrites the current result; nearest lever (lead-file-read PreToolUse, BASH_MAX_OUTPUT_LENGTH) already shipped"
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Clear stale tool results from long lead contexts",
+  "after": [],
+  "body": [
+    "Outcome: KRN lead sessions drop stale bulky tool results from context through a mechanism Claude Code supports, or the task records with evidence that none exists and what the nearest lever is.\nWhy: Anthropic context management (https://claude.com/blog/context-management): context editing cut tokens 84% on a 100-turn eval and raised task success 29%. KRN lead cache reads are 41% of lead $ at median 85k context per turn (lead-cost scan 2026-11-09).\nProof: the Claude Code documentation or binary shows the setting or hook (PostToolUse output replacement, compaction settings, clear_tool_uses); if one exists, it is enabled in .claude/settings.json with a test, and a before/after per-turn context median is recorded.\nScope: .claude/settings.json, scripts/claude, docs/program, test.",
+    "## Finding (claude 2.1.319, binary /home/krn/.local/share/mise/installs/claude/2.1.319/claude)\nNo user-enableable lever drops stale tool results from the lead context.\n- Server-side clearing exists but is remote-flagged: `grep -a clear_tool_uses` hits `clear_tool_uses_20250919` edits planned only after idle (`tengu_tool_result_clearing_after_idle_planned`); mode comes from `Rdr()` = flag `tengu_jiggly_blossom`, values on|shadow|off, default off. No settings.json key or env var sets it (`grep -a -o CLAUDE_CODE_[A-Z_]*TOOL_RESULT` finds only CLAUDE_CODE_TRANSCRIPT_SLIM_TOOL_RESULTS, a transcript-file option).\n- PostToolUse `updatedToolOutput` (\"Replaces the tool output before it is sent to the model\", binary schema; https://code.claude.com/docs/en/hooks) rewrites only the result of the call that just ran, not earlier results, so it cannot clear stale ones.\n- Compaction levers are whole-context only: autoCompactWindow (already 400000), CLAUDE_CODE_AUTO_COMPACT_WINDOW, CLAUDE_CODE_SLEEP_COMPACT*, CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS.\n## Nearest lever (already in place)\nPrevent bulk instead of clearing it: PreToolUse scripts/claude/lead-file-read.ts refuses large cat/sed/grep/Read dumps for the lead; BASH_MAX_OUTPUT_LENGTH=12000 caps Bash output. A PostToolUse truncation would duplicate these and lose data the model needs on the turn it arrives.\n## Measure if the flag ever turns on\nMedian per-turn context from the transcript usage (input+cache_read+cache_creation) via scripts/claude/context-report.ts, before vs after; applied_edits of type clear_tool_uses_20250919 appear in message.context_management."
+  ]
+}
