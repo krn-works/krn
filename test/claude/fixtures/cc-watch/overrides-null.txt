@@ -1,0 +1,1 @@
+moteEvalFeatureValues.size>0)queueMicrotask(()=>{if(n&&this.remoteEvalFeatureValues.size>0)FR(e)});return()=>{n=!1,r()}}getEnvironmentOverrides(){return null}hasEnvironmentOverride(e){let n=this.getEnvironmentOverrides();return n!==null&&Fl(n,e)}hasOverride(e){
