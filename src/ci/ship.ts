@@ -144,7 +144,7 @@ export async function shipCommand(
     if (worktree === main) return 'cleanup: skipped (not a linked worktree)';
     git(['worktree', 'remove', '--force', worktree], main);
     git(['branch', '-D', branch], main);
-    return `cleanup: removed worktree ${worktree} and branch ${branch}`;
+    return `cleanup: removed worktree ${worktree} and branch ${branch}\nmain checkout: ${main}`;
   };
   const waitArgs = [
     '--repo',

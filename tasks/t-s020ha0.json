@@ -1,0 +1,16 @@
+{
+  "id": "t-s020ha0",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scripts/trivial-call-scan.mjs measures; krn pr ship names the main checkout after removing the worktree"
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Fold the lead's single trivial calls into the commands that precede them",
+  "after": [],
+  "body": [
+    "Outcome: lead turns whose only call is a trivial cd, ls, git status/log, gh or krn read fall measurably per merged PR, because the krn commands that precede them already print what the lead looks up next.\nWhy: lead-cost scan 2026-11-09 (session 3e700b2a, scripts in its scratchpad a.py-d.py): since 2026-11-08, 1466 single-trivial-call lead turns cost $67.7 (25% of lead $, ~$0.86/PR); cd 424 turns $19, krn task 160 $7.6, git worktree 107 $5.1, ls 102 $5.4.\nProof: a committed scan script prints single-trivial-call turns per PR by family before and after; the change removes the top recurring follow-up (for example krn lane start, krn task close, krn pr ship printing the next state), with a test at the command that now prints it.\nScope: src/cli, src/ci, src/task, scripts/claude, test."
+  ]
+}
