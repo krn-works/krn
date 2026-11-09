@@ -1,0 +1,12 @@
+{
+  "id": "t-m7pkw7a",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 3,
+  "title": "Refuse CI polling loops in lead Bash in favour of krn ci wait",
+  "after": [],
+  "body": [
+    "Outcome: lead sessions stop polling CI with sleep loops, gh run watch or python loops; one blocking `bin/krn ci wait` per PR.\nWhy: ~224 polling calls, 265 turns, 5.8% of lead dollars since 2026-11-08, at the highest context (95k median) (.krn/runs/roadmap-refill-3/session-cost.md).\nProof: a PreToolUse Bash refusal (beside scripts/claude/piped-check.ts) names `bin/krn ci wait` when a command polls gh in a loop or with sleep; measure polling calls on 10 new sessions.\nScope: scripts/claude, .claude/settings.json, their tests."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-kb4mvq8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Refill the roadmap from a proactive opportunity scan and ship the top row",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/roadmap.md holds at least three new ranked rows, each with a task carrying measured evidence, and the top one is delivered.\nWhy: after #488 no ready task can proceed (t-akp44kt waits ~30 PRs, t-zz33vhy waits 20 sessions); operator 2026-11-09: \"nie wiem ogarnij to jakos\" (full autonomy).\nProof: new task ids with evidence paths under .krn/runs/; first row merged.\nScope: this repository."
+  ]
+}

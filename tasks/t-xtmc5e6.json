@@ -1,0 +1,12 @@
+{
+  "id": "t-xtmc5e6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Bound every GitHub call in krn deliver transport with a per-call timeout",
+  "after": [],
+  "body": [
+    "Outcome: no GitHub call through src/deliver/transport.ts blocks longer than a bounded per-call timeout; a timed-out call is retried as transient.\nWhy: run() uses spawnSync with a 1 h timeout, and host IPv4 to api.github.com stalls on ~1 in 3 connections; `krn ci wait` (every slice) and `krn ci logs` can hang up to an hour. #488 fixed the same stall only inside ledger.ts with a private 5 s timeout and 3 tries (.krn/runs/roadmap-refill-3/gh-timeouts.md). A lead `git fetch` hung over 2 minutes on 2026-11-09 the same way.\nProof: a test with a stub gh that sleeps shows github() returning or retrying within the bound; ledger reuses the shared helper or names why not.\nScope: src/deliver/transport.ts, src/deliver/ledger.ts and their tests."
+  ]
+}
