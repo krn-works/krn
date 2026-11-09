@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import {
@@ -10,8 +11,7 @@ import {
 
 const fx = (name: string) =>
   join(import.meta.dirname, 'fixtures', 'cc-watch', name);
-const tmp = () =>
-  mkdtempSync(join(process.env.TMPDIR ?? '/mnt/storage/tmp', 'ccw-'));
+const tmp = () => mkdtempSync(join(tmpdir(), 'ccw-'));
 
 test('stubbed overrides, idle constant and markers are read from the 2.1.319 snippets', async () => {
   const dir = tmp();
