@@ -9,6 +9,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/brain/packet.test.ts': 1.8,
   'test/brain/worker-packet.test.ts': 0.1,
   'test/ci/ci-changes.test.ts': 0.4,
+  'test/ci/weak-tests.test.ts': 0.4,
   'test/ci/gate-wait-capture.test.ts': 0.2,
   'test/ci/logs-capture.test.ts': 0.1,
   'test/ci/shard-wall-report.test.mjs': 0.7,
