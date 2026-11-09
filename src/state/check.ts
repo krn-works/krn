@@ -12,7 +12,9 @@ import { basename, join, resolve } from 'node:path';
 import {
   ABI_LABELS,
   type CapsuleFields,
+  FIXED_POINT_LABEL,
   fixedPointAnchors,
+  hasFixedPointAnchor,
   OUTCOME_STATES,
   PUBLICATION_STATES,
   parseAcceptance,
@@ -386,10 +388,7 @@ const cleanupRule: CapsuleRule = (ctx) => {
 };
 
 const fixedPointRule: CapsuleRule = (ctx) => {
-  const fixedPoint =
-    ctx.fields[
-      'Repository base, HEAD or working-tree fingerprint, and dirty-state scope'
-    ];
+  const fixedPoint = ctx.fields[FIXED_POINT_LABEL];
   if (!fixedPoint) return;
   const { id, errors, warnings } = ctx;
   for (const finding of fixedPointErrors(ctx.root, fixedPoint, ctx.usableGit))
@@ -400,9 +399,7 @@ const fixedPointRule: CapsuleRule = (ctx) => {
       .matchAll(/\b(base|HEAD)\s*=\s*([0-9a-f]{40}|[0-9a-f]{64})\b/gi),
   ].map((match) => (match[2] ?? '').toLowerCase());
   const anchorHead = fixedPointAnchors(fixedPoint).head;
-  if (
-    !/\b(base|HEAD|fingerprint)\s*=\s*[^\s,;]+/i.test(stripMarkup(fixedPoint))
-  ) {
+  if (!hasFixedPointAnchor(fixedPoint)) {
     const finding = {
       id,
       rule: 'missing-fixed-point',

@@ -121,6 +121,13 @@ test('set refuses values state check would reject', () => {
     assert.match(ledger.stderr, /krn state accept/);
     const drop = krn(root, 'accept', 'x', 'drop:');
     assert.equal(drop.status, 64);
+    for (const bare of ['main da62997 clean', 'a'.repeat(40)]) {
+      const fixed = krn(root, 'set', 'fingerprint', bare);
+      assert.equal(fixed.status, 64, fixed.stderr);
+      assert.match(fixed.stderr, /HEAD=<sha>/);
+    }
+    const anchored = krn(root, 'set', 'fingerprint', 'HEAD=abcdef1 clean');
+    assert.equal(anchored.status, 0, anchored.stderr);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
