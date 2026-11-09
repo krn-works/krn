@@ -30,7 +30,7 @@ const releaseScript = fileURLToPath(
   new URL('../../scripts/product-release.sh', import.meta.url),
 );
 export const waitUsage =
-  'Usage: krn ci wait --repo <owner/repo> --pr <n> --head <sha> --base <sha> [--timeout-seconds <n>] [--start-timeout-seconds <n>] [--merge-timeout-seconds <n>]; with auto-merge on, waits for the merge and refreshes the pinned Product entry; exits 0 success, 64 usage, 74 failed gate, 75 timeout, 76 conflict, 77 head moved, 78 refresh failed (previous commit kept), 69 never started';
+  'Usage: krn ci wait --repo <owner/repo> --pr <n> --head <sha> --base <sha> [--timeout-seconds <n>] [--start-timeout-seconds <n>] [--merge-timeout-seconds <n>]; with auto-merge on, waits for the merge, refreshes the pinned Product entry and ends with one `verdict:` line (merged <sha>, closed unmerged, open: blocked, or not merging); exits 0 success, 64 usage, 74 failed gate, 75 timeout, 76 conflict, 77 head moved, 78 refresh failed (previous commit kept), 69 never started';
 
 export async function waitCommand(
   args: string[],
@@ -119,6 +119,10 @@ export async function waitCommand(
           refresh: () => runner('bash', [releaseScript], cwd),
         })),
       );
+    else
+      lines.push(
+        `verdict: not merging: auto-merge is not enabled on PR #${options.pr} (mergeable_state ${last?.mergeable_state ?? 'unknown'}); run gh pr merge ${options.pr} --auto --squash`,
+      );
     return lines.join('\n');
   } catch (error) {
     throw Object.assign(
@@ -170,12 +174,18 @@ async function refreshAfterMerge(options: {
           .split('\n')
           .filter((line) => line !== '')
           .map((line) => `release: ${line}`),
+        `verdict: merged ${pull.merge_commit_sha ?? 'unknown'}`,
       ];
     }
-    if (pull.state === 'closed') return ['merge: PR closed without merging'];
+    if (pull.state === 'closed')
+      return [
+        'merge: PR closed without merging',
+        `verdict: closed unmerged PR #${options.pr}`,
+      ];
     if (options.now() >= deadline)
       return [
         `merge: not observed within ${Math.floor(options.mergeTimeoutMs / 1000)}s; after it merges run scripts/product-release.sh`,
+        `verdict: open: auto-merge enabled but PR #${options.pr} is ${pull.mergeable_state} (review or another required rule blocks it)`,
       ];
     await options.sleep(10000);
   }

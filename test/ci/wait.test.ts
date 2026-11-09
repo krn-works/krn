@@ -44,7 +44,10 @@ function runtime(
 }
 test('wait succeeds and reads policy at exact base', async () => {
   const receiver = runtime(() => [checkRun('completed', 'success')]);
-  assert.equal(await waitCommand(args, receiver), `gate: success ${head}`);
+  assert.equal(
+    await waitCommand(args, receiver),
+    `gate: success ${head}\nverdict: not merging: auto-merge is not enabled on PR #7 (mergeable_state blocked); run gh pr merge 7 --auto --squash`,
+  );
   assert.deepEqual(receiver.gitReads[0], [
     'ls-tree',
     '--full-tree',
@@ -185,7 +188,7 @@ test('a gate that starts in time is not cut by the start bound', async () => {
   );
   assert.equal(
     await waitCommand([...args, '--start-timeout-seconds', '30'], receiver),
-    `gate: success ${head}`,
+    `gate: success ${head}\nverdict: not merging: auto-merge is not enabled on PR #7 (mergeable_state blocked); run gh pr merge 7 --auto --squash`,
   );
   assert.equal(receiver.elapsed(), 40_000);
 });
@@ -325,6 +328,7 @@ test('wait refreshes the pinned Product entry once the auto-merging PR merges', 
       'release: entry=/x/bin/krn',
       `release: previous=${base}`,
       `release: commit=${merge}`,
+      `verdict: merged ${merge}`,
     ].join('\n'),
   );
   const refreshes = receiver.runs.filter(([command]) => command === 'bash');
@@ -357,7 +361,10 @@ test('wait without auto-merge skips the refresh; an unseen merge prints the manu
     stdout: '',
     stderr: '',
   });
-  assert.equal(await waitCommand(args, plain), `gate: success ${head}`);
+  assert.equal(
+    await waitCommand(args, plain),
+    `gate: success ${head}\nverdict: not merging: auto-merge is not enabled on PR #7 (mergeable_state blocked); run gh pr merge 7 --auto --squash`,
+  );
   assert.equal(plain.runs.filter(([command]) => command === 'bash').length, 0);
 
   const pending = mergeRuntime([autoMerge], {
@@ -367,10 +374,21 @@ test('wait without auto-merge skips the refresh; an unseen merge prints the manu
   });
   assert.equal(
     await waitCommand([...args, '--merge-timeout-seconds', '30'], pending),
-    `gate: success ${head}\nmerge: not observed within 30s; after it merges run scripts/product-release.sh`,
+    `gate: success ${head}\nmerge: not observed within 30s; after it merges run scripts/product-release.sh\nverdict: open: auto-merge enabled but PR #7 is blocked (review or another required rule blocks it)`,
   );
   assert.equal(
     pending.runs.filter(([command]) => command === 'bash').length,
     0,
+  );
+});
+
+test('a PR closed without merging ends with an unmerged verdict', async () => {
+  const closed = mergeRuntime(
+    [autoMerge, { state: 'closed', merged: false, auto_merge: null }],
+    { code: 1, stdout: '', stderr: '' },
+  );
+  assert.equal(
+    await waitCommand(args, closed),
+    `gate: success ${head}\nmerge: PR closed without merging\nverdict: closed unmerged PR #7`,
   );
 });
