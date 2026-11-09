@@ -1,0 +1,16 @@
+{
+  "id": "t-amabe41",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scripts/claude/cc-clearing-watch.ts plus SessionStart hook; real 2.1.319 verdict unchanged"
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Flag when a Claude Code release makes built-in tool-result clearing reachable",
+  "after": [],
+  "body": [
+    "Outcome: a script flags when a Claude Code release makes built-in tool-result clearing reachable (getEnvironmentOverrides implemented, or clear_tool_uses_20250919 edits in recent transcripts), run from SessionStart.\nWhy: t-mbrjeja found the clearing unreachable in 2.1.319; revisiting needs a trigger without the lead remembering.\nProof: test/claude/cc-clearing-watch.test.ts on captured 2.1.319 snippets, plus one run on the real binary.\nScope: scripts/claude/cc-clearing-watch.ts, .claude/settings.json SessionStart hook, tests and fixtures only."
+  ]
+}
