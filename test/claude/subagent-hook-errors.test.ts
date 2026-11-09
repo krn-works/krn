@@ -23,7 +23,7 @@ const script = fileURLToPath(
   new URL('../../scripts/claude/subagent-hook-errors.ts', import.meta.url),
 );
 const fixture = fileURLToPath(
-  new URL('./fixtures/subagent-hook-error.jsonl', import.meta.url),
+  new URL('./transcripts/subagent-hook-error.jsonl', import.meta.url),
 );
 
 const run = (payload: object, root: string) =>
