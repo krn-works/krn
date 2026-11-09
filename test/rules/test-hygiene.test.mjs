@@ -258,3 +258,33 @@ test('partial JSONL pattern rejects trim-split readers and accepts terminated on
     ),
   );
 });
+
+// Worker code calls systemctl dozens of times per test file; a node stub
+// costs ~120 ms of startup per call against ~9 ms in sh (t-3p3xp7z).
+const nodeScopeStub =
+  /(?:\bsystemctl|['"]systemd-run['"])\s*:\s*[`'"]#!\/usr\/bin\/env node/u;
+
+test('systemd stubs in test fixtures run in sh, not node', () => {
+  const sources = execFileSync(
+    'git',
+    ['ls-files', '--cached', '--others', '--exclude-standard', 'test'],
+    { cwd: root, encoding: 'utf8' },
+  )
+    .split('\n')
+    .filter(
+      (file) =>
+        /\.[cm]?[jt]s$/u.test(file) &&
+        file !== 'test/rules/test-hygiene.test.mjs' &&
+        existsSync(`${root}/${file}`),
+    );
+  const offenders = sources.filter((file) =>
+    nodeScopeStub.test(readFileSync(`${root}/${file}`, 'utf8')),
+  );
+  assert.deepEqual(
+    offenders,
+    [],
+    'use systemctlStub from test/worker/systemctl-stub.ts',
+  );
+  assert.ok(nodeScopeStub.test('systemctl: `#!/usr/bin/env node\n'));
+  assert.ok(!nodeScopeStub.test("systemctl: '#!/bin/sh\\n'"));
+});

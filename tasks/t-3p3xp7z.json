@@ -1,0 +1,17 @@
+{
+  "id": "t-3p3xp7z",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "sh systemctl stub: 121 -> 9 ms per call, hardening-git -1.3 s locally"
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Stub systemctl in sh in worker test fixtures",
+  "after": [],
+  "body": [
+    "Outcome: worker test fixtures stub systemctl in POSIX sh instead of node, so hardening, state-trust and recovery worker tests stop paying ~100 ms of node startup per systemctl call.\nEvidence: recon at a984cc5 (local, --test-concurrency=1, child_process tap): hardening-git makes 56 systemctl calls at ~100 ms each (about 4.2 s of its 8.8 s); state-trust-identity at least 15 calls (~1.5 s); a sh stub costs 6-11 ms per call. Stubs: test/worker/hardening-fixture.ts, state-trust-fixture.ts, recovery-fixture.ts.\nAcceptance: the three fixtures write a #!/bin/sh systemctl that records the same JSON argv lines and output; the affected worker tests pass; local wall time of test/worker/hardening-git.test.ts drops by at least 2 s.",
+    "Result: test/worker/systemctl-stub.ts writes one sh systemctl for the hardening, state-trust and recovery fixtures (recovery keeps its stop check in sh). Per call 121 -> 9 ms over 20 calls, and the scope log is byte-identical to the node stub's (cmp). Under host load 28, three alternating local runs of hardening-git took a median of 9.35 s on main and 8.07 s here (-1.3 s, short of the 2 s goal). state-trust-identity stayed flat (9.7 vs 9.9 s), so the recon count of 15 calls overstated its share. All 11 fixture-using worker test files pass. CI effect: watch hardening-git in the t-wm22s14 window."
+  ]
+}

@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { TestContext } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
+import { shellQuote, systemctlStub } from './systemctl-stub.ts';
 
 const cli = resolve('src/cli/krn.mjs');
 const fixture = resolve('test/fixtures/worker/app-server.mjs');
@@ -89,21 +90,12 @@ export async function setup(t: TestContext) {
   for (const [name, source] of Object.entries({
     'systemd-run':
       '#!/bin/sh\nwhile [ "$#" -gt 0 ]; do case "$1" in --unit) shift 2;; --*) shift;; *) exec "$@";; esac; done\n',
-    systemctl: `#!/usr/bin/env node
-import { createHash } from 'node:crypto';
-import { appendFileSync, existsSync, readFileSync, realpathSync } from 'node:fs';
-const args = process.argv.slice(2);
-appendFileSync(${JSON.stringify(scopes)}, JSON.stringify(args) + '\\n');
-const unit = 'krn-worker-' + createHash('sha256').update(realpathSync(${JSON.stringify(run)})).digest('hex') + '.scope';
-if (args[1] === 'stop') {
-  if (args[2] !== unit) process.exit(65);
-  if (existsSync(${JSON.stringify(orphan)})) {
-    try { process.kill(Number(readFileSync(${JSON.stringify(orphan)}, 'utf8')), 'SIGKILL'); }
-    catch (error) { if (error.code !== 'ESRCH') throw error; }
-  }
-}
-console.log('ActiveState=inactive\\nControlGroup=');
-`,
+    systemctl: systemctlStub(
+      scopes,
+      `unit="krn-worker-$(printf '%s' "$(realpath ${shellQuote(run)})" | sha256sum | cut -d' ' -f1).scope"
+[ "$3" = "$unit" ] || exit 65
+if [ -f ${shellQuote(orphan)} ]; then kill -KILL "$(cat ${shellQuote(orphan)})" 2>/dev/null || true; fi`,
+    ),
   })) {
     writeFileSync(join(bin, name), source);
     chmodSync(join(bin, name), 0o755);
