@@ -19,6 +19,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/ci/wait.test.ts': 0.1,
   'test/claude/capture-fixture.test.ts': 0.1,
   'test/claude/context-gauge.test.ts': 1.9,
+  'test/claude/ctx-proxy.test.ts': 1.0,
   'test/claude/context-replay.test.ts': 1.2,
   'test/claude/context-report.test.ts': 0.3,
   'test/claude/context-restart.test.ts': 0.9,

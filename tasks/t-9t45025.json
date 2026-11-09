@@ -1,0 +1,16 @@
+{
+  "id": "t-9t45025",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Proxy shipped in shadow mode; live haiku probe on subscription OAuth passed, evidence test/claude/fixtures/ctx-proxy-live-metrics.jsonl"
+  },
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Run a localhost context proxy in shadow mode that measures what stale tool-result clearing would save",
+  "after": [],
+  "body": [
+    "Outcome: scripts/claude/ctx-proxy.ts, a localhost reverse proxy (127.0.0.1, upstream hardcoded https://api.anthropic.com) that passes Claude Code traffic through unchanged and appends shadow-mode metrics (what stale tool-result clearing would save) to .krn/runs/ctx-proxy/metrics.jsonl.\nWhy: t-mbrjeja proved built-in clearing cannot be enabled locally; operator grant 2026-11-09 \"leć z tematem, masz na wszystko zgodę\" (lead memory ctx-proxy-credential-grant) allows credentials through a KRN proxy only in this shape.\nProof: test/claude/ctx-proxy.test.ts against a fake upstream (byte-identical streamed pass-through, headers untouched, metrics fields, would_clear, no header values in metrics, production upstream constant pinned) plus one live claude -p haiku probe with a captured metrics line.\nScope: shadow mode only; no request mutation except stripping accept-encoding; not wired into settings or launchers."
+  ]
+}
