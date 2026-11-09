@@ -7,6 +7,7 @@
   "title": "Cut subagent spend, now 47% of lead-session dollars",
   "after": [],
   "body": [
-    "Outcome: subagent dollars per merged PR fall measurably (cost-scan.py), by type and model, without more lead turns per PR.\nWhy: .krn/runs/roadmap-refill-2/tokens.md: since 2026-11-07 subagents cost $216 of $462 over 121 PRs; lead median $1.62 and 41 turns per PR.\nProof: `python3 -I .krn/runs/token-cost/cost-scan.py` before and after, split by subagent type.\nScope: this repository."
+    "Outcome: subagent dollars per merged PR fall measurably (cost-scan.py), by type and model, without more lead turns per PR.\nWhy: .krn/runs/roadmap-refill-2/tokens.md: since 2026-11-07 subagents cost $216 of $462 over 121 PRs; lead median $1.62 and 41 turns per PR.\nProof: `python3 -I .krn/runs/token-cost/cost-scan.py` before and after, split by subagent type.\nScope: this repository.",
+    "Measurement plan: before (2026-11-09) in .krn/runs/subagent-spend/before.txt: $216 subagents, $1.76/PR, 15 lanes >=100 turns = $167. Shipped maxTurns on krn-reader/krn-research plus lanes.md turn-budget rule. After: rerun `python3 -I .krn/runs/subagent-spend/split-scan.py` once ~30 PRs of new sessions exist; success = subagent $/PR below $1.2 and agents >=100 turns below 5."
   ]
 }
