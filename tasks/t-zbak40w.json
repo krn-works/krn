@@ -1,0 +1,16 @@
+{
+  "id": "t-zbak40w",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane start carries an uncommitted task record into the new worktree"
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Let krn lane start claim a task created but not yet committed",
+  "after": [],
+  "body": [
+    "Outcome: krn lane start --task ID moves an untracked tasks/ID.json from the invoking checkout into the new worktree before claiming.\nWhy: the worktree is cut from origin/main, so a just-created task fails with exit 65 \"task does not exist\" and the lead claimed by hand.\nProof: test/cli/lane.test.ts starts a lane in a real temp repo for an untracked task and for a tracked-modified one (refused).\nScope: src/cli/lane.ts and its test only."
+  ]
+}

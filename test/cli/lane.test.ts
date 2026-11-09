@@ -117,3 +117,45 @@ test('lane start rolls back the worktree when the claim fails', () => {
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+const record = (id: string) =>
+  `${JSON.stringify({ id, status: 'open', resolution: null, created: '2026-11-09', priority: 3, title: 'New', after: [], body: ['Outcome: o'] }, null, 2)}\n`;
+
+test('lane start moves a task record that is not yet committed into the worktree', () => {
+  const { base, repo } = fixture();
+  try {
+    const file = join(repo, 'tasks', 't-new1234.json');
+    writeFileSync(file, record('t-new1234'));
+    const result = lane(repo, 'start', 'carry', '--task', 't-new1234');
+    assert.equal(result.status, 0, result.stderr);
+    const moved = join(
+      repo,
+      '.krn',
+      'worktrees',
+      'carry',
+      'tasks',
+      't-new1234.json',
+    );
+    assert.equal(readFileSync(moved, 'utf8'), record('t-new1234'));
+    assert.equal(existsSync(file), false);
+    assert.ok(existsSync(join(repo, '.krn', 'task-claims', 't-new1234.json')));
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('lane start refuses a task record tracked locally but absent from origin main', () => {
+  const { base, repo } = fixture();
+  try {
+    writeFileSync(join(repo, 'tasks', 't-loc1234.json'), record('t-loc1234'));
+    git(repo, 'add', '.');
+    git(repo, 'commit', '-qm', 'local task');
+    const result = lane(repo, 'start', 'refused', '--task', 't-loc1234');
+    assert.equal(result.status, 64);
+    assert.match(result.stderr, /tracked .* not on origin\/main/u);
+    assert.equal(existsSync(join(repo, '.krn', 'worktrees', 'refused')), false);
+    assert.ok(existsSync(join(repo, 'tasks', 't-loc1234.json')));
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
