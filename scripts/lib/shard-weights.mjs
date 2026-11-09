@@ -33,6 +33,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/claude/memory-refs.test.ts': 1.9,
   'test/claude/memory-validity.test.ts': 0.5,
   'test/claude/operator-inbox.test.ts': 2.5,
+  'test/claude/lead-file-read-hook.test.ts': 0.9,
   'test/claude/piped-check-hook.test.ts': 0.9,
   'test/claude/restart-live.test.ts': 0.5,
   'test/claude/successor-handed-off.test.ts': 0.3,

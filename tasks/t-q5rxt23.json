@@ -1,7 +1,11 @@
 {
   "id": "t-q5rxt23",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scripts/claude/lead-file-read.ts refuses lead file dumps over 8000 bytes or 80 lines; subagents exempt by agent_id"
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Stop the lead reading files through Bash cat, sed and grep",
