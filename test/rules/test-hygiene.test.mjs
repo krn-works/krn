@@ -45,7 +45,7 @@ const allowWait = new Map([
     'until() polls a condition under a deadline.',
   ],
   [
-    'test/test-suite-shards.test.mjs',
+    'test/test-suite-shards-config.test.mjs',
     'The wait sits inside a fixture script string run by a child.',
   ],
 ]);
