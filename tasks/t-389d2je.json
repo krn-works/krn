@@ -1,0 +1,12 @@
+{
+  "id": "t-389d2je",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Refill the empty roadmap with measured opportunities",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/roadmap.md holds at least three ranked rows, each with measured evidence (command, path, numbers) and an open task, covering token cost per slice first (memory:sector-plan-request), then delivery time, CI wall time and review.\nWhy: after t-kfydr8a closed (#466, #467) the tracker has zero open tasks and the roadmap table is empty; the operator wants the lead to surface improvements unprompted (memory:proactive-opportunity-scan) inside KRN only (memory:krn-only-scope).\nProof: npm run fast PASS with test/rules/roadmap-open-tasks.test.ts green and each row's evidence path present under .krn/runs/.\nScope: this repository; measurement and task creation only; implementation lands in the tasks it creates."
+  ]
+}
