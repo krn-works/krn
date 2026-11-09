@@ -7,6 +7,7 @@ import test from 'node:test';
 import { collectLedger } from '../../src/outcome/ledger.ts';
 import {
   addedLines,
+  references,
   segmentTurns,
   sliceCosts,
   survivingLines,
@@ -222,14 +223,14 @@ test('the ledger reads a seven-day outcome from real git history', async () => {
   }
 });
 
-test('a PR number named before the PR existed is not a reference; its task id is', () => {
+test('a PR number named before the PR existed is not a reference; its task id is, within hours', () => {
   const pr = {
     number: 10,
     title: 'First (t-aaaaaaa)',
     createdAt: '2026-11-01T09:00:00Z',
     mergedAt: '2026-11-01T10:00:00Z',
   };
-  const early = Date.parse('2026-10-23T12:00:00Z');
+  const early = Date.parse('2026-11-01T05:00:00Z');
   assert.deepEqual(
     segmentTurns(
       [
@@ -240,4 +241,23 @@ test('a PR number named before the PR existed is not a reference; its task id is
     ),
     [null, 10],
   );
+});
+
+test('a task id names a PR only for turns shortly before it opened', () => {
+  const pr = {
+    number: 9,
+    title: 'Close it (t-abc1234)',
+    mergedAt: '2026-11-09T14:30:00Z',
+    createdAt: '2026-11-09T14:28:00Z',
+  };
+  const at = (iso: string) => Date.parse(iso);
+  assert.equal(
+    references('krn task t-abc1234', pr, at('2026-11-09T14:00:00Z')),
+    true,
+  );
+  assert.equal(
+    references('krn task t-abc1234', pr, at('2026-11-09T07:00:00Z')),
+    false,
+  );
+  assert.equal(references('krn task t-abc1234', pr, null), true);
 });

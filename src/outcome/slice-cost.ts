@@ -101,6 +101,7 @@ export function turnDollars(turn: Turn): number | null {
 }
 
 const SLACK_MS = 10 * 60 * 1000;
+const TASK_LEAD_MS = 6 * 60 * 60 * 1000;
 function taskOf(title: string): string | undefined {
   return /\((t-[0-9a-z]{7})\)\s*$/.exec(title)?.[1];
 }
@@ -114,8 +115,13 @@ export function references(
   at: number | null = null,
 ): boolean {
   const task = taskOf(pr.title);
-  if (task && new RegExp(`\\b${task}\\b`).test(text)) return true;
   const created = Date.parse(String(pr.createdAt));
+  if (task && new RegExp(`\\b${task}\\b`).test(text)) {
+    // A task spans many PRs: only turns within hours before this PR opened can be its work.
+    return (
+      at === null || !Number.isFinite(created) || at >= created - TASK_LEAD_MS
+    );
+  }
   if (at !== null && Number.isFinite(created) && at < created - SLACK_MS)
     return false;
   return new RegExp(
