@@ -53,6 +53,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/cli/product-release.test.ts': 0.7,
   'test/codex/app-server-replay.test.ts': 0.6,
   'test/codex/context-hook.test.ts': 1.3,
+  'test/codex/hook-probe.test.ts': 0.2,
   'test/deliver/admission-policy.test.ts': 0.1,
   'test/deliver/transport-capture.test.ts': 0.1,
   'test/deliver/transport.test.ts': 0.1,

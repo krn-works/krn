@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   closeSync,
   existsSync,
@@ -255,6 +256,58 @@ export function receipt(project: string, sessionId: string, now = new Date()) {
   );
 }
 
+export const sessionStartSources = [
+  'startup',
+  'resume',
+  'clear',
+  'compact',
+  'fork',
+] as const;
+
+// Codex queues one SessionStart per source and drains the queue at the next
+// turn, so `codex exec resume` with a pre-turn auto-compaction runs `resume`
+// then `compact` in one turn (codex-rs core/src/hook_runtime.rs
+// run_pending_session_start_hooks). Both see the same live history, so the
+// second identical block is noise. A resume or compact source skips the block
+// when this session already received the same text since the rollout's last
+// compaction; startup, clear and fork start a new history and always get it,
+// and an unreadable rollout fails toward restoring.
+export function restartOnce(
+  project: string,
+  sessionId: string,
+  source: string,
+  transcript: unknown,
+  text: string,
+): string | undefined {
+  const directory = join(project, '.krn/runs/codex/session-start');
+  const path = join(directory, `${sessionId}.json`);
+  const hash = createHash('sha256').update(text).digest('hex');
+  let boundary: string | undefined;
+  let readable = false;
+  if (typeof transcript === 'string')
+    try {
+      boundary = codexReading(tail(transcript)).boundary;
+      readable = true;
+    } catch {
+      /* An unreadable rollout cannot prove the block is still in context. */
+    }
+  const key = `${boundary ?? 'start'}:${hash}`;
+  if (readable && (source === 'resume' || source === 'compact'))
+    try {
+      if (object(JSON.parse(readFileSync(path, 'utf8'))).key === key)
+        return undefined;
+    } catch {
+      /* No record yet. */
+    }
+  if (readable) {
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(path, `${JSON.stringify({ key, source })}\n`, {
+      mode: 0o600,
+    });
+  }
+  return text;
+}
+
 if (import.meta.main) {
   try {
     const input = object(JSON.parse(readFileSync(0, 'utf8')));
@@ -269,13 +322,17 @@ if (import.meta.main) {
     const project = git(cwd, ['rev-parse', '--show-toplevel']);
     if (!adopted(project)) throw new Error('Not a KRN work tree');
     if (event === 'SessionStart') {
-      if (
-        !['startup', 'resume', 'clear', 'compact'].includes(
-          String(input.source),
-        )
-      )
+      const source = String(input.source);
+      if (!(sessionStartSources as readonly string[]).includes(source))
         throw new Error('Invalid source');
-      emit(event, restartText(project, event));
+      const text = restartOnce(
+        project,
+        sessionId,
+        source,
+        input.transcript_path,
+        restartText(project, event),
+      );
+      if (text) emit(event, text);
     } else if (event === 'PreCompact') {
       receipt(project, sessionId);
     } else if (event === 'UserPromptSubmit' || event === 'PostToolUse') {
