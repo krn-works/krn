@@ -784,3 +784,13 @@ test('invalid compact output mode exits before spawning tests', () => {
   assert.match(result.stderr, /KRN_TEST_OUTPUT must be full or failures/u);
   assert.equal(result.stdout, '');
 });
+
+test('a test file without a recorded weight is weighed by size, not rejected', async () => {
+  const { fileWeight } = await import('../scripts/lib/test-shards.mjs');
+  assert.equal(fileWeight('test/never-measured.test.ts', 40960), 10);
+  assert.equal(fileWeight('test/never-measured.test.ts', 100), 1);
+  assert.equal(
+    fileWeight('test/cli.test.ts', 100),
+    TEST_FILE_WEIGHTS['test/cli.test.ts'],
+  );
+});

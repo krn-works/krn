@@ -68,7 +68,7 @@ const MEDIAN_WEIGHT = (() => {
 
 // Measured seconds when recorded; otherwise the file size ranks it among its
 // unmeasured peers and the median keeps it commensurate with measured files.
-function fileWeight(file, size) {
+export function fileWeight(file, size) {
   const measured = TEST_FILE_WEIGHTS[normalizedFile(file)];
   return measured ?? (size > 0 ? Math.max(1, size / 4096) : MEDIAN_WEIGHT);
 }
