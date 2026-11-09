@@ -27,6 +27,7 @@
     "Window note: t-ed32603 merges inside the window since c1be8de and only shortens worker files (acceptance-checks, dependency-guard and acceptance-checks-observers by 38-58% locally) without changing weights; samples after it can only be faster, and the next weight refresh lowers those three weights.",
     "Window since c1be8de at 3 of 5 after #447 (6c39f6c, run 42576614166): slowest Test step p50 17.6 s PASS provisional; over the 11 s bound only test/worker/hardening-baseline.test.ts 11.3 s; claim-lock dropped off; 33 files drift >30% over weight (claims-recovery +67%).",
     "Weights refreshed from the last 5 main runs (scripts/shard-weights-refresh.mjs --write); this PR adds window sample 4 since c1be8de.",
-    "Sample 4 (run 42577370826): slowest Test p50 18.1 s FAIL provisional; files over 11 s: hardening-baseline 11.4 s, evals/plan 11.1 s. Both split (plan -> plan-paths/plan-schema + plan-fixture; hardening usage cases -> hardening-usage); this merge is sample 5."
+    "Sample 4 (run 42577370826): slowest Test p50 18.1 s FAIL provisional; files over 11 s: hardening-baseline 11.4 s, evals/plan 11.1 s. Both split (plan -> plan-paths/plan-schema + plan-fixture; hardening usage cases -> hardening-usage); this merge is sample 5.",
+    "Window since c1be8de closed 5/5 (run 42577880065): slowest Test step p50 18.6 s FAIL. Per-run slowest step 16.6/17.6/18.6/19.4/20.2 s on five different shards (1,4,10,5,2): max-of-12 runner noise, not one heavy shard (shard p50 max 16.3, mean 13.4). Splits #449 landed at c845cbf; new window since c845cbf. Next lever if it fails again: cut the mean (per-job fixed overhead) rather than rebalance."
   ]
 }
