@@ -14,6 +14,17 @@ import {
 } from 'node:path';
 import { createInterface } from 'node:readline';
 import { promisify } from 'node:util';
+import {
+  addedLines,
+  classifyOutcome,
+  type Outcome,
+  type SlicePr,
+  sliceCosts,
+  survivingLines,
+  type Transcript,
+  type Turn,
+  usageOf,
+} from './slice-cost.ts';
 
 type Value = number | null;
 type ObjectValue = Record<string, unknown>;
@@ -127,6 +138,8 @@ type Session = {
   commands: string[];
   launches: Value[];
   launchPrs: (number | null)[];
+  turns: Turn[];
+  malformed: boolean;
 };
 const unknownTokens = (): Tokens => ({
   input: null,
@@ -138,8 +151,9 @@ function prArgument(command: string): number | null {
   const match = /--pr\s+(\d+)\b/.exec(command);
   return match ? Number(match[1]) : null;
 }
-function sessionParser() {
+function sessionParser(sidechain = false) {
   const messages = new Map<string, ObjectValue>();
+  const turns = new Map<string, Turn>();
   const tools = new Map<string, Launch>();
   const commands = new Map<string, string>();
   const results = new Map<string, ObjectValue>();
@@ -150,13 +164,34 @@ function sessionParser() {
       const parsed = parse(line);
       if (parsed === null) malformed = true;
       const r = object(parsed);
-      if (r.isSidechain === true) return;
+      if (r.isSidechain === true && !sidechain) return;
       const m = object(r.message);
-      if (string(m.id) && m.role === 'assistant' && m.usage != null)
+      let turn: Turn | undefined;
+      if (string(m.id) && m.role === 'assistant' && m.usage != null) {
         messages.set(string(m.id), object(m.usage));
+        turn = turns.get(string(m.id)) ?? {
+          model: '',
+          usage: usageOf(null),
+          at: time(r.timestamp),
+          text: '',
+          tools: [],
+        };
+        turn.model = string(m.model) || turn.model;
+        turn.usage = usageOf(m.usage);
+        turns.set(string(m.id), turn);
+      }
       for (const raw of array(m.content)) {
         const c = object(raw);
         const input = object(c.input);
+        if (turn && c.type === 'tool_use' && string(c.id))
+          turn.tools.push(string(c.id));
+        if (
+          turn &&
+          c.type === 'tool_use' &&
+          c.name === 'Bash' &&
+          typeof input.command === 'string'
+        )
+          turn.text += `${input.command}\n`;
         if (
           c.type === 'tool_use' &&
           c.name === 'Bash' &&
@@ -192,6 +227,8 @@ function sessionParser() {
           output: total('output_tokens'),
         },
         commands: [...commands.values()],
+        turns: [...turns.values()],
+        malformed,
         launchPrs: [...tools.values()].map((t) => t.pr),
         launches: [...tools.values()].map((t) => {
           const r = results.get(t.id);
@@ -284,6 +321,8 @@ export type LedgerOptions = {
   pr?: number;
   limit?: number;
   run?: Run;
+  /** Clock for the seven-day outcome window. */
+  now?: number;
 };
 async function isPlainFile(path: string) {
   try {
@@ -336,27 +375,114 @@ async function walk(
   }
   return { files, dirs };
 }
-async function sessions(path: string) {
-  const result: Session[] = [];
+async function readSession(file: string, sidechain = false) {
+  const parser = sessionParser(sidechain);
   try {
-    for (const entry of await readdir(path, { withFileTypes: true })) {
-      if (!entry.isFile() || !entry.name.endsWith('.jsonl')) continue;
-      const parser = sessionParser();
+    const lines = createInterface({
+      input: createReadStream(file),
+      crlfDelay: Infinity,
+    });
+    for await (const line of lines) parser.line(line);
+    return parser.finish();
+  } catch {
+    /* One unreadable transcript does not abort the report. */
+    return null;
+  }
+}
+async function jsonlFiles(path: string) {
+  try {
+    return (await readdir(path, { withFileTypes: true }))
+      .filter((e) => e.isFile() && e.name.endsWith('.jsonl'))
+      .map((e) => join(path, e.name));
+  } catch {
+    return [];
+  }
+}
+// Lead sessions are the top-level transcripts; each session's subagents live in <session>/subagents/.
+async function sessions(path: string) {
+  const lead: Session[] = [];
+  const subagents: Transcript[] = [];
+  for (const file of await jsonlFiles(path)) {
+    const session = await readSession(file);
+    if (!session) continue;
+    lead.push(session);
+    for (const sub of await jsonlFiles(
+      join(file.slice(0, -'.jsonl'.length), 'subagents'),
+    )) {
+      const parsed = await readSession(sub, true);
+      if (!parsed) continue;
+      const meta = object(parse(await read(`${sub.slice(0, -6)}.meta.json`)));
+      subagents.push({
+        role: `subagent:${string(meta.agentType) || 'unknown'}`,
+        turns: parsed.turns,
+        malformed: parsed.malformed,
+        ...(string(meta.toolUseId)
+          ? { parentTool: string(meta.toolUseId) }
+          : {}),
+      });
+    }
+  }
+  return { lead, subagents };
+}
+const OUTCOME_DAYS = 7;
+/**
+ * A merged PR's outcome after seven days on the checkout's first-parent
+ * history: reverted, changed (some added lines no longer blame to it) or kept.
+ */
+async function outcome(
+  run: Run,
+  root: string,
+  now: number,
+  pr: SlicePr & { merge: string },
+): Promise<Outcome> {
+  const merged = time(pr.mergedAt);
+  if (!pr.merge || merged === null) return { status: 'unknown' };
+  const until = merged + OUTCOME_DAYS * 86_400_000;
+  if (until > now) return { status: 'pending' };
+  const git = (...args: string[]) =>
+    Promise.resolve(run('git', ['-C', root, ...args]));
+  try {
+    const end = (
+      await git(
+        'rev-list',
+        '-1',
+        '--first-parent',
+        `--before=${new Date(until).toISOString()}`,
+        'HEAD',
+      )
+    ).trim();
+    if (!/^[0-9a-f]{40}$/.test(end)) return { status: 'unknown' };
+    const subjects = await git('log', '--format=%s', `${pr.merge}..${end}`);
+    const reverted = subjects
+      .split('\n')
+      .some(
+        (s) =>
+          /^Revert\b/.test(s) &&
+          (s.includes(`#${pr.number}`) || s.includes(pr.title)),
+      );
+    const added = addedLines(
+      await git('show', '--numstat', '--format=', pr.merge),
+    );
+    let total = 0;
+    let surviving = 0;
+    for (const [file, lines] of added) {
+      total += lines;
       try {
-        const lines = createInterface({
-          input: createReadStream(join(path, entry.name)),
-          crlfDelay: Infinity,
-        });
-        for await (const line of lines) parser.line(line);
-        result.push(parser.finish());
+        surviving += Math.min(
+          lines,
+          survivingLines(
+            await git('blame', '--incremental', end, '--', file),
+            pr.merge,
+          ),
+        );
       } catch {
-        /* One unreadable transcript does not abort the report. */
+        /* A file deleted since keeps none of its lines. */
       }
     }
+    return classifyOutcome(total, surviving, reverted);
   } catch {
-    /* No transcripts. */
+    return { status: 'unknown' };
   }
-  return result;
 }
 function internalError(message: string) {
   return Object.assign(new Error(message), { exitCode: 70 });
@@ -382,7 +508,8 @@ export async function collectLedger(options: LedgerOptions = {}) {
         '--state',
         'merged',
         '--limit',
-        String((options.limit ?? 15) + 1),
+        // Older PRs bound the slices of the reported ones in shared sessions.
+        String((options.limit ?? 15) + 20),
         '--json',
         'number,title,createdAt,mergedAt,headRefOid,baseRefOid,mergeCommit',
       ]),
@@ -416,7 +543,17 @@ export async function collectLedger(options: LedgerOptions = {}) {
   const transcriptDir =
     options.transcripts ??
     join(homedir(), '.claude/projects', root.replaceAll(sep, '-'));
-  for (const session of await sessions(transcriptDir)) {
+  const transcripts = await sessions(transcriptDir);
+  const costs = sliceCosts(
+    transcripts.lead.map((s) => ({
+      role: 'lead',
+      turns: s.turns,
+      malformed: s.malformed,
+    })),
+    transcripts.subagents,
+    prs,
+  );
+  for (const session of transcripts.lead) {
     all.push(session);
     const pr = attributeSession(session, prs);
     if (pr !== null)
@@ -492,14 +629,8 @@ export async function collectLedger(options: LedgerOptions = {}) {
       groups.push(metrics);
     }
     const own = attributed.get(pr.number) ?? [];
-    const lead = unknownTokens();
-    for (const key of [
-      'input',
-      'cache_read',
-      'cache_creation',
-      'output',
-    ] as const)
-      lead[key] = sum(own.map((s) => s.tokens[key]));
+    const cost = costs.get(pr.number);
+    const lead: Tokens = cost?.leadTokens ?? unknownTokens();
     // A deliver launch belongs to the PR its `--pr` names, in any session; one without `--pr` belongs to its session's PR.
     const launches = all.flatMap((s) =>
       s.launches.filter(
@@ -551,6 +682,8 @@ export async function collectLedger(options: LedgerOptions = {}) {
       deliver: launches.length ? launches : null,
       lead,
       leadUncachedInput: sum([lead.input, lead.cache_creation]),
+      cost: cost ?? null,
+      outcome: await outcome(run, root, options.now ?? Date.now(), pr),
     });
   }
   const median = (values: Value[]) => {
@@ -574,10 +707,17 @@ export async function collectLedger(options: LedgerOptions = {}) {
       prGateMinutes: median(rows.map((r) => r.prGate.minutes)),
       leadUncachedInput: median(rows.map((r) => r.leadUncachedInput)),
       leadCacheRead: median(rows.map((r) => r.lead.cache_read)),
+      dollars: median(rows.map((r) => r.cost?.dollars ?? null)),
+      subagentDollars: median(rows.map((r) => r.cost?.subagentDollars ?? null)),
       judgeInput: median(rows.map((r) => r.review.input)),
       workerInput: median(rows.map((r) => r.worker.input)),
     },
   };
+}
+function outcomeText(o: Outcome): string {
+  return 'added' in o
+    ? `${o.status} (${o.surviving}/${o.added} lines kept)`
+    : o.status;
 }
 function deliveries(exits: Value[] | null): string {
   if (!exits) return 'unknown';
@@ -595,12 +735,12 @@ export function renderLedger(
   const gate = (g: ReturnType<typeof gateTotals>) =>
     [g.minutes, g.runs, g.reruns].map(show).join(' / ');
   const lines = [
-    '| PR | Title | Open→merge min | Merge→merge min | PR gate min / runs / reruns | Main gate min / runs / reruns | Review attempts | Judge input / cached / output | Worker rounds | Worker input / cached / output | Deliver exits | Lead input / cache_read / cache_creation / output |',
-    '|---|---|---|---|---|---|---|---|---|---|---|---|',
+    '| PR | Title | Open→merge min | Merge→merge min | PR gate min / runs / reruns | Main gate min / runs / reruns | Review attempts | Judge input / cached / output | Worker rounds | Worker input / cached / output | Deliver exits | Lead input / cache_read / cache_creation / output | $ total / lead / subagents | Author | 7-day outcome |',
+    '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|',
   ];
   for (const r of report.rows)
     lines.push(
-      `| ${[r.number, r.title.split(/[\r\n]/)[0]?.replaceAll('|', '\\|'), show(r.openToMergeMinutes), show(r.mergeToMergeMinutes), gate(r.prGate), gate(r.mainGate), show(r.review.attempts), [r.review.input, r.review.cached, r.review.output].map(show).join(' / '), show(r.worker.rounds), [r.worker.input, r.worker.cached, r.worker.output].map(show).join(' / '), deliveries(r.deliver), [r.lead.input, r.lead.cache_read, r.lead.cache_creation, r.lead.output].map(show).join(' / ')].join(' | ')} |`,
+      `| ${[r.number, r.title.split(/[\r\n]/)[0]?.replaceAll('|', '\\|'), show(r.openToMergeMinutes), show(r.mergeToMergeMinutes), gate(r.prGate), gate(r.mainGate), show(r.review.attempts), [r.review.input, r.review.cached, r.review.output].map(show).join(' / '), show(r.worker.rounds), [r.worker.input, r.worker.cached, r.worker.output].map(show).join(' / '), deliveries(r.deliver), [r.lead.input, r.lead.cache_read, r.lead.cache_creation, r.lead.output].map(show).join(' / '), r.cost ? [r.cost.dollars, r.cost.leadDollars, r.cost.subagentDollars].map(show).join(' / ') : 'unknown', r.cost?.author ? `${r.cost.author.role} ${r.cost.author.model}` : 'unknown', outcomeText(r.outcome)].join(' | ')} |`,
     );
   lines.push('', '## Medians', '');
   for (const [key, m] of Object.entries(report.medians))

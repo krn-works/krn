@@ -10,10 +10,10 @@ Maintenance:
 
 | Rank | Id | Opportunity | Area | Evidence | Expected saving | Task |
 |---|---|---|---|---|---|---|
-| 1 | R1 | Cost, author model and 7-day outcome per PR in the ledger | metric | `.krn/runs/strategy-review/report.md` §1-2; #474 misattributed 271M | one metric: cost per accepted change | t-4f3r88w |
-| 2 | R2 | Cut subagent spend | tokens | `.krn/runs/roadmap-refill-2/tokens.md`: $216 of $462 since 11-07 | up to ~47% of slice dollars | t-akp44kt |
-| 3 | R3 | Fail CI on weakened tests | quality | report §3: common agent defect, no review gate | floor without a gate | t-5rhd7xn |
-| 4 | R4 | Confirm the #472 read refusal on 20 sessions | tokens | `.krn/runs/roadmap-refill/post-472-n7.md`: 7 sessions, 47% | decides a second step | t-zz33vhy |
+| 1 | R1 | Cut subagent spend | tokens | `.krn/runs/roadmap-refill-2/tokens.md`: $216 of $462 since 11-07 | up to ~47% of slice dollars | t-akp44kt |
+| 2 | R2 | Fail CI on weakened tests | quality | report §3: common agent defect, no review gate | floor without a gate | t-5rhd7xn |
+| 3 | R3 | Confirm the #472 read refusal on 20 sessions | tokens | `.krn/runs/roadmap-refill/post-472-n7.md`: 7 sessions, 47% | decides a second step | t-zz33vhy |
+| 4 | R4 | Price PRs whose sessions ran from a worktree directory | metric | `.krn/runs/ledger-cost/proof.md`: 5 of 30 PRs unpriced | complete cost per accepted change | t-tyhssry |
 
 Sector plan (t-8hnmfr9), refilled by t-y3chym7: cost is dollars per merged PR (cache reads ~10% of input), not raw tokens. Since 2026-11-07 lead sessions cost median $1.62 and 41 turns per PR; Bash results are 94% of lead tool bytes, half of them file reads; 35% of lead cache reads come from turns over 150k (`.krn/runs/roadmap-refill-2/tokens.md`). KRN-owned startup text is ~2.3k of the ~25k first turn: closed as a track after t-bdhn7mw. The global skill listing (~17 kB per turn, mostly non-KRN skills) is the operator's call. t-qdzy8w7: handoff re-reads fell from 104 of 109 sessions to 1 of 4 (provisional). Delivery and CI time hold no row: PR open-to-merge median 1.1 min, main runs 0.9 min (`.krn/runs/roadmap-refill/delivery.txt`).
 

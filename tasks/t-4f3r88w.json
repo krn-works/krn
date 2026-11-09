@@ -1,7 +1,11 @@
 {
   "id": "t-4f3r88w",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn ledger prices each PR by its slice turns (lead and subagents), names author role and model, and reads a 7-day git outcome; proof .krn/runs/ledger-cost/proof.md"
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Record cost, author model and a 7-day outcome per PR in krn ledger",
