@@ -11,7 +11,6 @@ Maintenance:
 | Rank | Id | Opportunity | Area | Evidence | Expected saving | Task |
 |---|---|---|---|---|---|---|
 | 1 | R1 | Cut subagent spend | tokens | `.krn/runs/roadmap-refill-2/tokens.md`: $216 of $462 since 11-07 | up to ~47% of slice dollars | t-akp44kt |
-| 2 | R2 | Fail CI on weakened tests | quality | report §3: common agent defect, no review gate | floor without a gate | t-5rhd7xn |
 | 3 | R3 | Confirm the #472 read refusal on 20 sessions | tokens | `.krn/runs/roadmap-refill/post-472-n7.md`: 7 sessions, 47% | decides a second step | t-zz33vhy |
 | 4 | R4 | Price PRs whose sessions ran from a worktree directory | metric | `.krn/runs/ledger-cost/proof.md`: 5 of 30 PRs unpriced | complete cost per accepted change | t-tyhssry |
 

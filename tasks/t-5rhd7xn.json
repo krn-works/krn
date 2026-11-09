@@ -1,7 +1,11 @@
 {
   "id": "t-5rhd7xn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scripts/weak-tests.mjs runs in the Lint job of the required CI; fixture-diff rule test in test/ci/weak-tests.test.ts; override line 'Weakens-tests: <reason>'"
+  },
   "created": "2026-11-09",
   "priority": 3,
   "title": "Fail CI when a diff weakens tests",

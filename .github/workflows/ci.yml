@@ -67,6 +67,17 @@ jobs:
       - name: Biome
         run: npm run lint
 
+      # Diff-only floor: a PR must not delete assertions, add skip/only/todo or
+      # delete a test file whose target stays, unless its body has a
+      # `Weakens-tests: <reason>` line.
+      - name: Weakened tests
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/weak-tests.mjs "$BASE" "$HEAD"
+
       # A pull request whose commits carry `Ticket: <id>` must close that task;
       # work that leaves it open carries `Refs: <id>` (ADR 0015).
       - name: Task records
