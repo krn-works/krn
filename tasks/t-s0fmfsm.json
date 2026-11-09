@@ -1,7 +1,11 @@
 {
   "id": "t-s0fmfsm",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Out of KRN-only scope (memory:krn-only-scope); evaluating Ponytail in an adopter is not KRN development."
+  },
   "created": "2026-10-29",
   "priority": 2,
   "title": "Evaluate the Ponytail minimal-code ladder in one adopter",
