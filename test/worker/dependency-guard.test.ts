@@ -131,7 +131,9 @@ async function setup(t: TestContext) {
   return { root, repo, run, env, turn };
 }
 
-test('start checks dependency readiness before state writes or spawn', async (t) => {
+test('start checks dependency readiness before state writes or spawn', {
+  concurrency: 6,
+}, async (t) => {
   for (const [name, prepare, expected] of [
     ['no node_modules', (_repo: string) => {}, false],
     ['no .bin', (repo: string) => mkdirSync(join(repo, 'node_modules')), false],
@@ -164,7 +166,7 @@ test('start checks dependency readiness before state writes or spawn', async (t)
     ],
     ['no package manifest', (_repo: string) => {}, true],
   ] as [string, (repo: string) => void, boolean][]) {
-    await t.test(name, async (t) => {
+    t.test(name, async (t) => {
       const s = await setup(t);
       prepare(s.repo);
       if (name !== 'no package manifest') commitManifest(s.repo);
@@ -182,7 +184,7 @@ test('start checks dependency readiness before state writes or spawn', async (t)
       }
     });
   }
-  await t.test('forbidden allow is checked first', async (t) => {
+  t.test('forbidden allow is checked first', async (t) => {
     const s = await setup(t);
     commitManifest(s.repo);
     const result = await s.turn(['--allow', '.git/config']);

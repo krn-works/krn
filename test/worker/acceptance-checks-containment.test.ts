@@ -37,15 +37,19 @@ test('5: timeout kills the spawned process group', async (t) => {
   }
   assert.fail('timed out shell is still alive');
 });
-test('6: added and removed changed paths both cause drift and preserve failure reasons', async (t) => {
+test('6: added and removed changed paths both cause drift and preserve failure reasons', {
+  concurrency: 6,
+}, async (t) => {
   for (const [action, cmd] of [
     ['done-clean', 'echo edit > new.txt; exit 2'],
     ['write a.txt', 'rm a.txt'],
   ] as const) {
-    const s = await setup(t);
-    const r = await s.turn(action, true, ['--check', cmd]);
-    assert.equal(r.code, 4, r.stderr);
-    assert.match(r.stderr, /acceptance check modified the worktree/);
-    if (cmd.includes('exit 2')) assert.match(r.stderr, /acceptance failed/);
+    t.test(action, async (t) => {
+      const s = await setup(t);
+      const r = await s.turn(action, true, ['--check', cmd]);
+      assert.equal(r.code, 4, r.stderr);
+      assert.match(r.stderr, /acceptance check modified the worktree/);
+      if (cmd.includes('exit 2')) assert.match(r.stderr, /acceptance failed/);
+    });
   }
 });

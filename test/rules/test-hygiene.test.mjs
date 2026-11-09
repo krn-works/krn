@@ -288,3 +288,67 @@ test('systemd stubs in test fixtures run in sh, not node', () => {
   assert.ok(nodeScopeStub.test('systemctl: `#!/usr/bin/env node\n'));
   assert.ok(!nodeScopeStub.test("systemctl: '#!/bin/sh\\n'"));
 });
+
+// Each worker fixture setup starts a driver (~2.5 s); scenarios run one
+// after another in a single test queue on that cost, so independent
+// setups run as concurrent subtests (t-ed32603).
+const loopedSetup = /\bfor \([^{}]*?\) \{\n\s*const \w+ = await setup\(t\)/u;
+
+/** Top-level tests that await more than one fixture setup in sequence. */
+export function serialSetups(file, text) {
+  const problems = [];
+  let offset = 0;
+  for (const block of text.split(/\n(?=test\()/u)) {
+    const line = text.slice(0, offset).split('\n').length;
+    offset += block.length + 1;
+    if (!block.startsWith('test(')) continue;
+    const head = block.slice(0, block.indexOf('=>'));
+    const setups = block.match(/await setup\(t\)/gu)?.length ?? 0;
+    if (!/concurrency/u.test(head) && (setups > 1 || loopedSetup.test(block))) {
+      problems.push(
+        `${file}:${line} sequential fixture setups; run them as t.test subtests under { concurrency: 6 }`,
+      );
+    }
+  }
+  return problems;
+}
+
+test('worker and task tests run independent fixture setups concurrently', () => {
+  const problems = files
+    .filter((file) => /^test\/(?:worker|task)\//u.test(file))
+    .flatMap((file) =>
+      serialSetups(file, readFileSync(`${root}/${file}`, 'utf8')),
+    );
+  assert.deepEqual(problems, []);
+});
+
+test('the serial setup rule reports exactly the seeded violations', () => {
+  const seeded = [
+    "import x from 'y';",
+    "test('loop', async (t) => {",
+    '  for (const a of [1, 2]) {',
+    '    const s = await setup(t);',
+    '  }',
+    '});',
+    "test('two', async (t) => {",
+    '  const s = await setup(t);',
+    '  const p = await setup(t);',
+    '});',
+    "test('one', async (t) => {",
+    '  const s = await setup(t);',
+    '});',
+    "test('fanned', {",
+    '  concurrency: 6,',
+    '}, async (t) => {',
+    '  for (const a of [1, 2]) {',
+    '    t.test(String(a), async (t) => {',
+    '      const s = await setup(t);',
+    '    });',
+    '  }',
+    '});',
+  ].join('\n');
+  assert.deepEqual(serialSetups('seeded.test.ts', seeded), [
+    'seeded.test.ts:2 sequential fixture setups; run them as t.test subtests under { concurrency: 6 }',
+    'seeded.test.ts:7 sequential fixture setups; run them as t.test subtests under { concurrency: 6 }',
+  ]);
+});

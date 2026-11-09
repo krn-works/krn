@@ -1,0 +1,17 @@
+{
+  "id": "t-ed32603",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "concurrent worker fixture setups and the serialSetups hygiene rule"
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Run independent worker test scenarios concurrently",
+  "after": [],
+  "body": [
+    "Outcome: the three worker test files that run independent start/turn scenarios one after another run them concurrently, as test/worker/hardening-baseline.test.ts already does with concurrency 6. Evidence (node --test, local): acceptance-checks test 2 is 12.3-15.1 s of five sequential setup+turn; dependency-guard runs eight subtests sequentially (13.8 s); acceptance-checks-observers runs four starts in two loops (7.6 s CI median). CI window since c1be8de lists acceptance-checks 11.4 s and dependency-guard 11.3 s over the 11 s bound. Acceptance: each file keeps its assertions, runs its scenarios concurrently, and its local wall time drops by at least 30%; shard weights follow on the next refresh.",
+    "Delivered: eight worker test files run independent fixture setups as t.test subtests under { concurrency: 6 }; local medians of two alternating runs against main: acceptance-checks 14.2 -> 6.1 s, acceptance-checks-observers 9.5 -> 5.9 s, dependency-guard 12.0 -> 5.0 s. test/rules/test-hygiene.test.mjs serialSetups refuses a top-level worker or task test that awaits more than one setup(t) in sequence or in a loop without concurrency; against the main versions it reports 9 violations in all 8 changed files. Follow-up: t-brje6zv (claim-lock)."
+  ]
+}

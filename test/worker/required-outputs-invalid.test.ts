@@ -24,11 +24,15 @@ test('invalid required paths never start a turn', async (t) => {
     assert.equal(existsSync(s.env.CODEX_TEST_WORKER_LOG ?? ''), false);
   }
 });
-test('scope violation wins over required output including symlinks', async (t) => {
+test('scope violation wins over required output including symlinks', {
+  concurrency: 6,
+}, async (t) => {
   for (const action of ['write AGENTS.md', 'link a.txt']) {
-    const s = await setup(t);
-    const r = await s.turn(action, true, ['--require', 'a.txt']);
-    assert.equal(r.code, 3, r.stderr);
-    assert.match(r.stderr, /scope violation/);
+    t.test(action, async (t) => {
+      const s = await setup(t);
+      const r = await s.turn(action, true, ['--require', 'a.txt']);
+      assert.equal(r.code, 3, r.stderr);
+      assert.match(r.stderr, /scope violation/);
+    });
   }
 });
