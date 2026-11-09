@@ -8,7 +8,9 @@
       "ShareOnboardingGuide",
       "Workflow",
       "Artifact",
-      "SendFeedback"
+      "SendFeedback",
+      "AskUserQuestion",
+      "ListAgents"
     ]
   },
   "autoCompactWindow": 400000,
