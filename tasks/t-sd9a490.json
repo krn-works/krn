@@ -1,0 +1,12 @@
+{
+  "id": "t-sd9a490",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Clear stale tool results in the context proxy when the cache is cold",
+  "after": [],
+  "body": [
+    "Outcome: the lead's sessions spend measurably fewer input tokens per merged PR because the localhost ctx-proxy clears stale tool results when the prompt cache is cold anyway, replacing each cleared result with a pointer to a saved copy, A/B tested on lane sessions.\nWhy: operator 2026-11-09 asked to never drop this idea (memory:context-clearing-pursuit). Built-in clearing is unreachable (t-mbrjeja); the proxy runs in shadow mode (t-9t45025, t-ee3y678). Terms check (.krn/runs/ctx-proxy/terms-check.md): pass-through allowed; adding context_management or rewriting tool_result is grey, so mutation waits for the operator's call.\nProof: `node scripts/claude/ctx-proxy-report.ts` on at least 10 real lead sessions shows the cold-cache would-save share; after the operator's go, an A/B over at least 30 lane sessions shows input tokens per PR before and after.\nScope: scripts/claude/ctx-proxy.ts, scripts/claude/ctx-proxy-report.ts, test/claude."
+  ]
+}

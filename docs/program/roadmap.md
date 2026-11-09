@@ -12,6 +12,7 @@ Maintenance:
 
 | Id | Opportunity | Area | Evidence | Expected saving | Task |
 |---|---|---|---|---|---|
+| R22 | Clear stale tool results in the context proxy on cold cache | tokens | proxy shadow live (t-ee3y678); Anthropic context editing up to -84% tokens; terms grey | input tokens per PR, measured by A/B | t-sd9a490 |
 | R20 | Re-measure $/PR after the 11-09 cuts on 30 merged PRs | tokens | t-5xvjxp7: lead $2.39 -> $0.42, subagent $2.03 -> $0.27 per PR on only 12 PRs | reranks this table on solid numbers | t-bc4772y |
 | R21 | Generate handoff and retro text like `krn pr body` | tokens | cost scan 11-09: ~$29 hand-written text; t-56eqw8q shipped only the PR body | ~$0.15 per PR | t-3a656dn |
 | R3 | Confirm the #472 read refusal on 20 sessions | tokens | `.krn/runs/roadmap-refill/post-472-n7.md`: 7 sessions, 47% | decides a second step | t-zz33vhy |
