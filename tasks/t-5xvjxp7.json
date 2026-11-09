@@ -1,12 +1,17 @@
 {
   "id": "t-5xvjxp7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Re-measured: lead $2.39->$0.42/PR, subagent $2.03->$0.27/PR (12 PRs after, caveat in body)"
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Re-measure lead and subagent dollars per PR after the 11-09 cuts",
   "after": [],
   "body": [
-    "Outcome: lead $/PR, subagent $/PR, single-trivial-call turns per PR and lead read bytes per PR are re-measured on >= 30 PRs after #521 with the committed scanners, and the roadmap reranked from the result.\nWhy: 2026-11-09 shipped #513 (krn-lane cap measured), #514/#516 (ship from root), #519 (compound read sum, lane reported weak effect: many small reads dominate), #520 (pipefail rewrite). Scanners: scripts/trivial-call-scan.mjs, scripts/claude/lead-read-scan.ts, .krn/runs/subagent-spend/agent-scan.py. Rejected from the 11-09 radar and research: LOC-per-PR metric (no reader), agent-memory partition test (ADR 0002 store unbuilt), best-of-N lanes (needs an A/B first), evals-in-CI (hooks and skills already gated by tests).\nProof: before/after table recorded under .krn/runs/ and in the closing PR.\nScope: scripts, docs/program/roadmap.md."
+    "Outcome: lead $/PR, subagent $/PR, single-trivial-call turns per PR and lead read bytes per PR are re-measured on >= 30 PRs after #521 with the committed scanners, and the roadmap reranked from the result.\nWhy: 2026-11-09 shipped #513 (krn-lane cap measured), #514/#516 (ship from root), #519 (compound read sum, lane reported weak effect: many small reads dominate), #520 (pipefail rewrite). Scanners: scripts/trivial-call-scan.mjs, scripts/claude/lead-read-scan.ts, .krn/runs/subagent-spend/agent-scan.py. Rejected from the 11-09 radar and research: LOC-per-PR metric (no reader), agent-memory partition test (ADR 0002 store unbuilt), best-of-N lanes (needs an A/B first), evals-in-CI (hooks and skills already gated by tests).\nProof: before/after table recorded under .krn/runs/ and in the closing PR.\nScope: scripts, docs/program/roadmap.md.",
+    "Re-measure 2026-11-09 (lane-r15), scripts/claude/spend-window.py (new: prices lead and subagent turns by message timestamp inside a window, PRs = first-parent main commits in it). Before = 2026-11-08T00:00Z..#513 merge (20:59:58Z), after = #513 merge..now.\n- Lead $/PR: before $2.39 (113 PRs) -> after $0.42 (12 PRs). Same-day before slice 11-09 12:00..#513: $0.84 (50 PRs).\n- Subagent $/PR: before $2.03 (113 PRs, 80 agents, general-purpose 69 agents = $223.56 of $228.93) -> after $0.27 (12 PRs, 16 agents, all krn-lane/reader/research, 173+ lane turns). Same-day slice: $0.32 (50 PRs).\n- Total $/PR: $4.41 -> $0.69.\n- Single-trivial-call turns per PR (trivial-call-scan.mjs): 3.39 (302 turns, 89 PRs since 11-08) -> 0.55 (6 turns, 11 PRs).\n- Lead read bytes per PR (lead-read-scan.ts): ~51 KB (5.77 MB, 113 PRs) -> ~2.0 KB (24 KB, 12 PRs); no allowed result over budget after.\nCaveats: only 12 PRs after (target 30 not reached), so after numbers are a lower-confidence early read; the 11-09 lead session after #513 was mostly dispatching short lanes, and the before window includes the general-purpose >=100-turn lanes the krn-lane cap removed. Re-run later: python3 -I scripts/claude/spend-window.py <start> <end>."
   ]
 }
