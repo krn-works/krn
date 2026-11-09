@@ -1,7 +1,11 @@
 {
   "id": "t-3a656dn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn state handoff writes ## Merged from git; krn state retro prints the measured skeleton; skills shrink 386 bytes"
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Generate the handoff and retro text from state, tasks and merged PRs",

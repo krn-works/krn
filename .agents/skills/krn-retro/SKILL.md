@@ -5,11 +5,11 @@ description: Run a short retrospective before a KRN slice's last commit or when 
 
 # KRN retro
 
-Goal: the next slice is cheaper. Its edits ship in the slice PR; never open a separate retro PR. Use the slice's own evidence by pointer (capsule, run folder, CI runs, PR), not memory.
+Goal: the next slice is cheaper. Its edits ship in the slice PR; never open a separate retro PR. Use evidence by pointer, not memory.
 
 ## Measure first
 
-From the records: wall time from claim to PR ready; worker time; CI reruns and why; operator interventions and why; defects that reached main. Numbers come from files and runs, not impressions.
+`krn state retro --task <id>` prints the skeleton: commits naming the task, wall time, merged PRs, one line per category below. Add CI reruns and operator interventions from records.
 
 ## Find candidates
 
@@ -39,4 +39,4 @@ Lead memory keeps only operator preferences and decisions. Never write a lessons
 
 ## Output
 
-At most fifteen lines in the capsule field "Workflow friction and lesson candidates", plus the created tasks. Name the top three in the handoff.
+Fill the skeleton: at most fifteen lines in the capsule field "Workflow friction and lesson candidates", plus the created tasks. Name the top three in the handoff.

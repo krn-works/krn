@@ -132,3 +132,65 @@ test('set refuses values state check would reject', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('handoff lists merged commits since the previous SHA and retro measures the task', () => {
+  const root = realpathSync(buildCaseRepo('active'));
+  const memory = mkdtempSync(join(tmpdir(), 'krn-state-memory-'));
+  const commit = (subject: string) => {
+    const result = spawnSync(
+      'git',
+      [
+        '-C',
+        root,
+        '-c',
+        'user.name=fixture',
+        '-c',
+        'user.email=fixture@example.invalid',
+        'commit',
+        '-q',
+        '--allow-empty',
+        '-m',
+        subject,
+        '-m',
+        'Ticket: t-abc1234',
+      ],
+      { encoding: 'utf8' },
+    );
+    assert.equal(result.status, 0, result.stderr);
+  };
+  try {
+    const first = krn(root, 'handoff', '--task', 't-abc1234');
+    assert.equal(first.status, 0, first.stderr);
+    const path = join(root, '.krn/runs/delivery-loop/main/handoff.md');
+    assert.doesNotMatch(readFileSync(path, 'utf8'), /## Merged/);
+    commit('feat(cli): first slice (t-abc1234) (#12)');
+    commit('fix(cli): operator requests wording (t-abc1234) (#13)');
+    const second = krn(root, 'handoff', '--task', 't-abc1234');
+    assert.equal(second.status, 0, second.stderr);
+    const text = readFileSync(path, 'utf8');
+    assert.match(
+      text,
+      /## Merged\n- [0-9a-f]{7,} fix\(cli\): operator asks wording \(t-abc1234\) \(#13\)\n- [0-9a-f]{7,} feat\(cli\): first slice/,
+    );
+    const verdict = spawnSync(
+      process.execPath,
+      [requests, path, '--root', root, '--memory', memory],
+      { encoding: 'utf8' },
+    );
+    assert.equal(verdict.status, 0, verdict.stdout + verdict.stderr);
+    const third = krn(root, 'handoff', '--task', 't-abc1234');
+    assert.equal(third.status, 0, third.stderr);
+    assert.match(readFileSync(path, 'utf8'), /## Merged\n- none since /);
+
+    const retro = krn(root, 'retro', '--task', 't-abc1234');
+    assert.equal(retro.status, 0, retro.stderr);
+    assert.match(retro.stdout, /- commits: 2 on HEAD name t-abc1234, /);
+    assert.match(retro.stdout, /- merged PRs: #12 #13\n/);
+    assert.match(retro.stdout, /- tool economy:\n/);
+    assert.equal(krn(root, 'retro', '--task', 'nope').status, 64);
+    assert.equal(krn(root, 'retro').status, 64);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(memory, { recursive: true, force: true });
+  }
+});
