@@ -57,6 +57,22 @@ test('context report counts main-chain turns, compactions and tool characters', 
           },
         },
         { type: 'system', subtype: 'compact_boundary' },
+        {
+          type: 'attachment',
+          attachment: {
+            type: 'prompt_snapshot',
+            systemPrompt: ['s'.repeat(38)],
+            tools: [{ name: 'Big', description: 'd'.repeat(70) }],
+          },
+        },
+        {
+          type: 'attachment',
+          attachment: {
+            type: 'prompt_snapshot',
+            tools: [{ name: 'Later', description: 'x' }],
+          },
+        },
+        { type: 'attachment', attachment: { type: 'skill_listing' } },
       ]
         .map((line) => JSON.stringify(line))
         .join('\n')}\nmalformed\n`,
@@ -73,6 +89,8 @@ test('context report counts main-chain turns, compactions and tool characters', 
       compactions: 1,
       toolResultTokens: 2,
       toolInputTokens: Math.round(JSON.stringify(input).length / 4),
+      baselineTokens: { tools: 26, systemPrompt: 11, skill_listing: 6 },
+      toolTokens: { Big: 25 },
     });
     const text = spawnSync(
       process.execPath,
@@ -81,6 +99,8 @@ test('context report counts main-chain turns, compactions and tool characters', 
     );
     assert.equal(text.status, 0, text.stderr);
     assert.match(text.stdout, /peak main-chain context: 124/u);
+    assert.match(text.stdout, /baseline tokens \(~chars\/4\): tools 26/u);
+    assert.match(text.stdout, /largest tools: Big 25/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

@@ -19,7 +19,7 @@ export function decide(payload: unknown): string | undefined {
     const [first, ...rest] = list.split(/\|&?/u).map(stage);
     if (!first || !check.test(first)) continue;
     if (!rest.some((next) => filter.test(next))) continue;
-    return `Refused: \`${list.trim()}\` pipes a test, typecheck or lint run into a filter, which hides its exit code. Redirect it to a log, read the exit code, then read the log: \`cmd > log 2>&1; echo exit=$?\`, then \`grep FAIL log\` or \`tail -n 40 log\` (scripts/claude/piped-check.ts).`;
+    return `Refused: \`${list.trim()}\` pipes a test, typecheck or lint run into a filter, which hides its exit code. Nothing in this Bash call ran, including its other commands. Redirect it to a log, read the exit code, then read the log: \`cmd > log 2>&1; echo exit=$?\`, then \`grep FAIL log\` or \`tail -n 40 log\` (scripts/claude/piped-check.ts).`;
   }
   return undefined;
 }

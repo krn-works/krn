@@ -58,9 +58,18 @@ test('Claude context budget settings wire documented hooks and read-only reader'
   );
   assert.equal(settings.hooks.PreCompact, undefined);
   // Pattern kills hit other lanes' processes; agents stop processes by PID.
+  // A bare tool deny drops that schema from every request: these five harness
+  // tools cost ~21k of the ~42k fresh-session baseline (`npm run
+  // context:report` "largest tools") and KRN uses none of them.
+  // ReportFindings stays: /code-review reports through it.
   assert.deepEqual(settings.permissions.deny, [
     'Bash(pkill -f:*)',
     'Bash(pkill --full:*)',
     'Bash(killall:*)',
+    'ScheduleWakeup',
+    'ShareOnboardingGuide',
+    'Workflow',
+    'Artifact',
+    'SendFeedback',
   ]);
 });

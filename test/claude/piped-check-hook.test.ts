@@ -35,6 +35,8 @@ test('piped check hook refuses a test, typecheck or lint run piped into a filter
     assert.equal(result.status, 2, command);
     assert.match(result.stderr, /Redirect it to a log, read the exit code/u);
     assert.match(result.stderr, /echo exit=\$\?/u);
+    // A refused call drops every command in it, edits included.
+    assert.match(result.stderr, /Nothing in this Bash call ran/u);
   }
 });
 
