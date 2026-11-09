@@ -1,7 +1,11 @@
 {
   "id": "t-m7pkw7a",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ci-poll.ts PreToolUse hook refuses gh watch and sleep+gh loops, names krn ci wait"
+  },
   "created": "2026-11-09",
   "priority": 3,
   "title": "Refuse CI polling loops in lead Bash in favour of krn ci wait",
