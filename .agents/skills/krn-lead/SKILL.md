@@ -16,7 +16,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 - Verify with commands that print a verdict (exit code, PASS/FAIL, counts). If a check needs reading, script it.
 - One slice per session. When the slice merges, run `krn-handoff` and stop.
 
-- **Context budget:** obey `context-gauge` advisories at 60% and 80% of the `autoCompactWindow` set in `.claude/settings.json`; use `krn-reader` for reading verdicts and paths, finish the current step at an advisory, then run `krn-handoff`.
+- **Context budget:** obey `context-gauge` advisories at 60% and 80% of `autoCompactWindow`, capped at 150k and 200k; use `krn-reader` for verdicts and paths, finish the current step at an advisory, then run `krn-handoff`.
 
 ## The loop: no gates (operator 2026-11-07)
 

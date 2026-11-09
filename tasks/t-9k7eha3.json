@@ -1,7 +1,11 @@
 {
   "id": "t-9k7eha3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "context-gauge advisories capped at 150k/200k of the 400k window (advisoriesOf); test pins thresholds; confirm with token-scan.py on later sessions"
+  },
   "created": "2026-11-09",
   "priority": 1,
   "title": "Hand off before lead context passes 150k tokens",
