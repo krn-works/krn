@@ -2,6 +2,7 @@
 name: krn-reader
 description: Read-only recon of logs, diffs, CI output and review records; returns a verdict with evidence paths in at most 300 words and never edits files.
 model: haiku
+effort: low
 maxTurns: 40
 tools: Read, Grep, Glob, Bash
 ---

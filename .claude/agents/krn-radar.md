@@ -2,6 +2,7 @@
 name: krn-radar
 description: Read-only scan of the operator's rss-news digest for agent-harness patterns KRN lacks; returns 3-6 patterns with source URLs and mechanical mappings in at most 300 words.
 model: sonnet
+effort: low
 maxTurns: 15
 tools: Bash, Read, Grep
 ---
