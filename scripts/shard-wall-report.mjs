@@ -44,6 +44,12 @@ export const DRIFT_TOLERANCE = 0.3;
 // test holds weights to it, and this report holds CI medians to it, because
 // weights lag a re-plan (one file rose from weight 10.1 to a 15.5 s median).
 export const MAX_TEST_FILE_SECONDS = 11;
+// Summed weight per CI shard at which the slowest Test step passed its 18 s
+// target: the 7866a48 window ran 426.7 s of weights on 10 shards (42.7 s
+// each) at a 15.5 s p50, while 498.9 s on 10 shards (49.9 s each) ran at
+// 22 s. Above it the mean shard reaches the target and no rebalance passes,
+// so the rule test asks for another shard in .github/workflows/ci.yml.
+export const MAX_SHARD_WEIGHT_SECONDS = 43;
 
 export class UsageError extends Error {}
 
