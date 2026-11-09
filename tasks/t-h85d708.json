@@ -1,0 +1,12 @@
+{
+  "id": "t-h85d708",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Prove the subagent hook-error monitor on live lanes and ignore error text inside read content",
+  "after": [],
+  "body": [
+    "Outcome: the next lanes after #521 show their hook errors in the lead's context through scripts/claude/subagent-hook-errors.ts, the count equals .krn/runs/hook-errors/scan.py for the same session, and error text that only appears inside file or transcript content a subagent read is not counted.\nWhy: operator 2026-11-09 asked the lead to monitor delegated sessions' hook errors and keep control (memory:monitor-delegated-hook-errors). #521 shipped the monitor but session 3e700b2a's scan counted one false positive: a lane read a transcript that contained the text `PreToolUse:Bash hook error`. #520 (pipefail rewrite) should drop pipe refusals to zero.\nProof: a test feeds a tool result that quotes the error text inside read content and expects zero; a live lane run after #520/#521 records its ledger line or zero, matching scan.py.\nScope: scripts/claude/subagent-hook-errors.ts, test/claude."
+  ]
+}
