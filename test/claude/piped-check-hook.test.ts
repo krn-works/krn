@@ -24,13 +24,47 @@ const bash = (command: string) =>
     }),
   );
 
-test('piped check hook refuses a test, typecheck or lint run piped into a filter', () => {
+test('piped check hook rewrites a piped check with pipefail and keeps other input fields', () => {
   for (const command of [
     'npm test | tail',
     'npm run fast 2>&1 | grep FAIL',
     'node --test test/a.test.ts | head',
     'cd sub && CI=1 npx tsc --noEmit |& sed -n 1,20p',
+    'npm test | tee log | tail -3',
   ]) {
+    const result = run(
+      JSON.stringify({
+        tool_name: 'Bash',
+        tool_input: { command, description: 'd', timeout: 5 },
+      }),
+    );
+    assert.equal(result.status, 0, command);
+    const output = JSON.parse(result.stdout).hookSpecificOutput;
+    assert.equal(output.hookEventName, 'PreToolUse');
+    assert.equal(output.permissionDecision, 'allow');
+    assert.deepEqual(output.updatedInput, {
+      command: `set -o pipefail; ${command}`,
+      description: 'd',
+      timeout: 5,
+    });
+  }
+});
+
+test('piped check hook leaves an already pipefail command alone', () => {
+  const result = bash('set -o pipefail; npm test | tail');
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, '');
+});
+
+// KRN-12: the rewrite relies on real bash behaviour, so prove it at the receiver.
+test('real bash exits nonzero for a failing pipeline only under pipefail', () => {
+  const exit = (command: string) => spawnSync('bash', ['-c', command]).status;
+  assert.equal(exit('false | tail -1'), 0);
+  assert.notEqual(exit('set -o pipefail; false | tail -1'), 0);
+});
+
+test('piped check hook refuses a piped check whose failure the command swallows', () => {
+  for (const command of ['npm test | tail || true', 'npm test | tail; true']) {
     const result = bash(command);
     assert.equal(result.status, 2, command);
     assert.match(result.stderr, /Redirect it to a log, read the exit code/u);

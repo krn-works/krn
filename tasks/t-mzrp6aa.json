@@ -1,0 +1,16 @@
+{
+  "id": "t-mzrp6aa",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "piped checks rewritten with pipefail via updatedInput"
+  },
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Rewrite piped check runs with pipefail instead of refusing them",
+  "after": [],
+  "body": [
+    "Outcome: scripts/claude/piped-check.ts turns a check run piped into a filter (e.g. `npm run fast 2>&1 | tail -8`) into the same command under `set -o pipefail` through the PreToolUse `updatedInput` contract, so the exit code survives and no turn is lost; it still refuses forms pipefail cannot rescue.\nWhy: 2026-11-09 session 3e700b2a: 4 of 5 krn-lane subagents hit the piped-check refusal once each (`npm run fast 2>&1 | tail -N`, `node --test ... | tail -15`) although lanes.md forbids the pipe; every refusal costs a turn and reads as a hook error to the operator.\nProof: the hook test feeds the refused commands and expects allow plus updatedInput with pipefail; the exit status of `set -o pipefail; false | tail -1` is nonzero in a real bash run (KRN-12 receiver); a Claude Code docs URL or binary grep proves updatedInput is honoured under bypassPermissions.\nScope: scripts/claude/piped-check.ts, its test, .agents/skills/krn-lead/lanes.md if the rule text changes."
+  ]
+}

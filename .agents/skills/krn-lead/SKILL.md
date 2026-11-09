@@ -44,7 +44,7 @@ Use them only when they clearly save time; none is a prerequisite for a merge.
 
 - **Decisions.** A task must not contradict a recorded ADR; amend the ADR first and cite the grant that covers it.
 - **Host load.** `/tmp` is quota-limited; agent temp space lives on disk.
-- **Exit codes.** `scripts/claude/piped-check.ts` (PreToolUse Bash hook) refuses a check run piped into a filter; redirect to a log, read the exit code, then the log.
+- **Exit codes.** `scripts/claude/piped-check.ts` hook rewrites a check piped into a filter to `set -o pipefail; ...`, refuses `|| true`.
 - **`pkill -f`.** Its pattern matches its own shell and other lanes' processes; stop processes by PID or port.
 
 ## Open traps
