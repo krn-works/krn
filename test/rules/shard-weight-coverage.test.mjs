@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict';
-import { realpathSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { relative, sep } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { TEST_FILE_WEIGHTS } from '../../scripts/lib/shard-weights.mjs';
-import { MAX_TEST_FILE_SECONDS } from '../../scripts/shard-wall-report.mjs';
+import {
+  MAX_SHARD_WEIGHT_SECONDS,
+  MAX_TEST_FILE_SECONDS,
+} from '../../scripts/shard-wall-report.mjs';
 import { selectTestFiles } from '../../scripts/test-suite.mjs';
 
 // A rule test so `npm run fast` runs it whenever a test file is added or removed.
@@ -40,5 +43,22 @@ test('no test file is heavy enough to bound its shard wall', () => {
       .map(([file]) => file),
     [],
     `split test files above ${MAX_TEST_FILE_SECONDS} s so the slowest shard stays near that bound`,
+  );
+});
+
+// Tests grow the suite between weight refreshes; once the summed weight per
+// CI shard passes the bound, the mean shard reaches the 18 s target and only
+// another shard restores it.
+test('the CI shard count keeps the summed weight per shard within its bound', () => {
+  const workflow = readFileSync(`${root}/.github/workflows/ci.yml`, 'utf8');
+  const shards = Number(
+    /^ {6}KRN_TEST_SHARD_TOTAL: '(\d+)'$/mu.exec(workflow)?.[1],
+  );
+  assert.ok(shards > 0, 'ci.yml sets KRN_TEST_SHARD_TOTAL');
+  const total = Object.values(TEST_FILE_WEIGHTS).reduce((a, b) => a + b, 0);
+  const perShard = Math.round((total / shards) * 10) / 10;
+  assert.ok(
+    perShard <= MAX_SHARD_WEIGHT_SECONDS,
+    `${total.toFixed(1)} s of weights on ${shards} shards is ${perShard} s per shard, over ${MAX_SHARD_WEIGHT_SECONDS} s; add a shard to the test matrix in .github/workflows/ci.yml`,
   );
 });

@@ -97,7 +97,7 @@ jobs:
         run: npm run check
 
   test:
-    name: Test (${{ matrix.shard }}/10)
+    name: Test (${{ matrix.shard }}/12)
     needs: changes
     if: ${{ !cancelled() && needs.changes.result == 'success' && needs.changes.outputs.test != 'false' }}
     runs-on: ubuntu-24.04
@@ -105,10 +105,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
     env:
       KRN_TEST_SHARD_INDEX: ${{ matrix.shard }}
-      KRN_TEST_SHARD_TOTAL: '10'
+      KRN_TEST_SHARD_TOTAL: '12'
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
