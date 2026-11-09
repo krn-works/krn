@@ -8,7 +8,7 @@ import {
   readFileSync,
   realpathSync,
 } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import {
   ABI_LABELS,
   type CapsuleFields,
@@ -513,6 +513,35 @@ const completeRule: CapsuleRule = (ctx) => {
     });
 };
 
+// Scope rule: this repository's capsule must not carry operator asks about other
+// repositories (the operator rejects them as out of scope). Heuristic, applied only
+// to clauses (split on ";") that start with "operator": a clause is foreign when it
+// holds an absolute path outside this root, or a `name#123` / `owner/name#123`
+// reference whose repository name is not this root's basename. Bare product names
+// without a path or #number are not flagged, keeping false positives low.
+const foreignAskRule: CapsuleRule = (ctx) => {
+  const unknowns = ctx.fields['Open unknowns and blockers with owners'];
+  if (!unknowns) return;
+  const self = basename(ctx.root);
+  for (const clause of unknowns.split(';')) {
+    const text = clause.trim();
+    if (!/^operator\b/i.test(stripMarkup(text))) continue;
+    const refs = [...text.matchAll(/(?<![\w./-])(?:[\w.-]+\/)?([\w.-]+)#\d+/g)]
+      .map((m) => m[1] ?? '')
+      .filter((name) => name !== self);
+    const paths = (text.match(/(?<![\w.-])\/[\w.~/-]+/g) ?? []).filter(
+      (path) => !isInside(ctx.root, path),
+    );
+    const foreign = refs[0] ?? paths[0];
+    if (foreign !== undefined)
+      ctx.warnings.push({
+        id: ctx.id,
+        rule: 'operator-ask-other-repository',
+        detail: `${text} (${foreign}); ask only about this repository`,
+      });
+  }
+};
+
 // Order matters only within errors and within warnings; keep it stable.
 export const CAPSULE_RULES: readonly CapsuleRule[] = [
   gitIgnoredRule,
@@ -526,6 +555,7 @@ export const CAPSULE_RULES: readonly CapsuleRule[] = [
   fixedPointRule,
   nextActionRule,
   completeRule,
+  foreignAskRule,
 ];
 
 export function inspectState(repo: string): CheckReport {

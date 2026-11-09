@@ -1,7 +1,11 @@
 {
   "id": "t-8ftw3bt",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn state check rule operator-ask-other-repository; handoff writer needs no change: Operator requests holds task ids/memory slugs, never capsule unknowns"
+  },
   "created": "2026-11-09",
   "priority": 3,
   "title": "Warn when the capsule asks the operator about another repository",

@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -67,4 +73,45 @@ test('state check on a missing path exits 64 naming the path', () => {
   );
   assert.equal(result.status, 64);
   assert.match(result.stderr, /does not exist/);
+});
+
+test('state check warns when an operator ask names another repository and passes for this one', () => {
+  const warningsFor = (unknowns: string) => {
+    const root = realpathSync(buildCaseRepo('active'));
+    try {
+      const file = join(root, '.krn/runs/delivery-loop/main/state.md');
+      writeFileSync(
+        file,
+        readFileSync(file, 'utf8').replace(
+          'Open unknowns and blockers with owners: none',
+          `Open unknowns and blockers with owners: ${unknowns}`,
+        ),
+      );
+      const out = spawnSync(
+        process.execPath,
+        [cli, 'state', 'check', '--root', root],
+        { encoding: 'utf8' },
+      ).stdout;
+      return (JSON.parse(out) as { warnings: { rule: string }[] }).warnings.map(
+        (w) => w.rule,
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  };
+  const rule = 'operator-ask-other-repository';
+  assert.ok(
+    warningsFor('operator: merge design-studio#12 and restart').includes(rule),
+  );
+  assert.ok(
+    warningsFor('operator: run /srv/ekologus-wp-local/deploy.sh').includes(
+      rule,
+    ),
+  );
+  assert.ok(
+    !warningsFor(
+      'operator: install krn-codex-skills release containing #482; owner: krn-codex-skills#476 conflicts',
+    ).includes(rule),
+  );
+  assert.ok(!warningsFor('none').includes(rule));
 });
