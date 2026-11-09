@@ -1,7 +1,11 @@
 {
   "id": "t-brje6zv",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "claim-lock.test.ts 11.8 -> 5.6 s locally: tests run concurrently (separate repos hash to separate lock names), race repetitions cut 4->2 with contenders per task unchanged; 20/20 runs under 4x load pass"
+  },
   "created": "2026-11-09",
   "priority": 3,
   "title": "Bring claim-lock tests under the 11 s CI bound",
