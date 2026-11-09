@@ -1,0 +1,16 @@
+{
+  "id": "t-hpva5bk",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Weights refreshed from runs 42527483119..42529731081; simulated slowest shard 20.3 -> 12.8; orphan isolation-gate.d.mts removed."
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Rebalance CI test shards on current per-file medians",
+  "after": [],
+  "body": [
+    "Outcome: the slowest Test shard p50 drops below the 18 s target of scripts/shard-wall-report.mjs (24.8 s on main at 039a1c7: shard 10/10 against a 16 s mean). The weights in scripts/lib/shard-weights.mjs came from older runs, and 31 files now run more than 30% over their weight (scope-bypass 11.4 s against 4.4 s).\nProof: a simulated plan (parallel sum / 4 lanes + serial, scored on the new medians) puts the slowest shard at 12.8 instead of 20.3. After the merge, run node scripts/shard-wall-report.mjs --runs 5 on main.\nAlso: remove scripts/isolation-gate.d.mts, whose .mjs was retired in t-bs9wgcr."
+  ]
+}
