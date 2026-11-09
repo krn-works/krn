@@ -1,12 +1,15 @@
 import { readFileSync, statSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // PreToolUse hook for Bash and Read: refuses the lead a large file dump. `sed -n`, `cat`
 // and `grep` returned 54% of the lead's Bash result bytes, and every byte is re-read from
 // cache on each later turn (.krn/runs/roadmap-refill/token-per-slice.md, section 6).
 // Subagents read freely: Claude Code adds `agent_id` to a subagent's hook payload and
 // omits it for the lead (test/claude/fixtures/pretooluse-bash-lead-subagent.jsonl).
-// It classifies only unpiped cat, sed -n ranges, recursive grep and unbounded Read;
+// It classifies only unpiped cat, sed -n ranges, recursive grep and unbounded Read, and
+// sums the cat and sed -n reads chained in one call against the same byte budget (compound
+// calls were 571 kB of 908 kB of read-family result bytes after d395d05);
 // anything it cannot classify is allowed.
 export const maxBytes = 8000;
 export const maxLines = 80;
@@ -49,7 +52,14 @@ const words = (text: string) =>
     (match) => match[1] ?? match[2] ?? match[3] ?? '',
   );
 
-function judge(stage: string, cwd: string, size: Size): string | undefined {
+type Spent = { bytes: number; reads: number };
+
+function judge(
+  stage: string,
+  cwd: string,
+  size: Size,
+  spent: Spent,
+): string | undefined {
   if (/[<>]/u.test(stage.replace(/2>&1|2>\/dev\/null/gu, ''))) return undefined;
   const [name, ...args] = words(stage.replace(/^(?:\w+=\S*\s+)*/u, ''));
   const files = (list: string[]) =>
@@ -61,6 +71,8 @@ function judge(stage: string, cwd: string, size: Size): string | undefined {
       (sum, path) => sum + (size(path)?.bytes ?? 0),
       0,
     );
+    spent.bytes += bytes;
+    spent.reads += 1;
     if (bytes > maxBytes)
       return `\`${stage}\` prints ${bytes} bytes of file text`;
     return undefined;
@@ -80,6 +92,11 @@ function judge(stage: string, cwd: string, size: Size): string | undefined {
           Math.min(end, total || end) - Number(range[1]) + 1,
         );
       }
+    const sized = targets.map((path) => size(path)).find((one) => one?.lines);
+    spent.bytes += Math.round(
+      lines * ((sized?.bytes ?? 0) / Math.max(sized?.lines ?? 1, 1)),
+    );
+    spent.reads += 1;
     if (lines > maxLines) return `\`${stage}\` prints ${lines} lines`;
     return undefined;
   }
@@ -125,6 +142,7 @@ export function decide(
     return `Refused: reading all of \`${input.file_path}\` puts ${bytes} bytes into the lead's context, where every later turn re-reads them. ${advice}`;
   }
   if (typeof input?.command !== 'string') return undefined;
+  const spent: Spent = { bytes: 0, reads: 0 };
   for (const list of withoutHeredocs(input.command).split(/&&|\|\||;|\n/u)) {
     const stages = list.split(/\|&?/u).map((stage) => stage.trim());
     const [first] = stages;
@@ -135,10 +153,12 @@ export function decide(
       continue;
     }
     if (stages.length > 1) continue;
-    const reason = judge(first, cwd, size);
+    const reason = judge(first, cwd, size, spent);
     if (reason)
       return `Refused: ${reason} into the lead's context, where every later turn re-reads them. Nothing in this Bash call ran, including its other commands. ${advice}`;
   }
+  if (spent.reads > 1 && spent.bytes > maxBytes)
+    return `Refused: the reads chained in this Bash call print about ${spent.bytes} bytes of file text (budget ${maxBytes} for the whole call) into the lead's context, where every later turn re-reads them. Nothing in this Bash call ran. ${advice}`;
   return undefined;
 }
 
@@ -155,4 +175,4 @@ function main() {
     process.exitCode = 2;
   }
 }
-main();
+if (process.argv[1] === fileURLToPath(import.meta.url)) main();

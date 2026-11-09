@@ -1,0 +1,16 @@
+{
+  "id": "t-s5fdmq0",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scan committed; chained cat/sed reads refused over budget"
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Measure and close Bash read paths the lead file-read refusal still lets through",
+  "after": [],
+  "body": [
+    "Outcome: lead Bash read output that scripts/claude/lead-file-read.ts lets through (pipes, redirects, cd prefixes, compound commands, unclassified commands) is measured by form, and the largest form over the budget is refused with a test.\nWhy: lead-cost scan 2026-11-09: since 2026-11-08 lead Bash sed 630, grep 574, cat 384 calls, ~$67 (25% of lead $); the scan claims compound and piped reads pass because anything unclassified is allowed. The hook did refuse `sed -n 1,82p f; grep ...` in session 3e700b2a, so the claim must be measured before changing the hook.\nProof: a committed scan groups lead Bash read-result bytes by command form after d395d05 (#472); test/claude covers each newly refused form and keeps a passing form allowed.\nScope: scripts/claude/lead-file-read.ts, its test, a scan script."
+  ]
+}
