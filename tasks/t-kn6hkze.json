@@ -1,0 +1,12 @@
+{
+  "id": "t-kn6hkze",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Cut agent token cost: mid-step relay, 44k baseline, Opus leaks",
+  "after": [],
+  "body": [
+    "Outcome: agent sessions on this host stop paying for oversized context: no session runs past the relay threshold, Opus runs only where chosen, and a fresh session starts well below ~44k tokens.\nEvidence (operator usage audit 2026-11-09, API-price estimates, not per account): 794 sessions, ~104k requests, active 150 of 168 h/week, ~9 concurrent sessions; Opus ~89% of cost; requests above 200k context ~39% of cost; 44 sessions passed 300k (~20%), 8 reached 964k (~11%) because context-relay measures only after a finished step, so one long step crosses the threshold without a handoff; ekologus-wp-local agents frontend-artist and slice-reviewer pin model: opus (~9% of cost); some general-purpose subagents ran on Opus despite CLAUDE_CODE_SUBAGENT_MODEL=sonnet (cause unknown); cswap auto does not rotate accounts, so account 3 hit 100%; a fresh session starts at ~44k tokens resent on every request.\nAcceptance: (1) the context check fires during a step, not only after it (a PreToolUse/PostToolUse measurement that forces handoff at the threshold), proven by a transcript replay that crosses it mid-step; (2) the 44k baseline is broken down by source (system prompt, CLAUDE.md/AGENTS.md, memory index, skills listing, MCP tools) and the KRN-owned share cut; (3) the subagent-model override cause is found from transcripts with a reproduction; (4) out-of-repo items (ekologus agents pinned to opus, cswap auto rotation, global skills) are listed with a decision-ready proposal for the operator, since they sit outside KRN scope and global config.\nNote: operator asked to take this on after t-wm22s14 (2026-11-09)."
+  ]
+}
