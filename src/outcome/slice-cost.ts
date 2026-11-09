@@ -101,27 +101,35 @@ export function turnDollars(turn: Turn): number | null {
 }
 
 const SLACK_MS = 10 * 60 * 1000;
-const TASK_LEAD_MS = 6 * 60 * 60 * 1000;
+/** How long before its PR opened a multi-day task's work can begin. */
+const TASK_SPAN_MS = 48 * 60 * 60 * 1000;
 function taskOf(title: string): string | undefined {
   return /\((t-[0-9a-z]{7})\)\s*$/.exec(title)?.[1];
 }
 /**
  * Whether a turn's commands name the PR: its task id, or `--pr N`, `#N` or
  * `gh pr <verb> N` once the PR exists (an earlier `#N` names something else).
+ * A task spans many PRs and many sessions, so its id names this PR only after
+ * `since`, when the task's previous PR merged, within two days before this PR
+ * opened, and only in a turn naming no other task (a listing, which may still
+ * name the PR by number).
  */
 export function references(
   text: string,
   pr: SlicePr,
   at: number | null = null,
+  since: number | null = null,
 ): boolean {
   const task = taskOf(pr.title);
   const created = Date.parse(String(pr.createdAt));
-  if (task && new RegExp(`\\b${task}\\b`).test(text)) {
-    // A task spans many PRs: only turns within hours before this PR opened can be its work.
+  // A turn naming several tasks lists them; only a turn naming this task alone works on it.
+  const tasks = new Set(text.match(/\bt-[0-9a-z]{7}\b/g));
+  if (task && tasks.size === 1 && tasks.has(task))
     return (
-      at === null || !Number.isFinite(created) || at >= created - TASK_LEAD_MS
+      at === null ||
+      ((since === null || at > since) &&
+        (!Number.isFinite(created) || at >= created - TASK_SPAN_MS))
     );
-  }
   if (at !== null && Number.isFinite(created) && at < created - SLACK_MS)
     return false;
   return new RegExp(
@@ -129,44 +137,76 @@ export function references(
   ).test(text);
 }
 
+/** When each PR's task last merged a PR before this one opened; null when none did. */
+function taskSince(prs: SlicePr[]): Map<SlicePr, number | null> {
+  const result = new Map<SlicePr, number | null>();
+  for (const pr of prs) {
+    const task = taskOf(pr.title);
+    const opened = Date.parse(String(pr.createdAt ?? pr.mergedAt));
+    let since: number | null = null;
+    for (const other of prs) {
+      if (other === pr || !task || taskOf(other.title) !== task) continue;
+      const merged = Date.parse(String(other.mergedAt));
+      if (Number.isFinite(merged) && merged <= opened)
+        since = Math.max(since ?? merged, merged);
+    }
+    result.set(pr, since);
+  }
+  return result;
+}
+
 /**
  * The PR of each turn. A PR's slice runs from its first to its last reference
- * made before it merged (plus slack); overlapping slices give a turn to the one
- * ending first, and a turn between slices belongs to the next one. Turns before
- * the first slice (resume) or after the last (handoff, which may name the next
- * task) belong to no PR.
+ * made before it merged (plus slack); where slices overlap, a turn belongs to
+ * the PR whose reference is nearest (ties to the inner slice), and a turn
+ * between slices belongs to the next one. Turns before the first slice (resume)
+ * or after the last (handoff, which may name the next task) belong to no PR.
  */
 export function segmentTurns(turns: Turn[], prs: SlicePr[]): (number | null)[] {
-  const slices: { number: number; start: number; end: number }[] = [];
+  const since = taskSince(prs);
+  const slices: {
+    number: number;
+    start: number;
+    end: number;
+    refs: number[];
+  }[] = [];
   for (const pr of prs) {
     const merged = Date.parse(String(pr.mergedAt));
-    let start = -1;
-    let end = -1;
+    const refs: number[] = [];
     turns.forEach((turn, i) => {
       if (
         turn.text &&
-        references(turn.text, pr, turn.at) &&
+        references(turn.text, pr, turn.at, since.get(pr) ?? null) &&
         (turn.at === null ||
           !Number.isFinite(merged) ||
           turn.at <= merged + SLACK_MS)
-      ) {
-        if (start < 0) start = i;
-        end = i;
-      }
+      )
+        refs.push(i);
     });
-    if (end >= 0) slices.push({ number: pr.number, start, end });
+    const start = refs[0];
+    const end = refs.at(-1);
+    if (start !== undefined && end !== undefined)
+      slices.push({ number: pr.number, start, end, refs });
   }
-  const byEnd = [...slices].sort((a, b) => a.end - b.end);
   const byStart = [...slices].sort((a, b) => a.start - b.start);
-  return turns.map(
-    (_, i) =>
+  const distance = (s: (typeof slices)[number], i: number) =>
+    Math.min(...s.refs.map((r) => Math.abs(r - i)));
+  return turns.map((_, i) => {
+    const inside = slices
+      .filter((s) => s.start <= i && i <= s.end)
+      .sort(
+        (a, b) =>
+          distance(a, i) - distance(b, i) || b.start - a.start || a.end - b.end,
+      );
+    return (
       (
-        byEnd.find((s) => s.start <= i && i <= s.end) ??
+        inside[0] ??
         (byStart[0] && i > byStart[0].start
           ? byStart.find((s) => s.start > i)
           : undefined)
-      )?.number ?? null,
-  );
+      )?.number ?? null
+    );
+  });
 }
 
 export type SliceCost = {

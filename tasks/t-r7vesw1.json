@@ -1,0 +1,12 @@
+{
+  "id": "t-r7vesw1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Make krn ledger on 30 PRs finish in under a minute",
+  "after": [],
+  "body": [
+    "Outcome: `krn ledger --limit 30 --json` finishes in under 60 s on this host, and its per-PR rows are unchanged.\nWhy: during t-qwqhd1a each 30-PR ledger run took over 600 s (a foreground Bash call timed out at 600 s and moved to the background), so every attribution change costs a long wait per measurement.\nProof: wall time before and after with the same transcripts, plus `diff` of the JSON rows; record under .krn/runs/.\nScope: this repository."
+  ]
+}
