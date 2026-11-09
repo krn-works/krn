@@ -1,0 +1,10 @@
+{
+  "root": "<root>",
+  "git": true,
+  "applicability": "no-file-backed-capsule",
+  "ignoredRuns": null,
+  "capsules": [],
+  "errors": [],
+  "warnings": [],
+  "status": "not-applicable"
+}

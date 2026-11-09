@@ -1,0 +1,2 @@
+warning: disposition-without-evidence: store the executed command, its exit, and the fixed point
+warning: dangling-candidate: t-missing9

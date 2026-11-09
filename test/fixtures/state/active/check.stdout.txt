@@ -1,0 +1,26 @@
+{
+  "root": "<root>",
+  "git": true,
+  "applicability": "checked",
+  "ignoredRuns": true,
+  "capsules": [
+    {
+      "id": "main",
+      "path": ".krn/runs/delivery-loop/main/state.md"
+    }
+  ],
+  "errors": [],
+  "warnings": [
+    {
+      "id": "main",
+      "rule": "disposition-without-evidence",
+      "detail": "store the executed command, its exit, and the fixed point"
+    },
+    {
+      "id": "main",
+      "rule": "dangling-candidate",
+      "detail": "t-missing9"
+    }
+  ],
+  "status": "clean"
+}

@@ -1,0 +1,71 @@
+{
+  "root": "<root>",
+  "git": true,
+  "applicability": "checked",
+  "ignoredRuns": true,
+  "capsules": [
+    {
+      "id": "main",
+      "path": ".krn/runs/delivery-loop/main/state.md"
+    }
+  ],
+  "errors": [
+    {
+      "id": "main",
+      "rule": "unresolved-placeholder",
+      "detail": "Evidence observed"
+    },
+    {
+      "id": "main",
+      "rule": "complete-with-open-acceptance",
+      "detail": "state check exits 1"
+    },
+    {
+      "id": "main",
+      "rule": "dangling-candidate",
+      "detail": "t-missing9"
+    },
+    {
+      "id": "main",
+      "rule": "restart-path-missing",
+      "detail": ".krn/runs/lead/restart.md"
+    },
+    {
+      "id": "main",
+      "rule": "ghost-cleanup-entry",
+      "detail": ".krn/runs/lead/gone (ACTIVE)"
+    },
+    {
+      "id": "main",
+      "rule": "complete-without-commit-anchor",
+      "detail": "base=5f4b00f22605b2f4b5a0e78bd76e556886bda413"
+    },
+    {
+      "id": "main",
+      "rule": "complete-with-cleanup",
+      "detail": "COMPLETE capsules must have no outstanding cleanup"
+    },
+    {
+      "id": "main",
+      "rule": "complete-with-restart",
+      "detail": ".krn/runs/lead/restart.md"
+    },
+    {
+      "id": "main",
+      "rule": "complete-with-pending-review",
+      "detail": "pending"
+    },
+    {
+      "id": "main",
+      "rule": "complete-with-active-participant",
+      "detail": "t-fixture1 state=open"
+    },
+    {
+      "id": "lead",
+      "rule": "orphaned-run",
+      "detail": ".krn/runs/lead/evidence"
+    }
+  ],
+  "warnings": [],
+  "status": "divergent"
+}

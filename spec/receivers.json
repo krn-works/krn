@@ -105,9 +105,9 @@
       "receivers": ["systemd-run", "systemctl"],
       "real": "test/hosts/systemd-scope-collect.test.ts"
     },
-    "src/cli/state-forward.ts": {
-      "receivers": ["node <legacy release>/scripts/krn.mjs state"],
-      "pending": "t-3yss2y9"
+    "src/state/git.ts": {
+      "receivers": ["git"],
+      "real": "test/state/state.test.ts"
     },
     "src/outcome/ledger.ts": {
       "receivers": ["gh"],

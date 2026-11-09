@@ -1,0 +1,21 @@
+capsule main
+outcome: [state check prints clean on this repository; todo, state resume names the capsule; pass]
+state: ACTIVE / publication LOCAL_ONLY
+owner: lead; sole writer
+next: lead: deliver t-fixture1
+authority: writes=repo; commit=yes
+blockers: none
+evidence: npm run fast PASS
+non-proofs: none
+review: reviewed without a stored command
+restart: ABSENT
+goal/tracker: t-fixture1 open
+durable refs: CONTEXT.md
+friction: candidate: deferred:t-fixture1; candidate: t-missing9
+repo: recorded fixed point 5f4b00f22605b2f4b5a0e78bd76e556886bda413 / live HEAD 5f4b00f22605b2f4b5a0e78bd76e556886bda413 (unchanged); dirty 0 paths
+cleanup: listed 1 / live 1; missing none; unlisted none
+cleanup entries: .krn/runs/lead/evidence [lead; next lead; evidence kept; ACTIVE]
+
+workflow lessons: none
+
+Run `krn state check` before resuming or completing.

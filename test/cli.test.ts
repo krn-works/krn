@@ -121,42 +121,6 @@ test('unknown and retired commands exit 64 with a clear stderr message and print
   }
 });
 
-test('state runs the named legacy entry with its arguments and exit code', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'krn-state-forward-'));
-  try {
-    const entry = join(directory, 'krn.mjs');
-    await writeFile(
-      entry,
-      'process.stdout.write(JSON.stringify(process.argv.slice(2)));\nprocess.exitCode = 3;\n',
-    );
-    const result = spawnSync(
-      process.execPath,
-      [cli, 'state', 'check', '--root', '.'],
-      { encoding: 'utf8', env: { ...process.env, KRN_STATE_ENTRY: entry } },
-    );
-    assert.equal(result.status, 3, result.stderr);
-    assert.deepEqual(JSON.parse(result.stdout), [
-      'state',
-      'check',
-      '--root',
-      '.',
-    ]);
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
-});
-
-test('state exits 69 naming the missing legacy entry and prints nothing to stdout', () => {
-  const entry = join(tmpdir(), 'krn-state-missing', 'krn.mjs');
-  const result = spawnSync(process.execPath, [cli, 'state', 'resume'], {
-    encoding: 'utf8',
-    env: { ...process.env, KRN_STATE_ENTRY: entry },
-  });
-  assert.equal(result.status, 69);
-  assert.equal(result.stdout, '');
-  assert.ok(result.stderr.includes(entry), result.stderr);
-});
-
 test('krn --help lists only the owned commands and exits 0', () => {
   const result = spawnSync(process.execPath, [cli, '--help'], {
     encoding: 'utf8',
