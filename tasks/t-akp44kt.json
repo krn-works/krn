@@ -9,6 +9,7 @@
   "body": [
     "Outcome: subagent dollars per merged PR fall measurably (cost-scan.py), by type and model, without more lead turns per PR.\nWhy: .krn/runs/roadmap-refill-2/tokens.md: since 2026-11-07 subagents cost $216 of $462 over 121 PRs; lead median $1.62 and 41 turns per PR.\nProof: `python3 -I .krn/runs/token-cost/cost-scan.py` before and after, split by subagent type.\nScope: this repository.",
     "Measurement plan: before (2026-11-09) in .krn/runs/subagent-spend/before.txt: $216 subagents, $1.76/PR, 15 lanes >=100 turns = $167. Shipped maxTurns on krn-reader/krn-research plus lanes.md turn-budget rule. After: rerun `python3 -I .krn/runs/subagent-spend/split-scan.py` once ~30 PRs of new sessions exist; success = subagent $/PR below $1.2 and agents >=100 turns below 5.",
-    "Measured 2026-11-09: general-purpose = 99% of subagent $; 15 lanes >=100 turns = $166.86. Shipped krn-lane (maxTurns 90) routing. Replay cap 90: $223 -> $132 upper bound. After-run pending; see .krn/runs/subagent-spend/report.md"
+    "Measured 2026-11-09: general-purpose = 99% of subagent $; 15 lanes >=100 turns = $166.86. Shipped krn-lane (maxTurns 90) routing. Replay cap 90: $223 -> $132 upper bound. After-run pending; see .krn/runs/subagent-spend/report.md",
+    "2026-11-09 receiver proof: in session e6cd06a1 an explicit general-purpose Agent call ran as agentType krn-lane (subagent meta.json) with assistant turns on claude-sonnet-5-5; sessions started before #496 lack krn-lane and fail the rerouted call until restarted."
   ]
 }
