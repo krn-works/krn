@@ -47,6 +47,28 @@ test('a captured hook refusal counts once with a clipped message', () => {
   );
 });
 
+// Receiver evidence: subagent-read-content.jsonl holds three real tool results from sessions
+// 3e700b2a and 73835409 (content trimmed to 500 characters around the match) where the
+// hook-error text sat inside a transcript, a docs page and a log summary the subagent read.
+test('hook-error text inside content a subagent read is not counted', () => {
+  const read = fileURLToPath(
+    new URL('./transcripts/subagent-read-content.jsonl', import.meta.url),
+  );
+  assert.equal(scan(readFileSync(read, 'utf8')).count, 0);
+  const quoted = (content: unknown) =>
+    scan(
+      JSON.stringify({
+        type: 'user',
+        message: { content: [{ type: 'tool_result', content }] },
+      }),
+    ).count;
+  assert.equal(quoted('see: PreToolUse:Bash hook error: [x]: no'), 0);
+  assert.equal(
+    quoted([{ type: 'text', text: 'PreToolUse:Bash hook error: [x]: no' }]),
+    1,
+  );
+});
+
 test('SubagentStop prints nothing, writes the ledger; the next PostToolUse delivers once', () => {
   const root = mkdtempSync(join(tmpdir(), 'hook-errors-'));
   try {
