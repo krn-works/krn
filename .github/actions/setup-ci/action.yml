@@ -54,6 +54,19 @@ runs:
           echo 1 > status
         ' _ "$dir" "$version" > "$dir/install.log" 2>&1 < /dev/null &
 
+    # setup-node looks in RUNNER_TOOL_CACHE before downloading; restoring the
+    # pinned version there (with its x64.complete marker) skips the download.
+    - name: Read the pinned Node.js version
+      id: node-version
+      shell: bash
+      run: echo "version=$(tr -d '[:space:]v' < .node-version)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache the pinned Node.js toolchain
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.tool_cache }}/node/${{ steps.node-version.outputs.version }}
+        key: node-${{ runner.os }}-${{ runner.arch }}-${{ steps.node-version.outputs.version }}
+
     - name: Set up Node.js
       uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
       with:
