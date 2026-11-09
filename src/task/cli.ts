@@ -80,7 +80,7 @@ const quickstart = [
 
 const verbHelp: Record<string, string> = {
   create:
-    'krn task create --title T [--priority 0..3] [--after ID] [--body-file FILE|-] [--worktree PATH] [--json]\nCreate one task. Example: krn task create --title "Add a task" --priority 1 --json',
+    'krn task create --title T [--priority 0..3] [--after ID] [--body-file FILE|-] [--verify CMD]... [--worktree PATH] [--json]\nCreate one task; each --verify is an acceptance command that `close --as done` runs (exit 66 on failure). Example: krn task create --title "Add a task" --priority 1 --json',
   show: 'krn task show ID [--json]\nShow task details, blockers, dependents, and claim. Example: krn task show t-a1b2c3d --json',
   list: 'krn task list [--status open|closed|all] [--json]\nList tasks. Example: krn task list --status all --json',
   ready:
@@ -92,7 +92,7 @@ const verbHelp: Record<string, string> = {
   close:
     'krn task close ID --as done|dropped|duplicate:ID|superseded:ID [--note TEXT] [--json]\nClose a task. Example: krn task close t-a1b2c3d --as done --json',
   dep: 'krn task dep add|rm ID --after ID [--json]\nChange a blocking dependency. Example: krn task dep add t-a1b2c3d --after t-b2c3d4e --json',
-  edit: 'krn task edit ID [--title T] [--priority N] [--body-file FILE|-] [--append-body TEXT] [--reopen] [--json]\nEdit task fields; use --reopen for closed tasks. Example: krn task edit t-a1b2c3d --title "Updated task" --json',
+  edit: 'krn task edit ID [--title T] [--priority N] [--body-file FILE|-] [--append-body TEXT] [--verify CMD]... [--reopen] [--json]\nEdit task fields; use --reopen for closed tasks. Example: krn task edit t-a1b2c3d --title "Updated task" --json',
   comment:
     'krn task comment ID --body-file FILE|- [--actor NAME] [--json]\nAppend a signed, dated comment; workers may comment but never change status. Actor defaults to git user.name. Example: krn task comment t-a1b2c3d --body-file - --json',
   check:
@@ -212,9 +212,12 @@ function create(args: string[], json: boolean): CommandOutput {
   let bodyFile: string | undefined;
   let worktree: string | undefined;
   const after: TaskId[] = [];
+  const verify: string[] = [];
   for (let index = 0; index < args.length; index += 1) {
     const option = args[index];
-    if (option === '--title') {
+    if (option === '--verify') {
+      verify.push(parseVerify(nextValue(args, index++, option)));
+    } else if (option === '--title') {
       if (title !== undefined) throw usage('--title may be supplied once');
       title = parseTitle(nextValue(args, index++, option));
     } else if (option === '--priority') {
@@ -249,6 +252,7 @@ function create(args: string[], json: boolean): CommandOutput {
       title,
       after,
       body,
+      verify,
       ...(priority === undefined ? {} : { priority }),
     },
     { uniquenessRoots: targetRoot === mainRoot ? [] : [mainRoot] },
@@ -524,9 +528,12 @@ function edit(args: string[], json: boolean): CommandOutput {
   let bodyFile: string | undefined;
   let appendBody: string[] | undefined;
   let reopen = false;
+  const verify: string[] = [];
   for (let index = 0; index < options.length; index += 1) {
     const option = options[index];
-    if (option === '--title') {
+    if (option === '--verify') {
+      verify.push(parseVerify(nextValue(options, index++, option)));
+    } else if (option === '--title') {
       if (title !== undefined) throw usage('--title may be supplied once');
       title = parseTitle(nextValue(options, index++, option));
     } else if (option === '--priority') {
@@ -553,6 +560,7 @@ function edit(args: string[], json: boolean): CommandOutput {
     priority === undefined &&
     bodyFile === undefined &&
     appendBody === undefined &&
+    verify.length === 0 &&
     !reopen
   )
     throw usage('task edit requires at least one change');
@@ -572,6 +580,7 @@ function edit(args: string[], json: boolean): CommandOutput {
     ...(priority === undefined ? {} : { priority }),
     ...(body === undefined ? {} : { body }),
     ...(appendBody === undefined ? {} : { appendBody }),
+    ...(verify.length === 0 ? {} : { verify }),
     ...(reopen ? { reopen: true } : {}),
   });
   return result({ task: record }, `${record.id}\n`, json);
@@ -628,6 +637,11 @@ function parsePriority(value: string): number {
   if (!/^[0-3]$/u.test(value))
     throw usage('--priority must be an integer between 0 and 3');
   return Number(value);
+}
+
+function parseVerify(value: string): string {
+  if (value.trim() === '') throw usage('--verify must not be empty');
+  return value;
 }
 
 function parseTitle(value: string): string {

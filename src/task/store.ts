@@ -15,6 +15,8 @@ import {
   isTaskId,
   parseTaskDocument,
   serializeTask,
+  type TaskAcceptance,
+  TaskCommandError,
   TaskDataError,
   type TaskId,
   type TaskRecord,
@@ -24,11 +26,15 @@ import {
 } from './record.ts';
 import { atomicWrite } from './staged-write.ts';
 
+// Exit code of `krn task close` when an acceptance command fails.
+const ACCEPTANCE_FAILED_EXIT = 66;
+
 interface NewTask {
   title: string;
   priority?: number;
   after?: TaskId[];
   body?: string[];
+  verify?: string[];
 }
 
 interface EditTask {
@@ -36,6 +42,7 @@ interface EditTask {
   priority?: number;
   body?: string[];
   appendBody?: string[];
+  verify?: string[];
   reopen?: boolean;
 }
 
@@ -250,6 +257,7 @@ export function createTask(
       title: input.title,
       after: [...new Set(input.after ?? [])].sort(),
       body: [...(input.body ?? [])],
+      ...acceptanceFor(input.verify),
     };
     try {
       atomicWrite(root, path, serializeTask(record));
@@ -262,10 +270,37 @@ export function createTask(
   throw new TaskDataError(['unable to allocate an unused task id']);
 }
 
+function acceptanceFor(
+  verify: string[] | undefined,
+): { acceptance: TaskAcceptance[] } | Record<string, never> {
+  const commands = [...new Set(verify ?? [])];
+  return commands.length === 0
+    ? {}
+    : {
+        acceptance: commands.map((command) => ({
+          verify: command,
+          passes: false,
+          exit: null,
+        })),
+      };
+}
+
+// Runs one acceptance command through the shell in the repository root and
+// returns its exit status (a signal or spawn failure counts as 1).
+export function runVerify(root: string, command: string): number {
+  const run = spawnSync('sh', ['-c', command], {
+    cwd: root,
+    stdio: ['ignore', 'ignore', 'inherit'],
+    timeout: 600_000,
+  });
+  return run.status ?? 1;
+}
+
 export function closeTask(
   root: string,
   id: TaskId,
   resolution: TaskResolution,
+  verifier: (root: string, command: string) => number = runVerify,
 ): TaskRecord {
   const index = loadTaskIndex(root);
   const record = index.get(id);
@@ -281,8 +316,32 @@ export function closeTask(
       `tasks/${id}.json: ${resolution.kind} resolution requires an existing ref`,
     ]);
 
+  let acceptance = record.acceptance;
+  if (resolution.kind === 'done' && acceptance !== undefined) {
+    // Only an executed command flips passes; its exit is recorded either way.
+    acceptance = acceptance.map((entry) => {
+      const exit = verifier(root, entry.verify);
+      return { verify: entry.verify, passes: exit === 0, exit };
+    });
+    const failed = acceptance.filter((entry) => !entry.passes);
+    if (failed.length > 0) {
+      atomicWrite(
+        root,
+        join(root, 'tasks', `${id}.json`),
+        serializeTask({ ...record, acceptance }),
+        true,
+      );
+      throw new TaskCommandError(
+        `tasks/${id}.json: acceptance failed, task stays open:\n${failed
+          .map((entry) => `  exit ${entry.exit}: ${entry.verify}`)
+          .join('\n')}`,
+        ACCEPTANCE_FAILED_EXIT,
+      );
+    }
+  }
   const closed: TaskRecord = {
     ...record,
+    ...(acceptance === undefined ? {} : { acceptance }),
     status: 'closed',
     resolution,
   };
@@ -316,12 +375,24 @@ export function editTask(
     input.title !== undefined ||
     input.priority !== undefined ||
     input.body !== undefined ||
+    (input.verify?.length ?? 0) > 0 ||
     (input.appendBody?.length ?? 0) > 0;
   if (!hasFieldChange && !(input.reopen === true && record.status === 'closed'))
     throw new TaskUsageError('task edit requires at least one change');
 
+  const added = acceptanceFor(input.verify).acceptance ?? [];
+  const known = new Set((record.acceptance ?? []).map((entry) => entry.verify));
+  const reopening = record.status === 'closed' && input.reopen === true;
+  const merged = [
+    ...(record.acceptance ?? []).map((entry) =>
+      // A reopened task must prove its acceptance again.
+      reopening ? { verify: entry.verify, passes: false, exit: null } : entry,
+    ),
+    ...added.filter((entry) => !known.has(entry.verify)),
+  ];
   const updated: TaskRecord = {
     ...record,
+    ...(merged.length === 0 ? {} : { acceptance: merged }),
     ...(input.title === undefined ? {} : { title: input.title }),
     ...(input.priority === undefined ? {} : { priority: input.priority }),
     ...(input.body === undefined

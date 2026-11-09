@@ -10,6 +10,9 @@ const taskKeys = [
   'after',
   'body',
 ] as const;
+// `acceptance` is optional and last; tasks without it keep their old bytes.
+const acceptanceKey = 'acceptance';
+const acceptanceKeys = ['verify', 'passes', 'exit'] as const;
 
 const resolutionKeys = ['kind', 'ref', 'note'] as const;
 const taskIdPattern = /^[A-Za-z]+-[0-9A-Za-z]+$/u;
@@ -29,6 +32,12 @@ export interface TaskResolution {
   note: string;
 }
 
+export interface TaskAcceptance {
+  verify: string;
+  passes: boolean;
+  exit: number | null;
+}
+
 export interface TaskRecord {
   id: TaskId;
   status: TaskStatus;
@@ -38,6 +47,7 @@ export interface TaskRecord {
   title: string;
   after: TaskId[];
   body: string[];
+  acceptance?: TaskAcceptance[];
 }
 
 interface ParsedTask {
@@ -111,6 +121,15 @@ export function serializeTask(record: TaskRecord): string {
     title: record.title,
     after: [...new Set(record.after)].sort(),
     body: [...record.body],
+    ...(record.acceptance === undefined || record.acceptance.length === 0
+      ? {}
+      : {
+          acceptance: record.acceptance.map((entry) => ({
+            verify: entry.verify,
+            passes: entry.passes,
+            exit: entry.exit,
+          })),
+        }),
   };
   return `${JSON.stringify(canonical, null, 2)}\n`;
 }
@@ -187,13 +206,14 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
   for (const key of taskKeys) {
     if (!(key in object)) findings.push(`missing key "${key}"`);
   }
+  const expectedKeys: readonly string[] =
+    acceptanceKey in object ? [...taskKeys, acceptanceKey] : taskKeys;
   for (const key of actualKeys) {
-    if (!(taskKeys as readonly string[]).includes(key))
-      findings.push(`extra key "${key}"`);
+    if (!expectedKeys.includes(key)) findings.push(`extra key "${key}"`);
   }
   if (
-    actualKeys.length !== taskKeys.length ||
-    actualKeys.some((key, index) => key !== taskKeys[index])
+    actualKeys.length !== expectedKeys.length ||
+    actualKeys.some((key, index) => key !== expectedKeys[index])
   )
     findings.push('wrong top-level key order');
 
@@ -228,7 +248,17 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
 
   const after = parseStringArray(object.after, '"after"', findings, true);
   const body = parseStringArray(object.body, '"body"', findings, false);
+  const acceptance =
+    acceptanceKey in object
+      ? parseAcceptance(object.acceptance, findings)
+      : undefined;
 
+  if (
+    status === 'closed' &&
+    resolution?.kind === 'done' &&
+    acceptance?.some((entry) => !entry.passes)
+  )
+    findings.push('tasks closed as done require passing acceptance entries');
   if (
     status === 'open' &&
     object.resolution !== null &&
@@ -277,6 +307,7 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
           title,
           after,
           body,
+          ...(acceptance === undefined ? {} : { acceptance }),
         }
       : undefined;
 
@@ -286,6 +317,50 @@ export function parseTaskDocument(contents: Buffer | string): ParsedTask {
   return record === undefined
     ? { findings, id, afterReferences, resolutionReference }
     : { record, findings, id, afterReferences, resolutionReference };
+}
+
+function parseAcceptance(
+  value: unknown,
+  findings: string[],
+): TaskAcceptance[] | undefined {
+  if (!Array.isArray(value) || value.length === 0) {
+    findings.push('"acceptance" must be a non-empty array');
+    return undefined;
+  }
+  const result: TaskAcceptance[] = [];
+  for (const [index, item] of value.entries()) {
+    const label = `"acceptance"[${index}]`;
+    if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+      findings.push(`${label} must be an object`);
+      continue;
+    }
+    const entry = item as Record<string, unknown>;
+    const keys = Object.keys(entry);
+    if (
+      keys.length !== acceptanceKeys.length ||
+      keys.some((key, position) => key !== acceptanceKeys[position])
+    ) {
+      findings.push(`${label} must have keys verify, passes, exit in order`);
+      continue;
+    }
+    const { verify, passes, exit } = entry;
+    if (typeof verify !== 'string' || verify.trim() === '') {
+      findings.push(`${label} "verify" must be a non-empty string`);
+      continue;
+    }
+    if (typeof passes !== 'boolean') {
+      findings.push(`${label} "passes" must be a boolean`);
+      continue;
+    }
+    if (exit !== null && !Number.isInteger(exit)) {
+      findings.push(`${label} "exit" must be an integer or null`);
+      continue;
+    }
+    if (passes && exit !== 0)
+      findings.push(`${label} passes only with a recorded exit 0`);
+    result.push({ verify, passes, exit: exit as number | null });
+  }
+  return result.length === value.length ? result : undefined;
 }
 
 function parseResolution(

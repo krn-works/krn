@@ -1,7 +1,11 @@
 {
   "id": "t-mjek1tx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "acceptance entries (--verify) run on close --as done; failure exits 66"
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Flip task acceptance only through an executed verify command",

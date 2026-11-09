@@ -141,6 +141,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/task/claims-worktrees.test.ts': 4.6,
   'test/task/claims.test.ts': 3.3,
   'test/task/comments.test.ts': 2,
+  'test/task/acceptance.test.ts': 1,
   'test/task/ergonomics.test.ts': 5.6,
   'test/task/lane-records.test.ts': 6,
   'test/task/receiver-faults.test.ts': 0.5,
