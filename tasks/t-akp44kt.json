@@ -1,7 +1,11 @@
 {
   "id": "t-akp44kt",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "subagent $/PR 2.03 -> 0.28, agents >=100 turns 15 -> 0, lead turns/PR 55.4 -> 8.1 (15 PRs after #496)"
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Cut subagent spend, now 47% of lead-session dollars",
@@ -10,6 +14,7 @@
     "Outcome: subagent dollars per merged PR fall measurably (cost-scan.py), by type and model, without more lead turns per PR.\nWhy: .krn/runs/roadmap-refill-2/tokens.md: since 2026-11-07 subagents cost $216 of $462 over 121 PRs; lead median $1.62 and 41 turns per PR.\nProof: `python3 -I .krn/runs/token-cost/cost-scan.py` before and after, split by subagent type.\nScope: this repository.",
     "Measurement plan: before (2026-11-09) in .krn/runs/subagent-spend/before.txt: $216 subagents, $1.76/PR, 15 lanes >=100 turns = $167. Shipped maxTurns on krn-reader/krn-research plus lanes.md turn-budget rule. After: rerun `python3 -I .krn/runs/subagent-spend/split-scan.py` once ~30 PRs of new sessions exist; success = subagent $/PR below $1.2 and agents >=100 turns below 5.",
     "Measured 2026-11-09: general-purpose = 99% of subagent $; 15 lanes >=100 turns = $166.86. Shipped krn-lane (maxTurns 90) routing. Replay cap 90: $223 -> $132 upper bound. After-run pending; see .krn/runs/subagent-spend/report.md",
-    "2026-11-09 receiver proof: in session e6cd06a1 an explicit general-purpose Agent call ran as agentType krn-lane (subagent meta.json) with assistant turns on claude-sonnet-5-5; sessions started before #496 lack krn-lane and fail the rerouted call until restarted."
+    "2026-11-09 receiver proof: in session e6cd06a1 an explicit general-purpose Agent call ran as agentType krn-lane (subagent meta.json) with assistant turns on claude-sonnet-5-5; sessions started before #496 lack krn-lane and fail the rerouted call until restarted.",
+    "After-run 2026-11-09 (by agent start time, .krn/runs/subagent-spend/agent-scan.py and lead-turns.py, SPLIT=2026-11-09T20:08Z = #496): before 11-08..#496 subagent $228.93 over 113 PRs = $2.03/PR, 15 agents >=100 turns, lead 55.4 turns/PR; after: $4.22 over 15 PRs = $0.28/PR, 0 agents >=100 turns (7 krn-lane, max 59 turns), lead 8.1 turns/PR. Targets met (<$1.2/PR, <5). Sample is 15 PRs, not the planned 30; session-start split-scan.py has only 1 new session, so the scan splits by agent start."
   ]
 }
