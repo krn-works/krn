@@ -1,7 +1,11 @@
 {
   "id": "t-f6q8gcp",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Classified the 37 sessions (.krn/runs/relay-no-merge/classification.md): 35 merged in-session; token-scan.py missed 'Merge pull request #N' subjects (148 of 310 PRs) and credited PRs to successors that viewed them. Corrected scanner: 5 relay sessions over 20 turns without a merge (target <10), 5.24M input tokens per merged PR, not 10.13M. Real stops (retired Jenkins gate, legacy krn ship exit 76) are already gone from the loop. Scanner now exits non-zero when its PR count differs from main's first-parent commits."
+  },
   "created": "2026-11-09",
   "priority": 1,
   "title": "Find why relay sessions end without a merge and cut the cause",
