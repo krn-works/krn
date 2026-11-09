@@ -25,7 +25,8 @@ const view = 512 * 1024;
 
 export type HookEvent = {
   line: number;
-  event: 'PostToolUse' | 'UserPromptSubmit';
+  event: 'PostToolUse' | 'UserPromptSubmit' | 'PreToolUse';
+  tool?: { tool_name: unknown; tool_input: unknown };
 };
 
 function entry(line: string): Record<string, unknown> | undefined {
@@ -42,6 +43,20 @@ export function hookEvents(lines: string[]): HookEvent[] {
   const events: HookEvent[] = [];
   lines.forEach((line, index) => {
     const item = entry(line);
+    if (item?.type === 'assistant' && item.isSidechain !== true) {
+      // A tool call reaches PreToolUse once its assistant line is written.
+      const content = object(item.message ?? {}).content;
+      for (const block of Array.isArray(content) ? content : []) {
+        const part = entry(JSON.stringify(block));
+        if (part?.type === 'tool_use')
+          events.push({
+            line: index,
+            event: 'PreToolUse',
+            tool: { tool_name: part.name, tool_input: part.input },
+          });
+      }
+      return;
+    }
     if (item?.type !== 'user' || item.isSidechain === true) return;
     if (typeof item.sourceToolAssistantUUID === 'string')
       events.push({ line: index, event: 'PostToolUse' });
@@ -54,6 +69,9 @@ export function hookEvents(lines: string[]): HookEvent[] {
 export type Replay = {
   window: number;
   peak: number;
+  // Tool calls the ceiling would have refused; the first one's context.
+  refusals: number;
+  firstRefusal: number | undefined;
   advisories: Array<{
     line: number;
     event: string;
@@ -87,9 +105,11 @@ export function replay(transcript: string, window: number): Replay {
     );
     const path = join(root, 'transcript.jsonl');
     const advisories: Replay['advisories'] = [];
-    for (const { line, event } of hookEvents(lines)) {
+    let refusals = 0;
+    let firstRefusal: number | undefined;
+    for (const { line, event, tool } of hookEvents(lines)) {
       // A prompt hook runs before its prompt is recorded.
-      const end = event === 'PostToolUse' ? line + 1 : line;
+      const end = event === 'UserPromptSubmit' ? line : line + 1;
       const stop = starts[end] ?? bytes.length;
       writeFileSync(path, bytes.subarray(Math.max(0, stop - view), stop));
       const result = spawnSync(process.execPath, [gauge], {
@@ -99,10 +119,16 @@ export function replay(transcript: string, window: number): Replay {
           session_id: 'replay',
           transcript_path: path,
           hook_event_name: event,
+          ...tool,
         }),
       });
       if (result.status !== 0) throw new Error(result.stderr);
       if (!result.stdout) continue;
+      if (event === 'PreToolUse') {
+        refusals += 1;
+        firstRefusal ??= totals[line];
+        continue;
+      }
       const turnEnd = prompts.find((prompt) => prompt > line) ?? lines.length;
       const reading = gaugeReading(
         bytes.subarray(Math.max(0, stop - view), stop).toString('utf8'),
@@ -117,7 +143,7 @@ export function replay(transcript: string, window: number): Replay {
       });
     }
     const peak = Math.max(0, ...totals.map((t) => t ?? 0));
-    return { window, peak, advisories };
+    return { window, peak, refusals, firstRefusal, advisories };
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -143,6 +169,12 @@ if (import.meta.main) {
         : first.midStep
           ? `mid-step at ${Math.floor(first.total / 1000)}k (step peaked ${Math.floor(first.stepPeak / 1000)}k)`
           : `between steps at ${Math.floor(first.total / 1000)}k`;
-    process.stdout.write(`${JSON.stringify({ file, ...result, verdict })}\n`);
+    const ceiling =
+      result.firstRefusal === undefined
+        ? ''
+        : `; ceiling refused ${result.refusals} calls from ${Math.floor(result.firstRefusal / 1000)}k`;
+    process.stdout.write(
+      `${JSON.stringify({ file, ...result, verdict: verdict + ceiling })}\n`,
+    );
   }
 }

@@ -53,3 +53,35 @@ test('replay CLI prints one verdict per transcript and rejects no input', () => 
   assert.equal(bad.status, 64);
   assert.equal(bad.stdout, '');
 });
+
+test('the ceiling refuses a delegation inside the step that crosses it', () => {
+  // Derived from the verbatim fixture by restoring one elided tool_use block
+  // per tool call: an Agent call at 239k and a Bash call at 243k.
+  const lines = transcript.split('\n');
+  const call = (index: number, name: string) => {
+    const item = JSON.parse(lines[index] ?? '');
+    item.message.content = [
+      { type: 'tool_use', id: `t${index}`, name, input: {} },
+    ];
+    lines[index] = JSON.stringify(item);
+  };
+  call(1, 'Bash');
+  call(3, 'Agent');
+  const derived = lines.join('\n');
+  assert.deepEqual(
+    hookEvents(derived.split('\n')).map((item) => [item.line, item.event]),
+    [
+      [0, 'UserPromptSubmit'],
+      [1, 'PreToolUse'],
+      [2, 'PostToolUse'],
+      [3, 'PreToolUse'],
+      [4, 'PostToolUse'],
+    ],
+  );
+  // A 260k window puts the ceiling at 234k: Bash stays open for the handoff,
+  // the Agent call at 243k is refused before the step reaches 273k.
+  const result = replay(derived, 260000);
+  assert.equal(result.refusals, 1);
+  assert.equal(result.firstRefusal, 243274);
+  assert.deepEqual(replay(derived, 400000).refusals, 0);
+});
