@@ -9,7 +9,7 @@ import {
   rm,
   writeFile,
 } from 'node:fs/promises';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { delimiter, dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +23,7 @@ import {
   RUNNER_LOCAL_LANES,
   SERIAL_TEST_FILES,
   SERIAL_TEST_REASONS,
+  testFileDirectory,
   testFileFamily,
 } from '../scripts/lib/test-shards.mjs';
 import { TEST_FILE_GLOB } from '../scripts/test-suite.mjs';
@@ -205,6 +206,42 @@ test('shard selection spreads each test family evenly across the runners', () =>
           `total ${total}: runner ${index} holds ${count} of the ${familySize.get(family)} ${family} files`,
         );
     }
+  }
+});
+
+// Main runs since 79dd29e ran Test (3/12) slowest twice with three test/task
+// files at 20.7 s summed against weights of 14: near-equal bins take the file
+// whose directory they hold least of.
+test('near-equal shards spread files of one directory', async () => {
+  assert.equal(
+    testFileDirectory('test/task/claims.test.ts'),
+    testFileDirectory('test/task/task-check.test.ts'),
+  );
+  const root = await mkdtemp(join(tmpdir(), 'krn-shard-dirs-'));
+  try {
+    // Unmeasured files weigh size / 4096 seconds.
+    const sized = {
+      'a/one.test.ts': 5,
+      'b/two.test.ts': 4.8,
+      'b/three.test.ts': 1,
+    };
+    const files = [];
+    for (const [name, seconds] of Object.entries(sized)) {
+      const file = join(root, name);
+      await mkdir(dirname(file), { recursive: true });
+      await writeFile(file, 'x'.repeat(Math.round(seconds * 4096)));
+      files.push(file);
+    }
+    const plan = planTestShards(files, 2, []);
+    // Lightest-first would stack both b/ files on the 4.8 s bin.
+    assert.deepEqual(
+      plan.shards.map((shard) =>
+        shard.map((file) => file.slice(root.length + 1)).sort(),
+      ),
+      [['a/one.test.ts', 'b/three.test.ts'], ['b/two.test.ts']],
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
   }
 });
 
