@@ -1,0 +1,16 @@
+{
+  "id": "t-ee3y678",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "systemd unit, health-checked launcher env, kill switch, report; receiver proof: haiku via proxy wrote a metrics line"
+  },
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Route lead and lane sessions through the context proxy in shadow mode, failing open",
+  "after": [],
+  "body": [
+    "Follow-up to t-9t45025 / PR #533: wire the shadow-mode context proxy into real lead sessions so metrics accumulate, failing open."
+  ]
+}

@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { proxyBaseUrl } from './ctx-proxy-env.ts';
 
 // Prove a change here against the live Herdr with
 // `node scripts/claude/successor-probe.ts`: run by hand from a lead pane, the
@@ -145,9 +146,11 @@ export function run(
   args: string[],
   cwd = process.cwd(),
   timeout = 15000,
+  env?: NodeJS.ProcessEnv,
 ): CommandResult {
   const result = spawnSync(command, args, {
     cwd,
+    ...(env ? { env } : {}),
     encoding: 'utf8',
     timeout,
   });
@@ -595,7 +598,9 @@ export function detectHarness(
   };
 }
 
-export function main(args: string[]): number {
+// `proxy` is the context proxy's base URL when it is healthy (see
+// ctx-proxy-env.ts); a Claude successor then routes through it.
+export function main(args: string[], proxy?: string): number {
   if (args[0] === '--retire') return retireMode(args.slice(1));
   let options: SuccessorLaunchOptions;
   try {
@@ -645,6 +650,7 @@ export function main(args: string[]): number {
           ...(options.effort ? ['--effort', options.effort] : []),
         ]
       : [];
+  const proxied = harness === 'claude' ? proxy : undefined;
   const prompt = `First run \`node scripts/claude/successor-launch.ts --retire\` from the repository root. ${options.prompt}`;
   if (unavailable && harness === 'codex') {
     // Codex has no background mode; never start Claude in its place.
@@ -658,6 +664,8 @@ export function main(args: string[]): number {
       agent,
       [...agentFlags, '--bg', '-n', options.name, prompt],
       options.cwd,
+      15000,
+      proxied ? { ...process.env, ANTHROPIC_BASE_URL: proxied } : undefined,
     );
     if (fallback.error || fallback.status !== 0) return exitFailure(fallback);
     process.stdout.write(
@@ -682,6 +690,7 @@ export function main(args: string[]): number {
     '--env',
     `KRN_SUCCESSOR_PROMPT=${prompt}`,
   );
+  if (proxied) createArgs.push('--env', `ANTHROPIC_BASE_URL=${proxied}`);
   let predecessorSession: string | undefined;
   if (paneId && workspaceId) {
     predecessorSession = agentInfo(
@@ -747,9 +756,24 @@ export function main(args: string[]): number {
   return 0;
 }
 
+// The main checkout owns .krn/runs; a lane worktree shares it through git.
+function root(): string {
+  const common = run('git', [
+    'rev-parse',
+    '--path-format=absolute',
+    '--git-common-dir',
+  ]);
+  return common.status === 0 ? dirname(common.stdout.trim()) : process.cwd();
+}
+
 if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  process.exitCode = main(process.argv.slice(2));
+  const args = process.argv.slice(2);
+  const proxy =
+    args[0] === '--retire'
+      ? undefined
+      : await proxyBaseUrl(process.env, root());
+  process.exitCode = main(args, proxy);
 }
