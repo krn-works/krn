@@ -223,7 +223,7 @@ test('the ledger reads a seven-day outcome from real git history', async () => {
   }
 });
 
-test('a PR number named before the PR existed is not a reference; its task id is, within hours', () => {
+test('a PR number named before the PR existed is not a reference; its task id is, within two days', () => {
   const pr = {
     number: 10,
     title: 'First (t-aaaaaaa)',
@@ -243,21 +243,68 @@ test('a PR number named before the PR existed is not a reference; its task id is
   );
 });
 
-test('a task id names a PR only for turns shortly before it opened', () => {
-  const pr = {
+test("a task id names a PR in every session after the task's previous PR merged", () => {
+  const at = (iso: string) => Date.parse(iso);
+  const earlier = {
+    number: 8,
+    title: 'Start it (t-abc1234)',
+    createdAt: '2026-11-07T09:00:00Z',
+    mergedAt: '2026-11-07T10:00:00Z',
+  };
+  const later = {
     number: 9,
     title: 'Close it (t-abc1234)',
-    mergedAt: '2026-11-09T14:30:00Z',
     createdAt: '2026-11-09T14:28:00Z',
+    mergedAt: '2026-11-09T14:30:00Z',
   };
-  const at = (iso: string) => Date.parse(iso);
+  // A session two days before the PR opened still counts once the earlier PR merged.
+  const days = [
+    turn('krn task claim t-abc1234', { at: at('2026-11-07T09:30:00Z') }),
+    turn('krn task edit t-abc1234', { at: at('2026-11-08T08:00:00Z') }),
+  ];
+  assert.deepEqual(segmentTurns(days, [earlier, later]), [8, 9]);
+  assert.deepEqual(segmentTurns(days, [later]), [null, 9]);
+  assert.equal(references('krn task t-abc1234', later, null), true);
+  // Work starts at most two days before the PR opened.
   assert.equal(
-    references('krn task t-abc1234', pr, at('2026-11-09T14:00:00Z')),
-    true,
-  );
-  assert.equal(
-    references('krn task t-abc1234', pr, at('2026-11-09T07:00:00Z')),
+    references('krn task t-abc1234', later, at('2026-11-07T08:00:00Z')),
     false,
   );
-  assert.equal(references('krn task t-abc1234', pr, null), true);
+});
+
+test('a turn listing several tasks names none of them, but still names a PR by number', () => {
+  const pr = {
+    number: 477,
+    title: 'Rank rows (t-abc1234)',
+    createdAt: '2026-11-09T15:52:00Z',
+    mergedAt: '2026-11-09T15:54:00Z',
+  };
+  const at = Date.parse('2026-11-09T15:53:00Z');
+  assert.equal(
+    references('for t in t-abc1234 t-zzzzzzz; do x; done', pr, at),
+    false,
+  );
+  assert.equal(
+    references('krn task ready t-abc1234 t-zzzzzzz; gh pr merge 477', pr, at),
+    true,
+  );
+});
+
+test('a slice nested inside another keeps the turns nearest its own references', () => {
+  const outer = { number: 472, title: 'Outer (t-aaaaaaa)', mergedAt: null };
+  const inner = { number: 474, title: 'Inner (t-bbbbbbb)', mergedAt: null };
+  const ends = { number: 473, title: 'Ends first (t-ccccccc)', mergedAt: null };
+  const turns = [
+    turn('krn task claim t-aaaaaaa'),
+    turn('krn task claim t-ccccccc'),
+    turn('edit'),
+    turn('krn task claim t-bbbbbbb'),
+    turn('gh pr merge 474 --auto'),
+    turn('gh pr merge 473 --auto'),
+    turn('gh pr merge 472 --auto'),
+  ];
+  assert.deepEqual(
+    segmentTurns(turns, [outer, ends, inner]),
+    [472, 473, 473, 474, 474, 473, 472],
+  );
 });

@@ -1,0 +1,16 @@
+{
+  "id": "t-qwqhd1a",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ledger attributes overlapping turns to the nearest PR reference and counts single-task references back to the task's previous PR or two days; 30 of 30 recent PRs priced (.krn/runs/ledger-nearest/proof.md)"
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Attribute ledger turns to the nearest PR reference across multi-day tasks",
+  "after": [],
+  "body": [
+    "Outcome: krn ledger attributes each turn to the PR whose reference is nearest (not the slice ending first), and counts task-id references across all sessions of a multi-day task, so nested slices (#474 inside #472/#473, #468 inside #469) and multi-session tasks (#454, t-wm22s14) are priced.\nWhy: #486 added a 6 h task-id window before PR open, which drops earlier sessions of multi-day tasks; .krn/runs/ledger-coverage/proof.md lists #474 and #468 as unpriced because their slices nest inside earlier-ending ones.\nProof: ledger on the last 30 PRs prices 30 of 30, and #454's multi-session turns are counted; record under .krn/runs/.\nScope: this repository."
+  ]
+}
