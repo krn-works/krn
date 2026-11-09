@@ -38,7 +38,7 @@ Use one writer per outcome at a time and transfer the writer role explicitly bef
 
 ## Lessons and corrections
 
-KRN tooling does not enforce or create the standalone `docs/research/workflow-lessons.md` page; lesson findings are warnings, and existing pages in other repositories remain theirs (ADR 0014 D27). Put lessons where the executor reads them: mechanical checks first and repository `AGENTS.md` second; lead memory is only for operator preferences and decisions. Turn regressions into expected behavior or mechanical rules for code invariants; do not add lint that pins implementation technique. Fix flaky tests. A single recorded retry is allowed only for untouched files while a fix is pending. Use private test temp directories, condition waits with deadlines, and no wall-clock assertions.
+KRN tooling does not enforce or create a standalone workflow-lessons page; lesson findings are warnings, and existing pages in other repositories remain theirs (ADR 0014 D27). Put lessons where the executor reads them: mechanical checks first and repository `AGENTS.md` second; lead memory is only for operator preferences and decisions. Turn regressions into expected behavior or mechanical rules for code invariants; do not add lint that pins implementation technique. Fix flaky tests. A single recorded retry is allowed only for untouched files while a fix is pending. Use private test temp directories, condition waits with deadlines, and no wall-clock assertions.
 
 Backups are temporary: back up, edit, verify, and delete in the same step. Host migrations may retain one only for the observation window.
 
