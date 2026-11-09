@@ -12,7 +12,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { advisory, codexReading } from '../../scripts/codex/context-hook.ts';
+import {
+  advisory,
+  codexReading,
+  sessionStartSources,
+} from '../../scripts/codex/context-hook.ts';
 
 const script = fileURLToPath(
   new URL('../../scripts/codex/context-hook.ts', import.meta.url),
@@ -170,6 +174,35 @@ test('SessionStart restores state and bounds an oversized block with a marker', 
   }
 });
 
+test('a resume and a compact source in one turn inject the restart block once', () => {
+  const root = fixtureProject();
+  try {
+    // The rollout holds a real compacted line, as when `codex exec resume`
+    // auto-compacts before its first turn and Codex drains resume then compact.
+    const transcript = join(root, 'rollout.jsonl');
+    writeFileSync(transcript, `${rollout.join('\n')}\n`);
+    const payload = (source: string) => ({
+      source,
+      transcript_path: transcript,
+    });
+    assert.match(run(root, payload('resume')), /Branch: fixture/);
+    assert.equal(run(root, payload('compact')), '', 'same turn, same block');
+    assert.match(run(root, payload('fork')), /Branch: fixture/, 'new history');
+    // A later compaction removes the block from context, so it returns.
+    writeFileSync(
+      transcript,
+      `${rollout.join('\n')}\n${JSON.stringify({ timestamp: 'later', type: 'compacted', payload: { window_id: 'next-window' } })}\n`,
+    );
+    assert.match(run(root, payload('compact')), /Branch: fixture/);
+    // Without a readable rollout nothing proves the block is still there.
+    const blind = { source: 'compact', transcript_path: join(root, 'gone') };
+    assert.match(run(root, blind), /Branch: fixture/);
+    assert.match(run(root, blind), /Branch: fixture/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('PreCompact saves a receipt, prints nothing and never blocks', () => {
   const root = fixtureProject();
   try {
@@ -234,5 +267,8 @@ test('the project hook definitions call the shipped script for every event', () 
       groups[0]?.hooks[0]?.command ?? '',
       /scripts\/codex\/context-hook\.ts"$/,
     );
+  // Every SessionStart source Codex sends reaches the hook; adding one changes
+  // the definition's trusted_hash, so the operator re-trusts it once.
+  assert.equal(hooks.SessionStart[0].matcher, sessionStartSources.join('|'));
   assert.ok(existsSync(new URL('scripts/codex/context-hook.ts', root)));
 });
