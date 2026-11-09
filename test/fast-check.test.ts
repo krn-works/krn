@@ -14,8 +14,10 @@ import { join } from 'node:path';
 import test from 'node:test';
 import {
   changedFiles,
+  fullyStaged,
   lintable,
   removedFiles,
+  restage,
   selectTests,
   toolBin,
 } from '../scripts/fast-check.ts';
@@ -325,4 +327,33 @@ test('fast check does not cache a FAIL and a changed base misses', () => {
   assert.match(runFast(dir).stdout, /cached/u);
   git('commit', '--allow-empty', '-qm', 'moves the base');
   assert.doesNotMatch(runFast(dir).stdout, /cached/u);
+});
+
+// Regression (#509): `git add -A && npm run fast && git commit` lost Biome's
+// rewrite because it landed after the add.
+test('fast check re-stages fixes to fully staged files only', () => {
+  const root = mkdtempSync(join(tmpdir(), 'fast-restage-'));
+  try {
+    const git = (...args: string[]) =>
+      spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+    git('init', '-q', '-b', 'main');
+    writeFileSync(join(root, 'a.ts'), 'a\n');
+    writeFileSync(join(root, 'b.ts'), 'b\n');
+    git('add', '.');
+    git('commit', '-qm', 'base');
+    writeFileSync(join(root, 'a.ts'), 'a2\n');
+    writeFileSync(join(root, 'b.ts'), 'b2\n');
+    git('add', 'a.ts', 'b.ts');
+    writeFileSync(join(root, 'b.ts'), 'b3 author edit\n');
+    const staged = fullyStaged(root);
+    assert.deepEqual(staged, ['a.ts']);
+    writeFileSync(join(root, 'a.ts'), 'a2 formatted\n');
+    assert.deepEqual(restage(root, staged), ['a.ts']);
+    assert.equal(git('diff', '--name-only').stdout, 'b.ts\n');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
