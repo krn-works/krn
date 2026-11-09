@@ -1,0 +1,12 @@
+{
+  "id": "t-dkbjhds",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Refill the roadmap from measured lead-session evidence",
+  "after": [],
+  "body": [
+    "Outcome: docs/program/roadmap.md holds at least three ranked rows, each with an open task and a measured evidence path under .krn/runs/, or the sector plan records why a sector holds none.\nWhy: t-amfcywj removed the last row (#473); the lead loop picks slices from the roadmap (memory:sector-plan-request, memory:proactive-opportunity-scan). The first inputs: rerun `python3 -I .krn/runs/roadmap-refill/token-scan.py` section 6 on sessions after d395d05 to measure the lead-file-read refusal (#472; lead cat/sed/grep share was 54%), and the post-#470 check that no lead turn passes 150k (baseline .krn/runs/relay-no-merge/rerun.md).\nProof: test/rules/roadmap-open-tasks.test.ts passes with the new rows; each row cites its evidence file.\nScope: this repository."
+  ]
+}
