@@ -1,5 +1,6 @@
 import { inspectState } from '../state/check.ts';
 import { resumeBrief } from '../state/resume.ts';
+import { renderRetro } from '../state/retro.ts';
 import {
   acceptCriterion,
   capsuleDirectory,
@@ -13,7 +14,8 @@ const usage =
   'krn state check|resume [--root DIR] [--json]  capsule check (one verdict line) and resume\n' +
   'krn state set <field> <value> [<field> <value>...] [--capsule ID] [--root DIR]  write capsule fields\n' +
   'krn state accept <criterion> todo|pass|drop:<why> [--capsule ID] [--root DIR]  upsert an acceptance ledger entry\n' +
-  'krn state handoff [--task ID] [--sha TEXT] [--verify CMD] [--roadmap TEXT] [--request TEXT]... [--priority TEXT]... [--capsule ID] [--root DIR]  regenerate handoff.md';
+  'krn state handoff [--task ID] [--sha TEXT] [--verify CMD] [--roadmap TEXT] [--request TEXT]... [--priority TEXT]... [--capsule ID] [--root DIR]  regenerate handoff.md (Resume, Merged since the previous SHA)\n' +
+  'krn state retro --task ID [--root DIR]  print the retro skeleton: commits, wall time and PRs naming the task, one line per candidate category';
 
 const VALUE_FLAGS = [
   '--capsule',
@@ -98,6 +100,32 @@ function checkVerdict(report: ReturnType<typeof inspectState>): string {
 
 export function stateCommand(args: string[]): void {
   const verb = args[0];
+  if (verb === 'retro') {
+    let task: string | undefined;
+    let root: string | undefined;
+    const rest = args.slice(1);
+    for (let index = 0; index < rest.length; index += 1) {
+      const arg = rest[index] as string;
+      if (arg !== '--task' && arg !== '--root') throw new CliUsageError(usage);
+      const value = flagValue(
+        rest,
+        index,
+        () => new CliUsageError(`${arg} requires a value`),
+      );
+      if (arg === '--task') task = value;
+      else root = value;
+      index += 1;
+    }
+    if (!task) throw new CliUsageError(usage);
+    try {
+      process.stdout.write(`${renderRetro(root ?? process.cwd(), task)}\n`);
+    } catch (error) {
+      throw new CliUsageError(
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+    return;
+  }
   if (verb === 'set' || verb === 'accept' || verb === 'handoff') {
     writeCommand(verb, args.slice(1));
     return;

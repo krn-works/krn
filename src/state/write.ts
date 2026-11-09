@@ -203,6 +203,38 @@ function replaceSection(text: string, title: string, body: string): string {
   return [...lines.slice(0, start), ...block, ...lines.slice(end)].join('\n');
 }
 
+const MERGED_LIMIT = 20;
+
+// The first-parent commits between the previous handoff's first Resume SHA and
+// HEAD, one bullet each; undefined when there is no previous SHA to diff from.
+function mergedSincePrevious(root: string, text: string): string | undefined {
+  const shas = text.split('\n').find((line) => line.startsWith('- SHAs:'));
+  const previous = /\b[0-9a-f]{7,40}\b/.exec(shas ?? '')?.[0];
+  if (!previous) return undefined;
+  if (!git(root, ['merge-base', '--is-ancestor', previous, 'HEAD']).ok)
+    return undefined;
+  const log = git(root, [
+    'log',
+    '--first-parent',
+    '--format=%h %s',
+    `${previous}..HEAD`,
+  ]);
+  if (!log.ok) return undefined;
+  const lines = log.out.split('\n').filter(Boolean);
+  if (lines.length === 0) return `- none since ${previous}`;
+  const shown = lines
+    .slice(0, MERGED_LIMIT)
+    .map(
+      (line) =>
+        `- ${oneLine(line).replace(/operator\s+requests/gi, 'operator asks')}`,
+    );
+  if (lines.length > MERGED_LIMIT)
+    shown.push(
+      `- ${lines.length - MERGED_LIMIT} more: git log --first-parent ${previous}..HEAD`,
+    );
+  return shown.join('\n');
+}
+
 export function writeHandoff(
   repo: string,
   directory: string,
@@ -243,7 +275,9 @@ export function writeHandoff(
     ? readFileSync(file, 'utf8')
     : `# Handoff — ${name}\n`;
   const fresh = !existsSync(file);
+  const merged = mergedSincePrevious(root, text);
   text = replaceSection(text, 'Resume', resume);
+  if (merged !== undefined) text = replaceSection(text, 'Merged', merged);
   if (options.priorities.length > 0)
     text = replaceSection(
       text,
