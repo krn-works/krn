@@ -1,0 +1,12 @@
+{
+  "id": "t-bc4772y",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Re-measure dollars per PR after the 11-09 cuts on 30 merged PRs",
+  "after": [],
+  "body": [
+    "Outcome: lead and subagent $/PR after #513 are re-measured on at least 30 merged PRs with `scripts/claude/spend-window.py`, and the roadmap is reranked from the result.\nWhy: t-5xvjxp7 (460c9b4) measured lead $2.39 -> $0.42 and subagent $2.03 -> $0.27 per PR, but on only 12 PRs after #513; the same-day slice (lead $0.84, subagent $0.32 over 50 PRs) shows the 12-PR window may flatter the cuts.\nProof: the task body records both windows with sample sizes; the roadmap PR cites them.\nScope: scripts/claude/spend-window.py, docs/program/roadmap.md."
+  ]
+}

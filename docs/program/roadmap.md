@@ -12,12 +12,8 @@ Maintenance:
 
 | Id | Opportunity | Area | Evidence | Expected saving | Task |
 |---|---|---|---|---|---|
-| R14 | Prove the subagent hook-error monitor on live lanes | reliability | #521; 4 of 5 lanes hit unseen refusals | lead sees lane errors first | t-h85d708 |
-| R15 | Re-measure lead and subagent $/PR after the 11-09 cuts | tokens | #513-#521 shipped; scanners committed | reranks this table | t-5xvjxp7 |
-| R16 | Cut hidden thinking output | tokens | cost scan 11-09: ~$80 hidden output | up to ~$1 per PR | t-aek66d8 |
-| R17 | Flip acceptance only through an executed verify | reliability | Anthropic long-running harness article | fewer early closes | t-mjek1tx |
-| R18 | Lane budget and host resource guard | reliability | 5 parallel lanes on 11-09, no host check | avoids disk and turn blowups | t-r0zda03 |
-| R19 | Generate handoff, retro and PR text; fewer skill reloads | tokens | cost scan 11-09: ~$29 | ~$0.25 per PR | t-56eqw8q |
+| R20 | Re-measure $/PR after the 11-09 cuts on 30 merged PRs | tokens | t-5xvjxp7: lead $2.39 -> $0.42, subagent $2.03 -> $0.27 per PR on only 12 PRs | reranks this table on solid numbers | t-bc4772y |
+| R21 | Generate handoff and retro text like `krn pr body` | tokens | cost scan 11-09: ~$29 hand-written text; t-56eqw8q shipped only the PR body | ~$0.15 per PR | t-3a656dn |
 | R3 | Confirm the #472 read refusal on 20 sessions | tokens | `.krn/runs/roadmap-refill/post-472-n7.md`: 7 sessions, 47% | decides a second step | t-zz33vhy |
 
 Sector plan (t-8hnmfr9), refilled by t-y3chym7: cost is dollars per merged PR (cache reads ~10% of input), not raw tokens. Since 2026-11-07 lead sessions cost median $1.62 and 41 turns per PR; Bash results are 94% of lead tool bytes, half of them file reads; 35% of lead cache reads come from turns over 150k (`.krn/runs/roadmap-refill-2/tokens.md`). Subagent spend (t-akp44kt): after the krn-lane 90-turn cap (#496) subagents fell from $2.03 to $0.28 per PR and agents over 100 turns from 15 to 0 on 15 PRs (`.krn/runs/subagent-spend/agent-scan.py`). KRN-owned startup text is ~2.3k of the ~25k first turn: closed as a track after t-bdhn7mw. The global skill listing (~17 kB per turn, mostly non-KRN skills) is the operator's call. t-qdzy8w7: handoff re-reads fell from 104 of 109 sessions to 1 of 4 (provisional). Delivery and CI time hold no row: PR open-to-merge median 1.6 min, Check median 58 s, 2 of 60 runs failed and none was rerun (`.krn/runs/roadmap-refill-3/ci-friction.md`, refilled by t-kb4mvq8).
