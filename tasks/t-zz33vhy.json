@@ -8,6 +8,7 @@
   "after": [],
   "body": [
     "Outcome: lead Bash read-family bytes (cat, sed -n, grep, head, tail, ls, wc) are measured on at least 20 lead sessions after d395d05 (#472); if they still exceed half of lead Bash result bytes, the refusal in scripts/claude/lead-file-read.ts tightens to the measured largest families.\nWhy: before #472 read families were 54% of 13.3 MB lead Bash results (~61 kB per session, .krn/runs/relay-no-merge/rerun.md section 6). The first 2 sessions after #472 show 58% of 50 kB (~25 kB per session), provisional: .krn/runs/roadmap-refill/post-472.md. Same sample: 0 of 37 turns over 150k after #470 (.krn/runs/roadmap-refill/post-470.md, baseline 52 of 218 sessions crossed).\nProof: `python3 -I .krn/runs/roadmap-refill/post-cut.py 1794238239 \"d395d05 (#472)\"` on 20+ sessions, result recorded under .krn/runs/.\nScope: this repository.",
-    "Interim 2026-11-09 (t-y3chym7): post-cut.py on 7 sessions after d395d05: read share 47%, below the 50% trigger; 0 of 154 turns over 150k (.krn/runs/roadmap-refill/post-472-n7.md). Close when Sessions >= 20."
+    "Interim 2026-11-09 (t-y3chym7): post-cut.py on 7 sessions after d395d05: read share 47%, below the 50% trigger; 0 of 154 turns over 150k (.krn/runs/roadmap-refill/post-472-n7.md). Close when Sessions >= 20.",
+    "Interim 2026-11-09 (second count): post-cut.py on 12 sessions after d395d05: read share 53% of 0.43 MB (cat 19%, sed -n 13%, grep 12%); 1 of 12 sessions over 150k (11 of 605 turns, session 6af92f45). Still under 20 (one is the measuring session); re-measure at >= 20."
   ]
 }
