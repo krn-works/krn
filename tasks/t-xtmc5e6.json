@@ -1,7 +1,11 @@
 {
   "id": "t-xtmc5e6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "gh calls in deliver transport now bounded 10 s (120 s for --log), timeout retried as transient; ledger keeps async defaultRun (named why)"
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Bound every GitHub call in krn deliver transport with a per-call timeout",

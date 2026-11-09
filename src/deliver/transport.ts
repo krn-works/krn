@@ -12,12 +12,13 @@ export type Runner = (
   args: string[],
   cwd: string,
   input?: string,
+  timeoutMs?: number,
 ) => CommandResult;
-export const run: Runner = (command, args, cwd, input) => {
+export const run: Runner = (command, args, cwd, input, timeoutMs) => {
   const result = spawnSync(command, args, {
     cwd,
     input,
-    timeout: 3_600_000,
+    timeout: timeoutMs ?? 3_600_000,
     maxBuffer: 16 * 1024 * 1024,
   });
   return {
@@ -65,6 +66,15 @@ export class CommandFailure extends Error {
 export const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** GitHub answers in about 1 s but sometimes stalls on connect; cut and retry. */
+export const GH_CALL_TIMEOUT_MS = 10_000;
+/** Log download streams a whole job log, so it legitimately runs longer. */
+export const GH_LOG_TIMEOUT_MS = 120_000;
+const ghTimeout = (args: string[]) =>
+  args.some((arg) => /^--log(?:-failed)?$/u.test(arg))
+    ? GH_LOG_TIMEOUT_MS
+    : GH_CALL_TIMEOUT_MS;
+
 /** Only this boundary invokes gh. Keep the last receiver failure intact. */
 export async function github(
   args: string[],
@@ -73,7 +83,7 @@ export async function github(
   wait = sleep,
 ): Promise<string> {
   for (let attempt = 0; ; attempt++) {
-    const result = runner('gh', args, cwd);
+    const result = runner('gh', args, cwd, undefined, ghTimeout(args));
     if (result.code === 0) return result.stdout;
     const transient =
       /(?:HTTP\s+(?:5\d\d|429)\b|rate limit|secondary rate|could not resolve host|temporary failure in name resolution|EAI_AGAIN|ENOTFOUND|ECONNRESET|ETIMEDOUT|connection (?:reset|refused)|TLS handshake timeout|network is unreachable|unexpected EOF|error connecting to)/iu.test(
