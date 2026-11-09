@@ -105,6 +105,10 @@
       "receivers": ["systemd-run", "systemctl"],
       "real": "test/hosts/systemd-scope-collect.test.ts"
     },
+    "src/cli/lane.ts": {
+      "receivers": ["git"],
+      "real": "test/cli/lane.test.ts"
+    },
     "src/state/git.ts": {
       "receivers": ["git"],
       "real": "test/state/state.test.ts"
