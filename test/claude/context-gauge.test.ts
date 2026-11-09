@@ -40,6 +40,39 @@ test('gauge exports a pure last main-chain context reader', async () => {
   );
 });
 
+test('gauge caps its advisories at 150k and 200k of a 400k window', async () => {
+  const { advisoriesOf } = await import(script);
+  assert.deepEqual(advisoriesOf(400000), { first: 150000, second: 200000 });
+  assert.deepEqual(advisoriesOf(200000), { first: 120000, second: 160000 });
+  // The project window stays 400k; a 163k captured reading already advises.
+  const root = mkdtempSync(join(tmpdir(), 'context-gauge-'));
+  try {
+    mkdirSync(join(root, '.claude'));
+    writeFileSync(
+      join(root, '.claude/settings.json'),
+      JSON.stringify({ autoCompactWindow: 400000 }),
+    );
+    const transcript = join(root, 'transcript.jsonl');
+    writeFileSync(transcript, fixture('second'));
+    const result = spawnSync(process.execPath, [script], {
+      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+      encoding: 'utf8',
+      input: JSON.stringify({
+        session_id: 'session',
+        transcript_path: transcript,
+        hook_event_name: 'PostToolUse',
+      }),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(
+      result.stdout,
+      /Context at 163k of 400k\. Finish the current step, then run krn-handoff\./u,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('gauge hook advises once per threshold and re-arms after compaction', () => {
   assert.ok(existsSync(script), 'gauge script exists');
   const root = mkdtempSync(join(tmpdir(), 'context-gauge-'));
@@ -229,15 +262,15 @@ test('gauge budget follows the project auto-compact window and ignores the measu
     writeFileSync(settings, JSON.stringify({ autoCompactWindow: 300000 }));
     assert.equal(run(reading(47144), 'wide'), '');
     assert.equal(run(fixture('warn'), 'wide'), '');
-    assert.equal(run(fixture('second'), 'wide'), '');
+    // 60% of 300k is 180k, so the 150k cap moves the first advisory down.
     assert.match(
-      run(reading(181000), 'wide'),
-      /^\{.*Context at 181k of 300k\. Finish the current step, then run krn-handoff\."/u,
+      run(fixture('second'), 'wide'),
+      /^\{.*Context at 163k of 300k\. Finish the current step, then run krn-handoff\."/u,
     );
     assert.equal(run(reading(181000), 'wide'), '');
     assert.match(
-      run(reading(241000), 'wide'),
-      /241k of 300k.*nearly exhausted/u,
+      run(reading(201000), 'wide'),
+      /201k of 300k.*nearly exhausted/u,
     );
     // An invalid window fails open without a misleading advisory.
     writeFileSync(settings, JSON.stringify({ autoCompactWindow: '200000' }));

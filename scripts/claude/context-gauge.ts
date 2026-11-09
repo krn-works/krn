@@ -61,7 +61,7 @@ export function contextTotal(transcript: string): number | undefined {
 }
 
 // The budget is the auto-compact window the project configures, so the gauge
-// and compaction share one number; advisories fire at 60% and 80% of it.
+// and compaction share one number; advisoriesOf places the handoff advisories.
 // A first lead turn measured 46-48k on 2026-11-01, well below the first one.
 // Host mode defaults to the 400k window KRN measured its advisories against.
 function budget(project: string, fallback: number): number {
@@ -125,6 +125,20 @@ function field(toolInput: unknown, name: string): unknown {
 }
 
 // The context past which only the handoff runs.
+// Advisories fire at 60% and 80% of the window, capped at 150k and 200k:
+// lead turns past 150k read 35% of all lead cache since 2026-11-01 while a
+// 240k advisory reached 21 of 216 sessions
+// (.krn/runs/roadmap-refill/token-per-slice.md, sections 6-7).
+export function advisoriesOf(window: number): {
+  first: number;
+  second: number;
+} {
+  return {
+    first: Math.min(150000, Math.floor((window * 3) / 5)),
+    second: Math.min(200000, Math.floor((window * 4) / 5)),
+  };
+}
+
 export function ceilingOf(window: number): number {
   return Math.floor((window * 9) / 10);
 }
@@ -217,8 +231,7 @@ if (import.meta.main) {
     const { total, boundary } = gaugeReading(tail(input.transcriptPath));
     if (total === undefined) throw new Error('No usage');
     const window = budget(input.project, host ? 400000 : 200000);
-    const first = Math.floor((window * 3) / 5);
-    const second = Math.floor((window * 4) / 5);
+    const { first, second } = advisoriesOf(window);
     const ceiling = ceilingOf(window);
     if (input.event === 'PreToolUse') {
       const tool = object(JSON.parse(raw));
