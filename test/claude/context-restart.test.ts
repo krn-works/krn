@@ -307,3 +307,34 @@ test('restart hook injects one consolidated block from the newest handoff within
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('restart hook injects the resume task record so startup needs no cat of tasks/<id>.json', async () => {
+  const { taskBrief } = await import('../../scripts/claude/context-restart.ts');
+  const root = mkdtempSync(join(tmpdir(), 'context-restart-task-'));
+  try {
+    mkdirSync(join(root, 'tasks'));
+    writeFileSync(
+      join(root, 'tasks/t-abc1234.json'),
+      JSON.stringify({
+        id: 't-abc1234',
+        status: 'open',
+        priority: 1,
+        title: 'Fixture title',
+        body: ['Outcome: fixture outcome.', 'y'.repeat(5000)],
+      }),
+    );
+    const handoff = '# Handoff\n\n## Resume\n- Task: t-abc1234\n';
+    const brief = taskBrief(root, handoff) ?? '';
+    assert.ok(
+      brief.startsWith(
+        'Task t-abc1234 (open, P1): Fixture title\nOutcome: fixture outcome.',
+      ),
+      brief.slice(0, 80),
+    );
+    assert.ok(brief.length <= 1500, 'bounded');
+    assert.equal(taskBrief(root, '## Resume\n- Task: t-zzz9999\n'), undefined);
+    assert.equal(taskBrief(root, '# no resume section'), undefined);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

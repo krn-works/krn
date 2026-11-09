@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { emitContext, hookInput, object } from './context-io.ts';
 import { cutText } from './cut-text.ts';
 import { pressureLines, probe } from './disk-pressure.ts';
-import { resumeBlock } from './handoff-resume.ts';
+import { resumeBlock, section } from './handoff-resume.ts';
 import { compactIndex } from './identifier-index.ts';
 import { memoryDirectory } from './memory-directory.ts';
 import { checkMemory } from './memory-refs.ts';
@@ -20,6 +20,28 @@ function closed(project: string, id: unknown): boolean {
     return task.status === 'closed';
   } catch {
     return false;
+  }
+}
+
+// The resume task's record, so a session never cats tasks/<id>.json at startup.
+export function taskBrief(
+  project: string,
+  handoff: string,
+  limit = 1500,
+): string | undefined {
+  const id = /^\s*-\s+Task:\s*`?(t-[a-z0-9]{7})\b/imu.exec(
+    section(handoff, 'Resume') ?? '',
+  )?.[1];
+  if (!id) return undefined;
+  try {
+    const task = object(
+      JSON.parse(readFileSync(join(project, 'tasks', `${id}.json`), 'utf8')),
+    );
+    const body = Array.isArray(task.body) ? task.body.join('\n') : '';
+    const text = `Task ${id} (${String(task.status)}, P${String(task.priority)}): ${String(task.title)}\n${body}`;
+    return text.length > limit ? `${cutText(text, limit - 1)}…` : text;
+  } catch {
+    return undefined; // A missing or unreadable record leaves the Resume line.
   }
 }
 
@@ -176,8 +198,11 @@ export function restartText(
   let next = 2;
   if (newest) {
     try {
-      const block = resumeBlock(readFileSync(newest.path, 'utf8'), 3000);
+      const handoff = readFileSync(newest.path, 'utf8');
+      const block = resumeBlock(handoff, 3000);
       if (block) lines.splice(next++, 0, block);
+      const task = taskBrief(project, handoff);
+      if (task) lines.splice(next++, 0, task);
     } catch {
       /* An unreadable handoff leaves the pointer. */
     }
