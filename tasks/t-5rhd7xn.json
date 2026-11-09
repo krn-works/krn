@@ -1,0 +1,12 @@
+{
+  "id": "t-5rhd7xn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 3,
+  "title": "Fail CI when a diff weakens tests",
+  "after": [],
+  "body": [
+    "Outcome: a deterministic CI check fails a PR that deletes assertions, adds skip/only/todo, or deletes a test file without deleting its target, unless the PR body names the reason.\nWhy: weakened tests are the common agent defect (.krn/runs/strategy-review/report.md section 3); quality has no gate after 2026-11-07, so it needs a cheap mechanical floor.\nProof: rule test with fixture diffs for each case; runs in the Check.\nScope: this repository."
+  ]
+}
