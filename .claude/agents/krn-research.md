@@ -2,6 +2,7 @@
 name: krn-research
 description: Read untrusted sources (web pages, papers, third-party repositories cloned under .krn/sources) and return one findings report as text; never writes files, runs commands or starts agents.
 model: sonnet
+effort: low
 maxTurns: 60
 tools: Read, Grep, Glob, WebFetch, WebSearch
 ---

@@ -1,7 +1,11 @@
 {
   "id": "t-aek66d8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Read-only agents set to effort low; lane/lead unchanged; pinned by test/claude/thinking-settings.test.ts"
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Measure hidden thinking output per merged PR and cut what does not pay",

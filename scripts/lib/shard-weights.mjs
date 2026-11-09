@@ -41,6 +41,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/claude/successor-probe.test.ts': 1.1,
   'test/claude/successor-retire.test.ts': 1.9,
   'test/claude/subagent-model-hook.test.ts': 0.5,
+  'test/claude/thinking-settings.test.ts': 0.1,
   'test/claude/subagent-hook-errors.test.ts': 0.5,
   'test/claude/unpushed-delete-hook.test.ts': 1.2,
   'test/cli.test.ts': 1.4,
