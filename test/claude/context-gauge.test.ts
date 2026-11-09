@@ -298,8 +298,42 @@ test('gauge repeats the advisory past the second threshold and refuses new work 
     assert.equal(deny(179000, 'Agent'), false);
     for (const tool of ['Agent', 'Task', 'Workflow', 'WebFetch', 'WebSearch'])
       assert.equal(deny(181000, tool), true, tool);
-    assert.equal(deny(181000, 'Bash', { command: 'git push' }), false);
-    assert.equal(deny(181000, 'Read', { file_path: 'src/a.ts' }), false);
+    for (const tool of ['Glob', 'Grep', 'mcp__x__y'])
+      assert.equal(deny(181000, tool), true, tool);
+    assert.equal(deny(181000, 'Skill'), false);
+    // Bash runs only commands built from handoff commands.
+    for (const command of [
+      'git push',
+      'cd /p && krn state check --root . && git status --short',
+      'bin/krn task show t-1; echo done',
+      'node scripts/claude/handoff-requests.ts .krn/runs/x/handoff.md',
+      'CLAUDECODE= node scripts/claude/successor-launch.ts --retire',
+    ])
+      assert.equal(deny(181000, 'Bash', { command }), false, command);
+    for (const command of [
+      'npm run fast',
+      'git log | grep x',
+      'cat src/a.ts',
+      'echo $(cat src/a.ts)',
+      'node scripts/build.ts',
+      '',
+    ])
+      assert.equal(deny(181000, 'Bash', { command }), true, command);
+    assert.equal(deny(181000, 'Bash'), true);
+    // Read is open under agent state and memory, bounded elsewhere.
+    assert.equal(deny(181000, 'Read', { file_path: 'src/a.ts' }), true);
+    assert.equal(
+      deny(181000, 'Read', { file_path: 'src/a.ts', limit: 200 }),
+      false,
+    );
+    assert.equal(
+      deny(181000, 'Read', { file_path: 'src/a.ts', limit: 201 }),
+      true,
+    );
+    assert.equal(
+      deny(181000, 'Read', { file_path: '.krn/runs/x/handoff.md' }),
+      false,
+    );
     assert.equal(deny(181000, 'Edit', { file_path: 'src/a.ts' }), true);
     assert.equal(
       deny(181000, 'Write', { file_path: join(root, '../a.md') }),

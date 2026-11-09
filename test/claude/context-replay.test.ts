@@ -58,14 +58,12 @@ test('the ceiling refuses a delegation inside the step that crosses it', () => {
   // Derived from the verbatim fixture by restoring one elided tool_use block
   // per tool call: an Agent call at 239k and a Bash call at 243k.
   const lines = transcript.split('\n');
-  const call = (index: number, name: string) => {
+  const call = (index: number, name: string, input: object = {}) => {
     const item = JSON.parse(lines[index] ?? '');
-    item.message.content = [
-      { type: 'tool_use', id: `t${index}`, name, input: {} },
-    ];
+    item.message.content = [{ type: 'tool_use', id: `t${index}`, name, input }];
     lines[index] = JSON.stringify(item);
   };
-  call(1, 'Bash');
+  call(1, 'Bash', { command: 'git status --short' });
   call(3, 'Agent');
   const derived = lines.join('\n');
   assert.deepEqual(
@@ -78,10 +76,14 @@ test('the ceiling refuses a delegation inside the step that crosses it', () => {
       [4, 'PostToolUse'],
     ],
   );
-  // A 260k window puts the ceiling at 234k: Bash stays open for the handoff,
-  // the Agent call at 243k is refused before the step reaches 273k.
+  // A 260k window puts the ceiling at 234k: the handoff's git command stays
+  // open, the Agent call at 243k is refused before the step reaches 273k.
   const result = replay(derived, 260000);
   assert.equal(result.refusals, 1);
   assert.equal(result.firstRefusal, 243274);
+  assert.equal(result.admitted, 1);
+  // Any other Bash command past the ceiling is refused too.
+  call(1, 'Bash', { command: 'npm test' });
+  assert.equal(replay(lines.join('\n'), 260000).refusals, 2);
   assert.deepEqual(replay(derived, 400000).refusals, 0);
 });

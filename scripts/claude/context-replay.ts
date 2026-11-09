@@ -9,7 +9,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { gaugeReading } from './context-gauge.ts';
+import { ceilingOf, gaugeReading, refusesAtCeiling } from './context-gauge.ts';
 import { object } from './context-io.ts';
 
 // Replays a recorded Claude Code transcript through the real context-gauge
@@ -72,6 +72,8 @@ export type Replay = {
   // Tool calls the ceiling would have refused; the first one's context.
   refusals: number;
   firstRefusal: number | undefined;
+  // Tool calls past the ceiling it admitted as part of a handoff.
+  admitted: number;
   advisories: Array<{
     line: number;
     event: string;
@@ -107,10 +109,25 @@ export function replay(transcript: string, window: number): Replay {
     const advisories: Replay['advisories'] = [];
     let refusals = 0;
     let firstRefusal: number | undefined;
+    let admitted = 0;
+    const ceiling = ceilingOf(window);
     for (const { line, event, tool } of hookEvents(lines)) {
       // A prompt hook runs before its prompt is recorded.
       const end = event === 'UserPromptSubmit' ? line : line + 1;
       const stop = starts[end] ?? bytes.length;
+      if (event === 'PreToolUse') {
+        // In process: one spawn per tool call made host replays take hours;
+        // the hook's own PreToolUse path is covered by context-gauge tests.
+        const total = gaugeReading(
+          bytes.subarray(Math.max(0, stop - view), stop).toString('utf8'),
+        ).total;
+        if (total === undefined || total < ceiling) continue;
+        if (refusesAtCeiling(tool?.tool_name, tool?.tool_input, root)) {
+          refusals += 1;
+          firstRefusal ??= totals[line];
+        } else admitted += 1;
+        continue;
+      }
       writeFileSync(path, bytes.subarray(Math.max(0, stop - view), stop));
       const result = spawnSync(process.execPath, [gauge], {
         env: { ...process.env, CLAUDE_PROJECT_DIR: root },
@@ -124,11 +141,6 @@ export function replay(transcript: string, window: number): Replay {
       });
       if (result.status !== 0) throw new Error(result.stderr);
       if (!result.stdout) continue;
-      if (event === 'PreToolUse') {
-        refusals += 1;
-        firstRefusal ??= totals[line];
-        continue;
-      }
       const turnEnd = prompts.find((prompt) => prompt > line) ?? lines.length;
       const reading = gaugeReading(
         bytes.subarray(Math.max(0, stop - view), stop).toString('utf8'),
@@ -143,7 +155,7 @@ export function replay(transcript: string, window: number): Replay {
       });
     }
     const peak = Math.max(0, ...totals.map((t) => t ?? 0));
-    return { window, peak, refusals, firstRefusal, advisories };
+    return { window, peak, refusals, firstRefusal, admitted, advisories };
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -172,7 +184,7 @@ if (import.meta.main) {
     const ceiling =
       result.firstRefusal === undefined
         ? ''
-        : `; ceiling refused ${result.refusals} calls from ${Math.floor(result.firstRefusal / 1000)}k`;
+        : `; ceiling refused ${result.refusals} calls from ${Math.floor(result.firstRefusal / 1000)}k, admitted ${result.admitted}`;
     process.stdout.write(
       `${JSON.stringify({ file, ...result, verdict: verdict + ceiling })}\n`,
     );
