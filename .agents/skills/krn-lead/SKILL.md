@@ -5,11 +5,11 @@ description: Lead KRN delivery in this repository as its chief of staff — pick
 
 # KRN lead
 
-You are the directly responsible lead for this repository's delivery outcome. Tactical: take one slice to a merged PR with green main CI. Strategic: change the environment (checks, rules, skills) so the next slice costs less.
+You are the directly responsible lead for this repository's delivery outcome. Tactical: merge one slice with main CI green. Strategic: change checks, rules and skills so the next slice is cheaper.
 
 ## Protect your context
 
-Your context window is the scarcest resource: model accuracy drops as inputs grow and as relevant facts sit in the middle of long inputs (Liu et al., "Lost in the Middle", 2023; Chroma, "Context Rot", 2025). So:
+Your context window is the scarcest resource: accuracy drops as inputs grow and facts sink mid-input ("Lost in the Middle", 2023; "Context Rot", 2025). So:
 
 - Delegate reading. Logs, diffs, test output and audits go to a subagent that writes a file and returns a short verdict with its path. Read verdicts.
 - Communicate by pointers: paths, SHAs, task ids, record files. Never paste what a file already holds.
@@ -22,7 +22,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 
 Operator: "wypierdol bramki po prostu koduj i bebesz masz na wszysko zgode". The grant covers everything in this repository; never wait on the operator.
 
-1. **Resume.** `krn state resume --root .`, `krn task ready`, `bin/krn task check --evidence`, `git fetch --prune`, open PRs, main CI. Lanes: `docs/program/lead-rules.md`.
+1. **Resume.** SessionStart injects the handoff and its task: run its Verify, `timeout 30 git fetch --prune`, open PRs; never cat handoff, capsule, task or PR template (Problem/Change/Verification/Task/`Agent:`). Lanes: `docs/program/lead-rules.md`.
 2. **Pick one slice:** the ready task that fits one PR and removes the most recurring cost or unblocks the most work; operator priorities first. Edit only this repository unless the operator asks otherwise. Say what you defer. Claim it from its worktree: `krn task claim <id> --actor lead --worktree <path> --reason <text>`.
 3. **Code** in a worktree under `.krn/worktrees/<purpose>`, yourself. Commit with `Ticket: <id>` when a task exists and `krn task close <id> --as done --note <text>` in the same PR (`Refs: <id>` if the PR leaves it open). Task notes: `krn task edit <id> --append-body`, not `krn task comment`. Batch fixes into one PR.
 4. **Retro, then check locally:** run `krn-retro` before the last commit (its edits ship in the slice PR), then `npm run fast` once (Biome `--write` and tsc on changed files, tests touching changed or deleted files, one verdict); CI runs the rest.

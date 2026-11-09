@@ -20,6 +20,37 @@ const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 const capture = (name: string, file: string) =>
   readFileSync(join(fixtureDir, name, file), 'utf8');
 
+test('state check prints one verdict line without --json and keeps stderr and exit', () => {
+  const expected: Record<string, string> = {
+    active: 'state clean: 1 capsule(s) (main), 0 error(s), 2 warning(s)\n',
+    divergent:
+      'state divergent: 1 capsule(s) (main), 11 error(s), 0 warning(s)\n',
+    none: 'state not-applicable: 0 capsule(s), 0 error(s), 0 warning(s)\n',
+  };
+  for (const name of cases) {
+    const home = mkdtempSync(join(tmpdir(), 'krn-state-home-'));
+    const root = realpathSync(buildCaseRepo(name));
+    try {
+      const env: NodeJS.ProcessEnv = { ...process.env, HOME: home };
+      delete env.KRN_STATE_ENTRY;
+      const result = spawnSync(
+        process.execPath,
+        [cli, 'state', 'check', '--root', root],
+        { encoding: 'utf8', env },
+      );
+      assert.equal(result.stdout, expected[name], name);
+      assert.equal(
+        result.stderr.replaceAll(root, '<root>'),
+        capture(name, 'check.stderr.txt'),
+      );
+      assert.equal(`${result.status}\n`, capture(name, 'check.exit.txt'));
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(home, { recursive: true, force: true });
+    }
+  }
+});
+
 for (const name of cases) {
   for (const verb of ['check', 'resume']) {
     test(`state ${verb} matches the legacy capture for the ${name} capsule without HOME or KRN_STATE_ENTRY`, () => {
@@ -30,7 +61,15 @@ for (const name of cases) {
         delete env.KRN_STATE_ENTRY;
         const result = spawnSync(
           process.execPath,
-          [cli, 'state', verb, '--root', root],
+          // check prints one verdict line by default; --json is the legacy report.
+          [
+            cli,
+            'state',
+            verb,
+            ...(verb === 'check' ? ['--json'] : []),
+            '--root',
+            root,
+          ],
           { encoding: 'utf8', env },
         );
         const unroot = (text: string) => text.replaceAll(root, '<root>');
@@ -89,7 +128,7 @@ test('state check warns when an operator ask names another repository and passes
       );
       const out = spawnSync(
         process.execPath,
-        [cli, 'state', 'check', '--root', root],
+        [cli, 'state', 'check', '--json', '--root', root],
         { encoding: 'utf8' },
       ).stdout;
       return (JSON.parse(out) as { warnings: { rule: string }[] }).warnings.map(

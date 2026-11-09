@@ -4,10 +4,15 @@ import { flagValue } from './flag-value.ts';
 import { CliUsageError } from './usage-error.ts';
 
 const usage =
-  'krn state check|resume [--root DIR] [--json]  capsule check and resume';
+  'krn state check|resume [--root DIR] [--json]  capsule check (one verdict line) and resume';
 
 function line(value: { rule: string; detail: string }): string {
   return [value.rule, value.detail].filter(Boolean).join(': ');
+}
+
+function checkVerdict(report: ReturnType<typeof inspectState>): string {
+  const ids = report.capsules.map((capsule) => capsule.id).join(', ');
+  return `state ${report.status}: ${report.capsules.length} capsule(s)${ids ? ` (${ids})` : ''}, ${report.errors.length} error(s), ${report.warnings.length} warning(s)`;
 }
 
 export function stateCommand(args: string[]): void {
@@ -47,6 +52,9 @@ export function stateCommand(args: string[]): void {
   }
   if (command === 'resume' && !json && 'text' in report)
     process.stdout.write(`${report.text}\n`);
+  else if (!json && !('text' in report))
+    // One verdict line; errors and warnings follow on stderr, --json keeps the full report.
+    process.stdout.write(`${checkVerdict(report)}\n`);
   else process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   for (const warning of report.warnings)
     process.stderr.write(`warning: ${line(warning)}\n`);
