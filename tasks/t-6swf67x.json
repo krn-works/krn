@@ -1,0 +1,16 @@
+{
+  "id": "t-6swf67x",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "PR titles (squash subjects) are checked in CI by scripts/commit-title.ts; lead skill and lane brief prescribe type(scope): outcome (t-id)."
+  },
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Restore conventional commit titles and check them in CI",
+  "after": [],
+  "body": [
+    "Outcome: every squash commit on main has a conventional title, type(scope): outcome (t-id).\nWhy: #400 (t-9yrzn7m, 2026-11-08) switched to squash merges with the PR title as the commit subject and wrote 'plain outcome' titles; nothing checked the form, so every commit since #400 lost its type. The operator asked on 2026-11-09 why semantic commits are gone.\nProof: CI fails a pull request whose title is not conventional; the lead skill and lane brief prescribe the form.\nScope: scripts/commit-title.ts, .github/workflows/ci.yml, .agents/skills/krn-lead."
+  ]
+}

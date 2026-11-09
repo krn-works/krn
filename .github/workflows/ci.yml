@@ -5,6 +5,7 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
@@ -66,6 +67,13 @@ jobs:
       # Rendered rules are checked by `npm run preflight`.
       - name: Biome
         run: npm run lint
+
+      # The squash commit subject is the PR title: `type(scope): outcome (t-id)`.
+      - name: Commit title
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: node scripts/commit-title.ts
 
       # Diff-only floor: a PR must not delete assertions, add skip/only/todo or
       # delete a test file whose target stays, unless its body has a

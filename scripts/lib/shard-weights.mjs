@@ -110,6 +110,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/import-boundary.test.ts': 0.1,
   'test/outcome/ledger.test.ts': 1.3,
   'test/outcome/slice-cost.test.ts': 0.5,
+  'test/rules/commit-title.test.ts': 0.1,
   'test/rules/capture-privacy-guard.test.mjs': 0.1,
   'test/rules/context-budget.test.ts': 0.1,
   'test/rules/flag-value-reader.test.ts': 0.1,
