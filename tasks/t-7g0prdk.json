@@ -1,0 +1,12 @@
+{
+  "id": "t-7g0prdk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Write session state and handoff through krn state commands that cannot be malformed",
+  "after": [],
+  "body": [
+    "Outcome: `krn state set|accept|handoff` edit state.md fields, acceptance ledger entries and regenerate handoff.md in one call each, so a hand-written ledger never fails `krn state check` with malformed-acceptance.\nWhy: .krn/runs/roadmap-refill-4/report.md: state/handoff upkeep was 301 turns, $30.8 (7.2% of lead $) in 92 of 99 sessions (median 3 per session: 83 python heredoc edits of state.md, 16 `cat > handoff.md`, 11 Write, 23 handoff-requests checks, 13 inbox disposes); 79 of 332 `krn state check` calls diverged, 63 with malformed-acceptance in 40 sessions, each costing a repair turn.\nProof: unit tests for each command's output passing `krn state check`; rerun l.py and n.py (same scripts dir) on 30 new sessions: upkeep turns per session at or below 1.5, malformed-acceptance calls at 0.\nScope: src/state/ and src/cli/state.ts, krn-handoff skill text."
+  ]
+}
