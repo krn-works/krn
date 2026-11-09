@@ -93,7 +93,7 @@
         ]
       },
       {
-        "matcher": "Agent|Task|Workflow|WebFetch|WebSearch|NotebookEdit|Write|Edit",
+        "matcher": "Agent|Task|Workflow|WebFetch|WebSearch|NotebookEdit|Write|Edit|Bash|Read|Glob|Grep",
         "hooks": [
           {
             "type": "command",

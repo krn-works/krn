@@ -39,7 +39,7 @@ test('Claude context budget settings wire documented hooks and read-only reader'
     [
       'Write|Edit',
       'Bash',
-      'Agent|Task|Workflow|WebFetch|WebSearch|NotebookEdit|Write|Edit',
+      'Agent|Task|Workflow|WebFetch|WebSearch|NotebookEdit|Write|Edit|Bash|Read|Glob|Grep',
       // Built-in Explore and Plan get the configured subagent model.
       'Agent|Task',
     ],
@@ -74,4 +74,48 @@ test('Claude context budget settings wire documented hooks and read-only reader'
     'Artifact',
     'SendFeedback',
   ]);
+});
+
+// The live ceiling only sees tools its PreToolUse matcher names; a tool the
+// gauge refuses but the matcher omits runs unchecked past the ceiling.
+test('Claude project gauge matcher covers every built-in tool the ceiling refuses', async () => {
+  const { refusesAtCeiling } = await import(
+    new URL('scripts/claude/context-gauge.ts', root).href
+  );
+  const settings = JSON.parse(
+    readFileSync(new URL('.claude/settings.json', root), 'utf8'),
+  );
+  const gauge = settings.hooks.PreToolUse.find(
+    (entry: { hooks: { command: string }[] }) =>
+      entry.hooks.some((hook) => hook.command.includes('context-gauge.ts')),
+  );
+  const matched = new Set(gauge.matcher.split('|'));
+  const builtIn = [
+    'Agent',
+    'Task',
+    'Workflow',
+    'WebFetch',
+    'WebSearch',
+    'NotebookEdit',
+    'Write',
+    'Edit',
+    'Bash',
+    'Read',
+    'Glob',
+    'Grep',
+    'Skill',
+    'ToolSearch',
+  ];
+  const refused = builtIn.filter((tool) =>
+    refusesAtCeiling(
+      tool,
+      { command: 'npm test', file_path: 'src/x.ts' },
+      '/p',
+    ),
+  );
+  assert.deepEqual(
+    refused.filter((tool) => !matched.has(tool)),
+    [],
+  );
+  assert.ok(refused.includes('Bash') && refused.includes('Read'));
 });
