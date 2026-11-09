@@ -64,6 +64,7 @@ export function main(args = process.argv.slice(2)): void {
       'worker',
       'eval',
       'ci',
+      'pr',
       'doctor',
       'brain',
       'state',

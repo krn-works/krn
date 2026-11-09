@@ -1,7 +1,11 @@
 {
   "id": "t-3ag9eqn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn pr ship pushes, creates, auto-merges, waits and cleans up"
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Ship a PR in one call: krn pr ship does push, create, auto-merge, wait and cleanup",

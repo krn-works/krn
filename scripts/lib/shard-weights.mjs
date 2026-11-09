@@ -15,6 +15,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
   'test/ci/shard-wall-report.test.mjs': 0.7,
   'test/ci/shard-weights.test.mjs': 0.1,
   'test/ci/test-summary-policy.test.mjs': 0.5,
+  'test/ci/ship.test.ts': 0.1,
   'test/ci/wait.test.ts': 0.1,
   'test/claude/capture-fixture.test.ts': 0.1,
   'test/claude/context-gauge.test.ts': 1.9,
