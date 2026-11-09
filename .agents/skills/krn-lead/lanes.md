@@ -4,7 +4,7 @@
 - Delivery: `npm run fast` before every commit, and for wide changes `npm test > /mnt/storage/tmp/<slug>-test.log 2>&1; echo exit=$?` (never hide exit codes behind a pipe). Commit titles end with `(<task-id>)`; final trailer paragraph exactly:
   Ticket: <task-id>
   Co-Authored-By: <your model> <noreply@anthropic.com>
-  Task records: create new tasks with `bin/krn task create` and close yours with `bin/krn task close <id> --as done --note ...` run INSIDE your worktree (cd there first) so the record ships with your PR.
+  Task records: create new tasks with `bin/krn task create` and close yours with `bin/krn task close <id> --as done --note ...` run INSIDE your worktree (cd there first) so the record ships with your PR. Never edit `docs/program/roadmap.md`.
 - Hooks: never bypass git hooks (`--no-verify`, `-c core.hooksPath=...`, `HUSKY=0`); if a hook blocks or misfires, fix the hook in your PR or report it in your final reply.
 - Ship: `git push -u origin <branch>` (after a rebase `--force-with-lease`), `gh pr create --head <branch> --base main --title "<plain outcome> (<task-id>)" --body-file <file>` (sections of `.github/pull_request_template.md`, then the Claude Code line), `gh pr merge <n> --auto --squash`. Tracker edits ride in this PR. Then wait for the PR (poll `gh pr view <n> --json state,statusCheckRollup` every 60s, max 40 min; never `gh pr checks --watch`). Red `Check`: read `bin/krn ci logs --run <id>` into a file, grep it; a real test failure is your defect — fix and push; an infra flake (runner/network) — `gh run rerun <id> --failed`. If main moved and conflicts, rebase onto origin/main.
 - When done remove your worktree (`git worktree remove`) and local branch.

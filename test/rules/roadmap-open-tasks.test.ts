@@ -1,30 +1,90 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import {
+  pruneRoadmap,
+  roadmapRows,
+  taskStatus,
+} from '../../scripts/claude/roadmap-prune.ts';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
+const roadmap = readFileSync(join(root, 'docs/program/roadmap.md'), 'utf8');
 
-// The roadmap says "A row leaves the table when its task closes"; a closed
-// task's row survived #466 unnoticed, so the rule is checked here.
-test('every roadmap row names an existing open task', () => {
-  const roadmap = readFileSync(join(root, 'docs/program/roadmap.md'), 'utf8');
-  const rows = roadmap
+// Ids are stable and the table order is the rank, so removing or moving a row
+// touches only that row; a row may outlive its task until the lead prunes it.
+test('every roadmap row has a unique stable id and an existing task', () => {
+  const tableLines = roadmap
     .split('\n')
-    .filter((line) => /^\| \d+ \| R\d+ \|/u.test(line));
-  const stale: string[] = [];
-  for (const row of rows) {
-    const cells = row.split('|').map((cell) => cell.trim());
-    const id = cells.at(-2) ?? '';
-    const path = join(root, 'tasks', `${id}.json`);
-    if (!/^t-[a-z0-9]+$/u.test(id) || !existsSync(path)) {
-      stale.push(`${cells[2]}: no task file for "${id}"`);
-      continue;
-    }
-    const task = JSON.parse(readFileSync(path, 'utf8')) as { status: string };
-    if (task.status !== 'open')
-      stale.push(`${cells[2]}: ${id} is ${task.status}`);
+    .filter((line) => line.startsWith('| ') && !/^\| (Id|---)/u.test(line));
+  const rows = roadmapRows(roadmap);
+  assert.equal(
+    rows.length,
+    tableLines.length,
+    'row shape: | R<n> | ... | t-id |',
+  );
+  const ids = rows.map((row) => row.id);
+  assert.deepEqual(ids, [...new Set(ids)], 'duplicate roadmap id');
+  const missing = rows
+    .filter((row) => taskStatus(root, row.task) === undefined)
+    .map((row) => `${row.id}: no task file for ${row.task}`);
+  assert.deepEqual(missing, []);
+});
+
+test('prune removes only rows whose task is not open', () => {
+  const text =
+    '| Id | Task |\n|---|---|\n| R1 | a | t-a |\n| R2 | b | t-b |\n| R3 | c | t-c |\n';
+  const result = pruneRoadmap(text, (task) =>
+    task === 't-b' ? 'open' : 'closed',
+  );
+  assert.equal(result.text, '| Id | Task |\n|---|---|\n| R2 | b | t-b |\n');
+  assert.deepEqual(
+    result.removed.map((row) => row.id),
+    ['R1', 'R3'],
+  );
+});
+
+// Replays 2026-11-09: two lanes each close a different roadmap task. With
+// positional ids the first removal renumbered every later row and the second
+// lane had to rebase; with stable ids the separate removals merge cleanly.
+function merge(base: string, ours: string, theirs: string) {
+  const dir = mkdtempSync(join(tmpdir(), 'roadmap-merge-'));
+  try {
+    for (const [name, text] of Object.entries({ base, ours, theirs }))
+      writeFileSync(join(dir, name), text);
+    return spawnSync('git', ['merge-file', '-p', 'ours', 'base', 'theirs'], {
+      cwd: dir,
+      encoding: 'utf8',
+    });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
-  assert.deepEqual(stale, []);
+}
+
+const table = (...rows: string[]) =>
+  ['| Id | Opportunity | Task |', '|---|---|---|', ...rows, ''].join('\n');
+
+test('two branches removing different rows merge without conflict', () => {
+  const base = table(
+    '| R1 | a | t-a |',
+    '| R2 | b | t-b |',
+    '| R3 | c | t-c |',
+  );
+  const stable = merge(
+    base,
+    table('| R2 | b | t-b |', '| R3 | c | t-c |'),
+    table('| R1 | a | t-a |', '| R2 | b | t-b |'),
+  );
+  assert.equal(stable.status, 0, stable.stdout);
+  assert.equal(stable.stdout, table('| R2 | b | t-b |'));
+  // The retired positional scheme: removing R1 renumbered R2 and R3.
+  const positional = merge(
+    base,
+    table('| R1 | b | t-b |', '| R2 | c | t-c |'),
+    table('| R1 | a | t-a |', '| R2 | b | t-b |'),
+  );
+  assert.notEqual(positional.status, 0);
 });

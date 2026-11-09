@@ -309,10 +309,25 @@ test('handoff Roadmap line must name real roadmap rows', () => {
     mkdirSync(join(root, 'docs/program'), { recursive: true });
     writeFileSync(
       join(root, 'docs/program/roadmap.md'),
-      '| Rank | Id | Opportunity |\n|---|---|---|\n| 1 | R2 | faster CI |\n',
+      '| Id | Opportunity |\n|---|---|\n| R2 | faster CI |\n| R3 | less spend |\n',
     );
     assert.equal(check(none, [], header('R2 reranked')).status, 0);
     assert.equal(check(none, [], header('R2 and R9')).status, 1);
+    // Stable ids: a row pruned in a recent commit is still a named change.
+    const git = (...args: string[]) =>
+      spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+        cwd: root,
+      });
+    git('init', '-q');
+    git('add', 'docs');
+    git('commit', '-qm', 'base');
+    writeFileSync(
+      join(root, 'docs/program/roadmap.md'),
+      '| Id | Opportunity |\n|---|---|\n| R2 | faster CI |\n',
+    );
+    git('commit', '-qam', 'prune R3');
+    assert.equal(check(none, [], header('R3 pruned')).status, 0);
+    assert.equal(check(none, [], header('R9 pruned')).status, 1);
     assert.equal(
       check(none, [], header('unchanged (no new evidence)')).status,
       0,
