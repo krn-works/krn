@@ -40,6 +40,8 @@ test('Claude context budget settings wire documented hooks and read-only reader'
       'Write|Edit',
       'Bash',
       'Agent|Task|Workflow|WebFetch|WebSearch|NotebookEdit|Write|Edit',
+      // Built-in Explore and Plan get the configured subagent model.
+      'Agent|Task',
     ],
   );
   // The context ceiling refuses tools that start new work past 90%.

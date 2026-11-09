@@ -101,6 +101,16 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/subagent-model.ts\"",
+            "timeout": 5
+          }
+        ]
       }
     ]
   }
