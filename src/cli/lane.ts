@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, realpathSync } from 'node:fs';
+import { copyFileSync, existsSync, realpathSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { claimTask, mainCheckoutRoot } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
@@ -21,6 +21,28 @@ function git(root: string, args: string[]): string {
 
 function gitOk(root: string, args: string[]): boolean {
   return spawnSync('git', ['-C', root, ...args]).status === 0;
+}
+
+// A task created but not yet committed exists only in the invoking checkout;
+// the new worktree is cut from origin/main, so the record moves with the lane.
+function untrackedTaskRecord(origin: string, id: string): string | undefined {
+  const file = join(origin, 'tasks', `${id}.json`);
+  if (!existsSync(file)) return undefined;
+  if (gitOk(origin, ['ls-files', '--error-unmatch', `tasks/${id}.json`])) {
+    if (gitOk(origin, ['cat-file', '-e', `origin/main:tasks/${id}.json`]))
+      return undefined;
+    throw new CliUsageError(
+      `tasks/${id}.json is tracked in ${origin} but not on origin/main; commit and push it first`,
+    );
+  }
+  return file;
+}
+
+function carryTaskRecord(file: string, worktree: string, id: string): void {
+  const target = join(worktree, 'tasks', `${id}.json`);
+  if (existsSync(target)) return;
+  copyFileSync(file, target);
+  rmSync(file);
 }
 
 export async function laneCommand(args: string[]): Promise<void> {
@@ -50,7 +72,8 @@ export async function laneCommand(args: string[]): Promise<void> {
   if (task !== undefined && !isTaskId(task))
     throw new CliUsageError(`not a task id: ${task}`);
 
-  const main = mainCheckoutRoot(repositoryRoot(root ?? process.cwd()));
+  const origin = repositoryRoot(root ?? process.cwd());
+  const main = mainCheckoutRoot(origin);
   const path = join(main, '.krn', 'worktrees', slug);
   if (existsSync(path))
     throw new CliUsageError(`lane ${slug} already exists at ${path}`);
@@ -58,9 +81,12 @@ export async function laneCommand(args: string[]): Promise<void> {
     throw new CliUsageError(`branch ${slug} already exists`);
 
   git(main, ['fetch', '-q', 'origin', 'main']);
+  const carried =
+    task === undefined ? undefined : untrackedTaskRecord(origin, task);
   git(main, ['worktree', 'add', '-q', '-b', slug, path, 'origin/main']);
   if (task !== undefined) {
     try {
+      if (carried !== undefined) carryTaskRecord(carried, path, task);
       await claimTask(main, task, {
         actor,
         worktree: path,
