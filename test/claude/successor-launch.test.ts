@@ -122,24 +122,41 @@ test('captured Herdr replies sit on the stream Herdr prints them on', () => {
   }
 });
 
+test('argument parser refuses a prompt that re-reads the injected handoff', () => {
+  assert.ok(api);
+  for (const prompt of [
+    'Use the krn-lead skill. Read /repo/.krn/runs/x/handoff.md, then deliver t-x.',
+    'Read the handoff, then deliver t-x.',
+    'Open handoff.md first.',
+  ])
+    assert.throws(
+      () => api.parseArgs(['--name', 'Next', '--prompt', prompt]),
+      /must not tell the successor to read the handoff/u,
+    );
+  assert.equal(
+    api
+      .parseArgs([
+        '--name',
+        'Next',
+        '--prompt',
+        'Use the krn-lead skill. The SessionStart hook injects the handoff; run its Verify command, then deliver t-x.',
+      ])
+      .prompt.endsWith('t-x.'),
+    true,
+  );
+});
+
 test('argument parser accepts the required flags and resolves cwd', () => {
   assert.equal(typeof api?.parseArgs, 'function');
   assert.ok(api);
   assert.deepEqual(
     api.parseArgs(
-      [
-        '--prompt',
-        'Read the handoff',
-        '--cwd',
-        'work tree',
-        '--name',
-        'Next slice',
-      ],
+      ['--prompt', 'Deliver t-x', '--cwd', 'work tree', '--name', 'Next slice'],
       '/repo',
     ),
     {
       name: 'Next slice',
-      prompt: 'Read the handoff',
+      prompt: 'Deliver t-x',
       cwd: resolve('/repo', 'work tree'),
     },
   );
@@ -149,7 +166,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
     /expected a value after --prompt/u,
   );
   assert.throws(
-    () => api.parseArgs(['--name', '--prompt', 'Read the handoff']),
+    () => api.parseArgs(['--name', '--prompt', 'Deliver t-x']),
     /expected a value after --name/u,
   );
   assert.deepEqual(
@@ -165,7 +182,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
         '--name',
         'Next slice',
         '--prompt',
-        'Read the handoff',
+        'Deliver t-x',
         '--cwd',
         'one',
         '--cwd',
@@ -236,7 +253,7 @@ test('Herdr launch uses the captured pane and tab IDs without starting fallback'
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Read handoff', '--cwd', cwd],
+    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x', '--cwd', cwd],
     { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
   const captured = JSON.parse(
@@ -264,7 +281,7 @@ test('Herdr launch uses the captured pane and tab IDs without starting fallback'
       '--env',
       'KRN_SUCCESSOR_NAME=Next slice',
       '--env',
-      'KRN_SUCCESSOR_PROMPT=First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Read handoff',
+      'KRN_SUCCESSOR_PROMPT=First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Deliver t-x',
       '--no-focus',
     ],
     [
@@ -290,7 +307,7 @@ test('caller pane workspace is passed to the new tab', (t) => {
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Read handoff', '--cwd', cwd],
+    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x', '--cwd', cwd],
     {
       cwd: root,
       env: { ...launcherEnvironment(bin), HERDR_PANE_ID: 'caller-pane' },
@@ -328,7 +345,7 @@ test('caller pane workspace is passed to the new tab', (t) => {
       '--env',
       'KRN_SUCCESSOR_NAME=Next slice',
       '--env',
-      'KRN_SUCCESSOR_PROMPT=First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Read handoff',
+      'KRN_SUCCESSOR_PROMPT=First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Deliver t-x',
       '--env',
       `KRN_PREDECESSOR_PANE=caller-pane`,
       '--env',
@@ -372,7 +389,7 @@ test('a successor Herdr never shows fails the launch and keeps the predecessor t
       '--name',
       'Next slice',
       '--prompt',
-      'Read handoff',
+      'Deliver t-x',
       '--cwd',
       cwd,
       '--start-seconds',
@@ -443,7 +460,7 @@ test('a successor held on a startup dialog is reported with its pane and the han
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Read handoff', '--cwd', cwd],
+    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x', '--cwd', cwd],
     {
       cwd: root,
       env: {
@@ -600,7 +617,7 @@ test('missing Herdr falls back to claude background launch once', (t) => {
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
+    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x'],
     { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
@@ -614,7 +631,7 @@ test('missing Herdr falls back to claude background launch once', (t) => {
       '--bg',
       '-n',
       'Next slice',
-      'First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Read handoff',
+      'First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Deliver t-x',
     ],
   ]);
 });
@@ -630,7 +647,7 @@ test('a failed Herdr server probe falls back without creating a tab', (t) => {
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
+    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x'],
     { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
@@ -642,7 +659,7 @@ test('a failed Herdr server probe falls back without creating a tab', (t) => {
       '--bg',
       '-n',
       'Next slice',
-      'First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Read handoff',
+      'First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Deliver t-x',
     ],
   ]);
 });
@@ -658,7 +675,7 @@ test('a failed fallback agent returns its non-zero exit code', (t) => {
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
+    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x'],
     { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
@@ -671,7 +688,7 @@ test('a failed fallback agent returns its non-zero exit code', (t) => {
       '--bg',
       '-n',
       'Next slice',
-      'First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Read handoff',
+      'First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Deliver t-x',
     ],
   ]);
 });
@@ -689,7 +706,7 @@ test('a pane run failure does not launch the fallback agent', (t) => {
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Read handoff', '--cwd', cwd],
+    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x', '--cwd', cwd],
     { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
@@ -713,7 +730,7 @@ test('a tab reply without a pane ID stops without falling back', (t) => {
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Read handoff'],
+    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x'],
     { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
@@ -734,7 +751,7 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
         '--name',
         'Next slice',
         '--prompt',
-        'Read handoff',
+        'Deliver t-x',
         '--model',
         'claude-opus-5-5',
         '--effort',
@@ -775,7 +792,7 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
         '--name',
         'Next slice',
         '--prompt',
-        'Read handoff',
+        'Deliver t-x',
         '--model',
         'claude-opus-5-5',
         '--effort',
@@ -799,7 +816,7 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
         '--bg',
         '-n',
         'Next slice',
-        'First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Read handoff',
+        'First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Deliver t-x',
       ],
     ]);
   });
@@ -820,7 +837,7 @@ test('the successor harness follows the runtime environment, never an assumption
       launcherEnvironment(bin);
     const result = spawnSync(
       process.execPath,
-      [script, '--name', 'Next slice', '--prompt', 'Read handoff', ...extra],
+      [script, '--name', 'Next slice', '--prompt', 'Deliver t-x', ...extra],
       { cwd: root, env: { ...environment, ...marker }, encoding: 'utf8' },
     );
     return {
