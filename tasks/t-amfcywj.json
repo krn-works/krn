@@ -1,7 +1,11 @@
 {
   "id": "t-amfcywj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Deleted ci-stage-time.mjs, idle-gap-cache.mjs, their tests, fixture and shard weights; repository-workflow.md no longer names the missing lessons page and instruction-references drops its retired exemption. Remaining mentions are the ADR 0014 D27 record and a verbatim CI log fixture."
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Delete scripts with no caller and fix the dangling workflow link",

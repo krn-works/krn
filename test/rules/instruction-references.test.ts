@@ -24,8 +24,6 @@ const documents = [
   ...listed('.claude/agents'),
   ...skills,
 ];
-// Pages that instructions name only to say KRN no longer creates them.
-const retired = new Set(['docs/research/workflow-lessons.md']);
 // `state` belongs to the global KRN install; `work` is named only as replaced.
 const elsewhere = new Set(['state', 'work']);
 
@@ -52,7 +50,7 @@ test('instructions name only npm scripts and repository files that exist', () =>
       /(?:^|[\s(])((?:[\w.-]+\/)+[\w.-]*\.[a-z]{1,4})(?=$|[\s):,;])/gu,
     )) {
       const path = match[1] ?? '';
-      if (path.startsWith('.krn/') || retired.has(path)) continue;
+      if (path.startsWith('.krn/')) continue;
       if (!existsSync(join(root, path))) missing.push(`${file}: ${path}`);
     }
   }
