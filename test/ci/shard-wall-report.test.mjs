@@ -477,3 +477,20 @@ test('against real git: ancestry, fetch on demand, and exit 64 for an unknown co
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// Main run 42579707304: a child that lost its own summary leaves its file
+// without durationMs; drift and the bound read only the timed samples.
+test('a file without a duration in one run keeps its other samples', () => {
+  const lost = { 'test/slow.test.ts': undefined, 'test/over.test.ts': 12000 };
+  const timed = { 'test/slow.test.ts': 9000, 'test/over.test.ts': 12000 };
+  const runs = [lost, timed, timed].map((durations, index) => ({
+    id: String(index + 1),
+    jobs: [jobWith('Test (1/1)', durations)],
+  }));
+  assert.deepEqual(weightDrift(runs, weights), [
+    { file: 'test/slow.test.ts', median: 9, weight: 2 },
+  ]);
+  assert.deepEqual(filesOverBound(runs, weights), [
+    { file: 'test/over.test.ts', median: 12 },
+  ]);
+});

@@ -109,6 +109,8 @@ function fileMedians(runs, weights) {
   for (const run of runs)
     for (const job of run.jobs)
       for (const { file, durationMs } of job.summary.files) {
+        // A file whose child lost its summary has no duration in that run.
+        if (!Number.isSafeInteger(durationMs)) continue;
         const path = repoTestPath(file);
         if (!samples.has(path)) samples.set(path, []);
         samples.get(path).push(durationMs);
