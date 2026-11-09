@@ -4,7 +4,7 @@
   "resolution": {
     "kind": "done",
     "ref": null,
-    "note": "Proxy shipped in shadow mode; live haiku probe on subscription OAuth passed, evidence test/claude/fixtures/ctx-proxy-live-metrics.jsonl"
+    "note": "Proxy shipped in shadow mode; live haiku probe on subscription OAuth passed, evidence test/claude/evidence/ctx-proxy-live-metrics.jsonl"
   },
   "created": "2026-11-09",
   "priority": 1,
