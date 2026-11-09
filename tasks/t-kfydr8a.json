@@ -1,7 +1,11 @@
 {
   "id": "t-kfydr8a",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "wilq-seo#265 merged 2026-11-09 as 63ea522 (AGENTS.md 13351 -> 7178 B); Swieta b93106a; agents-trim worktree gone, docs/agents-trim branch deleted local+remote"
+  },
   "created": "2026-10-31",
   "priority": 2,
   "title": "Trim instruction files that every session loads (Swieta AGENTS.md 36 KB, wilq AGENTS.md 13 KB)",
