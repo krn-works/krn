@@ -356,3 +356,96 @@ test('gauge repeats the advisory past the second threshold and refuses new work 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('host gauge serves every project except one that wires its own gauge', async () => {
+  const { handoffBash, refusesAtCeiling } = await import(script);
+  const root = mkdtempSync(join(tmpdir(), 'context-gauge-host-'));
+  const project = join(root, 'project');
+  mkdirSync(join(project, '.claude'), { recursive: true });
+  const transcript = join(root, 'transcript.jsonl');
+  // Derived from the verbatim below capture by changing the usage counters only.
+  const entry = JSON.parse(fixture('below').split('\n')[0] ?? '');
+  const run = (total: number, event: string, tool: object = {}) => {
+    entry.message.usage = {
+      ...entry.message.usage,
+      input_tokens: 2,
+      cache_read_input_tokens: 0,
+      cache_creation_input_tokens: total - 2,
+    };
+    writeFileSync(transcript, `${JSON.stringify(entry)}\n`);
+    const result = spawnSync(process.execPath, [script, '--host'], {
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: project,
+        HOME: root,
+        XDG_STATE_HOME: join(root, 'state'),
+      },
+      encoding: 'utf8',
+      input: JSON.stringify({
+        session_id: 'session',
+        transcript_path: transcript,
+        hook_event_name: event,
+        prompt: 'p',
+        ...tool,
+      }),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, '');
+    return result.stdout;
+  };
+  try {
+    // A project without settings gets the 400k default and the relay wording.
+    assert.match(
+      run(241000, 'PostToolUse'),
+      /241k of 400k\. Finish the current step, then hand off with the context-relay skill\./u,
+    );
+    assert.ok(existsSync(join(root, 'state/krn/context-gauge/session.json')));
+    assert.ok(!existsSync(join(project, '.krn')), 'no state in the project');
+    run(241000, 'UserPromptSubmit');
+    assert.ok(!existsSync(join(project, '.krn')), 'no prompt capture');
+    const out = run(361000, 'PreToolUse', {
+      tool_name: 'Agent',
+      tool_input: {},
+    });
+    assert.match(
+      JSON.parse(out).hookSpecificOutput.permissionDecisionReason,
+      /360k ceiling of the 400k budget.*context-relay skill/u,
+    );
+    // A project that wires its own gauge is left to it.
+    writeFileSync(
+      join(project, '.claude/settings.json'),
+      JSON.stringify({
+        autoCompactWindow: 400000,
+        hooks: { PostToolUse: [{ command: 'node scripts/context-gauge.ts' }] },
+      }),
+    );
+    assert.equal(
+      run(361000, 'PreToolUse', { tool_name: 'Agent', tool_input: {} }),
+      '',
+    );
+    assert.equal(run(330000, 'PostToolUse'), '');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+  // The relay handoff stays open in host mode only.
+  for (const command of [
+    'python3 ~/.claude/skills/context-relay/scripts/context-usage.py',
+    '~/.claude/skills/context-relay/scripts/relay.sh docs/X-PROMPT.md lead-2',
+    'herdr agent get lead-2 && bd update x-1 --status done',
+  ]) {
+    assert.equal(handoffBash(command, true), true, command);
+    assert.equal(handoffBash(command), false, command);
+  }
+  assert.equal(handoffBash('herdr x; npm test', true), false);
+  for (const file of ['docs/EKO-CLAUDE-CODE-PROMPT.md', 'docs/handoff.md']) {
+    assert.equal(
+      refusesAtCeiling('Write', { file_path: file }, '/p', true),
+      false,
+    );
+    assert.equal(refusesAtCeiling('Write', { file_path: file }, '/p'), true);
+  }
+  assert.equal(
+    refusesAtCeiling('Edit', { file_path: 'src/prompt.ts' }, '/p', true),
+    true,
+  );
+});

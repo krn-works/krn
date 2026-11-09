@@ -63,13 +63,14 @@ export function contextTotal(transcript: string): number | undefined {
 // The budget is the auto-compact window the project configures, so the gauge
 // and compaction share one number; advisories fire at 60% and 80% of it.
 // A first lead turn measured 46-48k on 2026-11-01, well below the first one.
-function budget(project: string): number {
+// Host mode defaults to the 400k window KRN measured its advisories against.
+function budget(project: string, fallback: number): number {
   const path = join(project, '.claude/settings.json');
-  if (!existsSync(path)) return 200000;
+  if (!existsSync(path)) return fallback;
   const window = object(
     JSON.parse(readFileSync(path, 'utf8')),
   ).autoCompactWindow;
-  if (window === undefined) return 200000;
+  if (window === undefined) return fallback;
   if (
     typeof window !== 'number' ||
     !Number.isSafeInteger(window) ||
@@ -107,6 +108,13 @@ const handoffTools = new Set(['Skill', 'ToolSearch']);
 // Each segment of an admitted Bash command starts with one of these.
 const handoffCommand =
   /^(?:cd|echo|true|(?:bin\/)?krn|git|node scripts\/claude\/(?:handoff-requests|operator-inbox|successor-launch)\.ts)(?:\s|$)/;
+// Host mode (the gauge installed in ~/.claude/settings.json for every
+// project) also admits the context-relay handoff: its usage and relay
+// scripts, herdr to verify the successor, and bd for Beads trackers.
+const relayCommand =
+  /^(?:herdr|bd|(?:python3\s+)?(?:~|\$HOME|\$\{HOME\}|\/home\/[^/\s]+)\/\.claude\/skills\/context-relay\/scripts\/(?:relay\.sh|context-usage\.py))(?:\s|$)/;
+// The continuation prompt and handoff documents a relay writes.
+const relayDocument = /(?:PROMPT|handoff)[^/]*\.md$/i;
 // A bounded Read elsewhere still fits a handoff that checks one fact.
 export const ceilingReadLines = 200;
 
@@ -121,7 +129,7 @@ export function ceilingOf(window: number): number {
   return Math.floor((window * 9) / 10);
 }
 
-export function handoffBash(command: string): boolean {
+export function handoffBash(command: string, host = false): boolean {
   // A substitution would run a command the allowlist never sees.
   if (/[`]|\$\(|<\(/.test(command)) return false;
   const segments = command
@@ -129,7 +137,10 @@ export function handoffBash(command: string): boolean {
     .map((part) => part.trim().replace(/^(?:[A-Z_][A-Z0-9_]*=\S*\s+)+/, ''))
     .filter((part) => part !== '');
   return (
-    segments.length > 0 && segments.every((part) => handoffCommand.test(part))
+    segments.length > 0 &&
+    segments.every(
+      (part) => handoffCommand.test(part) || (host && relayCommand.test(part)),
+    )
   );
 }
 
@@ -137,12 +148,13 @@ export function refusesAtCeiling(
   tool: unknown,
   toolInput: unknown,
   project: string,
+  host = false,
 ): boolean {
   if (typeof tool !== 'string') return true;
   if (handoffTools.has(tool)) return false;
   if (tool === 'Bash') {
     const command = field(toolInput, 'command');
-    return typeof command !== 'string' || !handoffBash(command);
+    return typeof command !== 'string' || !handoffBash(command, host);
   }
   if (tool !== 'Write' && tool !== 'Edit' && tool !== 'Read') return true;
   const file = field(toolInput, 'file_path');
@@ -155,6 +167,7 @@ export function refusesAtCeiling(
   const inside = (path: string) =>
     path !== '' && !path.startsWith('..') && !isAbsolute(path);
   if (inside(state) || inside(memory)) return false;
+  if (host && tool !== 'Read' && relayDocument.test(file)) return false;
   if (tool !== 'Read') return true;
   const limit = field(toolInput, 'limit');
   return !(typeof limit === 'number' && limit > 0 && limit <= ceilingReadLines);
@@ -177,18 +190,33 @@ async function capturePrompt(raw: string): Promise<void> {
   }
 }
 
+// A project that wires its own gauge (KRN) would otherwise be gauged twice.
+export function wiresOwnGauge(project: string): boolean {
+  return ['settings.json', 'settings.local.json'].some((name) => {
+    const path = join(project, '.claude', name);
+    return (
+      existsSync(path) && readFileSync(path, 'utf8').includes('context-gauge')
+    );
+  });
+}
+
 if (import.meta.main) {
   try {
+    const host = process.argv.includes('--host');
     const raw = readFileSync(0, 'utf8');
     // One process serves both prompt-time duties: record the prompt, then gauge.
-    if (raw.includes('"UserPromptSubmit"')) await capturePrompt(raw);
+    if (!host && raw.includes('"UserPromptSubmit"')) await capturePrompt(raw);
     const input = hookInput(
       ['UserPromptSubmit', 'PostToolUse', 'PreToolUse'],
       raw,
     );
+    if (host && wiresOwnGauge(input.project)) process.exit(0);
+    const handoff = host
+      ? 'hand off with the context-relay skill'
+      : 'run krn-handoff';
     const { total, boundary } = gaugeReading(tail(input.transcriptPath));
     if (total === undefined) throw new Error('No usage');
-    const window = budget(input.project);
+    const window = budget(input.project, host ? 400000 : 200000);
     const first = Math.floor((window * 3) / 5);
     const second = Math.floor((window * 4) / 5);
     const ceiling = ceilingOf(window);
@@ -196,20 +224,27 @@ if (import.meta.main) {
       const tool = object(JSON.parse(raw));
       if (
         total >= ceiling &&
-        refusesAtCeiling(tool.tool_name, tool.tool_input, input.project)
+        refusesAtCeiling(tool.tool_name, tool.tool_input, input.project, host)
       )
         process.stdout.write(
           JSON.stringify({
             hookSpecificOutput: {
               hookEventName: 'PreToolUse',
               permissionDecision: 'deny',
-              permissionDecisionReason: `Context at ${Math.floor(total / 1000)}k is past the ${Math.floor(ceiling / 1000)}k ceiling of the ${Math.floor(window / 1000)}k budget. New work is refused; run krn-handoff now (Skill, handoff Bash commands (krn, git, cd, echo, node scripts/claude/{handoff-requests,operator-inbox,successor-launch}.ts), reads and writes under .krn/, and Read with limit <= ${ceilingReadLines} stay open).`,
+              permissionDecisionReason: `Context at ${Math.floor(total / 1000)}k is past the ${Math.floor(ceiling / 1000)}k ceiling of the ${Math.floor(window / 1000)}k budget. New work is refused; ${handoff} now (Skill, handoff Bash commands (krn, git, cd, echo, node scripts/claude/{handoff-requests,operator-inbox,successor-launch}.ts${host ? ', herdr, bd, context-relay scripts' : ''}), reads and writes under .krn/${host ? ' and *PROMPT*/handoff*.md' : ''}, and Read with limit <= ${ceilingReadLines} stay open).`,
             },
           }),
         );
       process.exit(0);
     }
-    const directory = join(input.project, '.krn/runs/claude/context-gauge');
+    // Host mode keeps its state out of the projects it gauges.
+    const directory = host
+      ? join(
+          process.env.XDG_STATE_HOME ??
+            join(process.env.HOME ?? '/nonexistent', '.local/state'),
+          'krn/context-gauge',
+        )
+      : join(input.project, '.krn/runs/claude/context-gauge');
     const path = join(directory, `${input.sessionId}.json`);
     let highest = 0;
     let armedAt: string | undefined;
@@ -253,13 +288,12 @@ if (import.meta.main) {
     if (repeat && level <= highest) {
       emitContext(
         input.event,
-        `Context at ${Math.floor(total / 1000)}k of ${Math.floor(window / 1000)}k, still past the handoff advisory. Stop the current step and run krn-handoff; at ${Math.floor(ceiling / 1000)}k new work is refused.`,
+        `Context at ${Math.floor(total / 1000)}k of ${Math.floor(window / 1000)}k, still past the handoff advisory. Stop the current step and ${handoff}; at ${Math.floor(ceiling / 1000)}k new work is refused.`,
       );
     } else if (level > highest) {
       const prefix = `Context at ${Math.floor(total / 1000)}k of ${Math.floor(window / 1000)}k.`;
-      const finish = 'Finish the current step, then run krn-handoff.';
-      const exhausted =
-        'Context budget nearly exhausted. Finish the current step now, then run krn-handoff before starting any new work.';
+      const finish = `Finish the current step, then ${handoff}.`;
+      const exhausted = `Context budget nearly exhausted. Finish the current step now, then ${handoff} before starting any new work.`;
       // Jumping past both thresholds still delivers the first advisory.
       emitContext(
         input.event,
