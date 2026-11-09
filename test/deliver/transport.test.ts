@@ -63,3 +63,39 @@ test('GitHub preserves original stderr and exit code on permanent and exhausted 
     assert.equal(calls, expected);
   }
 });
+
+test('run kills a command that outlives its timeout and reports a transient timeout', async () => {
+  assert.ok(api);
+  const result = api.run('sleep', ['30'], '.', undefined, 200);
+  assert.equal(result.code, 70);
+  assert.match(result.stderr, /ETIMEDOUT/u);
+});
+
+test('GitHub bounds each call and retries a timed-out call as transient', async () => {
+  assert.ok(api);
+  const bounds: Array<number | undefined> = [];
+  const waits: number[] = [];
+  const output = await api.github(
+    ['api', 'resource'],
+    '.',
+    (_cmd, _args, _cwd, _input, timeoutMs) => {
+      bounds.push(timeoutMs);
+      return bounds.length === 1
+        ? { code: 70, stdout: '', stderr: 'spawnSync gh ETIMEDOUT' }
+        : { code: 0, stdout: 'ok', stderr: '' };
+    },
+    async (ms) => {
+      waits.push(ms);
+    },
+  );
+  assert.equal(output, 'ok');
+  assert.deepEqual(bounds, [api.GH_CALL_TIMEOUT_MS, api.GH_CALL_TIMEOUT_MS]);
+  assert.equal(api.GH_CALL_TIMEOUT_MS, 10_000);
+  assert.deepEqual(waits, [1000]);
+  const logBounds: Array<number | undefined> = [];
+  await api.github(['run', 'view', '1', '--log-failed'], '.', (...call) => {
+    logBounds.push(call[4]);
+    return { code: 0, stdout: '', stderr: '' };
+  });
+  assert.deepEqual(logBounds, [api.GH_LOG_TIMEOUT_MS]);
+});
