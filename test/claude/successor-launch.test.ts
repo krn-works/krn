@@ -80,6 +80,8 @@ function launcherEnvironment(bin: string) {
     ...hostEnvironment,
     PATH: bin,
     KRN_SUCCESSOR_AGENT: 'successor-agent',
+    // A proxy running on this host must not change what the stubs expect.
+    KRN_CTX_PROXY: 'off',
   };
 }
 

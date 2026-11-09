@@ -1,0 +1,5 @@
+{"session":"aaa","input_tokens":2,"cache_read_tokens":0,"cache_creation_tokens":1000,"would_clear_tokens":0,"cold":false}
+{"session":"aaa","input_tokens":2,"cache_read_tokens":1000,"cache_creation_tokens":100,"would_clear_tokens":500,"cold":false}
+{"session":"aaa","input_tokens":2,"cache_read_tokens":0,"cache_creation_tokens":1200,"would_clear_tokens":700,"cold":true}
+{"session":"bbb","input_tokens":10,"cache_read_tokens":0,"cache_creation_tokens":90,"would_clear_tokens":200,"cold":true}
+not json
