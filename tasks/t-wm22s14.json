@@ -1,7 +1,11 @@
 {
   "id": "t-wm22s14",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Window full: node scripts/shard-wall-report.mjs --since 758c32d, 5/5 runs, slowest Test step p50 17.9 s < 18 s PASS"
+  },
   "created": "2026-11-08",
   "priority": 3,
   "title": "Rebalance shards from 10-shard CI durations",

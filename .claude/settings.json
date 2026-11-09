@@ -1,6 +1,15 @@
 {
   "permissions": {
-    "deny": ["Bash(pkill -f:*)", "Bash(pkill --full:*)", "Bash(killall:*)"]
+    "deny": [
+      "Bash(pkill -f:*)",
+      "Bash(pkill --full:*)",
+      "Bash(killall:*)",
+      "ScheduleWakeup",
+      "ShareOnboardingGuide",
+      "Workflow",
+      "Artifact",
+      "SendFeedback"
+    ]
   },
   "autoCompactWindow": 400000,
   "effortLevel": "medium",
