@@ -1,0 +1,12 @@
+{
+  "id": "t-gm82yth",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Reuse a cached npm run fast pass on an unchanged tree",
+  "after": [],
+  "body": [
+    "Outcome: a second `npm run fast` on an unchanged tree prints its cached PASS without rerunning checks.\nWhy: 575 fast runs over 129 PRs (4.5 per PR), 157 pass-after-pass; each run is a lead turn, 7.7% of lead dollars (.krn/runs/roadmap-refill-3/session-cost.md).\nProof: scripts/fast-check.ts stores a pass marker keyed by the tree hash (git write-tree with the working tree staged into a temp index) under .krn/cache; a test shows the second run is a cache hit and any edit invalidates it.\nScope: scripts/fast-check.ts and its test."
+  ]
+}
