@@ -1,0 +1,16 @@
+{
+  "id": "t-55e8s3y",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn state set refuses a fixed point without base=/HEAD=/fingerprint=; set and check share hasFixedPointAnchor"
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Refuse a fixed-point value in krn state set that state check rejects",
+  "after": [],
+  "body": [
+    "Outcome: krn state set refuses a fixed-point value that krn state check reports as missing-fixed-point.\nWhy: on 2026-11-09 the lead set the fingerprint field to 'main da62997 clean' and then a full SHA without HEAD=; set exited 0 both times and check then failed with missing-fixed-point (session e6cd06a1). #504 promised set refuses values check rejects.\nProof: test/state/write.test.ts sets a fingerprint without base=/HEAD= and expects exit 64 naming the HEAD=<sha> form.\nScope: src/state/write.ts, test/state/write.test.ts."
+  ]
+}

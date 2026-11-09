@@ -7,6 +7,8 @@ import {
   ABI_LABELS,
   type AbiLabel,
   type AcceptanceItem,
+  FIXED_POINT_LABEL,
+  hasFixedPointAnchor,
   OUTCOME_STATES,
   PUBLICATION_STATES,
   parseAcceptance,
@@ -71,6 +73,10 @@ function validateValue(label: AbiLabel, value: string): void {
         `acceptance entries must read [criterion; todo|pass|drop:<why>] with no comma inside an entry: ${malformed.join(' | ')}; use \`krn state accept\``,
       );
   }
+  if (label === FIXED_POINT_LABEL && !hasFixedPointAnchor(value))
+    throw new Error(
+      `fixed point needs an anchor such as HEAD=<sha> or base=<sha> (or fingerprint=<value>): ${value}`,
+    );
   if (label === 'Outstanding workflow-run cleanup') {
     const { malformed } = parseCleanup(value);
     if (malformed.length > 0)

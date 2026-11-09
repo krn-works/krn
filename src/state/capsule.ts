@@ -66,6 +66,15 @@ export function stripMarkup(value: string): string {
   return value.replace(/[`<>]/g, '').trim();
 }
 
+export const FIXED_POINT_LABEL =
+  'Repository base, HEAD or working-tree fingerprint, and dirty-state scope';
+
+// The fixed point needs one key=value anchor; `krn state check` reports
+// missing-fixed-point without it and `krn state set` refuses it.
+export function hasFixedPointAnchor(value: string): boolean {
+  return /\b(base|HEAD|fingerprint)\s*=\s*[^\s,;]+/i.test(stripMarkup(value));
+}
+
 export interface CleanupEntry {
   pointer: string;
   workflow: string;
