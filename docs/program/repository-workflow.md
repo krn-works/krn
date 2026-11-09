@@ -18,7 +18,7 @@ Use the selected in-repository `krn task` tracker as the task-status source: sto
 
 The tracker records task status, not PR acceptance. Delivery has one gate: required CI on the exact HEAD (`npm run gate` locally; the aggregate GitHub Actions `Check`, App `15368`, `.github/workflows/ci.yml`). Before committing run `npm run fast` once (Biome `--write` and tsc on changed files plus tests touching changed or deleted files, one PASS/FAIL line; CI runs the rest); then `gh pr create --head <branch>` and `gh pr merge --auto --squash`. `krn review` (parallel `standards`, `spec` and `adversarial` judges, [`src/flow/types.ts`](../../src/flow/types.ts)) and `npm run gate` stay available on demand; no record, budget, brief or contract trailer is required for a merge.
 
-When an outcome uses a delivery-loop capsule, its state belongs at `.krn/runs/delivery-loop/<outcome-id>/state.md`. The delivery-loop owner is its sole writer; use the global KRN install's `krn state check` (PATH, not `bin/krn`, which exits 64 for `state`) to validate it and `krn state resume` to resume it. Durable repository decisions belong in `CONTEXT.md` and `docs/adr/`. Native Goals, transcripts, and personal memory are not durable repository truth.
+When an outcome uses a delivery-loop capsule, its state belongs at `.krn/runs/delivery-loop/<outcome-id>/state.md`. The delivery-loop owner is its sole writer; use `krn state check` to validate it and `krn state resume` to resume it. Durable repository decisions belong in `CONTEXT.md` and `docs/adr/`. Native Goals, transcripts, and personal memory are not durable repository truth.
 
 ## Roles and delivery
 

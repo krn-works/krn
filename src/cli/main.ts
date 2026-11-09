@@ -71,12 +71,15 @@ export function main(args = process.argv.slice(2)): void {
     return;
   }
 
-  const note =
-    args[0] === 'state'
-      ? 'The capsule `state` command belongs to the global KRN install; run `krn state ...` from PATH, not bin/krn.\n'
-      : '';
+  if (args[0] === 'state') {
+    void import('./state-forward.ts').then(({ forwardState }) => {
+      process.exitCode = forwardState(args.slice(1));
+    });
+    return;
+  }
+
   process.stderr.write(
-    `krn: unknown command "${args[0]}"\n${note}Run \`krn --help\` for the commands this CLI owns.\n`,
+    `krn: unknown command "${args[0]}"\nRun \`krn --help\` for the commands this CLI owns.\n`,
   );
   process.exitCode = 64;
 }

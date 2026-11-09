@@ -24,8 +24,8 @@ const documents = [
   ...listed('.claude/agents'),
   ...skills,
 ];
-// `state` belongs to the global KRN install; `work` is named only as replaced.
-const elsewhere = new Set(['state', 'work']);
+// `work` is named only as replaced.
+const elsewhere = new Set(['work']);
 
 function spans(): { file: string; text: string }[] {
   return documents.flatMap((file) =>

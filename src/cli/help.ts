@@ -11,6 +11,8 @@ const usage: Readonly<Record<string, string>> = {
     'krn brain packet <fr40-task-id> [--arm brain|static] [--write] [--json]  FR-40 shadow packet: record ids, as-of date, tokens',
   doctor:
     'krn doctor  reports the host `krn task` entry, its commit and origin/main; exit 78 when stale or unpinned',
+  state:
+    'krn state check|resume --root DIR  capsule check and resume; runs the installed legacy release (KRN_STATE_ENTRY overrides) until t-3yss2y9',
   ci: 'krn ci wait|logs  wait: --repo OWNER/REPO --pr N --head SHA --base SHA [--timeout-seconds N] [--start-timeout-seconds N] [--merge-timeout-seconds N] (auto-merge: waits for the merge, refreshes the pinned Product entry); logs: --repo OWNER/REPO --run ID [--lines N] prints failed-job log tails across every attempt',
 };
 

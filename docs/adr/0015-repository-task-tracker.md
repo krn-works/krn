@@ -70,10 +70,10 @@ records as closed.
 
 ## Routing
 
-The installer-owned GLOBAL `~/.local/bin/krn` forwards `krn task …` to the
-Product executable configured by `KRN_PRODUCT_ENTRY` or
-`~/.config/krn/product-entry` (GLOBAL #457, #459). On the host, that entry
-points to Product `bin/krn`, which runs the Node version pinned in
+On the host, `~/.local/bin/krn` links to the pinned Product entry (t-ez3nsc3;
+until then the GLOBAL release forwarded `krn task …` through `KRN_PRODUCT_ENTRY`
+or `~/.config/krn/product-entry`, GLOBAL #457, #459). That entry is Product
+`bin/krn`, which runs the Node version pinned in
 `.node-version`. The entry must not be the lead working checkout, whose commit
 moves with every branch switch. `scripts/product-release.sh` keeps a detached
 worktree at `.krn/product-release` on `origin/main`; `krn ci wait` runs it once

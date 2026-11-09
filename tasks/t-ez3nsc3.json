@@ -1,7 +1,11 @@
 {
   "id": "t-ez3nsc3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "PATH krn links to .krn/product-release/bin/krn; Product bin/krn state forwards to the installed legacy release until t-3yss2y9; host link switched after merge"
+  },
   "created": "2026-11-09",
   "priority": 1,
   "title": "Point krn on PATH at the repository CLI",
