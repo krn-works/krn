@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -225,6 +226,103 @@ test('fast check --base replays a merged deleted-file commit without a reset', (
   );
   git('add', '-A');
   git('commit', '-qm', 'base');
+  const base = spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd: dir,
+    encoding: 'utf8',
+  }).stdout.trim();
+  git('rm', '-q', 'gone.ts');
+  git('commit', '-qm', 'delete');
+  const plain = runFast(dir);
+  assert.match(plain.stdout, /PASS: no changed files/u);
+  const replay = spawnSync(process.execPath, [script, '--base', base], {
+    cwd: dir,
+    encoding: 'utf8',
+    env: { ...process.env, NODE_TEST_CONTEXT: undefined },
+  });
+  assert.equal(replay.status, 1, replay.stderr + replay.stdout);
+  assert.match(replay.stdout, /fast FAIL \(test\)/u);
+});
+
+test('fast check exits 64 for an unknown --base commit or a missing value', () => {
+  const { dir } = repoWithChange();
+  for (const args of [['--base', 'nope'], ['--base'], ['--bogus']]) {
+    const result = spawnSync(process.execPath, [script, ...args], {
+      cwd: dir,
+      encoding: 'utf8',
+    });
+    assert.equal(result.status, 64, result.stderr);
+    assert.match(result.stderr, /^fast: /u);
+    assert.equal(result.stdout, '');
+  }
+});
+
+test('fast check exits 2 naming the git command when cwd is outside any repository', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'fast-norepo-'));
+  const result = spawnSync(process.execPath, [script], {
+    cwd: dir,
+    encoding: 'utf8',
+    env: { ...process.env, GIT_CEILING_DIRECTORIES: tmpdir() },
+  });
+  assert.equal(result.status, 2, result.stderr + result.stdout);
+  assert.match(result.stderr, /^fast: `git [^`]+` failed/u);
+  assert.doesNotMatch(result.stdout, /PASS/u);
+});
+
+test('fast check exits 2 naming the git command when the index is corrupt', () => {
+  const { dir } = repoWithChange();
+  writeFileSync(join(dir, '.git/index'), 'not an index');
+  const result = runFast(dir);
+  assert.equal(result.status, 2, result.stderr + result.stdout);
+  assert.match(result.stderr, /^fast: `git [^`]+` failed/u);
+  assert.doesNotMatch(result.stdout, /PASS/u);
+});
+
+test('fast check exits 2 when no merge base exists instead of diffing HEAD', () => {
+  const { dir, git } = repoWithChange();
+  git('branch', '-m', 'main', 'topic');
+  const result = runFast(dir);
+  assert.equal(result.status, 2, result.stderr + result.stdout);
+  assert.match(result.stderr, /no merge base .* pass --base/u);
+});
+
+function stubTools(dir: string, tsc: string): void {
+  const bin = join(dir, 'node_modules/.bin');
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(join(bin, 'tsc'), `#!/bin/sh\n${tsc}\n`);
+  writeFileSync(join(bin, 'biome'), '#!/bin/sh\n');
+  chmodSync(join(bin, 'tsc'), 0o755);
+  chmodSync(join(bin, 'biome'), 0o755);
+}
+
+test('fast check reuses a cached pass on an unchanged tree and any edit invalidates it', () => {
+  const { dir } = repoWithChange();
+  const runs = join(dir, 'tsc-runs');
+  stubTools(dir, `echo x >> ${runs}`);
+  const count = () => readFileSync(runs, 'utf8').split('\n').length - 1;
+  const first = runFast(dir);
+  assert.match(first.stdout, /fast PASS:/u, first.stderr + first.stdout);
+  assert.equal(count(), 1);
+  const second = runFast(dir);
+  assert.equal(second.status, 0);
+  assert.match(second.stdout, /fast PASS \(cached\):/u);
+  assert.equal(count(), 1);
+  writeFileSync(join(dir, 'a.ts'), '3');
+  assert.match(runFast(dir).stdout, /fast PASS:/u);
+  assert.equal(count(), 2);
+  writeFileSync(join(dir, 'new.ts'), '4');
+  assert.doesNotMatch(runFast(dir).stdout, /cached/u);
+  assert.equal(count(), 3);
+});
+
+test('fast check does not cache a FAIL and a changed base misses', () => {
+  const { dir, git } = repoWithChange();
+  const verdict = join(dir, 'verdict');
+  stubTools(dir, `exit $(cat ${verdict})`);
+  writeFileSync(verdict, '1');
+  assert.equal(runFast(dir).status, 1);
+  writeFileSync(verdict, '0');
+  assert.match(runFast(dir).stdout, /fast PASS:/u);
+  assert.match(runFast(dir).stdout, /cached/u);
   git('commit', '--allow-empty', '-qm', 'moves the base');
   assert.doesNotMatch(runFast(dir).stdout, /cached/u);
 });
