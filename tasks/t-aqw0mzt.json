@@ -1,0 +1,16 @@
+{
+  "id": "t-aqw0mzt",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "rule no longer demands weights for new files; capacity rule counts size-fallback weights"
+  },
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Stop new test files from needing a hand-written shard weight",
+  "after": [],
+  "body": [
+    "Test files added since the last refresh are weighted by the sharder's size fallback; the capacity rule counts them."
+  ]
+}

@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFileSync, realpathSync } from 'node:fs';
+import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { relative, sep } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { TEST_FILE_WEIGHTS } from '../../scripts/lib/shard-weights.mjs';
+import { fileWeight } from '../../scripts/lib/test-shards.mjs';
 import {
   MAX_SHARD_WEIGHT_SECONDS,
   MAX_TEST_FILE_SECONDS,
@@ -13,15 +14,14 @@ import { selectTestFiles } from '../../scripts/test-suite.mjs';
 // A rule test so `npm run fast` runs it whenever a test file is added or removed.
 const root = realpathSync(fileURLToPath(new URL('../..', import.meta.url)));
 
-test('every test file has a shard weight and every weight a test file', () => {
-  const files = selectTestFiles([], root).map((file) =>
-    relative(root, file).split(sep).join('/'),
-  );
-  assert.deepEqual(
-    files.filter((file) => !Object.hasOwn(TEST_FILE_WEIGHTS, file)),
-    [],
-    'add a weight in scripts/lib/shard-weights.mjs; the refresh script adds files only after CI samples exist',
-  );
+// A new test file needs no hand-written weight: the sharder weighs it by size
+// until `scripts/shard-weights-refresh.mjs --write` records CI samples. Only a
+// weight naming a deleted file is an error.
+const files = selectTestFiles([], root).map((file) =>
+  relative(root, file).split(sep).join('/'),
+);
+
+test('no weight names a deleted test file', () => {
   assert.deepEqual(
     Object.keys(TEST_FILE_WEIGHTS).filter((file) => !files.includes(file)),
     [],
@@ -46,7 +46,7 @@ test('no test file is heavy enough to bound its shard wall', () => {
   );
 });
 
-// Tests grow the suite between weight refreshes; once the summed weight per
+// Tests grow the suite between weight refreshes (weighted or not); once the summed weight per
 // CI shard passes the bound, the mean shard reaches the 18 s target and only
 // another shard restores it.
 test('the CI shard count keeps the summed weight per shard within its bound', () => {
@@ -55,7 +55,12 @@ test('the CI shard count keeps the summed weight per shard within its bound', ()
     /^ {6}KRN_TEST_SHARD_TOTAL: '(\d+)'$/mu.exec(workflow)?.[1],
   );
   assert.ok(shards > 0, 'ci.yml sets KRN_TEST_SHARD_TOTAL');
-  const total = Object.values(TEST_FILE_WEIGHTS).reduce((a, b) => a + b, 0);
+  // Unweighted files count at the weight the sharder gives them, so a new
+  // test file that overflows the shards fails here, not on main.
+  const total = files.reduce(
+    (sum, file) => sum + fileWeight(file, statSync(`${root}/${file}`).size),
+    0,
+  );
   const perShard = Math.round((total / shards) * 10) / 10;
   assert.ok(
     perShard <= MAX_SHARD_WEIGHT_SECONDS,
