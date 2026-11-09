@@ -40,7 +40,7 @@ test('explicit models, other agent types and an unset variable stay untouched', 
     updatedInput(call({ subagent_type: 'Explore', model: 'opus' }), env),
     undefined,
   );
-  for (const subagent_type of ['general-purpose', 'fork', 'krn-reader'])
+  for (const subagent_type of ['fork', 'krn-reader'])
     assert.equal(updatedInput(call({ subagent_type }), env), undefined);
   assert.equal(updatedInput(call({ prompt: 'p' }), env), undefined);
   assert.equal(
@@ -65,7 +65,7 @@ test('the hook prints updatedInput and stays silent otherwise', () => {
       updatedInput: { subagent_type: 'Explore', prompt: 'p', model: 'sonnet' },
     },
   });
-  const silent = run({ subagent_type: 'general-purpose' });
+  const silent = run({ subagent_type: 'fork' });
   assert.equal(silent.status, 0);
   assert.equal(silent.stdout, '');
 });
@@ -81,4 +81,21 @@ test('project settings run the hook before every Agent call', () => {
   );
   assert.ok(entry, 'subagent-model hook missing from .claude/settings.json');
   assert.ok(entry.matcher.split('|').includes('Agent'));
+});
+
+test('general-purpose lanes are routed to krn-lane, which carries a turn ceiling', () => {
+  assert.deepEqual(
+    updatedInput(
+      call({ subagent_type: 'general-purpose', model: 'opus', prompt: 'p' }),
+      undefined,
+    ),
+    { subagent_type: 'krn-lane', model: 'opus', prompt: 'p' },
+  );
+  const agent = readFileSync(
+    fileURLToPath(new URL('../../.claude/agents/krn-lane.md', import.meta.url)),
+    'utf8',
+  );
+  const turns = Number(/^maxTurns:\s*(\d+)/m.exec(agent)?.[1]);
+  assert.ok(turns >= 60 && turns <= 90, 'krn-lane needs maxTurns of 60 to 90');
+  assert.ok(!/^tools:/m.test(agent), 'krn-lane keeps the full tool set');
 });
