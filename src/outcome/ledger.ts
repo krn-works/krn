@@ -399,10 +399,10 @@ async function jsonlFiles(path: string) {
   }
 }
 // Lead sessions are the top-level transcripts; each session's subagents live in <session>/subagents/.
-async function sessions(path: string) {
+async function sessions(paths: string[]) {
   const lead: Session[] = [];
   const subagents: Transcript[] = [];
-  for (const file of await jsonlFiles(path)) {
+  for (const file of (await Promise.all(paths.map(jsonlFiles))).flat()) {
     const session = await readSession(file);
     if (!session) continue;
     lead.push(session);
@@ -423,6 +423,27 @@ async function sessions(path: string) {
     }
   }
   return { lead, subagents };
+}
+/**
+ * Claude project directories whose session cwd is the root or one of its
+ * `.krn/worktrees/*` checkouts: the root-derived name plus its
+ * `--krn-worktrees-` variants (a sibling such as `<root>-betting` never matches).
+ */
+export async function transcriptDirs(
+  root: string,
+  projects = join(homedir(), '.claude/projects'),
+): Promise<string[]> {
+  const base = root.replaceAll(sep, '-');
+  const worktrees = `${base}--krn-worktrees-`;
+  let names: string[] = [];
+  try {
+    names = (await readdir(projects)).filter(
+      (n) => n === base || n.startsWith(worktrees),
+    );
+  } catch {
+    names = [base];
+  }
+  return names.sort().map((n) => join(projects, n));
 }
 const OUTCOME_DAYS = 7;
 /**
@@ -540,10 +561,9 @@ export async function collectLedger(options: LedgerOptions = {}) {
   );
   const all: Session[] = [];
   const attributed = new Map<number, Session[]>();
-  const transcriptDir =
-    options.transcripts ??
-    join(homedir(), '.claude/projects', root.replaceAll(sep, '-'));
-  const transcripts = await sessions(transcriptDir);
+  const transcripts = await sessions(
+    options.transcripts ? [options.transcripts] : await transcriptDirs(root),
+  );
   const costs = sliceCosts(
     transcripts.lead.map((s) => ({
       role: 'lead',
