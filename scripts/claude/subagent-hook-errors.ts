@@ -21,25 +21,32 @@ import { join } from 'node:path';
 // PostToolUse in the parent (foreground Agent return, or any later tool call) delivers it
 // as `additionalContext` and clears it. SubagentStop never blocks and prints nothing.
 
+// A hook error is the whole tool result or user text: Claude Code writes it as
+// `PreToolUse:Bash hook error: [<command>]: <stderr>` at the start of the entry. The same
+// words further inside an entry are content the subagent read (a file, a transcript, a log
+// summary), not an error it hit, so the pattern is anchored to the entry start.
 const hookError =
-  /(PreToolUse|PostToolUse|Stop|SubagentStop|SessionStart|UserPromptSubmit)(:\w+)? hook (error|blocking error|failed)/gu;
+  /^(PreToolUse|PostToolUse|Stop|SubagentStop|SessionStart|UserPromptSubmit)(:\w+)? hook (error|blocking error|failed)/u;
 const shown = 2;
 const width = 100;
 
 export type Found = { count: number; first: string[] };
 
-function text(content: unknown): string {
-  if (typeof content === 'string') return content;
-  if (!Array.isArray(content)) return '';
-  return content
-    .map((item: { content?: unknown; text?: unknown }) =>
-      typeof item?.content === 'string'
-        ? item.content
-        : typeof item?.text === 'string'
-          ? item.text
-          : '',
-    )
-    .join('\n');
+type Item = { content?: unknown; text?: unknown };
+
+/** Each tool result or text block of a user message, as its own entry. */
+function entries(content: unknown): string[] {
+  if (typeof content === 'string') return [content];
+  if (!Array.isArray(content)) return [];
+  return content.flatMap((item: Item) => {
+    if (typeof item?.text === 'string') return [item.text];
+    if (typeof item?.content === 'string') return [item.content];
+    if (Array.isArray(item?.content))
+      return (item.content as Item[]).flatMap((part) =>
+        typeof part?.text === 'string' ? [part.text] : [],
+      );
+    return [];
+  });
 }
 
 /** Count user-message hook errors in a transcript, once per message and error text. */
@@ -53,10 +60,11 @@ export function scan(transcript: string): Found {
       continue;
     }
     if (entry?.type !== 'user') continue;
-    const body = text(entry.message?.content);
     const seen = new Set<string>();
-    for (const match of body.matchAll(hookError)) {
-      const mark = body.indexOf(']: ', (match.index ?? 0) + match[0].length);
+    for (const body of entries(entry.message?.content)) {
+      const match = hookError.exec(body);
+      if (!match) continue;
+      const mark = body.indexOf(']: ', match[0].length);
       const message = (
         mark < 0 ? '' : (body.slice(mark + 3).split('\n')[0] ?? '')
       )

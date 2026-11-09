@@ -1,7 +1,11 @@
 {
   "id": "t-h85d708",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Monitor anchored to the entry start. Live probe in lead session a19d9519 (krn-reader lane read a file quoting the error text, no real refusal): delivery reached the lead via PostToolUse; main's unanchored scan counted 1 false positive, the anchored scan counts 0 and scan.py says CLEAN. TS and scan.py agree on all 7 sessions with subagent hook errors."
+  },
   "created": "2026-11-09",
   "priority": 1,
   "title": "Prove the subagent hook-error monitor on live lanes and ignore error text inside read content",
