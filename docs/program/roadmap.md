@@ -10,11 +10,10 @@ Maintenance:
 
 | Rank | Id | Opportunity | Area | Evidence | Expected saving | Task |
 |---|---|---|---|---|---|---|
-| 1 | R1 | Cut the lead startup bundle below 8 kB | tokens | `.krn/runs/roadmap-refill-3/session-cost.md`: 13% of lead $, median 25.7 kB in the first 6 Bash calls | ~$0.4 per session | t-q7j3zfw |
 | 2 | R2 | Reuse a cached `npm run fast` pass | tokens | `.krn/runs/roadmap-refill-3/session-cost.md`: 4.5 runs per PR, 157 pass-after-pass, 7.7% of lead $ | ~1 turn per rerun | t-gm82yth |
-| 3 | R3 | Bound GitHub calls with a per-call timeout | delivery | `.krn/runs/roadmap-refill-3/gh-timeouts.md`: `github()` spawns with a 1 h timeout; host stalls ~1 in 3 connections | removes hour-long hangs in `krn ci wait` | t-xtmc5e6 |
-| 4 | R4 | Cut subagent spend | tokens | `.krn/runs/roadmap-refill-2/tokens.md`: $216 of $462 since 11-07 | up to ~47% of slice dollars | t-akp44kt |
-| 5 | R5 | Confirm the #472 read refusal on 20 sessions | tokens | `.krn/runs/roadmap-refill/post-472-n7.md`: 7 sessions, 47% | decides a second step | t-zz33vhy |
+| 2 | R2 | Bound GitHub calls with a per-call timeout | delivery | `.krn/runs/roadmap-refill-3/gh-timeouts.md`: `github()` spawns with a 1 h timeout; host stalls ~1 in 3 connections | removes hour-long hangs in `krn ci wait` | t-xtmc5e6 |
+| 3 | R3 | Cut subagent spend | tokens | `.krn/runs/roadmap-refill-2/tokens.md`: $216 of $462 since 11-07 | up to ~47% of slice dollars | t-akp44kt |
+| 4 | R4 | Confirm the #472 read refusal on 20 sessions | tokens | `.krn/runs/roadmap-refill/post-472-n7.md`: 7 sessions, 47% | decides a second step | t-zz33vhy |
 
 Sector plan (t-8hnmfr9), refilled by t-y3chym7: cost is dollars per merged PR (cache reads ~10% of input), not raw tokens. Since 2026-11-07 lead sessions cost median $1.62 and 41 turns per PR; Bash results are 94% of lead tool bytes, half of them file reads; 35% of lead cache reads come from turns over 150k (`.krn/runs/roadmap-refill-2/tokens.md`). KRN-owned startup text is ~2.3k of the ~25k first turn: closed as a track after t-bdhn7mw. The global skill listing (~17 kB per turn, mostly non-KRN skills) is the operator's call. t-qdzy8w7: handoff re-reads fell from 104 of 109 sessions to 1 of 4 (provisional). Delivery and CI time hold no row: PR open-to-merge median 1.6 min, Check median 58 s, 2 of 60 runs failed and none was rerun (`.krn/runs/roadmap-refill-3/ci-friction.md`, refilled by t-kb4mvq8).
 
