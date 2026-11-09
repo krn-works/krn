@@ -4,7 +4,9 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { base, flag, setup } from './nontechnical-blocker-fixture.ts';
 
-test('a vague blocker on a report with no changes is flagged and an exit blocker with a command is not, on start and send', async (t) => {
+test('a vague blocker on a report with no changes is flagged and an exit blocker with a command is not, on start and send', {
+  concurrency: 6,
+}, async (t) => {
   for (const [name, report, flagged] of [
     ['vague partial', { blockers: ['no time left'] }, true],
     ['empty blocked', { status: 'blocked' }, true],
@@ -19,7 +21,7 @@ test('a vague blocker on a report with no changes is flagged and an exit blocker
       false,
     ],
   ] as const) {
-    await t.test(name, async (t) => {
+    t.test(name, async (t) => {
       const s = await setup(t);
       writeFileSync(
         join(s.root, 'report'),
