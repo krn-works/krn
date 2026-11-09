@@ -1,5 +1,6 @@
 import { inspectState } from '../state/check.ts';
 import { resumeBrief } from '../state/resume.ts';
+import { flagValue } from './flag-value.ts';
 import { CliUsageError } from './usage-error.ts';
 
 const usage =
@@ -17,9 +18,11 @@ export function stateCommand(args: string[]): void {
     const arg = args[index] as string;
     if (arg === '--json') json = true;
     else if (arg === '--root') {
-      const value = args[index + 1];
-      if (value === undefined || value === '' || value.startsWith('--'))
-        throw new CliUsageError('--root requires a value');
+      const value = flagValue(
+        args,
+        index,
+        () => new CliUsageError('--root requires a value'),
+      );
       if (root !== undefined) throw new CliUsageError('--root given twice');
       root = value;
       index += 1;
