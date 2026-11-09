@@ -129,5 +129,7 @@ test('research lanes read untrusted content without a shell, file writes or sub-
     'utf8',
   );
   assert.match(lanes, /`krn-research`/u);
+  assert.match(lanes, /bin\/krn ci wait --repo/u);
+  assert.doesNotMatch(lanes, /every 60s/u);
   assert.match(lanes, /general-purpose lane/u);
 });
