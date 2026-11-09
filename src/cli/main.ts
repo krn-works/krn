@@ -58,22 +58,22 @@ export function main(args = process.argv.slice(2)): void {
   }
 
   if (
-    ['ledger', 'task', 'worker', 'eval', 'ci', 'doctor', 'brain'].includes(
-      args[0] ?? '',
-    )
+    [
+      'ledger',
+      'task',
+      'worker',
+      'eval',
+      'ci',
+      'doctor',
+      'brain',
+      'state',
+    ].includes(args[0] ?? '')
   ) {
     void dispatch(args).catch((error: unknown) => {
       process.stderr.write(
         `${error instanceof Error ? error.message : String(error)}\n`,
       );
       process.exitCode = commandErrorExitCode(error);
-    });
-    return;
-  }
-
-  if (args[0] === 'state') {
-    void import('./state-forward.ts').then(({ forwardState }) => {
-      process.exitCode = forwardState(args.slice(1));
     });
     return;
   }

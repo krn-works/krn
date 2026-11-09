@@ -1,0 +1,34 @@
+capsule main
+outcome: [state check exits 1; todo]
+state: COMPLETE / publication MERGED
+owner: lead
+next: none
+authority: writes=repo
+blockers: none
+evidence: <fill: evidence>
+non-proofs: none
+review: pending
+restart: .krn/runs/lead/restart.md
+goal/tracker: t-fixture1 state=open
+durable refs: none
+friction: candidate: t-missing9
+repo: recorded fixed point 5f4b00f22605b2f4b5a0e78bd76e556886bda413 / live HEAD 5f4b00f22605b2f4b5a0e78bd76e556886bda413 (no recorded HEAD); dirty 0 paths
+cleanup: listed 1 / live 1; missing .krn/runs/lead/gone; unlisted .krn/runs/lead/evidence
+cleanup entries: .krn/runs/lead/gone [lead; next lead; ghost; ACTIVE]
+
+workflow lessons: none
+
+Blocking errors:
+- unresolved-placeholder: Evidence observed
+- complete-with-open-acceptance: state check exits 1
+- dangling-candidate: t-missing9
+- restart-path-missing: .krn/runs/lead/restart.md
+- ghost-cleanup-entry: .krn/runs/lead/gone (ACTIVE)
+- complete-without-commit-anchor: base=5f4b00f22605b2f4b5a0e78bd76e556886bda413
+- complete-with-cleanup: COMPLETE capsules must have no outstanding cleanup
+- complete-with-restart: .krn/runs/lead/restart.md
+- complete-with-pending-review: pending
+- complete-with-active-participant: t-fixture1 state=open
+- orphaned-run: .krn/runs/lead/evidence
+
+Run `krn state check` before resuming or completing.

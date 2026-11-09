@@ -1,7 +1,11 @@
 {
   "id": "t-3yss2y9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn state check|resume ported to src/state; state-forward and its receivers entry deleted; fixtures captured from the legacy release; live repo output identical (exit 1 divergent for both, same stderr)"
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Port krn state check and resume into the Product CLI",

@@ -12,7 +12,7 @@ const usage: Readonly<Record<string, string>> = {
   doctor:
     'krn doctor  reports the host `krn task` entry, its commit and origin/main; exit 78 when stale or unpinned',
   state:
-    'krn state check|resume --root DIR  capsule check and resume; runs the installed legacy release (KRN_STATE_ENTRY overrides) until t-3yss2y9',
+    'krn state check|resume [--root DIR] [--json]  delivery-loop capsule check and resume brief; exit 1 when divergent',
   ci: 'krn ci wait|logs  wait: --repo OWNER/REPO --pr N --head SHA --base SHA [--timeout-seconds N] [--start-timeout-seconds N] [--merge-timeout-seconds N] (auto-merge: waits for the merge, refreshes the pinned Product entry); logs: --repo OWNER/REPO --run ID [--lines N] prints failed-job log tails across every attempt',
 };
 

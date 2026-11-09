@@ -1,0 +1,11 @@
+error: unresolved-placeholder: Evidence observed
+error: complete-with-open-acceptance: state check exits 1
+error: dangling-candidate: t-missing9
+error: restart-path-missing: .krn/runs/lead/restart.md
+error: ghost-cleanup-entry: .krn/runs/lead/gone (ACTIVE)
+error: complete-without-commit-anchor: base=5f4b00f22605b2f4b5a0e78bd76e556886bda413
+error: complete-with-cleanup: COMPLETE capsules must have no outstanding cleanup
+error: complete-with-restart: .krn/runs/lead/restart.md
+error: complete-with-pending-review: pending
+error: complete-with-active-participant: t-fixture1 state=open
+error: orphaned-run: .krn/runs/lead/evidence
