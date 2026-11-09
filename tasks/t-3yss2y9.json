@@ -1,0 +1,12 @@
+{
+  "id": "t-3yss2y9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Port krn state check and resume into the Product CLI",
+  "after": [],
+  "body": [
+    "Outcome: `bin/krn state check|resume` runs Product code; src/cli/state-forward.ts and its spec/receivers.json pending entry are deleted; ~/.codex/krn is no longer read by any PATH command.\nWhy: t-ez3nsc3 pointed PATH krn at the Product checkout and forwards only `state` to the legacy release (~/.codex/krn/current/scripts/lib/state, about 950 lines plus lessons and kernel helpers). That release is the last legacy dependency of the lead loop.\nProof: `krn state check --root .` and `krn state resume --root .` print the same verdict and exit code as the legacy release on this repository (capture under test/fixtures), with KRN_STATE_ENTRY unset and ~/.codex/krn moved aside.\nScope: this repository."
+  ]
+}

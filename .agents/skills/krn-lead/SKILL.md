@@ -22,7 +22,7 @@ Your context window is the scarcest resource: model accuracy drops as inputs gro
 
 Operator: "wypierdol bramki po prostu koduj i bebesz masz na wszysko zgode". The grant covers everything in this repository; never wait on the operator.
 
-1. **Resume.** global `krn state resume --root .` (PATH, not `bin/krn`), `krn task ready`, `bin/krn task check --evidence`, `git fetch --prune`, open PRs, main CI. A second lane follows "Parallel lanes" in `docs/program/lead-rules.md`.
+1. **Resume.** `krn state resume --root .`, `krn task ready`, `bin/krn task check --evidence`, `git fetch --prune`, open PRs, main CI. A second lane follows "Parallel lanes" in `docs/program/lead-rules.md`.
 2. **Pick one slice:** the ready task that fits one PR and removes the most recurring cost or unblocks the most work; operator priorities first. Edit only this repository unless the operator asks otherwise. Say what you defer. Claim it from its worktree: `krn task claim <id> --actor lead --worktree <path> --reason <text>`.
 3. **Code** in a worktree under `.krn/worktrees/<purpose>`, yourself. Commit with `Ticket: <id>` when a task exists and `krn task close <id> --as done --note <text>` in the same PR (`Refs: <id>` if the PR leaves it open). Task notes: `krn task edit <id> --append-body`, not `krn task comment`. Batch fixes into one PR.
 4. **Retro, then check locally:** run `krn-retro` before the last commit (its edits ship in the slice PR), then `npm run fast` once (Biome `--write` and tsc on changed files, tests touching changed or deleted files, one verdict); CI runs the rest.

@@ -11,14 +11,14 @@
 
 ## Current control plane
 
-The in-repository `krn task` tracker is the task-status source. Its committed `tasks/<id>.json` records support dependencies, readiness, and claiming. It replaces the legacy Git-ref task queue and host-SQLite `krn work`; no Paperclip or legacy queue data is imported. Paperclip integration was removed from Product in #109 and from GLOBAL in krn-works/krn-codex-skills #461 (merge 26446dd5). The host Paperclip service and data were removed on operator order on 2026-10-27, without an archive. The installer-owned GLOBAL `~/.local/bin/krn` forwards `krn task …` to Product through `KRN_PRODUCT_ENTRY` or `~/.config/krn/product-entry` (#457, #459). Git history and PRs provide delivery evidence; no board publication replaces them. ADR 0014 D8 and ADR 0015 record the tracker decision; ADR 0013 keeps Product as the target home and Global as a compatibility boundary until its measured consolidation trigger fires.
+The in-repository `krn task` tracker is the task-status source. Its committed `tasks/<id>.json` records support dependencies, readiness, and claiming. It replaces the legacy Git-ref task queue and host-SQLite `krn work`; no Paperclip or legacy queue data is imported. Paperclip integration was removed from Product in #109 and from GLOBAL in krn-works/krn-codex-skills #461 (merge 26446dd5). The host Paperclip service and data were removed on operator order on 2026-10-27, without an archive. On the host, `~/.local/bin/krn` links to the pinned Product checkout's `bin/krn` at `.krn/product-release` (t-ez3nsc3); the GLOBAL release no longer sits on PATH. Git history and PRs provide delivery evidence; no board publication replaces them. ADR 0014 D8 and ADR 0015 record the tracker decision; ADR 0013 keeps Product as the target home and Global as a compatibility boundary until its measured consolidation trigger fires.
 
 The [plan](docs/program/PLAN.md) records sequence, not task status or additional authority. Read tracker status from `krn task`.
 
 ## Durable state
 
 - Accepted decisions live in [ADRs](docs/adr/README.md); repository workflow rules live in [repository workflow](docs/program/repository-workflow.md).
-- A delivery-loop continuation capsule lives at `.krn/runs/delivery-loop/<outcome-id>/state.md`. The delivery-loop owner is its sole writer; `krn state check` and `krn state resume` validate and resume it; they belong to the global KRN install on PATH, so run them as `krn state ...` (never `bin/krn state`, which exits 64).
+- A delivery-loop continuation capsule lives at `.krn/runs/delivery-loop/<outcome-id>/state.md`. The delivery-loop owner is its sole writer; `krn state check` and `krn state resume` validate and resume it; Product `bin/krn state` runs the installed legacy release's implementation (`KRN_STATE_ENTRY` overrides) until t-3yss2y9 ports it.
 - Merging is not a KRN command: an unknown command exits 64 and is never forwarded (KRN-06); merges happen through GitHub auto-merge.
 - Capsules and traces support continuation and evidence. They do not replace task status, acceptance, or ADRs.
 
