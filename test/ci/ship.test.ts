@@ -96,6 +96,8 @@ test('ship pushes, creates, auto-merges, waits through the merge and cleans up',
     out,
     /^cleanup: removed worktree \/r\/\.krn\/worktrees\/feat-x and branch feat-x$/mu,
   );
+  // The removed worktree was the caller's cwd: name where to cd next.
+  assert.match(out, /^main checkout: \/r$/mu);
   const order = [
     'push -u origin feat-x',
     'gh pr list',
