@@ -226,6 +226,16 @@ test('CI test shards enable user namespaces after install and before the shard r
   assert.equal(action.match(/sysctl/gu)?.length, 1);
   assert.doesNotMatch(action, /setup-go|infra\/ci/u);
   assert.match(action, /uses: actions\/cache@/u);
+  // setup-node reuses RUNNER_TOOL_CACHE, so the pinned toolchain restores
+  // there before setup-node runs instead of downloading on every shard.
+  const nodeCacheIndex = action.indexOf(
+    'path: ${{ runner.tool_cache }}/node/${{ steps.node-version.outputs.version }}',
+  );
+  assert.ok(
+    nodeCacheIndex !== -1 &&
+      nodeCacheIndex < action.indexOf('uses: actions/setup-node@'),
+    'the pinned Node.js toolchain is restored before setup-node',
+  );
 
   const source = await readFile(workflowPath, 'utf8');
   const jobs = jobBlocks(source);

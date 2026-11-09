@@ -1,0 +1,16 @@
+{
+  "id": "t-ymw2809",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "setup-ci restores RUNNER_TOOL_CACHE/node/<pinned> via actions/cache before setup-node"
+  },
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Cache the pinned Node.js toolchain in setup-ci",
+  "after": [],
+  "body": [
+    "Restore the pinned Node.js toolchain from actions/cache in .github/actions/setup-ci so setup-node finds it in RUNNER_TOOL_CACHE instead of downloading it (about 5 s per shard, about 3 s on the critical path). Keep the mise layout copy the sandbox tests use. Part of the CI speed gap t-wm22s14."
+  ]
+}
