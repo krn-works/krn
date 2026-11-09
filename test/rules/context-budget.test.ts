@@ -36,7 +36,16 @@ test('Claude context budget settings wire documented hooks and read-only reader'
   const guard = settings.hooks.PreToolUse;
   assert.deepEqual(
     guard.map((entry: { matcher: string }) => entry.matcher),
-    ['Write|Edit', 'Bash'],
+    [
+      'Write|Edit',
+      'Bash',
+      'Agent|Task|Workflow|WebFetch|WebSearch|NotebookEdit|Write|Edit',
+    ],
+  );
+  // The context ceiling refuses tools that start new work past 90%.
+  assert.equal(
+    guard[2].hooks[0].command,
+    'NODE_COMPILE_CACHE="$CLAUDE_PROJECT_DIR/.krn/cache/node" node "$CLAUDE_PROJECT_DIR/scripts/claude/context-gauge.ts"',
   );
   assert.equal(
     guard[0].hooks[0].command,

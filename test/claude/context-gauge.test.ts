@@ -246,3 +246,79 @@ test('gauge budget follows the project auto-compact window and ignores the measu
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('gauge repeats the advisory past the second threshold and refuses new work past the ceiling', () => {
+  const root = mkdtempSync(join(tmpdir(), 'context-gauge-'));
+  const transcript = join(root, 'transcript.jsonl');
+  // Derived from the verbatim below capture by changing the usage counters only.
+  const reading = (total: number) => {
+    const entry = JSON.parse(fixture('below').split('\n')[0] ?? '');
+    entry.message.usage = {
+      ...entry.message.usage,
+      input_tokens: 2,
+      cache_read_input_tokens: 0,
+      cache_creation_input_tokens: total - 2,
+    };
+    return `${JSON.stringify(entry)}\n`;
+  };
+  const run = (total: number, event: string, tool: object = {}) => {
+    writeFileSync(transcript, reading(total));
+    const result = spawnSync(process.execPath, [script], {
+      env: { ...process.env, CLAUDE_PROJECT_DIR: root, HOME: root },
+      encoding: 'utf8',
+      input: JSON.stringify({
+        session_id: 'session',
+        transcript_path: transcript,
+        hook_event_name: event,
+        ...tool,
+      }),
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, '');
+    return result.stdout;
+  };
+  const deny = (total: number, tool_name: string, tool_input: object = {}) => {
+    const out = run(total, 'PreToolUse', { tool_name, tool_input });
+    if (!out) return false;
+    const output = JSON.parse(out).hookSpecificOutput;
+    assert.equal(output.permissionDecision, 'deny');
+    assert.match(output.permissionDecisionReason, /ceiling.*krn-handoff/u);
+    return true;
+  };
+  try {
+    // Default 200k budget: second threshold 160k, ceiling 180k.
+    assert.match(run(161000, 'PostToolUse'), /nearly exhausted/u);
+    assert.equal(run(165000, 'PostToolUse'), '');
+    assert.match(
+      run(171000, 'PostToolUse'),
+      /171k of 200k, still past the handoff advisory.*180k new work is refused/u,
+    );
+    assert.equal(run(175000, 'PostToolUse'), '');
+    assert.match(run(181000, 'PostToolUse'), /181k/u);
+    assert.equal(deny(179000, 'Agent'), false);
+    for (const tool of ['Agent', 'Task', 'Workflow', 'WebFetch', 'WebSearch'])
+      assert.equal(deny(181000, tool), true, tool);
+    assert.equal(deny(181000, 'Bash', { command: 'git push' }), false);
+    assert.equal(deny(181000, 'Read', { file_path: 'src/a.ts' }), false);
+    assert.equal(deny(181000, 'Edit', { file_path: 'src/a.ts' }), true);
+    assert.equal(
+      deny(181000, 'Write', { file_path: join(root, '../a.md') }),
+      true,
+    );
+    assert.equal(
+      deny(181000, 'Write', {
+        file_path: '.krn/runs/delivery-loop/x/handoff.md',
+      }),
+      false,
+    );
+    assert.equal(
+      deny(181000, 'Write', {
+        file_path: join(root, '.claude/projects/p/memory/MEMORY.md'),
+      }),
+      false,
+    );
+    assert.equal(deny(181000, 'Edit', { file_path: '.krn/../src/a.ts' }), true);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
