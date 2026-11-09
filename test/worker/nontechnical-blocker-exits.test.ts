@@ -4,7 +4,9 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { base, flag, setup } from './nontechnical-blocker-fixture.ts';
 
-test('timeout and exit status blockers and changed paths are not flagged on start and send', async (t) => {
+test('timeout and exit status blockers and changed paths are not flagged on start and send', {
+  concurrency: 6,
+}, async (t) => {
   for (const [name, report, flagged] of [
     ['timeout', { blockers: ['tsc timed out after 600 s'] }, false],
     ['bare timeout', { blockers: ['timed out'] }, false],
@@ -15,7 +17,7 @@ test('timeout and exit status blockers and changed paths are not flagged on star
       false,
     ],
   ] as const) {
-    await t.test(name, async (t) => {
+    t.test(name, async (t) => {
       const s = await setup(t);
       writeFileSync(
         join(s.root, 'report'),

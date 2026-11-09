@@ -4,9 +4,11 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { alive, setup, signalPending, until } from './recovery-fixture.ts';
 
-test('stop recovers a missing server before the driver records dead and stops its remaining scope members', async (t) => {
+test('stop recovers a missing server before the driver records dead and stops its remaining scope members', {
+  concurrency: 6,
+}, async (t) => {
   for (const driver of ['live', 'dead']) {
-    await t.test(driver, async (t) => {
+    t.test(driver, async (t) => {
       const s = await setup(t);
       const pending = s.turn('hang-child', true);
       await until(() => pending.finished || existsSync(s.orphan));

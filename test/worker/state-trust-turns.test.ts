@@ -4,7 +4,9 @@ import { join, relative } from 'node:path';
 import { test } from 'node:test';
 import { alive, setup, until } from './state-trust-fixture.ts';
 
-test('a turn cannot change driver files, including the session state, but can use tmp', async (t) => {
+test('a turn cannot change driver files, including the session state, but can use tmp', {
+  concurrency: 6,
+}, async (t) => {
   for (const path of [
     'session.json',
     'driver.lock',
@@ -13,7 +15,7 @@ test('a turn cannot change driver files, including the session state, but can us
     'summary.json',
     'tmp/ok',
   ]) {
-    await t.test(path, async (t) => {
+    t.test(path, async (t) => {
       const s = setup(t);
       const result = await s.turn(
         `write ${relative(s.repo, join(s.run, path))}`,
@@ -48,12 +50,14 @@ test('state integrity is checked against driver memory before accepting another 
   assert.equal(s.rows().filter((r) => r.method === 'turn/start').length, 1);
   assert.equal(s.state().serverStartTime, saved.serverStartTime);
 });
-test('a turn cannot replace the tmp root with a symlink or create a stop request', async (t) => {
+test('a turn cannot replace the tmp root with a symlink or create a stop request', {
+  concurrency: 6,
+}, async (t) => {
   for (const action of [
     'relink .krn/runs/worker/tmp',
     'write .krn/runs/worker/stop',
   ]) {
-    await t.test(action, async (t) => {
+    t.test(action, async (t) => {
       const s = setup(t);
       const result = await s.turn(action, true);
       assert.equal(result.code, 3, result.stderr);

@@ -4,7 +4,9 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { alive, setup, until } from './recovery-fixture.ts';
 
-test('start refuses every prior session artefact by name before spawning a driver', async (t) => {
+test('start refuses every prior session artefact by name before spawning a driver', {
+  concurrency: 6,
+}, async (t) => {
   for (const artefact of [
     'error.json',
     'rounds',
@@ -15,7 +17,7 @@ test('start refuses every prior session artefact by name before spawning a drive
     'driver.lock',
   ]) {
     for (const shape of ['valid', 'malformed']) {
-      await t.test(`${artefact} ${shape}`, async (t) => {
+      t.test(`${artefact} ${shape}`, async (t) => {
         const s = await setup(t);
         mkdirSync(s.run, { recursive: true });
         const path = join(s.run, artefact);

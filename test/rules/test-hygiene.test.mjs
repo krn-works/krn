@@ -293,6 +293,10 @@ test('systemd stubs in test fixtures run in sh, not node', () => {
 // after another in a single test queue on that cost, so independent
 // setups run as concurrent subtests (t-ed32603).
 const loopedSetup = /\bfor \([^{}]*?\) \{\n\s*const \w+ = await setup\(t\)/u;
+// An awaited async subtest holds the queue until its setup and turns finish,
+// so a loop of them is serial even under { concurrency } (recovery-artefacts
+// ran 14 artefact scenarios in 8.2 s one after another).
+const awaitedSubtest = /\bawait t\.test\([^\n]*?,\s*async\b/u;
 
 /** Top-level tests that await more than one fixture setup in sequence. */
 export function serialSetups(file, text) {
@@ -304,7 +308,10 @@ export function serialSetups(file, text) {
     if (!block.startsWith('test(')) continue;
     const head = block.slice(0, block.indexOf('=>'));
     const setups = block.match(/await setup\(t\)/gu)?.length ?? 0;
-    if (!/concurrency/u.test(head) && (setups > 1 || loopedSetup.test(block))) {
+    if (
+      (!/concurrency/u.test(head) && (setups > 1 || loopedSetup.test(block))) ||
+      (awaitedSubtest.test(block) && /\bsetup\(t\)/u.test(block))
+    ) {
       problems.push(
         `${file}:${line} sequential fixture setups; run them as t.test subtests under { concurrency: 6 }`,
       );
@@ -346,9 +353,26 @@ test('the serial setup rule reports exactly the seeded violations', () => {
     '    });',
     '  }',
     '});',
+    "test('awaited', {",
+    '  concurrency: 6,',
+    '}, async (t) => {',
+    '  for (const a of [1, 2]) {',
+    '    await t.test(String(a), async (t) => {',
+    '      const s = await setup(t);',
+    '    });',
+    '  }',
+    '});',
+    "test('sync', async (t) => {",
+    '  for (const a of [1, 2]) {',
+    '    await t.test(String(a), (t) => {',
+    '      const s = setup(t);',
+    '    });',
+    '  }',
+    '});',
   ].join('\n');
   assert.deepEqual(serialSetups('seeded.test.ts', seeded), [
     'seeded.test.ts:2 sequential fixture setups; run them as t.test subtests under { concurrency: 6 }',
     'seeded.test.ts:7 sequential fixture setups; run them as t.test subtests under { concurrency: 6 }',
+    'seeded.test.ts:23 sequential fixture setups; run them as t.test subtests under { concurrency: 6 }',
   ]);
 });
