@@ -11,7 +11,6 @@ Maintenance:
 
 | Id | Opportunity | Area | Evidence | Expected saving | Task |
 |---|---|---|---|---|---|
-| R1 | Cut the lead startup bundle below 8 kB | tokens | `.krn/runs/roadmap-refill-3/session-cost.md`: 13% of lead $, median 25.7 kB in the first 6 Bash calls | ~$0.4 per session | t-q7j3zfw |
 | R2 | Cut subagent spend | tokens | `.krn/runs/roadmap-refill-2/tokens.md`: $216 of $462 since 11-07 | up to ~47% of slice dollars | t-akp44kt |
 | R3 | Confirm the #472 read refusal on 20 sessions | tokens | `.krn/runs/roadmap-refill/post-472-n7.md`: 7 sessions, 47% | decides a second step | t-zz33vhy |
 
