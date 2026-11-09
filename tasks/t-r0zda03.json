@@ -1,7 +1,11 @@
 {
   "id": "t-r0zda03",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane start refuses under 5 GB free or at 8 live worktrees; lanes.md names the budget"
+  },
   "created": "2026-11-09",
   "priority": 3,
   "title": "Guard krn lane start with a lane budget and host resources",

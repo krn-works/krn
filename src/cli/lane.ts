@@ -1,6 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, realpathSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  copyFileSync,
+  existsSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  statfsSync,
+} from 'node:fs';
+import { join, sep } from 'node:path';
 import { claimTask, mainCheckoutRoot } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
@@ -9,6 +16,48 @@ import { CliUsageError } from './usage-error.ts';
 
 export const laneUsage =
   'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--root DIR]  fetch origin main, create branch SLUG in .krn/worktrees/SLUG, claim the task; prints the path and branch';
+
+// Host budget: refuse below KRN_LANE_MIN_FREE_GB free (default 5) on the
+// repository or the lane temp dir, and at KRN_LANE_MAX_LIVE worktrees (default 8).
+function limit(name: string, fallback: number): number {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value >= 0 && process.env[name] !== ''
+    ? value
+    : fallback;
+}
+
+function freeGb(dir: string): number | undefined {
+  try {
+    const stats = statfsSync(dir);
+    return (stats.bavail * stats.bsize) / 1024 ** 3;
+  } catch {
+    return undefined;
+  }
+}
+
+export function checkLaneBudget(main: string): void {
+  const minFree = limit('KRN_LANE_MIN_FREE_GB', 5);
+  for (const dir of [
+    main,
+    process.env.KRN_LANE_TMP ?? join(sep, 'mnt', 'storage', 'tmp'),
+  ]) {
+    const free = freeGb(dir);
+    if (free !== undefined && free < minFree)
+      throw new CliUsageError(
+        `lane budget: only ${free.toFixed(1)} GB free under ${dir} (minimum ${minFree} GB, KRN_LANE_MIN_FREE_GB); free disk before starting a lane`,
+      );
+  }
+  const maxLive = limit('KRN_LANE_MAX_LIVE', 8);
+  const dir = join(main, '.krn', 'worktrees');
+  const live = existsSync(dir)
+    ? readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory())
+        .length
+    : 0;
+  if (live >= maxLive)
+    throw new CliUsageError(
+      `lane budget: ${live} live lane worktrees in ${dir} (maximum ${maxLive}, KRN_LANE_MAX_LIVE); ship or remove a lane first`,
+    );
+}
 
 function git(root: string, args: string[]): string {
   const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
@@ -80,6 +129,7 @@ export async function laneCommand(args: string[]): Promise<void> {
   if (gitOk(main, ['show-ref', '--verify', '--quiet', `refs/heads/${slug}`]))
     throw new CliUsageError(`branch ${slug} already exists`);
 
+  checkLaneBudget(main);
   git(main, ['fetch', '-q', 'origin', 'main']);
   const carried =
     task === undefined ? undefined : untrackedTaskRecord(origin, task);

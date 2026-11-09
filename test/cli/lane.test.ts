@@ -159,3 +159,38 @@ test('lane start refuses a task record tracked locally but absent from origin ma
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+function budgetLane(repo: string, env: Record<string, string>, slug: string) {
+  return spawnSync(process.execPath, [cli, 'lane', 'start', slug], {
+    cwd: repo,
+    encoding: 'utf8',
+    env: { ...process.env, ...env },
+  });
+}
+
+test('lane start refuses with exit 64 when free disk is below the minimum', () => {
+  const { base, repo } = fixture();
+  try {
+    const result = budgetLane(repo, { KRN_LANE_MIN_FREE_GB: '1e9' }, 'lowdisk');
+    assert.equal(result.status, 64);
+    assert.match(result.stderr, /lane budget: only .* GB free/u);
+    assert.equal(result.stdout, '');
+    assert.equal(existsSync(join(repo, '.krn', 'worktrees', 'lowdisk')), false);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('lane start refuses when the live lane worktree count reaches the maximum', () => {
+  const { base, repo } = fixture();
+  try {
+    const env = { KRN_LANE_MAX_LIVE: '1' };
+    assert.equal(budgetLane(repo, env, 'first').status, 0);
+    const second = budgetLane(repo, env, 'second');
+    assert.equal(second.status, 64);
+    assert.match(second.stderr, /1 live lane worktrees/u);
+    assert.equal(existsSync(join(repo, '.krn', 'worktrees', 'second')), false);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
