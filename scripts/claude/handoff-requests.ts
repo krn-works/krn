@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { resumeProblems, roadmapIds } from './handoff-resume.ts';
@@ -175,7 +176,23 @@ for (const problem of resumeProblems(text))
 const file = (path: string) =>
   statSync(path, { throwIfNoEntry: false })?.isFile() === true;
 
-// A named roadmap change must point at a real row of docs/program/roadmap.md.
+// Ids of rows deleted from the roadmap in its last 20 commits; stable ids
+// let a handoff name a row it pruned.
+function gitRemovedIds(dir: string): Set<string> {
+  const log = spawnSync(
+    'git',
+    ['log', '-n', '20', '-p', '--format=', '--', 'docs/program/roadmap.md'],
+    { cwd: dir, encoding: 'utf8', timeout: 5000 },
+  );
+  return new Set(
+    [...(log.stdout ?? '').matchAll(/^-\|\s*(R\d+)\s*\|/gmu)].map(
+      (match) => match[1] ?? '',
+    ),
+  );
+}
+
+// A named roadmap change must point at a row of docs/program/roadmap.md that
+// exists or was recently removed.
 const changed = roadmapIds(text);
 if (changed.length > 0) {
   let roadmap = '';
@@ -184,8 +201,13 @@ if (changed.length > 0) {
   } catch {
     /* reported per id below */
   }
+  // Stable ids: a row removed in this slice is still a named change.
+  const removed = gitRemovedIds(root);
   for (const id of changed)
-    if (!new RegExp(`^\\|[^|\\n]*\\|\\s*${id}\\s*\\|`, 'mu').test(roadmap))
+    if (
+      !new RegExp(`^\\|\\s*${id}\\s*\\|`, 'mu').test(roadmap) &&
+      !removed.has(id)
+    )
       failures.push(
         `FAIL ${handoff}: Roadmap names ${id}, which has no row in docs/program/roadmap.md`,
       );

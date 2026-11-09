@@ -1,0 +1,16 @@
+{
+  "id": "t-r3k9f7m",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Stable roadmap ids, no Rank column; lanes never edit the roadmap; lead prunes closed rows with scripts/claude/roadmap-prune.ts; replay test proves separate removals merge and positional renumbering conflicts."
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Let parallel lanes close roadmap rows without merge conflicts",
+  "after": [],
+  "body": [
+    "Outcome: parallel lanes that close roadmap tasks merge without rebasing docs/program/roadmap.md onto each other.\nWhy: on 2026-11-09 three lanes each deleted their row and renumbered the rest; #490 was rebased twice and #492 once for roadmap conflicts alone, and one lane deleted the wrong row (R1 instead of R2) in a rebase. Positional ids (renumber on every removal) make every row deletion touch every later line.\nProof: the roadmap test drops the renumbering requirement (stable ids, rank column sorted but gaps allowed) or the row of a closed task is pruned mechanically after merge; two branches each removing a different row merge cleanly in a test or a replay.\nScope: docs/program/roadmap.md, test/rules/roadmap-open-tasks.test.ts, scripts/claude/handoff-requests.ts."
+  ]
+}
