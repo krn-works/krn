@@ -1,7 +1,11 @@
 {
   "id": "t-q7j3zfw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Re-measured (.krn/runs/startup-bundle-remeasure/report.md): startup proper (SessionStart hook + retire + state check/task ready) is 2.7-3.0 kB in 3 sessions today, under 8 kB; first-6 Bash median 11.5 kB (n=3, post-#493 n=1) because calls 3-6 are task work (file reads, t-zz33vhy). 10-session count not reached; no startup contributor left to cut."
+  },
   "created": "2026-11-09",
   "priority": 1,
   "title": "Cut the lead session startup bundle below 8 kB",
