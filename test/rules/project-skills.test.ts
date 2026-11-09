@@ -106,7 +106,7 @@ test('every project agent has a name and a description', () => {
 });
 
 test('read-only agents cap their turns so a recon lane cannot grow its context unbounded', () => {
-  for (const file of ['krn-reader', 'krn-research', 'krn-lane']) {
+  for (const file of ['krn-reader', 'krn-research', 'krn-lane', 'krn-radar']) {
     const turns = Number(
       frontmatter(`.claude/agents/${file}.md`).get('maxTurns'),
     );
@@ -132,4 +132,24 @@ test('research lanes read untrusted content without a shell, file writes or sub-
   assert.match(lanes, /bin\/krn ci wait --repo/u);
   assert.doesNotMatch(lanes, /every 60s/u);
   assert.match(lanes, /general-purpose lane/u);
+});
+
+test('the radar agent is read-only, bounded, named by the roadmap, and rss_news stays denied', () => {
+  const fields = frontmatter('.claude/agents/krn-radar.md');
+  assert.ok(fields.get('model'), 'krn-radar needs an explicit model');
+  assert.ok(Number(fields.get('maxTurns')) > 0);
+  const tools = (fields.get('tools') ?? '')
+    .split(',')
+    .map((tool) => tool.trim());
+  assert.deepEqual(tools, ['Bash', 'Read', 'Grep']);
+  for (const banned of ['Edit', 'Write', 'Agent'])
+    assert.ok(!tools.includes(banned), `krn-radar must not get ${banned}`);
+  assert.match(
+    readFileSync(join(root, 'docs/program/roadmap.md'), 'utf8'),
+    /`krn-radar`/u,
+  );
+  const settings = JSON.parse(
+    readFileSync(join(root, '.claude/settings.json'), 'utf8'),
+  ) as { deniedMcpServers: { serverName: string }[] };
+  assert.ok(settings.deniedMcpServers.some((s) => s.serverName === 'rss_news'));
 });
