@@ -81,6 +81,16 @@ const poll = (command: string) =>
     input: JSON.stringify({ tool_name: 'Bash', tool_input: { command } }),
   });
 
+test('ci poll hook ignores heredoc text that only mentions watching or polling', () => {
+  const command = `cat > note.md <<'EOF'
+never run gh pr checks 5 --watch
+for i in 1 2; do gh pr view 5; ${'sle' + 'ep'} 60; done
+EOF
+echo done`;
+  const result = poll(command);
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test('ci poll hook refuses gh watch and sleep loops around gh and names krn ci wait', () => {
   for (const command of [
     'gh run watch 123',

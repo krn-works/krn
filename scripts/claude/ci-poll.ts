@@ -9,10 +9,26 @@ const loop = /\b(?:while|until|for)\b/u;
 const sleeps = /\bsleep\b/u;
 const ghCall = /\bgh[\s'",]+(?:pr|run|api)\b/u;
 
+// Heredoc bodies are data (notes, scripts under edit), not commands to run.
+function withoutHeredocs(command: string): string {
+  const kept: string[] = [];
+  let end: string | undefined;
+  for (const line of command.split('\n')) {
+    if (end !== undefined) {
+      if (line.trim() === end) end = undefined;
+      continue;
+    }
+    kept.push(line);
+    end = /<<-?\s*['"]?(\w+)['"]?/u.exec(line)?.[1];
+  }
+  return kept.join('\n');
+}
+
 export function decide(payload: unknown): string | undefined {
-  const command = (payload as { tool_input?: { command?: unknown } } | null)
+  const raw = (payload as { tool_input?: { command?: unknown } } | null)
     ?.tool_input?.command;
-  if (typeof command !== 'string') return undefined;
+  if (typeof raw !== 'string') return undefined;
+  const command = withoutHeredocs(raw);
   const polls =
     watch.test(command) ||
     (loop.test(command) && sleeps.test(command) && ghCall.test(command));
