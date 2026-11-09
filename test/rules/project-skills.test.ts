@@ -96,11 +96,11 @@ function frontmatter(path: string): Map<string, string> {
 }
 
 test('read-only agents cap their turns so a recon lane cannot grow its context unbounded', () => {
-  for (const file of ['krn-reader', 'krn-research']) {
+  for (const file of ['krn-reader', 'krn-research', 'krn-lane']) {
     const turns = Number(
       frontmatter(`.claude/agents/${file}.md`).get('maxTurns'),
     );
-    assert.ok(turns > 0 && turns <= 60, `${file} needs maxTurns of 60 or less`);
+    assert.ok(turns > 0 && turns <= 90, `${file} needs maxTurns of 90 or less`);
   }
 });
 

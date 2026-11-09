@@ -6,8 +6,14 @@ import { readFileSync } from 'node:fs';
 // .krn/runs/token-audit/subagent-model-audit.md). When such a call names no model, this
 // hook fills in the alias the variable selects. Explicit models, forks, general-purpose and
 // agents whose definition pins a model are left alone.
+//
+// Turn ceiling: general-purpose lanes were 99% of subagent dollars and 15 lanes of 100+
+// turns were $167 of $216 (.krn/runs/subagent-spend/report.md). The built-in agent has no
+// turn limit, so an explicit general-purpose call is routed to krn-lane, the same worker
+// with maxTurns in .claude/agents/krn-lane.md.
 
 const ignoresDefault = new Set(['Explore', 'Plan']);
+const laneAgent = 'krn-lane';
 const aliases = ['haiku', 'sonnet', 'opus', 'fable'] as const;
 
 export function alias(value: string | undefined) {
@@ -22,6 +28,8 @@ export function updatedInput(
   const input = (payload as { tool_input?: unknown } | null)?.tool_input;
   if (typeof input !== 'object' || input === null) return undefined;
   const fields = input as Record<string, unknown>;
+  if (fields.subagent_type === 'general-purpose')
+    return { ...fields, subagent_type: laneAgent };
   if (fields.model !== undefined) return undefined;
   if (
     typeof fields.subagent_type !== 'string' ||
