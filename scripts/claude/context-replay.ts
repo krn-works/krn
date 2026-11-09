@@ -85,7 +85,11 @@ export type Replay = {
   }>;
 };
 
-export function replay(transcript: string, window: number): Replay {
+export function replay(
+  transcript: string,
+  window: number,
+  host = false,
+): Replay {
   const lines = transcript.split('\n');
   const starts: number[] = [];
   let offset = 0;
@@ -122,23 +126,32 @@ export function replay(transcript: string, window: number): Replay {
           bytes.subarray(Math.max(0, stop - view), stop).toString('utf8'),
         ).total;
         if (total === undefined || total < ceiling) continue;
-        if (refusesAtCeiling(tool?.tool_name, tool?.tool_input, root)) {
+        if (refusesAtCeiling(tool?.tool_name, tool?.tool_input, root, host)) {
           refusals += 1;
           firstRefusal ??= totals[line];
         } else admitted += 1;
         continue;
       }
       writeFileSync(path, bytes.subarray(Math.max(0, stop - view), stop));
-      const result = spawnSync(process.execPath, [gauge], {
-        env: { ...process.env, CLAUDE_PROJECT_DIR: root },
-        encoding: 'utf8',
-        input: JSON.stringify({
-          session_id: 'replay',
-          transcript_path: path,
-          hook_event_name: event,
-          ...tool,
-        }),
-      });
+      const result = spawnSync(
+        process.execPath,
+        host ? [gauge, '--host'] : [gauge],
+        {
+          // Host-mode state stays in the throwaway root, apart from the real host.
+          env: {
+            ...process.env,
+            CLAUDE_PROJECT_DIR: root,
+            XDG_STATE_HOME: root,
+          },
+          encoding: 'utf8',
+          input: JSON.stringify({
+            session_id: 'replay',
+            transcript_path: path,
+            hook_event_name: event,
+            ...tool,
+          }),
+        },
+      );
       if (result.status !== 0) throw new Error(result.stderr);
       if (!result.stdout) continue;
       const turnEnd = prompts.find((prompt) => prompt > line) ?? lines.length;
@@ -165,15 +178,18 @@ if (import.meta.main) {
   const args = process.argv.slice(2);
   const flag = args.indexOf('--window');
   const window = flag < 0 ? 400000 : Number(args[flag + 1]);
-  const files = args.filter((_, index) => index !== flag && index !== flag + 1);
+  const host = args.includes('--host');
+  const files = args.filter(
+    (arg, index) => index !== flag && index !== flag + 1 && arg !== '--host',
+  );
   if (!files.length || !Number.isSafeInteger(window)) {
     process.stderr.write(
-      'usage: context-replay.ts [--window <tokens>] <transcript.jsonl>...\n',
+      'usage: context-replay.ts [--host] [--window <tokens>] <transcript.jsonl>...\n',
     );
     process.exit(64);
   }
   for (const file of files) {
-    const result = replay(readFileSync(file, 'utf8'), window);
+    const result = replay(readFileSync(file, 'utf8'), window, host);
     const first = result.advisories[0];
     const verdict =
       first === undefined
