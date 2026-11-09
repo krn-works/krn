@@ -1,0 +1,12 @@
+{
+  "id": "t-3ag9eqn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Ship a PR in one call: krn pr ship does push, create, auto-merge, wait and cleanup",
+  "after": [],
+  "body": [
+    "Outcome: one command pushes the branch, creates the PR from a body file with the conventional title, enables auto-merge, waits through the merge, removes the worktree and branch, and prints one verdict line; lead turns on the delivery sequence fall from ~9-10 to about 3 per PR.\nWhy: .krn/runs/roadmap-refill-4/report.md: delivery-sequence turns (worktree add/remove, commit, push, pr create, pr merge, ci wait, pr view, fetch) were 1021 turns, $83.1 (19% of lead $) over 99 sessions and >=100 merged PRs; `krn ship` no longer exists (exit 64), so every step is a separate lead turn.\nProof: tests against a fake gh/git receiver for green, red Check, conflict and refused title (KRN-12); rerun p.py on 30 new PRs: delivery-sequence turns per merged PR at or below 4, about $0.5 less per PR.\nScope: src/ CLI command and tests, krn-lead SKILL and lanes.md ship section; builds on the ci wait merge-verdict task."
+  ]
+}

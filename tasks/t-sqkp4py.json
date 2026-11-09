@@ -1,0 +1,12 @@
+{
+  "id": "t-sqkp4py",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 3,
+  "title": "Start a lane worktree in one call: krn lane start prints the ready path",
+  "after": [],
+  "body": [
+    "Outcome: `krn lane start <slug>` fetches origin/main, creates the branch and worktree under .krn/worktrees, and prints the path and branch in one call.\nWhy: .krn/runs/roadmap-refill-4/report.md: `git worktree add` was 126 turns ($9.8, 93 of 99 sessions) and fetch/checkout another 98 turns ($6.0), about 2 turns per merged PR, each re-typing the lanes.md recipe.\nProof: test creates a worktree and rejects a duplicate slug in a temp repo; rerun p.py on 30 new sessions: worktree add + fetch turns below 1 per PR.\nScope: src/ CLI command and test, lanes.md first bullet."
+  ]
+}

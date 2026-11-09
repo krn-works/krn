@@ -1,0 +1,12 @@
+{
+  "id": "t-1a53cf8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Make krn ci wait finish through the merge and print the merge verdict",
+  "after": [],
+  "body": [
+    "Outcome: `krn ci wait` waits until the PR is merged (or names why auto-merge will not happen) and prints one line with state and merge sha, so the lead no longer polls PR state after it.\nWhy: .krn/runs/roadmap-refill-4/report.md: PR-state and run-list turns after ci wait were 231 turns, $19.6 across 79 of 99 lead sessions since 2026-11-08 (about 2 per merged PR, each at ~90k context, $0.08).\nProof: `node --test` for the ci wait module covers merged, blocked-by-review and closed-unmerged against a verbatim `gh pr view` capture (KRN-12); rerun `python3 -I .krn/runs/roadmap-refill-4/scripts/p.py` on 30 new PRs: pr view / run list turns fall below 60 per 100 sessions.\nScope: src/cli/ci.ts and its tests, krn-lead SKILL text naming the one call."
+  ]
+}
