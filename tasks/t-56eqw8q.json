@@ -1,0 +1,12 @@
+{
+  "id": "t-56eqw8q",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 3,
+  "title": "Cut lead output spent writing handoff, retro and PR bodies, and repeated skill loads",
+  "after": [],
+  "body": [
+    "Outcome: handoff, retro and PR body text is assembled by krn commands from short fields, and repeated krn-lead/krn-handoff/krn-retro Skill loads per session fall.\nWhy: lead-cost scan 2026-11-09: heredoc/Write/Edit output ~0.55M tokens (~$14 + cache re-reads, ~$0.15/PR); 252 Skill calls (krn-lead 93, krn-handoff 92, krn-retro 70) cost $14.8, $9.85 of it cache writes (~$0.1/PR).\nProof: scan of lead heredoc/Write bytes and Skill calls per PR before and after.\nScope: src/cli, .agents/skills."
+  ]
+}
