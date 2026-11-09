@@ -97,31 +97,55 @@ function tail(path: string): string {
   }
 }
 
-// Above the ceiling a session may only hand off: tools that start new work
-// (delegation, web reads, edits outside agent state) are refused, while Bash,
-// Read and Skill stay open because krn-handoff runs through them. The replay
-// of host transcripts showed steps running 20-128k past a single advisory.
-const startsWork = new Set([
-  'Agent',
-  'Task',
-  'Workflow',
-  'WebFetch',
-  'WebSearch',
-  'NotebookEdit',
-]);
+// Above the ceiling a session may only hand off. The replay of host
+// transcripts showed steps running 20-128k past a single advisory and, with
+// Bash and Read left open, sessions growing a further 116k past the ceiling,
+// so the ceiling admits only what krn-handoff runs: Skill and ToolSearch,
+// writes under agent state or memory, reads of agent state or memory (or
+// bounded reads elsewhere), and Bash commands built from handoff commands.
+const handoffTools = new Set(['Skill', 'ToolSearch']);
+// Each segment of an admitted Bash command starts with one of these.
+const handoffCommand =
+  /^(?:cd|echo|true|(?:bin\/)?krn|git|node scripts\/claude\/(?:handoff-requests|operator-inbox|successor-launch)\.ts)(?:\s|$)/;
+// A bounded Read elsewhere still fits a handoff that checks one fact.
+export const ceilingReadLines = 200;
+
+function field(toolInput: unknown, name: string): unknown {
+  return typeof toolInput === 'object' && toolInput !== null
+    ? (toolInput as Record<string, unknown>)[name]
+    : undefined;
+}
+
+// The context past which only the handoff runs.
+export function ceilingOf(window: number): number {
+  return Math.floor((window * 9) / 10);
+}
+
+export function handoffBash(command: string): boolean {
+  // A substitution would run a command the allowlist never sees.
+  if (/[`]|\$\(|<\(/.test(command)) return false;
+  const segments = command
+    .split(/&&|\|\||[;|\n]/)
+    .map((part) => part.trim().replace(/^(?:[A-Z_][A-Z0-9_]*=\S*\s+)+/, ''))
+    .filter((part) => part !== '');
+  return (
+    segments.length > 0 && segments.every((part) => handoffCommand.test(part))
+  );
+}
 
 export function refusesAtCeiling(
   tool: unknown,
   toolInput: unknown,
   project: string,
 ): boolean {
-  if (typeof tool !== 'string') return false;
-  if (startsWork.has(tool)) return true;
-  if (tool !== 'Write' && tool !== 'Edit') return false;
-  const file =
-    typeof toolInput === 'object' && toolInput !== null
-      ? (toolInput as Record<string, unknown>).file_path
-      : undefined;
+  if (typeof tool !== 'string') return true;
+  if (handoffTools.has(tool)) return false;
+  if (tool === 'Bash') {
+    const command = field(toolInput, 'command');
+    return typeof command !== 'string' || !handoffBash(command);
+  }
+  if (tool !== 'Write' && tool !== 'Edit' && tool !== 'Read') return true;
+  const file = field(toolInput, 'file_path');
   if (typeof file !== 'string') return true;
   const state = relative(join(project, '.krn'), resolve(project, file));
   const memory = relative(
@@ -130,7 +154,10 @@ export function refusesAtCeiling(
   );
   const inside = (path: string) =>
     path !== '' && !path.startsWith('..') && !isAbsolute(path);
-  return !(inside(state) || inside(memory));
+  if (inside(state) || inside(memory)) return false;
+  if (tool !== 'Read') return true;
+  const limit = field(toolInput, 'limit');
+  return !(typeof limit === 'number' && limit > 0 && limit <= ceilingReadLines);
 }
 
 async function capturePrompt(raw: string): Promise<void> {
@@ -164,7 +191,7 @@ if (import.meta.main) {
     const window = budget(input.project);
     const first = Math.floor((window * 3) / 5);
     const second = Math.floor((window * 4) / 5);
-    const ceiling = Math.floor((window * 9) / 10);
+    const ceiling = ceilingOf(window);
     if (input.event === 'PreToolUse') {
       const tool = object(JSON.parse(raw));
       if (
@@ -176,7 +203,7 @@ if (import.meta.main) {
             hookSpecificOutput: {
               hookEventName: 'PreToolUse',
               permissionDecision: 'deny',
-              permissionDecisionReason: `Context at ${Math.floor(total / 1000)}k is past the ${Math.floor(ceiling / 1000)}k ceiling of the ${Math.floor(window / 1000)}k budget. New work is refused; run krn-handoff now (Bash, Read, Skill and writes under .krn/ stay open).`,
+              permissionDecisionReason: `Context at ${Math.floor(total / 1000)}k is past the ${Math.floor(ceiling / 1000)}k ceiling of the ${Math.floor(window / 1000)}k budget. New work is refused; run krn-handoff now (Skill, handoff Bash commands (krn, git, cd, echo, node scripts/claude/{handoff-requests,operator-inbox,successor-launch}.ts), reads and writes under .krn/, and Read with limit <= ${ceilingReadLines} stay open).`,
             },
           }),
         );
