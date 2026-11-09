@@ -82,6 +82,20 @@ export function testFileFamily(file) {
   return path.slice(0, slash + 1) + path.slice(slash + 1).split(/[-.]/u)[0];
 }
 
+// The directory of a test file: files in one directory exercise the same
+// subsystem (test/task spawns git worktrees, test/worker spawns workers), so
+// side by side on one runner they contend beyond their weights.
+export function testFileDirectory(file) {
+  const path = normalizedFile(file);
+  return path.slice(0, path.lastIndexOf('/') + 1);
+}
+
+// Among the bins within this many seconds of the lightest, a file goes to the
+// one holding the fewest files of its directory. Main runs since 79dd29e ran
+// Test (3/12) slowest twice at 18.5-19 s with three test/task files whose CI
+// seconds summed 20.7 against weights of 14; the spread caps them at 7.7.
+export const DIRECTORY_SPREAD_SECONDS = 1;
+
 // `seedWeights[k]` pre-loads bin k before parallel files are balanced, so a
 // bin that already carries serial work receives less parallel work. Each file
 // goes to a bin holding the fewest files of its family, the lightest of
@@ -125,14 +139,23 @@ export function planTestShards(
     (_, index) => seedWeights[index] ?? 0,
   );
   const families = Array.from({ length: effectiveShards }, () => new Map());
+  const directories = Array.from({ length: effectiveShards }, () => new Map());
   for (const { file, size } of parallelFiles) {
     const family = testFileFamily(file);
+    const directory = testFileDirectory(file);
     const kin = (index) => families[index].get(family) ?? 0;
-    let target = 0;
-    for (let index = 1; index < effectiveShards; index += 1) {
+    const neighbours = (index) => directories[index].get(directory) ?? 0;
+    const bins = Array.from({ length: effectiveShards }, (_, index) => index);
+    const fewestKin = Math.min(...bins.map(kin));
+    const open = bins.filter((index) => kin(index) === fewestKin);
+    const lightest = Math.min(...open.map((index) => shardWeights[index]));
+    let target = -1;
+    for (const index of open) {
+      if (shardWeights[index] > lightest + DIRECTORY_SPREAD_SECONDS) continue;
       if (
-        kin(index) < kin(target) ||
-        (kin(index) === kin(target) &&
+        target === -1 ||
+        neighbours(index) < neighbours(target) ||
+        (neighbours(index) === neighbours(target) &&
           (shardWeights[index] < shardWeights[target] ||
             (shardWeights[index] === shardWeights[target] &&
               shards[index].length < shards[target].length)))
@@ -142,6 +165,7 @@ export function planTestShards(
     shards[target].push(file);
     shardWeights[target] += size || 1;
     families[target].set(family, kin(target) + 1);
+    directories[target].set(directory, neighbours(target) + 1);
   }
 
   return { shards, serialFiles: finalSerialFiles, weights: shardWeights };
