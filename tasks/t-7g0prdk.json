@@ -1,7 +1,11 @@
 {
   "id": "t-7g0prdk",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn state set|accept|handoff shipped; round-trip test through state check and handoff-requests. Re-measure l.py/n.py on 30 new sessions: upkeep turns <=1.5 per session, malformed-acceptance 0."
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Write session state and handoff through krn state commands that cannot be malformed",
