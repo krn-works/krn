@@ -1,6 +1,14 @@
 // One-command changed-files verify: biome --write, tsc and the related tests, one verdict line.
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { check as checkBoundaries } from './boundaries.ts';
@@ -110,6 +118,37 @@ function mergeBase(root: string): string {
   throw new GitError(
     'no merge base between HEAD and origin/main or main; pass --base <rev>',
   );
+}
+
+/**
+ * Key of the exact working tree (tracked and untracked non-ignored content, `.krn/` excluded)
+ * plus the base it diffs against: the tree is staged into a throwaway index and written out.
+ */
+export function treeKey(root: string, base?: string): string {
+  const cache = join(root, '.krn/cache');
+  mkdirSync(cache, { recursive: true });
+  const index = join(cache, `fast-index-${process.pid}`);
+  const env = { ...process.env, GIT_INDEX_FILE: index };
+  try {
+    const staged = spawnSync('git', ['add', '-A'], { cwd: root, env });
+    if (staged.status !== 0) throw new GitError('`git add -A` failed');
+    // Agent state is not part of the tree, even where .gitignore does not hide it.
+    spawnSync('git', ['rm', '-rq', '--cached', '--ignore-unmatch', '.krn'], {
+      cwd: root,
+      env,
+    });
+    const tree = spawnSync('git', ['write-tree'], {
+      cwd: root,
+      env,
+      encoding: 'utf8',
+    });
+    if (tree.status !== 0) throw new GitError('`git write-tree` failed');
+    return createHash('sha256')
+      .update(`${tree.stdout.trim()}\0${base ?? mergeBase(root)}`)
+      .digest('hex');
+  } finally {
+    rmSync(index, { force: true });
+  }
 }
 
 function lines(text: string): string[] {
@@ -263,6 +302,21 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
     process.stdout.write('fast PASS: no changed files\n');
     return 0;
   }
+  const passMarker = join(root, '.krn/cache/fast-pass');
+  let key: string;
+  try {
+    key = treeKey(root, parsed.base);
+  } catch (error) {
+    if (!(error instanceof GitError)) throw error;
+    process.stderr.write(`fast: ${error.message}\n`);
+    return 2;
+  }
+  if (existsSync(passMarker) && readFileSync(passMarker, 'utf8') === key) {
+    process.stdout.write(
+      `fast PASS (cached): ${changed.length} changed, ${removed.length} removed; tree unchanged since the last pass\n`,
+    );
+    return 0;
+  }
   const tools = toolBin(root);
   if (!tools) {
     process.stderr.write(
@@ -350,6 +404,10 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
     failed.length === 0
       ? 'PASS'
       : `FAIL (${failed.map((step) => step.name).join(', ')})`;
+  // Biome may have rewritten files, so the key is taken after the run; a FAIL clears the marker.
+  rmSync(passMarker, { force: true });
+  if (failed.length === 0)
+    writeFileSync(passMarker, treeKey(root, parsed.base));
   process.stdout.write(
     `fast ${verdict}: ${changed.length} changed, ${removed.length} removed, ${files.length} linted, ${related.length} tests; ${timing}; total ${total}s\n`,
   );

@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -282,4 +283,46 @@ test('fast check exits 2 when no merge base exists instead of diffing HEAD', () 
   const result = runFast(dir);
   assert.equal(result.status, 2, result.stderr + result.stdout);
   assert.match(result.stderr, /no merge base .* pass --base/u);
+});
+
+function stubTools(dir: string, tsc: string): void {
+  const bin = join(dir, 'node_modules/.bin');
+  mkdirSync(bin, { recursive: true });
+  writeFileSync(join(bin, 'tsc'), `#!/bin/sh\n${tsc}\n`);
+  writeFileSync(join(bin, 'biome'), '#!/bin/sh\n');
+  chmodSync(join(bin, 'tsc'), 0o755);
+  chmodSync(join(bin, 'biome'), 0o755);
+}
+
+test('fast check reuses a cached pass on an unchanged tree and any edit invalidates it', () => {
+  const { dir } = repoWithChange();
+  const runs = `${dir}-tsc-runs`;
+  stubTools(dir, `echo x >> ${runs}`);
+  const count = () => readFileSync(runs, 'utf8').split('\n').length - 1;
+  const first = runFast(dir);
+  assert.match(first.stdout, /fast PASS:/u, first.stderr + first.stdout);
+  assert.equal(count(), 1);
+  const second = runFast(dir);
+  assert.equal(second.status, 0);
+  assert.match(second.stdout, /fast PASS \(cached\):/u);
+  assert.equal(count(), 1);
+  writeFileSync(join(dir, 'a.ts'), '3');
+  assert.match(runFast(dir).stdout, /fast PASS:/u);
+  assert.equal(count(), 2);
+  writeFileSync(join(dir, 'new.ts'), '4');
+  assert.doesNotMatch(runFast(dir).stdout, /cached/u);
+  assert.equal(count(), 3);
+});
+
+test('fast check does not cache a FAIL and a changed base misses', () => {
+  const { dir, git } = repoWithChange();
+  const verdict = join(dir, 'verdict');
+  stubTools(dir, `exit $(cat ${verdict})`);
+  writeFileSync(verdict, '1');
+  assert.equal(runFast(dir).status, 1);
+  writeFileSync(verdict, '0');
+  assert.match(runFast(dir).stdout, /fast PASS:/u);
+  assert.match(runFast(dir).stdout, /cached/u);
+  git('commit', '--allow-empty', '-qm', 'moves the base');
+  assert.doesNotMatch(runFast(dir).stdout, /cached/u);
 });
