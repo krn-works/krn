@@ -1,0 +1,16 @@
+{
+  "id": "t-a1ewatx",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn-lead and lanes.md: the final reply is the report."
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Stop asking subagents for report files Claude Code refuses",
+  "after": [],
+  "body": [
+    "Outcome: lead and lane instructions no longer ask subagents to write report files; findings travel in the final reply.\nWhy: on 2026-11-09 the refill lane's Write of .krn/runs/roadmap-refill-4/report.md was refused by Claude Code (\"Subagents should return findings as text, not write report files\"), while krn-lead said a subagent writes a file and returns its path.\nProof: SKILL.md and lanes.md say the final reply is the report.\nScope: .agents/skills/krn-lead."
+  ]
+}
