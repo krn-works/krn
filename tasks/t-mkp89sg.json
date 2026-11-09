@@ -1,0 +1,16 @@
+{
+  "id": "t-mkp89sg",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "SubagentStop counts subagent hook errors, ledger plus PostToolUse delivery"
+  },
+  "created": "2026-11-09",
+  "priority": 1,
+  "title": "Report every delegated session's hook errors to the lead automatically",
+  "after": [],
+  "body": [
+    "Outcome: when any subagent stops, a hook scans its transcript for hook errors and refusals and puts a one-line count with the first messages into the lead's context (or, if Claude Code cannot route it to the lead, appends it to .krn/runs/hook-errors/ledger.md that the lead's next turn surfaces), so the lead reports hook errors before the operator sees them.\nWhy: 2026-11-09 session 3e700b2a: 4 of 5 krn-lane subagents hit a piped-check refusal and the lead reported success; the operator found it (\"monitoruj takie rzeczy i miej nad tym kontrolę\"). Manual scan: .krn/runs/hook-errors/scan.py <session-prefix>.\nProof: a hook test feeds a captured subagent transcript with a `PreToolUse:Bash hook error` line and expects the count and message in the hook output; the hook output field is proven to reach the parent (Claude Code docs URL or binary grep for SubagentStop / additionalContext / transcript path fields).\nScope: scripts/claude, .claude/settings.json, test/claude."
+  ]
+}
