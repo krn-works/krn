@@ -1,0 +1,16 @@
+{
+  "id": "t-5350d6g",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast re-stages Biome fixes to files fully staged before it ran."
+  },
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Re-stage Biome fixes in npm run fast so commits keep them",
+  "after": [],
+  "body": [
+    "Outcome: npm run fast re-stages Biome fixes to files that were fully staged before it ran.\nWhy: on 2026-11-09 the lead ran git add -A then npm run fast then git commit; Biome rewrote test/rules/instruction-bytes.test.ts after the add, the commit kept the unformatted file and the rebase stopped on the unstaged fix (#509).\nProof: a test stages a file, simulates the Biome rewrite and sees no unstaged diff after the restage.\nScope: scripts/fast-check.ts, test/fast-check.test.ts."
+  ]
+}

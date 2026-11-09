@@ -279,6 +279,28 @@ export function parseArgs(
   return {};
 }
 
+const gitNames = (root: string, args: string[]): string[] =>
+  spawnSync('git', ['diff', '--name-only', ...args], {
+    cwd: root,
+    encoding: 'utf8',
+  })
+    .stdout.split('\n')
+    .filter(Boolean);
+
+/** Files whose whole change is staged: Biome fixes to them belong in the commit. */
+export function fullyStaged(root: string): string[] {
+  const unstaged = new Set(gitNames(root, []));
+  return gitNames(root, ['--cached']).filter((file) => !unstaged.has(file));
+}
+
+/** Re-stages Biome fixes so `git add` before `npm run fast` keeps them (t-5350d6g). */
+export function restage(root: string, staged: string[]): string[] {
+  const fixed = staged.length > 0 ? gitNames(root, ['--', ...staged]) : [];
+  if (fixed.length > 0)
+    spawnSync('git', ['add', '--', ...fixed], { cwd: root });
+  return fixed;
+}
+
 export async function main(root: string, argv: string[] = []): Promise<number> {
   const started = performance.now();
   const parsed = parseArgs(root, argv);
@@ -361,6 +383,7 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
     ]);
   // tsc and tests start at once with biome; they are redone only if biome rewrote a file.
   const before = snapshot();
+  const staged = fullyStaged(root).filter((file) => files.includes(file));
   const lint =
     files.length > 0
       ? run(root, 'biome', bin('biome'), [
@@ -376,6 +399,11 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
   if (lint) {
     steps.push(await lint);
     if (snapshot() !== before) {
+      const fixed = restage(root, staged);
+      if (fixed.length > 0)
+        process.stdout.write(
+          `fast: re-staged Biome fixes to ${fixed.join(', ')}\n`,
+        );
       await verified;
       verified = verify();
     }
