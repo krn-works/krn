@@ -1,7 +1,11 @@
 {
   "id": "t-dkbjhds",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Roadmap refilled with R1-R3 (t-qdzy8w7, t-bdhn7mw, t-zz33vhy) from .krn/runs/roadmap-refill/post-47*.md and startup-and-subagents.md"
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Refill the roadmap from measured lead-session evidence",

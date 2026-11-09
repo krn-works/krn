@@ -1,0 +1,12 @@
+{
+  "id": "t-bdhn7mw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Cut the KRN-owned share of the lead startup context",
+  "after": [],
+  "body": [
+    "Outcome: the lead's first-turn context is measured by source (system prompt, global skills list, AGENTS.md, memory index, hook output, KRN skills) and the KRN-owned sources shrink by a measured amount.\nWhy: first-turn context median is 42k tokens (cache_creation median 13k, 12.5% of lead cache_creation) and is re-read on every turn; at 68 turns per session that prefix is ~2.9M of ~7.3M cache_read per lead session (~39%): .krn/runs/relay-no-merge/rerun.md section 3c and 3e. Each 10k tokens cut saves ~680k cache_read per session.\nProof: a before/after first-turn context number from a script under .krn/runs/; sources outside this repository (global skills, harness prompt) are reported, not edited (memory:krn-only-scope).\nScope: this repository."
+  ]
+}

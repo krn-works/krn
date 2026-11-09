@@ -1,0 +1,12 @@
+{
+  "id": "t-qdzy8w7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Stop the successor prompt from re-reading the injected handoff",
+  "after": [],
+  "body": [
+    "Outcome: a successor session starts from the SessionStart handoff injection without reading handoff.md again; the krn-handoff successor prompt tells it to run the injected Verify command instead of \"Read <handoff path>\".\nWhy: 181 of 221 lead sessions since 2026-11-01 (81%) received the handoff from the SessionStart hook and still read handoff.md (1.46M result chars, ~2k tokens per session carried through every later turn): .krn/runs/roadmap-refill/startup-and-subagents.md. The prompt text sits in .agents/skills/krn-handoff/SKILL.md (successor-launch --prompt).\nProof: the successor prompt names no handoff read; a rerun of .krn/runs/roadmap-refill/startup-and-subagents.py on later sessions shows the re-read share falling.\nScope: this repository."
+  ]
+}
