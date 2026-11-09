@@ -1,0 +1,12 @@
+{
+  "id": "t-tyhssry",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 3,
+  "title": "Price PRs whose sessions ran from a worktree directory in krn ledger",
+  "after": [],
+  "body": [
+    "Outcome: `krn ledger` reads transcripts of every Claude project directory whose cwd is this repository or one of its worktrees (.krn/worktrees/*), so no merged PR stays unpriced for lack of a transcript.\nWhy: t-4f3r88w proof (.krn/runs/ledger-cost/proof.md): 5 of the last 30 PRs (#453, #466, #467, #468, #474) have no cost; sessions started inside a worktree write to another ~/.claude/projects directory.\nProof: ledger on the last 30 PRs prices at least 28, recorded under .krn/runs/.\nScope: this repository."
+  ]
+}

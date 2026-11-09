@@ -128,6 +128,7 @@ test('accepted outcome evidence and collectors', async () => {
     const prs = await fixture('pr-list');
     const calls: string[][] = [];
     const run = async (cmd: string, args: string[]) => {
+      if (cmd === 'git') throw new Error('no repository');
       assert.equal(cmd, 'gh');
       calls.push(args);
       if (args[0] === 'pr' && args[1] === 'list') return JSON.stringify(prs);
@@ -141,6 +142,7 @@ test('accepted outcome evidence and collectors', async () => {
       repo: 'krn-works/krn',
       limit: 2,
       run,
+      now: Date.parse('2027-01-01'),
     });
     assert.deepEqual(
       report.rows.map((r: { number: number }) => r.number),
@@ -161,7 +163,8 @@ test('accepted outcome evidence and collectors', async () => {
     assert.match(text, /\| 1 \(7×1\) \|/);
     assert.match(text, /n=2/);
     assert.match(JSON.stringify(report), /null/);
-    assert.ok(calls.some((a) => a.includes('3')));
+    assert.ok(calls.some((a) => a.includes('22')));
+    assert.deepEqual(report.rows[0].outcome, { status: 'unknown' });
     const filtered = await ledger.collectLedger({
       root,
       transcripts: '',
