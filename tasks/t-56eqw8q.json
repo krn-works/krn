@@ -1,7 +1,11 @@
 {
   "id": "t-56eqw8q",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn pr body generates the PR body from task record and commits; krn-lead skill uses it. Handoff fields (krn state handoff) and retro text remain follow-ups."
+  },
   "created": "2026-11-09",
   "priority": 3,
   "title": "Cut lead output spent writing handoff, retro and PR bodies, and repeated skill loads",
