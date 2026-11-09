@@ -10,7 +10,7 @@ Maintenance:
 
 | Rank | Id | Opportunity | Area | Evidence | Expected saving | Task |
 |---|---|---|---|---|---|---|
-| 2 | R2 | Reuse a cached `npm run fast` pass | tokens | `.krn/runs/roadmap-refill-3/session-cost.md`: 4.5 runs per PR, 157 pass-after-pass, 7.7% of lead $ | ~1 turn per rerun | t-gm82yth |
+| 1 | R1 | Cut the lead startup bundle below 8 kB | tokens | `.krn/runs/roadmap-refill-3/session-cost.md`: 13% of lead $, median 25.7 kB in the first 6 Bash calls | ~$0.4 per session | t-q7j3zfw |
 | 2 | R2 | Bound GitHub calls with a per-call timeout | delivery | `.krn/runs/roadmap-refill-3/gh-timeouts.md`: `github()` spawns with a 1 h timeout; host stalls ~1 in 3 connections | removes hour-long hangs in `krn ci wait` | t-xtmc5e6 |
 | 3 | R3 | Cut subagent spend | tokens | `.krn/runs/roadmap-refill-2/tokens.md`: $216 of $462 since 11-07 | up to ~47% of slice dollars | t-akp44kt |
 | 4 | R4 | Confirm the #472 read refusal on 20 sessions | tokens | `.krn/runs/roadmap-refill/post-472-n7.md`: 7 sessions, 47% | decides a second step | t-zz33vhy |
