@@ -1,0 +1,12 @@
+{
+  "id": "t-5xvjxp7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Re-measure lead and subagent dollars per PR after the 11-09 cuts",
+  "after": [],
+  "body": [
+    "Outcome: lead $/PR, subagent $/PR, single-trivial-call turns per PR and lead read bytes per PR are re-measured on >= 30 PRs after #521 with the committed scanners, and the roadmap reranked from the result.\nWhy: 2026-11-09 shipped #513 (krn-lane cap measured), #514/#516 (ship from root), #519 (compound read sum, lane reported weak effect: many small reads dominate), #520 (pipefail rewrite). Scanners: scripts/trivial-call-scan.mjs, scripts/claude/lead-read-scan.ts, .krn/runs/subagent-spend/agent-scan.py. Rejected from the 11-09 radar and research: LOC-per-PR metric (no reader), agent-memory partition test (ADR 0002 store unbuilt), best-of-N lanes (needs an A/B first), evals-in-CI (hooks and skills already gated by tests).\nProof: before/after table recorded under .krn/runs/ and in the closing PR.\nScope: scripts, docs/program/roadmap.md."
+  ]
+}

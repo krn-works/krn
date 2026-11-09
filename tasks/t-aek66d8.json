@@ -1,0 +1,12 @@
+{
+  "id": "t-aek66d8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 2,
+  "title": "Measure hidden thinking output per merged PR and cut what does not pay",
+  "after": [],
+  "body": [
+    "Outcome: lead hidden (thinking) output tokens per merged PR are measured, and one lever (effort level per command, MAX_THINKING_TOKENS for lanes, or skill wording) lowers them without more turns or red Checks.\nWhy: lead-cost scan 2026-11-09 (session 3e700b2a): since 11-08 lead output 4.14M tokens, visible tool_use+text ~0.31M; ~3.8M hidden thinking ≈ $80 (~$1/PR); effortLevel is already medium.\nProof: a committed scan prints hidden output tokens per PR before and after the lever.\nScope: .claude/settings.json, .claude/agents, scripts."
+  ]
+}

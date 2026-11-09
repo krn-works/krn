@@ -1,0 +1,12 @@
+{
+  "id": "t-r0zda03",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-09",
+  "priority": 3,
+  "title": "Guard krn lane start with a lane budget and host resources",
+  "after": [],
+  "body": [
+    "Outcome: krn lane start refuses or warns when free disk or running-lane count crosses a limit, and the lane brief template states a turn and tool-call budget scaled to the task size.\nWhy: research 2026-11-09 (Anthropic multi-agent research system, https://www.anthropic.com/engineering/multi-agent-research-system: explicit effort-scaling rules in briefs; token use explains 80% of variance) and the rss radar (harness resource bench https://leonardcser.github.io/harness-resource-bench; agents filling disks). The lead ran 5 lanes at once on 2026-11-09 with no host check.\nProof: a test starts a lane with a stubbed low disk and expects the refusal; lanes.md names the budget.\nScope: src/lane or src/cli, .agents/skills/krn-lead/lanes.md."
+  ]
+}
