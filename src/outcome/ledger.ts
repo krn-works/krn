@@ -28,15 +28,15 @@ import {
 
 type Value = number | null;
 type ObjectValue = Record<string, unknown>;
-const object = (v: unknown): ObjectValue =>
+export const object = (v: unknown): ObjectValue =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
     ? (v as ObjectValue)
     : {};
-const array = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
-const number = (v: unknown): Value =>
+export const array = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
+export const number = (v: unknown): Value =>
   typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
-const string = (v: unknown): string => (typeof v === 'string' ? v : '');
-const parse = (v: string): unknown => {
+export const string = (v: unknown): string => (typeof v === 'string' ? v : '');
+export const parse = (v: string): unknown => {
   try {
     return JSON.parse(v);
   } catch {
@@ -49,7 +49,7 @@ const sum = (values: Value[], empty: Value = null): Value =>
     : values.some((v) => v === null)
       ? null
       : values.reduce<number>((a, b) => a + (b ?? 0), 0);
-const time = (v: unknown): Value => {
+export const time = (v: unknown): Value => {
   const n = Date.parse(string(v));
   return Number.isFinite(n) ? n : null;
 };
@@ -58,7 +58,7 @@ const duration = (start: unknown, end: unknown): Value => {
   const b = time(end);
   return a === null || b === null || b < a ? null : (b - a) / 60000;
 };
-const round = (v: Value): Value =>
+export const round = (v: Value): Value =>
   v === null ? null : Math.round(v * 10) / 10;
 
 export function reviewTotals(records: unknown[], repo: string, pr: number) {
@@ -319,20 +319,23 @@ const CALL_TIMEOUT_MS = 5_000;
 // Not the shared deliver/transport github(): that one is spawnSync and would
 // block the event loop, losing the concurrent row fetch that keeps this fast.
 const CALL_ATTEMPTS = 3;
-const defaultRun: Run = async (cmd, args) => {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      return (
-        await exec(cmd, args, {
-          maxBuffer: 16 * 1024 * 1024,
-          timeout: CALL_TIMEOUT_MS,
-        })
-      ).stdout;
-    } catch (error) {
-      if (attempt >= CALL_ATTEMPTS) throw error;
+export const callRun =
+  (timeout: number): Run =>
+  async (cmd, args) => {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return (
+          await exec(cmd, args, {
+            maxBuffer: 16 * 1024 * 1024,
+            timeout,
+          })
+        ).stdout;
+      } catch (error) {
+        if (attempt >= CALL_ATTEMPTS) throw error;
+      }
     }
-  }
-};
+  };
+const defaultRun = callRun(CALL_TIMEOUT_MS);
 /** PR rows fetched at once: each row waits on GitHub calls, not on CPU. */
 const ROW_CONCURRENCY = 12;
 /** Transcript files read at once. */
@@ -442,7 +445,7 @@ async function jsonlFiles(path: string) {
   }
 }
 // Lead sessions are the top-level transcripts; each session's subagents live in <session>/subagents/.
-async function sessions(paths: string[]) {
+export async function sessions(paths: string[]) {
   const files = (await Promise.all(paths.map(jsonlFiles))).flat();
   // Files are read concurrently so disk waits overlap; results keep file order.
   const entries = await mapLimited(files, FILE_CONCURRENCY, async (file) => {
@@ -557,7 +560,7 @@ async function outcome(
     return { status: 'unknown' };
   }
 }
-function internalError(message: string) {
+export function internalError(message: string) {
   return Object.assign(new Error(message), { exitCode: 70 });
 }
 export async function collectLedger(options: LedgerOptions = {}) {

@@ -3,20 +3,42 @@ import {
   type LedgerOptions,
   renderLedger,
 } from '../outcome/ledger.ts';
+import {
+  collectWindow,
+  renderWindow,
+  type WindowOptions,
+} from '../outcome/window.ts';
 import { flagValue } from './flag-value.ts';
 import { CliUsageError } from './usage-error.ts';
 
 export async function ledgerCommand(args: string[]): Promise<void> {
   const options: LedgerOptions = {};
+  const window: WindowOptions = {};
   let json = false;
+  let windowMode = false;
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
     if (flag === '--json') {
       json = true;
       continue;
     }
+    if (flag === '--window') {
+      const from = args[++i];
+      const to = args[++i];
+      if (
+        !from ||
+        !to ||
+        [from, to].some((v) => !Number.isFinite(Date.parse(v)))
+      )
+        throw new CliUsageError('--window needs <fromISO> <toISO>');
+      window.from = from;
+      window.to = to;
+      windowMode = true;
+      continue;
+    }
     if (
       ![
+        '--last',
         '--since',
         '--pr',
         '--limit',
@@ -31,7 +53,12 @@ export async function ledgerCommand(args: string[]): Promise<void> {
       i++,
       () => new CliUsageError(`Missing value for ${flag}`),
     );
-    if (flag === '--pr' || flag === '--limit') {
+    if (flag === '--last') {
+      if (!/^\d+$/.test(value) || Number(value) < 1)
+        throw new CliUsageError('Invalid --last');
+      window.last = Number(value);
+      windowMode = true;
+    } else if (flag === '--pr' || flag === '--limit') {
       if (
         !/^\d+$/.test(value) ||
         !Number.isSafeInteger(Number(value)) ||
@@ -54,6 +81,13 @@ export async function ledgerCommand(args: string[]): Promise<void> {
       options.repo = value;
     } else if (flag === '--root') options.root = value;
     else options.transcripts = value;
+  }
+  if (windowMode) {
+    const report = await collectWindow({ ...window, ...options });
+    process.stdout.write(
+      json ? `${JSON.stringify(report)}\n` : renderWindow(report),
+    );
+    return;
   }
   const report = await collectLedger(options);
   process.stdout.write(
