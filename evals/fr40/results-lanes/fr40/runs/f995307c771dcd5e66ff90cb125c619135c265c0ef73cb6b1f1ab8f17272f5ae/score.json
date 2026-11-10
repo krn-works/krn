@@ -1,0 +1,9 @@
+{
+  "runId": "f995307c771dcd5e66ff90cb125c619135c265c0ef73cb6b1f1ab8f17272f5ae",
+  "task": "fr40-agent-state-median",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-median: state outside .krn/: docs/notes/median-plan.md"
+}

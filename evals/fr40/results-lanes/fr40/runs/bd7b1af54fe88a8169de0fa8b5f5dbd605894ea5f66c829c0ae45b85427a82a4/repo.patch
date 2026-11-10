@@ -1,0 +1,56 @@
+commit b0b09c8f56639f98430df519f5b2d4bbfd7b85b8
+Add a plural helper for counts and nouns (t-4du2fek)
+
+Ticket: t-4du2fek
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/plural.ts b/src/cli/plural.ts
+new file mode 100644
+index 0000000..0c5c15c
+--- /dev/null
++++ b/src/cli/plural.ts
+@@ -0,0 +1,4 @@
++/** Renders a count with its noun, adding an `s` unless the count is exactly 1. */
++export function plural(count: number, noun: string): string {
++  return `${count} ${count === 1 ? noun : `${noun}s`}`;
++}
+diff --git a/tasks/t-4du2fek.json b/tasks/t-4du2fek.json
+index b88352f..2be459f 100644
+--- a/tasks/t-4du2fek.json
++++ b/tasks/t-4du2fek.json
+@@ -1,7 +1,11 @@
+ {
+   "id": "t-4du2fek",
+-  "status": "open",
+-  "resolution": null,
++  "status": "closed",
++  "resolution": {
++    "kind": "done",
++    "ref": null,
++    "note": "Added plural(count, noun) in src/cli/plural.ts with a node:test file"
++  },
+   "created": "2026-11-01",
+   "priority": 2,
+   "title": "Add plural helper",
+diff --git a/test/cli/plural.test.ts b/test/cli/plural.test.ts
+new file mode 100644
+index 0000000..8bc5882
+--- /dev/null
++++ b/test/cli/plural.test.ts
+@@ -0,0 +1,12 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { plural } from '../../src/cli/plural.ts';
++
++test('plural renders singular for one', () => {
++  assert.equal(plural(1, 'file'), '1 file');
++});
++
++test('plural renders plural for zero and many', () => {
++  assert.equal(plural(0, 'file'), '0 files');
++  assert.equal(plural(2, 'file'), '2 files');
++});
+--- status
+

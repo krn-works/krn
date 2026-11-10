@@ -1,0 +1,63 @@
+commit 7e3cd5ac9aa5e9aff885a1318fbc84d4018d1e89
+Add groupBy helper that keeps input order (t-zvm2zux)
+
+Ticket: t-zvm2zux
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..f3f1498 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -40,6 +40,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli.test.ts': 1.2,
+   'test/cli/exit-code-classification.test.ts': 0.8,
+   'test/cli/flag-value.test.ts': 0.1,
++  'test/cli/group-by.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+   'test/cli/launcher-toolchain.test.ts': 0.1,
+diff --git a/src/cli/group-by.ts b/src/cli/group-by.ts
+new file mode 100644
+index 0000000..379ccca
+--- /dev/null
++++ b/src/cli/group-by.ts
+@@ -0,0 +1,13 @@
++export function groupBy<T>(
++  items: readonly T[],
++  key: (item: T) => string,
++): Map<string, T[]> {
++  const groups = new Map<string, T[]>();
++  for (const item of items) {
++    const k = key(item);
++    const group = groups.get(k);
++    if (group) group.push(item);
++    else groups.set(k, [item]);
++  }
++  return groups;
++}
+diff --git a/test/cli/group-by.test.ts b/test/cli/group-by.test.ts
+new file mode 100644
+index 0000000..f47e172
+--- /dev/null
++++ b/test/cli/group-by.test.ts
+@@ -0,0 +1,16 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { groupBy } from '../../src/cli/group-by.ts';
++
++test('groupBy keeps input order within and across groups', () => {
++  const result = groupBy(['apple', 'bob', 'avocado', 'banana', 'cherry'], (s) =>
++    s.slice(0, 1),
++  );
++  assert.deepEqual([...result.keys()], ['a', 'b', 'c']);
++  assert.deepEqual(result.get('a'), ['apple', 'avocado']);
++  assert.deepEqual(result.get('b'), ['bob', 'banana']);
++});
++
++test('groupBy returns an empty map for no items', () => {
++  assert.equal(groupBy([], String).size, 0);
++});
+--- status
+

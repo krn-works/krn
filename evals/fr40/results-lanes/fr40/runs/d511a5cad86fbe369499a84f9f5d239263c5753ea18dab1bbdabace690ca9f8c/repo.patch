@@ -1,0 +1,50 @@
+commit 3416add5143d1f3d3534c867abb20ffe9f02c512
+Add compareVersions for dotted numeric versions
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/core/semver.ts b/src/core/semver.ts
+new file mode 100644
+index 0000000..4880155
+--- /dev/null
++++ b/src/core/semver.ts
+@@ -0,0 +1,12 @@
++/** Orders dotted numeric versions; missing trailing parts count as 0. Returns -1, 0, or 1. */
++export function compareVersions(a: string, b: string): number {
++  const [pa, pb] = [a, b].map((v) => {
++    if (!/^\d+(\.\d+)*$/.test(v)) throw new Error(`Invalid version: ${v}`);
++    return v.split('.').map(Number);
++  }) as [number[], number[]];
++  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
++    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
++    if (d !== 0) return Math.sign(d);
++  }
++  return 0;
++}
+diff --git a/test/core/semver.test.ts b/test/core/semver.test.ts
+new file mode 100644
+index 0000000..4abcf76
+--- /dev/null
++++ b/test/core/semver.test.ts
+@@ -0,0 +1,18 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { compareVersions } from '../../src/core/semver.ts';
++
++test('compareVersions orders numerically, not lexically', () => {
++  assert.equal(compareVersions('1.10.0', '1.9.0'), 1);
++  assert.equal(compareVersions('1.2.3', '1.2.4'), -1);
++  assert.equal(compareVersions('2.0.0', '1.99.99'), 1);
++});
++
++test('compareVersions treats missing parts as zero', () => {
++  assert.equal(compareVersions('1.2', '1.2.0'), 0);
++  assert.equal(compareVersions('1.2.1', '1.2'), 1);
++});
++
++test('compareVersions rejects non-numeric input', () => {
++  assert.throws(() => compareVersions('1.x', '1.0'), /Invalid version/);
++});
+--- status
+

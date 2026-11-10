@@ -1,0 +1,51 @@
+commit ced327f002720e6a9a504aa573410870ccfec13f
+Add a percent formatter for the CLI
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..e62d4ef 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -47,6 +47,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
++  'test/cli/percent.test.ts': 0.1,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+   'test/deliver/admission-policy.test.ts': 0.1,
+diff --git a/src/cli/percent.ts b/src/cli/percent.ts
+new file mode 100644
+index 0000000..01915e0
+--- /dev/null
++++ b/src/cli/percent.ts
+@@ -0,0 +1,5 @@
++/** Renders `part` as a share of `total` with one decimal; a zero total is `0.0%`. */
++export function percent(part: number, total: number): string {
++  if (total === 0) return '0.0%';
++  return `${((part / total) * 100).toFixed(1)}%`;
++}
+diff --git a/test/cli/percent.test.ts b/test/cli/percent.test.ts
+new file mode 100644
+index 0000000..ab54d6b
+--- /dev/null
++++ b/test/cli/percent.test.ts
+@@ -0,0 +1,14 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { percent } from '../../src/cli/percent.ts';
++
++test('percent renders one decimal', () => {
++  assert.equal(percent(1, 3), '33.3%');
++  assert.equal(percent(1, 2), '50.0%');
++  assert.equal(percent(2, 2), '100.0%');
++});
++
++test('percent renders 0.0% for a zero total', () => {
++  assert.equal(percent(0, 0), '0.0%');
++  assert.equal(percent(5, 0), '0.0%');
++});
+--- status
+

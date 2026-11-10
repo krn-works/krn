@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 18278,
+  "stop_reason": "end_turn",
+  "session_id": "08952fe8-c4ea-4853-b2cd-e5eecea58683",
+  "total_cost_usd": 0.055534299999999995,
+  "usage": {
+    "input_tokens": 16,
+    "cache_creation_input_tokens": 7210,
+    "cache_read_input_tokens": 80023,
+    "output_tokens": 1866,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 7210,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 356,
+        "cache_read_input_tokens": 12887,
+        "cache_creation_input_tokens": 191,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 191
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 16,
+      "outputTokens": 1866,
+      "cacheReadInputTokens": 80023,
+      "cacheCreationInputTokens": 7210,
+      "webSearchRequests": 0,
+      "costUSD": 0.055534299999999995,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 7210,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 8,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `clamp(value, min, max)` to `src/cli/clamp.ts`. It throws a `RangeError` when `min > max`. `npm run fast` passes and the work is committed as `71e1d57`. I did not run the full `npm test` or `npm run gate`.\n\n- **Tests:** `test/cli/clamp.test.ts` checks a value inside the range, values below `min` and above `max`, equal bounds, and that `min > max` throws.\n- **Shard weight:** I added a weight entry for the new test file in `scripts/lib/shard-weights.mjs`. The first `npm run fast` failed because `test/rules/shard-weight-coverage.test.mjs` requires every test file to have one. The 0.1 I used is a placeholder, not a measured value.\n- **Notes:** The plan is in `docs/clamp-notes.md`, written before any code, and its checklist is now fully ticked. I chose `docs/` myself, since you didn't name a location.\n\nI didn't add a task ID to the commit title or a `Ticket:` trailer, because no task was given.",
+  "ttft_ms": 2744,
+  "type": "result",
+  "duration_ms": 107566,
+  "uuid": "ee202149-870e-451f-a633-dc93b6efebdb",
+  "ttft_stream_ms": 2083,
+  "time_to_request_ms": 1212,
+  "first_content_frame_ms": 2084,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

@@ -1,0 +1,45 @@
+commit 0ee96a7738dee6440a6b447c46f2e1e7baf2ff7f
+Add order-preserving groupBy to core
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/core/group-by.ts b/src/core/group-by.ts
+new file mode 100644
+index 0000000..cbc98b8
+--- /dev/null
++++ b/src/core/group-by.ts
+@@ -0,0 +1,7 @@
++/** Groups items by key; keys and items within each group keep input order. */
++export function groupBy<T>(
++  items: readonly T[],
++  key: (item: T) => string,
++): Map<string, T[]> {
++  return Map.groupBy(items, key);
++}
+diff --git a/test/core/group-by.test.ts b/test/core/group-by.test.ts
+new file mode 100644
+index 0000000..b075293
+--- /dev/null
++++ b/test/core/group-by.test.ts
+@@ -0,0 +1,18 @@
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++import { groupBy } from '../../src/core/group-by.ts';
++
++test('groupBy keeps key and item input order', () => {
++  const groups = groupBy(['bb', 'a', 'cc', 'd', 'e'], (s) => String(s.length));
++  assert.deepEqual(
++    [...groups],
++    [
++      ['2', ['bb', 'cc']],
++      ['1', ['a', 'd', 'e']],
++    ],
++  );
++});
++
++test('groupBy returns an empty map for no items', () => {
++  assert.equal(groupBy([], String).size, 0);
++});
+--- status
+

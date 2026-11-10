@@ -1,0 +1,80 @@
+commit 5e07ab032df635744c5983ea12f1a78720fc44e6
+Add compareVersions for dotted numeric versions (t-smnuz3w)
+
+Refs: t-smnuz3w
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..b82fc07 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -42,6 +42,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/flag-value.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
++  'test/cli/semver.test.ts': 0.1,
+   'test/cli/launcher-toolchain.test.ts': 0.1,
+   'test/cli/launcher.test.ts': 0.2,
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+diff --git a/src/cli/semver.ts b/src/cli/semver.ts
+new file mode 100644
+index 0000000..602cb78
+--- /dev/null
++++ b/src/cli/semver.ts
+@@ -0,0 +1,24 @@
++/**
++ * Orders dotted numeric versions such as "1.2.10". Returns a negative number
++ * when `a` is older, positive when newer, and 0 when equal. Missing trailing
++ * segments count as 0, so "1.2" equals "1.2.0".
++ */
++export function compareVersions(a: string, b: string): number {
++  const left = parseSegments(a);
++  const right = parseSegments(b);
++  const length = Math.max(left.length, right.length);
++  for (let i = 0; i < length; i += 1) {
++    const diff = (left[i] ?? 0) - (right[i] ?? 0);
++    if (diff !== 0) return diff < 0 ? -1 : 1;
++  }
++  return 0;
++}
++
++function parseSegments(version: string): number[] {
++  return version.split('.').map((part) => {
++    if (!/^\d+$/.test(part)) {
++      throw new Error(`invalid version: ${JSON.stringify(version)}`);
++    }
++    return Number(part);
++  });
++}
+diff --git a/test/cli/semver.test.ts b/test/cli/semver.test.ts
+new file mode 100644
+index 0000000..2a7db07
+--- /dev/null
++++ b/test/cli/semver.test.ts
+@@ -0,0 +1,22 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { compareVersions } from '../../src/cli/semver.ts';
++
++test('compareVersions orders segments numerically, not lexically', () => {
++  assert.equal(compareVersions('1.2.10', '1.2.9'), 1);
++  assert.equal(compareVersions('1.2.9', '1.2.10'), -1);
++});
++
++test('compareVersions treats equal and zero-padded versions as equal', () => {
++  assert.equal(compareVersions('1.2.3', '1.2.3'), 0);
++  assert.equal(compareVersions('1.2', '1.2.0'), 0);
++});
++
++test('compareVersions lets a longer non-zero tail win', () => {
++  assert.equal(compareVersions('1.2.0.1', '1.2'), 1);
++});
++
++test('compareVersions rejects non-numeric segments', () => {
++  assert.throws(() => compareVersions('1.x', '1.0'), /invalid version/);
++  assert.throws(() => compareVersions('', '1.0'), /invalid version/);
++});
+--- status
+

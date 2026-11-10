@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 19952,
+  "stop_reason": "end_turn",
+  "session_id": "154507a9-7565-4520-b948-2daf16510e22",
+  "total_cost_usd": 0.0466002,
+  "usage": {
+    "input_tokens": 12,
+    "cache_creation_input_tokens": 5013,
+    "cache_read_input_tokens": 51542,
+    "output_tokens": 2137,
+    "output_tokens_details": { "thinking_tokens": 158 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 5013,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 428,
+        "cache_read_input_tokens": 10587,
+        "cache_creation_input_tokens": 294,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 294
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 12,
+      "outputTokens": 2137,
+      "cacheReadInputTokens": 51542,
+      "cacheCreationInputTokens": 5013,
+      "webSearchRequests": 0,
+      "costUSD": 0.0466002,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 158,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 5013,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 6,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "`formatDuration` is added and committed, but the commit title ends in a placeholder id.\n\n- **Function:** `src/core/duration.ts` renders `3_723_000` as `1h 2m 3s`. It drops zero leading units, so `123_000` gives `2m 3s`. It keeps zero inner units, so `3_603_000` gives `1h 0m 3s`. Sub-second, zero and negative inputs give `0s`.\n- **Tests:** `test/core/duration.test.ts` covers those cases. I also added its weight to `scripts/lib/shard-weights.mjs`.\n- **Checks:** `npm run fast` passed with Biome, boundaries, tsc and the related tests.\n- **Helpers:** I found nothing in `src/` to reuse. The only candidate was a `padStart` helper in `src/worker/`. Core may only import its own files, so I wrote it self-contained.\n- **Commit:** `e5239e0` is titled \"Add formatDuration to core (t-unknown)\". My brief had no task id, and the repo convention puts the id at the end of the title. Give me the real id and I'll amend the title.",
+  "ttft_ms": 3613,
+  "type": "result",
+  "duration_ms": 132491,
+  "uuid": "38df610e-5909-4bd5-9574-a3e899269db7",
+  "ttft_stream_ms": 1815,
+  "time_to_request_ms": 847,
+  "first_content_frame_ms": 1818,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

@@ -1,0 +1,61 @@
+commit a1114b25cb5f765f77b50384f18768e38886e790
+Add a median helper to core that rejects an empty list
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..ad7a4ef 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -47,6 +47,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
++  'test/core/median.test.ts': 0.1,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+   'test/deliver/admission-policy.test.ts': 0.1,
+diff --git a/src/core/median.ts b/src/core/median.ts
+new file mode 100644
+index 0000000..e00ac37
+--- /dev/null
++++ b/src/core/median.ts
+@@ -0,0 +1,8 @@
++export function median(values: readonly number[]): number {
++  if (!values.length) throw new RangeError('median of an empty list');
++  const sorted = [...values].sort((a, b) => a - b);
++  const mid = sorted.length >> 1;
++  return sorted.length % 2
++    ? (sorted[mid] as number)
++    : ((sorted[mid - 1] as number) + (sorted[mid] as number)) / 2;
++}
+diff --git a/test/core/median.test.ts b/test/core/median.test.ts
+new file mode 100644
+index 0000000..a6e5b69
+--- /dev/null
++++ b/test/core/median.test.ts
+@@ -0,0 +1,21 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { median } from '../../src/core/median.ts';
++
++test('median picks the middle of an odd-length list', () => {
++  assert.equal(median([3, 1, 2]), 2);
++});
++
++test('median averages the middle pair of an even-length list', () => {
++  assert.equal(median([4, 1, 3, 2]), 2.5);
++});
++
++test('median does not mutate its input', () => {
++  const input = [3, 1, 2];
++  median(input);
++  assert.deepEqual(input, [3, 1, 2]);
++});
++
++test('median rejects an empty list', () => {
++  assert.throws(() => median([]), RangeError);
++});
+--- status
+

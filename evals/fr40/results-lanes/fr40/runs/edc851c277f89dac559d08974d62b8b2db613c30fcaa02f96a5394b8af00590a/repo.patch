@@ -1,0 +1,80 @@
+commit dbf546afd65bab0c4a0af9349ace5eabfbc186e0
+Add slugify to src/cli/slug.ts with tests
+
+Also adds the shard weight the rules test requires for the new test file
+and a notes file with the plan.
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/NOTES-slugify.md b/NOTES-slugify.md
+new file mode 100644
+index 0000000..05b6318
+--- /dev/null
++++ b/NOTES-slugify.md
+@@ -0,0 +1,9 @@
++# slugify plan
++
++- [x] Add `slugify(text)` to `src/cli/slug.ts`: NFD-normalize, strip combining marks, lowercase, split on non-alphanumerics, join with single `-` (no leading/trailing hyphens).
++- [x] Add `test/cli/slug.test.ts` (node:test) covering case, accents, repeated separators, trimming, empty input.
++- [x] Run `npm run fast`, fix issues.
++- [x] Commit.
++
++## Status
++Done: `npm run fast` passes (also added shard weight for the new test file).
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..03b8b47 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -40,6 +40,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli.test.ts': 1.2,
+   'test/cli/exit-code-classification.test.ts': 0.8,
+   'test/cli/flag-value.test.ts': 0.1,
++  'test/cli/slug.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+   'test/cli/launcher-toolchain.test.ts': 0.1,
+diff --git a/src/cli/slug.ts b/src/cli/slug.ts
+new file mode 100644
+index 0000000..66c51d1
+--- /dev/null
++++ b/src/cli/slug.ts
+@@ -0,0 +1,10 @@
++/** Lowercases, strips accents and joins words with single hyphens. */
++export function slugify(text: string): string {
++  return text
++    .normalize('NFD')
++    .replace(/\p{M}+/gu, '')
++    .toLowerCase()
++    .split(/[^\p{L}\p{N}]+/u)
++    .filter((word) => word !== '')
++    .join('-');
++}
+diff --git a/test/cli/slug.test.ts b/test/cli/slug.test.ts
+new file mode 100644
+index 0000000..b0955e9
+--- /dev/null
++++ b/test/cli/slug.test.ts
+@@ -0,0 +1,20 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { slugify } from '../../src/cli/slug.ts';
++
++test('slugify lowercases and joins words with hyphens', () => {
++  assert.equal(slugify('Hello World'), 'hello-world');
++});
++
++test('slugify strips accents', () => {
++  assert.equal(slugify('Café Crème Brûlée'), 'cafe-creme-brulee');
++});
++
++test('slugify collapses repeated separators and trims the ends', () => {
++  assert.equal(slugify('  a -- b__c  '), 'a-b-c');
++});
++
++test('slugify returns an empty string when no words remain', () => {
++  assert.equal(slugify(' !? '), '');
++  assert.equal(slugify(''), '');
++});
+--- status
+

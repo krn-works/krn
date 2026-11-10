@@ -1,0 +1,9 @@
+{
+  "runId": "7b09819d11b411c021f7120d0c5c505baa69a656560e2cb50f3e8b897b6ed08e",
+  "task": "fr40-agent-state-range",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-range: state outside .krn/: docs/notes-parse-range.md"
+}

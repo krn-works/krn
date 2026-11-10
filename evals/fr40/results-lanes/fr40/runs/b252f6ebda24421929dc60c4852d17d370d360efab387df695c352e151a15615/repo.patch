@@ -1,0 +1,55 @@
+commit 7e53ffd8d778a3df78b2348fbd7fb9d6c865408a
+Add renderTable for column-aligned text output
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/core/table.ts b/src/core/table.ts
+new file mode 100644
+index 0000000..49a4d61
+--- /dev/null
++++ b/src/core/table.ts
+@@ -0,0 +1,16 @@
++export const renderTable = (rows: readonly string[][]): string => {
++  const widths: number[] = [];
++  for (const row of rows) {
++    row.forEach((cell, i) => {
++      widths[i] = Math.max(widths[i] ?? 0, cell.length);
++    });
++  }
++  return rows
++    .map((row) =>
++      row
++        .map((cell, i) => cell.padEnd(widths[i] ?? 0))
++        .join('  ')
++        .trimEnd(),
++    )
++    .join('\n');
++};
+diff --git a/test/core/table.test.ts b/test/core/table.test.ts
+new file mode 100644
+index 0000000..3e8c8bc
+--- /dev/null
++++ b/test/core/table.test.ts
+@@ -0,0 +1,19 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { renderTable } from '../../src/core/table.ts';
++
++test('pads columns to equal width', () => {
++  assert.equal(
++    renderTable([
++      ['id', 'name'],
++      ['1', 'alpha'],
++      ['long-id', 'b'],
++    ]),
++    'id       name\n1        alpha\nlong-id  b',
++  );
++});
++
++test('handles empty input and ragged rows', () => {
++  assert.equal(renderTable([]), '');
++  assert.equal(renderTable([['a', 'b'], ['ccc']]), 'a    b\nccc');
++});
+--- status
+

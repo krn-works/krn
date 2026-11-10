@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 13709,
+  "stop_reason": "end_turn",
+  "session_id": "293149d1-abbc-40d2-8698-ba3997807b5a",
+  "total_cost_usd": 0.0351034,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4050,
+    "cache_read_input_tokens": 39134,
+    "output_tokens": 1497,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4050,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 235,
+        "cache_read_input_tokens": 9466,
+        "cache_creation_input_tokens": 452,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 452
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1497,
+      "cacheReadInputTokens": 39134,
+      "cacheCreationInputTokens": 4050,
+      "webSearchRequests": 0,
+      "costUSD": 0.0351034,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4050,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `parseRange` to `src/cli/range.ts` and committed it as `4d69030`. It expands `1-3,5` into `[1, 2, 3, 5]`.\n\nThe new test file is `test/cli/range.test.ts`. Its 3 tests pass, and `tsc` and biome are clean. I did not run the full `npm test` suite or the `gate` script.\n\nChoices the task didn't specify:\n- **Whitespace:** it is allowed around each segment, so `' 1-2 , 4 '` gives `[1, 2, 4]`.\n- **Malformed input:** it throws on empty input, non-numeric segments, empty segments like `1,,2`, and descending ranges like `3-1`.",
+  "ttft_ms": 3087,
+  "type": "result",
+  "duration_ms": 29761,
+  "uuid": "962c431f-e9a5-4bdf-a51f-e01c52aef98a",
+  "ttft_stream_ms": 2090,
+  "time_to_request_ms": 929,
+  "first_content_frame_ms": 2091,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

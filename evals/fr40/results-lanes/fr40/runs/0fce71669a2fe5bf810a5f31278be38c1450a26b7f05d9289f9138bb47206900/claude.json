@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 16681,
+  "stop_reason": "end_turn",
+  "session_id": "98193cd4-6df8-40c7-bad5-2e82ac90059f",
+  "total_cost_usd": 0.0343081,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4145,
+    "cache_read_input_tokens": 41081,
+    "output_tokens": 1360,
+    "output_tokens_details": { "thinking_tokens": 60 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4145,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 438,
+        "cache_read_input_tokens": 9846,
+        "cache_creation_input_tokens": 167,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 167
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1360,
+      "cacheReadInputTokens": 41081,
+      "cacheCreationInputTokens": 4145,
+      "webSearchRequests": 0,
+      "costUSD": 0.0343081,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 60,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4145,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `countLines` and committed it, but the task id in the commit title is a guess you should check.\n\nThe convention says to end the title with the task id from my brief, and my brief didn't include one. I reused `t-y46gy0w` from the latest commit on `main`, which may be the wrong task. If it is, I can amend the title.\n\n- **Function:** `src/cli/count-lines.ts` exports `countLines(text)`. It returns 0 for empty text, and a trailing newline doesn't add a line. For example, `'a\\n'` gives 1 and `'a\\n\\n'` gives 2.\n- **Tests:** `test/cli/count-lines.test.ts` uses `node:test` and covers empty text, no trailing newline, a trailing newline, and blank lines.\n- **Shard weight:** I added a weight of 0.1 for the new test file in `scripts/lib/shard-weights.mjs`. That number is a placeholder, not a measured time.\n- **Checks:** `npm run fast` passed.\n- **Commit:** `d8333d8`, \"Add countLines that ignores a trailing newline (t-y46gy0w)\", with the co-author line.",
+  "ttft_ms": 6020,
+  "type": "result",
+  "duration_ms": 54518,
+  "uuid": "63cae14c-a52d-4e30-9b84-e4275ecbfd49",
+  "ttft_stream_ms": 4995,
+  "time_to_request_ms": 813,
+  "first_content_frame_ms": 4996,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

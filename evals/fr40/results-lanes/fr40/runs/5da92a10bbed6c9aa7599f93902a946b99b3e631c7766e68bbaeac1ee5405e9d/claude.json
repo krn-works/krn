@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 9594,
+  "stop_reason": "end_turn",
+  "session_id": "86a818cc-7fa5-4343-a19a-2d315e052dec",
+  "total_cost_usd": 0.0265576,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 3358,
+    "cache_read_input_tokens": 38756,
+    "output_tokens": 923,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3358,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 210,
+        "cache_read_input_tokens": 9044,
+        "cache_creation_input_tokens": 182,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 182
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 923,
+      "cacheReadInputTokens": 38756,
+      "cacheCreationInputTokens": 3358,
+      "webSearchRequests": 0,
+      "costUSD": 0.0265576,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3358,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `plural(count, noun)` to `src/cli/plural.ts`. `plural(1, 'file')` returns `1 file`, and `plural(2, 'file')` returns `2 files`. It just appends `s` for any count other than 1, so `0` gives `0 files`. Irregular nouns like \"child\" aren't handled.\n\nThe `node:test` file is `test/cli/plural.test.ts`, with two tests covering the singular and plural cases. Both pass, and `tsc --noEmit` and biome are clean on the new files. I didn't run the full test suite or `npm run gate`.\n\nCommitted as `24b0bd4`.",
+  "ttft_ms": 3391,
+  "type": "result",
+  "duration_ms": 24289,
+  "uuid": "0f013ea7-9d09-4c5b-9212-a024b6b993b9",
+  "ttft_stream_ms": 2781,
+  "time_to_request_ms": 1786,
+  "first_content_frame_ms": 2782,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

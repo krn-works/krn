@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 16330,
+  "stop_reason": "end_turn",
+  "session_id": "c28b32d0-ec3c-433c-a951-0431502ab204",
+  "total_cost_usd": 0.044763399999999995,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4919,
+    "cache_read_input_tokens": 42174,
+    "output_tokens": 2085,
+    "output_tokens_details": { "thinking_tokens": 135 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4919,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 376,
+        "cache_read_input_tokens": 10602,
+        "cache_creation_input_tokens": 185,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 185
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 2085,
+      "cacheReadInputTokens": 42174,
+      "cacheCreationInputTokens": 4919,
+      "webSearchRequests": 0,
+      "costUSD": 0.044763399999999995,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 135,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4919,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 6,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `formatBytes(n)` to `src/cli/bytes.ts` and committed it as 4f5cfb7. `npm run fast` passed.\n\n- **Output format:** it picks the largest unit that fits and shows one decimal everywhere, so `0` gives `0.0 B` and `1536` gives `1.5 KiB`. Anything of 1024 GiB or more stays in GiB. A value that would round up to `1024.0` is promoted to the next unit, so `1024**2 - 1` gives `1.0 MiB`.\n- **Invalid input:** negative, `NaN` and infinite counts throw a `RangeError`. You didn't specify this, so say if you'd rather it handle them differently.\n- **Tests and weight:** the tests are in `test/cli/bytes.test.ts`, and I added a weight entry for that file in `scripts/lib/shard-weights.mjs`.\n- **Plan notes:** the plan is in `.krn/tmp/format-bytes-plan.md`. That path is ignored, so it isn't in the commit.\n- **Commit title:** your brief gave no task id, so the title has none.",
+  "ttft_ms": 3286,
+  "type": "result",
+  "duration_ms": 49029,
+  "uuid": "7f17b9a3-e985-413f-99de-6aef0afd87ca",
+  "ttft_stream_ms": 2060,
+  "time_to_request_ms": 1089,
+  "first_content_frame_ms": 2060,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

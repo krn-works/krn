@@ -1,0 +1,9 @@
+{
+  "runId": "150e4d3e3f788dde0f932580b98539a7bcaebb339462796f8759051f96b28e3c",
+  "task": "fr40-trailer-range",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-trailer-range: commit \"Add parseRange to expand range lists like 1-3,5 (t-5yrz7fo)\" lacks Ticket: t-5yrz7fo"
+}

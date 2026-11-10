@@ -1,0 +1,53 @@
+commit aa2b826be982d318850ce59d89a9a68640a28bd0
+Add core median helper that rejects an empty list
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/core/median.ts b/src/core/median.ts
+new file mode 100644
+index 0000000..8e3db1f
+--- /dev/null
++++ b/src/core/median.ts
+@@ -0,0 +1,8 @@
++export function median(values: readonly number[]): number {
++  if (values.length === 0) throw new RangeError('median of an empty list');
++  const sorted = values.toSorted((a, b) => a - b);
++  const mid = sorted.length >> 1;
++  return sorted.length % 2
++    ? (sorted[mid] as number)
++    : ((sorted[mid - 1] as number) + (sorted[mid] as number)) / 2;
++}
+diff --git a/test/core/median.test.ts b/test/core/median.test.ts
+new file mode 100644
+index 0000000..03b0901
+--- /dev/null
++++ b/test/core/median.test.ts
+@@ -0,0 +1,25 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { median } from '../../src/core/median.ts';
++
++test('median of an odd-length list is the middle value', () => {
++  assert.equal(median([5, 1, 3]), 3);
++});
++
++test('median of an even-length list averages the middle pair', () => {
++  assert.equal(median([4, 1, 3, 2]), 2.5);
++});
++
++test('median of one value is that value', () => {
++  assert.equal(median([7]), 7);
++});
++
++test('median does not mutate its input', () => {
++  const input = Object.freeze([3, 1, 2]);
++  assert.equal(median(input), 2);
++  assert.deepEqual(input, [3, 1, 2]);
++});
++
++test('median rejects an empty list', () => {
++  assert.throws(() => median([]), RangeError);
++});
+--- status
+

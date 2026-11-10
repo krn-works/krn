@@ -1,0 +1,60 @@
+commit 8ce56ec443fb7d4f75ab1d48d6d6ced2d7261fda
+Add renderTable to pad CLI table columns (t-riegro0)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/table.ts b/src/cli/table.ts
+new file mode 100644
+index 0000000..745d3fb
+--- /dev/null
++++ b/src/cli/table.ts
+@@ -0,0 +1,21 @@
++/**
++ * Renders rows as a text table: every column is padded to its widest cell and
++ * columns are separated by two spaces. The last column is not padded, so lines
++ * carry no trailing whitespace. Missing cells in short rows render as empty.
++ */
++export function renderTable(rows: readonly string[][]): string {
++  const columns = Math.max(0, ...rows.map((row) => row.length));
++  const widths: number[] = [];
++  for (let c = 0; c < columns; c++) {
++    widths.push(Math.max(...rows.map((row) => (row[c] ?? '').length)));
++  }
++  return rows
++    .map((row) =>
++      row
++        .map((cell, c) =>
++          c === row.length - 1 ? cell : cell.padEnd(widths[c] ?? 0),
++        )
++        .join('  '),
++    )
++    .join('\n');
++}
+diff --git a/test/cli/table.test.ts b/test/cli/table.test.ts
+new file mode 100644
+index 0000000..a748341
+--- /dev/null
++++ b/test/cli/table.test.ts
+@@ -0,0 +1,19 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { renderTable } from '../../src/cli/table.ts';
++
++test('renderTable pads columns to equal width', () => {
++  assert.equal(
++    renderTable([
++      ['name', 'id'],
++      ['alpha', '1'],
++      ['b', '22'],
++    ]),
++    ['name   id', 'alpha  1', 'b      22'].join('\n'),
++  );
++});
++
++test('renderTable handles no rows and ragged rows', () => {
++  assert.equal(renderTable([]), '');
++  assert.equal(renderTable([['a', 'b', 'c'], ['dddd']]), 'a     b  c\ndddd');
++});
+--- status
+

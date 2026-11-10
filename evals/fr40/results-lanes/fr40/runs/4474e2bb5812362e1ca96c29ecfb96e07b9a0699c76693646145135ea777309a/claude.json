@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 10322,
+  "stop_reason": "end_turn",
+  "session_id": "427a3f99-65a3-4af6-a76e-253153b78cfd",
+  "total_cost_usd": 0.025403500000000002,
+  "usage": {
+    "input_tokens": 8,
+    "cache_creation_input_tokens": 3129,
+    "cache_read_input_tokens": 28915,
+    "output_tokens": 998,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3129,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 189,
+        "cache_read_input_tokens": 8222,
+        "cache_creation_input_tokens": 775,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 775
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 8,
+      "outputTokens": 998,
+      "cacheReadInputTokens": 28915,
+      "cacheCreationInputTokens": 3129,
+      "webSearchRequests": 0,
+      "costUSD": 0.025403500000000002,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3129,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 4,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `maskSecret` in `src/cli/mask.ts` and committed it with a test in `test/cli/mask.test.ts`. The two tests pass when run on their own with `node --test`. I didn't run the full `npm test` suite.\n\nIt keeps the last four characters and stars the rest. You didn't say what to do with values of four or fewer characters, so I made those come back fully starred. Returning them unchanged would reveal the whole secret. It counts Unicode code points, not UTF-16 units.\n\nThe commit message references t-6y17r7m. I left the task open, as you said.",
+  "ttft_ms": 4678,
+  "type": "result",
+  "duration_ms": 15640,
+  "uuid": "ced4ed9b-e0fc-4009-9044-a246f74cf1e3",
+  "ttft_stream_ms": 3766,
+  "time_to_request_ms": 2674,
+  "first_content_frame_ms": 3768,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

@@ -1,0 +1,42 @@
+commit 5d297931816c730b2755135f1d962c6e9a5a8bd9
+Add maskSecret to core mask helpers
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/core/mask.ts b/src/core/mask.ts
+new file mode 100644
+index 0000000..2c8936d
+--- /dev/null
++++ b/src/core/mask.ts
+@@ -0,0 +1,5 @@
++/** Stars all but the last four characters; values of four or fewer are fully starred. */
++export const maskSecret = (value: string): string =>
++  value.length <= 4
++    ? '*'.repeat(value.length)
++    : value.slice(-4).padStart(value.length, '*');
+diff --git a/test/core/mask.test.ts b/test/core/mask.test.ts
+new file mode 100644
+index 0000000..f610c26
+--- /dev/null
++++ b/test/core/mask.test.ts
+@@ -0,0 +1,17 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { maskSecret } from '../../src/core/mask.ts';
++
++test('keeps the last four characters', () => {
++  assert.equal(maskSecret('abcdef1234'), '******1234');
++});
++
++test('fully stars short values', () => {
++  assert.equal(maskSecret('abcd'), '****');
++  assert.equal(maskSecret('ab'), '**');
++  assert.equal(maskSecret(''), '');
++});
++
++test('masks a five character value', () => {
++  assert.equal(maskSecret('abcde'), '*bcde');
++});
+--- status
+

@@ -1,0 +1,63 @@
+commit 41c60d69abd5fd35f1eecde54dd4603bbcb2b6b9
+Add slugify for hyphenated lowercase slugs (t-xj46uyu)
+
+Ticket: t-xj46uyu
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..699a83b 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -42,6 +42,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/flag-value.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
++  'test/cli/slug.test.ts': 0.1,
+   'test/cli/launcher-toolchain.test.ts': 0.1,
+   'test/cli/launcher.test.ts': 0.2,
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+diff --git a/src/cli/slug.ts b/src/cli/slug.ts
+new file mode 100644
+index 0000000..a351d40
+--- /dev/null
++++ b/src/cli/slug.ts
+@@ -0,0 +1,10 @@
++/** Lowercase text, strip accents, and join its words with single hyphens. */
++export function slugify(text: string): string {
++  return text
++    .normalize('NFD')
++    .replace(/\p{M}+/gu, '')
++    .toLowerCase()
++    .split(/[^a-z0-9]+/)
++    .filter(Boolean)
++    .join('-');
++}
+diff --git a/test/cli/slug.test.ts b/test/cli/slug.test.ts
+new file mode 100644
+index 0000000..26efc66
+--- /dev/null
++++ b/test/cli/slug.test.ts
+@@ -0,0 +1,19 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { slugify } from '../../src/cli/slug.ts';
++
++test('slugify lowercases and joins words with single hyphens', () => {
++  assert.equal(slugify('Hello   World'), 'hello-world');
++});
++
++test('slugify strips accents', () => {
++  assert.equal(slugify('Crème Brûlée à la'), 'creme-brulee-a-la');
++});
++
++test('slugify drops leading, trailing and repeated separators', () => {
++  assert.equal(slugify('  --Foo, bar!! baz--  '), 'foo-bar-baz');
++});
++
++test('slugify returns an empty string when no words remain', () => {
++  assert.equal(slugify('!!!'), '');
++});
+--- status
+

@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 17962,
+  "stop_reason": "end_turn",
+  "session_id": "ee585dfd-31e8-4d46-bff7-9439c14e5e06",
+  "total_cost_usd": 0.0491003,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 5750,
+    "cache_read_input_tokens": 42203,
+    "output_tokens": 2186,
+    "output_tokens_details": { "thinking_tokens": 182 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 5750,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 431,
+        "cache_read_input_tokens": 11314,
+        "cache_creation_input_tokens": 304,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 304
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 2186,
+      "cacheReadInputTokens": 42203,
+      "cacheCreationInputTokens": 5750,
+      "webSearchRequests": 0,
+      "costUSD": 0.0491003,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 182,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 5750,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `backoffDelays(attempts, baseMs)` to `src/cli/retry.ts` and committed it. The five new tests pass, and `tsc` and `npm run lint` are clean. I didn't run the full `npm test` suite.\n\n- **Behaviour:** the delays are `baseMs`, `2*baseMs`, and so on, each capped at 30,000 ms. For example, `backoffDelays(4, 100)` returns `[100, 200, 400, 800]`.\n- **Input checks:** `attempts` must be a non-negative integer, and `baseMs` must be non-negative and finite. Otherwise the function throws a `RangeError`. You didn't ask for this.\n- **Tests:** `test/cli/retry.test.ts` covers doubling, the cap, zero attempts, a zero base and invalid input.\n- **Plan notes:** `docs/backoff-delays-notes.md` holds the plan checklist and progress. I wrote it before the code and ticked it off as I went, so it's committed with the work. It lives in `docs/` rather than under `.krn/` because I took \"in this repository\" to mean a tracked file. Say if you'd rather have it under `.krn/`.\n\nThe commit message carries the `Co-Authored-By` trailer. I didn't run `npm run fast`.",
+  "ttft_ms": 3069,
+  "type": "result",
+  "duration_ms": 36698,
+  "uuid": "bb6bde62-45b8-4579-a1f3-ca6aae689454",
+  "ttft_stream_ms": 2531,
+  "time_to_request_ms": 1451,
+  "first_content_frame_ms": 2531,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

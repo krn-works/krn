@@ -1,0 +1,9 @@
+{
+  "runId": "14426a3e932dd3e1600364b9b740526ecaf7aa4b6d88cc35e213346f8c1b82e3",
+  "task": "fr40-agent-state-groups",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-agent-state-groups: notes kept under .krn/runs or .krn/tmp"
+}

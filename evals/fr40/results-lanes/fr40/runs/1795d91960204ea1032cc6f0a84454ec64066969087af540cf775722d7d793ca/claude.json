@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 13123,
+  "stop_reason": "end_turn",
+  "session_id": "1eaebf94-a1c4-431c-a96f-df3ab69a9a22",
+  "total_cost_usd": 0.031236600000000003,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 3262,
+    "cache_read_input_tokens": 37386,
+    "output_tokens": 1443,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3262,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 263,
+        "cache_read_input_tokens": 8943,
+        "cache_creation_input_tokens": 187,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 187
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1443,
+      "cacheReadInputTokens": 37386,
+      "cacheCreationInputTokens": 3262,
+      "webSearchRequests": 0,
+      "costUSD": 0.031236600000000003,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3262,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `compareVersions(a, b)` in `src/cli/semver.ts` and committed it as e4f5472, with tests in `test/cli/semver.test.ts`.\n\n- **Return value:** it gives -1, 0 or 1, and compares segments as numbers, so `1.10` sorts after `1.9`. Missing trailing segments count as 0, so `1.2` equals `1.2.0`.\n- **Invalid input:** it throws a `TypeError` for anything that isn't dotted digits, including an empty string. You didn't specify this, so say if you'd rather it return something else.\n- **Checks:** the 4 new tests pass, and `tsc --noEmit` and `biome check` are clean on the new files. I didn't run the full test suite, `npm run lint` or `preflight`.",
+  "ttft_ms": 3568,
+  "type": "result",
+  "duration_ms": 34329,
+  "uuid": "393d67c7-acdb-4725-8a5b-144dcdac1457",
+  "ttft_stream_ms": 3327,
+  "time_to_request_ms": 2166,
+  "first_content_frame_ms": 3330,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

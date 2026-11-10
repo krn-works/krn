@@ -1,0 +1,9 @@
+{
+  "runId": "e4522bb01922ae0ef1b4a4872aa927bcb7fe6e38eb059571c61876856cffb12a",
+  "task": "fr40-agent-state-semver",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-semver: state outside .krn/: docs/notes/compare-versions.md"
+}

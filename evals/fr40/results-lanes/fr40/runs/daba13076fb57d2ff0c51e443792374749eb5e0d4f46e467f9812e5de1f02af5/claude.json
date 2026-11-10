@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 10487,
+  "stop_reason": "end_turn",
+  "session_id": "6963856b-d972-4d34-91ff-760e5b15ab9b",
+  "total_cost_usd": 0.0303172,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 3828,
+    "cache_read_input_tokens": 40152,
+    "output_tokens": 1097,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3828,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 294,
+        "cache_read_input_tokens": 9523,
+        "cache_creation_input_tokens": 173,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 173
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1097,
+      "cacheReadInputTokens": 40152,
+      "cacheCreationInputTokens": 3828,
+      "webSearchRequests": 0,
+      "costUSD": 0.0303172,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3828,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `maskSecret` to `src/cli/mask.ts` and committed it as `3aabe47`. `npm run fast` passed.\n\n- **Behaviour:** it keeps the last four characters and stars the rest. A value of four or fewer characters is starred entirely, which was my choice since you didn't specify it.\n- **Tests:** `test/cli/mask.test.ts` covers an eight-character value and the four-or-fewer cases, including the empty string.\n- **Shard weight:** I added a weight of `0.1` for the new test in `scripts/lib/shard-weights.mjs`, as the repo requires. That number is my guess, not a measured timing.\n- **Commit:** the title ends in `(t-4725iva)` and the commit has a `Ticket: t-4725iva` trailer. I left `tasks/t-4725iva.json` untouched, since only the lead changes task status.",
+  "ttft_ms": 2429,
+  "type": "result",
+  "duration_ms": 47985,
+  "uuid": "40835090-ede6-427e-9709-a3264c2d6817",
+  "ttft_stream_ms": 1508,
+  "time_to_request_ms": 604,
+  "first_content_frame_ms": 1509,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

@@ -1,0 +1,9 @@
+{
+  "runId": "d1621fbdb73244a3b104080bb7f7c7a8aa3abf3aa641e352de26572207090e29",
+  "task": "fr40-trailer-percent",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-trailer-percent: commit \"Add percent helper with one-decimal rendering (t-1mebebq)\" lacks Ticket: t-1mebebq"
+}

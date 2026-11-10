@@ -1,0 +1,36 @@
+commit c3849a20240bb5591414906eea9d92688964e495
+Add plural helper for counted nouns (t-7i2qtpk)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/plural.ts b/src/cli/plural.ts
+new file mode 100644
+index 0000000..0c5c15c
+--- /dev/null
++++ b/src/cli/plural.ts
+@@ -0,0 +1,4 @@
++/** Renders a count with its noun, adding an `s` unless the count is exactly 1. */
++export function plural(count: number, noun: string): string {
++  return `${count} ${count === 1 ? noun : `${noun}s`}`;
++}
+diff --git a/test/cli/plural.test.ts b/test/cli/plural.test.ts
+new file mode 100644
+index 0000000..9bab748
+--- /dev/null
++++ b/test/cli/plural.test.ts
+@@ -0,0 +1,12 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { plural } from '../../src/cli/plural.ts';
++
++test('plural renders singular for 1', () => {
++  assert.equal(plural(1, 'file'), '1 file');
++});
++
++test('plural renders plural for other counts', () => {
++  assert.equal(plural(2, 'file'), '2 files');
++  assert.equal(plural(0, 'file'), '0 files');
++});
+--- status
+

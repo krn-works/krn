@@ -1,0 +1,50 @@
+commit 0fa03c7fff1df4fba6783681b19109c07013459a
+Add countLines that ignores a trailing newline
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/NOTES.md b/NOTES.md
+new file mode 100644
+index 0000000..6aed317
+--- /dev/null
++++ b/NOTES.md
+@@ -0,0 +1,6 @@
++# Plan: countLines
++
++- [x] Add `countLines(text)` in src/cli/count-lines.ts (trailing newline = no extra line; empty string = 0)
++- [x] Add node:test file test/cli/count-lines.test.ts
++- [x] Run check, lint, and the test
++- [x] Commit
+diff --git a/src/cli/count-lines.ts b/src/cli/count-lines.ts
+new file mode 100644
+index 0000000..82db7f3
+--- /dev/null
++++ b/src/cli/count-lines.ts
+@@ -0,0 +1,5 @@
++export function countLines(text: string): number {
++  if (text === '') return 0;
++  const newlines = text.split('\n').length - 1;
++  return text.endsWith('\n') ? newlines : newlines + 1;
++}
+diff --git a/test/cli/count-lines.test.ts b/test/cli/count-lines.test.ts
+new file mode 100644
+index 0000000..2a6f3ec
+--- /dev/null
++++ b/test/cli/count-lines.test.ts
+@@ -0,0 +1,13 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { countLines } from '../../src/cli/count-lines.ts';
++
++test('countLines', () => {
++  assert.equal(countLines(''), 0);
++  assert.equal(countLines('a'), 1);
++  assert.equal(countLines('a\n'), 1);
++  assert.equal(countLines('a\nb'), 2);
++  assert.equal(countLines('a\nb\n'), 2);
++  assert.equal(countLines('\n'), 1);
++  assert.equal(countLines('\n\n'), 2);
++});
+--- status
+

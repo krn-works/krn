@@ -1,0 +1,68 @@
+commit 092cf5539bbaaa9ad3359ace994b96b25b02686d
+Add percent helper for CLI output
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/PLAN-percent.md b/PLAN-percent.md
+new file mode 100644
+index 0000000..9a58e15
+--- /dev/null
++++ b/PLAN-percent.md
+@@ -0,0 +1,6 @@
++# Plan: percent helper
++
++- [x] Add `percent(part, total)` to `src/cli/percent.ts`: `part / total * 100` with one decimal and a `%` suffix; `0.0%` when total is 0.
++- [x] Add `test/cli/percent.test.ts` (node:test): normal, rounding, zero total, zero part, over 100%.
++- [x] Run `npm run fast`, then commit.
++- [x] Register the test in scripts/lib/shard-weights.mjs (required by the shard-weight rule test).
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..a7c55f9 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -45,6 +45,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/launcher-toolchain.test.ts': 0.1,
+   'test/cli/launcher.test.ts': 0.2,
+   'test/cli/lazy-command-imports.test.ts': 1.7,
++  'test/cli/percent.test.ts': 0.1,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
+   'test/codex/app-server-replay.test.ts': 2,
+diff --git a/src/cli/percent.ts b/src/cli/percent.ts
+new file mode 100644
+index 0000000..c372b02
+--- /dev/null
++++ b/src/cli/percent.ts
+@@ -0,0 +1,5 @@
++/** Render `part` as a percentage of `total` with one decimal; `0.0%` when total is zero. */
++export function percent(part: number, total: number): string {
++  if (total === 0) return '0.0%';
++  return `${((part / total) * 100).toFixed(1)}%`;
++}
+diff --git a/test/cli/percent.test.ts b/test/cli/percent.test.ts
+new file mode 100644
+index 0000000..c538366
+--- /dev/null
++++ b/test/cli/percent.test.ts
+@@ -0,0 +1,19 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { percent } from '../../src/cli/percent.ts';
++
++test('percent renders one decimal', () => {
++  assert.equal(percent(1, 4), '25.0%');
++  assert.equal(percent(1, 3), '33.3%');
++  assert.equal(percent(2, 3), '66.7%');
++});
++
++test('percent renders 0.0% for a zero total', () => {
++  assert.equal(percent(0, 0), '0.0%');
++  assert.equal(percent(5, 0), '0.0%');
++});
++
++test('percent handles zero part and values above 100%', () => {
++  assert.equal(percent(0, 7), '0.0%');
++  assert.equal(percent(3, 2), '150.0%');
++});
+--- status
+

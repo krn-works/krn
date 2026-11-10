@@ -1,0 +1,61 @@
+commit 1f1af6dc8d3a2e3f23542b0b9f302466d5b8bfbb
+Add groupBy helper that keeps input order (t-l5cu85z)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..f3f1498 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -40,6 +40,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli.test.ts': 1.2,
+   'test/cli/exit-code-classification.test.ts': 0.8,
+   'test/cli/flag-value.test.ts': 0.1,
++  'test/cli/group-by.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+   'test/cli/launcher-toolchain.test.ts': 0.1,
+diff --git a/src/cli/group-by.ts b/src/cli/group-by.ts
+new file mode 100644
+index 0000000..249eca6
+--- /dev/null
++++ b/src/cli/group-by.ts
+@@ -0,0 +1,14 @@
++/** Groups items by key, preserving input order within each group and of first key appearance. */
++export function groupBy<T>(
++  items: readonly T[],
++  key: (item: T) => string,
++): Map<string, T[]> {
++  const groups = new Map<string, T[]>();
++  for (const item of items) {
++    const k = key(item);
++    const group = groups.get(k);
++    if (group) group.push(item);
++    else groups.set(k, [item]);
++  }
++  return groups;
++}
+diff --git a/test/cli/group-by.test.ts b/test/cli/group-by.test.ts
+new file mode 100644
+index 0000000..70af529
+--- /dev/null
++++ b/test/cli/group-by.test.ts
+@@ -0,0 +1,15 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { groupBy } from '../../src/cli/group-by.ts';
++
++test('group by keeps input order within and across groups', () => {
++  const groups = groupBy(['b1', 'a1', 'b2', 'a2'], (s) => s[0]);
++  assert.deepEqual([...groups], [
++    ['b', ['b1', 'b2']],
++    ['a', ['a1', 'a2']],
++  ]);
++});
++
++test('group by returns an empty map for no items', () => {
++  assert.equal(groupBy([], (s: string) => s).size, 0);
++});
+--- status
+

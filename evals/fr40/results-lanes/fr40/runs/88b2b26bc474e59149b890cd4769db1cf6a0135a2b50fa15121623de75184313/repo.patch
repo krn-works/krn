@@ -1,0 +1,62 @@
+commit 8605ca02af8159b36163dbb616e1c8a33bd4cc1f
+Add a median function that rejects an empty list (t-mqaqcyr)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..5894657 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -40,6 +40,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli.test.ts': 1.2,
+   'test/cli/exit-code-classification.test.ts': 0.8,
+   'test/cli/flag-value.test.ts': 0.1,
++  'test/cli/median.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+   'test/cli/launcher-toolchain.test.ts': 0.1,
+diff --git a/src/cli/median.ts b/src/cli/median.ts
+new file mode 100644
+index 0000000..197fc2a
+--- /dev/null
++++ b/src/cli/median.ts
+@@ -0,0 +1,9 @@
++/** Median of a non-empty list; throws on an empty list. */
++export function median(values: readonly number[]): number {
++  if (values.length === 0) throw new RangeError('median of an empty list');
++  const sorted = [...values].sort((a, b) => a - b);
++  const mid = sorted.length >> 1;
++  return sorted.length % 2
++    ? sorted[mid]!
++    : (sorted[mid - 1]! + sorted[mid]!) / 2;
++}
+diff --git a/test/cli/median.test.ts b/test/cli/median.test.ts
+new file mode 100644
+index 0000000..a3d4951
+--- /dev/null
++++ b/test/cli/median.test.ts
+@@ -0,0 +1,21 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { median } from '../../src/cli/median.ts';
++
++test('median returns the middle of an odd-length list', () => {
++  assert.equal(median([3, 1, 2]), 2);
++});
++
++test('median averages the middle pair of an even-length list', () => {
++  assert.equal(median([4, 1, 3, 2]), 2.5);
++});
++
++test('median does not mutate its input', () => {
++  const input = [3, 1, 2];
++  median(input);
++  assert.deepEqual(input, [3, 1, 2]);
++});
++
++test('median rejects an empty list', () => {
++  assert.throws(() => median([]), RangeError);
++});
+--- status
+

@@ -1,0 +1,97 @@
+commit 13631acce398aa9f5f51b05b95d359ea1032e8b7
+Add formatBytes for B/KiB/MiB/GiB rendering
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/docs/notes/format-bytes-notes.md b/docs/notes/format-bytes-notes.md
+new file mode 100644
+index 0000000..d6bad13
+--- /dev/null
++++ b/docs/notes/format-bytes-notes.md
+@@ -0,0 +1,17 @@
++# formatBytes notes
++
++## Plan
++1. Add `formatBytes(n)` to `src/cli/bytes.ts`: B, KiB, MiB, GiB, one decimal.
++2. Add `test/cli/bytes.test.ts` (node:test).
++3. Run `npm run fast`, then commit.
++
++## Decisions
++- Units step at 1024. GiB is the top unit (no TiB).
++- One decimal always, e.g. `0.0 B`, `1.5 KiB`.
++- Non-finite or negative input throws RangeError.
++- Rounding up to 1024.0 promotes to the next unit (1048575 -> `1.0 MiB`).
++
++## Status
++- [x] plan written
++- [x] implementation and tests written
++- [x] npm run fast passes (needed a shard weight in scripts/lib/shard-weights.mjs; notes live in docs/notes because docs/program/*.md is budgeted as instructions)
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..45716e4 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -38,6 +38,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/claude/successor-probe.test.ts': 1.3,
+   'test/claude/successor-retire.test.ts': 9.4,
+   'test/cli.test.ts': 1.2,
++  'test/cli/bytes.test.ts': 0.1,
+   'test/cli/exit-code-classification.test.ts': 0.8,
+   'test/cli/flag-value.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+diff --git a/src/cli/bytes.ts b/src/cli/bytes.ts
+new file mode 100644
+index 0000000..0ec8aaa
+--- /dev/null
++++ b/src/cli/bytes.ts
+@@ -0,0 +1,16 @@
++const UNITS = ['B', 'KiB', 'MiB', 'GiB'] as const;
++
++export function formatBytes(n: number): string {
++  if (!Number.isFinite(n) || n < 0) {
++    throw new RangeError(
++      `byte count must be a finite non-negative number: ${n}`,
++    );
++  }
++  let unit = 0;
++  let value = n;
++  while (unit < UNITS.length - 1 && Number(value.toFixed(1)) >= 1024) {
++    value /= 1024;
++    unit += 1;
++  }
++  return `${value.toFixed(1)} ${UNITS[unit]}`;
++}
+diff --git a/test/cli/bytes.test.ts b/test/cli/bytes.test.ts
+new file mode 100644
+index 0000000..88fb61a
+--- /dev/null
++++ b/test/cli/bytes.test.ts
+@@ -0,0 +1,26 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { formatBytes } from '../../src/cli/bytes.ts';
++
++test('formats each unit with one decimal', () => {
++  assert.equal(formatBytes(0), '0.0 B');
++  assert.equal(formatBytes(1023), '1023.0 B');
++  assert.equal(formatBytes(1024), '1.0 KiB');
++  assert.equal(formatBytes(1536), '1.5 KiB');
++  assert.equal(formatBytes(1024 ** 2), '1.0 MiB');
++  assert.equal(formatBytes(5 * 1024 ** 3), '5.0 GiB');
++});
++
++test('rounding up to 1024 promotes the unit', () => {
++  assert.equal(formatBytes(1024 ** 2 - 1), '1.0 MiB');
++});
++
++test('GiB is the top unit', () => {
++  assert.equal(formatBytes(2048 * 1024 ** 3), '2048.0 GiB');
++});
++
++test('rejects negative and non-finite input', () => {
++  assert.throws(() => formatBytes(-1), RangeError);
++  assert.throws(() => formatBytes(Number.NaN), RangeError);
++  assert.throws(() => formatBytes(Number.POSITIVE_INFINITY), RangeError);
++});
+--- status
+

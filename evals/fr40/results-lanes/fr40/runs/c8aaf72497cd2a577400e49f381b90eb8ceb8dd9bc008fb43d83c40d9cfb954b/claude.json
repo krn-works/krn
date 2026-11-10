@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 14359,
+  "stop_reason": "end_turn",
+  "session_id": "e420b9ce-21b5-41e5-9809-0acb4110b4f2",
+  "total_cost_usd": 0.04045170000000001,
+  "usage": {
+    "input_tokens": 12,
+    "cache_creation_input_tokens": 4673,
+    "cache_read_input_tokens": 50957,
+    "output_tokens": 1664,
+    "output_tokens_details": { "thinking_tokens": 38 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4673,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 284,
+        "cache_read_input_tokens": 10206,
+        "cache_creation_input_tokens": 335,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 335
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 12,
+      "outputTokens": 1664,
+      "cacheReadInputTokens": 50957,
+      "cacheCreationInputTokens": 4673,
+      "webSearchRequests": 0,
+      "costUSD": 0.04045170000000001,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 38,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4673,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 6,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "Finishing up: the typecheck is now clean and the median tests pass, and I amended the commit to include the type fix.\n\nCommitted as `7fd92dc`:\n- `src/cli/median.ts`: `median(values)` throws a `RangeError` on an empty list. It sorts a copy, so the input isn't mutated.\n- `test/cli/median.test.ts`: four node:test cases (odd length, even length, no mutation, empty list rejected).\n- `scripts/lib/shard-weights.mjs`: added a weight for the new test file.\n\nThe commit title ends with `(t-re5qbgh)` and carries a `Refs: t-re5qbgh` trailer, since this step leaves the task open. I did not touch `tasks/t-re5qbgh.json`. I ran `tsc --noEmit` and only the new test file, not the full `npm run fast`.",
+  "ttft_ms": 2588,
+  "type": "result",
+  "duration_ms": 44064,
+  "uuid": "4e00fa06-2ee8-4b66-abce-d7957e82d21d",
+  "ttft_stream_ms": 1799,
+  "time_to_request_ms": 931,
+  "first_content_frame_ms": 1802,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 15259,
+  "stop_reason": "end_turn",
+  "session_id": "37e7156b-2deb-44f2-b778-cfabb350d52a",
+  "total_cost_usd": 0.030269900000000002,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 3679,
+    "cache_read_input_tokens": 39139,
+    "output_tokens": 1162,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3679,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 223,
+        "cache_read_input_tokens": 9387,
+        "cache_creation_input_tokens": 160,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 160
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1162,
+      "cacheReadInputTokens": 39139,
+      "cacheCreationInputTokens": 3679,
+      "webSearchRequests": 0,
+      "costUSD": 0.030269900000000002,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3679,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `median` to `src/cli/median.ts` and committed it as `32785d4`.\n\n- **Behavior:** it throws a `RangeError` on an empty list. Otherwise it returns the middle value, or the average of the two middle values when the length is even. It sorts a copy, so the input array isn't changed.\n- **Tests:** `test/cli/median.test.ts` has five `node:test` cases. They cover odd length, even length, a single value, no mutation of the input, and the empty-list rejection. All five pass.\n- **Checks:** `tsc --noEmit` and `biome check` are clean on the new files. I didn't run the full `npm test` or `npm run gate`.",
+  "ttft_ms": 6255,
+  "type": "result",
+  "duration_ms": 32412,
+  "uuid": "a7da98b1-e7b2-433d-babe-d910184434c0",
+  "ttft_stream_ms": 5309,
+  "time_to_request_ms": 820,
+  "first_content_frame_ms": 5310,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

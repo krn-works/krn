@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 9078,
+  "stop_reason": "end_turn",
+  "session_id": "62955461-b754-4b20-a067-66867d8ff895",
+  "total_cost_usd": 0.0317377,
+  "usage": {
+    "input_tokens": 8,
+    "cache_creation_input_tokens": 4237,
+    "cache_read_input_tokens": 31737,
+    "output_tokens": 1160,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4237,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 326,
+        "cache_read_input_tokens": 9349,
+        "cache_creation_input_tokens": 756,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 756
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 8,
+      "outputTokens": 1160,
+      "cacheReadInputTokens": 31737,
+      "cacheCreationInputTokens": 4237,
+      "webSearchRequests": 0,
+      "costUSD": 0.0317377,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4237,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 4,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `parseFlag` to `src/cli/env-flag.ts` and committed it as `2c6cd6d`. Its two new tests pass. I didn't run `npm run fast` or the full suite.\n\n- **Behavior:** it returns true for 1/true/yes/on in any case, and false for anything else, including `undefined`. It also trims surrounding whitespace, so `\" on \"` counts as true. You didn't ask for that, so say if you'd rather it be strict.\n- **Tests:** `test/cli/env-flag.test.ts` uses `node:test`, one test for accepted values and one for rejected ones.\n- **Shard weight:** I added a `0.1` weight for the new test file in `scripts/lib/shard-weights.mjs`.\n- **Commit:** the title ends with `(t-8n1lr5n)` and it carries `Ticket: t-8n1lr5n`, since this completes the task. I didn't touch `tasks/t-8n1lr5n.json`.",
+  "ttft_ms": 2168,
+  "type": "result",
+  "duration_ms": 11854,
+  "uuid": "ad348061-f72a-4a6a-871a-36275730f05f",
+  "ttft_stream_ms": 1549,
+  "time_to_request_ms": 733,
+  "first_content_frame_ms": 1550,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

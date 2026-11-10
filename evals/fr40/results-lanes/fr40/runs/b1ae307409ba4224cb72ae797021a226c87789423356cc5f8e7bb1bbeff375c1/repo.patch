@@ -1,0 +1,45 @@
+commit 90533606f668d5ed86d725a6eae8bf76dd11e2e9
+Add formatBytes to core
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/core/bytes.ts b/src/core/bytes.ts
+new file mode 100644
+index 0000000..98b1ecc
+--- /dev/null
++++ b/src/core/bytes.ts
+@@ -0,0 +1,11 @@
++const units = ['B', 'KiB', 'MiB', 'GiB'];
++
++export const formatBytes = (n: number): string => {
++  let i = 0;
++  let v = n;
++  while (Math.abs(v) >= 1024 && i < units.length - 1) {
++    v /= 1024;
++    i++;
++  }
++  return `${i === 0 ? v : v.toFixed(1)} ${units[i]}`;
++};
+diff --git a/test/core/bytes.test.ts b/test/core/bytes.test.ts
+new file mode 100644
+index 0000000..d4d398c
+--- /dev/null
++++ b/test/core/bytes.test.ts
+@@ -0,0 +1,14 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { formatBytes } from '../../src/core/bytes.ts';
++
++test('formatBytes renders B, KiB, MiB and GiB', () => {
++  assert.equal(formatBytes(0), '0 B');
++  assert.equal(formatBytes(1023), '1023 B');
++  assert.equal(formatBytes(1024), '1.0 KiB');
++  assert.equal(formatBytes(1536), '1.5 KiB');
++  assert.equal(formatBytes(1024 ** 2), '1.0 MiB');
++  assert.equal(formatBytes(5.25 * 1024 ** 2), '5.3 MiB');
++  assert.equal(formatBytes(1024 ** 3), '1.0 GiB');
++  assert.equal(formatBytes(2048 * 1024 ** 3), '2048.0 GiB');
++});
+--- status
+

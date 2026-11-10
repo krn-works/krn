@@ -1,0 +1,44 @@
+commit 4b8ecff57b75f6da08ae540cc08c094dc7f7c8e2
+Add maskSecret helper to src/cli/mask.ts (t-6y17r7m)
+
+Refs: t-6y17r7m
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/mask.ts b/src/cli/mask.ts
+new file mode 100644
+index 0000000..d32a519
+--- /dev/null
++++ b/src/cli/mask.ts
+@@ -0,0 +1,8 @@
++const VISIBLE = 4;
++
++/** Keep the last four characters and star the rest; short values are fully starred. */
++export function maskSecret(value: string): string {
++  const chars = Array.from(value);
++  if (chars.length <= VISIBLE) return '*'.repeat(chars.length);
++  return '*'.repeat(chars.length - VISIBLE) + chars.slice(-VISIBLE).join('');
++}
+diff --git a/test/cli/mask.test.ts b/test/cli/mask.test.ts
+new file mode 100644
+index 0000000..f26d2cf
+--- /dev/null
++++ b/test/cli/mask.test.ts
+@@ -0,0 +1,14 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { maskSecret } from '../../src/cli/mask.ts';
++
++test('keeps the last four characters', () => {
++  assert.equal(maskSecret('abcdefgh'), '****efgh');
++  assert.equal(maskSecret('abcde'), '*bcde');
++});
++
++test('fully stars values of four or fewer characters', () => {
++  assert.equal(maskSecret('abcd'), '****');
++  assert.equal(maskSecret('ab'), '**');
++  assert.equal(maskSecret(''), '');
++});
+--- status
+

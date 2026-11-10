@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 18869,
+  "stop_reason": "end_turn",
+  "session_id": "3403f2ea-e7db-4223-815e-1b9358a0340f",
+  "total_cost_usd": 0.05719300000000001,
+  "usage": {
+    "input_tokens": 16,
+    "cache_creation_input_tokens": 6921,
+    "cache_read_input_tokens": 78770,
+    "output_tokens": 2160,
+    "output_tokens_details": { "thinking_tokens": 169 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 6921,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 374,
+        "cache_read_input_tokens": 12571,
+        "cache_creation_input_tokens": 218,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 218
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 16,
+      "outputTokens": 2160,
+      "cacheReadInputTokens": 78770,
+      "cacheCreationInputTokens": 6921,
+      "webSearchRequests": 0,
+      "costUSD": 0.05719300000000001,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 169,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 6921,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 8,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "`formatDuration(ms)` is now in `src/cli/duration.ts` and committed as `b1e68b2`. `npm run fast` passes (biome, boundaries, tsc and the related tests).\n\n- **Output:** `3_723_000` gives `1h 2m 3s`, `125_000` gives `2m 5s`, and `0` gives `0s`.\n- **Interior zeros:** these are kept (`1h 0m 5s`), since only leading zero units are dropped.\n- **Rounding and bad input:** sub-second values are floored. Negative or non-finite input returns `0s`.\n- **Tests:** `test/cli/duration.test.ts` uses `node:test` and covers each of those cases.\n- **Shard weight:** the repo's shard-weight coverage test requires every test file to have an entry, so I added one to `scripts/lib/shard-weights.mjs`.\n- **Plan file:** I wrote the plan before coding at `.krn/duration-notes.md` and kept it updated. `.krn/` is gitignored, since the repo rules keep agent state there, so the notes are on disk but not in the commit.",
+  "ttft_ms": 2333,
+  "type": "result",
+  "duration_ms": 57075,
+  "uuid": "7afea742-4905-4371-98ff-bfe9909dd96a",
+  "ttft_stream_ms": 1683,
+  "time_to_request_ms": 869,
+  "first_content_frame_ms": 1683,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 14370,
+  "stop_reason": "end_turn",
+  "session_id": "f409cb24-37af-4cc4-94ea-ff2a0a8aa64c",
+  "total_cost_usd": 0.034967,
+  "usage": {
+    "input_tokens": 12,
+    "cache_creation_input_tokens": 4137,
+    "cache_read_input_tokens": 50150,
+    "output_tokens": 1338,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4137,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 280,
+        "cache_read_input_tokens": 9823,
+        "cache_creation_input_tokens": 182,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 182
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 12,
+      "outputTokens": 1338,
+      "cacheReadInputTokens": 50150,
+      "cacheCreationInputTokens": 4137,
+      "webSearchRequests": 0,
+      "costUSD": 0.034967,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4137,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 6,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `countLines` in `src/cli/count-lines.ts`, with tests in `test/cli/count-lines.test.ts`. The four new tests pass; I didn't run `npm run fast` or the rest of the suite.\n\n- **Behaviour:** `countLines('')` is 0, `'a\\nb'` is 2, and `'a\\n'` is 1. A lone `'\\n'` counts as 1 line.\n- **Shard weight:** I added a 0.1 weight for the new test file in `scripts/lib/shard-weights.mjs`, which the conventions require.\n- **Commit:** `d82c96d` is titled \"Add a line counter that ignores a trailing newline (t-2bjcpa9)\". It carries a `Refs: t-2bjcpa9` trailer because this step leaves the task open. I didn't touch the tracker file.",
+  "ttft_ms": 5248,
+  "type": "result",
+  "duration_ms": 24409,
+  "uuid": "e70bdb16-bb57-43f8-8ac3-ef6afe4fe637",
+  "ttft_stream_ms": 4100,
+  "time_to_request_ms": 3210,
+  "first_content_frame_ms": 4105,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

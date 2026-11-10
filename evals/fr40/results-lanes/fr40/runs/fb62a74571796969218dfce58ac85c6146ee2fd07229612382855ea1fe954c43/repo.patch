@@ -1,0 +1,80 @@
+commit 0158644c41b6fb568af14081f93a7b0fc6ba03e0
+Add wrapText word wrapper to the CLI (t-om07fup)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..c6b0d77 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -46,6 +46,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/launcher.test.ts': 0.2,
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
++  'test/cli/wrap.test.ts': 0.1,
+   'test/cli/product-release.test.ts': 0.5,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+diff --git a/src/cli/wrap.ts b/src/cli/wrap.ts
+new file mode 100644
+index 0000000..070f4b2
+--- /dev/null
++++ b/src/cli/wrap.ts
+@@ -0,0 +1,25 @@
++/**
++ * Word-wrap text to lines of at most `width` characters. Words are kept
++ * whole unless a single word is longer than the width, in which case it is
++ * split into width-sized chunks. Whitespace runs collapse to one space.
++ */
++export function wrapText(text: string, width: number): string[] {
++  const limit = Math.max(1, Math.floor(width));
++  const lines: string[] = [];
++  let line = '';
++  for (const word of text.split(/\s+/).filter(Boolean)) {
++    if (line && line.length + 1 + word.length <= limit) {
++      line += ` ${word}`;
++      continue;
++    }
++    if (line) lines.push(line);
++    let rest = word;
++    while (rest.length > limit) {
++      lines.push(rest.slice(0, limit));
++      rest = rest.slice(limit);
++    }
++    line = rest;
++  }
++  if (line) lines.push(line);
++  return lines;
++}
+diff --git a/test/cli/wrap.test.ts b/test/cli/wrap.test.ts
+new file mode 100644
+index 0000000..8ad889c
+--- /dev/null
++++ b/test/cli/wrap.test.ts
+@@ -0,0 +1,23 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { wrapText } from '../../src/cli/wrap.ts';
++
++test('wraps at word boundaries within the width', () => {
++  assert.deepEqual(wrapText('the quick brown fox', 9), ['the quick', 'brown fox']);
++});
++
++test('never splits a word shorter than the width', () => {
++  for (const line of wrapText('alpha beta gamma delta', 7)) {
++    assert.ok(['alpha', 'beta', 'gamma', 'delta'].includes(line.split(' ')[0]));
++    assert.ok(line.length <= 7);
++  }
++});
++
++test('collapses whitespace and returns no lines for empty text', () => {
++  assert.deepEqual(wrapText('a   b\n c', 10), ['a b c']);
++  assert.deepEqual(wrapText('   ', 10), []);
++});
++
++test('splits only words longer than the width', () => {
++  assert.deepEqual(wrapText('abcdefg hi', 3), ['abc', 'def', 'g', 'hi']);
++});
+--- status
+

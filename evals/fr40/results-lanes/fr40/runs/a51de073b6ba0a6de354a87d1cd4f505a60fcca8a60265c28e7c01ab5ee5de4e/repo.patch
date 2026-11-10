@@ -1,0 +1,96 @@
+commit 94c3b6ffe08cd32a307098872abb9679ee445f01
+Add chunk helper to split lists into fixed-size groups
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/docs/notes/chunk-plan.md b/docs/notes/chunk-plan.md
+new file mode 100644
+index 0000000..f8bf303
+--- /dev/null
++++ b/docs/notes/chunk-plan.md
+@@ -0,0 +1,9 @@
++# Plan: `chunk` helper
++
++- [x] Add `chunk<T>(items, size)` to `src/cli/chunk.ts`; split into groups of `size`, last group may be shorter; throw `RangeError` when `size` < 1 (also non-integer / NaN).
++- [x] Add `test/cli/chunk.test.ts` (node:test): even split, remainder, empty, size > length, size 1, invalid sizes, input not mutated.
++- [x] Run `npm run fast`, then commit.
++
++## Status
++Implemented and tests written; `npm run fast` PASS; committed.
++- Added shard weight for the new test in scripts/lib/shard-weights.mjs (required by rules test).
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..ae98d09 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -39,6 +39,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/claude/successor-retire.test.ts': 9.4,
+   'test/cli.test.ts': 1.2,
+   'test/cli/exit-code-classification.test.ts': 0.8,
++  'test/cli/chunk.test.ts': 0.1,
+   'test/cli/flag-value.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+diff --git a/src/cli/chunk.ts b/src/cli/chunk.ts
+new file mode 100644
+index 0000000..8837327
+--- /dev/null
++++ b/src/cli/chunk.ts
+@@ -0,0 +1,11 @@
++/** Splits `items` into consecutive groups of `size`; the last group may be shorter. */
++export function chunk<T>(items: readonly T[], size: number): T[][] {
++  if (!Number.isInteger(size) || size < 1) {
++    throw new RangeError(`chunk size must be an integer >= 1, got ${size}`);
++  }
++  const groups: T[][] = [];
++  for (let start = 0; start < items.length; start += size) {
++    groups.push(items.slice(start, start + size));
++  }
++  return groups;
++}
+diff --git a/test/cli/chunk.test.ts b/test/cli/chunk.test.ts
+new file mode 100644
+index 0000000..9a532d4
+--- /dev/null
++++ b/test/cli/chunk.test.ts
+@@ -0,0 +1,38 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { chunk } from '../../src/cli/chunk.ts';
++
++test('splits evenly', () => {
++  assert.deepEqual(chunk([1, 2, 3, 4], 2), [
++    [1, 2],
++    [3, 4],
++  ]);
++});
++
++test('keeps a shorter final group', () => {
++  assert.deepEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
++});
++
++test('returns no groups for an empty list', () => {
++  assert.deepEqual(chunk([], 3), []);
++});
++
++test('returns one group when size exceeds length', () => {
++  assert.deepEqual(chunk([1, 2], 5), [[1, 2]]);
++});
++
++test('size 1 yields singletons', () => {
++  assert.deepEqual(chunk(['a', 'b'], 1), [['a'], ['b']]);
++});
++
++test('rejects a size below 1', () => {
++  for (const size of [0, -1, Number.NaN, 1.5, -Infinity]) {
++    assert.throws(() => chunk([1], size), RangeError);
++  }
++});
++
++test('does not mutate the input', () => {
++  const items = Object.freeze([1, 2, 3]);
++  chunk(items, 2);
++  assert.deepEqual(items, [1, 2, 3]);
++});
+--- status
+

@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 18798,
+  "stop_reason": "end_turn",
+  "session_id": "6118029c-ceb5-49bc-8b76-2ee4a857a625",
+  "total_cost_usd": 0.04193090000000001,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4808,
+    "cache_read_input_tokens": 42089,
+    "output_tokens": 1847,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4808,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 431,
+        "cache_read_input_tokens": 10329,
+        "cache_creation_input_tokens": 347,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 347
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1847,
+      "cacheReadInputTokens": 42089,
+      "cacheCreationInputTokens": 4808,
+      "webSearchRequests": 0,
+      "costUSD": 0.04193090000000001,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4808,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `truncateMiddle(text, max)` to `src/cli/truncate.ts` and committed it as `d96d5c1`. The four new tests pass.\n\n- **Behavior:** text that already fits comes back unchanged. Longer text keeps both ends around `…`, and the result is never longer than `max`. When the kept characters can't split evenly, the head gets the extra one. A `max` of 1 gives `…`, and a `max` of 0 or less gives an empty string.\n- **Unicode:** it counts and splits by code point, so emoji aren't cut in half.\n- **Tests:** `test/cli/truncate.test.ts` uses `node:test` and covers fits-already, both ends, tiny limits and surrogate pairs.\n- **Shard weight:** I added `test/cli/truncate.test.ts` to `scripts/lib/shard-weights.mjs` with a placeholder weight of 0.1. I didn't run `npm run fast`, so the missing-weight check hasn't confirmed it.\n- **Commit:** the title ends with `(t-aiotx2a)` and the message carries a `Ticket: t-aiotx2a` trailer, since this completes the task. I didn't touch `tasks/t-aiotx2a.json`; as the worker, I leave closing it to the lead.",
+  "ttft_ms": 6601,
+  "type": "result",
+  "duration_ms": 26882,
+  "uuid": "88e354f1-4d17-420f-84b2-dfa609cee514",
+  "ttft_stream_ms": 5365,
+  "time_to_request_ms": 1924,
+  "first_content_frame_ms": 5365,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

@@ -1,0 +1,72 @@
+commit e5239e040eac4ccd5876866cd0650a23c1cffc65
+Add formatDuration to core (t-unknown)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..256c279 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -7,6 +7,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/agents-render.test.ts': 2.3,
+   'test/architecture/depth.test.ts': 0.1,
+   'test/ci/ci-changes.test.ts': 0.3,
++  'test/core/duration.test.ts': 0.1,
+   'test/ci/idle-gap-cache.test.ts': 0.1,
+   'test/ci/shard-wall-report.test.mjs': 0.5,
+   'test/ci/logs-capture.test.ts': 0.1,
+diff --git a/src/core/duration.ts b/src/core/duration.ts
+new file mode 100644
+index 0000000..432a4d6
+--- /dev/null
++++ b/src/core/duration.ts
+@@ -0,0 +1,18 @@
++/** Renders milliseconds as `1h 2m 3s`, dropping zero leading units. */
++export function formatDuration(ms: number): string {
++  const total = Math.max(0, Math.floor(ms / 1000));
++  const parts = [
++    Math.floor(total / 3600),
++    Math.floor(total / 60) % 60,
++    total % 60,
++  ];
++  const units = ['h', 'm', 's'];
++  const first = Math.min(
++    parts.findIndex((n) => n > 0) === -1 ? 2 : parts.findIndex((n) => n > 0),
++    2,
++  );
++  return parts
++    .slice(first)
++    .map((n, i) => `${n}${units[first + i]}`)
++    .join(' ');
++}
+diff --git a/test/core/duration.test.ts b/test/core/duration.test.ts
+new file mode 100644
+index 0000000..8c09fdd
+--- /dev/null
++++ b/test/core/duration.test.ts
+@@ -0,0 +1,22 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { formatDuration } from '../../src/core/duration.ts';
++
++test('formatDuration renders hours, minutes and seconds', () => {
++  assert.equal(formatDuration(3_723_000), '1h 2m 3s');
++});
++
++test('formatDuration drops zero leading units', () => {
++  assert.equal(formatDuration(123_000), '2m 3s');
++  assert.equal(formatDuration(3_000), '3s');
++});
++
++test('formatDuration keeps zero inner units', () => {
++  assert.equal(formatDuration(3_603_000), '1h 0m 3s');
++});
++
++test('formatDuration renders zero and negative as 0s and floors sub-second', () => {
++  assert.equal(formatDuration(0), '0s');
++  assert.equal(formatDuration(-5), '0s');
++  assert.equal(formatDuration(999), '0s');
++});
+--- status
+

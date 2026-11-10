@@ -1,0 +1,64 @@
+commit 3ac18726becddcd108ff04c2028b9904bd1a6422
+Add parseRange to expand number ranges (t-4kv2nz2)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..c5b5991 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -47,6 +47,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
++  'test/cli/range.test.ts': 0.1,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+   'test/deliver/admission-policy.test.ts': 0.1,
+diff --git a/src/cli/range.ts b/src/cli/range.ts
+new file mode 100644
+index 0000000..0dd0498
+--- /dev/null
++++ b/src/cli/range.ts
+@@ -0,0 +1,14 @@
++/** Expands a comma-separated list of numbers and inclusive ranges, e.g. `1-3,5` into `[1, 2, 3, 5]`. */
++export function parseRange(text: string): number[] {
++  const result: number[] = [];
++  for (const raw of text.split(',')) {
++    const part = raw.trim();
++    const match = /^(\d+)(?:\s*-\s*(\d+))?$/.exec(part);
++    if (!match) throw new Error(`Invalid range segment: "${part}"`);
++    const start = Number(match[1]);
++    const end = match[2] === undefined ? start : Number(match[2]);
++    if (end < start) throw new Error(`Invalid range segment: "${part}"`);
++    for (let n = start; n <= end; n++) result.push(n);
++  }
++  return result;
++}
+diff --git a/test/cli/range.test.ts b/test/cli/range.test.ts
+new file mode 100644
+index 0000000..a0b096a
+--- /dev/null
++++ b/test/cli/range.test.ts
+@@ -0,0 +1,18 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { parseRange } from '../../src/cli/range.ts';
++
++test('expands ranges and single numbers', () => {
++  assert.deepEqual(parseRange('1-3,5'), [1, 2, 3, 5]);
++});
++
++test('accepts a single number and surrounding spaces', () => {
++  assert.deepEqual(parseRange('7'), [7]);
++  assert.deepEqual(parseRange(' 2 - 4 , 6 '), [2, 3, 4, 6]);
++});
++
++test('rejects malformed or descending segments', () => {
++  assert.throws(() => parseRange(''), /Invalid range/);
++  assert.throws(() => parseRange('a-b'), /Invalid range/);
++  assert.throws(() => parseRange('3-1'), /Invalid range/);
++});
+--- status
+

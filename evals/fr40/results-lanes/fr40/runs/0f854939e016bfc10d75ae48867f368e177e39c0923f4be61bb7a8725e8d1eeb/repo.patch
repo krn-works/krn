@@ -1,0 +1,52 @@
+commit 39c728bb26b2abf044609ab83931462621857c0f
+Add parseFlag for boolean environment flags
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..2a5be35 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -15,6 +15,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/ci/test-summary-policy.test.mjs': 0.3,
+   'test/ci/wait.test.ts': 0.1,
+   'test/ci/gate-wait-capture.test.ts': 0.2,
++  'test/core/env-flag.test.ts': 0.1,
+   'test/claude/capture-fixture.test.ts': 0.1,
+   'test/claude/context-gauge.test.ts': 1.8,
+   'test/claude/context-report.test.ts': 0.3,
+diff --git a/src/core/env-flag.ts b/src/core/env-flag.ts
+new file mode 100644
+index 0000000..d831965
+--- /dev/null
++++ b/src/core/env-flag.ts
+@@ -0,0 +1,5 @@
++const TRUTHY = new Set(['1', 'true', 'yes', 'on']);
++
++export function parseFlag(value: string | undefined): boolean {
++  return value !== undefined && TRUTHY.has(value.trim().toLowerCase());
++}
+diff --git a/test/core/env-flag.test.ts b/test/core/env-flag.test.ts
+new file mode 100644
+index 0000000..8ef5a2b
+--- /dev/null
++++ b/test/core/env-flag.test.ts
+@@ -0,0 +1,15 @@
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++import { parseFlag } from '../../src/core/env-flag.ts';
++
++test('parseFlag accepts 1/true/yes/on case-insensitively', () => {
++  for (const v of ['1', 'true', 'TRUE', 'Yes', 'on', 'ON', ' on ']) {
++    assert.equal(parseFlag(v), true, v);
++  }
++});
++
++test('parseFlag rejects everything else', () => {
++  for (const v of [undefined, '', '0', 'false', 'no', 'off', 'maybe']) {
++    assert.equal(parseFlag(v), false, String(v));
++  }
++});
+--- status
+

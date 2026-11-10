@@ -1,0 +1,53 @@
+commit 9f8aef929ff3fb803aae47402a622c7744cf77c9
+Add parseFlag for boolean environment flags (t-42qieew)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..4f42058 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -39,6 +39,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/claude/successor-retire.test.ts': 9.4,
+   'test/cli.test.ts': 1.2,
+   'test/cli/exit-code-classification.test.ts': 0.8,
++  'test/cli/env-flag.test.ts': 0.1,
+   'test/cli/flag-value.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+diff --git a/src/cli/env-flag.ts b/src/cli/env-flag.ts
+new file mode 100644
+index 0000000..066a27e
+--- /dev/null
++++ b/src/cli/env-flag.ts
+@@ -0,0 +1,6 @@
++const TRUTHY = new Set(['1', 'true', 'yes', 'on']);
++
++/** True when an environment value is 1/true/yes/on, case-insensitively. */
++export function parseFlag(value: string | undefined): boolean {
++  return value !== undefined && TRUTHY.has(value.trim().toLowerCase());
++}
+diff --git a/test/cli/env-flag.test.ts b/test/cli/env-flag.test.ts
+new file mode 100644
+index 0000000..33e4ae3
+--- /dev/null
++++ b/test/cli/env-flag.test.ts
+@@ -0,0 +1,15 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { parseFlag } from '../../src/cli/env-flag.ts';
++
++test('parseFlag accepts 1/true/yes/on in any case', () => {
++  for (const v of ['1', 'true', 'TRUE', 'Yes', 'yEs', 'on', 'ON']) {
++    assert.equal(parseFlag(v), true, v);
++  }
++});
++
++test('parseFlag rejects other values and undefined', () => {
++  for (const v of [undefined, '', '0', 'false', 'no', 'off', 'maybe']) {
++    assert.equal(parseFlag(v), false, String(v));
++  }
++});
+--- status
+

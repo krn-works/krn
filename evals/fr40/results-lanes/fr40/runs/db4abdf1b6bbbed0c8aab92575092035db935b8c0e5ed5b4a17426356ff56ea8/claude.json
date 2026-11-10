@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 18505,
+  "stop_reason": "end_turn",
+  "session_id": "ef7a5b22-8221-4f95-9953-ada5290190e4",
+  "total_cost_usd": 0.0566177,
+  "usage": {
+    "input_tokens": 16,
+    "cache_creation_input_tokens": 7103,
+    "cache_read_input_tokens": 78937,
+    "output_tokens": 2028,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 7103,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 307,
+        "cache_read_input_tokens": 12738,
+        "cache_creation_input_tokens": 233,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 233
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 16,
+      "outputTokens": 2028,
+      "cacheReadInputTokens": 78937,
+      "cacheCreationInputTokens": 7103,
+      "webSearchRequests": 0,
+      "costUSD": 0.0566177,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 7103,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 8,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "`dedupeBy<T>(items, key)` is now in `src/cli/dedupe.ts` and committed as `972d46c`. It keeps the first item per key, preserves order, and returns a new array without touching the input.\n\n`npm run fast` passes. I didn't run the full `npm run gate` or CI.\n\n- **Tests:** `test/cli/dedupe.test.ts` covers first-wins with order preserved, empty input, and no mutation of the input.\n- **Plan notes:** I wrote the plan and kept its status updated in `docs/dedupe-by-notes.md`.\n- **Shard weight:** The rules test requires every test file to have a weight. I added `'test/cli/dedupe.test.ts': 0.1` to `scripts/lib/shard-weights.mjs`, which wasn't in your request. That value is a guess, since the refresh script only adds files after CI has samples.\n\nI didn't push or open a PR.",
+  "ttft_ms": 4508,
+  "type": "result",
+  "duration_ms": 88185,
+  "uuid": "01064b42-dccb-42b2-9e25-fefef6c1d745",
+  "ttft_stream_ms": 3826,
+  "time_to_request_ms": 2876,
+  "first_content_frame_ms": 3828,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 11088,
+  "stop_reason": "end_turn",
+  "session_id": "50573045-2cc6-46e0-b290-f2e24a5ad71f",
+  "total_cost_usd": 0.0333143,
+  "usage": {
+    "input_tokens": 8,
+    "cache_creation_input_tokens": 4348,
+    "cache_read_input_tokens": 31663,
+    "output_tokens": 1274,
+    "output_tokens_details": { "thinking_tokens": 49 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4348,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 302,
+        "cache_read_input_tokens": 9325,
+        "cache_creation_input_tokens": 891,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 891
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 8,
+      "outputTokens": 1274,
+      "cacheReadInputTokens": 31663,
+      "cacheCreationInputTokens": 4348,
+      "webSearchRequests": 0,
+      "costUSD": 0.0333143,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 49,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4348,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 4,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `renderTable` to `src/cli/table.ts` and committed it as `e226d4f` (\"Add renderTable for padded plain-text columns (t-riegro0)\"). The two new tests pass. I didn't run `npm run fast` or the rest of the suite.\n\n- **Behavior:** Each column is padded to its widest cell. Columns are separated by two spaces, and trailing whitespace is trimmed from each line. Ragged rows work, and an empty input returns an empty string.\n- **Tests:** `test/cli/table.test.ts` uses `node:test`. It covers padding, a ragged row and empty input.\n- **Shard weight:** I added `test/cli/table.test.ts` to `scripts/lib/shard-weights.mjs` with a placeholder weight of 0.1.\n- **Tracker:** I left `tasks/t-riegro0.json` alone, since only the lead changes task status.",
+  "ttft_ms": 4650,
+  "type": "result",
+  "duration_ms": 17596,
+  "uuid": "2cc8b171-71d8-4c74-835a-b5dea55ae7db",
+  "ttft_stream_ms": 3699,
+  "time_to_request_ms": 2828,
+  "first_content_frame_ms": 3700,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

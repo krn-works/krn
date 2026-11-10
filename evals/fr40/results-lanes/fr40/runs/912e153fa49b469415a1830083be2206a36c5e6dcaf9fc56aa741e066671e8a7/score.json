@@ -1,0 +1,9 @@
+{
+  "runId": "912e153fa49b469415a1830083be2206a36c5e6dcaf9fc56aa741e066671e8a7",
+  "task": "fr40-agent-state-semver",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-agent-state-semver: notes kept under .krn/runs or .krn/tmp"
+}

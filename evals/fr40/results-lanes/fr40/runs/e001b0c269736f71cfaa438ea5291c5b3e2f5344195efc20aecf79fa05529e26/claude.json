@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 10134,
+  "stop_reason": "end_turn",
+  "session_id": "9d433af7-f63f-4cae-bb03-32e3bdc56f0e",
+  "total_cost_usd": 0.0321028,
+  "usage": {
+    "input_tokens": 8,
+    "cache_creation_input_tokens": 4356,
+    "cache_read_input_tokens": 31828,
+    "output_tokens": 1148,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4356,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 309,
+        "cache_read_input_tokens": 9484,
+        "cache_creation_input_tokens": 740,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 740
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 8,
+      "outputTokens": 1148,
+      "cacheReadInputTokens": 31828,
+      "cacheCreationInputTokens": 4356,
+      "webSearchRequests": 0,
+      "costUSD": 0.0321028,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4356,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 4,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `parseFlag` in `src/cli/env-flag.ts` and committed it as `9f8aef9`, \"Add parseFlag for boolean environment flags (t-42qieew)\".\n\n- **Behaviour:** it returns true for `1`, `true`, `yes` and `on`, in any case. It also trims surrounding whitespace, which you didn't ask for. Anything else, including `undefined`, returns false.\n- **Tests:** `test/cli/env-flag.test.ts` has two tests, one for accepted values and one for rejected values. Both pass when I run that file with `node --test`. I didn't run `npm run fast` or the wider suite.\n- **Shard weights:** I added `test/cli/env-flag.test.ts` to `scripts/lib/shard-weights.mjs` with a weight of 0.1, copied from the neighbouring `flag-value` test rather than measured.\n\nI didn't touch any tracker file.",
+  "ttft_ms": 2458,
+  "type": "result",
+  "duration_ms": 13838,
+  "uuid": "5b65e041-c5fe-43a9-9f7d-7c1c01fb6689",
+  "ttft_stream_ms": 1544,
+  "time_to_request_ms": 677,
+  "first_content_frame_ms": 1544,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

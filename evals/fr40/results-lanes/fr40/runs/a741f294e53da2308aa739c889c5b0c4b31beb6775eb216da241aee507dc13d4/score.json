@@ -1,0 +1,9 @@
+{
+  "runId": "a741f294e53da2308aa739c889c5b0c4b31beb6775eb216da241aee507dc13d4",
+  "task": "fr40-biome-clean-mask",
+  "arm": "A",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-biome-clean-mask: biome clean on 2 file(s)"
+}

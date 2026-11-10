@@ -1,0 +1,61 @@
+commit 3216f119fc778c00d4a9f53aa090db7e5718a11e
+Add maskSecret to mask secrets except the last four characters
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..80bf1a0 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -40,6 +40,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli.test.ts': 1.2,
+   'test/cli/exit-code-classification.test.ts': 0.8,
+   'test/cli/flag-value.test.ts': 0.1,
++  'test/cli/mask.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+   'test/cli/launcher-toolchain.test.ts': 0.1,
+diff --git a/src/cli/mask.ts b/src/cli/mask.ts
+new file mode 100644
+index 0000000..aba033b
+--- /dev/null
++++ b/src/cli/mask.ts
+@@ -0,0 +1,12 @@
++const VISIBLE_TAIL = 4;
++
++/** Stars every character except the last four; values of four or fewer are fully starred. */
++export function maskSecret(value: string): string {
++  const chars = Array.from(value);
++  const hidden = Math.max(chars.length - VISIBLE_TAIL, 0);
++  const tail = chars.slice(hidden);
++  return (
++    '*'.repeat(hidden) +
++    (hidden === 0 ? '*'.repeat(tail.length) : tail.join(''))
++  );
++}
+diff --git a/test/cli/mask.test.ts b/test/cli/mask.test.ts
+new file mode 100644
+index 0000000..08d5105
+--- /dev/null
++++ b/test/cli/mask.test.ts
+@@ -0,0 +1,17 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { maskSecret } from '../../src/cli/mask.ts';
++
++test('mask secret keeps the last four characters', () => {
++  assert.equal(maskSecret('abcdef123456'), '********3456');
++});
++
++test('mask secret stars values of four characters or fewer entirely', () => {
++  assert.equal(maskSecret('abcd'), '****');
++  assert.equal(maskSecret('ab'), '**');
++  assert.equal(maskSecret(''), '');
++});
++
++test('mask secret keeps one star per hidden character of a five-character value', () => {
++  assert.equal(maskSecret('12345'), '*2345');
++});
+--- status
+

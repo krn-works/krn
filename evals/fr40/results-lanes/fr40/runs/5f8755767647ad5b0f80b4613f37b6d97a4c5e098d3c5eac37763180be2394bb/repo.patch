@@ -1,0 +1,113 @@
+commit 203dfce822f9993fd22a164c07cf6305993aebd8
+Add wrapText word-wrapping helper to the CLI
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/docs/wrap-text-notes.md b/docs/wrap-text-notes.md
+new file mode 100644
+index 0000000..b44096f
+--- /dev/null
++++ b/docs/wrap-text-notes.md
+@@ -0,0 +1,16 @@
++# wrapText notes
++
++## Plan
++1. Add `wrapText(text, width)` to `src/cli/wrap.ts`.
++   - Split on whitespace; greedily fill lines up to `width`.
++   - Words no longer than `width` are never split; they move to the next line.
++   - Words longer than `width` are hard-split into `width`-sized chunks.
++   - Empty/whitespace-only text returns `[]`; width must be a positive integer (RangeError otherwise).
++2. Add `test/cli/wrap.test.ts` (node:test).
++3. Run `npm run fast`, then commit.
++
++## Status
++- [x] wrap.ts
++- [x] test
++- [x] checks
++- [x] commit
+diff --git a/src/cli/wrap.ts b/src/cli/wrap.ts
+new file mode 100644
+index 0000000..692c488
+--- /dev/null
++++ b/src/cli/wrap.ts
+@@ -0,0 +1,27 @@
++/**
++ * Word-wraps `text` into lines of at most `width` characters. Words that fit
++ * within `width` are never split; only a word longer than `width` is broken
++ * into `width`-sized chunks. Runs of whitespace collapse to a single space.
++ */
++export function wrapText(text: string, width: number): string[] {
++  if (!Number.isInteger(width) || width < 1) {
++    throw new RangeError(`width must be a positive integer, got ${width}`);
++  }
++  const lines: string[] = [];
++  let line = '';
++  for (const word of text.split(/\s+/).filter((w) => w !== '')) {
++    if (line !== '' && line.length + 1 + word.length <= width) {
++      line += ` ${word}`;
++      continue;
++    }
++    if (line !== '') lines.push(line);
++    let rest = word;
++    while (rest.length > width) {
++      lines.push(rest.slice(0, width));
++      rest = rest.slice(width);
++    }
++    line = rest;
++  }
++  if (line !== '') lines.push(line);
++  return lines;
++}
+diff --git a/test/cli/wrap.test.ts b/test/cli/wrap.test.ts
+new file mode 100644
+index 0000000..c29b296
+--- /dev/null
++++ b/test/cli/wrap.test.ts
+@@ -0,0 +1,44 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { wrapText } from '../../src/cli/wrap.ts';
++
++test('wraps at word boundaries', () => {
++  assert.deepEqual(wrapText('the quick brown fox jumps', 10), [
++    'the quick',
++    'brown fox',
++    'jumps',
++  ]);
++});
++
++test('a word exactly the width stays whole', () => {
++  assert.deepEqual(wrapText('ab abcde fg', 5), ['ab', 'abcde', 'fg']);
++});
++
++test('does not split words shorter than the width', () => {
++  assert.deepEqual(wrapText('alpha beta gamma delta', 7), [
++    'alpha',
++    'beta',
++    'gamma',
++    'delta',
++  ]);
++});
++
++test('hard-splits only words longer than the width', () => {
++  assert.deepEqual(wrapText('a abcdefghij b', 4), [
++    'a',
++    'abcd',
++    'efgh',
++    'ij b',
++  ]);
++});
++
++test('collapses whitespace and handles empty input', () => {
++  assert.deepEqual(wrapText('  a \n\t b  ', 10), ['a b']);
++  assert.deepEqual(wrapText('', 10), []);
++  assert.deepEqual(wrapText('   ', 10), []);
++});
++
++test('rejects invalid widths', () => {
++  assert.throws(() => wrapText('a', 0), RangeError);
++  assert.throws(() => wrapText('a', 1.5), RangeError);
++});
+--- status
+

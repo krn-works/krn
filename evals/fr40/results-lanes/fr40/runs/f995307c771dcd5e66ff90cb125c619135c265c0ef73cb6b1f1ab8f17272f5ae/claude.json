@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 16746,
+  "stop_reason": "end_turn",
+  "session_id": "0123cb5e-4b90-452b-a07b-a65302c75068",
+  "total_cost_usd": 0.053368299999999994,
+  "usage": {
+    "input_tokens": 16,
+    "cache_creation_input_tokens": 6600,
+    "cache_read_input_tokens": 77063,
+    "output_tokens": 1923,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 6600,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 336,
+        "cache_read_input_tokens": 12228,
+        "cache_creation_input_tokens": 240,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 240
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 16,
+      "outputTokens": 1923,
+      "cacheReadInputTokens": 77063,
+      "cacheCreationInputTokens": 6600,
+      "webSearchRequests": 0,
+      "costUSD": 0.053368299999999994,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 6600,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 8,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "`median()` is added in `src/cli/median.ts` and committed as `7300846`. `npm run fast` passes: biome, boundaries, tsc and 18 related tests.\n\n- **Behavior:** it throws a `RangeError` on an empty list. It sorts a copy, so the input isn't mutated. For an even-length list it returns the mean of the two middle values.\n- **Tests:** `test/cli/median.test.ts` covers a single value, odd length, even length, no mutation of the input, and the empty-list rejection.\n- **Extra change:** a repo rule test requires every test file to have a shard weight. I added `'test/cli/median.test.ts': 0.1` to `scripts/lib/shard-weights.mjs`. The 0.1 is a guess (I copied the value of a similar small test), not a measured figure.\n- **Plan:** it's in `docs/notes/median-plan.md`, with every step ticked off.\n\nI ran only `npm run fast`, not the full `npm run gate`. I didn't push.",
+  "ttft_ms": 1879,
+  "type": "result",
+  "duration_ms": 77782,
+  "uuid": "b4b22ce0-cb12-4569-9357-25b6a2986ac4",
+  "ttft_stream_ms": 1337,
+  "time_to_request_ms": 520,
+  "first_content_frame_ms": 1339,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

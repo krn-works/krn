@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 13313,
+  "stop_reason": "end_turn",
+  "session_id": "f8c30236-030a-457c-9c5b-f78eb425acb0",
+  "total_cost_usd": 0.0429269,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 5577,
+    "cache_read_input_tokens": 44689,
+    "output_tokens": 1613,
+    "output_tokens_details": { "thinking_tokens": 129 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 5577,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 338,
+        "cache_read_input_tokens": 11265,
+        "cache_creation_input_tokens": 180,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 180
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1613,
+      "cacheReadInputTokens": 44689,
+      "cacheCreationInputTokens": 5577,
+      "webSearchRequests": 0,
+      "costUSD": 0.0429269,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 129,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 5577,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `parseRange` and committed it as `109bcfd`. `npm run fast` passed: Biome, tsc, boundaries and the related tests.\n\nThe commit title has no task id, which the repo convention calls for. My brief didn't include one and I didn't want to invent one. If you give me the id, I can amend the title to end with `(<id>)`.\n\n- **Function:** `src/cli/range.ts` exports `parseRange(text)`, so `1-3,5` gives `[1, 2, 3, 5]`. It accepts spaces around numbers and dashes, and returns `[]` for empty text. It throws on malformed segments such as `a` or `1,,2`, and on descending ranges such as `3-1`.\n- **Tests:** `test/cli/range.test.ts` uses `node:test` and covers the cases above.\n- **Shard weight:** I added `test/cli/range.test.ts` to `scripts/lib/shard-weights.mjs` with a weight of 0.1. That value is my estimate, not a measured one.",
+  "ttft_ms": 3185,
+  "type": "result",
+  "duration_ms": 56826,
+  "uuid": "8101b332-fec1-415e-a18c-b23a215f4c0f",
+  "ttft_stream_ms": 2463,
+  "time_to_request_ms": 1531,
+  "first_content_frame_ms": 2464,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

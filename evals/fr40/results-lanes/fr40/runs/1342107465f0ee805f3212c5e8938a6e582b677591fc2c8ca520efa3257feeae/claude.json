@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 13033,
+  "stop_reason": "end_turn",
+  "session_id": "93f7ee95-4abf-4c9e-beb7-dc1b7d011043",
+  "total_cost_usd": 0.0368222,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4474,
+    "cache_read_input_tokens": 41862,
+    "output_tokens": 1472,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4474,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 341,
+        "cache_read_input_tokens": 10166,
+        "cache_creation_input_tokens": 176,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 176
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1472,
+      "cacheReadInputTokens": 41862,
+      "cacheCreationInputTokens": 4474,
+      "webSearchRequests": 0,
+      "costUSD": 0.0368222,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4474,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `formatDuration(ms)` in `src/cli/duration.ts` and committed it as `1cc59e9`. `npm run fast` passed.\n\n- **Output:** it renders `1h 2m 3s`, drops zero leading units, and keeps inner zeros after a leading unit (`1h 0m 0s`).\n- **Edge cases:** sub-second remainders are truncated. Zero, negative and non-finite input render as `0s`. You didn't specify these, so I chose them.\n- **Tests:** `test/cli/duration.test.ts` uses `node:test` and covers each of those cases.\n- **Shard weights:** I added the new test to `scripts/lib/shard-weights.mjs` with a weight of 0.1. That value is a guess, not a measured timing.\n- **Tracker:** the commit title ends with `(t-yiibkdf)` and has a `Ticket: t-yiibkdf` trailer. I didn't touch `tasks/t-yiibkdf.json`, since only the lead changes it.",
+  "ttft_ms": 3049,
+  "type": "result",
+  "duration_ms": 45392,
+  "uuid": "c921467f-fa99-4a29-b80d-fa09ac5edefc",
+  "ttft_stream_ms": 1986,
+  "time_to_request_ms": 1023,
+  "first_content_frame_ms": 1986,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

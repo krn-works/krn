@@ -1,0 +1,9 @@
+{
+  "runId": "5db765227c416a9f30ba3ec50e8a37cb9356c240387922779d551c4122f87e46",
+  "task": "fr40-core-imports-chunk",
+  "arm": "A",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-core-imports-chunk: src/core imports only core"
+}

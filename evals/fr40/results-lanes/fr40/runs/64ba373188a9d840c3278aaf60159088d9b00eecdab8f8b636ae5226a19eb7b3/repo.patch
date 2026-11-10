@@ -1,0 +1,61 @@
+commit 7af8a118beddd22b11831b0655bdd78194a06b52
+Add slugify to the CLI helpers
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..c5fb28a 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -47,6 +47,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
++  'test/cli/slug.test.ts': 0.1,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+   'test/deliver/admission-policy.test.ts': 0.1,
+diff --git a/src/cli/slug.ts b/src/cli/slug.ts
+new file mode 100644
+index 0000000..01f6526
+--- /dev/null
++++ b/src/cli/slug.ts
+@@ -0,0 +1,10 @@
++/** Lowercases text, strips accents and joins its words with single hyphens. */
++export function slugify(text: string): string {
++  return text
++    .normalize('NFD')
++    .replace(/\p{M}+/gu, '')
++    .toLowerCase()
++    .split(/[^a-z0-9]+/)
++    .filter((word) => word !== '')
++    .join('-');
++}
+diff --git a/test/cli/slug.test.ts b/test/cli/slug.test.ts
+new file mode 100644
+index 0000000..b176d4e
+--- /dev/null
++++ b/test/cli/slug.test.ts
+@@ -0,0 +1,19 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { slugify } from '../../src/cli/slug.ts';
++
++test('slugify lowercases and joins words with hyphens', () => {
++  assert.equal(slugify('Hello World'), 'hello-world');
++});
++
++test('slugify strips accents', () => {
++  assert.equal(slugify('Crème Brûlée à la Zoë'), 'creme-brulee-a-la-zoe');
++});
++
++test('slugify collapses separators and trims the ends', () => {
++  assert.equal(slugify('  a -- b__c!!  '), 'a-b-c');
++});
++
++test('slugify returns an empty string when no words remain', () => {
++  assert.equal(slugify('  !!! '), '');
++});
+--- status
+

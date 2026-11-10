@@ -1,0 +1,73 @@
+commit 148c0a0d9de6d2b342068fa1e89a3b04116a90e2
+Add wrapText word-wrapping helper (t-47l9uh7)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/wrap.ts b/src/cli/wrap.ts
+new file mode 100644
+index 0000000..1b2cdde
+--- /dev/null
++++ b/src/cli/wrap.ts
+@@ -0,0 +1,27 @@
++/**
++ * Word-wraps `text` to lines of at most `width` characters. Words shorter than
++ * `width` are never split; longer words are broken at `width`.
++ */
++export function wrapText(text: string, width: number): string[] {
++  const max = Math.max(1, Math.floor(width));
++  const lines: string[] = [];
++  let line = '';
++  for (const word of text.split(/\s+/).filter(Boolean)) {
++    let rest = word;
++    if (line && line.length + 1 + rest.length <= max) {
++      line += ` ${rest}`;
++      continue;
++    }
++    if (line) {
++      lines.push(line);
++      line = '';
++    }
++    while (rest.length > max) {
++      lines.push(rest.slice(0, max));
++      rest = rest.slice(max);
++    }
++    line = rest;
++  }
++  if (line) lines.push(line);
++  return lines;
++}
+diff --git a/test/cli/wrap.test.ts b/test/cli/wrap.test.ts
+new file mode 100644
+index 0000000..80e5f5c
+--- /dev/null
++++ b/test/cli/wrap.test.ts
+@@ -0,0 +1,26 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { wrapText } from '../../src/cli/wrap.ts';
++
++test('wraps at word boundaries', () => {
++  assert.deepEqual(wrapText('the quick brown fox', 10), [
++    'the quick',
++    'brown fox',
++  ]);
++});
++
++test('does not split words shorter than the width', () => {
++  assert.deepEqual(wrapText('aaaa bbbb cccc', 6), ['aaaa', 'bbbb', 'cccc']);
++});
++
++test('keeps a word of exactly the width whole', () => {
++  assert.deepEqual(wrapText('abcde fg', 5), ['abcde', 'fg']);
++});
++
++test('breaks words longer than the width', () => {
++  assert.deepEqual(wrapText('abcdefg hi', 3), ['abc', 'def', 'g', 'hi']);
++});
++
++test('returns no lines for empty text', () => {
++  assert.deepEqual(wrapText('  ', 5), []);
++});
+--- status
+

@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 9143,
+  "stop_reason": "end_turn",
+  "session_id": "f46b88e3-d60a-432c-a8c4-ae936e987d2e",
+  "total_cost_usd": 0.025407599999999995,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 3178,
+    "cache_read_input_tokens": 38056,
+    "output_tokens": 887,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3178,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 124,
+        "cache_read_input_tokens": 8878,
+        "cache_creation_input_tokens": 168,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 168
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 887,
+      "cacheReadInputTokens": 38056,
+      "cacheCreationInputTokens": 3178,
+      "webSearchRequests": 0,
+      "costUSD": 0.025407599999999995,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3178,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `countLines(text)` in `src/cli/count-lines.ts` and committed it as `6535656`. A trailing newline doesn't count as an extra line, and an empty string gives 0.\n\nThe test is in `test/cli/count-lines.test.ts`. I ran only that file, not the full suite, and it passes. Biome and `tsc --noEmit` are also clean.",
+  "ttft_ms": 3061,
+  "type": "result",
+  "duration_ms": 34749,
+  "uuid": "b81fdc6d-795b-4800-9ed7-923c3ed4c4c3",
+  "ttft_stream_ms": 2457,
+  "time_to_request_ms": 1522,
+  "first_content_frame_ms": 2459,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

@@ -1,0 +1,9 @@
+{
+  "runId": "300f209805184b8ba2de9dedcda84a39a3517605f663a4fc3a7849945626f0ff",
+  "task": "fr40-trailer-bytes",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-bytes: every commit carries Ticket: t-xllind3"
+}

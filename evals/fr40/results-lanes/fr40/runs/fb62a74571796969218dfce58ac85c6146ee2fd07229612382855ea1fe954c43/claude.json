@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 11288,
+  "stop_reason": "end_turn",
+  "session_id": "1ed40699-f510-4772-9f05-475bbcf688f4",
+  "total_cost_usd": 0.037211100000000004,
+  "usage": {
+    "input_tokens": 8,
+    "cache_creation_input_tokens": 4937,
+    "cache_read_input_tokens": 32071,
+    "output_tokens": 1424,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4937,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 273,
+        "cache_read_input_tokens": 9457,
+        "cache_creation_input_tokens": 1348,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 1348
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 8,
+      "outputTokens": 1424,
+      "cacheReadInputTokens": 32071,
+      "cacheCreationInputTokens": 4937,
+      "webSearchRequests": 0,
+      "costUSD": 0.037211100000000004,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4937,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 4,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `wrapText(text, width)` to `src/cli/wrap.ts`, with tests in `test/cli/wrap.test.ts`, and committed it as \"Add wrapText word wrapper to the CLI (t-om07fup)\". All four new tests pass. I didn't run `npm run fast`.\n\n- **Wrapping:** it breaks lines at word boundaries and collapses any run of whitespace to a single space. Empty or all-blank text gives `[]`.\n- **Long words:** a word longer than the width is the one case where it splits, into width-sized chunks. Shorter words are never split.\n- **Width:** a width below 1 is treated as 1.\n- **Shard weight:** I added a weight of 0.1 for the new test file to `scripts/lib/shard-weights.mjs`, as the repo conventions require.",
+  "ttft_ms": 3119,
+  "type": "result",
+  "duration_ms": 15417,
+  "uuid": "be08e62b-0327-4de6-ab84-3a395dadd052",
+  "ttft_stream_ms": 2420,
+  "time_to_request_ms": 1562,
+  "first_content_frame_ms": 2421,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

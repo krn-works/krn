@@ -1,0 +1,55 @@
+commit 3077f16875c3fa0d6fb2fa5f18fcf5dfef4d36b7
+Add formatBytes helper (t-qkftxbq)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/bytes.ts b/src/cli/bytes.ts
+new file mode 100644
+index 0000000..aa0361d
+--- /dev/null
++++ b/src/cli/bytes.ts
+@@ -0,0 +1,14 @@
++const UNITS = ['B', 'KiB', 'MiB', 'GiB'] as const;
++
++/** Renders a byte count as B, KiB, MiB or GiB with one decimal. */
++export function formatBytes(n: number): string {
++  if (!Number.isFinite(n)) return `${n} B`;
++  const sign = n < 0 ? '-' : '';
++  let value = Math.abs(n);
++  let unit = 0;
++  while (unit < UNITS.length - 1 && Math.round(value * 10) / 10 >= 1024) {
++    value /= 1024;
++    unit++;
++  }
++  return `${sign}${value.toFixed(1)} ${UNITS[unit]}`;
++}
+diff --git a/test/cli/bytes.test.ts b/test/cli/bytes.test.ts
+new file mode 100644
+index 0000000..c6a25e6
+--- /dev/null
++++ b/test/cli/bytes.test.ts
+@@ -0,0 +1,21 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { formatBytes } from '../../src/cli/bytes.ts';
++
++test('formatBytes renders each unit with one decimal', () => {
++  assert.equal(formatBytes(0), '0.0 B');
++  assert.equal(formatBytes(512), '512.0 B');
++  assert.equal(formatBytes(1024), '1.0 KiB');
++  assert.equal(formatBytes(1536), '1.5 KiB');
++  assert.equal(formatBytes(1024 ** 2), '1.0 MiB');
++  assert.equal(formatBytes(1024 ** 3), '1.0 GiB');
++  assert.equal(formatBytes(5 * 1024 ** 4), '5120.0 GiB');
++});
++
++test('formatBytes promotes values that round up to the next unit', () => {
++  assert.equal(formatBytes(1048575), '1.0 MiB');
++});
++
++test('formatBytes keeps the sign of negative counts', () => {
++  assert.equal(formatBytes(-2048), '-2.0 KiB');
++});
+--- status
+

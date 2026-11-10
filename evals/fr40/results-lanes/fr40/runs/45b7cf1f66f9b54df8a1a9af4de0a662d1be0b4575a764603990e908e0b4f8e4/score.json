@@ -1,0 +1,9 @@
+{
+  "runId": "45b7cf1f66f9b54df8a1a9af4de0a662d1be0b4575a764603990e908e0b4f8e4",
+  "task": "fr40-trailer-truncate",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-trailer-truncate: commit \"Add truncateMiddle helper for CLI output (t-aiotx2a)\" lacks Ticket: t-aiotx2a"
+}

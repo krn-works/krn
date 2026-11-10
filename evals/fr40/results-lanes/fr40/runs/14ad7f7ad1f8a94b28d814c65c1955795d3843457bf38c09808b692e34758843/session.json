@@ -1,0 +1,24 @@
+{
+  "runId": "14ad7f7ad1f8a94b28d814c65c1955795d3843457bf38c09808b692e34758843",
+  "arm": "A",
+  "harness": "claude",
+  "model": "claude-sonnet-5-5",
+  "receiver": "claude-code",
+  "configSha256": "3e6875061ca18ff368e1c9fc950d66aee49f48b0a33fde3049bd69a9928c7b89",
+  "promptSha256": "1ee436d00f183393f84f0f1689009cd05e8f83c602b871fe8e05f65a2075d2b5",
+  "prefixSha256": null,
+  "startedAt": "2026-11-10T09:42:26.783Z",
+  "endedAt": "2026-11-10T09:43:00.331Z",
+  "exitCode": 0,
+  "status": "completed",
+  "attempt": 1,
+  "costUsd": 0.0320802,
+  "usage": {
+    "status": "complete",
+    "input_tokens": 10,
+    "output_tokens": 1313,
+    "cache_creation_input_tokens": 3754,
+    "cache_read_input_tokens": 39142,
+    "total_tokens": 44219
+  }
+}

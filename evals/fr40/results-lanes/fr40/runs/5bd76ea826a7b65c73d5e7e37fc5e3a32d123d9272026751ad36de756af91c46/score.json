@@ -1,0 +1,9 @@
+{
+  "runId": "5bd76ea826a7b65c73d5e7e37fc5e3a32d123d9272026751ad36de756af91c46",
+  "task": "fr40-biome-clean-dedupe",
+  "arm": "A",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-biome-clean-dedupe: biome clean on 2 file(s)"
+}

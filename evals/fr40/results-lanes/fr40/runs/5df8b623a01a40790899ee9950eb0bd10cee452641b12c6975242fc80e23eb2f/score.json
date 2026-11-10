@@ -1,0 +1,9 @@
+{
+  "runId": "5df8b623a01a40790899ee9950eb0bd10cee452641b12c6975242fc80e23eb2f",
+  "task": "fr40-role-names-chunk",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-role-names-chunk: new names describe roles"
+}

@@ -1,0 +1,9 @@
+{
+  "runId": "5f8755767647ad5b0f80b4613f37b6d97a4c5e098d3c5eac37763180be2394bb",
+  "task": "fr40-agent-state-wrap",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-wrap: state outside .krn/: docs/wrap-text-notes.md"
+}

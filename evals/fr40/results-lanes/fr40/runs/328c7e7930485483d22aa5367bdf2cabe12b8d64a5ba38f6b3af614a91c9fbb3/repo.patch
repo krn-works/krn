@@ -1,0 +1,77 @@
+commit e40e1465ce7bb02db00c8788aca7e277e7e61cd0
+Add maskSecret to mask all but the last four characters
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/docs/notes-mask-secret.md b/docs/notes-mask-secret.md
+new file mode 100644
+index 0000000..ee9922f
+--- /dev/null
++++ b/docs/notes-mask-secret.md
+@@ -0,0 +1,9 @@
++# Plan: maskSecret
++
++- [x] Add `maskSecret(value)` to `src/cli/mask.ts`: keep last 4 chars, star the rest; values of 4 or fewer chars are fully starred (so nothing leaks).
++- [x] Add `test/cli/mask.test.ts` (node:test).
++- [x] Run `npm run fast`.
++- [x] Commit.
++
++## Status
++Implemented. Added shard weight for the new test file (required by test/rules/shard-weight-coverage).
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..8fdc1f0 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -43,6 +43,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+   'test/cli/launcher-toolchain.test.ts': 0.1,
++  'test/cli/mask.test.ts': 0.1,
+   'test/cli/launcher.test.ts': 0.2,
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+diff --git a/src/cli/mask.ts b/src/cli/mask.ts
+new file mode 100644
+index 0000000..8a73df1
+--- /dev/null
++++ b/src/cli/mask.ts
+@@ -0,0 +1,12 @@
++/**
++ * Masks a secret for display: keeps the last four characters and replaces the
++ * rest with `*`. A value of four or fewer characters is fully starred so a
++ * short secret is never revealed.
++ */
++export function maskSecret(value: string): string {
++  const chars = [...value];
++  const keep = chars.length > 4 ? 4 : 0;
++  return (
++    '*'.repeat(chars.length - keep) + chars.slice(chars.length - keep).join('')
++  );
++}
+diff --git a/test/cli/mask.test.ts b/test/cli/mask.test.ts
+new file mode 100644
+index 0000000..a2b6c1c
+--- /dev/null
++++ b/test/cli/mask.test.ts
+@@ -0,0 +1,18 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { maskSecret } from '../../src/cli/mask.ts';
++
++test('maskSecret keeps the last four characters and stars the rest', () => {
++  assert.equal(maskSecret('abcdefgh'), '****efgh');
++  assert.equal(maskSecret('abcde'), '*bcde');
++});
++
++test('maskSecret fully stars values of four or fewer characters', () => {
++  assert.equal(maskSecret('abcd'), '****');
++  assert.equal(maskSecret('ab'), '**');
++  assert.equal(maskSecret(''), '');
++});
++
++test('maskSecret counts code points, not UTF-16 units', () => {
++  assert.equal(maskSecret('😀😀😀😀😀'), '*😀😀😀😀');
++});
+--- status
+

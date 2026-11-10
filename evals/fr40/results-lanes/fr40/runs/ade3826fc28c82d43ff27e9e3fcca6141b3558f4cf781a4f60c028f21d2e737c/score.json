@@ -1,0 +1,9 @@
+{
+  "runId": "ade3826fc28c82d43ff27e9e3fcca6141b3558f4cf781a4f60c028f21d2e737c",
+  "task": "fr40-agent-state-percent",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-percent: state outside .krn/: PLAN-percent.md"
+}

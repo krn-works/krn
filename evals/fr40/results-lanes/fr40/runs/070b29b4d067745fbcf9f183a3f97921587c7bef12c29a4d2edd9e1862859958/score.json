@@ -1,0 +1,9 @@
+{
+  "runId": "070b29b4d067745fbcf9f183a3f97921587c7bef12c29a4d2edd9e1862859958",
+  "task": "fr40-agent-state-groups",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-groups: state outside .krn/: docs/notes/group-by-plan.md"
+}

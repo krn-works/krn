@@ -1,0 +1,60 @@
+commit f562d62d1757d16ee1edaef2b7df3667246f1998
+Add a median helper that rejects an empty list (t-t24f9us)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..0b2ff05 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -43,6 +43,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+   'test/cli/launcher-toolchain.test.ts': 0.1,
++  'test/cli/median.test.ts': 0.1,
+   'test/cli/launcher.test.ts': 0.2,
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+diff --git a/src/cli/median.ts b/src/cli/median.ts
+new file mode 100644
+index 0000000..feb1799
+--- /dev/null
++++ b/src/cli/median.ts
+@@ -0,0 +1,7 @@
++/** Middle value of `values`; the mean of the two middle values for an even count. */
++export function median(values: readonly number[]): number {
++  if (values.length === 0) throw new RangeError('median requires at least one value');
++  const sorted = [...values].sort((a, b) => a - b);
++  const mid = Math.floor(sorted.length / 2);
++  return sorted.length % 2 === 1 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
++}
+diff --git a/test/cli/median.test.ts b/test/cli/median.test.ts
+new file mode 100644
+index 0000000..c86eccf
+--- /dev/null
++++ b/test/cli/median.test.ts
+@@ -0,0 +1,21 @@
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++import { median } from '../../src/cli/median.ts';
++
++test('median returns the middle value of an odd count', () => {
++  assert.equal(median([3, 1, 2]), 2);
++});
++
++test('median averages the two middle values of an even count', () => {
++  assert.equal(median([4, 1, 3, 2]), 2.5);
++});
++
++test('median does not mutate its input', () => {
++  const values = [3, 1, 2];
++  median(values);
++  assert.deepEqual(values, [3, 1, 2]);
++});
++
++test('median rejects an empty list', () => {
++  assert.throws(() => median([]), RangeError);
++});
+--- status
+

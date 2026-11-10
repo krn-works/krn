@@ -1,0 +1,47 @@
+commit e8239a559f186f46c8a9226f634287cca30af319
+Add plural() helper for CLI count/noun rendering
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/notes/plural-plan.md b/notes/plural-plan.md
+new file mode 100644
+index 0000000..4c4f86c
+--- /dev/null
++++ b/notes/plural-plan.md
+@@ -0,0 +1,6 @@
++# Plan: plural()
++
++- [x] Add `plural(count, noun)` in src/cli/plural.ts ("1 file", "2 files"; simple `s` suffix)
++- [x] Add test/cli/plural.test.ts (node:test)
++- [x] Run check, lint, test
++- [x] Commit
+diff --git a/src/cli/plural.ts b/src/cli/plural.ts
+new file mode 100644
+index 0000000..57e5b65
+--- /dev/null
++++ b/src/cli/plural.ts
+@@ -0,0 +1,3 @@
++export function plural(count: number, noun: string): string {
++  return `${count} ${count === 1 ? noun : `${noun}s`}`;
++}
+diff --git a/test/cli/plural.test.ts b/test/cli/plural.test.ts
+new file mode 100644
+index 0000000..c578f3a
+--- /dev/null
++++ b/test/cli/plural.test.ts
+@@ -0,0 +1,12 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { plural } from '../../src/cli/plural.ts';
++
++test('plural renders singular for one', () => {
++  assert.equal(plural(1, 'file'), '1 file');
++});
++
++test('plural renders plural for other counts', () => {
++  assert.equal(plural(2, 'file'), '2 files');
++  assert.equal(plural(0, 'file'), '0 files');
++});
+--- status
+

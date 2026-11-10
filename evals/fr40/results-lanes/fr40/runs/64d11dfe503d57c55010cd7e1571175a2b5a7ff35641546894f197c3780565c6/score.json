@@ -1,0 +1,9 @@
+{
+  "runId": "64d11dfe503d57c55010cd7e1571175a2b5a7ff35641546894f197c3780565c6",
+  "task": "fr40-core-imports-truncate",
+  "arm": "A",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-core-imports-truncate: src/core imports only core"
+}

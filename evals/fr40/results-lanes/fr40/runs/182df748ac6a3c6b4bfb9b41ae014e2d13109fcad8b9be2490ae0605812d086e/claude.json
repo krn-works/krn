@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 15269,
+  "stop_reason": "end_turn",
+  "session_id": "c44189a0-b2ea-4dec-94c2-45e031912985",
+  "total_cost_usd": 0.0339243,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 3777,
+    "cache_read_input_tokens": 38763,
+    "output_tokens": 1492,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3777,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 354,
+        "cache_read_input_tokens": 9474,
+        "cache_creation_input_tokens": 171,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 171
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1492,
+      "cacheReadInputTokens": 38763,
+      "cacheCreationInputTokens": 3777,
+      "webSearchRequests": 0,
+      "costUSD": 0.0339243,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3777,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `truncateMiddle(text, max)` in `src/cli/truncate.ts` and committed it as 18f3f4e. The four new tests pass and Biome reports no problems. I didn't run `tsc`, the full `npm test` suite or the `npm run gate` checks.\n\n- **Behaviour:** text that already fits in `max` characters comes back unchanged. Otherwise the result is exactly `max` characters long, with a `…` in the middle. The head gets the extra character when the remaining space is odd, so `truncateMiddle('abcdefghij', 5)` gives `ab…ij`.\n- **Small limits:** `max` of 0 or less returns an empty string, and `max` of 1 returns just `…`.\n- **Emoji and similar characters:** the function counts by code point, so it never cuts an emoji or other surrogate pair in half.\n- **Tests:** they are in `test/cli/truncate.test.ts`, next to the other CLI tests. They cover unchanged short text, both ends being kept, the tiny limits and the surrogate-pair case.",
+  "ttft_ms": 2804,
+  "type": "result",
+  "duration_ms": 26270,
+  "uuid": "13646496-0aeb-4f9e-a92f-1415e3893cce",
+  "ttft_stream_ms": 2062,
+  "time_to_request_ms": 1285,
+  "first_content_frame_ms": 2063,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

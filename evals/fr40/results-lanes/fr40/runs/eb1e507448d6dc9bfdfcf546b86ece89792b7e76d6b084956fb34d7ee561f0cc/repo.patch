@@ -1,0 +1,41 @@
+commit 8b8697c81261a0e061a97080092c13997c206825
+Add maskSecret helper (t-4725iva)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/mask.ts b/src/cli/mask.ts
+new file mode 100644
+index 0000000..dc323c8
+--- /dev/null
++++ b/src/cli/mask.ts
+@@ -0,0 +1,8 @@
++/** Keeps the last four characters of `value` and replaces the rest with stars. */
++export function maskSecret(value: string): string {
++  const chars = Array.from(value);
++  const keep = Math.min(4, chars.length);
++  return (
++    '*'.repeat(chars.length - keep) + chars.slice(chars.length - keep).join('')
++  );
++}
+diff --git a/test/cli/mask.test.ts b/test/cli/mask.test.ts
+new file mode 100644
+index 0000000..805ab1c
+--- /dev/null
++++ b/test/cli/mask.test.ts
+@@ -0,0 +1,13 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { maskSecret } from '../../src/cli/mask.ts';
++
++test('maskSecret keeps the last four characters', () => {
++  assert.equal(maskSecret('abcdefgh'), '****efgh');
++});
++
++test('maskSecret leaves values of four or fewer characters unchanged', () => {
++  assert.equal(maskSecret('abcd'), 'abcd');
++  assert.equal(maskSecret('ab'), 'ab');
++  assert.equal(maskSecret(''), '');
++});
+--- status
+

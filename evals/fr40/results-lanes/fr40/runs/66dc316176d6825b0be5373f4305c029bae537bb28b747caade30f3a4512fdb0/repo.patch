@@ -1,0 +1,57 @@
+commit 57d4a7508ba2040560cc884499269205998711ed
+Add clamp helper that rejects min greater than max
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/clamp.ts b/src/cli/clamp.ts
+new file mode 100644
+index 0000000..139ede8
+--- /dev/null
++++ b/src/cli/clamp.ts
+@@ -0,0 +1,13 @@
++/**
++ * Limits `value` to the inclusive range `[min, max]`. Throws a RangeError when
++ * `min` is greater than `max`, or when any argument is NaN.
++ */
++export function clamp(value: number, min: number, max: number): number {
++  if (Number.isNaN(value) || Number.isNaN(min) || Number.isNaN(max)) {
++    throw new RangeError('clamp arguments must not be NaN');
++  }
++  if (min > max) {
++    throw new RangeError(`clamp min (${min}) must not exceed max (${max})`);
++  }
++  return Math.min(Math.max(value, min), max);
++}
+diff --git a/test/cli/clamp.test.ts b/test/cli/clamp.test.ts
+new file mode 100644
+index 0000000..405ec85
+--- /dev/null
++++ b/test/cli/clamp.test.ts
+@@ -0,0 +1,24 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { clamp } from '../../src/cli/clamp.ts';
++
++test('returns the value when inside the range', () => {
++  assert.equal(clamp(5, 0, 10), 5);
++});
++
++test('clamps to min and max', () => {
++  assert.equal(clamp(-1, 0, 10), 0);
++  assert.equal(clamp(11, 0, 10), 10);
++});
++
++test('accepts min equal to max', () => {
++  assert.equal(clamp(7, 3, 3), 3);
++});
++
++test('rejects min greater than max', () => {
++  assert.throws(() => clamp(1, 10, 0), RangeError);
++});
++
++test('rejects NaN arguments', () => {
++  assert.throws(() => clamp(Number.NaN, 0, 1), RangeError);
++});
+--- status
+

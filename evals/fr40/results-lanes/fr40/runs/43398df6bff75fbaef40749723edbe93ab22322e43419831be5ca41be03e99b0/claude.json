@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 14674,
+  "stop_reason": "end_turn",
+  "session_id": "4897fde5-5b48-403e-a08f-495d2a0a80c3",
+  "total_cost_usd": 0.0370369,
+  "usage": {
+    "input_tokens": 12,
+    "cache_creation_input_tokens": 3989,
+    "cache_read_input_tokens": 48369,
+    "output_tokens": 1622,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3989,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 292,
+        "cache_read_input_tokens": 9681,
+        "cache_creation_input_tokens": 176,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 176
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 12,
+      "outputTokens": 1622,
+      "cacheReadInputTokens": 48369,
+      "cacheCreationInputTokens": 3989,
+      "webSearchRequests": 0,
+      "costUSD": 0.0370369,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3989,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 6,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `wrapText(text, width)` in `src/cli/wrap.ts` and committed it as `0ce2c71`. The five tests in `test/cli/wrap.test.ts` pass, and `tsc` and `boundaries.ts` ran with no output. I didn't run the full `npm test` or `npm run lint`, only Biome on the two new files.\n\n- **Wrapping:** words are greedily packed onto lines of at most `width` characters. Runs of whitespace collapse to a single space, and empty text returns `[]`.\n- **Long words:** your spec only covered words shorter than the width. I chose to hard-split words longer than the width into `width`-sized chunks, so every line fits. If you'd rather leave long words whole on their own line, that's a small change.\n- **Invalid width:** a width that isn't a positive integer throws a `RangeError`. You didn't ask for this.",
+  "ttft_ms": 2915,
+  "type": "result",
+  "duration_ms": 39024,
+  "uuid": "87e294ca-e5c1-456a-9343-cb5297569c67",
+  "ttft_stream_ms": 2098,
+  "time_to_request_ms": 1163,
+  "first_content_frame_ms": 2099,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

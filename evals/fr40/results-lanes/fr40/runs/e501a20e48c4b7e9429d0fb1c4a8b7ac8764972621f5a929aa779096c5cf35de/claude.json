@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 10335,
+  "stop_reason": "end_turn",
+  "session_id": "3902a14c-a8e7-44eb-b414-b2eecbadf515",
+  "total_cost_usd": 0.028135600000000004,
+  "usage": {
+    "input_tokens": 12,
+    "cache_creation_input_tokens": 3249,
+    "cache_read_input_tokens": 46756,
+    "output_tokens": 1044,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3249,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 158,
+        "cache_read_input_tokens": 8929,
+        "cache_creation_input_tokens": 188,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 188
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 12,
+      "outputTokens": 1044,
+      "cacheReadInputTokens": 46756,
+      "cacheCreationInputTokens": 3249,
+      "webSearchRequests": 0,
+      "costUSD": 0.028135600000000004,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3249,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 6,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `percent(part, total)` in `src/cli/percent.ts` and committed it as 1326de2. It returns the percentage with one decimal, for example `33.3%`, and `0.0%` when the total is zero.\n\nThe tests are in `test/cli/percent.test.ts`. They cover normal values and the zero-total case, and both pass. Biome and `tsc --noEmit` also ran clean on the new files. I didn't run the full `npm test` suite or `preflight`.",
+  "ttft_ms": 2392,
+  "type": "result",
+  "duration_ms": 24523,
+  "uuid": "dd4c9b58-184f-4254-ad77-24063d07754a",
+  "ttft_stream_ms": 1635,
+  "time_to_request_ms": 840,
+  "first_content_frame_ms": 1636,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

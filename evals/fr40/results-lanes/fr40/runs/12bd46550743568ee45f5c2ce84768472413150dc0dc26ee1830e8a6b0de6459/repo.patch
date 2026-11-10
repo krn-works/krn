@@ -1,0 +1,50 @@
+commit 81d69bf6c5c324c1e38d57c2207aa99b562abbd4
+Add a plural helper for counted nouns (t-4du2fek)
+
+Ticket: t-4du2fek
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..c0cf7a4 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -47,6 +47,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
++  'test/cli/plural.test.ts': 0.1,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+   'test/deliver/admission-policy.test.ts': 0.1,
+diff --git a/src/cli/plural.ts b/src/cli/plural.ts
+new file mode 100644
+index 0000000..e943f60
+--- /dev/null
++++ b/src/cli/plural.ts
+@@ -0,0 +1,4 @@
++/** Render a count with its noun, adding an "s" unless the count is exactly 1. */
++export function plural(count: number, noun: string): string {
++  return `${count} ${count === 1 ? noun : `${noun}s`}`;
++}
+diff --git a/test/cli/plural.test.ts b/test/cli/plural.test.ts
+new file mode 100644
+index 0000000..e36667e
+--- /dev/null
++++ b/test/cli/plural.test.ts
+@@ -0,0 +1,12 @@
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++import { plural } from '../../src/cli/plural.ts';
++
++test('plural renders a singular noun for one', () => {
++  assert.equal(plural(1, 'file'), '1 file');
++});
++
++test('plural renders a plural noun for other counts', () => {
++  assert.equal(plural(2, 'file'), '2 files');
++  assert.equal(plural(0, 'file'), '0 files');
++});
+--- status
+

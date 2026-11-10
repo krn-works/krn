@@ -1,0 +1,62 @@
+commit 0f652ca7dadcc9988e8ebd59539f1aa6338df917
+Add backoffDelays for capped doubling retry delays (t-hpw91ip)
+
+Ticket: t-hpw91ip
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..b7378d0 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -47,6 +47,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
++  'test/cli/retry.test.ts': 0.1,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+   'test/deliver/admission-policy.test.ts': 0.1,
+diff --git a/src/cli/retry.ts b/src/cli/retry.ts
+new file mode 100644
+index 0000000..8deb2eb
+--- /dev/null
++++ b/src/cli/retry.ts
+@@ -0,0 +1,10 @@
++const MAX_DELAY_MS = 30_000;
++
++/** Returns `attempts` doubling delays starting at `baseMs`, capped at 30 seconds. */
++export function backoffDelays(attempts: number, baseMs: number): number[] {
++  const delays: number[] = [];
++  for (let i = 0; i < attempts; i++) {
++    delays.push(Math.min(baseMs * 2 ** i, MAX_DELAY_MS));
++  }
++  return delays;
++}
+diff --git a/test/cli/retry.test.ts b/test/cli/retry.test.ts
+new file mode 100644
+index 0000000..aebed09
+--- /dev/null
++++ b/test/cli/retry.test.ts
+@@ -0,0 +1,18 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { backoffDelays } from '../../src/cli/retry.ts';
++
++test('backoffDelays doubles from the base delay', () => {
++  assert.deepEqual(backoffDelays(4, 100), [100, 200, 400, 800]);
++});
++
++test('backoffDelays caps each delay at 30 seconds', () => {
++  assert.deepEqual(
++    backoffDelays(5, 10_000),
++    [10_000, 20_000, 30_000, 30_000, 30_000],
++  );
++});
++
++test('backoffDelays returns nothing for zero attempts', () => {
++  assert.deepEqual(backoffDelays(0, 100), []);
++});
+--- status
+

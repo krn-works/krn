@@ -1,0 +1,9 @@
+{
+  "runId": "91e3f96d1e8a168b3e83bc5f912b6c321b341a2fffb921fc8fe85fe0be06e194",
+  "task": "fr40-trailer-wrap",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-trailer-wrap: commit \"Add wrapText word-wrapping helper (t-47l9uh7)\" lacks Ticket: t-47l9uh7"
+}

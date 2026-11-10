@@ -1,0 +1,60 @@
+commit 9303fbbdd64588a09232333c7faf9f502dbd5422
+Add dedupeBy helper keeping the first item per key (t-wm6ynmx)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/dedupe.ts b/src/cli/dedupe.ts
+new file mode 100644
+index 0000000..86466db
+--- /dev/null
++++ b/src/cli/dedupe.ts
+@@ -0,0 +1,15 @@
++/** Keeps the first item for each key, preserving input order. */
++export function dedupeBy<T>(
++  items: readonly T[],
++  key: (item: T) => string,
++): T[] {
++  const seen = new Set<string>();
++  const result: T[] = [];
++  for (const item of items) {
++    const k = key(item);
++    if (seen.has(k)) continue;
++    seen.add(k);
++    result.push(item);
++  }
++  return result;
++}
+diff --git a/test/cli/dedupe.test.ts b/test/cli/dedupe.test.ts
+new file mode 100644
+index 0000000..7d84557
+--- /dev/null
++++ b/test/cli/dedupe.test.ts
+@@ -0,0 +1,25 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { dedupeBy } from '../../src/cli/dedupe.ts';
++
++test('dedupeBy keeps the first item per key in order', () => {
++  const items = [
++    { id: 'a', n: 1 },
++    { id: 'b', n: 2 },
++    { id: 'a', n: 3 },
++  ];
++  assert.deepEqual(
++    dedupeBy(items, (i) => i.id),
++    [items[0], items[1]],
++  );
++});
++
++test('dedupeBy handles empty input and does not mutate', () => {
++  assert.deepEqual(
++    dedupeBy([], (s: string) => s),
++    [],
++  );
++  const input = ['x', 'x'];
++  dedupeBy(input, (s) => s);
++  assert.deepEqual(input, ['x', 'x']);
++});
+--- status
+

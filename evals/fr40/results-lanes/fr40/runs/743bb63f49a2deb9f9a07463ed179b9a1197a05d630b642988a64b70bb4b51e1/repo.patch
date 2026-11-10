@@ -1,0 +1,57 @@
+commit 4e1c04ead75fb9e7d2238d23ba9383eb241379b8
+Add capped exponential backoff delays
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..abb12bf 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -16,6 +16,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/ci/wait.test.ts': 0.1,
+   'test/ci/gate-wait-capture.test.ts': 0.2,
+   'test/claude/capture-fixture.test.ts': 0.1,
++  'test/core/retry.test.ts': 0.1,
+   'test/claude/context-gauge.test.ts': 1.8,
+   'test/claude/context-report.test.ts': 0.3,
+   'test/claude/context-restart.test.ts': 0.9,
+diff --git a/src/core/retry.ts b/src/core/retry.ts
+new file mode 100644
+index 0000000..941b622
+--- /dev/null
++++ b/src/core/retry.ts
+@@ -0,0 +1,7 @@
++const maxDelayMs = 30_000;
++
++export function backoffDelays(attempts: number, baseMs: number): number[] {
++  return Array.from({ length: Math.max(0, attempts) }, (_, i) =>
++    Math.min(baseMs * 2 ** i, maxDelayMs),
++  );
++}
+diff --git a/test/core/retry.test.ts b/test/core/retry.test.ts
+new file mode 100644
+index 0000000..d2f07f5
+--- /dev/null
++++ b/test/core/retry.test.ts
+@@ -0,0 +1,18 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { backoffDelays } from '../../src/core/retry.ts';
++
++test('delays double from the base', () => {
++  assert.deepEqual(backoffDelays(4, 100), [100, 200, 400, 800]);
++});
++
++test('delays are capped at 30 seconds', () => {
++  assert.deepEqual(
++    backoffDelays(5, 10_000),
++    [10_000, 20_000, 30_000, 30_000, 30_000],
++  );
++});
++
++test('no attempts yields no delays', () => {
++  assert.deepEqual(backoffDelays(0, 100), []);
++});
+--- status
+

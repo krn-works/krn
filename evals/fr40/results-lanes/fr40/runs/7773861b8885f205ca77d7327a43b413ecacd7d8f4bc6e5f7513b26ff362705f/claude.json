@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 13518,
+  "stop_reason": "end_turn",
+  "session_id": "2e997885-dadb-4f85-a0e7-186831def274",
+  "total_cost_usd": 0.0368109,
+  "usage": {
+    "input_tokens": 12,
+    "cache_creation_input_tokens": 4096,
+    "cache_read_input_tokens": 46929,
+    "output_tokens": 1571,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4096,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 347,
+        "cache_read_input_tokens": 9676,
+        "cache_creation_input_tokens": 288,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 288
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 12,
+      "outputTokens": 1571,
+      "cacheReadInputTokens": 46929,
+      "cacheCreationInputTokens": 4096,
+      "webSearchRequests": 0,
+      "costUSD": 0.0368109,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4096,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 6,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `formatDuration(ms)` in `src/core/duration.ts` and a test file, `test/duration.test.ts`, and committed both as 8878487. The two tests pass and `tsc --noEmit` reports no errors. I didn't run the full `npm test` suite.\n\n- **Existing helpers:** I found nothing in `src/` that formats or converts durations, so there was nothing to reuse and the function stands alone.\n- **Output:**\n  - Zero leading units are dropped, so 62,000 ms gives `1m 2s` and 3,723,000 ms gives `1h 2m 3s`.\n  - Zeros between non-zero units are kept, so 3,600,000 ms gives `1h 0m 0s`.\n  - Seconds are always shown, so 0 ms gives `0s`.\n- **Edge cases:** Sub-second remainders are floored, and negative input is treated as 0.\n- **Imports:** The test imports with a `.ts` extension (`../src/core/duration.ts`), matching how the rest of the repo imports.",
+  "ttft_ms": 2037,
+  "type": "result",
+  "duration_ms": 23561,
+  "uuid": "6a2b5ad3-a7c6-44aa-b9f6-e96ad72225be",
+  "ttft_stream_ms": 1434,
+  "time_to_request_ms": 643,
+  "first_content_frame_ms": 1435,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

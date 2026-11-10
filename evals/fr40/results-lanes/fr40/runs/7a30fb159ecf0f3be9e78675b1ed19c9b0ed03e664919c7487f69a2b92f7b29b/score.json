@@ -1,0 +1,9 @@
+{
+  "runId": "7a30fb159ecf0f3be9e78675b1ed19c9b0ed03e664919c7487f69a2b92f7b29b",
+  "task": "fr40-trailer-lines",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-trailer-lines: commit \"Add countLines helper that ignores a trailing newline (t-2bjcpa9)\" lacks Refs: t-2bjcpa9"
+}

@@ -1,0 +1,64 @@
+commit f7cc459cfff4939a0daf2cc8c972fc65d8166572
+Add chunk helper that splits lists into fixed-size groups
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..61471bb 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -15,6 +15,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/ci/test-summary-policy.test.mjs': 0.3,
+   'test/ci/wait.test.ts': 0.1,
+   'test/ci/gate-wait-capture.test.ts': 0.2,
++  'test/core/chunk.test.ts': 0.1,
+   'test/claude/capture-fixture.test.ts': 0.1,
+   'test/claude/context-gauge.test.ts': 1.8,
+   'test/claude/context-report.test.ts': 0.3,
+diff --git a/src/core/chunk.ts b/src/core/chunk.ts
+new file mode 100644
+index 0000000..2543ad0
+--- /dev/null
++++ b/src/core/chunk.ts
+@@ -0,0 +1,11 @@
++/** Split `items` into consecutive groups of `size`; the last group may be shorter. */
++export function chunk<T>(items: readonly T[], size: number): T[][] {
++  if (!Number.isInteger(size) || size < 1) {
++    throw new RangeError(`chunk size must be an integer >= 1, got ${size}`);
++  }
++  const groups: T[][] = [];
++  for (let i = 0; i < items.length; i += size) {
++    groups.push(items.slice(i, i + size));
++  }
++  return groups;
++}
+diff --git a/test/core/chunk.test.ts b/test/core/chunk.test.ts
+new file mode 100644
+index 0000000..6b48dd8
+--- /dev/null
++++ b/test/core/chunk.test.ts
+@@ -0,0 +1,21 @@
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++import { chunk } from '../../src/core/chunk.ts';
++
++test('chunk splits into fixed-size groups with a shorter tail', () => {
++  assert.deepEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
++});
++
++test('chunk returns no groups for an empty list', () => {
++  assert.deepEqual(chunk([], 3), []);
++});
++
++test('chunk keeps one group when size exceeds length', () => {
++  assert.deepEqual(chunk([1, 2], 5), [[1, 2]]);
++});
++
++test('chunk rejects sizes below 1 and non-integers', () => {
++  for (const size of [0, -1, 1.5, Number.NaN]) {
++    assert.throws(() => chunk([1], size), RangeError);
++  }
++});
+--- status
+

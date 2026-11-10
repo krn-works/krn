@@ -1,0 +1,66 @@
+commit 6f5b2875afb3c773cd3934cc60970522747f36be
+Add formatDuration for human-readable durations (t-0w3k78m)
+
+Ticket: t-0w3k78m
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..fe7c9f0 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -45,6 +45,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/launcher-toolchain.test.ts': 0.1,
+   'test/cli/launcher.test.ts': 0.2,
+   'test/cli/lazy-command-imports.test.ts': 1.7,
++  'test/cli/duration.test.ts': 0.1,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
+   'test/codex/app-server-replay.test.ts': 2,
+diff --git a/src/cli/duration.ts b/src/cli/duration.ts
+new file mode 100644
+index 0000000..0049ed0
+--- /dev/null
++++ b/src/cli/duration.ts
+@@ -0,0 +1,10 @@
++/** Render milliseconds as e.g. `1h 2m 3s`, dropping zero leading units. */
++export function formatDuration(ms: number): string {
++  const total = Math.max(0, Math.floor(ms / 1000));
++  const h = Math.floor(total / 3600);
++  const m = Math.floor((total % 3600) / 60);
++  const s = total % 60;
++  if (h > 0) return `${h}h ${m}m ${s}s`;
++  if (m > 0) return `${m}m ${s}s`;
++  return `${s}s`;
++}
+diff --git a/test/cli/duration.test.ts b/test/cli/duration.test.ts
+new file mode 100644
+index 0000000..23cf88a
+--- /dev/null
++++ b/test/cli/duration.test.ts
+@@ -0,0 +1,22 @@
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++import { formatDuration } from '../../src/cli/duration.ts';
++
++test('formats seconds only', () => {
++  assert.equal(formatDuration(0), '0s');
++  assert.equal(formatDuration(3000), '3s');
++});
++
++test('drops zero leading units', () => {
++  assert.equal(formatDuration(123000), '2m 3s');
++  assert.equal(formatDuration(3723000), '1h 2m 3s');
++});
++
++test('keeps interior zero units', () => {
++  assert.equal(formatDuration(3600000), '1h 0m 0s');
++});
++
++test('truncates sub-second and clamps negatives', () => {
++  assert.equal(formatDuration(1999), '1s');
++  assert.equal(formatDuration(-5), '0s');
++});
+--- status
+

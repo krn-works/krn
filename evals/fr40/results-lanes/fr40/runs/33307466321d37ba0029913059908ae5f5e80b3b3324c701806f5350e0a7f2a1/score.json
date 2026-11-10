@@ -1,0 +1,9 @@
+{
+  "runId": "33307466321d37ba0029913059908ae5f5e80b3b3324c701806f5350e0a7f2a1",
+  "task": "fr40-trailer-bytes",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-trailer-bytes: commit \"Add formatBytes for human-readable byte counts (t-xllind3)\" lacks Ticket: t-xllind3"
+}

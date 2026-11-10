@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 11776,
+  "stop_reason": "end_turn",
+  "session_id": "bcc0f985-5126-43e2-bc93-4a95dbd5bf9b",
+  "total_cost_usd": 0.034333999999999996,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4551,
+    "cache_read_input_tokens": 42300,
+    "output_tokens": 1188,
+    "output_tokens_details": { "thinking_tokens": 115 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4551,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 252,
+        "cache_read_input_tokens": 10270,
+        "cache_creation_input_tokens": 149,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 149
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1188,
+      "cacheReadInputTokens": 42300,
+      "cacheCreationInputTokens": 4551,
+      "webSearchRequests": 0,
+      "costUSD": 0.034333999999999996,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 115,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4551,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `percent(part, total)` in `src/cli/percent.ts` and committed it as `ced327f`. `npm run fast` passed.\n\n- **Function:** it returns one decimal, so `percent(1, 3)` gives `33.3%`. A zero total gives `0.0%`.\n- **Tests:** `test/cli/percent.test.ts` covers both cases.\n- **Shard weight:** I added a weight for the new test file in `scripts/lib/shard-weights.mjs`. The `0.1` is my guess, since there are no CI timings for a new file yet.\n- **Commit title:** it has no task id. The repo convention is to end the title with the id in parentheses, but my brief didn't include one. Once you have it, `git commit --amend` can add it.",
+  "ttft_ms": 3620,
+  "type": "result",
+  "duration_ms": 63147,
+  "uuid": "6fd11a70-6266-4403-a6fe-8a7b0b8bc4eb",
+  "ttft_stream_ms": 3024,
+  "time_to_request_ms": 2093,
+  "first_content_frame_ms": 3026,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

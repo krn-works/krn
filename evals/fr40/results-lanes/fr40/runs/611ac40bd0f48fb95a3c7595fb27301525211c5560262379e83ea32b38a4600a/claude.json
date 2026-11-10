@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 12208,
+  "stop_reason": "end_turn",
+  "session_id": "13fea59e-6823-46b0-b6c0-6eaad8b88d22",
+  "total_cost_usd": 0.0333344,
+  "usage": {
+    "input_tokens": 8,
+    "cache_creation_input_tokens": 3875,
+    "cache_read_input_tokens": 31384,
+    "output_tokens": 1468,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3875,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 266,
+        "cache_read_input_tokens": 9574,
+        "cache_creation_input_tokens": 169,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 169
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 8,
+      "outputTokens": 1468,
+      "cacheReadInputTokens": 31384,
+      "cacheCreationInputTokens": 3875,
+      "webSearchRequests": 0,
+      "costUSD": 0.0333344,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3875,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 4,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `compareVersions(a, b)` in `src/cli/semver.ts` and committed it as `6dc4ac2`. The four new tests in `test/cli/semver.test.ts` pass. I ran only that file, not `npm run fast` or the rest of the suite.\n\nIt returns -1, 0 or 1. Segments are compared as numbers, so `1.10.0` is greater than `1.9.0`. A missing trailing segment counts as 0, so `1.2` equals `1.2.0`. Input with a non-numeric segment, including an empty string, throws a `TypeError`. You didn't specify that behaviour, so say if you'd rather it do something else.\n\nI also added a weight of 0.1 for the new test file in `scripts/lib/shard-weights.mjs`, as the repo conventions require.",
+  "ttft_ms": 5062,
+  "type": "result",
+  "duration_ms": 20144,
+  "uuid": "fc193205-2716-4c71-a159-bbae53291606",
+  "ttft_stream_ms": 4442,
+  "time_to_request_ms": 3359,
+  "first_content_frame_ms": 4447,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

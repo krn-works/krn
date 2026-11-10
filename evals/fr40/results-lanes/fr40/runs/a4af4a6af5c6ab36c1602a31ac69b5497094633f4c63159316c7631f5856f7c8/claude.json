@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 15859,
+  "stop_reason": "end_turn",
+  "session_id": "9a281f32-2200-495b-8bb2-59c9583cd0f8",
+  "total_cost_usd": 0.05330270000000001,
+  "usage": {
+    "input_tokens": 16,
+    "cache_creation_input_tokens": 7000,
+    "cache_read_input_tokens": 78807,
+    "output_tokens": 1739,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 7000,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 345,
+        "cache_read_input_tokens": 12677,
+        "cache_creation_input_tokens": 191,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 191
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 16,
+      "outputTokens": 1739,
+      "cacheReadInputTokens": 78807,
+      "cacheCreationInputTokens": 7000,
+      "webSearchRequests": 0,
+      "costUSD": 0.05330270000000001,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 7000,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 8,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `parseRange` to `src/cli/range.ts`, with tests in `test/cli/range.test.ts`, and committed it as f8fd99b. `npm run fast` passes (biome, boundaries, tsc and 18 related tests).\n\n`parseRange('1-3,5')` returns `[1, 2, 3, 5]`. It accepts spaces around numbers and dashes. It throws an error on malformed parts (`''`, `a`, `1-`, `1,,2`, `-3`) and on descending ranges like `3-1`. You didn't specify error behavior, so I chose to throw rather than return a partial result.\n\nThe repo also has a rule test that requires every test file to have an entry in `scripts/lib/shard-weights.mjs`. I added `'test/cli/range.test.ts': 0.1` there. That value is my guess, copied from the other small tests, not a CI-measured weight.\n\nThe commit title and `Ticket:` trailer use t-4kv2nz2, per KRN-11. I haven't pushed or opened a PR.",
+  "ttft_ms": 2143,
+  "type": "result",
+  "duration_ms": 69340,
+  "uuid": "ec788dab-c7fe-4673-a4c4-9b1ad49b19e8",
+  "ttft_stream_ms": 1574,
+  "time_to_request_ms": 766,
+  "first_content_frame_ms": 1576,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

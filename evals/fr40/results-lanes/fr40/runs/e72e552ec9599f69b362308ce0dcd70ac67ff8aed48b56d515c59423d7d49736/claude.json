@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 8031,
+  "stop_reason": "end_turn",
+  "session_id": "38f461a8-9b16-4dfa-b843-8726b2308cf3",
+  "total_cost_usd": 0.0266285,
+  "usage": {
+    "input_tokens": 8,
+    "cache_creation_input_tokens": 3595,
+    "cache_read_input_tokens": 30925,
+    "output_tokens": 914,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3595,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 206,
+        "cache_read_input_tokens": 8842,
+        "cache_creation_input_tokens": 621,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 621
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 8,
+      "outputTokens": 914,
+      "cacheReadInputTokens": 30925,
+      "cacheCreationInputTokens": 3595,
+      "webSearchRequests": 0,
+      "costUSD": 0.0266285,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3595,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 4,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `plural(count, noun)` in `src/cli/plural.ts`. It renders `1 file` for a count of 1 and `2 files` (or `0 files`) otherwise. It only appends an \"s\", so irregular nouns aren't handled.\n\nThe tests are in `test/cli/plural.test.ts`, and both pass when run on their own. I didn't run `npm run fast` or the full suite.\n\nI gave the new test file a weight of 0.1 in `scripts/lib/shard-weights.mjs`. I committed everything as `61868b8`, \"Add a plural helper for CLI counts (t-3154kp5)\".",
+  "ttft_ms": 2896,
+  "type": "result",
+  "duration_ms": 12245,
+  "uuid": "d7651874-0cce-409c-9c10-0b9b136f1f1c",
+  "ttft_stream_ms": 2233,
+  "time_to_request_ms": 1467,
+  "first_content_frame_ms": 2234,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

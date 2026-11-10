@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 12739,
+  "stop_reason": "end_turn",
+  "session_id": "ab52ab79-3ab0-45ed-a412-9390760488ba",
+  "total_cost_usd": 0.033038200000000004,
+  "usage": {
+    "input_tokens": 12,
+    "cache_creation_input_tokens": 3784,
+    "cache_read_input_tokens": 48082,
+    "output_tokens": 1307,
+    "output_tokens_details": { "thinking_tokens": 36 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3784,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 229,
+        "cache_read_input_tokens": 9437,
+        "cache_creation_input_tokens": 215,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 215
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 12,
+      "outputTokens": 1307,
+      "cacheReadInputTokens": 48082,
+      "cacheCreationInputTokens": 3784,
+      "webSearchRequests": 0,
+      "costUSD": 0.033038200000000004,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 36,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3784,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 6,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `backoffDelays(attempts, baseMs)` in `src/cli/retry.ts` and committed it as `587341e`. The delays double from `baseMs` and are capped at 30,000 ms.\n\nThe three tests in `test/cli/retry.test.ts` pass: doubling, the 30-second cap, and zero attempts returning an empty array. I ran `biome check --write` on both files, which fixed one of them. `tsc --noEmit` printed nothing, so I took that as clean. I didn't run the full `npm test` suite or `npm run gate`.\n\nI left `tasks/t-hpw91ip.json` as it was (still `open`), since you said the task finishes when the change lands.",
+  "ttft_ms": 3246,
+  "type": "result",
+  "duration_ms": 27648,
+  "uuid": "e26f26da-810c-4301-b1f0-c9e2ceb0a353",
+  "ttft_stream_ms": 2162,
+  "time_to_request_ms": 1331,
+  "first_content_frame_ms": 2169,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

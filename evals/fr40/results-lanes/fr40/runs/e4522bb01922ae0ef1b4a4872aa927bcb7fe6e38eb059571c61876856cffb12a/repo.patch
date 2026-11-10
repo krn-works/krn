@@ -1,0 +1,114 @@
+commit f90d68884f1a31f63a90d76d204be67e17804bd8
+Add compareVersions for dotted numeric versions
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/docs/notes/compare-versions.md b/docs/notes/compare-versions.md
+new file mode 100644
+index 0000000..de5f734
+--- /dev/null
++++ b/docs/notes/compare-versions.md
+@@ -0,0 +1,17 @@
++# compareVersions plan
++
++Status: done
++
++## Plan
++1. `src/cli/semver.ts`: `compareVersions(a, b)` returns -1/0/1 for dotted numeric versions.
++   - Split on `.`; each part must match `^\d+$`, else throw `TypeError`.
++   - Missing trailing parts count as 0 (`1.2` == `1.2.0`).
++   - Compare numerically with BigInt to avoid precision loss.
++2. `test/cli/semver.test.ts` (node:test): ordering, equality, padding, numeric-not-lexical, invalid input.
++3. Run `npm run fast`, then commit.
++
++## Progress
++- [x] Plan written
++- [x] Implemented semver.ts and test/cli/semver.test.ts
++- [x] `npm run fast` run (see commit)
++- [x] Added shard weight for the new test (required by test/rules/shard-weight-coverage)
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..28d555a 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -47,6 +47,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
++  'test/cli/semver.test.ts': 0.1,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+   'test/deliver/admission-policy.test.ts': 0.1,
+diff --git a/src/cli/semver.ts b/src/cli/semver.ts
+new file mode 100644
+index 0000000..25da7bf
+--- /dev/null
++++ b/src/cli/semver.ts
+@@ -0,0 +1,25 @@
++function parse(version: string): bigint[] {
++  const parts = version.split('.');
++  for (const part of parts) {
++    if (!/^\d+$/.test(part)) {
++      throw new TypeError(`Invalid dotted numeric version: "${version}"`);
++    }
++  }
++  return parts.map(BigInt);
++}
++
++/**
++ * Orders dotted numeric versions. Returns -1, 0 or 1. Missing trailing parts
++ * count as zero, so `1.2` equals `1.2.0`. Throws TypeError on non-numeric input.
++ */
++export function compareVersions(a: string, b: string): number {
++  const left = parse(a);
++  const right = parse(b);
++  const length = Math.max(left.length, right.length);
++  for (let i = 0; i < length; i++) {
++    const x = left[i] ?? 0n;
++    const y = right[i] ?? 0n;
++    if (x !== y) return x < y ? -1 : 1;
++  }
++  return 0;
++}
+diff --git a/test/cli/semver.test.ts b/test/cli/semver.test.ts
+new file mode 100644
+index 0000000..9a4e3e1
+--- /dev/null
++++ b/test/cli/semver.test.ts
+@@ -0,0 +1,34 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { compareVersions } from '../../src/cli/semver.ts';
++
++test('orders by numeric part, not lexically', () => {
++  assert.equal(compareVersions('1.2.10', '1.2.9'), 1);
++  assert.equal(compareVersions('1.2.9', '1.2.10'), -1);
++  assert.equal(compareVersions('2', '10'), -1);
++});
++
++test('equal versions, including missing trailing zeros', () => {
++  assert.equal(compareVersions('1.2.3', '1.2.3'), 0);
++  assert.equal(compareVersions('1.2', '1.2.0.0'), 0);
++  assert.equal(compareVersions('01.2', '1.2'), 0);
++});
++
++test('shorter version with a nonzero tail is lower', () => {
++  assert.equal(compareVersions('1.2', '1.2.1'), -1);
++  assert.equal(compareVersions('1.2.1', '1.2'), 1);
++});
++
++test('handles parts beyond safe integer range', () => {
++  assert.equal(
++    compareVersions('1.99999999999999999999', '1.99999999999999999998'),
++    1,
++  );
++});
++
++test('rejects non-numeric input', () => {
++  for (const bad of ['', '1.', '.1', '1..2', '1.a', 'v1.2', '1.2-beta', ' 1']) {
++    assert.throws(() => compareVersions(bad, '1.0'), TypeError, bad);
++    assert.throws(() => compareVersions('1.0', bad), TypeError, bad);
++  }
++});
+--- status
+

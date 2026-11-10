@@ -1,0 +1,62 @@
+commit 7b0791dea27dbc2b769793086f7afc2a283e6e79
+Add a clamp helper that rejects an inverted range (t-s6vwe21)
+
+Refs: t-s6vwe21
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..b5f80ac 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -39,6 +39,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/claude/successor-retire.test.ts': 9.4,
+   'test/cli.test.ts': 1.2,
+   'test/cli/exit-code-classification.test.ts': 0.8,
++  'test/cli/clamp.test.ts': 0.1,
+   'test/cli/flag-value.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+diff --git a/src/cli/clamp.ts b/src/cli/clamp.ts
+new file mode 100644
+index 0000000..d36215d
+--- /dev/null
++++ b/src/cli/clamp.ts
+@@ -0,0 +1,8 @@
++/**
++ * Limits `value` to the inclusive range [min, max]. A range whose lower bound
++ * exceeds its upper bound is a caller mistake and is rejected.
++ */
++export function clamp(value: number, min: number, max: number): number {
++  if (min > max) throw new RangeError(`min ${min} is greater than max ${max}`);
++  return Math.min(Math.max(value, min), max);
++}
+diff --git a/test/cli/clamp.test.ts b/test/cli/clamp.test.ts
+new file mode 100644
+index 0000000..2bfe43c
+--- /dev/null
++++ b/test/cli/clamp.test.ts
+@@ -0,0 +1,20 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { clamp } from '../../src/cli/clamp.ts';
++
++test('clamp returns a value inside the range unchanged', () => {
++  assert.equal(clamp(5, 0, 10), 5);
++});
++
++test('clamp limits values below min and above max', () => {
++  assert.equal(clamp(-1, 0, 10), 0);
++  assert.equal(clamp(11, 0, 10), 10);
++});
++
++test('clamp accepts min equal to max', () => {
++  assert.equal(clamp(3, 4, 4), 4);
++});
++
++test('clamp rejects min greater than max', () => {
++  assert.throws(() => clamp(5, 10, 0), RangeError);
++});
+--- status
+

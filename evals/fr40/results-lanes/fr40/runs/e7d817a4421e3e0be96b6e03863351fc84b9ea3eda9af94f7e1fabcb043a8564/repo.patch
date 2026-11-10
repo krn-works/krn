@@ -1,0 +1,47 @@
+commit 5b38c80e3e4e3d9319283b7cda2e52db11ee019b
+Add a plural helper for counted nouns
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..16abb86 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -38,6 +38,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/claude/successor-probe.test.ts': 1.3,
+   'test/claude/successor-retire.test.ts': 9.4,
+   'test/cli.test.ts': 1.2,
++  'test/core/plural.test.ts': 0.1,
+   'test/cli/exit-code-classification.test.ts': 0.8,
+   'test/cli/flag-value.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+diff --git a/src/core/plural.ts b/src/core/plural.ts
+new file mode 100644
+index 0000000..29cc0b6
+--- /dev/null
++++ b/src/core/plural.ts
+@@ -0,0 +1,3 @@
++export function plural(count: number, noun: string): string {
++  return `${count} ${noun}${count === 1 ? '' : 's'}`;
++}
+diff --git a/test/core/plural.test.ts b/test/core/plural.test.ts
+new file mode 100644
+index 0000000..e8e504e
+--- /dev/null
++++ b/test/core/plural.test.ts
+@@ -0,0 +1,12 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { plural } from '../../src/core/plural.ts';
++
++test('plural renders a singular noun for one', () => {
++  assert.equal(plural(1, 'file'), '1 file');
++});
++
++test('plural renders an s-suffixed noun for other counts', () => {
++  assert.equal(plural(2, 'file'), '2 files');
++  assert.equal(plural(0, 'file'), '0 files');
++});
+--- status
+

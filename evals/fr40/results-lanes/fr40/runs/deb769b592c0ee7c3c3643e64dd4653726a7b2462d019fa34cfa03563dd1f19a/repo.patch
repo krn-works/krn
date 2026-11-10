@@ -1,0 +1,76 @@
+commit 830338de8a1bb04bbc28755168812634d37ed022
+Add wrapText word-wrap helper (t-d3b9qcn)
+
+Ticket: t-d3b9qcn
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/wrap.ts b/src/cli/wrap.ts
+new file mode 100644
+index 0000000..875c884
+--- /dev/null
++++ b/src/cli/wrap.ts
+@@ -0,0 +1,27 @@
++/**
++ * Word-wraps `text` to lines of at most `width` characters. Words that fit in
++ * `width` are never split; a longer word is broken into `width`-sized chunks.
++ * Runs of whitespace collapse to one space; blank text yields no lines.
++ */
++export function wrapText(text: string, width: number): string[] {
++  if (!Number.isInteger(width) || width < 1) {
++    throw new RangeError(`width must be a positive integer, got ${width}`);
++  }
++  const lines: string[] = [];
++  let line = '';
++  for (const word of text.split(/\s+/).filter(Boolean)) {
++    if (line && line.length + 1 + word.length <= width) {
++      line += ` ${word}`;
++      continue;
++    }
++    if (line) lines.push(line);
++    let rest = word;
++    while (rest.length > width) {
++      lines.push(rest.slice(0, width));
++      rest = rest.slice(width);
++    }
++    line = rest;
++  }
++  if (line) lines.push(line);
++  return lines;
++}
+diff --git a/test/cli/wrap.test.ts b/test/cli/wrap.test.ts
+new file mode 100644
+index 0000000..c618130
+--- /dev/null
++++ b/test/cli/wrap.test.ts
+@@ -0,0 +1,27 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { wrapText } from '../../src/cli/wrap.ts';
++
++test('wraps at word boundaries', () => {
++  assert.deepEqual(wrapText('the quick brown fox', 10), [
++    'the quick',
++    'brown fox',
++  ]);
++});
++
++test('keeps a word equal to the width whole', () => {
++  assert.deepEqual(wrapText('abcde fg', 5), ['abcde', 'fg']);
++});
++
++test('collapses whitespace and returns no lines for blank text', () => {
++  assert.deepEqual(wrapText('  a \n b  ', 10), ['a b']);
++  assert.deepEqual(wrapText('   ', 10), []);
++});
++
++test('splits only words longer than the width', () => {
++  assert.deepEqual(wrapText('ab abcdefg', 3), ['ab', 'abc', 'def', 'g']);
++});
++
++test('rejects invalid widths', () => {
++  assert.throws(() => wrapText('a', 0), RangeError);
++});
+--- status
+

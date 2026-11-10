@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 16611,
+  "stop_reason": "end_turn",
+  "session_id": "157572b4-cf64-4c23-9408-5d765d3ddfcc",
+  "total_cost_usd": 0.0496829,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 5771,
+    "cache_read_input_tokens": 43989,
+    "output_tokens": 2218,
+    "output_tokens_details": { "thinking_tokens": 223 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 5771,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 353,
+        "cache_read_input_tokens": 11356,
+        "cache_creation_input_tokens": 283,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 283
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 2218,
+      "cacheReadInputTokens": 43989,
+      "cacheCreationInputTokens": 5771,
+      "webSearchRequests": 0,
+      "costUSD": 0.0496829,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 223,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 5771,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 6,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `wrapText(text, width)` in `src/core/wrap.ts` and committed it as `51ffa1c`. `npm run fast` passed, including Biome, the boundary check, tsc and the related tests.\n\n- **Behavior:** It splits on any whitespace and joins words with single spaces. Words are never split unless one is longer than `width`, in which case it is cut into `width`-sized chunks. Empty or blank text returns `[]`. Widths below 1 are treated as 1.\n- **Helpers:** I reused nothing. Core may not import from other areas, and I found no existing wrapping helper in `src/`.\n- **Tests:** `test/core/wrap.test.ts` has four cases covering normal wrapping, exact-fit words, whitespace handling and over-long words. I added its entry to `scripts/lib/shard-weights.mjs` with a weight of 0.1.\n- **Commit title:** No task id was in the brief, so the title has no `(<task id>)` suffix, which the repo convention requires. If you give me the id, I can amend the commit.",
+  "ttft_ms": 2877,
+  "type": "result",
+  "duration_ms": 101562,
+  "uuid": "37caa15b-0761-4319-af06-39f26cda1eeb",
+  "ttft_stream_ms": 1642,
+  "time_to_request_ms": 782,
+  "first_content_frame_ms": 1643,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

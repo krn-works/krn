@@ -1,0 +1,9 @@
+{
+  "runId": "1681ce64e1f790448a973261d28f85cb845fdd5c44acd2eb54b718cee71e49ac",
+  "task": "fr40-commit-title-id-semver",
+  "arm": "A",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-commit-title-id-semver: every commit title ends with (t-kty2yxr)"
+}

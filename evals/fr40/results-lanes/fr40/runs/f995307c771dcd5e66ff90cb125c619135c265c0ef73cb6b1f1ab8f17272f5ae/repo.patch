@@ -1,0 +1,84 @@
+commit 73008461a8af2aac06090e7d827bc22f3916ee56
+Add median() to the CLI with node:test coverage
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/docs/notes/median-plan.md b/docs/notes/median-plan.md
+new file mode 100644
+index 0000000..a92f4c2
+--- /dev/null
++++ b/docs/notes/median-plan.md
+@@ -0,0 +1,10 @@
++# Plan: median()
++
++- [x] Add `median(values: readonly number[]): number` in `src/cli/median.ts`; throws `RangeError` on empty list.
++- [x] Sort a copy (no input mutation); odd length -> middle, even -> mean of two middles.
++- [x] Add `test/cli/median.test.ts` (node:test): odd, even, unsorted, no mutation, single, empty throws.
++- [x] Register weight in scripts/lib/shard-weights.mjs (rule test requires it).
++- [x] Run `npm run fast`, then commit.
++
++## Status
++All steps done; fast check passes.
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..151a954 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -47,6 +47,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
++  'test/cli/median.test.ts': 0.1,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+   'test/deliver/admission-policy.test.ts': 0.1,
+diff --git a/src/cli/median.ts b/src/cli/median.ts
+new file mode 100644
+index 0000000..accde83
+--- /dev/null
++++ b/src/cli/median.ts
+@@ -0,0 +1,11 @@
++export function median(values: readonly number[]): number {
++  if (values.length === 0) {
++    throw new RangeError('median requires at least one value');
++  }
++  const sorted = [...values].sort((a, b) => a - b);
++  const mid = Math.floor(sorted.length / 2);
++  if (sorted.length % 2 === 1) {
++    return sorted[mid] as number;
++  }
++  return ((sorted[mid - 1] as number) + (sorted[mid] as number)) / 2;
++}
+diff --git a/test/cli/median.test.ts b/test/cli/median.test.ts
+new file mode 100644
+index 0000000..e5cb98d
+--- /dev/null
++++ b/test/cli/median.test.ts
+@@ -0,0 +1,25 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { median } from '../../src/cli/median.ts';
++
++test('median of a single value is that value', () => {
++  assert.equal(median([7]), 7);
++});
++
++test('median of an odd-length list is the middle value', () => {
++  assert.equal(median([3, 1, 2]), 2);
++});
++
++test('median of an even-length list is the mean of the middle two', () => {
++  assert.equal(median([4, 1, 3, 2]), 2.5);
++});
++
++test('median does not mutate its input', () => {
++  const input = [3, 1, 2];
++  median(input);
++  assert.deepEqual(input, [3, 1, 2]);
++});
++
++test('median rejects an empty list', () => {
++  assert.throws(() => median([]), RangeError);
++});
+--- status
+

@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 12887,
+  "stop_reason": "end_turn",
+  "session_id": "e86798aa-9ea2-45ca-b294-c6e947ce61c7",
+  "total_cost_usd": 0.034267500000000006,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4447,
+    "cache_read_input_tokens": 41895,
+    "output_tokens": 1227,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4447,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 241,
+        "cache_read_input_tokens": 10050,
+        "cache_creation_input_tokens": 265,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 265
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1227,
+      "cacheReadInputTokens": 41895,
+      "cacheCreationInputTokens": 4447,
+      "webSearchRequests": 0,
+      "costUSD": 0.034267500000000006,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4447,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `clamp(value, min, max)` in `src/cli/clamp.ts` and committed it as `53a4040`. It throws a `RangeError` when `min` is greater than `max`, and otherwise limits `value` to the inclusive range. All 4 tests in `test/cli/clamp.test.ts` pass. I didn't run the full suite or `npm run fast`.\n\nThe tests cover:\n- a value inside the range\n- values below `min` and above `max`\n- `min` equal to `max`\n- `min` greater than `max`\n\nI also added a weight of 0.1 for the new test file in `scripts/lib/shard-weights.mjs`, as the repo conventions require. The commit title ends with `(t-qndpoyz)`.",
+  "ttft_ms": 2791,
+  "type": "result",
+  "duration_ms": 20054,
+  "uuid": "0ae7c892-c62d-4db7-bff2-1c60ca497d91",
+  "ttft_stream_ms": 1577,
+  "time_to_request_ms": 641,
+  "first_content_frame_ms": 1578,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}
