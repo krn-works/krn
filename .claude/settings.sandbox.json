@@ -17,7 +17,13 @@
     },
     "network": {
       "strictAllowlist": true,
-      "allowedDomains": ["github.com", "api.github.com", "registry.npmjs.org"]
+      "allowedDomains": [
+        "github.com",
+        "api.github.com",
+        "registry.npmjs.org",
+        "localhost"
+      ],
+      "allowLocalBinding": true
     }
   },
   "permissions": {
