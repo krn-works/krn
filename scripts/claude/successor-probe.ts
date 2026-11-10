@@ -132,6 +132,7 @@ function launchScript(dir: string, options: ProbeOptions): string {
     'KRN_SUCCESSOR_AGENT=claude',
     quote(process.execPath),
     quote(LAUNCHER),
+    '--operator-token',
     '--name',
     SUCCESSOR_LABEL,
     '--prompt',

@@ -187,7 +187,16 @@ function launch(
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x', '--cwd', cwd],
+    [
+      script,
+      '--operator-token',
+      '--name',
+      'Next slice',
+      '--prompt',
+      'Deliver t-x',
+      '--cwd',
+      cwd,
+    ],
     {
       cwd: root,
       env: {
@@ -373,7 +382,14 @@ test('fallback launch makes no Herdr agent calls and writes no ledger', (t) => {
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x'],
+    [
+      script,
+      '--operator-token',
+      '--name',
+      'Next slice',
+      '--prompt',
+      'Deliver t-x',
+    ],
     {
       cwd: root,
       env: {

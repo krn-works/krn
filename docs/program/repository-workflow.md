@@ -36,6 +36,12 @@ Merges go through `gh pr merge --auto --squash` once the `Check` passes; the `ma
 
 Use one writer per outcome at a time and transfer the writer role explicitly before a mutating handoff. Parallel implementation uses isolated worktrees and returns through one integrator; independent read-only work may run in parallel. Reuse recorded authority for the same outcome's commit, push, PR, and merge without repeating per-step prompts.
 
+## Proposing credential
+
+Sessions launched by `scripts/claude/successor-launch.ts` propose with a GitHub App installation token for this repository only: contents, pull requests and actions write, checks read, metadata; no workflows, no administration. `scripts/github-app-token.ts` mints it on demand (one hour) from the Bitwarden item `KRN delivery GitHub App` via `bw serve` (fields `app_id`, `installation_id`; key in the notes), and a git credential helper plus the `scripts/app-bin/gh` wrapper hand it to `git` and `gh`. The launcher exits 69 when a mint fails; `--operator-token` restores the operator's credential.
+
+Limits: without a sandbox this guards against a wrong lane, not a hostile one; a host session can still ask the operator keyring for the administrator token. The operator credential pushes any commit that edits `.github/workflows/**`.
+
 ## Lessons and corrections
 
 KRN tooling does not enforce or create a standalone workflow-lessons page; lesson findings are warnings, and existing pages in other repositories remain theirs (ADR 0014 D27). Put lessons where the executor reads them: mechanical checks first and repository `AGENTS.md` second; lead memory is only for operator preferences and decisions. Turn regressions into expected behavior or mechanical rules for code invariants; do not add lint that pins implementation technique. Fix flaky tests. A single recorded retry is allowed only for untouched files while a fix is pending. Use private test temp directories, condition waits with deadlines, and no wall-clock assertions.
