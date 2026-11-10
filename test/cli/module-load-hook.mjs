@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 const logPath = process.env.KRN_MODULE_LOAD_LOG;
 const watchedDirectories = [
   'evals',
-  'flow',
   'foreman',
   'hosts',
   'ledger',

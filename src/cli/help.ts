@@ -1,8 +1,6 @@
 // Usage text for the commands this CLI owns.
 const usage: Readonly<Record<string, string>> = {
   task: 'krn task <ready|claim|show|list|create|edit|comment|dep|close|release|check> [...]  repository work tracker; `krn task` lists verbs',
-  review:
-    'krn review --repo PATH --base REF --head SHA --lens PATH [--panel ...] [--pr N]  opt-in review panel; `krn review --help` lists all options',
   worker: 'krn worker start|send|stop --run DIR  opt-in Codex worker',
   ledger:
     'krn ledger [--since YYYY-MM-DD] [--pr N] [--limit N] [--repo OWNER/REPO] [--root DIR] [--transcripts DIR] [--json]  outcome ledger',
@@ -21,8 +19,8 @@ const usage: Readonly<Record<string, string>> = {
 export function commandHelp(args: string[]): string | undefined {
   const [command, ...rest] = args;
   if (command === undefined) return undefined;
-  // `task`, `review` and `eval` print their own, richer help.
-  if (['task', 'review', 'eval'].includes(command)) return undefined;
+  // `task` and `eval` print their own, richer help.
+  if (['task', 'eval'].includes(command)) return undefined;
   if (!rest.some((arg) => arg === '--help' || arg === '-h')) return undefined;
   const line = usage[command];
   return line === undefined ? undefined : `Usage: ${line}\n`;

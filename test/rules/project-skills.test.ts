@@ -37,15 +37,7 @@ test('the lead loop skills are the project skills for Codex and Claude Code', ()
   }
 });
 
-test('the lead loop skills name only existing review flags and the real launch command', () => {
-  const review = readFileSync(join(root, 'src', 'flow', 'cli.ts'), 'utf8');
-  const lead = skill('krn-lead');
-  for (const flag of lead
-    .match(/krn review [^`\n]+/gu)
-    ?.join(' ')
-    .match(/--[a-z-]+/gu) ?? [])
-    assert.ok(review.includes(flag), `krn review usage lacks ${flag}`);
-  assert.match(lead, /krn review --repo <path> --base <sha> --head <sha>/u);
+test('the lead loop skills name the real launch command', () => {
   assert.match(
     skill('krn-handoff'),
     /node scripts\/claude\/successor-launch\.ts --name "[^"]+" --model claude-opus-5-5 --effort medium --prompt /u,

@@ -3,7 +3,6 @@ import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { judgeRole } from '../../src/flow/panel.ts';
 import { CodexHost } from '../../src/hosts/codex.ts';
 import { requiresIsolation } from '../helpers/isolation.ts';
 import { capture } from '../receivers/capture.ts';
@@ -11,7 +10,6 @@ import { capture } from '../receivers/capture.ts';
 // KRN-12: codex 0.167.0 `exec --json` judge turns (test/fixtures/codex-cli-0.167.0).
 // The stand-in drains stdin, then replays the captured stdout and exit code.
 const pass = capture('fixtures/codex-cli-0.167.0', 'exec-pass');
-const invalid = capture('fixtures/codex-cli-0.167.0', 'exec-invalid-verdict');
 
 async function scratch(name: string) {
   const parent = join(process.cwd(), '.krn', 'tmp');
@@ -71,54 +69,5 @@ test('CodexHost reads the captured judge turn: thread, final message and usage',
     } finally {
       await rm(root, { recursive: true, force: true });
     }
-  }
-});
-
-test('the panel accepts the captured PASS and rejects the captured FAIL without findings', async (t) => {
-  if (!requiresIsolation(t, 'Panel exec capture', ['systemdUserScope'])) return;
-  const root = await scratch('panel-exec-capture');
-  try {
-    const repo = join(root, 'repo');
-    await mkdir(repo);
-    git(repo, 'init', '-q');
-    await writeFile(join(repo, 'one.ts'), 'export const one = 1;\n');
-    git(repo, 'add', '.');
-    git(
-      repo,
-      '-c',
-      'user.name=f',
-      '-c',
-      'user.email=f@example.invalid',
-      'commit',
-      '-qm',
-      'one',
-    );
-    const head = git(repo, 'rev-parse', 'HEAD');
-    const judge = async (recorded: typeof pass, name: string) => {
-      const dir = join(root, name);
-      await mkdir(dir);
-      return judgeRole({
-        root: repo,
-        base: head,
-        head,
-        role: 'adversarial',
-        lens: 'one.ts exports 1',
-        timeoutMs: 5000,
-        executable: await standIn(dir, recorded),
-      });
-    };
-    assert.deepEqual(await judge(pass, 'pass'), {
-      state: 'complete',
-      role: 'adversarial',
-      verdict: 'PASS',
-      findings: [],
-    });
-    assert.deepEqual(await judge(invalid, 'invalid'), {
-      state: 'incomplete',
-      role: 'adversarial',
-      reason: 'invalid_verdict',
-    });
-  } finally {
-    await rm(root, { recursive: true, force: true });
   }
 });

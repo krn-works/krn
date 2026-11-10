@@ -83,7 +83,7 @@ export async function brainCommand(args: string[]): Promise<void> {
     return;
   }
   process.stdout.write(
-    [
+    `${[
       `task=${packet.task}`,
       `arm=${packet.arm}`,
       `as-of=${packet.asOf}`,
@@ -91,6 +91,6 @@ export async function brainCommand(args: string[]): Promise<void> {
       `records=${packet.records.join(',') || '-'}`,
       `sha256=${packet.sha256}`,
       ...(path === undefined ? [] : [`written=${path}`]),
-    ].join('\n') + '\n',
+    ].join('\n')}\n`,
   );
 }

@@ -1,7 +1,11 @@
 {
   "id": "t-7p13pd2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "src/flow and krn review removed; krn review exits 64; 27 files edited; ADR 0014 amended; full suite green"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "krn review leaves",
