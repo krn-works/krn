@@ -40,6 +40,7 @@ export function main(args = process.argv.slice(2)): void {
       'lane',
       'decide',
       'adopt',
+      'plan',
     ].includes(args[0] ?? '')
   ) {
     void dispatch(args).catch((error: unknown) => {

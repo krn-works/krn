@@ -1,7 +1,11 @@
 {
   "id": "t-2yggc19",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn plan prints points left per account (keyed by seven-day reset; the sampler label can name the signed-in account, not the session's) and the account with the nearest seven-day reset; test over rows recorded 2026-11-10"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "krn plan names the account to spend next",
