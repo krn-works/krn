@@ -31,6 +31,11 @@ const captureHook = JSON.parse(readFileSync(settings, 'utf8'))
   .find((hook: { command: string }) => /context-gauge\.ts/u.test(hook.command));
 const captureTimeoutMs = Number(captureHook?.timeout) * 1000;
 
+// The test runs inside a KRN session whose own KRN_* variables (for example
+// KRN_SESSION_CLASS) would leak into the hooks and change their output.
+const hostEnv = Object.fromEntries(
+  Object.entries(process.env).filter(([name]) => !name.startsWith('KRN_')),
+);
 const sessionId = '075c3201-76f7-4eb7-89ac-04c9d53234c3';
 // Hook environment of an interactive session and of a headless `claude -p` run (captured).
 const interactive = {
@@ -59,7 +64,7 @@ function fixture() {
         hook_event_name: 'UserPromptSubmit',
         transcript_path: join(root, 'missing.jsonl'),
       }),
-      env: { ...process.env, ...env, CLAUDE_PROJECT_DIR: root },
+      env: { ...hostEnv, ...env, CLAUDE_PROJECT_DIR: root },
       encoding: 'utf8',
       timeout: captureTimeoutMs,
     });
@@ -142,7 +147,7 @@ test('capture redacts secrets, bounds length, and never fails the prompt', () =>
     assert.equal(
       spawnSync(process.execPath, [promptHook], {
         input: 'not json',
-        env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+        env: { ...hostEnv, CLAUDE_PROJECT_DIR: root },
       }).status,
       0,
     );
@@ -222,7 +227,7 @@ test('headless runs and hand-fed benchmark payloads are not captured', () => {
     const payload = JSON.parse(headlessPayload);
     const result = spawnSync(process.execPath, [promptHook], {
       input: JSON.stringify({ ...payload, cwd: root, prompt: directive }),
-      env: { ...process.env, ...headless, CLAUDE_PROJECT_DIR: root },
+      env: { ...hostEnv, ...headless, CLAUDE_PROJECT_DIR: root },
       encoding: 'utf8',
     });
     assert.equal(result.status, 0);
@@ -315,7 +320,7 @@ test('session start names open inbox entries in one bounded line', () => {
         hook_event_name: 'SessionStart',
         source: 'startup',
       }),
-      env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+      env: { ...hostEnv, CLAUDE_PROJECT_DIR: root },
       encoding: 'utf8',
     });
     const context = JSON.parse(result.stdout).hookSpecificOutput
