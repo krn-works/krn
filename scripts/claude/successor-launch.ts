@@ -10,6 +10,14 @@ import {
   type SessionClass,
 } from './operator-inbox-store.ts';
 
+// Usage: node scripts/claude/successor-launch.ts --name <label> --prompt <text>
+//   [--cwd <dir>] [--class <session class>] [--model <id>] [--effort <level>]
+//   [--start-seconds 0-600] [--operator-token]
+// By default the launched session proposes with the GitHub App credential
+// (gh wrapper on PATH, git credential helper; one mint is checked first and a
+// failure exits 69). --operator-token keeps the operator's own credential.
+// `--retire` closes the predecessor panes instead.
+
 // Prove a change here against the live Herdr with
 // `node scripts/claude/successor-probe.ts`: run by hand from a lead pane, the
 // launcher renames the lead's tab and its successor's --retire closes the pane.
@@ -22,6 +30,63 @@ export interface SuccessorLaunchOptions {
   model?: string;
   effort?: Effort;
   startSeconds?: number;
+  // True keeps the operator's own credential; false (default) gives the
+  // session the GitHub App credential.
+  operatorToken: boolean;
+}
+
+const REPOSITORY_ROOT = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+);
+const TOKEN_HELPER = join(REPOSITORY_ROOT, 'scripts', 'github-app-token.ts');
+const WRAPPER_DIRECTORY = join(REPOSITORY_ROOT, 'scripts', 'app-bin');
+const EXIT_UNAVAILABLE = 69;
+
+/**
+ * The environment that gives a launched session the App credential: the `gh`
+ * wrapper first on PATH, and git config that first empties the inherited
+ * github.com credential helpers, then installs the token helper.
+ */
+export function appCredentialEnvironment(
+  env: NodeJS.ProcessEnv,
+  helper = TOKEN_HELPER,
+  wrapperDirectory = WRAPPER_DIRECTORY,
+): Record<string, string> {
+  const existing = Number(env.GIT_CONFIG_COUNT);
+  const start = Number.isInteger(existing) && existing > 0 ? existing : 0;
+  const key = 'credential.https://github.com.helper';
+  const forwarded: Record<string, string> = {};
+  for (const name of ['KRN_BW_SERVE', 'KRN_APP_ITEM', 'KRN_GITHUB_API']) {
+    const value = env[name];
+    if (value) forwarded[name] = value;
+  }
+  return {
+    ...forwarded,
+    PATH: env.PATH ? `${wrapperDirectory}:${env.PATH}` : wrapperDirectory,
+    GIT_CONFIG_COUNT: String(start + 2),
+    [`GIT_CONFIG_KEY_${start}`]: key,
+    [`GIT_CONFIG_VALUE_${start}`]: '',
+    [`GIT_CONFIG_KEY_${start + 1}`]: key,
+    [`GIT_CONFIG_VALUE_${start + 1}`]: `!'${process.execPath}' '${helper}' git-credential`,
+  };
+}
+
+// One mint proves the credential before a session depends on it; the token
+// itself is discarded here.
+function checkAppCredential(env: NodeJS.ProcessEnv): string | undefined {
+  const result = spawnSync(process.execPath, [TOKEN_HELPER, 'token'], {
+    encoding: 'utf8',
+    env,
+    timeout: 30000,
+  });
+  if (result.status === 0) return undefined;
+  return (
+    result.stderr?.trim().split('\n')[0] ||
+    result.error?.message ||
+    `token helper exited with status ${result.status}`
+  );
 }
 
 // The operator capped every KRN session: medium by default, high when medium is
@@ -101,9 +166,17 @@ export function parseArgs(
     '--start-seconds',
     '--class',
   ]);
+  const switches = new Set(['--operator-token']);
+  let operatorToken = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index] ?? '';
+    if (switches.has(flag)) {
+      if (seen.has(flag)) throw new Error(`duplicate argument: ${flag}`);
+      seen.add(flag);
+      operatorToken = true;
+      continue;
+    }
     if (!flags.has(flag)) throw new Error(`unknown argument: ${flag}`);
     if (seen.has(flag)) throw new Error(`duplicate argument: ${flag}`);
     seen.add(flag);
@@ -149,6 +222,7 @@ export function parseArgs(
     prompt,
     cwd,
     sessionClass,
+    operatorToken,
     ...(model === undefined ? {} : { model }),
     ...(effort === undefined ? {} : { effort }),
     ...(startSeconds === undefined ? {} : { startSeconds }),
@@ -633,6 +707,21 @@ export function main(args: string[], proxy?: string): number {
   }
   const { agent, harness } = detected;
 
+  // Operator 2026-11-10 (t-xyjfsjz): a launched session proposes with the
+  // GitHub App credential; --operator-token keeps the operator's own.
+  const appCredential = options.operatorToken
+    ? undefined
+    : appCredentialEnvironment(process.env);
+  if (appCredential) {
+    const failed = checkAppCredential(process.env);
+    if (failed) {
+      process.stderr.write(
+        `GitHub App credential unavailable (${failed}); fix it or pass --operator-token to launch with the operator's credential\n`,
+      );
+      return EXIT_UNAVAILABLE;
+    }
+  }
+
   const status = run('herdr', ['status']);
   const paneId = process.env.HERDR_PANE_ID;
   let unavailable: string | undefined;
@@ -681,6 +770,7 @@ export function main(args: string[], proxy?: string): number {
       15000,
       {
         ...process.env,
+        ...appCredential,
         [SESSION_CLASS_VARIABLE]: options.sessionClass,
         ...(proxied ? { ANTHROPIC_BASE_URL: proxied } : {}),
       },
@@ -711,6 +801,8 @@ export function main(args: string[], proxy?: string): number {
     `${SESSION_CLASS_VARIABLE}=${options.sessionClass}`,
   );
   if (proxied) createArgs.push('--env', `ANTHROPIC_BASE_URL=${proxied}`);
+  for (const [name, value] of Object.entries(appCredential ?? {}))
+    createArgs.push('--env', `${name}=${value}`);
   let predecessorSession: string | undefined;
   if (paneId && workspaceId) {
     predecessorSession = agentInfo(

@@ -162,6 +162,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       prompt: 'Deliver t-x',
       cwd: resolve('/repo', 'work tree'),
       sessionClass: 'delivery',
+      operatorToken: false,
     },
   );
   assert.throws(() => api.parseArgs(['--name', 'Next slice']), /--prompt/u);
@@ -183,6 +184,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       prompt: '--resume from handoff',
       cwd: '/repo',
       sessionClass: 'delivery',
+      operatorToken: false,
     },
   );
   assert.throws(
@@ -218,6 +220,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       prompt: 'p',
       cwd: '/repo',
       sessionClass: 'delivery',
+      operatorToken: false,
       model: 'claude-opus-5-5',
       effort: 'medium',
     },
@@ -240,6 +243,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       prompt: 'p',
       cwd: '/repo',
       sessionClass: 'delivery',
+      operatorToken: false,
       startSeconds: 600,
     },
   );
@@ -269,7 +273,16 @@ test('Herdr launch uses the captured pane and tab IDs without starting fallback'
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x', '--cwd', cwd],
+    [
+      script,
+      '--operator-token',
+      '--name',
+      'Next slice',
+      '--prompt',
+      'Deliver t-x',
+      '--cwd',
+      cwd,
+    ],
     { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
   const captured = JSON.parse(
@@ -325,7 +338,16 @@ test('caller pane workspace is passed to the new tab', (t) => {
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x', '--cwd', cwd],
+    [
+      script,
+      '--operator-token',
+      '--name',
+      'Next slice',
+      '--prompt',
+      'Deliver t-x',
+      '--cwd',
+      cwd,
+    ],
     {
       cwd: root,
       env: { ...launcherEnvironment(bin), HERDR_PANE_ID: 'caller-pane' },
@@ -406,6 +428,7 @@ test('a successor Herdr never shows fails the launch and keeps the predecessor t
     process.execPath,
     [
       script,
+      '--operator-token',
       '--name',
       'Next slice',
       '--prompt',
@@ -480,7 +503,16 @@ test('a successor held on a startup dialog is reported with its pane and the han
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x', '--cwd', cwd],
+    [
+      script,
+      '--operator-token',
+      '--name',
+      'Next slice',
+      '--prompt',
+      'Deliver t-x',
+      '--cwd',
+      cwd,
+    ],
     {
       cwd: root,
       env: {
@@ -654,7 +686,16 @@ test('the claude --bg fallback starts the agent with the session class in its en
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Probe', '--prompt', 'Stop', '--class', 'non-delivery'],
+    [
+      script,
+      '--operator-token',
+      '--name',
+      'Probe',
+      '--prompt',
+      'Stop',
+      '--class',
+      'non-delivery',
+    ],
     { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
@@ -669,7 +710,14 @@ test('missing Herdr falls back to claude background launch once', (t) => {
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x'],
+    [
+      script,
+      '--operator-token',
+      '--name',
+      'Next slice',
+      '--prompt',
+      'Deliver t-x',
+    ],
     { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
@@ -699,7 +747,14 @@ test('a failed Herdr server probe falls back without creating a tab', (t) => {
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x'],
+    [
+      script,
+      '--operator-token',
+      '--name',
+      'Next slice',
+      '--prompt',
+      'Deliver t-x',
+    ],
     { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
@@ -727,7 +782,14 @@ test('a failed fallback agent returns its non-zero exit code', (t) => {
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x'],
+    [
+      script,
+      '--operator-token',
+      '--name',
+      'Next slice',
+      '--prompt',
+      'Deliver t-x',
+    ],
     { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
@@ -758,7 +820,16 @@ test('a pane run failure does not launch the fallback agent', (t) => {
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x', '--cwd', cwd],
+    [
+      script,
+      '--operator-token',
+      '--name',
+      'Next slice',
+      '--prompt',
+      'Deliver t-x',
+      '--cwd',
+      cwd,
+    ],
     { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
@@ -782,7 +853,14 @@ test('a tab reply without a pane ID stops without falling back', (t) => {
 
   const result = spawnSync(
     process.execPath,
-    [script, '--name', 'Next slice', '--prompt', 'Deliver t-x'],
+    [
+      script,
+      '--operator-token',
+      '--name',
+      'Next slice',
+      '--prompt',
+      'Deliver t-x',
+    ],
     { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
   );
 
@@ -800,6 +878,7 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
       process.execPath,
       [
         script,
+        '--operator-token',
         '--name',
         'Next slice',
         '--prompt',
@@ -841,6 +920,7 @@ test('a Claude successor starts with bypassPermissions through Herdr and the fal
       process.execPath,
       [
         script,
+        '--operator-token',
         '--name',
         'Next slice',
         '--prompt',
@@ -889,7 +969,15 @@ test('the successor harness follows the runtime environment, never an assumption
       launcherEnvironment(bin);
     const result = spawnSync(
       process.execPath,
-      [script, '--name', 'Next slice', '--prompt', 'Deliver t-x', ...extra],
+      [
+        script,
+        '--operator-token',
+        '--name',
+        'Next slice',
+        '--prompt',
+        'Deliver t-x',
+        ...extra,
+      ],
       { cwd: root, env: { ...environment, ...marker }, encoding: 'utf8' },
     );
     return {

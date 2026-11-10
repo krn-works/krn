@@ -355,6 +355,7 @@ test('a session started by the launcher leaves its class on the inbox row and in
       process.execPath,
       [
         path('successor-launch.ts'),
+        '--operator-token',
         '--name',
         'Next',
         '--prompt',

@@ -110,6 +110,7 @@ test('the launcher passes the proxy to a Claude successor only when healthy', as
       process.execPath,
       [
         script,
+        '--operator-token',
         '--name',
         'n',
         '--prompt',

@@ -1,0 +1,19 @@
+#!/bin/sh
+# Runs the real gh with a GitHub App installation token minted on demand.
+here=$(cd "$(dirname "$0")" && pwd -P)
+real=
+oldifs=$IFS
+IFS=:
+for dir in $PATH; do
+  [ -n "$dir" ] || continue
+  dir=$(cd "$dir" 2>/dev/null && pwd -P) || continue
+  [ "$dir" = "$here" ] && continue
+  if [ -x "$dir/gh" ]; then real="$dir/gh"; break; fi
+done
+IFS=$oldifs
+if [ -z "$real" ]; then
+  echo "gh wrapper: no gh found on PATH outside $here" >&2
+  exit 69
+fi
+token=$(node "$here/../github-app-token.ts" token) || exit $?
+GH_TOKEN=$token exec "$real" "$@"
