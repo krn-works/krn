@@ -20,6 +20,7 @@ import {
   restage,
   selectTests,
   toolBin,
+  treeKey,
 } from '../scripts/fast-check.ts';
 
 const tests = new Map([
@@ -327,6 +328,56 @@ test('fast check does not cache a FAIL and a changed base misses', () => {
   assert.match(runFast(dir).stdout, /cached/u);
   git('commit', '--allow-empty', '-qm', 'moves the base');
   assert.doesNotMatch(runFast(dir).stdout, /cached/u);
+});
+
+// Regression (t-aevqyv5): the harness sandbox binds /dev/null over protected paths in the
+// clone root, so they are character devices; `git add -A` failed on them and fast exited 2.
+// An unprivileged mknod is impossible, so the device is made with bwrap; the device half is not run without it.
+const bwrapWorks =
+  spawnSync('bwrap', ['--dev-bind', '/', '/', 'true']).status === 0;
+
+test('fast check keys and lists a tree holding device placeholders and a deleted tracked file', () => {
+  const { dir, git } = repoWithChange();
+  writeFileSync(join(dir, 'gone.ts'), '1');
+  git('add', 'gone.ts');
+  git('commit', '-qm', 'adds gone');
+  const base = 'a'.repeat(40);
+  // Without bwrap only the deleted-file half runs, in-process.
+  if (!bwrapWorks) {
+    const before = treeKey(dir, base);
+    rmSync(join(dir, 'gone.ts'));
+    assert.notEqual(treeKey(dir, base), before);
+    return;
+  }
+  writeFileSync(join(dir, '.bashrc'), '');
+  const script = join(dir, '.krn-key.mts');
+  const module = JSON.stringify(join(process.cwd(), 'scripts/fast-check.ts'));
+  writeFileSync(
+    script,
+    `import { changedFiles, treeKey } from ${module};
+import { rmSync } from 'node:fs';
+const base = 'HEAD';
+const before = treeKey(process.cwd(), base);
+rmSync('gone.ts');
+console.log(before.length, treeKey(process.cwd(), base) !== before, changedFiles(process.cwd(), base).includes('.bashrc'));
+`,
+  );
+  const run = spawnSync(
+    'bwrap',
+    [
+      '--dev-bind',
+      '/',
+      '/',
+      '--ro-bind',
+      '/dev/null',
+      join(dir, '.bashrc'),
+      'node',
+      script,
+    ],
+    { cwd: dir, encoding: 'utf8' },
+  );
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.stdout.trim(), '64 true false');
 });
 
 // Regression (#509): `git add -A && npm run fast && git commit` lost Biome's
