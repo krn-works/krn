@@ -1,7 +1,11 @@
 {
   "id": "t-scj2bqy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "window 11-09 21:00Z-22:20Z matches spend-window.py to the cent (24 PRs, lead 9.85, subagents 4.29); #454/#477/#463 join to t-wm22s14/t-6zyegcr/t-b6v615x; one price table src/outcome/model-prices.json pinned by test/outcome/window.test.ts"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "The window unit in krn ledger, with one price table",

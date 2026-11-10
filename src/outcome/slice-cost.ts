@@ -1,4 +1,6 @@
 // Per-slice cost: split each transcript into the turns of the PR it was working on, price them, and name the author.
+import { readFileSync } from 'node:fs';
+
 type ObjectValue = Record<string, unknown>;
 
 export type Usage = {
@@ -60,33 +62,24 @@ export function usageOf(raw: unknown): Usage {
   };
 }
 
-// USD per million tokens: base input, output, cache read. Cache writes cost 1.25x (5 min) and 2x (1 h) base input.
-// Source: the claude-api skill reference shared/models.md (checked 2026-11-09); .krn/runs/token-cost/cost-scan.py uses the same table.
-const PRICES: Record<string, readonly [number, number, number]> = {
-  'claude-fable-5-1': [10, 50, 0.25],
-  'claude-fable-5': [10, 50, 1],
-  'claude-opus-5-5': [4, 20, 0.2],
-  'claude-opus-5': [5, 25, 0.5],
-  'claude-opus-4-8': [5, 25, 0.5],
-  'claude-opus-4-7': [5, 25, 0.5],
-  'claude-opus-4-6': [5, 25, 0.5],
-  'claude-sonnet-5-5': [2, 10, 0.2],
-  'claude-sonnet-5': [2, 10, 0.2],
-  'claude-sonnet-4-6': [3, 15, 0.3],
-  'claude-haiku-5-5': [0.1, 0.5, 0.01],
-  'claude-haiku-4-5': [1, 5, 0.1],
+// The one price table lives in model-prices.json (shared with scripts/claude/spend-window.py).
+const priceTable = JSON.parse(
+  readFileSync(new URL('./model-prices.json', import.meta.url), 'utf8'),
+) as {
+  models: Record<string, readonly [number, number, number]>;
+  longPrompt: { model: string; tokens: number; scale: number };
 };
 
 /** Dollars for one turn, or null when the model has no known price. */
 export function turnDollars(turn: Turn): number | null {
-  const price = PRICES[turn.model.replace(/-\d{8}$/, '')];
+  const price = priceTable.models[turn.model.replace(/-\d{8}$/, '')];
   if (!price) return null;
   const u = turn.usage;
-  // Haiku 5.5 prompts above 100K tokens bill every rate at five times the base.
+  const long = priceTable.longPrompt;
   const scale =
-    turn.model.startsWith('claude-haiku-5-5') &&
-    u.input + u.cacheRead + u.cacheWrite5m + u.cacheWrite1h > 100_000
-      ? 5
+    turn.model.startsWith(long.model) &&
+    u.input + u.cacheRead + u.cacheWrite5m + u.cacheWrite1h > long.tokens
+      ? long.scale
       : 1;
   const input = price[0] * scale;
   const output = price[1] * scale;
