@@ -1,6 +1,7 @@
 import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import {
+  CommandFailure,
   checked,
   github,
   type Runner,
@@ -101,20 +102,32 @@ export async function shipCommand(
   ).trim();
   let pr = existing === '' ? NaN : Number(existing);
   if (Number.isNaN(pr)) {
-    const created = await gh([
-      'pr',
-      'create',
-      '--repo',
-      repo,
-      '--head',
-      branch,
-      '--base',
-      'main',
-      '--title',
-      title,
-      '--body-file',
-      body,
-    ]);
+    let created: string;
+    try {
+      created = await gh([
+        'pr',
+        'create',
+        '--repo',
+        repo,
+        '--head',
+        branch,
+        '--base',
+        'main',
+        '--title',
+        title,
+        '--body-file',
+        body,
+      ]);
+    } catch (error) {
+      // A create retried after a timeout finds the PR its first attempt opened;
+      // gh names that PR's url in the refusal.
+      const opened =
+        error instanceof CommandFailure
+          ? /already exists:\s*(\S+\/pull\/\d+)/u.exec(error.result.stderr)?.[1]
+          : undefined;
+      if (opened === undefined) throw error;
+      created = opened;
+    }
     pr = Number(/\/pull\/(\d+)\s*$/u.exec(created.trim())?.[1]);
     if (!Number.isInteger(pr))
       throw new Error(`gh pr create printed no PR url: ${created.trim()}`);

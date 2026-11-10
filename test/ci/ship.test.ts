@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { shipCommand } from '../../src/ci/ship.ts';
+import { CommandFailure } from '../../src/deliver/transport.ts';
 
 // KRN-12: the fake git and gh answer only the exact calls ship may make, with
 // output shaped like the real tools (gh pr create prints the PR url).
@@ -17,6 +18,7 @@ function receiver(options: {
   existing?: string;
   dirty?: boolean;
   branch?: string;
+  createRefusal?: string;
 }) {
   let time = 0;
   const calls: string[] = [];
@@ -25,6 +27,12 @@ function receiver(options: {
   const gh = async (a: string[]): Promise<string> => {
     calls.push(`gh ${a.join(' ')}`);
     if (a[0] === 'pr' && a[1] === 'list') return options.existing ?? '';
+    if (a[0] === 'pr' && a[1] === 'create' && options.createRefusal)
+      throw new CommandFailure({
+        code: 1,
+        stdout: '',
+        stderr: options.createRefusal,
+      });
     if (a[0] === 'pr' && a[1] === 'create')
       return 'https://github.com/o/r/pull/7\n';
     if (a[0] === 'pr') return '';
@@ -123,6 +131,19 @@ test('ship reuses the open PR of the branch instead of creating another', async 
   );
   assert.ok(!r.calls.some((c) => c.startsWith('gh pr create')));
   assert.ok(r.calls.some((c) => c.startsWith('gh pr edit 7')));
+});
+
+// Receiver capture (.krn/runs/lane-run-e2e/rerun2/stderr.txt): the retried
+// create after a timed-out first attempt that had opened PR 585.
+test('ship adopts the PR a timed-out create already opened', async () => {
+  const r = receiver({
+    pulls: [auto, merged],
+    createRefusal:
+      'a pull request for branch "feat-x" into branch "main" already exists:\nhttps://github.com/o/r/pull/7\n',
+  });
+  const out = await shipCommand(args, r);
+  assert.match(out, /^pr: #7 o\/r a{40}$/mu);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
 });
 
 test('a red Check exits 74 and keeps the worktree', async () => {
