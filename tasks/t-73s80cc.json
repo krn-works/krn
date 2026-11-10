@@ -1,0 +1,12 @@
+{
+  "id": "t-73s80cc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "krn lane run delivers inside the harness sandbox with only the App token",
+  "after": [],
+  "body": [
+    "Outcome: `krn lane run --task <id>` starts its headless session with the sandbox settings of C1 (`.claude/settings.sandbox.json`) instead of `--permission-mode bypassPermissions`, the GitHub App token minted by the launcher before start, and no operator GH_TOKEN or keyring in its environment; one real small ready task is delivered end to end through the verb.\nWhy: S1 (PR 573) starts sessions with bypassPermissions and its ship was stubbed in tests; S7 runs 20 real tasks through this verb.\nProof: a test sees the sandbox settings and the scrubbed environment in the spawned argv/env; a verbatim capture of the real run's verdict line and the PR author `app/krn-works-delivery` under `.krn/runs/lane-run-e2e/`.\nScope: `src/cli/lane-run.ts`, `test/cli/lane-run.test.ts`, the launcher token helper if needed.\nProgram: .krn/runs/krn-program-v2/06-program.md section 2, follow-up of slice S1."
+  ]
+}

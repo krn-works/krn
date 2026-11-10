@@ -1,0 +1,12 @@
+{
+  "id": "t-1g63tyx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "Transcripts have one reader",
+  "after": [],
+  "body": [
+    "(after S2). Outcome: `src/harness/transcripts.ts` locates and iterates transcripts; `src/outcome/ledger.ts` uses it. Proof: the ledger's window equals the previous output to the cent; a rule test counts readers outside `src/harness`. `spend-window.py` stays until t-1ztrn2c closes: its proof names that script. About 2 points.\nProgram: .krn/runs/krn-program-v2/06-program.md section 2, slice S9.\nOperator order 2026-11-10: \"Odpalaj\" (program v2 planned on Fable)."
+  ]
+}

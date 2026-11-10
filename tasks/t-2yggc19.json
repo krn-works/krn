@@ -1,0 +1,12 @@
+{
+  "id": "t-2yggc19",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "krn plan names the account to spend next",
+  "after": [],
+  "body": [
+    "(after S3). Outcome: one line with points left per account and the account whose reset is nearest. Proof: a test over recorded samples.\nProgram: .krn/runs/krn-program-v2/06-program.md section 2, slice S10.\nOperator order 2026-11-10: \"Odpalaj\" (program v2 planned on Fable)."
+  ]
+}

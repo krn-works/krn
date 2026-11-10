@@ -1,0 +1,12 @@
+{
+  "id": "t-n5w4j06",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "Research refuses to fan out above the ceiling",
+  "after": [],
+  "body": [
+    "(after S2). Outcome: the lead skill's research step runs a command that exits non-zero when the window's non-delivery share is above the ceiling (decision 4). Proof: a test on two fixed windows. Scope: `.agents/skills/krn-lead/`, one check in `src/outcome`.\nProgram: .krn/runs/krn-program-v2/06-program.md section 2, slice S8.\nOperator order 2026-11-10: \"Odpalaj\" (program v2 planned on Fable)."
+  ]
+}
