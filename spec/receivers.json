@@ -83,22 +83,6 @@
     "src/task/store.ts": {
       "receivers": ["git"],
       "real": "test/task/task.test.ts"
-    },
-    "src/evals/mask.ts": {
-      "receivers": ["bwrap"],
-      "pending": "t-98q8pe5"
-    },
-    "src/evals/receiver.ts": {
-      "receivers": ["codex"],
-      "pending": "t-98q8pe5"
-    },
-    "src/evals/score.ts": {
-      "receivers": ["node"],
-      "pending": "t-98q8pe5"
-    },
-    "src/hosts/systemd-scope.ts": {
-      "receivers": ["systemd-run", "systemctl"],
-      "pending": "t-98q8pe5"
     }
   }
 }

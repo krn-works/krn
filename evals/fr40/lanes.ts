@@ -19,9 +19,13 @@ import { fr40Packet } from '../../src/brain/cli.ts';
 import { packetBrief } from '../../src/brain/worker-packet.ts';
 import { fr40Manifest, loadManifest } from '../../src/evals/manifest.ts';
 import { planExperiment } from '../../src/evals/plan.ts';
-import { runDirectory } from '../../src/evals/score.ts';
 import { bonettPrice, mcnemarOneSided } from '../../src/evals/stats.ts';
-import { campaignOrder, type PlannedRun, prepareSlot } from './run.ts';
+import {
+  campaignOrder,
+  type PlannedRun,
+  prepareSlot,
+  runDirectory,
+} from './run.ts';
 import type { ConventionTask } from './tasks.ts';
 
 export type LaneArm = 'A' | 'B';

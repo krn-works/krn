@@ -10,8 +10,6 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { fr40Manifest, loadManifest } from '../../src/evals/manifest.ts';
 import { planExperiment } from '../../src/evals/plan.ts';
-import { runDirectory } from '../../src/evals/score.ts';
-import { CODEX_CONFIG } from '../../src/evals/session.ts';
 import type { ConventionTask, Template } from './tasks.ts';
 
 type Arm = 'A' | 'B' | 'S';
@@ -133,7 +131,37 @@ type Options = {
   readonly configSha256: string;
 };
 
-/** sha256 of the config `krn eval session` writes for an arm model (see src/evals/session.ts). */
+// These bytes (including the pinned model) are hashed as the session's config.
+// Empty config homes plus the mask remove ambient MCP, skills and history.
+// The mask is the isolation boundary; Codex's own workspace-write sandbox would make
+// .git read-only, so a session could not commit, and every FR-40 convention reads commits.
+export const CODEX_CONFIG = `approval_policy = "never"
+sandbox_mode = "danger-full-access"
+cli_auth_credentials_store = "file"
+web_search = "disabled"
+[history]
+persistence = "none"
+[features]
+apps = false
+plugins = false
+remote_plugin = false
+skill_search = false
+skill_mcp_dependency_install = false
+browser_use = false
+browser_use_external = false
+browser_use_full_cdp_access = false
+computer_use = false
+image_generation = false
+hooks = false
+memories = false
+`;
+
+/** sha256 of the config a lane session writes for an arm model. */
+/** Where a run's evidence lands. */
+export function runDirectory(root: string, experiment: string, runId: string) {
+  return join(root, experiment, 'runs', runId);
+}
+
 export function configSha256(model: string): string {
   return createHash('sha256')
     .update(`model = ${JSON.stringify(model)}\n${CODEX_CONFIG}`)
