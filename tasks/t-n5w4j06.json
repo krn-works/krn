@@ -1,7 +1,11 @@
 {
   "id": "t-n5w4j06",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn ledger --check-ceiling exits 1 when non-delivery share of the last 50 PRs is above 30% (decision 4); test on two fixed windows"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "Research refuses to fan out above the ceiling",

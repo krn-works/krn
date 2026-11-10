@@ -4,7 +4,9 @@ import {
   renderLedger,
 } from '../outcome/ledger.ts';
 import {
+  CEILING_WINDOW_PRS,
   collectWindow,
+  nonDeliveryCeiling,
   renderWindow,
   type WindowOptions,
 } from '../outcome/window.ts';
@@ -16,10 +18,15 @@ export async function ledgerCommand(args: string[]): Promise<void> {
   const window: WindowOptions = {};
   let json = false;
   let windowMode = false;
+  let checkCeiling = false;
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
     if (flag === '--json') {
       json = true;
+      continue;
+    }
+    if (flag === '--check-ceiling') {
+      checkCeiling = true;
       continue;
     }
     if (flag === '--window') {
@@ -82,11 +89,27 @@ export async function ledgerCommand(args: string[]): Promise<void> {
     } else if (flag === '--root') options.root = value;
     else options.transcripts = value;
   }
+  if (checkCeiling && !windowMode) {
+    window.last = CEILING_WINDOW_PRS;
+    windowMode = true;
+  }
   if (windowMode) {
     const report = await collectWindow({ ...window, ...options });
     process.stdout.write(
       json ? `${JSON.stringify(report)}\n` : renderWindow(report),
     );
+    if (checkCeiling) {
+      const c = nonDeliveryCeiling(report);
+      if (!c) {
+        process.stderr.write('ceiling: no priced window, cannot check\n');
+        process.exitCode = 1;
+      } else if (c.over) {
+        process.stderr.write(
+          `ceiling: non-delivery ${(c.share * 100).toFixed(0)}% is above ${(c.ceiling * 100).toFixed(0)}%; do not fan out research\n`,
+        );
+        process.exitCode = 1;
+      }
+    }
     return;
   }
   const report = await collectLedger(options);

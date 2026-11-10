@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { turnDollars, usageOf } from '../../src/outcome/slice-cost.ts';
 import {
   collectWindow,
+  nonDeliveryCeiling,
   renderWindow,
   windowHeadline,
 } from '../../src/outcome/window.ts';
@@ -317,4 +318,21 @@ test('the window headline leads with total dollars and points per merged PR and 
   assert.match(headline, /non-delivery 85% \(\$85\.00\)/);
   assert.match(headline, /delivery only \$3\.00\/PR/);
   assert.equal(windowHeadline({ ...report, prs: [] }), null);
+});
+
+test('the ceiling refuses a window whose non-delivery share is above it and passes one at it', () => {
+  const window = (delivery: number, other: number) => ({
+    dollars: {
+      holdings: [
+        { name: 'delivery lead', dollars: delivery },
+        { name: 'research', dollars: other },
+      ],
+    },
+  });
+  const over = nonDeliveryCeiling(window(60, 40));
+  assert.equal(over?.over, true);
+  assert.equal(over?.share, 0.4);
+  const at = nonDeliveryCeiling(window(70, 30));
+  assert.equal(at?.over, false);
+  assert.equal(nonDeliveryCeiling(window(0, 0)), null);
 });
