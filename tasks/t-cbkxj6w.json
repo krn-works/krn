@@ -1,0 +1,16 @@
+{
+  "id": "t-cbkxj6w",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "stash-guard.ts refuses stack-changing git stash forms; 3 tests"
+  },
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "Refuse git stash in agent sessions: the stash stack is shared by every worktree",
+  "after": [],
+  "body": [
+    "Outcome: a PreToolUse Bash hook refuses `git stash` forms that change the shared stash stack (bare, push, save, pop, drop, clear, create/store) in agent sessions and points to a WIP commit; list, show and apply stay allowed.\nWhy: the stash stack is shared by every worktree; on 2026-11-10 lane launcher-marker (t-bs1ytt2, PR #545) ran bare `git stash`, removed its own edits and picked up lane sandbox-fast-fix's `scripts/fast-check.ts` edit, which it then reverted; parallel lanes are the default, so this repeats.\nProof: a unit test feeds the hook each refused and allowed form, including `git -C <path> stash` and chained commands.\nScope: scripts/claude/stash-guard.ts, .claude/settings.json, test/claude/stash-guard.test.ts."
+  ]
+}
