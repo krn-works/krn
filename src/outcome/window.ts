@@ -361,6 +361,30 @@ export async function collectWindow(options: WindowOptions) {
     timingMs: { github, transcript },
   };
 }
+/** Operator decision 4 (program v2): non-delivery may take at most 30% of a rolling window of 50 merged PRs. */
+export const NON_DELIVERY_CEILING = 0.3;
+export const CEILING_WINDOW_PRS = 50;
+
+/** Share of window dollars outside delivery against the ceiling; `over` is true only strictly above it. */
+export function nonDeliveryCeiling(r: {
+  dollars: { holdings: { name: string; dollars: number }[] };
+}): { share: number; ceiling: number; over: boolean } | null {
+  const cents = r.dollars.holdings.map((h) => ({
+    name: h.name,
+    cents: Math.round(h.dollars * 100),
+  }));
+  const all = cents.reduce((v, h) => v + h.cents, 0);
+  if (all === 0) return null;
+  const delivery = cents
+    .filter((h) => h.name.startsWith('delivery'))
+    .reduce((v, h) => v + h.cents, 0);
+  const share = (all - delivery) / all;
+  return {
+    share,
+    ceiling: NON_DELIVERY_CEILING,
+    over: share > NON_DELIVERY_CEILING,
+  };
+}
 /** The leading line: window total per merged PR, points per PR, and the share of dollars outside delivery. */
 export function windowHeadline(r: {
   prs: number[];

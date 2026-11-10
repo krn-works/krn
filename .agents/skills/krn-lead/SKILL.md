@@ -36,6 +36,7 @@ Parallel work: one lane per worktree, background agents for independent slices, 
 
 Use them only when they clearly save time; none is a prerequisite for a merge.
 
+- Before any research fan-out run `krn ledger --check-ceiling` (50 PRs, non-delivery above 30%, operator decision 4); non-zero: no fan-out, deliver.
 - Recon, inventories and log summaries go to Claude Sonnet or Haiku subagents; program decisions to two or three independent Opus lenses.
 
 ## Traps
