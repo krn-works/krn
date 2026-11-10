@@ -25,6 +25,8 @@ export type Transcript = {
   malformed: boolean;
   /** Lead tool-use id that launched this subagent transcript. */
   parentTool?: string;
+  /** Session id of the lead transcript this subagent belongs to. */
+  lead?: string;
 };
 export type SlicePr = {
   number: number;

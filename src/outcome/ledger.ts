@@ -134,12 +134,16 @@ type Tokens = {
 };
 type Launch = { id: string; background: boolean; pr: number | null };
 type Session = {
+  /** Transcript file name without extension; empty for a parsed string. */
+  id: string;
   tokens: Tokens;
   commands: string[];
   launches: Value[];
   launchPrs: (number | null)[];
   turns: Turn[];
   malformed: boolean;
+  /** Text of the first operator-or-launcher prompt, cut to 400 characters; empty when none was read. */
+  firstPrompt: string;
 };
 const unknownTokens = (): Tokens => ({
   input: null,
@@ -158,6 +162,7 @@ function sessionParser(sidechain = false) {
   const commands = new Map<string, string>();
   const results = new Map<string, ObjectValue>();
   let malformed = false;
+  let firstPrompt = '';
   return {
     line(line: string) {
       if (!line.trim()) return;
@@ -166,6 +171,16 @@ function sessionParser(sidechain = false) {
       const r = object(parsed);
       if (r.isSidechain === true && !sidechain) return;
       const m = object(r.message);
+      if (!firstPrompt && r.type === 'user' && r.isMeta !== true) {
+        const text = (
+          typeof m.content === 'string'
+            ? m.content
+            : array(m.content)
+                .map((c) => string(object(c).text))
+                .join('\n')
+        ).trim();
+        if (text && !text.startsWith('<')) firstPrompt = text.slice(0, 400);
+      }
       let turn: Turn | undefined;
       if (string(m.id) && m.role === 'assistant' && m.usage != null) {
         messages.set(string(m.id), object(m.usage));
@@ -220,6 +235,7 @@ function sessionParser(sidechain = false) {
           ? null
           : sum([...messages.values()].map((m) => number(m[key])));
       return {
+        id: '',
         tokens: {
           input: total('input_tokens'),
           cache_read: total('cache_read_input_tokens'),
@@ -229,6 +245,7 @@ function sessionParser(sidechain = false) {
         commands: [...commands.values()],
         turns: [...turns.values()],
         malformed,
+        firstPrompt,
         launchPrs: [...tools.values()].map((t) => t.pr),
         launches: [...tools.values()].map((t) => {
           const r = results.get(t.id);
@@ -429,7 +446,7 @@ async function readSession(file: string, sidechain = false) {
       crlfDelay: Infinity,
     });
     for await (const line of lines) parser.line(line);
-    return parser.finish();
+    return { ...parser.finish(), id: basename(file, '.jsonl') };
   } catch {
     /* One unreadable transcript does not abort the report. */
     return null;
@@ -462,6 +479,7 @@ export async function sessions(paths: string[]) {
         role: `subagent:${string(meta.agentType) || 'unknown'}`,
         turns: parsed.turns,
         malformed: parsed.malformed,
+        lead: basename(file, '.jsonl'),
         ...(string(meta.toolUseId)
           ? { parentTool: string(meta.toolUseId) }
           : {}),
