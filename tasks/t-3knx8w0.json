@@ -1,7 +1,11 @@
 {
   "id": "t-3knx8w0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "sampler records hashed account and both resets"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "A plan sample names its account and both resets",

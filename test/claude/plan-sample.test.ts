@@ -12,12 +12,14 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  accountLabel,
   gauge,
   mainCheckout,
   record,
   sampleOf,
   stateRoot,
 } from '../../scripts/claude/plan-sample.ts';
+import { parsePlanSamples } from '../../src/outcome/plan-gauge.ts';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 // Verbatim status line input captured from an interactive session (spike-g).
@@ -48,7 +50,45 @@ test('the captured payload yields one sample; the call before the first response
     session: '91b5aba5-823a-4c4b-a857-b374ec5f1e2c',
     five_hour: 88,
     seven_day: 50,
+    five_hour_resets: '2026-11-10T08:00:00Z',
+    seven_day_resets: '2026-11-16T12:00:00Z',
   });
+});
+
+test('a sample names its hashed account and both resets; an old row still parses', () => {
+  const config = { oauthAccount: { accountUuid: 'acct-1' } };
+  const account = accountLabel(config);
+  assert.match(account ?? '', /^[0-9a-f]{12}$/u);
+  assert.notEqual(account, 'acct-1');
+  assert.equal(accountLabel({}), undefined);
+  const sample = sampleOf(
+    capture.second,
+    new Date('2026-11-10T07:52:39Z'),
+    account,
+  );
+  assert.equal(sample?.account, account);
+  assert.equal(sample?.five_hour_resets, '2026-11-10T08:00:00Z');
+  assert.equal(sample?.seven_day_resets, '2026-11-16T12:00:00Z');
+
+  const dir = scratch();
+  mkdirSync(join(dir, '.krn/plan'), { recursive: true });
+  const old = {
+    time: '2026-11-10T07:00:00Z',
+    session: 's',
+    five_hour: 88,
+    seven_day: 50,
+  };
+  writeFileSync(
+    join(dir, '.krn/plan/samples.jsonl'),
+    `${JSON.stringify(old)}\n`,
+  );
+  assert.ok(sample);
+  assert.equal(record(dir, sample), true);
+  const rows = readFileSync(join(dir, '.krn/plan/samples.jsonl'), 'utf8')
+    .split('\n')
+    .slice(0, -1);
+  assert.equal(rows.length, 2);
+  assert.deepEqual(parsePlanSamples(rows.join('\n')).length, 2);
 });
 
 test('a sample is appended only when a window moves, and reads back', () => {
