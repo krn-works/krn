@@ -1,7 +1,11 @@
 {
   "id": "t-7wbhbq9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "successor-launch never closes a pane whose agent has a foreground process or a live child shell; kept panes print retire: kept <pane>: running work"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "The launcher never closes a pane that hosts running work",

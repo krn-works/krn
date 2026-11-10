@@ -316,6 +316,61 @@ function sleep(seconds: number): void {
     );
 }
 
+const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash']);
+
+// A pane hosts running work when Herdr lists a foreground process other than
+// the agent, or the agent process has a live child shell (a background
+// monitor). `pane process-info` lists foreground processes only, so children
+// come from the process table. A pane Herdr cannot report on is not held.
+export function hostsRunningWork(paneId: string): boolean {
+  const result = run('herdr', ['pane', 'process-info', '--pane', paneId]);
+  if (result.status !== 0 || result.error) return false;
+  try {
+    const root = record(JSON.parse(result.stdout));
+    const info = record(record(root?.result)?.process_info);
+    const processes = info?.foreground_processes;
+    if (!Array.isArray(processes)) return false;
+    for (const value of processes) {
+      const process = record(value);
+      if (process?.name !== 'claude') return true;
+      const pid = process.pid;
+      if (typeof pid !== 'number') continue;
+      const children = run('ps', ['-o', 'pid=,comm=', '--ppid', String(pid)]);
+      for (const line of children.stdout.split('\n')) {
+        const command = line.trim().split(/\s+/u).pop();
+        if (command && SHELLS.has(command)) return true;
+      }
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+function keptRunning(paneId: string): boolean {
+  if (!hostsRunningWork(paneId)) return false;
+  process.stderr.write(`retire: kept ${paneId}: running work\n`);
+  return true;
+}
+
+function runningPaneInTab(
+  workspaceId: string,
+  tabId: string,
+): string | undefined {
+  const list = run('herdr', ['pane', 'list', '--workspace', workspaceId]);
+  if (list.status !== 0 || list.error) return undefined;
+  try {
+    const panes = record(record(JSON.parse(list.stdout))?.result)?.panes;
+    if (!Array.isArray(panes)) return undefined;
+    for (const value of panes) {
+      const pane = record(value);
+      const id = text(pane?.pane_id);
+      if (id && pane?.tab_id === tabId && keptRunning(id)) return id;
+    }
+  } catch {}
+  return undefined;
+}
+
 export function retireMode(
   args: string[],
   pause: (seconds: number) => void = sleep,
@@ -362,6 +417,7 @@ export function retireMode(
         info.sessionId === predSession &&
         settled
       ) {
+        if (keptRunning(predPane)) break;
         const closed = run('herdr', ['pane', 'close', predPane]);
         process.stderr.write(
           `retire: ${closed.status === 0 && !closed.error ? 'closed' : 'failed to close'} predecessor ${predPane}\n`,
@@ -401,7 +457,9 @@ export function retireMode(
         tab.workspace_id === own.workspaceId &&
         id !== own.tabId &&
         (tab.agent_status === 'idle' || tab.agent_status === 'done');
-      if (eligible) {
+      if (eligible && runningPaneInTab(own.workspaceId, id))
+        process.stderr.write(`retire: kept tab ${id}\n`);
+      else if (eligible) {
         const closed = run('herdr', ['tab', 'close', id]);
         process.stderr.write(
           `retire: ${closed.status === 0 && !closed.error ? 'closed' : 'kept'} tab ${id}\n`,
@@ -551,6 +609,10 @@ function retireLedger(
       info.sessionId === launch.session_id &&
       (info.status === 'idle' || info.status === 'done')
     ) {
+      if (keptRunning(launch.pane_id)) {
+        kept.push(launch);
+        continue;
+      }
       const closed = run('herdr', ['pane', 'close', launch.pane_id]);
       if (!closed.error && closed.status === 0) {
         process.stdout.write(
