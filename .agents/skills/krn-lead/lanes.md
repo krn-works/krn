@@ -11,3 +11,5 @@
 - Final reply ≤10 lines (it is the report; Claude Code refuses subagent report files): PRs with merge state, tasks created, measured before/after numbers.
 - Lane types: untrusted content (web, papers, clones under .krn/sources) runs as `krn-research` (read-only; lead saves its report under .krn/runs); recon and logs as `krn-reader`. Probes, tests and commands run in a general-purpose lane that reads no untrusted page. Lanes of 100+ turns were $167 of $216 subagent spend: slice a general-purpose lane to about 60 turns; at turn 80 push and report the rest.
 - Budget: `krn lane start` refuses (64) under 5 GB free (repo or /mnt/storage/tmp; `KRN_LANE_MIN_FREE_GB`) or at 8 live worktrees (`KRN_LANE_MAX_LIVE`). Brief states a size budget: fix ~30 turns, slice ~60, ceiling 80; ~150 tool calls.
+- A brief for a measurement or replay names its population and exclusions (e.g. PRs delivered by the standing lead only, not lane PRs) before any run; the lane records its selection before seeing results.
+- Never `git stash`: the stack is shared by all worktrees and a hook refuses it.

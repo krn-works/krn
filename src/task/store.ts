@@ -60,8 +60,34 @@ export function repositoryRoot(cwd = process.cwd()): string {
   return result.stdout.trim();
 }
 
+// Matches the post-merge proof phrasing used in task bodies: "After merge",
+// "After the merge", "post-merge", "merged history".
+const POST_MERGE_PROOF =
+  /\bafter (?:the )?merge\b|\bpost-merge\b|\bmerged history\b/iu;
+
 export function checkTaskDirectory(root: string): string[] {
-  return scanTaskDirectory(root).findings;
+  const { findings, records } = scanTaskDirectory(root);
+  return [...findings, ...postMergeAfterFindings(records)];
+}
+
+// An open task with a post-merge proof stays open on purpose, so an open task
+// ordered `after` it can never be claimed.
+function postMergeAfterFindings(records: Map<TaskId, TaskRecord>): string[] {
+  const findings: string[] = [];
+  for (const record of records.values()) {
+    if (record.status !== 'open') continue;
+    for (const id of record.after) {
+      const target = records.get(id);
+      if (
+        target?.status === 'open' &&
+        POST_MERGE_PROOF.test(target.body.join('\n'))
+      )
+        findings.push(
+          `tasks/${record.id}.json: after task "${id}" has a post-merge proof and stays open, so this task can never be claimed; drop the after, or split the post-merge proof into its own task`,
+        );
+    }
+  }
+  return findings;
 }
 
 export function loadTaskIndex(root: string): Map<TaskId, TaskRecord> {

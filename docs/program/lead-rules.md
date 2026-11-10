@@ -30,6 +30,7 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 - Run hygiene, cleanup and deliver resumption with absolute paths from the main checkout, never from inside a worktree they remove; a successful merge exits 0.
 - The Bash tool runs each command inside `eval ... ||`, so `set -e` does not stop it: chain state-changing steps with `&&` or explicit `|| exit`.
 - When the auto-mode classifier denies a granted step, never work around it: put the exact `! <command>` line in the handoff for the operator and continue with work that needs no such step.
+- Above about 100k context, do not start a run longer than about 30 minutes as a session subagent: run it as a detached process writing results to a file under `.krn/runs/`, so a handoff neither waits on it nor kills it.
 - A user-level `skillOverrides` entry disables any project skill with the same name; when a repository skill does not load, check `~/.claude/settings.json` overrides first.
 
 ## Parallel lanes

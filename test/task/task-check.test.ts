@@ -349,3 +349,29 @@ test('task check takes --head only with --base and each option once', async () =
     await rm(repo, { recursive: true, force: true });
   }
 });
+
+test('task check refuses an open after task whose post-merge proof keeps it open', async () => {
+  const repo = await tempRepo('post-merge-after-');
+  try {
+    await writeTask(repo, {
+      ...validTask,
+      id: 'T-1',
+      body: ['Proof: a test. After merge: a day of rows is clean.'],
+    });
+    await writeTask(repo, { ...validTask, id: 'T-2', after: ['T-1'] });
+    await writeTask(repo, {
+      ...validTask,
+      id: 'T-3',
+      body: ['Proof: a test.'],
+    });
+    await writeTask(repo, { ...validTask, id: 'T-4', after: ['T-3'] });
+    const findings = checkTaskDirectory(repo);
+    assert.equal(findings.length, 1);
+    assert.match(
+      findings[0] ?? '',
+      /tasks\/T-2\.json: after task "T-1".*drop the after, or split the post-merge proof into its own task/u,
+    );
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
