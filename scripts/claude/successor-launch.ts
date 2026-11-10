@@ -62,6 +62,7 @@ export function appCredentialEnvironment(
     const value = env[name];
     if (value) forwarded[name] = value;
   }
+  if (env.XDG_RUNTIME_DIR) forwarded.KRN_APP_CACHE_DIR = env.XDG_RUNTIME_DIR;
   return {
     ...forwarded,
     PATH: env.PATH ? `${wrapperDirectory}:${env.PATH}` : wrapperDirectory,

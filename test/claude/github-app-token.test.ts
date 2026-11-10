@@ -234,6 +234,23 @@ test('without XDG_RUNTIME_DIR nothing is cached', async (t) => {
   assert.equal(f.minted(), 2);
 });
 
+test('the cache directory named by the launcher serves a helper without XDG_RUNTIME_DIR', async (t) => {
+  const f = await fakes(t);
+  await exec(helper, ['token'], f.env);
+  const { XDG_RUNTIME_DIR: runtime, ...env } = f.env;
+  const sandboxed = { ...env, KRN_APP_CACHE_DIR: runtime ?? '' };
+  assert.equal(
+    (await exec(helper, ['token'], sandboxed)).stdout,
+    'ghs_token1\n',
+  );
+  assert.equal(f.minted(), 1);
+  assert.equal(
+    appCredentialEnvironment({ PATH: '/b', XDG_RUNTIME_DIR: '/run/u' })
+      .KRN_APP_CACHE_DIR,
+    '/run/u',
+  );
+});
+
 test('an unavailable bw serve or item exits 69 with one line naming the piece', async (t) => {
   const f = await fakes(t);
   const down = await exec(helper, ['token'], {

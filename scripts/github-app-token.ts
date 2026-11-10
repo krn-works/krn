@@ -43,9 +43,10 @@ export function appJwt(appId: string, privateKey: string, now: number) {
 }
 
 function cachePath(env: Env): string | undefined {
-  return env.XDG_RUNTIME_DIR
-    ? join(env.XDG_RUNTIME_DIR, CACHE_NAME)
-    : undefined;
+  // The sandbox scrubs XDG_RUNTIME_DIR, so the launcher names the directory
+  // of its mint again in a variable that survives.
+  const directory = env.KRN_APP_CACHE_DIR || env.XDG_RUNTIME_DIR;
+  return directory ? join(directory, CACHE_NAME) : undefined;
 }
 
 function readCache(env: Env, now: number): string | undefined {
