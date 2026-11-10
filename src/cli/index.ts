@@ -42,6 +42,9 @@ export async function dispatch(args: string[]): Promise<boolean> {
   } else if (command === 'decide') {
     const { decideCommand } = await import('./decide.ts');
     await decideCommand(options);
+  } else if (command === 'adopt') {
+    const { adoptCommand } = await import('./adopt.ts');
+    adoptCommand(options);
   } else if (command === 'doctor') {
     const pin = await import('./entry-pin.ts');
     const report = pin.doctorReport(pin.configuredEntryRoot());
