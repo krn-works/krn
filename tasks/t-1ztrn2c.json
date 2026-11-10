@@ -1,7 +1,11 @@
 {
   "id": "t-1ztrn2c",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "A/B of 20 paired replays (.krn/runs/haiku-lane-ab/results.md): Haiku 5.5 high cheaper in 18/20 pairs but incorrect in #548 where Sonnet was correct (out of scope edit), no commit in #561 and #532; rule 1 of protocol.md fails, krn-lane stays on Sonnet."
+  },
   "created": "2026-11-10",
   "priority": 2,
   "title": "A/B Haiku 5.5 lanes against Sonnet 5.5 on 20 real lanes",
