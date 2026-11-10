@@ -75,7 +75,7 @@ export function hasFixedPointAnchor(value: string): boolean {
   return /\b(base|HEAD|fingerprint)\s*=\s*[^\s,;]+/i.test(stripMarkup(value));
 }
 
-export interface CleanupEntry {
+interface CleanupEntry {
   pointer: string;
   workflow: string;
   consumer: string;

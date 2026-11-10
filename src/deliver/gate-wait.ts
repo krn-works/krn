@@ -37,7 +37,7 @@ export const pullSchema = z.object({
 });
 export type Pull = z.infer<typeof pullSchema>;
 
-export interface GateWaitOptions {
+interface GateWaitOptions {
   repo: string;
   pr: number;
   head: string;
@@ -53,7 +53,7 @@ export interface GateWaitOptions {
   onPull?: (pull: Pull) => void;
 }
 /** Why a wait stopped before its gate concluded; each reason owns an exit code. */
-export type GateStopReason = 'conflict' | 'head-moved' | 'never-started';
+type GateStopReason = 'conflict' | 'head-moved' | 'never-started';
 export class GateStopped extends Error {
   readonly reason: GateStopReason;
   constructor(reason: GateStopReason, message: string) {

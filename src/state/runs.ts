@@ -45,7 +45,7 @@ export function resolveRepositoryRoot(repo: string): {
   return { root: top.ok && top.out ? resolve(top.out) : requested, hasGit };
 }
 
-export interface RunDirectory {
+interface RunDirectory {
   workflow: string;
   pointer: string;
 }
@@ -92,7 +92,7 @@ export function runDirectoriesDetailed(root: string): {
   return { runs, errors };
 }
 
-export interface CapsuleStoreEntry {
+interface CapsuleStoreEntry {
   id: string;
   link: boolean;
   kind?: 'resolve';
@@ -229,36 +229,4 @@ export function capsuleStoreReport(root: string): {
     });
   }
   return { storeErrors, entries };
-}
-
-export function capsuleIdsDetailed(root: string): {
-  ids: string[];
-  errors: { rule: string; detail: string }[];
-} {
-  const { storeErrors, entries } = capsuleStoreReport(root);
-  const errors = [...storeErrors];
-  const seen = new Map<string, { id: string; link: boolean }>();
-  for (const entry of entries) {
-    if (entry.kind === 'resolve') {
-      errors.push({
-        rule: 'unreadable-capsule',
-        detail: `.krn/runs/delivery-loop/${entry.id}/state.md cannot be resolved`,
-      });
-      continue;
-    }
-    if (entry.error) {
-      errors.push(entry.error);
-      continue;
-    }
-    const key = entry.resolvedDirectory as string;
-    const previous = seen.get(key);
-    if (!previous || (previous.link && !entry.link))
-      seen.set(key, { id: entry.id, link: entry.link });
-  }
-  return {
-    ids: [...seen.values()]
-      .map((entry) => entry.id)
-      .sort((a, b) => a.localeCompare(b)),
-    errors,
-  };
 }

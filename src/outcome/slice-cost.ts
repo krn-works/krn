@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 
 type ObjectValue = Record<string, unknown>;
 
-export type Usage = {
+type Usage = {
   input: number;
   cacheRead: number;
   cacheWrite5m: number;
@@ -204,7 +204,7 @@ export function segmentTurns(turns: Turn[], prs: SlicePr[]): (number | null)[] {
   });
 }
 
-export type SliceCost = {
+type SliceCost = {
   dollars: number | null;
   leadDollars: number | null;
   subagentDollars: number | null;

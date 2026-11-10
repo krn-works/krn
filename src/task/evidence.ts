@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import type { TaskRecord } from './record.ts';
 
 /** One open-task pointer into agent state that the checkout no longer holds. */
-export interface EvidenceMiss {
+interface EvidenceMiss {
   path: string;
   task: string;
   recovery: string | null;

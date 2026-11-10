@@ -26,7 +26,7 @@ export type Packet = {
   readonly sha256: string;
 };
 
-export class BrainDataError extends Error {
+class BrainDataError extends Error {
   readonly exitCode = 65;
 }
 

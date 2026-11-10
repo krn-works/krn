@@ -34,7 +34,7 @@ function renderErrors(errors: Finding[]): string {
     .join('\n')}`;
 }
 
-export interface ResumeReport {
+interface ResumeReport {
   root: string;
   applicability: 'checked' | 'no-file-backed-capsule';
   status: CheckReport['status'];

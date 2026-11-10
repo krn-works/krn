@@ -2,19 +2,19 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-export type PlanSample = {
+type PlanSample = {
   at: number;
   fiveHour: number;
   sevenDay: number;
 };
 
-export type PlanPoints = {
+type PlanPoints = {
   samples: number;
   fiveHour: number;
   sevenDay: number;
 };
 
-export const planSamplesPath = (root: string) =>
+const planSamplesPath = (root: string) =>
   join(root, '.krn', 'plan', 'samples.jsonl');
 
 /** Parses sampler rows; a malformed row is skipped. Rows are sorted by time. */

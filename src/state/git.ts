@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 
-export interface GitResult {
+interface GitResult {
   ok: boolean;
   out: string;
   status: number | null;

@@ -313,7 +313,7 @@ function acceptanceFor(
 
 // Runs one acceptance command through the shell in the repository root and
 // returns its exit status (a signal or spawn failure counts as 1).
-export function runVerify(root: string, command: string): number {
+function runVerify(root: string, command: string): number {
   const run = spawnSync('sh', ['-c', command], {
     cwd: root,
     stdio: ['ignore', 'ignore', 'inherit'],

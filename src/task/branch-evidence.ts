@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import type { TaskRecord } from './record.ts';
 
 /** One open-task branch name that neither the checkout nor origin holds. */
-export interface BranchMiss {
+interface BranchMiss {
   branch: string;
   task: string;
 }

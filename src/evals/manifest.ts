@@ -129,7 +129,7 @@ const wozSchema = z
     }
   });
 
-export type WozManifest = z.infer<typeof wozSchema>;
+type WozManifest = z.infer<typeof wozSchema>;
 
 // FR-40 (ADR 0014 D20): convention tasks in fixed strata (one per template),
 // arms A (none), B (brain packet) and S (static standards) at one token budget.
@@ -192,17 +192,8 @@ const fr40Schema = z
         });
   });
 
-export type Fr40Manifest = z.infer<typeof fr40Schema>;
+type Fr40Manifest = z.infer<typeof fr40Schema>;
 export type ExperimentManifest = WozManifest | Fr40Manifest;
-
-/** Narrow to the Wizard-of-Oz shape; FR-40 manifests have no workspace or check contract. */
-export function wozManifest(manifest: ExperimentManifest): WozManifest {
-  if ('design' in manifest)
-    throw new EvalDataError(
-      `${manifest.id}: ${manifest.design} manifests use krn eval score, not this verb`,
-    );
-  return manifest;
-}
 
 /** Narrow to the FR-40 shape. */
 export function fr40Manifest(manifest: ExperimentManifest): Fr40Manifest {
