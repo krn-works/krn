@@ -1,0 +1,14 @@
+{
+  "id": "t-2p76mm9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "The window names what it holds",
+  "after": [
+    "t-bs1ytt2"
+  ],
+  "body": [
+    "Outcome: the window prints delivery-lead dollars, lanes (by worktree path) and other subagents, and reports sessions marked non-delivery on a separate line outside the per-task figure; history before B2 is classed by the first-prompt rule and labelled as estimated.\nWhy: the note in `t-bc4772y` reads $0.63 per PR for an 80-minute window at the old prices and $2.10 for 21:00Z to 06:55Z at the new prices, the second holding this program's sessions; agent type cannot separate lanes ($262 of lane spend and $209 of the rest are both `general-purpose`, `04` (i)). Outside such programs non-delivery sessions are 1.3 to 3.3% (`04` (k2)), so this is a filter, not a finding.\nProof: the lines sum to the window total; the window 11-09 22:20Z to 11-10 08:00Z prints this program's sessions on their own line (`spike-k2.md:15` measured $65.35 for them).\nScope: `src/outcome`.\nOrder: B1, B2, B3; then the two measurements B6 and B7; B4 when the operator adds the line; B5 last.\nOrder: after B2.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice B3."
+  ]
+}

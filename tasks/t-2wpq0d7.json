@@ -1,0 +1,12 @@
+{
+  "id": "t-2wpq0d7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "The plan gauge is sampled",
+  "after": [],
+  "body": [
+    "Outcome: a status line command appends `{time, session, five_hour, seven_day}` to a file under `.krn/`; the window prints dollars per plan point.\nWhy: plan limits, not dollars, are what stops work; the signal exists only in interactive sessions and is per account (`04` (g)), so it calibrates a window and attributes nothing.\nProof: a test feeds the sampler a captured status payload and reads the row back. After merge: one day of samples; the ledger prints the ratio for two windows.\nScope: `.claude/settings.json` (`statusLine`), a sampler script, `src/outcome`.\nOrder: B1, B2, B3; then the two measurements B6 and B7; B4 when the operator adds the line; B5 last.\nOperator order 2026-11-10: ordinary in-project delivery.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice B4."
+  ]
+}

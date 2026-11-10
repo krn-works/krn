@@ -1,0 +1,12 @@
+{
+  "id": "t-5983e6g",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 2,
+  "title": "FR-40's packet gets a carrier or an epitaph",
+  "after": [],
+  "body": [
+    "Outcome: either the arm-B packet is prepended to lane briefs on the lead's dispatch path and the FR-40 comparison is re-run through that carrier, or ADR 0002's status records that the result was measured under the worker and has no consumer.\nWhy: FR-40 is the only positive controlled result KRN has (ADR 0002:6-9: B-A +21.1 pp, B-S +11.3 pp, token ratio 1.086), and it was measured through `krn worker start` and `krn eval`, which D2 deletes. The first draft of this file said no measurement needed the cluster; that was wrong (section 8, mission 6).\nProof: for the carrier, the re-run reports the B-A gap on lanes next to +21.1 pp; for the epitaph, the ADR edit.\nLimit: the carrier re-runs FR-40 on Claude lanes. D24 says \"FR-40 runs Codex only\" (0014:36) and ADR 0002:272 requires \"a current task, an approved protocol, and a preregistration before results are observed\", so the carrier needs a D24 amendment and a preregistered protocol before the run. The epitaph needs neither.\nScope: `src/brain`, the lead's dispatch brief, `evals/fr40`; or `docs/adr/0002`.\nOrder: Both removals touch frame files; merge them before A5. After it, the App opens the PR, the operator's credential pushes the workflow commit into it and, under A4, the operator approves.\nOrder: before D2.\nBefore the run: a D24 amendment (\"FR-40 runs Codex only\") and a preregistered protocol (ADR 0002:272) are merged. If the re-run shows no gap, write the epitaph.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice D0."
+  ]
+}

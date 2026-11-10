@@ -1,0 +1,12 @@
+{
+  "id": "t-scj2bqy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "The window unit in krn ledger, with one price table",
+  "after": [],
+  "body": [
+    "Outcome: `krn ledger --window <from> <to>` and `--last <n>` print PRs, tasks closed done, dollars for lead and subagents, PRs per task, created-to-merged, `CI` attempts and main reds; the ledger and `spend-window.py` read one price table.\nWhy: cost per PR hides sessions that deliver nothing and tasks that take several PRs; the second price table dropped every Fable turn from the ledger within one commit of #539 (`04` (b)).\nProof: the window 11-09 21:00Z to 22:20Z reproduces the script to the cent (**[R]** V10 re-ran this one window, with `--root` at the main checkout; the silent $0.00 from a worktree is A6's to fix); #454, #477 and #463 join to `t-wm22s14`, `t-6zyegcr`, `t-b6v615x`.\nScope: `src/outcome`, `scripts/claude/spend-window.py`; evidence `spike-b.diff`.\nOrder: B1, B2, B3; then the two measurements B6 and B7; B4 when the operator adds the line; B5 last.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice B1."
+  ]
+}

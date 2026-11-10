@@ -1,0 +1,14 @@
+{
+  "id": "t-9w41zw0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 2,
+  "title": "Worker, hosts and evals leave",
+  "after": [
+    "t-5983e6g"
+  ],
+  "body": [
+    "Outcome: the cluster and its scripts, fixtures, receivers and CI steps are removed in one PR; `src` falls from 16,321 to about 8,200 lines and the suite from 215 to 112 test files.\nWhy: nothing on the shipping path imports it; it is about three quarters of the suite's local time, and its test files carry 72% of the measured CI test seconds (375 of 521 in `scripts/lib/shard-weights.mjs` against `spike-h-c2-deleted.txt` **[V]**). The delivery loop itself runs `npm run fast`, related tests only, so the gain is in CI and in full local runs, not in every slice.\nProof: full suite green in CI on the PR (the spike ran locally only and did not execute the edited CI files). After merge: billed minutes of the next 20 `CI` runs against the previous 20.\nScope: as listed in `spike-h-c2.patch` and `spike-h-c2-deleted.txt` (230 files, +52 −24,257), plus `src/task/worker-busy.ts` messages; ADR amendments in `adr-draft-subtraction.md`.\nOrder: Both removals touch frame files; merge them before A5. After it, the App opens the PR, the operator's credential pushes the workflow commit into it and, under A4, the operator approves.\nOrder: only after the operator's decision in section 5 (3) and after D0.\nStarts only after D0 closes. Carries: Part 2 of adr-draft-subtraction.md; full CI green on the PR is the proof; the FR-40 manifest test pins a hash and evals/fr40 data stays.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice D2."
+  ]
+}
