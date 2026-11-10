@@ -1,7 +1,11 @@
 {
   "id": "t-1g63tyx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "src/harness/transcripts.ts is the one transcript reader; ledger uses it; rule test counts readers outside src/harness (0); window output identical to the cent"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "Transcripts have one reader",

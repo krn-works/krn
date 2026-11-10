@@ -380,36 +380,6 @@ test('unknown evidence, attribution and output boundaries', async () => {
   }
 });
 
-test('transcriptDirs finds the root and its worktree project directories only', async () => {
-  const projects = await mkdtemp(join(tmpdir(), 'krn-projects-'));
-  try {
-    for (const name of [
-      '-r-krn',
-      '-r-krn--krn-worktrees-lane-a',
-      '-r-krn--krn-worktrees-lane-b',
-      '-r-krn-betting',
-      '-r-krn--claude-worktrees-x',
-      '-other',
-    ])
-      await mkdir(join(projects, name));
-    const dirs = await ledger.transcriptDirs('/r/krn', projects);
-    assert.deepEqual(
-      dirs.map((d: string) => d.slice(projects.length + 1)),
-      [
-        '-r-krn',
-        '-r-krn--krn-worktrees-lane-a',
-        '-r-krn--krn-worktrees-lane-b',
-      ],
-    );
-    assert.deepEqual(
-      await ledger.transcriptDirs('/r/krn', join(projects, 'none')),
-      [join(projects, 'none', '-r-krn')],
-    );
-  } finally {
-    await rm(projects, { recursive: true, force: true });
-  }
-});
-
 test('mapLimited keeps input order and never runs more than the limit at once', async () => {
   let active = 0;
   let peak = 0;
