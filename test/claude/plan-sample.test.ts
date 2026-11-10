@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -10,6 +16,7 @@ import {
   mainCheckout,
   record,
   sampleOf,
+  stateRoot,
 } from '../../scripts/claude/plan-sample.ts';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
@@ -21,6 +28,17 @@ const capture = JSON.parse(
   ),
 ) as { first: unknown; second: unknown };
 const scratch = () => mkdtempSync(join(tmpdir(), 'plan-sample-'));
+// A temp repo marked by its own `.git`, so no test depends on the checkout kind.
+const repo = () => {
+  const dir = scratch();
+  mkdirSync(join(dir, '.git'));
+  return dir;
+};
+const runStatusLine = (cwd: string) =>
+  spawnSync(process.execPath, [join(root, 'scripts/claude/plan-sample.ts')], {
+    input: JSON.stringify({ ...(capture.second as object), cwd }),
+    encoding: 'utf8',
+  });
 
 test('the captured payload yields one sample; the call before the first response yields none', () => {
   const now = new Date('2026-11-10T07:52:39.123Z');
@@ -57,7 +75,7 @@ test('worktree state resolves to the main checkout', () => {
 });
 
 test('the status line command writes under the payload cwd and prints the gauge', () => {
-  const dir = scratch();
+  const dir = repo();
   const payload = {
     ...(capture.second as object),
     cwd: join(dir, '.krn/worktrees/x'),
@@ -83,4 +101,26 @@ test('the status line command writes under the payload cwd and prints the gauge'
   );
   assert.equal(bad.status, 0);
   assert.equal(bad.stdout, 'plan —\n');
+});
+
+test('a cwd in a nested subdirectory writes to the repo root, never below it', () => {
+  const dir = repo();
+  const nested = join(dir, '.krn/runs/program/deep');
+  mkdirSync(nested, { recursive: true });
+  assert.equal(stateRoot(nested), dir);
+  assert.equal(runStatusLine(nested).status, 0);
+  assert.ok(existsSync(join(dir, '.krn/plan/samples.jsonl')));
+  assert.equal(existsSync(join(nested, '.krn')), false);
+
+  const worktree = join(dir, '.krn/worktrees/x');
+  const inside = join(worktree, 'src/deep');
+  mkdirSync(inside, { recursive: true });
+  writeFileSync(join(worktree, '.git'), 'gitdir: elsewhere\n');
+  assert.equal(stateRoot(inside), dir);
+  assert.equal(existsSync(join(worktree, '.krn')), false);
+});
+
+test('outside any repository nothing resolves', () => {
+  // The system temp dir may itself sit inside a repository, so use the root.
+  assert.equal(stateRoot('/krn-no-such-directory/a/b'), undefined);
 });

@@ -4,8 +4,14 @@
 // interactive Claude Code session (test/claude/plan-sample.test.ts carries it).
 // Headless sessions never invoke a status line, so samples come from
 // interactive sessions only; the percentages belong to the whole account.
-import { appendFileSync, mkdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  statSync,
+} from 'node:fs';
+import { dirname, join } from 'node:path';
 
 export type PlanSample = {
   time: string;
@@ -49,6 +55,19 @@ export function mainCheckout(directory: string) {
   return at === -1 ? directory : directory.slice(0, at);
 }
 
+// The session cwd may be any subdirectory: walk up to the nearest directory
+// holding `.git` (a directory, or a file in a linked worktree), then strip the
+// worktree suffix. Filesystem checks only; no git spawn. Undefined outside a repo.
+export function stateRoot(directory: string) {
+  let at = directory;
+  for (;;) {
+    if (existsSync(join(at, '.git'))) return mainCheckout(at);
+    const parent = dirname(at);
+    if (parent === at) return undefined;
+    at = parent;
+  }
+}
+
 function lastSample(file: string): PlanSample | undefined {
   try {
     const size = statSync(file).size;
@@ -90,7 +109,8 @@ if (import.meta.main) {
     sample = sampleOf(payload, new Date());
     const cwd = object(payload).cwd;
     const directory = typeof cwd === 'string' ? cwd : process.cwd();
-    if (sample) record(mainCheckout(directory), sample);
+    const root = sample ? stateRoot(directory) : undefined;
+    if (sample && root) record(root, sample);
   } catch {
     // A status line must never fail the session; print the empty gauge.
   }
