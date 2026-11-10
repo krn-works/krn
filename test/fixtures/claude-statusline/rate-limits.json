@@ -1,0 +1,23 @@
+{
+  "source": "spike-g: status line stdin of an interactive Claude Code session, 2026-11-10T07:52Z (host path prefix replaced by /repo); the second call carries rate_limits verbatim, the first has none",
+  "first": {
+    "session_id": "91b5aba5-823a-4c4b-a857-b374ec5f1e2c",
+    "model": "claude-haiku-5-5",
+    "cwd": "/repo/.krn/worktrees/arch-statusline"
+  },
+  "second": {
+    "session_id": "91b5aba5-823a-4c4b-a857-b374ec5f1e2c",
+    "model": "claude-haiku-5-5",
+    "cwd": "/repo/.krn/worktrees/arch-statusline",
+    "rate_limits": {
+      "five_hour": {
+        "used_percentage": 88,
+        "resets_at": 1794297600
+      },
+      "seven_day": {
+        "used_percentage": 50,
+        "resets_at": 1794830400
+      }
+    }
+  }
+}
