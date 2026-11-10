@@ -1,6 +1,13 @@
 // The delivery window unit: merged PRs, dollars by session class, PRs per task, lead time, CI attempts, rework and main reds.
 import { resolve } from 'node:path';
 import {
+  classifyLead,
+  HOLDINGS,
+  type Holding,
+  holdingOf,
+  sessionMarkers,
+} from './holdings.ts';
+import {
   array,
   callRun,
   internalError,
@@ -158,8 +165,23 @@ export async function collectWindow(options: WindowOptions) {
     string,
     { dollars: number; turns: number; sessions: number }
   >();
+  const holds = new Map<
+    Holding,
+    { dollars: number; turns: number; sessions: number; estimated: number }
+  >(
+    HOLDINGS.map((h) => [
+      h,
+      { dollars: 0, turns: 0, sessions: 0, estimated: 0 },
+    ]),
+  );
   let unpriced = 0;
-  const book = (cls: string, turns: Turn[]) => {
+  const markers = await sessionMarkers(root);
+  const book = (
+    cls: string,
+    turns: Turn[],
+    hold: Holding,
+    estimated: boolean,
+  ) => {
     const own = turns.filter((t) => t.at !== null && t.at >= from && t.at < to);
     if (own.length === 0) return;
     const c = classes.get(cls) ?? { dollars: 0, turns: 0, sessions: 0 };
@@ -171,12 +193,33 @@ export async function collectWindow(options: WindowOptions) {
       c.turns++;
     }
     classes.set(cls, c);
+    const h = holds.get(hold);
+    if (!h) return;
+    h.sessions++;
+    if (estimated) h.estimated++;
+    for (const turn of own) {
+      const d = turnDollars(turn);
+      if (d !== null) h.dollars += d;
+      h.turns++;
+    }
   };
   for (const dir of dirs) {
     const found = await sessions([dir]);
     const where = dir.includes('--krn-worktrees-') ? 'worktree' : 'main';
-    for (const s of found.lead) book(`lead:${where}`, s.turns);
-    for (const s of found.subagents) book(s.role, s.turns);
+    const leads = new Map(
+      found.lead.map((s) => [
+        s.id,
+        classifyLead(markers.get(s.id), s.firstPrompt),
+      ]),
+    );
+    for (const s of found.lead) {
+      const c = leads.get(s.id);
+      if (c) book(`lead:${where}`, s.turns, holdingOf(c, null), c.estimated);
+    }
+    for (const s of found.subagents) {
+      const c = leads.get(s.lead ?? '');
+      if (c) book(s.role, s.turns, holdingOf(c, s), c.estimated);
+    }
   }
   const transcript = Date.now() - t1;
   const lead = [...classes].filter(([k]) => k.startsWith('lead:'));
@@ -269,6 +312,16 @@ export async function collectWindow(options: WindowOptions) {
       byClass: Object.fromEntries(
         [...classes].map(([k, c]) => [k, { ...c, dollars: usd(c.dollars) }]),
       ),
+      holdings: HOLDINGS.map((name) => {
+        const h = holds.get(name);
+        return {
+          name,
+          sessions: h?.sessions ?? 0,
+          estimated: h?.estimated ?? 0,
+          turns: h?.turns ?? 0,
+          dollars: usd(h?.dollars ?? 0),
+        };
+      }),
       unpricedTurns: unpriced,
       transcriptTurns: [...classes.values()].reduce((n, c) => n + c.turns, 0),
       transcriptDirs: dirs.length,
@@ -300,10 +353,22 @@ export function renderWindow(r: Awaited<ReturnType<typeof collectWindow>>) {
     lines.push(
       `NO TRANSCRIPT TURNS in the window (${d.transcriptDirs} transcript dirs searched): dollars are unknown, not $0.00; check --root or --transcripts`,
     );
-  else
+  else {
+    const delivery = d.holdings
+      .filter((h) => h.name.startsWith('delivery'))
+      .reduce((v, h) => v + h.dollars, 0);
+    const all = d.holdings.reduce((v, h) => v + h.dollars, 0);
     lines.push(
-      `lead $${d.lead.toFixed(2)} (main $${d.leadMain.toFixed(2)}, worktree $${d.leadWorktree.toFixed(2)}) = $${(d.lead / n).toFixed(2)}/PR; subagents $${d.subagents.toFixed(2)} = $${(d.subagents / n).toFixed(2)}/PR; total $${((d.lead + d.subagents) / n).toFixed(2)}/PR`,
+      `window total $${all.toFixed(2)}: lead $${d.lead.toFixed(2)} (main $${d.leadMain.toFixed(2)}, worktree $${d.leadWorktree.toFixed(2)}), subagents $${d.subagents.toFixed(2)}; the lines below sum to it (each rounded to the cent)`,
     );
+    for (const h of d.holdings)
+      lines.push(
+        `  ${h.name.padEnd(36)} $${h.dollars.toFixed(2).padStart(8)}  sessions=${h.sessions}${h.estimated ? ` (${h.estimated} classed by first prompt: estimated)` : ''}`,
+      );
+    lines.push(
+      `per-PR figure counts delivery lines only: $${(delivery / n).toFixed(2)}/PR (delivery lead $${((d.holdings[0]?.dollars ?? 0) / n).toFixed(2)}); non-delivery sessions stay outside it`,
+    );
+  }
   for (const [k, c] of Object.entries(d.byClass).sort(
     (a, b) => b[1].dollars - a[1].dollars,
   ))

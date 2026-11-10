@@ -186,3 +186,105 @@ test('a linked worktree is refused with its reason, the main checkout is not, an
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('the window names who held its dollars and the lines sum to the total', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'window-holdings-'));
+  const user = (text: string) =>
+    JSON.stringify({
+      type: 'user',
+      timestamp: at(1),
+      message: { role: 'user', content: text },
+    });
+  const bash = (id: string, minute: number, command: string) =>
+    JSON.stringify({
+      type: 'assistant',
+      timestamp: at(minute),
+      message: {
+        id,
+        role: 'assistant',
+        model: 'claude-sonnet-5-5',
+        usage: { input_tokens: 1_000_000 },
+        content: [
+          { type: 'tool_use', id: `u${id}`, name: 'Bash', input: { command } },
+        ],
+      },
+    });
+  const session = async (
+    name: string,
+    lines: string[],
+    subs: [string, string[]][] = [],
+  ) => {
+    await writeFile(join(dir, `${name}.jsonl`), lines.join('\n'));
+    for (const [sub, subLines] of subs) {
+      const folder = join(dir, name, 'subagents');
+      await mkdir(folder, { recursive: true });
+      await writeFile(join(folder, `${sub}.jsonl`), subLines.join('\n'));
+      await writeFile(
+        join(folder, `${sub}.meta.json`),
+        JSON.stringify({ agentType: 'general-purpose' }),
+      );
+    }
+  };
+  try {
+    // Marked delivery lead with a lane (by worktree path) and a reader; the first prompt is not the launcher's.
+    await session(
+      'marked',
+      [user('Do the slice'), line('m1', 'claude-fable-5-2', 5)],
+      [
+        [
+          'agent-lane',
+          [bash('l1', 6, 'cd /r/.krn/worktrees/slug && npm test')],
+        ],
+        ['agent-read', [bash('r1', 7, 'ls /r')]],
+      ],
+    );
+    // Unmarked history: the launcher's sentence is a delivery lead; the program prompt is outside the per-task figure.
+    await session('old', [
+      user('First run `node scripts/claude/successor-launch.ts` then ...'),
+      line('o1', 'claude-sonnet-5-5', 8),
+    ]);
+    await session(
+      'program',
+      [
+        user('Lead the krn-architecture-program'),
+        line('p1', 'claude-sonnet-5-5', 9),
+      ],
+      [['agent-p', [bash('p2', 10, 'ls')]]],
+    );
+    await session('probe', [
+      user('reply ok'),
+      line('q1', 'claude-sonnet-5-5', 11),
+    ]);
+    await mkdir(join(dir, '.krn/operator'), { recursive: true });
+    await writeFile(
+      join(dir, '.krn/operator/sessions.jsonl'),
+      `${JSON.stringify({ session: 'marked', class: 'delivery', time: at(0) })}\n`,
+    );
+    const run = (_cmd: string, args: string[]) =>
+      args[0] === 'pr' ? '[]' : '[]';
+    const report = await collectWindow({
+      from: at(0),
+      to: at(30),
+      repo: 'o/r',
+      root: dir,
+      transcripts: dir,
+      run,
+    });
+    const by = Object.fromEntries(
+      report.dollars.holdings.map((h) => [h.name, h]),
+    );
+    const one = dollars('claude-sonnet-5-5', { input_tokens: 1_000_000 }) ?? 0;
+    const big = dollars('claude-fable-5-2', { input_tokens: 1_000_000 }) ?? 0;
+    assert.equal(by['delivery lead']?.dollars, big + one);
+    assert.equal(by['delivery lead']?.estimated, 1);
+    assert.equal(by['delivery lanes']?.dollars, one);
+    assert.equal(by['delivery other subagents']?.dollars, one);
+    assert.equal(by['non-delivery: architecture program']?.dollars, 2 * one);
+    assert.equal(by['non-delivery: other']?.dollars, one);
+    const sum = report.dollars.holdings.reduce((n, h) => n + h.dollars, 0);
+    assert.equal(sum, report.dollars.lead + report.dollars.subagents);
+    assert.match(renderWindow(report), /estimated/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
