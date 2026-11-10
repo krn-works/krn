@@ -3,6 +3,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -120,6 +121,18 @@ function mergeBase(root: string): string {
   );
 }
 
+/** What a repo path is on disk: absent (deleted), content git can hold, or a device, pipe or socket. */
+function entryKind(root: string, file: string): 'absent' | 'content' | 'other' {
+  try {
+    const kind = lstatSync(join(root, file));
+    return kind.isFile() || kind.isSymbolicLink() || kind.isDirectory()
+      ? 'content'
+      : 'other';
+  } catch {
+    return 'absent';
+  }
+}
+
 /**
  * Key of the exact working tree (tracked and untracked non-ignored content, `.krn/` excluded)
  * plus the base it diffs against: the tree is staged into a throwaway index and written out.
@@ -130,8 +143,37 @@ export function treeKey(root: string, base?: string): string {
   const index = join(cache, `fast-index-${process.pid}`);
   const env = { ...process.env, GIT_INDEX_FILE: index };
   try {
-    const staged = spawnSync('git', ['add', '-A'], { cwd: root, env });
-    if (staged.status !== 0) throw new GitError('`git add -A` failed');
+    // Not `git add -A`: it aborts on any entry that is not a regular file, symlink or
+    // directory, and the harness sandbox mounts such placeholders into the clone root.
+    const listed = spawnSync(
+      'git',
+      ['ls-files', '-z', '--cached', '--others', '--exclude-standard'],
+      { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28 },
+    );
+    if (listed.status !== 0) {
+      throw new GitError(
+        `\`git ls-files\` failed: ${listed.stderr.trim() || 'no detail'}`,
+      );
+    }
+    const paths = listed.stdout
+      .split('\0')
+      .filter((path) => entryKind(root, path) === 'content');
+    const staged = spawnSync(
+      'git',
+      ['update-index', '--add', '-z', '--stdin'],
+      {
+        cwd: root,
+        env,
+        input: paths.join('\0'),
+        encoding: 'utf8',
+        maxBuffer: 1 << 28,
+      },
+    );
+    if (staged.status !== 0) {
+      throw new GitError(
+        `\`git update-index\` failed: ${staged.stderr.trim() || 'no detail'}`,
+      );
+    }
     // Agent state is not part of the tree, even where .gitignore does not hide it.
     spawnSync('git', ['rm', '-rq', '--cached', '--ignore-unmatch', '.krn'], {
       cwd: root,
@@ -165,7 +207,7 @@ export function changedFiles(root: string, base?: string): string[] {
   ]);
   const fresh = git(root, ['ls-files', '--others', '--exclude-standard']);
   return [...new Set(lines(`${tracked}\n${fresh}`))]
-    .filter((file) => existsSync(join(root, file)))
+    .filter((file) => entryKind(root, file) === 'content')
     .sort();
 }
 

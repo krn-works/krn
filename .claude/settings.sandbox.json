@@ -1,0 +1,33 @@
+{
+  "env": {
+    "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB": "1"
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "filesystem": {
+      "denyRead": [
+        "~/.config/gh",
+        "~/.claude/.credentials.json",
+        "~/.ssh",
+        "~/.git-credentials",
+        "~/.netrc"
+      ]
+    },
+    "network": {
+      "strictAllowlist": true,
+      "allowedDomains": ["github.com", "api.github.com", "registry.npmjs.org"]
+    }
+  },
+  "permissions": {
+    "deny": [
+      "Read(~/.config/gh/**)",
+      "Read(~/.claude/.credentials.json)",
+      "Read(~/.ssh/**)",
+      "Read(~/.git-credentials)",
+      "Read(~/.netrc)"
+    ],
+    "allow": ["Bash"]
+  }
+}
