@@ -1,7 +1,11 @@
 {
   "id": "t-eqpnkyp",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ctx-proxy-env test derives its health deadline from a measured probe (KRN_CTX_PROXY_TIMEOUT_MS); 20 of 20 passes under 4 parallel node --test loads at load average ~60"
+  },
   "created": "2026-11-10",
   "priority": 2,
   "title": "Make the context proxy env test pass under parallel-lane load",

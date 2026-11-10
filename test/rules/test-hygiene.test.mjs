@@ -45,7 +45,12 @@ const testTimeoutPattern =
   /\b(?:test|it|describe|suite)(?:\.\w+)?\(\s*(['"`])(?:(?!\1)[^\\]|\\.)*\1\s*,\s*\{[^}]*?\btimeout\s*:/gu;
 
 // Each entry is one file and one reason, as for waits.
-const allowWallClock = new Map();
+const allowWallClock = new Map([
+  [
+    'test/claude/ctx-proxy-env.test.ts',
+    'sizes the health deadline from one measured local probe; it is an input, not an asserted bound',
+  ],
+]);
 const allowTestTimeout = new Map([]);
 
 /** Wall-clock deltas and per-test timeouts in one file's text, as "file:line message". */

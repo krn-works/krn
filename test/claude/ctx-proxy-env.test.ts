@@ -8,7 +8,11 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
-import { KILL_FILE, proxyBaseUrl } from '../../scripts/claude/ctx-proxy-env.ts';
+import {
+  HEALTH_TIMEOUT_MS,
+  KILL_FILE,
+  proxyBaseUrl,
+} from '../../scripts/claude/ctx-proxy-env.ts';
 import {
   captureReply,
   installAgent,
@@ -39,6 +43,19 @@ async function health(
   return (server.address() as AddressInfo).port;
 }
 
+// The health deadline follows the cost of one real probe on this host, so a
+// loaded machine widens it instead of timing out a healthy local proxy.
+async function deadlineMs(
+  t: { after(fn: () => void): void },
+  floorMs = HEALTH_TIMEOUT_MS,
+  factor = 20,
+) {
+  const port = await health(t, 200);
+  const started = performance.now();
+  await proxyBaseUrl({ KRN_CTX_PROXY_PORT: String(port) }, tmpdir(), 30_000);
+  return Math.max(floorMs, Math.ceil(factor * (performance.now() - started)));
+}
+
 function scratch(t: { after(fn: () => void): void }) {
   const root = mkdtempSync(join(tmpdir(), 'ctx-proxy-env-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -50,6 +67,7 @@ test('a healthy proxy yields its base URL', async (t) => {
   const base = await proxyBaseUrl(
     { KRN_CTX_PROXY_PORT: String(port) },
     scratch(t),
+    await deadlineMs(t),
   );
   assert.equal(base, `http://127.0.0.1:${port}`);
 });
@@ -57,13 +75,14 @@ test('a healthy proxy yields its base URL', async (t) => {
 test('an unhealthy, slow or absent proxy yields nothing', async (t) => {
   const root = scratch(t);
   const bad = await health(t, 503);
-  const slow = await health(t, 200, 1500);
+  const deadline = await deadlineMs(t);
+  const slow = await health(t, 200, deadline * 3);
   assert.equal(
-    await proxyBaseUrl({ KRN_CTX_PROXY_PORT: String(bad) }, root),
+    await proxyBaseUrl({ KRN_CTX_PROXY_PORT: String(bad) }, root, deadline),
     undefined,
   );
   assert.equal(
-    await proxyBaseUrl({ KRN_CTX_PROXY_PORT: String(slow) }, root),
+    await proxyBaseUrl({ KRN_CTX_PROXY_PORT: String(slow) }, root, deadline),
     undefined,
   );
   assert.equal(
@@ -74,7 +93,10 @@ test('an unhealthy, slow or absent proxy yields nothing', async (t) => {
 
 test('the kill switch and a foreign base URL skip the proxy', async (t) => {
   const port = await health(t, 200);
-  const env = { KRN_CTX_PROXY_PORT: String(port) };
+  const env = {
+    KRN_CTX_PROXY_PORT: String(port),
+    KRN_CTX_PROXY_TIMEOUT_MS: String(await deadlineMs(t)),
+  };
   const root = scratch(t);
   assert.ok(await proxyBaseUrl(env, root));
   assert.equal(
@@ -95,6 +117,7 @@ test('the kill switch and a foreign base URL skip the proxy', async (t) => {
 
 test('the launcher passes the proxy to a Claude successor only when healthy', async (t) => {
   const port = await health(t, 200);
+  const timeout = String(await deadlineMs(t, 5000, 200));
   const run = async (extra: Record<string, string>) => {
     const root = scratch(t);
     const bin = join(root, 'bin');
@@ -126,6 +149,7 @@ test('the launcher passes the proxy to a Claude successor only when healthy', as
           PATH: bin,
           KRN_SUCCESSOR_AGENT: 'claude',
           KRN_CTX_PROXY_PORT: String(port),
+          KRN_CTX_PROXY_TIMEOUT_MS: timeout,
           ...extra,
         },
       },
