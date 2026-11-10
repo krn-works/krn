@@ -1,0 +1,12 @@
+{
+  "id": "t-7wbhbq9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "The launcher never closes a pane that hosts running work",
+  "after": [],
+  "body": [
+    "Outcome: `scripts/claude/successor-launch.ts` never closes a pane, at launch or under `--retire`, while that pane hosts running work (a foreground or background process other than the idle agent, for example the C3 `batch.sh` replay); it prints `retire: kept <pane>: running work` instead.\nWhy: on 2026-11-10 the launcher closed pane w1D:pJ9, which hosted the C3 replay (t-hx8fq1q), at launch and without `--retire` (report of the previous lead); the operator's order was explicit that the pane must stay until t-hx8fq1q closed. The retire path (`retireMode`, successor-launch.ts:308) closes a predecessor once its agent is `idle` or `done`, which says nothing about the pane's other processes.\nProof: a test drives the launch and retire paths against a verbatim capture of `herdr pane get`/`agent get` for a pane whose agent is idle while a child process runs, and sees the pane kept; first reproduce which path closed w1D:pJ9 at launch from the launch ledger and Herdr output.\nScope: `scripts/claude/successor-launch.ts`, `test/claude/successor-launch*.test.ts`."
+  ]
+}
