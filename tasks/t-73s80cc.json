@@ -1,7 +1,11 @@
 {
   "id": "t-73s80cc",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane run uses sandbox settings, scrubbed env and a pre-minted App token"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "krn lane run delivers inside the harness sandbox with only the App token",

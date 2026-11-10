@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { shipCommand } from '../ci/ship.ts';
 import { mainCheckoutRoot } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
@@ -18,6 +19,57 @@ export interface LaneVerdict {
 export interface LaneRunSteps {
   start(args: string[]): Promise<{ path: string; slug: string }>;
   ship(args: string[]): Promise<string>;
+  /** Mint the GitHub App token (warming its cache) before the session starts; a string is the failure. */
+  mint(env: NodeJS.ProcessEnv): Promise<string | undefined>;
+}
+
+/** Operator credentials that never reach a lane session; only the App token does. */
+export const OPERATOR_CREDENTIAL_VARIABLES = [
+  'GH_TOKEN',
+  'GITHUB_TOKEN',
+  'GH_ENTERPRISE_TOKEN',
+  'GITHUB_ENTERPRISE_TOKEN',
+  'GIT_ASKPASS',
+  'SSH_ASKPASS',
+  'SSH_AUTH_SOCK',
+  'GNOME_KEYRING_CONTROL',
+] as const;
+
+const exitCredentialUnavailable = 69;
+
+const tokenHelper = fileURLToPath(
+  new URL('../../scripts/github-app-token.ts', import.meta.url),
+);
+const wrapperDirectory = fileURLToPath(
+  new URL('../../scripts/app-bin', import.meta.url),
+);
+
+/**
+ * The session environment: the operator's credentials removed, the `gh` wrapper first on PATH,
+ * and git config that empties the inherited github.com credential helpers before installing
+ * the App token helper.
+ */
+export function sessionEnvironment(
+  env: NodeJS.ProcessEnv,
+  cacheDirectory: string,
+): NodeJS.ProcessEnv {
+  const scrubbed: NodeJS.ProcessEnv = { ...env };
+  for (const name of OPERATOR_CREDENTIAL_VARIABLES) delete scrubbed[name];
+  const existing = Number(scrubbed.GIT_CONFIG_COUNT);
+  const start = Number.isInteger(existing) && existing > 0 ? existing : 0;
+  const key = 'credential.https://github.com.helper';
+  return {
+    ...scrubbed,
+    KRN_APP_CACHE_DIR: scrubbed.KRN_APP_CACHE_DIR || cacheDirectory,
+    PATH: scrubbed.PATH
+      ? `${wrapperDirectory}:${scrubbed.PATH}`
+      : wrapperDirectory,
+    GIT_CONFIG_COUNT: String(start + 2),
+    [`GIT_CONFIG_KEY_${start}`]: key,
+    [`GIT_CONFIG_VALUE_${start}`]: '',
+    [`GIT_CONFIG_KEY_${start + 1}`]: key,
+    [`GIT_CONFIG_VALUE_${start + 1}`]: `!'${process.execPath}' '${tokenHelper}' git-credential`,
+  };
 }
 
 interface SessionResult {
@@ -78,6 +130,19 @@ function taskBrief(root: string, id: string): string {
 const defaultSteps: LaneRunSteps = {
   start: async (args) => (await import('./lane.ts')).startLane(args),
   ship: (args) => shipCommand(args),
+  mint: async (env) => {
+    const result = spawnSync(process.execPath, [tokenHelper, 'token'], {
+      encoding: 'utf8',
+      env,
+      timeout: 30000,
+    });
+    if (result.status === 0) return undefined;
+    return (
+      result.stderr?.trim().split('\n')[0] ||
+      result.error?.message ||
+      `token helper exited with status ${result.status}`
+    );
+  },
 };
 
 export async function laneRunCommand(
@@ -108,6 +173,17 @@ export async function laneRunCommand(
   const main = mainCheckoutRoot(origin);
   const brief = taskBrief(origin, task);
 
+  const environment = sessionEnvironment(
+    process.env,
+    join(main, '.krn', 'tmp', 'app-cache'),
+  );
+  const unavailable = await steps.mint(environment);
+  if (unavailable !== undefined)
+    return {
+      line: `lane ${task}: GitHub App credential unavailable (${unavailable})`,
+      exitCode: exitCredentialUnavailable,
+    };
+
   const started = await steps.start([
     lane,
     '--task',
@@ -125,10 +201,17 @@ export async function laneRunCommand(
       brief,
       '--output-format',
       'json',
+      '--settings',
+      join(started.path, '.claude', 'settings.sandbox.json'),
       '--permission-mode',
-      'bypassPermissions',
+      'acceptEdits',
     ],
-    { cwd: started.path, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+    {
+      cwd: started.path,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+      env: environment,
+    },
   );
   const result = parseSessionResult(session.stdout ?? '');
   const spent =
