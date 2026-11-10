@@ -36,6 +36,34 @@ const percentile = (values: number[], p: number): Value => {
 const taskId = (title: string) => /\((t-[0-9a-z]{7})\)\s*$/.exec(title)?.[1];
 const usd = (v: number) => Math.round(v * 100) / 100;
 /**
+ * A window is measured by the main checkout's code and data. A linked worktree
+ * runs its own `src`, so a lane could author the measure of its own work, and
+ * its transcript directory holds one lane, so the dollars would read $0.00.
+ * Returns the refusal reason when `root` is a linked worktree, else null.
+ */
+const git = async (root: string, args: string[]) => {
+  try {
+    return (await callRun(10_000)('git', ['-C', root, ...args])).trim();
+  } catch {
+    return null;
+  }
+};
+export async function linkedWorktreeRefusal(
+  root: string,
+): Promise<string | null> {
+  const dir = await git(root, ['rev-parse', '--absolute-git-dir']);
+  const common = await git(root, [
+    'rev-parse',
+    '--path-format=absolute',
+    '--git-common-dir',
+  ]);
+  if (!dir || !common || resolve(dir) === resolve(common)) return null;
+  const list = await git(root, ['worktree', 'list', '--porcelain']);
+  const main =
+    /^worktree (.+)$/m.exec(list ?? '')?.[1] ?? resolve(common, '..');
+  return `${root} is a linked worktree: the window runs on the main checkout's code and data. Run \`krn ledger --window ...\` from ${main}, or pass --root ${main}.`;
+}
+/**
  * One window of delivery: merged PRs, dollars by session class, PRs per task,
  * lead time, CI attempts, rework and main reds, from GitHub, git-free gh calls
  * and local transcripts. Turns are priced by their own timestamp, as
@@ -43,6 +71,8 @@ const usd = (v: number) => Math.round(v * 100) / 100;
  */
 export async function collectWindow(options: WindowOptions) {
   const root = resolve(options.root ?? process.cwd());
+  const refusal = await linkedWorktreeRefusal(root);
+  if (refusal) throw Object.assign(new Error(refusal), { exitCode: 64 });
   // Window lists are large (1000 runs or PRs with files), so a call may take longer than a row fetch.
   const run = options.run ?? callRun(90_000);
   const t0 = Date.now();
@@ -240,6 +270,8 @@ export async function collectWindow(options: WindowOptions) {
         [...classes].map(([k, c]) => [k, { ...c, dollars: usd(c.dollars) }]),
       ),
       unpricedTurns: unpriced,
+      transcriptTurns: [...classes.values()].reduce((n, c) => n + c.turns, 0),
+      transcriptDirs: dirs.length,
     },
     tasks: {
       count: perTask.size,
@@ -263,10 +295,15 @@ export async function collectWindow(options: WindowOptions) {
 export function renderWindow(r: Awaited<ReturnType<typeof collectWindow>>) {
   const d = r.dollars;
   const n = Math.max(r.prs.length, 1);
-  const lines = [
-    `${r.window.from}..${r.window.to}: ${r.prs.length} PRs`,
-    `lead $${d.lead.toFixed(2)} (main $${d.leadMain.toFixed(2)}, worktree $${d.leadWorktree.toFixed(2)}) = $${(d.lead / n).toFixed(2)}/PR; subagents $${d.subagents.toFixed(2)} = $${(d.subagents / n).toFixed(2)}/PR; total $${((d.lead + d.subagents) / n).toFixed(2)}/PR`,
-  ];
+  const lines = [`${r.window.from}..${r.window.to}: ${r.prs.length} PRs`];
+  if (d.transcriptTurns === 0)
+    lines.push(
+      `NO TRANSCRIPT TURNS in the window (${d.transcriptDirs} transcript dirs searched): dollars are unknown, not $0.00; check --root or --transcripts`,
+    );
+  else
+    lines.push(
+      `lead $${d.lead.toFixed(2)} (main $${d.leadMain.toFixed(2)}, worktree $${d.leadWorktree.toFixed(2)}) = $${(d.lead / n).toFixed(2)}/PR; subagents $${d.subagents.toFixed(2)} = $${(d.subagents / n).toFixed(2)}/PR; total $${((d.lead + d.subagents) / n).toFixed(2)}/PR`,
+    );
   for (const [k, c] of Object.entries(d.byClass).sort(
     (a, b) => b[1].dollars - a[1].dollars,
   ))

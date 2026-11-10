@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -121,6 +121,67 @@ test('the window ledger and spend-window.py price the same transcripts alike', a
       { encoding: 'utf8' },
     );
     assert.match(out, /lead \$10\.00 /);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('a linked worktree is refused with its reason, the main checkout is not, and an empty window says so', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'window-wt-'));
+  try {
+    const main = join(dir, 'main');
+    const linked = join(dir, 'linked');
+    const git = (cwd: string, ...args: string[]) =>
+      execFileSync(
+        'git',
+        [
+          '-C',
+          cwd,
+          '-c',
+          'user.name=t',
+          '-c',
+          'user.email=t@example.com',
+          ...args,
+        ],
+        { encoding: 'utf8' },
+      );
+    await mkdir(main);
+    git(main, 'init', '-q', '-b', 'main');
+    git(main, 'commit', '-q', '--allow-empty', '-m', 'x (t-aaaaaaa)');
+    git(main, 'worktree', 'add', '-q', linked, '-b', 'lane');
+    const options = {
+      from: at(0),
+      to: at(30),
+      repo: 'o/r',
+      transcripts: dir,
+      run: () => '[]',
+    };
+    await assert.rejects(collectWindow({ ...options, root: linked }), (e) => {
+      assert.match(String(e), /linked worktree/);
+      assert.ok(String(e).includes(main), 'names the main checkout');
+      assert.equal((e as { exitCode?: number }).exitCode, 64);
+      return true;
+    });
+    const report = await collectWindow({ ...options, root: main });
+    assert.equal(report.dollars.transcriptTurns, 0);
+    assert.match(renderWindow(report), /NO TRANSCRIPT TURNS.*not \$0\.00/);
+    assert.doesNotMatch(renderWindow(report), /lead \$/);
+    // The retro has no window and runs in the same linked worktree.
+    const retro = spawnSync(
+      process.execPath,
+      [
+        fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url)),
+        'state',
+        'retro',
+        '--task',
+        't-aaaaaaa',
+        '--root',
+        linked,
+      ],
+      { encoding: 'utf8' },
+    );
+    assert.equal(retro.status, 0, retro.stderr);
+    assert.match(retro.stdout, /- commits: 1 on HEAD name t-aaaaaaa/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

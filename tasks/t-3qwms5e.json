@@ -1,7 +1,11 @@
 {
   "id": "t-3qwms5e",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "linked worktree refused with reason, empty window says no transcript turns; test in test/outcome/window.test.ts"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "The window is computed by the main checkout's code",
