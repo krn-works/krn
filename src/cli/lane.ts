@@ -18,6 +18,7 @@ import { CliUsageError } from './usage-error.ts';
 
 export const laneUsage = [
   'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--root DIR]  fetch origin main, create branch SLUG in .krn/worktrees/SLUG, claim the task; prints the path and branch',
+  'krn lane run --task ID [--slug SLUG] [--actor NAME] [--root DIR]  start the lane, run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line',
   'krn lane brief [--file PATH] [--task ID] [--as-of YYYY-MM-DD] [--root DIR]  print the lane brief (file, else stdin) behind the FR-40 brain packet of the repository records',
 ].join('\n');
 
@@ -136,7 +137,21 @@ function carryTaskRecord(file: string, worktree: string, id: string): void {
 export async function laneCommand(args: string[]): Promise<void> {
   const [verb, ...rest] = args;
   if (verb === 'brief') return briefCommand(rest);
+  if (verb === 'run') {
+    const { laneRunCommand } = await import('./lane-run.ts');
+    const verdict = await laneRunCommand(rest);
+    process.stdout.write(`${verdict.line}\n`);
+    process.exitCode = verdict.exitCode;
+    return;
+  }
   if (verb !== 'start') throw new CliUsageError(laneUsage);
+  const started = await startLane(rest);
+  process.stdout.write(`${started.path}\n${started.slug}\n`);
+}
+
+export async function startLane(
+  rest: string[],
+): Promise<{ path: string; slug: string }> {
   let slug: string | undefined;
   let task: string | undefined;
   let actor = 'lead';
@@ -188,5 +203,5 @@ export async function laneCommand(args: string[]): Promise<void> {
       throw error;
     }
   }
-  process.stdout.write(`${realpathSync(path)}\n${slug}\n`);
+  return { path: realpathSync(path), slug };
 }
