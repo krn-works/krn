@@ -1,0 +1,12 @@
+{
+  "id": "t-1ztrn2c",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 2,
+  "title": "A/B Haiku 5.5 lanes against Sonnet 5.5 on 20 real lanes",
+  "after": [],
+  "body": [
+    "Outcome: krn-lane runs on Haiku 5.5 at effort high, escalating to Sonnet 5.5 only on a retry, if an A/B on about 20 real lanes shows the same hidden-test pass rate and Check pass rate at lower dollars per merged PR.\nWhy: .krn/runs/cc-2.1.322-research/e1 replayed #524, #511 and #525 with the PR's tests hidden (e1/lib.sh): Haiku 5.5 high passed 3/3 at $0.015-0.020 per lane against Sonnet 5.5 medium at $0.086-0.103, but n=1 per cell, 2.7-3.4x wall time and 1.7-2.2x larger diffs on two of three tasks.\nProof: an A/B ledger of at least 20 lanes per arm with pass rates, $/lane (spend-window.py prices Haiku 5.5's over-100K tier), wall time and diff size; the agent definition changes only if Haiku holds pass rate.\nScope: .claude/agents/krn-lane.md, .krn/runs/haiku-lane-ab/."
+  ]
+}

@@ -7,9 +7,9 @@ PRs are first-parent main commits titled "(#n)" committed inside the window."""
 import collections, datetime as dt, glob, json, os, re, subprocess, sys
 
 P = {'claude-opus-5-5': (4, 20, .2), 'claude-opus-5': (5, 25, .5), 'claude-opus-4-8': (5, 25, .5),
-     'claude-opus-4-7': (5, 25, .5), 'claude-opus-4-6': (5, 25, .5), 'claude-sonnet-5-5': (2, 10, .2),
+     'claude-opus-4-7': (5, 25, .5), 'claude-opus-4-6': (5, 25, .5), 'claude-sonnet-5-5': (2, 10, .1),
      'claude-sonnet-5': (2, 10, .2), 'claude-sonnet-4-6': (3, 15, .3), 'claude-haiku-5-5': (.1, .5, .01),
-     'claude-haiku-4-5': (1, 5, .1), 'claude-fable-5-1': (10, 50, .25), 'claude-fable-5': (10, 50, 1.0)}
+     'claude-haiku-4-5': (1, 5, .1), 'claude-fable-5-2': (8, 40, .2), 'claude-fable-5-1': (10, 50, .25), 'claude-fable-5': (10, 50, 1.0)}
 ts = lambda s: dt.datetime.fromisoformat(s.replace('Z', '+00:00')).timestamp()
 a, b = ts(sys.argv[1]), ts(sys.argv[2])
 root = sys.argv[3] if len(sys.argv) > 3 else os.path.expanduser('~/.claude/projects/-mnt-storage-coding-krn-active-krn')
@@ -22,6 +22,8 @@ def price(model, u):
         unknown[model] += 1
         return 0.0
     g = lambda k: u.get(k) or 0
+    if model == 'claude-haiku-5-5' and g('input_tokens') + g('cache_creation_input_tokens') + g('cache_read_input_tokens') > 100_000:
+        p = (.5, 2.5, .05)  # Haiku 5.5 bills prompts over 100K tokens at 5x
     cc = u.get('cache_creation') or {}
     w5, w1 = cc.get('ephemeral_5m_input_tokens'), cc.get('ephemeral_1h_input_tokens')
     tot = g('cache_creation_input_tokens')
