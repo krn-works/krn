@@ -1,7 +1,11 @@
 {
   "id": "t-pvz9ysv",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Measured with scripts/claude/lead-claim-spend.py (UTC days; claims reconstructed from transcript commands, stale claims over 6 h cut at the last command naming the id). Lead $ claimed/unclaimed, unclaimed share, PRs: 11-07 15.16/42.03, 73%, 102 PRs; 11-08 83.70/114.79, 58%, 90 PRs; 11-09 24.65/57.41, 70%, 98 PRs. Cheapest day 11-07 ($0.56 lead/PR) and dearest 11-08 ($2.21 lead/PR) differ 15 points in unclaimed share, and the dearest day has the lower share: claimed and unclaimed $/PR both rise 4 to 6 times, so between-claim work is the majority (63% over the three days) but does not explain the fourfold. Nothing further built."
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "Say what the lead spends between PRs",
