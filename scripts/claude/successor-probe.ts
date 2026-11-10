@@ -138,6 +138,8 @@ function launchScript(dir: string, options: ProbeOptions): string {
     quote(PROMPT),
     '--cwd',
     quote(dir),
+    '--class',
+    'non-delivery',
     '--model',
     'haiku',
     '--start-seconds',

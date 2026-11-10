@@ -11,6 +11,8 @@ export type InboxEntry = {
   session: string;
   time: string;
   text: string;
+  // Set by a launcher (SESSION_CLASS_VARIABLE): the prompt came from automation.
+  source?: SessionClass;
 };
 export type Disposition = {
   hash: string;
@@ -20,6 +22,20 @@ export type Disposition = {
 };
 
 export const maxText = 4000;
+
+// Every launcher that starts a session sets this variable to the session's class;
+// its presence means automation started the session, not the operator.
+export const SESSION_CLASS_VARIABLE = 'KRN_SESSION_CLASS';
+export const SESSION_CLASSES = ['delivery', 'non-delivery'] as const;
+export type SessionClass = (typeof SESSION_CLASSES)[number];
+export const isSessionClass = (value: unknown): value is SessionClass =>
+  SESSION_CLASSES.some((name) => name === value);
+export const launcherClass = (
+  env: NodeJS.ProcessEnv,
+): SessionClass | undefined => {
+  const value = env[SESSION_CLASS_VARIABLE];
+  return isSessionClass(value) ? value : undefined;
+};
 
 const secretPatterns = [
   /-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----[\s\S]*?(?:-----END [^-]*-----|$)/giu,
@@ -68,6 +84,7 @@ const directory = (root: string) => join(inboxRoot(root), '.krn/operator');
 export const inboxFile = (root: string) => join(directory(root), 'inbox.jsonl');
 const dispositionFile = (root: string) =>
   join(directory(root), 'dispositions.jsonl');
+const sessionFile = (root: string) => join(directory(root), 'sessions.jsonl');
 const boundaryFile = (root: string) => join(directory(root), 'handoff-at');
 
 function lines<T>(path: string): T[] {
@@ -134,13 +151,37 @@ export function capture(
   const text = inboxText(prompt);
   if (!text) return;
   mkdirSync(directory(root), { recursive: true });
+  const source = launcherClass(env);
   const entry: InboxEntry = {
     hash: hashText(text),
     session,
     time: new Date().toISOString(),
     text,
+    ...(source ? { source } : {}),
   };
   appendFileSync(inboxFile(root), `${JSON.stringify(entry)}\n`);
+}
+
+// The SessionStart hook records a launcher-marked session once, whatever the
+// source (startup, resume, clear, compact) of the event.
+export function recordSessionClass(
+  root: string,
+  session: string,
+  env: NodeJS.ProcessEnv = process.env,
+): void {
+  const sessionClass = launcherClass(env);
+  if (!sessionClass) return;
+  if (
+    lines<{ session?: string }>(sessionFile(root)).some(
+      (row) => row.session === session,
+    )
+  )
+    return;
+  mkdirSync(directory(root), { recursive: true });
+  appendFileSync(
+    sessionFile(root),
+    `${JSON.stringify({ session, class: sessionClass, time: new Date().toISOString() })}\n`,
+  );
 }
 
 export function dispose(
@@ -205,7 +246,12 @@ export function openEntries(root: string): InboxEntry[] {
   const done = disposed(root);
   const seen = new Set<string>();
   return allEntries(root).filter((entry) => {
-    if (entry.time <= since || done.has(entry.hash) || seen.has(entry.hash))
+    if (
+      entry.source ||
+      entry.time <= since ||
+      done.has(entry.hash) ||
+      seen.has(entry.hash)
+    )
       return false;
     seen.add(entry.hash);
     return looksLikeDirective(entry.text);

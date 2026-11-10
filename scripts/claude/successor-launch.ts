@@ -3,6 +3,12 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { proxyBaseUrl } from './ctx-proxy-env.ts';
+import {
+  isSessionClass,
+  SESSION_CLASS_VARIABLE,
+  SESSION_CLASSES,
+  type SessionClass,
+} from './operator-inbox-store.ts';
 
 // Prove a change here against the live Herdr with
 // `node scripts/claude/successor-probe.ts`: run by hand from a lead pane, the
@@ -12,6 +18,7 @@ export interface SuccessorLaunchOptions {
   name: string;
   prompt: string;
   cwd: string;
+  sessionClass: SessionClass;
   model?: string;
   effort?: Effort;
   startSeconds?: number;
@@ -83,6 +90,7 @@ export function parseArgs(
   let model: string | undefined;
   let effort: Effort | undefined;
   let startSeconds: number | undefined;
+  let sessionClass: SessionClass = 'delivery';
   const seen = new Set<string>();
   const flags = new Set([
     '--name',
@@ -91,6 +99,7 @@ export function parseArgs(
     '--model',
     '--effort',
     '--start-seconds',
+    '--class',
   ]);
 
   for (let index = 0; index < args.length; index += 1) {
@@ -108,7 +117,11 @@ export function parseArgs(
     if (flag === '--name') name = value;
     else if (flag === '--prompt') prompt = value;
     else if (flag === '--model') model = value;
-    else if (flag === '--effort') {
+    else if (flag === '--class') {
+      if (!isSessionClass(value))
+        throw new Error(`--class must be one of ${SESSION_CLASSES.join(', ')}`);
+      sessionClass = value;
+    } else if (flag === '--effort') {
       if (value === 'max')
         throw new Error(
           '--effort max is refused: KRN sessions run at medium, high when medium is not enough, xhigh at most',
@@ -135,6 +148,7 @@ export function parseArgs(
     name,
     prompt,
     cwd,
+    sessionClass,
     ...(model === undefined ? {} : { model }),
     ...(effort === undefined ? {} : { effort }),
     ...(startSeconds === undefined ? {} : { startSeconds }),
@@ -665,7 +679,11 @@ export function main(args: string[], proxy?: string): number {
       [...agentFlags, '--bg', '-n', options.name, prompt],
       options.cwd,
       15000,
-      proxied ? { ...process.env, ANTHROPIC_BASE_URL: proxied } : undefined,
+      {
+        ...process.env,
+        [SESSION_CLASS_VARIABLE]: options.sessionClass,
+        ...(proxied ? { ANTHROPIC_BASE_URL: proxied } : {}),
+      },
     );
     if (fallback.error || fallback.status !== 0) return exitFailure(fallback);
     process.stdout.write(
@@ -689,6 +707,8 @@ export function main(args: string[], proxy?: string): number {
     `KRN_SUCCESSOR_NAME=${options.name}`,
     '--env',
     `KRN_SUCCESSOR_PROMPT=${prompt}`,
+    '--env',
+    `${SESSION_CLASS_VARIABLE}=${options.sessionClass}`,
   );
   if (proxied) createArgs.push('--env', `ANTHROPIC_BASE_URL=${proxied}`);
   let predecessorSession: string | undefined;
