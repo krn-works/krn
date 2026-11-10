@@ -29,9 +29,17 @@ export function main(args = process.argv.slice(2)): void {
   }
 
   if (
-    ['ledger', 'task', 'ci', 'pr', 'doctor', 'brain', 'state', 'lane'].includes(
-      args[0] ?? '',
-    )
+    [
+      'ledger',
+      'task',
+      'ci',
+      'pr',
+      'doctor',
+      'brain',
+      'state',
+      'lane',
+      'decide',
+    ].includes(args[0] ?? '')
   ) {
     void dispatch(args).catch((error: unknown) => {
       process.stderr.write(

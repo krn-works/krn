@@ -1,7 +1,11 @@
 {
   "id": "t-3r6j7r4",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn decide add|list|close under .krn/operator/; list --notify prints unannounced rows for the housekeeping run"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "Operator decisions are rows with a recommendation, a default and a deadline",
