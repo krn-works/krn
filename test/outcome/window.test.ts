@@ -97,16 +97,27 @@ test('the window ledger and spend-window.py price the same transcripts alike', a
     const script = fileURLToPath(
       new URL('../../scripts/claude/spend-window.py', import.meta.url),
     );
+    // The script reads first-parent history of origin/main; give it a throwaway repository.
+    const repo = join(dir, 'repo');
+    await mkdir(repo);
+    const git = (...args: string[]) =>
+      execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' });
+    git('init', '-q');
+    git(
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@example.com',
+      'commit',
+      '-q',
+      '--allow-empty',
+      '-m',
+      'x',
+    );
+    git('update-ref', 'refs/remotes/origin/main', 'HEAD');
     const out = execFileSync(
       'python3',
-      [
-        '-I',
-        script,
-        at(0),
-        at(30),
-        dir,
-        fileURLToPath(new URL('../..', import.meta.url)),
-      ],
+      ['-I', script, at(0), at(30), dir, repo],
       { encoding: 'utf8' },
     );
     assert.match(out, /lead \$10\.00 /);
