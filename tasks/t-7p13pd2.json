@@ -1,0 +1,12 @@
+{
+  "id": "t-7p13pd2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "krn review leaves",
+  "after": [],
+  "body": [
+    "Outcome: `src/flow` is gone; `krn review` exits 64 naming the command; the documents that name it are edited in the same PR.\nWhy: 368 `src` lines net (flow itself is 335) and 6 tests nobody on the shipping path calls (`04` (h)). It is not a free removal: `src/flow` is the opt-in judge panel of D10 and D22 (`src/flow/cli.ts:1`), and `src/flow/tier.ts` is the mitigation ADR 0014:59 names for the gate's residual; the patch edits that sentence. The amendments are in `adr-draft-subtraction.md` Part 1.\nProof: full suite green; `git grep -n \"krn review\" -- . ':!tasks'` finds only the retired-command test (today: 20 lines in 12 files).\nScope: the 27 files of `spike-h-c1.patch`.\nOrder: Both removals touch frame files; merge them before A5. After it, the App opens the PR, the operator's credential pushes the workflow commit into it and, under A4, the operator approves.\nCarries: Part 1 of adr-draft-subtraction.md.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice D1."
+  ]
+}

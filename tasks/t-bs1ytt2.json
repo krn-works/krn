@@ -1,0 +1,12 @@
+{
+  "id": "t-bs1ytt2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "Launchers mark their sessions",
+  "after": [],
+  "body": [
+    "Outcome: every launcher sets one variable naming the session's class (delivery or non-delivery) and that it was started by automation; the inbox hook writes it to `source` and the SessionStart hook records it once.\nWhy: the inbox holds about one operator row in two (precision 0.48); every score of a text rule was in sample, where one overfit rule reached 1.00 and none was tested out of sample (`04` (k)). One probe prompt of this program reached the operator's inbox (`04` (g)), and so did the relay prompt that started its seventh session (row 312, 2026-11-10T08:32:50Z, no `source`).\nProof: a test starts a session through each launch path and sees `source` on the inbox row. After merge: a day of rows has no automation row without `source`, and a labelled sample of 30 rows is all correct.\nScope: `scripts/claude/successor-launch.ts` (both launch paths), `scripts/claude/operator-inbox.ts`, the SessionStart hook; `~/.claude/skills/context-relay/scripts/relay.sh` belongs to the operator.\nOrder: B1, B2, B3; then the two measurements B6 and B7; B4 when the operator adds the line; B5 last.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice B2."
+  ]
+}

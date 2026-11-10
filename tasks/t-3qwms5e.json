@@ -1,0 +1,14 @@
+{
+  "id": "t-3qwms5e",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "The window is computed by the main checkout's code",
+  "after": [
+    "t-scj2bqy"
+  ],
+  "body": [
+    "Outcome: `krn ledger --window` resolves the main checkout from `git worktree list` and reads from it; started from a linked worktree it refuses with the reason instead of printing $0.00. `krn state retro` runs anywhere and, in a worktree, prints its skeleton without the window.\nWhy: `bin/krn` in a lane runs the worktree's own `src`, so a lane can author the measure of its own work (`03` §2, S0-s item 4); the spike's ledger printed $0.00 from a worktree, silently (V10). The retro runs before a slice's last commit, when HEAD is not `origin/main`, so the refusal covers the window only (section 8, migration 7).\nProof: a test runs the window in a worktree fixture and sees the refusal with its reason; the retro in the same fixture exits 0.\nUndo: revert the PR.\nScope: `src/outcome`, `src/state/retro.ts`.\nOrder: A1, A2 and A6 need nobody. A5 needs the operator once. A4 is a choice the operator can decline.\nOrder: after B1 (same module, src/outcome, in sequence).\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice A6."
+  ]
+}

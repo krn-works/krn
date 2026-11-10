@@ -1,0 +1,12 @@
+{
+  "id": "t-pvz9ysv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "Say what the lead spends between PRs",
+  "after": [],
+  "body": [
+    "Outcome: for each full day since 11-07, lead dollars are split into turns while a task was claimed and turns with no claim open.\nWhy: the three full days differ fourfold in dollars per PR ($0.97, $3.84, $1.04; `spike-b.md:54-57`) and session class explains none of it (`04` (k2)); the lead is 57 to 81% of a day's spend, and no record names what it did.\nProof: a table per day; if the unclaimed share does not differ between the cheapest and the dearest day, the slice closes with that answer and nothing is built.\nScope: a script under `scripts/claude/`, read-only.\nOrder: B1, B2, B3; then the two measurements B6 and B7; B4 when the operator adds the line; B5 last.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice B6."
+  ]
+}

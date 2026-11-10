@@ -1,0 +1,14 @@
+{
+  "id": "t-hx8fq1q",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 2,
+  "title": "The lead's model, compared by replay",
+  "after": [
+    "t-scj2bqy"
+  ],
+  "body": [
+    "Outcome: for 20 tasks the standing lead delivers (Opus 5.5 at medium effort today, `.agents/skills/krn-handoff/SKILL.md:24`), a lead on Sonnet 5.5 at medium replays the same task from its parent commit in an isolated clone, as R1 did; nothing from the replay is merged. Per pair: lead dollars, lane dollars, and whether the replay's change is correct (its own test green, inside scope, the full local gate green).\nWhy: the lead is 57 to 81% of a day's spend; phase 2 kept routing as \"already true\" on a lane replay (`02`:228-232) and never measured the lead; no paired comparison of lead models on delivered tasks exists (`recon-05-families.md`). This is not D23's comparison, which sets full KRN against a plain harness; it is its own question.\nProof: the 20 pairs in one table. The rule is fixed before the run and rests on pairs, not on window averages, because full days differ fourfold: the cheaper model is adopted only if its replay is correct in every pair and its lead dollars are lower in at least 15 of 20 (a sign test at 0.05). Main reds and reverts are too rare to decide anything (2 in 100, 0 in 100) and are not part of the rule.\nScope: none in the repository; a replay script under `.krn/`.\nOrder: after B1.\nThe rule is fixed in this task before the run; nothing from a replay is merged.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice C3."
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "t-ybczx1y",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 2,
+  "title": "The retro and the roadmap read the window",
+  "after": [
+    "t-3qwms5e",
+    "t-scj2bqy"
+  ],
+  "body": [
+    "Outcome: the lead's handoff prints the window for the session's span, computed from the main checkout, and the roadmap rerank cites it instead of dollars per PR.\nWhy: a measure with no consumer was deleted here three times (`02` section I, the survival rule).\nProof: a test of the handoff generator sees the window block; `t-bc4772y` closes on it.\nScope: `src/state/retro.ts`, `docs/program/roadmap.md`, `docs/program/lead-rules.md`.\nOrder: B1, B2, B3; then the two measurements B6 and B7; B4 when the operator adds the line; B5 last.\nOrder: after B1 and A6.\nCarries: adr-draft-window-unit.md and adr-draft-0016-pull-request-is-the-delivery-record.md; closes t-bc4772y.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice B5."
+  ]
+}

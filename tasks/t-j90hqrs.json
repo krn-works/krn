@@ -1,0 +1,16 @@
+{
+  "id": "t-j90hqrs",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Program tracked: 17 slice tasks, roadmap R23-R39, ADR 0014 order paragraph."
+  },
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "Track the accepted architecture program as tasks",
+  "after": [],
+  "body": [
+    "Outcome: every slice of the accepted architecture program is a task with Outcome, Why, Proof and Scope and its order as `after`; the roadmap ranks them first; ADR 0014 records the operator order of 2026-11-10.\nWhy: the operator accepted the program (inbox 2026-11-10T09:03:22Z); delivery needs tracked slices.\nProof: `krn task ready` lists the first wave; `npm run fast` passes the roadmap and task checks.\nScope: tasks/, docs/program/roadmap.md, docs/adr/0014-operator-decisions-2026-10-23.md."
+  ]
+}

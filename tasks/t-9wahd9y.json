@@ -1,0 +1,12 @@
+{
+  "id": "t-9wahd9y",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "Shard weights are data",
+  "after": [],
+  "body": [
+    "Outcome: test weights live in a JSON file that base-identical code parses; no gate entry point imports a module a routine PR edits.\nWhy: 27 of the last 100 first-parent commits edit `scripts/lib/shard-weights.mjs`, which the suite imports and executes; any rule over gate paths would catch a third of all PRs (`04` (n), after the critic).\nProof: a test computes the import closure of the gate entry points and fails if the weights file is in it; a second test plans shards from a malformed weights file and sees the size fallback, not a crash. After merge: the count of A2 over the next 50 PRs.\nUndo: revert the PR.\nScope: `scripts/lib/test-shards.mjs`, `scripts/lib/shard-weights.*`, `scripts/shard-weights-refresh.mjs`, their tests.\nOrder: A1, A2 and A6 need nobody. A5 needs the operator once. A4 is a choice the operator can decline.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice A1."
+  ]
+}
