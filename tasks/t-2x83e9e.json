@@ -1,0 +1,16 @@
+{
+  "id": "t-2x83e9e",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "A force-exited test file now flushes its stdout pipe before exiting (scripts/lib/test-exit-flush.mjs preloaded by testCeilingArguments); test/ci/test-exit-flush.test.mjs fails without it"
+  },
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "A passing shard never loses a per-file test summary",
+  "after": [],
+  "body": [
+    "Outcome: a Test shard never fails strict evidence when every test in it passed: the per-file summary of test/claude/successor-launch.test.ts is never \"tests\":0 in KRN_TEST_SUMMARY_JSON.\nWhy: three runs failed only on \"Strict test evidence rejected: missing per-file summary: .../test/claude/successor-launch.test.ts\" while the slowest-tests table shows its tests ran and passed: 42816958456 and 42805957550 (main) and 42846210958 attempt 1 (PR 583, green on rerun). Each costs a rerun; logs in .krn/tmp/ci-<id>.log.\nProof: a test at the summary layer (scripts/test-summary-policy.mjs or the reporter feeding it) reproduces the dropped per-file summary from a verbatim capture of the failing shard output and sees it counted; the 26 tests of the file pass.\nScope: scripts/test-summary-policy.mjs, scripts/test-suite.mjs, the test reporter, their tests."
+  ]
+}
