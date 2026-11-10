@@ -23,7 +23,8 @@
         "registry.npmjs.org",
         "localhost"
       ],
-      "allowLocalBinding": true
+      "allowLocalBinding": true,
+      "allowAllUnixSockets": true
     }
   },
   "permissions": {
