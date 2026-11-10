@@ -105,6 +105,10 @@
       "receivers": ["git"],
       "real": "test/state/state.test.ts"
     },
+    "src/outcome/gate-manifest.ts": {
+      "receivers": ["git"],
+      "real": "test/outcome/gate-manifest.test.ts"
+    },
     "src/outcome/ledger.ts": {
       "receivers": ["gh"],
       "capture": [
