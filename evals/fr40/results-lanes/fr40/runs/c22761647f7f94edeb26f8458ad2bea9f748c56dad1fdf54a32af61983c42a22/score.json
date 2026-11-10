@@ -1,0 +1,9 @@
+{
+  "runId": "c22761647f7f94edeb26f8458ad2bea9f748c56dad1fdf54a32af61983c42a22",
+  "task": "fr40-trailer-clamp",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-trailer-clamp: commit \"Add clamp helper that rejects min greater than max (t-s6vwe21)\" lacks Refs: t-s6vwe21"
+}

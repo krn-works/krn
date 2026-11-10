@@ -1,0 +1,9 @@
+{
+  "runId": "e841b0596bda52f964694ac72fc3f07ed148524a3e0e4fa6700754998c5f30da",
+  "task": "fr40-role-names-retry",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-role-names-retry: new names describe roles"
+}

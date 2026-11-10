@@ -1,0 +1,41 @@
+commit 8041a9acf0dac4da3fa8eb76be594fc1d260f410
+Add parseFlag env-flag helper
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/env-flag.ts b/src/cli/env-flag.ts
+new file mode 100644
+index 0000000..d5bc640
+--- /dev/null
++++ b/src/cli/env-flag.ts
+@@ -0,0 +1,6 @@
++const TRUTHY = new Set(['1', 'true', 'yes', 'on']);
++
++/** Returns true for 1/true/yes/on (case-insensitive, surrounding whitespace ignored). */
++export function parseFlag(value: string | undefined): boolean {
++  return value !== undefined && TRUTHY.has(value.trim().toLowerCase());
++}
+diff --git a/test/cli/env-flag.test.ts b/test/cli/env-flag.test.ts
+new file mode 100644
+index 0000000..a5991e0
+--- /dev/null
++++ b/test/cli/env-flag.test.ts
+@@ -0,0 +1,15 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { parseFlag } from '../../src/cli/env-flag.ts';
++
++test('parseFlag accepts truthy values case-insensitively', () => {
++  for (const v of ['1', 'true', 'TRUE', 'Yes', 'yes', 'ON', 'on', ' on ']) {
++    assert.equal(parseFlag(v), true, v);
++  }
++});
++
++test('parseFlag rejects everything else', () => {
++  for (const v of [undefined, '', '0', 'false', 'no', 'off', '2', 'maybe']) {
++    assert.equal(parseFlag(v), false, String(v));
++  }
++});
+--- status
+

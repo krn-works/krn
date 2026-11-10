@@ -1,0 +1,9 @@
+{
+  "runId": "39fc7da80c698870dd8530d89e863d04a153ddf9b1c938d6856b6ff8ac2eb1fb",
+  "task": "fr40-role-names-truncate",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-role-names-truncate: new names describe roles"
+}

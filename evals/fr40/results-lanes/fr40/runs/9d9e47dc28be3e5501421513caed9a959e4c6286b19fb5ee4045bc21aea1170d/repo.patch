@@ -1,0 +1,75 @@
+commit a8670060afe1371c875953a396e55f6d4540901b
+Add wrapText helper (t-z5tqwxq)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/wrap.ts b/src/cli/wrap.ts
+new file mode 100644
+index 0000000..6d32f75
+--- /dev/null
++++ b/src/cli/wrap.ts
+@@ -0,0 +1,29 @@
++/**
++ * Word-wraps `text` to lines of at most `width` characters. Words shorter than
++ * the width are never split; longer words are broken into width-sized chunks.
++ */
++export function wrapText(text: string, width: number): string[] {
++  const size = Math.max(1, Math.floor(width));
++  const lines: string[] = [];
++  let current = '';
++  for (const word of text.split(/\s+/).filter((w) => w.length > 0)) {
++    if (word.length > size) {
++      if (current) lines.push(current);
++      let rest = word;
++      while (rest.length > size) {
++        lines.push(rest.slice(0, size));
++        rest = rest.slice(size);
++      }
++      current = rest;
++    } else if (!current) {
++      current = word;
++    } else if (current.length + 1 + word.length <= size) {
++      current += ` ${word}`;
++    } else {
++      lines.push(current);
++      current = word;
++    }
++  }
++  if (current) lines.push(current);
++  return lines;
++}
+diff --git a/test/cli/wrap.test.ts b/test/cli/wrap.test.ts
+new file mode 100644
+index 0000000..3950029
+--- /dev/null
++++ b/test/cli/wrap.test.ts
+@@ -0,0 +1,26 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { wrapText } from '../../src/cli/wrap.ts';
++
++test('wraps at word boundaries', () => {
++  assert.deepEqual(wrapText('the quick brown fox', 10), [
++    'the quick',
++    'brown fox',
++  ]);
++});
++
++test('does not split words shorter than the width', () => {
++  assert.deepEqual(wrapText('aaaa bbbb cccc', 5), ['aaaa', 'bbbb', 'cccc']);
++});
++
++test('word equal to width stays whole', () => {
++  assert.deepEqual(wrapText('abcde f', 5), ['abcde', 'f']);
++});
++
++test('breaks words longer than the width', () => {
++  assert.deepEqual(wrapText('abcdefg hi', 3), ['abc', 'def', 'g', 'hi']);
++});
++
++test('empty text gives no lines', () => {
++  assert.deepEqual(wrapText('  ', 5), []);
++});
+--- status
+

@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 14248,
+  "stop_reason": "end_turn",
+  "session_id": "3f9723fd-1136-484c-a3de-3980b56eab76",
+  "total_cost_usd": 0.036396,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4342,
+    "cache_read_input_tokens": 42180,
+    "output_tokens": 1479,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4342,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 306,
+        "cache_read_input_tokens": 10030,
+        "cache_creation_input_tokens": 180,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 180
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1479,
+      "cacheReadInputTokens": 42180,
+      "cacheCreationInputTokens": 4342,
+      "webSearchRequests": 0,
+      "costUSD": 0.036396,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4342,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `groupBy` in `src/cli/group-by.ts`, with tests in `test/cli/group-by.test.ts`, and committed it as `07f107e`. `npm run fast` passed (biome, boundaries, tsc and 18 related tests).\n\n- **Order:** groups appear in the order their key is first seen, and items keep input order within each group. The tests check both, plus the empty-input case.\n- **Shard weight:** I added a weight of 0.1 for the new test file in `scripts/lib/shard-weights.mjs`. That is a guess based on similar small tests, not a measured time.\n- **Notes:** the plan is in `.krn/runs/agent/plan.md`. That path is git-ignored, so it isn't part of the commit.\n- **Commit title:** the repo convention is to end the title with the task id in parentheses, but I wasn't given one, so the title has none. If you give me the id, I can amend the commit.",
+  "ttft_ms": 3253,
+  "type": "result",
+  "duration_ms": 137899,
+  "uuid": "99807b99-7a88-49d9-b6d4-ef85061649e3",
+  "ttft_stream_ms": 2523,
+  "time_to_request_ms": 1618,
+  "first_content_frame_ms": 2525,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

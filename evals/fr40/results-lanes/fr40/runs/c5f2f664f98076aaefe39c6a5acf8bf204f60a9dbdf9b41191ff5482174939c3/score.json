@@ -1,0 +1,9 @@
+{
+  "runId": "c5f2f664f98076aaefe39c6a5acf8bf204f60a9dbdf9b41191ff5482174939c3",
+  "task": "fr40-trailer-duration",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-duration: every commit carries Ticket: t-0w3k78m"
+}

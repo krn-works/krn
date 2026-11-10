@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 10808,
+  "stop_reason": "end_turn",
+  "session_id": "701433a8-8c6c-4abf-84ee-cad82daf6c44",
+  "total_cost_usd": 0.025579,
+  "usage": {
+    "input_tokens": 8,
+    "cache_creation_input_tokens": 3312,
+    "cache_read_input_tokens": 30350,
+    "output_tokens": 928,
+    "output_tokens_details": { "thinking_tokens": 28 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3312,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 209,
+        "cache_read_input_tokens": 8962,
+        "cache_creation_input_tokens": 218,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 218
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 8,
+      "outputTokens": 928,
+      "cacheReadInputTokens": 30350,
+      "cacheCreationInputTokens": 3312,
+      "webSearchRequests": 0,
+      "costUSD": 0.025579,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 28,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3312,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 4,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `maskSecret` to `src/cli/mask.ts` and a test file at `test/cli/mask.test.ts`, and committed both as `fab32a4`. The two new tests pass, and `biome check` and `tsc --noEmit` are clean. I didn't run the full `npm test` suite or the full `gate`.\n\nThe spec didn't say what to do with values of four characters or fewer. I chose to star them completely, so `'abcd'` becomes `'****'`. Returning them unmasked would have exposed the whole secret. Longer values keep their last four characters, so `'abcdef123456'` becomes `'********3456'`.",
+  "ttft_ms": 3267,
+  "type": "result",
+  "duration_ms": 24262,
+  "uuid": "48363881-e606-48e5-9235-47d50db3a125",
+  "ttft_stream_ms": 2493,
+  "time_to_request_ms": 1454,
+  "first_content_frame_ms": 2494,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

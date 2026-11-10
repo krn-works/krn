@@ -1,0 +1,9 @@
+{
+  "runId": "6338a74c2617a2061b8e0240dc32bc01ebcce33d530618d7fa9b7dabf53ad479",
+  "task": "fr40-biome-clean-groups",
+  "arm": "B",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-biome-clean-groups: biome check exit 1: scripts/lib/shard-weights.mjs, src/cli/group-by.ts, test/cli/group-by.test.ts"
+}

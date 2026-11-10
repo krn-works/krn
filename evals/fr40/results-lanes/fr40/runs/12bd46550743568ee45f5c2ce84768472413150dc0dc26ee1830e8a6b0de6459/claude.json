@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 11404,
+  "stop_reason": "end_turn",
+  "session_id": "3c5fcb87-3d15-4040-b519-f17b46cab4c3",
+  "total_cost_usd": 0.0374944,
+  "usage": {
+    "input_tokens": 12,
+    "cache_creation_input_tokens": 5221,
+    "cache_read_input_tokens": 52964,
+    "output_tokens": 1129,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 5221,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 237,
+        "cache_read_input_tokens": 10805,
+        "cache_creation_input_tokens": 284,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 284
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 12,
+      "outputTokens": 1129,
+      "cacheReadInputTokens": 52964,
+      "cacheCreationInputTokens": 5221,
+      "webSearchRequests": 0,
+      "costUSD": 0.0374944,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 5221,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 6,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `plural(count, noun)` in `src/cli/plural.ts`. It returns `1 file` for a count of 1 and `2 files` for 2, and it also adds the `s` for 0. I committed it with the `Ticket: t-4du2fek` trailer, and `npm run fast` passes.\n\nThe tests are in `test/cli/plural.test.ts`. I also added a shard-weight entry for that test file in `scripts/lib/shard-weights.mjs`. A repository rule test fails without one for every new test file. I set it to 0.1, the same as the smallest existing entries; the refresh script can correct it later.\n\nI did not touch `tasks/t-4du2fek.json`, since only the lead changes task status.",
+  "ttft_ms": 3018,
+  "type": "result",
+  "duration_ms": 64982,
+  "uuid": "e20595f2-fd6f-4333-8a11-18e957744100",
+  "ttft_stream_ms": 2209,
+  "time_to_request_ms": 1477,
+  "first_content_frame_ms": 2209,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

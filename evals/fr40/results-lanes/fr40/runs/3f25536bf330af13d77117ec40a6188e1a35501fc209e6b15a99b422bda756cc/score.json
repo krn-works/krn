@@ -1,0 +1,9 @@
+{
+  "runId": "3f25536bf330af13d77117ec40a6188e1a35501fc209e6b15a99b422bda756cc",
+  "task": "fr40-biome-clean-plural",
+  "arm": "A",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-biome-clean-plural: biome clean on 2 file(s)"
+}

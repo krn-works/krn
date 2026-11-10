@@ -86,6 +86,7 @@
     "test/evals/codex-captures.test.ts": 0.1,
     "test/evals/codex-receiver.test.ts": 1,
     "test/evals/fr40-conventions.test.ts": 3,
+    "test/evals/fr40-lanes.test.ts": 1.5,
     "test/evals/fr40-report.test.ts": 3.7,
     "test/evals/fr40-runner.test.ts": 3.2,
     "test/evals/fr40-validity.test.ts": 1.8,

@@ -1,0 +1,9 @@
+{
+  "runId": "282a56904bde7c7dcc741710d16be69841e54da28fd6579c7b91ae7f5287bbcf",
+  "task": "fr40-agent-state-lines",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-lines: state outside .krn/: NOTES.md"
+}

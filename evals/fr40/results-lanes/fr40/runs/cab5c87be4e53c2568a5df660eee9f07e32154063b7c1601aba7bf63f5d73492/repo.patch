@@ -1,0 +1,38 @@
+commit d4675bf59fe06e1a9906d7dacea5bdc766a18336
+Add maskSecret helper (t-3adae1l)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/mask.ts b/src/cli/mask.ts
+new file mode 100644
+index 0000000..acc1ba2
+--- /dev/null
++++ b/src/cli/mask.ts
+@@ -0,0 +1,5 @@
++export function maskSecret(value: string): string {
++  const chars = Array.from(value);
++  const keep = chars.slice(-4).join('');
++  return '*'.repeat(Math.max(0, chars.length - 4)) + keep;
++}
+diff --git a/test/cli/mask.test.ts b/test/cli/mask.test.ts
+new file mode 100644
+index 0000000..a33bd8d
+--- /dev/null
++++ b/test/cli/mask.test.ts
+@@ -0,0 +1,13 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { maskSecret } from '../../src/cli/mask.ts';
++
++test('maskSecret keeps the last four characters', () => {
++  assert.equal(maskSecret('abcdefgh'), '****efgh');
++});
++
++test('maskSecret leaves short values unstarred', () => {
++  assert.equal(maskSecret('abcd'), 'abcd');
++  assert.equal(maskSecret('ab'), 'ab');
++  assert.equal(maskSecret(''), '');
++});
+--- status
+

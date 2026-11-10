@@ -1,0 +1,81 @@
+commit 679261e3e1da04f5e2f84dffe8f01217c02bdd7d
+Add renderTable column-padding helper for CLI output
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/notes/render-table.md b/notes/render-table.md
+new file mode 100644
+index 0000000..5ec4153
+--- /dev/null
++++ b/notes/render-table.md
+@@ -0,0 +1,8 @@
++# renderTable plan
++
++- [x] Add `renderTable(rows: readonly string[][]): string` in src/cli/table.ts
++  - pad each column to its widest cell, columns joined by two spaces
++  - no trailing whitespace on a line; rows joined by "\n"; ragged rows allowed; empty input -> ""
++- [x] Add test/cli/table.test.ts (node:test)
++- [x] Run `npm run fast`, commit
++- [x] Registered test/cli/table.test.ts weight in scripts/lib/shard-weights.mjs (required by rules test)
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..98b62a4 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -43,6 +43,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+   'test/cli/launcher-toolchain.test.ts': 0.1,
++  'test/cli/table.test.ts': 0.1,
+   'test/cli/launcher.test.ts': 0.2,
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+diff --git a/src/cli/table.ts b/src/cli/table.ts
+new file mode 100644
+index 0000000..3cf7824
+--- /dev/null
++++ b/src/cli/table.ts
+@@ -0,0 +1,17 @@
++/** Renders rows as plain text with every column padded to its widest cell. */
++export function renderTable(rows: readonly string[][]): string {
++  const widths: number[] = [];
++  for (const row of rows) {
++    row.forEach((cell, i) => {
++      widths[i] = Math.max(widths[i] ?? 0, cell.length);
++    });
++  }
++  return rows
++    .map((row) =>
++      row
++        .map((cell, i) => cell.padEnd(widths[i] ?? 0))
++        .join('  ')
++        .trimEnd(),
++    )
++    .join('\n');
++}
+diff --git a/test/cli/table.test.ts b/test/cli/table.test.ts
+new file mode 100644
+index 0000000..af24834
+--- /dev/null
++++ b/test/cli/table.test.ts
+@@ -0,0 +1,18 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { renderTable } from '../../src/cli/table.ts';
++
++test('pads columns to equal width', () => {
++  assert.equal(
++    renderTable([
++      ['id', 'status'],
++      ['t-1', 'open'],
++    ]),
++    'id   status\nt-1  open',
++  );
++});
++
++test('handles empty input and ragged rows', () => {
++  assert.equal(renderTable([]), '');
++  assert.equal(renderTable([['a', 'b'], ['long']]), 'a     b\nlong');
++});
+--- status
+

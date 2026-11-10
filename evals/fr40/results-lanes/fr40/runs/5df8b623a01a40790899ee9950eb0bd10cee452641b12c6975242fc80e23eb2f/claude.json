@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 12581,
+  "stop_reason": "end_turn",
+  "session_id": "828ab378-f7f4-436c-bd19-e41b7ec09ef1",
+  "total_cost_usd": 0.0368936,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4381,
+    "cache_read_input_tokens": 41496,
+    "output_tokens": 1520,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4381,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 374,
+        "cache_read_input_tokens": 10075,
+        "cache_creation_input_tokens": 174,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 174
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1520,
+      "cacheReadInputTokens": 41496,
+      "cacheCreationInputTokens": 4381,
+      "webSearchRequests": 0,
+      "costUSD": 0.0368936,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4381,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `chunk<T>(items, size)` in `src/cli/chunk.ts` and committed it as `7484a54`. I ran only the new test file, which passes (6 of 6). I did not run `npm run fast`, so lint, type-checks and the import-boundary check were not run.\n\n- **Behaviour:** `chunk` splits the list into consecutive groups of `size`, and the last group may be shorter. It throws a `RangeError` for a size below 1. It also rejects non-integer sizes such as 1.5 and `NaN`, which you didn't ask for.\n- **Tests:** `test/cli/chunk.test.ts` covers even and uneven splits, an empty list, input not being mutated, and both kinds of bad size.\n- **Shard weight:** I added a weight of 0.1 for the new test file in `scripts/lib/shard-weights.mjs`, as the repo conventions require. I copied 0.1 from the neighbouring `flag-value` test, so it's a guess until the weights are refreshed.\n\nI didn't touch `tasks/t-52zlrus.json`; per the repo conventions only the lead changes it.",
+  "ttft_ms": 3933,
+  "type": "result",
+  "duration_ms": 19369,
+  "uuid": "df30edfc-43a6-494d-8940-7e0db18ff907",
+  "ttft_stream_ms": 3153,
+  "time_to_request_ms": 2236,
+  "first_content_frame_ms": 3160,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

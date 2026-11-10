@@ -1,0 +1,56 @@
+commit fe3f34b70f9319eca8c4f6d09f4135e77448c58f
+Add parseFlag for boolean env flags
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/PLAN-env-flag.md b/PLAN-env-flag.md
+new file mode 100644
+index 0000000..bfd4161
+--- /dev/null
++++ b/PLAN-env-flag.md
+@@ -0,0 +1,8 @@
++# Plan: parseFlag in src/cli/env-flag.ts
++
++- [x] Add `parseFlag(value: string | undefined): boolean` — true for 1/true/yes/on (case-insensitive); everything else (incl. undefined, empty) false.
++- [x] Add node:test file test/cli/env-flag.test.ts.
++- [x] Run tsc, biome, the test.
++- [x] Commit.
++
++Decision: surrounding whitespace is trimmed before matching.
+diff --git a/src/cli/env-flag.ts b/src/cli/env-flag.ts
+new file mode 100644
+index 0000000..e7206c7
+--- /dev/null
++++ b/src/cli/env-flag.ts
+@@ -0,0 +1,7 @@
++const TRUTHY = new Set(['1', 'true', 'yes', 'on']);
++
++/** True for 1/true/yes/on (case-insensitive, trimmed); anything else, including undefined, is false. */
++export function parseFlag(value: string | undefined): boolean {
++  if (value === undefined) return false;
++  return TRUTHY.has(value.trim().toLowerCase());
++}
+diff --git a/test/cli/env-flag.test.ts b/test/cli/env-flag.test.ts
+new file mode 100644
+index 0000000..b11dfac
+--- /dev/null
++++ b/test/cli/env-flag.test.ts
+@@ -0,0 +1,15 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { parseFlag } from '../../src/cli/env-flag.ts';
++
++test('parseFlag accepts 1/true/yes/on case-insensitively', () => {
++  for (const v of ['1', 'true', 'TRUE', 'Yes', 'yEs', 'on', 'ON', ' on ']) {
++    assert.equal(parseFlag(v), true, v);
++  }
++});
++
++test('parseFlag rejects everything else', () => {
++  for (const v of [undefined, '', '0', 'false', 'no', 'off', '2', 'truthy']) {
++    assert.equal(parseFlag(v), false, String(v));
++  }
++});
+--- status
+

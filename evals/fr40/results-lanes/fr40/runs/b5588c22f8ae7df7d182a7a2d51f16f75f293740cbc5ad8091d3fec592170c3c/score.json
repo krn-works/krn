@@ -1,0 +1,9 @@
+{
+  "runId": "b5588c22f8ae7df7d182a7a2d51f16f75f293740cbc5ad8091d3fec592170c3c",
+  "task": "fr40-role-names-semver",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-role-names-semver: new names describe roles"
+}

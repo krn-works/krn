@@ -1,0 +1,83 @@
+commit 38957a773de0e22af3712b82878cc49bc871b256
+Add compareVersions for dotted numeric versions (t-smnuz3w)
+
+Refs: t-smnuz3w
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..c459f55 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -40,6 +40,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli.test.ts': 1.2,
+   'test/cli/exit-code-classification.test.ts': 0.8,
+   'test/cli/flag-value.test.ts': 0.1,
++  'test/cli/semver.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+   'test/cli/launcher-toolchain.test.ts': 0.1,
+diff --git a/src/cli/semver.ts b/src/cli/semver.ts
+new file mode 100644
+index 0000000..1ac4415
+--- /dev/null
++++ b/src/cli/semver.ts
+@@ -0,0 +1,23 @@
++/**
++ * Orders dotted numeric versions ("1.2.10" > "1.2.9"). Missing parts count as 0,
++ * so "1.2" equals "1.2.0". Returns -1, 0, or 1. Throws on non-numeric parts.
++ */
++export function compareVersions(a: string, b: string): number {
++  const left = parse(a);
++  const right = parse(b);
++  const length = Math.max(left.length, right.length);
++  for (let i = 0; i < length; i++) {
++    const diff = (left[i] ?? 0) - (right[i] ?? 0);
++    if (diff !== 0) return diff < 0 ? -1 : 1;
++  }
++  return 0;
++}
++
++function parse(version: string): number[] {
++  return version.split('.').map((part) => {
++    if (!/^\d+$/.test(part)) {
++      throw new Error(`invalid version: ${JSON.stringify(version)}`);
++    }
++    return Number(part);
++  });
++}
+diff --git a/test/cli/semver.test.ts b/test/cli/semver.test.ts
+new file mode 100644
+index 0000000..d219cfd
+--- /dev/null
++++ b/test/cli/semver.test.ts
+@@ -0,0 +1,26 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { compareVersions } from '../../src/cli/semver.ts';
++
++test('orders numerically, not lexically', () => {
++  assert.equal(compareVersions('1.2.10', '1.2.9'), 1);
++  assert.equal(compareVersions('1.2.9', '1.2.10'), -1);
++});
++
++test('equal versions, including missing trailing zeros', () => {
++  assert.equal(compareVersions('1.2.3', '1.2.3'), 0);
++  assert.equal(compareVersions('1.2', '1.2.0'), 0);
++});
++
++test('shorter version with extra nonzero part is smaller', () => {
++  assert.equal(compareVersions('1.2', '1.2.1'), -1);
++});
++
++test('major dominates', () => {
++  assert.equal(compareVersions('2.0.0', '1.99.99'), 1);
++});
++
++test('rejects non-numeric parts', () => {
++  assert.throws(() => compareVersions('1.x', '1.0'), /invalid version/);
++  assert.throws(() => compareVersions('', '1.0'), /invalid version/);
++});
+--- status
+

@@ -1,7 +1,11 @@
 {
   "id": "t-5983e6g",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "FR-40 on Claude lanes (sonnet-5-5, 133 paired units, 266 sessions, 0 invalid): B-A +22.6 pp (33 wins, 3 losses, 90% [+15.4,+29.0]), token ratio 0.944, $9.85 spent. KEEP per preregistration; evals/fr40/results-lanes.md. Wiring into the lead dispatch brief left to a follow-up task."
+  },
   "created": "2026-11-10",
   "priority": 2,
   "title": "FR-40's packet gets a carrier or an epitaph",

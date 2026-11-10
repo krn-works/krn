@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 9510,
+  "stop_reason": "end_turn",
+  "session_id": "eb2a92b4-5fda-432c-bcb8-0da52e58402c",
+  "total_cost_usd": 0.0310321,
+  "usage": {
+    "input_tokens": 8,
+    "cache_creation_input_tokens": 4225,
+    "cache_read_input_tokens": 31661,
+    "output_tokens": 1095,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4225,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 241,
+        "cache_read_input_tokens": 9319,
+        "cache_creation_input_tokens": 774,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 774
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 8,
+      "outputTokens": 1095,
+      "cacheReadInputTokens": 31661,
+      "cacheCreationInputTokens": 4225,
+      "webSearchRequests": 0,
+      "costUSD": 0.0310321,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4225,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 4,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `backoffDelays(attempts, baseMs)` in `src/cli/retry.ts`. It returns delays that double from `baseMs` and never exceed 30 seconds. The new tests in `test/cli/retry.test.ts` pass (3 of 3); I did not run `npm run fast` or the wider suite.\n\nThe tests cover doubling from the base, the 30-second cap, and zero attempts returning an empty array.\n\nI also added a weight of 0.1 for the new test file to `scripts/lib/shard-weights.mjs`, since a new test file needs one. Everything is committed as `22360ab`, with the task id in the title: \"Add backoffDelays for capped doubling retry delays (t-x02y6nz)\".",
+  "ttft_ms": 2355,
+  "type": "result",
+  "duration_ms": 12697,
+  "uuid": "f4ab1744-bd1f-45e0-a51c-4fcaae1c73ce",
+  "ttft_stream_ms": 1653,
+  "time_to_request_ms": 921,
+  "first_content_frame_ms": 1654,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

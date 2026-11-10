@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 10269,
+  "stop_reason": "end_turn",
+  "session_id": "2db04ae5-7c95-4ea2-bcfd-3212edaa9d4f",
+  "total_cost_usd": 0.0301118,
+  "usage": {
+    "input_tokens": 8,
+    "cache_creation_input_tokens": 3971,
+    "cache_read_input_tokens": 31218,
+    "output_tokens": 1109,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3971,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 240,
+        "cache_read_input_tokens": 9121,
+        "cache_creation_input_tokens": 718,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 718
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 8,
+      "outputTokens": 1109,
+      "cacheReadInputTokens": 31218,
+      "cacheCreationInputTokens": 3971,
+      "webSearchRequests": 0,
+      "costUSD": 0.0301118,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3971,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 4,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `countLines(text)` in `src/cli/count-lines.ts`, and the four new tests in `test/cli/count-lines.test.ts` pass. I ran only that file, not the full suite or `npm run fast`.\n\nA trailing newline adds no extra line, and empty text counts as 0 lines. The tests cover empty text, text with no trailing newline, text with one, and a blank line before the trailing newline.\n\nI also added a weight of 0.1 for the new test file in `scripts/lib/shard-weights.mjs`, since new test files need one.\n\nThe work is committed as `611efb2`, titled \"Add a line counter that ignores a trailing newline (t-gcpwo9i)\". I didn't touch the task tracker file.",
+  "ttft_ms": 2973,
+  "type": "result",
+  "duration_ms": 16893,
+  "uuid": "bc63f74a-5c53-4716-8eb4-8c028470a187",
+  "ttft_stream_ms": 2009,
+  "time_to_request_ms": 915,
+  "first_content_frame_ms": 2057,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

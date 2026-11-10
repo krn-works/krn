@@ -1,0 +1,53 @@
+commit 3aabe47a137334ad12691b12080e2736544ceb61
+Add maskSecret to keep the last four characters (t-4725iva)
+
+Ticket: t-4725iva
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..171dfa1 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -44,6 +44,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/launcher-node-version.test.ts': 0.5,
+   'test/cli/launcher-toolchain.test.ts': 0.1,
+   'test/cli/launcher.test.ts': 0.2,
++  'test/cli/mask.test.ts': 0.1,
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
+diff --git a/src/cli/mask.ts b/src/cli/mask.ts
+new file mode 100644
+index 0000000..3b44a05
+--- /dev/null
++++ b/src/cli/mask.ts
+@@ -0,0 +1,6 @@
++/** Keep the last four characters of a secret and star the rest. */
++export function maskSecret(value: string): string {
++  const keep = 4;
++  if (value.length <= keep) return '*'.repeat(value.length);
++  return '*'.repeat(value.length - keep) + value.slice(-keep);
++}
+diff --git a/test/cli/mask.test.ts b/test/cli/mask.test.ts
+new file mode 100644
+index 0000000..865be4c
+--- /dev/null
++++ b/test/cli/mask.test.ts
+@@ -0,0 +1,13 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { maskSecret } from '../../src/cli/mask.ts';
++
++test('mask secret keeps the last four characters', () => {
++  assert.equal(maskSecret('abcdefgh'), '****efgh');
++});
++
++test('mask secret stars a value of four or fewer characters entirely', () => {
++  assert.equal(maskSecret('abcd'), '****');
++  assert.equal(maskSecret('ab'), '**');
++  assert.equal(maskSecret(''), '');
++});
+--- status
+

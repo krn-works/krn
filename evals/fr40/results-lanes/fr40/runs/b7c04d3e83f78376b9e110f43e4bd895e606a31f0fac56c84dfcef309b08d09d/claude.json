@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 15914,
+  "stop_reason": "end_turn",
+  "session_id": "998fc117-7165-4fe0-beec-e7832d5da199",
+  "total_cost_usd": 0.0396586,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4385,
+    "cache_read_input_tokens": 40586,
+    "output_tokens": 1804,
+    "output_tokens_details": { "thinking_tokens": 170 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4385,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 353,
+        "cache_read_input_tokens": 10044,
+        "cache_creation_input_tokens": 209,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 209
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1804,
+      "cacheReadInputTokens": 40586,
+      "cacheCreationInputTokens": 4385,
+      "webSearchRequests": 0,
+      "costUSD": 0.0396586,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 170,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4385,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `truncateMiddle(text, max)` to `src/cli/truncate.ts` and committed it as `8c029a7`. The five new tests pass. I didn't run the wider suite or `npm run fast`.\n\n- **Behaviour:** text that fits is returned unchanged. Longer text keeps its start and end around a single `…`, and the result is never longer than `max`. When the kept characters split unevenly, the start gets the extra one. For example, `truncateMiddle('abcdefghij', 6)` returns `abc…ij`.\n- **Edge cases:** `max` of 1 returns just `…`, and `max` of 0 or less returns an empty string.\n- **Tests:** `test/cli/truncate.test.ts` uses `node:test` and `node:assert/strict`. I also added a weight for it in `scripts/lib/shard-weights.mjs`.\n- **Commit title:** the repo convention is to end the title with the task id in parentheses, but I wasn't given one and didn't invent one. The title has no id. If you give me the id I can amend the commit.",
+  "ttft_ms": 3584,
+  "type": "result",
+  "duration_ms": 24119,
+  "uuid": "a2599600-68d5-4fa2-b3c1-a0f7722ca548",
+  "ttft_stream_ms": 2521,
+  "time_to_request_ms": 1776,
+  "first_content_frame_ms": 2521,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

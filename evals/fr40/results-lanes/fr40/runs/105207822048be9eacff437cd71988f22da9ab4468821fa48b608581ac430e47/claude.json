@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 12761,
+  "stop_reason": "end_turn",
+  "session_id": "6d286f90-e68d-4ee0-84b9-7cae8b037ac3",
+  "total_cost_usd": 0.0352833,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4127,
+    "cache_read_input_tokens": 40453,
+    "output_tokens": 1471,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4127,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 380,
+        "cache_read_input_tokens": 9826,
+        "cache_creation_input_tokens": 169,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 169
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1471,
+      "cacheReadInputTokens": 40453,
+      "cacheCreationInputTokens": 4127,
+      "webSearchRequests": 0,
+      "costUSD": 0.0352833,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4127,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `compareVersions(a, b)` in `src/cli/semver.ts` and committed it as 235b1e6. `npm run fast` passed, covering Biome, the import-boundary check, `tsc` and the related tests.\n\n- **Ordering:** it returns -1, 0 or 1. It compares each dotted part numerically, so `1.10.0` sorts above `1.9.0`. Missing trailing parts count as 0, so `1.2` equals `1.2.0`.\n- **Invalid input:** a part that isn't all digits, such as `1.x`, makes it throw `invalid version`. You didn't specify this case, so say if you'd rather it return something else.\n- **Tests:** `test/cli/semver.test.ts` uses `node:test` and covers equality, numeric versus lexical ordering, missing parts and the throw. I added its weight to `scripts/lib/shard-weights.mjs`.\n\nThe commit title ends with `(t-mpu3w44)` and the commit carries a `Ticket: t-mpu3w44` trailer. I did not touch `tasks/t-mpu3w44.json`, since only the lead changes task status.",
+  "ttft_ms": 3349,
+  "type": "result",
+  "duration_ms": 72826,
+  "uuid": "cd910f29-9308-4f72-b6d4-d718a43e6d25",
+  "ttft_stream_ms": 2853,
+  "time_to_request_ms": 1795,
+  "first_content_frame_ms": 2853,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

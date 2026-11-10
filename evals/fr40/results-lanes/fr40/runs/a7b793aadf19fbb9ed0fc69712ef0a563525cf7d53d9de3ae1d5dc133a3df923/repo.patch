@@ -1,0 +1,46 @@
+commit 3deed62f798cf272b82a9172b4f1d8f1bc452862
+Add slugify helper (t-ydgy0o9)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/slug.ts b/src/cli/slug.ts
+new file mode 100644
+index 0000000..447a8b1
+--- /dev/null
++++ b/src/cli/slug.ts
+@@ -0,0 +1,10 @@
++/** Lowercases, strips accents and joins words with single hyphens. */
++export function slugify(text: string): string {
++  return text
++    .normalize('NFD')
++    .replace(/\p{M}+/gu, '')
++    .toLowerCase()
++    .split(/[^a-z0-9]+/)
++    .filter(Boolean)
++    .join('-');
++}
+diff --git a/test/cli/slug.test.ts b/test/cli/slug.test.ts
+new file mode 100644
+index 0000000..69c41b6
+--- /dev/null
++++ b/test/cli/slug.test.ts
+@@ -0,0 +1,16 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { slugify } from '../../src/cli/slug.ts';
++
++test('slugify lowercases and joins words with hyphens', () => {
++  assert.equal(slugify('Hello World'), 'hello-world');
++});
++
++test('slugify strips accents', () => {
++  assert.equal(slugify('Crème Brûlée à la Zażyć'), 'creme-brulee-a-la-zazyc');
++});
++
++test('slugify collapses separators and trims', () => {
++  assert.equal(slugify('  a -- b__c  '), 'a-b-c');
++  assert.equal(slugify('!!!'), '');
++});
+--- status
+

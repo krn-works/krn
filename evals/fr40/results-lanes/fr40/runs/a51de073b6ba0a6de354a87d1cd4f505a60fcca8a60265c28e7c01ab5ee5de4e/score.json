@@ -1,0 +1,9 @@
+{
+  "runId": "a51de073b6ba0a6de354a87d1cd4f505a60fcca8a60265c28e7c01ab5ee5de4e",
+  "task": "fr40-agent-state-chunk",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-chunk: state outside .krn/: docs/notes/chunk-plan.md"
+}

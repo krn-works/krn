@@ -1,0 +1,46 @@
+commit 176507eddfed49ee32bb1ea9316db52770f3d9e4
+Add clamp helper that rejects min greater than max (t-s6vwe21)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/clamp.ts b/src/cli/clamp.ts
+new file mode 100644
+index 0000000..809a7bd
+--- /dev/null
++++ b/src/cli/clamp.ts
+@@ -0,0 +1,6 @@
++export function clamp(value: number, min: number, max: number): number {
++  if (min > max) {
++    throw new RangeError(`clamp: min (${min}) must not exceed max (${max})`);
++  }
++  return Math.min(Math.max(value, min), max);
++}
+diff --git a/test/cli/clamp.test.ts b/test/cli/clamp.test.ts
+new file mode 100644
+index 0000000..10c40bc
+--- /dev/null
++++ b/test/cli/clamp.test.ts
+@@ -0,0 +1,20 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { clamp } from '../../src/cli/clamp.ts';
++
++test('clamp returns value within range', () => {
++  assert.equal(clamp(5, 0, 10), 5);
++});
++
++test('clamp limits to min and max', () => {
++  assert.equal(clamp(-1, 0, 10), 0);
++  assert.equal(clamp(11, 0, 10), 10);
++});
++
++test('clamp accepts min equal to max', () => {
++  assert.equal(clamp(3, 2, 2), 2);
++});
++
++test('clamp rejects min greater than max', () => {
++  assert.throws(() => clamp(1, 5, 0), RangeError);
++});
+--- status
+

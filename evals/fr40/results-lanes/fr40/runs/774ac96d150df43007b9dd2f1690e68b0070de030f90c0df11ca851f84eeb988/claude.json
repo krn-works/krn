@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 11734,
+  "stop_reason": "end_turn",
+  "session_id": "bdf818c5-592a-4663-81ef-4dbd2967b31b",
+  "total_cost_usd": 0.0335878,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4349,
+    "cache_read_input_tokens": 40618,
+    "output_tokens": 1211,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4349,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 243,
+        "cache_read_input_tokens": 10023,
+        "cache_creation_input_tokens": 194,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 194
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1211,
+      "cacheReadInputTokens": 40618,
+      "cacheCreationInputTokens": 4349,
+      "webSearchRequests": 0,
+      "costUSD": 0.0335878,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4349,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `renderTable` to `src/cli/table.ts` and committed it as c00a25b. Task t-ozzpnr3 stays open.\n\nIt pads every column except the last to the width of its longest cell and separates columns with two spaces. The last column isn't padded, so lines have no trailing spaces. Empty input returns an empty string, and rows with fewer cells than others are handled.\n\nThe `node:test` file is `test/cli/table.test.ts`. It covers equal-width padding, empty input and ragged rows. Both tests pass, `tsc --noEmit` is clean, and biome (run with `--write`) reformatted `table.ts` and reported no remaining issues. I didn't run the full `npm test` suite or the rest of the gate.",
+  "ttft_ms": 3395,
+  "type": "result",
+  "duration_ms": 33080,
+  "uuid": "0be966ee-f940-4fb9-8693-42c2bd20687c",
+  "ttft_stream_ms": 2653,
+  "time_to_request_ms": 1896,
+  "first_content_frame_ms": 2666,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

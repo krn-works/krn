@@ -1,0 +1,53 @@
+commit 8a408c404413017adfe21fdf436343095c11e148
+Add backoffDelays doubling retry delays capped at 30s (t-68jie2k)
+
+Refs: t-68jie2k
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/retry.ts b/src/cli/retry.ts
+new file mode 100644
+index 0000000..c410ff6
+--- /dev/null
++++ b/src/cli/retry.ts
+@@ -0,0 +1,12 @@
++const MAX_DELAY_MS = 30_000;
++
++export function backoffDelays(attempts: number, baseMs: number): number[] {
++  const count = Number.isFinite(attempts)
++    ? Math.max(0, Math.floor(attempts))
++    : 0;
++  const delays: number[] = [];
++  for (let attempt = 0; attempt < count; attempt += 1) {
++    delays.push(Math.min(baseMs * 2 ** attempt, MAX_DELAY_MS));
++  }
++  return delays;
++}
+diff --git a/test/cli/retry.test.ts b/test/cli/retry.test.ts
+new file mode 100644
+index 0000000..a5f2492
+--- /dev/null
++++ b/test/cli/retry.test.ts
+@@ -0,0 +1,19 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { backoffDelays } from '../../src/cli/retry.ts';
++
++test('backoffDelays doubles from the base delay', () => {
++  assert.deepEqual(backoffDelays(4, 100), [100, 200, 400, 800]);
++});
++
++test('backoffDelays caps delays at 30 seconds', () => {
++  assert.deepEqual(
++    backoffDelays(5, 10_000),
++    [10_000, 20_000, 30_000, 30_000, 30_000],
++  );
++});
++
++test('backoffDelays returns nothing for zero or negative attempts', () => {
++  assert.deepEqual(backoffDelays(0, 100), []);
++  assert.deepEqual(backoffDelays(-2, 100), []);
++});
+--- status
+

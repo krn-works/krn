@@ -1,0 +1,9 @@
+{
+  "runId": "7efee4cacdc2deb2d3e7ee911e1874fa0613cf0d0194aa8b799b2153f239b708",
+  "task": "fr40-trailer-slug",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-trailer-slug: commit \"Add slugify to src/cli/slug.ts (t-xj46uyu)\" lacks Ticket: t-xj46uyu"
+}

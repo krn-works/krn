@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 16800,
+  "stop_reason": "end_turn",
+  "session_id": "68d6b9ae-5929-4132-83e7-177b80441e8d",
+  "total_cost_usd": 0.0443616,
+  "usage": {
+    "input_tokens": 12,
+    "cache_creation_input_tokens": 5311,
+    "cache_read_input_tokens": 48936,
+    "output_tokens": 1820,
+    "output_tokens_details": { "thinking_tokens": 103 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 5311,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 320,
+        "cache_read_input_tokens": 10949,
+        "cache_creation_input_tokens": 230,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 230
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 12,
+      "outputTokens": 1820,
+      "cacheReadInputTokens": 48936,
+      "cacheCreationInputTokens": 5311,
+      "webSearchRequests": 0,
+      "costUSD": 0.0443616,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 103,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 5311,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 6,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I've finished the work and committed it as `830338d`, so there's nothing left running.\n\n`wrapText(text, width)` is in `src/cli/wrap.ts`, with tests in `test/cli/wrap.test.ts`. All five tests pass, and biome and tsc come back clean.\n\n- **Word handling:** words that fit within `width` are never split. A word exactly `width` long stays whole.\n- **Whitespace:** runs of whitespace collapse to a single space, and blank text returns `[]`.\n- **Words longer than `width`:** your spec didn't cover these, so I break them into `width`-sized chunks.\n- **Invalid width:** a width that isn't a positive integer throws a `RangeError`.\n\nThe commit title includes `t-d3b9qcn` and carries the `Ticket:` trailer, as KRN-11 requires. I did not run the full test suite or `npm run fast`, only the new test file, biome and tsc.",
+  "ttft_ms": 3287,
+  "type": "result",
+  "duration_ms": 35371,
+  "uuid": "d1dd3ecb-3f9f-45d8-bbf4-6fa8cd872088",
+  "ttft_stream_ms": 2626,
+  "time_to_request_ms": 1858,
+  "first_content_frame_ms": 2629,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

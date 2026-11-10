@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 17850,
+  "stop_reason": "end_turn",
+  "session_id": "2e26b56a-e409-4f88-83a2-493e1ddf751b",
+  "total_cost_usd": 0.0396002,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4749,
+    "cache_read_input_tokens": 42242,
+    "output_tokens": 1636,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4749,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 318,
+        "cache_read_input_tokens": 10366,
+        "cache_creation_input_tokens": 251,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 251
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1636,
+      "cacheReadInputTokens": 42242,
+      "cacheCreationInputTokens": 4749,
+      "webSearchRequests": 0,
+      "costUSD": 0.0396002,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4749,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `renderTable` to `src/cli/table.ts` and committed it as `798e5dd`. The new tests pass. I didn't run the wider suite or `npm run fast`.\n\n- **Behavior:** each column is padded to its widest cell, with two spaces between columns. The last cell in a row isn't padded, so lines have no trailing spaces. Rows are joined with newlines, and empty input returns an empty string.\n- **Tests:** `test/cli/table.test.ts` covers the alignment, empty input and rows of different lengths.\n- **Shard weights:** I added `test/cli/table.test.ts` to `scripts/lib/shard-weights.mjs` with a weight of 0.1. That is a placeholder guess, not a measured median.\n- **Commit trailers:** the commit title ends with `(t-ozzpnr3)` and it carries `Refs: t-ozzpnr3`, so the task stays open. I didn't touch the tracker file.",
+  "ttft_ms": 6011,
+  "type": "result",
+  "duration_ms": 23102,
+  "uuid": "d0f20919-4366-4e57-be55-bbb2ad3ffe2e",
+  "ttft_stream_ms": 4383,
+  "time_to_request_ms": 1279,
+  "first_content_frame_ms": 4384,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

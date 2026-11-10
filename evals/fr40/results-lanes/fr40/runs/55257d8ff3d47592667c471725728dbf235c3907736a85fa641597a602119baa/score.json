@@ -1,0 +1,9 @@
+{
+  "runId": "55257d8ff3d47592667c471725728dbf235c3907736a85fa641597a602119baa",
+  "task": "fr40-agent-state-plural",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-plural: state outside .krn/: notes/plural-plan.md"
+}

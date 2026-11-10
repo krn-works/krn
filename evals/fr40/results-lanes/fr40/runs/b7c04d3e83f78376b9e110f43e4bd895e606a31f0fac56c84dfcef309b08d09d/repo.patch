@@ -1,0 +1,76 @@
+commit 8c029a75a813d1d49ba4a5acbf8be85428692fd2
+Add truncateMiddle to shorten text around an ellipsis
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..a71f63b 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -40,6 +40,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli.test.ts': 1.2,
+   'test/cli/exit-code-classification.test.ts': 0.8,
+   'test/cli/flag-value.test.ts': 0.1,
++  'test/cli/truncate.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+   'test/cli/launcher-toolchain.test.ts': 0.1,
+diff --git a/src/cli/truncate.ts b/src/cli/truncate.ts
+new file mode 100644
+index 0000000..4352e42
+--- /dev/null
++++ b/src/cli/truncate.ts
+@@ -0,0 +1,16 @@
++const ELLIPSIS = '…';
++
++/**
++ * Shortens `text` to at most `max` characters, keeping both ends around an
++ * ellipsis. Text that already fits is returned unchanged. When the head and
++ * tail cannot both fit, the head gets the extra character.
++ */
++export function truncateMiddle(text: string, max: number): string {
++  if (text.length <= max) return text;
++  if (max <= 0) return '';
++  const keep = max - ELLIPSIS.length;
++  if (keep <= 0) return ELLIPSIS.slice(0, max);
++  const tail = Math.floor(keep / 2);
++  const head = keep - tail;
++  return text.slice(0, head) + ELLIPSIS + (tail > 0 ? text.slice(-tail) : '');
++}
+diff --git a/test/cli/truncate.test.ts b/test/cli/truncate.test.ts
+new file mode 100644
+index 0000000..4675d1f
+--- /dev/null
++++ b/test/cli/truncate.test.ts
+@@ -0,0 +1,28 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { truncateMiddle } from '../../src/cli/truncate.ts';
++
++test('text that fits is returned unchanged', () => {
++  assert.equal(truncateMiddle('abcdef', 6), 'abcdef');
++  assert.equal(truncateMiddle('abc', 10), 'abc');
++});
++
++test('long text keeps both ends around an ellipsis', () => {
++  assert.equal(truncateMiddle('abcdefghij', 5), 'ab…ij');
++});
++
++test('an odd budget gives the extra character to the head', () => {
++  assert.equal(truncateMiddle('abcdefghij', 6), 'abc…ij');
++});
++
++test('the result never exceeds max', () => {
++  for (let max = 0; max < 12; max++) {
++    assert.ok(truncateMiddle('abcdefghijklmnop', max).length <= max);
++  }
++});
++
++test('tiny budgets degrade to the ellipsis or nothing', () => {
++  assert.equal(truncateMiddle('abcdef', 1), '…');
++  assert.equal(truncateMiddle('abcdef', 0), '');
++  assert.equal(truncateMiddle('abcdef', 2), 'a…');
++});
+--- status
+

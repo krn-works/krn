@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 11762,
+  "stop_reason": "end_turn",
+  "session_id": "b4e9d1bc-4b7e-4af8-b4a4-8014e9b11cea",
+  "total_cost_usd": 0.035159699999999995,
+  "usage": {
+    "input_tokens": 8,
+    "cache_creation_input_tokens": 4872,
+    "cache_read_input_tokens": 33657,
+    "output_tokens": 1229,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4872,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 303,
+        "cache_read_input_tokens": 10592,
+        "cache_creation_input_tokens": 148,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 148
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 8,
+      "outputTokens": 1229,
+      "cacheReadInputTokens": 33657,
+      "cacheCreationInputTokens": 4872,
+      "webSearchRequests": 0,
+      "costUSD": 0.035159699999999995,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4872,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 4,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `chunk<T>(items, size)` in `src/cli/chunk.ts` and committed it as \"Add a chunk helper that splits lists into fixed-size groups (t-6ja4q4u)\".\n\nIt splits a list into consecutive groups of `size`, and the last group can be shorter. It throws a `RangeError` for a size below 1. It also rejects non-integer and `NaN` sizes, which you didn't ask for, so a size like 1.5 can't slip through.\n\nThe new `test/cli/chunk.test.ts` has four tests, and all four pass when run on their own with `node --test`. They cover:\n- a normal split with a shorter last group\n- an empty list\n- a size larger than the list\n- invalid sizes\n\nI also added a weight of 0.1 for the new test file in `scripts/lib/shard-weights.mjs`, as the repo conventions require. I didn't run `npm run fast` or the full suite.",
+  "ttft_ms": 4616,
+  "type": "result",
+  "duration_ms": 17666,
+  "uuid": "4cd738fb-a724-4fa6-92b8-eb4cd1c8a21a",
+  "ttft_stream_ms": 3729,
+  "time_to_request_ms": 2651,
+  "first_content_frame_ms": 3729,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

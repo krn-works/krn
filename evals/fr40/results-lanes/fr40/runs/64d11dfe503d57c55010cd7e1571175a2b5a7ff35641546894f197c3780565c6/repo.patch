@@ -1,0 +1,49 @@
+commit 3518fb79cfbfc2b2d997f7d143083b2101b9126c
+Add truncateMiddle helper that keeps both ends around an ellipsis
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/core/truncate.ts b/src/core/truncate.ts
+new file mode 100644
+index 0000000..2def013
+--- /dev/null
++++ b/src/core/truncate.ts
+@@ -0,0 +1,11 @@
++const ELLIPSIS = '…';
++
++// Keeps both ends of `text` around an ellipsis so the result is at most `max` characters.
++export function truncateMiddle(text: string, max: number): string {
++  if (text.length <= max) return text;
++  if (max <= 0) return '';
++  const keep = max - ELLIPSIS.length;
++  if (keep <= 0) return ELLIPSIS.slice(0, max);
++  const tail = Math.floor(keep / 2);
++  return text.slice(0, keep - tail) + ELLIPSIS + text.slice(text.length - tail);
++}
+diff --git a/test/truncate.test.ts b/test/truncate.test.ts
+new file mode 100644
+index 0000000..3bad60a
+--- /dev/null
++++ b/test/truncate.test.ts
+@@ -0,0 +1,18 @@
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++import { truncateMiddle } from '../src/core/truncate.ts';
++
++test('returns short text unchanged', () => {
++  assert.equal(truncateMiddle('hello', 5), 'hello');
++  assert.equal(truncateMiddle('hello', 10), 'hello');
++});
++
++test('keeps both ends around an ellipsis within max', () => {
++  assert.equal(truncateMiddle('abcdefghij', 5), 'ab…ij');
++  assert.equal(truncateMiddle('abcdefghij', 6), 'abc…ij');
++});
++
++test('handles tiny limits', () => {
++  assert.equal(truncateMiddle('abcdef', 1), '…');
++  assert.equal(truncateMiddle('abcdef', 0), '');
++});
+--- status
+

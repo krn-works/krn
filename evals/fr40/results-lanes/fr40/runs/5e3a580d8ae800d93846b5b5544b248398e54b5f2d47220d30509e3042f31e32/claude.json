@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 14287,
+  "stop_reason": "end_turn",
+  "session_id": "27e4e5de-f278-47a6-be1c-b80737e830a6",
+  "total_cost_usd": 0.0365081,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4115,
+    "cache_read_input_tokens": 40581,
+    "output_tokens": 1597,
+    "output_tokens_details": { "thinking_tokens": 127 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4115,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 321,
+        "cache_read_input_tokens": 9747,
+        "cache_creation_input_tokens": 236,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 236
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1597,
+      "cacheReadInputTokens": 40581,
+      "cacheCreationInputTokens": 4115,
+      "webSearchRequests": 0,
+      "costUSD": 0.0365081,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 127,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4115,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 6,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `parseFlag` and committed it as `a419a6b`. `npm run fast` passed, including biome, boundaries, tsc and the related tests.\n\n- **Function:** `parseFlag` is in `src/cli/env-flag.ts`. It returns `true` for `1`, `true`, `yes` or `on`, in any case and ignoring surrounding whitespace. It returns `false` for anything else, including `undefined`.\n- **Tests:** `test/cli/env-flag.test.ts` covers the accepted values and the rejected ones. I gave it a weight of 0.1 in `scripts/lib/shard-weights.mjs`.\n- **Plan:** The notes are in `.krn/tmp/env-flag-plan.md`, which is git-ignored. I updated it as I went.\n\nThe repository convention says commit titles should end with the task id in parentheses. My brief didn't include one, so I left it off rather than invent one. If you give me the id, I can amend the title.",
+  "ttft_ms": 2590,
+  "type": "result",
+  "duration_ms": 59834,
+  "uuid": "42626fe2-93e1-40db-93ff-61d829ec6735",
+  "ttft_stream_ms": 1710,
+  "time_to_request_ms": 730,
+  "first_content_frame_ms": 1710,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

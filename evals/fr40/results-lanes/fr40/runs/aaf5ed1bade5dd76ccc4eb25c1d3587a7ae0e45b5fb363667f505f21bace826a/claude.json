@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 15129,
+  "stop_reason": "end_turn",
+  "session_id": "ff842a1a-a946-496e-a70b-c8adad18b4e8",
+  "total_cost_usd": 0.0431462,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 5266,
+    "cache_read_input_tokens": 42922,
+    "output_tokens": 1777,
+    "output_tokens_details": { "thinking_tokens": 127 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 5266,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 372,
+        "cache_read_input_tokens": 10829,
+        "cache_creation_input_tokens": 305,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 305
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1777,
+      "cacheReadInputTokens": 42922,
+      "cacheCreationInputTokens": 5266,
+      "webSearchRequests": 0,
+      "costUSD": 0.0431462,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 127,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 5266,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `compareVersions` and committed it. `npm run fast` passes (biome, boundaries, tsc and the related tests).\n\nThe commit title has no task id. The repo convention is to end the title with the id in parentheses, but my brief didn't include one and I didn't want to make one up. If you give me the id, I can amend the commit.\n\n- **Function:** `compareVersions` is in `src/cli/semver.ts`. It compares dotted numeric versions part by part as numbers, so `1.10.0` is newer than `1.9.0`. Missing trailing parts count as zero, so `1.2` equals `1.2.0`. It returns -1, 0 or 1. Any non-numeric part, such as `1.x` or an empty string, throws an `Invalid version` error.\n- **Tests:** `test/cli/semver.test.ts` uses `node:test` and covers numeric ordering, equality, missing trailing parts and the invalid-input errors.\n- **Shard weight:** I added `test/cli/semver.test.ts` to `scripts/lib/shard-weights.mjs` with a weight of 0.1, since new test files need one.",
+  "ttft_ms": 4123,
+  "type": "result",
+  "duration_ms": 57397,
+  "uuid": "e0c51a1d-5ae0-48ea-8340-e7b94c0ec763",
+  "ttft_stream_ms": 3403,
+  "time_to_request_ms": 2347,
+  "first_content_frame_ms": 3404,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

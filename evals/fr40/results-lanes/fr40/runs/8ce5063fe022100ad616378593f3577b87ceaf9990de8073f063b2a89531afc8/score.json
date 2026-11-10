@@ -1,0 +1,9 @@
+{
+  "runId": "8ce5063fe022100ad616378593f3577b87ceaf9990de8073f063b2a89531afc8",
+  "task": "fr40-trailer-range",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-trailer-range: every commit carries Ticket: t-5yrz7fo"
+}

@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 13914,
+  "stop_reason": "end_turn",
+  "session_id": "1fdde87a-1b80-448f-91e7-5efc728823cd",
+  "total_cost_usd": 0.0393125,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 4350,
+    "cache_read_input_tokens": 40625,
+    "output_tokens": 1783,
+    "output_tokens_details": { "thinking_tokens": 129 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4350,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 341,
+        "cache_read_input_tokens": 9926,
+        "cache_creation_input_tokens": 292,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 292
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1783,
+      "cacheReadInputTokens": 40625,
+      "cacheCreationInputTokens": 4350,
+      "webSearchRequests": 0,
+      "costUSD": 0.0393125,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 129,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4350,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "`backoffDelays(attempts, baseMs)` is now in `src/cli/retry.ts` and committed as `962c166`. `npm run fast` passed, including the 18 tests it ran for the changed files.\n\n- **Function:** it returns `baseMs * 2^i` for each attempt, capped at 30,000 ms. Zero or negative attempts give an empty array, and fractional attempts are rounded down.\n- **Tests:** `test/cli/retry.test.ts` covers doubling, the 30-second cap, very large attempt counts and zero attempts. I added its weight (0.1) to `scripts/lib/shard-weights.mjs`.\n- **Plan:** the plan is in `.krn/runs/agent/backoff-plan.md`, which git ignores, and I ticked off each step as I went.\n- **Missing task id:** the repository conventions say commit titles end with the task id in parentheses, but your brief didn't include one. I committed without it. If you give me the id, I can amend the title to end with `(<id>)`.",
+  "ttft_ms": 2885,
+  "type": "result",
+  "duration_ms": 82377,
+  "uuid": "9951d67d-f017-4b4f-a6a8-c2678f9bcb5b",
+  "ttft_stream_ms": 2121,
+  "time_to_request_ms": 1395,
+  "first_content_frame_ms": 2122,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

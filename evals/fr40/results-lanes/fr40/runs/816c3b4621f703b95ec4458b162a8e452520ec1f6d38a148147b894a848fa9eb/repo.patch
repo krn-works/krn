@@ -1,0 +1,63 @@
+commit bc8559863368ffe3172921920895fb0a138c953b
+Add formatBytes for human-readable byte counts
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..af26f7f 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -39,6 +39,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/claude/successor-retire.test.ts': 9.4,
+   'test/cli.test.ts': 1.2,
+   'test/cli/exit-code-classification.test.ts': 0.8,
++  'test/cli/bytes.test.ts': 0.1,
+   'test/cli/flag-value.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+diff --git a/src/cli/bytes.ts b/src/cli/bytes.ts
+new file mode 100644
+index 0000000..70cddb0
+--- /dev/null
++++ b/src/cli/bytes.ts
+@@ -0,0 +1,12 @@
++const UNITS = ['B', 'KiB', 'MiB', 'GiB'] as const;
++
++/** Render a byte count as B, KiB, MiB or GiB with one decimal. */
++export function formatBytes(n: number): string {
++  let value = n;
++  let unit = 0;
++  while (Math.abs(value) >= 1024 && unit < UNITS.length - 1) {
++    value /= 1024;
++    unit += 1;
++  }
++  return `${value.toFixed(1)} ${UNITS[unit]}`;
++}
+diff --git a/test/cli/bytes.test.ts b/test/cli/bytes.test.ts
+new file mode 100644
+index 0000000..384d717
+--- /dev/null
++++ b/test/cli/bytes.test.ts
+@@ -0,0 +1,19 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { formatBytes } from '../../src/cli/bytes.ts';
++
++test('formatBytes renders bytes with one decimal', () => {
++  assert.equal(formatBytes(0), '0.0 B');
++  assert.equal(formatBytes(1023), '1023.0 B');
++});
++
++test('formatBytes steps through KiB, MiB and GiB', () => {
++  assert.equal(formatBytes(1024), '1.0 KiB');
++  assert.equal(formatBytes(1536), '1.5 KiB');
++  assert.equal(formatBytes(1024 ** 2), '1.0 MiB');
++  assert.equal(formatBytes(1024 ** 3), '1.0 GiB');
++});
++
++test('formatBytes stays in GiB for very large counts', () => {
++  assert.equal(formatBytes(2048 * 1024 ** 3), '2048.0 GiB');
++});
+--- status
+

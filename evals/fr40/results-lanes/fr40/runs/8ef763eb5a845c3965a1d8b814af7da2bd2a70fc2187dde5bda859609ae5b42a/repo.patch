@@ -1,0 +1,66 @@
+commit 0b4e231544008b4bebd789c6d071ae2fbd8a0e54
+Add dedupeBy to core
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..f140831 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -47,6 +47,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
++  'test/core/dedupe.test.ts': 0.1,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+   'test/deliver/admission-policy.test.ts': 0.1,
+diff --git a/src/core/dedupe.ts b/src/core/dedupe.ts
+new file mode 100644
+index 0000000..73dc316
+--- /dev/null
++++ b/src/core/dedupe.ts
+@@ -0,0 +1,12 @@
++/** Keeps the first item for each key, preserving input order. */
++export function dedupeBy<T>(
++  items: readonly T[],
++  key: (item: T) => string,
++): T[] {
++  const first = new Map<string, T>();
++  for (const item of items) {
++    const k = key(item);
++    if (!first.has(k)) first.set(k, item);
++  }
++  return [...first.values()];
++}
+diff --git a/test/core/dedupe.test.ts b/test/core/dedupe.test.ts
+new file mode 100644
+index 0000000..53e1aa7
+--- /dev/null
++++ b/test/core/dedupe.test.ts
+@@ -0,0 +1,22 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { dedupeBy } from '../../src/core/dedupe.ts';
++
++test('dedupeBy keeps the first item per key in input order', () => {
++  const items = [
++    { id: 'a', n: 1 },
++    { id: 'b', n: 2 },
++    { id: 'a', n: 3 },
++  ];
++  assert.deepEqual(
++    dedupeBy(items, (i) => i.id),
++    [items[0], items[1]],
++  );
++});
++
++test('dedupeBy returns a new empty array for empty input', () => {
++  const input: string[] = [];
++  const out = dedupeBy(input, (s) => s);
++  assert.deepEqual(out, []);
++  assert.notEqual(out, input);
++});
+--- status
+

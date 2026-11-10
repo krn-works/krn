@@ -1,0 +1,88 @@
+commit 13fea164d5b248d1b52f54f40946b8d0faad2bb5
+Add backoffDelays with doubling delays capped at 30s
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/docs/backoff-delays-notes.md b/docs/backoff-delays-notes.md
+new file mode 100644
+index 0000000..7e4b7ab
+--- /dev/null
++++ b/docs/backoff-delays-notes.md
+@@ -0,0 +1,10 @@
++# backoffDelays notes
++
++## Plan
++- [x] Add `backoffDelays(attempts, baseMs)` to `src/cli/retry.ts`: delay i = min(baseMs * 2^i, 30000).
++- [x] Reject invalid input (non-integer/negative attempts, negative/non-finite baseMs) with RangeError.
++- [x] Add `test/cli/retry.test.ts` (node:test).
++- [x] Run `npm run fast`, then commit.
++
++## Progress
++- Implemented; biome, tsc and node --test pass. Committed.
+diff --git a/src/cli/retry.ts b/src/cli/retry.ts
+new file mode 100644
+index 0000000..9db9ac8
+--- /dev/null
++++ b/src/cli/retry.ts
+@@ -0,0 +1,22 @@
++export const MAX_BACKOFF_MS = 30_000;
++
++/** Doubling delays (baseMs, 2*baseMs, ...) capped at 30 seconds. */
++export function backoffDelays(attempts: number, baseMs: number): number[] {
++  if (!Number.isInteger(attempts) || attempts < 0) {
++    throw new RangeError(
++      `attempts must be a non-negative integer: ${attempts}`,
++    );
++  }
++  if (!Number.isFinite(baseMs) || baseMs < 0) {
++    throw new RangeError(
++      `baseMs must be a non-negative finite number: ${baseMs}`,
++    );
++  }
++  const delays: number[] = [];
++  let delay = Math.min(baseMs, MAX_BACKOFF_MS);
++  for (let i = 0; i < attempts; i++) {
++    delays.push(delay);
++    delay = Math.min(delay * 2, MAX_BACKOFF_MS);
++  }
++  return delays;
++}
+diff --git a/test/cli/retry.test.ts b/test/cli/retry.test.ts
+new file mode 100644
+index 0000000..5fac154
+--- /dev/null
++++ b/test/cli/retry.test.ts
+@@ -0,0 +1,30 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { backoffDelays } from '../../src/cli/retry.ts';
++
++test('doubles from the base delay', () => {
++  assert.deepEqual(backoffDelays(4, 100), [100, 200, 400, 800]);
++});
++
++test('caps delays at 30 seconds', () => {
++  assert.deepEqual(
++    backoffDelays(5, 10_000),
++    [10_000, 20_000, 30_000, 30_000, 30_000],
++  );
++  assert.deepEqual(backoffDelays(2, 100_000), [30_000, 30_000]);
++});
++
++test('returns no delays for zero attempts', () => {
++  assert.deepEqual(backoffDelays(0, 100), []);
++});
++
++test('handles a zero base', () => {
++  assert.deepEqual(backoffDelays(3, 0), [0, 0, 0]);
++});
++
++test('rejects invalid input', () => {
++  assert.throws(() => backoffDelays(-1, 100), RangeError);
++  assert.throws(() => backoffDelays(1.5, 100), RangeError);
++  assert.throws(() => backoffDelays(2, -5), RangeError);
++  assert.throws(() => backoffDelays(2, Number.NaN), RangeError);
++});
+--- status
+

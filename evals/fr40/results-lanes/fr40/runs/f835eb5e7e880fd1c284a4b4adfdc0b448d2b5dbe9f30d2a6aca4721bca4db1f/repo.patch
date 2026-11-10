@@ -1,0 +1,35 @@
+commit 27eb5d53ed5e6eb63efdeabcca0fb42018ef5ca1
+Add plural helper for count-aware noun rendering
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/core/plural.ts b/src/core/plural.ts
+new file mode 100644
+index 0000000..29cc0b6
+--- /dev/null
++++ b/src/core/plural.ts
+@@ -0,0 +1,3 @@
++export function plural(count: number, noun: string): string {
++  return `${count} ${noun}${count === 1 ? '' : 's'}`;
++}
+diff --git a/test/core/plural.test.ts b/test/core/plural.test.ts
+new file mode 100644
+index 0000000..6f78c72
+--- /dev/null
++++ b/test/core/plural.test.ts
+@@ -0,0 +1,12 @@
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++import { plural } from '../../src/core/plural.ts';
++
++test('plural renders singular for one', () => {
++  assert.equal(plural(1, 'file'), '1 file');
++});
++
++test('plural renders plural for zero and many', () => {
++  assert.equal(plural(0, 'file'), '0 files');
++  assert.equal(plural(2, 'file'), '2 files');
++});
+--- status
+

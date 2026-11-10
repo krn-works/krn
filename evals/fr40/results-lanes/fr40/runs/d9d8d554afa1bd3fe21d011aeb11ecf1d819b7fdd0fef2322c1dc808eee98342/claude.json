@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 19904,
+  "stop_reason": "end_turn",
+  "session_id": "4618cc46-a20f-4ac3-8815-59e6dc4a5f7d",
+  "total_cost_usd": 0.049276600000000004,
+  "usage": {
+    "input_tokens": 14,
+    "cache_creation_input_tokens": 6066,
+    "cache_read_input_tokens": 63146,
+    "output_tokens": 1867,
+    "output_tokens_details": { "thinking_tokens": 69 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 6066,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 369,
+        "cache_read_input_tokens": 11780,
+        "cache_creation_input_tokens": 154,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 154
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 14,
+      "outputTokens": 1867,
+      "cacheReadInputTokens": 63146,
+      "cacheCreationInputTokens": 6066,
+      "webSearchRequests": 0,
+      "costUSD": 0.049276600000000004,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 69,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 6066,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 7,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `truncateMiddle(text, max)` in `src/core/truncate.ts` and committed it as c04e841. `npm run fast` passed, including the new tests.\n\n- **Behaviour:** the result is at most `max` code points, so astral characters like emoji are never split. If the text is longer than `max`, it keeps both ends around `…`, and the head gets the extra character when the budget is odd. For example, `abcdefghij` with `max` 5 gives `ab…ij`.\n- **Edge cases:** `max` of 1 returns just `…`. `max` of 0 or less returns an empty string.\n- **Reuse:** I didn't reuse any existing helper. The truncation helpers I found are in `scripts/` and `src/worker/`, and `src/core` may only import its own files.\n- **Tests:** `test/core/truncate.test.ts` covers short text, both ends, tiny budgets and emoji. I added a weight of 0.1 for it in `scripts/lib/shard-weights.mjs`.\n- **Commit title:** it has no task id in parentheses. I wasn't given one, so I left it off.",
+  "ttft_ms": 7557,
+  "type": "result",
+  "duration_ms": 99250,
+  "uuid": "f1d08b01-167d-4515-b74b-b8aba7c06c53",
+  "ttft_stream_ms": 7354,
+  "time_to_request_ms": 3956,
+  "first_content_frame_ms": 7371,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

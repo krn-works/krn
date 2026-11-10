@@ -1,0 +1,9 @@
+{
+  "runId": "328c7e7930485483d22aa5367bdf2cabe12b8d64a5ba38f6b3af614a91c9fbb3",
+  "task": "fr40-agent-state-mask",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-agent-state-mask: state outside .krn/: docs/notes-mask-secret.md"
+}

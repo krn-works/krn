@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 17387,
+  "stop_reason": "end_turn",
+  "session_id": "d1d3ef60-9223-4c41-89b9-427cce827daa",
+  "total_cost_usd": 0.045800900000000005,
+  "usage": {
+    "input_tokens": 12,
+    "cache_creation_input_tokens": 5674,
+    "cache_read_input_tokens": 53309,
+    "output_tokens": 1775,
+    "output_tokens_details": { "thinking_tokens": 105 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 5674,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 319,
+        "cache_read_input_tokens": 11302,
+        "cache_creation_input_tokens": 240,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 240
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 12,
+      "outputTokens": 1775,
+      "cacheReadInputTokens": 53309,
+      "cacheCreationInputTokens": 5674,
+      "webSearchRequests": 0,
+      "costUSD": 0.045800900000000005,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 105,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 5674,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 6,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I've added `dedupeBy` and committed it as `0b4e231`. `npm run fast` passed.\n\n- **Function:** `src/core/dedupe.ts` keeps the first item per key and preserves input order.\n- **Tests:** `test/core/dedupe.test.ts` has two tests: first-wins ordering, and empty input returning a new array. I added a weight entry for it in `scripts/lib/shard-weights.mjs`.\n- **No helper reused:** `src/core` can only import its own files, and the `Set` code elsewhere in `src/` is inline rather than a shared helper. So I wrote it with a plain `Map`.\n- **Commit title has no task id:** your message didn't include one, so the title is just \"Add dedupeBy to core\". If you give me the id, I'll amend the title to end with `(<id>)`.",
+  "ttft_ms": 4808,
+  "type": "result",
+  "duration_ms": 120375,
+  "uuid": "eeea8556-796e-4c30-8bd8-af60d6029e9d",
+  "ttft_stream_ms": 2851,
+  "time_to_request_ms": 2022,
+  "first_content_frame_ms": 2852,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

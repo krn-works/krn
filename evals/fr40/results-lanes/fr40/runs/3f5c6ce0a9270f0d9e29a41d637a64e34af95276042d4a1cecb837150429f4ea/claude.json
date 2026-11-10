@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 11392,
+  "stop_reason": "end_turn",
+  "session_id": "aed036fa-a65d-4bbb-8720-d0dc247d3da1",
+  "total_cost_usd": 0.0349518,
+  "usage": {
+    "input_tokens": 8,
+    "cache_creation_input_tokens": 4593,
+    "cache_read_input_tokens": 32038,
+    "output_tokens": 1336,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4593,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 337,
+        "cache_read_input_tokens": 9566,
+        "cache_creation_input_tokens": 895,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 895
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 8,
+      "outputTokens": 1336,
+      "cacheReadInputTokens": 32038,
+      "cacheCreationInputTokens": 4593,
+      "webSearchRequests": 0,
+      "costUSD": 0.0349518,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4593,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 4,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `formatBytes(n)` in `src/cli/bytes.ts`, with tests in `test/cli/bytes.test.ts`, and committed both as `9ce531f`. The 3 new tests pass. I did not run `npm run fast` or the full suite.\n\n- **Output:** it divides by 1024 and picks B, KiB, MiB or GiB, always with one decimal (for example `1536` gives `1.5 KiB`). Anything above GiB stays in GiB, so `2048 * 1024 ** 3` renders as `2048.0 GiB`.\n- **Weight:** I added a `0.1` weight for the new test file to `scripts/lib/shard-weights.mjs`, as the repo conventions require. That value is my guess, not a measured one.\n- **Not handled:** negative numbers are scaled by absolute value and keep their sign. NaN and Infinity aren't handled specially, and the tests don't cover any of these.\n\nI left the task file in `tasks/` alone, since only the lead changes it.",
+  "ttft_ms": 3008,
+  "type": "result",
+  "duration_ms": 17977,
+  "uuid": "e5d8267a-bc9c-4005-9855-2b5ed3dc0b64",
+  "ttft_stream_ms": 2361,
+  "time_to_request_ms": 1552,
+  "first_content_frame_ms": 2362,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

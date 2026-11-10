@@ -1,0 +1,75 @@
+commit 235b1e6af059d850080900f9b1a3e5ecf048c504
+Add a dotted version comparison (t-mpu3w44)
+
+Ticket: t-mpu3w44
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..28d555a 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -47,6 +47,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
++  'test/cli/semver.test.ts': 0.1,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+   'test/deliver/admission-policy.test.ts': 0.1,
+diff --git a/src/cli/semver.ts b/src/cli/semver.ts
+new file mode 100644
+index 0000000..5f39e1f
+--- /dev/null
++++ b/src/cli/semver.ts
+@@ -0,0 +1,20 @@
++/** Orders dotted numeric versions; missing parts count as 0. Returns -1, 0 or 1. */
++export function compareVersions(a: string, b: string): number {
++  const left = parts(a);
++  const right = parts(b);
++  const length = Math.max(left.length, right.length);
++  for (let i = 0; i < length; i++) {
++    const diff = (left[i] ?? 0) - (right[i] ?? 0);
++    if (diff !== 0) return diff < 0 ? -1 : 1;
++  }
++  return 0;
++}
++
++function parts(version: string): number[] {
++  return version.split('.').map((part) => {
++    if (!/^\d+$/.test(part)) {
++      throw new Error(`invalid version: ${version}`);
++    }
++    return Number(part);
++  });
++}
+diff --git a/test/cli/semver.test.ts b/test/cli/semver.test.ts
+new file mode 100644
+index 0000000..a0091bf
+--- /dev/null
++++ b/test/cli/semver.test.ts
+@@ -0,0 +1,21 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { compareVersions } from '../../src/cli/semver.ts';
++
++test('equal versions compare as 0', () => {
++  assert.equal(compareVersions('1.2.3', '1.2.3'), 0);
++});
++
++test('versions compare numerically, not lexically', () => {
++  assert.equal(compareVersions('1.10.0', '1.9.0'), 1);
++  assert.equal(compareVersions('1.2.0', '1.10.0'), -1);
++});
++
++test('missing trailing parts count as zero', () => {
++  assert.equal(compareVersions('1.2', '1.2.0'), 0);
++  assert.equal(compareVersions('1.2', '1.2.1'), -1);
++});
++
++test('a non-numeric part is rejected', () => {
++  assert.throws(() => compareVersions('1.x', '1.0'), /invalid version/);
++});
+--- status
+

@@ -1,0 +1,59 @@
+commit db60c6b8246dba7b6a312c47e9c5c5c156d00315
+Add formatBytes to core
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..53d22a7 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -16,6 +16,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/ci/wait.test.ts': 0.1,
+   'test/ci/gate-wait-capture.test.ts': 0.2,
+   'test/claude/capture-fixture.test.ts': 0.1,
++  'test/core/bytes.test.ts': 0.1,
+   'test/claude/context-gauge.test.ts': 1.8,
+   'test/claude/context-report.test.ts': 0.3,
+   'test/claude/context-restart.test.ts': 0.9,
+diff --git a/src/core/bytes.ts b/src/core/bytes.ts
+new file mode 100644
+index 0000000..a1700af
+--- /dev/null
++++ b/src/core/bytes.ts
+@@ -0,0 +1,11 @@
++const units = ['B', 'KiB', 'MiB', 'GiB'] as const;
++
++export function formatBytes(n: number): string {
++  let value = n;
++  let unit = 0;
++  while (Math.abs(value) >= 1024 && unit < units.length - 1) {
++    value /= 1024;
++    unit++;
++  }
++  return `${value.toFixed(1)} ${units[unit]}`;
++}
+diff --git a/test/core/bytes.test.ts b/test/core/bytes.test.ts
+new file mode 100644
+index 0000000..d824e5e
+--- /dev/null
++++ b/test/core/bytes.test.ts
+@@ -0,0 +1,16 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { formatBytes } from '../../src/core/bytes.ts';
++
++test('formatBytes renders each unit with one decimal', () => {
++  assert.equal(formatBytes(0), '0.0 B');
++  assert.equal(formatBytes(1023), '1023.0 B');
++  assert.equal(formatBytes(1024), '1.0 KiB');
++  assert.equal(formatBytes(1536), '1.5 KiB');
++  assert.equal(formatBytes(1024 ** 2), '1.0 MiB');
++  assert.equal(formatBytes(1024 ** 3), '1.0 GiB');
++});
++
++test('formatBytes keeps GiB for very large counts', () => {
++  assert.equal(formatBytes(1024 ** 4), '1024.0 GiB');
++});
+--- status
+

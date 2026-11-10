@@ -1,0 +1,73 @@
+commit d6bf90f294d868f68f26185e22e5c880adf59bde
+Add a chunk helper that splits a list into fixed-size groups (t-d6w1gfc)
+
+Ticket: t-d6w1gfc
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..a7bd6c9 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -38,6 +38,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/claude/successor-probe.test.ts': 1.3,
+   'test/claude/successor-retire.test.ts': 9.4,
+   'test/cli.test.ts': 1.2,
++  'test/cli/chunk.test.ts': 0.1,
+   'test/cli/exit-code-classification.test.ts': 0.8,
+   'test/cli/flag-value.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+diff --git a/src/cli/chunk.ts b/src/cli/chunk.ts
+new file mode 100644
+index 0000000..6be19d5
+--- /dev/null
++++ b/src/cli/chunk.ts
+@@ -0,0 +1,14 @@
++/**
++ * Splits `items` into consecutive groups of `size`; the last group holds the
++ * remainder. A size that is not an integer of at least 1 is rejected.
++ */
++export function chunk<T>(items: readonly T[], size: number): T[][] {
++  if (!Number.isInteger(size) || size < 1) {
++    throw new RangeError(`chunk size must be an integer >= 1, got ${size}`);
++  }
++  const groups: T[][] = [];
++  for (let i = 0; i < items.length; i += size) {
++    groups.push(items.slice(i, i + size));
++  }
++  return groups;
++}
+diff --git a/test/cli/chunk.test.ts b/test/cli/chunk.test.ts
+new file mode 100644
+index 0000000..8a1aab2
+--- /dev/null
++++ b/test/cli/chunk.test.ts
+@@ -0,0 +1,25 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { chunk } from '../../src/cli/chunk.ts';
++
++test('chunk splits a list into groups with a shorter last group', () => {
++  assert.deepEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
++});
++
++test('chunk returns no groups for an empty list', () => {
++  assert.deepEqual(chunk([], 3), []);
++});
++
++test('chunk keeps one group when size exceeds the length', () => {
++  assert.deepEqual(chunk([1, 2], 5), [[1, 2]]);
++});
++
++test('chunk rejects a size below 1', () => {
++  assert.throws(() => chunk([1], 0), RangeError);
++  assert.throws(() => chunk([1], -1), RangeError);
++});
++
++test('chunk rejects a non-integer size', () => {
++  assert.throws(() => chunk([1], 1.5), RangeError);
++  assert.throws(() => chunk([1], Number.NaN), RangeError);
++});
+--- status
+

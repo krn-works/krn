@@ -1,0 +1,38 @@
+commit 84e9e2d8f1fd502366cd7afb483e51716a4cdb7e
+Add countLines to core (trailing newline adds no line)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/core/count-lines.ts b/src/core/count-lines.ts
+new file mode 100644
+index 0000000..57af1a4
+--- /dev/null
++++ b/src/core/count-lines.ts
+@@ -0,0 +1,5 @@
++/** Counts lines in text; a trailing newline does not start an extra line. */
++export function countLines(text: string): number {
++  if (text === '') return 0;
++  return text.split('\n').length - (text.endsWith('\n') ? 1 : 0);
++}
+diff --git a/test/core/count-lines.test.ts b/test/core/count-lines.test.ts
+new file mode 100644
+index 0000000..5862635
+--- /dev/null
++++ b/test/core/count-lines.test.ts
+@@ -0,0 +1,13 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { countLines } from '../../src/core/count-lines.ts';
++
++test('countLines treats a trailing newline as no extra line', () => {
++  assert.equal(countLines(''), 0);
++  assert.equal(countLines('a'), 1);
++  assert.equal(countLines('a\n'), 1);
++  assert.equal(countLines('a\nb'), 2);
++  assert.equal(countLines('a\nb\n'), 2);
++  assert.equal(countLines('\n'), 1);
++  assert.equal(countLines('a\n\n'), 2);
++});
+--- status
+

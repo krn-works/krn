@@ -1,0 +1,96 @@
+commit ba86792ff49f973102d50c8580ae7443d455aa27
+Add truncateMiddle to the CLI helpers
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/docs/truncate-middle-notes.md b/docs/truncate-middle-notes.md
+new file mode 100644
+index 0000000..9cad0c9
+--- /dev/null
++++ b/docs/truncate-middle-notes.md
+@@ -0,0 +1,13 @@
++# truncateMiddle notes
++
++## Plan
++1. [x] Add `truncateMiddle(text, max)` to `src/cli/truncate.ts`: result length <= max, keeps head and tail around `…`.
++2. [x] Add `test/cli/truncate.test.ts` (node:test).
++3. [x] Run `npm run fast`, commit.
++
++## Decisions
++- Ellipsis is the single char `…`; length counted in code points.
++- Text with length <= max is returned unchanged.
++- max < 1 returns ''; max === 1 returns `…`.
++- Head gets the extra char when the kept count is odd.
++- Test files need a weight in scripts/lib/shard-weights.mjs (added 0.1).
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..f427c64 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -47,6 +47,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
++  'test/cli/truncate.test.ts': 0.1,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+   'test/deliver/admission-policy.test.ts': 0.1,
+diff --git a/src/cli/truncate.ts b/src/cli/truncate.ts
+new file mode 100644
+index 0000000..7cecdc6
+--- /dev/null
++++ b/src/cli/truncate.ts
+@@ -0,0 +1,19 @@
++const ELLIPSIS = '…';
++
++/**
++ * Shortens `text` to at most `max` characters (code points) by replacing the
++ * middle with an ellipsis, keeping both ends. The head gets the odd character.
++ */
++export function truncateMiddle(text: string, max: number): string {
++  const chars = Array.from(text);
++  if (chars.length <= max) return text;
++  if (!(max >= 1)) return '';
++  const keep = Math.floor(max) - 1;
++  const head = Math.ceil(keep / 2);
++  const tail = keep - head;
++  return (
++    chars.slice(0, head).join('') +
++    ELLIPSIS +
++    (tail > 0 ? chars.slice(chars.length - tail).join('') : '')
++  );
++}
+diff --git a/test/cli/truncate.test.ts b/test/cli/truncate.test.ts
+new file mode 100644
+index 0000000..48671f2
+--- /dev/null
++++ b/test/cli/truncate.test.ts
+@@ -0,0 +1,26 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { truncateMiddle } from '../../src/cli/truncate.ts';
++
++test('returns short text unchanged', () => {
++  assert.equal(truncateMiddle('abc', 3), 'abc');
++  assert.equal(truncateMiddle('', 0), '');
++});
++
++test('keeps both ends around an ellipsis', () => {
++  assert.equal(truncateMiddle('abcdefghij', 5), 'ab…ij');
++});
++
++test('gives the odd character to the head', () => {
++  assert.equal(truncateMiddle('abcdefghij', 6), 'abc…ij');
++});
++
++test('handles tiny limits', () => {
++  assert.equal(truncateMiddle('abcdef', 1), '…');
++  assert.equal(truncateMiddle('abcdef', 0), '');
++  assert.equal(truncateMiddle('abcdef', -3), '');
++});
++
++test('counts code points, not UTF-16 units', () => {
++  assert.equal(truncateMiddle('😀😀😀😀😀😀', 4), '😀😀…😀');
++});
+--- status
+

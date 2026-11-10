@@ -1,0 +1,38 @@
+commit 6032472e7c5e60e7953a81d9cb68fa5f99c7dc71
+Add slugify helper in core
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/core/slug.ts b/src/core/slug.ts
+new file mode 100644
+index 0000000..916a498
+--- /dev/null
++++ b/src/core/slug.ts
+@@ -0,0 +1,9 @@
++export function slugify(text: string): string {
++  return text
++    .normalize('NFD')
++    .replace(/\p{M}/gu, '')
++    .toLowerCase()
++    .split(/[^a-z0-9]+/)
++    .filter(Boolean)
++    .join('-');
++}
+diff --git a/test/core/slug.test.ts b/test/core/slug.test.ts
+new file mode 100644
+index 0000000..f866f79
+--- /dev/null
++++ b/test/core/slug.test.ts
+@@ -0,0 +1,9 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { slugify } from '../../src/core/slug.ts';
++
++test('slugify lowercases, strips accents and joins with single hyphens', () => {
++  assert.equal(slugify('Héllo   Wörld'), 'hello-world');
++  assert.equal(slugify('  Crème -- Brûlée! '), 'creme-brulee');
++  assert.equal(slugify(''), '');
++});
+--- status
+

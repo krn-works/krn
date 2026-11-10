@@ -1,0 +1,99 @@
+commit 0f71036a2c3b887474e099a386cb6ea25dc00c51
+Add order-preserving groupBy to the CLI helpers
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/docs/notes/group-by-plan.md b/docs/notes/group-by-plan.md
+new file mode 100644
+index 0000000..40694e4
+--- /dev/null
++++ b/docs/notes/group-by-plan.md
+@@ -0,0 +1,11 @@
++# groupBy plan
++
++Goal: `groupBy<T>(items, key)` in `src/cli/group-by.ts` returning `Map<string, T[]>`, preserving input order.
++
++Steps
++- [x] Implement function (Map insertion order = first-seen key order; items keep input order per group)
++- [x] Add `test/cli/group-by.test.ts` (node:test)
++- [x] Run `npm run fast`
++- [x] Commit
++
++Status: implemented and tested; `npm run fast` passes (also registered test weight in scripts/lib/shard-weights.mjs). Committed.
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..f3f1498 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -40,6 +40,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli.test.ts': 1.2,
+   'test/cli/exit-code-classification.test.ts': 0.8,
+   'test/cli/flag-value.test.ts': 0.1,
++  'test/cli/group-by.test.ts': 0.1,
+   'test/cli/internal-error-exit.test.ts': 1.2,
+   'test/cli/launcher-node-version.test.ts': 0.5,
+   'test/cli/launcher-toolchain.test.ts': 0.1,
+diff --git a/src/cli/group-by.ts b/src/cli/group-by.ts
+new file mode 100644
+index 0000000..d1a269f
+--- /dev/null
++++ b/src/cli/group-by.ts
+@@ -0,0 +1,17 @@
++/** Groups items by key. Groups appear in first-seen order; items keep input order. */
++export function groupBy<T>(
++  items: readonly T[],
++  key: (item: T) => string,
++): Map<string, T[]> {
++  const groups = new Map<string, T[]>();
++  for (const item of items) {
++    const k = key(item);
++    const group = groups.get(k);
++    if (group) {
++      group.push(item);
++    } else {
++      groups.set(k, [item]);
++    }
++  }
++  return groups;
++}
+diff --git a/test/cli/group-by.test.ts b/test/cli/group-by.test.ts
+new file mode 100644
+index 0000000..cea0522
+--- /dev/null
++++ b/test/cli/group-by.test.ts
+@@ -0,0 +1,33 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { groupBy } from '../../src/cli/group-by.ts';
++
++test('groupBy returns an empty map for empty input', () => {
++  assert.equal(groupBy([], String).size, 0);
++});
++
++test('groupBy keeps input order within groups and first-seen order of keys', () => {
++  const result = groupBy(
++    ['bb', 'a', 'cc', 'd', 'e', 'f'],
++    (s) => `len${s.length}`,
++  );
++  assert.deepEqual([...result.keys()], ['len2', 'len1']);
++  assert.deepEqual(result.get('len2'), ['bb', 'cc']);
++  assert.deepEqual(result.get('len1'), ['a', 'd', 'e', 'f']);
++});
++
++test('groupBy does not mutate input and passes items to key', () => {
++  const input = [{ id: 1 }, { id: 2 }] as const;
++  const seen: number[] = [];
++  groupBy(input, (i) => {
++    seen.push(i.id);
++    return 'x';
++  });
++  assert.deepEqual(seen, [1, 2]);
++  assert.equal(input.length, 2);
++});
++
++test('groupBy handles keys like __proto__', () => {
++  const result = groupBy(['a'], () => '__proto__');
++  assert.deepEqual(result.get('__proto__'), ['a']);
++});
+--- status
+

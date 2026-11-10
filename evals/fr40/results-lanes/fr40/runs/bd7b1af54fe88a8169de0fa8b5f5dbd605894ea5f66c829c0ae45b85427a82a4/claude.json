@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 15506,
+  "stop_reason": "end_turn",
+  "session_id": "0c5584af-2a07-48de-8e8d-ea13b288c99b",
+  "total_cost_usd": 0.0401383,
+  "usage": {
+    "input_tokens": 14,
+    "cache_creation_input_tokens": 4923,
+    "cache_read_input_tokens": 59883,
+    "output_tokens": 1443,
+    "output_tokens_details": { "thinking_tokens": 56 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4923,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 285,
+        "cache_read_input_tokens": 10429,
+        "cache_creation_input_tokens": 362,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 362
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 14,
+      "outputTokens": 1443,
+      "cacheReadInputTokens": 59883,
+      "cacheCreationInputTokens": 4923,
+      "webSearchRequests": 0,
+      "costUSD": 0.0401383,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 56,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4923,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 7,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `plural(count, noun)` in `src/cli/plural.ts` and committed it as `b0b09c8`. It returns `1 file` for a count of 1 and `2 files` for 2. It also returns `0 files` for zero.\n\nThe new test file is `test/cli/plural.test.ts`. Its two tests pass. `tsc --noEmit` and `biome check` are clean on the new files, and `krn task check` accepts the task data. I didn't run the full test suite or the whole-repo lint.\n\nI also marked `tasks/t-4du2fek.json` as closed with a \"done\" resolution, as earlier commits do. The task will still be open until the commit lands. The commit is on `main` and I haven't pushed it or opened a PR.\n\nThe helper only appends `s`, so irregular nouns like `child` come out as `children`-style mistakes (`2 childs`).",
+  "ttft_ms": 3947,
+  "type": "result",
+  "duration_ms": 29583,
+  "uuid": "3436a8a2-5bb6-4ec0-8613-94d5ccc47953",
+  "ttft_stream_ms": 2980,
+  "time_to_request_ms": 1784,
+  "first_content_frame_ms": 2981,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

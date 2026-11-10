@@ -1,0 +1,48 @@
+commit fb7c3c1742019ce59b557c9d1cc6a5ff53ea8142
+Add groupBy helper that preserves input order (t-x20l1hf)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/group-by.ts b/src/cli/group-by.ts
+new file mode 100644
+index 0000000..5012cf6
+--- /dev/null
++++ b/src/cli/group-by.ts
+@@ -0,0 +1,14 @@
++/** Groups items by key, preserving input order within groups and first-seen order of keys. */
++export function groupBy<T>(
++  items: readonly T[],
++  key: (item: T) => string,
++): Map<string, T[]> {
++  const groups = new Map<string, T[]>();
++  for (const item of items) {
++    const k = key(item);
++    const group = groups.get(k);
++    if (group) group.push(item);
++    else groups.set(k, [item]);
++  }
++  return groups;
++}
+diff --git a/test/cli/group-by.test.ts b/test/cli/group-by.test.ts
+new file mode 100644
+index 0000000..73d5c30
+--- /dev/null
++++ b/test/cli/group-by.test.ts
+@@ -0,0 +1,14 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { groupBy } from '../../src/cli/group-by.ts';
++
++test('groupBy keeps input order within and across groups', () => {
++  const result = groupBy(['b1', 'a1', 'b2', 'a2', 'c1'], (s) => s[0] ?? '');
++  assert.deepEqual([...result.keys()], ['b', 'a', 'c']);
++  assert.deepEqual(result.get('b'), ['b1', 'b2']);
++  assert.deepEqual(result.get('a'), ['a1', 'a2']);
++});
++
++test('groupBy returns an empty map for no items', () => {
++  assert.equal(groupBy([], String).size, 0);
++});
+--- status
+

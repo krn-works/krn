@@ -1,0 +1,68 @@
+commit ea3025b3190c727405b892198c17e83809651039
+Add wrapText word-wrapping helper (t-om07fup)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/wrap.ts b/src/cli/wrap.ts
+new file mode 100644
+index 0000000..8f66b8b
+--- /dev/null
++++ b/src/cli/wrap.ts
+@@ -0,0 +1,25 @@
++/**
++ * Word-wraps `text` to lines of at most `width` characters. Words shorter than
++ * or equal to the width are never split; longer words are broken at the width.
++ */
++export function wrapText(text: string, width: number): string[] {
++  const max = Math.max(1, Math.floor(width));
++  const lines: string[] = [];
++  let line = '';
++  for (const word of text.split(/\s+/).filter(Boolean)) {
++    let rest = word;
++    if (line && line.length + 1 + rest.length <= max) {
++      line += ` ${rest}`;
++      continue;
++    }
++    if (line) lines.push(line);
++    line = '';
++    while (rest.length > max) {
++      lines.push(rest.slice(0, max));
++      rest = rest.slice(max);
++    }
++    line = rest;
++  }
++  if (line) lines.push(line);
++  return lines;
++}
+diff --git a/test/cli/wrap.test.ts b/test/cli/wrap.test.ts
+new file mode 100644
+index 0000000..0005abe
+--- /dev/null
++++ b/test/cli/wrap.test.ts
+@@ -0,0 +1,23 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { wrapText } from '../../src/cli/wrap.ts';
++
++test('wraps at word boundaries', () => {
++  assert.deepEqual(wrapText('the quick brown fox', 9), [
++    'the quick',
++    'brown fox',
++  ]);
++});
++
++test('does not split words that fit the width', () => {
++  assert.deepEqual(wrapText('aaaa bbbb', 4), ['aaaa', 'bbbb']);
++});
++
++test('collapses whitespace and handles empty input', () => {
++  assert.deepEqual(wrapText('  a   b ', 10), ['a b']);
++  assert.deepEqual(wrapText('', 10), []);
++});
++
++test('breaks words longer than the width', () => {
++  assert.deepEqual(wrapText('abcdefg hi', 3), ['abc', 'def', 'g', 'hi']);
++});
+--- status
+

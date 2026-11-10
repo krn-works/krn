@@ -1,0 +1,9 @@
+{
+  "runId": "774ac96d150df43007b9dd2f1690e68b0070de030f90c0df11ca851f84eeb988",
+  "task": "fr40-trailer-table",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-trailer-table: commit \"Add renderTable to pad CLI table columns to equal width (t-ozzpnr3)\" lacks Refs: t-ozzpnr3"
+}

@@ -1,0 +1,9 @@
+{
+  "runId": "4284818a7a9b6abf046347d6d343644cef09c70cac9d6876f00d9a24615ceaa3",
+  "task": "fr40-agent-state-bytes",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-agent-state-bytes: notes kept under .krn/runs or .krn/tmp"
+}

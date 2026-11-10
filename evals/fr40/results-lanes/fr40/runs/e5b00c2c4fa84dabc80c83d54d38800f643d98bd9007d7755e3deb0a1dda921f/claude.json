@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 10442,
+  "stop_reason": "end_turn",
+  "session_id": "4012d764-bd6d-4e77-8fad-1ec89de8a9c4",
+  "total_cost_usd": 0.029309500000000002,
+  "usage": {
+    "input_tokens": 10,
+    "cache_creation_input_tokens": 3630,
+    "cache_read_input_tokens": 39095,
+    "output_tokens": 1086,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 3630,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 160,
+        "cache_read_input_tokens": 9309,
+        "cache_creation_input_tokens": 189,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 189
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 10,
+      "outputTokens": 1086,
+      "cacheReadInputTokens": 39095,
+      "cacheCreationInputTokens": 3630,
+      "webSearchRequests": 0,
+      "costUSD": 0.029309500000000002,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 3630,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 5,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `groupBy` in `src/cli/group-by.ts` and committed it as `fb7c3c1`. Items stay in input order within each group. Groups appear in the order their keys were first seen.\n\nThe new tests are in `test/cli/group-by.test.ts`. One checks ordering across and within groups, and the other checks that an empty input gives an empty map. Both pass, and `tsc --noEmit` and biome are clean on the two files. I didn't run the full `npm run gate`.",
+  "ttft_ms": 4133,
+  "type": "result",
+  "duration_ms": 31724,
+  "uuid": "1fd34387-c577-4dc4-997d-eb8de289f144",
+  "ttft_stream_ms": 3299,
+  "time_to_request_ms": 2324,
+  "first_content_frame_ms": 3299,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

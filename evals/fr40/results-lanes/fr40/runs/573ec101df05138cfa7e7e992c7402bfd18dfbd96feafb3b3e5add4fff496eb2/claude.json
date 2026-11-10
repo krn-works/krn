@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 33010,
+  "stop_reason": "end_turn",
+  "session_id": "645a2f6d-d882-4fd0-bb72-91ea7a79acbd",
+  "total_cost_usd": 0.0811271,
+  "usage": {
+    "input_tokens": 24,
+    "cache_creation_input_tokens": 9193,
+    "cache_read_input_tokens": 136571,
+    "output_tokens": 3065,
+    "output_tokens_details": { "thinking_tokens": 158 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 9193,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 473,
+        "cache_read_input_tokens": 14900,
+        "cache_creation_input_tokens": 161,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 161
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 24,
+      "outputTokens": 3065,
+      "cacheReadInputTokens": 136571,
+      "cacheCreationInputTokens": 9193,
+      "webSearchRequests": 0,
+      "costUSD": 0.0811271,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 158,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 9193,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 12,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `formatBytes(n)` to `src/cli/bytes.ts` and committed it as `13631ac`. `npm run fast` passes (biome, boundaries, tsc and 18 related tests). I didn't run the full `npm run gate`.\n\n- **Output:** values step at 1024 and always show one decimal, for example `0.0 B`, `1.5 KiB` and `5.0 GiB`. GiB is the top unit, so 2048 GiB prints as `2048.0 GiB`.\n- **Rounding:** a value that rounds up to 1024.0 moves to the next unit, so 1048575 gives `1.0 MiB`.\n- **Invalid input:** negative, `NaN` or infinite values throw a `RangeError`. You didn't specify this, so say if you want different behaviour.\n- **Tests:** `test/cli/bytes.test.ts` covers each unit, the rounding promotion, the GiB cap and the invalid inputs.\n- **Shard weight:** I added `'test/cli/bytes.test.ts': 0.1` to `scripts/lib/shard-weights.mjs`, because a repo rule test requires a weight for every test file.\n- **Notes file:** the plan and decisions are in `docs/notes/format-bytes-notes.md`. I first put it in `docs/program/`, but a rule test treats every markdown file there as an agent instruction with a byte budget, so I moved it.",
+  "ttft_ms": 2758,
+  "type": "result",
+  "duration_ms": 109696,
+  "uuid": "05f8d747-1f43-4e98-a019-fc417960a42a",
+  "ttft_stream_ms": 2264,
+  "time_to_request_ms": 765,
+  "first_content_frame_ms": 2265,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

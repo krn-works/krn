@@ -1,0 +1,9 @@
+{
+  "runId": "d8c8aa15853091479b46930e5a16e4e8d7c7d830ae35342d6fb611b5ed4d63f0",
+  "task": "fr40-trailer-groups",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-trailer-groups: commit \"Add order-preserving groupBy helper (t-wk3s5t5)\" lacks Ticket: t-wk3s5t5"
+}

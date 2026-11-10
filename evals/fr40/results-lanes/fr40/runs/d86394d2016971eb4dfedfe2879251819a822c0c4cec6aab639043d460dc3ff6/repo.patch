@@ -1,0 +1,55 @@
+commit 44eeb4d4796b9b2a9e9dafd40b84b792f34cc1df
+Add maskSecret to core mask helper
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..993570e 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -7,6 +7,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/agents-render.test.ts': 2.3,
+   'test/architecture/depth.test.ts': 0.1,
+   'test/ci/ci-changes.test.ts': 0.3,
++  'test/core/mask.test.ts': 0.1,
+   'test/ci/idle-gap-cache.test.ts': 0.1,
+   'test/ci/shard-wall-report.test.mjs': 0.5,
+   'test/ci/logs-capture.test.ts': 0.1,
+diff --git a/src/core/mask.ts b/src/core/mask.ts
+new file mode 100644
+index 0000000..d150856
+--- /dev/null
++++ b/src/core/mask.ts
+@@ -0,0 +1,9 @@
++const VISIBLE = 4;
++
++// Values no longer than the visible tail are fully starred so short secrets never leak whole.
++export function maskSecret(value: string): string {
++  const chars = [...value];
++  const hidden = Math.max(chars.length - VISIBLE, 0);
++  const tail = chars.length > VISIBLE ? chars.slice(hidden).join('') : '';
++  return '*'.repeat(chars.length > VISIBLE ? hidden : chars.length) + tail;
++}
+diff --git a/test/core/mask.test.ts b/test/core/mask.test.ts
+new file mode 100644
+index 0000000..e923d8f
+--- /dev/null
++++ b/test/core/mask.test.ts
+@@ -0,0 +1,14 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { maskSecret } from '../../src/core/mask.ts';
++
++test('maskSecret keeps the last four characters and stars the rest', () => {
++  assert.equal(maskSecret('abcdefgh1234'), '********1234');
++  assert.equal(maskSecret('12345'), '*2345');
++});
++
++test('maskSecret fully stars values no longer than four characters', () => {
++  assert.equal(maskSecret('abcd'), '****');
++  assert.equal(maskSecret('ab'), '**');
++  assert.equal(maskSecret(''), '');
++});
+--- status
+

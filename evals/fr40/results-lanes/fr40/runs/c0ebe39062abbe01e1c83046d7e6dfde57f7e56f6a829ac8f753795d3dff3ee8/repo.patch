@@ -1,0 +1,71 @@
+commit 78979c59e5ade267b2179ae9ead1461e6e4ff6d4
+Add a column-padding table renderer for the CLI
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..be404ab 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -47,6 +47,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
++  'test/cli/table.test.ts': 0.1,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+   'test/deliver/admission-policy.test.ts': 0.1,
+diff --git a/src/cli/table.ts b/src/cli/table.ts
+new file mode 100644
+index 0000000..21894ef
+--- /dev/null
++++ b/src/cli/table.ts
+@@ -0,0 +1,18 @@
++/** Render rows as text with every column padded to its widest cell. */
++export function renderTable(rows: readonly string[][]): string {
++  const widths: number[] = [];
++  for (const row of rows) {
++    row.forEach((cell, i) => {
++      widths[i] = Math.max(widths[i] ?? 0, cell.length);
++    });
++  }
++  return rows
++    .map((row) =>
++      row
++        .map((cell, i) =>
++          i === row.length - 1 ? cell : cell.padEnd(widths[i] ?? 0),
++        )
++        .join('  '),
++    )
++    .join('\n');
++}
+diff --git a/test/cli/table.test.ts b/test/cli/table.test.ts
+new file mode 100644
+index 0000000..dbc6533
+--- /dev/null
++++ b/test/cli/table.test.ts
+@@ -0,0 +1,21 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { renderTable } from '../../src/cli/table.ts';
++
++test('render table pads each column to its widest cell', () => {
++  assert.equal(
++    renderTable([
++      ['name', 'id'],
++      ['alpha', '1'],
++    ]),
++    'name   id\nalpha  1',
++  );
++});
++
++test('render table of no rows is empty', () => {
++  assert.equal(renderTable([]), '');
++});
++
++test('render table tolerates ragged rows', () => {
++  assert.equal(renderTable([['a', 'b', 'c'], ['dd']]), 'a   b  c\ndd');
++});
+--- status
+

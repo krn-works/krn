@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 19609,
+  "stop_reason": "end_turn",
+  "session_id": "e84c35a5-34be-43f5-83c2-e9b694da71d9",
+  "total_cost_usd": 0.0485878,
+  "usage": {
+    "input_tokens": 14,
+    "cache_creation_input_tokens": 5816,
+    "cache_read_input_tokens": 60058,
+    "output_tokens": 1929,
+    "output_tokens_details": { "thinking_tokens": 40 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 5816,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 272,
+        "cache_read_input_tokens": 11457,
+        "cache_creation_input_tokens": 227,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 227
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 14,
+      "outputTokens": 1929,
+      "cacheReadInputTokens": 60058,
+      "cacheCreationInputTokens": 5816,
+      "webSearchRequests": 0,
+      "costUSD": 0.0485878,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 40,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 5816,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 7,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `median` in `src/core/median.ts` and committed it as `aa2b826`. It throws a `RangeError` on an empty list and doesn't mutate its input. The five tests in `test/core/median.test.ts` pass, and `tsc`, biome and the boundary check are clean. I didn't run the full `npm test` suite.\n\nI didn't reuse any existing helper. The layer map in `scripts/boundaries.ts` lets `core` import nothing, so it can't pull from other `src/` areas. The only existing median is a closure inside `src/outcome/ledger.ts`. It returns `{value, n}` and accepts nulls, so it doesn't fit this signature either.\n\nI left `ledger.ts` alone. `outcome` also can't import from `core`, so it couldn't use the new function without a change to the layer map.",
+  "ttft_ms": 4115,
+  "type": "result",
+  "duration_ms": 44330,
+  "uuid": "74cd68a9-5b44-40a4-84a3-695950177f15",
+  "ttft_stream_ms": 3015,
+  "time_to_request_ms": 1698,
+  "first_content_frame_ms": 3045,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

@@ -1,0 +1,66 @@
+commit 3aecf61d8c09b361fadbe55c889cb635a40d298f
+Add formatDuration for rendering milliseconds as 1h 2m 3s (t-dypdnes)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/duration.ts b/src/cli/duration.ts
+new file mode 100644
+index 0000000..5b84c8b
+--- /dev/null
++++ b/src/cli/duration.ts
+@@ -0,0 +1,18 @@
++/**
++ * Renders milliseconds as `1h 2m 3s`. Leading zero units are dropped, inner
++ * zeros are kept (`1h 0m 3s`), and sub-second remainders are truncated.
++ */
++export function formatDuration(ms: number): string {
++  if (!Number.isFinite(ms) || ms < 0) {
++    throw new RangeError(
++      `Duration must be a non-negative finite number: ${ms}`,
++    );
++  }
++  const total = Math.floor(ms / 1000);
++  const hours = Math.floor(total / 3600);
++  const minutes = Math.floor((total % 3600) / 60);
++  const seconds = total % 60;
++  if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
++  if (minutes > 0) return `${minutes}m ${seconds}s`;
++  return `${seconds}s`;
++}
+diff --git a/test/cli/duration.test.ts b/test/cli/duration.test.ts
+new file mode 100644
+index 0000000..44242fe
+--- /dev/null
++++ b/test/cli/duration.test.ts
+@@ -0,0 +1,28 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { formatDuration } from '../../src/cli/duration.ts';
++
++test('formatDuration renders all units', () => {
++  assert.equal(formatDuration(3_723_000), '1h 2m 3s');
++});
++
++test('formatDuration drops zero leading units', () => {
++  assert.equal(formatDuration(0), '0s');
++  assert.equal(formatDuration(5_000), '5s');
++  assert.equal(formatDuration(125_000), '2m 5s');
++});
++
++test('formatDuration keeps inner zero units', () => {
++  assert.equal(formatDuration(3_603_000), '1h 0m 3s');
++  assert.equal(formatDuration(3_600_000), '1h 0m 0s');
++});
++
++test('formatDuration truncates sub-second remainders', () => {
++  assert.equal(formatDuration(999), '0s');
++  assert.equal(formatDuration(1_999), '1s');
++});
++
++test('formatDuration rejects invalid input', () => {
++  assert.throws(() => formatDuration(-1), RangeError);
++  assert.throws(() => formatDuration(Number.NaN), RangeError);
++});
+--- status
+

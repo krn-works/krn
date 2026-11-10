@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 13559,
+  "stop_reason": "end_turn",
+  "session_id": "8fb66085-8a75-4a04-9dfc-0b67071954d5",
+  "total_cost_usd": 0.03982310000000001,
+  "usage": {
+    "input_tokens": 14,
+    "cache_creation_input_tokens": 4807,
+    "cache_read_input_tokens": 62271,
+    "output_tokens": 1434,
+    "output_tokens_details": { "thinking_tokens": 112 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 4807,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 294,
+        "cache_read_input_tokens": 10385,
+        "cache_creation_input_tokens": 290,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 290
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 14,
+      "outputTokens": 1434,
+      "cacheReadInputTokens": 62271,
+      "cacheCreationInputTokens": 4807,
+      "webSearchRequests": 0,
+      "costUSD": 0.03982310000000001,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 112,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 4807,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 7,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `plural(count, noun)` to `src/cli/plural.ts` and committed it as `07783cf`. It returns `1 file` for a count of 1 and `2 files` for other counts, including `0 files`.\n\n- **Tests:** `test/cli/plural.test.ts` has two node:test cases, and both pass when run on their own. I did not run `npm run fast` or the wider suite.\n- **Shard weight:** I added a weight of 0.1 for the new test file to `scripts/lib/shard-weights.mjs`, as the repo convention requires. The 0.1 is a guess, since the weights file says real values come from `node scripts/shard-weights-refresh.mjs --write`.\n- **Missing task id:** the commit title doesn't end with a task id in parentheses, because my brief didn't include one and I didn't want to invent one. If you give me the id, I can amend the commit title.",
+  "ttft_ms": 2538,
+  "type": "result",
+  "duration_ms": 19486,
+  "uuid": "6b5977ee-8fea-4793-b30e-e1a4d2762fdf",
+  "ttft_stream_ms": 1851,
+  "time_to_request_ms": 1086,
+  "first_content_frame_ms": 1855,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

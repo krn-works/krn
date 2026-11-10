@@ -1,0 +1,82 @@
+commit 6dc4ac2eb310ab6f12a8ca0183b567153f9c2590
+Add compareVersions for dotted numeric versions (t-kty2yxr)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..28d555a 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -47,6 +47,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
++  'test/cli/semver.test.ts': 0.1,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+   'test/deliver/admission-policy.test.ts': 0.1,
+diff --git a/src/cli/semver.ts b/src/cli/semver.ts
+new file mode 100644
+index 0000000..fc1c6e5
+--- /dev/null
++++ b/src/cli/semver.ts
+@@ -0,0 +1,25 @@
++/**
++ * Orders dotted numeric versions such as "1.2.10". Returns a negative number
++ * when a < b, a positive number when a > b, and 0 when they are equal.
++ * Missing trailing segments count as 0, so "1.2" equals "1.2.0".
++ */
++export function compareVersions(a: string, b: string): number {
++  const left = parseSegments(a);
++  const right = parseSegments(b);
++  const length = Math.max(left.length, right.length);
++  for (let i = 0; i < length; i++) {
++    const diff = (left[i] ?? 0) - (right[i] ?? 0);
++    if (diff !== 0) return diff < 0 ? -1 : 1;
++  }
++  return 0;
++}
++
++function parseSegments(version: string): number[] {
++  const parts = version.split('.');
++  return parts.map((part) => {
++    if (!/^\d+$/.test(part)) {
++      throw new TypeError(`Invalid dotted numeric version: "${version}"`);
++    }
++    return Number(part);
++  });
++}
+diff --git a/test/cli/semver.test.ts b/test/cli/semver.test.ts
+new file mode 100644
+index 0000000..12d6902
+--- /dev/null
++++ b/test/cli/semver.test.ts
+@@ -0,0 +1,25 @@
++import assert from 'node:assert/strict';
++import { describe, it } from 'node:test';
++import { compareVersions } from '../../src/cli/semver.ts';
++
++describe('compareVersions', () => {
++  it('returns 0 for equal versions, ignoring trailing zero segments', () => {
++    assert.equal(compareVersions('1.2.3', '1.2.3'), 0);
++    assert.equal(compareVersions('1.2', '1.2.0'), 0);
++  });
++
++  it('orders numerically rather than lexically', () => {
++    assert.equal(compareVersions('1.10.0', '1.9.0'), 1);
++    assert.equal(compareVersions('1.9.0', '1.10.0'), -1);
++  });
++
++  it('orders versions with different segment counts', () => {
++    assert.equal(compareVersions('1.2', '1.2.1'), -1);
++    assert.equal(compareVersions('2', '1.9.9'), 1);
++  });
++
++  it('rejects non-numeric segments', () => {
++    assert.throws(() => compareVersions('1.x', '1.0'), TypeError);
++    assert.throws(() => compareVersions('', '1.0'), TypeError);
++  });
++});
+--- status
+

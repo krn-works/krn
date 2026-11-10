@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 17585,
+  "stop_reason": "end_turn",
+  "session_id": "03a83012-1a6c-4f5a-8fd6-e0d8032528cd",
+  "total_cost_usd": 0.0475952,
+  "usage": {
+    "input_tokens": 18,
+    "cache_creation_input_tokens": 5527,
+    "cache_read_input_tokens": 83512,
+    "output_tokens": 1710,
+    "output_tokens_details": { "thinking_tokens": 52 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 5527,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 259,
+        "cache_read_input_tokens": 11205,
+        "cache_creation_input_tokens": 190,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 190
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 18,
+      "outputTokens": 1710,
+      "cacheReadInputTokens": 83512,
+      "cacheCreationInputTokens": 5527,
+      "webSearchRequests": 0,
+      "costUSD": 0.0475952,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 52,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 5527,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 10,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `groupBy` to `src/cli/group-by.ts` and committed it as 7e3cd5a. `npm run fast` passes.\n\nIt returns a `Map<string, T[]>`. Groups appear in the order their keys first show up, and items keep their input order inside each group.\n\nThe tests are in `test/cli/group-by.test.ts`. One checks ordering within and across groups, and the other checks that empty input gives an empty map.\n\nI also added a weight line for the new test file to `scripts/lib/shard-weights.mjs`, because a rule test fails when a test file has no shard weight.\n\nThe commit title ends with `(t-zvm2zux)` and carries the `Ticket: t-zvm2zux` trailer. I didn't touch `tasks/t-zvm2zux.json`.",
+  "ttft_ms": 2603,
+  "type": "result",
+  "duration_ms": 222038,
+  "uuid": "b3be24d5-3521-4df6-b802-0119bbc4fd7b",
+  "ttft_stream_ms": 2020,
+  "time_to_request_ms": 1012,
+  "first_content_frame_ms": 2021,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

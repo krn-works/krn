@@ -1,0 +1,56 @@
+commit f669a92258e8ea740ee9e5fc412ed7cfd85f5b7d
+Add chunk helper that splits lists into fixed-size groups (t-52zlrus)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/chunk.ts b/src/cli/chunk.ts
+new file mode 100644
+index 0000000..c02b492
+--- /dev/null
++++ b/src/cli/chunk.ts
+@@ -0,0 +1,11 @@
++/** Splits `items` into consecutive groups of `size`; the last group may be shorter. */
++export function chunk<T>(items: readonly T[], size: number): T[][] {
++  if (!Number.isInteger(size) || size < 1) {
++    throw new RangeError(`chunk size must be an integer >= 1, got ${size}`);
++  }
++  const groups: T[][] = [];
++  for (let i = 0; i < items.length; i += size) {
++    groups.push(items.slice(i, i + size));
++  }
++  return groups;
++}
+diff --git a/test/cli/chunk.test.ts b/test/cli/chunk.test.ts
+new file mode 100644
+index 0000000..40ddcdf
+--- /dev/null
++++ b/test/cli/chunk.test.ts
+@@ -0,0 +1,25 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { chunk } from '../../src/cli/chunk.ts';
++
++test('chunk splits into fixed-size groups with a shorter tail', () => {
++  assert.deepEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
++});
++
++test('chunk returns exact groups and handles empty input', () => {
++  assert.deepEqual(chunk([1, 2, 3, 4], 2), [
++    [1, 2],
++    [3, 4],
++  ]);
++  assert.deepEqual(chunk([], 3), []);
++});
++
++test('chunk with a size above the length yields one group', () => {
++  assert.deepEqual(chunk(['a', 'b'], 5), [['a', 'b']]);
++});
++
++test('chunk rejects sizes below 1 and non-integers', () => {
++  for (const size of [0, -1, 1.5, Number.NaN]) {
++    assert.throws(() => chunk([1], size), RangeError);
++  }
++});
+--- status
+

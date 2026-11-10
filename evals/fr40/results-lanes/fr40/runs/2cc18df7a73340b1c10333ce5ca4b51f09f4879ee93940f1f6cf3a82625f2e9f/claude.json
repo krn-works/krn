@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 21053,
+  "stop_reason": "end_turn",
+  "session_id": "a8ef7e3b-3658-4dbf-97f5-40914e1e5b7c",
+  "total_cost_usd": 0.05477509999999999,
+  "usage": {
+    "input_tokens": 14,
+    "cache_creation_input_tokens": 6674,
+    "cache_read_input_tokens": 64411,
+    "output_tokens": 2161,
+    "output_tokens_details": { "thinking_tokens": 140 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 6674,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 296,
+        "cache_read_input_tokens": 12198,
+        "cache_creation_input_tokens": 344,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 344
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 14,
+      "outputTokens": 2161,
+      "cacheReadInputTokens": 64411,
+      "cacheCreationInputTokens": 6674,
+      "webSearchRequests": 0,
+      "costUSD": 0.05477509999999999,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 140,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 6674,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 7,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "I added `median` to `src/core/median.ts` and committed it as `a1114b2`. `npm run fast` passed before the commit.\n\n- **Behavior:** it throws a `RangeError` on an empty list. It averages the middle pair for even-length lists and doesn't mutate its input.\n- **Tests:** `test/core/median.test.ts` covers odd length, even length, no mutation, and the empty-list rejection. I also added its weight to `scripts/lib/shard-weights.mjs`.\n- **No helper reused:** the only existing median is a local closure in `src/outcome/ledger.ts` that handles nullable values. Core may only import from core, so I wrote `median` standalone.\n- **No task id:** the repo convention ends commit titles with the task id, but none was in my brief. The title is `Add a median helper to core that rejects an empty list`. Give me the id if you want me to amend it.",
+  "ttft_ms": 3858,
+  "type": "result",
+  "duration_ms": 82663,
+  "uuid": "06426f85-2c1e-42b2-a609-80c1fc3da3c9",
+  "ttft_stream_ms": 2719,
+  "time_to_request_ms": 1866,
+  "first_content_frame_ms": 2722,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-05T06:35:20.536Z"
+}

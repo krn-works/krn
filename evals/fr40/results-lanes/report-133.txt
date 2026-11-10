@@ -1,0 +1,13 @@
+decision: KEEP
+B-A: 133 units, 33 wins, 3 losses, +22.6 pp, p=0.0000, 90% Bonett-Price [+15.4 pp, +29.0 pp]
+B-A without commit-title-id: 114 units, 33 wins, 3 losses, +26.3 pp, p=0.0000, 90% Bonett-Price [+18.1 pp, +33.7 pp]
+token ratio B/A: 0.944
+sessions 266, invalid 0, caps 0, spent $9.85
+stratum	units	A	B
+commit-title-id	19	19	19
+trailer	19	5	19
+agent-state	19	1	19
+tracker-untouched	19	18	19
+core-imports	19	19	19
+role-names	19	19	19
+biome-clean	19	19	16

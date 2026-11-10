@@ -1,0 +1,9 @@
+{
+  "runId": "deb769b592c0ee7c3c3643e64dd4653726a7b2462d019fa34cfa03563dd1f19a",
+  "task": "fr40-role-names-wrap",
+  "arm": "A",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-role-names-wrap: new names describe roles"
+}

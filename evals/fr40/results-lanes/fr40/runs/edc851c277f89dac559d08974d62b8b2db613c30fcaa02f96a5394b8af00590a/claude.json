@@ -1,0 +1,85 @@
+{
+  "duration_api_ms": 16244,
+  "stop_reason": "end_turn",
+  "session_id": "aae38be4-ad11-4bcc-8451-2b4afa69da86",
+  "total_cost_usd": 0.0553978,
+  "usage": {
+    "input_tokens": 14,
+    "cache_creation_input_tokens": 7719,
+    "cache_read_input_tokens": 70138,
+    "output_tokens": 1748,
+    "output_tokens_details": { "thinking_tokens": 0 },
+    "server_tool_use": { "web_search_requests": 0, "web_fetch_requests": 0 },
+    "service_tier": "standard",
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 7719,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "inference_geo": "global",
+    "iterations": [
+      {
+        "input_tokens": 2,
+        "output_tokens": 338,
+        "cache_read_input_tokens": 13366,
+        "cache_creation_input_tokens": 221,
+        "cache_creation": {
+          "ephemeral_5m_input_tokens": 0,
+          "ephemeral_1h_input_tokens": 221
+        },
+        "type": "message"
+      }
+    ],
+    "speed": "standard",
+    "fallback_credit": null
+  },
+  "modelUsage": {
+    "claude-sonnet-5-5": {
+      "inputTokens": 14,
+      "outputTokens": 1748,
+      "cacheReadInputTokens": 70138,
+      "cacheCreationInputTokens": 7719,
+      "webSearchRequests": 0,
+      "costUSD": 0.0553978,
+      "contextWindow": 1000000,
+      "maxOutputTokens": 128000,
+      "thinkingTokens": 0,
+      "cacheCreationEphemeral5mInputTokens": 0,
+      "cacheCreationEphemeral1hInputTokens": 7719,
+      "canonicalModel": "claude-sonnet-5-5",
+      "provider": "firstParty",
+      "costBasis": "list"
+    }
+  },
+  "permission_denials": [],
+  "terminal_reason": "completed",
+  "fast_mode_state": "off",
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "subagent_stats": {
+    "spawned": 0,
+    "requested": { "background": 0, "foreground": 0, "unset": 0 },
+    "started_in_background": 0,
+    "max_depth": 0,
+    "spawned_by_subagents": 0,
+    "completed": 0,
+    "failed": 0,
+    "killed": { "parent": 0, "user": 0, "system": 0 },
+    "refused": { "depth_limit": 0, "concurrency_limit": 0, "budget": 0 },
+    "by_type": {}
+  },
+  "safety_stops": 0,
+  "is_error": false,
+  "num_turns": 7,
+  "subtype": "success",
+  "api_error_status": null,
+  "result": "`slugify` is added to `src/cli/slug.ts`, with tests in `test/cli/slug.test.ts`, and the work is committed. `npm run fast` passes. I did not run the full `npm run gate`.\n\n- **Behaviour:** it strips accents, lowercases, and joins words with single hyphens. Any run of non-letter, non-digit characters counts as a separator, so leading and trailing hyphens are trimmed. Input with no words returns an empty string.\n- **Tests:** four cases cover case folding, accents, repeated separators with trimming, and empty or punctuation-only input.\n- **Extra change:** a rules test requires every test file to have a shard weight, so I added `'test/cli/slug.test.ts': 0.1` to `scripts/lib/shard-weights.mjs`. I guessed the 0.1 from the weights of similar small tests, not from CI measurements.\n- **Notes:** the plan and status are in `NOTES-slugify.md` at the repository root, and I updated it as I went.",
+  "ttft_ms": 2510,
+  "type": "result",
+  "duration_ms": 48529,
+  "uuid": "7a13da2f-8d99-4f93-879c-b3aca4aed424",
+  "ttft_stream_ms": 1777,
+  "time_to_request_ms": 874,
+  "first_content_frame_ms": 1778,
+  "queued_turn_count": 0,
+  "result_index": 0,
+  "credential_expires_at": "2026-12-04T02:16:28.674Z"
+}

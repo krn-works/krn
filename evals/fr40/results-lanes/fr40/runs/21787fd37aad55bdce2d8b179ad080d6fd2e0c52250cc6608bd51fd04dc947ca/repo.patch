@@ -1,0 +1,53 @@
+commit b8429e3ce16bbc27c962940511a6df53e7878087
+Add formatDuration for rendering milliseconds as 1h 2m 3s
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/duration.ts b/src/cli/duration.ts
+new file mode 100644
+index 0000000..fdf6662
+--- /dev/null
++++ b/src/cli/duration.ts
+@@ -0,0 +1,10 @@
++/** Renders milliseconds as `1h 2m 3s`, dropping zero leading units. */
++export function formatDuration(ms: number): string {
++  const total = Math.max(0, Math.floor(ms / 1000));
++  const h = Math.floor(total / 3600);
++  const m = Math.floor((total % 3600) / 60);
++  const s = total % 60;
++  if (h > 0) return `${h}h ${m}m ${s}s`;
++  if (m > 0) return `${m}m ${s}s`;
++  return `${s}s`;
++}
+diff --git a/test/cli/duration.test.ts b/test/cli/duration.test.ts
+new file mode 100644
+index 0000000..e0cb643
+--- /dev/null
++++ b/test/cli/duration.test.ts
+@@ -0,0 +1,23 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { formatDuration } from '../../src/cli/duration.ts';
++
++test('formatDuration renders seconds only', () => {
++  assert.equal(formatDuration(0), '0s');
++  assert.equal(formatDuration(3000), '3s');
++  assert.equal(formatDuration(999), '0s');
++});
++
++test('formatDuration drops zero leading units', () => {
++  assert.equal(formatDuration(62_000), '1m 2s');
++  assert.equal(formatDuration(3_723_000), '1h 2m 3s');
++});
++
++test('formatDuration keeps inner zero units', () => {
++  assert.equal(formatDuration(3_600_000), '1h 0m 0s');
++  assert.equal(formatDuration(3_603_000), '1h 0m 3s');
++});
++
++test('formatDuration clamps negative input', () => {
++  assert.equal(formatDuration(-5), '0s');
++});
+--- status
+

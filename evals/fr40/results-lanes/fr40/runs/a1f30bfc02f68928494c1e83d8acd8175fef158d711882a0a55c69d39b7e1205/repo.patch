@@ -1,0 +1,60 @@
+commit ba64e13e11bfdb4528dcba880967f0f60640ecf1
+Add countLines treating a trailing newline as no extra line (t-6fqavp6)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/scripts/lib/shard-weights.mjs b/scripts/lib/shard-weights.mjs
+index f612a8b..68bb773 100644
+--- a/scripts/lib/shard-weights.mjs
++++ b/scripts/lib/shard-weights.mjs
+@@ -47,6 +47,7 @@ export const TEST_FILE_WEIGHTS = Object.freeze({
+   'test/cli/lazy-command-imports.test.ts': 1.7,
+   'test/cli/entry-pin.test.ts': 0.5,
+   'test/cli/product-release.test.ts': 0.5,
++  'test/cli/count-lines.test.ts': 0.1,
+   'test/codex/app-server-replay.test.ts': 2,
+   'test/codex/context-hook.test.ts': 0.9,
+   'test/deliver/admission-policy.test.ts': 0.1,
+diff --git a/src/cli/count-lines.ts b/src/cli/count-lines.ts
+new file mode 100644
+index 0000000..6c1aead
+--- /dev/null
++++ b/src/cli/count-lines.ts
+@@ -0,0 +1,6 @@
++/** Count lines in text; a trailing newline does not start an extra line. */
++export function countLines(text: string): number {
++  if (text === '') return 0;
++  const newlines = text.split('\n').length - 1;
++  return text.endsWith('\n') ? newlines : newlines + 1;
++}
+diff --git a/test/cli/count-lines.test.ts b/test/cli/count-lines.test.ts
+new file mode 100644
+index 0000000..961612f
+--- /dev/null
++++ b/test/cli/count-lines.test.ts
+@@ -0,0 +1,22 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { countLines } from '../../src/cli/count-lines.ts';
++
++test('countLines returns 0 for empty text', () => {
++  assert.equal(countLines(''), 0);
++});
++
++test('countLines counts a final line without newline', () => {
++  assert.equal(countLines('a'), 1);
++  assert.equal(countLines('a\nb'), 2);
++});
++
++test('countLines ignores a trailing newline', () => {
++  assert.equal(countLines('a\n'), 1);
++  assert.equal(countLines('a\nb\n'), 2);
++});
++
++test('countLines counts blank lines', () => {
++  assert.equal(countLines('\n'), 1);
++  assert.equal(countLines('a\n\n'), 2);
++});
+--- status
+

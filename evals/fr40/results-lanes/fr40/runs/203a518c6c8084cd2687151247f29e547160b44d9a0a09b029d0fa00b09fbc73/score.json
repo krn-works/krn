@@ -1,0 +1,9 @@
+{
+  "runId": "203a518c6c8084cd2687151247f29e547160b44d9a0a09b029d0fa00b09fbc73",
+  "task": "fr40-trailer-env",
+  "arm": "A",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-trailer-env: commit \"Add parseFlag for boolean environment flags (t-8n1lr5n)\" lacks Ticket: t-8n1lr5n"
+}

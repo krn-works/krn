@@ -1,0 +1,9 @@
+{
+  "runId": "bfe7fa20531ef6d6a90ef9a9ee8e2d73dfe77d340aae6d5b1e3c6b63fa086b96",
+  "task": "fr40-commit-title-id-mask",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-commit-title-id-mask: every commit title ends with (t-3adae1l)"
+}

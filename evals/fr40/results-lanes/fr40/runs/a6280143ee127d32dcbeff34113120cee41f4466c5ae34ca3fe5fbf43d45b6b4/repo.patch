@@ -1,0 +1,66 @@
+commit fda3696e3a62aef77950254a75ba7c928c755c1b
+Add compareVersions semver helper (t-mpu3w44)
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/semver.ts b/src/cli/semver.ts
+new file mode 100644
+index 0000000..df185bd
+--- /dev/null
++++ b/src/cli/semver.ts
+@@ -0,0 +1,26 @@
++/**
++ * Orders dotted numeric versions such as `1.2.10`. Returns a negative number
++ * when `a` < `b`, positive when `a` > `b`, and 0 when equal. Missing parts
++ * count as 0, so `1.2` equals `1.2.0`.
++ */
++export function compareVersions(a: string, b: string): number {
++  const left = parse(a);
++  const right = parse(b);
++  const length = Math.max(left.length, right.length);
++  for (let i = 0; i < length; i++) {
++    const diff = (left[i] ?? 0) - (right[i] ?? 0);
++    if (diff !== 0) return diff < 0 ? -1 : 1;
++  }
++  return 0;
++}
++
++function parse(version: string): number[] {
++  return version.split('.').map((part) => {
++    if (!/^\d+$/.test(part)) {
++      throw new Error(
++        `Invalid dotted numeric version: ${JSON.stringify(version)}`,
++      );
++    }
++    return Number(part);
++  });
++}
+diff --git a/test/cli/semver.test.ts b/test/cli/semver.test.ts
+new file mode 100644
+index 0000000..6186a73
+--- /dev/null
++++ b/test/cli/semver.test.ts
+@@ -0,0 +1,20 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { compareVersions } from '../../src/cli/semver.ts';
++
++test('compareVersions orders numerically, not lexically', () => {
++  assert.equal(compareVersions('1.2.10', '1.2.9'), 1);
++  assert.equal(compareVersions('1.2.9', '1.2.10'), -1);
++  assert.equal(compareVersions('2.0.0', '10.0.0'), -1);
++});
++
++test('compareVersions treats missing parts as zero', () => {
++  assert.equal(compareVersions('1.2', '1.2.0'), 0);
++  assert.equal(compareVersions('1.2', '1.2.1'), -1);
++  assert.equal(compareVersions('1.3', '1.2.9'), 1);
++});
++
++test('compareVersions rejects non-numeric input', () => {
++  assert.throws(() => compareVersions('1.x', '1.0'), /Invalid/);
++  assert.throws(() => compareVersions('', '1.0'), /Invalid/);
++});
+--- status
+

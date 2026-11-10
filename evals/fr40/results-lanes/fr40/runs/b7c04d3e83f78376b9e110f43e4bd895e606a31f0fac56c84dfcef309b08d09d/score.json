@@ -1,0 +1,9 @@
+{
+  "runId": "b7c04d3e83f78376b9e110f43e4bd895e606a31f0fac56c84dfcef309b08d09d",
+  "task": "fr40-biome-clean-truncate",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-biome-clean-truncate: biome clean on 3 file(s)"
+}

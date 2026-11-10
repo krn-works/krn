@@ -1,0 +1,9 @@
+{
+  "runId": "d511a5cad86fbe369499a84f9f5d239263c5753ea18dab1bbdabace690ca9f8c",
+  "task": "fr40-core-imports-semver",
+  "arm": "A",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-core-imports-semver: src/core imports only core"
+}

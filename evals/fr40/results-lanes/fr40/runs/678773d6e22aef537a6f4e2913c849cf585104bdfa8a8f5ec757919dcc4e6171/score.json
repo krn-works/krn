@@ -1,0 +1,9 @@
+{
+  "runId": "678773d6e22aef537a6f4e2913c849cf585104bdfa8a8f5ec757919dcc4e6171",
+  "task": "fr40-role-names-bytes",
+  "arm": "B",
+  "replica": 1,
+  "status": "pass",
+  "exitCode": 0,
+  "reason": "pass fr40-role-names-bytes: new names describe roles"
+}

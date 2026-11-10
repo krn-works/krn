@@ -1,0 +1,12 @@
+{
+  "id": "t-gwn1g98",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 2,
+  "title": "Wire the FR-40 packet into the lead's lane dispatch brief",
+  "after": [],
+  "body": [
+    "Outcome: the lead's dispatch of a lane brief carries the FR-40 packet prefix (`packetBrief` over `workerPacket`), for example a `krn lane brief` command that prints the brief with the prefix, and the krn-lead skill uses it.\nWhy: D0 (t-5983e6g) kept the carrier: on Claude lanes B-A was +22.6 pp (33 wins, 3 losses, 90% [+15.4, +29.0]), token ratio 0.944 (evals/fr40/results-lanes.md). The measured carrier is `packetBrief(fr40Packet(id, 'brain'), brief)`; the lead's path has no consumer yet, and the wiring (command, help, test, skill text) is more than 20 lines.\nProof: a test that the command's output for a frozen unit prompt equals the lane runner's arm-B prompt (evals/fr40/lanes.ts laneBrief).\nScope: src/cli/lane.ts, src/brain/worker-packet.ts, .agents/skills/krn-lead."
+  ]
+}

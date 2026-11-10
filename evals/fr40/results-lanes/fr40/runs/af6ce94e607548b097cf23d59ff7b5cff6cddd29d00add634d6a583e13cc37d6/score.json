@@ -1,0 +1,9 @@
+{
+  "runId": "af6ce94e607548b097cf23d59ff7b5cff6cddd29d00add634d6a583e13cc37d6",
+  "task": "fr40-biome-clean-chunk",
+  "arm": "B",
+  "replica": 1,
+  "status": "fail",
+  "exitCode": 1,
+  "reason": "fail fr40-biome-clean-chunk: no commit after base"
+}

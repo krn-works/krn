@@ -1,0 +1,60 @@
+commit 18f3f4ef4706933f104e24540c330e4c0da32c24
+Add truncateMiddle helper for CLI output
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+
+
+diff --git a/src/cli/truncate.ts b/src/cli/truncate.ts
+new file mode 100644
+index 0000000..3fc12a5
+--- /dev/null
++++ b/src/cli/truncate.ts
+@@ -0,0 +1,17 @@
++const ELLIPSIS = '…';
++
++/** Shortens text to at most `max` characters, keeping both ends around an ellipsis. */
++export function truncateMiddle(text: string, max: number): string {
++  const chars = Array.from(text);
++  if (chars.length <= max) return text;
++  if (max <= 0) return '';
++  if (max === 1) return ELLIPSIS;
++  const keep = max - 1;
++  const head = Math.ceil(keep / 2);
++  const tail = keep - head;
++  return (
++    chars.slice(0, head).join('') +
++    ELLIPSIS +
++    (tail > 0 ? chars.slice(chars.length - tail).join('') : '')
++  );
++}
+diff --git a/test/cli/truncate.test.ts b/test/cli/truncate.test.ts
+new file mode 100644
+index 0000000..3a9c73c
+--- /dev/null
++++ b/test/cli/truncate.test.ts
+@@ -0,0 +1,23 @@
++import assert from 'node:assert/strict';
++import test from 'node:test';
++import { truncateMiddle } from '../../src/cli/truncate.ts';
++
++test('returns short text unchanged', () => {
++  assert.equal(truncateMiddle('hello', 5), 'hello');
++  assert.equal(truncateMiddle('hello', 10), 'hello');
++});
++
++test('keeps both ends around an ellipsis', () => {
++  assert.equal(truncateMiddle('abcdefghij', 6), 'abc…ij');
++  assert.equal(truncateMiddle('abcdefghij', 5), 'ab…ij');
++});
++
++test('handles tiny limits', () => {
++  assert.equal(truncateMiddle('abcdef', 1), '…');
++  assert.equal(truncateMiddle('abcdef', 0), '');
++  assert.equal(truncateMiddle('abcdef', 2), 'a…');
++});
++
++test('does not split surrogate pairs', () => {
++  assert.equal(truncateMiddle('😀😀😀😀😀', 3), '😀…😀');
++});
+--- status
+
