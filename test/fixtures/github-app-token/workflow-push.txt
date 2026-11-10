@@ -1,0 +1,4 @@
+To https://github.com/krn-works/krn.git
+ ! [remote rejected] app-wf-probe -> app-wf-probe (refusing to allow a GitHub App to create or update workflow `.github/workflows/ci.yml` without `workflows` permission)
+error: failed to push some refs to 'https://github.com/krn-works/krn.git'
+push exit=1

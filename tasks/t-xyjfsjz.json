@@ -1,7 +1,11 @@
 {
   "id": "t-xyjfsjz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "App krn-works-delivery (id 5696029) created by the lead with the operator's sudo; key and ids in Bitwarden item 'KRN delivery GitHub App'. Four write tests captured in test/fixtures/github-app-token: mint+re-mint after expiry, workflow push refused, ruleset PUT 403, and this PR shipped by krn pr ship under the App credential."
+  },
   "created": "2026-11-10",
   "priority": 2,
   "title": "Delivery sessions hold a credential that can only propose",
