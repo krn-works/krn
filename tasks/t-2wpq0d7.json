@@ -1,7 +1,11 @@
 {
   "id": "t-2wpq0d7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "window prints dollars per plan point for the five-hour and seven-day gauges; real samples 09:20-12:10Z: $0.19 and $0.57 per point"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "The plan gauge is sampled",

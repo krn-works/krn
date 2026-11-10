@@ -22,6 +22,7 @@ import {
   time,
   transcriptDirs,
 } from './ledger.ts';
+import { dollarsPerPoint, readPlanPoints } from './plan-gauge.ts';
 import { type Turn, turnDollars } from './slice-cost.ts';
 
 type Value = number | null;
@@ -313,8 +314,10 @@ export async function collectWindow(options: WindowOptions) {
       'databaseId,createdAt',
     ])
   ).length;
+  const plan = await readPlanPoints(root, from, to);
   return {
     window: { from: iso(from), to: iso(to) },
+    plan,
     prs: inWindow.map((p) => p.number),
     dollars: {
       lead: usd(total(lead)),
@@ -390,6 +393,15 @@ export function renderWindow(r: Awaited<ReturnType<typeof collectWindow>>) {
     lines.push(
       `  ${k.padEnd(28)} sessions=${String(c.sessions).padStart(3)} turns=${String(c.turns).padStart(5)} $${c.dollars.toFixed(2)}`,
     );
+  if (r.plan) {
+    const all = d.holdings.reduce((v, h) => v + h.dollars, 0);
+    const per = dollarsPerPoint(all, r.plan);
+    const fmt = (v: number | null) =>
+      v === null ? 'unknown' : `$${v.toFixed(2)}`;
+    lines.push(
+      `plan gauge (${r.plan.samples} samples): five-hour ${r.plan.fiveHour} points = ${fmt(per.fiveHour)}/point, seven-day ${r.plan.sevenDay} points = ${fmt(per.sevenDay)}/point (window total over points; per account, attributes nothing)`,
+    );
+  }
   if (d.unpricedTurns) lines.push(`unpriced turns: ${d.unpricedTurns}`);
   lines.push(
     `tasks ${r.tasks.count}, with >1 PR ${r.tasks.withMorePrs}, PRs without task id ${r.tasks.prsWithoutTask}`,
