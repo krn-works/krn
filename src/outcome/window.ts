@@ -1,5 +1,6 @@
 // The delivery window unit: merged PRs, dollars by session class, PRs per task, lead time, CI attempts, rework and main reds.
 import { resolve } from 'node:path';
+import { frameChanges, gateManifest } from './gate-manifest.ts';
 import {
   classifyLead,
   HOLDINGS,
@@ -82,6 +83,7 @@ export async function collectWindow(options: WindowOptions) {
   if (refusal) throw Object.assign(new Error(refusal), { exitCode: 64 });
   // Window lists are large (1000 runs or PRs with files), so a call may take longer than a row fetch.
   const run = options.run ?? callRun(90_000);
+  const manifest = gateManifest(root);
   const t0 = Date.now();
   const repo =
     options.repo ??
@@ -143,6 +145,15 @@ export async function collectWindow(options: WindowOptions) {
       merged: time(p.mergedAt),
       branch: string(p.headRefName),
       files: array(p.files).map((f) => string(object(f).path)),
+      frame: frameChanges(
+        array(p.files).map((f) => ({
+          path: string(object(f).path),
+          lines:
+            (number(object(f).additions) ?? 0) +
+            (number(object(f).deletions) ?? 0),
+        })),
+        manifest,
+      ),
     }))
     .filter((p) => p.merged !== null && p.created !== null) as {
     number: number;
@@ -151,6 +162,7 @@ export async function collectWindow(options: WindowOptions) {
     merged: number;
     branch: string;
     files: string[];
+    frame: ReturnType<typeof frameChanges>;
   }[];
   const inWindow = rows
     .filter((p) => p.merged >= from && p.merged < to)
@@ -341,6 +353,9 @@ export async function collectWindow(options: WindowOptions) {
       prsWithoutRun: attempts.filter((n) => n === 0).length,
     },
     rework: { prs: reworked.map((p) => p.number) },
+    frame: inWindow
+      .filter((p) => p.frame.length > 0)
+      .map((p) => ({ pr: p.number, changes: p.frame })),
     mainReds: reds,
     timingMs: { github, transcript },
   };
@@ -381,6 +396,7 @@ export function renderWindow(r: Awaited<ReturnType<typeof collectWindow>>) {
     `lead time created->merged min: median ${r.leadTimeMinutes.median ?? 'unknown'}, p90 ${r.leadTimeMinutes.p90 ?? 'unknown'}`,
     `Check attempts (CI runs incl. reruns on the PR branch): total ${r.checkAttempts.total}, PRs needing >1 ${r.checkAttempts.prsNeedingMore}, PRs with no run found ${r.checkAttempts.prsWithoutRun}`,
     `rework within 48h: ${r.rework.prs.length} PRs${r.rework.prs.length ? ` (${r.rework.prs.map((p) => `#${p}`).join(' ')})` : ''}`,
+    `frame PRs (gate producers and task check code): ${r.frame.length}${r.frame.length ? ` (${r.frame.map((p) => `#${p.pr} ${p.changes.map((c) => `${c.path} ${c.class} ${c.lines}`).join(', ')}`).join('; ')})` : ''}`,
     `main reds: ${r.mainReds}`,
     `timing: github ${r.timingMs.github} ms, transcripts ${r.timingMs.transcript} ms`,
   );

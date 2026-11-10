@@ -1,7 +1,11 @@
 {
   "id": "t-zr71d41",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "gate-manifest.ts and krn ledger --window report the frame; test reproduces 7, 9, 18 at 892dde7"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "The gate manifest, counted and reported",
@@ -10,6 +14,7 @@
     "t-scj2bqy"
   ],
   "body": [
-    "Outcome: one command lists every producer of the verdict in two classes and, for a commit range, the commits that touch each. Frame: workflows, composite actions, `package.json`, `scripts/test-suite.mjs`, `scripts/weak-tests.mjs`, `scripts/ci-changes.mjs` and their import closure, `biome.json` and the `.gitignore` it reads, `tsconfig*.json`, `mise.toml`, `scripts/commit-title.ts`, `src/ci/commit-title.ts`, `scripts/boundaries.ts`. Content: `src/task` and `src/cli` behind `task check` (`ci.yml:95-99`, loaded through a dynamic import at `src/cli/main.ts:9`), and the tests. `krn ledger --window` lists the PRs of the window that touched the frame, with the changed lines.\nWhy: the first manifest of this program named three scripts and missed the Lint job's verdict code (section 8, evidence 1 and migration 1). On the last 100 commits the frame is touched by 7 without the three validators and 9 with them; `task check` would add 9 more, 18 in all **[V]**. The report gives back, with no waiting, the visibility that ADR 0014:59 assigned to review.\nProof: a test with a captured `git log` reproduces 7, 9 and 18 at `892dde7` with the weights file excluded (the closure holds it until A1; with it the count is 32), and fails if a gate entry point gains a dynamic import.\nUndo: revert the PR.\nScope: a script under `scripts/`, `src/outcome`, one test.\nOrder: A1, A2 and A6 need nobody. A5 needs the operator once. A4 is a choice the operator can decline.\nCarries: the D30 gate amendment of adr-draft-gate-out-of-reach.md without its point (4); owner approval (A4) is not adopted.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice A2."
+    "Outcome: one command lists every producer of the verdict in two classes and, for a commit range, the commits that touch each. Frame: workflows, composite actions, `package.json`, `scripts/test-suite.mjs`, `scripts/weak-tests.mjs`, `scripts/ci-changes.mjs` and their import closure, `biome.json` and the `.gitignore` it reads, `tsconfig*.json`, `mise.toml`, `scripts/commit-title.ts`, `src/ci/commit-title.ts`, `scripts/boundaries.ts`. Content: `src/task` and `src/cli` behind `task check` (`ci.yml:95-99`, loaded through a dynamic import at `src/cli/main.ts:9`), and the tests. `krn ledger --window` lists the PRs of the window that touched the frame, with the changed lines.\nWhy: the first manifest of this program named three scripts and missed the Lint job's verdict code (section 8, evidence 1 and migration 1). On the last 100 commits the frame is touched by 7 without the three validators and 9 with them; `task check` would add 9 more, 18 in all **[V]**. The report gives back, with no waiting, the visibility that ADR 0014:59 assigned to review.\nProof: a test with a captured `git log` reproduces 7, 9 and 18 at `892dde7` with the weights file excluded (the closure holds it until A1; with it the count is 32), and fails if a gate entry point gains a dynamic import.\nUndo: revert the PR.\nScope: a script under `scripts/`, `src/outcome`, one test.\nOrder: A1, A2 and A6 need nobody. A5 needs the operator once. A4 is a choice the operator can decline.\nCarries: the D30 gate amendment of adr-draft-gate-out-of-reach.md without its point (4); owner approval (A4) is not adopted.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice A2.",
+    "After merge (A1's count of A2 over the next 50 PRs): `node scripts/gate-manifest.ts --last 50` from the main checkout prints runner, frame and with-task-check counts; `krn ledger --last 50` lists the frame PRs with changed lines."
   ]
 }
