@@ -11,7 +11,8 @@ import { fileURLToPath } from 'node:url';
 export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   core: [],
   fs: [],
-  outcome: [],
+  harness: [],
+  outcome: ['harness'],
   state: [],
   deliver: [],
   ci: ['deliver'],

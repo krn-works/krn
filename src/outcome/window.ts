@@ -1,5 +1,6 @@
 // The delivery window unit: merged PRs, dollars by session class, PRs per task, lead time, CI attempts, rework and main reds.
 import { resolve } from 'node:path';
+import { transcriptDirs } from '../harness/transcripts.ts';
 import { frameChanges, gateManifest } from './gate-manifest.ts';
 import {
   classifyLead,
@@ -20,7 +21,6 @@ import {
   sessions,
   string,
   time,
-  transcriptDirs,
 } from './ledger.ts';
 import { dollarsPerPoint, readPlanPoints } from './plan-gauge.ts';
 import { type Turn, turnDollars } from './slice-cost.ts';

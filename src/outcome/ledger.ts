@@ -1,8 +1,6 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { createReadStream } from 'node:fs';
 import { lstat, readdir, readFile, realpath } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import {
   basename,
   dirname,
@@ -12,8 +10,14 @@ import {
   resolve,
   sep,
 } from 'node:path';
-import { createInterface } from 'node:readline';
 import { promisify } from 'node:util';
+import {
+  subagentFiles,
+  type TranscriptFile,
+  transcriptDirs,
+  transcriptFiles,
+  transcriptLines,
+} from '../harness/transcripts.ts';
 import {
   addedLines,
   classifyOutcome,
@@ -438,48 +442,33 @@ async function walk(
   }
   return { files, dirs };
 }
-async function readSession(file: string, sidechain = false) {
+async function readSession(file: TranscriptFile, sidechain = false) {
   const parser = sessionParser(sidechain);
   try {
-    const lines = createInterface({
-      input: createReadStream(file),
-      crlfDelay: Infinity,
-    });
-    for await (const line of lines) parser.line(line);
-    return { ...parser.finish(), id: basename(file, '.jsonl') };
+    for await (const line of transcriptLines(file.path)) parser.line(line);
+    return { ...parser.finish(), id: file.id };
   } catch {
     /* One unreadable transcript does not abort the report. */
     return null;
   }
 }
-async function jsonlFiles(path: string) {
-  try {
-    return (await readdir(path, { withFileTypes: true }))
-      .filter((e) => e.isFile() && e.name.endsWith('.jsonl'))
-      .map((e) => join(path, e.name));
-  } catch {
-    return [];
-  }
-}
 // Lead sessions are the top-level transcripts; each session's subagents live in <session>/subagents/.
 export async function sessions(paths: string[]) {
-  const files = (await Promise.all(paths.map(jsonlFiles))).flat();
+  const files = await transcriptFiles(paths);
   // Files are read concurrently so disk waits overlap; results keep file order.
   const entries = await mapLimited(files, FILE_CONCURRENCY, async (file) => {
     const session = await readSession(file);
     if (!session) return null;
-    const subs = await jsonlFiles(
-      join(file.slice(0, -'.jsonl'.length), 'subagents'),
-    );
+    const subs = await subagentFiles(file.path);
     const subagents = await mapLimited(subs, FILE_CONCURRENCY, async (sub) => {
       const parsed = await readSession(sub, true);
       if (!parsed) return null;
-      const meta = object(parse(await read(`${sub.slice(0, -6)}.meta.json`)));
+      const meta = object(parse(sub.meta));
       const transcript: Transcript = {
         role: `subagent:${string(meta.agentType) || 'unknown'}`,
         turns: parsed.turns,
         malformed: parsed.malformed,
-        lead: basename(file, '.jsonl'),
+        lead: file.id,
         ...(string(meta.toolUseId)
           ? { parentTool: string(meta.toolUseId) }
           : {}),
@@ -496,27 +485,6 @@ export async function sessions(paths: string[]) {
     for (const sub of entry.subagents) if (sub) subagents.push(sub);
   }
   return { lead, subagents };
-}
-/**
- * Claude project directories whose session cwd is the root or one of its
- * `.krn/worktrees/*` checkouts: the root-derived name plus its
- * `--krn-worktrees-` variants (a sibling such as `<root>-betting` never matches).
- */
-export async function transcriptDirs(
-  root: string,
-  projects = join(homedir(), '.claude/projects'),
-): Promise<string[]> {
-  const base = root.replaceAll(sep, '-');
-  const worktrees = `${base}--krn-worktrees-`;
-  let names: string[] = [];
-  try {
-    names = (await readdir(projects)).filter(
-      (n) => n === base || n.startsWith(worktrees),
-    );
-  } catch {
-    names = [base];
-  }
-  return names.sort().map((n) => join(projects, n));
 }
 const OUTCOME_DAYS = 7;
 /**
