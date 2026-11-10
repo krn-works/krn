@@ -1,0 +1,12 @@
+{
+  "id": "t-hn9nq2d",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "The window leads with total dollars and points per merged PR",
+  "after": [],
+  "body": [
+    "Outcome: the first line of `krn ledger` is window total per merged PR, points per PR and the non-delivery share; the delivery-only figure follows.\nWhy: the $0.52 headline hides that four dollars in five merged nothing.\nProof: a test on a fixed window sees the three numbers and their sum to the cent.\nScope: `src/cli/ledger.ts`, `src/outcome/ledger.ts`, their tests. Under 1 point.\nProgram: .krn/runs/krn-program-v2/06-program.md section 2, slice S2.\nOperator order 2026-11-10: \"Odpalaj\" (program v2 planned on Fable)."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-3r6j7r4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "Operator decisions are rows with a recommendation, a default and a deadline",
+  "after": [],
+  "body": [
+    "Outcome: `krn decide add|list|close` stores decisions under `.krn/operator/`; the daily housekeeping run prints the open ones once.\nWhy: t-sd9a490 has waited since 2026-11-09 on a sentence in a task body.\nProof: a test adds a row, sees it listed with its deadline, and sees `close` record who decided.\nScope: a new `src/cli/decide.ts`, `src/cli/index.ts`, the housekeeping script, tests. Under 1 point.\nProgram: .krn/runs/krn-program-v2/06-program.md section 2, slice S4.\nOperator order 2026-11-10: \"Odpalaj\" (program v2 planned on Fable)."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-maf9wd0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "One task runs from its record in one call",
+  "after": [],
+  "body": [
+    "Outcome: `krn lane run --task <id>` starts the worktree, runs one headless session whose brief is the task body, ships through `krn pr ship`, and prints one verdict line.\nWhy: C3's replays cost $0.23 a task from a written record.\nProof: a test drives the verb against a verbatim capture of a headless session's JSON result (KRN-12) and sees the verdict line for success, no commit, and a dirty tree.\nScope: `src/cli/lane.ts`, a new `src/cli/lane-run.ts`, `test/cli`. About 1 point.\nProgram: .krn/runs/krn-program-v2/06-program.md section 2, slice S1.\nOperator order 2026-11-10: \"Odpalaj\" (program v2 planned on Fable)."
+  ]
+}

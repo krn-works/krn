@@ -1,0 +1,12 @@
+{
+  "id": "t-3knx8w0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "A plan sample names its account and both resets",
+  "after": [],
+  "body": [
+    "Outcome: each row of `.krn/plan/samples.jsonl` carries a hashed account label and the five-hour and seven-day reset times.\nWhy: rows hold `time, session, five_hour, seven_day` only.\nProof: a test feeds a verbatim status-line payload and reads the new fields; an old row still parses.\nScope: the status-line sampler and its test; no printing (S10). Under 1 point.\nProgram: .krn/runs/krn-program-v2/06-program.md section 2, slice S3.\nOperator order 2026-11-10: \"Odpalaj\" (program v2 planned on Fable)."
+  ]
+}

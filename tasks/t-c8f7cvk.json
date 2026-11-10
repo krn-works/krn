@@ -1,0 +1,12 @@
+{
+  "id": "t-c8f7cvk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "Dead surface leaves",
+  "after": [],
+  "body": [
+    "Outcome: the duplicate `memory-budget.ts` registration (`.claude/settings.json:91,97`) and the 43 exports nobody imports are gone.\nProof: `scripts/architecture/depth.ts` reports 0 unimported exports outside the files of S1 to S4.\nScope: `.claude/settings.json`, `src` except those files. Under 1 point.\nProgram: .krn/runs/krn-program-v2/06-program.md section 2, slice S5.\nOperator order 2026-11-10: \"Odpalaj\" (program v2 planned on Fable)."
+  ]
+}
