@@ -1,0 +1,12 @@
+{
+  "id": "t-4qmnqda",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "krn adopt <path> writes the adoption set",
+  "after": [],
+  "body": [
+    "Outcome: task directory, generated rules file and the Check workflow call, written into a named repository. Proof: a test against a scratch repository. Writing to a real repository waits for decision 1.\nProgram: .krn/runs/krn-program-v2/06-program.md section 2, slice S11.\nOperator order 2026-11-10: \"Odpalaj\" (program v2 planned on Fable)."
+  ]
+}

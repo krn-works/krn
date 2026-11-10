@@ -1,0 +1,12 @@
+{
+  "id": "t-my76kz1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "One hook entry for the Bash guards",
+  "after": [],
+  "body": [
+    "Outcome: five PreToolUse guards run in one process. Proof: the guard tests, unchanged.\nProgram: .krn/runs/krn-program-v2/06-program.md section 2, slice S12.\nOperator order 2026-11-10: \"Odpalaj\" (program v2 planned on Fable)."
+  ]
+}
