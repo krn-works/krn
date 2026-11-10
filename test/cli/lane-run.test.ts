@@ -14,7 +14,11 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { startLane } from '../../src/cli/lane.ts';
-import { laneRunCommand, parseSessionResult } from '../../src/cli/lane-run.ts';
+import {
+  laneRunCommand,
+  parseSessionResult,
+  sandboxPlaceholders,
+} from '../../src/cli/lane-run.ts';
 
 // KRN-12: the session result is a verbatim `claude -p --output-format json` capture;
 // a stand-in claude executable prints it, the repositories are real git repositories.
@@ -124,6 +128,28 @@ test('lane run reports no commit and keeps the worktree', async () => {
     verdict.line,
     /^lane t-abc1234: no commit \(worktree .+\) cost \$0\.09$/u,
   );
+});
+
+test('sandboxPlaceholders keeps only untracked empty regular files', () => {
+  const sizes: Record<string, number> = {
+    '.env': 0,
+    '.npmrc': 0,
+    'note.txt': 3,
+  };
+  const found = sandboxPlaceholders(
+    '?? .env\0?? .npmrc\0?? note.txt\0 M tracked.ts\0',
+    (path) => ({ isFile: () => true, size: sizes[path] ?? 1 }),
+  );
+  assert.deepEqual(found, ['.env', '.npmrc']);
+});
+
+test('lane run removes empty sandbox placeholders before the dirty-tree check', async () => {
+  const { verdict } = await run(
+    ': > .env; : > .npmrc; : > yarn.lock; git commit -q --allow-empty -m "feat: x (t-abc1234)"',
+    async () => 'verdict: shipped',
+  );
+  assert.equal(verdict.exitCode, 0);
+  assert.match(verdict.line, /^lane t-abc1234: shipped verdict: shipped/u);
 });
 
 test('lane run reports a dirty tree and does not ship', async () => {
