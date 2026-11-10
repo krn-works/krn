@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 /**
  * Allowed imports per src area (src/<dir>). An entry is another area name, a top-level directory as
  * `root:<dir>`, or an exact repo-relative file.
- * Core imports nothing. Mutual pairs (hosts/worker, cli/evals, cli/task) are accepted couplings, not a rule.
+ * Core imports nothing. Mutual pairs (cli/task) are accepted couplings, not a rule.
  */
 export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   core: [],
@@ -15,24 +15,11 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   state: [],
   deliver: [],
   ci: ['deliver'],
-  worker: ['hosts', 'src/cli/flag-value.ts', 'src/brain/worker-packet.ts'],
-  hosts: ['worker'],
-  flow: ['hosts', 'src/cli/flag-value.ts'],
   task: ['cli', 'fs'],
   evals: ['cli', 'hosts'],
+  hosts: [],
   brain: ['cli', 'evals/fr40/tasks.ts'],
-  cli: [
-    'brain',
-    'ci',
-    'core',
-    'evals',
-    'flow',
-    'hosts',
-    'outcome',
-    'state',
-    'task',
-    'worker',
-  ],
+  cli: ['brain', 'ci', 'core', 'outcome', 'state', 'task'],
 };
 
 export type Violation = {

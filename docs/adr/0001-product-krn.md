@@ -16,7 +16,7 @@ module status or behavioral qualification.
 ## Decision
 
 Create one private package with `core`, `relay`, `foreman`, `ledger`,
-`verdict`, `memory`, `trace`, `hosts`, and `cli` modules. Unknown commands
+`verdict`, `memory`, `trace`, `hosts`, and `cli` modules (`hosts` left with the worker, ADR 0014 D23 worker amendment). Unknown commands
 forward through the legacy boundary with a recursion guard. Repository rules
 live in `spec/rules.json` and generate `AGENTS.md`.
 

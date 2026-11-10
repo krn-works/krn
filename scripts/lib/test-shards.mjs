@@ -13,10 +13,7 @@ const COUNT_FIELDS = [
   'cancelled',
 ];
 
-export const SERIAL_TEST_REASONS = Object.freeze({
-  'test/hosts/codex-stale-scope.test.ts':
-    'asserts systemd scope teardown within the configured runtime grace plus 1.5 seconds',
-});
+export const SERIAL_TEST_REASONS = Object.freeze({});
 
 export const SERIAL_TEST_FILES = Object.freeze(
   Object.keys(SERIAL_TEST_REASONS),

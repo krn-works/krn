@@ -10,7 +10,7 @@ async function dispatch(args: string[]): Promise<boolean> {
 }
 
 // Removed commands fail like unknown ones, by name, and never reach another binary (KRN-06).
-const retiredCommands: readonly string[] = ['review'];
+const retiredCommands: readonly string[] = ['review', 'worker', 'eval'];
 
 export function main(args = process.argv.slice(2)): void {
   const help = commandHelp(args);
@@ -29,18 +29,9 @@ export function main(args = process.argv.slice(2)): void {
   }
 
   if (
-    [
-      'ledger',
-      'task',
-      'worker',
-      'eval',
-      'ci',
-      'pr',
-      'doctor',
-      'brain',
-      'state',
-      'lane',
-    ].includes(args[0] ?? '')
+    ['ledger', 'task', 'ci', 'pr', 'doctor', 'brain', 'state', 'lane'].includes(
+      args[0] ?? '',
+    )
   ) {
     void dispatch(args).catch((error: unknown) => {
       process.stderr.write(

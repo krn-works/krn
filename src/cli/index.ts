@@ -20,9 +20,6 @@ export async function dispatch(args: string[]): Promise<boolean> {
   } else if (command === 'pr') {
     const { prCommand } = await import('./pr.ts');
     await prCommand(options);
-  } else if (command === 'worker') {
-    const { workerCommand } = await import('../worker/cli.ts');
-    await workerCommand(options);
   } else if (command === 'task') {
     if (process.env.KRN_FORWARDED !== undefined) {
       // The host entry forwarded this call: refuse a stale or unpinned build.
@@ -50,9 +47,6 @@ export async function dispatch(args: string[]): Promise<boolean> {
   } else if (command === 'brain') {
     const { brainCommand } = await import('../brain/cli.ts');
     await brainCommand(options);
-  } else if (command === 'eval') {
-    const { evalCommand } = await import('../evals/cli.ts');
-    await evalCommand(options);
   } else return false;
   return true;
 }

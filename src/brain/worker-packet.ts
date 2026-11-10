@@ -1,4 +1,4 @@
-// Brain packet for a `krn worker` brief (ADR 0002, FR-40 GO): the arm-B selection over the
+// Brain packet for a lane brief (ADR 0002, FR-40 GO): the arm-B selection over the
 // seven conventions FR-40 measured, prepended to the brief and recorded with the run.
 // The records are the target repository's own: a repository without them gets no packet.
 import { existsSync, readFileSync } from 'node:fs';

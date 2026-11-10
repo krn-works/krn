@@ -38,61 +38,6 @@
       ],
       "test": "test/deliver/transport-capture.test.ts"
     },
-    "src/evals/check-paths.ts": {
-      "receivers": ["node"],
-      "real": "test/evals/checks-slot-paths.test.ts"
-    },
-    "src/evals/check-shims.ts": {
-      "receivers": ["sh", "node"],
-      "real": "test/evals/checks-arguments.test.ts"
-    },
-    "src/evals/checks.ts": {
-      "receivers": ["bwrap", "node"],
-      "real": "test/evals/checks-scripts.test.ts"
-    },
-    "src/evals/mask.ts": {
-      "receivers": ["bwrap"],
-      "real": "test/evals/session-mask.test.ts"
-    },
-    "src/evals/receiver.ts": {
-      "receivers": ["codex"],
-      "capture": ["test/fixtures/eval/codex-0.167.0/version.stdout.txt"],
-      "test": "test/evals/codex-receiver.test.ts"
-    },
-    "src/evals/score.ts": {
-      "receivers": ["node"],
-      "real": "test/evals/fr40-report.test.ts"
-    },
-    "src/evals/workspace.ts": {
-      "receivers": ["git"],
-      "real": "test/evals/workspace.test.ts"
-    },
-    "src/hosts/codex-app-server.ts": {
-      "receivers": ["codex app-server"],
-      "capture": [
-        "test/fixtures/codex-app-server/compact.rpc",
-        "test/fixtures/codex-app-server/failed-turn.rpc",
-        "test/fixtures/codex-app-server/interrupt.rpc"
-      ],
-      "test": "test/worker/codex-replay.test.ts"
-    },
-    "src/hosts/codex.ts": {
-      "receivers": ["codex exec"],
-      "capture": ["test/fixtures/codex-cli-0.167.0/exec-pass.stdout.jsonl"],
-      "test": "test/hosts/codex-exec-capture.test.ts"
-    },
-    "src/hosts/codex-probe.ts": {
-      "receivers": ["codex app-server --print-startup-config"],
-      "capture": [
-        "test/fixtures/codex-app-server-startup/startup-config.stdout.txt",
-        "test/fixtures/codex-app-server-startup/startup-config-invalid.stdout.txt"
-      ],
-      "test": "test/hosts/codex-probe.test.ts"
-    },
-    "src/hosts/systemd-scope.ts": {
-      "receivers": ["systemd-run", "systemctl"],
-      "real": "test/hosts/systemd-scope-collect.test.ts"
-    },
     "src/cli/lane.ts": {
       "receivers": ["git"],
       "real": "test/cli/lane.test.ts"
@@ -139,32 +84,21 @@
       "receivers": ["git"],
       "real": "test/task/task.test.ts"
     },
-    "src/worker/acceptance.ts": {
+    "src/evals/mask.ts": {
+      "receivers": ["bwrap"],
+      "pending": "t-98q8pe5"
+    },
+    "src/evals/receiver.ts": {
       "receivers": ["codex"],
-      "capture": ["test/fixtures/codex-cli-0.167.0/sandbox-observer.log"],
-      "test": "test/worker/acceptance-capture.test.ts"
+      "pending": "t-98q8pe5"
     },
-    "src/worker/cli.ts": {
-      "receivers": ["codex app-server", "git"],
-      "capture": [
-        "test/fixtures/codex-app-server/compact.rpc",
-        "test/fixtures/codex-app-server/failed-turn.rpc",
-        "test/fixtures/codex-app-server/interrupt.rpc"
-      ],
-      "test": "test/worker/codex-replay.test.ts"
+    "src/evals/score.ts": {
+      "receivers": ["node"],
+      "pending": "t-98q8pe5"
     },
-    "src/worker/git.ts": {
-      "receivers": ["git"],
-      "real": "test/worker/shared-refs.test.ts"
-    },
-    "src/worker/isolation.ts": {
-      "receivers": ["codex mcp list"],
-      "capture": ["test/fixtures/codex-cli-0.167.0/mcp-list.stdout.json"],
-      "test": "test/worker/isolation.test.ts"
-    },
-    "src/worker/untracked.ts": {
-      "receivers": ["git"],
-      "real": "test/worker/hardening-baseline.test.ts"
+    "src/hosts/systemd-scope.ts": {
+      "receivers": ["systemd-run", "systemctl"],
+      "pending": "t-98q8pe5"
     }
   }
 }

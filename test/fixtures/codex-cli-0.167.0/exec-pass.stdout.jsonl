@@ -1,7 +1,0 @@
-{"type":"thread.started","thread_id":"01a1bb0d-2913-7db1-8a68-681c3ee3bf7e"}
-{"type":"turn.started"}
-{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"Sprawdzę zawartość `one.ts` bez wprowadzania zmian."}}
-{"type":"item.started","item":{"id":"item_1","type":"command_execution","command":"/usr/bin/bash -lc 'cat one.ts'","aggregated_output":"","exit_code":null,"status":"in_progress"}}
-{"type":"item.completed","item":{"id":"item_1","type":"command_execution","command":"/usr/bin/bash -lc 'cat one.ts'","aggregated_output":"export const one = 1;\n","exit_code":0,"status":"completed"}}
-{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"{\"verdict\":\"PASS\",\"findings\":[]}"}}
-{"type":"turn.completed","usage":{"input_tokens":37671,"cached_input_tokens":22784,"cache_write_input_tokens":0,"output_tokens":73,"reasoning_output_tokens":0}}

@@ -7,10 +7,8 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const readerUsers = [
   'src/cli/ledger.ts',
-  'src/evals/cli.ts',
   'src/evals/session.ts',
   'src/task/cli.ts',
-  'src/worker/cli.ts',
 ];
 // `!value || value.startsWith('--')` rejects free-text values such as `--note "--x"`.
 const missingValueShape = /\|\|\s*[\w.[\]]+\.startsWith\(\s*['"`]--['"`]\s*\)/;

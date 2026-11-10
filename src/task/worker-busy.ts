@@ -36,7 +36,7 @@ export function assertWorkerIdle(root: string): void {
           } catch {
             // An unreadable or oversized session may still be live: refuse.
             throw new WorkerBusyError(
-              `cannot read worker session ${child}; run krn worker stop --run ${dirname(child)}`,
+              `cannot read session ${child}; stop its process and remove ${dirname(child)}`,
             );
           }
           let data: unknown;
@@ -52,7 +52,7 @@ export function assertWorkerIdle(root: string): void {
             data.status === 'running'
           )
             throw new WorkerBusyError(
-              `worktree ${root} has an open worker session ${child}; run krn worker stop --run ${dirname(child)}`,
+              `worktree ${root} has a running session ${child}; stop its process and remove ${dirname(child)}`,
             );
         }
       }

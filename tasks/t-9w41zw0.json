@@ -1,7 +1,11 @@
 {
   "id": "t-9w41zw0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "worker, hosts and evals removed; FR-40 lane carrier and its transitive modules kept (follow-up t-98q8pe5)"
+  },
   "created": "2026-11-10",
   "priority": 2,
   "title": "Worker, hosts and evals leave",

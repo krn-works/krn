@@ -31,7 +31,7 @@ The lead follows the project skills in `.agents/skills` (also exposed to Claude 
 Merges go through `gh pr merge --auto --squash` once the `Check` passes; the `main integrity` ruleset requires it and allows only squash, so a PR is one commit on main. Bodies follow `.github/pull_request_template.md`; retro edits ride in the slice PR.
 
 - **Lead:** follows [lead rules](lead-rules.md) and owns the outcome loop. Do not treat a task update or worker handoff as acceptance.
-- **Worker:** optional Codex delegation (`krn worker start|send|stop`) for bounded work; it returns uncommitted changes, evidence and limits, and the lead commits. Use `codex exec --resume` only for an interrupted run.
+- **Worker:** a lane is a subagent of the lead session in its own worktree (`krn lane start`); it ships its own PR.
 - **Judge:** an optional independent review against an exact head SHA; authors never judge their own work.
 
 Use one writer per outcome at a time and transfer the writer role explicitly before a mutating handoff. Parallel implementation uses isolated worktrees and returns through one integrator; independent read-only work may run in parallel. Reuse recorded authority for the same outcome's commit, push, PR, and merge without repeating per-step prompts.

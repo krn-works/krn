@@ -143,11 +143,12 @@ test('shard selection puts every test file in exactly one of the runner shards',
     const parallelLoads = selections.map((selection) =>
       weightOf(selection.filter((file) => !SERIAL_TEST_FILES.includes(file))),
     );
-    assert.equal(
-      parallelLoads[carrier],
-      Math.min(...parallelLoads),
-      `total ${total}: the serial runner must carry the least parallel work`,
-    );
+    if (carrier !== -1)
+      assert.equal(
+        parallelLoads[carrier],
+        Math.min(...parallelLoads),
+        `total ${total}: the serial runner must carry the least parallel work`,
+      );
   }
   assert.throws(() => selectTestShardFiles(files, 0, 3), /between 1/u);
   assert.throws(() => selectTestShardFiles(files, 4, 3), /between 1/u);
