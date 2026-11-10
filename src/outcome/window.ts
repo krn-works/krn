@@ -363,10 +363,36 @@ export async function collectWindow(options: WindowOptions) {
     timingMs: { github, transcript },
   };
 }
+/** The leading line: window total per merged PR, points per PR, and the share of dollars outside delivery. */
+export function windowHeadline(r: {
+  prs: number[];
+  plan: { fiveHour: number } | null;
+  dollars: {
+    transcriptTurns: number;
+    holdings: { name: string; dollars: number }[];
+  };
+}): string | null {
+  const n = r.prs.length;
+  const cents = r.dollars.holdings.map((h) => Math.round(h.dollars * 100));
+  const all = cents.reduce((v, c) => v + c, 0);
+  if (r.dollars.transcriptTurns === 0 || n === 0 || all === 0) return null;
+  const delivery = r.dollars.holdings
+    .filter((h) => h.name.startsWith('delivery'))
+    .reduce((v, h) => v + Math.round(h.dollars * 100), 0);
+  const other = all - delivery;
+  const points = r.plan
+    ? `${(r.plan.fiveHour / n).toFixed(2)} five-hour points/PR`
+    : 'points/PR unknown';
+  return `$${(all / 100 / n).toFixed(2)}/merged PR (window total $${(all / 100).toFixed(2)} over ${n} PRs), ${points}, non-delivery ${((other / all) * 100).toFixed(0)}% ($${(other / 100).toFixed(2)}); delivery only $${(delivery / 100 / n).toFixed(2)}/PR`;
+}
 export function renderWindow(r: Awaited<ReturnType<typeof collectWindow>>) {
   const d = r.dollars;
   const n = Math.max(r.prs.length, 1);
-  const lines = [`${r.window.from}..${r.window.to}: ${r.prs.length} PRs`];
+  const headline = windowHeadline(r);
+  const lines = [
+    ...(headline ? [headline] : []),
+    `${r.window.from}..${r.window.to}: ${r.prs.length} PRs`,
+  ];
   if (d.transcriptTurns === 0)
     lines.push(
       `NO TRANSCRIPT TURNS in the window (${d.transcriptDirs} transcript dirs searched): dollars are unknown, not $0.00; check --root or --transcripts`,

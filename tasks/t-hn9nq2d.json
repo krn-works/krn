@@ -1,7 +1,11 @@
 {
   "id": "t-hn9nq2d",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "window headline leads with total dollars and points per merged PR; implemented in src/outcome/window.ts where the window renders"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "The window leads with total dollars and points per merged PR",

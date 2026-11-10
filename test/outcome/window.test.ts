@@ -6,7 +6,11 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { turnDollars, usageOf } from '../../src/outcome/slice-cost.ts';
-import { collectWindow, renderWindow } from '../../src/outcome/window.ts';
+import {
+  collectWindow,
+  renderWindow,
+  windowHeadline,
+} from '../../src/outcome/window.ts';
 
 const dollars = (model: string, usage: Record<string, number>) =>
   turnDollars({ model, usage: usageOf(usage), at: null, text: '', tools: [] });
@@ -287,4 +291,30 @@ test('the window names who held its dollars and the lines sum to the total', asy
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test('the window headline leads with total dollars and points per merged PR and the non-delivery share', () => {
+  const report = {
+    prs: [1, 2, 3, 4, 5],
+    plan: { fiveHour: 10 },
+    dollars: {
+      transcriptTurns: 9,
+      holdings: [
+        { name: 'delivery lead', dollars: 10.01 },
+        { name: 'delivery lane', dollars: 4.99 },
+        { name: 'research', dollars: 40 },
+        { name: 'other', dollars: 45 },
+      ],
+    },
+  };
+  const headline = windowHeadline(report) ?? '';
+  // 100.00 over 5 PRs; 15.00 delivery; 85 of 100 outside it; the cents add up.
+  assert.match(
+    headline,
+    /^\$20\.00\/merged PR \(window total \$100\.00 over 5 PRs\)/,
+  );
+  assert.match(headline, /2\.00 five-hour points\/PR/);
+  assert.match(headline, /non-delivery 85% \(\$85\.00\)/);
+  assert.match(headline, /delivery only \$3\.00\/PR/);
+  assert.equal(windowHeadline({ ...report, prs: [] }), null);
 });
