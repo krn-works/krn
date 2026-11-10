@@ -61,16 +61,18 @@ export function configuredTestShardCount(override, coreCount) {
   return count;
 }
 
-const MEDIAN_WEIGHT = (() => {
-  const sorted = Object.values(TEST_FILE_WEIGHTS).sort((a, b) => a - b);
+function medianWeight(weights) {
+  const sorted = Object.values(weights).sort((a, b) => a - b);
   return sorted[Math.floor(sorted.length / 2)] ?? 1;
-})();
+}
 
 // Measured seconds when recorded; otherwise the file size ranks it among its
 // unmeasured peers and the median keeps it commensurate with measured files.
-export function fileWeight(file, size) {
-  const measured = TEST_FILE_WEIGHTS[normalizedFile(file)];
-  return measured ?? (size > 0 ? Math.max(1, size / 4096) : MEDIAN_WEIGHT);
+export function fileWeight(file, size, weights = TEST_FILE_WEIGHTS) {
+  const measured = weights[normalizedFile(file)];
+  return (
+    measured ?? (size > 0 ? Math.max(1, size / 4096) : medianWeight(weights))
+  );
 }
 
 // A family is the files in one directory whose names share their first word,
@@ -107,6 +109,7 @@ export function planTestShards(
   shardCount,
   serialFiles = SERIAL_TEST_FILES,
   seedWeights = [],
+  weights = TEST_FILE_WEIGHTS,
 ) {
   if (!Number.isSafeInteger(shardCount) || shardCount < 1)
     throw new Error('test shard count must be a positive integer');
@@ -123,9 +126,9 @@ export function planTestShards(
     .map((file) => {
       try {
         const size = statSync(file).size;
-        return { file, size: fileWeight(file, size) };
+        return { file, size: fileWeight(file, size, weights) };
       } catch {
-        return { file, size: fileWeight(file, 0) };
+        return { file, size: fileWeight(file, 0, weights) };
       }
     })
     .sort(
