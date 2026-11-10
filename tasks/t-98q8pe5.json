@@ -1,7 +1,11 @@
 {
   "id": "t-98q8pe5",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "src/evals and src/hosts/systemd-scope deleted with their receivers.json entries in PR 565 (sandboxed lane); evals/fr40 inlines what it needs"
+  },
   "created": "2026-11-10",
   "priority": 3,
   "title": "FR-40 lane runner keeps Codex-era modules without receiver evidence",
