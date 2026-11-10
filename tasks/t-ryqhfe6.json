@@ -1,7 +1,11 @@
 {
   "id": "t-ryqhfe6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Measured: 23% of 110 operator rows joined to a task, 92% of those closed done, median prompt-to-merge 0.1 h; 45 rows have no disposition, so the mechanical field is a task id on the inbox row (see body)"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "Intent to task, measured",
@@ -9,6 +13,7 @@
     "t-bs1ytt2"
   ],
   "body": [
-    "Outcome: for one week of operator rows in the inbox, the share that became a task, the share whose task closed done, and the time from the prompt to the merge, joined by hand from the \"Operator requests\" lines of the handoffs.\nWhy: the brief's first step has no record: nothing joins a prompt to a task. The tracker alone shows 200 of 533 tasks closed other than done, 187 in one triage on 11-07 and 3 of the 164 created since **[V]**; two of the three are intent losses (`t-jzdybq2`, `t-ps3ap2e`), which is a cleared backlog and a first sample, and says nothing about prompts that never became a task.\nProof: a table; if every operator row of the week has a task and at most one in ten is still open after a day, the slice closes with that answer and nothing is built. Otherwise the task records which field (an origin on the task, or a task id on the inbox row) would have made the join mechanical.\nScope: a script under `scripts/claude/`, read-only.\nOrder: B1, B2, B3; then the two measurements B6 and B7; B4 when the operator adds the line; B5 last.\nOrder: after B2.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice B7."
+    "Outcome: for one week of operator rows in the inbox, the share that became a task, the share whose task closed done, and the time from the prompt to the merge, joined by hand from the \"Operator requests\" lines of the handoffs.\nWhy: the brief's first step has no record: nothing joins a prompt to a task. The tracker alone shows 200 of 533 tasks closed other than done, 187 in one triage on 11-07 and 3 of the 164 created since **[V]**; two of the three are intent losses (`t-jzdybq2`, `t-ps3ap2e`), which is a cleared backlog and a first sample, and says nothing about prompts that never became a task.\nProof: a table; if every operator row of the week has a task and at most one in ten is still open after a day, the slice closes with that answer and nothing is built. Otherwise the task records which field (an origin on the task, or a task id on the inbox row) would have made the join mechanical.\nScope: a script under `scripts/claude/`, read-only.\nOrder: B1, B2, B3; then the two measurements B6 and B7; B4 when the operator adds the line; B5 last.\nOrder: after B2.\nProgram: .krn/runs/krn-architecture-program/05-program.md section 4, slice B7.",
+    "Measured 2026-11-10 with `node scripts/claude/intent-to-task.ts --from 2026-11-03 --to 2026-11-10 --rows`. The inbox holds rows only from 2026-11-07T14:50Z (315 rows, 3.8 days of the week). 22 are harness wrappers and 183 launcher prompts (98 successor-launch, relay.sh templates and disposition refs naming a launch), leaving 110 operator rows. Of those 25 (23%) joined to a task, 23 of them (92%) closed done, 0 of 25 still open after a day, median prompt to closing merge 0.1 h over 22 rows (max 3.1 h). The other 85: 18 memory, 22 chat answers, 45 with no disposition at all (41%), some real directives. Verdict: not every operator row has a task, so nothing closes by default. The missing field is a task id (or an explicit none) on the inbox row at the moment of disposition: today the join is a free-text ref parsed for t-ids and 45 rows were never disposed, so intent loss is invisible. Caveat: the 0.1 h median is of prompts that already steered work in flight; the join cannot see prompts that started nothing."
   ]
 }
