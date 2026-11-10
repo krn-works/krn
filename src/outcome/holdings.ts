@@ -11,7 +11,7 @@ export const HOLDINGS = [
   'non-delivery: other',
 ] as const;
 export type Holding = (typeof HOLDINGS)[number];
-export type SessionClass = 'delivery' | 'non-delivery';
+type SessionClass = 'delivery' | 'non-delivery';
 
 /** Launchers record each session's class once in `.krn/operator/sessions.jsonl`. */
 export async function sessionMarkers(
@@ -61,7 +61,7 @@ export function classifyLead(
 /** A lane works in a worktree: it starts one or changes into one, by path. */
 const laneCommand =
   /\bkrn lane start\b|\bcd\s+\S*\.krn\/worktrees\/|git -C\s+\S*\.krn\/worktrees\//;
-export const isLane = (sub: Transcript): boolean =>
+const isLane = (sub: Transcript): boolean =>
   sub.turns.some((t) => laneCommand.test(t.text));
 
 export function holdingOf(

@@ -1,7 +1,11 @@
 {
   "id": "t-c8f7cvk",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "hook merged into one registration; 43 unimported exports removed or deleted; depth reports 0"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "Dead surface leaves",

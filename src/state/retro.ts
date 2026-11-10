@@ -4,7 +4,7 @@
 import { git } from './git.ts';
 import { resolveRepositoryRoot } from './runs.ts';
 
-export const RETRO_CATEGORIES = [
+const RETRO_CATEGORIES = [
   'checks',
   'reviewer rules',
   'steering',
@@ -44,14 +44,14 @@ function duration(ms: number): string {
 }
 
 /** Renders the window for a span; the caller owns the measure (src/outcome), state never imports it. */
-export type WindowReader = (
+type WindowReader = (
   from: string,
   to: string,
   mainRoot: string,
 ) => Promise<string>;
 
 /** The main checkout: the first entry of `git worktree list`, which is where the window must be measured. */
-export function mainCheckout(root: string): string {
+function mainCheckout(root: string): string {
   const list = git(root, ['worktree', 'list', '--porcelain']);
   return (list.ok ? /^worktree (.+)$/m.exec(list.out)?.[1] : undefined) ?? root;
 }

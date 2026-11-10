@@ -29,7 +29,7 @@ const IMPORT_SPECIFIER =
 const DYNAMIC_IMPORT = /\bimport\s*\(/gu;
 const SOURCE_FILE = /\.(?:mjs|js|ts)$/u;
 
-export type GateManifest = {
+type GateManifest = {
   /** Entry points, then every file they import, relative to the root. */
   runner: string[];
   /** Files a runner in the closure loads by a dynamic import: the closure cannot see their targets. */
@@ -58,7 +58,7 @@ export function gateManifest(root: string): GateManifest {
   };
 }
 
-export type FrameClass = 'runner' | 'validators' | 'taskCheck' | 'tests';
+type FrameClass = 'runner' | 'validators' | 'taskCheck' | 'tests';
 
 /** The class of a changed path: the producers of the verdict, or null. */
 export function frameClass(
@@ -81,7 +81,7 @@ export function frameClass(
   return null;
 }
 
-export type CommitTouch = { id: string; classes: FrameClass[] };
+type CommitTouch = { id: string; classes: FrameClass[] };
 
 /** Parses `git log --first-parent --name-only --format=%x00%h` into the frame classes each commit touches. */
 export function touches(
@@ -101,7 +101,7 @@ export function touches(
   return out;
 }
 
-export type FrameCounts = {
+type FrameCounts = {
   commits: number;
   /** Commits touching workflows, composite actions, package.json or the runner closure. */
   runner: number;
@@ -170,7 +170,7 @@ export function renderManifest(
   return `${lines.join('\n')}\n`;
 }
 
-export type FrameChange = { path: string; class: FrameClass; lines: number };
+type FrameChange = { path: string; class: FrameClass; lines: number };
 
 /** The changed files of a pull request that sit in the frame or behind `task check`, with changed lines (tests are not listed). */
 export function frameChanges(

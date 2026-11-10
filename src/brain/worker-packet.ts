@@ -45,7 +45,7 @@ export function applicable(
 }
 
 /** Where a repository keeps the records FR-40 measured. */
-export const RECORDS = 'evals/fr40/records.json';
+const RECORDS = 'evals/fr40/records.json';
 
 export function workerPacket(
   repo: string,

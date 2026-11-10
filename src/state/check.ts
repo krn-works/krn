@@ -540,7 +540,7 @@ const foreignAskRule: CapsuleRule = (ctx) => {
 };
 
 // Order matters only within errors and within warnings; keep it stable.
-export const CAPSULE_RULES: readonly CapsuleRule[] = [
+const CAPSULE_RULES: readonly CapsuleRule[] = [
   gitIgnoredRule,
   fieldsRule,
   acceptanceRule,

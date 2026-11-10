@@ -38,7 +38,7 @@ function erf(x: number): number {
 }
 
 /** Standard normal quantile by bisection on the CDF. */
-export function normalQuantile(p: number): number {
+function normalQuantile(p: number): number {
   let low = -10;
   let high = 10;
   for (let i = 0; i < 100; i += 1) {

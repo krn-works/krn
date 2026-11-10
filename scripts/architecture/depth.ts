@@ -288,7 +288,11 @@ export function report(
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const root = fileURLToPath(new URL('../../', import.meta.url));
   const srcRoot = resolve(process.argv[2] ?? join(root, 'src'));
-  const extra = [join(root, 'test'), join(root, 'scripts')];
+  const extra = [
+    join(root, 'test'),
+    join(root, 'scripts'),
+    join(root, 'evals'),
+  ];
   console.log(
     report(analyze(srcRoot, extra), 10, unimportedExports(srcRoot, extra)),
   );

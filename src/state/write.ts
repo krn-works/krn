@@ -37,7 +37,7 @@ export function capsuleDirectory(repo: string, id?: string): string {
   return join(base, chosen);
 }
 
-export function resolveLabel(name: string): AbiLabel {
+function resolveLabel(name: string): AbiLabel {
   const wanted = name.trim().toLowerCase();
   const labels = ABI_LABELS.map(
     (label) => [label, label.toLowerCase()] as const,
@@ -165,7 +165,7 @@ export function acceptCriterion(
   return items;
 }
 
-export interface HandoffOptions {
+interface HandoffOptions {
   task?: string | undefined;
   sha?: string | undefined;
   verify?: string | undefined;

@@ -57,9 +57,7 @@ const git = async (root: string, args: string[]) => {
     return null;
   }
 };
-export async function linkedWorktreeRefusal(
-  root: string,
-): Promise<string | null> {
+async function linkedWorktreeRefusal(root: string): Promise<string | null> {
   const dir = await git(root, ['rev-parse', '--absolute-git-dir']);
   const common = await git(root, [
     'rev-parse',
