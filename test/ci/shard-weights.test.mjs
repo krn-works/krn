@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { parseShardWeights } from '../../scripts/lib/shard-weights.mjs';
 import {
   fetchShardRuns,
   foldShardWeights,
   logStepSeconds,
   parseJobSummary,
-  renderWeightsModule,
+  renderWeightsJson,
   repoTestPath,
   runDurations,
   testStepSeconds,
@@ -167,13 +168,10 @@ test('a run whose job times no file is rejected', () => {
   assert.equal(runDurations([]), undefined);
 });
 
-test('rendered module round-trips through import', async () => {
-  const source = renderWeightsModule({ 'test/a.test.ts': 1.5 }, ['1', '2']);
-  const module = await import(
-    `data:text/javascript,${encodeURIComponent(source)}`
-  );
-  assert.deepEqual({ ...module.TEST_FILE_WEIGHTS }, { 'test/a.test.ts': 1.5 });
-  assert.match(source, /runs\n\/\/ 1 2\./u);
+test('rendered weights round-trip through the loader', () => {
+  const source = renderWeightsJson({ 'test/a.test.ts': 1.5 }, ['1', '2']);
+  assert.deepEqual({ ...parseShardWeights(source) }, { 'test/a.test.ts': 1.5 });
+  assert.deepEqual(JSON.parse(source).runs, ['1', '2']);
 });
 
 // Main run 42579707304: one child lost its own summary, so the policy
