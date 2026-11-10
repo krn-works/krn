@@ -1,7 +1,11 @@
 {
   "id": "t-4qmnqda",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn adopt writes the adoption set; proof test/adopt/adopt.test.ts against a scratch repository"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "krn adopt <path> writes the adoption set",
