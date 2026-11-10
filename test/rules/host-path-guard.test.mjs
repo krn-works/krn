@@ -21,10 +21,6 @@ const hostPathAllowlist = new Map([
     'scripts/probe-isolation.mjs',
     'The probe mirrors systemd’s host user runtime default.',
   ],
-  [
-    'src/hosts/systemd-scope.ts',
-    'Systemd scopes derive the conventional user runtime when env omits it.',
-  ],
 ]);
 
 function trackedCodePaths() {

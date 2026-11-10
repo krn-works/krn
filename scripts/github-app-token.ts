@@ -1,6 +1,6 @@
 import { createPrivateKey, sign } from 'node:crypto';
-import { chmodSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Mints a GitHub App installation token for krn-works/krn. The App id,
@@ -43,9 +43,10 @@ export function appJwt(appId: string, privateKey: string, now: number) {
 }
 
 function cachePath(env: Env): string | undefined {
-  return env.XDG_RUNTIME_DIR
-    ? join(env.XDG_RUNTIME_DIR, CACHE_NAME)
-    : undefined;
+  // The sandbox hides XDG_RUNTIME_DIR, so the launcher names a cache
+  // directory the sandbox can read.
+  const directory = env.KRN_APP_CACHE_DIR || env.XDG_RUNTIME_DIR;
+  return directory ? join(directory, CACHE_NAME) : undefined;
 }
 
 function readCache(env: Env, now: number): string | undefined {
@@ -71,6 +72,7 @@ function writeCache(env: Env, value: Cached): void {
   const path = cachePath(env);
   if (!path) return;
   try {
+    mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
     writeFileSync(path, JSON.stringify(value), { mode: 0o600 });
     chmodSync(path, 0o600);
   } catch {

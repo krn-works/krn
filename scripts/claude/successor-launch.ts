@@ -42,6 +42,9 @@ const REPOSITORY_ROOT = resolve(
 );
 const TOKEN_HELPER = join(REPOSITORY_ROOT, 'scripts', 'github-app-token.ts');
 const WRAPPER_DIRECTORY = join(REPOSITORY_ROOT, 'scripts', 'app-bin');
+// A sandboxed session cannot see /run/user, so the minted token's cache lives
+// in an ignored repository directory the sandbox can read.
+const APP_CACHE_DIRECTORY = join(REPOSITORY_ROOT, '.krn', 'tmp', 'app-cache');
 const EXIT_UNAVAILABLE = 69;
 
 /**
@@ -53,6 +56,7 @@ export function appCredentialEnvironment(
   env: NodeJS.ProcessEnv,
   helper = TOKEN_HELPER,
   wrapperDirectory = WRAPPER_DIRECTORY,
+  cacheDirectory = APP_CACHE_DIRECTORY,
 ): Record<string, string> {
   const existing = Number(env.GIT_CONFIG_COUNT);
   const start = Number.isInteger(existing) && existing > 0 ? existing : 0;
@@ -62,6 +66,7 @@ export function appCredentialEnvironment(
     const value = env[name];
     if (value) forwarded[name] = value;
   }
+  forwarded.KRN_APP_CACHE_DIR = env.KRN_APP_CACHE_DIR || cacheDirectory;
   return {
     ...forwarded,
     PATH: env.PATH ? `${wrapperDirectory}:${env.PATH}` : wrapperDirectory,
@@ -713,7 +718,10 @@ export function main(args: string[], proxy?: string): number {
     ? undefined
     : appCredentialEnvironment(process.env);
   if (appCredential) {
-    const failed = checkAppCredential(process.env);
+    const failed = checkAppCredential({
+      ...process.env,
+      KRN_APP_CACHE_DIR: process.env.KRN_APP_CACHE_DIR || APP_CACHE_DIRECTORY,
+    });
     if (failed) {
       process.stderr.write(
         `GitHub App credential unavailable (${failed}); fix it or pass --operator-token to launch with the operator's credential\n`,
