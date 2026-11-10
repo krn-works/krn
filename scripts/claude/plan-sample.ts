@@ -4,6 +4,7 @@
 // interactive Claude Code session (test/claude/plan-sample.test.ts carries it).
 // Headless sessions never invoke a status line, so samples come from
 // interactive sessions only; the percentages belong to the whole account.
+import { createHash } from 'node:crypto';
 import {
   appendFileSync,
   existsSync,
@@ -11,6 +12,7 @@ import {
   readFileSync,
   statSync,
 } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 export type PlanSample = {
@@ -18,7 +20,43 @@ export type PlanSample = {
   session: string;
   five_hour: number;
   seven_day: number;
+  // Rows written before the account and resets were recorded lack these.
+  account?: string;
+  five_hour_resets?: string;
+  seven_day_resets?: string;
 };
+
+// The payload names no account: the signed-in account's uuid comes from the
+// Claude Code config file and is stored only as a short hash, never the uuid.
+export function accountLabel(config: unknown): string | undefined {
+  const uuid = object(object(config).oauthAccount).accountUuid;
+  return typeof uuid === 'string' && uuid
+    ? createHash('sha256').update(uuid).digest('hex').slice(0, 12)
+    : undefined;
+}
+
+function configAccount(): string | undefined {
+  const dir = process.env.CLAUDE_CONFIG_DIR;
+  const file = dir
+    ? join(dir, '.claude.json')
+    : join(homedir(), '.claude.json');
+  try {
+    return accountLabel(JSON.parse(readFileSync(file, 'utf8')));
+  } catch {
+    return undefined;
+  }
+}
+
+function field(key: string, value: string | undefined) {
+  return value ? { [key]: value } : {};
+}
+
+function reset(limits: Record<string, unknown>, key: string) {
+  const at = object(limits[key]).resets_at;
+  return typeof at === 'number' && Number.isFinite(at)
+    ? new Date(at * 1000).toISOString().replace(/\.\d{3}Z$/u, 'Z')
+    : undefined;
+}
 
 // Tolerant: a missing or non-object field reads as empty, never throws.
 function object(value: unknown): Record<string, unknown> {
@@ -34,7 +72,11 @@ function percentage(limits: Record<string, unknown>, key: string) {
 
 // Returns a sample only when both windows are present: the first status
 // call of a session precedes the first API response and has no rate_limits.
-export function sampleOf(payload: unknown, now: Date): PlanSample | undefined {
+export function sampleOf(
+  payload: unknown,
+  now: Date,
+  account?: string,
+): PlanSample | undefined {
   const input = object(payload);
   const limits = object(input.rate_limits);
   const five_hour = percentage(limits, 'five_hour');
@@ -45,6 +87,9 @@ export function sampleOf(payload: unknown, now: Date): PlanSample | undefined {
     session: typeof input.session_id === 'string' ? input.session_id : '',
     five_hour,
     seven_day,
+    ...field('account', account),
+    ...field('five_hour_resets', reset(limits, 'five_hour')),
+    ...field('seven_day_resets', reset(limits, 'seven_day')),
   };
 }
 
@@ -88,7 +133,10 @@ export function record(root: string, sample: PlanSample) {
   if (
     last &&
     last.five_hour === sample.five_hour &&
-    last.seven_day === sample.seven_day
+    last.seven_day === sample.seven_day &&
+    last.account === sample.account &&
+    last.five_hour_resets === sample.five_hour_resets &&
+    last.seven_day_resets === sample.seven_day_resets
   )
     return false;
   mkdirSync(directory, { recursive: true });
@@ -106,7 +154,7 @@ if (import.meta.main) {
   let sample: PlanSample | undefined;
   try {
     const payload = JSON.parse(readFileSync(0, 'utf8')) as unknown;
-    sample = sampleOf(payload, new Date());
+    sample = sampleOf(payload, new Date(), configAccount());
     const cwd = object(payload).cwd;
     const directory = typeof cwd === 'string' ? cwd : process.cwd();
     const root = sample ? stateRoot(directory) : undefined;
