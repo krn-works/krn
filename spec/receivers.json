@@ -38,6 +38,11 @@
       ],
       "test": "test/deliver/transport-capture.test.ts"
     },
+    "src/cli/lane-run.ts": {
+      "receivers": ["claude", "git"],
+      "capture": ["test/fixtures/claude/headless-session-result.json"],
+      "test": "test/cli/lane-run.test.ts"
+    },
     "src/cli/lane.ts": {
       "receivers": ["git"],
       "real": "test/cli/lane.test.ts"

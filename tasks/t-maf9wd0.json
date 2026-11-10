@@ -1,7 +1,11 @@
 {
   "id": "t-maf9wd0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn lane run --task ID: worktree, headless session, ship, one verdict line; tested on a verbatim result capture"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "One task runs from its record in one call",
