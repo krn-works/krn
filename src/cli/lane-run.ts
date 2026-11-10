@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { shipCommand } from '../ci/ship.ts';
@@ -81,6 +81,25 @@ interface SessionResult {
 const exitNoDelivery = 74;
 
 /** Read the JSON result of `claude -p --output-format json`. */
+/**
+ * The untracked empty regular files in `git status --porcelain -z` output: the placeholders the
+ * harness sandbox mounts over write-denied paths (.env*, .npmrc, lockfiles). An untracked file is
+ * never delivered, so removing an empty one loses nothing.
+ */
+export function sandboxPlaceholders(
+  porcelain: string,
+  stat: (path: string) => { isFile(): boolean; size: number },
+): string[] {
+  return porcelain
+    .split('\0')
+    .filter((entry) => entry.startsWith('?? '))
+    .map((entry) => entry.slice(3))
+    .filter((path) => {
+      const info = stat(path);
+      return info.isFile() && info.size === 0;
+    });
+}
+
 export function parseSessionResult(stdout: string): SessionResult {
   let parsed: unknown;
   try {
@@ -223,6 +242,11 @@ export async function laneRunCommand(
   });
 
   if (!result.ok) return stop(result.detail);
+  for (const path of sandboxPlaceholders(
+    git(started.path, ['status', '--porcelain', '-z', '--untracked-files=all']),
+    (file) => lstatSync(join(started.path, file)),
+  ))
+    rmSync(join(started.path, path));
   if (git(started.path, ['status', '--porcelain']) !== '')
     return stop('dirty tree');
   const commits = git(started.path, ['log', '--format=%s', 'origin/main..HEAD'])

@@ -352,11 +352,18 @@ test('the launcher environment resets the helper list before installing the help
     /^!'.+' '\/r\/helper\.ts' git-credential$/u,
   );
   const stacked = appCredentialEnvironment(
-    { PATH: '/b', GIT_CONFIG_COUNT: '1' },
+    {
+      PATH: '/b',
+      GIT_CONFIG_COUNT: '1',
+      GIT_CONFIG_KEY_0: 'safe.directory',
+      GIT_CONFIG_VALUE_0: '*',
+    },
     '/h',
     '/w',
   );
   assert.equal(stacked.GIT_CONFIG_COUNT, '3');
+  assert.equal(stacked.GIT_CONFIG_KEY_0, 'safe.directory');
+  assert.equal(stacked.GIT_CONFIG_VALUE_0, '*');
   assert.equal(
     stacked.GIT_CONFIG_KEY_1,
     'credential.https://github.com.helper',

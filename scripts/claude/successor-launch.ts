@@ -66,6 +66,17 @@ export function appCredentialEnvironment(
     const value = env[name];
     if (value) forwarded[name] = value;
   }
+  // The launched pane does not inherit this process's environment, so the
+  // entries below `start` travel with the count that counts them.
+  for (let index = 0; index < start; index += 1) {
+    for (const name of [
+      `GIT_CONFIG_KEY_${index}`,
+      `GIT_CONFIG_VALUE_${index}`,
+    ]) {
+      const value = env[name];
+      if (value !== undefined) forwarded[name] = value;
+    }
+  }
   forwarded.KRN_APP_CACHE_DIR = env.KRN_APP_CACHE_DIR || cacheDirectory;
   return {
     ...forwarded,
