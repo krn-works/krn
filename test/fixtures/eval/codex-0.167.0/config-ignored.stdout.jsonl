@@ -1,6 +1,0 @@
-{"type":"thread.started","thread_id":"01a1b8cc-641f-7b10-a4d4-c5a24d371df0"}
-{"type":"item.completed","item":{"id":"item_0","type":"error","message":"Codex is ignoring 1 unrecognized configuration setting. Check for typos or deprecated settings.\n  user (/w/codex/config.toml): `features.skills` is ignored."}}
-{"type":"item.completed","item":{"id":"item_1","type":"error","message":"Codex is ignoring 1 unrecognized configuration setting. Check for typos or deprecated settings.\n  user (/w/codex/config.toml): `features.skills` is ignored."}}
-{"type":"turn.started"}
-{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"OK"}}
-{"type":"turn.completed","usage":{"input_tokens":10827,"cached_input_tokens":9088,"cache_write_input_tokens":0,"output_tokens":5,"reasoning_output_tokens":0}}

@@ -3,15 +3,7 @@ import { registerHooks } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const logPath = process.env.KRN_MODULE_LOAD_LOG;
-const watchedDirectories = [
-  'evals',
-  'foreman',
-  'hosts',
-  'ledger',
-  'relay',
-  'task',
-  'trace',
-];
+const watchedDirectories = ['foreman', 'ledger', 'relay', 'task', 'trace'];
 
 registerHooks({
   resolve(specifier, context, nextResolve) {

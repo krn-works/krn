@@ -50,7 +50,7 @@ test('running worker refuses all tracker writes with remedy and unchanged files'
     assert.equal(r.status, 75, r.stderr);
     assert.match(
       r.stderr,
-      /has an open worker session .*; run krn worker stop --run /,
+      /has a running session .*; stop its process and remove /,
     );
     assert.deepEqual(
       readdirSync(join(f.dir, 'tasks')).map((p) => [
@@ -145,7 +145,7 @@ test('guard scans the resolved receiver for explicit and claim-routed writes', (
     assert.equal(r.status, 75, r.stderr);
     assert.ok(
       r.stderr.includes(
-        `worktree ${receiver} has an open worker session ${session}`,
+        `worktree ${receiver} has a running session ${session}`,
       ),
     );
     assert.equal(
@@ -161,5 +161,5 @@ test('an oversized session refuses instead of being skipped', (t) => {
   writeFileSync(f.session, `{"status":"running"}${' '.repeat(65537)}`);
   const result = f.run('edit', f.id, '--title', 'Blocked');
   assert.equal(result.status, 75);
-  assert.match(result.stderr, /cannot read worker session/u);
+  assert.match(result.stderr, /cannot read session/u);
 });

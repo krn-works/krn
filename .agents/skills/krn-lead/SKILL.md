@@ -36,7 +36,6 @@ Parallel work: one lane per worktree, background agents for independent slices, 
 
 Use them only when they clearly save time; none is a prerequisite for a merge.
 
-- `bin/krn worker start|send|stop` delegates bounded work to Codex; the lead commits its output.
 - Recon, inventories and log summaries go to Claude Sonnet or Haiku subagents; program decisions to two or three independent Opus lenses.
 
 ## Traps

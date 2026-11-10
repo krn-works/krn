@@ -9,42 +9,6 @@ const root = fileURLToPath(new URL('../..', import.meta.url));
 // Each entry is one file and one reason; there is no blanket allowlist.
 const allowWait = new Map([
   [
-    'test/hosts/codex-cancel.test.ts',
-    'Polls a fake process tree under a deadline until the OS reports it.',
-  ],
-  [
-    'test/hosts/codex-usage.test.ts',
-    'Polls for the child start marker under a deadline.',
-  ],
-  [
-    'test/hosts/codex-stale-scope.test.ts',
-    'Polls the cgroup until the scope drains under a deadline.',
-  ],
-  [
-    'test/worker/acceptance-checks-containment.test.ts',
-    'Polls for a spawned process marker under a deadline.',
-  ],
-  [
-    'test/worker/hardening-fixture.ts',
-    'until() polls a condition under a deadline.',
-  ],
-  [
-    'test/worker/recovery-fixture.ts',
-    'until() polls a condition under a deadline.',
-  ],
-  [
-    'test/worker/scope-bypass-fixture.ts',
-    'until() polls a condition under a deadline.',
-  ],
-  [
-    'test/worker/input-bounds-fixture.ts',
-    'until() polls a condition under a deadline.',
-  ],
-  [
-    'test/worker/state-trust-fixture.ts',
-    'until() polls a condition under a deadline.',
-  ],
-  [
     'test/test-suite-shards-config.test.mjs',
     'The wait sits inside a fixture script string run by a child.',
   ],
@@ -82,16 +46,7 @@ const testTimeoutPattern =
 
 // Each entry is one file and one reason, as for waits.
 const allowWallClock = new Map();
-const allowTestTimeout = new Map([
-  [
-    'test/hosts/codex-registration.test.ts',
-    'conditionTimeoutFor sizes each test to its 120 s condition waits, above the ceiling.',
-  ],
-  [
-    'test/hosts/codex-usage.test.ts',
-    'testTimeoutFor sizes each test to its spawned-process waits, above the ceiling.',
-  ],
-]);
+const allowTestTimeout = new Map([]);
 
 /** Wall-clock deltas and per-test timeouts in one file's text, as "file:line message". */
 export function clockProblems(file, text) {

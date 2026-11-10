@@ -4,13 +4,15 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { accountKey } from '../../scripts/codex/app-server-replay.ts';
 
 // Receiver captures are committed verbatim to a public repository, and their
 // only sanctioned redaction is the host path (test/fixtures/README.md). The
 // first Codex app-server recording (#393) carried the operator's credit
 // balance, usage and installation id; a capture with account state fails here.
 const root = fileURLToPath(new URL('../..', import.meta.url));
+// A JSON key of account state (credit balance, usage, installation id) that no capture may carry.
+const accountKey =
+  /"(?:accountId|balance|email|installationId|planType|usedPercent)"\s*:/u;
 
 test('no committed receiver capture carries account state', () => {
   const fixtures = execFileSync(

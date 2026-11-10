@@ -1,0 +1,14 @@
+{
+  "id": "t-98q8pe5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 3,
+  "title": "FR-40 lane runner keeps Codex-era modules without receiver evidence",
+  "after": [
+    "t-9w41zw0"
+  ],
+  "body": [
+    "The FR-40 lane runner (evals/fr40/lanes.ts) still imports src/evals/{mask,receiver,score,session} and src/hosts/systemd-scope.ts, whose evidence tests left with the worker (t-9w41zw0). Either give each a real receiver test or inline what the lane runner needs and delete them."
+  ]
+}

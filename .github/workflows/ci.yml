@@ -136,7 +136,6 @@ jobs:
         uses: ./.github/actions/setup-ci
         with:
           isolation: 'true'
-          codex: 'true'
 
       - name: Run test shard
         env:
