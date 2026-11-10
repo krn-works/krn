@@ -79,6 +79,7 @@ async function run(action: string, ship = async () => 'unreachable') {
       {
         start: startLane,
         ship,
+        mint: async () => undefined,
       },
     );
     return { verdict, repo };
@@ -129,4 +130,59 @@ test('lane run reports a dirty tree and does not ship', async () => {
   const { verdict } = await run('echo x > stray.txt');
   assert.equal(verdict.exitCode, 74);
   assert.match(verdict.line, /^lane t-abc1234: dirty tree /u);
+});
+
+test('lane run starts the session in the sandbox with only the App credential', async () => {
+  const seen = mkdtempSync(join(tmpdir(), 'krn-lane-run-seen-'));
+  const saved = { ...process.env };
+  process.env.GH_TOKEN = 'operator-token';
+  process.env.GITHUB_TOKEN = 'operator-token';
+  process.env.SSH_AUTH_SOCK = '/run/agent.sock';
+  try {
+    const { verdict } = await run(
+      `printf '%s\\n' "$@" > ${seen}/argv; env > ${seen}/env`,
+    );
+    assert.equal(verdict.exitCode, 74);
+    const argv = readFileSync(join(seen, 'argv'), 'utf8');
+    assert.match(argv, /^--settings\n.+\.claude\/settings\.sandbox\.json$/mu);
+    assert.doesNotMatch(argv, /bypassPermissions/u);
+    const env = readFileSync(join(seen, 'env'), 'utf8');
+    assert.doesNotMatch(env, /^(GH_TOKEN|GITHUB_TOKEN|SSH_AUTH_SOCK)=/mu);
+    assert.doesNotMatch(env, /operator-token/u);
+    assert.match(env, /^KRN_APP_CACHE_DIR=.+\.krn\/tmp\/app-cache$/mu);
+    assert.match(env, /^PATH=.*scripts\/app-bin:/mu);
+    assert.match(
+      env,
+      /^GIT_CONFIG_VALUE_\d+=.*github-app-token\.ts' git-credential$/mu,
+    );
+  } finally {
+    for (const name of ['GH_TOKEN', 'GITHUB_TOKEN', 'SSH_AUTH_SOCK'])
+      if (saved[name] === undefined) delete process.env[name];
+      else process.env[name] = saved[name];
+    rmSync(seen, { recursive: true, force: true });
+  }
+});
+
+test('lane run stops with exit 69 when the App token cannot be minted', async () => {
+  const { base, repo, claude } = fixture('touch started');
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      {
+        start: startLane,
+        ship: async () => 'unreachable',
+        mint: async () => 'bw serve unavailable',
+      },
+    );
+    assert.equal(verdict.exitCode, 69);
+    assert.match(verdict.line, /GitHub App credential unavailable/u);
+    assert.equal(
+      spawnSync('test', ['-e', join(base, 'repo', 'started')]).status,
+      1,
+    );
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
 });
