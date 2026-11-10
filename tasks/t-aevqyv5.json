@@ -1,7 +1,11 @@
 {
   "id": "t-aevqyv5",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Sandboxed lane delivered PR 565 (App author app/krn-works-delivery) with only the App credential; env names printed in .krn/runs/sandbox-run/session-7.jsonl show no token variable (probe SOME_API_TOKEN scrubbed); npm run fast passes in the sandbox after the fragment allows localhost, local binding and unix sockets and the token cache moves to .krn/tmp/app-cache."
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "Lanes inside the harness sandbox",
