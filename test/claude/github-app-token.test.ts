@@ -115,7 +115,12 @@ async function fakes(
   const runtime = mkdtempSync(join(tmpdir(), 'app-token-'));
   t.after(() => rmSync(runtime, { recursive: true, force: true }));
   return {
-    env: { KRN_BW_SERVE: bw, KRN_GITHUB_API: github, XDG_RUNTIME_DIR: runtime },
+    env: {
+      KRN_BW_SERVE: bw,
+      KRN_GITHUB_API: github,
+      XDG_RUNTIME_DIR: runtime,
+      KRN_APP_CACHE_DIR: runtime,
+    },
     github: { requests },
     minted: () => count,
     runtime,
@@ -228,7 +233,7 @@ test('the token is cached 0600 without the key, reused, and re-minted near expir
 
 test('without XDG_RUNTIME_DIR nothing is cached', async (t) => {
   const f = await fakes(t);
-  const { XDG_RUNTIME_DIR: _unset, ...env } = f.env;
+  const { XDG_RUNTIME_DIR: _x, KRN_APP_CACHE_DIR: _c, ...env } = f.env;
   await exec(helper, ['token'], env);
   await exec(helper, ['token'], env);
   assert.equal(f.minted(), 2);
@@ -237,17 +242,16 @@ test('without XDG_RUNTIME_DIR nothing is cached', async (t) => {
 test('the cache directory named by the launcher serves a helper without XDG_RUNTIME_DIR', async (t) => {
   const f = await fakes(t);
   await exec(helper, ['token'], f.env);
-  const { XDG_RUNTIME_DIR: runtime, ...env } = f.env;
-  const sandboxed = { ...env, KRN_APP_CACHE_DIR: runtime ?? '' };
+  const { XDG_RUNTIME_DIR: _x, ...sandboxed } = f.env;
   assert.equal(
     (await exec(helper, ['token'], sandboxed)).stdout,
     'ghs_token1\n',
   );
   assert.equal(f.minted(), 1);
   assert.equal(
-    appCredentialEnvironment({ PATH: '/b', XDG_RUNTIME_DIR: '/run/u' })
+    appCredentialEnvironment({ PATH: '/b' }, '/h', '/w', '/c/cache')
       .KRN_APP_CACHE_DIR,
-    '/run/u',
+    '/c/cache',
   );
 });
 
