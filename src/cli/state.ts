@@ -1,3 +1,4 @@
+import { collectWindow, renderWindow } from '../outcome/window.ts';
 import { inspectState } from '../state/check.ts';
 import { resumeBrief } from '../state/resume.ts';
 import { renderRetro } from '../state/retro.ts';
@@ -98,7 +99,7 @@ function checkVerdict(report: ReturnType<typeof inspectState>): string {
   return `state ${report.status}: ${report.capsules.length} capsule(s)${ids ? ` (${ids})` : ''}, ${report.errors.length} error(s), ${report.warnings.length} warning(s)`;
 }
 
-export function stateCommand(args: string[]): void {
+export async function stateCommand(args: string[]): Promise<void> {
   const verb = args[0];
   if (verb === 'retro') {
     let task: string | undefined;
@@ -118,7 +119,13 @@ export function stateCommand(args: string[]): void {
     }
     if (!task) throw new CliUsageError(usage);
     try {
-      process.stdout.write(`${renderRetro(root ?? process.cwd(), task)}\n`);
+      const text = await renderRetro(
+        root ?? process.cwd(),
+        task,
+        async (from, to, main) =>
+          renderWindow(await collectWindow({ from, to, root: main })),
+      );
+      process.stdout.write(`${text}\n`);
     } catch (error) {
       throw new CliUsageError(
         error instanceof Error ? error.message : String(error),

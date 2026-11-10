@@ -41,7 +41,7 @@ export async function dispatch(args: string[]): Promise<boolean> {
     await laneCommand(options);
   } else if (command === 'state') {
     const { stateCommand } = await import('./state.ts');
-    stateCommand(options);
+    await stateCommand(options);
   } else if (command === 'doctor') {
     const pin = await import('./entry-pin.ts');
     const report = pin.doctorReport(pin.configuredEntryRoot());

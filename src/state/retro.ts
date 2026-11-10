@@ -43,7 +43,43 @@ function duration(ms: number): string {
   return `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, '0')}m`;
 }
 
-export function renderRetro(repo: string, task: string): string {
+/** Renders the window for a span; the caller owns the measure (src/outcome), state never imports it. */
+export type WindowReader = (
+  from: string,
+  to: string,
+  mainRoot: string,
+) => Promise<string>;
+
+/** The main checkout: the first entry of `git worktree list`, which is where the window must be measured. */
+export function mainCheckout(root: string): string {
+  const list = git(root, ['worktree', 'list', '--porcelain']);
+  return (list.ok ? /^worktree (.+)$/m.exec(list.out)?.[1] : undefined) ?? root;
+}
+
+async function windowBlock(
+  read: WindowReader | undefined,
+  root: string,
+  first: number,
+  last: number,
+): Promise<string[]> {
+  if (!read) return [];
+  const from = new Date(first).toISOString();
+  const to = new Date(last).toISOString();
+  try {
+    const body = (await read(from, to, mainCheckout(root))).trimEnd();
+    return [`Window ${from}..${to} (krn ledger, main checkout):`, body];
+  } catch (error) {
+    return [
+      `Window ${from}..${to}: unavailable (${error instanceof Error ? error.message : String(error)})`,
+    ];
+  }
+}
+
+export async function renderRetro(
+  repo: string,
+  task: string,
+  readWindow?: WindowReader,
+): Promise<string> {
   if (!/^t-[a-z0-9]{7}$/.test(task)) throw new Error(`bad task id ${task}`);
   const { root } = resolveRepositoryRoot(repo);
   const commits = taskCommits(root, task);
@@ -65,10 +101,15 @@ export function renderRetro(repo: string, task: string): string {
     first === undefined || last === undefined
       ? `- commits: none on HEAD name ${task}`
       : `- commits: ${commits.length} on HEAD name ${task}, ${new Date(first).toISOString()} to ${new Date(last).toISOString()} (${duration(last - first)})`;
+  const window =
+    first === undefined || last === undefined
+      ? []
+      : await windowBlock(readWindow, root, first, last);
   return [
     `Retro ${task} (measured from git; CI reruns: bin/krn ci logs --run <id>)`,
     measured,
     `- merged PRs: ${prs.length > 0 ? prs.map((pr) => `#${pr}`).join(' ') : 'none'}`,
+    ...window,
     'Candidates (dispose each: check, then rule, then task; delete empty lines):',
     ...RETRO_CATEGORIES.map((category) => `- ${category}:`),
   ].join('\n');

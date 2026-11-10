@@ -1,7 +1,11 @@
 {
   "id": "t-ybczx1y",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn state retro prints the window of the task span measured from the main checkout (test/state/retro-window.test.ts); roadmap and lead-rules cite windows; ADR 0016 and the D23 measures amendment recorded. Also touched src/cli/state.ts, because src/state may not import src/outcome (boundaries)."
+  },
   "created": "2026-11-10",
   "priority": 2,
   "title": "The retro and the roadmap read the window",

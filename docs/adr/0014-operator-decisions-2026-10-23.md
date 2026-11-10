@@ -72,6 +72,15 @@ Accepted. This is the single durable Product record for operator decisions D1–
 
 **D10 and D22 review amendment (operator order of 2026-11-10, "Architecture program order" above):** KRN ships no review command. Review stays opt-in (KRN-07) and is run with the harness's own review skill (`codex review`, Claude Code `/code-review`); `src/flow`, the opt-in parallel judge panel of D10 and D22, leaves, and `krn review` joins the retired commands of KRN-06: it exits 64 and names itself. The Actions amendment's accepted residual no longer names `src/flow/tier.ts` as its mitigation, because that file left with `src/flow`; review is opt-in since the no-gates grant of 2026-11-07, and the residual stands as recorded.
 
+**D23 measures amendment (operator order of 2026-11-10, "Architecture program order" above, point 4; `t-ybczx1y`):** D23's measures are reported
+per window by `krn ledger`, computed on `main` after merge. A window prints: tasks closed done and merged PRs;
+dollars for the delivery lead, for lanes (told by worktree path) and for other subagents; sessions marked
+non-delivery on a separate line outside the per-task figure; PRs per task; created-to-merged at p50 and p90; `CI`
+attempts per PR; reverts and main reds; operator prompts, once launchers mark automation; dollars per plan point
+where gauge samples exist. Not reported, because history cannot show them: operator minutes (prompts are counted,
+not timed), escaped defects other than reverts and main reds, and rework. Dollars per PR is retired as a planning
+number; a roadmap rerank cites a window. Consequences: one price table serves the ledger and the spend script; "accepted outcome" is, on history, "task closed done" and the ledger names the column so; the measures need a launcher-set marker copied into the inbox row and the session record, and a status line sampler (an operator edit); why full days differ fourfold stays unexplained until the lead-spend measurement of the program (B6) answers it.
+
 ## Scope
 
 This ADR supersedes the cited portions of earlier Product and GLOBAL decisions only. In particular, D8 supersedes ADR 0011 and GLOBAL ADR 0007's Paperclip control-plane parts; D10–D11 supersede conflicting GLOBAL ADR 0007 review and gate-order parts; D30 supersedes D11's local full-gate clause for Product only; D31–D33 supersede GLOBAL ADR 0008/0009 only where they name a second memory target. Other GLOBAL ADR 0007 requirements remain only where they do not conflict with D1–D33. Product's separate implementation work does not authorize host-side Paperclip archive or other irreversible actions.

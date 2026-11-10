@@ -8,3 +8,4 @@
 | [0013](0013-repository-consolidation.md) | accepted | Product is the eventual repository home; consolidation waits for the measured trigger. |
 | [0014](0014-operator-decisions-2026-10-23.md) | accepted | Operator decisions D1–D33 for Product KRN. |
 | [0015](0015-repository-task-tracker.md) | accepted | Git-backed repository task tracker and its shipped routing. |
+| [0016](0016-pull-request-is-the-delivery-record.md) | accepted | A delivery is a pull request; KRN keeps no delivery store and derives windows from GitHub and git. |
