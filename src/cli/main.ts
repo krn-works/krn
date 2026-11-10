@@ -3,33 +3,14 @@ import { commandErrorExitCode } from './command-error.ts';
 import { commandHelp, topLevelHelp } from './help.ts';
 
 const version = '0.1.0';
-type ReviewCommandOutcome = 'PASS' | 'FAIL' | 'INCOMPLETE';
 
 async function dispatch(args: string[]): Promise<boolean> {
   const { dispatch: run } = await import('./index.ts');
   return run(args);
 }
 
-async function review(args: string[]): Promise<void> {
-  const { reviewCommand } = await import('../flow/cli.ts');
-  const outcome = await reviewCommand(args);
-  if (outcome) process.exitCode = reviewOutcomeExitCode(outcome);
-}
-
-export function reviewOutcomeExitCode(outcome: ReviewCommandOutcome): number {
-  switch (outcome) {
-    case 'PASS':
-      return 0;
-    case 'FAIL':
-      return 1;
-    case 'INCOMPLETE':
-      return 2;
-  }
-}
-
-export function reviewErrorExitCode(error: unknown): number {
-  return error instanceof Error && error.name === 'ReviewUsageError' ? 64 : 70;
-}
+// Removed commands fail like unknown ones, by name, and never reach another binary (KRN-06).
+const retiredCommands: readonly string[] = ['review'];
 
 export function main(args = process.argv.slice(2)): void {
   const help = commandHelp(args);
@@ -44,16 +25,6 @@ export function main(args = process.argv.slice(2)): void {
 
   if (args[0] === '--version') {
     process.stdout.write(`krn ${version}\n`);
-    return;
-  }
-
-  if (args[0] === 'review') {
-    void review(args.slice(1)).catch((error: unknown) => {
-      process.stderr.write(
-        `${error instanceof Error ? error.message : String(error)}\n`,
-      );
-      process.exitCode = reviewErrorExitCode(error);
-    });
     return;
   }
 
@@ -80,8 +51,9 @@ export function main(args = process.argv.slice(2)): void {
     return;
   }
 
+  const retired = retiredCommands.includes(args[0] ?? '');
   process.stderr.write(
-    `krn: unknown command "${args[0]}"\nRun \`krn --help\` for the commands this CLI owns.\n`,
+    `krn: unknown command "${args[0]}"${retired ? ' (retired)' : ''}\nRun \`krn --help\` for the commands this CLI owns.\n`,
   );
   process.exitCode = 64;
 }

@@ -101,7 +101,6 @@
     "test/evals/workspace-prepare-contract.test.ts": 5.1,
     "test/evals/workspace.test.ts": 7.9,
     "test/fast-check.test.ts": 1.8,
-    "test/flow/review.test.ts": 0.7,
     "test/gate-summary.test.ts": 4.4,
     "test/helpers/check-scopes.test.ts": 0.1,
     "test/helpers/herdr-stub.test.ts": 0.1,

@@ -18,14 +18,7 @@ const cliEntries = [
   },
 ];
 const hook = fileURLToPath(new URL('./module-load-hook.mjs', import.meta.url));
-const allCommandDirectories = [
-  'ci',
-  'evals',
-  'flow',
-  'hosts',
-  'ledger',
-  'task',
-];
+const allCommandDirectories = ['ci', 'evals', 'hosts', 'ledger', 'task'];
 
 test('CLI commands load only their command modules', async (t) => {
   const directory = await mkdtemp(join(tmpdir(), 'krn-cli-module-loads-'));
@@ -52,12 +45,12 @@ test('CLI commands load only their command modules', async (t) => {
       {
         name: 'task list',
         args: ['task', 'list'],
-        forbidden: ['evals', 'flow', 'hosts'],
+        forbidden: ['evals', 'hosts'],
       },
       {
         name: 'eval usage',
         args: ['eval', 'plan', '--json'],
-        forbidden: ['flow', 'hosts', 'ledger', 'task'],
+        forbidden: ['hosts', 'ledger', 'task'],
         status: 64,
       },
     ];

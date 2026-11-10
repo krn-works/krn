@@ -25,21 +25,11 @@
     {
       "name": "exec-pass",
       "command": "codex exec --json --ephemeral --model gpt-6-luna -c model_reasoning_effort=medium -c project_doc_max_bytes=0 --sandbox read-only --cd <repo> --color never -",
-      "setup": "The argv src/hosts/codex.ts builds for a judge after the read-only launcher in src/flow/panel.ts, without the systemd scope and at medium effort. <repo> is a git repository whose one commit adds one.ts exporting 1. stdin asks to run `cat one.ts` and return only {\"verdict\":\"PASS\"|\"FAIL\",\"findings\":[]}. stderr was empty.",
+      "setup": "The argv src/hosts/codex.ts builds for a judge, without the systemd scope and at medium effort. <repo> is a git repository whose one commit adds one.ts exporting 1. stdin asks to run `cat one.ts` and return only {\"verdict\":\"PASS\"|\"FAIL\",\"findings\":[]}. stderr was empty.",
       "exitCode": 0,
       "stdout": {
         "file": "exec-pass.stdout.jsonl",
         "sha256": "a928de163b8988d8752d06295befa1285898a230ff08d1578e54c0f2e5207c6c"
-      }
-    },
-    {
-      "name": "exec-invalid-verdict",
-      "command": "codex exec --json --ephemeral --model gpt-6-luna -c model_reasoning_effort=low -c project_doc_max_bytes=0 --sandbox read-only --cd <repo> --color never -",
-      "setup": "As exec-pass at low effort, without asking for `cat`; the model answered FAIL with no findings, which src/flow/panel.ts must reject. stderr was empty.",
-      "exitCode": 0,
-      "stdout": {
-        "file": "exec-invalid-verdict.stdout.jsonl",
-        "sha256": "091d15d813e54b8a95fa484eec303be6393a9355b21c271fa803304044a17be5"
       }
     }
   ]

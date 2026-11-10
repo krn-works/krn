@@ -9,7 +9,6 @@ const readerUsers = [
   'src/cli/ledger.ts',
   'src/evals/cli.ts',
   'src/evals/session.ts',
-  'src/flow/cli.ts',
   'src/task/cli.ts',
   'src/worker/cli.ts',
 ];

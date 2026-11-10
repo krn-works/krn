@@ -21,7 +21,7 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 - For work spanning sessions, PRs, or modules, maintain a living plan using [`PLANS.md`](PLANS.md). Read back the task, authority, checkout, base/head, and dirty-file ownership before a handoff.
 - Use one writer per outcome. Preserve unrelated work and use only the authorized paths and delivery route.
 - Run the cheapest relevant falsifier, then the required repository checks. Do not claim acceptance from a successful command alone.
-- Delivery is the no-gates loop: code in a worktree, run `npm run fast` once before commit (Biome `--write`, tsc and related tests on changed files, one verdict; CI runs the rest), push, `gh pr create --head <branch>`, then `gh pr merge --auto --squash`. The only gate is required CI on the exact HEAD: the aggregate GitHub Actions `Check` (App `15368`, `.github/workflows/ci.yml`). Review (`krn review`), Codex workers and `npm run gate` are opt-in tools the lead picks when they save time, never prerequisites. Use Conventional Commits.
+- Delivery is the no-gates loop: code in a worktree, run `npm run fast` once before commit (Biome `--write`, tsc and related tests on changed files, one verdict; CI runs the rest), push, `gh pr create --head <branch>`, then `gh pr merge --auto --squash`. The only gate is required CI on the exact HEAD: the aggregate GitHub Actions `Check` (App `15368`, `.github/workflows/ci.yml`). Codex workers and `npm run gate` are opt-in tools the lead picks when they save time, never prerequisites. Use Conventional Commits.
 - Do not send messages to external services without explicit authorization. Do not perform host, production, install/seal, hook-trust, or other irreversible actions without their separate grant.
 - A client push or API error is not remote state: read the exact remote ref (`git ls-remote origin <ref>`, the PR `headRefOid`) before any retry, rebase or rewrite.
 - A brief for a validator or schema states the full key set from the producer's code, each field's type, format and bounds, and the success semantics at once, with fixtures captured verbatim from the real producer; refusal-only observers are not red at base, so the proof asserts an accepted record too.
@@ -38,4 +38,4 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 - After the other lane merges, rebase only on a conflict, push with `--force-with-lease`, and let auto-merge wait for the new `Check`.
 - Retry a merge that stops on a main-checkout `index.lock` held by the other lane; the refusal is transient.
 
-Opt-in review: `bin/krn review --repo <abs path> --base <sha> --head <sha> --lens <path>` runs the panel on demand and prints one JSON verdict; it writes no records and has no admission role. A plain PR with a `Ticket:` trailer (or none) merges on the `Check` alone.
+A plain PR with a `Ticket:` trailer (or none) merges on the `Check` alone.

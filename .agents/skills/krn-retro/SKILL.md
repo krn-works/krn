@@ -16,7 +16,7 @@ Goal: the next slice is cheaper. Its edits ship in the slice PR; never open a se
 Categories adapted from mattpocock/skills `retro`:
 
 - **Automated checks:** an error a check could have caught earlier. Add or extend the cheapest check (lint rule, a test, a CI step). This is the preferred outcome.
-- **Reviewer rules:** a finding an on-demand `krn review` raised that no deterministic check can catch. Add it to a repository rule or `docs/program/hardening-checklist.md`.
+- **Reviewer rules:** a review finding that no deterministic check can catch. Add it to a repository rule or `docs/program/hardening-checklist.md`.
 - **Steering files:** instructions that changed nothing, duplicate another owner, or contradict an ADR. Delete them or move them to their owner (D19).
 - **Navigation:** time lost finding a file or an owner. Add one pointer in `AGENTS.md` or `CONTEXT.md`.
 - **Tool economy:** expensive calls, such as raw logs read by the lead or repeated full test runs. Script a verdict instead.

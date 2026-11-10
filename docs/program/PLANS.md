@@ -19,5 +19,5 @@ Update progress and discoveries before a long command, handoff, commit, or inter
 - Each changed runtime contract needs a focused falsifier. Where applicable, observe it fail by assertion at the base before making it pass.
 - Never invent a before-state, acceptance, or clean result. Compare a failure with the base before attributing it to the change.
 - Do not weaken or remove an existing test or gate to reach green.
-- Delivery is the no-gates loop in `lead-rules.md`: `npm run lint`, `npm run check` and the touched tests locally (`npm run preflight` is the cheap local bundle), then auto-merge on required CI on the exact HEAD, the aggregate GitHub Actions `Check` (App `15368`; ADR 0014 D30). `krn review` is opt-in.
+- Delivery is the no-gates loop in `lead-rules.md`: `npm run lint`, `npm run check` and the touched tests locally (`npm run preflight` is the cheap local bundle), then auto-merge on required CI on the exact HEAD, the aggregate GitHub Actions `Check` (App `15368`; ADR 0014 D30).
 - Label evidence claims as defined in [`lead-rules.md`](lead-rules.md).

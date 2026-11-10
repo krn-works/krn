@@ -14,9 +14,6 @@ export async function dispatch(args: string[]): Promise<boolean> {
   if (command === 'ledger') {
     const { ledgerCommand } = await import('./ledger.ts');
     await ledgerCommand(options);
-  } else if (command === 'review') {
-    const { reviewCommand } = await import('../flow/cli.ts');
-    await reviewCommand(options);
   } else if (command === 'ci') {
     const { ciCommand } = await import('./ci.ts');
     await ciCommand(options);

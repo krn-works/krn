@@ -67,18 +67,6 @@
       "receivers": ["git"],
       "real": "test/evals/workspace.test.ts"
     },
-    "src/flow/git.ts": {
-      "receivers": ["git"],
-      "real": "test/flow/review.test.ts"
-    },
-    "src/flow/panel.ts": {
-      "receivers": ["codex", "git"],
-      "capture": [
-        "test/fixtures/codex-cli-0.167.0/exec-invalid-verdict.stdout.jsonl",
-        "test/fixtures/codex-cli-0.167.0/exec-pass.stdout.jsonl"
-      ],
-      "test": "test/hosts/codex-exec-capture.test.ts"
-    },
     "src/hosts/codex-app-server.ts": {
       "receivers": ["codex app-server"],
       "capture": [
