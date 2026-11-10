@@ -66,6 +66,29 @@ export function workerPacket(
   });
 }
 
+/**
+ * Packet for a lead's lane brief: the carrier FR-40's Claude lane run measured (arm B,
+ * `evals/fr40/lanes.ts` laneBrief), a selection over every record of the repository by the
+ * brief's own terms, without the worker's measured-record filter. `task` names the unit the
+ * packet serves (its digest covers it). A repository without records gets no packet.
+ */
+export function lanePacket(
+  repo: string,
+  brief: string,
+  asOf: string,
+  task: string,
+): Packet | null {
+  const path = join(repo, RECORDS);
+  if (!existsSync(path)) return null;
+  return brainPacket({
+    task,
+    query: brief,
+    records: parseRecords(JSON.parse(readFileSync(path, 'utf8'))),
+    asOf,
+    budget: BUDGET,
+  });
+}
+
 /** The brief the worker receives: the packet as a conventions block, then the lead's brief. */
 export function packetBrief(packet: Packet | null, brief: string): string {
   if (packet === null || packet.records.length === 0) return brief;

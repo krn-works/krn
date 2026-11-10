@@ -1,7 +1,11 @@
 {
   "id": "t-gwn1g98",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn lane brief prints the brief behind lanePacket (the measured arm-B carrier, all repository records); test/cli/lane-brief.test.ts proves equality with evals/fr40/lanes.ts laneBrief for every frozen unit; krn-lead skill pipes lane briefs through it. Deviation: workerPacket's measured-record filter is not used, because the lane run measured the unfiltered selection."
+  },
   "created": "2026-11-10",
   "priority": 2,
   "title": "Wire the FR-40 packet into the lead's lane dispatch brief",

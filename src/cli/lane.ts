@@ -3,19 +3,58 @@ import {
   copyFileSync,
   existsSync,
   readdirSync,
+  readFileSync,
   realpathSync,
   rmSync,
   statfsSync,
 } from 'node:fs';
 import { join, sep } from 'node:path';
+import { lanePacket, packetBrief } from '../brain/worker-packet.ts';
 import { claimTask, mainCheckoutRoot } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
 import { flagValue } from './flag-value.ts';
 import { CliUsageError } from './usage-error.ts';
 
-export const laneUsage =
-  'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--root DIR]  fetch origin main, create branch SLUG in .krn/worktrees/SLUG, claim the task; prints the path and branch';
+export const laneUsage = [
+  'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--root DIR]  fetch origin main, create branch SLUG in .krn/worktrees/SLUG, claim the task; prints the path and branch',
+  'krn lane brief [--file PATH] [--task ID] [--as-of YYYY-MM-DD] [--root DIR]  print the lane brief (file, else stdin) behind the FR-40 brain packet of the repository records',
+].join('\n');
+
+/** The lane brief with the FR-40 carrier prefix (D0, t-5983e6g): the measured arm-B prompt. */
+export function laneBriefText(
+  repo: string,
+  brief: string,
+  asOf: string,
+  task = 'lane-brief',
+): string {
+  return packetBrief(lanePacket(repo, brief, asOf, task), brief);
+}
+
+function briefCommand(rest: string[]): void {
+  let file: string | undefined;
+  let task: string | undefined;
+  let asOf = new Date().toISOString().slice(0, 10);
+  let root: string | undefined;
+  const value = (index: number, name: string) =>
+    flagValue(rest, index, () => new CliUsageError(`${name} requires a value`));
+  for (let index = 0; index < rest.length; index += 1) {
+    const arg = rest[index] as string;
+    if (arg === '--file') file = value(index++, arg);
+    else if (arg === '--task') task = value(index++, arg);
+    else if (arg === '--as-of') asOf = value(index++, arg);
+    else if (arg === '--root') root = value(index++, arg);
+    else throw new CliUsageError(laneUsage);
+  }
+  if (task !== undefined && !isTaskId(task))
+    throw new CliUsageError(`not a task id: ${task}`);
+  if (!/^\d{4}-\d{2}-\d{2}$/u.test(asOf))
+    throw new CliUsageError(`--as-of must be YYYY-MM-DD: ${asOf}`);
+  const brief = readFileSync(file ?? 0, 'utf8');
+  if (brief.trim() === '') throw new CliUsageError('lane brief is empty');
+  const repo = repositoryRoot(root ?? process.cwd());
+  process.stdout.write(laneBriefText(repo, brief, asOf, task));
+}
 
 // Host budget: refuse below KRN_LANE_MIN_FREE_GB free (default 5) on the
 // repository or the lane temp dir, and at KRN_LANE_MAX_LIVE worktrees (default 8).
@@ -96,6 +135,7 @@ function carryTaskRecord(file: string, worktree: string, id: string): void {
 
 export async function laneCommand(args: string[]): Promise<void> {
   const [verb, ...rest] = args;
+  if (verb === 'brief') return briefCommand(rest);
   if (verb !== 'start') throw new CliUsageError(laneUsage);
   let slug: string | undefined;
   let task: string | undefined;
