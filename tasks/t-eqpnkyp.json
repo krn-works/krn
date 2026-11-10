@@ -1,0 +1,12 @@
+{
+  "id": "t-eqpnkyp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-10",
+  "priority": 2,
+  "title": "Make the context proxy env test pass under parallel-lane load",
+  "after": [],
+  "body": [
+    "Outcome: `test/claude/ctx-proxy-env.test.ts` passes 20 of 20 runs on this host under parallel-lane load (load average above 40).\nWhy: lane launcher-marker (t-bs1ytt2) measured 4 failures in 10 runs on clean main at load ~44: the launcher-with-proxy test and \"a healthy proxy yields its base URL\" time out on a 300 ms health deadline; a flaky local test sends lanes to CI blind.\nProof: a loop of 20 runs under load prints 20 passes; the deadline is derived from the probe, not a guess.\nScope: test/claude/ctx-proxy-env.test.ts and the health probe it drives."
+  ]
+}
