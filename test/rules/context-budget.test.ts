@@ -48,7 +48,7 @@ test('Claude context budget settings wire documented hooks and read-only reader'
   );
   const reader =
     'NODE_COMPILE_CACHE="$CLAUDE_PROJECT_DIR/.krn/cache/node" node "$CLAUDE_PROJECT_DIR/scripts/claude/lead-file-read.ts"';
-  assert.equal(guard[1].hooks[2].command, reader);
+  assert.equal(guard[1].hooks.length, 1);
   assert.equal(guard[4].hooks[0].command, reader);
   assert.ok(existsSync(new URL('scripts/claude/lead-file-read.ts', root)));
   // The context ceiling refuses tools that start new work past 90%.
@@ -63,8 +63,9 @@ test('Claude context budget settings wire documented hooks and read-only reader'
   assert.ok(existsSync(new URL('scripts/claude/memory-budget.ts', root)));
   assert.equal(
     guard[1].hooks[0].command,
-    'NODE_COMPILE_CACHE="$CLAUDE_PROJECT_DIR/.krn/cache/node" node "$CLAUDE_PROJECT_DIR/scripts/claude/piped-check.ts"',
+    'NODE_COMPILE_CACHE="$CLAUDE_PROJECT_DIR/.krn/cache/node" node "$CLAUDE_PROJECT_DIR/scripts/claude/bash-guards.ts"',
   );
+  assert.ok(existsSync(new URL('scripts/claude/bash-guards.ts', root)));
   assert.equal(settings.hooks.PreCompact, undefined);
   // Pattern kills hit other lanes' processes; agents stop processes by PID.
   // A bare tool deny drops that schema from every request: these five harness

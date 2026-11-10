@@ -13,11 +13,11 @@ const swallow = /\|\|\s*(?:true|:|exit 0)(?:\s|;|$)|;\s*(?:true|:)\s*$/u;
 
 const stage = (text: string) => text.trim().replace(prefix, '');
 
-type Verdict = { refuse: string } | { rewrite: string } | undefined;
+export type Verdict = { refuse: string } | { rewrite: string } | undefined;
 
 // A piped check that `set -o pipefail` rescues is rewritten; one whose failure the command
 // swallows afterwards (`|| true`) is refused, because pipefail cannot restore its exit code.
-function judge(payload: unknown): Verdict {
+export function judge(payload: unknown): Verdict {
   const command = (payload as { tool_input?: { command?: unknown } } | null)
     ?.tool_input?.command;
   if (typeof command !== 'string') return undefined;
@@ -63,4 +63,4 @@ function main() {
     })}\n`,
   );
 }
-main();
+if (import.meta.main) main();

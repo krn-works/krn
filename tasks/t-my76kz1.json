@@ -1,7 +1,11 @@
 {
   "id": "t-my76kz1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Five Bash PreToolUse guards run through scripts/claude/bash-guards.ts; guard tests unchanged, wiring assertions point at the one entry"
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "One hook entry for the Bash guards",

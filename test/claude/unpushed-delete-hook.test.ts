@@ -128,5 +128,5 @@ test('unpushed delete hook allows recorded, closed, pushed or unforced deletes',
 
 test('settings run the unpushed delete hook before every Bash call', async () => {
   const text = await readFile(settings, 'utf8');
-  assert.match(text, /scripts\/claude\/unpushed-delete\.ts/u);
+  assert.match(text, /scripts\/claude\/bash-guards\.ts/u);
 });
