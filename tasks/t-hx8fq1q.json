@@ -1,7 +1,11 @@
 {
   "id": "t-hx8fq1q",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Verdict: keep Opus as the lead's model. 20 of 20 pairs measured (.krn/runs/lead-model-replay/results). Sonnet replay lead dollars lower in 16/20 (rule needs 15) but correct in only 14/20 (rule needs every pair): 480 made no commit; 476, 493, 498, 514 fail npm test at replay and pass at parent (each fails test/rules/instruction-bytes.test.ts); 530 adds 3 failures over its parent. Replay cost is one total per pair, so lead and lane dollars are not separable; scope check not recorded. Lesson for program v2 S7: a fresh-session dispatcher must run the instruction-bytes rule before ship."
+  },
   "created": "2026-11-10",
   "priority": 2,
   "title": "The lead's model, compared by replay",
