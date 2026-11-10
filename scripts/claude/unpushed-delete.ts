@@ -101,4 +101,4 @@ function main() {
     process.exitCode = 2;
   }
 }
-main();
+if (import.meta.main) main();

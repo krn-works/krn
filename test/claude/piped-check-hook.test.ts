@@ -101,7 +101,7 @@ test('repository settings wire the piped check hook to Bash', () => {
   const entry = hooks.find((hook) => hook.matcher === 'Bash');
   assert.ok(
     entry?.hooks.some((hook) =>
-      hook.command.includes('scripts/claude/piped-check.ts'),
+      hook.command.includes('scripts/claude/bash-guards.ts'),
     ),
   );
 });
@@ -177,7 +177,7 @@ test('repository settings wire the ci poll hook to Bash', () => {
   const entry = hooks.find((hook) => hook.matcher === 'Bash');
   assert.ok(
     entry?.hooks.some((hook) =>
-      hook.command.includes('scripts/claude/ci-poll.ts'),
+      hook.command.includes('scripts/claude/bash-guards.ts'),
     ),
   );
 });
