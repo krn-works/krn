@@ -5,7 +5,10 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { testRunnerArgs } from '../scripts/fast-check.ts';
-import { testCeilingArguments } from '../scripts/lib/test-timeout.ts';
+import {
+  testCeilingArguments,
+  testExitFlushPreload,
+} from '../scripts/lib/test-timeout.ts';
 
 const projectRoot = fileURLToPath(new URL('..', import.meta.url));
 const suitePath = join(projectRoot, 'scripts/test-suite.mjs');
@@ -42,14 +45,17 @@ test('the ceiling defaults to 60 s and an override lowers it', () => {
   assert.deepEqual(testCeilingArguments({}), [
     '--test-timeout=60000',
     '--test-force-exit',
+    `--import=${testExitFlushPreload}`,
   ]);
   assert.deepEqual(testCeilingArguments({ KRN_TEST_TIMEOUT_MS: '1000' }), [
     '--test-timeout=1000',
     '--test-force-exit',
+    `--import=${testExitFlushPreload}`,
   ]);
   assert.deepEqual(testCeilingArguments({ KRN_TEST_TIMEOUT_MS: 'soon' }), [
     '--test-timeout=60000',
     '--test-force-exit',
+    `--import=${testExitFlushPreload}`,
   ]);
 });
 
