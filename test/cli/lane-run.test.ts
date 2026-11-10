@@ -212,3 +212,21 @@ test('lane run stops with exit 69 when the App token cannot be minted', async ()
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+// Receiver evidence (claude -p in a lane worktree, captured 2026-11-10): with
+// CLAUDE_CODE_SUBPROCESS_ENV_SCRUB set the CLI prints "Permission mode forced to
+// default ... Declare allowedTools explicitly" and refuses every Write and Edit,
+// so --permission-mode acceptEdits grants nothing and the lane never commits.
+test('the lane sandbox settings allow edits explicitly when they scrub the subprocess env', () => {
+  const settings = JSON.parse(
+    readFileSync(
+      fileURLToPath(
+        new URL('../../.claude/settings.sandbox.json', import.meta.url),
+      ),
+      'utf8',
+    ),
+  ) as { env?: Record<string, string>; permissions: { allow: string[] } };
+  assert.equal(settings.env?.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB, '1');
+  for (const tool of ['Bash', 'Edit', 'Write'])
+    assert.ok(settings.permissions.allow.includes(tool), tool);
+});

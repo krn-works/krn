@@ -35,6 +35,6 @@
       "Read(~/.git-credentials)",
       "Read(~/.netrc)"
     ],
-    "allow": ["Bash"]
+    "allow": ["Bash", "Edit", "Write"]
   }
 }
