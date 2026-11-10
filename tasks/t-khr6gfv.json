@@ -1,0 +1,16 @@
+{
+  "id": "t-khr6gfv",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "check, rules and budgets shipped in this PR"
+  },
+  "created": "2026-11-10",
+  "priority": 1,
+  "title": "Turn the architecture-program run's lead mistakes into checks",
+  "after": [],
+  "body": [
+    "Outcome: the architecture-program run's lead mistakes become checks and rules: `krn task check` fails an open task ordered after an open task with a post-merge proof; lanes.md and lead-rules.md carry the measurement-population, shared-stash and long-run rules.\nWhy: after t-bs1ytt2 (open on purpose for a post-merge count) blocked two claims and lanes lost a run; measurement briefs lacked a named population; long runs as session subagents die with a handoff.\nProof: a regression test in test/task/task-check.test.ts; bin/krn task check passes on the repository; budgets in spec/context-budget.json record the real growth.\nScope: src/task/store.ts, test/task/task-check.test.ts, tasks/, .agents/skills/krn-lead/lanes.md, docs/program/lead-rules.md, spec/context-budget.json."
+  ]
+}
