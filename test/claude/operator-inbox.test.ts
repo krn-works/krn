@@ -325,3 +325,89 @@ test('session start names open inbox entries in one bounded line', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('a session started by the launcher leaves its class on the inbox row and in one session record', () => {
+  const { root, submit } = fixture();
+  const bin = mkdtempSync(join(tmpdir(), 'operator-inbox-bin-'));
+  try {
+    // The launcher's claude --bg path (no Herdr on PATH) starts this stand-in
+    // agent; it runs the two hooks as Claude Code would, with its environment.
+    const hookInput = (event: string, extra: object) =>
+      JSON.stringify({
+        session_id: sessionId,
+        cwd: root,
+        transcript_path: join(root, 'missing.jsonl'),
+        hook_event_name: event,
+        ...extra,
+      });
+    const agent = join(bin, 'successor-agent');
+    const lines = ['#!/bin/sh'];
+    for (const [script, payload] of [
+      [restart, hookInput('SessionStart', { source: 'startup' })],
+      [restart, hookInput('SessionStart', { source: 'resume' })],
+      [promptHook, hookInput('UserPromptSubmit', { prompt: directive })],
+    ] as const)
+      lines.push(
+        `printf '%s' '${payload}' | ${JSON.stringify(process.execPath)} ${JSON.stringify(script)} >/dev/null`,
+      );
+    writeFileSync(agent, `${lines.join('\n')}\n`, { mode: 0o755 });
+    const launched = spawnSync(
+      process.execPath,
+      [
+        path('successor-launch.ts'),
+        '--name',
+        'Next',
+        '--prompt',
+        'Deliver t-x',
+        '--class',
+        'non-delivery',
+      ],
+      {
+        env: {
+          PATH: bin,
+          KRN_SUCCESSOR_AGENT: 'successor-agent',
+          KRN_CTX_PROXY: 'off',
+          CLAUDE_PROJECT_DIR: root,
+          ...interactive,
+        },
+        cwd: root,
+        encoding: 'utf8',
+      },
+    );
+    assert.equal(launched.status, 0, launched.stderr);
+    const rows = readFileSync(join(root, '.krn/operator/inbox.jsonl'), 'utf8')
+      .split('\n')
+      .slice(0, -1)
+      .map((line) => JSON.parse(line));
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].source, 'non-delivery');
+    const sessions = readFileSync(
+      join(root, '.krn/operator/sessions.jsonl'),
+      'utf8',
+    )
+      .split('\n')
+      .slice(0, -1)
+      .map((line) => JSON.parse(line));
+    assert.equal(sessions.length, 1);
+    assert.equal(sessions[0].session, sessionId);
+    assert.equal(sessions[0].class, 'non-delivery');
+    // An operator prompt in the same inbox carries no source, and only it is open.
+    submit('A request typed by the operator, long enough to be a directive');
+    const operator = readFileSync(
+      join(root, '.krn/operator/inbox.jsonl'),
+      'utf8',
+    )
+      .split('\n')
+      .slice(0, -1)
+      .map((line) => JSON.parse(line));
+    assert.equal(operator[1].source, undefined);
+    const open = spawnSync(process.execPath, [inbox, 'open', '--root', root], {
+      encoding: 'utf8',
+    }).stdout;
+    assert.match(open, /typed by the operator/u);
+    assert.doesNotMatch(open, /CI work like T3/u);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(bin, { recursive: true, force: true });
+  }
+});

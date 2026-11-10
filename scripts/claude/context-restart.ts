@@ -9,7 +9,7 @@ import { resumeBlock, section } from './handoff-resume.ts';
 import { compactIndex } from './identifier-index.ts';
 import { memoryDirectory } from './memory-directory.ts';
 import { checkMemory } from './memory-refs.ts';
-import { openEntries } from './operator-inbox-store.ts';
+import { openEntries, recordSessionClass } from './operator-inbox-store.ts';
 
 function closed(project: string, id: unknown): boolean {
   if (typeof id !== 'string' || !/^[a-z0-9-]+$/u.test(id)) return false;
@@ -240,6 +240,7 @@ if (import.meta.main) {
       !['startup', 'resume', 'clear', 'compact'].includes(input.source)
     )
       throw new Error('Invalid source');
+    recordSessionClass(input.project, input.sessionId);
     emitContext(
       input.event,
       restartText(

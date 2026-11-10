@@ -7,6 +7,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -160,6 +161,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       name: 'Next slice',
       prompt: 'Deliver t-x',
       cwd: resolve('/repo', 'work tree'),
+      sessionClass: 'delivery',
     },
   );
   assert.throws(() => api.parseArgs(['--name', 'Next slice']), /--prompt/u);
@@ -176,7 +178,12 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       ['--name', '--next', '--prompt', '--resume from handoff'],
       '/repo',
     ),
-    { name: '--next', prompt: '--resume from handoff', cwd: '/repo' },
+    {
+      name: '--next',
+      prompt: '--resume from handoff',
+      cwd: '/repo',
+      sessionClass: 'delivery',
+    },
   );
   assert.throws(
     () =>
@@ -210,6 +217,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       name: 'n',
       prompt: 'p',
       cwd: '/repo',
+      sessionClass: 'delivery',
       model: 'claude-opus-5-5',
       effort: 'medium',
     },
@@ -227,7 +235,13 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       ['--name', 'n', '--prompt', 'p', '--start-seconds', '600'],
       '/repo',
     ),
-    { name: 'n', prompt: 'p', cwd: '/repo', startSeconds: 600 },
+    {
+      name: 'n',
+      prompt: 'p',
+      cwd: '/repo',
+      sessionClass: 'delivery',
+      startSeconds: 600,
+    },
   );
   for (const value of ['601', '-1', '1.5', '05', 'soon'])
     assert.throws(
@@ -284,6 +298,8 @@ test('Herdr launch uses the captured pane and tab IDs without starting fallback'
       'KRN_SUCCESSOR_NAME=Next slice',
       '--env',
       'KRN_SUCCESSOR_PROMPT=First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Deliver t-x',
+      '--env',
+      'KRN_SESSION_CLASS=delivery',
       '--no-focus',
     ],
     [
@@ -348,6 +364,8 @@ test('caller pane workspace is passed to the new tab', (t) => {
       'KRN_SUCCESSOR_NAME=Next slice',
       '--env',
       'KRN_SUCCESSOR_PROMPT=First run `node scripts/claude/successor-launch.ts --retire` from the repository root. Deliver t-x',
+      '--env',
+      'KRN_SESSION_CLASS=delivery',
       '--env',
       `KRN_PREDECESSOR_PANE=caller-pane`,
       '--env',
@@ -610,6 +628,38 @@ test('the start wait runs on while Herdr cannot classify the agent and answers i
     unknown,
   );
   assert.deepEqual(unclassified.pauses, [1, 1]);
+});
+
+test('the --class flag names the session class and refuses others', () => {
+  assert.ok(api);
+  assert.equal(
+    api.parseArgs(['--name', 'n', '--prompt', 'p', '--class', 'non-delivery'])
+      .sessionClass,
+    'non-delivery',
+  );
+  assert.throws(
+    () => api.parseArgs(['--name', 'n', '--prompt', 'p', '--class', 'lane']),
+    /--class must be one of delivery, non-delivery/u,
+  );
+});
+
+test('the claude --bg fallback starts the agent with the session class in its environment', (t) => {
+  const { root, bin } = temporary(t);
+  const sink = join(root, 'agent-env');
+  writeFileSync(
+    join(bin, 'successor-agent'),
+    `#!/bin/sh\nprintf '%s' "$KRN_SESSION_CLASS" > ${JSON.stringify(sink)}\n`,
+    { mode: 0o755 },
+  );
+
+  const result = spawnSync(
+    process.execPath,
+    [script, '--name', 'Probe', '--prompt', 'Stop', '--class', 'non-delivery'],
+    { cwd: root, env: launcherEnvironment(bin), encoding: 'utf8' },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(readFileSync(sink, 'utf8'), 'non-delivery');
 });
 
 test('missing Herdr falls back to claude background launch once', (t) => {
