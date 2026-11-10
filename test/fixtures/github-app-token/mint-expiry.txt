@@ -1,0 +1,4 @@
+mint1 exit=0 prefix=ghs_ len=390
+cache reuse: same token
+after forced expiry exit=0 prefix=ghs_ new_token=yes
+token scope: krn-works/krn
