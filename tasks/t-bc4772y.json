@@ -1,7 +1,11 @@
 {
   "id": "t-bc4772y",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Measured with krn ledger --window from the main checkout, both windows outside the architecture and research sessions. A: 2026-11-09T21:00Z..22:20Z, 24 PRs: lead $0.41/PR, subagents $0.18/PR, total $0.59/PR, 1 main red. B: 2026-11-10T09:10Z..09:39Z, 12 PRs: lead $0.29/PR, subagents $0.49/PR, total $0.77/PR, 0 main reds. Pooled 36 PRs (>=30): lead $0.37/PR, subagents $0.27/PR, total $0.64/PR; the 12-PR cut figures ($0.42/$0.27) held. No single window reached 30 PRs after the research sessions, so the sample is pooled over two disjoint windows; the roadmap rerank cites windows (t-ybczx1y)."
+  },
   "created": "2026-11-09",
   "priority": 2,
   "title": "Re-measure dollars per PR after the 11-09 cuts on 30 merged PRs",

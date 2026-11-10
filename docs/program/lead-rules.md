@@ -26,6 +26,7 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 - A client push or API error is not remote state: read the exact remote ref (`git ls-remote origin <ref>`, the PR `headRefOid`) before any retry, rebase or rewrite.
 - A brief for a validator or schema states the full key set from the producer's code, each field's type, format and bounds, and the success semantics at once, with fixtures captured verbatim from the real producer; refusal-only observers are not red at base, so the proof asserts an accepted record too.
 - A test that is red only in CI is reproduced in the runner shape before a fix round: the tree bind-mounted at `/home/runner/work/krn/krn` in a user namespace (`unshare -rm`) with `CI=true`.
+- A claim about cost or throughput cites a `krn ledger` window (`--window <from> <to>` or `--last <n>`, run from the main checkout; a linked worktree exits 64) with its PR count; dollars per PR from one slice or one day is not evidence. `krn state retro --task <id>` prints the window of the task's span.
 - Run hygiene, cleanup and deliver resumption with absolute paths from the main checkout, never from inside a worktree they remove; a successful merge exits 0.
 - The Bash tool runs each command inside `eval ... ||`, so `set -e` does not stop it: chain state-changing steps with `&&` or explicit `|| exit`.
 - When the auto-mode classifier denies a granted step, never work around it: put the exact `! <command>` line in the handoff for the operator and continue with work that needs no such step.
