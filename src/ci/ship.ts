@@ -9,11 +9,14 @@ import {
   sleep,
 } from '../deliver/transport.ts';
 import { titleProblem } from './commit-title.ts';
-import { releaseRefreshExit, waitCommand } from './wait.ts';
+import { waitCommand } from './wait.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>]; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits like `krn ci wait` (65 instruction-bytes rule failed before the push, 74 failed gate, 75 timeout, 76 conflict, 77 head moved, 78 refresh failed after the merge), 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>]; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits like `krn ci wait`, where a merged PR with a failed pinned-entry refresh still exits 0 with a warning (65 instruction-bytes rule failed before the push, 74 failed gate, 75 timeout, 76 conflict, 77 head moved), 64 usage or refused title';
 
+/** Transient git refusals while a parallel lane holds a ref or index lock. */
+export const gitLockError = /cannot lock ref|Unable to create '[^']*\.lock'/u;
+const gitLockAttempts = 5;
 const instructionBytesRule = 'test/rules/instruction-bytes.test.ts';
 
 function usageError(message: string): Error {
@@ -157,7 +160,14 @@ export async function shipCommand(
   }
   await gh(['pr', 'merge', String(pr), '--repo', repo, '--auto', '--squash']);
 
-  git(['fetch', '-q', 'origin', 'main']);
+  // Parallel lanes share one object store: retry a fetch another git blocks.
+  for (let attempt = 1; ; attempt++) {
+    const fetched = runner('git', ['fetch', '-q', 'origin', 'main'], cwd);
+    if (fetched.code === 0) break;
+    if (attempt >= gitLockAttempts || !gitLockError.test(fetched.stderr))
+      checked(fetched);
+    await wait(attempt * 1000);
+  }
   const head = git(['rev-parse', 'HEAD']);
   const base = git(['rev-parse', 'origin/main']);
   const worktree = git(['rev-parse', '--show-toplevel']);
@@ -180,21 +190,13 @@ export async function shipCommand(
     '--base',
     base,
   ];
-  let waited: string;
-  try {
-    waited = await waitCommand(waitArgs, {
-      ...runtime,
-      cwd: worktree,
-      run: runner,
-      gh,
-      sleep: wait,
-    });
-  } catch (error) {
-    // The PR merged but the pinned-entry refresh failed: the branch is done.
-    if ((error as { exitCode?: number }).exitCode === releaseRefreshExit)
-      cleanup();
-    throw error;
-  }
+  const waited = await waitCommand(waitArgs, {
+    ...runtime,
+    cwd: worktree,
+    run: runner,
+    gh,
+    sleep: wait,
+  });
   const lines = [`pr: #${pr} ${repo} ${head}`, waited];
   if (/^verdict: merged /mu.test(waited)) lines.push(cleanup());
   return lines.join('\n');

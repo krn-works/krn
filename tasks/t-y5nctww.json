@@ -1,0 +1,16 @@
+{
+  "id": "t-y5nctww",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Refresh runs under flock, fetch retries ref/index lock errors, a failed refresh after merge reports merged with a warning"
+  },
+  "created": "2026-11-11",
+  "priority": 2,
+  "title": "Parallel ships do not race the product-release refresh or git ref locks",
+  "after": [],
+  "body": [
+    "Why: Qwen second audit .krn/runs/qwen-research-2/report.md N4 (ship/wait part), verified at 6d713ae: refreshAfterMerge in src/ci/wait.ts runs scripts/product-release.sh without a lock, so two lanes merging together race in .krn/product-release and one exits 78 after its PR merged; git fetch in src/ci/ship.ts has no retry on ref-lock errors.\nOutcome: the release refresh runs under an exclusive lock; transient git lock errors (ref lock, index.lock) are retried a bounded number of times; a 78 after a merged PR reports merged with a warning.\nProof: tests in test/ci/ for concurrent refresh and a simulated ref-lock retry."
+  ]
+}

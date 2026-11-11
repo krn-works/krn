@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   chmod,
   mkdir,
@@ -106,6 +106,89 @@ test('a candidate that fails its smoke leaves the previous commit and names it',
     );
     const release = join(work, '.krn', 'product-release');
     assert.equal(git(release, 'rev-parse', 'HEAD'), good);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('parallel refreshes serialise on the lock and both succeed', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-product-release-'));
+  try {
+    const origin = join(root, 'origin.git');
+    const work = join(root, 'work');
+    git(root, 'init', '-q', '--bare', '-b', 'main', origin);
+    git(root, 'clone', '-q', origin, work);
+    git(work, 'config', 'user.email', 't@example.invalid');
+    git(work, 'config', 'user.name', 't');
+    await entry(work, 0);
+    git(work, 'add', 'bin/krn');
+    git(work, 'commit', '-qm', 'one');
+    git(work, 'push', '-q', 'origin', 'HEAD:main');
+    const commit = git(work, 'rev-parse', 'HEAD');
+    const runs = await Promise.all(
+      Array.from(
+        { length: 6 },
+        () =>
+          new Promise<{ status: number | null; stderr: string; out: string }>(
+            (done) => {
+              const child = spawn('bash', [script, '--commit'], { cwd: work });
+              let out = '';
+              let stderr = '';
+              child.stdout.on('data', (d) => {
+                out += d;
+              });
+              child.stderr.on('data', (d) => {
+                stderr += d;
+              });
+              child.on('close', (status) => done({ status, stderr, out }));
+            },
+          ),
+      ),
+    );
+    for (const result of runs) {
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.out.trim(), commit);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('a fetch that hits a ref lock is retried by the refresh', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-product-release-'));
+  try {
+    const origin = join(root, 'origin.git');
+    const work = join(root, 'work');
+    git(root, 'init', '-q', '--bare', '-b', 'main', origin);
+    git(root, 'clone', '-q', origin, work);
+    git(work, 'config', 'user.email', 't@example.invalid');
+    git(work, 'config', 'user.name', 't');
+    await entry(work, 0);
+    git(work, 'add', 'bin/krn');
+    git(work, 'commit', '-qm', 'one');
+    git(work, 'push', '-q', 'origin', 'HEAD:main');
+    const commit = git(work, 'rev-parse', 'HEAD');
+    // Hold the ref lock git takes while updating origin/main, release it shortly.
+    const lock = join(work, '.git', 'refs', 'remotes', 'origin', 'main.lock');
+    git(work, 'update-ref', '-d', 'refs/remotes/origin/main');
+    await mkdir(join(work, '.git', 'refs', 'remotes', 'origin'), {
+      recursive: true,
+    });
+    await writeFile(lock, '');
+    // spawnSync blocks this process, so a shell releases the lock meanwhile.
+    const result = spawnSync(
+      'bash',
+      [
+        '-c',
+        '(sleep 1.5; rm -f "$1") & exec bash "$2" --commit',
+        'x',
+        lock,
+        script,
+      ],
+      { cwd: work, encoding: 'utf8' },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout.trim(), commit);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

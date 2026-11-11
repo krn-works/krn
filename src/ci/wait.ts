@@ -23,14 +23,11 @@ export const stopExitCodes = {
   'head-moved': 77,
   'never-started': 69,
 } as const;
-/** Exit code when the merged PR's pinned Product refresh failed its smoke. */
-export const releaseRefreshExit = 78;
-class ReleaseRefreshFailed extends Error {}
 const releaseScript = fileURLToPath(
   new URL('../../scripts/product-release.sh', import.meta.url),
 );
 export const waitUsage =
-  'Usage: krn ci wait --repo <owner/repo> --pr <n> --head <sha> --base <sha> [--timeout-seconds <n>] [--start-timeout-seconds <n>] [--merge-timeout-seconds <n>]; with auto-merge on, waits for the merge, refreshes the pinned Product entry and ends with one `verdict:` line (merged <sha>, closed unmerged, open: blocked, or not merging); exits 0 success, 64 usage, 74 failed gate, 75 timeout, 76 conflict, 77 head moved, 78 refresh failed (previous commit kept), 69 never started';
+  'Usage: krn ci wait --repo <owner/repo> --pr <n> --head <sha> --base <sha> [--timeout-seconds <n>] [--start-timeout-seconds <n>] [--merge-timeout-seconds <n>]; with auto-merge on, waits for the merge, refreshes the pinned Product entry and ends with one `verdict:` line (merged <sha>, closed unmerged, open: blocked, or not merging); exits 0 success (a merged PR whose pinned-entry refresh failed still exits 0 with a `warning:` line), 64 usage, 74 failed gate, 75 timeout, 76 conflict, 77 head moved, 69 never started';
 
 export async function waitCommand(
   args: string[],
@@ -129,13 +126,11 @@ export async function waitCommand(
       error instanceof Error ? error : new Error(String(error)),
       {
         exitCode:
-          error instanceof ReleaseRefreshFailed
-            ? releaseRefreshExit
-            : error instanceof GateStopped
-              ? stopExitCodes[error.reason]
-              : error instanceof GateTimeout
-                ? 75
-                : 74,
+          error instanceof GateStopped
+            ? stopExitCodes[error.reason]
+            : error instanceof GateTimeout
+              ? 75
+              : 74,
       },
     );
   }
@@ -163,12 +158,15 @@ async function refreshAfterMerge(options: {
     );
     if (pull.merged === true) {
       const result = options.refresh();
-      if (result.code !== 0)
-        throw new ReleaseRefreshFailed(
-          `merged: ${pull.merge_commit_sha ?? 'unknown'}\nrelease: refresh failed (exit ${result.code})\n${result.stderr.trim()}`,
-        );
+      // The PR is merged either way; a failed refresh only leaves the pinned
+      // entry on its previous commit, so it is a warning, not a failed ship.
       return [
         `merged: ${pull.merge_commit_sha ?? 'unknown'}`,
+        ...(result.code === 0
+          ? []
+          : [
+              `warning: release refresh failed (exit ${result.code}); run scripts/product-release.sh again: ${result.stderr.trim()}`,
+            ]),
         ...result.stdout
           .trim()
           .split('\n')
