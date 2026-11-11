@@ -326,7 +326,7 @@ function show(args: string[], json: boolean): CommandOutput {
   );
 }
 
-function ready(args: string[], json: boolean): CommandOutput {
+async function ready(args: string[], json: boolean): Promise<CommandOutput> {
   let limit: number | undefined;
   let explain: string | undefined;
   for (let index = 0; index < args.length; index += 1) {
@@ -364,7 +364,7 @@ function ready(args: string[], json: boolean): CommandOutput {
     );
   }
 
-  const readyResult = readyTasks(root, limit);
+  const readyResult = await readyTasks(root, limit);
   for (const finding of readyResult.findings)
     process.stderr.write(
       `task-claims/${finding.id}.json is corrupt: ${finding.findings.join('; ')}\n`,

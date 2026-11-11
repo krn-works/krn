@@ -1,10 +1,19 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import {
+  linkSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { setFields } from '../../src/state/write.ts';
 import { buildCaseRepo } from './fixture-repo.ts';
 
 // KRN-12: every writer output is judged by the real receivers, `krn state check`
@@ -192,5 +201,25 @@ test('handoff lists merged commits since the previous SHA and retro measures the
   } finally {
     rmSync(root, { recursive: true, force: true });
     rmSync(memory, { recursive: true, force: true });
+  }
+});
+
+test('capsule writes replace the file whole instead of rewriting it in place', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'krn-state-atomic-'));
+  try {
+    const file = join(directory, 'state.md');
+    const alias = join(directory, 'alias.md');
+    writeFileSync(file, 'Next bounded owner and action: draft\n');
+    linkSync(file, alias);
+    setFields(directory, [['next bounded', 'done']]);
+    // An in-place rewrite would reach the hard link; a rename leaves it alone.
+    assert.equal(
+      readFileSync(alias, 'utf8'),
+      'Next bounded owner and action: draft\n',
+    );
+    assert.match(readFileSync(file, 'utf8'), /done/);
+    assert.deepEqual(readdirSync(directory).sort(), ['alias.md', 'state.md']);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
   }
 });

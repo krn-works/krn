@@ -82,7 +82,10 @@ export interface ClaimResult {
   removedExpired?: ClaimInspection;
 }
 
-export function readyTasks(root: string, limit?: number): ReadyTasks {
+export async function readyTasks(
+  root: string,
+  limit?: number,
+): Promise<ReadyTasks> {
   const index = loadTaskIndex(root);
   const mainRoot = mainCheckoutRoot(root);
   const ordered = [...index.values()]
@@ -112,7 +115,7 @@ export function readyTasks(root: string, limit?: number): ReadyTasks {
       findings.push({ id: task.id, findings: claim.findings });
     if (claim.state === 'none' || claim.state === 'expired') ready.push(task);
   }
-  pruneClosedClaims(mainRoot);
+  await pruneClosedClaims(mainRoot);
   return {
     tasks: ready,
     findings,
@@ -124,7 +127,7 @@ export function readyTasks(root: string, limit?: number): ReadyTasks {
  * outlives the merge. Once the main checkout's record says closed, the claim
  * holds nothing and is removed; claims of open or unknown tasks stay.
  */
-function pruneClosedClaims(mainRoot: string): void {
+async function pruneClosedClaims(mainRoot: string): Promise<void> {
   let names: string[];
   try {
     names = readdirSync(join(mainRoot, '.krn', 'task-claims'));
@@ -137,9 +140,11 @@ function pruneClosedClaims(mainRoot: string): void {
     const id = name.slice(0, -'.json'.length) as TaskId;
     if (index.get(id)?.status !== 'closed') continue;
     try {
-      unlinkSync(claimPath(mainRoot, id));
+      await withTaskLock(mainRoot, id, () => {
+        unlinkSync(claimPath(mainRoot, id));
+      });
     } catch {
-      /* Another ready may have removed it first. */
+      /* Removed first by another ready, or busy under a claim operation: leave it. */
     }
   }
 }
@@ -263,7 +268,7 @@ export async function claimNext(
 ): Promise<ClaimResult> {
   const worktreeRoot = resolveClaimWorktree(root, options.worktree);
   currentBranch(worktreeRoot);
-  const candidates = readyTasks(worktreeRoot, limit).tasks;
+  const candidates = (await readyTasks(worktreeRoot, limit)).tasks;
   for (const candidate of candidates) {
     try {
       return await claimTask(worktreeRoot, candidate.id, {
