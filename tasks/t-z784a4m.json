@@ -7,6 +7,7 @@
   "title": "Orphan scripts and stale plan text leave the repository",
   "after": [],
   "body": [
-    "Outcome: unreferenced scripts (idle-gap-cache.d.mts, ci-stage-time.d.mts, trivial-call-scan.mjs, lead-claim-spend.py, lead-read-scan.ts, cc-clearing-watch.ts) are deleted after a consumer check, and docs/program/PLAN.md:17-21 no longer describes the retired krn review track (ADR 0014:77). Proof: rg finds no consumer; npm run fast green. Scope: those files and PLAN.md.\nEvidence: .krn/runs/qwen-research/report.md (Qwen 4 audit) verified by krn-reader against HEAD 8152cee."
+    "Outcome: unreferenced scripts (idle-gap-cache.d.mts, ci-stage-time.d.mts, trivial-call-scan.mjs, lead-claim-spend.py, lead-read-scan.ts, cc-clearing-watch.ts) are deleted after a consumer check, and docs/program/PLAN.md:17-21 no longer describes the retired krn review track (ADR 0014:77). Proof: rg finds no consumer; npm run fast green. Scope: those files and PLAN.md.\nEvidence: .krn/runs/qwen-research/report.md (Qwen 4 audit) verified by krn-reader against HEAD 8152cee.",
+    "Scope correction 2026-11-11: keep scripts/claude/cc-clearing-watch.ts (4 consumers; it watches for built-in clearing after the ctx-proxy clearing was abandoned in #594)."
   ]
 }

@@ -1,7 +1,11 @@
 {
   "id": "t-9p0sc7n",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-v99074z",
+    "note": "Its fixes (infra retry, monotonic clock, failure classes) move into the t-v99074z protocol; live Check and rework measure correctness better than a replay. The bare-harness arm returns as a diagnostic task only if the record run stops on correctness."
+  },
   "created": "2026-11-11",
   "priority": 3,
   "title": "The D23 replay is rerun with infra failures retried and a monotonic clock",
