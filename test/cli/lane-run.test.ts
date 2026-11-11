@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -143,7 +144,7 @@ test('lane run reports no commit and keeps the worktree', async () => {
   assert.equal(verdict.exitCode, 74);
   assert.match(
     verdict.line,
-    /^lane t-abc1234: no commit \(worktree .+, rerun reuses it\) model sonnet cost \$0\.09$/u,
+    /^lane t-abc1234: no commit \(worktree .+, rerun reuses it, claim released\) model sonnet cost \$0\.09$/u,
   );
 });
 
@@ -163,10 +164,21 @@ test('sandboxPlaceholders keeps only untracked empty regular files', () => {
 test('lane run removes empty sandbox placeholders before the dirty-tree check', async () => {
   const { verdict } = await run(
     `: > .env; : > .npmrc; : > yarn.lock; ${deliver()}`,
-    async () => 'verdict: shipped',
+    async () => 'verdict: merged abc1234',
   );
   assert.equal(verdict.exitCode, 0);
-  assert.match(verdict.line, /^lane t-abc1234: shipped verdict: shipped/u);
+  assert.match(
+    verdict.line,
+    /^lane t-abc1234: shipped verdict: merged abc1234/u,
+  );
+});
+
+test('sandboxPlaceholders keeps an intended empty file such as .gitkeep', () => {
+  const found = sandboxPlaceholders(
+    '?? .gitkeep\0?? docs/.env.local\0?? marker\0?? pnpm-lock.yaml\0',
+    () => ({ isFile: () => true, size: 0 }),
+  );
+  assert.deepEqual(found, ['docs/.env.local', 'pnpm-lock.yaml']);
 });
 
 test('lane run reports a dirty tree and does not ship', async () => {
@@ -449,4 +461,111 @@ test('lane run refuses to ship without a commit carrying the Ticket trailer', as
   );
   assert.equal(verdict.exitCode, 74);
   assert.match(verdict.line, /no commit with a Ticket: t-abc1234 trailer/u);
+});
+
+test('lane run exits non-zero when the ship verdict is not merged', async () => {
+  for (const verdict of [
+    'verdict: open: checks pending',
+    'verdict: closed unmerged',
+  ]) {
+    const result = await run(deliver(), async () => verdict);
+    assert.equal(result.verdict.exitCode, 74, verdict);
+    assert.match(result.verdict.line, /not merged/u);
+  }
+});
+
+test('a failed run releases the claim, keeps the worktree and a rerun claims it again', async () => {
+  const { base, repo, claude } = fixture('true');
+  process.env.KRN_LANE_CLAUDE = claude;
+  const steps = {
+    start: startLane,
+    ship: async () => 'verdict: merged abc1234',
+    mint: async () => undefined,
+  };
+  try {
+    const first = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(first.exitCode, 74);
+    assert.match(first.line, /claim released/u);
+    assert.equal(
+      existsSync(join(repo, '.krn', 'task-claims', 't-abc1234.json')),
+      false,
+    );
+    assert.ok(existsSync(join(repo, '.krn', 'worktrees', 't-abc1234')));
+    writeFileSync(
+      claude,
+      `#!/bin/sh\n${deliver()}\ncat <<'JSON'\n${capture}\nJSON\n`,
+    );
+    const second = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(second.exitCode, 0, second.line);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a session that cannot start exits 69, not the no-delivery 74', async () => {
+  const { base, repo } = fixture('true');
+  process.env.KRN_LANE_CLAUDE = join(base, 'missing-claude');
+  try {
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      { start: startLane, ship: async () => 'x', mint: async () => undefined },
+    );
+    assert.equal(verdict.exitCode, 69);
+    assert.match(verdict.line, /session did not run/u);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a timeout kills the whole session process group', async () => {
+  process.env.KRN_LANE_TIMEOUT_MS = '500';
+  const { base, repo, claude } = fixture('true');
+  const pidFile = join(base, 'child.pid');
+  writeFileSync(
+    claude,
+    `#!/bin/sh\nsleep 60 >/dev/null 2>&1 &\necho $! > '${pidFile}'\nexec sleep 30\n`,
+  );
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      { start: startLane, ship: async () => 'x', mint: async () => undefined },
+    );
+    assert.match(verdict.line, /session timeout/u);
+    const child = Number(readFileSync(pidFile, 'utf8'));
+    const alive = () => {
+      try {
+        process.kill(child, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    for (let attempt = 0; attempt < 50 && alive(); attempt += 1)
+      spawnSync('sleep', ['0.1']);
+    assert.equal(alive(), false);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    delete process.env.KRN_LANE_TIMEOUT_MS;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('the headless brief states the title format and npm run fast', () => {
+  const { base, repo } = fixture('true');
+  try {
+    const brief = taskBrief(repo, 't-abc1234');
+    assert.match(brief, /type\(scope\): outcome \(t-abc1234\)/u);
+    assert.match(brief, /npm run fast/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
 });

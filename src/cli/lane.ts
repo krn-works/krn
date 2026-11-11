@@ -15,7 +15,7 @@ import {
   collectWindow,
   nonDeliveryCeiling,
 } from '../outcome/window.ts';
-import { claimTask, mainCheckoutRoot } from '../task/claims.ts';
+import { claimTask, mainCheckoutRoot, releaseClaim } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
 import { flagValue } from './flag-value.ts';
@@ -23,7 +23,8 @@ import { CliUsageError } from './usage-error.ts';
 
 export const laneUsage = [
   'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--class delivery|non-delivery] [--root DIR]  fetch origin main, create branch SLUG in .krn/worktrees/SLUG, claim the task; a non-delivery lane is refused while `krn ledger --check-ceiling` is over; prints the path and branch',
-  'krn lane run --task ID [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line',
+  'krn lane run --task ID [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree and take its claim again after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line, exit 0 only when merged',
+  'krn lane drop SLUG [--root DIR]  remove the lane worktree and branch and release the claim held from that worktree',
   'krn lane brief [--file PATH] [--task ID] [--as-of YYYY-MM-DD] [--root DIR]  print the lane brief (file, else stdin) behind the FR-40 brain packet of the repository records',
 ].join('\n');
 
@@ -150,9 +151,72 @@ export async function laneCommand(args: string[]): Promise<void> {
     process.exitCode = verdict.exitCode;
     return;
   }
+  if (verb === 'drop') {
+    process.stdout.write(`${await dropLane(rest)}\n`);
+    return;
+  }
   if (verb !== 'start') throw new CliUsageError(laneUsage);
   const started = await startLane(rest);
   process.stdout.write(`${started.path}\n${started.slug}\n`);
+}
+
+/** The ids of the claims held from `worktree`. */
+function claimsFrom(main: string, worktree: string): string[] {
+  const dir = join(main, '.krn', 'task-claims');
+  if (!existsSync(dir)) return [];
+  const ids: string[] = [];
+  for (const name of readdirSync(dir)) {
+    if (!name.endsWith('.json')) continue;
+    try {
+      const claim = JSON.parse(readFileSync(join(dir, name), 'utf8')) as {
+        worktree?: unknown;
+      };
+      if (claim.worktree === worktree) ids.push(name.slice(0, -5));
+    } catch {
+      /* A corrupt claim belongs to no lane. */
+    }
+  }
+  return ids;
+}
+
+/** Drop a dead lane: release its claims, remove the worktree and delete the branch. */
+export async function dropLane(rest: string[]): Promise<string> {
+  let slug: string | undefined;
+  let root: string | undefined;
+  for (let index = 0; index < rest.length; index += 1) {
+    const arg = rest[index] as string;
+    if (arg === '--root')
+      root = flagValue(
+        rest,
+        index++,
+        () => new CliUsageError('--root requires a value'),
+      );
+    else if (arg.startsWith('--') || slug !== undefined)
+      throw new CliUsageError(laneUsage);
+    else slug = arg;
+  }
+  if (slug === undefined || !/^[a-z0-9][a-z0-9._-]*$/u.test(slug))
+    throw new CliUsageError(`krn lane drop needs a lane slug\n${laneUsage}`);
+  const main = mainCheckoutRoot(repositoryRoot(root ?? process.cwd()));
+  const path = join(main, '.krn', 'worktrees', slug);
+  const hasBranch = gitOk(main, [
+    'show-ref',
+    '--verify',
+    '--quiet',
+    `refs/heads/${slug}`,
+  ]);
+  if (!existsSync(path) && !hasBranch)
+    throw new CliUsageError(`lane ${slug} does not exist`);
+  const released: string[] = [];
+  if (existsSync(path)) {
+    for (const id of claimsFrom(main, realpathSync(path))) {
+      await releaseClaim(main, id);
+      released.push(id);
+    }
+    git(main, ['worktree', 'remove', '--force', path]);
+  }
+  if (hasBranch) git(main, ['branch', '-D', slug]);
+  return `dropped lane ${slug}${released.length === 0 ? '' : ` (released ${released.join(', ')})`}`;
 }
 
 type CeilingReading = { share: number; ceiling: number; over: boolean } | null;

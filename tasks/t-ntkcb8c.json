@@ -1,0 +1,16 @@
+{
+  "id": "t-ntkcb8c",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane run exits by the merge verdict, a failed run releases its claim, lane drop, spawn errors exit 69, session process group, known placeholders only, brief title format and npm run fast, help lists lane run"
+  },
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "A failed lane run releases its claim and exits by the merge verdict",
+  "after": [],
+  "body": [
+    "Why: Qwen second audit .krn/runs/qwen-research-2/report.md N1, N4 (lane-run part), N5, N12 verified at 6d713ae: a failed krn lane run keeps the claim live (src/cli/lane-run.ts:303), lane-run prints shipped and exits 0 even when ship ends 'verdict: open' or 'closed unmerged' (src/ci/wait.ts:183-188), spawn ENOENT is classed 74 not infra 69, SIGKILL kills only the claude pid, sandboxPlaceholders deletes any empty untracked file, the headless brief omits the title format and npm run fast, help.ts:12 omits lane run, and no verb drops a dead lane.\nOutcome: lane run exits non-zero unless the verdict is merged; a failed run keeps evidence and releases the claim; krn lane drop <slug> removes worktree, branch and claim; spawn errors exit 69; the session runs in its own process group and is killed as a group; only known placeholder files are removed; the brief states the title format and npm run fast; help lists lane run.\nProof: test/cli/lane-run.test.ts and test/cli/lane.test.ts cover each case."
+  ]
+}
