@@ -154,6 +154,9 @@ export function inspectClaim(root: string, id: TaskId): ClaimInspection {
 }
 
 export function taskRecordRoot(cwdRoot: string, id: TaskId): string {
+  // A linked worktree always owns its own records; only the main checkout
+  // forwards a write to the worktree that holds the claim.
+  if (realpathSync(cwdRoot) !== mainCheckoutRoot(cwdRoot)) return cwdRoot;
   const claim = inspectClaim(cwdRoot, id);
   return claim.state === 'live' &&
     claim.claim?.worktree &&

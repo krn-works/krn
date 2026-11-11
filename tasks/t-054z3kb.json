@@ -1,7 +1,11 @@
 {
   "id": "t-054z3kb",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "A linked worktree owns its own task records; only the main checkout forwards to the claiming worktree."
+  },
   "created": "2026-11-11",
   "priority": 1,
   "title": "Closing a task inside a lane worktree writes the record in that worktree",
