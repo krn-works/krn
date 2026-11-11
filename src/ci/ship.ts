@@ -12,7 +12,9 @@ import { titleProblem } from './commit-title.ts';
 import { releaseRefreshExit, waitCommand } from './wait.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>]; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits like `krn ci wait` (74 failed gate, 75 timeout, 76 conflict, 77 head moved, 78 refresh failed after the merge), 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>]; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits like `krn ci wait` (65 instruction-bytes rule failed before the push, 74 failed gate, 75 timeout, 76 conflict, 77 head moved, 78 refresh failed after the merge), 64 usage or refused title';
+
+const instructionBytesRule = 'test/rules/instruction-bytes.test.ts';
 
 function usageError(message: string): Error {
   return Object.assign(new Error(message), { exitCode: 64 });
@@ -70,6 +72,15 @@ export async function shipCommand(
         '.nameWithOwner',
       ])
     ).trim();
+
+  const rule = runner('node', ['--test', instructionBytesRule], cwd);
+  if (rule.code !== 0)
+    throw Object.assign(
+      new Error(
+        `refused push: ${instructionBytesRule} failed\n${(rule.stderr.trim() || rule.stdout.trim()).slice(-4000)}`,
+      ),
+      { exitCode: 65 },
+    );
 
   const pushed = runner(
     'git',
