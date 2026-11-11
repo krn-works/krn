@@ -4,13 +4,13 @@ This plan records program sequence and exit conditions. It is not task status, a
 
 ## Scope and decision owners
 
-Follow [ADR 0014 D20–D29](../adr/0014-operator-decisions-2026-10-23.md). The numbered tracks are a sequence, not parallel work; the WIP limit counts deliveries in flight, at most two. Product and Global remain separate until the measured trigger in [ADR 0013](../adr/0013-repository-consolidation.md). Name work by role and purpose, not by phase, slice, ticket, round, date, or version.
+Follow [ADR 0014 D20–D29](../adr/0014-operator-decisions-2026-10-23.md). The numbered tracks are a sequence, not parallel work; the WIP limit counts deliveries in flight, at most two. Product is the one repository ([ADR 0013](../adr/0013-repository-consolidation.md), trigger superseded). Name work by role and purpose, not by phase, slice, ticket, round, date, or version.
 
 ## Sequence and exit checks
 
 ### 1. Delivery proof
 
-Run the two-week proof of full KRN against a plain harness, plus a market review, in parallel with FR-40. Measure operator minutes per merge, lead time p50/p90, review rounds and noise, escaped defects, and cost per PR. First extend delivery records, then compare them (`t-ste3f73` → `t-6vhm7we`).
+Run the two-week proof of full KRN against a plain harness, plus a market review, in parallel with FR-40. Measure lead time p50/p90, review rounds and noise, escaped defects, and cost per PR. First extend delivery records, then compare them (`t-ste3f73` → `t-6vhm7we`).
 
 **Exit:** comparison is recorded with raw per-task results and a win or loss for each metric.
 
@@ -44,7 +44,7 @@ Capture only approved delivery fields as evidence. Review episodes, reusable les
 
 ## In-repository task tracker
 
-Product's shipped tracker uses committed `tasks/<id>.json` records, dependencies, readiness, claims, and one `krn task` command. The lead manages readiness, claims, releases, and closure; workers receive the task id and use it in commit titles and the `Ticket:` trailer. No Paperclip or legacy queue data is imported. Product and GLOBAL Paperclip integrations were removed; GLOBAL forwards `krn task` to Product.
+Product's shipped tracker uses committed `tasks/<id>.json` records, dependencies, readiness, claims, and one `krn task` command. The lead manages readiness, claims, releases, and closure; workers receive the task id and use it in commit titles and the `Ticket:` trailer. No Paperclip or legacy queue data is imported. Product and GLOBAL Paperclip integrations were removed; `krn` on the host links to this repository, and there is no forwarder.
 
 **Exit: met** (`t-sqfffx9`). The tracker is frozen to defects only, with no new features except comments under D29 (`t-30wmab4`).
 

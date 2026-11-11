@@ -17,7 +17,7 @@ module status or behavioral qualification.
 
 Create one private package with `core`, `relay`, `foreman`, `ledger`,
 `verdict`, `memory`, `trace`, `hosts`, and `cli` modules (`hosts` left with the worker, ADR 0014 D23 worker amendment). Unknown commands
-forward through the legacy boundary with a recursion guard. Repository rules
+forwarded through a legacy boundary at the time; that forwarder is gone and unknown commands exit 64 (KRN-06). Repository rules
 live in `spec/rules.json` and generate `AGENTS.md`.
 
 ## Policy and evidence
@@ -38,4 +38,4 @@ development dependency so the strict check can describe Node APIs.
 
 ## Implementation follow-up (2026-10-20)
 
-[CODE] The repository now contains a TypeScript package and CLI. The current entry point and checks are listed in [README](../../README.md). Unknown commands use `KRN_LEGACY_ENTRY` (default `~/.codex/krn/current/scripts/krn.mjs`); `KRN_LEGACY_BIN` is historical. This implementation readback does not change the accepted single-package decision.
+[CODE] The repository now contains a TypeScript package and CLI. The current entry point and checks are listed in [README](../../README.md). Unknown commands once used `KRN_LEGACY_ENTRY`; the forwarder was removed and unknown commands exit 64 under KRN-06. This implementation readback does not change the accepted single-package decision.
