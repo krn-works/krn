@@ -20,7 +20,9 @@ import {
   laneRunCommand,
   parseSessionResult,
   sandboxPlaceholders,
+  sessionTimeoutMs,
   taskBrief,
+  tokenMinimumRemainingSeconds,
 } from '../../src/cli/lane-run.ts';
 
 // KRN-12: the session result is a verbatim `claude -p --output-format json` capture;
@@ -265,6 +267,13 @@ test('the lane sandbox settings allow edits explicitly when they scrub the subpr
     assert.doesNotMatch(domain, /localhost|127\.|\[?::1\]?|:8087/u, domain);
   for (const tool of ['Bash', 'Edit', 'Write'])
     assert.ok(settings.permissions.allow.includes(tool), tool);
+});
+
+test('a session limit never reaches the App token lifetime', () => {
+  const limit = sessionTimeoutMs({});
+  assert.ok(limit < tokenMinimumRemainingSeconds * 1000);
+  assert.equal(sessionTimeoutMs({ KRN_LANE_TIMEOUT_MS: '7200000' }), limit);
+  assert.equal(sessionTimeoutMs({ KRN_LANE_TIMEOUT_MS: '500' }), 500);
 });
 
 test('lane run ends a hanging session with the timeout verdict', async () => {

@@ -231,6 +231,22 @@ test('the token is cached 0600 without the key, reused, and re-minted near expir
   assert.equal(f.minted(), 2);
 });
 
+test('a raised reuse margin re-mints a cache that a session could outlive', async (t) => {
+  const f = await fakes(t);
+  await exec(helper, ['token'], f.env);
+  const path = join(f.env.KRN_APP_CACHE_DIR as string, 'krn-app-token.json');
+  writeFileSync(
+    path,
+    JSON.stringify({
+      token: 'ghs_old',
+      expires_at: new Date(Date.now() + 1_800_000).toISOString(),
+    }),
+  );
+  assert.equal((await exec(helper, ['token'], f.env)).stdout, 'ghs_old\n');
+  const raised = { ...f.env, KRN_APP_REUSE_MARGIN_SECONDS: '3000' };
+  assert.equal((await exec(helper, ['token'], raised)).stdout, 'ghs_token2\n');
+});
+
 test('without XDG_RUNTIME_DIR nothing is cached', async (t) => {
   const f = await fakes(t);
   const { XDG_RUNTIME_DIR: _x, KRN_APP_CACHE_DIR: _c, ...env } = f.env;

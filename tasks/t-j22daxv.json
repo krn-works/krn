@@ -1,0 +1,16 @@
+{
+  "id": "t-j22daxv",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Session limit capped at 45 min below the token minimum; launcher mints with 50 min margin outside the lane class."
+  },
+  "created": "2026-11-11",
+  "priority": 2,
+  "title": "A lane session longer than the App token lifetime keeps GitHub access",
+  "after": [],
+  "body": [
+    "Why: #608 made the token helper cache-only inside lane sessions (KRN_SESSION_CLASS=lane); the cached App token expires after about 55 minutes while krn lane run allows 2 h, so a long session loses fetch access and fails as code, not infra.\nOutcome: krn lane run refreshes the cached token outside the sandbox before it expires (or the session limit is capped below the token lifetime), and an expired-token failure is classed infra (69).\nProof: a test in test/cli/lane-run.test.ts with a fake clock shows a session past the token lifetime still reads a valid cached token."
+  ]
+}
