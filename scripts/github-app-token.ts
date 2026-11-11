@@ -3,15 +3,29 @@ import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// Mints a GitHub App installation token for krn-works/krn. The App id,
-// installation id and private key come only from the local Bitwarden REST API
-// (`bw serve`); only the token, never the key, is cached.
+// Mints a GitHub App installation token scoped to one repository: krn-works/krn,
+// or the owner/name in KRN_APP_REPOSITORY. The App id, the krn-works/krn
+// installation id and the private key come only from the local Bitwarden REST
+// API (`bw serve`); another repository's installation is looked up on GitHub.
+// Only the token, never the key, is cached, one cache file per repository.
 
 export const EXIT_UNAVAILABLE = 69;
 const DEFAULT_ITEM = 'KRN delivery GitHub App';
 const DEFAULT_BW = 'http://localhost:8087';
 const DEFAULT_API = 'https://api.github.com';
 const CACHE_NAME = 'krn-app-token.json';
+const DEFAULT_REPOSITORY = 'krn-works/krn';
+
+/** owner/name of the repository the token is scoped to. */
+export const REPOSITORY_VARIABLE = 'KRN_APP_REPOSITORY';
+
+function targetRepository(env: Env): { owner: string; name: string } {
+  const value = env[REPOSITORY_VARIABLE] || DEFAULT_REPOSITORY;
+  const match = /^([A-Za-z0-9][\w.-]*)\/([\w.-]+)$/u.exec(value);
+  if (!match?.[1] || !match[2])
+    throw new Unavailable(`${REPOSITORY_VARIABLE} is not owner/name: ${value}`);
+  return { owner: match[1], name: match[2] };
+}
 const REUSE_MARGIN_SECONDS = 300;
 
 /** The launcher raises the margin so a cached token outlives the whole session it starts. */
@@ -54,7 +68,13 @@ function cachePath(env: Env): string | undefined {
   // The sandbox hides XDG_RUNTIME_DIR, so the launcher names a cache
   // directory the sandbox can read.
   const directory = env.KRN_APP_CACHE_DIR || env.XDG_RUNTIME_DIR;
-  return directory ? join(directory, CACHE_NAME) : undefined;
+  if (!directory) return undefined;
+  const { owner, name } = targetRepository(env);
+  const file =
+    `${owner}/${name}` === DEFAULT_REPOSITORY
+      ? CACHE_NAME
+      : `krn-app-token.${owner}.${name}.json`;
+  return join(directory, file);
 }
 
 function readCache(env: Env, now: number): string | undefined {
@@ -126,6 +146,34 @@ async function readCredential(env: Env): Promise<Credential> {
   return { appId, installationId, key };
 }
 
+// GET /repos/{owner}/{repo}/installation answers the App's installation on
+// that repository (capture: test/fixtures/github-app-token/repo-installation.txt).
+async function repositoryInstallation(
+  api: string,
+  headers: Record<string, string>,
+  owner: string,
+  name: string,
+): Promise<string> {
+  let id: unknown;
+  try {
+    const response = await fetch(
+      `${api}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}/installation`,
+      { headers },
+    );
+    if (!response.ok) throw new Error(`status ${response.status}`);
+    id = record(await response.json())?.id;
+  } catch (error) {
+    throw new Unavailable(
+      `the App is not installed on ${owner}/${name} (${error instanceof Error ? error.message : 'error'})`,
+    );
+  }
+  if (typeof id !== 'number')
+    throw new Unavailable(
+      `GitHub answered no installation id for ${owner}/${name}`,
+    );
+  return String(id);
+}
+
 export async function mintToken(
   env: Env,
   now = Math.floor(Date.now() / 1000),
@@ -146,20 +194,25 @@ export async function mintToken(
     throw new Unavailable('the private key in the Bitwarden item is unusable');
   }
   const api = (env.KRN_GITHUB_API || DEFAULT_API).replace(/\/+$/u, '');
+  const headers = {
+    authorization: `Bearer ${jwt}`,
+    accept: 'application/vnd.github+json',
+    'user-agent': 'krn-app-token',
+    'x-github-api-version': '2022-11-28',
+  };
+  const { owner, name } = targetRepository(env);
+  const installation =
+    `${owner}/${name}` === DEFAULT_REPOSITORY
+      ? installationId
+      : await repositoryInstallation(api, headers, owner, name);
   let reply: Record<string, unknown> | undefined;
   try {
     const response = await fetch(
-      `${api}/app/installations/${encodeURIComponent(installationId)}/access_tokens`,
+      `${api}/app/installations/${encodeURIComponent(installation)}/access_tokens`,
       {
         method: 'POST',
-        headers: {
-          authorization: `Bearer ${jwt}`,
-          accept: 'application/vnd.github+json',
-          'content-type': 'application/json',
-          'user-agent': 'krn-app-token',
-          'x-github-api-version': '2022-11-28',
-        },
-        body: JSON.stringify({ repositories: ['krn'] }),
+        headers: { ...headers, 'content-type': 'application/json' },
+        body: JSON.stringify({ repositories: [name] }),
       },
     );
     if (!response.ok) throw new Error(`status ${response.status}`);
