@@ -1,0 +1,12 @@
+{
+  "id": "t-p3qbbtz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 2,
+  "title": "krn lane start refuses non-delivery lanes above the ceiling",
+  "after": [],
+  "body": [
+    "Outcome: krn lane start for a non-delivery task exits non-zero while krn ledger --check-ceiling is over 30%. Why: the ceiling is one line of skill text (.agents/skills/krn-lead/SKILL.md:35-36); non-delivery spend reached 75%. Proof: a lane start test with a ledger fixture above the ceiling. Scope: src/cli/lane.ts, src/outcome ledger reader, tests.\nEvidence: .krn/runs/qwen-research/report.md (Qwen 4 audit) verified by krn-reader against HEAD 8152cee."
+  ]
+}

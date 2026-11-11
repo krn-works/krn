@@ -1,0 +1,12 @@
+{
+  "id": "t-2xy8nbx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "krn pr ship runs the instruction-bytes rule before it pushes",
+  "after": [],
+  "body": [
+    "Outcome: krn pr ship refuses to push when test/rules/instruction-bytes.test.ts fails. Why: 4 of the 6 incorrect Sonnet replays in C3 (476 493 498 514, tasks/t-hx8fq1q.json) failed only this rule, found at CI. Proof: a ship test sees the push refused with the rule's message. Scope: src/ci/ship.ts and its test.\nEvidence: .krn/runs/qwen-research/report.md (Qwen 4 audit) verified by krn-reader against HEAD 8152cee."
+  ]
+}

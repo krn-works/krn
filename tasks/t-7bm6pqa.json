@@ -1,0 +1,12 @@
+{
+  "id": "t-7bm6pqa",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "A failed lane start never loses the task record and a lane session has a timeout",
+  "after": [],
+  "body": [
+    "Outcome: krn lane start moves the task record only after the claim succeeds; krn lane run bounds its claude session with a timeout and reports it. Why: src/cli/lane.ts:130-135 carryTaskRecord deletes the original before lane.ts:200-204 removes the worktree on a failed claim; src/cli/lane-run.ts:216-234 spawnSync has no timeout. Proof: tests at that layer (failed claim keeps tasks/<id>.json; a hanging fake claude ends with the timeout verdict). Scope: src/cli/lane.ts, src/cli/lane-run.ts, tests.\nEvidence: .krn/runs/qwen-research/report.md (Qwen 4 audit) verified by krn-reader against HEAD 8152cee."
+  ]
+}
