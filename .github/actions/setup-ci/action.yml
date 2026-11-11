@@ -28,14 +28,25 @@ runs:
         debs="$RUNNER_TEMP/bubblewrap-debs"
         rm -f "$status"
         mkdir -p "$debs"
-        # Worst case 3 x (60 + 60 + 60) s plus 15 s of pauses = 555 s; the
-        # waiter below polls for 600 s so it never gives up before the installer.
+        # Worst case 60 s release fetch + 3 x (60 + 60 + 60) s + 15 s of pauses
+        # = 615 s; the waiter below polls for 650 s so it never gives up first.
         setsid nohup bash -c '
           if command -v bwrap > /dev/null; then echo 0 > "$1"; exit 0; fi
           if compgen -G "$2/bubblewrap_*.deb" > /dev/null \
             && sudo dpkg -i "$2"/bubblewrap_*.deb; then
             echo 0 > "$1"; exit 0
           fi
+          # Every Ubuntu archive host has been unresolvable from the runners for
+          # whole runs, so the pinned .deb (sha256 from the noble-updates index)
+          # comes from this repository's ci-deps release first.
+          deb="$2/bubblewrap_0.9.0-1ubuntu0.3_amd64.deb"
+          if timeout 60 curl -fsSL --retry 3 -o "$deb" \
+              https://github.com/krn-works/krn/releases/download/ci-deps/bubblewrap_0.9.0-1ubuntu0.3_amd64.deb \
+            && echo "2461f1beee9cb04c8942739fe1a2b37e7b7c2a3d518f0779dc75f9245baa3094  $deb" | sha256sum -c - \
+            && sudo dpkg -i "$deb"; then
+            echo 0 > "$1"; exit 0
+          fi
+          rm -f "$deb"
           for attempt in 1 2 3; do
             if timeout 60 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y bubblewrap \
               || { timeout 60 sudo apt-get -o Acquire::http::Timeout=20 update && timeout 60 sudo apt-get install -y bubblewrap; }; then
@@ -118,7 +129,7 @@ runs:
       run: |
         set -euo pipefail
         status="$RUNNER_TEMP/bubblewrap-install.status"
-        for _ in $(seq 1 1200); do
+        for _ in $(seq 1 1300); do
           test -f "$status" && break
           sleep 0.5
         done
