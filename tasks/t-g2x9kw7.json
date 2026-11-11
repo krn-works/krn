@@ -1,7 +1,11 @@
 {
   "id": "t-g2x9kw7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "D23 result (protocol sha 6d1f45da, Opus 5.5 medium both arms, 20 units, $31.09): no arm leads. K (full KRN) correct 7/20, P (plain harness) correct 11/20; K cheaper in 13/20 (P in 7). P fails its rule (1 unit where K is correct and P is not; cheaper in 7 < 15); K fails both of its rules (correct not >=3 above P; cheaper 13 < 15, and 2 of those 13 are broken K arms at $0: 494 exit 1, 487 timeout; 488 P timed out). The pause stays as ADR 0014:67 states. Operator minutes and escaped defects not measured. Table: .krn/runs/d23-comparison/report.md."
+  },
   "created": "2026-11-10",
   "priority": 2,
   "title": "The reopened D23 comparison in the window unit",
