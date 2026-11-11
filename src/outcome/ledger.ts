@@ -18,9 +18,11 @@ import {
   transcriptFiles,
   transcriptLines,
 } from '../harness/transcripts.ts';
+import { sessionMarkers } from './holdings.ts';
 import {
   addedLines,
   classifyOutcome,
+  LANE_ROLE,
   type Outcome,
   type SlicePr,
   sliceCosts,
@@ -659,9 +661,10 @@ export async function collectLedger(options: LedgerOptions = {}) {
   const transcripts = await sessions(
     options.transcripts ? [options.transcripts] : await transcriptDirs(root),
   );
+  const markers = await sessionMarkers(root);
   const costs = sliceCosts(
     transcripts.lead.map((s) => ({
-      role: 'lead',
+      role: markers.get(s.id) === 'lane' ? LANE_ROLE : 'lead',
       turns: s.turns,
       malformed: s.malformed,
     })),

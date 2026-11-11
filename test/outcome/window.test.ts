@@ -256,6 +256,10 @@ test('the window names who held its dollars and the lines sum to the total', asy
       ],
       [['agent-p', [bash('p2', 10, 'ls')]]],
     );
+    await session('headless', [
+      user('Run the task'),
+      line('h1', 'claude-sonnet-5-5', 12),
+    ]);
     await session('probe', [
       user('reply ok'),
       line('q1', 'claude-sonnet-5-5', 11),
@@ -263,7 +267,7 @@ test('the window names who held its dollars and the lines sum to the total', asy
     await mkdir(join(dir, '.krn/operator'), { recursive: true });
     await writeFile(
       join(dir, '.krn/operator/sessions.jsonl'),
-      `${JSON.stringify({ session: 'marked', class: 'delivery', time: at(0) })}\n`,
+      `${JSON.stringify({ session: 'marked', class: 'delivery', time: at(0) })}\n${JSON.stringify({ session: 'headless', class: 'lane', time: at(0) })}\n`,
     );
     const run = (_cmd: string, args: string[]) =>
       args[0] === 'pr' ? '[]' : '[]';
@@ -282,12 +286,18 @@ test('the window names who held its dollars and the lines sum to the total', asy
     const big = dollars('claude-fable-5-2', { input_tokens: 1_000_000 }) ?? 0;
     assert.equal(by['delivery lead']?.dollars, big + one);
     assert.equal(by['delivery lead']?.estimated, 1);
-    assert.equal(by['delivery lanes']?.dollars, one);
+    // A headless `krn lane run` session is lane cost: not lead, and not estimated.
+    assert.equal(by['delivery lanes']?.dollars, 2 * one);
+    assert.equal(report.dollars.lanes, one);
+    assert.equal(report.dollars.byClass['lane:main']?.sessions, 1);
     assert.equal(by['delivery other subagents']?.dollars, one);
     assert.equal(by['non-delivery: architecture program']?.dollars, 2 * one);
     assert.equal(by['non-delivery: other']?.dollars, one);
     const sum = report.dollars.holdings.reduce((n, h) => n + h.dollars, 0);
-    assert.equal(sum, report.dollars.lead + report.dollars.subagents);
+    assert.equal(
+      sum,
+      report.dollars.lead + report.dollars.lanes + report.dollars.subagents,
+    );
     assert.match(renderWindow(report), /estimated/);
   } finally {
     await rm(dir, { recursive: true, force: true });

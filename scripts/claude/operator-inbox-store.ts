@@ -26,7 +26,7 @@ export const maxText = 4000;
 // Every launcher that starts a session sets this variable to the session's class;
 // its presence means automation started the session, not the operator.
 export const SESSION_CLASS_VARIABLE = 'KRN_SESSION_CLASS';
-export const SESSION_CLASSES = ['delivery', 'non-delivery'] as const;
+export const SESSION_CLASSES = ['delivery', 'non-delivery', 'lane'] as const;
 export type SessionClass = (typeof SESSION_CLASSES)[number];
 export const isSessionClass = (value: unknown): value is SessionClass =>
   SESSION_CLASSES.some((name) => name === value);
