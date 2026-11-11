@@ -1,7 +1,11 @@
 {
   "id": "t-rhwcc9d",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn pr body --worktree PATH reads tasks/ and commits from that worktree; test proves a worktree-only task renders Problem and Task while the main checkout exits 64 Unknown task"
+  },
   "created": "2026-11-11",
   "priority": 2,
   "title": "krn pr body finds a task created in the branch it describes",
