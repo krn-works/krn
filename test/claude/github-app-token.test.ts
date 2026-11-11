@@ -422,7 +422,6 @@ async function launch(
         env: {
           PATH: bin,
           KRN_SUCCESSOR_AGENT: 'claude',
-          KRN_CTX_PROXY: 'off',
           ...env,
         },
       },

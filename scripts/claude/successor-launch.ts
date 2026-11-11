@@ -2,7 +2,6 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { proxyBaseUrl } from './ctx-proxy-env.ts';
 import {
   isSessionClass,
   SESSION_CLASS_VARIABLE,
@@ -766,9 +765,7 @@ export function detectHarness(
   };
 }
 
-// `proxy` is the context proxy's base URL when it is healthy (see
-// ctx-proxy-env.ts); a Claude successor then routes through it.
-export function main(args: string[], proxy?: string): number {
+export function main(args: string[]): number {
   if (args[0] === '--retire') return retireMode(args.slice(1));
   let options: SuccessorLaunchOptions;
   try {
@@ -836,7 +833,6 @@ export function main(args: string[], proxy?: string): number {
           ...(options.effort ? ['--effort', options.effort] : []),
         ]
       : [];
-  const proxied = harness === 'claude' ? proxy : undefined;
   const prompt = `First run \`node scripts/claude/successor-launch.ts --retire\` from the repository root. ${options.prompt}`;
   if (unavailable && harness === 'codex') {
     // Codex has no background mode; never start Claude in its place.
@@ -855,7 +851,6 @@ export function main(args: string[], proxy?: string): number {
         ...process.env,
         ...appCredential,
         [SESSION_CLASS_VARIABLE]: options.sessionClass,
-        ...(proxied ? { ANTHROPIC_BASE_URL: proxied } : {}),
       },
     );
     if (fallback.error || fallback.status !== 0) return exitFailure(fallback);
@@ -883,7 +878,6 @@ export function main(args: string[], proxy?: string): number {
     '--env',
     `${SESSION_CLASS_VARIABLE}=${options.sessionClass}`,
   );
-  if (proxied) createArgs.push('--env', `ANTHROPIC_BASE_URL=${proxied}`);
   for (const [name, value] of Object.entries(appCredential ?? {}))
     createArgs.push('--env', `${name}=${value}`);
   let predecessorSession: string | undefined;
@@ -951,24 +945,10 @@ export function main(args: string[], proxy?: string): number {
   return 0;
 }
 
-// The main checkout owns .krn/runs; a lane worktree shares it through git.
-function root(): string {
-  const common = run('git', [
-    'rev-parse',
-    '--path-format=absolute',
-    '--git-common-dir',
-  ]);
-  return common.status === 0 ? dirname(common.stdout.trim()) : process.cwd();
-}
-
 if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   const args = process.argv.slice(2);
-  const proxy =
-    args[0] === '--retire'
-      ? undefined
-      : await proxyBaseUrl(process.env, root());
-  process.exitCode = main(args, proxy);
+  process.exitCode = main(args);
 }
