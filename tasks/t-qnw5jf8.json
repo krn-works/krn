@@ -1,7 +1,11 @@
 {
   "id": "t-qnw5jf8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lead-file-read now rewrites an unbounded rg/recursive grep to '| head -n 200' and cuts an over-long cat/sed -n inside a compound call in place (head -c/-n) via updatedInput, so the other commands still run; a lone over-long read is still refused. Hook tests cover compound calls with one long read. Final measurement: 51% read share over 30 sessions (post-472-final.md); sed -n cap tightened 80 to 40 lines."
+  },
   "created": "2026-11-11",
   "priority": 2,
   "title": "Lead guards refuse only the reading part of a Bash call",

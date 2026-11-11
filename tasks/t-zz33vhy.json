@@ -1,7 +1,11 @@
 {
   "id": "t-zz33vhy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Final post-472 measurement (post-cut.py, 30 sessions, .krn/runs/roadmap-refill/post-472-final.md): read share 51% of 1.51 MB, above the 50% trigger; sed -n 21%, grep 11%, cat 9%. Verdict: tightened the sed -n cap from 80 to 40 lines in lead-file-read.ts (replay on the same sessions: allowed read bytes 1.41 MB to 1.32 MB). Shipped with t-qnw5jf8."
+  },
   "created": "2026-11-09",
   "priority": 3,
   "title": "Confirm the lead file-read refusal on twenty sessions and extend it if reads still dominate",
