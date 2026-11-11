@@ -35,3 +35,13 @@ test('bubblewrap installs from the pinned ci-deps release without any Ubuntu arc
     'the release fetch runs before any apt attempt',
   );
 });
+
+test('the background installer body holds no single quote that would end its bash -c string', () => {
+  // Run 43055642486: an apostrophe in a comment closed the quote and every shard
+  // failed with "$2: unbound variable".
+  const body = /setsid nohup bash -c '\n([\s\S]*?)\n {8}' _ "\$status"/u.exec(
+    action,
+  )?.[1];
+  assert.ok(body, 'the installer body is found');
+  assert.doesNotMatch(body, /'/u);
+});
