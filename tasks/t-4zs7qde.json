@@ -1,0 +1,16 @@
+{
+  "id": "t-4zs7qde",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane run prompt carries the lane brief packet; record text split to t-gg1xpda because records.json is frozen"
+  },
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "krn lane run sends the measured brain packet to its session",
+  "after": [],
+  "body": [
+    "Outcome: krn lane run starts its claude session with the brain packet that krn lane brief --task ID prints, and the biome-clean record tells a worker to run npm run fast before every commit.\nWhy: FR-40 measured the packet for lane briefs, but taskBrief in src/cli/lane-run.ts sent the bare task record. Arm B lost 3 of 19 biome-clean units because sessions ran only their own tests and skipped npm run fast.\nProof: a test in test/cli/lane-run.test.ts compares the session prompt with laneBriefText; npm run fast passes.\nScope: src/cli/lane-run.ts, evals/fr40/records.json, test/cli/lane-run.test.ts.\nEvidence: evals/fr40/results-lanes.md, docs/adr/0002-brain-v2.md"
+  ]
+}

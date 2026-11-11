@@ -1,0 +1,12 @@
+{
+  "id": "t-gg1xpda",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 2,
+  "title": "live lane packet states the biome-clean rule actionably",
+  "after": [],
+  "body": [
+    "Outcome: the biome-clean convention reaches lane sessions in words that make them run npm run fast before every commit, without breaking the frozen FR-40 material.\nWhy: FR-40 arm B lost 3 of 19 biome-clean units (results-lanes.md) because sessions ran only their own tests; the failing runs show the lane never ran npm run fast. evals/fr40/records.json is frozen (manifest sha256, material.json packets, test records predate the task base), so the record text cannot change in place.\nProof: a live lane packet carries the rule with the explicit npm run fast instruction; test/evals/fr40-lanes.test.ts and freeze --check stay green.\nScope: a live record source outside the frozen records.json (or a deliberate re-freeze), src/brain/worker-packet.ts.\nEvidence: evals/fr40/results-lanes.md, evals/fr40/results-lanes/fr40/runs/6338a74c2617a2061b8e0240dc32bc01ebcce33d530618d7fa9b7dabf53ad479"
+  ]
+}

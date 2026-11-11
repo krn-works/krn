@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   chmodSync,
+  copyFileSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -13,11 +14,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { startLane } from '../../src/cli/lane.ts';
+import { laneBriefText, startLane } from '../../src/cli/lane.ts';
 import {
   laneRunCommand,
   parseSessionResult,
   sandboxPlaceholders,
+  taskBrief,
 } from '../../src/cli/lane-run.ts';
 
 // KRN-12: the session result is a verbatim `claude -p --output-format json` capture;
@@ -263,5 +265,41 @@ test('a failed claim in lane start keeps the uncommitted task record', async () 
     );
   } finally {
     rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('the session prompt starts with the packet krn lane brief prints for the task', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'krn-lane-run-packet-'));
+  try {
+    mkdirSync(join(dir, 'tasks'));
+    mkdirSync(join(dir, 'evals', 'fr40'), { recursive: true });
+    copyFileSync(
+      fileURLToPath(new URL('../../evals/fr40/records.json', import.meta.url)),
+      join(dir, 'evals', 'fr40', 'records.json'),
+    );
+    writeFileSync(
+      join(dir, 'tasks', 't-abc1234.json'),
+      `${JSON.stringify(
+        {
+          id: 't-abc1234',
+          status: 'open',
+          resolution: null,
+          created: '2026-11-09',
+          priority: 3,
+          title: 'Lane run task',
+          after: [],
+          body: ['Outcome: o'],
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    const prompt = taskBrief(dir, 't-abc1234', '2026-11-10');
+    assert.match(prompt, /^Repository conventions \(brain packet /u);
+    const record = prompt.slice(prompt.indexOf('\n\nTask t-abc1234: ') + 2);
+    assert.match(record, /^Task t-abc1234: Lane run task/u);
+    assert.equal(prompt, laneBriefText(dir, record, '2026-11-10', 't-abc1234'));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
 });
