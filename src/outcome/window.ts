@@ -225,7 +225,13 @@ export async function collectWindow(options: WindowOptions) {
     );
     for (const s of found.lead) {
       const c = leads.get(s.id);
-      if (c) book(`lead:${where}`, s.turns, holdingOf(c, null), c.estimated);
+      if (c)
+        book(
+          `${c.class === 'lane' ? 'lane' : 'lead'}:${where}`,
+          s.turns,
+          holdingOf(c, null),
+          c.estimated,
+        );
     }
     for (const s of found.subagents) {
       const c = leads.get(s.lead ?? '');
@@ -234,6 +240,7 @@ export async function collectWindow(options: WindowOptions) {
   }
   const transcript = Date.now() - t1;
   const lead = [...classes].filter(([k]) => k.startsWith('lead:'));
+  const lane = [...classes].filter(([k]) => k.startsWith('lane:'));
   const sub = [...classes].filter(([k]) => k.startsWith('subagent:'));
   const total = (list: typeof lead) =>
     list.reduce((n, [, c]) => n + c.dollars, 0);
@@ -321,6 +328,7 @@ export async function collectWindow(options: WindowOptions) {
       lead: usd(total(lead)),
       leadMain: usd(classes.get('lead:main')?.dollars ?? 0),
       leadWorktree: usd(classes.get('lead:worktree')?.dollars ?? 0),
+      lanes: usd(total(lane)),
       subagents: usd(total(sub)),
       byClass: Object.fromEntries(
         [...classes].map(([k, c]) => [k, { ...c, dollars: usd(c.dollars) }]),
@@ -425,7 +433,7 @@ export function renderWindow(r: Awaited<ReturnType<typeof collectWindow>>) {
       .reduce((v, h) => v + h.dollars, 0);
     const all = d.holdings.reduce((v, h) => v + h.dollars, 0);
     lines.push(
-      `window total $${all.toFixed(2)}: lead $${d.lead.toFixed(2)} (main $${d.leadMain.toFixed(2)}, worktree $${d.leadWorktree.toFixed(2)}), subagents $${d.subagents.toFixed(2)}; the lines below sum to it (each rounded to the cent)`,
+      `window total $${all.toFixed(2)}: lead $${d.lead.toFixed(2)} (main $${d.leadMain.toFixed(2)}, worktree $${d.leadWorktree.toFixed(2)}), lane sessions $${d.lanes.toFixed(2)}, subagents $${d.subagents.toFixed(2)}; the lines below sum to it (each rounded to the cent)`,
     );
     for (const h of d.holdings)
       lines.push(

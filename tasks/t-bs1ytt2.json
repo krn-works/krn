@@ -1,7 +1,11 @@
 {
   "id": "t-bs1ytt2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn lane run sessions carry KRN_SESSION_CLASS=lane (lane-run.ts, #605); the ledger classes them as lane, not lead (holdings, window byClass lane:*, per-PR cost); lane rows reach sessions.jsonl via the SessionStart hook. The labelled 30-row sample needs operator labels and is dropped from this outcome."
+  },
   "created": "2026-11-10",
   "priority": 1,
   "title": "Launchers mark their sessions",

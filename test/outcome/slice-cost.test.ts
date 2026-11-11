@@ -7,6 +7,7 @@ import test from 'node:test';
 import { collectLedger } from '../../src/outcome/ledger.ts';
 import {
   addedLines,
+  LANE_ROLE,
   references,
   segmentTurns,
   sliceCosts,
@@ -307,4 +308,18 @@ test('a slice nested inside another keeps the turns nearest its own references',
     segmentTurns(turns, [outer, ends, inner]),
     [472, 473, 473, 474, 474, 473, 472],
   );
+});
+
+test('a headless lane session bills as subagent dollars, not lead dollars', () => {
+  const session = (role: string): Transcript => ({
+    role,
+    malformed: false,
+    turns: [turn('krn task claim t-aaaaaaa'), turn('gh pr merge 10')],
+  });
+  const asLead = sliceCosts([session('lead')], [], prs).get(10);
+  const asLane = sliceCosts([session(LANE_ROLE)], [], prs).get(10);
+  assert.equal(asLead?.subagentDollars, 0);
+  assert.equal(asLane?.leadDollars, 0);
+  assert.equal(asLane?.subagentDollars, asLead?.leadDollars);
+  assert.equal(asLane?.dollars, asLead?.dollars);
 });

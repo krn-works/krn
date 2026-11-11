@@ -204,6 +204,9 @@ export function segmentTurns(turns: Turn[], prs: SlicePr[]): (number | null)[] {
   });
 }
 
+/** A headless `krn lane run` session: its spend is lane cost, not lead cost. */
+export const LANE_ROLE = 'lane';
+
 type SliceCost = {
   dollars: number | null;
   leadDollars: number | null;
@@ -253,7 +256,7 @@ export function sliceCosts(
     const segment = segmentTurns(t.turns, prs);
     t.turns.forEach((turn, i) => {
       for (const id of turn.tools) owner.set(id, segment[i] ?? null);
-      add(segment[i] ?? null, t, turn, true);
+      add(segment[i] ?? null, t, turn, t.role !== LANE_ROLE);
     });
   }
   for (const t of subagents) {

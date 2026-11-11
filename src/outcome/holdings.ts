@@ -11,7 +11,8 @@ export const HOLDINGS = [
   'non-delivery: other',
 ] as const;
 export type Holding = (typeof HOLDINGS)[number];
-type SessionClass = 'delivery' | 'non-delivery';
+// `lane` marks a headless `krn lane run` session: lane cost, never lead cost.
+type SessionClass = 'delivery' | 'non-delivery' | 'lane';
 
 /** Launchers record each session's class once in `.krn/operator/sessions.jsonl`. */
 export async function sessionMarkers(
@@ -29,7 +30,9 @@ export async function sessionMarkers(
       const row = JSON.parse(line) as { session?: unknown; class?: unknown };
       if (
         typeof row.session === 'string' &&
-        (row.class === 'delivery' || row.class === 'non-delivery')
+        (row.class === 'delivery' ||
+          row.class === 'non-delivery' ||
+          row.class === 'lane')
       )
         marks.set(row.session, row.class);
     } catch {
@@ -68,6 +71,7 @@ export function holdingOf(
   lead: { class: SessionClass; program: boolean },
   sub: Transcript | null,
 ): Holding {
+  if (lead.class === 'lane') return 'delivery lanes';
   if (lead.class === 'non-delivery')
     return lead.program
       ? 'non-delivery: architecture program'
