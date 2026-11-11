@@ -353,7 +353,9 @@ test('a failed refresh after the merge still reports merged, with a warning', as
       'mu',
     ),
   );
+  assert.match(out, new RegExp(`^merged: ${merge}$`, 'mu'));
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.doesNotMatch(out, /verdict: (?:open|closed)/u);
 });
 
 test('wait without auto-merge skips the refresh; an unseen merge prints the manual step', async () => {
