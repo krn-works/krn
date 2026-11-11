@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import {
   claimTask,
   inspectClaim,
+  readyTasks,
   releaseClaim,
   serializeClaim,
 } from '../../src/task/claims.ts';
@@ -250,6 +251,39 @@ describe('task claim locks', { concurrency: true }, () => {
       await releaseClaim(repo, id);
       assert.equal(inspectClaim(repo, id).state, 'none');
     } finally {
+      await rm(repo, { recursive: true, force: true });
+    }
+  });
+
+  test('ready leaves a closed task claim alone while its task lock is held', async () => {
+    const repo = await fixtureRepo('claim-lock-prune-', [task('T-1')]);
+    let holder: ReturnType<typeof startLockHolder> | undefined;
+    try {
+      holder = startLockHolder(repo, 'T-1');
+      await holder.locked;
+      const closed: TaskRecord = {
+        ...task('T-1'),
+        status: 'closed',
+        resolution: { kind: 'done', ref: null, note: '' },
+      };
+      await writeFile(join(repo, 'tasks', 'T-1.json'), serializeTask(closed));
+      const claimPath = join(repo, '.krn', 'task-claims', 'T-1.json');
+      await mkdir(dirname(claimPath), { recursive: true });
+      await writeFile(
+        claimPath,
+        serializeClaim({
+          id: 'T-1',
+          actor: 'holder',
+          worktree: repo,
+          branch: 'main',
+          claimed: '2026-10-26T00:00:00.000Z',
+          reason: null,
+        }),
+      );
+      await readyTasks(repo);
+      assert.equal(existsSync(claimPath), true);
+    } finally {
+      await stopHolder(holder);
       await rm(repo, { recursive: true, force: true });
     }
   });

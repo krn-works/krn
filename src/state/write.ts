@@ -1,8 +1,16 @@
 // Writers for the capsule and handoff: `krn state set|accept|handoff` produce
 // exactly what `krn state check` and handoff-requests accept, so nobody
 // hand-edits the field lines or the bracketed acceptance ledger again.
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import {
+  existsSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from 'node:fs';
+import { dirname, join } from 'node:path';
 import {
   ABI_LABELS,
   type AbiLabel,
@@ -16,6 +24,18 @@ import {
 } from './capsule.ts';
 import { git } from './git.ts';
 import { resolveRepositoryRoot } from './runs.ts';
+
+/** Capsules are replaced whole: a crash leaves the old file, never a torn one. */
+function writeCapsuleFile(file: string, text: string): void {
+  const temporary = join(dirname(file), `.${randomUUID()}.tmp`);
+  try {
+    writeFileSync(temporary, text);
+    renameSync(temporary, file);
+  } catch (error) {
+    if (existsSync(temporary)) unlinkSync(temporary);
+    throw error;
+  }
+}
 
 const oneLine = (value: string) => value.replace(/\s+/g, ' ').trim();
 
@@ -113,7 +133,7 @@ export function setFields(
     text = setLine(text, label, value);
     changed.push(label);
   }
-  writeFileSync(file, text);
+  writeCapsuleFile(file, text);
   return changed;
 }
 
@@ -161,7 +181,7 @@ export function acceptCriterion(
         `${entry.criterion}; ${entry.status === 'drop' ? `drop:${entry.reason}` : entry.status}`,
     )
     .join(', ')}]`;
-  writeFileSync(file, setLine(text, label, ledger));
+  writeCapsuleFile(file, setLine(text, label, ledger));
   return items;
 }
 
@@ -295,6 +315,6 @@ export function writeHandoff(
         .join('\n'),
     );
   else if (fresh) text = replaceSection(text, 'Operator requests', '- none');
-  writeFileSync(file, text);
+  writeCapsuleFile(file, text);
   return file;
 }

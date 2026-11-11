@@ -1,0 +1,16 @@
+{
+  "id": "t-wkbxrgr",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Capsule writes replace via temp+rename; closed-claim pruning runs under the task lock. holdTaskLockForTest kept: guarded by NODE_ENV=test plus a hold fd, and the only seam for lock-contention tests."
+  },
+  "created": "2026-11-11",
+  "priority": 2,
+  "title": "Capsule writes are atomic and claim pruning holds the task lock",
+  "after": [],
+  "body": [
+    "Why: Qwen second audit .krn/runs/qwen-research-2/report.md N11, verified at 6d713ae: src/state/write.ts:116,164,298 write capsules with plain writeFileSync (a crash leaves a torn capsule, against docs hardening checklist temp+rename), and pruneClosedClaims in src/task/claims.ts unlinks without withTaskLock.\nOutcome: capsule writes go through temp-then-rename (reuse src/task/staged-write.ts); pruning runs under the task lock.\nProof: tests in test/state and test/task."
+  ]
+}
