@@ -43,6 +43,30 @@ test('concurrent task creates use unique ids and leave no check findings', async
   }
 });
 
+test('task create and claim run whatever the run directory holds', async () => {
+  const repo = await tempRepo('large-runs-');
+  try {
+    const results = join(repo, '.krn', 'runs', 'eval', 'results');
+    await mkdir(results, { recursive: true });
+    await Promise.all(
+      Array.from({ length: 5000 }, (_, index) =>
+        writeFile(join(results, `${index}.meas`), ''),
+      ),
+    );
+    const created = runCli(repo, ['create', '--title', 'Large run state']);
+    assert.equal(created.status, 0, created.stderr);
+    const claim = runCli(repo, [
+      'claim',
+      created.stdout.trim(),
+      '--actor',
+      'lead',
+    ]);
+    assert.equal(claim.status, 0, claim.stderr);
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test('task filenames and resolution refs are checked against their records', async () => {
   const repo = await tempRepo('filename-ref-');
   try {

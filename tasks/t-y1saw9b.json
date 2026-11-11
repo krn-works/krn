@@ -1,0 +1,16 @@
+{
+  "id": "t-y1saw9b",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "worker-busy guard deleted; regression test: task create and claim with 5000 run entries"
+  },
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "Task commands no longer refuse on a large run directory because the worker session guard is gone",
+  "after": [],
+  "body": [
+    "Why: assertWorkerIdle scans .krn/runs for a session.json that nothing writes since the worker left in #560 (ae42dab); with D23 eval results it exceeds 4096 entries and krn task create/claim/close exit 75 \"too many run entries\".\nOutcome: worker-busy.ts and its calls are deleted; task commands run whatever .krn/runs holds.\nProof: a task CLI test creates a task with 5000 entries under .krn/runs.\nScope: src/task/, test/task/."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-bzwa996",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "Workers cannot write tracker, roadmap or harness files outside Scope and D23 arm K runs as a worker",
+  "after": [],
+  "body": [
+    "Why: D23 diagnosis: arm K ran as the lead, read krn-retro/krn-lead/krn-handoff each run, edited skills/AGENTS.md out of scope in 7/20 units, tasks/*.json in 4 (488 regressed), roadmap in 2, timed out once (487.K), and produced 507 hook messages vs 44 for the plain arm. KRN-11 says workers do not mutate tracker state but nothing enforces it.\nOutcome: a worker session (lane) is denied writes to tasks/, docs/program/roadmap.md, .agents/, .claude/ and AGENTS.md by a PreToolUse hook unless the brief's Scope names them; the D23 K arm runs as a lane worker with the `krn lane brief` prompt built by the HARNESS_REF krn against the clone, and both arms' clones carry the full history up to the parent (no later refs).\nProof: a hook test denies a worker edit to tasks/x.json and allows it when Scope names tasks/; a replay test with a fake claude asserts the K prompt is the lane brief and the clone has no commit after the parent.\nScope: scripts/claude/, .claude/settings.json, evals/d23/, test/claude/, test/evals/."
+  ]
+}
