@@ -1,0 +1,12 @@
+{
+  "id": "t-v9qxm0c",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 2,
+  "title": "The D23 replay runner is tracked and retries an arm that hit a usage limit",
+  "after": [],
+  "body": [
+    "Why: the D23 replay (.krn/runs/d23-comparison/replay.sh, unit.sh) is untracked run state; on 2026-11-11 four arms hit the Claude 5-hour limit at start (results-iface/524.K.claude.err) and produced empty patches that were silently graded until the lead noticed.\nOutcome: the replay runner lives in evals/d23/ (tracked), takes OUT, IFACE and HARNESS_REF, and when claude reports a usage limit it waits until the reset and retries the arm once instead of writing an empty patch.\nProof: a test feeds a fake claude that prints 'You've hit your 5-hour limit' once and asserts the arm is retried and its patch is non-empty.\nScope: evals/d23/, test/evals/."
+  ]
+}
