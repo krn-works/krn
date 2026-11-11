@@ -12,6 +12,8 @@ const title = 'feat(ci): ship a PR in one call (t-3ag9eqn)';
 const args = ['--title', title, '--body-file', 'body.md', '--repo', 'o/r'];
 type Failure = Error & { exitCode?: number };
 
+const line0 = (a: string[]) => a.join(' ');
+
 function receiver(options: {
   pulls: Array<Record<string, unknown>>;
   check?: string;
@@ -19,6 +21,7 @@ function receiver(options: {
   dirty?: boolean;
   branch?: string;
   createRefusal?: string;
+  rule?: { code: number; stderr: string };
 }) {
   let time = 0;
   const calls: string[] = [];
@@ -66,6 +69,10 @@ function receiver(options: {
     calls.push(`${command} ${a.join(' ')}`);
     dirs.push(`${at} ${command} ${a[0]}`);
     const out = (stdout: string) => ({ code: 0, stdout, stderr: '' });
+    if (command === 'node') {
+      assert.equal(line0(a), '--test test/rules/instruction-bytes.test.ts');
+      return { code: 0, stdout: '', stderr: '', ...options.rule };
+    }
     if (command === 'bash') return out(`commit=${merge}\n`);
     const line = a.join(' ');
     if (line === 'rev-parse --abbrev-ref HEAD')
@@ -196,4 +203,20 @@ test('ship --worktree runs from the repository root and cleans up the named work
       `${step} ran outside the worktree: ${r.dirs.join('\n')}`,
     );
   assert.ok(r.calls.some((c) => c.includes('--body-file /r/body.md')));
+});
+
+test('a failing instruction-bytes rule refuses the push with its message', async () => {
+  const message = 'instruction bytes grew: AGENTS.md 10 > 5';
+  const r = receiver({
+    pulls: [auto],
+    rule: { code: 1, stderr: message },
+  });
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 65);
+    assert.match(e.message, /instruction-bytes\.test\.ts failed/u);
+    assert.ok(e.message.includes(message));
+    return true;
+  });
+  assert.ok(r.calls.some((c) => c.startsWith('node --test')));
+  assert.ok(!r.calls.some((c) => c.includes('push')));
 });
