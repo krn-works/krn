@@ -107,7 +107,6 @@
     "test/task/task-commands.test.ts": 4.7,
     "test/task/task-evidence.test.ts": 0.6,
     "test/task/task.test.ts": 3.1,
-    "test/task/worker-busy.test.ts": 5.8,
     "test/test-suite-failures.test.ts": 4.6,
     "test/test-suite-shards-config.test.mjs": 5.3,
     "test/test-suite-shards.test.mjs": 8,

@@ -1,0 +1,12 @@
+{
+  "id": "t-sagb16v",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "The lane brief carries the repository's precedent for the modules it names",
+  "after": [],
+  "body": [
+    "Why: D23 diagnosis (.krn/runs/d23-comparison/results-iface2, regrade-iface2) shows 17/20 hidden-test failures in both arms are right module, wrong behavior: exact messages, exit codes, output shapes that the repository's history already fixes as conventions. Plain harnesses never mine that history; KRN's worker brief can.\nOutcome: `krn lane brief` appends a Precedent section for the modules the brief names (Scope paths and interface module paths): the 3 most recent commits reachable from HEAD touching each module with their test-file diff hunks, and the existing test files importing the module, within a fixed token budget; nothing from commits not reachable from HEAD.\nProof: a test on a fixture repository asserts the section lists the right commits and test hunks, respects the budget, and ignores a commit on an unmerged branch.\nScope: src/brain/, src/cli/lane.ts, test/brain/, test/cli/."
+  ]
+}
