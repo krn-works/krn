@@ -7,10 +7,10 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { shipCommand } from '../ci/ship.ts';
-import { mainCheckoutRoot } from '../task/claims.ts';
+import { claimTask, mainCheckoutRoot, releaseClaim } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
 import { getTask, repositoryRoot } from '../task/store.ts';
 import { flagValue } from './flag-value.ts';
@@ -149,10 +149,14 @@ export function sessionVerification(worktree: string): string | undefined {
 }
 
 /** Read the JSON result of `claude -p --output-format json`. */
+/** The files the harness sandbox mounts empty over write-denied paths: .env*, .npmrc and lockfiles. */
+const placeholderName =
+  /^(\.env(\..+)?|\.npmrc|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?)$/u;
+
 /**
- * The untracked empty regular files in `git status --porcelain -z` output: the placeholders the
- * harness sandbox mounts over write-denied paths (.env*, .npmrc, lockfiles). An untracked file is
- * never delivered, so removing an empty one loses nothing.
+ * The untracked empty regular files in `git status --porcelain -z` output that carry a known
+ * sandbox placeholder name. Any other empty untracked file (.gitkeep, a marker) is intended
+ * work and stays.
  */
 export function sandboxPlaceholders(
   porcelain: string,
@@ -162,6 +166,7 @@ export function sandboxPlaceholders(
     .split('\0')
     .filter((entry) => entry.startsWith('?? '))
     .map((entry) => entry.slice(3))
+    .filter((path) => placeholderName.test(basename(path)))
     .filter((path) => {
       const info = stat(path);
       return info.isFile() && info.size === 0;
@@ -210,7 +215,7 @@ function taskRecordBrief(root: string, id: string): string {
     '',
     ...task.body,
     '',
-    `Deliver this task in the current worktree: commit with a "Ticket: ${task.id}" trailer and close the task with \`bin/krn task close ${task.id} --as done --note ...\` in the same commit. Do not push or open a pull request; the caller ships the commit.`,
+    `Deliver this task in the current worktree: commit with a "Ticket: ${task.id}" trailer and close the task with \`bin/krn task close ${task.id} --as done --note ...\` in the same commit. The commit title is \`type(scope): outcome (${task.id})\`. Run \`npm run fast\` and fix what it reports before you finish; the caller ships only a tree it passed on. Do not push or open a pull request; the caller ships the commit.`,
   ].join('\n');
 }
 
@@ -258,6 +263,33 @@ function reusableLane(
   return { path, slug };
 }
 
+/** Reuse the worktree a failed run left and take its claim again. */
+async function reclaimLane(
+  main: string,
+  path: string,
+  slug: string,
+  task: string,
+  actor: string,
+): Promise<{ path: string; slug: string }> {
+  const lane = reusableLane(path, slug);
+  await claimTask(main, task, {
+    actor,
+    worktree: path,
+    reason: `lane ${slug}`,
+  });
+  return lane;
+}
+
+/** Kill every process the session left in its own process group (a Bash child can outlive claude). */
+function killGroup(pid: number | undefined): void {
+  if (pid === undefined || pid <= 0) return;
+  try {
+    process.kill(-pid, 'SIGKILL');
+  } catch {
+    /* The group is already gone. */
+  }
+}
+
 export async function laneRunCommand(
   args: string[],
   steps: LaneRunSteps = defaultSteps,
@@ -300,19 +332,31 @@ export async function laneRunCommand(
     };
 
   const existing = join(main, '.krn', 'worktrees', lane);
-  // A rerun after a failed run reuses its worktree and branch (the claim is still held there).
+  const holder = actor ?? `lane-${lane}`;
+  // A rerun after a failed run reuses its worktree and branch; the failed run released the claim.
   const started = existsSync(existing)
-    ? reusableLane(existing, lane)
+    ? await reclaimLane(main, existing, lane, task, holder)
     : await steps.start([
         lane,
         '--task',
         task,
         '--actor',
-        actor ?? `lane-${lane}`,
+        holder,
         '--root',
         origin,
       ]);
   const claude = process.env.KRN_LANE_CLAUDE ?? 'claude';
+  // Node's spawnSync honours `detached` (a new session and process group) though its types omit it.
+  const sessionOptions = {
+    cwd: started.path,
+    encoding: 'utf8' as const,
+    maxBuffer: 64 * 1024 * 1024,
+    env: environment,
+    timeout: sessionTimeoutMs(process.env),
+    killSignal: 'SIGKILL' as const,
+    // Its own process group, so the timeout kills the session's children with it.
+    detached: true,
+  };
   const session = spawnSync(
     claude,
     [
@@ -327,15 +371,9 @@ export async function laneRunCommand(
       '--model',
       model,
     ],
-    {
-      cwd: started.path,
-      encoding: 'utf8',
-      maxBuffer: 64 * 1024 * 1024,
-      env: environment,
-      timeout: sessionTimeoutMs(process.env),
-      killSignal: 'SIGKILL',
-    },
+    sessionOptions,
   );
+  killGroup(session.pid);
   const timedOut =
     (session.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT';
   const result = timedOut
@@ -354,12 +392,29 @@ export async function laneRunCommand(
   const spent =
     result.cost === undefined ? '' : ` cost $${result.cost.toFixed(2)}`;
   const kept = `worktree ${started.path}, rerun reuses it`;
-  const stop = (reason: string): LaneVerdict => ({
-    line: `lane ${task}: ${reason} (${kept}) model ${model}${spent}`,
-    exitCode: exitNoDelivery,
-  });
+  // A failed run keeps its worktree as evidence and frees the task for a retry.
+  const stop = async (
+    reason: string,
+    exitCode = exitNoDelivery,
+  ): Promise<LaneVerdict> => {
+    try {
+      await releaseClaim(main, task);
+    } catch {
+      /* No claim left to release. */
+    }
+    return {
+      line: `lane ${task}: ${reason} (${kept}, claim released) model ${model}${spent}`,
+      exitCode,
+    };
+  };
 
-  if (!result.ok) return stop(result.detail);
+  if (!result.ok)
+    return await stop(
+      result.detail,
+      session.error !== undefined && !timedOut
+        ? exitCredentialUnavailable
+        : exitNoDelivery,
+    );
   // Taken before the placeholders go: the fast-pass key was written with them in the tree.
   const verified = sessionVerification(started.path);
   for (const path of sandboxPlaceholders(
@@ -368,11 +423,11 @@ export async function laneRunCommand(
   ))
     rmSync(join(started.path, path));
   if (git(started.path, ['status', '--porcelain']) !== '')
-    return stop('dirty tree');
+    return await stop('dirty tree');
   const commits = git(started.path, ['log', '--format=%s', 'origin/main..HEAD'])
     .split('\n')
     .filter((line) => line !== '');
-  if (commits.length === 0) return stop('no commit');
+  if (commits.length === 0) return await stop('no commit');
   const title = ticketCommitTitle(
     git(started.path, [
       'log',
@@ -382,10 +437,11 @@ export async function laneRunCommand(
     task,
   );
   if (title === undefined)
-    return stop(`no commit with a Ticket: ${task} trailer`);
+    return await stop(`no commit with a Ticket: ${task} trailer`);
   if (getTask(started.path, task).status !== 'closed')
-    return stop('task not closed');
-  if (verified === undefined) return stop('no passing check on the final tree');
+    return await stop('task not closed');
+  if (verified === undefined)
+    return await stop('no passing check on the final tree');
 
   const bodyDir = join(main, '.krn', 'tmp');
   mkdirSync(bodyDir, { recursive: true });
@@ -409,8 +465,9 @@ export async function laneRunCommand(
     bodyFile,
   ]);
   const last = shipped.trim().split('\n').pop() ?? '';
+  const merged = /^verdict: merged\b/u.test(last);
   return {
-    line: `lane ${task}: shipped ${last} model ${model}${spent}`,
-    exitCode: 0,
+    line: `lane ${task}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}`,
+    exitCode: merged ? 0 : exitNoDelivery,
   };
 }

@@ -220,3 +220,33 @@ test('lane start refuses a non-delivery lane above the ceiling and lets delivery
     /--class must be/,
   );
 });
+
+test('lane drop removes the worktree and branch and releases the claim', () => {
+  const { base, repo } = fixture();
+  try {
+    assert.equal(lane(repo, 'start', 'dead', '--task', 't-abc1234').status, 0);
+    const claim = join(repo, '.krn', 'task-claims', 't-abc1234.json');
+    assert.ok(existsSync(claim));
+    const dropped = lane(repo, 'drop', 'dead');
+    assert.equal(dropped.status, 0, dropped.stderr);
+    assert.match(dropped.stdout, /dropped lane dead \(released t-abc1234\)/u);
+    assert.equal(existsSync(claim), false);
+    assert.equal(existsSync(join(repo, '.krn', 'worktrees', 'dead')), false);
+    assert.equal(git(repo, 'branch', '--list', 'dead'), '');
+    // The task can be claimed by a new lane again.
+    assert.equal(lane(repo, 'start', 'again', '--task', 't-abc1234').status, 0);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('lane drop refuses an unknown lane with exit 64', () => {
+  const { base, repo } = fixture();
+  try {
+    const result = lane(repo, 'drop', 'nothing');
+    assert.equal(result.status, 64);
+    assert.match(result.stderr, /lane nothing does not exist/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});

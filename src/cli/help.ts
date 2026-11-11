@@ -9,7 +9,7 @@ const usage: Readonly<Record<string, string>> = {
     'krn doctor  reports the host `krn task` entry, its commit and origin/main; exit 78 when stale or unpinned',
   state:
     'krn state check|resume|set|accept|handoff|retro [--root DIR]  delivery-loop capsule check, resume brief and writers; check exits 1 when divergent',
-  lane: 'krn lane start|brief [...]  start: fetch origin main, create branch SLUG in .krn/worktrees/SLUG, claim the task; brief: print a lane brief behind the FR-40 brain packet; `krn lane` lists verbs',
+  lane: 'krn lane start|run|drop|brief [...]  run: start the lane, run one headless claude session on a task, ship the commit (exit 0 only when merged; a failed run keeps its worktree and releases the claim); drop SLUG: remove a dead lane worktree, branch and claim; start: fetch origin main, create branch SLUG in .krn/worktrees/SLUG, claim the task; brief: print a lane brief behind the FR-40 brain packet; `krn lane` lists verbs',
   decide:
     'krn decide add|list|close [...]  operator decisions: rows with a recommendation, a default and a deadline under .krn/operator/; `list --notify` prints rows not yet announced (for the daily housekeeping run)',
   plan: 'krn plan [--root DIR]  one line: plan points left per account (5h, 7d) from .krn/plan/samples.jsonl and the account to spend next (nearest seven-day reset)',
