@@ -1,5 +1,6 @@
 // Re-grade the replayed D23 patches against the tests the original pull requests merged.
-// Usage: node evals/d23/regrade.ts [--runs <d23-comparison dir>] [--results-dir results] [--harness-ref <sha>] [--out <dir>] [--units 473,476] [--jobs 2] [--no-full]
+// Usage: node evals/d23/regrade.ts [--runs <d23-comparison dir>] [--results-dir results] [--harness-ref <sha>] [--out <dir>] [--units 473,476] [--jobs 2] [--no-full] [--units-file <file>] [--classify-only]
+// --classify-only writes <out>/<pr>.classify.json (failToPass, validOnMerge) for each unit and grades no arm.
 // Offline: reads results/<pr>.<K|P>.patch|files, never starts a model session. Resumes from <out>/<pr>.json.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -32,6 +33,23 @@ const arg = (name: string, fallback: string) => {
   return (i > 0 ? process.argv[i + 1] : undefined) ?? fallback;
 };
 
+/** Exact two-sided binomial p over discordant pairs (b, c), rounded half to even at 3 decimals. */
+export function mcnemarP(b: number, c: number): string {
+  const n = b + c;
+  if (n === 0) return '1.000';
+  let tail = 0;
+  let term = 0.5 ** n;
+  for (let k = 0; k <= Math.min(b, c); k++) {
+    tail += term;
+    term = (term * (n - k)) / (k + 1);
+  }
+  const p = Math.min(1, 2 * tail) * 1000;
+  const down = Math.floor(p);
+  const rest = p - down;
+  const even = rest === 0.5 ? down + (down % 2) : Math.round(p);
+  return (even / 1000).toFixed(3);
+}
+
 export function summaryLine(grades: UnitGrade[]): string {
   const count = (arm: 'K' | 'P', key: 'functional' | 'scopeClean') =>
     grades.filter((g) => g[arm][key]).length;
@@ -40,7 +58,10 @@ export function summaryLine(grades: UnitGrade[]): string {
   const paired = grades.filter((g) => g.validOnMerge && g.K.ran && g.P.ran);
   const pairedCount = (arm: 'K' | 'P') =>
     paired.filter((g) => g[arm].functional).length;
-  return `K functional ${count('K', 'functional')}/${n}, P functional ${count('P', 'functional')}/${n}, K scope-clean ${count('K', 'scopeClean')}/${n}, P scope-clean ${count('P', 'scopeClean')}/${n}; paired K ${pairedCount('K')}/${paired.length}, P ${pairedCount('P')}/${paired.length}`;
+  return `K functional ${count('K', 'functional')}/${n}, P functional ${count('P', 'functional')}/${n}, K scope-clean ${count('K', 'scopeClean')}/${n}, P scope-clean ${count('P', 'scopeClean')}/${n}; paired K ${pairedCount('K')}/${paired.length}, P ${pairedCount('P')}/${paired.length}; McNemar p=${mcnemarP(
+    paired.filter((g) => g.K.functional && !g.P.functional).length,
+    paired.filter((g) => g.P.functional && !g.K.functional).length,
+  )}`;
 }
 
 export function table(grades: UnitGrade[]): string {
@@ -71,17 +92,21 @@ async function shaFor(repo: string, ref: string, pr: string) {
   return { merge, parent };
 }
 
-export async function regradeUnit(
-  pr: string,
-  opts: {
-    repo: string;
-    ref: string;
-    results: string;
-    work: string;
-    fullSuite: boolean;
-    harnessRef?: string;
-  },
-): Promise<UnitGrade> {
+export interface UnitOpts {
+  repo: string;
+  ref: string;
+  results: string;
+  work: string;
+  fullSuite: boolean;
+  harnessRef?: string;
+}
+
+export type UnitClassification = Pick<
+  UnitGrade,
+  'pr' | 'parent' | 'merge' | 'failToPass' | 'passToPassHidden' | 'validOnMerge'
+>;
+
+async function classifyWith(pr: string, opts: UnitOpts) {
   const { merge, parent } = await shaFor(opts.repo, opts.ref, pr);
   const spec = {
     repo: opts.repo,
@@ -93,6 +118,30 @@ export async function regradeUnit(
     ...(opts.harnessRef ? { harnessRef: opts.harnessRef } : {}),
   };
   const cls: Classified = await classify(spec, `${pr}.classify`);
+  return { merge, parent, spec, cls };
+}
+
+/** Validity only: which hidden test files fail on parent and pass on merge. Grades no arm. */
+export async function classifyUnit(
+  pr: string,
+  opts: UnitOpts,
+): Promise<UnitClassification> {
+  const { merge, parent, cls } = await classifyWith(pr, opts);
+  return {
+    pr,
+    parent,
+    merge,
+    failToPass: cls.failToPass,
+    passToPassHidden: cls.passToPassHidden,
+    validOnMerge: cls.validOnMerge,
+  };
+}
+
+export async function regradeUnit(
+  pr: string,
+  opts: UnitOpts,
+): Promise<UnitGrade> {
+  const { merge, parent, spec, cls } = await classifyWith(pr, opts);
   const arm = (a: 'K' | 'P') =>
     gradeArm(
       spec,
@@ -120,18 +169,25 @@ async function main() {
   const jobs = Number(arg('jobs', '2'));
   const fullSuite = !process.argv.includes('--no-full');
   const only = arg('units', '');
-  const units = readFileSync(join(runs, 'units.txt'), 'utf8')
+  const units = readFileSync(
+    resolve(arg('units-file', join(runs, 'units.txt'))),
+    'utf8',
+  )
     .split('\n')
     .map((l) => l.trim().split(/\s+/)[0] ?? '')
     .filter((u) => u && (!only || only.split(',').includes(u)));
   mkdirSync(out, { recursive: true });
+  const classifyOnly = process.argv.includes('--classify-only');
   const queue = [...units];
   await Promise.all(
     Array.from({ length: jobs }, async () => {
       for (let pr = queue.shift(); pr; pr = queue.shift()) {
-        const file = join(out, `${pr}.json`);
+        const file = join(
+          out,
+          classifyOnly ? `${pr}.classify.json` : `${pr}.json`,
+        );
         if (existsSync(file)) continue;
-        const grade = await regradeUnit(pr, {
+        const opts = {
           repo: repoRoot,
           ref: arg('ref', 'origin/main'),
           results: join(runs, arg('results-dir', 'results')),
@@ -140,11 +196,15 @@ async function main() {
           ...(arg('harness-ref', '')
             ? { harnessRef: arg('harness-ref', '') }
             : {}),
-        });
-        writeFileSync(file, `${JSON.stringify(grade, null, 2)}\n`);
+        };
+        const result = classifyOnly
+          ? await classifyUnit(pr, opts)
+          : await regradeUnit(pr, opts);
+        writeFileSync(file, `${JSON.stringify(result, null, 2)}\n`);
       }
     }),
   );
+  if (classifyOnly) return;
   const grades = units.map(
     (u) =>
       JSON.parse(readFileSync(join(out, `${u}.json`), 'utf8')) as UnitGrade,
