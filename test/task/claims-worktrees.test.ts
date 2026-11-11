@@ -241,3 +241,42 @@ test('closing the task on origin main expires the linked worktree claim', async 
     await rm(repo, { recursive: true, force: true });
   }
 });
+
+test('closing and editing a lead-claimed task inside a linked worktree writes only that worktree', async () => {
+  const repo = await fixtureRepo('record-root-', [task('T-1')]);
+  const linked = join(dirname(repo), 'record-root-linked');
+  try {
+    addWorktree(repo, linked, 'record-root-branch');
+    const claim = await runCli(repo, ['claim', 'T-1', '--actor', 'lead']);
+    assert.equal(claim.status, 0, claim.stderr);
+    const edit = await runCli(linked, [
+      'edit',
+      'T-1',
+      '--append-body',
+      'lane note',
+    ]);
+    assert.equal(edit.status, 0, edit.stderr);
+    const close = await runCli(linked, [
+      'close',
+      'T-1',
+      '--as',
+      'done',
+      '--note',
+      'finished',
+    ]);
+    assert.equal(close.status, 0, close.stderr);
+    assert.equal(
+      git(repo, 'status', '--porcelain', '--', 'tasks'),
+      '',
+      'the main checkout stays clean',
+    );
+    assert.match(git(linked, 'status', '--porcelain', '--', 'tasks'), /T-1/u);
+    assert.match(
+      readFileSync(join(linked, 'tasks', 'T-1.json'), 'utf8'),
+      /"closed"/u,
+    );
+  } finally {
+    removeWorktree(repo, linked);
+    await rm(repo, { recursive: true, force: true });
+  }
+});
