@@ -235,7 +235,9 @@ if (import.meta.main) {
     const ceiling = ceilingOf(window);
     if (input.event === 'PreToolUse') {
       const tool = object(JSON.parse(raw));
+      // A headless lane session cannot hand off, so the ceiling does not apply to it.
       if (
+        process.env.KRN_SESSION_CLASS !== 'lane' &&
         total >= ceiling &&
         refusesAtCeiling(tool.tool_name, tool.tool_input, input.project, host)
       )

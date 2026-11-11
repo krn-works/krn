@@ -23,9 +23,14 @@ writeFileSync(join(dir, 'big.md'), `${'line of text\n'.repeat(1000)}`);
 writeFileSync(join(dir, 'mid.md'), 'line of text\n'.repeat(600));
 writeFileSync(join(dir, 'small.md'), 'one\ntwo\n');
 
-const run = (base: Record<string, unknown> | undefined, tool_input: object) =>
+const run = (
+  base: Record<string, unknown> | undefined,
+  tool_input: object,
+  sessionClass = '',
+) =>
   spawnSync(process.execPath, [script], {
     encoding: 'utf8',
+    env: { ...process.env, KRN_SESSION_CLASS: sessionClass },
     input: JSON.stringify({
       ...base,
       cwd: dir,
@@ -134,4 +139,14 @@ test('lead file read hook gives an unbounded search its bounded form', () => {
 test('lead file read hook refuses a repeated over-long stage it cannot cut in place', () => {
   const result = run(lead, { command: 'cat big.md; echo x; cat big.md' });
   assert.equal(result.status, 2);
+});
+
+test('lead file read hook lets a headless lane session read a large file', () => {
+  const read = { file_path: join(dir, 'big.md') };
+  assert.equal(run(lead, read).status, 2);
+  for (const input of [read, { command: 'cat big.md' }]) {
+    const result = run(lead, input, 'lane');
+    assert.equal(result.status, 0);
+    assert.equal(result.stderr, '');
+  }
 });
