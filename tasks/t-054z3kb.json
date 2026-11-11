@@ -1,0 +1,12 @@
+{
+  "id": "t-054z3kb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "Closing a task inside a lane worktree writes the record in that worktree",
+  "after": [],
+  "body": [
+    "Why: three lanes on 2026-11-12 (#622, #625, #626) ran `krn task close <id>` inside their worktree and it rewrote tasks/<id>.json in the main checkout, where the lead claim lives; each lane copied the record back by hand and one push failed the Task records lint (exit 65).\nOutcome: `krn task close` run inside a lane worktree writes the record in that worktree (the claim is resolved from the main checkout but the write goes to the cwd worktree), and the main checkout stays clean.\nProof: a task CLI test with a main checkout and a linked worktree closes a lead-claimed task from the worktree and asserts only the worktree file changed.\nScope: src/task/, test/task/."
+  ]
+}
