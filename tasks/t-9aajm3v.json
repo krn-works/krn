@@ -1,0 +1,16 @@
+{
+  "id": "t-9aajm3v",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn-retro and krn-lead route out-of-scope lessons to krn task create; one Opus lens"
+  },
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "Slice lessons outside the task scope become tasks, not edits in the slice PR",
+  "after": [],
+  "body": [
+    "Why: D23 regrade input: 8 of 13 arm-K failures edited instruction files (.agents/skills/*, AGENTS.md, .claude/agents) outside the task Scope; krn-retro and krn-lead tell the author to ship lesson edits inside the slice PR. That grows instructions per PR and widens every diff. The lead skill also sends program decisions to two or three Opus lenses; one lens plus a second only for irreversible or ADR-level calls is enough (operator 2026-11-11: cut meta-work).\nOutcome: krn-retro and krn-lead route a lesson outside the task Scope to krn task create; only lessons inside Scope ship in the slice PR; the lens line reads one Opus lens, a second only for irreversible or ADR decisions.\nProof: the instruction-bytes ratchet does not grow; a rules test pins that krn-retro names krn task create for out-of-scope lessons."
+  ]
+}

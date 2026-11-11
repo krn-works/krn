@@ -73,6 +73,8 @@ test('every slice ships as one squash-merged PR with the template sections and i
   }
   assert.match(skill('krn-lead'), /krn pr ship/u);
   assert.match(skill('krn-retro'), /never open a separate retro PR/u);
+  assert.match(skill('krn-retro'), /outside it becomes `krn task create`/u);
+  assert.match(skill('krn-lead'), /one Opus lens, a second only for/u);
 });
 
 function frontmatter(path: string): Map<string, string> {

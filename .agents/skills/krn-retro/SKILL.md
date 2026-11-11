@@ -5,15 +5,15 @@ description: Run a short retrospective before a KRN slice's last commit or when 
 
 # KRN retro
 
-Goal: the next slice is cheaper. Its edits ship in the slice PR; never open a separate retro PR. Use evidence by pointer, not memory.
+Goal: the next slice is cheaper. A lesson inside the task Scope ships in the slice PR; one outside it becomes `krn task create`, never an edit in the slice PR; never open a separate retro PR. Cite evidence by pointer.
 
 ## Measure first
 
-`krn state retro --task <id>` prints the skeleton: commits naming the task, wall time, merged PRs, one line per category below. Add CI reruns and operator interventions from records.
+`krn state retro --task <id>` prints the skeleton: commits naming the task, wall time, merged PRs, one line per category below. Add CI reruns and operator interventions.
 
 ## Find candidates
 
-Categories adapted from mattpocock/skills `retro`:
+Categories:
 
 - **Automated checks:** an error a check could have caught earlier. Add or extend the cheapest check (lint rule, a test, a CI step). This is the preferred outcome.
 - **Reviewer rules:** a review finding that no deterministic check can catch. Add it to a repository rule or `docs/program/hardening-checklist.md`.
@@ -31,11 +31,11 @@ Each candidate becomes, in this order of preference:
 2. a rule in this repository's `AGENTS.md` through `spec/rules.json`;
 3. a `krn task create` defect or task with observable acceptance.
 
-A trap lesson (a known defect that cost a step) also patches the steering instruction that led into it, in the same slice: add the workaround to `krn-lead` or `docs/program/repository-workflow.md`, add a `Lead trap:` line to the task with `krn task edit <id> --append-body`, and list the id under the lead skill's "Open traps". A task alone is not a disposition for a trap.
+A trap lesson (a known defect that cost a step) also needs its steering fix (the workaround in `krn-lead` or `docs/program/repository-workflow.md`) as a task unless that file is in Scope; add a `Lead trap:` line to the task with `krn task edit <id> --append-body`, and list the id under the lead skill's "Open traps". A task alone is not a disposition for a trap.
 
 Rerank `docs/program/roadmap.md` from the slice's evidence: run `node scripts/claude/roadmap-prune.ts`, then add, move or remove at least one row, or carry `- Roadmap: unchanged (<reason>)` into the handoff.
 
-Lead memory keeps only operator preferences and decisions. Never write a lessons page.
+Lead memory keeps only operator preferences and decisions; no lessons page.
 
 ## Output
 
