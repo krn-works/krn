@@ -1,0 +1,12 @@
+{
+  "id": "t-ahepzts",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 0,
+  "title": "D23 correctness is graded by hidden acceptance tests, not process conformance",
+  "after": [],
+  "body": [
+    "Why: D23 (.krn/runs/d23-comparison, report.md, summ.py) scored correctness as commit + own tests + npm test + no file outside Scope. Of 13 arm-K failures, 9 are Scope violations (mostly edits to .agents/skills, AGENTS.md, .claude: the retro habit), 1 is the shard-weight-coverage rule on a new test file (519), 1 the roadmap-open-tasks rule (480), 2 are crash/timeout (494, 487). No criterion checks that the task outcome works, so 7/20 vs 11/20 measures conformance, not function.\nOutcome: a tracked grader (evals/d23/) re-grades the existing 40 patches SWE-bench style: for each unit, the test files the original merged PR added or changed are applied to the arm tree (FAIL_TO_PASS: fail on parent, pass on the merged PR; PASS_TO_PASS: the rest of npm test); functional correctness and scope/process conformance are separate columns. Results go to .krn/runs/d23-comparison/regrade/.\nProof: node evals/d23/regrade.ts prints a 20-row table and one line \"K functional n/20, P functional m/20, K scope-clean a/20, P scope-clean b/20\"; a test covers grading one fixture unit."
+  ]
+}
