@@ -1,7 +1,11 @@
 {
   "id": "t-v9qxm0c",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "D23 replay runner is tracked in evals/d23 with usage-limit wait and one retry"
+  },
   "created": "2026-11-11",
   "priority": 2,
   "title": "The D23 replay runner is tracked and retries an arm that hit a usage limit",
