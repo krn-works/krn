@@ -192,6 +192,33 @@ test('a gate that starts in time is not cut by the start bound', async () => {
   );
   assert.equal(receiver.elapsed(), 40_000);
 });
+test('a cancelled run superseded by a newer run on the same head is not a failure', async () => {
+  let polls = 0;
+  const receiver = runtime(() => {
+    polls++;
+    const cancelled = { ...checkRun('completed', 'cancelled'), id: 1 };
+    return polls < 3
+      ? [cancelled]
+      : [cancelled, { ...checkRun('completed', 'success'), id: 2 }];
+  });
+  assert.equal(
+    await waitCommand(args, receiver),
+    `gate: success ${head}\nverdict: not merging: auto-merge is not enabled on PR #7 (mergeable_state blocked); run gh pr merge 7 --auto --squash`,
+  );
+});
+test('a cancelled run with no newer run still exits 74 after the grace', async () => {
+  await assert.rejects(
+    waitCommand(
+      args,
+      runtime(() => [checkRun('completed', 'cancelled')]),
+    ),
+    (error: Error & { exitCode?: number }) => {
+      assert.equal(error.exitCode, 74);
+      assert.match(error.message, /concluded cancelled/u);
+      return true;
+    },
+  );
+});
 test('stop exit codes are distinct, avoid 64/74/75 and appear in the usage', () => {
   const codes = Object.values(stopExitCodes);
   assert.equal(new Set(codes).size, codes.length);

@@ -81,6 +81,13 @@ export class GateTimeout extends Error {
     this.seconds = seconds;
   }
 }
+/**
+ * A run cancelled by the workflow's concurrency group is superseded by a newer
+ * run on the same head (e.g. after a PR body edit); that run's Check appears
+ * moments later, so a cancelled newest check is awaited this long first.
+ */
+const supersededGraceMs = 120_000;
+
 export async function waitForGate({
   repo,
   pr,
@@ -96,6 +103,7 @@ export async function waitForGate({
 }: GateWaitOptions): Promise<string> {
   const started = now();
   const deadline = started + timeoutMs;
+  let cancelledSince: number | undefined;
   for (;;) {
     // GitHub starts no pull_request workflow for a conflicting PR and none
     // for an old head, so both stop the wait instead of polling to the bound.
@@ -129,6 +137,13 @@ export async function waitForGate({
       .sort((a, b) => b.id - a.id)[0];
     if (gate?.status === 'completed') {
       const conclusion = gate.conclusion ?? 'unknown';
+      if (conclusion === 'cancelled') {
+        cancelledSince ??= now();
+        if (now() - cancelledSince < supersededGraceMs && now() < deadline) {
+          await sleep(pollMs);
+          continue;
+        }
+      } else cancelledSince = undefined;
       if (conclusion !== 'success') {
         const runId = /\/actions\/runs\/(\d+)\//u.exec(
           gate.details_url ?? '',
