@@ -585,28 +585,21 @@ async function main() {
       );
       const plan = planTestShards(expectedFiles, requestedShards);
       process.stdout.write(
-        `Test shard plan: K=${requestedShards}; ${requestedShards === 1 ? 'serial group=1' : `parallel groups=${plan.shards.length}`}; final serial files=${plan.serialFiles.length}\n`,
+        `Test shard plan: K=${requestedShards}; ${requestedShards === 1 ? 'serial group=1' : `parallel groups=${plan.shards.length}`}\n`,
       );
-      if (requestedShards === 1) {
-        const serialRun = [...plan.shards.flat(), ...plan.serialFiles];
-        groups = serialRun.length > 0 ? [{ files: serialRun }] : [];
-      } else {
-        groups = plan.shards.map((files) => ({ files }));
-        if (plan.serialFiles.length > 0)
-          groups.push({ files: plan.serialFiles, finalSerial: true });
-      }
+      groups =
+        requestedShards === 1
+          ? plan.shards.flat().length > 0
+            ? [{ files: plan.shards.flat() }]
+            : []
+          : plan.shards.map((files) => ({ files }));
     }
 
     let results = [];
     if (groups.length > 0) {
       const pnpmStoreDirectory = parentPnpmStoreDirectory();
-      const parallelCount = groups.at(-1)?.finalSerial
-        ? groups.length - 1
-        : groups.length;
-      const parallelGroups = groups.slice(0, parallelCount);
-      const serialGroups = groups.slice(parallelCount);
       results = await Promise.all(
-        parallelGroups.map((group, index) =>
+        groups.map((group, index) =>
           runTestGroup({
             ...group,
             index,
@@ -620,22 +613,6 @@ async function main() {
           }),
         ),
       );
-      if (!forwardedSignal) {
-        for (const [serialIndex, group] of serialGroups.entries()) {
-          const result = await runTestGroup({
-            ...group,
-            index: parallelGroups.length + serialIndex,
-            strict,
-            capabilities,
-            stateDirectory,
-            runDirectory,
-            pnpmStoreDirectory,
-            activeChildren,
-            getForwardedSignal: () => forwardedSignal,
-          });
-          results.push(result);
-        }
-      }
     }
 
     let cleanupError;

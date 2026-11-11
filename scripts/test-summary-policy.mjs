@@ -267,8 +267,7 @@ export function summarizeTestEvents(events, expectedFiles, runnerExitCode = 0) {
             COUNT_FIELDS.map((field) => [field, summary.counts[field]]),
           )
         : zeroCounts();
-    // Wall time of the file's own test process; CI folds it into shard
-    // weights (scripts/shard-weights-refresh.mjs).
+    // Wall time of the file's own test process.
     const duration = summary?.duration_ms;
     return Number.isFinite(duration) && duration >= 0
       ? { file, ...counts, durationMs: Math.round(duration) }

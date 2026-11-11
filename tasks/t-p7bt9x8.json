@@ -1,0 +1,16 @@
+{
+  "id": "t-p7bt9x8",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "manual shard report and refresh scripts, their tests and fixtures deleted; serial mechanism removed; unweighted files plan by size"
+  },
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "The manual shard-weight chain is deleted and a new test file never fails CI for lacking a weight",
+  "after": [],
+  "body": [
+    "Why: Qwen second audit N8 (.krn/runs/qwen-research-2/report.md): scripts/shard-wall-report.mjs and scripts/shard-weights-refresh.mjs (with tests and fixtures, about 2200 LOC) are manual, no CI or package script runs them, all weight tasks are closed; SERIAL_TEST_REASONS in scripts/lib/test-shards.mjs is frozen empty. D23 unit 519 failed only because test/rules/shard-weight-coverage.test.mjs rejects a new test file without a weight.\nOutcome: the two manual scripts, their tests and fixtures are deleted; the planner keeps scripts/lib/shard-weights.{mjs,json} and gives an unweighted file a default weight instead of failing; the dead serial mechanism is removed.\nProof: npm test passes; adding a new test file passes test/rules without a weight edit."
+  ]
+}

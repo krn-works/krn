@@ -20,9 +20,6 @@ import {
   defaultTestShardCount,
   mergeTestShardResults,
   planTestShards,
-  RUNNER_LOCAL_LANES,
-  SERIAL_TEST_FILES,
-  SERIAL_TEST_REASONS,
   testFileDirectory,
   testFileFamily,
 } from '../scripts/lib/test-shards.mjs';
@@ -85,12 +82,10 @@ function globalSummary(count) {
 test('the shard plan covers every selected test file exactly once', () => {
   const files = globSync(TEST_FILE_GLOB, { cwd: projectRoot }).sort();
   const plan = planTestShards(files, 3);
-  const planned = [...plan.shards.flat(), ...plan.serialFiles];
+  const planned = plan.shards.flat();
 
   assert.deepEqual([...planned].sort(), files);
   assert.equal(new Set(planned).size, files.length);
-  assert.deepEqual(plan.serialFiles, SERIAL_TEST_FILES);
-  assert.ok(SERIAL_TEST_FILES.every((file) => SERIAL_TEST_REASONS[file]));
 });
 
 test('shard selection puts every test file in exactly one of the runner shards', () => {
@@ -113,42 +108,19 @@ test('shard selection puts every test file in exactly one of the runner shards',
       ),
     );
   }
-  // A serial file runs alone after the runner's local lanes, so its runner
-  // takes RUNNER_LOCAL_LANES times its weight off the parallel balance.
   const weightOf = (list) =>
     list.reduce((sum, file) => sum + (TEST_FILE_WEIGHTS[file] ?? 1), 0);
   for (const total of [2, 6, 8]) {
-    const selections = Array.from({ length: total }, (_, index) =>
-      selectTestShardFiles(files, index + 1, total),
+    const loads = Array.from({ length: total }, (_, index) =>
+      weightOf(selectTestShardFiles(files, index + 1, total)),
     );
-    const walls = selections.map((selection) => {
-      const serial = selection.filter((file) =>
-        SERIAL_TEST_FILES.includes(file),
-      );
-      const parallel = selection.filter(
-        (file) => !SERIAL_TEST_FILES.includes(file),
-      );
-      return weightOf(parallel) / RUNNER_LOCAL_LANES + weightOf(serial);
-    });
     const heaviestFile = Math.max(
       ...files.map((file) => TEST_FILE_WEIGHTS[file] ?? 1),
     );
     assert.ok(
-      Math.max(...walls) - Math.min(...walls) <= heaviestFile,
-      `total ${total}: runner walls ${walls.map((w) => w.toFixed(1)).join(' ')} must stay within one file`,
+      Math.max(...loads) - Math.min(...loads) <= heaviestFile,
+      `total ${total}: runner loads ${loads.map((w) => w.toFixed(1)).join(' ')} must stay within one file`,
     );
-    const carrier = selections.findIndex((selection) =>
-      selection.some((file) => SERIAL_TEST_FILES.includes(file)),
-    );
-    const parallelLoads = selections.map((selection) =>
-      weightOf(selection.filter((file) => !SERIAL_TEST_FILES.includes(file))),
-    );
-    if (carrier !== -1)
-      assert.equal(
-        parallelLoads[carrier],
-        Math.min(...parallelLoads),
-        `total ${total}: the serial runner must carry the least parallel work`,
-      );
   }
   assert.throws(() => selectTestShardFiles(files, 0, 3), /between 1/u);
   assert.throws(() => selectTestShardFiles(files, 4, 3), /between 1/u);
@@ -183,9 +155,8 @@ test('shard selection spreads each test family evenly across the runners', () =>
     testFileFamily('test/worker/session.test.ts'),
   );
   const files = globSync(TEST_FILE_GLOB, { cwd: projectRoot }).sort();
-  const parallel = files.filter((file) => !SERIAL_TEST_FILES.includes(file));
   const familySize = new Map();
-  for (const file of parallel) {
+  for (const file of files) {
     const family = testFileFamily(file);
     familySize.set(family, (familySize.get(family) ?? 0) + 1);
   }
@@ -197,7 +168,6 @@ test('shard selection spreads each test family evenly across the runners', () =>
     for (let index = 1; index <= total; index += 1) {
       const kin = new Map();
       for (const file of selectTestShardFiles(files, index, total)) {
-        if (SERIAL_TEST_FILES.includes(file)) continue;
         const family = testFileFamily(file);
         kin.set(family, (kin.get(family) ?? 0) + 1);
       }
@@ -233,7 +203,7 @@ test('near-equal shards spread files of one directory', async () => {
       await writeFile(file, 'x'.repeat(Math.round(seconds * 4096)));
       files.push(file);
     }
-    const plan = planTestShards(files, 2, []);
+    const plan = planTestShards(files, 2);
     // Lightest-first would stack both b/ files on the 4.8 s bin.
     assert.deepEqual(
       plan.shards.map((shard) =>
@@ -657,7 +627,7 @@ test('a failure in each planned shard fails the strict suite command', async (t)
   const files = Array.from({ length: 3 }, (_, index) =>
     join(directory, `shard-${index}.test.mjs`),
   );
-  const plan = planTestShards(files, 3, []);
+  const plan = planTestShards(files, 3);
 
   try {
     for (let shardIndex = 0; shardIndex < plan.shards.length; shardIndex += 1) {
