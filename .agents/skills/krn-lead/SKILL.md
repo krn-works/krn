@@ -28,21 +28,21 @@ The operator grant ("wypierdol bramki po prostu koduj") covers this repository; 
 4. **Retro, then check locally:** run `krn-retro` before the last commit (its edits ship in the slice PR), then `npm run fast` once (Biome `--write` and tsc on changed files, tests touching changed or deleted files, one verdict); CI runs the rest.
 5. **Ship:** from the repository root run `bin/krn pr ship --worktree .krn/worktrees/<slug> --title 'type(scope): outcome (<task-id>)' --body-file <file>` (generate it: `krn pr body --task <id> --verified '<cmd: verdict>' --out <file>`, `--refs` if the task stays open; `--force` after a rebase). It pushes, opens the PR, auto-merges on the required `Check` (App `15368`), refreshes the pinned entry, removes the worktree and branch, and ends with a `verdict:` line; the title is the squash subject, checked in CI. Exit 74 red Check (read `bin/krn ci logs --run <id>`), 76 conflict, 77 head moved, 75 timeout: fix and rerun. No `gh pr view` or `gh pr checks` after it.
 6. **Read main CI:** `bin/krn ci logs --run <id>` (every attempt). A red test is a defect; an infra flake (network, runner) is `gh run rerun <id> --failed` (`gh pr update-branch <n>` after the main fix), never a re-push.
-7. **Close:** release any other claim with `krn task release <id>`, retire the worktree, update the capsule (`krn state check --root .` clean), then step 2; a post-merge lesson rides the next slice PR, never a retro PR.
+7. **Close:** release any other claim with `krn task release <id>`, retire the worktree, update the capsule (`krn state check --root .` clean), then step 2; a lesson outside the slice Scope becomes `krn task create`, never a retro PR.
 
 Parallel work: one lane per worktree, background agents for independent slices, one writer per outcome. Start each lane brief with "First read `.agents/skills/krn-lead/lanes.md` and follow it exactly" (own worktree, `npm run fast`, ship with `--head` and auto-merge, wait for `Check`, rerun only infra flakes, ledger line, cleanup), then the task id, evidence paths and the measurable target. Write that brief to a file under `.krn/` and send the output of `bin/krn lane brief --task <id> --file <brief>` as the agent prompt: it prefixes the FR-40 brain packet the lane run measured (`evals/fr40/results-lanes.md`). Lanes ship their own PRs; the lead reads verdicts, merges findings into the next lanes, and hands off only when no background agent is running.
 
 ## Opt-in tools
 
-Use them only when they clearly save time; none is a prerequisite for a merge.
+Use only when they save time; none gates a merge.
 
 - Before any research fan-out run `krn ledger --check-ceiling` (50 PRs, non-delivery above 30%, operator decision 4); non-zero: no fan-out, deliver.
-- Recon, inventories and log summaries go to Claude Sonnet or Haiku subagents; program decisions to two or three independent Opus lenses.
+- Recon, inventories and log summaries go to Sonnet or Haiku subagents; program decisions to one Opus lens, a second only for irreversible or ADR-level calls.
 
 ## Traps
 
 - **Decisions.** A task must not contradict a recorded ADR; amend the ADR first and cite the grant that covers it.
-- **Host load.** `/tmp` is quota-limited; agent temp space lives on disk.
+- **Host load.** `/tmp` is quota-limited; use disk temp space.
 - **Exit codes.** `scripts/claude/piped-check.ts` hook rewrites a check piped into a filter to `set -o pipefail; ...`, refuses `|| true`.
 - **`pkill -f`.** Its pattern matches its own shell and other lanes' processes; stop processes by PID or port.
 
