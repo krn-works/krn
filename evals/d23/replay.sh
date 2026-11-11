@@ -22,7 +22,8 @@ import json,sys
 t=json.load(sys.stdin)
 print("Task %s: %s\n\n%s" % (t["id"],t["title"],"\n".join(t["body"])))' > $OUT/$n.task.txt
 if [ -n "${IFACE:-}" ] && [ -f "$IFACE/$n.txt" ]; then cat "$IFACE/$n.txt" >> $OUT/$n.task.txt; fi
-cd $D && git init -q . && git fetch -q --depth 1 file://$REPO $parent && git checkout -q FETCH_HEAD && git checkout -q -b replay
+# Both arms get the whole history up to the parent and nothing after it: the fetch names only the parent.
+cd $D && git init -q . && git fetch -q file://$REPO $parent && git checkout -q FETCH_HEAD && git checkout -q -b replay
 git config user.name replay; git config user.email replay@invalid
 ln -s $REPO/node_modules node_modules
 base=$parent
@@ -37,9 +38,20 @@ else
     node $HERE/harness.ts $D $HARNESS_REF $parent $sha > $OUT/$tag.harness
     git add -A && git commit -qm "harness at $HARNESS_REF" && base=$(git rev-parse HEAD)
   fi
-  prompt="You are the KRN lead working in this repository clone (no remote; do not try to push or open a PR). Deliver this task: implement it, add or update the regression test, run npm run fast, and commit locally with a conventional commit title ending in the task id. Stay inside the task's Scope.
-
-$(cat $OUT/$n.task.txt)"
+  # K is a lane worker: the task brief goes through `krn lane brief` of HARNESS_REF's krn (its own
+  # worktree, run against the clone), as `krn lane run` builds it, and the worker guard applies.
+  krnroot=$D
+  if [ -n "${HARNESS_REF:-}" ]; then
+    krnroot=$WORK/krn$n
+    git -C $REPO worktree remove --force $krnroot 2>/dev/null; rm -rf $krnroot
+    git -C $REPO worktree add -q --detach $krnroot $HARNESS_REF
+    ln -s $REPO/node_modules $krnroot/node_modules
+  fi
+  asof=$(git -C $REPO log -1 --format=%cs $parent)
+  prompt=$(cd $D && { printf 'This repository clone has no remote: commit locally with a conventional commit title ending in the task id; do not push or open a pull request.\n\n'; cat $OUT/$n.task.txt; } | $krnroot/bin/krn lane brief --root $D --task $task --as-of $asof)
+  export KRN_ROLE=worker
+  export KRN_SCOPE="$(grep -m1 '^Scope:' $OUT/$n.task.txt || true)"
+  export KRN_TASK=$task
 fi
 echo $base > $OUT/$tag.base
 start=$(date +%s)
@@ -114,3 +126,4 @@ print('tool_calls=%d'%tools); print('hook_msgs=%d'%hooks)
 P
 echo measured >> $OUT/$tag.meas
 cd /; rm -rf $D
+if [ -n "${krnroot:-}" ] && [ "$krnroot" != "$D" ]; then git -C $REPO worktree remove --force $krnroot; fi

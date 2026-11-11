@@ -1,7 +1,11 @@
 {
   "id": "t-bzwa996",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "worker-scope hook, K as lane worker, full-history clones"
+  },
   "created": "2026-11-11",
   "priority": 1,
   "title": "Workers cannot write tracker, roadmap or harness files outside Scope and D23 arm K runs as a worker",
