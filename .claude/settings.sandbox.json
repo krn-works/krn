@@ -17,12 +17,7 @@
     },
     "network": {
       "strictAllowlist": true,
-      "allowedDomains": [
-        "github.com",
-        "api.github.com",
-        "registry.npmjs.org",
-        "localhost"
-      ],
+      "allowedDomains": ["github.com", "api.github.com", "registry.npmjs.org"],
       "allowLocalBinding": true,
       "allowAllUnixSockets": true
     }

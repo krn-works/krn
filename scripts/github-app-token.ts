@@ -124,6 +124,12 @@ export async function mintToken(
 ): Promise<string> {
   const cached = readCache(env, now);
   if (cached) return cached;
+  // A lane session is sandboxed away from bw serve: the launcher mints the token before
+  // the session, so a miss there fails closed instead of reaching for the vault.
+  if (env.KRN_SESSION_CLASS === 'lane')
+    throw new Unavailable(
+      'no cached App token in a lane session (the launcher mints it before the session)',
+    );
   const { appId, installationId, key } = await readCredential(env);
   let jwt: string;
   try {
