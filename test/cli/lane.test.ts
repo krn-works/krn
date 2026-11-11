@@ -194,3 +194,29 @@ test('lane start refuses when the live lane worktree count reaches the maximum',
     rmSync(base, { recursive: true, force: true });
   }
 });
+
+test('lane start refuses a non-delivery lane above the ceiling and lets delivery through', async () => {
+  const { checkLaneCeiling, startLane } = await import('../../src/cli/lane.ts');
+  const over = async () => ({ share: 0.75, ceiling: 0.3, over: true });
+  const under = async () => ({ share: 0.2, ceiling: 0.3, over: false });
+  await assert.rejects(
+    checkLaneCeiling('/unused', 'non-delivery', over),
+    /non-delivery spend 75% is above 30%/,
+  );
+  await checkLaneCeiling('/unused', 'non-delivery', under);
+  await checkLaneCeiling('/unused', 'non-delivery', async () => null);
+  await checkLaneCeiling('/unused', 'delivery', over);
+
+  const { repo } = fixture();
+  await assert.rejects(
+    startLane(['probe', '--class', 'non-delivery', '--root', repo], {
+      ceiling: over,
+    }),
+    /lane ceiling/,
+  );
+  assert.equal(existsSync(join(repo, '.krn', 'worktrees', 'probe')), false);
+  await assert.rejects(
+    startLane(['probe', '--class', 'other', '--root', repo]),
+    /--class must be/,
+  );
+});

@@ -1,7 +1,11 @@
 {
   "id": "t-p3qbbtz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn lane start --class non-delivery (default from KRN_SESSION_CLASS) exits 64 while the 50-PR window is above 30%; test in test/cli/lane.test.ts"
+  },
   "created": "2026-11-11",
   "priority": 2,
   "title": "krn lane start refuses non-delivery lanes above the ceiling",

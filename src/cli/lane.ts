@@ -10,6 +10,11 @@ import {
 } from 'node:fs';
 import { join, sep } from 'node:path';
 import { lanePacket, packetBrief } from '../brain/worker-packet.ts';
+import {
+  CEILING_WINDOW_PRS,
+  collectWindow,
+  nonDeliveryCeiling,
+} from '../outcome/window.ts';
 import { claimTask, mainCheckoutRoot } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
@@ -17,7 +22,7 @@ import { flagValue } from './flag-value.ts';
 import { CliUsageError } from './usage-error.ts';
 
 export const laneUsage = [
-  'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--root DIR]  fetch origin main, create branch SLUG in .krn/worktrees/SLUG, claim the task; prints the path and branch',
+  'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--class delivery|non-delivery] [--root DIR]  fetch origin main, create branch SLUG in .krn/worktrees/SLUG, claim the task; a non-delivery lane is refused while `krn ledger --check-ceiling` is over; prints the path and branch',
   'krn lane run --task ID [--slug SLUG] [--actor NAME] [--root DIR]  start the lane, run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line',
   'krn lane brief [--file PATH] [--task ID] [--as-of YYYY-MM-DD] [--root DIR]  print the lane brief (file, else stdin) behind the FR-40 brain packet of the repository records',
 ].join('\n');
@@ -150,19 +155,47 @@ export async function laneCommand(args: string[]): Promise<void> {
   process.stdout.write(`${started.path}\n${started.slug}\n`);
 }
 
+type CeilingReading = { share: number; ceiling: number; over: boolean } | null;
+
+/** The ceiling reading of the last merged-PR window; tests inject a fixture. */
+export type LaneDeps = { ceiling?: (main: string) => Promise<CeilingReading> };
+
+async function windowCeiling(main: string): Promise<CeilingReading> {
+  return nonDeliveryCeiling(
+    await collectWindow({ last: CEILING_WINDOW_PRS, root: main }),
+  );
+}
+
+/** Refuses a non-delivery lane while non-delivery spend is above the ceiling; delivery lanes and an unpriced window pass. */
+export async function checkLaneCeiling(
+  main: string,
+  sessionClass: string,
+  read: (main: string) => Promise<CeilingReading> = windowCeiling,
+): Promise<void> {
+  if (sessionClass !== 'non-delivery') return;
+  const c = await read(main);
+  if (c?.over)
+    throw new CliUsageError(
+      `lane ceiling: non-delivery spend ${(c.share * 100).toFixed(0)}% is above ${(c.ceiling * 100).toFixed(0)}% of the last ${CEILING_WINDOW_PRS} merged PRs; start a delivery lane instead`,
+    );
+}
+
 export async function startLane(
   rest: string[],
+  deps: LaneDeps = {},
 ): Promise<{ path: string; slug: string }> {
   let slug: string | undefined;
   let task: string | undefined;
   let actor = 'lead';
   let reason: string | undefined;
   let root: string | undefined;
+  let sessionClass = process.env.KRN_SESSION_CLASS ?? 'delivery';
   const value = (index: number, name: string) =>
     flagValue(rest, index, () => new CliUsageError(`${name} requires a value`));
   for (let index = 0; index < rest.length; index += 1) {
     const arg = rest[index] as string;
-    if (arg === '--task') task = value(index++, arg);
+    if (arg === '--class') sessionClass = value(index++, arg);
+    else if (arg === '--task') task = value(index++, arg);
     else if (arg === '--actor') actor = value(index++, arg);
     else if (arg === '--reason') reason = value(index++, arg);
     else if (arg === '--root') root = value(index++, arg);
@@ -176,6 +209,8 @@ export async function startLane(
     );
   if (task !== undefined && !isTaskId(task))
     throw new CliUsageError(`not a task id: ${task}`);
+  if (sessionClass !== 'delivery' && sessionClass !== 'non-delivery')
+    throw new CliUsageError('--class must be delivery or non-delivery');
 
   const origin = repositoryRoot(root ?? process.cwd());
   const main = mainCheckoutRoot(origin);
@@ -186,6 +221,7 @@ export async function startLane(
     throw new CliUsageError(`branch ${slug} already exists`);
 
   checkLaneBudget(main);
+  await checkLaneCeiling(main, sessionClass, deps.ceiling);
   git(main, ['fetch', '-q', 'origin', 'main']);
   const carried =
     task === undefined ? undefined : untrackedTaskRecord(origin, task);
