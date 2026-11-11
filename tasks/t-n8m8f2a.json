@@ -1,0 +1,16 @@
+{
+  "id": "t-n8m8f2a",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "docs, packet shard-weights path and pinning test now match code at HEAD; ADR 0013 trigger marked superseded"
+  },
+  "created": "2026-11-11",
+  "priority": 2,
+  "title": "Docs and the brain packet stop citing retired machinery",
+  "after": [],
+  "body": [
+    "Why: Qwen second audit .krn/runs/qwen-research-2/report.md N9, verified at 6d713ae: docs/program/live-records.json:5 cites scripts/shard-weights.mjs (real: scripts/lib/shard-weights.mjs) and every lane packet carries it; docs/adr/0013-repository-consolidation.md:41-48,82 and ADR 0001 describe the forwarder, krn ship and pr-preflight; docs/program/PLANS.md:22 calls preflight the cheap local bundle (it is npm run fast); README/CONTEXT command lists miss decide/adopt/plan; test/fixtures/README.md names deleted files.\nOutcome: each cited text matches the code at HEAD; ADR 0013 marks its trigger superseded by the current repository shape.\nProof: grep for the stale names prints nothing outside history; npm run fast passes."
+  ]
+}

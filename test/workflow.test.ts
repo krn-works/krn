@@ -24,7 +24,7 @@ test('cheap preflight reuses local observers', async () => {
     new URL('../docs/program/PLANS.md', import.meta.url),
     'utf8',
   );
-  assert.match(plans, /npm run preflight/u);
+  assert.match(plans, /npm run fast/u);
 });
 
 function jobBlocks(source: string): Map<string, string> {

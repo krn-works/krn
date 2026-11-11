@@ -12,15 +12,15 @@ node src/cli/main.ts --version
 
 Install repository dependencies with `pnpm install --frozen-lockfile`.
 
-Product implements `--version`, `task`, `ci`, `pr`, `lane`, `state`, `doctor`, `brain`, and `ledger`. Unknown commands exit 64 under KRN-06. Merging is `gh pr merge --auto --squash` once the required `Check` passes.
+Product implements `--version`, `task`, `ci`, `pr`, `lane`, `state`, `doctor`, `brain`, `ledger`, `decide`, `adopt`, and `plan`. Unknown commands exit 64 under KRN-06. Merging is `gh pr merge --auto --squash` once the required `Check` passes.
 
 ## Checks and delivery
 
 - `npm run check` checks TypeScript.
 - `npm run rules` verifies generated `AGENTS.md` against `spec/rules.json`.
-- Before pushing, run `npm run lint`, `npm run check` and the touched tests. The only gate is required CI on the exact HEAD (`npm run gate` locally): the aggregate GitHub Actions `Check` (App `15368`, `.github/workflows/ci.yml`). `npm run gate:local` is an opt-in diagnostic.
+- Before pushing, run `npm run lint`, `npm run check` and the touched tests. The only gate is required CI on the exact HEAD (`npm run gate` locally): the aggregate GitHub Actions `Check` (App `15368`, `.github/workflows/ci.yml`).
 
-The in-repository `krn task` tracker owns task status through committed `tasks/<id>.json` records, dependencies, readiness, and claiming. No legacy board data is imported; its Product integration is removed. Delivery evidence stays in git history and PRs. [ADR 0014](docs/adr/0014-operator-decisions-2026-10-23.md) and [ADR 0015](docs/adr/0015-repository-task-tracker.md) record the tracker decision. The repository-consolidation trigger is defined in [ADR 0013](docs/adr/0013-repository-consolidation.md).
+The in-repository `krn task` tracker owns task status through committed `tasks/<id>.json` records, dependencies, readiness, and claiming. No legacy board data is imported; its Product integration is removed. Delivery evidence stays in git history and PRs. [ADR 0014](docs/adr/0014-operator-decisions-2026-10-23.md) and [ADR 0015](docs/adr/0015-repository-task-tracker.md) record the tracker decision. ADR 0013 records the repository-consolidation direction; its trigger is superseded by the current one-repository shape.
 
 ## Start here
 

@@ -114,6 +114,6 @@ test('the live packet states the biome rule with npm run fast and generated file
       .find((l) => l.startsWith('- [r-biome-clean]'));
     assert.match(biome ?? '', /before every commit run npm run fast/u);
     assert.match(biome ?? '', /not only your own tests/u);
-    assert.match(biome ?? '', /scripts\/shard-weights\.mjs/u);
+    assert.match(biome ?? '', /scripts\/lib\/shard-weights\.mjs/u);
   }
 });

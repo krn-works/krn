@@ -4,9 +4,11 @@ Date: 2026-10-22
 
 ## Status
 
-Accepted direction; the consolidation trigger has not fired. This ADR selects
-the target and records the conditions and window for a later consolidation;
-it does not move code now.
+Accepted direction. The consolidation trigger is superseded: the repository
+is already one (the forwarder, the Global package on PATH, `krn ship`, `pr-preflight`,
+`delegate` and `review` are retired; unknown commands exit 64 under KRN-06),
+so the trigger conditions and the P-052 forwarder exit below are history. Read
+the Decision as the record of the direction taken, not as pending work.
 
 ## Context
 
