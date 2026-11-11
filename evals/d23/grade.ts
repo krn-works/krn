@@ -11,6 +11,7 @@ import {
   symlinkSync,
 } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { harnessPlan, layHarness } from './harness.ts';
 
 export interface Exec {
   code: number;
@@ -110,17 +111,25 @@ export function failingFiles(log: string, dir: string): string[] {
 const nodeTest = (dir: string, files: string[]) =>
   exec('node', ['--test', '--test-concurrency=1', ...files], dir, 300_000);
 
+/** A checkout of `commit`, under the replay harness when the spec names one. */
 async function prepare(
-  repo: string,
+  spec: UnitSpec,
   dir: string,
   commit: string,
-  nodeModules: string | undefined,
 ): Promise<void> {
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(resolve(dir, '..'), { recursive: true });
-  await git(resolve(dir, '..'), 'clone', '-q', '--no-checkout', repo, dir);
+  await git(resolve(dir, '..'), 'clone', '-q', '--no-checkout', spec.repo, dir);
   await git(dir, 'checkout', '-q', commit);
-  if (nodeModules) symlinkSync(nodeModules, join(dir, 'node_modules'));
+  if (spec.harnessRef)
+    layHarness(
+      spec.repo,
+      dir,
+      spec.harnessRef,
+      harnessPlan(spec.repo, spec.harnessRef, spec.parent, spec.merge),
+    );
+  if (spec.nodeModules)
+    symlinkSync(spec.nodeModules, join(dir, 'node_modules'));
 }
 
 async function overlay(
@@ -142,6 +151,8 @@ export interface UnitSpec {
   nodeModules?: string;
   /** Run the whole suite as PASS_TO_PASS; off for fixtures. */
   fullSuite: boolean;
+  /** Ref whose harness files every graded tree runs under (evals/d23/harness.ts); unset: the parent's own. */
+  harnessRef?: string;
 }
 
 export interface Classified {
@@ -161,7 +172,7 @@ export async function classify(
     .filter((c) => c.status !== 'D' && isTestFile(c.path))
     .map((c) => c.path);
   const dir = join(spec.workRoot, `${tag}.parent`);
-  await prepare(spec.repo, dir, spec.parent, spec.nodeModules);
+  await prepare(spec, dir, spec.parent);
   await overlay(dir, spec.merge, changes);
   const failToPass: string[] = [];
   const passToPassHidden: string[] = [];
@@ -173,7 +184,7 @@ export async function classify(
   }
   rmSync(dir, { recursive: true, force: true });
   const mdir = join(spec.workRoot, `${tag}.merge`);
-  await prepare(spec.repo, mdir, spec.merge, spec.nodeModules);
+  await prepare(spec, mdir, spec.merge);
   let validOnMerge = true;
   for (const f of failToPass) {
     if ((await nodeTest(mdir, [f])).code !== 0) validOnMerge = false;
@@ -211,7 +222,7 @@ export async function gradeArm(
     : [];
   const oos = outOfScope(files);
   const dir = join(spec.workRoot, tag);
-  await prepare(spec.repo, dir, spec.parent, spec.nodeModules);
+  await prepare(spec, dir, spec.parent);
   const patch = existsSync(patchPath) ? readFileSync(patchPath, 'utf8') : '';
   const ran = patch.trim() !== '';
   let applied = true;
@@ -277,7 +288,7 @@ export async function gradeArm(
       // A file outside the hidden set is a regression only if it fails alone on the arm and passes on the parent.
       if ((await nodeTest(dir, [f])).code === 0) continue;
       const pdir = join(spec.workRoot, `${tag}.parent-check`);
-      await prepare(spec.repo, pdir, spec.parent, spec.nodeModules);
+      await prepare(spec, pdir, spec.parent);
       const onParent = await nodeTest(pdir, [f]);
       rmSync(pdir, { recursive: true, force: true });
       if (onParent.code === 0) regressions.push(f);

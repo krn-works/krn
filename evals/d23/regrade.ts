@@ -1,5 +1,5 @@
 // Re-grade the replayed D23 patches against the tests the original pull requests merged.
-// Usage: node evals/d23/regrade.ts [--runs <d23-comparison dir>] [--out <dir>] [--units 473,476] [--jobs 2] [--no-full]
+// Usage: node evals/d23/regrade.ts [--runs <d23-comparison dir>] [--results-dir results] [--harness-ref <sha>] [--out <dir>] [--units 473,476] [--jobs 2] [--no-full]
 // Offline: reads results/<pr>.<K|P>.patch|files, never starts a model session. Resumes from <out>/<pr>.json.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -79,6 +79,7 @@ export async function regradeUnit(
     results: string;
     work: string;
     fullSuite: boolean;
+    harnessRef?: string;
   },
 ): Promise<UnitGrade> {
   const { merge, parent } = await shaFor(opts.repo, opts.ref, pr);
@@ -89,6 +90,7 @@ export async function regradeUnit(
     merge,
     nodeModules: join(mainRoot, 'node_modules'),
     fullSuite: opts.fullSuite,
+    ...(opts.harnessRef ? { harnessRef: opts.harnessRef } : {}),
   };
   const cls: Classified = await classify(spec, `${pr}.classify`);
   const arm = (a: 'K' | 'P') =>
@@ -132,9 +134,10 @@ async function main() {
         const grade = await regradeUnit(pr, {
           repo: repoRoot,
           ref: arg('ref', 'origin/main'),
-          results: join(runs, 'results'),
+          results: join(runs, arg('results-dir', 'results')),
           work,
           fullSuite,
+          ...(arg('harness-ref', '') ? { harnessRef: arg('harness-ref', '') } : {}),
         });
         writeFileSync(file, `${JSON.stringify(grade, null, 2)}\n`);
       }
