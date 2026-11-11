@@ -1,7 +1,11 @@
 {
   "id": "t-v99074z",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "protocol.md and verdict.ts in main checkout .krn/runs/task-record-lanes; smoke PR #601 (243 s, $0.45, exit 0). protocol sha256 5dbbce37a1855f576a5472ce3032a7c473759a91c7cfa2d76a1d583fba0b2463. Printed: baseline lead $0.87/PR turns 18.6 rework 3/20 recheck 2/20 reds 0: protocol sha 5dbbce37a1855f576a5472ce3032a7c473759a91c7cfa2d76a1d583fba0b2463 OK"
+  },
   "created": "2026-11-11",
   "priority": 1,
   "title": "The task-record lane experiment has a preregistered protocol and a verdict command",
