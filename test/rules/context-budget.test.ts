@@ -44,6 +44,8 @@ test('Claude context budget settings wire documented hooks and read-only reader'
       'Agent|Task',
       // The lead gets no whole-file dump; subagents read freely.
       'Read',
+      // A worker may not write tracker, roadmap or harness files outside its Scope.
+      'Write|Edit|NotebookEdit|Bash',
     ],
   );
   const reader =
