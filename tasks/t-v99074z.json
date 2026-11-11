@@ -1,0 +1,12 @@
+{
+  "id": "t-v99074z",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "The task-record lane experiment has a preregistered protocol and a verdict command",
+  "after": [],
+  "body": [
+    "Outcome: `.krn/runs/task-record-lanes/` holds `protocol.md` (thresholds: lead <= $0.40/PR, <= 5 lead turns/PR, rework within 48 h <= 3/20, PRs with >1 Check attempt <= 2/20, main red = 0; sample: 20 consecutive merged PRs from the first 20 `krn task ready` records carrying Outcome and Proof lines, excluding this experiment's tasks; fixed lane model; one retry only on infra failure (exit 69, timeout, missing JSON); failures classed code, process or infra; monotonic clock; immediate STOP on the 4th rework, the 3rd PR with >1 Check, any main red, the 5th task undelivered after retry, or total > $25) and `verdict.ts`, which reads `krn ledger --json` plus the run log and prints PASS, FAIL or STOP per measure. Before the counter starts, one smoke `krn lane run` delivery proves the command end to end (only exit 74/70 captures exist under .krn/runs/lane-run-e2e/, before #582 and #593). The protocol sha256 is recorded in this task.\nWhy: baseline `krn ledger --last 20` (PR #574-#594) shows lead $0.87/PR (17.35/20) over 18.6 turns; the D23 replay showed the cheaper arm correct 7/20 against 11/20, so cost without a correctness floor proves nothing. Program v2 slices S6+S7, operator go 2026-11-11.\nProof: `node .krn/runs/task-record-lanes/verdict.ts --baseline` prints `baseline lead $0.87/PR turns 18.6 rework 3/20 recheck 2/20 reds 0: protocol sha <hash> OK`.\nScope: `.krn/runs/task-record-lanes/`, this task record. No change to `src/cli/lane-run.ts` beyond what the smoke run proves broken.\nEvidence: .krn/runs/krn-program-v2/06-program.md:96-104; .krn/runs/d23-comparison/report.md; `krn ledger --last 20`. Risk: `krn task ready` lists 5 tasks; 20 are needed, so the lead refills the queue before the counter starts."
+  ]
+}

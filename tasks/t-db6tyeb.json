@@ -1,0 +1,14 @@
+{
+  "id": "t-db6tyeb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "Twenty tasks are delivered by record and the lead-cost verdict is recorded",
+  "after": [
+    "t-v99074z"
+  ],
+  "body": [
+    "Outcome: 20 real tasks run through `krn lane run --task <id>` under the protocol of t-v99074z; a 20-row table (PR, task, lane $, lead $, lead turns, Check attempts, rework, failure class) and the verdict are recorded in this task.\nWhy: the lead costs $0.87 per PR over 18.6 turns (`krn ledger --last 20`); the task-record shape is unproven on live delivery.\nProof: `node .krn/runs/task-record-lanes/verdict.ts` prints one line ending `PASS`, `FAIL <measure>` or `STOP <condition> at n/20`, with the protocol hash matching t-v99074z's.\nScope: `.krn/runs/task-record-lanes/results/`, this task record; the 20 PRs belong to their own tasks.\nEvidence: the protocol hash in t-v99074z; `krn ledger --since <run start> --json`."
+  ]
+}
