@@ -23,7 +23,7 @@ import { CliUsageError } from './usage-error.ts';
 
 export const laneUsage = [
   'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--class delivery|non-delivery] [--root DIR]  fetch origin main, create branch SLUG in .krn/worktrees/SLUG, claim the task; a non-delivery lane is refused while `krn ledger --check-ceiling` is over; prints the path and branch',
-  'krn lane run --task ID [--slug SLUG] [--actor NAME] [--root DIR]  start the lane, run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line',
+  'krn lane run --task ID [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line',
   'krn lane brief [--file PATH] [--task ID] [--as-of YYYY-MM-DD] [--root DIR]  print the lane brief (file, else stdin) behind the FR-40 brain packet of the repository records',
 ].join('\n');
 
