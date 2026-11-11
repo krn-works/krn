@@ -18,11 +18,12 @@ runs:
         status="$RUNNER_TEMP/bubblewrap-install.status"
         rm -f "$status"
         setsid nohup bash -c '
-          for attempt in 1 2 3; do
+          for attempt in 1 2 3 4; do
             if timeout 90 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y -qq bubblewrap \
               || { timeout 60 sudo apt-get -o Acquire::http::Timeout=20 update -qq && timeout 90 sudo apt-get install -y -qq bubblewrap; }; then
               echo 0 > "$1"; exit 0
             fi
+            sleep $((attempt * 5))
           done
           echo 1 > "$1"
         ' _ "$status" > "$log" 2>&1 < /dev/null &
@@ -95,7 +96,7 @@ runs:
       run: |
         set -euo pipefail
         status="$RUNNER_TEMP/bubblewrap-install.status"
-        for _ in $(seq 1 300); do
+        for _ in $(seq 1 600); do
           test -f "$status" && break
           sleep 0.5
         done

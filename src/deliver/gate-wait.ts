@@ -86,6 +86,17 @@ export class GateTimeout extends Error {
  * run on the same head (e.g. after a PR body edit); that run's Check appears
  * moments later, so a cancelled newest check is awaited this long first.
  */
+const runSchema = z.object({ status: z.string().nullable() });
+async function runInProgress(
+  gh: (args: string[]) => Promise<string>,
+  repo: string,
+  runId: string,
+): Promise<boolean> {
+  const run = runSchema.parse(
+    JSON.parse(await gh(['api', `repos/${repo}/actions/runs/${runId}`])),
+  );
+  return run.status !== null && run.status !== 'completed';
+}
 const supersededGraceMs = 120_000;
 
 export async function waitForGate({
@@ -148,6 +159,17 @@ export async function waitForGate({
         const runId = /\/actions\/runs\/(\d+)\//u.exec(
           gate.details_url ?? '',
         )?.[1];
+        // `gh run rerun --failed` starts a newer attempt of the same run; until
+        // its Check run appears the failed one is the newest, so a run that is
+        // running again is awaited instead of reported failed.
+        if (
+          runId !== undefined &&
+          now() < deadline &&
+          (await runInProgress(gh, repo, runId))
+        ) {
+          await sleep(pollMs);
+          continue;
+        }
         throw new Error(
           runId === undefined
             ? `${policy.checkRunName} concluded ${conclusion} on ${head}; rerun: gh run rerun <run-id> --failed (gh run list --commit ${head})`
