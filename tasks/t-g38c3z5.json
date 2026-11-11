@@ -1,7 +1,11 @@
 {
   "id": "t-g38c3z5",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn-ctx-proxy disabled --now after the last proxy client (stale lead pane w1D:pJH) closed; unit file removed from ~/.config/systemd/user, daemon-reload, .krn/runs/ctx-proxy deleted. Proof: systemctl --user is-active krn-ctx-proxy = inactive; ss -ltn shows nothing on 47318."
+  },
   "created": "2026-11-11",
   "priority": 2,
   "title": "The host ctx-proxy unit is stopped and removed",
