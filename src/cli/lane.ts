@@ -127,11 +127,12 @@ function untrackedTaskRecord(origin: string, id: string): string | undefined {
   return file;
 }
 
-function carryTaskRecord(file: string, worktree: string, id: string): void {
+// The copy lands first; the original goes only once the claim has succeeded.
+function carryTaskRecord(file: string, worktree: string, id: string): boolean {
   const target = join(worktree, 'tasks', `${id}.json`);
-  if (existsSync(target)) return;
+  if (existsSync(target)) return false;
   copyFileSync(file, target);
-  rmSync(file);
+  return true;
 }
 
 export async function laneCommand(args: string[]): Promise<void> {
@@ -191,12 +192,14 @@ export async function startLane(
   git(main, ['worktree', 'add', '-q', '-b', slug, path, 'origin/main']);
   if (task !== undefined) {
     try {
-      if (carried !== undefined) carryTaskRecord(carried, path, task);
+      const copied =
+        carried !== undefined && carryTaskRecord(carried, path, task);
       await claimTask(main, task, {
         actor,
         worktree: path,
         reason: reason ?? `lane ${slug}`,
       });
+      if (copied && carried !== undefined) rmSync(carried);
     } catch (error) {
       git(main, ['worktree', 'remove', '--force', path]);
       git(main, ['branch', '-D', slug]);

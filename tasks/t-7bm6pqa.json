@@ -1,7 +1,11 @@
 {
   "id": "t-7bm6pqa",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane start removes the original task record only after the claim succeeds; lane run kills a session after KRN_LANE_TIMEOUT_MS (default 2h) with a session timeout verdict"
+  },
   "created": "2026-11-11",
   "priority": 1,
   "title": "A failed lane start never loses the task record and a lane session has a timeout",

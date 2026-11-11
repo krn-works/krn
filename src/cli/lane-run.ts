@@ -37,6 +37,14 @@ export const OPERATOR_CREDENTIAL_VARIABLES = [
 
 const exitCredentialUnavailable = 69;
 
+const defaultSessionTimeoutMs = 2 * 60 * 60 * 1000;
+
+/** The longest a claude session may run: KRN_LANE_TIMEOUT_MS, else two hours. */
+function sessionTimeoutMs(env: NodeJS.ProcessEnv): number {
+  const value = Number(env.KRN_LANE_TIMEOUT_MS);
+  return Number.isInteger(value) && value > 0 ? value : defaultSessionTimeoutMs;
+}
+
 const tokenHelper = fileURLToPath(
   new URL('../../scripts/github-app-token.ts', import.meta.url),
 );
@@ -230,9 +238,15 @@ export async function laneRunCommand(
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
       env: environment,
+      timeout: sessionTimeoutMs(process.env),
+      killSignal: 'SIGKILL',
     },
   );
-  const result = parseSessionResult(session.stdout ?? '');
+  const timedOut =
+    (session.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT';
+  const result = timedOut
+    ? { ok: false, detail: 'session timeout', cost: undefined }
+    : parseSessionResult(session.stdout ?? '');
   const spent =
     result.cost === undefined ? '' : ` cost $${result.cost.toFixed(2)}`;
   const kept = `worktree ${started.path}`;

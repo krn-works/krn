@@ -230,3 +230,38 @@ test('the lane sandbox settings allow edits explicitly when they scrub the subpr
   for (const tool of ['Bash', 'Edit', 'Write'])
     assert.ok(settings.permissions.allow.includes(tool), tool);
 });
+
+test('lane run ends a hanging session with the timeout verdict', async () => {
+  process.env.KRN_LANE_TIMEOUT_MS = '500';
+  try {
+    const { verdict } = await run('exec sleep 30');
+    assert.equal(verdict.exitCode, 74);
+    assert.match(verdict.line, /session timeout/u);
+  } finally {
+    delete process.env.KRN_LANE_TIMEOUT_MS;
+  }
+});
+
+test('a failed claim in lane start keeps the uncommitted task record', async () => {
+  const { base, repo } = fixture('true');
+  try {
+    const id = 't-def5678';
+    const file = join(repo, 'tasks', `${id}.json`);
+    writeFileSync(
+      file,
+      `${JSON.stringify({ id, status: 'closed', resolution: 'done', created: '2026-11-09', priority: 3, title: 'Closed', after: [], body: ['Outcome: o'] })}\n`,
+    );
+    await assert.rejects(
+      startLane(['keep-record', '--task', id, '--root', repo]),
+    );
+    assert.equal(readFileSync(file, 'utf8').includes(id), true);
+    assert.equal(
+      spawnSync('git', ['-C', repo, 'branch', '--list', 'keep-record'], {
+        encoding: 'utf8',
+      }).stdout.trim(),
+      '',
+    );
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
