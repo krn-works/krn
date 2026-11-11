@@ -7,8 +7,17 @@ inputs:
 runs:
   using: composite
   steps:
-    # bubblewrap installs in the background from the first step, overlapping the
-    # pnpm cache restore and install, and is awaited before the tests start.
+    # The runner image has no bubblewrap and its apt mirror has stalled whole
+    # runs, so the .deb is cached and installed with dpkg when present.
+    - name: Cache the bubblewrap package
+      if: ${{ inputs.isolation == 'true' }}
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/bubblewrap-debs
+        key: bubblewrap-deb-${{ runner.os }}-${{ runner.arch }}-v1
+
+    # bubblewrap installs in the background, overlapping the pnpm cache restore
+    # and install, and is awaited before the tests start.
     - name: Start installing bubblewrap for sandbox isolation tests
       if: ${{ inputs.isolation == 'true' }}
       shell: bash
@@ -16,20 +25,27 @@ runs:
         set -euo pipefail
         log="$RUNNER_TEMP/bubblewrap-install.log"
         status="$RUNNER_TEMP/bubblewrap-install.status"
+        debs="$RUNNER_TEMP/bubblewrap-debs"
         rm -f "$status"
+        mkdir -p "$debs"
         # Worst case 3 x (60 + 60 + 60) s plus 15 s of pauses = 555 s; the
         # waiter below polls for 600 s so it never gives up before the installer.
         setsid nohup bash -c '
           if command -v bwrap > /dev/null; then echo 0 > "$1"; exit 0; fi
+          if compgen -G "$2/bubblewrap_*.deb" > /dev/null \
+            && sudo dpkg -i "$2"/bubblewrap_*.deb; then
+            echo 0 > "$1"; exit 0
+          fi
           for attempt in 1 2 3; do
-            if timeout 60 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y -qq bubblewrap \
-              || { timeout 60 sudo apt-get -o Acquire::http::Timeout=20 update -qq && timeout 60 sudo apt-get install -y -qq bubblewrap; }; then
+            if timeout 60 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y bubblewrap \
+              || { timeout 60 sudo apt-get -o Acquire::http::Timeout=20 update && timeout 60 sudo apt-get install -y bubblewrap; }; then
+              cp /var/cache/apt/archives/bubblewrap_*.deb "$2"/ || true
               echo 0 > "$1"; exit 0
             fi
             sleep $((attempt * 5))
           done
           echo 1 > "$1"
-        ' _ "$status" > "$log" 2>&1 < /dev/null &
+        ' _ "$status" "$debs" > "$log" 2>&1 < /dev/null &
 
     # setup-node looks in RUNNER_TOOL_CACHE before downloading; restoring the
     # pinned version there (with its x64.complete marker) skips the download.
