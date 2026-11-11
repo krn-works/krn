@@ -1,7 +1,11 @@
 {
   "id": "t-sd9a490",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Abandoned on two independent reviews (Fable, Opus) over the shadow metrics (96-97 sessions, ~3.8k requests): cold-only clearing saves 0.5-1.5% (max 3.3%) of input cost; warm clearing breaks even after a median 40-74 turns against a median 13-22 remaining, so it costs more; main sessions use the 1h cache TTL so the proxy's 300 s cold threshold is wrong; tool_result rewriting stays a grey terms risk. Proxy stays shadow; scripts/claude/cc-clearing-watch.ts keeps watching for built-in clearing. Evidence: .krn/runs/ctx-proxy/metrics.jsonl, .krn/tmp/ctx-econ-*.py, .krn/tmp/ctxdd/sim.py."
+  },
   "created": "2026-11-09",
   "priority": 1,
   "title": "Clear stale tool results in the context proxy when the cache is cold",
