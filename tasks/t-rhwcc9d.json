@@ -1,0 +1,12 @@
+{
+  "id": "t-rhwcc9d",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 2,
+  "title": "krn pr body finds a task created in the branch it describes",
+  "after": [],
+  "body": [
+    "Outcome: `krn pr body --task <id>` finds a task created in the PR's own branch (it reads the worktree's tasks/ when given --worktree or run inside it) instead of exiting 2 with \"Unknown task\".\nWhy: on #597 the lead created t-v99074z inside the lane worktree and `krn pr body --task t-v99074z` from the main checkout failed, so the body was written by hand against the template.\nProof: a test creates a task only in a worktree and sees `krn pr body --task <id> --worktree <path>` print its Problem and Task sections.\nScope: the pr body command and its test."
+  ]
+}
