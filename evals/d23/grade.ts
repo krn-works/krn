@@ -218,11 +218,24 @@ export async function gradeArm(
   const excluded: string[] = [];
   if (ran) {
     let r = await git(dir, 'apply', '--whitespace=nowarn', patchPath);
-    // A plain-harness arm can recreate files its workspace lacked; those paths are skipped, the rest is graded.
-    const exists = [...r.out.matchAll(/error: (.+): already exists in working directory/g)].map((m) => m[1] ?? '');
-    if (r.code !== 0 && exists.length > 0) {
-      excluded.push(...exists);
-      r = await git(dir, 'apply', '--whitespace=nowarn', ...exists.map((f) => `--exclude=${f}`), patchPath);
+    // An arm can recreate files its workspace lacked (plain arm) or edit harness files laid over the
+    // parent (KRN arm); those paths are skipped and recorded, the rest is graded.
+    const failed = [
+      ...r.out.matchAll(
+        /error: (?:patch failed: )?([^:\n]+?)(?::\d+)?(?:: (?:already exists in working directory|does not exist in index|No such file or directory|patch does not apply))?$/gm,
+      ),
+    ]
+      .map((m) => m[1] ?? '')
+      .filter((f, i, all) => f && !f.includes(' ') && all.indexOf(f) === i);
+    if (r.code !== 0 && failed.length > 0) {
+      excluded.push(...failed);
+      r = await git(
+        dir,
+        'apply',
+        '--whitespace=nowarn',
+        ...failed.map((f) => `--exclude=${f}`),
+        patchPath,
+      );
     }
     applied = r.code === 0;
   }
