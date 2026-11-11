@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -21,13 +27,21 @@ function lane(cwd: string, args: string[], input?: string) {
   });
 }
 
-test('the lane brief of every frozen unit equals the lane runner arm-B prompt', () => {
+test('the lane brief of every frozen unit equals the lane runner arm-B prompt', (t) => {
+  // The live record file rewords frozen records on purpose; the frozen carrier is checked without it.
+  const frozen = mkdtempSync(join(tmpdir(), 'krn-lane-frozen-'));
+  t.after(() => rmSync(frozen, { recursive: true, force: true }));
+  mkdirSync(join(frozen, 'evals/fr40'), { recursive: true });
+  copyFileSync(
+    join(repo, 'evals/fr40/records.json'),
+    join(frozen, 'evals/fr40/records.json'),
+  );
   const units = generate();
   assert.ok(units.length > 0);
   for (const unit of units) {
     const brief = `${unit.prompt.trim()}\n`;
     assert.equal(
-      laneBriefText(repo, brief, BASE_DATE, unit.id),
+      laneBriefText(frozen, brief, BASE_DATE, unit.id),
       laneBrief(unit, 'B').prompt,
       unit.id,
     );
