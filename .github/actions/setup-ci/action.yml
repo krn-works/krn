@@ -42,6 +42,9 @@ runs:
               cp /var/cache/apt/archives/bubblewrap_*.deb "$2"/ || true
               echo 0 > "$1"; exit 0
             fi
+            # The Azure mirror behind apt-mirrors.txt has been unreachable for
+            # whole runs; later attempts read the canonical archive instead.
+            echo "http://archive.ubuntu.com/ubuntu/" | sudo tee /etc/apt/apt-mirrors.txt > /dev/null || true
             sleep $((attempt * 5))
           done
           echo 1 > "$1"
