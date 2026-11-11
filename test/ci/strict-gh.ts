@@ -19,7 +19,12 @@ export function strictGh(
   repo: string,
   pr: number,
   head: string,
-  answers: { pull: () => string; checks: () => string },
+  answers: {
+    pull: () => string;
+    checks: () => string;
+    /** Status of Actions run `id`; a run is completed unless a test says otherwise. */
+    run?: (id: string) => string;
+  },
 ) {
   const calls: string[][] = [];
   const gh = async (args: string[]) => {
@@ -28,6 +33,11 @@ export function strictGh(
       return answers.pull();
     if (JSON.stringify(args) === JSON.stringify(checkRunArgs(repo, head)))
       return answers.checks();
+    const run = /^repos\/[^/]+\/[^/]+\/actions\/runs\/(\d+)$/u.exec(
+      args.length === 2 && args[0] === 'api' ? (args[1] ?? '') : '',
+    )?.[1];
+    if (run !== undefined)
+      return answers.run?.(run) ?? JSON.stringify({ status: 'completed' });
     assert.fail(`unexpected gh request: ${JSON.stringify(args)}`);
   };
   return { gh, calls };
