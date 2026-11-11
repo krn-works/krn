@@ -39,14 +39,30 @@ export function harnessPlan(
   parent: string,
   merge: string,
 ): HarnessPlan {
-  const touched = new Set(lines(git(repo, 'diff', '--name-only', parent, merge)));
+  const touched = new Set(
+    lines(git(repo, 'diff', '--name-only', parent, merge)),
+  );
   const at = (commit: string) =>
-    new Set(lines(git(repo, 'ls-tree', '-r', '--name-only', commit, '--', ...HARNESS_ROOTS)));
+    new Set(
+      lines(
+        git(
+          repo,
+          'ls-tree',
+          '-r',
+          '--name-only',
+          commit,
+          '--',
+          ...HARNESS_ROOTS,
+        ),
+      ),
+    );
   const onRef = at(ref);
   const onParent = at(parent);
   return {
     write: [...onRef].filter((f) => !touched.has(f)).sort(),
-    remove: [...onParent].filter((f) => !onRef.has(f) && !touched.has(f)).sort(),
+    remove: [...onParent]
+      .filter((f) => !onRef.has(f) && !touched.has(f))
+      .sort(),
   };
 }
 
@@ -57,7 +73,8 @@ export function layHarness(
   ref: string,
   plan: HarnessPlan,
 ): void {
-  for (const f of plan.remove) rmSync(join(dir, f), { force: true, recursive: true });
+  for (const f of plan.remove)
+    rmSync(join(dir, f), { force: true, recursive: true });
   for (const f of plan.write) {
     const target = join(dir, f);
     rmSync(target, { force: true, recursive: true });
@@ -68,7 +85,8 @@ export function layHarness(
       maxBuffer: 64 << 20,
     });
     if (mode === '120000') symlinkSync(body.toString('utf8'), target);
-    else writeFileSync(target, body, { mode: mode === '100755' ? 0o755 : 0o644 });
+    else
+      writeFileSync(target, body, { mode: mode === '100755' ? 0o755 : 0o644 });
   }
 }
 

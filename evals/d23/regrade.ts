@@ -137,7 +137,9 @@ async function main() {
           results: join(runs, arg('results-dir', 'results')),
           work,
           fullSuite,
-          ...(arg('harness-ref', '') ? { harnessRef: arg('harness-ref', '') } : {}),
+          ...(arg('harness-ref', '')
+            ? { harnessRef: arg('harness-ref', '') }
+            : {}),
         });
         writeFileSync(file, `${JSON.stringify(grade, null, 2)}\n`);
       }

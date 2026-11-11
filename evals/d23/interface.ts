@@ -44,7 +44,9 @@ export function testImports(testPath: string, source: string): TestImport[] {
   // Members called on a dynamically imported namespace (`const m = await import(p)` then `m.name(`).
   const dynamic = new Set<string>();
   for (const bind of source.matchAll(/const\s+(\w+)\s*=\s*await\s+import\(/g)) {
-    for (const use of source.matchAll(new RegExp(`(?<![\\w/.-])${bind[1]}\\??\\.(\\w+)`, 'g')))
+    for (const use of source.matchAll(
+      new RegExp(`(?<![\\w/.-])${bind[1]}\\??\\.(\\w+)`, 'g'),
+    ))
       if (use[1]) dynamic.add(use[1]);
   }
   for (const module of urls) {

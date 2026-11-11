@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -45,8 +51,14 @@ test('the replay harness keeps every file the merged change touched at the paren
     git('checkout', '-q', parent);
     layHarness(repo, repo, ref, plan);
     assert.equal(readFileSync(join(repo, 'AGENTS.md'), 'utf8'), 'v3\n');
-    assert.equal(readFileSync(join(repo, 'scripts/claude/a.ts'), 'utf8'), 'v1\n');
-    assert.equal(git('status', '--short'), 'M AGENTS.md\n D scripts/claude/old.ts\n?? scripts/claude/b.ts'.trim());
+    assert.equal(
+      readFileSync(join(repo, 'scripts/claude/a.ts'), 'utf8'),
+      'v1\n',
+    );
+    assert.equal(
+      git('status', '--short'),
+      'M AGENTS.md\n D scripts/claude/old.ts\n?? scripts/claude/b.ts'.trim(),
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

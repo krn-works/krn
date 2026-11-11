@@ -15,7 +15,10 @@ test('the interface names the non-test modules and exports a hidden test imports
     { module: 'src/outcome/ledger.ts', names: ['Row', 'mapLimited'] },
     { module: 'scripts/run.ts', names: ['default'] },
   ]);
-  assert.match(interfaceParagraph(imports), /`src\/outcome\/ledger\.ts` exports `Row`, `mapLimited`/);
+  assert.match(
+    interfaceParagraph(imports),
+    /`src\/outcome\/ledger\.ts` exports `Row`, `mapLimited`/,
+  );
   assert.equal(interfaceParagraph([]), '');
 });
 

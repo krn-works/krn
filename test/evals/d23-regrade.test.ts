@@ -93,7 +93,10 @@ test('a unit where one arm produced no patch counts for neither arm in the paire
   const unit = (k: UnitGrade['K'], p: UnitGrade['P']) =>
     ({ validOnMerge: true, K: k, P: p }) as UnitGrade;
   assert.equal(
-    summaryLine([unit(arm(true, true), arm(false, false)), unit(arm(true, false), arm(true, true))]),
+    summaryLine([
+      unit(arm(true, true), arm(false, false)),
+      unit(arm(true, false), arm(true, true)),
+    ]),
     'K functional 1/2, P functional 1/2, K scope-clean 2/2, P scope-clean 2/2; paired K 0/1, P 1/1',
   );
 });

@@ -1,7 +1,11 @@
 {
   "id": "t-ahepzts",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "evals/d23/ grader (hidden F2P/P2P, paired summary, empty-patch = not run, unappliable paths excluded and recorded, failure tails), interface.ts (SWE-bench Pro interface paragraph), harness.ts (current harness minus PR-touched files for replay and grading). Results: original patches K 3/16 P 3/16 paired (regrade-v2); valid replay with interface K 2/16 P 3/16 (regrade-iface2). Follow-ups t-v41ny8g (100 units + McNemar), t-v9qxm0c (tracked runner, limit retry)."
+  },
   "created": "2026-11-11",
   "priority": 0,
   "title": "D23 correctness is graded by hidden acceptance tests, not process conformance",
