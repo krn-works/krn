@@ -219,6 +219,94 @@ test('a cancelled run with no newer run still exits 74 after the grace', async (
     },
   );
 });
+test('a failed attempt whose run is rerun is awaited until the new attempt succeeds', async () => {
+  // Evidence: run 43047640047 failed attempt 1, then `gh run rerun --failed`
+  // made the run in_progress while the failed Check stayed the newest (KRN-14).
+  let polls = 0;
+  const failed = {
+    ...checkRun('completed', 'failure'),
+    id: 5,
+    details_url: 'https://github.com/o/r/actions/runs/99/job/1',
+  };
+  const fake = strictGh('o/r', 7, head, {
+    pull: () => pull(head),
+    checks: () => {
+      polls++;
+      return JSON.stringify([
+        {
+          check_runs:
+            polls < 4
+              ? [failed]
+              : [failed, { ...checkRun('completed', 'success'), id: 6 }],
+        },
+      ]);
+    },
+    run: () => JSON.stringify({ status: polls < 2 ? 'queued' : 'in_progress' }),
+  });
+  let time = 0;
+  assert.equal(
+    await waitCommand(args, {
+      run: () => ({ code: 0, stdout: '', stderr: '' }),
+      gh: fake.gh,
+      now: () => time,
+      sleep: async (ms: number) => {
+        time += ms;
+      },
+    }),
+    `gate: success ${head}\nverdict: not merging: auto-merge is not enabled on PR #7 (mergeable_state blocked); run gh pr merge 7 --auto --squash`,
+  );
+  assert.ok(fake.calls.some((call) => call[1] === 'repos/o/r/actions/runs/99'));
+});
+test('a failed Check of a run cancelled by a newer run is awaited', async () => {
+  // Evidence: run 43051233209 was cancelled by run 43051234843 on the same
+  // head, which failed its aggregate Check while the newer run started.
+  let polls = 0;
+  const failed = {
+    ...checkRun('completed', 'failure'),
+    id: 5,
+    details_url: 'https://github.com/o/r/actions/runs/99/job/1',
+  };
+  const fake = strictGh('o/r', 7, head, {
+    pull: () => pull(head),
+    checks: () => {
+      polls++;
+      return JSON.stringify([
+        {
+          check_runs:
+            polls < 3
+              ? [failed]
+              : [failed, { ...checkRun('completed', 'success'), id: 6 }],
+        },
+      ]);
+    },
+    run: () => JSON.stringify({ status: 'completed', conclusion: 'cancelled' }),
+  });
+  let time = 0;
+  assert.match(
+    await waitCommand(args, {
+      run: () => ({ code: 0, stdout: '', stderr: '' }),
+      gh: fake.gh,
+      now: () => time,
+      sleep: async (ms: number) => {
+        time += ms;
+      },
+    }),
+    /^gate: success /u,
+  );
+});
+test('a failed attempt of a completed run still exits 74', async () => {
+  const failed = {
+    ...checkRun('completed', 'failure'),
+    details_url: 'https://github.com/o/r/actions/runs/99/job/1',
+  };
+  await assert.rejects(
+    waitCommand(
+      args,
+      runtime(() => [failed]),
+    ),
+    /concluded failure on .* in run 99/u,
+  );
+});
 test('stop exit codes are distinct, avoid 64/74/75 and appear in the usage', () => {
   const codes = Object.values(stopExitCodes);
   assert.equal(new Set(codes).size, codes.length);
