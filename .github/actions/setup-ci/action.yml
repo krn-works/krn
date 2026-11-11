@@ -17,10 +17,13 @@ runs:
         log="$RUNNER_TEMP/bubblewrap-install.log"
         status="$RUNNER_TEMP/bubblewrap-install.status"
         rm -f "$status"
+        # Worst case 3 x (60 + 60 + 60) s plus 15 s of pauses = 555 s; the
+        # waiter below polls for 600 s so it never gives up before the installer.
         setsid nohup bash -c '
-          for attempt in 1 2 3 4; do
-            if timeout 90 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y -qq bubblewrap \
-              || { timeout 60 sudo apt-get -o Acquire::http::Timeout=20 update -qq && timeout 90 sudo apt-get install -y -qq bubblewrap; }; then
+          if command -v bwrap > /dev/null; then echo 0 > "$1"; exit 0; fi
+          for attempt in 1 2 3; do
+            if timeout 60 sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=20 install -y -qq bubblewrap \
+              || { timeout 60 sudo apt-get -o Acquire::http::Timeout=20 update -qq && timeout 60 sudo apt-get install -y -qq bubblewrap; }; then
               echo 0 > "$1"; exit 0
             fi
             sleep $((attempt * 5))
@@ -96,7 +99,7 @@ runs:
       run: |
         set -euo pipefail
         status="$RUNNER_TEMP/bubblewrap-install.status"
-        for _ in $(seq 1 600); do
+        for _ in $(seq 1 1200); do
           test -f "$status" && break
           sleep 0.5
         done

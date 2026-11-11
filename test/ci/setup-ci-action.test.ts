@@ -7,8 +7,9 @@ const action = await readFile(
   'utf8',
 );
 test('the bubblewrap install retries with a pause and its wait outlasts every attempt', () => {
-  assert.match(action, /for attempt in 1 2 3 4; do/u);
+  assert.match(action, /for attempt in 1 2 3; do/u);
   assert.match(action, /sleep \$\(\(attempt \* 5\)\)/u);
-  // 600 polls of 0.5s: longer than 4 attempts of the 90s install timeout.
-  assert.match(action, /seq 1 600/u);
+  // 1200 polls of 0.5s = 600s, above the installer's 3 x 180s + 15s bound.
+  assert.match(action, /seq 1 1200/u);
+  assert.match(action, /command -v bwrap/u);
 });
