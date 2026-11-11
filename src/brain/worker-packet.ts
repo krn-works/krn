@@ -47,6 +47,24 @@ export function applicable(
 /** Where a repository keeps the records FR-40 measured. */
 const RECORDS = 'evals/fr40/records.json';
 
+/**
+ * Live wording that supersedes a frozen record of the same id. evals/fr40/records.json is
+ * pinned by the FR-40 manifest hash, so a convention reworded for lane sessions lives here.
+ */
+const LIVE_RECORDS = 'docs/program/live-records.json';
+
+/** The frozen records with each live record replacing the frozen one of its id. */
+export function liveRecords(repo: string): BrainRecord[] {
+  const frozen = parseRecords(
+    JSON.parse(readFileSync(join(repo, RECORDS), 'utf8')),
+  );
+  const path = join(repo, LIVE_RECORDS);
+  if (!existsSync(path)) return frozen;
+  const live = parseRecords(JSON.parse(readFileSync(path, 'utf8')));
+  const byId = new Map(live.map((record) => [record.id, record]));
+  return frozen.map((record) => byId.get(record.id) ?? record);
+}
+
 export function workerPacket(
   repo: string,
   brief: string,
@@ -57,10 +75,7 @@ export function workerPacket(
   return brainPacket({
     task: 'worker-brief',
     query: brief,
-    records: applicable(
-      parseRecords(JSON.parse(readFileSync(path, 'utf8'))),
-      brief,
-    ),
+    records: applicable(liveRecords(repo), brief),
     asOf,
     budget: BUDGET,
   });
@@ -83,7 +98,7 @@ export function lanePacket(
   return brainPacket({
     task,
     query: brief,
-    records: parseRecords(JSON.parse(readFileSync(path, 'utf8'))),
+    records: liveRecords(repo),
     asOf,
     budget: BUDGET,
   });

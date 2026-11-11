@@ -8,6 +8,7 @@ import { fr40Packet } from '../../src/brain/cli.ts';
 import { brainPacket, parseRecords } from '../../src/brain/packet.ts';
 import {
   applicable,
+  lanePacket,
   MEASURED,
   packetBrief,
   workerPacket,
@@ -97,4 +98,22 @@ test('a brief that names a task id keeps its task-id record', () => {
         `${task.id} lacks ${id}`,
       );
     }
+});
+
+test('the live packet states the biome rule with npm run fast and generated files', () => {
+  const frozen = readFileSync(join(repo, 'evals/fr40/records.json'), 'utf8');
+  assert.ok(!frozen.includes('not only your own tests'));
+  for (const packet of [
+    workerPacket(repo, brief, '2026-11-11'),
+    lanePacket(repo, `${brief} Run biome.`, '2026-11-11', 'lane'),
+  ]) {
+    if (packet === null) throw new Error('no packet');
+    assert.ok(packet.records.includes('r-biome-clean'));
+    const biome = packet.text
+      .split('\n')
+      .find((l) => l.startsWith('- [r-biome-clean]'));
+    assert.match(biome ?? '', /before every commit run npm run fast/u);
+    assert.match(biome ?? '', /not only your own tests/u);
+    assert.match(biome ?? '', /scripts\/shard-weights\.mjs/u);
+  }
 });

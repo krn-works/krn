@@ -1,0 +1,11 @@
+[
+  {
+    "id": "r-biome-clean",
+    "type": "convention",
+    "text": "Code and JSON must pass Biome: before every commit run npm run fast (biome --write, tsc, related tests), not only your own tests; generated files such as scripts/shard-weights.mjs must pass Biome too.",
+    "recorded_at": "2026-10-23",
+    "valid_from": "2026-10-23",
+    "valid_to": null,
+    "source": "docs/program/repository-workflow.md; CLAUDE.md; evals/fr40/results-lanes.md"
+  }
+]

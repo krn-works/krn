@@ -1,7 +1,11 @@
 {
   "id": "t-gg1xpda",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "live-records.json supersedes the frozen biome-clean wording in lane packets; FR-40 report unchanged"
+  },
   "created": "2026-11-11",
   "priority": 2,
   "title": "live lane packet states the biome-clean rule actionably",
