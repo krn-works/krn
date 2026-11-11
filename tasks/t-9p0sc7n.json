@@ -1,0 +1,12 @@
+{
+  "id": "t-9p0sc7n",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 3,
+  "title": "The D23 replay is rerun with infra failures retried and a monotonic clock",
+  "after": [],
+  "body": [
+    "Outcome: D23 arm K is rerun at the adopted model with infra-failed arms (exit!=0 with no commit, timeout) retried once, lead seconds from a monotonic clock, and failures split into code, process and infra. Why: 494.K exit 1 at 3 s and 487.K timeout counted as cost 0; lead_seconds negative (-79746, -91928); K arms were recycled from C3 per tasks/t-g2x9kw7.json:18; P was correct 11/20 vs K 7/20. Proof: a new 20-row table with no negative or zero-cost arms. Scope: .krn/runs/d23-comparison only.\nEvidence: .krn/runs/qwen-research/report.md (Qwen 4 audit) verified by krn-reader against HEAD 8152cee."
+  ]
+}

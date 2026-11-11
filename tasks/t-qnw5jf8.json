@@ -1,0 +1,12 @@
+{
+  "id": "t-qnw5jf8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 2,
+  "title": "Lead guards refuse only the reading part of a Bash call",
+  "after": [],
+  "body": [
+    "Outcome: lead-file-read refuses only the over-long reading segment (or truncates its output) instead of the whole Bash call, and an unbounded rg gets a bounded form. Why: scripts/claude/lead-file-read.ts:117-118 refuses every rg without a limit; :158 'Nothing in this Bash call ran' drops the other commands, forcing retries. Proof: hook tests for a compound call with one long read. Scope: scripts/claude/lead-file-read.ts, scripts/claude/bash-guards.ts, tests.\nEvidence: .krn/runs/qwen-research/report.md (Qwen 4 audit) verified by krn-reader against HEAD 8152cee."
+  ]
+}
