@@ -257,6 +257,43 @@ test('a failed attempt whose run is rerun is awaited until the new attempt succe
   );
   assert.ok(fake.calls.some((call) => call[1] === 'repos/o/r/actions/runs/99'));
 });
+test('a failed Check of a run cancelled by a newer run is awaited', async () => {
+  // Evidence: run 43051233209 was cancelled by run 43051234843 on the same
+  // head, which failed its aggregate Check while the newer run started.
+  let polls = 0;
+  const failed = {
+    ...checkRun('completed', 'failure'),
+    id: 5,
+    details_url: 'https://github.com/o/r/actions/runs/99/job/1',
+  };
+  const fake = strictGh('o/r', 7, head, {
+    pull: () => pull(head),
+    checks: () => {
+      polls++;
+      return JSON.stringify([
+        {
+          check_runs:
+            polls < 3
+              ? [failed]
+              : [failed, { ...checkRun('completed', 'success'), id: 6 }],
+        },
+      ]);
+    },
+    run: () => JSON.stringify({ status: 'completed', conclusion: 'cancelled' }),
+  });
+  let time = 0;
+  assert.match(
+    await waitCommand(args, {
+      run: () => ({ code: 0, stdout: '', stderr: '' }),
+      gh: fake.gh,
+      now: () => time,
+      sleep: async (ms: number) => {
+        time += ms;
+      },
+    }),
+    /^gate: success /u,
+  );
+});
 test('a failed attempt of a completed run still exits 74', async () => {
   const failed = {
     ...checkRun('completed', 'failure'),
