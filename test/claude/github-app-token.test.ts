@@ -462,3 +462,25 @@ test('the launcher refuses with exit 69 naming the flag when no token can be min
   assert.match(refused.stderr, /bw serve unavailable.*--operator-token/u);
   assert.deepEqual(refused.create, []);
 });
+
+test('a lane session serves the cached token and fails closed on a miss without calling bw serve', async (t) => {
+  const f = await fakes(t);
+  await exec(helper, ['token'], f.env);
+  const lane = { ...f.env, KRN_SESSION_CLASS: 'lane' };
+  assert.equal((await exec(helper, ['token'], lane)).stdout, 'ghs_token1\n');
+  const credential = await exec(
+    helper,
+    ['git-credential', 'get'],
+    lane,
+    'host=github.com\n',
+  );
+  assert.match(credential.stdout, /password=ghs_token1\n/u);
+  assert.equal(f.minted(), 1);
+
+  // Cache gone and bw serve reachable: the lane still must not mint.
+  rmSync(join(f.runtime, 'krn-app-token.json'));
+  const miss = await exec(helper, ['token'], lane);
+  assert.equal(miss.code, 69);
+  assert.match(miss.stderr, /no cached App token in a lane session/u);
+  assert.equal(f.minted(), 1);
+});

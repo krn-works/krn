@@ -31,7 +31,7 @@ export interface LaneRunSteps {
   mint(env: NodeJS.ProcessEnv): Promise<string | undefined>;
 }
 
-/** Operator credentials that never reach a lane session; only the App token does. */
+/** Operator credentials that never reach a lane session; only the cached App token does, and the sandbox blocks localhost so bw serve is out of reach. */
 export const OPERATOR_CREDENTIAL_VARIABLES = [
   'GH_TOKEN',
   'GITHUB_TOKEN',

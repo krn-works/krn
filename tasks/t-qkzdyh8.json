@@ -1,0 +1,16 @@
+{
+  "id": "t-qkzdyh8",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Sandbox drops localhost; the App token helper is cache-only when KRN_SESSION_CLASS=lane; tests pin both."
+  },
+  "created": "2026-11-11",
+  "priority": 0,
+  "title": "Lane sandbox sessions cannot reach the local Bitwarden server",
+  "after": [],
+  "body": [
+    "Why: Qwen second audit .krn/runs/qwen-research-2/report.md N6, verified at 6d713ae: .claude/settings.sandbox.json allows network to localhost and all unix sockets, and bw serve listens on [::1]:8087 unauthenticated; scripts/github-app-token.ts reads the App private key from it. A lane session can read the whole vault; the comment in src/cli/lane-run.ts that only the App token reaches a lane is false.\nOutcome: the sandbox no longer allows localhost (or allows only named ports that exclude 8087); inside a lane session the App token helper is cache-only and never calls bw serve; the lane-run comment is true.\nProof: a test pins the sandbox network allowlist without localhost/8087 and a test shows the helper fails closed on cache miss when marked as a lane session."
+  ]
+}

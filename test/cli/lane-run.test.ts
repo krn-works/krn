@@ -242,8 +242,15 @@ test('the lane sandbox settings allow edits explicitly when they scrub the subpr
       ),
       'utf8',
     ),
-  ) as { env?: Record<string, string>; permissions: { allow: string[] } };
+  ) as {
+    env?: Record<string, string>;
+    permissions: { allow: string[] };
+    sandbox: { network: { allowedDomains: string[] } };
+  };
   assert.equal(settings.env?.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB, '1');
+  // bw serve listens on localhost:8087 unauthenticated and holds the App key.
+  for (const domain of settings.sandbox.network.allowedDomains)
+    assert.doesNotMatch(domain, /localhost|127\.|\[?::1\]?|:8087/u, domain);
   for (const tool of ['Bash', 'Edit', 'Write'])
     assert.ok(settings.permissions.allow.includes(tool), tool);
 });
