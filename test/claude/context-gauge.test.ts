@@ -294,10 +294,20 @@ test('gauge repeats the advisory past the second threshold and refuses new work 
     };
     return `${JSON.stringify(entry)}\n`;
   };
-  const run = (total: number, event: string, tool: object = {}) => {
+  const run = (
+    total: number,
+    event: string,
+    tool: object = {},
+    sessionClass = '',
+  ) => {
     writeFileSync(transcript, reading(total));
     const result = spawnSync(process.execPath, [script], {
-      env: { ...process.env, CLAUDE_PROJECT_DIR: root, HOME: root },
+      env: {
+        ...process.env,
+        CLAUDE_PROJECT_DIR: root,
+        HOME: root,
+        KRN_SESSION_CLASS: sessionClass,
+      },
       encoding: 'utf8',
       input: JSON.stringify({
         session_id: 'session',
@@ -319,6 +329,17 @@ test('gauge repeats the advisory past the second threshold and refuses new work 
     return true;
   };
   try {
+    // A headless lane session cannot hand off, so the ceiling never refuses it.
+    assert.equal(
+      run(
+        190000,
+        'PreToolUse',
+        { tool_name: 'Bash', tool_input: { command: 'ls' } },
+        'lane',
+      ),
+      '',
+    );
+    assert.equal(deny(190000, 'Bash', { command: 'ls' }), true);
     // Default 200k budget: second threshold 160k, ceiling 180k.
     assert.match(run(161000, 'PostToolUse'), /nearly exhausted/u);
     assert.equal(run(165000, 'PostToolUse'), '');

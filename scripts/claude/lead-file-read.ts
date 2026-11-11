@@ -157,6 +157,8 @@ export function verdict(
     tool_input?: { command?: unknown; file_path?: unknown; limit?: unknown };
   } | null;
   if (!fields || typeof fields.agent_id === 'string') return undefined;
+  // A headless `krn lane run` session is a main session with no lead to protect.
+  if (process.env.KRN_SESSION_CLASS === 'lane') return undefined;
   let cwd = typeof fields.cwd === 'string' ? fields.cwd : process.cwd();
   const input = fields.tool_input;
   if (fields.tool_name === 'Read') {

@@ -1,0 +1,16 @@
+{
+  "id": "t-fcp1yc2",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lead-file-read and the gauge ceiling skip KRN_SESSION_CLASS=lane (already set by sessionEnvironment); other guards untouched; tests cover lane vs lead"
+  },
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "Headless lane sessions are exempt from lead-only read and gauge guards",
+  "after": [],
+  "body": [
+    "Why: Qwen second audit .krn/runs/qwen-research-2/report.md N2, verified at 6d713ae: scripts/claude/lead-file-read.ts:159 exempts only hook payloads with agent_id, so a headless krn lane run session (a main session) gets lead read refusals, and context-gauge refuses all work past the ceiling though a headless session cannot hand off.\nOutcome: lead-file-read and the context-gauge ceiling refusal skip headless lane sessions (mark them by an env var krn lane run already sets, e.g. KRN_SESSION_CLASS=lane, or the harness's non-interactive signal); safety guards (bash-guards, piped-check, stash, unpushed-delete) still apply.\nProof: tests for lead-file-read and context-gauge show a lane-marked payload passes and a lead payload is still refused."
+  ]
+}
