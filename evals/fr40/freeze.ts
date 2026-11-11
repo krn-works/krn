@@ -2,7 +2,8 @@
 // material.json (arm B brain packet and arm S static standards per task) and
 // scorer-imports.json (hashes of files the scorer imports from outside evals/fr40)
 // and manifest.json (arms, fixed strata, scorer argv, D20 thresholds, input hashes).
-// `--check` regenerates in memory and exits 1 when a committed file drifted.
+// `--check` regenerates in memory and exits 1 when a committed file drifted;
+// `--write` rewrites the committed files; any other argument exits 64 and writes nothing.
 import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
@@ -121,7 +122,15 @@ export function freeze(): Record<string, string> {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const check = process.argv.includes('--check');
+  const args = process.argv.slice(2);
+  const mode = args.length === 1 ? args[0] : undefined;
+  if (mode !== '--check' && mode !== '--write') {
+    process.stderr.write(
+      `unknown argument: ${args.join(' ') || '(none)'}\nusage: node evals/fr40/freeze.ts --check | --write\n`,
+    );
+    process.exit(64);
+  }
+  const check = mode === '--check';
   let drift = 0;
   for (const [path, content] of Object.entries(freeze())) {
     const target = new URL(path, here);
