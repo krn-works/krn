@@ -37,11 +37,8 @@ const run = (base: Record<string, unknown> | undefined, tool_input: object) =>
 test('lead file read hook refuses the lead a large file dump', () => {
   for (const command of [
     'cat big.md',
-    'cat small.md big.md; echo done',
     `cd ${dir} && sed -n '1,200p' big.md`,
     "sed -n '900,$p' big.md",
-    'grep -rn TODO .',
-    'rg TODO',
   ]) {
     const result = run(lead, { command });
     assert.equal(result.status, 2, command);
@@ -56,7 +53,7 @@ test('lead file read hook refuses the lead a large file dump', () => {
 test('lead file read hook allows slices, bounded searches, writes and subagents', () => {
   for (const command of [
     'cat small.md',
-    "sed -n '1,80p' big.md",
+    "sed -n '1,40p' big.md",
     "sed -n '5p;9p' big.md",
     'cat big.md | wc -l',
     'grep -rl TODO .',
@@ -88,11 +85,53 @@ test('lead file read hook refuses reads chained past the budget in one call', ()
   for (const command of [
     'cat mid.md; cat mid.md',
     'cat mid.md && cat mid.md',
-    "cat mid.md; sed -n '1,70p' mid.md; sed -n '1,70p' mid.md",
+    "cat mid.md; sed -n '1,35p' mid.md; sed -n '1,35p' mid.md",
     `cd ${dir} && cat mid.md; cat mid.md`,
   ]) {
     const result = run(lead, { command });
     assert.equal(result.status, 2, command);
     assert.match(result.stderr, /chained in this Bash call/u, command);
   }
+});
+
+const rewritten = (command: string) => {
+  const result = run(lead, { command });
+  assert.equal(result.status, 0, `${command}: ${result.stderr}`);
+  const out = JSON.parse(result.stdout) as {
+    hookSpecificOutput: {
+      permissionDecision: string;
+      updatedInput: { command: string };
+    };
+  };
+  assert.equal(out.hookSpecificOutput.permissionDecision, 'allow');
+  return out.hookSpecificOutput.updatedInput.command;
+};
+
+test('lead file read hook cuts only the over-long read of a compound call', () => {
+  assert.equal(
+    rewritten('cat small.md big.md; echo done'),
+    'cat small.md big.md | head -c 8000; echo done',
+  );
+  assert.equal(
+    rewritten("git status && sed -n '1,200p' big.md && echo ok"),
+    "git status && sed -n '1,200p' big.md | head -n 40 && echo ok",
+  );
+  assert.equal(
+    rewritten('echo a; cat big.md; cat small.md'),
+    'echo a; cat big.md | head -c 8000; cat small.md',
+  );
+});
+
+test('lead file read hook gives an unbounded search its bounded form', () => {
+  assert.equal(rewritten('grep -rn TODO .'), 'grep -rn TODO . | head -n 200');
+  assert.equal(rewritten('rg TODO'), 'rg TODO | head -n 200');
+  assert.equal(
+    rewritten('cd src && rg TODO && echo done'),
+    'cd src && rg TODO | head -n 200 && echo done',
+  );
+});
+
+test('lead file read hook refuses a repeated over-long stage it cannot cut in place', () => {
+  const result = run(lead, { command: 'cat big.md; echo x; cat big.md' });
+  assert.equal(result.status, 2);
 });
