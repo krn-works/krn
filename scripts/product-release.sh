@@ -6,6 +6,7 @@
 # `krn ci wait` runs it once it observes the merge; switching the working
 # checkout never changes this one. The candidate must pass `bin/krn doctor`
 # before it stays; a failed smoke restores the previous commit and exits 78.
+# Runs hold an exclusive lock at <main checkout>/.krn/product-release.lock.
 set -euo pipefail
 
 mode=${1:-}
@@ -20,7 +21,21 @@ release=$main/.krn/product-release
 branch=${KRN_PRODUCT_BRANCH:-main}
 remote=${KRN_PRODUCT_REMOTE:-origin}
 
-git -C "$main" fetch -q "$remote" "$branch"
+# Parallel lanes merge together: serialise the refresh so two runs never race
+# in $release, and retry the fetch while another git holds a ref lock.
+mkdir -p "$main/.krn"
+exec 9>"$main/.krn/product-release.lock"
+flock 9
+
+fetched=
+for attempt in 1 2 3 4 5; do
+  if err=$(git -C "$main" fetch -q "$remote" "$branch" 2>&1); then fetched=1; break; fi
+  case "$err" in
+    *'.lock'*|*'cannot lock ref'*) sleep "$attempt" ;;
+    *) break ;;
+  esac
+done
+if [[ -z "$fetched" ]]; then printf '%s\n' "$err" >&2; exit 70; fi
 target=$(git -C "$main" rev-parse "$remote/$branch")
 previous=
 if [[ -e "$release/.git" ]]; then

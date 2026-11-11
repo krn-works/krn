@@ -336,7 +336,7 @@ test('wait refreshes the pinned Product entry once the auto-merging PR merges', 
   assert.match(refreshes[0]?.[1][0] ?? '', /scripts\/product-release\.sh$/u);
 });
 
-test('a failed refresh exits 78 and names the previous commit it kept', async () => {
+test('a failed refresh after the merge still reports merged, with a warning', async () => {
   const receiver = mergeRuntime(
     [autoMerge, { state: 'closed', merged: true, merge_commit_sha: merge }],
     {
@@ -345,14 +345,15 @@ test('a failed refresh exits 78 and names the previous commit it kept', async ()
       stderr: `product-release: candidate ${merge} failed bin/krn doctor; kept previous=${base}\n`,
     },
   );
-  await assert.rejects(
-    waitCommand(args, receiver),
-    (error: Error & { exitCode?: number }) => {
-      assert.equal(error.exitCode, 78);
-      assert.match(error.message, new RegExp(`kept previous=${base}`, 'u'));
-      return true;
-    },
+  const out = await waitCommand(args, receiver);
+  assert.match(
+    out,
+    new RegExp(
+      `^warning: release refresh failed \\(exit 78\\).*kept previous=${base}`,
+      'mu',
+    ),
   );
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
 });
 
 test('wait without auto-merge skips the refresh; an unseen merge prints the manual step', async () => {

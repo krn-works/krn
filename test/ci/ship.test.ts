@@ -220,3 +220,41 @@ test('a failing instruction-bytes rule refuses the push with its message', async
   assert.ok(r.calls.some((c) => c.startsWith('node --test')));
   assert.ok(!r.calls.some((c) => c.includes('push')));
 });
+
+test('a fetch that hits a ref lock is retried, a real fetch failure is not', async () => {
+  const locked = receiver({ pulls: [auto, merged] });
+  const inner = locked.run;
+  let tries = 0;
+  const out = await shipCommand(args, {
+    ...locked,
+    run: (command: string, a: string[], at?: string) => {
+      if (command === 'git' && a[0] === 'fetch' && tries++ < 2)
+        return {
+          code: 1,
+          stdout: '',
+          stderr: "error: cannot lock ref 'refs/remotes/origin/main'",
+        };
+      return inner(command, a, at);
+    },
+  });
+  assert.equal(tries, 3);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+
+  const broken = receiver({ pulls: [auto, merged] });
+  const innerBroken = broken.run;
+  let attempts = 0;
+  await assert.rejects(
+    shipCommand(args, {
+      ...broken,
+      run: (command: string, a: string[], at?: string) => {
+        if (command === 'git' && a[0] === 'fetch') {
+          attempts++;
+          return { code: 128, stdout: '', stderr: 'fatal: no such remote' };
+        }
+        return innerBroken(command, a, at);
+      },
+    }),
+    CommandFailure,
+  );
+  assert.equal(attempts, 1);
+});
