@@ -6,10 +6,13 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { failingFiles, outOfScope } from '../../evals/d23/grade.ts';
 import {
+  classifyUnit,
+  mcnemarP,
   regradeUnit,
   summaryLine,
   type UnitGrade,
 } from '../../evals/d23/regrade.ts';
+import { parseLog, select } from '../../evals/d23/select.ts';
 
 const git = (cwd: string, ...args: string[]) => {
   const r = spawnSync('git', args, { cwd, encoding: 'utf8' });
@@ -48,6 +51,15 @@ test('a fixture unit is graded by the hidden test: the fixing patch passes, the 
       `${fix}--- /dev/null\n+++ b/notes.md\n@@ -0,0 +1 @@\n+mine\n`,
     );
     writeFileSync(join(results, '9.P.files'), '');
+    const cls = await classifyUnit('9', {
+      repo,
+      ref: 'main',
+      results,
+      work: join(root, 'work-classify'),
+      fullSuite: false,
+    });
+    assert.deepEqual(cls.failToPass, ['test/value.test.js']);
+    assert.equal(cls.validOnMerge, true);
     const grade = await regradeUnit('9', {
       repo,
       ref: 'main',
@@ -65,7 +77,7 @@ test('a fixture unit is graded by the hidden test: the fixing patch passes, the 
     assert.equal(grade.P.scopeClean, true);
     assert.equal(
       summaryLine([grade]),
-      'K functional 1/1, P functional 1/1, K scope-clean 0/1, P scope-clean 1/1; paired K 1/1, P 1/1',
+      'K functional 1/1, P functional 1/1, K scope-clean 0/1, P scope-clean 1/1; paired K 1/1, P 1/1; McNemar p=1.000',
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -97,6 +109,30 @@ test('a unit where one arm produced no patch counts for neither arm in the paire
       unit(arm(true, true), arm(false, false)),
       unit(arm(true, false), arm(true, true)),
     ]),
-    'K functional 1/2, P functional 1/2, K scope-clean 2/2, P scope-clean 2/2; paired K 0/1, P 1/1',
+    'K functional 1/2, P functional 1/2, K scope-clean 2/2, P scope-clean 2/2; paired K 0/1, P 1/1; McNemar p=1.000',
+  );
+});
+
+test('the McNemar p-value is the exact two-sided binomial over discordant pairs', () => {
+  assert.equal(mcnemarP(5, 0), '0.062');
+  assert.equal(mcnemarP(3, 3), '1.000');
+  assert.equal(mcnemarP(0, 0), '1.000');
+  assert.equal(mcnemarP(1, 7), '0.070');
+  assert.equal(mcnemarP(2, 10), '0.039');
+});
+
+test('unit selection keeps task-titled PRs that change a test and a source file, newest first, minus the excluded', () => {
+  const log = [
+    '\u0001feat(a): a (t-aaaaaaa) (#30)\nsrc/a.ts\ntest/a.test.ts\n',
+    '\u0001feat(b): no task (#29)\nsrc/b.ts\ntest/b.test.ts\n',
+    '\u0001fix(c): only test (t-ccccccc) (#28)\ntest/c.test.ts\ntasks/t-ccccccc.json\n',
+    '\u0001fix(d): only source (t-ddddddd) (#27)\nsrc/d.ts\n',
+    '\u0001fix(e): e (t-eeeeeee) (#26)\nscripts/e.ts\ntest/e.test.mjs\n',
+    '\u0001fix(f): f (t-fffffff) (#25)\nsrc/f.ts\ntest/f.test.ts\n',
+  ].join('');
+  assert.deepEqual(select(parseLog(log), {}), ['30', '26', '25']);
+  assert.deepEqual(
+    select(parseLog(log), { limit: 2, exclude: new Set(['30']) }),
+    ['26', '25'],
   );
 });
