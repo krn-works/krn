@@ -7,6 +7,7 @@ import { mainCheckoutRoot } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
 import { getTask, repositoryRoot } from '../task/store.ts';
 import { flagValue } from './flag-value.ts';
+import { laneBriefText } from './lane.ts';
 import { renderPrBody } from './pr-body.ts';
 import { CliUsageError } from './usage-error.ts';
 
@@ -143,7 +144,7 @@ function git(cwd: string, args: string[]): string {
   return result.stdout.trim();
 }
 
-function taskBrief(root: string, id: string): string {
+function taskRecordBrief(root: string, id: string): string {
   const task = getTask(root, id);
   return [
     `Task ${task.id}: ${task.title}`,
@@ -152,6 +153,15 @@ function taskBrief(root: string, id: string): string {
     '',
     `Deliver this task in the current worktree: commit with a "Ticket: ${task.id}" trailer and close the task with \`bin/krn task close ${task.id} --as done --note ...\` in the same commit. Do not push or open a pull request; the caller ships the commit.`,
   ].join('\n');
+}
+
+/** The session prompt: the packet `krn lane brief --task ID` prints (ADR 0002, FR-40), then the task record. */
+export function taskBrief(
+  root: string,
+  id: string,
+  asOf = new Date().toISOString().slice(0, 10),
+): string {
+  return laneBriefText(root, taskRecordBrief(root, id), asOf, id);
 }
 
 const defaultSteps: LaneRunSteps = {
