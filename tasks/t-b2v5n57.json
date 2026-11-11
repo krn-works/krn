@@ -1,0 +1,16 @@
+{
+  "id": "t-b2v5n57",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ci wait awaits a rerun attempt of a failed run; bubblewrap install retries 4 times with pauses"
+  },
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "ci wait follows rerun attempts and CI setup survives a transient bubblewrap install failure",
+  "after": [],
+  "body": [
+    "Why: on PR #615 run 43047640047 attempt 1 failed 14 jobs at \"Set up CI\" with \"bubblewrap install failed\" (infra), and after `gh run rerun --failed` `bin/krn ci wait` kept returning the attempt-1 failure for the head, so lanes cannot wait on a rerun and the guard forbids polling. #613 handled a run cancelled by a newer run, not a newer attempt of the same run.\nOutcome: ci wait and pr ship read the latest attempt of the newest gate run for the head and wait while it runs; the bubblewrap install in .github/actions/setup-ci retries transient package failures (or uses a cached package) so this flake stops failing whole runs.\nProof: test/ci/wait.test.ts covers a failed attempt 1 followed by a running then green attempt 2; the setup step retry is covered by its action test or a script test."
+  ]
+}
