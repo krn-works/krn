@@ -1,0 +1,16 @@
+{
+  "id": "t-d8m0ewn",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "freeze.ts takes --check or --write; any other argument exits 64 and writes nothing. test/evals/fr40-freeze.test.ts runs --check. Re-froze manifest.json and scorer-imports.json: the boundaries.ts change since the freeze (6f72493) only edits LAYERS entries and the scorer keeps only src/core violations, where core stays [] before and after. Probe on a synthetic src/core with imports of cli, harness, adopt, worker, flow, own and node: gave identical violations with old and new boundaries.ts. lanes report --units 133 output identical before and after (KEEP, +22.6 pp, 33 wins, 3 losses, token ratio 0.944). Codex report not regenerated: stored scratch repos are gone, the probe is the proof."
+  },
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "The FR-40 freeze refuses unknown arguments and CI catches drift of its frozen inputs",
+  "after": [],
+  "body": [
+    "Defects on main bb248cb: `freeze.ts --help` rewrote manifest.json and scorer-imports.json; `--check` exited 1 with no test or CI step running it."
+  ]
+}
