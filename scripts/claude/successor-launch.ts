@@ -207,8 +207,10 @@ export function parseArgs(
     else if (flag === '--prompt') prompt = value;
     else if (flag === '--model') model = value;
     else if (flag === '--class') {
-      if (!isSessionClass(value))
-        throw new Error(`--class must be one of ${SESSION_CLASSES.join(', ')}`);
+      // `lane` belongs to `krn lane run`, not to a successor launch.
+      const choices = SESSION_CLASSES.filter((name) => name !== 'lane');
+      if (!isSessionClass(value) || value === 'lane')
+        throw new Error(`--class must be one of ${choices.join(', ')}`);
       sessionClass = value;
     } else if (flag === '--effort') {
       if (value === 'max')
