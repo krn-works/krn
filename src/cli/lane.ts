@@ -9,6 +9,7 @@ import {
   statfsSync,
 } from 'node:fs';
 import { join, sep } from 'node:path';
+import { precedentSection } from '../brain/precedent.ts';
 import { lanePacket, packetBrief } from '../brain/worker-packet.ts';
 import {
   CEILING_WINDOW_PRS,
@@ -35,7 +36,9 @@ export function laneBriefText(
   asOf: string,
   task = 'lane-brief',
 ): string {
-  return packetBrief(lanePacket(repo, brief, asOf, task), brief);
+  const text = packetBrief(lanePacket(repo, brief, asOf, task), brief);
+  const precedent = precedentSection(repo, brief);
+  return precedent === '' ? text : `${text}\n\n${precedent}\n`;
 }
 
 function briefCommand(rest: string[]): void {
