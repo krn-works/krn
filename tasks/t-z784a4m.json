@@ -1,7 +1,11 @@
 {
   "id": "t-z784a4m",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Deleted idle-gap-cache.d.mts, ci-stage-time.d.mts, trivial-call-scan.mjs, lead-claim-spend.py, lead-read-scan.ts (only self and historical task-note references); kept cc-clearing-watch.ts; PLAN.md review track matches ADR 0014; roadmap-prune refuses unknown flags with 64; R3 pruned (it was closed after the last prune run, the script matched it)."
+  },
   "created": "2026-11-11",
   "priority": 3,
   "title": "Orphan scripts and stale plan text leave the repository",

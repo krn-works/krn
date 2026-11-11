@@ -16,9 +16,9 @@ Run the two-week proof of full KRN against a plain harness, plus a market review
 
 ### 2. Review evidence
 
-Replace two Codex judges with `codex review` and Claude Code `/code-review` (`t-809s3yc`). Keep the exact-head record.
+KRN ships no review command or judge panel (ADR 0014 D10/D22 amendment). Review is opt-in (KRN-07): `codex review` or Claude Code `/code-review`.
 
-**Exit:** records show base=assertion/head=pass pairs and three distinct judge implementations.
+**Exit:** a reviewed PR names the reviewer and the head it covered.
 
 ### 3. One merge path and delivery record
 

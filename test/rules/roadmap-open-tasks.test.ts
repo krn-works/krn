@@ -88,3 +88,14 @@ test('two branches removing different rows merge without conflict', () => {
   );
   assert.notEqual(positional.status, 0);
 });
+
+test('prune CLI refuses an unknown option with exit 64 and usage', () => {
+  const result = spawnSync(
+    process.execPath,
+    [join(root, 'scripts/claude/roadmap-prune.ts'), '--help'],
+    { encoding: 'utf8' },
+  );
+  assert.equal(result.status, 64);
+  assert.match(result.stderr, /unknown option --help[\s\S]*usage:/u);
+  assert.equal(result.stdout, '');
+});
