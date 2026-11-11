@@ -1,5 +1,12 @@
 import { spawnSync } from 'node:child_process';
-import { lstatSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { shipCommand } from '../ci/ship.ts';
@@ -49,6 +56,9 @@ function sessionTimeoutMs(env: NodeJS.ProcessEnv): number {
 const tokenHelper = fileURLToPath(
   new URL('../../scripts/github-app-token.ts', import.meta.url),
 );
+const fastCheck = fileURLToPath(
+  new URL('../../scripts/fast-check.ts', import.meta.url),
+);
 const wrapperDirectory = fileURLToPath(
   new URL('../../scripts/app-bin', import.meta.url),
 );
@@ -69,6 +79,7 @@ export function sessionEnvironment(
   const key = 'credential.https://github.com.helper';
   return {
     ...scrubbed,
+    KRN_SESSION_CLASS: 'lane',
     KRN_APP_CACHE_DIR: scrubbed.KRN_APP_CACHE_DIR || cacheDirectory,
     PATH: scrubbed.PATH
       ? `${wrapperDirectory}:${scrubbed.PATH}`
@@ -88,6 +99,54 @@ interface SessionResult {
 }
 
 const exitNoDelivery = 74;
+
+/** The model a lane session runs on unless `--model` says otherwise (operator model policy). */
+export const defaultLaneModel = 'sonnet';
+
+/** The subject of the session's commit that carries the task's Ticket trailer, else undefined. */
+export function ticketCommitTitle(
+  log: string,
+  task: string,
+): string | undefined {
+  for (const entry of log.split('\x1e')) {
+    const [subject, trailers] = entry.trim().split('\x1f');
+    if (
+      subject &&
+      (trailers ?? '')
+        .split(',')
+        .map((item) => item.trim())
+        .includes(task)
+    )
+      return subject.endsWith(`(${task})`) ? subject : `${subject} (${task})`;
+  }
+  return undefined;
+}
+
+/**
+ * What the session proved: `npm run fast` leaves .krn/cache/fast-pass holding the key of the tree
+ * it passed on; the proof counts only while it equals the key of the final tree.
+ */
+export function sessionVerification(worktree: string): string | undefined {
+  const marker = join(worktree, '.krn', 'cache', 'fast-pass');
+  if (!existsSync(marker)) return undefined;
+  // The key comes from the script that wrote the marker, run as a process: scripts/ is not an import of src/.
+  const key = spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      'const { treeKey } = await import(process.env.KRN_FAST_CHECK); process.stdout.write(treeKey(process.cwd()));',
+    ],
+    {
+      cwd: worktree,
+      encoding: 'utf8',
+      env: { ...process.env, KRN_FAST_CHECK: fastCheck },
+    },
+  );
+  return key.status === 0 && readFileSync(marker, 'utf8') === key.stdout
+    ? 'npm run fast PASS on the final tree (.krn/cache/fast-pass matches HEAD)'
+    : undefined;
+}
 
 /** Read the JSON result of `claude -p --output-format json`. */
 /**
@@ -116,7 +175,7 @@ export function parseSessionResult(stdout: string): SessionResult {
   } catch {
     return {
       ok: false,
-      detail: 'session printed no JSON result',
+      detail: 'session printed no JSON result (not a timeout)',
       cost: undefined,
     };
   }
@@ -182,6 +241,23 @@ const defaultSteps: LaneRunSteps = {
   },
 };
 
+/** The worktree a failed run left behind, when it is the lane's own; anything else is a usage error. */
+function reusableLane(
+  path: string,
+  slug: string,
+): { path: string; slug: string } {
+  const branch = spawnSync(
+    'git',
+    ['-C', path, 'rev-parse', '--abbrev-ref', 'HEAD'],
+    { encoding: 'utf8' },
+  );
+  if (branch.status !== 0 || branch.stdout.trim() !== slug)
+    throw new CliUsageError(
+      `${path} exists but is not lane ${slug}'s worktree`,
+    );
+  return { path, slug };
+}
+
 export async function laneRunCommand(
   args: string[],
   steps: LaneRunSteps = defaultSteps,
@@ -190,6 +266,7 @@ export async function laneRunCommand(
   let slug: string | undefined;
   let actor: string | undefined;
   let root: string | undefined;
+  let model = defaultLaneModel;
   const value = (index: number, name: string) =>
     flagValue(args, index, () => new CliUsageError(`${name} requires a value`));
   for (let index = 0; index < args.length; index += 1) {
@@ -198,9 +275,10 @@ export async function laneRunCommand(
     else if (arg === '--slug') slug = value(index++, arg);
     else if (arg === '--actor') actor = value(index++, arg);
     else if (arg === '--root') root = value(index++, arg);
+    else if (arg === '--model') model = value(index++, arg);
     else
       throw new CliUsageError(
-        'krn lane run --task ID [--slug SLUG] [--actor NAME] [--root DIR]',
+        'krn lane run --task ID [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]',
       );
   }
   if (task === undefined || !isTaskId(task))
@@ -221,15 +299,19 @@ export async function laneRunCommand(
       exitCode: exitCredentialUnavailable,
     };
 
-  const started = await steps.start([
-    lane,
-    '--task',
-    task,
-    '--actor',
-    actor ?? `lane-${lane}`,
-    '--root',
-    origin,
-  ]);
+  const existing = join(main, '.krn', 'worktrees', lane);
+  // A rerun after a failed run reuses its worktree and branch (the claim is still held there).
+  const started = existsSync(existing)
+    ? reusableLane(existing, lane)
+    : await steps.start([
+        lane,
+        '--task',
+        task,
+        '--actor',
+        actor ?? `lane-${lane}`,
+        '--root',
+        origin,
+      ]);
   const claude = process.env.KRN_LANE_CLAUDE ?? 'claude';
   const session = spawnSync(
     claude,
@@ -242,6 +324,8 @@ export async function laneRunCommand(
       join(started.path, '.claude', 'settings.sandbox.json'),
       '--permission-mode',
       'acceptEdits',
+      '--model',
+      model,
     ],
     {
       cwd: started.path,
@@ -255,17 +339,29 @@ export async function laneRunCommand(
   const timedOut =
     (session.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT';
   const result = timedOut
-    ? { ok: false, detail: 'session timeout', cost: undefined }
-    : parseSessionResult(session.stdout ?? '');
+    ? {
+        ok: false,
+        detail: `session timeout after ${Math.round(sessionTimeoutMs(process.env) / 1000)}s`,
+        cost: undefined,
+      }
+    : session.error !== undefined
+      ? {
+          ok: false,
+          detail: `session did not run: ${session.error.message}`,
+          cost: undefined,
+        }
+      : parseSessionResult(session.stdout ?? '');
   const spent =
     result.cost === undefined ? '' : ` cost $${result.cost.toFixed(2)}`;
-  const kept = `worktree ${started.path}`;
+  const kept = `worktree ${started.path}, rerun reuses it`;
   const stop = (reason: string): LaneVerdict => ({
-    line: `lane ${task}: ${reason} (${kept})${spent}`,
+    line: `lane ${task}: ${reason} (${kept}) model ${model}${spent}`,
     exitCode: exitNoDelivery,
   });
 
   if (!result.ok) return stop(result.detail);
+  // Taken before the placeholders go: the fast-pass key was written with them in the tree.
+  const verified = sessionVerification(started.path);
   for (const path of sandboxPlaceholders(
     git(started.path, ['status', '--porcelain', '-z', '--untracked-files=all']),
     (file) => lstatSync(join(started.path, file)),
@@ -277,8 +373,20 @@ export async function laneRunCommand(
     .split('\n')
     .filter((line) => line !== '');
   if (commits.length === 0) return stop('no commit');
+  const title = ticketCommitTitle(
+    git(started.path, [
+      'log',
+      '--format=%s%x1f%(trailers:key=Ticket,valueonly,separator=%x2C)%x1e',
+      'origin/main..HEAD',
+    ]),
+    task,
+  );
+  if (title === undefined)
+    return stop(`no commit with a Ticket: ${task} trailer`);
+  if (getTask(started.path, task).status !== 'closed')
+    return stop('task not closed');
+  if (verified === undefined) return stop('no passing check on the final tree');
 
-  const title = commits[0] as string;
   const bodyDir = join(main, '.krn', 'tmp');
   mkdirSync(bodyDir, { recursive: true });
   const bodyFile = join(bodyDir, `lane-run-${lane}.md`);
@@ -287,7 +395,7 @@ export async function laneRunCommand(
     renderPrBody({
       task: getTask(started.path, task),
       commits,
-      verified: '',
+      verified,
       agent: `headless claude session ${result.detail}`,
       refs: false,
     }),
@@ -301,5 +409,8 @@ export async function laneRunCommand(
     bodyFile,
   ]);
   const last = shipped.trim().split('\n').pop() ?? '';
-  return { line: `lane ${task}: shipped ${last}${spent}`, exitCode: 0 };
+  return {
+    line: `lane ${task}: shipped ${last} model ${model}${spent}`,
+    exitCode: 0,
+  };
 }

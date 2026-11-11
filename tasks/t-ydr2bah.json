@@ -1,0 +1,16 @@
+{
+  "id": "t-ydr2bah",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane run hardened: model pin, retry reuse, ticket title, closed-task and check gates"
+  },
+  "created": "2026-11-11",
+  "priority": 1,
+  "title": "krn lane run is ready for the task-record experiment",
+  "after": [],
+  "body": [
+    "Why: an independent review found krn lane run unsafe for the task-record experiment: no pinned model, retries bounce, wrong PR title and empty verification, ships tasks left open.\nOutcome: lane run pins the model, is retry-safe, titles the PR from the Ticket commit, ships only a closed task with a passing check on the final tree.\nProof: test/cli/lane-run.test.ts."
+  ]
+}

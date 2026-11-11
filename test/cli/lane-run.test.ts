@@ -31,6 +31,17 @@ const capture = readFileSync(
   'utf8',
 );
 
+const fastCheck = fileURLToPath(
+  new URL('../../scripts/fast-check.ts', import.meta.url),
+);
+
+/** Shell for a delivering session: commit with the Ticket trailer, close the task, leave the fast-pass marker. */
+function deliver(title = 'feat(x): done (t-abc1234)', verify = true): string {
+  const marker = `node --input-type=module -e "import { treeKey } from '${fastCheck}'; import { mkdirSync, writeFileSync } from 'node:fs'; mkdirSync('.krn/cache', { recursive: true }); writeFileSync('.krn/cache/fast-pass', treeKey(process.cwd()));"`;
+  const close = `node -e "const fs = require('node:fs'); const f = 'tasks/t-abc1234.json'; const t = JSON.parse(fs.readFileSync(f, 'utf8')); t.status = 'closed'; t.resolution = { kind: 'done', ref: null, note: '' }; fs.writeFileSync(f, JSON.stringify(t, null, 2) + '\\n');"`;
+  return `${close}; git commit -qam "${title}" -m "Ticket: t-abc1234"; ${verify ? marker : 'true'}`;
+}
+
 function git(cwd: string, ...args: string[]): string {
   const result = spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
@@ -64,6 +75,7 @@ function fixture(action: string) {
       2,
     )}\n`,
   );
+  writeFileSync(join(repo, '.gitignore'), '.krn\n');
   git(repo, 'add', '.');
   git(repo, 'commit', '-qm', 'seed');
   git(repo, 'push', '-q', 'origin', 'main');
@@ -76,7 +88,10 @@ function fixture(action: string) {
   return { base, repo, claude };
 }
 
-async function run(action: string, ship = async () => 'unreachable') {
+async function run(
+  action: string,
+  ship: (args: string[]) => Promise<string> = async () => 'unreachable',
+) {
   const { base, repo, claude } = fixture(action);
   process.env.KRN_LANE_CLAUDE = claude;
   try {
@@ -113,13 +128,13 @@ test('parseSessionResult reads the captured result', () => {
 
 test('lane run ships a committed task and prints the ship verdict', async () => {
   const { verdict } = await run(
-    'git commit -q --allow-empty -m "feat(x): done (t-abc1234)"',
+    deliver(),
     async () => 'merged\nverdict: merged abc1234',
   );
   assert.equal(verdict.exitCode, 0);
   assert.match(
     verdict.line,
-    /^lane t-abc1234: shipped verdict: merged abc1234 cost \$0\.09$/u,
+    /^lane t-abc1234: shipped verdict: merged abc1234 model sonnet cost \$0\.09$/u,
   );
 });
 
@@ -128,7 +143,7 @@ test('lane run reports no commit and keeps the worktree', async () => {
   assert.equal(verdict.exitCode, 74);
   assert.match(
     verdict.line,
-    /^lane t-abc1234: no commit \(worktree .+\) cost \$0\.09$/u,
+    /^lane t-abc1234: no commit \(worktree .+, rerun reuses it\) model sonnet cost \$0\.09$/u,
   );
 });
 
@@ -147,7 +162,7 @@ test('sandboxPlaceholders keeps only untracked empty regular files', () => {
 
 test('lane run removes empty sandbox placeholders before the dirty-tree check', async () => {
   const { verdict } = await run(
-    ': > .env; : > .npmrc; : > yarn.lock; git commit -q --allow-empty -m "feat: x (t-abc1234)"',
+    `: > .env; : > .npmrc; : > yarn.lock; ${deliver()}`,
     async () => 'verdict: shipped',
   );
   assert.equal(verdict.exitCode, 0);
@@ -302,4 +317,129 @@ test('the session prompt starts with the packet krn lane brief prints for the ta
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('lane run pins the model and passes --model to the session', async () => {
+  const seen = mkdtempSync(join(tmpdir(), 'krn-lane-run-model-'));
+  try {
+    const { verdict } = await run(`printf '%s\\n' "$@" > ${seen}/argv`);
+    assert.match(
+      readFileSync(join(seen, 'argv'), 'utf8'),
+      /^--model\nsonnet$/mu,
+    );
+    assert.match(verdict.line, / model sonnet /u);
+  } finally {
+    rmSync(seen, { recursive: true, force: true });
+  }
+});
+
+test('lane run marks the session as a lane session', async () => {
+  const seen = mkdtempSync(join(tmpdir(), 'krn-lane-run-class-'));
+  try {
+    await run(`env > ${seen}/env`);
+    assert.match(
+      readFileSync(join(seen, 'env'), 'utf8'),
+      /^KRN_SESSION_CLASS=lane$/mu,
+    );
+  } finally {
+    rmSync(seen, { recursive: true, force: true });
+  }
+});
+
+test('lane run names a timeout apart from a missing JSON result', async () => {
+  process.env.KRN_LANE_TIMEOUT_MS = '500';
+  try {
+    const timeout = await run('exec sleep 30');
+    assert.match(timeout.verdict.line, /session timeout after 1s/u);
+  } finally {
+    delete process.env.KRN_LANE_TIMEOUT_MS;
+  }
+  const { base, repo, claude } = fixture('true');
+  writeFileSync(claude, '#!/bin/sh\necho garbage\n');
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      {
+        start: startLane,
+        ship: async () => 'unreachable',
+        mint: async () => undefined,
+      },
+    );
+    assert.equal(verdict.exitCode, 74);
+    assert.match(verdict.line, /no JSON result \(not a timeout\)/u);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a rerun after a failed run reuses the lane worktree and ships', async () => {
+  const { base, repo, claude } = fixture('true');
+  process.env.KRN_LANE_CLAUDE = claude;
+  const steps = {
+    start: startLane,
+    ship: async () => 'verdict: merged abc1234',
+    mint: async () => undefined,
+  };
+  try {
+    const first = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(first.exitCode, 74);
+    writeFileSync(
+      claude,
+      `#!/bin/sh\n${deliver()}\ncat <<'JSON'\n${capture}\nJSON\n`,
+    );
+    const second = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(second.exitCode, 0, second.line);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('lane run titles the PR from the Ticket commit and ships its verification', async () => {
+  let title = '';
+  let body = '';
+  const { verdict } = await run(
+    `${deliver('feat(x): done (t-abc1234)')}; git commit -q --allow-empty -m "chore: newest step"`,
+    async (args) => {
+      title = args[args.indexOf('--title') + 1] as string;
+      body = readFileSync(
+        args[args.indexOf('--body-file') + 1] as string,
+        'utf8',
+      );
+      return 'verdict: merged abc1234';
+    },
+  );
+  assert.equal(verdict.exitCode, 0, verdict.line);
+  assert.equal(title, 'feat(x): done (t-abc1234)');
+  assert.match(body, /npm run fast PASS on the final tree/u);
+});
+
+test('lane run refuses to ship a task the session left open', async () => {
+  const { verdict } = await run(
+    `${deliver()}; git reset -q --hard HEAD~1; git commit -q --allow-empty -m "feat(x): done (t-abc1234)" -m "Ticket: t-abc1234"`,
+  );
+  assert.equal(verdict.exitCode, 74);
+  assert.match(verdict.line, /task not closed/u);
+});
+
+test('lane run refuses to ship when no check passed on the final tree', async () => {
+  const { verdict } = await run(deliver('feat(x): done (t-abc1234)', false));
+  assert.equal(verdict.exitCode, 74);
+  assert.match(verdict.line, /no passing check on the final tree/u);
+});
+
+test('lane run refuses to ship without a commit carrying the Ticket trailer', async () => {
+  const { verdict } = await run(
+    'git commit -q --allow-empty -m "feat(x): done (t-abc1234)"',
+  );
+  assert.equal(verdict.exitCode, 74);
+  assert.match(verdict.line, /no commit with a Ticket: t-abc1234 trailer/u);
 });
