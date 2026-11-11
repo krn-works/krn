@@ -5,17 +5,17 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { TEST_FILE_WEIGHTS } from '../../scripts/lib/shard-weights.mjs';
 import { fileWeight } from '../../scripts/lib/test-shards.mjs';
-import {
-  MAX_SHARD_WEIGHT_SECONDS,
-  MAX_TEST_FILE_SECONDS,
-} from '../../scripts/shard-wall-report.mjs';
 import { selectTestFiles } from '../../scripts/test-suite.mjs';
 
 // A rule test so `npm run fast` runs it whenever a test file is added or removed.
 const root = realpathSync(fileURLToPath(new URL('../..', import.meta.url)));
 
+// Bounds on one test file and on the summed weight per CI shard.
+const MAX_TEST_FILE_SECONDS = 11;
+const MAX_SHARD_WEIGHT_SECONDS = 43;
+
 // A new test file needs no hand-written weight: the sharder weighs it by size
-// until `scripts/shard-weights-refresh.mjs --write` records CI samples. Only a
+// until a weight is recorded in scripts/lib/shard-weights.json. Only a
 // weight naming a deleted file is an error.
 const files = selectTestFiles([], root).map((file) =>
   relative(root, file).split(sep).join('/'),
@@ -29,12 +29,7 @@ test('no weight names a deleted test file', () => {
   );
 });
 
-// The heaviest test file bounds its CI shard wall (MAX_TEST_FILE_SECONDS in
-// scripts/shard-wall-report.mjs, whose `files over the 11 s bound` line holds
-// CI medians to it). Keep every file under the bound by splitting it. Weights
-// are CI-measured (`node scripts/shard-weights-refresh.mjs --write`) under
-// 4-lane contention, about 2x a local estimate, so a split's local-estimate
-// weights must be refreshed from CI before they are trusted.
+// Keep every recorded weight under the bound by splitting the file.
 
 test('no test file is heavy enough to bound its shard wall', () => {
   assert.deepEqual(

@@ -1,7 +1,6 @@
 // Loads the CI-measured median wall time, in seconds, of each test file from
-// shard-weights.json (written by scripts/shard-weights-refresh.mjs). The
-// weights are data read at run time, never imported, so refreshing them does
-// not edit a module the suite executes. A missing or malformed file yields no
+// shard-weights.json. The weights are data read at run time, never imported.
+// A test file without a weight is planned by its size. A missing or malformed file yields no
 // weights and the planner falls back to file sizes.
 import { readFileSync } from 'node:fs';
 

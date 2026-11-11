@@ -69,14 +69,20 @@ test('a malformed weights file plans by size, not a crash', () => {
     '{"weights":7}',
     '{"weights":{"x":"1"}}',
   ];
-  const sized = planTestShards(files, 2, [], [], {});
+  const sized = planTestShards(files, 2, {});
   for (const [index, text] of bad.entries()) {
     const path = join(dir, `bad-${index}.json`);
     writeFileSync(path, text);
     const weights = loadShardWeights(path);
     assert.deepEqual({ ...weights }, {}, text);
-    assert.deepEqual(planTestShards(files, 2, [], [], weights), sized, text);
+    assert.deepEqual(planTestShards(files, 2, weights), sized, text);
   }
   assert.deepEqual({ ...loadShardWeights(join(dir, 'absent.json')) }, {});
   assert.ok(Object.keys(loadShardWeights()).length > 0, 'shipped weights load');
+});
+
+test('a test file without a weight is planned instead of rejected', () => {
+  const files = ['test/unweighted-a.test.ts', 'test/unweighted-b.test.ts'];
+  const plan = planTestShards(files, 2);
+  assert.deepEqual(plan.shards.flat().sort(), files);
 });

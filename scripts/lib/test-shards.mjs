@@ -13,12 +13,6 @@ const COUNT_FIELDS = [
   'cancelled',
 ];
 
-export const SERIAL_TEST_REASONS = Object.freeze({});
-
-export const SERIAL_TEST_FILES = Object.freeze(
-  Object.keys(SERIAL_TEST_REASONS),
-);
-
 function zeroCounts() {
   return Object.fromEntries(COUNT_FIELDS.map((field) => [field, 0]));
 }
@@ -95,31 +89,18 @@ export function testFileDirectory(file) {
 // seconds summed 20.7 against weights of 14; the spread caps them at 7.7.
 export const DIRECTORY_SPREAD_SECONDS = 1;
 
-// `seedWeights[k]` pre-loads bin k before parallel files are balanced, so a
-// bin that already carries serial work receives less parallel work. Each file
-// goes to a bin holding the fewest files of its family, the lightest of
+// Each file goes to a bin holding the fewest files of its family, the lightest of
 // those: same-family files load the same resource, and side by side in one
 // CI runner they ran up to twice their apart median (input-bounds-baseline
 // 17.4 s against 8.7 s in main runs since e79cb01).
-export function planTestShards(
-  files,
-  shardCount,
-  serialFiles = SERIAL_TEST_FILES,
-  seedWeights = [],
-  weights = TEST_FILE_WEIGHTS,
-) {
+export function planTestShards(files, shardCount, weights = TEST_FILE_WEIGHTS) {
   if (!Number.isSafeInteger(shardCount) || shardCount < 1)
     throw new Error('test shard count must be a positive integer');
   if (!Array.isArray(files) || files.some((file) => typeof file !== 'string'))
     throw new Error('test shard plan requires a list of file paths');
 
   const selected = [...new Set(files)].sort();
-  const serialNames = new Set(serialFiles.map(normalizedFile));
-  const finalSerialFiles = selected.filter((file) =>
-    serialNames.has(normalizedFile(file)),
-  );
   const parallelFiles = selected
-    .filter((file) => !serialNames.has(normalizedFile(file)))
     .map((file) => {
       try {
         const size = statSync(file).size;
@@ -134,10 +115,7 @@ export function planTestShards(
     );
   const effectiveShards = Math.min(shardCount, parallelFiles.length);
   const shards = Array.from({ length: effectiveShards }, () => []);
-  const shardWeights = Array.from(
-    { length: effectiveShards },
-    (_, index) => seedWeights[index] ?? 0,
-  );
+  const shardWeights = Array.from({ length: effectiveShards }, () => 0);
   const families = Array.from({ length: effectiveShards }, () => new Map());
   const directories = Array.from({ length: effectiveShards }, () => new Map());
   for (const { file, size } of parallelFiles) {
@@ -168,7 +146,7 @@ export function planTestShards(
     directories[target].set(directory, neighbours(target) + 1);
   }
 
-  return { shards, serialFiles: finalSerialFiles, weights: shardWeights };
+  return { shards, weights: shardWeights };
 }
 
 export function configuredTestShardSelection(index, total) {
@@ -191,46 +169,15 @@ export function configuredTestShardSelection(index, total) {
   return selection;
 }
 
-// CI runners run their parallel files on this many local lanes and their
-// serial files afterwards, so a serial second costs a whole runner second.
-export const RUNNER_LOCAL_LANES = 4;
-
-// Splits the files across `total` runners deterministically: each serial
-// file, heaviest first, goes to the least-loaded runner at RUNNER_LOCAL_LANES
-// times its weight (it runs alone after the lanes), then the parallel files
-// are balanced on top of those seeds, so the runner that carries a serial
-// file gets correspondingly less parallel work and every file lands in
-// exactly one selection. Shard `index` (1-based) returns its own files.
-export function selectTestShardFiles(
-  files,
-  index,
-  total,
-  serialFiles = SERIAL_TEST_FILES,
-) {
+// Splits the files across `total` runners deterministically so every file
+// lands in exactly one selection. Shard `index` (1-based) returns its own files.
+export function selectTestShardFiles(files, index, total) {
   if (!Number.isSafeInteger(total) || total < 1)
     throw new Error('test shard total must be a positive integer');
   if (!Number.isSafeInteger(index) || index < 1 || index > total)
     throw new Error('test shard index must be between 1 and the total');
-  const serialNames = new Set(serialFiles.map(normalizedFile));
-  const serial = [...new Set(files)]
-    .filter((file) => serialNames.has(normalizedFile(file)))
-    .map((file) => ({ file, weight: fileWeight(file, 0) || 1 }))
-    .sort(
-      (left, right) =>
-        right.weight - left.weight || left.file.localeCompare(right.file),
-    );
-  const seeds = Array.from({ length: total }, () => 0);
-  const selected = [];
-  for (const { file, weight } of serial) {
-    let lightest = 0;
-    for (let runner = 1; runner < total; runner += 1)
-      if (seeds[runner] < seeds[lightest]) lightest = runner;
-    seeds[lightest] += weight * RUNNER_LOCAL_LANES;
-    if (lightest === index - 1) selected.push(file);
-  }
-  const plan = planTestShards(files, total, serialFiles, seeds);
-  selected.push(...(plan.shards[index - 1] ?? []));
-  return selected.sort();
+  const plan = planTestShards(files, total);
+  return [...(plan.shards[index - 1] ?? [])].sort();
 }
 
 export function mergeTestShardResults(
