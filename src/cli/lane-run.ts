@@ -45,12 +45,20 @@ export const OPERATOR_CREDENTIAL_VARIABLES = [
 
 const exitCredentialUnavailable = 69;
 
-const defaultSessionTimeoutMs = 2 * 60 * 60 * 1000;
+const defaultSessionTimeoutMs = 45 * 60 * 1000;
 
-/** The longest a claude session may run: KRN_LANE_TIMEOUT_MS, else two hours. */
-function sessionTimeoutMs(env: NodeJS.ProcessEnv): number {
+/**
+ * An App token lives about an hour and the sandboxed session cannot refresh it, so the
+ * launcher mints one with at least this much life left and no session outlasts that.
+ */
+export const tokenMinimumRemainingSeconds = 50 * 60;
+
+/** The longest a claude session may run: KRN_LANE_TIMEOUT_MS, else 45 minutes; never past the token minimum. */
+export function sessionTimeoutMs(env: NodeJS.ProcessEnv): number {
   const value = Number(env.KRN_LANE_TIMEOUT_MS);
-  return Number.isInteger(value) && value > 0 ? value : defaultSessionTimeoutMs;
+  const wanted =
+    Number.isInteger(value) && value > 0 ? value : defaultSessionTimeoutMs;
+  return Math.min(wanted, defaultSessionTimeoutMs);
 }
 
 const tokenHelper = fileURLToPath(
@@ -234,7 +242,12 @@ const defaultSteps: LaneRunSteps = {
   mint: async (env) => {
     const result = spawnSync(process.execPath, [tokenHelper, 'token'], {
       encoding: 'utf8',
-      env,
+      // The mint runs outside the sandbox, so it may reach the vault; the lane class would make it cache-only.
+      env: {
+        ...env,
+        KRN_SESSION_CLASS: undefined as string | undefined,
+        KRN_APP_REUSE_MARGIN_SECONDS: String(tokenMinimumRemainingSeconds),
+      },
       timeout: 30000,
     });
     if (result.status === 0) return undefined;
@@ -379,7 +392,7 @@ export async function laneRunCommand(
   const result = timedOut
     ? {
         ok: false,
-        detail: `session timeout after ${Math.round(sessionTimeoutMs(process.env) / 1000)}s`,
+        detail: `session timeout after ${Math.round(sessionTimeoutMs(process.env) / 1000)}s (capped below the App token lifetime)`,
         cost: undefined,
       }
     : session.error !== undefined

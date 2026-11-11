@@ -14,6 +14,14 @@ const DEFAULT_API = 'https://api.github.com';
 const CACHE_NAME = 'krn-app-token.json';
 const REUSE_MARGIN_SECONDS = 300;
 
+/** The launcher raises the margin so a cached token outlives the whole session it starts. */
+export const REUSE_MARGIN_VARIABLE = 'KRN_APP_REUSE_MARGIN_SECONDS';
+
+function reuseMarginSeconds(env: Env): number {
+  const value = Number(env[REUSE_MARGIN_VARIABLE]);
+  return Number.isInteger(value) && value > 0 ? value : REUSE_MARGIN_SECONDS;
+}
+
 export class Unavailable extends Error {}
 
 type Env = NodeJS.ProcessEnv;
@@ -59,7 +67,7 @@ function readCache(env: Env, now: number): string | undefined {
     if (
       typeof token === 'string' &&
       token &&
-      expires - now * 1000 > REUSE_MARGIN_SECONDS * 1000
+      expires - now * 1000 > reuseMarginSeconds(env) * 1000
     )
       return token;
   } catch {
