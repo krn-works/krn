@@ -1,0 +1,16 @@
+{
+  "id": "t-y11kzqf",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ctx-proxy scripts, service and tests removed; successor-launch no longer routes through a proxy"
+  },
+  "created": "2026-11-11",
+  "priority": 2,
+  "title": "The ctx-proxy is retired from the repository",
+  "after": [],
+  "body": [
+    "Why: proxy-side clearing was abandoned 2026-11-11 (t-sd9a490, #594: saving 0.5-1.5%, terms risk). An inventory at e749293 found no live consumer: cc-clearing-watch reads the Claude Code binary and transcripts, not the proxy; ctx-proxy-report is manual and unused; no open task or ADR needs it; successor-launch routes new sessions through it fail-open.\nOutcome: delete scripts/claude/ctx-proxy.ts, ctx-proxy-env.ts, ctx-proxy-report.ts, ctx-proxy-install.sh, krn-ctx-proxy.service and their three tests; successor-launch.ts drops the proxy import, parameter and ANTHROPIC_BASE_URL; the shard-weights.json and test-hygiene.test.mjs entries go. The host unit stop is a separate lead step after proxied sessions end.\nProof: grep -rn ctx-proxy outside tasks/ and .krn prints nothing; npm run fast passes."
+  ]
+}

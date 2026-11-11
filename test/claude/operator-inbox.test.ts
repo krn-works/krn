@@ -372,7 +372,6 @@ test('a session started by the launcher leaves its class on the inbox row and in
         env: {
           PATH: bin,
           KRN_SUCCESSOR_AGENT: 'successor-agent',
-          KRN_CTX_PROXY: 'off',
           CLAUDE_PROJECT_DIR: root,
           ...interactive,
         },
