@@ -86,6 +86,26 @@ export class GateTimeout extends Error {
  * run on the same head (e.g. after a PR body edit); that run's Check appears
  * moments later, so a cancelled newest check is awaited this long first.
  */
+const runSchema = z.object({
+  status: z.string().nullable(),
+  conclusion: z.string().nullable().optional(),
+});
+/**
+ * How the Actions run behind a failed Check is moving: running
+ * again after a rerun, or cancelled by a newer run on the same head (its jobs
+ * are cancelled, so the aggregate Check fails while the newer run starts).
+ */
+async function runSuperseded(
+  gh: (args: string[]) => Promise<string>,
+  repo: string,
+  runId: string,
+): Promise<'running' | 'cancelled' | 'done'> {
+  const run = runSchema.parse(
+    JSON.parse(await gh(['api', `repos/${repo}/actions/runs/${runId}`])),
+  );
+  if (run.status !== null && run.status !== 'completed') return 'running';
+  return run.conclusion === 'cancelled' ? 'cancelled' : 'done';
+}
 const supersededGraceMs = 120_000;
 
 export async function waitForGate({
@@ -148,6 +168,24 @@ export async function waitForGate({
         const runId = /\/actions\/runs\/(\d+)\//u.exec(
           gate.details_url ?? '',
         )?.[1];
+        // `gh run rerun --failed` starts a newer attempt of the same run; until
+        // its Check run appears the failed one is the newest, so a run that is
+        // running again is awaited instead of reported failed. A cancelled run
+        // is awaited for the same grace as a cancelled Check.
+        const moving =
+          runId === undefined || now() >= deadline
+            ? 'done'
+            : await runSuperseded(gh, repo, runId);
+        if (moving === 'cancelled') cancelledSince ??= now();
+        if (
+          moving === 'running' ||
+          (moving === 'cancelled' &&
+            cancelledSince !== undefined &&
+            now() - cancelledSince < supersededGraceMs)
+        ) {
+          await sleep(pollMs);
+          continue;
+        }
         throw new Error(
           runId === undefined
             ? `${policy.checkRunName} concluded ${conclusion} on ${head}; rerun: gh run rerun <run-id> --failed (gh run list --commit ${head})`
