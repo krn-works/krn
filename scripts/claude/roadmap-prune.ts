@@ -44,7 +44,16 @@ export function taskStatus(root: string, task: string): string | undefined {
 }
 
 if (import.meta.main) {
-  const root = process.argv[2] ?? process.cwd();
+  const args = process.argv.slice(2);
+  const usage = 'usage: roadmap-prune.ts [repository-root]';
+  const unknown = args.find((arg) => arg.startsWith('-'));
+  if (unknown || args.length > 1) {
+    console.error(
+      `roadmap-prune: ${unknown ? `unknown option ${unknown}` : 'too many arguments'}\n${usage}`,
+    );
+    process.exit(64);
+  }
+  const root = args[0] ?? process.cwd();
   const path = join(root, 'docs/program/roadmap.md');
   const result = pruneRoadmap(readFileSync(path, 'utf8'), (task) =>
     taskStatus(root, task),
