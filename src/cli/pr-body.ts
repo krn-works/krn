@@ -6,7 +6,7 @@ import { flagValue } from './flag-value.ts';
 import { CliUsageError } from './usage-error.ts';
 
 export const prBodyUsage =
-  'krn pr body --task ID [--verified TEXT] [--agent TEXT] [--refs] [--base REF] [--out PATH]  print the PR body (Problem/Change/Verification/Task/Agent) from the task record and the commits since the base; the author only reviews it';
+  'krn pr body --task ID [--verified TEXT] [--agent TEXT] [--refs] [--base REF] [--worktree PATH] [--out PATH]  print the PR body (Problem/Change/Verification/Task/Agent) from the task record and the commits since the base, both read from the worktree (default: the current one); the author only reviews it';
 
 export interface BodyInput {
   task: TaskRecord;
@@ -80,13 +80,23 @@ export function prBodyCommand(args: string[]): string {
   let refs = false;
   let base = 'origin/main';
   let out: string | undefined;
+  let worktree: string | undefined;
   for (let i = 0; i < args.length; i++) {
     const flag = args[i] ?? '';
     if (flag === '--refs') {
       refs = true;
       continue;
     }
-    if (!['--task', '--verified', '--agent', '--base', '--out'].includes(flag))
+    if (
+      ![
+        '--task',
+        '--verified',
+        '--agent',
+        '--base',
+        '--worktree',
+        '--out',
+      ].includes(flag)
+    )
       throw new CliUsageError(`Unknown pr body flag: ${flag}\n${prBodyUsage}`);
     const value = flagValue(
       args,
@@ -97,11 +107,14 @@ export function prBodyCommand(args: string[]): string {
     else if (flag === '--verified') verified = value;
     else if (flag === '--agent') agent = value;
     else if (flag === '--base') base = value;
+    else if (flag === '--worktree') worktree = value;
     else out = value;
   }
   if (id === undefined || !isTaskId(id))
     throw new CliUsageError(`--task needs a task id\n${prBodyUsage}`);
-  const root = repositoryRoot();
+  // The task may exist only in the branch the PR describes, so the record and
+  // the commits both come from that worktree, not from the main checkout.
+  const root = repositoryRoot(worktree);
   const task = loadTaskIndex(root).get(id);
   if (task === undefined) throw new CliUsageError(`Unknown task ${id}`);
   const text = renderPrBody({

@@ -79,3 +79,50 @@ test('krn pr body reads the real task record and git log', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('krn pr body --worktree finds a task created only in that worktree', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pr-body-wt-'));
+  try {
+    const main = join(dir, 'main');
+    const lane = join(dir, 'lane');
+    mkdirSync(main);
+    const git = (cwd: string, ...a: string[]) =>
+      spawnSync('git', ['-C', cwd, ...a], { encoding: 'utf8' });
+    git(main, 'init', '-q', '-b', 'main');
+    git(main, 'config', 'user.name', 't');
+    git(main, 'config', 'user.email', 't@example.invalid');
+    mkdirSync(join(main, 'tasks'));
+    writeFileSync(
+      join(main, 'tasks', 't-def5678.json'),
+      `${JSON.stringify({ ...task, id: 't-def5678' }, null, 2)}\n`,
+    );
+    git(main, 'add', '.');
+    git(main, 'commit', '-qm', 'seed');
+    git(main, 'worktree', 'add', '-q', '-b', 'lane', lane);
+    writeFileSync(
+      join(lane, 'tasks', 't-abc1234.json'),
+      `${JSON.stringify(task, null, 2)}\n`,
+    );
+    git(lane, 'add', '.');
+    git(lane, 'commit', '-qm', 'chore(task): add (t-abc1234)');
+    const run = (...extra: string[]) =>
+      spawnSync(
+        process.execPath,
+        [cli, 'pr', 'body', '--task', 't-abc1234', '--base', 'main', ...extra],
+        { cwd: main, encoding: 'utf8' },
+      );
+    const missing = run();
+    assert.equal(missing.status, 64);
+    assert.match(missing.stderr, /Unknown task t-abc1234/);
+    const result = run('--worktree', lane);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(
+      result.stdout,
+      /## Problem\n\nhand-written text costs money\./,
+    );
+    assert.match(result.stdout, /- chore\(task\): add \(t-abc1234\)/);
+    assert.match(result.stdout, /## Task\n\nTicket: t-abc1234/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
