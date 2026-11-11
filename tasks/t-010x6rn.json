@@ -1,0 +1,12 @@
+{
+  "id": "t-010x6rn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 2,
+  "title": "npm run fast runs rule tests only when the diff touches what they scan",
+  "after": [],
+  "body": [
+    "Why: Qwen second audit N8: scripts/fast-check.ts:52,68 adds every test under test/rules/ to every run, a fixed tax on each slice.\nOutcome: fast-check maps each rules test to the paths it scans and selects it only when the diff touches them; CI still runs all.\nProof: a fast-check test shows a src-only diff selects no prose rule tests and an AGENTS.md diff selects them; record before/after wall time of npm run fast on one small diff."
+  ]
+}

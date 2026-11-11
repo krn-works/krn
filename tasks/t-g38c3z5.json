@@ -1,0 +1,12 @@
+{
+  "id": "t-g38c3z5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 2,
+  "title": "The host ctx-proxy unit is stopped and removed",
+  "after": [],
+  "body": [
+    "Why: #616 (t-y11kzqf) removes the ctx-proxy code, but the host unit krn-ctx-proxy.service still runs from the main checkout and the predecessor lead session routed through it (ANTHROPIC_BASE_URL 127.0.0.1:47318), so it could not stop the unit itself.\nOutcome: after #616 merges and no live session uses ANTHROPIC_BASE_URL=127.0.0.1:47318, `systemctl --user disable --now krn-ctx-proxy`, the unit file under ~/.config/systemd/user is removed, and .krn/runs/ctx-proxy/ is deleted.\nProof: systemctl --user is-active krn-ctx-proxy prints inactive; ss -ltn shows nothing on 47318."
+  ]
+}

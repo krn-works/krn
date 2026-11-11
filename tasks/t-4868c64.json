@@ -1,0 +1,12 @@
+{
+  "id": "t-4868c64",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-11",
+  "priority": 3,
+  "title": "krn task works in a fresh clone before the first fetch",
+  "after": [],
+  "body": [
+    "Why: Qwen second audit .krn/runs/qwen-research-2/report.md N11: src/task/entry-pin.ts:43-49 fails closed (exit 78) when the pinned entry has never been fetched, so a fresh clone cannot run krn task.\nOutcome: a missing pin on a fresh clone falls back to the working tree with one stderr warning; a pin that exists but mismatches still fails closed.\nProof: test/task entry-pin tests for the fresh-clone and mismatch cases."
+  ]
+}

@@ -73,6 +73,22 @@ type Fakes = {
   runtime: string;
 };
 
+// Bodies from the verbatim capture of GET /repos/{owner}/{repo}/installation.
+const captured = readFileSync(
+  new URL(
+    '../fixtures/github-app-token/repo-installation.txt',
+    import.meta.url,
+  ),
+  'utf8',
+)
+  .split('\n')
+  .filter((line) => line.startsWith('{'))
+  .map((line) => JSON.parse(line) as Record<string, unknown>);
+const capturedInstallation = {
+  present: captured[0] ?? {},
+  absent: captured[1] ?? {},
+};
+
 async function fakes(
   t: { after(fn: () => void): void },
   options: { items?: unknown[]; expiresIn?: number } = {},
@@ -95,12 +111,23 @@ async function fakes(
     json(res, { success: true, data: { data: items } });
   });
   const github = await serve(t, (req, res, body) => {
-    count += 1;
     requests.push({
       url: req.url ?? '',
       auth: String(req.headers.authorization),
       body,
     });
+    const lookup = /^\/repos\/([^/]+)\/([^/]+)\/installation$/u.exec(
+      req.url ?? '',
+    );
+    if (lookup) {
+      const [status, answer] =
+        lookup[2] === 'absent'
+          ? [404, capturedInstallation.absent]
+          : [200, capturedInstallation.present];
+      json(res, answer, status);
+      return;
+    }
+    count += 1;
     json(
       res,
       {
@@ -498,4 +525,49 @@ test('a lane session serves the cached token and fails closed on a miss without 
   assert.equal(miss.code, 69);
   assert.match(miss.stderr, /no cached App token in a lane session/u);
   assert.equal(f.minted(), 1);
+});
+
+test('KRN_APP_REPOSITORY scopes the token to that repository through its own installation', async (t) => {
+  const f = await fakes(t);
+  const env = { ...f.env, KRN_APP_REPOSITORY: 'pilot-owner/pilot-repo' };
+  const result = await exec(helper, ['token'], env);
+  assert.equal(result.code, 0, result.stderr);
+  assert.deepEqual(
+    f.github.requests.map((request) => request.url),
+    [
+      '/repos/pilot-owner/pilot-repo/installation',
+      `/app/installations/${capturedInstallation.present.id}/access_tokens`,
+    ],
+  );
+  assert.deepEqual(JSON.parse(f.github.requests[1]?.body ?? ''), {
+    repositories: ['pilot-repo'],
+  });
+  // The pilot token never answers for krn-works/krn, nor the reverse.
+  const krn = await exec(helper, ['token'], f.env);
+  assert.equal(krn.stdout, 'ghs_token2\n');
+  assert.equal((await exec(helper, ['token'], env)).stdout, 'ghs_token1\n');
+  assert.equal(f.minted(), 2);
+});
+
+test('a repository without the App or a malformed KRN_APP_REPOSITORY exits 69 naming it', async (t) => {
+  const f = await fakes(t);
+  const absent = await exec(helper, ['token'], {
+    ...f.env,
+    KRN_APP_REPOSITORY: 'pilot-owner/absent',
+  });
+  assert.equal(absent.code, 69);
+  assert.match(
+    absent.stderr,
+    /^github-app-token: the App is not installed on pilot-owner\/absent \(status 404\)\n$/u,
+  );
+  const malformed = await exec(helper, ['token'], {
+    ...f.env,
+    KRN_APP_REPOSITORY: 'no-slash',
+  });
+  assert.equal(malformed.code, 69);
+  assert.match(
+    malformed.stderr,
+    /KRN_APP_REPOSITORY is not owner\/name: no-slash/u,
+  );
+  assert.equal(f.minted(), 0);
 });
