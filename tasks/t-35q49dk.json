@@ -1,0 +1,16 @@
+{
+  "id": "t-35q49dk",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "screen.ts shipped; judge agreement with the dev audit is 9/16, below the 12 target"
+  },
+  "created": "2026-11-12",
+  "priority": 1,
+  "title": "D23 units are screened for derivability before any arm runs",
+  "after": [],
+  "body": [
+    "Why: the dev derivability audit (2026-11-12, .krn/runs/d23-comparison/n100/dev/regrade) found 6/16 units whose hidden tests assert literals the task never states (N), 7 partly derivable (P), 3 derivable (D); K already passes all 3 D units. Underspecified units are noise no harness can win, so a paired K-vs-P test on them cannot show a difference (SWE-bench Verified filtered the same way).\nOutcome: evals/d23/screen.ts classifies each unit D/P/N with a judge model that reads the task text, interface paragraph, the hidden fail-to-pass tests at the merge and the repository at the parent, and writes <out>/<pr>.screen.json {class, reason, evidence}; the judge prompt is fixed in the file; arms never see its output.\nProof: a test with a fake claude asserts the prompt carries task, interface and hidden test text, and the parser rejects a reply without a class; on the 16 dev units the judge agrees with the audit on at least 12.\nScope: evals/d23/, test/evals/."
+  ]
+}
