@@ -9,7 +9,7 @@ const root = fileURLToPath(new URL('../..', import.meta.url));
 // Each entry is one file and one reason; there is no blanket allowlist.
 const allowWait = new Map([
   [
-    'test/test-suite-shards-config.test.mjs',
+    'test/test-suite-runner.test.mjs',
     'The wait sits inside a fixture script string run by a child.',
   ],
 ]);
@@ -27,7 +27,7 @@ const allowSkip = new Map([
     'Skips only when running as root, an environment guard.',
   ],
   [
-    'test/test-suite-shards.test.mjs',
+    'test/test-suite-runner.test.mjs',
     'todo: 0 is a TAP summary counter, not a todo test.',
   ],
 ]);

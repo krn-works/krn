@@ -1,7 +1,11 @@
 {
   "id": "t-gde05em",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Four runner meta-test files merged into test/test-suite-runner.test.mjs with overlapping subprocess runs; weights 24.2 s to 6 s; median alone-run 31.4 s to 7.3 s."
+  },
   "created": "2026-11-12",
   "priority": 3,
   "title": "The test-runner meta-tests merge into one fast file",
