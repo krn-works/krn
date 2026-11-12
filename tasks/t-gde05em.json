@@ -1,0 +1,12 @@
+{
+  "id": "t-gde05em",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-12",
+  "priority": 3,
+  "title": "The test-runner meta-tests merge into one fast file",
+  "after": [],
+  "body": [
+    "Why: audit (.krn/runs/lead/breakthrough/audit.md): the four test-suite-* runner meta-tests weigh ~24 s of ~140 s CI; rule tests ~2 s, cutting them saves nothing.\nOutcome: test-suite-shards, -speed, -shards-config, -failures share fixtures in one file; weights updated.\nProof: shard weights total drops by >= 15 s with no coverage lost.\nScope: test/, scripts/lib/."
+  ]
+}

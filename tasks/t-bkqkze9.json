@@ -1,0 +1,12 @@
+{
+  "id": "t-bkqkze9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-12",
+  "priority": 1,
+  "title": "Every D23 unit carries a requirements paragraph derived from its hidden tests",
+  "after": [],
+  "body": [
+    "The D23 task text gives the observable behaviour the hidden tests check (flags, exact output strings, exit codes, file shapes) without the implementation, SWE-bench Pro style.\nWhy: n100 judge labels 72/100 units N (tests assert exact strings/flags the text never gives; reasons in /mnt/storage/coding/krn/active/krn/.krn/runs/d23-comparison/n100/screen); both arms sit at ~10%. SWE-bench Pro: removing requirements+interface drops GPT-5 25.9% -> 8.4% (https://arxiv.org/html/2509.16941). Research: .krn/runs/lead/breakthrough/papers.md.\nOutcome: evals/d23/ writes <pr>.requirements.txt from the hidden fail-to-pass tests with a model, never quoting test bodies or the merge diff; the judge (evals/d23/screen.ts) rescreens the 72 N units with interface+requirements.\nProof: rescreen prints D/P/N counts before 9/19/72 and after; target N <= 30 of 100.\nScope: evals/d23/, test/evals/, .krn/runs/d23-comparison/."
+  ]
+}

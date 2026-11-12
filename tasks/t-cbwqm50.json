@@ -1,0 +1,14 @@
+{
+  "id": "t-cbwqm50",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-12",
+  "priority": 1,
+  "title": "The D23 v2 comparison runs K, P and P-with-brief three times each on about 150 derivable units",
+  "after": [
+    "t-bkqkze9"
+  ],
+  "body": [
+    "Why: n100 (t-v41ny8g) showed no difference at a 10% floor with only 6-7 discordant pairs; Miller (https://arxiv.org/html/2411.00640): repeated runs per unit cut the detectable effect from ~13 to ~7.5 pp at n~200.\nOutcome: a new preregistered protocol under .krn/runs/d23-comparison/v2/protocol.md (written before any arm runs): units = D/P after requirements (fresh units beyond n100 where needed to reach ~150), arms K (fixed refusals, t-bktyjsj), P, P+requirements brief same text as K; 3 runs per unit and arm; primary = paired per-unit mean correctness, clustered SE; secondary = scope-clean, refusal rate, cost per correct unit.\nProof: regrade prints per-arm means with CI and the paired test p.\nScope: evals/d23/, test/evals/, .krn/runs/d23-comparison/v2/."
+  ]
+}

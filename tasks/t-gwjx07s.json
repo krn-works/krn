@@ -1,0 +1,14 @@
+{
+  "id": "t-gwjx07s",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-12",
+  "priority": 3,
+  "title": "krn lane run can run N attempts and select by tests",
+  "after": [
+    "t-cbwqm50"
+  ],
+  "body": [
+    "Why: best-of-N with test/critic selection gives +6..16 pp across teams (CodeMonkeys, OpenHands critic, R2E-Gym; landscape.md); our n100 union ceiling is only 15/100, so this waits for derivable units.\nOutcome: --attempts N runs parallel worktrees and picks the attempt whose tests pass with the smallest diff; measured on D23 v2.\nScope: src/cli/lane-run.ts, test/."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-czn62h3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-12",
+  "priority": 2,
+  "title": "A worker proves a failing reproduction test before its fix and ends on green",
+  "after": [
+    "t-cbwqm50"
+  ],
+  "body": [
+    "Why: Agentless reproduction+regression selection 25.67 -> 32.0; TestPrune +4.8 pp; R2E-Gym verifier 42.9 -> 51.0 (papers.md). A red test, not tracker state, defines done.\nOutcome: the worker brief/flow requires a red test named before the fix (or an existing red hidden-in-repo test), and the final report shows it green; measured as an arm on D23 v2.\nProof: D23 v2 arm K+test-first vs K.\nScope: src/, evals/d23/, test/."
+  ]
+}
