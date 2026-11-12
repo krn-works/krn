@@ -80,7 +80,7 @@ echo '{"session_id":"s"}'
     const wait = Number(readFileSync(slept, 'utf8'));
     assert.ok(wait > 0 && wait <= 18000, `wait ${wait}`);
     assert.equal(readFileSync(count, 'utf8').trim(), '2');
-    assert.ok(existsSync(join(out, '7.task.txt')));
+    assert.ok(existsSync(join(out, '7.P.task.txt')));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -241,6 +241,71 @@ echo '{"session_id":"s"}'
         assert.doesNotMatch(text, /ARGS: lane brief/u);
       }
     }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('arm PB gets the same requirements text as K, P gets the base text, and a repeat writes to its own run directory', () => {
+  const root = mkdtempSync(join(tmpdir(), 'd23-replay-'));
+  try {
+    const repo = join(root, 'repo');
+    const git = (...a: string[]) =>
+      execFileSync('git', a, { cwd: repo, encoding: 'utf8' }).trim();
+    mkdirSync(join(repo, 'tasks'), { recursive: true });
+    execFileSync('git', ['init', '-q', '-b', 'main', repo]);
+    git('config', 'user.name', 't');
+    git('config', 'user.email', 't@invalid');
+    writeFileSync(join(repo, 'package.json'), '{"scripts":{"test":"true"}}\n');
+    git('add', '.');
+    git('commit', '-qm', 'parent');
+    writeFileSync(
+      join(repo, 'tasks/t-abc1234.json'),
+      JSON.stringify({ id: 't-abc1234', title: 'Fix it', body: ['Do it.'] }),
+    );
+    git('add', '.');
+    git('commit', '-qm', 'fix(x): it is fixed (t-abc1234) (#7)');
+    const bin = join(root, 'bin');
+    mkdirSync(bin);
+    writeFileSync(
+      join(bin, 'claude'),
+      `#!/usr/bin/env bash\necho x > made.txt; git add made.txt; git commit -qm "feat: made (t-abc1234)"\necho '{"session_id":"s","is_error":false,"result":"done"}'\n`,
+    );
+    chmodSync(join(bin, 'claude'), 0o755);
+    const full = join(root, 'full');
+    const base = join(root, 'base');
+    mkdirSync(full);
+    mkdirSync(base);
+    writeFileSync(join(full, '7.txt'), 'REQUIREMENTS TEXT\n');
+    writeFileSync(join(base, '7.txt'), 'BASE TEXT\n');
+    const out = join(root, 'out');
+    for (const arm of ['PB', 'P']) {
+      const r = spawnSync('bash', [replay, '7', arm], {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          PATH: `${bin}:${process.env.PATH}`,
+          REPO: repo,
+          OUT: out,
+          RUN: '2',
+          IFACE: full,
+          IFACE_BASE: base,
+          D23_TMP: join(root, 'work'),
+          HOME: join(root, 'home'),
+        },
+      });
+      assert.equal(r.status, 0, r.stderr);
+    }
+    const pb = readFileSync(join(out, 'run2/7.PB.task.txt'), 'utf8');
+    const p = readFileSync(join(out, 'run2/7.P.task.txt'), 'utf8');
+    assert.match(pb, /REQUIREMENTS TEXT/);
+    assert.doesNotMatch(pb, /BASE TEXT/);
+    assert.match(p, /BASE TEXT/);
+    assert.doesNotMatch(p, /REQUIREMENTS TEXT/);
+    assert.match(
+      readFileSync(join(out, 'run2/7.PB.meas'), 'utf8'),
+      /^measured$/m,
+    );
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
