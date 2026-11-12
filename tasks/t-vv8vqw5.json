@@ -1,0 +1,16 @@
+{
+  "id": "t-vv8vqw5",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "limit_hit counts only claude-reported errors; regression test: a successful arm quoting a limit is not delayed or retried"
+  },
+  "created": "2026-11-12",
+  "priority": 1,
+  "title": "A D23 arm whose output mentions a usage limit is not treated as limit-hit",
+  "after": [],
+  "body": [
+    "Why: in the n100 run (2026-11-12) arm 622.P succeeded, but its result text quoted its own task (\"hit your 5-hour limit\"); replay.sh limit_hit greps the whole claude.json and stderr, so the arm slept the 5 h cap and would be retried and rerun by the driver.\nOutcome: an arm counts as limit-hit only when claude reports an error (claude.json is_error true, or no parseable json) and the error text names a usage limit; a successful arm whose output mentions limits is never retried.\nProof: a replay test with a fake claude that succeeds with a result mentioning \"hit your 5-hour limit\" asserts no wait, no retry and no limit_retry line.\nScope: evals/d23/, test/evals/."
+  ]
+}
