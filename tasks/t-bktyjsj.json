@@ -1,0 +1,12 @@
+{
+  "id": "t-bktyjsj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-12",
+  "priority": 1,
+  "title": "The D23 K arm produces a patch on every unit the plain harness does",
+  "after": [],
+  "body": [
+    "The D23 K arm produces a patch on every unit where the plain harness does.\nWhy: on the n100 test set (t-v41ny8g) K had no patch on 7 of 100 units (467,470,547,566,586,606,613) against P's 1 (436); those units drop out of the paired McNemar, and K-only wins (5) vs P-only (1-2) are too few for p<0.05.\nOutcome: the cause of each missing K patch is named from .krn/runs/d23-comparison/n100/results/<unit>.K and fixed in K (or the replay), proven on those units.\nProof: a rerun of the 7 units gives K a patch on each.\nScope: src/, evals/d23/, test/."
+  ]
+}
