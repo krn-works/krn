@@ -86,6 +86,70 @@ echo '{"session_id":"s"}'
   }
 });
 
+test('a successful arm whose output quotes a usage limit is neither delayed nor retried', () => {
+  const root = mkdtempSync(join(tmpdir(), 'd23-replay-'));
+  try {
+    const repo = join(root, 'repo');
+    const git = (...a: string[]) =>
+      execFileSync('git', a, { cwd: repo, encoding: 'utf8' }).trim();
+    mkdirSync(join(repo, 'tasks'), { recursive: true });
+    execFileSync('git', ['init', '-q', '-b', 'main', repo]);
+    git('config', 'user.name', 't');
+    git('config', 'user.email', 't@invalid');
+    writeFileSync(join(repo, 'package.json'), '{"scripts":{"test":"true"}}\n');
+    git('add', '.');
+    git('commit', '-qm', 'parent');
+    writeFileSync(
+      join(repo, 'tasks/t-abc1234.json'),
+      JSON.stringify({
+        id: 't-abc1234',
+        title: 'Retry limits',
+        body: ['Retry on limits.'],
+      }),
+    );
+    git('add', '.');
+    git('commit', '-qm', 'fix(x): it is fixed (t-abc1234) (#7)');
+    const bin = join(root, 'bin');
+    mkdirSync(bin);
+    const count = join(root, 'count');
+    writeFileSync(
+      join(bin, 'claude'),
+      `#!/usr/bin/env bash
+n=$(cat ${count} 2>/dev/null || echo 0); echo $((n+1)) > ${count}
+echo x > made.txt; git add made.txt; git commit -qm "feat: made (t-abc1234)"
+echo '{"session_id":"s","is_error":false,"result":"Retries when claude says You have hit your 5-hour limit - resets 3pm"}'
+`,
+    );
+    chmodSync(join(bin, 'claude'), 0o755);
+    const slept = join(root, 'slept');
+    writeFileSync(
+      join(bin, 'fakesleep'),
+      `#!/usr/bin/env bash\necho "$1" > ${slept}\n`,
+    );
+    chmodSync(join(bin, 'fakesleep'), 0o755);
+    const out = join(root, 'out');
+    const r = spawnSync('bash', [replay, '7', 'P'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        REPO: repo,
+        OUT: out,
+        D23_TMP: join(root, 'work'),
+        D23_SLEEP: join(bin, 'fakesleep'),
+        HOME: join(root, 'home'),
+      },
+    });
+    assert.equal(r.status, 0, r.stderr);
+    const meas = readFileSync(join(out, '7.P.meas'), 'utf8');
+    assert.doesNotMatch(meas, /limit_retry/);
+    assert.equal(existsSync(slept), false);
+    assert.equal(readFileSync(count, 'utf8').trim(), '1');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('arm K runs the HARNESS_REF lane brief as a worker and both arms clone only history up to the parent', () => {
   const root = mkdtempSync(join(tmpdir(), 'd23-replay-'));
   try {

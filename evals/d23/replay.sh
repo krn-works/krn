@@ -58,7 +58,23 @@ start=$(date +%s)
 run_claude() {
   CLAUDE_CODE_SESSION_ATTENDED=0 timeout 1500 claude -p --model claude-opus-5-5 --effort medium --permission-mode bypassPermissions --max-budget-usd 6 --output-format json "$prompt" > $OUT/$tag.claude.json 2> $OUT/$tag.claude.err
 }
-limit_hit() { cat $OUT/$tag.claude.err $OUT/$tag.claude.json 2>/dev/null | grep -qiE "hit your .*limit|weekly limit|usage limit"; }
+# A usage limit is an error claude reports, never text a successful arm wrote (its task may quote one).
+limit_hit() {
+  python3 - "$OUT/$tag.claude.json" "$OUT/$tag.claude.err" <<'PY'
+import json,re,sys
+def read(p):
+    try: return open(p).read()
+    except OSError: return ""
+raw=read(sys.argv[1]); err=read(sys.argv[2])
+try:
+    d=json.loads(raw)
+    if not d.get("is_error"): sys.exit(1)
+    text=err+"\n"+str(d.get("result",""))
+except ValueError:
+    text=err+"\n"+raw
+sys.exit(0 if re.search(r"hit your .*limit|weekly limit|usage limit",text,re.I) else 1)
+PY
+}
 # seconds until the "resets <time>" the limit message names; capped at 5 h, which is also the answer when no time parses
 limit_wait() {
   cat $OUT/$tag.claude.err $OUT/$tag.claude.json 2>/dev/null | python3 -c '
