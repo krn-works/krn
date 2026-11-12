@@ -1,0 +1,12 @@
+{
+  "id": "t-xra6acz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-12",
+  "priority": 2,
+  "title": "The K brief carries one related merged PR summary chosen by path overlap, or none",
+  "after": [],
+  "body": [
+    "Why: an oracle-selected related-PR summary measured 26.3 -> 34.3% on Claude Sonnet 4.5 while self-selected memory scored -4 pp and more items reverse the gain (SWE-ContextBench 2602.08316, SkillsBench 2602.12670, SWE-Exp 2507.23361). Evidence: .krn/runs/d23-comparison/research-2.md. Check docs/adr/0002-brain-v2.md before changing the brain packet.\nOutcome: the brief adds at most one summary of the merged PR with the largest path overlap with the scope, omitted below a threshold, and at most one distilled lesson; never agent-selected.\nProof: hit rate of the selector on D23 units (related PR exists and is chosen) and paired correctness on dev units.\nScope: src/brain/, evals/d23/, test/."
+  ]
+}

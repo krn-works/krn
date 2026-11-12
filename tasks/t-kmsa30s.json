@@ -1,0 +1,12 @@
+{
+  "id": "t-kmsa30s",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-12",
+  "priority": 2,
+  "title": "A K worker writes a requirement test that fails on base before editing code",
+  "after": [],
+  "body": [
+    "Why: a reproduction test verified to fail on base plus runtime evidence measured +2 pp on SWE-bench Verified and +9 to +14 pp on requirement-driven Pro tasks at 1.2-1.9x cost; unfiltered reproduction tests reduce resolution (SWE-Doctor, arxiv 2607.00990). D23 units are requirement-driven. Evidence: .krn/runs/d23-comparison/research-2.md.\nOutcome: the worker brief asks for one test from the requirements first; KRN runs it on the base commit and drops it when it passes there; the kept test is the finish target together with the scoped tests.\nProof: D23 dev replay reports the fail-on-base rate of these tests and paired correctness against K without the step.\nScope: src/cli/, evals/d23/, test/."
+  ]
+}

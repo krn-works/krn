@@ -1,0 +1,12 @@
+{
+  "id": "t-rmt64gs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-12",
+  "priority": 1,
+  "title": "A K worker cannot finish without a commit and its scoped related tests green",
+  "after": [],
+  "body": [
+    "Why: 7 n100 K runs ended without a commit (4 under 40 s, e.g. 467 one tool call then end_turn); scoped regression-test selection given to the agent measured +5 pp at lower cost (TestPrune, arxiv 2510.18270). Evidence: .krn/runs/d23-comparison/research-2.md.\nOutcome: the lane brief names the related test command (tests importing the scoped files); a Stop check in worker sessions refuses to end while there is no commit or that command is red, with one explicit escape for a stated blocker.\nProof: unit test of the related-test selector and of the Stop check (no commit -> refuse; red -> refuse; green commit -> allow); D23 dev replay shows zero K runs without a commit and no refusal-ended runs.\nScope: src/cli/, scripts/claude/, evals/d23/, test/."
+  ]
+}

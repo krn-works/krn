@@ -1,0 +1,12 @@
+{
+  "id": "t-jskrfrm",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-12",
+  "priority": 1,
+  "title": "The K worker sees only scope prohibitions and task facts, not lead rules or positive directives",
+  "after": [],
+  "body": [
+    "Why: injected context files are neutral on hidden-test correctness and cost +19-23% (arxiv 2602.11988, Khatri 2607.27250); positive process directives cost 11-14 pp each while scope prohibitions help (2604.11088); n100 K runs carry 10.1 hook messages vs 1.1 for P and abandon more (7 vs 2). Evidence: .krn/runs/d23-comparison/research-2.md (main checkout).\nOutcome: the worker tree laid by evals/d23/harness.ts HARNESS_ROOTS and the worker brief drop lead and governance rules (tracker, CI gate, handoff, lead context rules) and positive directives; scope prohibitions stay; informational hooks are silent in worker sessions.\nProof: a test lists the worker-visible rule lines and fails if a lead-only rule appears; D23 dev units replay shows hook messages per K run at or below 2.\nScope: evals/d23/, src/brain/, scripts/claude/, test/."
+  ]
+}
