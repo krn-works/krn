@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// PreToolUse hook for Write, Edit, NotebookEdit and Bash: a worker session may not write the tracker,
-// the roadmap or the harness files unless the brief's Scope names them (KRN-11: only the lead changes
+// PreToolUse hook for Write, Edit, NotebookEdit and Bash: a worker session may not write the tracker or
+// the roadmap unless the brief's Scope names them; a harness file outside Scope is allowed and reported (KRN-11: only the lead changes
 // tracker state). D23 arm K, running as the lead, edited tasks/, the roadmap and harness files outside Scope
 // in 11 of 20 units.
 // A session is a worker when `krn lane run` started it (KRN_SESSION_CLASS=lane) or the launcher set
@@ -13,30 +13,32 @@ import { fileURLToPath } from 'node:url';
 // tasks/<id>.json for the id in KRN_TASK, else for the task id in the worktree branch or directory name.
 // A lane session whose scope cannot be resolved is allowed (nothing to compare with); a KRN_ROLE=worker
 // session without a scope has an empty one.
-export const guarded = [
-  'tasks/',
-  'docs/program/roadmap.md',
-  '.agents/',
-  '.claude/',
-  'AGENTS.md',
-  'CLAUDE.md',
-];
+// Tracker state is the lead's alone: a worker edit outside Scope is refused.
+export const guarded = ['tasks/', 'docs/program/roadmap.md'];
+// Harness files outside Scope are allowed and reported: a red test that needs one must not stay red,
+// and a refusal there left finished work uncommitted in D23 (units 470 and 547).
+export const harness = ['.agents/', '.claude/', 'AGENTS.md', 'CLAUDE.md'];
 
-/** The path entries of a Scope line or comma list. */
+/**
+ * The path entries of a Scope line or comma list. A prose entry ("krn-lead skill text") names no path;
+ * a path inside prose (".claude/settings.json autoCompactWindow") still counts.
+ */
 export function parseScope(text: string): string[] {
   const line =
     /^\s*Scope:\s*(.*)$/mu.exec(text)?.[1] ??
     (text.includes('\n') ? '' : text.replace(/^\s*Scope:\s*/u, ''));
-  return line
-    .split(/[,\n]/u)
-    .map((entry) =>
-      entry
-        .replace(/[`'"]/gu, '')
-        .trim()
-        .replace(/\.$/u, '')
-        .replace(/^\.\//u, ''),
-    )
-    .filter((entry) => /^[\w.@/-]+$/u.test(entry));
+  const found: string[] = [];
+  for (const entry of line.split(/[,;\n]/u)) {
+    for (const token of entry.split(/\s+/u)) {
+      const path = token
+        .replace(/[`'"()]/gu, '')
+        .replace(/[.:]+$/u, '')
+        .replace(/^\.\//u, '');
+      if (/^[\w.@/-]+$/u.test(path) && /[/.]/u.test(path.replace(/^\./u, '')))
+        found.push(path);
+    }
+  }
+  return found;
 }
 
 const covers = (scope: string[], path: string) =>
@@ -46,8 +48,8 @@ const covers = (scope: string[], path: string) =>
       : path === entry || path.startsWith(`${entry}/`),
   );
 
-const isGuarded = (path: string) =>
-  guarded.some((entry) =>
+const under = (list: string[], path: string) =>
+  list.some((entry) =>
     entry.endsWith('/') ? path.startsWith(entry) : path === entry,
   );
 
@@ -100,24 +102,38 @@ function bashTargets(command: string): string[] {
   return found.filter((target) => target !== '/dev/null');
 }
 
+export interface Verdict {
+  refusal?: string;
+  note?: string;
+}
+
 /** The refusal text, or undefined when the call is allowed. */
 export function decide(
   payload: unknown,
   env: NodeJS.ProcessEnv = process.env,
   branch = '',
 ): string | undefined {
+  return judge(payload, env, branch).refusal;
+}
+
+/** The refusal of a tracker write, or the note about an allowed harness write outside Scope. */
+export function judge(
+  payload: unknown,
+  env: NodeJS.ProcessEnv = process.env,
+  branch = '',
+): Verdict {
   const fields = payload as {
     cwd?: unknown;
     tool_name?: unknown;
     tool_input?: Record<string, unknown>;
   } | null;
-  if (!fields || typeof fields.tool_input !== 'object') return undefined;
+  if (!fields || typeof fields.tool_input !== 'object') return {};
   const root = resolve(
     env.CLAUDE_PROJECT_DIR ??
       (typeof fields.cwd === 'string' ? fields.cwd : process.cwd()),
   );
   const who = worker(env, root, branch);
-  if (!who) return undefined;
+  if (!who) return {};
   const cwd = typeof fields.cwd === 'string' ? fields.cwd : root;
   const input = fields.tool_input;
   const targets: string[] = [];
@@ -129,17 +145,28 @@ export function decide(
   } else if (fields.tool_name === 'Bash') {
     if (typeof input.command === 'string')
       targets.push(...bashTargets(input.command));
-  } else return undefined;
+  } else return {};
+  const notes: string[] = [];
   for (const target of targets) {
     const path = relative(
       root,
       isAbsolute(target) ? target : resolve(cwd, target),
     );
-    if (path.startsWith('..') || !isGuarded(path) || covers(who.scope, path))
+    if (path.startsWith('..') || covers(who.scope, path)) continue;
+    if (under(harness, path)) {
+      notes.push(path);
       continue;
-    return `Refused: ${path} is tracker, roadmap or harness state that only the lead changes, and the brief's Scope does not name it (${who.scope.join(', ') || 'no scope'}). Nothing in this call ran. Leave it unchanged and report the need in your final reply (scripts/claude/worker-scope.ts).`;
+    }
+    if (!under(guarded, path)) continue;
+    return {
+      refusal: `Refused: ${path} is tracker state that only the lead changes, and the brief's Scope does not name it (${who.scope.join(', ') || 'no scope'}). Nothing in this call ran. Leave it unchanged and report the need in your final reply (scripts/claude/worker-scope.ts).`,
+    };
   }
-  return undefined;
+  return notes.length === 0
+    ? {}
+    : {
+        note: `Allowed outside Scope: ${notes.join(', ')} (harness file). Name it in your final reply so the lead can review it; do not leave a failing test behind to avoid it.`,
+      };
 }
 
 function main() {
@@ -153,9 +180,13 @@ function main() {
     cwd: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
     encoding: 'utf8',
   }).stdout;
-  const reason = decide(payload, process.env, branch);
-  if (reason === undefined) return;
-  process.stderr.write(`${reason}\n`);
-  process.exitCode = 2;
+  const { refusal, note } = judge(payload, process.env, branch);
+  if (refusal !== undefined) {
+    process.stderr.write(`${refusal}\n`);
+    process.exitCode = 2;
+  } else if (note !== undefined)
+    process.stdout.write(
+      `${JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'allow', additionalContext: note } })}\n`,
+    );
 }
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();

@@ -13,7 +13,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { laneBrief } from '../../evals/fr40/lanes.ts';
 import { BASE_DATE, generate } from '../../evals/fr40/tasks.ts';
-import { laneBriefText } from '../../src/cli/lane.ts';
+import { laneBriefText, WORKER_RULES } from '../../src/cli/lane.ts';
 
 // KRN-12: the receiver is the FR-40 lane runner; its arm-B prompt is the measured carrier.
 const repo = fileURLToPath(new URL('../..', import.meta.url));
@@ -42,10 +42,24 @@ test('the lane brief of every frozen unit equals the lane runner arm-B prompt', 
     const brief = `${unit.prompt.trim()}\n`;
     assert.equal(
       laneBriefText(frozen, brief, BASE_DATE, unit.id),
-      laneBrief(unit, 'B').prompt,
+      `${laneBrief(unit, 'B').prompt.trimEnd()}\n\n${WORKER_RULES}\n`,
       unit.id,
     );
   }
+});
+
+test('a lane brief tells the worker that a red test outranks a closed tracker record', () => {
+  const text = laneBriefText(
+    repo,
+    'Task t-abc1234: x\n',
+    BASE_DATE,
+    't-abc1234',
+  );
+  assert.match(
+    text,
+    /closed task record or an earlier commit never means done/u,
+  );
+  assert.match(text, /red test outranks tracker state/u);
 });
 
 test('krn lane brief prints the carrier prefix over a brief file and stdin', () => {
@@ -69,13 +83,13 @@ test('krn lane brief prints the carrier prefix over a brief file and stdin', () 
   }
 });
 
-test('a repository without records gets the brief unchanged', () => {
+test('a repository without records gets the brief and the worker rules', () => {
   const dir = mkdtempSync(join(tmpdir(), 'krn-lane-brief-'));
   try {
     spawnSync('git', ['init', '-q', dir]);
     const result = lane(dir, [], 'Fix the parser.\n');
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, 'Fix the parser.\n');
+    assert.equal(result.stdout, `Fix the parser.\n\n${WORKER_RULES}\n`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

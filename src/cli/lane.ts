@@ -29,6 +29,15 @@ export const laneUsage = [
   'krn lane brief [--file PATH] [--task ID] [--as-of YYYY-MM-DD] [--root DIR]  print the lane brief (file, else stdin) behind the FR-40 brain packet of the repository records',
 ].join('\n');
 
+/**
+ * What a worker is told about the tracker. D23 arm K refused five units because the record or the
+ * history said the work was done, while the unit's tests were red: the repository, not the record, is the truth.
+ */
+export const WORKER_RULES = `Worker rules:
+- Done means the tests the task names pass in this clone and your change is committed. A closed task record or an earlier commit never means done while one of those tests is red or the described behavior is missing: make it pass and commit, whatever the record says.
+- Stop without a commit only when the tests the task names already pass here; then say which ones passed and why nothing is left.
+- A red test outranks tracker state and scope: if a test needs a file outside Scope (other than tasks/ and the roadmap), edit it and name it in your final reply.`;
+
 /** The lane brief with the FR-40 carrier prefix (D0, t-5983e6g): the measured arm-B prompt. */
 export function laneBriefText(
   repo: string,
@@ -38,7 +47,8 @@ export function laneBriefText(
 ): string {
   const text = packetBrief(lanePacket(repo, brief, asOf, task), brief);
   const precedent = precedentSection(repo, brief);
-  return precedent === '' ? text : `${text}\n\n${precedent}\n`;
+  const body = precedent === '' ? text : `${text}\n\n${precedent}\n`;
+  return `${body.trimEnd()}\n\n${WORKER_RULES}\n`;
 }
 
 function briefCommand(rest: string[]): void {
