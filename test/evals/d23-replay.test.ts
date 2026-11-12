@@ -302,10 +302,10 @@ test('arm PB gets the same requirements text as K, P gets the base text, and a r
     assert.doesNotMatch(pb, /BASE TEXT/);
     assert.match(p, /BASE TEXT/);
     assert.doesNotMatch(p, /REQUIREMENTS TEXT/);
-    assert.match(
-      readFileSync(join(out, 'run2/7.PB.meas'), 'utf8'),
-      /^measured$/m,
-    );
+    const meas = readFileSync(join(out, 'run2/7.PB.meas'), 'utf8');
+    assert.match(meas, /^measured$/m);
+    // runs.ts grades the full suite; a serialized npm test per run here halved the run's throughput
+    assert.doesNotMatch(meas, /npmtest_exit/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

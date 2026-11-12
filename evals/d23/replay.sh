@@ -118,15 +118,7 @@ echo "own_tests: $(echo $own)" >> $OUT/$tag.meas
 # gate runs on the commit with stripped harness files restored (arm P deleted them only as an arm treatment)
 [ $arm != K ] && git checkout -q $parent -- .claude .agents CLAUDE.md AGENTS.md 2>/dev/null
 if [ -n "$own" ]; then node --test --test-concurrency=1 $own > $OUT/$tag.own.log 2>&1; echo "own_exit=$?" >> $OUT/$tag.meas; else echo own_exit=none >> $OUT/$tag.meas; fi
-flock $WORK/npm.lock npm test > $OUT/$tag.npmtest.log 2>&1; echo "npmtest_exit=$?" >> $OUT/$tag.meas
-grep -A6 '^not ok' $OUT/$tag.npmtest.log | grep -oE "location: '[^']*" | sed -E "s#.*/${D##*/}/##; s#:[0-9]+:[0-9]+\$##" | sort -u > $OUT/$tag.failfiles
-echo "failfiles: $(tr '\n' ' ' < $OUT/$tag.failfiles)" >> $OUT/$tag.meas
-if [ -s $OUT/$tag.failfiles ]; then
-  node --test --test-concurrency=1 $(cat $OUT/$tag.failfiles) > $OUT/$tag.rerun-replay.log 2>&1; echo "rerun_replay_exit=$?" >> $OUT/$tag.meas
-  git checkout -q --detach $parent -f
-  files=$(for f in $(cat $OUT/$tag.failfiles); do [ -f $f ] && echo $f; done)
-  [ -n "$files" ] && { node --test --test-concurrency=1 $files > $OUT/$tag.rerun-parent.log 2>&1; echo "rerun_parent_exit=$?" >> $OUT/$tag.meas; }
-fi
+# no full suite here: runs.ts grades every run on the hidden tests and the full suite; a serialized npm test per run halved throughput
 # noise from transcript
 sid=$(python3 -c "import json;print(json.load(open('$OUT/$tag.claude.json')).get('session_id',''))" 2>/dev/null)
 proj=$HOME/.claude/projects/$(echo $D | sed 's#[/.]#-#g')
