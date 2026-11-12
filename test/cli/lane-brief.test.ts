@@ -57,7 +57,7 @@ test('a lane brief tells the worker that a red test outranks a closed tracker re
   );
   assert.match(
     text,
-    /closed task record or an earlier commit never means done/u,
+    /closed task record, an earlier commit or a green existing suite never means done/u,
   );
   assert.match(text, /red test outranks tracker state/u);
 });

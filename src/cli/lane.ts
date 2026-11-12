@@ -34,8 +34,8 @@ export const laneUsage = [
  * history said the work was done, while the unit's tests were red: the repository, not the record, is the truth.
  */
 export const WORKER_RULES = `Worker rules:
-- Done means the tests the task names pass in this clone and your change is committed. A closed task record or an earlier commit never means done while one of those tests is red or the described behavior is missing: make it pass and commit, whatever the record says.
-- Stop without a commit only when the tests the task names already pass here; then say which ones passed and why nothing is left.
+- Done means every behavior the task describes has a test in this clone that passes, and your change is committed. A closed task record, an earlier commit or a green existing suite never means done: an earlier commit may cover only part of the task.
+- For each behavior, outcome or interface the task states, write a test that checks it at its receiver. If it fails, fix the code; if it passes already, keep the test: the commit then carries the proof. Stop without a commit only when you can name an existing test for every described behavior.
 - A red test outranks tracker state and scope: if a test needs a file outside Scope (other than tasks/ and the roadmap), edit it and name it in your final reply.`;
 
 /** The lane brief with the FR-40 carrier prefix (D0, t-5983e6g): the measured arm-B prompt. */
