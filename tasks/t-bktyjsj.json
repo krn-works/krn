@@ -1,7 +1,11 @@
 {
   "id": "t-bktyjsj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "K patches 0/7 -> 6/7 on the 7 refused units (k-fix2, regrade functional 1/7); worker rules in the lane brief, scope guard allows harness files outside scope and reports them"
+  },
   "created": "2026-11-12",
   "priority": 1,
   "title": "The D23 K arm produces a patch on every unit the plain harness does",

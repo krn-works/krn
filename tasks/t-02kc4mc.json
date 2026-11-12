@@ -1,0 +1,12 @@
+{
+  "id": "t-02kc4mc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-12",
+  "priority": 2,
+  "title": "K scope drift: harness edits outside scope now allowed; keep K scope-clean without blocking tests",
+  "after": [],
+  "body": [
+    "Why: after t-bktyjsj the K arm patches 6/7 of the refused units (functional 1/7), but 547 and 470 touch .agents/ or .claude/ outside Scope and 467 edits the roadmap.\nOutcome: K stays scope-clean on those units while no test stays red.\nScope: scripts/claude/worker-scope.ts, src/cli/lane.ts."
+  ]
+}
