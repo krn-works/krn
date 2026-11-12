@@ -1,7 +1,11 @@
 {
   "id": "t-bkqkze9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "requirements writer and --requirements screening landed; n100 judge D/P/N 9/19/72 -> 61/33/6 (N<=30 met)"
+  },
   "created": "2026-11-12",
   "priority": 1,
   "title": "Every D23 unit carries a requirements paragraph derived from its hidden tests",

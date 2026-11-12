@@ -1,5 +1,5 @@
 // Screen D23 units for derivability: can the hidden fail-to-pass tests be met from the task, interface and repository?
-// Usage: node evals/d23/screen.ts --iface <dir> --out <dir> [--runs <d23-comparison dir>] [--grades <dir of <pr>.json or <pr>.classify.json>] [--units-file <file>] [--units 473,476] [--jobs 2] [--repo <git repository>] [--claude claude]
+// Usage: node evals/d23/screen.ts --iface <dir> --out <dir> [--runs <d23-comparison dir>] [--grades <dir of <pr>.json or <pr>.classify.json>] [--units-file <file>] [--requirements <dir of <pr>.requirements.txt>] [--units 473,476] [--jobs 2] [--repo <git repository>] [--claude claude]
 // Offline for the arms: writes <out>/<pr>.screen.json {class, reason, evidence}; arms never see it. Resumes from existing screen files.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -188,11 +188,12 @@ async function main() {
   const outArg = arg('out', '');
   if (!ifaceDir || !outArg) {
     console.error(
-      'usage: node evals/d23/screen.ts --iface <dir> --out <dir> [--runs <dir>] [--grades <dir>] [--units-file <file>] [--units 473,476] [--jobs 2] [--repo <git repository>] [--claude claude]',
+      'usage: node evals/d23/screen.ts --iface <dir> --out <dir> [--runs <dir>] [--grades <dir>] [--units-file <file>] [--requirements <dir of <pr>.requirements.txt>] [--units 473,476] [--jobs 2] [--repo <git repository>] [--claude claude]',
     );
     process.exit(64);
   }
   const out = resolve(outArg);
+  const reqDir = arg('requirements', '') && resolve(arg('requirements', ''));
   const only = arg('units', '');
   const units = readFileSync(
     resolve(arg('units-file', join(runs, 'units.txt'))),
@@ -219,9 +220,12 @@ async function main() {
             throw new Error(`no grade or classify json for ${pr}`);
           const unit = JSON.parse(readFileSync(gradeFile, 'utf8')) as UnitRef;
           const ifaceFile = join(resolve(ifaceDir), `${pr}.txt`);
-          const iface = existsSync(ifaceFile)
-            ? readFileSync(ifaceFile, 'utf8')
-            : '';
+          const reqFile = join(reqDir, `${pr}.requirements.txt`);
+          const iface = `${existsSync(ifaceFile) ? readFileSync(ifaceFile, 'utf8') : ''}${
+            reqDir && existsSync(reqFile)
+              ? `\n\nRequirements (observable behaviour the acceptance tests check):\n${readFileSync(reqFile, 'utf8')}`
+              : ''
+          }`;
           const screen = await screenUnit(repo, unit, iface, claude);
           writeFileSync(file, `${JSON.stringify(screen, null, 2)}\n`);
           console.log(`${pr} ${screen.class}`);

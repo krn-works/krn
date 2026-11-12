@@ -1,0 +1,12 @@
+{
+  "id": "t-sg7n605",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-12",
+  "priority": 1,
+  "title": "D23 arms run with the requirements paragraph and are compared",
+  "after": [],
+  "body": [
+    "The n100 requirements files (.krn/runs/d23-comparison/n100/requirements/) lift the judge from 9/19/72 D/P/N to 61/33/6. Run the K and plain arms on the n100 units with interface+requirements appended to the task text and compare pass rates.\nProof: per-arm pass counts on the same units with requirements, against the ~10% baseline.\nScope: evals/d23/, .krn/runs/d23-comparison/."
+  ]
+}
