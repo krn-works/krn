@@ -5,7 +5,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { decide, parseScope } from '../../scripts/claude/worker-scope.ts';
+import {
+  decide,
+  judge,
+  parseScope,
+} from '../../scripts/claude/worker-scope.ts';
 
 const hook = fileURLToPath(
   new URL('../../scripts/claude/worker-scope.ts', import.meta.url),
@@ -33,19 +37,28 @@ test('a worker edit of tasks/x.json is denied, and allowed when Scope names task
   assert.equal(decide(edit, worker('Scope: src/, tasks/.')), undefined);
 });
 
-test('every guarded path is denied to a worker and files outside the guard are allowed', () => {
-  for (const path of [
-    'docs/program/roadmap.md',
-    '.agents/skills/krn-lead/SKILL.md',
-    '.claude/settings.json',
-    'AGENTS.md',
-    'CLAUDE.md',
-  ])
+test('tracker paths are denied to a worker; harness files are allowed and reported; other files are allowed', () => {
+  for (const path of ['docs/program/roadmap.md', 'tasks/t-1.json'])
     assert.match(
       decide(write(`${root}/${path}`), worker('src/')) ?? '',
       /Refused/u,
       path,
     );
+  // A red test that needs a harness file must not stay red: the write runs and is named.
+  for (const path of [
+    '.agents/skills/krn-lead/SKILL.md',
+    '.claude/settings.json',
+    'AGENTS.md',
+    'CLAUDE.md',
+  ]) {
+    const verdict = judge(write(`${root}/${path}`), worker('src/'));
+    assert.equal(verdict.refusal, undefined, path);
+    assert.match(verdict.note ?? '', new RegExp(path.replace('.', '\\.'), 'u'));
+  }
+  assert.equal(
+    judge(write(`${root}/AGENTS.md`), worker('AGENTS.md')).note,
+    undefined,
+  );
   assert.equal(decide(write(`${root}/src/a.ts`), worker('src/')), undefined);
   assert.equal(decide(write(`${root}/docs/other.md`), worker('')), undefined);
   assert.equal(decide(write('/elsewhere/tasks/x.json'), worker('')), undefined);
@@ -66,8 +79,7 @@ test('NotebookEdit and visible Bash writes are held to the same scope', () => {
   );
   for (const command of [
     'echo x > tasks/t-1.json',
-    'echo x >> AGENTS.md',
-    'cat a | tee .claude/settings.json',
+    'cat a | tee tasks/t-2.json',
     "sed -i 's/a/b/' docs/program/roadmap.md",
   ])
     assert.match(decide(bash(command), env) ?? '', /Refused/u, command);
@@ -101,7 +113,7 @@ test('a lane session takes its Scope from the task record named by the branch, a
       undefined,
     );
     assert.match(
-      decide(write(`${dir}/AGENTS.md`), env, 't-abc1234') ?? '',
+      decide(write(`${dir}/tasks/t-1.json`), env, 't-abc1234') ?? '',
       /Refused/u,
     );
     assert.equal(decide(write(`${dir}/AGENTS.md`), env, 'slug'), undefined);
@@ -116,6 +128,16 @@ test('parseScope reads a Scope line or a comma list', () => {
     ['src/', '.agents/', 'a.md'],
   );
   assert.deepEqual(parseScope('src/,tasks/'), ['src/', 'tasks/']);
+  // Prose entries name no path; a path inside prose still counts (D23 unit 470).
+  assert.deepEqual(
+    parseScope(
+      'Scope: .claude/settings.json autoCompactWindow or the context-gauge thresholds, krn-lead skill text, their tests.',
+    ),
+    ['.claude/settings.json'],
+  );
+  assert.deepEqual(parseScope('Scope: the 27 files of `spike-h-c1.patch`.'), [
+    'spike-h-c1.patch',
+  ]);
 });
 
 test('the hook process exits 2 with the reason for a refused worker call', () => {

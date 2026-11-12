@@ -15,7 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { laneBriefText, startLane } from '../../src/cli/lane.ts';
+import { laneBriefText, startLane, WORKER_RULES } from '../../src/cli/lane.ts';
 import {
   laneRunCommand,
   parseSessionResult,
@@ -339,7 +339,9 @@ test('the session prompt starts with the packet krn lane brief prints for the ta
     );
     const prompt = taskBrief(dir, 't-abc1234', '2026-11-10');
     assert.match(prompt, /^Repository conventions \(brain packet /u);
-    const record = prompt.slice(prompt.indexOf('\n\nTask t-abc1234: ') + 2);
+    const record = prompt
+      .slice(prompt.indexOf('\n\nTask t-abc1234: ') + 2)
+      .replace(`\n\n${WORKER_RULES}\n`, '\n');
     assert.match(record, /^Task t-abc1234: Lane run task/u);
     assert.equal(prompt, laneBriefText(dir, record, '2026-11-10', 't-abc1234'));
   } finally {
