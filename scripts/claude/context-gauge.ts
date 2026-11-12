@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { emitContext, hookInput, object } from './context-io.ts';
+import { isWorkerSession } from './worker-session.ts';
 
 // Missing counters are invalid, rather than evidence of a small context.
 export function gaugeReading(transcript: string): {
@@ -214,7 +215,7 @@ export function wiresOwnGauge(project: string): boolean {
   });
 }
 
-if (import.meta.main) {
+if (import.meta.main && !isWorkerSession()) {
   try {
     const host = process.argv.includes('--host');
     const raw = readFileSync(0, 'utf8');

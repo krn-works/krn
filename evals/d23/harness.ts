@@ -7,6 +7,20 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { type Rule, render, workerRules } from '../../scripts/render-agents.ts';
+
+/** Lead skills and agents: a worker never leads, hands off or runs a retro, and their listings cost context. */
+export const LEAD_ONLY = [
+  '.agents/skills/krn-lead',
+  '.agents/skills/krn-handoff',
+  '.agents/skills/krn-retro',
+  '.claude/skills/krn-lead',
+  '.claude/skills/krn-handoff',
+  '.claude/skills/krn-retro',
+];
+
+const isLeadOnly = (file: string) =>
+  LEAD_ONLY.some((dir) => file === dir || file.startsWith(`${dir}/`));
 
 export const HARNESS_ROOTS = [
   '.claude/agents',
@@ -59,11 +73,28 @@ export function harnessPlan(
   const onRef = at(ref);
   const onParent = at(parent);
   return {
-    write: [...onRef].filter((f) => !touched.has(f)).sort(),
+    write: [...onRef].filter((f) => !touched.has(f) && !isLeadOnly(f)).sort(),
     remove: [...onParent]
-      .filter((f) => !onRef.has(f) && !touched.has(f))
+      .filter((f) => (!onRef.has(f) || isLeadOnly(f)) && !touched.has(f))
       .sort(),
   };
+}
+
+/**
+ * AGENTS.md as a worker sees it: the ref's rule registry without lead and governance rules (`audience: lead`)
+ * and without the lead's workflow paragraph. A ref without a registry keeps its own file.
+ */
+export function workerAgents(repo: string, ref: string): string {
+  try {
+    const { rules } = JSON.parse(
+      git(repo, 'show', `${ref}:spec/rules.json`),
+    ) as {
+      rules: Rule[];
+    };
+    return render(workerRules(rules), true);
+  } catch {
+    return git(repo, 'show', `${ref}:AGENTS.md`);
+  }
 }
 
 /** Apply the plan to a checkout of the parent (or merge) from `repo`. */
@@ -80,6 +111,10 @@ export function layHarness(
     rmSync(target, { force: true, recursive: true });
     mkdirSync(dirname(target), { recursive: true });
     const [mode] = git(repo, 'ls-tree', ref, '--', f).split(/\s+/);
+    if (f === 'AGENTS.md' && mode !== '120000') {
+      writeFileSync(target, workerAgents(repo, ref));
+      continue;
+    }
     const body = execFileSync('git', ['show', `${ref}:${f}`], {
       cwd: repo,
       maxBuffer: 64 << 20,
