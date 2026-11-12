@@ -7,6 +7,7 @@ import {
   rmSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { isWorkerSession } from './worker-session.ts';
 
 // One script, two events. A subagent's hook errors (a refused Bash call, a failing Stop
 // hook) are visible only in its own transcript; the lead never saw them.
@@ -148,4 +149,4 @@ function main() {
     // A diagnostic hook must never fail the session.
   }
 }
-if (import.meta.main) main();
+if (import.meta.main && !isWorkerSession()) main();

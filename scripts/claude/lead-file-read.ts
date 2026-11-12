@@ -1,6 +1,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isWorkerSession } from './worker-session.ts';
 
 // PreToolUse hook for Bash and Read: refuses the lead a large file dump. `sed -n`, `cat`
 // and `grep` returned 54% of the lead's Bash result bytes before the first refusal and 51%
@@ -158,7 +159,7 @@ export function verdict(
   } | null;
   if (!fields || typeof fields.agent_id === 'string') return undefined;
   // A headless `krn lane run` session is a main session with no lead to protect.
-  if (process.env.KRN_SESSION_CLASS === 'lane') return undefined;
+  if (isWorkerSession()) return undefined;
   let cwd = typeof fields.cwd === 'string' ? fields.cwd : process.cwd();
   const input = fields.tool_input;
   if (fields.tool_name === 'Read') {

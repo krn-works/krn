@@ -22,6 +22,9 @@ export const MEASURED = [
   'r-biome-clean',
 ] as const;
 
+/** Tracker governance is the lead's: the worker-scope hook refuses a worker's tracker write, so the brief never states the rule. */
+const LEAD_ONLY = new Set<string>(['r-tracker-owner']);
+
 const NEEDS_TASK_ID = /\btask id\b|<id>/u;
 const TASK_ID = /\bt-[a-z0-9]{7}\b/u;
 
@@ -40,6 +43,7 @@ export function applicable(
   return records.filter(
     (record) =>
       measured.has(record.id) &&
+      !LEAD_ONLY.has(record.id) &&
       (hasTaskId || !NEEDS_TASK_ID.test(record.text)),
   );
 }

@@ -27,6 +27,7 @@
       "trigger": "a change is ready for integration",
       "action": "the author MUST obtain a successful full Product aggregate `Check` from GitHub Actions (App `15368`) on the exact HEAD",
       "owner": "author",
+      "audience": "lead",
       "enforcement": {
         "kind": "gate",
         "check": "npm run gate"
@@ -49,6 +50,7 @@
       "trigger": "the lead works in this repository",
       "action": "the lead MUST follow `docs/program/lead-rules.md` for evidence, proposals, handoffs, and delivery",
       "owner": "lead",
+      "audience": "lead",
       "enforcement": {
         "kind": "none",
         "check": "manual review",
@@ -61,6 +63,7 @@
       "trigger": "an agent works in this repository",
       "action": "the agent MUST follow `docs/program/repository-workflow.md` for the local KRN delivery process and terminal PR closeout",
       "owner": "all KRN roles",
+      "audience": "lead",
       "enforcement": {
         "kind": "none",
         "check": "manual review",
@@ -73,6 +76,7 @@
       "trigger": "a work item is managed",
       "action": "the lead MUST manage task status in `tasks/<id>.json` with `krn task` (`ready`, `claim`, `release`, `close`); workers MUST NOT mutate tracker state, must receive the task id in their brief, and MUST use it in commit titles and the `Ticket:` trailer (`Refs:` while the task stays open)",
       "owner": "lead",
+      "audience": "lead",
       "enforcement": {
         "kind": "none",
         "check": "manual review",
@@ -85,6 +89,7 @@
       "trigger": "code is integrated or forwarded",
       "action": "the author MUST test every integration or forward against its real receiver or a verbatim capture of its output",
       "owner": "author",
+      "audience": "lead",
       "enforcement": {
         "kind": "test",
         "check": "receiver modules name their evidence"
@@ -96,6 +101,7 @@
       "trigger": "the lead works in this repository",
       "action": "the lead MUST keep context bounded: delegate reading to a subagent returning a verdict and path, pass pointers instead of file contents, verify by commands that print a verdict, run independent slices as parallel worktree lanes with background agents, and hand off at the context-gauge advisory with `krn-handoff`",
       "owner": "lead",
+      "audience": "lead",
       "enforcement": {
         "kind": "none",
         "check": "manual review",
@@ -108,6 +114,7 @@
       "trigger": "a defect is fixed",
       "action": "the author MUST add its regression test at the lowest layer that reproduces it",
       "owner": "author",
+      "audience": "lead",
       "enforcement": {
         "kind": "none",
         "check": "manual review",

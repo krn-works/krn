@@ -88,7 +88,6 @@ test('a brief that names a task id keeps its task-id record', () => {
   const want = {
     'commit-title-id': 'r-commit-title-id',
     trailer: 'r-trailer',
-    'tracker-untouched': 'r-tracker-owner',
   } as const;
   for (const task of tasks)
     if (task.template in want) {
@@ -116,4 +115,12 @@ test('the live packet states the biome rule with npm run fast and generated file
     assert.match(biome ?? '', /not only your own tests/u);
     assert.match(biome ?? '', /scripts\/lib\/shard-weights\.mjs/u);
   }
+});
+
+test('the worker brief never carries the lead-only tracker rule', () => {
+  for (const task of tasks)
+    assert.ok(
+      !workerSelection(task.prompt).includes('r-tracker-owner'),
+      `${task.id} carries r-tracker-owner`,
+    );
 });

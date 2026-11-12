@@ -63,3 +63,69 @@ test('the replay harness keeps every file the merged change touched at the paren
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('the worker tree lists no lead-only rule line, lead skill or positive workflow paragraph', () => {
+  const root = mkdtempSync(join(tmpdir(), 'd23-worker-rules-'));
+  const repo = join(root, 'repo');
+  const git = (...args: string[]) =>
+    execFileSync('git', args, { cwd: repo, encoding: 'utf8' }).trim();
+  const put = (f: string, body: string) => {
+    mkdirSync(join(repo, f, '..'), { recursive: true });
+    writeFileSync(join(repo, f), body);
+  };
+  const real = join(import.meta.dirname, '../..');
+  try {
+    mkdirSync(repo);
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 't');
+    git('config', 'user.email', 't@invalid');
+    put('src/x.ts', 'v1\n');
+    git('add', '.');
+    git('commit', '-qm', 'parent');
+    const parent = git('rev-parse', 'HEAD');
+    put('src/x.ts', 'merged\n');
+    git('commit', '-qam', 'merge');
+    const merge = git('rev-parse', 'HEAD');
+    put('spec/rules.json', readFileSync(join(real, 'spec/rules.json'), 'utf8'));
+    put('AGENTS.md', readFileSync(join(real, 'AGENTS.md'), 'utf8'));
+    for (const skill of ['krn-lead', 'krn-handoff', 'krn-retro', 'typescript'])
+      put(`.agents/skills/${skill}/SKILL.md`, `${skill}\n`);
+    git('add', '.');
+    git('commit', '-qm', 'ref');
+    const ref = git('rev-parse', 'HEAD');
+    git('checkout', '-q', parent);
+    layHarness(repo, repo, ref, harnessPlan(repo, ref, parent, merge));
+    const ruleLines = readFileSync(join(repo, 'AGENTS.md'), 'utf8')
+      .split('\n')
+      .filter((l) => l.startsWith('- **KRN-'));
+    const leadOnly = [
+      'KRN-07',
+      'KRN-09',
+      'KRN-10',
+      'KRN-11',
+      'KRN-12',
+      'KRN-13',
+      'KRN-14',
+    ];
+    assert.ok(ruleLines.length > 0, 'scope prohibitions stay');
+    for (const line of ruleLines)
+      for (const id of leadOnly)
+        assert.ok(!line.includes(`**${id}**`), `${id} is visible to a worker`);
+    assert.ok(ruleLines.some((l) => l.includes('**KRN-05**')));
+    assert.ok(ruleLines.some((l) => l.includes('**KRN-06**')));
+    assert.doesNotMatch(
+      readFileSync(join(repo, 'AGENTS.md'), 'utf8'),
+      /npm run fast|tracker|handoff|Check/u,
+    );
+    assert.deepEqual(
+      execFileSync('ls', [join(repo, '.agents/skills')], {
+        encoding: 'utf8',
+      })
+        .trim()
+        .split('\n'),
+      ['typescript'],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
