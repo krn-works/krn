@@ -1,7 +1,11 @@
 {
   "id": "t-8vk9p13",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "PR 2: krn adopt writes tracked .agents/standards.json (universal pack records for the detected stack, origin krn, own records kept, pack-id clash exit 65), renders the AGENTS.md standards block in place, krn standards check runs inherited copies as the current pack record, krn lane brief lists in-force worker standards; CLI tests on generated Python and TypeScript repos."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "krn ships a standards pack and adopt seeds every project's tracked standards from it",
@@ -12,6 +16,8 @@
   ],
   "body": [
     "Why: rows 102-104, 111-112, 115, 124-125, 52, 55\nOutcome: `standards/records.json` with 15-25 universal records, each with evidence and enforcement; `src/brain/standards.ts`; adopt writes `.agents/standards.json`, installs enforcement, renders the AGENTS.md block from records; `krn standards check`\nProof: on generated Python and TypeScript repos: `krn standards check` prints PASS and `krn lane brief --root <repo> --task <id>` shows ≥1 inherited record; the file is tracked (`git ls-files`). Also `npm run fast` PASS.\nSize: split: pack + parser + check; adopt seeding\nAfter (plan): t-78j7smx, t-w8t0amv, N04 (same file `src/adopt/adopt.ts`)\nSource: .krn/runs/overnight/fable-plan.md section 3.6 (plan id B1).",
-    "Lead note (2026-11-13): deliver in two PRs. PR 1 (this lane): standards/records.json with 15-25 universal records (fields: id, statement, why/evidence source, enforcement = command or check that proves it, validity), parser and validator in src/brain/standards.ts (core imports only, KRN-05), and `krn standards check [--root]` printing one PASS/FAIL verdict line, with unit tests at the parser level and one CLI test on a generated Python and a generated TypeScript repo. Commit with Refs: t-8vk9p13 and leave the task open. PR 2 (next lane): adopt seeds .agents/standards.json, renders the AGENTS.md block from records, lane brief shows inherited records. Plan of record: .krn/runs/overnight/fable-plan.md section 3.6 row B1 and 3.7."
+    "Lead note (2026-11-13): deliver in two PRs. PR 1 (this lane): standards/records.json with 15-25 universal records (fields: id, statement, why/evidence source, enforcement = command or check that proves it, validity), parser and validator in src/brain/standards.ts (core imports only, KRN-05), and `krn standards check [--root]` printing one PASS/FAIL verdict line, with unit tests at the parser level and one CLI test on a generated Python and a generated TypeScript repo. Commit with Refs: t-8vk9p13 and leave the task open. PR 2 (next lane): adopt seeds .agents/standards.json, renders the AGENTS.md block from records, lane brief shows inherited records. Plan of record: .krn/runs/overnight/fable-plan.md section 3.6 row B1 and 3.7.",
+    "PR 1 merged d63a811 (#722): standards/records.json (universal + krn-delivery layers), src/brain/standards.ts, krn standards check runs command/krn enforcement with a timeout and decides by exit; advisory counted apart; a project record may not reuse a pack id (exit 65). PR 2 remains: adopt seeds .agents/standards.json, renders the AGENTS.md block from records, krn lane brief --root <repo> --task <id> shows >=1 inherited record; then close with Ticket.",
+    "Lead spec PR 2 (2026-11-13, closes the task with Ticket: t-8vk9p13 and krn task close --as done): (1) krn adopt writes .agents/standards.json in the target repository holding the pack records that apply to it (appliesTo by detected stack, layer universal only, records needing tracker only with --tracker), and the file is tracked the same way adopt tracks its other outputs; rerunning adopt is idempotent and keeps project-own records (pack-id clash stays exit 65). (2) AGENTS.md gets one block between stable markers rendered from those records (statement + enforcement), replaced in place on rerun, no duplicate block. (3) Enforcement: krn standards check --root <repo> reads .agents/standards.json and prints PASS on a freshly adopted repo; if adopt already writes a CI workflow, add a krn standards check step there, otherwise do not invent one. (4) krn lane brief --root <repo> --task <id> lists >=1 inherited worker-audience record from that file. Proof test at CLI level on a generated Python and a generated TypeScript repo: adopt, standards check PASS, lane brief shows a record, git ls-files lists .agents/standards.json. Core (src/brain) imports only core (KRN-05). npm run fast PASS."
   ]
 }

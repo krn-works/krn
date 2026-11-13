@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -417,5 +418,194 @@ test('standards with an unknown verb or flag is a usage error', () => {
     assert.equal(done.status, 64, args.join(' '));
     assert.match(done.stderr, /usage: krn standards check/u);
     assert.equal(done.stdout, '');
+  }
+});
+
+function adoptRepo(root: string, ...extra: string[]) {
+  return spawnSync(
+    process.execPath,
+    [cli, 'adopt', root, '--no-canary', ...extra],
+    { encoding: 'utf8', cwd: tmpdir() },
+  );
+}
+
+function laneBrief(root: string) {
+  return spawnSync(
+    process.execPath,
+    [cli, 'lane', 'brief', '--root', root, '--task', 't-abcdefg'],
+    { encoding: 'utf8', cwd: tmpdir(), input: 'Fix the parser.\n' },
+  );
+}
+
+const seeded = '.agents/standards.json';
+
+for (const [name, files, stack] of fixtures.slice(0, 2)) {
+  test(`adopt seeds tracked standards on a generated ${name} repository: check PASS, the lane brief lists inherited records, a rerun changes nothing`, () => {
+    const root = repository(files);
+    try {
+      const adopted = adoptRepo(root);
+      assert.equal(adopted.status, 0, adopted.stderr);
+      assert.match(adopted.stdout, /^wrote \.agents\/standards\.json$/mu);
+      git(root, 'add', '-A');
+      const listed = spawnSync('git', ['ls-files', seeded], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+      assert.equal(listed.stdout, `${seeded}\n`);
+
+      const records = parseStandards(
+        JSON.parse(readFileSync(join(root, seeded), 'utf8')),
+      );
+      assert.ok(records.length >= 10, `${records.length} records`);
+      for (const record of records) {
+        assert.equal(record.origin, 'krn');
+        assert.equal(record.layer, 'universal');
+      }
+      const ids = records.map((record) => record.id);
+      assert.equal(ids.includes('s-typescript-strict'), stack === 'node/npm');
+
+      const done = check(root);
+      assert.equal(done.status, 0, `${done.stderr}${done.stdout}`);
+      assert.match(
+        done.stdout,
+        new RegExp(
+          `^PASS standards: \\d+ enforced, 0 failed, .*, 0 project; stack ${stack}; krn adopted\\)\\n$`,
+          'u',
+        ),
+      );
+
+      const brief = laneBrief(root);
+      assert.equal(brief.status, 0, brief.stderr);
+      assert.match(
+        brief.stdout,
+        /^Repository standards \(\.agents\/standards\.json; /mu,
+      );
+      assert.match(
+        brief.stdout,
+        /^- \[s-tests-tracked\] \(inherited from krn\) The repository tracks automated tests/mu,
+      );
+      assert.doesNotMatch(brief.stdout, /\[s-ci-runs-tests\]/u); // lead audience
+
+      const agents = readFileSync(join(root, 'AGENTS.md'), 'utf8');
+      assert.equal(agents.split('<!-- krn-standards:start -->').length, 2);
+      assert.match(
+        agents,
+        /^- \*\*s-tests-tracked\*\* The repository tracks automated tests.* _\(checked by `krn standards check`: `git ls-files /mu,
+      );
+      assert.match(
+        agents,
+        /^- \*\*s-role-names\*\* .*_\(advisory, not checked\)_$/mu,
+      );
+      // The generated block does not leak into the conventions the lane packet reads.
+      const conventions = join(root, '.krn/conventions.json');
+      if (existsSync(conventions))
+        assert.doesNotMatch(
+          readFileSync(conventions, 'utf8'),
+          /tracks automated tests/u,
+        );
+
+      const before = readFileSync(join(root, seeded), 'utf8');
+      const again = adoptRepo(root);
+      assert.equal(again.status, 0, again.stderr);
+      assert.match(again.stdout, /^unchanged \.agents\/standards\.json$/mu);
+      assert.match(again.stdout, /^unchanged AGENTS\.md$/mu);
+      assert.equal(readFileSync(join(root, seeded), 'utf8'), before);
+      assert.equal(readFileSync(join(root, 'AGENTS.md'), 'utf8'), agents);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}
+
+test('adopt keeps a hand-written project record beside the inherited ones and renders it in AGENTS.md', () => {
+  const plainFile = `[
+  {
+    "id": "s-changelog",
+    "area": "docs",
+    "layer": "universal",
+    "audience": "worker",
+    "text": "Every change adds a line to CHANGELOG.md.",
+    "why": "Releases are written from it.",
+    "evidence": ["CHANGELOG.md"],
+    "enforcement": { "kind": "command", "run": "test -f CHANGELOG.md" },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  }
+]
+`;
+  const root = repository({
+    ...python,
+    'CHANGELOG.md': '# Changes\n',
+    [seeded]: plainFile,
+  });
+  try {
+    const adopted = adoptRepo(root, '--tracker');
+    assert.equal(adopted.status, 0, adopted.stderr);
+    git(root, 'add', '-A');
+    const records = parseStandards(
+      JSON.parse(readFileSync(join(root, seeded), 'utf8')),
+    );
+    assert.equal(records.at(-1)?.id, 's-changelog');
+    assert.equal(records.at(-1)?.origin, undefined);
+    assert.ok(records.length > 1);
+    assert.match(
+      readFileSync(join(root, 'AGENTS.md'), 'utf8'),
+      /^- \*\*s-changelog\*\* Every change adds a line to CHANGELOG\.md\. _\(checked by `krn standards check`: `test -f CHANGELOG\.md`\)_$/mu,
+    );
+    const done = check(root);
+    assert.equal(done.status, 0, `${done.stderr}${done.stdout}`);
+    assert.match(done.stdout, /, 1 project; stack python; krn adopted\)$/mu);
+    assert.match(
+      laneBrief(root).stdout,
+      /^- \[s-changelog\] Every change adds a line to CHANGELOG\.md\.$/mu,
+    );
+    const again = adoptRepo(root, '--tracker');
+    assert.equal(again.status, 0, again.stderr);
+    assert.match(again.stdout, /^unchanged \.agents\/standards\.json$/mu);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('adopt refuses a project record that reuses a pack id with exit 65 and writes nothing', () => {
+  const own = JSON.stringify([projectRecord({ id: 's-tests-tracked' })]);
+  const root = repository({ ...python, [seeded]: own });
+  try {
+    const adopted = adoptRepo(root);
+    assert.equal(adopted.status, 65, adopted.stdout);
+    assert.match(
+      adopted.stderr,
+      /\.agents\/standards\.json redefines pack standard s-tests-tracked;/u,
+    );
+    assert.equal(readFileSync(join(root, seeded), 'utf8'), own);
+    assert.equal(existsSync(join(root, 'krn.json')), false);
+    assert.equal(existsSync(join(root, 'AGENTS.md')), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('standards check fails on an inherited copy the pack no longer holds and asks for a rerun of adopt', () => {
+  const root = repository({
+    ...python,
+    [seeded]: JSON.stringify([
+      { ...projectRecord({ id: 's-dropped' }), origin: 'krn' },
+    ]),
+  });
+  try {
+    const done = check(root);
+    assert.equal(done.status, 1);
+    assert.match(
+      done.stderr,
+      /^s-dropped: inherited from krn but no longer in its pack; rerun krn adopt to refresh \.agents\/standards\.json$/mu,
+    );
+    assert.match(
+      done.stdout,
+      /^FAIL standards: \d+ enforced, 1 failed, .*, 0 project;/u,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });

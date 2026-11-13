@@ -12,8 +12,22 @@ import {
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
+  formatStandards,
+  type Need,
+  renderStandardsBlock,
+  type Standard,
+  seedStandards,
+  upsertStandardsBlock,
+} from '../brain/standards.ts';
+import {
+  PROJECT_STANDARDS,
+  readPack,
+  readProject,
+} from '../brain/standards-cli.ts';
+import {
   CONTRACT_FILE,
   detectBase,
+  detectStack,
   detectSubpackage,
   findContract,
   type RepoContract,
@@ -205,11 +219,15 @@ function upsertRules(current: string): string {
 function writeRuleFile(
   root: string,
   relative: string,
+  standards: readonly Standard[],
   report: AdoptionReport,
 ): void {
   const path = join(root, relative);
   const current = existsSync(path) ? readFileSync(path, 'utf8') : '';
-  const next = upsertRules(current);
+  const next = upsertStandardsBlock(
+    upsertRules(current),
+    renderStandardsBlock(standards),
+  );
   if (next === current) report.unchanged.push(relative);
   else {
     writeFileSync(path, next);
@@ -217,12 +235,17 @@ function writeRuleFile(
   }
 }
 
-/** Rules go to AGENTS.md; CLAUDE.md links to it, and a regular CLAUDE.md (which Claude reads instead) carries the block too. */
-function writeRules(root: string, report: AdoptionReport): void {
-  writeRuleFile(root, 'AGENTS.md', report);
+/** Rules and standards go to AGENTS.md; CLAUDE.md links to it, and a regular CLAUDE.md (which Claude reads instead) carries the blocks too. */
+function writeRules(
+  root: string,
+  standards: readonly Standard[],
+  report: AdoptionReport,
+): void {
+  writeRuleFile(root, 'AGENTS.md', standards, report);
   const link = join(root, 'CLAUDE.md');
   if (isSymlink(link)) report.unchanged.push('CLAUDE.md');
-  else if (existsSync(link)) writeRuleFile(root, 'CLAUDE.md', report);
+  else if (existsSync(link))
+    writeRuleFile(root, 'CLAUDE.md', standards, report);
   else {
     symlinkSync('AGENTS.md', link);
     report.written.push('CLAUDE.md');
@@ -337,6 +360,26 @@ function writeSkills(root: string, report: AdoptionReport): void {
   } else report.unchanged.push('.claude/skills');
 }
 
+/**
+ * The project's standards after adoption: the universal pack records that apply to its detected
+ * stack (tracker records only with a tracker), then its own records. A malformed file or an own
+ * record reusing a pack id refuses (exit 65) before anything is written.
+ */
+function projectStandards(root: string, options: AdoptOptions): Standard[] {
+  const needs = new Set<Need>(
+    options.ref !== undefined || options.tracker ? ['tracker'] : [],
+  );
+  const stack = detectStack(root)?.stack;
+  return seedStandards(
+    readPack(),
+    readProject(root),
+    stack === undefined
+      ? { adopted: false, needs }
+      : { stack, adopted: false, needs },
+    PROJECT_STANDARDS,
+  );
+}
+
 interface HookEntry {
   hooks?: { type?: string; command?: unknown }[];
 }
@@ -408,6 +451,7 @@ export function adopt(root: string, options: AdoptOptions): AdoptionReport {
     throw new Error('--ref must be a full 40-character commit sha');
   // Everything that can refuse runs before the first write.
   const settings = readSettings(root);
+  const standards = projectStandards(root, options);
   if (options.ref !== undefined || options.tracker) seedTasks(root, report);
   writeContract(root, options, report);
   const workflow =
@@ -416,7 +460,8 @@ export function adopt(root: string, options: AdoptOptions): AdoptionReport {
       : ciWorkflow(root, { ...options, ref: options.ref }, report);
   writeHooks(root, settings, report);
   writeSkills(root, report);
-  writeRules(root, report);
+  writeIfChanged(root, PROJECT_STANDARDS, formatStandards(standards), report);
+  writeRules(root, standards, report);
   ignoreAgentState(root, report);
   const seeded = seedConventions(root, new Date().toISOString().slice(0, 10));
   if (seeded) report.written.push(seeded);

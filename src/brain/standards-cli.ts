@@ -12,14 +12,17 @@ import {
 } from '../repo/contract.ts';
 import {
   appliesTo,
+  assertNoClash,
   checkStandards,
   type Enforce,
   type Failure,
   type Need,
+  parsePack,
   parseStandards,
   type Repository,
   type Standard,
   StandardsDataError,
+  splitProject,
 } from './standards.ts';
 
 export const usage = 'usage: krn standards check [--root DIR]';
@@ -39,7 +42,11 @@ export class StandardsInputError extends Error {
   readonly exitCode = 66;
 }
 
-function parseFile(root: string, path: string): Standard[] {
+function parseFile(
+  root: string,
+  path: string,
+  parse: (value: unknown) => Standard[] = parseStandards,
+): Standard[] {
   let source: string;
   try {
     source = readFileSync(join(root, path), 'utf8');
@@ -57,12 +64,24 @@ function parseFile(root: string, path: string): Standard[] {
     );
   }
   try {
-    return parseStandards(value);
+    return parse(value);
   } catch (error) {
     if (error instanceof StandardsDataError)
       throw new StandardsDataError(`${path}: ${error.message}`);
     throw error;
   }
+}
+
+/** The pack KRN ships (or the one under `product`, for tests). */
+export function readPack(product: string = productRoot): Standard[] {
+  return parseFile(product, PACK, parsePack);
+}
+
+/** The project's standards file, empty when the repository has none. */
+export function readProject(root: string): Standard[] {
+  return existsSync(join(root, PROJECT_STANDARDS))
+    ? parseFile(root, PROJECT_STANDARDS)
+    : [];
 }
 
 /** Git variables a caller (a hook, a worktree) may export that would point git at another repository. */
@@ -159,11 +178,16 @@ export function standardsCheck(
   options: { readonly pack?: string; readonly timeoutMs?: number } = {},
 ): Verdict {
   let records: Standard[];
-  let project: Standard[] = [];
+  let project: Standard[];
+  let copies: Standard[];
   try {
-    records = parseFile(options.pack ?? productRoot, PACK);
-    if (existsSync(join(root, PROJECT_STANDARDS)))
-      project = parseFile(root, PROJECT_STANDARDS);
+    records = readPack(options.pack);
+    const split = splitProject(readProject(root));
+    project = split.own;
+    copies = split.inherited;
+    // A project adds standards and never replaces one it inherits: a same-id record would silently
+    // neutralise a pack standard. The check runs the root's own commands, so it is for trusted roots.
+    assertNoClash(records, project, PROJECT_STANDARDS);
   } catch (error) {
     if (
       !(error instanceof StandardsDataError) &&
@@ -175,17 +199,14 @@ export function standardsCheck(
       lines: [`FAIL standards: ${error.message}`],
     };
   }
-  // A project adds standards and never replaces one it inherits: a same-id record would silently
-  // neutralise a pack standard. The check runs the root's own commands, so it is for trusted roots.
+  // An inherited copy runs as the pack's current record; one the pack no longer holds is stale.
   const packIds = new Set(records.map((standard) => standard.id));
-  const clash = project.filter((standard) => packIds.has(standard.id));
-  if (clash.length > 0)
-    return {
-      exitCode: 65,
-      lines: [
-        `FAIL standards: ${PROJECT_STANDARDS} redefines pack standard ${clash.map((standard) => standard.id).join(', ')}; give a project standard its own id`,
-      ],
-    };
+  const stale: Failure[] = copies
+    .filter((standard) => !packIds.has(standard.id))
+    .map((standard) => ({
+      id: standard.id,
+      message: `inherited from krn but no longer in its pack; rerun krn adopt to refresh ${PROJECT_STANDARDS}`,
+    }));
   const repository = repositoryFacts(root);
   const inherited = records.filter((standard) =>
     appliesTo(standard, repository),
@@ -195,10 +216,10 @@ export function standardsCheck(
     asOf,
     enforce: enforcer(root, options.timeoutMs ?? ENFORCEMENT_TIMEOUT_MS),
   });
-  const failures: Failure[] = [...report.failures];
+  const failures: Failure[] = [...stale, ...report.failures];
   if (report.enforced === 0)
     failures.push({ id: root, message: 'no enforced standard applies' });
-  const counts = `${report.enforced} enforced, ${report.failures.length} failed, ${report.advisory} advisory`;
+  const counts = `${report.enforced} enforced, ${report.failures.length + stale.length} failed, ${report.advisory} advisory`;
   const summary = `${counts}; ${applicable.length} standards apply to ${root} (${inherited.length} of ${records.length} pack, ${project.length} project; stack ${repository.stack ?? 'none'}; krn ${repository.adopted ? 'adopted' : 'not adopted'})`;
   if (failures.length === 0)
     return { exitCode: 0, lines: [`PASS standards: ${summary}`] };
