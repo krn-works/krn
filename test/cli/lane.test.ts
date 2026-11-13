@@ -138,6 +138,50 @@ test('a failed worktree add leaves no branch behind, so a retry starts the lane'
   }
 });
 
+test('lane start and pr body name a missing origin remote plainly', () => {
+  const { base, repo } = fixture();
+  try {
+    git(repo, 'remote', 'remove', 'origin');
+    const started = lane(repo, 'start', 'no-remote', '--task', 't-abc1234');
+    assert.equal(started.status, 64);
+    assert.match(
+      started.stderr,
+      /has no git remote origin: lanes branch from origin\/main/u,
+    );
+    const body = spawnSync(
+      process.execPath,
+      [cli, 'pr', 'body', '--task', 't-abc1234'],
+      { cwd: repo, encoding: 'utf8' },
+    );
+    assert.equal(body.status, 64);
+    assert.match(
+      body.stderr,
+      /has no git remote origin, so origin\/main does not exist/u,
+    );
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('lane start refuses an adoption that is not on origin yet', () => {
+  const { base, repo } = fixture();
+  try {
+    writeFileSync(join(repo, 'krn.json'), '{}\n');
+    const started = lane(repo, 'start', 'unpublished', '--task', 't-abc1234');
+    assert.equal(started.status, 64);
+    assert.match(
+      started.stderr,
+      /krn.json is not on origin\/main: commit the files krn adopt wrote/u,
+    );
+    assert.equal(
+      existsSync(join(repo, '.krn', 'worktrees', 'unpublished')),
+      false,
+    );
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('lane start rejects a duplicate slug and a bad slug with exit 64', () => {
   const { base, repo } = fixture();
   try {

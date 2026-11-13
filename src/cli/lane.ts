@@ -2,13 +2,14 @@ import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
+  mkdirSync,
   readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
   statfsSync,
 } from 'node:fs';
-import { join, sep } from 'node:path';
+import { dirname, join, sep } from 'node:path';
 import { precedentSection } from '../brain/precedent.ts';
 import { lanePacket, packetBrief } from '../brain/worker-packet.ts';
 import {
@@ -164,6 +165,10 @@ export function fetchBase(
   attempts = 40,
   delayMs = 250,
 ): void {
+  if (!gitOk(main, ['remote', 'get-url', 'origin']))
+    throw new CliUsageError(
+      `${main} has no git remote origin: lanes branch from origin/${base}, so add one (git remote add origin <url>) and push ${base} first`,
+    );
   for (let attempt = 1; ; attempt += 1) {
     const result = spawnSync(
       'git',
@@ -207,6 +212,7 @@ function untrackedTaskRecord(
 function carryTaskRecord(file: string, worktree: string, id: string): boolean {
   const target = join(worktree, 'tasks', `${id}.json`);
   if (existsSync(target)) return false;
+  mkdirSync(dirname(target), { recursive: true });
   copyFileSync(file, target);
   return true;
 }
@@ -381,6 +387,14 @@ export async function startLane(
   await checkLaneCeiling(main, sessionClass, deps.ceiling);
   const base = contractBase(origin);
   fetchBase(main, base);
+  // An adoption committed only locally is invisible to a worktree cut from origin/<base>.
+  if (
+    existsSync(join(main, 'krn.json')) &&
+    !gitOk(main, ['cat-file', '-e', `origin/${base}:krn.json`])
+  )
+    throw new CliUsageError(
+      `krn.json is not on origin/${base}: commit the files krn adopt wrote and merge them to ${base} before starting lanes`,
+    );
   const carried =
     task === undefined ? undefined : untrackedTaskRecord(origin, task, base);
   // --no-track: a lane session's sandbox mounts a read-only placeholder over .git/config.lock in
