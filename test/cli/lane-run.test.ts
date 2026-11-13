@@ -55,7 +55,7 @@ function git(cwd: string, ...args: string[]): string {
   return result.stdout.trim();
 }
 
-function fixture(action: string) {
+function fixture(action: string, files: Record<string, string> = {}) {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'krn-lane-run-')));
   const origin = join(base, 'origin.git');
   const repo = join(base, 'repo');
@@ -82,7 +82,11 @@ function fixture(action: string) {
       2,
     )}\n`,
   );
-  writeFileSync(join(repo, '.gitignore'), '.krn\n');
+  writeFileSync(join(repo, '.gitignore'), '.krn\nnode_modules\n');
+  for (const [name, text] of Object.entries(files)) {
+    mkdirSync(join(repo, name, '..'), { recursive: true });
+    writeFileSync(join(repo, name), text);
+  }
   git(repo, 'add', '.');
   git(repo, 'commit', '-qm', 'seed');
   git(repo, 'push', '-q', 'origin', 'main');
@@ -838,4 +842,82 @@ test('a token helper run is a failure unless it exited 0, and names its first st
     mintFailure({ status: 3, stderr: '' }),
     'token helper exited with status 3',
   );
+});
+
+// KRN-12: the receiver is a real npm install of a tiny package with a file: dependency (offline).
+function npmFiles(
+  test: string,
+  install = 'npm install --no-audit --no-fund --offline',
+): Record<string, string> {
+  return {
+    'krn.json': JSON.stringify({ install, test }),
+    'package.json': JSON.stringify({
+      name: 'fixture',
+      version: '1.0.0',
+      dependencies: { dep: 'file:./dep' },
+    }),
+    'dep/package.json': JSON.stringify({ name: 'dep', version: '1.0.0' }),
+  };
+}
+
+async function runPrepared(files: Record<string, string>) {
+  const { base, repo, claude } = fixture('echo x > started', files);
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      {
+        start: startLane,
+        ship: async () => 'unreachable',
+        mint: async () => undefined,
+      },
+    );
+    const worktree = join(repo, '.krn', 'worktrees', 't-abc1234');
+    return {
+      verdict,
+      started: existsSync(join(worktree, 'started')),
+      installed: existsSync(
+        join(worktree, 'node_modules', 'dep', 'package.json'),
+      ),
+      claim: inspectClaim(repo, 't-abc1234'),
+    };
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+}
+
+test('lane run installs the contract dependencies in the worktree and runs the baseline test before the session', async () => {
+  const out = await runPrepared(
+    npmFiles('test -f node_modules/dep/package.json'),
+  );
+  assert.equal(out.installed, true);
+  assert.equal(out.started, true);
+  assert.match(out.verdict.line, /dirty tree/u);
+});
+
+test('lane run exits 71 naming the install when it fails and starts no session', async () => {
+  const out = await runPrepared(
+    npmFiles('true', 'echo no network >&2; exit 3'),
+  );
+  assert.equal(out.verdict.exitCode, 71);
+  assert.match(
+    out.verdict.line,
+    /install failed \(echo no network.*exit 3: no network/u,
+  );
+  assert.equal(out.started, false);
+  assert.notEqual(out.claim.state, 'live');
+});
+
+test('lane run exits 72 on a red baseline and starts no session', async () => {
+  const out = await runPrepared(npmFiles(`node -e "process.exit(1)"`));
+  assert.equal(out.verdict.exitCode, 72);
+  assert.match(out.verdict.line, /red baseline/u);
+  assert.equal(out.installed, true);
+  assert.equal(out.started, false);
+});
+
+test('lane run skips install and baseline when the contract names none', async () => {
+  const out = await runPrepared({});
+  assert.equal(out.started, true);
 });

@@ -1,7 +1,11 @@
 {
   "id": "t-ejt6hpt",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane run runs krn.json install before the session; exit 71 on failure"
+  },
   "created": "2026-11-13",
   "priority": 0,
   "title": "krn lane run installs dependencies with the contract install command in a fresh worktree",

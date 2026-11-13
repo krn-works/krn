@@ -1,7 +1,11 @@
 {
   "id": "t-hnhejab",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane run runs the baseline test after install; exit 72 on red"
+  },
   "created": "2026-11-13",
   "priority": 0,
   "title": "krn lane run refuses a red baseline before it starts a session",

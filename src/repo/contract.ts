@@ -13,6 +13,8 @@ export interface RepoContract {
   readonly test: string;
   /** Tests for chosen files: a shell command where {files} becomes the space-separated paths. */
   readonly related?: string;
+  /** Dependency install, a shell command a fresh lane worktree runs before its session; none when absent. */
+  readonly install?: string;
   /** Quick local check before a commit; the test command when absent. */
   readonly fast?: string;
   /** Whole-tree invariant tests the Stop check runs on every change: space-separated paths or path prefixes. */
@@ -33,6 +35,7 @@ export interface ResolvedContract {
 export const CONTRACT_FILE = 'krn.json';
 const FIELDS = [
   'base',
+  'install',
   'test',
   'related',
   'fast',
@@ -324,6 +327,7 @@ export function findContract(root: string): ResolvedContract | undefined {
     test,
     ...(related ? { related } : {}),
     ...(fast ? { fast } : {}),
+    ...(declared?.install ? { install: declared.install } : {}),
     ...(declared?.guard ? { guard: declared.guard } : {}),
     ...(declared?.conventions ? { conventions: declared.conventions } : {}),
     tracker: contractTracker(root),
