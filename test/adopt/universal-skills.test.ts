@@ -101,3 +101,16 @@ test('adopt on a pytest fixture installs skills whose every command resolves the
   assert.equal(contract.status, 0, contract.stderr);
   assert.equal(JSON.parse(contract.stdout).contract.test, 'python -m pytest');
 });
+
+test('every universal skill declares the Agent Skills compatibility field', () => {
+  // A pilot repository checks its own .agents/skills for name, description and
+  // compatibility; an adopted skill without the field broke its suite.
+  for (const file of skillFiles(source).filter((f) => f.endsWith('SKILL.md'))) {
+    const head = readFileSync(file, 'utf8').split('\n---\n')[0] ?? '';
+    const field = /^compatibility: (.+)$/mu.exec(head)?.[1] ?? '';
+    assert.ok(
+      field.length > 10 && field.length <= 500,
+      `${file} compatibility`,
+    );
+  }
+});
