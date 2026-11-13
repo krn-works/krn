@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   gateAdmissionPolicyFromBase,
@@ -33,7 +34,7 @@ test('malformed or non-regular base policy fails closed', () => {
         ? `100644 blob ${'b'.repeat(40)}\tspec/ci-admission.json\n`
         : JSON.stringify({
             schemaVersion: 1,
-            checkRunName: 'gate',
+            checkRunName: '',
             appId: 15368,
           }),
     ),
@@ -83,7 +84,8 @@ test('base policy can pin the GitHub Actions aggregate Check', () => {
     assert.equal(matchesGateCheckRun(check, base, policy), false);
   for (const mixed of [
     { schemaVersion: 1, checkRunName: 'Check', appId: 1 },
-    { schemaVersion: 1, checkRunName: 'gate', appId: 15368 },
+    { schemaVersion: 1, checkRunName: 'ci / Check\nx', appId: 15368 },
+    { schemaVersion: 1, checkRunName: 'x'.repeat(101), appId: 15368 },
   ])
     assert.throws(
       () =>
@@ -94,4 +96,43 @@ test('base policy can pin the GitHub Actions aggregate Check', () => {
         ),
       /base gate policy is invalid/u,
     );
+});
+
+// KRN-12: the check-run names a reusable workflow call produces on GitHub,
+// captured verbatim from astral-sh/uv (caller job `bench:` without a name).
+const capture = JSON.parse(
+  readFileSync(
+    new URL(
+      '../fixtures/ci-admission/reusable-check-runs.json',
+      import.meta.url,
+    ),
+    'utf8',
+  ),
+) as {
+  check_runs: { name: string; head_sha: string; app: { id: number } }[];
+};
+
+test('base policy selects a reusable workflow aggregate as `<caller job> / <job>`', () => {
+  const captured = capture.check_runs[0];
+  assert.ok(captured);
+  const [caller, job] = captured.name.split(' / ');
+  assert.equal(caller, 'bench');
+  const policy = gateAdmissionPolicyFromBase(base, (args) =>
+    args[0] === 'ls-tree'
+      ? `100644 blob ${'b'.repeat(40)}\tspec/ci-admission.json\n`
+      : JSON.stringify({
+          schemaVersion: 1,
+          checkRunName: `${caller} / ${job}`,
+          appId: 15368,
+        }),
+  );
+  assert.equal(matchesGateCheckRun(captured, captured.head_sha, policy), true);
+  assert.equal(
+    matchesGateCheckRun(
+      { ...captured, name: job ?? '' },
+      captured.head_sha,
+      policy,
+    ),
+    false,
+  );
 });
