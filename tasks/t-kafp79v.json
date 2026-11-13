@@ -1,0 +1,16 @@
+{
+  "id": "t-kafp79v",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "validUnit and unattributedSuiteFailure in evals/d23/grade.ts; tests in test/evals/d23-grade.test.ts. v2 run1 unaffected (0/64 correct runs with an unexplained red suite; 0 empty-hidden units in v2/units.txt)."
+  },
+  "created": "2026-11-13",
+  "priority": 0,
+  "title": "The D23 grader fails closed when a unit has no hidden test or the suite fails without naming a file",
+  "after": [],
+  "body": [
+    "Why: logic audit 2026-11-13: evals/d23/grade.ts passes when it has nothing to check. classify() keeps validOnMerge true for an empty FAIL_TO_PASS set (10 of 174 classified units, none in v2/units.txt only because the screen dropped them), and gradeArm ignores the full-suite exit code, so a patch that breaks suite loading with no TAP location line has no regression. Checked on v2 run1: 0 of 64 correct runs had an unexplained red npm test, so no published number changes.\nOutcome: a unit with no FAIL_TO_PASS test is invalid; a red full suite that names no failing file counts as a regression when the parent suite is green.\nProof: unit tests of validUnit and unattributedSuiteFailure in test/evals/d23-grade.test.ts.\nScope: evals/d23/, test/evals/."
+  ]
+}
