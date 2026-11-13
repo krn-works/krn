@@ -607,6 +607,38 @@ test('lane run refuses to ship without a commit carrying the Ticket trailer', as
   assert.match(verdict.line, /no commit with a Ticket: t-abc1234 trailer/u);
 });
 
+test('a Refs-only commit ships with a Refs body while the task stays open', async () => {
+  let title = '';
+  let body = '';
+  const { verdict } = await run(
+    deliver('feat(x): step one (t-abc1234)')
+      .replace(/^node -e "[^;]*;[^"]*"; /u, '')
+      .replace('git commit -qam', 'git commit -q --allow-empty -m')
+      .replace('"Ticket: t-abc1234"', '"Refs: t-abc1234"'),
+    async (args) => {
+      title = args[args.indexOf('--title') + 1] as string;
+      body = readFileSync(
+        args[args.indexOf('--body-file') + 1] as string,
+        'utf8',
+      );
+      return 'verdict: merged abc1234';
+    },
+  );
+  assert.equal(verdict.exitCode, 0, verdict.line);
+  assert.equal(title, 'feat(x): step one (t-abc1234)');
+  assert.match(body, /^Refs: t-abc1234$/mu);
+  assert.doesNotMatch(body, /^Ticket: /mu);
+});
+
+test('ticketCommitTitle reads the Refs trailer only when asked', () => {
+  const log = 'feat(x): step\x1fRefs: t-g1fc0cz\n\x1e';
+  assert.equal(
+    ticketCommitTitle(log, 't-g1fc0cz', 'Refs'),
+    'feat(x): step (t-g1fc0cz)',
+  );
+  assert.equal(ticketCommitTitle(log, 't-g1fc0cz'), undefined);
+});
+
 test('lane run exits non-zero when the ship verdict is not merged', async () => {
   for (const verdict of [
     'verdict: open: checks pending',

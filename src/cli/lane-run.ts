@@ -149,16 +149,16 @@ export const defaultLaneModel = 'sonnet';
 export function ticketCommitTitle(
   log: string,
   task: string,
+  trailer: 'Ticket' | 'Refs' = 'Ticket',
 ): string | undefined {
+  const trailerLine = new RegExp(`^${trailer}:\\s*(.+)$`, 'u');
   for (const entry of log.split('\x1e')) {
     const [subject, body] = entry.trim().split('\x1f');
     // A `Ticket:` line anywhere in the body counts: agents often put Co-Authored-By in its own
     // paragraph, which leaves Ticket outside git's trailer block.
     const tickets = (body ?? '')
       .split('\n')
-      .flatMap(
-        (line) => /^Ticket:\s*(.+)$/u.exec(line.trim())?.[1]?.split(',') ?? [],
-      )
+      .flatMap((line) => trailerLine.exec(line.trim())?.[1]?.split(',') ?? [])
       .map((item) => item.trim());
     if (subject && tickets.includes(task))
       return subject.endsWith(`(${task})`) ? subject : `${subject} (${task})`;
@@ -858,16 +858,29 @@ export async function laneRunCommand(
       .split('\n')
       .filter((line) => line !== '');
     if (commits.length === 0) return await stop('no commit');
+    const commitLog =
+      task === undefined
+        ? ''
+        : git(started.path, ['log', '--format=%s%x1f%b%x1e', range]);
+    const ticketTitle =
+      task === undefined ? undefined : ticketCommitTitle(commitLog, task);
+    // A Refs-only commit is one step of a task that stays open: ship it with a --refs body.
+    const refsTitle =
+      task === undefined || ticketTitle !== undefined
+        ? undefined
+        : ticketCommitTitle(commitLog, task, 'Refs');
+    const refsOnly = refsTitle !== undefined;
     const title =
       task === undefined
         ? commits[commits.length - 1]
-        : ticketCommitTitle(
-            git(started.path, ['log', '--format=%s%x1f%b%x1e', range]),
-            task,
-          );
+        : (ticketTitle ?? refsTitle);
     if (title === undefined)
       return await stop(`no commit with a Ticket: ${task} trailer`);
-    if (task !== undefined && getTask(started.path, task).status !== 'closed')
+    if (
+      task !== undefined &&
+      !refsOnly &&
+      getTask(started.path, task).status !== 'closed'
+    )
       return await stop('task not closed');
     if (verified === undefined)
       return await stop(
@@ -888,7 +901,7 @@ export async function laneRunCommand(
             commits,
             verified,
             agent: `headless claude session ${result.detail}`,
-            refs: false,
+            refs: refsOnly,
           }),
     );
     const shipped = await steps.ship([

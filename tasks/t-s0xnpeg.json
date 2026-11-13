@@ -1,0 +1,16 @@
+{
+  "id": "t-s0xnpeg",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane run accepts a Refs-only commit and ships it with a Refs body"
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "krn lane run ships a commit with a Refs trailer for a task that stays open",
+  "after": [],
+  "body": [
+    "Why: lane standards-pack (t-8vk9p13, $2.65 opus) committed PR 1 of a two-PR task with 'Refs: t-8vk9p13' as the task's lead note and KRN-11 require while the task stays open; lane run then stopped exit 74 'no commit with a Ticket: t-8vk9p13 trailer' and the lead shipped by hand.\nOutcome: krn lane run accepts a Refs: <task> trailer as the lane's commit (the PR body uses --refs, the task stays open), and still refuses a commit naming neither trailer.\nProof: lane-run test with a Refs-only commit ships; one with no trailer still exits 74."
+  ]
+}
