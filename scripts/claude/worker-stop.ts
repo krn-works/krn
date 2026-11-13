@@ -1,8 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import {
+  type Dirent,
   existsSync,
   lstatSync,
+  mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   statSync,
@@ -273,6 +276,10 @@ const FAILURE_LINES: readonly RegExp[] = [
   /^\s*FAIL\s+(\S+)/mu,
 ];
 
+const MISSING_KEY = '<run>::missing dependency';
+const MISSING_DEPENDENCY =
+  /Cannot find (?:module|package)|ERR_MODULE_NOT_FOUND|Failed to resolve import|command not found|: not found$/mu;
+
 /** Failing keys in a test command's output; a nonzero exit naming no test is `<run>::exit <status>`. */
 export function failuresIn(output: string, status: number | string): string[] {
   const found = new Set<string>();
@@ -285,10 +292,11 @@ export function failuresIn(output: string, status: number | string): string[] {
       }
     }
   if (found.size === 0 && status !== 0) found.add(`<run>::exit ${status}`);
+  if (status !== 0 && MISSING_DEPENDENCY.test(output)) found.add(MISSING_KEY);
   return [...found].sort();
 }
 
-const NAMELESS = /^<run>::exit /u;
+const NAMELESS = /^<run>::/u;
 
 const runCommand: CommandRunner = (root, command) => {
   const run = spawnSync('sh', ['-c', `${command} 2>&1`], {
@@ -301,6 +309,39 @@ const runCommand: CommandRunner = (root, command) => {
   });
   return failuresIn(run.stdout ?? '', run.status ?? run.signal ?? 'killed');
 };
+
+/** Link each nested package's node_modules (packages/seo/node_modules) so the base sees the worktree's dependencies. */
+export function linkPackageModules(root: string, dir: string, depth = 3) {
+  const walk = (rel: string, left: number) => {
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(join(root, rel), { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (
+        !entry.isDirectory() ||
+        ['.git', '.krn', 'node_modules'].includes(entry.name)
+      )
+        continue;
+      const child = join(rel, entry.name);
+      if (existsSync(join(root, child, 'node_modules'))) {
+        const target = join(dir, child, 'node_modules');
+        try {
+          lstatSync(target);
+        } catch {
+          try {
+            mkdirSync(join(dir, child), { recursive: true });
+            symlinkSync(join(root, child, 'node_modules'), target);
+          } catch {}
+        }
+      }
+      if (left > 1) walk(child, left - 1);
+    }
+  };
+  walk('', depth);
+}
 
 /** Failing keys of `measure` at the base commit, run in a temporary detached worktree that is always removed. */
 function failuresAtBase(
@@ -322,7 +363,10 @@ function failuresAtBase(
     }
     if (!linked && existsSync(join(root, 'node_modules')))
       symlinkSync(join(root, 'node_modules'), modules);
-    return new Set(measure(dir));
+    linkPackageModules(root, dir);
+    const failed = measure(dir);
+    // A base that lacks a module or tool fails for that reason, not for the test: nothing there is pre-existing.
+    return new Set(failed.includes(MISSING_KEY) ? [] : failed);
   } finally {
     git(root, ['worktree', 'remove', '--force', dir]);
     rmSync(dir, { recursive: true, force: true });
@@ -359,7 +403,13 @@ function plan(root: string, from: string, contract?: RepoContract): Plan {
     related?.startsWith('go test ') ?? false,
     isDir(root),
   );
-  if (node) {
+  // A test outside test/ in a repository whose contract names its own runner (vitest in packages/seo) is not a
+  // node:test file: it runs through the contract command, never the node reporter.
+  const foreign =
+    related === undefined &&
+    contract !== undefined &&
+    selection.files.some((file) => !LEGACY_TEST.test(file));
+  if (node && !foreign) {
     if (!selection.full) return { selection };
     // No contract command to fall back to: every node test under test/ is the full run.
     if (!contract)

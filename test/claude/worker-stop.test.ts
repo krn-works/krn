@@ -18,6 +18,7 @@ import {
   failuresIn,
   inspect,
   judgeStop,
+  linkPackageModules,
   relatedTests,
   selectTests,
   statesBlocker,
@@ -767,6 +768,77 @@ test('a package in a subdirectory runs its related test through the real npm --p
     const red = inspect(dir);
     assert.equal(red.ok, false);
     assert.match(red.reason, /'test\/page.test.js'/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('linkPackageModules gives a base worktree the nested package node_modules', () => {
+  const root = mkdtempSync(join(tmpdir(), 'worker-stop-link-'));
+  const base = mkdtempSync(join(tmpdir(), 'worker-stop-link-base-'));
+  try {
+    mkdirSync(join(root, 'packages/seo/node_modules/dep'), {
+      recursive: true,
+    });
+    writeFileSync(join(root, 'packages/seo/node_modules/dep/i.js'), '1');
+    mkdirSync(join(root, 'packages/plain'), { recursive: true });
+    linkPackageModules(root, base);
+    assert.equal(
+      readFileSync(join(base, 'packages/seo/node_modules/dep/i.js'), 'utf8'),
+      '1',
+    );
+    assert.equal(existsSync(join(base, 'packages/plain/node_modules')), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a base failure from a missing module never makes a worktree failure pre-existing', () => {
+  const output = "FAIL  tests/a.test.ts\nError: Cannot find module 'vitest'\n";
+  const keys = failuresIn(output, 1);
+  assert.ok(keys.includes('<run>::missing dependency'));
+  const dir = stackRepo({
+    'krn.json': JSON.stringify({
+      test: 'sh check.sh',
+      related: 'sh check.sh {files}',
+    }),
+    'check.sh': 'exit 0\n',
+    'notes.txt': 'a\n',
+  });
+  try {
+    commitFile(dir, 'notes.txt', 'b\n');
+    const outcome = inspect(
+      dir,
+      () => [],
+      (root) => (root === dir ? ['tests/a.test.ts'] : keys),
+    );
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.reason, /tests\/a\.test\.ts/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a subpackage test beside root node tests runs through the contract command, not the node reporter', () => {
+  const dir = stackRepo({
+    'krn.json': JSON.stringify({ test: 'npm --prefix packages/seo test' }),
+    'test/root.test.mjs': 'export {};\n',
+    'packages/seo/tests/a.test.ts': 'export {};\n',
+  });
+  try {
+    commitFile(dir, 'packages/seo/tests/a.test.ts', '// changed\n');
+    const commands: string[] = [];
+    const outcome = inspect(
+      dir,
+      () => assert.fail('the node reporter must not run a vitest file'),
+      (_root, command) => {
+        commands.push(command);
+        return [];
+      },
+    );
+    assert.equal(outcome.ok, true);
+    assert.deepEqual(commands, ['npm --prefix packages/seo test']);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
