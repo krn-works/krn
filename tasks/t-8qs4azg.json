@@ -1,0 +1,15 @@
+{
+  "id": "t-8qs4azg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "adopt installs worker guards for tracker writes, stash and main-checkout writes",
+  "after": [
+    "t-nfjxshj",
+    "t-vbgpw7w"
+  ],
+  "body": [
+    "Why: CAP:128\nOutcome: Adopted `.claude/settings.json` calls `krn hook` for the three guards; R-1 is enforced\nProof: portability suite: a lane-role write to `tasks/` exits 2 in a generated repo. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): t-nfjxshj, t-vbgpw7w\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N08)."
+  ]
+}

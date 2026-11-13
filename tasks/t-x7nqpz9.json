@@ -3,10 +3,13 @@
   "status": "open",
   "resolution": null,
   "created": "2026-11-13",
-  "priority": 2,
+  "priority": 3,
   "title": "Logic under scripts/ lives in src/ behind the layer boundaries",
-  "after": [],
+  "after": [
+    "t-nfjxshj"
+  ],
   "body": [
-    "Why: architecture audit: scripts/ holds 60 files / 9881 lines (successor-launch.ts 954, fast-check.ts 488) outside scripts/boundaries.ts, which checks src/ only; src/core is 13 lines of types guarding nothing (KRN-05).\nOutcome: hook and CLI logic moves to src/ modules (scripts/ keeps thin entry points under 100 lines); src/core either gains the task/finish-gate contract or is folded away with KRN-05 amended.\nProof: no scripts/**/*.ts above 100 lines; boundaries check covers the moved code.\nScope: scripts/, src/, test/, AGENTS.md."
+    "Why: architecture audit: scripts/ holds 60 files / 9881 lines (successor-launch.ts 954, fast-check.ts 488) outside scripts/boundaries.ts, which checks src/ only; src/core is 13 lines of types guarding nothing (KRN-05).\nOutcome: hook and CLI logic moves to src/ modules (scripts/ keeps thin entry points under 100 lines); src/core either gains the task/finish-gate contract or is folded away with KRN-05 amended.\nProof: no scripts/**/*.ts above 100 lines; boundaries check covers the moved code.\nScope: scripts/, src/, test/, AGENTS.md.",
+    "Amendment A5 (fable-plan 2.3, AR:253): priority P3, after t-nfjxshj."
   ]
 }

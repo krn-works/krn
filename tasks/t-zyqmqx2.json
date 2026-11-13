@@ -1,0 +1,14 @@
+{
+  "id": "t-zyqmqx2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "A lane session has a budget cap, a fallback model and only project settings",
+  "after": [
+    "t-6tdhxwe"
+  ],
+  "body": [
+    "Why: DEC:96, CAP:115-116\nOutcome: `krn lane run` passes `--max-budget-usd` (krn.json `laneBudgetUsd`, default 3), `--fallback-model`, `--setting-sources project`; a capped session exits with its own code\nProof: `node --test test/cli/lane-run.test.ts` asserts argv; e2e passes. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): N02\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N10)."
+  ]
+}

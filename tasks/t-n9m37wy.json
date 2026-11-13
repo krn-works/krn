@@ -1,0 +1,14 @@
+{
+  "id": "t-n9m37wy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "The roadmap is generated from open tasks and the handoff checks a task id, not a row edit",
+  "after": [
+    "t-bbg7zzt"
+  ],
+  "body": [
+    "Why: AR:58, AR:241; M:proactive-opportunity-scan keeps a ranked list\nOutcome: `roadmap.md` is the output of a script over tasks (priority, evidence line); handoff-requests accepts a task id\nProof: `node scripts/claude/roadmap-prune.ts --check` prints in-sync; handoff test. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): N19\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N20)."
+  ]
+}

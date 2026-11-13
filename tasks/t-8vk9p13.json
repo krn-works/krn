@@ -1,0 +1,16 @@
+{
+  "id": "t-8vk9p13",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "krn ships a standards pack and adopt seeds every project's tracked standards from it",
+  "after": [
+    "t-78j7smx",
+    "t-w8t0amv",
+    "t-x8bg2vk"
+  ],
+  "body": [
+    "Why: rows 102-104, 111-112, 115, 124-125, 52, 55\nOutcome: `standards/records.json` with 15-25 universal records, each with evidence and enforcement; `src/brain/standards.ts`; adopt writes `.agents/standards.json`, installs enforcement, renders the AGENTS.md block from records; `krn standards check`\nProof: on generated Python and TypeScript repos: `krn standards check` prints PASS and `krn lane brief --root <repo> --task <id>` shows ≥1 inherited record; the file is tracked (`git ls-files`). Also `npm run fast` PASS.\nSize: split: pack + parser + check; adopt seeding\nAfter (plan): t-78j7smx, t-w8t0amv, N04 (same file `src/adopt/adopt.ts`)\nSource: .krn/runs/overnight/fable-plan.md section 3.6 (plan id B1)."
+  ]
+}

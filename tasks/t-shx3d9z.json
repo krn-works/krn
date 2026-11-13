@@ -1,0 +1,14 @@
+{
+  "id": "t-shx3d9z",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "ADR 0002 states what is built, what waits behind a trigger, and where standards live",
+  "after": [
+    "t-8vk9p13"
+  ],
+  "body": [
+    "Why: AR:96, M:krn-memory-target (\"no single current-state answer\")\nOutcome: Status table: built (records, packet, pack, proposals); sequenced with triggers (§3.7); `evals/woz` deleted\nProof: `grep -n \"Trigger\" docs/adr/0002-brain-v2.md` prints the four rows; rules tests pass. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): B1\nSource: .krn/runs/overnight/fable-plan.md section 3.6 (plan id B5)."
+  ]
+}

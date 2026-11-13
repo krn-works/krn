@@ -1,0 +1,14 @@
+{
+  "id": "t-jq2zkw1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "A retro lesson in any adopted repository becomes a standards proposal KRN can harvest",
+  "after": [
+    "t-8vk9p13"
+  ],
+  "body": [
+    "Why: rows 111, 116-118\nOutcome: `krn standards propose`, `krn standards harvest`, promotion rule in `krn standards check`; delivery-retro skill names the command; first harvest from the pilot repository lands ≥1 record by PR\nProof: test with two generated repos prints one candidate with count 2; the pilot harvest PR is merged. Also `npm run fast` PASS.\nSize: split: commands; skill + first harvest\nAfter (plan): B1\nSource: .krn/runs/overnight/fable-plan.md section 3.6 (plan id B3)."
+  ]
+}

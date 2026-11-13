@@ -1,0 +1,16 @@
+{
+  "id": "t-811vn27",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "A Python pilot repository delivers five tasks through krn lane run with hidden tests",
+  "after": [
+    "t-1q7znxx",
+    "t-78j7smx",
+    "t-djnrw3t"
+  ],
+  "body": [
+    "Why: AR:280, DEC:88; all evidence is TypeScript\nOutcome: An operator-owned Python repo with green pytest is adopted by PR; five tasks merge via `krn lane run`; hidden tests written before each lane and kept outside the worktree; a table of canary verdict, lane $, turns, hidden verdict in the task\nProof: `.krn/runs/pilot/hidden/grade.sh` per task prints PASS/FAIL; `gh pr list --state merged` shows 5. Also `npm run fast` PASS.\nSize: split: decision, adopt PR, five lanes\nAfter (plan): t-djnrw3t 5/5, t-78j7smx, N03\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N01)."
+  ]
+}

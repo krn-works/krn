@@ -1,0 +1,14 @@
+{
+  "id": "t-a5mv4rz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "ADR 0014 records the any-repository and correctness-first decisions and marks stale rows",
+  "after": [
+    "t-31exd5c"
+  ],
+  "body": [
+    "Why: AR:189, AR:193-231, AR:152\nOutcome: New decision rows (any repository, correctness first, lead decides, quota before big runs); D9, D10, D11, D13, D18, D19, D20, D22, D23, D24, D28, D30, D32, D3 carry superseded or contradicted notes\nProof: `grep -c 'superseded\\|amended' docs/adr/0014-*.md` rises by ≥14; rules tests pass. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): t-31exd5c\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N18)."
+  ]
+}

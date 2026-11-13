@@ -1,0 +1,14 @@
+{
+  "id": "t-rd8zndx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 3,
+  "title": "One git and one shell-text helper replace the duplicated copies",
+  "after": [
+    "t-nfjxshj"
+  ],
+  "body": [
+    "Why: ARCH:178\nOutcome: `src/fs/git.ts`, `src/fs/shell-text.ts`; 7+3+3 copies removed\nProof: a rule test counts local `git(` definitions = 0. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): t-nfjxshj\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N30)."
+  ]
+}

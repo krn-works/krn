@@ -1,0 +1,15 @@
+{
+  "id": "t-kynrffp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 3,
+  "title": "Rule tests assert ids and behaviour, never prose wording",
+  "after": [
+    "t-bbg7zzt",
+    "t-n9m37wy"
+  ],
+  "body": [
+    "Why: AR:73, ARCH:176\nOutcome: Each of 21 rule files is classified; prose-wording assertions become id or existence checks\nProof: `node --test test/rules/` passes after rewording a sentence in lead-rules.md in a scratch tree. Also `npm run fast` PASS.\nSize: split by file group\nAfter (plan): N19, N20\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N26)."
+  ]
+}

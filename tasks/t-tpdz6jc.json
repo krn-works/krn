@@ -1,0 +1,14 @@
+{
+  "id": "t-tpdz6jc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "Rung 2: sibling-test ports are scored against stored D23 patches with known verdicts",
+  "after": [
+    "t-mq1ppm5"
+  ],
+  "body": [
+    "Why: HT:50\nOutcome: ≥40 failed and ≥40 passed stored patches; sensitivity at specificity ≥90% recorded\nProof: `node evals/sibling-transplant/rung2.ts` prints KILL or CONTINUE. Also `npm run fast` PASS.\nSize: 1 PR + one measured run\nAfter (plan): t-mq1ppm5 passes\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N17)."
+  ]
+}

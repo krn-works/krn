@@ -1,0 +1,14 @@
+{
+  "id": "t-15w1zrz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 3,
+  "title": "src/cli is no cycle hub: a neutral cli-kit, one command table, no stale layer rows",
+  "after": [
+    "t-nfjxshj"
+  ],
+  "body": [
+    "Why: ARCH:172-173,183-184,190,192\nOutcome: usage-error, command-error, flag-value move out; one `{name, load, help}` table; `task: ['cli']`, `brain: ['cli']`, `hosts` rows deleted\nProof: `node scripts/architecture/depth.ts` reports 0 cycles and 0 unimported exports. Also `npm run fast` PASS.\nSize: split: kit, table\nAfter (plan): t-nfjxshj\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N28)."
+  ]
+}

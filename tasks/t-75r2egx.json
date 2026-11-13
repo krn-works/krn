@@ -1,0 +1,14 @@
+{
+  "id": "t-75r2egx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "krn pr ship records the task Proof command and its exit in the PR body",
+  "after": [
+    "t-8bwcy6e"
+  ],
+  "body": [
+    "Why: AR:102, AR:183\nOutcome: Ship runs the task's `Proof:` command when it is a runnable line, writes command and exit; a non-zero exit refuses\nProof: `node --test test/ci/ship.test.ts`. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): t-8bwcy6e\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N15)."
+  ]
+}

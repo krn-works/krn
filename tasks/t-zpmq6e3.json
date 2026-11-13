@@ -1,0 +1,14 @@
+{
+  "id": "t-zpmq6e3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "D23 arms run in the lane sandbox and a scan invalidates runs that read the main checkout",
+  "after": [
+    "t-f26er7t"
+  ],
+  "body": [
+    "Why: DEC:73, DR:75\nOutcome: replay uses the lane sandbox settings; `runs.ts` marks a run invalid when its transcript references the main checkout or lead transcripts\nProof: `node evals/d23/runs.ts --scan` over stored run1 prints the 15 known runs. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): N11\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N12)."
+  ]
+}

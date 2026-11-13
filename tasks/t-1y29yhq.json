@@ -5,8 +5,11 @@
   "created": "2026-11-13",
   "priority": 2,
   "title": "FR-40 arm C measures the conventions packet against the instruction file alone",
-  "after": [],
+  "after": [
+    "t-8vk9p13"
+  ],
   "body": [
-    "Why: memory audit: FR-40 compared packet vs none and vs static standards, never vs the repository instruction file alone, which already carries most rules (lanes arm A 75%).\nOutcome: arm C (CLAUDE.md/AGENTS.md only) on the 133 lane units; keep the packet only if B - C is significant.\nProof: evals/fr40 report prints B - C with n and p.\nScope: evals/fr40/."
+    "Why: memory audit: FR-40 compared packet vs none and vs static standards, never vs the repository instruction file alone, which already carries most rules (lanes arm A 75%).\nOutcome: arm C (CLAUDE.md/AGENTS.md only) on the 133 lane units; keep the packet only if B - C is significant.\nProof: evals/fr40 report prints B - C with n and p.\nScope: evals/fr40/.",
+    "Amendment A2 (fable-plan 2.3): becomes the standards measurement (fable-plan section 3.5): generated outside fixture, arms A/B/C/D, three held-out standards, stratum-level rule; after t-8vk9p13."
   ]
 }

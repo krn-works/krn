@@ -1,0 +1,14 @@
+{
+  "id": "t-1q7znxx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "The repo contract detects unittest, phpunit and workspace layouts, or adopt names the gap",
+  "after": [
+    "t-bmt0xgz"
+  ],
+  "body": [
+    "Why: PP:46, PP:66\nOutcome: `krn repo contract` returns test and related for unittest, phpunit, nested go.mod/Cargo.toml, pnpm workspace; an undetected stack prints the fields to write\nProof: `node --test test/repo/contract.test.ts` on generated fixtures. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): t-bmt0xgz\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N03)."
+  ]
+}

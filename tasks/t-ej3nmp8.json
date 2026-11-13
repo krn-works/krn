@@ -1,0 +1,14 @@
+{
+  "id": "t-ej3nmp8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 3,
+  "title": "Stop refusal names the contract test command and adopt ignores build litter",
+  "after": [
+    "t-nfjxshj"
+  ],
+  "body": [
+    "Why: PP:71\nOutcome: Refusal text quotes the command; adopt adds stack ignore entries\nProof: `node --test test/claude/worker-stop.test.ts`. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): t-nfjxshj\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N06)."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-8r8y9a3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "Session start prints STATE LOSS when an open claim has no capsule or handoff",
+  "after": [],
+  "body": [
+    "Why: AR:23, PAL:319-322\nOutcome: `context-restart.ts` prints `STATE LOSS: <path>`; `krn state check` exits 1\nProof: `node --test test/claude/context-restart-loss.test.ts`. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): none\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N21)."
+  ]
+}
