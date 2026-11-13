@@ -130,7 +130,7 @@ test('ship pushes, creates, auto-merges, waits through the merge and cleans up',
   // The removed worktree was the caller's cwd: name where to cd next.
   assert.match(out, /^main checkout: \/r$/mu);
   const order = [
-    'push -u origin feat-x',
+    'push origin feat-x',
     'gh pr list',
     'gh pr create',
     'gh pr merge 7 --repo o/r --auto --squash',
@@ -166,7 +166,7 @@ test('ship reuses the open PR of the branch instead of creating another', async 
   const r = receiver({ pulls: [auto, merged], existing: '7\n' });
   await shipCommand([...args, '--force'], r);
   assert.ok(
-    r.calls.some((c) => c.includes('push -u --force-with-lease origin feat-x')),
+    r.calls.some((c) => c.includes('push --force-with-lease origin feat-x')),
   );
   assert.ok(!r.calls.some((c) => c.startsWith('gh pr create')));
   assert.ok(r.calls.some((c) => c.startsWith('gh pr edit 7')));

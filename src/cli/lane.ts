@@ -383,7 +383,18 @@ export async function startLane(
   fetchBase(main, base);
   const carried =
     task === undefined ? undefined : untrackedTaskRecord(origin, task, base);
-  git(main, ['worktree', 'add', '-q', '-b', slug, path, `origin/${base}`]);
+  // --no-track: a lane session's sandbox mounts a read-only placeholder over .git/config.lock in
+  // the shared git dir, so any config write (upstream tracking) fails while a lane runs.
+  git(main, [
+    'worktree',
+    'add',
+    '-q',
+    '--no-track',
+    '-b',
+    slug,
+    path,
+    `origin/${base}`,
+  ]);
   if (task !== undefined) {
     try {
       const copied =
