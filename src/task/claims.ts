@@ -602,7 +602,12 @@ function registeredWorktrees(output: Buffer): Set<string> {
   for (const field of output.toString('utf8').split('\0')) {
     if (!field.startsWith('worktree ')) continue;
     const path = field.slice('worktree '.length);
-    paths.add(realpathSync(path));
+    try {
+      paths.add(realpathSync(path));
+    } catch (error) {
+      if (!isMissing(error)) throw error;
+      process.stderr.write(`skipping missing registered worktree: ${path}\n`);
+    }
   }
   return paths;
 }

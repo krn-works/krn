@@ -477,16 +477,6 @@ test('claim liveness keeps unknown and failed probes live', () => {
         worktreeList: () => gitProbe(null, Buffer.alloc(0), new Error('spawn')),
       },
     ],
-    [
-      'unresolvable path in worktree list',
-      {
-        worktreeList: () =>
-          gitProbe(
-            0,
-            Buffer.from('worktree /nonexistent/krn-worktree-entry\0'),
-          ),
-      },
-    ],
     ['branch probe status other than one', { branchRef: () => gitProbe(2) }],
     [
       'branch probe spawn error',
