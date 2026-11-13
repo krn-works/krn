@@ -1,0 +1,12 @@
+{
+  "id": "t-bbg7zzt",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "Lead rules, the lead skill and lanes.md state one concurrency limit and one delivery path",
+  "after": [],
+  "body": [
+    "Why: AR:94-95\nOutcome: One number (from the lane budget) and `krn pr ship` only\nProof: a rule test fails on a second limit or on `gh pr merge` in those files. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): none\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N19)."
+  ]
+}

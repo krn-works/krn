@@ -1,0 +1,14 @@
+{
+  "id": "t-0nwzr7p",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 3,
+  "title": "D23 grade tables and the amended protocol hash are committed under evals/d23",
+  "after": [
+    "t-f26er7t"
+  ],
+  "body": [
+    "Why: DEC:74, DR:95, DR:78\nOutcome: v2 run1 and n100 tables tracked; protocol hash matches the amended text; each stored patch graded twice with flake count\nProof: `node evals/d23/runs.ts --report` equals the committed table. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): N11\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N13)."
+  ]
+}

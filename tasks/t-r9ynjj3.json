@@ -1,0 +1,12 @@
+{
+  "id": "t-r9ynjj3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 3,
+  "title": "krn doctor names every host requirement and a non-Linux host gets a stated refusal",
+  "after": [],
+  "body": [
+    "Why: AR:80, AR:291\nOutcome: doctor lists lock, tmp path, node pin; claim lock on another platform exits with a named reason\nProof: `node --test test/cli/doctor.test.ts`. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): none\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N24)."
+  ]
+}

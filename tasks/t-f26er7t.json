@@ -1,0 +1,14 @@
+{
+  "id": "t-f26er7t",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "A red test blocks Stop in a D23 replay clone and red-baseline units are excluded",
+  "after": [
+    "t-nfjxshj"
+  ],
+  "body": [
+    "Why: DEC:71-72, DF:8-9\nOutcome: A scripted replay (no model session) proves exit 2; `select.ts` drops units whose K baseline is red, for every arm\nProof: `node --test test/evals/d23-harness.test.ts`; `node evals/d23/select.ts` prints the excluded count. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): t-nfjxshj or current overlay\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N11)."
+  ]
+}

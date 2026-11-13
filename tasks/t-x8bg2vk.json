@@ -1,0 +1,14 @@
+{
+  "id": "t-x8bg2vk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "krn adopt writes nothing when a later step cannot succeed and ends with next steps",
+  "after": [
+    "t-w8t0amv"
+  ],
+  "body": [
+    "Why: PP:72-73\nOutcome: Validation precedes the first write; rules reach a regular CLAUDE.md; the last lines name commit, merge, PATH and install steps\nProof: `node --test test/adopt/adopt.test.ts` (commented settings.json fixture leaves the tree unchanged). Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): t-w8t0amv\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N04)."
+  ]
+}

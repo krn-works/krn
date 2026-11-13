@@ -1,0 +1,14 @@
+{
+  "id": "t-x4yx6df",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 3,
+  "title": "External JSON is parsed with zod at five boundaries and no catch is empty",
+  "after": [
+    "t-rd8zndx"
+  ],
+  "body": [
+    "Why: ARCH:179\nOutcome: transcripts, gh JSON, task records, plan samples, App token parsed; empty catches typed or commented\nProof: rule test on `catch {}`; boundary tests with malformed input. Also `npm run fast` PASS.\nSize: split per boundary\nAfter (plan): N30\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N31)."
+  ]
+}

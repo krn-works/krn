@@ -1,0 +1,12 @@
+{
+  "id": "t-6tdhxwe",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "lane run kills the session process group on timeout and names a missing claude binary",
+  "after": [],
+  "body": [
+    "Why: AR:99\nOutcome: Timeout leaves no child process; a missing binary exits 69 with its name\nProof: `node --test test/cli/lane-run.test.ts` (new cases with a scripted `KRN_LANE_CLAUDE`). Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): t-6yrmt81\nDependency not in this tree, add when merged: t-6yrmt81\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N02)."
+  ]
+}

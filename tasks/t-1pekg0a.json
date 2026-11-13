@@ -1,0 +1,12 @@
+{
+  "id": "t-1pekg0a",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "An eval run above a session ceiling refuses without a committed protocol and budget",
+  "after": [],
+  "body": [
+    "Why: DEC:96, COST:91\nOutcome: D23/FR-40 runners exit non-zero above 40 sessions unless a tracked protocol file names sessions and dollars\nProof: `node --test test/evals/`. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): none\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N16)."
+  ]
+}

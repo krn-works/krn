@@ -1,0 +1,14 @@
+{
+  "id": "t-mcfrwdf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 3,
+  "title": "The ledger has one task-id parser and no review or worker totals",
+  "after": [
+    "t-496nx1h"
+  ],
+  "body": [
+    "Why: ARCH:174,185,188\nOutcome: `taskIdOf` in commit-title.ts; `reviewTotals`/`workerTotals` deleted\nProof: ledger tests; window output equal to the cent on a fixed fixture. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): t-496nx1h\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N29)."
+  ]
+}

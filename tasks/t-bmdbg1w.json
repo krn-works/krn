@@ -1,0 +1,12 @@
+{
+  "id": "t-bmdbg1w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 3,
+  "title": "Nine unverified audit claims are reproduced or closed with a command and exit",
+  "after": [],
+  "body": [
+    "Why: AR:333, PP:87\nOutcome: Each of AR:76, AR:87, AR:96, AR:155, AR:158, AR:160, PP:54, PP:69, TS:90 has a recorded command, exit and either a task or a closing note\nProof: the task note lists nine `command -> exit` lines. Also `npm run fast` PASS.\nSize: krn-reader lane, no PR\nAfter (plan): none\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N23)."
+  ]
+}

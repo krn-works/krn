@@ -7,6 +7,7 @@
   "title": "Retired plan text and the preflight script stop misleading agents",
   "after": [],
   "body": [
-    "Why: #610 left residue: docs/program/PLAN.md is a dead plan still linked from README and CONTEXT, package.json keeps a preflight script beside npm run fast, and ADR 0014 D11/D21/D22/D30 mention gate:local and krn ship without a superseded note.\nOutcome: PLAN.md is deleted or reduced to a pointer to roadmap.md, links follow it, preflight is removed or documented as the full local run, and the ADR 0014 entries carry superseded notes.\nProof: grep for PLAN.md, gate:local and 'krn ship' outside docs/adr history prints nothing; npm run fast passes."
+    "Why: #610 left residue: docs/program/PLAN.md is a dead plan still linked from README and CONTEXT, package.json keeps a preflight script beside npm run fast, and ADR 0014 D11/D21/D22/D30 mention gate:local and krn ship without a superseded note.\nOutcome: PLAN.md is deleted or reduced to a pointer to roadmap.md, links follow it, preflight is removed or documented as the full local run, and the ADR 0014 entries carry superseded notes.\nProof: grep for PLAN.md, gate:local and 'krn ship' outside docs/adr history prints nothing; npm run fast passes.",
+    "Amendment A6 (fable-plan 2.3, AR:241-243): Outcome also removes roadmap row R28 residue, closes P-052, deletes .krn/PLANS.md."
   ]
 }

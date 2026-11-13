@@ -1,0 +1,14 @@
+{
+  "id": "t-q3y4re2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "The Stop check reports changed pre-existing tests and refuses deleted tests and new skips",
+  "after": [
+    "t-vbgpw7w"
+  ],
+  "body": [
+    "Why: DEC:82, AR:145\nOutcome: Deleted test files and added `.skip`/`xfail` refuse unless the task Acceptance names them; `BLOCKER:` stays\nProof: `node --test test/claude/worker-stop.test.ts`. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): t-vbgpw7w\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N14)."
+  ]
+}

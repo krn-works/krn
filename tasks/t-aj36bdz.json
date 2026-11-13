@@ -1,0 +1,12 @@
+{
+  "id": "t-aj36bdz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 3,
+  "title": "Mutation samples run on a schedule over the touched critical modules",
+  "after": [],
+  "body": [
+    "Why: ARCH:177, DEC:90\nOutcome: A scheduled workflow runs `evals/mutation-samples/run.mjs`; ledger, claims, state/check added\nProof: workflow run prints killed/total. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): none\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N32)."
+  ]
+}

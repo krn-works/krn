@@ -1,0 +1,14 @@
+{
+  "id": "t-atagtp3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 3,
+  "title": "krn adopt --verify reports the required check and auto-merge state of the repository",
+  "after": [
+    "t-x8bg2vk"
+  ],
+  "body": [
+    "Why: CAP:132\nOutcome: Read-only report with exit 0/1; no repository setting is changed\nProof: test against a verbatim `gh api` capture (KRN-12). Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): N04\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N09)."
+  ]
+}

@@ -7,6 +7,7 @@
   "title": "Minor tracker and hook gaps from the logic audit",
   "after": [],
   "body": [
-    "Why: logic audit: close --as done from the root reads a stale root record for an expired or absent claim (src/task/claims.ts:159-165, cli.ts:493); startLane fetch has no git-lock retry unlike ship (src/cli/lane.ts:303 vs src/ci/ship.ts:164); scripts/claude/piped-check.ts:9 misses npm run typecheck.\nOutcome: each fixed with a regression test.\nProof: three tests.\nScope: src/task/, src/cli/, scripts/claude/, test/."
+    "Why: logic audit: close --as done from the root reads a stale root record for an expired or absent claim (src/task/claims.ts:159-165, cli.ts:493); startLane fetch has no git-lock retry unlike ship (src/cli/lane.ts:303 vs src/ci/ship.ts:164); scripts/claude/piped-check.ts:9 misses npm run typecheck.\nOutcome: each fixed with a regression test.\nProof: three tests.\nScope: src/task/, src/cli/, scripts/claude/, test/.",
+    "Amendment A8 (fable-plan 2.3, AR:67): Outcome also removes holdTaskLockForTest from the production path."
   ]
 }

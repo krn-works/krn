@@ -1,0 +1,12 @@
+{
+  "id": "t-ykjv790",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 3,
+  "title": "Open operator questions are krn decide rows with a default and a deadline",
+  "after": [],
+  "body": [
+    "Why: AR:289, TA, TP, PAL:203\nOutcome: Rows: weekly limit and plan tier; global skills scope; host-wide gauge; cswap auto; unpushed Opus-pin and skill branches plus backup deletion; design-studio judge merge; delete host store v1\nProof: `krn decide list` prints 7 rows. Also `npm run fast` PASS.\nSize: lead action, no PR\nAfter (plan): none\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N22)."
+  ]
+}
