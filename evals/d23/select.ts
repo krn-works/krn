@@ -1,5 +1,7 @@
 // Select D23 replay units: merged first-parent pull requests whose squash title carries a task id and (#n),
-// whose diff changes at least one test/**/*.test.* file and at least one non-test source file.
+// whose diff changes at least one test/**/*.test.* file and at least one non-test source file,
+// and whose task no earlier first-parent commit names: the replay prompts with the task body, which a
+// follow-up PR's parent already delivers (D23 units 467 and 586 ended with a correct "already done").
 // Usage: node evals/d23/select.ts [--ref origin/main] [--limit N] [--exclude <units file>] [--out <units.txt>]
 // Prints one PR number per line, newest first; --out also writes them to a file.
 import { execFileSync } from 'node:child_process';
@@ -7,6 +9,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export interface Candidate {
+  /** Empty for a first-parent commit without a (#n) suffix; it still names a task. */
   pr: string;
   title: string;
   files: string[];
@@ -25,23 +28,44 @@ export function eligible(c: Candidate): boolean {
   );
 }
 
+// The replay reads the last task id of the title, so this does too.
+export function taskOf(title: string): string | undefined {
+  return title.match(/\bt-[a-z0-9]{7}\b/g)?.at(-1);
+}
+
 export function parseLog(log: string): Candidate[] {
   const out: Candidate[] = [];
   for (const block of log.split('\u0001').slice(1)) {
     const [title = '', ...rest] = block.split('\n');
-    const pr = /\(#(\d+)\)$/.exec(title.trim())?.[1];
-    if (pr)
-      out.push({ pr, title, files: rest.map((l) => l.trim()).filter(Boolean) });
+    const pr = /\(#(\d+)\)$/.exec(title.trim())?.[1] ?? '';
+    out.push({ pr, title, files: rest.map((l) => l.trim()).filter(Boolean) });
   }
   return out;
+}
+
+// Candidates come newest first; a task named by any older commit was already under way at the parent.
+function firstDeliveries(candidates: Candidate[]): Set<Candidate> {
+  const seen = new Set<string>();
+  const first = new Set<Candidate>();
+  for (const c of [...candidates].reverse()) {
+    const task = taskOf(c.title);
+    if (!task) continue;
+    if (!seen.has(task)) first.add(c);
+    seen.add(task);
+  }
+  return first;
 }
 
 export function select(
   candidates: Candidate[],
   opts: { limit?: number; exclude?: Set<string> },
 ): string[] {
+  const first = firstDeliveries(candidates);
   const picked = candidates
-    .filter((c) => eligible(c) && !opts.exclude?.has(c.pr))
+    .filter(
+      (c) =>
+        c.pr !== '' && first.has(c) && eligible(c) && !opts.exclude?.has(c.pr),
+    )
     .map((c) => c.pr);
   return opts.limit ? picked.slice(0, opts.limit) : picked;
 }

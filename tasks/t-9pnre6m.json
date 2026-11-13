@@ -1,7 +1,11 @@
 {
   "id": "t-9pnre6m",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "select.ts drops a PR whose task an earlier first-parent commit named (the replay prompts with a task the parent already began). origin/main: 207 -> 165 units; v2/units.txt 130 -> 106 (dropped 613 606 601 592 586 585 583 577 573 563 557 556 502 467 461 460 459 458 457 454 452 111 110 108). The other-repo scope rule was not needed: 467 is caught by the first-delivery rule."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "D23 unit selection rejects tasks delivered before the parent or scoped to other repositories",

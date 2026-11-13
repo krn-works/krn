@@ -136,3 +136,14 @@ test('unit selection keeps task-titled PRs that change a test and a source file,
     ['26', '25'],
   );
 });
+
+test('unit selection drops a follow-up PR whose task an earlier first-parent commit already named', () => {
+  // D23 units 586 and 467: the parent already delivered the task the replay prompts with.
+  const log = [
+    '\u0001fix(ship): follow-up (t-2yggc19) (#586)\nsrc/ship.ts\ntest/ship.test.ts\n',
+    '\u0001feat(plan): first (t-2yggc19) (#585)\nsrc/plan.ts\ntest/plan.test.ts\n',
+    '\u0001Keep roadmap clean (t-kfydr8a) (#467)\ndocs/x.md\nscripts/y.mjs\ntest/r.test.ts\n',
+    '\u0001Record trims without a PR suffix (t-kfydr8a)\ndocs/z.md\n',
+  ].join('');
+  assert.deepEqual(select(parseLog(log), {}), ['585']);
+});
