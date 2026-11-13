@@ -14,6 +14,7 @@
     "t-8vk9p13"
   ],
   "body": [
-    "Why: MEM:213, MEM:253\nOutcome: `MEASURED`, `LEAD_ONLY`, the `docs/program/live-records.json` path and the fr40 import leave `src/brain`; KRN's krn.json points at its own tracked standards file; the lane verdict record stores the sha\nProof: `git grep -n \"live-records\\|MEASURED\" src/` prints nothing; FR-40 freeze test passes; lane-run test reads the sha. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): B1, t-8bwcy6e\nSource: .krn/runs/overnight/fable-plan.md section 3.6 (plan id B4)."
+    "Why: MEM:213, MEM:253\nOutcome: `MEASURED`, `LEAD_ONLY`, the `docs/program/live-records.json` path and the fr40 import leave `src/brain`; KRN's krn.json points at its own tracked standards file; the lane verdict record stores the sha\nProof: `git grep -n \"live-records\\|MEASURED\" src/` prints nothing; FR-40 freeze test passes; lane-run test reads the sha. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): B1, t-8bwcy6e\nSource: .krn/runs/overnight/fable-plan.md section 3.6 (plan id B4).",
+    "Lead rework (CI run 43500265555 red, Lint step Weakened tests): weak-tests: test/brain/worker-packet.test.ts net 5 assertions removed. Keep every behaviour assertion: restore them or move them to the test file that now owns the behaviour so the net count does not drop; never weaken a test to pass. Run the weak-tests lint locally (see .github/workflows/ci.yml Lint step) before shipping."
   ]
 }
