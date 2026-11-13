@@ -318,10 +318,10 @@ test('the session prompt starts with the packet krn lane brief prints for the ta
   const dir = mkdtempSync(join(tmpdir(), 'krn-lane-run-packet-'));
   try {
     mkdirSync(join(dir, 'tasks'));
-    mkdirSync(join(dir, 'evals', 'fr40'), { recursive: true });
+    mkdirSync(join(dir, '.krn'), { recursive: true });
     copyFileSync(
       fileURLToPath(new URL('../../evals/fr40/records.json', import.meta.url)),
-      join(dir, 'evals', 'fr40', 'records.json'),
+      join(dir, '.krn', 'conventions.json'),
     );
     writeFileSync(
       join(dir, 'tasks', 't-abc1234.json'),

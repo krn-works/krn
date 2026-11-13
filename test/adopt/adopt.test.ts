@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { lanePacket } from '../../src/brain/worker-packet.ts';
 
 // KRN-12: runs the real `krn adopt` entry against a scratch git repository and
 // checks the workflow against the inputs the shared workflow declares.
@@ -207,4 +208,32 @@ test('adopt merges the Stop hook into existing settings and skips krn.json when 
   assert.equal(settings.env.A, '1');
   assert.equal(settings.hooks.Stop.length, 2);
   assert.equal(adoptArgs(root).stdout.includes('wrote '), false);
+});
+
+test('adopt seeds the conventions file from the instruction files and the packet reads it', () => {
+  const root = scratch();
+  spawnSync('sh', [
+    '-c',
+    `printf '# Mine\\n- Always run the linter before you commit a change to the parser.\\n' > "${root}/AGENTS.md"`,
+  ]);
+  assert.equal(adopt(root).status, 0);
+  const seeded = JSON.parse(
+    readFileSync(join(root, '.krn/conventions.json'), 'utf8'),
+  ) as { text: string; source: string }[];
+  assert.ok(seeded.some((record) => /linter/u.test(record.text)));
+  const packet = lanePacket(
+    root,
+    'commit a change to the parser after the linter passes, with a Ticket trailer',
+    new Date().toISOString().slice(0, 10),
+    'fixture',
+  );
+  assert.ok(packet !== null && packet.records.length > 0);
+  // A rerun keeps hand edits to the seeded file.
+  const edited = '[]\n';
+  writeFileSync(join(root, '.krn/conventions.json'), edited);
+  assert.equal(adopt(root).status, 0);
+  assert.equal(
+    readFileSync(join(root, '.krn/conventions.json'), 'utf8'),
+    edited,
+  );
 });

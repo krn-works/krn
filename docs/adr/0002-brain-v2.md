@@ -8,7 +8,13 @@ Accepted target, unbuilt (ADR 0014 D31). FR-40 (ADR 0014 D20) returned GO for
 packets and retrieval on 2026-11-08 (`evals/fr40/results.md`: B-A +21.1 pp,
 B-S +11.3 pp, token ratio 1.086); packet injection into worker context was shipped and left with the worker
 (`t-9w41zw0`); the packet's carrier is the lane dispatch path of `evals/fr40/lanes.ts`
-(`src/brain/worker-packet.ts`, over the seven measured conventions from `evals/fr40/records.json`), and a wider pool needs a wider run; shadow packets
+(`src/brain/worker-packet.ts`), and a wider pool needs a wider run. What ships is a
+conventions packet, not the temporal brain: its records are a repository's own conventions, read from
+the file the repo contract names (`conventions` in `krn.json`, default `.krn/conventions.json`;
+this repository points it at `evals/fr40/records.json`), and `krn adopt` seeds that file from the
+repository's instruction files. The temporal fields are enforced at selection: a record outside
+`recorded_at`/`valid_from`/`valid_to` for the as-of date never enters a packet. There is still no write
+path for supersession; shadow packets
 are permitted (ADR 0014 D32); the GLOBAL
 v1 store is frozen (ADR 0014 D33). The Wizard-of-Oz set is a harness pilot only,
 and this does not change the operator's selected scope or client-isolation policy.

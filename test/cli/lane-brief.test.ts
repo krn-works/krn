@@ -31,10 +31,10 @@ test('the lane brief of every frozen unit equals the lane runner arm-B prompt', 
   // The live record file rewords frozen records on purpose; the frozen carrier is checked without it.
   const frozen = mkdtempSync(join(tmpdir(), 'krn-lane-frozen-'));
   t.after(() => rmSync(frozen, { recursive: true, force: true }));
-  mkdirSync(join(frozen, 'evals/fr40'), { recursive: true });
+  mkdirSync(join(frozen, '.krn'), { recursive: true });
   copyFileSync(
     join(repo, 'evals/fr40/records.json'),
-    join(frozen, 'evals/fr40/records.json'),
+    join(frozen, '.krn/conventions.json'),
   );
   const units = generate();
   assert.ok(units.length > 0);

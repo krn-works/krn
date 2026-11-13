@@ -1,7 +1,11 @@
 {
   "id": "t-k2mg5t6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Conventions path from the repo contract (default .krn/conventions.json), adopt seeds it from AGENTS.md/CLAUDE.md, ADR 0002 names it a conventions packet, temporal validity enforced and tested. Proof run: adopt fixture packet non-empty, superseded-record test. Outside Scope: scripts/boundaries.ts (adopt->brain, brain->repo layers)."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "The brain packet reads repo conventions from the repo contract and is named for what it is",

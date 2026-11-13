@@ -17,6 +17,8 @@ export interface RepoContract {
   readonly fast?: string;
   /** Whole-tree invariant tests the Stop check runs on every change: space-separated paths or path prefixes. */
   readonly guard?: string;
+  /** JSON file of the repository's conventions (brain records) the lane packet reads, relative to the root. */
+  readonly conventions?: string;
   readonly tracker: Tracker;
 }
 
@@ -29,7 +31,18 @@ export interface ResolvedContract {
 }
 
 export const CONTRACT_FILE = 'krn.json';
-const FIELDS = ['base', 'test', 'related', 'fast', 'guard', 'tracker'] as const;
+const FIELDS = [
+  'base',
+  'test',
+  'related',
+  'fast',
+  'guard',
+  'conventions',
+  'tracker',
+] as const;
+
+/** Where conventions live when krn.json does not name a file. */
+export const DEFAULT_CONVENTIONS = '.krn/conventions.json';
 
 export class ContractError extends Error {}
 
@@ -199,6 +212,11 @@ export function contractBase(root: string): string {
   return declaredContract(root)?.base ?? detectBase(root);
 }
 
+/** The conventions file, relative to the root: krn.json `conventions`, else `.krn/conventions.json`; it needs no test command. */
+export function contractConventions(root: string): string {
+  return declaredContract(root)?.conventions ?? DEFAULT_CONVENTIONS;
+}
+
 /** Whether work items live in tasks/: krn.json `tracker`, else a tasks/ directory means krn. */
 export function contractTracker(root: string): Tracker {
   return (
@@ -234,6 +252,7 @@ export function findContract(root: string): ResolvedContract | undefined {
     ...(related ? { related } : {}),
     ...(fast ? { fast } : {}),
     ...(declared?.guard ? { guard: declared.guard } : {}),
+    ...(declared?.conventions ? { conventions: declared.conventions } : {}),
     tracker: contractTracker(root),
   };
   return {
