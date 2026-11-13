@@ -1,7 +1,11 @@
 {
   "id": "t-shx3d9z",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ADR 0002 status table: built vs four trigger-gated parts; evals/woz deleted"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "ADR 0002 states what is built, what waits behind a trigger, and where standards live",

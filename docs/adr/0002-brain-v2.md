@@ -4,20 +4,31 @@ Date: 2026-10-08
 
 ## Status
 
-Accepted target, unbuilt (ADR 0014 D31). FR-40 (ADR 0014 D20) returned GO for
-packets and retrieval on 2026-11-08 (`evals/fr40/results.md`: B-A +21.1 pp,
-B-S +11.3 pp, token ratio 1.086); packet injection into worker context was shipped and left with the worker
-(`t-9w41zw0`); the packet's carrier is the lane dispatch path of `evals/fr40/lanes.ts`
-(`src/brain/worker-packet.ts`), and a wider pool needs a wider run. What ships is a
-conventions packet, not the temporal brain: its records are a repository's own conventions, read from
-the file the repo contract names (`conventions` in `krn.json`, default `.krn/conventions.json`;
-this repository points it at `evals/fr40/records.json`), and `krn adopt` seeds that file from the
-repository's instruction files. The temporal fields are enforced at selection: a record outside
-`recorded_at`/`valid_from`/`valid_to` for the as-of date never enters a packet. There is still no write
-path for supersession; shadow packets
-are permitted (ADR 0014 D32); the GLOBAL
-v1 store is frozen (ADR 0014 D33). The Wizard-of-Oz set is a harness pilot only,
-and this does not change the operator's selected scope or client-isolation policy.
+Accepted target, partly built (ADR 0014 D31). FR-40 (ADR 0014 D20) returned GO
+for packets and retrieval on 2026-11-08 (`evals/fr40/results.md`: B-A +21.1 pp,
+B-S +11.3 pp, token ratio 1.086). What ships is a conventions packet and a
+standards pack, not the temporal brain. The GLOBAL v1 store is frozen (ADR 0014
+D33); shadow packets are permitted (ADR 0014 D32). The Wizard-of-Oz set was
+deleted (`evals/woz`); FR-40 replaced it (ADR 0014 D20). This does not change
+the operator's selected scope or client-isolation policy.
+
+Built:
+
+| Part | Where it lives |
+| --- | --- |
+| Records | A repository's conventions file named by `conventions` in `krn.json` (default `.krn/conventions.json`; this repository: `evals/fr40/records.json`); `krn adopt` seeds it from instruction files. `recorded_at`/`valid_from`/`valid_to` are enforced at selection. |
+| Packet | `src/brain/packet.ts` selects, `src/brain/worker-packet.ts` injects into the lane brief (`t-9w41zw0`). |
+| Pack | `standards/records.json`, parsed and checked by `src/brain/standards.ts` (`krn standards check`); the single home of universal standards, inherited by adopted projects. |
+| Proposals | `src/brain/proposals.ts`: a retro lesson becomes a proposal and `krn standards harvest` groups them across repositories; promotion needs the operator. |
+
+Sequenced behind a trigger (nothing below is built; each waits for its trigger):
+
+| Part | Waits for |
+| --- | --- |
+| Supersession write path | Trigger: a first record needs correcting while its predecessor must stay queryable. |
+| SQLite/FTS5 index | Trigger: selection by file scan exceeds the 2,000-token packet budget or becomes slow on a real brain. |
+| Rights-aware ingestion pipeline | Trigger: the operator admits the first external source with a recorded rights basis. |
+| Semantic retrieval and cross-client sharing | Trigger: measured misses of the FTS5 ranking on FR-40 style tasks, and a client that agrees to share. |
 
 ## Context
 
@@ -279,6 +290,6 @@ This ADR is the accepted memory target (ADR 0014 D31) and establishes neither im
 
 ## Current status
 
-Current Product or Global memory implementation, task status, and utility are
-not asserted by this ADR. ADR 0014 D31 makes its Product v2 design the single
+The Status table above is the single current-state answer for what is built
+and what waits. ADR 0014 D31 makes this ADR's Product v2 design the single
 memory target, and D33 freezes the Global v1 store.
