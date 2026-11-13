@@ -1,7 +1,11 @@
 {
   "id": "t-r2638hx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn pr ship exits 0 only on merge (78 not merging, 79 closed unmerged, 80 open blocked); rerun after merge cleans up only; failed cleanup is a warning. krn ci wait itself still prints verdicts (gate-only use); strict-gh tests in test/ci/ship.test.ts."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "krn pr ship exits non-zero unless the PR merged, and a rerun after merge only cleans up",

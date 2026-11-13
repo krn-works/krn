@@ -12,7 +12,14 @@ import { titleProblem } from './commit-title.ts';
 import { waitCommand } from './wait.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits like `krn ci wait`, where a merged PR with a failed pinned-entry refresh still exits 0 with a warning (65 instruction-bytes rule failed before the push, 74 failed gate, 75 timeout, 76 conflict, 77 head moved), 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh or cleanup still exits 0 with a warning); a rerun after the merge only cleans up; otherwise 65 instruction-bytes rule failed before the push, 74 failed gate, 75 timeout, 76 conflict, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+
+/** Exit codes for a ship whose wait ended without a merge. */
+const unmergedExitCodes = [
+  [/^verdict: not merging\b/mu, 78],
+  [/^verdict: closed unmerged\b/mu, 79],
+  [/^verdict: open\b/mu, 80],
+] as const;
 
 /** Transient git refusals while a parallel lane holds a ref or index lock. */
 export const gitLockError = /cannot lock ref|Unable to create '[^']*\.lock'/u;
@@ -78,6 +85,48 @@ export async function shipCommand(
         '.nameWithOwner',
       ])
     ).trim();
+
+  const worktree = git(['rev-parse', '--show-toplevel']);
+  const main = dirname(
+    git(['rev-parse', '--path-format=absolute', '--git-common-dir']),
+  );
+  // The PR is merged by now: a refused removal is a warning, never a failed ship.
+  const cleanup = () => {
+    if (worktree === main) return 'cleanup: skipped (not a linked worktree)';
+    try {
+      git(['worktree', 'remove', '--force', worktree], main);
+      git(['branch', '-D', branch], main);
+    } catch (error) {
+      return `warning: cleanup failed (${(error as Error).message.split('\n')[0]}); rerun krn pr ship to clean up\nmain checkout: ${main}`;
+    }
+    return `cleanup: removed worktree ${worktree} and branch ${branch}\nmain checkout: ${main}`;
+  };
+  const localHead = git(['rev-parse', 'HEAD']);
+  const mergedBefore = (
+    await gh([
+      'pr',
+      'list',
+      '--repo',
+      repo,
+      '--head',
+      branch,
+      '--state',
+      'merged',
+      '--json',
+      'number,headRefOid,mergeCommit',
+      '--jq',
+      `[.[] | select(.headRefOid == "${localHead}")][0] | select(. != null) | "\\(.number) \\(.mergeCommit.oid // "unknown")"`,
+    ])
+  ).trim();
+  if (mergedBefore !== '') {
+    // A rerun after the merge (its cleanup failed or was cut off) only cleans up.
+    const [mergedPr, mergedSha] = mergedBefore.split(' ');
+    return [
+      `pr: #${mergedPr} ${repo} ${localHead}`,
+      `verdict: merged ${mergedSha}`,
+      cleanup(),
+    ].join('\n');
+  }
 
   const rule = runner('node', ['--test', instructionBytesRule], cwd);
   if (rule.code !== 0)
@@ -173,16 +222,6 @@ export async function shipCommand(
   }
   const head = git(['rev-parse', 'HEAD']);
   const base = git(['rev-parse', `origin/${target}`]);
-  const worktree = git(['rev-parse', '--show-toplevel']);
-  const main = dirname(
-    git(['rev-parse', '--path-format=absolute', '--git-common-dir']),
-  );
-  const cleanup = () => {
-    if (worktree === main) return 'cleanup: skipped (not a linked worktree)';
-    git(['worktree', 'remove', '--force', worktree], main);
-    git(['branch', '-D', branch], main);
-    return `cleanup: removed worktree ${worktree} and branch ${branch}\nmain checkout: ${main}`;
-  };
   const waitArgs = [
     '--repo',
     repo,
@@ -201,8 +240,13 @@ export async function shipCommand(
     sleep: wait,
   });
   const lines = [`pr: #${pr} ${repo} ${head}`, waited];
-  if (/^verdict: merged /mu.test(waited)) lines.push(cleanup());
-  return lines.join('\n');
+  if (/^verdict: merged /mu.test(waited)) {
+    lines.push(cleanup());
+    return lines.join('\n');
+  }
+  const exitCode =
+    unmergedExitCodes.find(([verdict]) => verdict.test(waited))?.[1] ?? 74;
+  throw Object.assign(new Error(lines.join('\n')), { exitCode });
 }
 
 function parse(args: string[]) {
