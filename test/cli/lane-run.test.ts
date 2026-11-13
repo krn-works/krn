@@ -201,6 +201,22 @@ test('sandboxPlaceholders keeps only untracked empty regular files', () => {
   assert.deepEqual(found, ['.env', '.npmrc']);
 });
 
+test('sandboxPlaceholders covers the files the sandbox mounts in a repository without a root package.json', () => {
+  // Seen on the pilot lane t-g1fc0cz: these five empty files made the tree dirty (exit 74).
+  const names = [
+    '.gitmodules',
+    '.yarnrc',
+    '.yarnrc.yml',
+    'bunfig.toml',
+    'package.json',
+  ];
+  const found = sandboxPlaceholders(
+    names.map((name) => `?? ${name}\0`).join(''),
+    () => ({ isFile: () => true, size: 0 }),
+  );
+  assert.deepEqual(found, names);
+});
+
 test('lane run removes empty sandbox placeholders before the dirty-tree check', async () => {
   const { verdict } = await run(
     `: > .env; : > .npmrc; : > yarn.lock; ${deliver()}`,

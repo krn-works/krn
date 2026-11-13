@@ -191,7 +191,7 @@ export function sessionVerification(worktree: string): string | undefined {
 /** Read the JSON result of `claude -p --output-format json`. */
 /** The files the harness sandbox mounts empty over write-denied paths: .env*, .npmrc and lockfiles. */
 const placeholderName =
-  /^(\.env(\..+)?|\.npmrc|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?)$/u;
+  /^(\.env(\..+)?|\.npmrc|\.yarnrc(\.yml)?|\.gitmodules|bunfig\.toml|package\.json|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb?)$/u;
 
 /**
  * The untracked empty regular files in `git status --porcelain -z` output that carry a known
