@@ -59,9 +59,6 @@ export async function dispatch(args: string[]): Promise<boolean> {
     const report = pin.doctorReport(pin.configuredEntryRoot());
     process.stdout.write(report.text);
     process.exitCode = report.exitCode;
-  } else if (command === 'brain') {
-    const { brainCommand } = await import('../brain/cli.ts');
-    await brainCommand(options);
   } else if (command === 'standards') {
     const { standardsCommand } = await import('../brain/standards-cli.ts');
     standardsCommand(options);

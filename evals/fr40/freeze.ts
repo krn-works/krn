@@ -16,7 +16,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { check } from '../../scripts/boundaries.ts';
-import { fr40Packet } from '../../src/brain/cli.ts';
+import { fr40Packet } from './packets.ts';
 import { generate } from './tasks.ts';
 
 const here = new URL('./', import.meta.url);

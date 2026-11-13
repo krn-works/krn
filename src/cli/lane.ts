@@ -72,14 +72,29 @@ export function laneBriefText(
   asOf: string,
   task = 'lane-brief',
 ): string {
-  const text = packetBrief(lanePacket(repo, brief, asOf, task), brief);
+  return laneBrief(repo, brief, asOf, task).text;
+}
+
+/** The lane brief and the sha256 of the packet it carries (null when it carries none), so a run can record which packet it served. */
+export function laneBrief(
+  repo: string,
+  brief: string,
+  asOf: string,
+  task = 'lane-brief',
+): { text: string; packet: string | null } {
+  const packet = lanePacket(repo, brief, asOf, task);
+  const text = packetBrief(packet, brief);
   const precedent = precedentSection(repo, brief);
   const standards = briefStandards(readProject(repo), asOf, PROJECT_STANDARDS);
   const body = [text, precedent, standards]
     .filter((part) => part !== '')
     .map((part) => part.trimEnd())
     .join('\n\n');
-  return `${body.trimEnd()}\n\n${workerRules(repo)}\n`;
+  return {
+    text: `${body.trimEnd()}\n\n${workerRules(repo)}\n`,
+    packet:
+      packet === null || packet.records.length === 0 ? null : packet.sha256,
+  };
 }
 
 function briefCommand(rest: string[]): void {

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import {
   mkdirSync,
   mkdtempSync,
@@ -9,33 +10,28 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { generate } from '../../evals/fr40/tasks.ts';
-import { fr40Packet } from '../../src/brain/cli.ts';
-import { brainPacket, parseRecords } from '../../src/brain/packet.ts';
+import { parseRecords } from '../../src/brain/packet.ts';
 import {
-  applicable,
   lanePacket,
-  MEASURED,
   packetBrief,
-  workerPacket,
+  workerRecords,
 } from '../../src/brain/worker-packet.ts';
+import { contractConventions } from '../../src/repo/contract.ts';
 
 const repo = join(import.meta.dirname, '../..');
 const brief =
   'You are working on task t-abc1234. Add to src/cli/slug.ts a function slugify, with a node:test file under test/. Commit your work when it is done.';
 
-test('a worker packet selects only the seven measured conventions', () => {
-  const packet = workerPacket(repo, brief, '2026-11-08');
+test('the lane brief starts with the packet and keeps the lead brief intact', () => {
+  const packet = lanePacket(repo, brief, '2026-11-08', 'lane');
   assert.ok(packet !== null && packet.records.length > 0);
-  for (const id of packet.records)
-    assert.ok((MEASURED as readonly string[]).includes(id), id);
-  assert.ok(packet.records.includes('r-commit-title-id'));
-  assert.ok(packet.tokens <= packet.budget);
-});
-
-test('the worker brief starts with the packet and keeps the lead brief intact', () => {
-  const packet = workerPacket(repo, brief, '2026-11-08');
-  assert.ok(packet !== null);
+  // The lane packet stays within the measured 400-token budget.
+  assert.equal(packet.budget, 400);
+  assert.ok(packet.tokens <= packet.budget, `${packet.tokens} tokens`);
+  assert.ok(
+    packet.records.every((id) => id.startsWith('r-')),
+    packet.records.join(),
+  );
   const text = packetBrief(packet, brief);
   assert.ok(
     text.startsWith(
@@ -47,88 +43,66 @@ test('the worker brief starts with the packet and keeps the lead brief intact', 
 });
 
 test('a brief with no matching convention passes through unchanged', () => {
-  const packet = workerPacket(repo, 'ok', '2026-11-08');
+  const packet = lanePacket(repo, 'ok', '2026-11-08', 'lane');
   assert.deepEqual(packet?.records, []);
   assert.equal(packetBrief(packet, 'ok'), 'ok');
 });
 
-test('a repository without measured records gets no packet', (t) => {
+test('a repository without conventions gets no packet', (t) => {
   const bare = mkdtempSync(join(tmpdir(), 'krn-worker-packet-'));
   t.after(() => rmSync(bare, { recursive: true, force: true }));
-  assert.equal(workerPacket(bare, brief, '2026-11-08'), null);
+  assert.equal(lanePacket(bare, brief, '2026-11-08', 'lane'), null);
   assert.equal(packetBrief(null, brief), brief);
 });
 
-const tasks = generate();
-const records = parseRecords(
-  JSON.parse(readFileSync(join(repo, 'evals/fr40/records.json'), 'utf8')),
-);
-const workerSelection = (prompt: string) =>
-  brainPacket({
-    task: 't',
-    query: prompt,
-    records: applicable(records, prompt),
-    asOf: '2026-11-08',
-    budget: 400,
-  }).records;
-
-test('agent-state briefs keep the .krn state record and drop task-id records', () => {
-  const agentState = tasks.filter((task) => task.template === 'agent-state');
-  assert.equal(agentState.length, 19);
-  for (const task of agentState) {
-    assert.ok(fr40Packet(task.id, 'brain').records.includes('r-agent-state'));
-    const chosen = workerSelection(task.prompt);
-    assert.ok(
-      chosen.includes('r-agent-state'),
-      `${task.id} lacks r-agent-state`,
-    );
-    for (const id of ['r-commit-title-id', 'r-trailer', 'r-tracker-owner'])
-      assert.ok(
-        !chosen.includes(id),
-        `${task.id} carries ${id} without a task id`,
-      );
-  }
+test('KRN keeps its conventions in its own tracked file, not in the frozen FR-40 material', () => {
+  const file = contractConventions(repo);
+  assert.equal(file, '.agents/conventions.json');
+  const tracked = spawnSync(
+    'git',
+    ['-C', repo, 'ls-files', '--error-unmatch', file],
+    {
+      encoding: 'utf8',
+    },
+  );
+  assert.equal(tracked.status, 0, tracked.stderr);
+  parseRecords(JSON.parse(readFileSync(join(repo, file), 'utf8')));
 });
 
-test('a brief that names a task id keeps its task-id record', () => {
-  const want = {
-    'commit-title-id': 'r-commit-title-id',
-    trailer: 'r-trailer',
-  } as const;
-  for (const task of tasks)
-    if (task.template in want) {
-      const id = want[task.template as keyof typeof want];
-      assert.ok(
-        workerSelection(task.prompt).includes(id),
-        `${task.id} lacks ${id}`,
-      );
-    }
-});
-
-test('the live packet states the biome rule with npm run fast and generated files', () => {
+test('KRN states the biome rule with npm run fast and generated files in its lane packet', () => {
   const frozen = readFileSync(join(repo, 'evals/fr40/records.json'), 'utf8');
   assert.ok(!frozen.includes('not only your own tests'));
-  for (const packet of [
-    workerPacket(repo, brief, '2026-11-11'),
-    lanePacket(repo, `${brief} Run biome.`, '2026-11-11', 'lane'),
-  ]) {
-    if (packet === null) throw new Error('no packet');
-    assert.ok(packet.records.includes('r-biome-clean'));
-    const biome = packet.text
-      .split('\n')
-      .find((l) => l.startsWith('- [r-biome-clean]'));
-    assert.match(biome ?? '', /before every commit run npm run fast/u);
-    assert.match(biome ?? '', /not only your own tests/u);
-    assert.match(biome ?? '', /scripts\/lib\/shard-weights\.mjs/u);
-  }
+  const packet = lanePacket(repo, `${brief} Run biome.`, '2026-11-11', 'lane');
+  if (packet === null) throw new Error('no packet');
+  assert.ok(packet.records.includes('r-biome-clean'));
+  const biome = packet.text
+    .split('\n')
+    .find((l) => l.startsWith('- [r-biome-clean]'));
+  assert.match(biome ?? '', /before every commit run npm run fast/u);
+  assert.match(biome ?? '', /not only your own tests/u);
+  assert.match(biome ?? '', /scripts\/lib\/shard-weights\.mjs/u);
 });
 
-test('the worker brief never carries the lead-only tracker rule', () => {
-  for (const task of tasks)
-    assert.ok(
-      !workerSelection(task.prompt).includes('r-tracker-owner'),
-      `${task.id} carries r-tracker-owner`,
-    );
+test('the brain area holds no KRN-only record ids, live-records path or FR-40 import', () => {
+  const found = spawnSync(
+    'git',
+    [
+      '-C',
+      repo,
+      'grep',
+      '-n',
+      '-E',
+      '-e',
+      'live-records|MEASURED|LEAD_ONLY',
+      // An import of the FR-40 material in any module form; prose may still cite the experiment.
+      '-e',
+      "(from|import\\(?) *'[^']*evals/",
+      '--',
+      'src/brain',
+    ],
+    { encoding: 'utf8' },
+  );
+  assert.equal(found.stdout, '');
 });
 
 function conventionsRepo(
@@ -161,8 +135,6 @@ test('a superseded convention never enters a packet and the live one does', (t) 
   ]);
   const packet = lanePacket(root, 'format the parser', '2026-11-13', 'unit');
   assert.deepEqual(packet?.records, ['r-new']);
-  const worker = workerPacket(root, 'format the parser', '2026-11-13');
-  assert.deepEqual(worker?.records, ['r-new']);
 });
 
 test('the repo contract names the conventions file', (t) => {
@@ -179,4 +151,41 @@ test('the repo contract names the conventions file', (t) => {
   );
   const packet = lanePacket(root, 'format the parser', '2026-11-13', 'u');
   assert.deepEqual(packet?.records, ['r-x']);
+});
+
+test('a record addressed to the lead never enters the lane packet', (t) => {
+  // Plain hand-written conventions JSON, exactly as a repository would keep it.
+  const root = mkdtempSync(join(tmpdir(), 'krn-audience-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, '.krn'));
+  writeFileSync(
+    join(root, '.krn/conventions.json'),
+    `[
+  {"id": "r-lead", "type": "convention", "text": "Format the parser tracker with biome.", "recorded_at": "2026-01-01", "valid_from": "2026-01-01", "valid_to": null, "source": "AGENTS.md", "audience": "lead"},
+  {"id": "r-worker", "type": "convention", "text": "Format the parser with biome.", "recorded_at": "2026-01-01", "valid_from": "2026-01-01", "valid_to": null, "source": "AGENTS.md", "audience": "worker"},
+  {"id": "r-all", "type": "convention", "text": "Format the parser tests with biome.", "recorded_at": "2026-01-01", "valid_from": "2026-01-01", "valid_to": null, "source": "AGENTS.md"}
+]
+`,
+  );
+  const packet = lanePacket(
+    root,
+    'format the parser tracker tests',
+    '2026-11-13',
+    'u',
+  );
+  assert.deepEqual([...(packet?.records ?? [])].sort(), ['r-all', 'r-worker']);
+  assert.deepEqual(
+    workerRecords([
+      row('a', 'x', null),
+      { ...row('b', 'y', null), audience: 'lead' },
+    ]).map((r) => r.id),
+    ['a'],
+  );
+});
+
+test('an audience other than lead or worker is refused', () => {
+  assert.throws(
+    () => parseRecords([{ ...row('r-x', 'x', null), audience: 'everyone' }]),
+    /audience: expected lead or worker/u,
+  );
 });

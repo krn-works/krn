@@ -3,8 +3,6 @@ const usage: Readonly<Record<string, string>> = {
   task: 'krn task <ready|claim|show|list|create|edit|comment|dep|close|release|check> [...]  repository work tracker; `krn task` lists verbs',
   ledger:
     'krn ledger [--since YYYY-MM-DD] [--pr N] [--limit N] [--repo OWNER/REPO] [--root DIR] [--transcripts DIR] [--json]  outcome ledger',
-  brain:
-    'krn brain packet <fr40-task-id> [--arm brain|static] [--write] [--json]  FR-40 shadow packet: record ids, as-of date, tokens',
   standards:
     "krn standards check|propose|harvest [...]  check [--root DIR]: run the enforcement of every standard that applies to a repository top level (the shipped standards/records.json plus the own records of .agents/standards.json; a copy `krn adopt` marked with origin krn runs as the current pack record and fails when the pack no longer holds it): 'command' and 'krn' standards run there, 'advisory' ones are only counted, and a pack record promoted from proposals (`harvested`) must come from 2 repositories, 3 proposals or an https source and carry an enforcement; one PASS or FAIL line with enforced, failed and advisory counts, one stderr line per failure naming the standard and its exit; exit 1 on a failure, 65 on a malformed file, 66 when the root or a file cannot be read. propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR]: write one tracked retro lesson to .agents/standards-proposals/ (an equal lesson is kept, not duplicated). harvest [REPO...] [--root DIR]: group the proposals of the given repositories (else the JSON path array in the untracked .krn/adopted.json) by normalized text and print one candidate line per lesson with its count, origins and evidence",
   doctor:

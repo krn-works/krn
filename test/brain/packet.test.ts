@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { BUDGET, fr40Packet } from '../../evals/fr40/packets.ts';
 import { BASE_DATE, generate } from '../../evals/fr40/tasks.ts';
-import { BUDGET, fr40Packet } from '../../src/brain/cli.ts';
 import {
   type BrainRecord,
   brainPacket,
