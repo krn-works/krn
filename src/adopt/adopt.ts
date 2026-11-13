@@ -112,6 +112,40 @@ function writeIfChanged(
   report.written.push(relative);
 }
 
+/**
+ * The shared CI call goes to `ci.yml` unless the repository already has its own
+ * `ci.yml`; that one keeps running and the call goes to `krn-ci.yml` beside it.
+ */
+function workflowPath(root: string): string {
+  const ci = '.github/workflows/ci.yml';
+  const path = join(root, ci);
+  return existsSync(path) &&
+    !readFileSync(path, 'utf8').includes(sharedWorkflow)
+    ? '.github/workflows/krn-ci.yml'
+    : ci;
+}
+
+/**
+ * The caller job `ci` runs the shared workflow, whose aggregate job is `Check`,
+ * so GitHub names the required check run `ci / Check` (App 15368). `krn pr ship`
+ * reads this selector from the PR base; an existing different policy is kept.
+ */
+const admissionPolicy = `${JSON.stringify(
+  { schemaVersion: 1, checkRunName: 'ci / Check', appId: 15368 },
+  null,
+  2,
+)}\n`;
+
+function writeAdmission(root: string, report: AdoptionReport): void {
+  const relative = 'spec/ci-admission.json';
+  const path = join(root, relative);
+  if (existsSync(path) && readFileSync(path, 'utf8') !== admissionPolicy) {
+    report.skipped.push(`${relative} (an existing admission policy is kept)`);
+    return;
+  }
+  writeIfChanged(root, relative, admissionPolicy, report);
+}
+
 function writeRules(root: string, report: AdoptionReport): void {
   const path = join(root, 'AGENTS.md');
   const block = renderRules();
@@ -299,7 +333,9 @@ export function adopt(root: string, options: AdoptOptions): AdoptionReport {
   const seeded = seedConventions(root, new Date().toISOString().slice(0, 10));
   if (seeded) report.written.push(seeded);
   else report.unchanged.push('conventions');
-  if (workflow !== undefined)
-    writeIfChanged(root, '.github/workflows/ci.yml', workflow, report);
+  if (workflow !== undefined) {
+    writeIfChanged(root, workflowPath(root), workflow, report);
+    writeAdmission(root, report);
+  }
   return report;
 }

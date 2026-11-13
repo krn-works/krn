@@ -71,6 +71,39 @@ test('adopt writes the task directory, rules block, ignore entry and Check workf
     assert.match(declared, new RegExp(`^ {6}${name}:$`, 'mu'));
   assert.match(workflow, /^ {6}lint: "npm run lint"$/mu);
   assert.doesNotMatch(workflow, /typecheck:/u);
+
+  // The required check is the caller job `ci` around the shared `Check` job.
+  assert.match(declared, /^ {2}check:\n {4}name: Check$/mu);
+  assert.deepEqual(
+    JSON.parse(readFileSync(join(root, 'spec/ci-admission.json'), 'utf8')),
+    { schemaVersion: 1, checkRunName: 'ci / Check', appId: 15368 },
+  );
+});
+
+test('adopt keeps an existing ci.yml and admission policy and calls the shared CI beside them', () => {
+  const root = scratch();
+  mkdirSync(join(root, '.github/workflows'), { recursive: true });
+  mkdirSync(join(root, 'spec'));
+  writeFileSync(join(root, '.github/workflows/ci.yml'), 'name: CI\n');
+  writeFileSync(join(root, 'spec/ci-admission.json'), '{"mine":1}\n');
+  const run = adopt(root, '--test', 'npm test');
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(
+    readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8'),
+    'name: CI\n',
+  );
+  assert.match(
+    readFileSync(join(root, '.github/workflows/krn-ci.yml'), 'utf8'),
+    /^ {2}ci:\n {4}uses: krn-works\/krn\//mu,
+  );
+  assert.equal(
+    readFileSync(join(root, 'spec/ci-admission.json'), 'utf8'),
+    '{"mine":1}\n',
+  );
+  assert.match(run.stdout + run.stderr, /spec\/ci-admission\.json/u);
+  const again = adopt(root, '--test', 'npm test');
+  assert.equal(again.status, 0, again.stderr);
+  assert.doesNotMatch(again.stdout, /^wrote /mu);
 });
 
 test('adopt rerun changes nothing and keeps existing instructions', () => {

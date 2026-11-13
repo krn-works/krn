@@ -1,0 +1,20 @@
+{
+  "source": "gh api repos/astral-sh/uv/commits/b19b0eab8b180952713c32a1562fe738ba6d6fcc/check-runs (2026-11-13); caller job 'bench:' has no name and 'uses: ./.github/workflows/bench.yml'",
+  "check_runs": [
+    {
+      "app": { "id": 15368, "slug": "github-actions" },
+      "head_sha": "b19b0eab8b180952713c32a1562fe738ba6d6fcc",
+      "name": "bench / walltime on x86_64 linux"
+    },
+    {
+      "app": { "id": 15368, "slug": "github-actions" },
+      "head_sha": "b19b0eab8b180952713c32a1562fe738ba6d6fcc",
+      "name": "bench / walltime build"
+    },
+    {
+      "app": { "id": 15368, "slug": "github-actions" },
+      "head_sha": "b19b0eab8b180952713c32a1562fe738ba6d6fcc",
+      "name": "bench / simulated"
+    }
+  ]
+}

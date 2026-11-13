@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
-/** GitHub Actions is GitHub App 15368; its aggregate job is named `Check`. */
+/**
+ * GitHub Actions is GitHub App 15368. The base policy names the aggregate job:
+ * `Check` in KRN, `ci / Check` in a repository whose workflow calls the shared
+ * project CI (a reusable workflow's run is named `<caller job> / <job name>`,
+ * capture: test/fixtures/ci-admission/reusable-check-runs.json).
+ */
 const ACTIONS_APP_ID = 15368;
 const GATE_ADMISSION_POLICY_PATH = 'spec/ci-admission.json';
 
@@ -8,7 +13,11 @@ const sha = z.string().regex(/^(?:[a-f\d]{40}|[a-f\d]{64})$/u);
 const admissionPolicySchema = z
   .object({
     schemaVersion: z.literal(1),
-    checkRunName: z.literal('Check'),
+    checkRunName: z
+      .string()
+      .min(1)
+      .max(100)
+      .regex(/^[^\p{Cc}\p{Cf}]+$/u),
     appId: z.literal(ACTIONS_APP_ID),
   })
   .strict();
@@ -21,7 +30,7 @@ export type GateAdmissionPolicy =
     }
   | {
       readonly source: 'pinned-app';
-      readonly checkRunName: 'Check';
+      readonly checkRunName: string;
       readonly appId: typeof ACTIONS_APP_ID;
     };
 
@@ -86,7 +95,7 @@ export function gateAdmissionPolicyFromBase(
   if (!parsed.success) throw new Error('base gate policy is invalid');
   return {
     source: 'pinned-app',
-    checkRunName: 'Check',
+    checkRunName: parsed.data.checkRunName,
     appId: ACTIONS_APP_ID,
   };
 }
