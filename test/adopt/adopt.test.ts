@@ -364,3 +364,29 @@ test('adopt replaces an earlier bare krn hook stop entry and keeps other Stop ho
     [stopCommand, 'own-check'],
   );
 });
+
+// The receiver is the shared workflow's plan step: it refuses a call with no lint, typecheck or test.
+test('adopt --ref passes the detected test command to CI and pushes on the contract base', () => {
+  const root = fixture({ 'go.mod': 'module example.com/x\n\ngo 1.22\n' });
+  git(root, 'branch', '-m', 'develop');
+  const run = adopt(root, '--no-canary');
+  assert.equal(run.status, 0, run.stderr);
+  const workflow = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
+  assert.match(workflow, /^ {6}test: "go test \.\/\.\.\."$/mu);
+  assert.match(workflow, /^ {4}branches: \[develop\]$/mu);
+  assert.match(
+    readFileSync(shared, 'utf8'),
+    /set at least one of lint, typecheck or test/u,
+  );
+});
+
+test('adopt --ref writes no CI call it cannot fill and says why', () => {
+  const root = fixture({ 'README.md': 'x\n' });
+  const run = adopt(root, '--no-canary');
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(existsSync(join(root, '.github/workflows/ci.yml')), false);
+  assert.match(
+    run.stdout,
+    /\.github\/workflows\/ci\.yml \(no lint, typecheck or test command; pass --test CMD\)/u,
+  );
+});

@@ -1,7 +1,11 @@
 {
   "id": "t-w8t0amv",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt --ref fills the CI call's install/test from the written contract when no flag gives them, pushes on the contract base, and skips the call with a reason when no command is known (the shared workflow refuses an empty call)."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "krn adopt writes ci inputs for the detected stack",
