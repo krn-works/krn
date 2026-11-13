@@ -84,6 +84,7 @@ const wrapperDirectory = fileURLToPath(
 export function sessionEnvironment(
   env: NodeJS.ProcessEnv,
   cacheDirectory: string,
+  identity: { task?: string; lane: string },
 ): NodeJS.ProcessEnv {
   const scrubbed: NodeJS.ProcessEnv = { ...env };
   for (const name of OPERATOR_CREDENTIAL_VARIABLES) delete scrubbed[name];
@@ -93,6 +94,9 @@ export function sessionEnvironment(
   return {
     ...scrubbed,
     KRN_SESSION_CLASS: 'lane',
+    // The worker hooks tell a lane from the lead by its task (or, for a goal lane, its slug), never by its name.
+    KRN_LANE: identity.lane,
+    ...(identity.task === undefined ? {} : { KRN_TASK: identity.task }),
     KRN_APP_CACHE_DIR: scrubbed.KRN_APP_CACHE_DIR || cacheDirectory,
     PATH: scrubbed.PATH
       ? `${wrapperDirectory}:${scrubbed.PATH}`
@@ -427,6 +431,7 @@ export async function laneRunCommand(
   const environment = sessionEnvironment(
     process.env,
     join(main, '.krn', 'tmp', 'app-cache'),
+    task === undefined ? { lane } : { lane, task },
   );
   const unavailable = await steps.mint(environment);
   if (unavailable !== undefined)

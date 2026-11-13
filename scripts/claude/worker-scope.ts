@@ -55,7 +55,14 @@ const under = (list: string[], path: string) =>
 
 export interface Worker {
   scope: string[];
+  /** A lane session with no scope to enforce (a goal lane, or a task whose brief names no Scope). */
+  unscoped?: true;
+  /** A lane session that names no task and no lane: refused, never treated as the lead. */
+  unidentified?: true;
 }
+
+export const UNIDENTIFIED_LANE =
+  'this lane session names no task: KRN_TASK (or KRN_LANE for a goal lane) is unset, so it cannot be told from the lead. Start it with `krn lane run`.';
 
 function taskScope(root: string, id: string): string[] | undefined {
   try {
@@ -83,7 +90,10 @@ export function worker(
     /t-[a-z0-9]{7}/u.exec(root)?.[0];
   const scope = id === undefined ? undefined : taskScope(root, id);
   if (scope) return { scope };
-  return lane ? undefined : { scope: [] };
+  if (!lane) return { scope: [] };
+  if (id === undefined && !env.KRN_LANE)
+    return { scope: [], unidentified: true };
+  return { scope: [], unscoped: true };
 }
 
 // Write targets a Bash command shows cheaply: redirections, tee and sed -i operands.
@@ -134,6 +144,8 @@ export function judge(
   );
   const who = worker(env, root, branch);
   if (!who) return {};
+  if (who.unidentified) return { refusal: `Refused: ${UNIDENTIFIED_LANE}` };
+  if (who.unscoped) return {};
   const cwd = typeof fields.cwd === 'string' ? fields.cwd : root;
   const input = fields.tool_input;
   const targets: string[] = [];

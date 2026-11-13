@@ -616,3 +616,31 @@ test('a crash in the Stop check refuses with exit 2, and a continued stop is let
   assert.equal(again.code, 0);
   assert.match(again.stderr, /crashed/u);
 });
+
+test('a lane session with slug fix-x is blocked at Stop without a commit, and one with no identity is refused', () => {
+  const dir = clone();
+  try {
+    const green = () => [];
+    const named = {
+      CLAUDE_PROJECT_DIR: dir,
+      KRN_SESSION_CLASS: 'lane',
+      KRN_TASK: 't-abc1234',
+    };
+    assert.match(
+      judgeStop(payload(dir), named, green, 'fix-x') ?? '',
+      /no commit/u,
+    );
+    const goal = { ...named, KRN_TASK: undefined, KRN_LANE: 'fix-x' };
+    assert.match(
+      judgeStop(payload(dir), goal, green, 'fix-x') ?? '',
+      /no commit/u,
+    );
+    const anonymous = { ...goal, KRN_LANE: undefined };
+    assert.match(
+      judgeStop(payload(dir), anonymous, green, 'fix-x') ?? '',
+      /names no task/u,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

@@ -116,7 +116,12 @@ test('a lane session takes its Scope from the task record named by the branch, a
       decide(write(`${dir}/tasks/t-1.json`), env, 't-abc1234') ?? '',
       /Refused/u,
     );
-    assert.equal(decide(write(`${dir}/AGENTS.md`), env, 'slug'), undefined);
+    const goal = { ...env, KRN_LANE: 'slug' };
+    assert.equal(decide(write(`${dir}/AGENTS.md`), goal, 'slug'), undefined);
+    assert.match(
+      decide(write(`${dir}/AGENTS.md`), env, 'slug') ?? '',
+      /names no task/u,
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -151,4 +156,26 @@ test('the hook process exits 2 with the reason for a refused worker call', () =>
   assert.equal(denied.status, 2);
   assert.match(denied.stderr, /Refused: tasks\/x\.json/u);
   assert.equal(run({ KRN_ROLE: 'worker', KRN_SCOPE: 'tasks/' }).status, 0);
+});
+
+test('KRN_TASK scopes a lane whose slug carries no task id', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'worker-scope-'));
+  try {
+    mkdirSync(join(dir, 'tasks'));
+    writeFileSync(
+      join(dir, 'tasks/t-abc1234.json'),
+      JSON.stringify({ body: ['Scope: src/.'] }),
+    );
+    const env = {
+      CLAUDE_PROJECT_DIR: dir,
+      KRN_SESSION_CLASS: 'lane',
+      KRN_TASK: 't-abc1234',
+    };
+    assert.match(
+      decide(write(`${dir}/tasks/t-1.json`), env, 'fix-x') ?? '',
+      /Refused/u,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
