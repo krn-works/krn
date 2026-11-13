@@ -29,9 +29,7 @@ Each candidate becomes, in this order of preference:
 
 A lesson that would hold in other repositories too (a failure or a practice that worked) also becomes a standards proposal KRN can harvest into the pack every adopted project inherits:
 
-```sh
-krn standards propose --text "<the lesson as one statement>" --kind check|template|skill|prose --evidence <#PR, commit SHA, path or https URL>
-```
+`krn standards propose --text "<the lesson as one statement>" --kind check|template|skill|prose --evidence <#PR, commit SHA, path or https URL>`
 
 `krn standards propose` writes one file under `.agents/standards-proposals/`; commit it with the slice. Evidence is mandatory; `--kind` names how the lesson would be enforced.
 

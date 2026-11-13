@@ -1,7 +1,11 @@
 {
   "id": "t-jq2zkw1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "First harvest: krn standards harvest <pilot@31b2a8e> <krn> -> 8 candidates from 9 proposals in 2 repositories, 1 promotable; s-clean-checkout-tests promoted to standards/records.json (harvested from krn-works/seo-audit-harness #83 and krn-works/krn #702, command enforcement). Pilot PR krn-works/seo-audit-harness#83 merged 31b2a8e."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "A retro lesson in any adopted repository becomes a standards proposal KRN can harvest",
