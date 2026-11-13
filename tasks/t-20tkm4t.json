@@ -1,0 +1,16 @@
+{
+  "id": "t-20tkm4t",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane run names the failing check verdict, failing test files and the full output path on a red final tree"
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "A lane that refuses its final tree names the failing check and keeps its output",
+  "after": [],
+  "body": [
+    "Why: lane t-rsarmya (claims-base) stopped with exit 74 'no passing check on the final tree' and its log holds only that one line; the lead re-ran npm run fast on the same tree after a rebase and it passed (34 tests), so the lead could not tell a real red test from a flake or a stale base.\nOutcome: when lane run refuses the final tree it writes the failing check's verdict line, the failing test file names and the path of the full check output into the lane log and the stop line.\nProof: a lane-run unit test with a red final check asserts the stop line names the failing file and an existing output path."
+  ]
+}
