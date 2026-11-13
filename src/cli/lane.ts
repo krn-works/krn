@@ -371,7 +371,9 @@ export async function startLane(
   let actor = 'lead';
   let reason: string | undefined;
   let root: string | undefined;
-  let sessionClass = process.env.KRN_SESSION_CLASS ?? 'delivery';
+  // KRN_SESSION_CLASS=lane marks a worker session, not a lane class: only the two lane classes count.
+  const inherited = process.env.KRN_SESSION_CLASS;
+  let sessionClass = inherited === 'non-delivery' ? inherited : 'delivery';
   const value = (index: number, name: string) =>
     flagValue(rest, index, () => new CliUsageError(`${name} requires a value`));
   for (let index = 0; index < rest.length; index += 1) {

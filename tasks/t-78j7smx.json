@@ -1,7 +1,11 @@
 {
   "id": "t-78j7smx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt and adopt --canary fail on a skipped canary; --no-canary records the decline; message names the test file to add"
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "A canary that cannot run fails adopt instead of reporting skipped",

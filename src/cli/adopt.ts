@@ -43,7 +43,7 @@ export function adoptCommand(args: string[]): void {
   if (on.has('--canary')) {
     const result = runCanary(root);
     process.stdout.write(`canary ${result.outcome}: ${result.message}\n`);
-    if (result.outcome === 'fail') process.exitCode = 1;
+    if (result.outcome !== 'pass') process.exitCode = 1;
     return;
   }
   const tracker = on.has('--tracker');
@@ -66,9 +66,9 @@ export function adoptCommand(args: string[]): void {
   else {
     const result = runCanary(root);
     process.stdout.write(`canary ${result.outcome}: ${result.message}\n`);
-    if (result.outcome === 'fail')
+    if (result.outcome !== 'pass')
       throw new CliUsageError(
-        `adopt failed: the canary did not prove the Stop gate (${result.message}); the adoption files stay written, fix the cause or pass --no-canary to decline`,
+        `adopt failed: the canary did not prove the Stop gate (${result.message}); the adoption files stay written, fix the cause (a repository without tests needs one test file, e.g. *.test.ts, test_*.py or *_test.go, and a test command) or pass --no-canary to decline`,
       );
   }
 }
