@@ -288,6 +288,8 @@ export function failuresIn(output: string, status: number | string): string[] {
   return [...found].sort();
 }
 
+const NAMELESS = /^<run>::exit /u;
+
 const runCommand: CommandRunner = (root, command) => {
   const run = spawnSync('sh', ['-c', `${command} 2>&1`], {
     cwd: root,
@@ -375,8 +377,29 @@ function plan(root: string, from: string, contract?: RepoContract): Plan {
     selection,
     command: selection.full
       ? contract.test
-      : relatedCommand(contract, selection.files),
+      : relatedCommand(
+          contract,
+          withinPackage(contract.related ?? '', selection.files),
+        ),
   };
+}
+
+/**
+ * Paths as a `--prefix <dir>` command accepts them: relative to that package, files outside it dropped.
+ * A related command without --prefix takes the repository paths unchanged.
+ */
+export function withinPackage(
+  related: string,
+  files: readonly string[],
+): readonly string[] {
+  const dir = /--prefix[ =]+(\S+)/u
+    .exec(related)?.[1]
+    ?.replace(/^\.\//u, '')
+    .replace(/\/+$/u, '');
+  if (!dir || dir === '.') return files;
+  return files
+    .filter((file) => file.startsWith(`${dir}/`))
+    .map((file) => file.slice(dir.length + 1));
 }
 
 /** The tests the change selects, as `--related` prints them. */
@@ -452,7 +475,10 @@ export function inspect(
       reason: `the test command could not start (${missing.slice(7)}: command not found or not executable)${command === undefined ? '' : `: ${command}`}. Install the runner the repo contract names or fix krn.json, or end with a line \`BLOCKER: <what stops you>\`.`,
     };
   const earlier = before();
-  const fresh = failing.filter((key) => !earlier.has(key));
+  // A failure naming no test cannot be matched to the base, so it is never pre-existing.
+  const fresh = failing.filter(
+    (key) => NAMELESS.test(key) || !earlier.has(key),
+  );
   if (fresh.length === 0)
     return { ok: true, reason: '', ignored: failing.length };
   const listed = fresh

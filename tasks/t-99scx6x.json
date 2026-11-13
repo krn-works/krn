@@ -1,7 +1,11 @@
 {
   "id": "t-99scx6x",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "nameless failures block; regression test added"
+  },
   "created": "2026-11-13",
   "priority": 0,
   "title": "The Stop check refuses a failure that names no test instead of calling it pre-existing",

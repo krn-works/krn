@@ -22,6 +22,7 @@ import {
   selectTests,
   statesBlocker,
   stopHook,
+  withinPackage,
 } from '../../scripts/claude/worker-stop.ts';
 import { resolveContract } from '../../src/repo/contract.ts';
 
@@ -676,6 +677,96 @@ test('a lane session with slug fix-x is blocked at Stop without a commit, and on
       judgeStop(payload(dir), anonymous, green, 'fix-x') ?? '',
       /names no task/u,
     );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a failure naming no test refuses even when the base fails the same way', () => {
+  const dir = stackRepo({
+    'krn.json': JSON.stringify({
+      test: 'sh check.sh',
+      related: 'sh check.sh {files}',
+    }),
+    'check.sh': 'exit 0\n',
+    'notes.txt': 'a\n',
+  });
+  try {
+    commitFile(dir, 'notes.txt', 'b\n');
+    const bothExit1 = () => ['<run>::exit 1'];
+    const outcome = inspect(dir, () => [], bothExit1);
+    assert.equal(outcome.ok, false);
+    assert.equal(outcome.ignored, 0);
+    assert.match(outcome.reason, /<run> :: exit 1/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a named failure that also fails at the base stays pre-existing', () => {
+  const dir = stackRepo({
+    'krn.json': JSON.stringify({
+      test: 'sh check.sh',
+      related: 'sh check.sh {files}',
+    }),
+    'check.sh': 'exit 0\n',
+    'notes.txt': 'a\n',
+  });
+  try {
+    commitFile(dir, 'notes.txt', 'b\n');
+    const outcome = inspect(
+      dir,
+      () => [],
+      () => ['t.py::test_old'],
+    );
+    assert.equal(outcome.ok, true);
+    assert.equal(outcome.ignored, 1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('withinPackage hands a --prefix command paths relative to its package', () => {
+  const related = 'npm --prefix packages/seo test -- {files}';
+  assert.deepEqual(
+    withinPackage(related, ['packages/seo/test/a.test.js', 'docs/x.md']),
+    ['test/a.test.js'],
+  );
+  assert.deepEqual(withinPackage('node --test {files}', ['test/a.test.js']), [
+    'test/a.test.js',
+  ]);
+});
+
+test('a package in a subdirectory runs its related test through the real npm --prefix', () => {
+  const dir = stackRepo({
+    'krn.json': JSON.stringify({
+      test: 'npm --prefix packages/seo test',
+      related: 'npm --prefix packages/seo test -- {files}',
+    }),
+    'packages/seo/package.json': JSON.stringify({
+      name: 'seo',
+      private: true,
+      scripts: { test: 'node --test' },
+    }),
+    'packages/seo/page.js': 'export const title = () => "a";\n',
+    'packages/seo/test/page.test.js':
+      "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { title } from '../page.js';\ntest('title', () => assert.equal(title(), 'a'));\n",
+  });
+  try {
+    commitFile(
+      dir,
+      'packages/seo/page.js',
+      'export const title = () => "a";\n// edit\n',
+    );
+    assert.equal(inspect(dir).ok, true);
+    commitFile(
+      dir,
+      'packages/seo/page.js',
+      'export const title = () => "b";\n',
+    );
+    const red = inspect(dir);
+    assert.equal(red.ok, false);
+    assert.match(red.reason, /'test\/page.test.js'/u);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
