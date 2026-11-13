@@ -179,3 +179,51 @@ test('KRN_TASK scopes a lane whose slug carries no task id', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a lane session may not write the main checkout outside its worktree and .krn/runs', () => {
+  const main = '/r/main';
+  const lane = `${main}/.krn/worktrees/lane-x`;
+  const env = {
+    CLAUDE_PROJECT_DIR: lane,
+    KRN_SESSION_CLASS: 'lane',
+    KRN_SCOPE: 'src/',
+  };
+  const w = (file_path: string, cwd = lane) => ({
+    tool_name: 'Write',
+    cwd,
+    tool_input: { file_path },
+  });
+  const refused = (payload: unknown) =>
+    assert.match(decide(payload, env) ?? '', /main checkout/u);
+  refused(w(`${main}/src/ci/wait.ts`));
+  refused(w(`${main}/.krn/worktrees/lane-other/src/a.ts`));
+  refused(w('../../../src/a.ts'));
+  refused({
+    tool_name: 'Bash',
+    cwd: main,
+    tool_input: { command: 'echo x > src/a.ts' },
+  });
+  refused({
+    tool_name: 'Edit',
+    cwd: lane,
+    tool_input: { file_path: `${main}/src/x.ts` },
+  });
+  for (const ok of [
+    `${lane}/src/a.ts`,
+    `${main}/.krn/runs/lane-x/notes.md`,
+    '/tmp/x',
+  ])
+    assert.equal(decide(w(ok), env), undefined, ok);
+  assert.match(
+    decide(w(`${main}/src/a.ts`), {
+      CLAUDE_PROJECT_DIR: lane,
+      KRN_SESSION_CLASS: 'lane',
+      KRN_LANE: 'goal',
+    }) ?? '',
+    /main checkout/u,
+  );
+  assert.equal(
+    decide(w(`${main}/src/a.ts`), { CLAUDE_PROJECT_DIR: lane }),
+    undefined,
+  );
+});

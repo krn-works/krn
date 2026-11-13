@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // PreToolUse hook for Write, Edit, NotebookEdit and Bash: a worker session may not write the tracker or
@@ -112,6 +112,23 @@ function bashTargets(command: string): string[] {
   return found.filter((target) => target !== '/dev/null');
 }
 
+/**
+ * A lane runs in <main>/.krn/worktrees/<slug>. A write under <main> that is neither inside that
+ * worktree nor under <main>/.krn/runs lands in the main checkout (the ci-wait lane did this).
+ * A session whose root is not a KRN worktree has no main checkout to protect.
+ */
+export function outsideOwnWorktree(root: string, target: string): boolean {
+  const marker = `${sep}.krn${sep}worktrees${sep}`;
+  const at = root.indexOf(marker);
+  if (at < 0) return false;
+  const main = root.slice(0, at);
+  const inside = (base: string) => {
+    const rel = relative(base, target);
+    return rel === '' || !(rel.startsWith('..') || isAbsolute(rel));
+  };
+  return inside(main) && !inside(root) && !inside(join(main, '.krn', 'runs'));
+}
+
 export interface Verdict {
   refusal?: string;
   note?: string;
@@ -145,7 +162,6 @@ export function judge(
   const who = worker(env, root, branch);
   if (!who) return {};
   if (who.unidentified) return { refusal: `Refused: ${UNIDENTIFIED_LANE}` };
-  if (who.unscoped) return {};
   const cwd = typeof fields.cwd === 'string' ? fields.cwd : root;
   const input = fields.tool_input;
   const targets: string[] = [];
@@ -158,6 +174,17 @@ export function judge(
     if (typeof input.command === 'string')
       targets.push(...bashTargets(input.command));
   } else return {};
+  const escaped = targets.find((target) =>
+    outsideOwnWorktree(
+      root,
+      isAbsolute(target) ? target : resolve(cwd, target),
+    ),
+  );
+  if (escaped !== undefined)
+    return {
+      refusal: `Refused: ${escaped} is in the main checkout, outside this lane's worktree (${root}). Nothing in this call ran. Write under your own worktree or .krn/runs/ (scripts/claude/worker-scope.ts).`,
+    };
+  if (who.unscoped) return {};
   const notes: string[] = [];
   for (const target of targets) {
     const path = relative(
