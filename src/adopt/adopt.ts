@@ -4,11 +4,13 @@ import {
   existsSync,
   lstatSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { CONTRACT_FILE, detectBase, findContract } from '../repo/contract.ts';
 import { createTask } from '../task/store.ts';
 
@@ -210,6 +212,32 @@ function writeContract(
   );
 }
 
+const skillsSource = fileURLToPath(new URL('./skills/', import.meta.url));
+
+/** The universal skills (no KRN-repository text), one SKILL.md per directory. */
+export function universalSkills(): string[] {
+  return readdirSync(skillsSource).sort();
+}
+
+/** Installs the universal skills under .agents/skills, linking .claude/skills to it when neither exists. */
+function writeSkills(root: string, report: AdoptionReport): void {
+  for (const name of universalSkills()) {
+    const relative = join('.agents', 'skills', name, 'SKILL.md');
+    writeIfChanged(
+      root,
+      relative,
+      readFileSync(join(skillsSource, name, 'SKILL.md'), 'utf8'),
+      report,
+    );
+  }
+  const link = join(root, '.claude', 'skills');
+  if (!existsSync(link) && !isSymlink(link)) {
+    mkdirSync(dirname(link), { recursive: true });
+    symlinkSync(join('..', '.agents', 'skills'), link);
+    report.written.push('.claude/skills');
+  } else report.unchanged.push('.claude/skills');
+}
+
 const stopCommand = 'krn hook stop';
 
 interface HookEntry {
@@ -264,6 +292,7 @@ export function adopt(root: string, options: AdoptOptions): AdoptionReport {
   if (options.ref !== undefined || options.tracker) seedTasks(root, report);
   writeContract(root, options, report);
   writeHooks(root, report);
+  writeSkills(root, report);
   writeRules(root, report);
   ignoreAgentState(root, report);
   if (workflow !== undefined)
