@@ -1,7 +1,11 @@
 {
   "id": "t-t6tjhe9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Share of new test cases with a clone ancestor: 54.3% over 200 PRs (4 repos), cluster-bootstrap 95% 42.0-66.2%; ts 60.4%, py 46.8%, fix 42.2%, feature 57.9%. Above the 30% kill line. Record .krn/runs/sibling-transplant/rung0.md"
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "Rung 0: the share of new hidden test cases with an ancestor among existing tests is measured on 200 PRs",
