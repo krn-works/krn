@@ -21,11 +21,12 @@ import { claimTask, mainCheckoutRoot, releaseClaim } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
 import { flagValue } from './flag-value.ts';
+import { sleepSync } from './lane-lock.ts';
 import { CliUsageError } from './usage-error.ts';
 
 export const laneUsage = [
   'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--class delivery|non-delivery] [--root DIR]  fetch the repo contract base branch from origin, create branch SLUG from it in .krn/worktrees/SLUG, claim the task; a non-delivery lane is refused while `krn ledger --check-ceiling` is over; prints the path and branch',
-  'krn lane run (--task ID | --goal TEXT) [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree and take its claim again after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line, exit 0 only when merged; before the session it runs the krn.json `install` command (exit 71 when it fails) and the contract test on the clean base (exit 72 when red), starting no session either way',
+  'krn lane run (--task ID | --goal TEXT) [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree and take its claim again after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line, exit 0 only when merged; before the session a preflight checks origin with the lane credentials and the sandbox settings file (exit 69 in seconds), then it runs the krn.json `install` command (exit 71 when it fails) and the contract test on the clean base, one lane at a time per repository (exit 72 when red, naming the failing test files), starting no session in any of these cases',
   'krn lane drop SLUG [--root DIR]  remove the lane worktree and branch and release the claim held from that worktree',
   'krn lane brief [--file PATH] [--task ID] [--as-of YYYY-MM-DD] [--root DIR]  print the lane brief (file, else stdin) behind the FR-40 brain packet of the repository records',
 ].join('\n');
@@ -147,6 +148,36 @@ function git(root: string, args: string[]): string {
       `git ${args.join(' ')} failed: ${(result.stderr || result.stdout).trim()}`,
     );
   return result.stdout.trim();
+}
+
+/** What git prints when another process holds a ref lock it needs (a concurrent fetch of the same repository). */
+const refLockBusy =
+  /cannot lock ref|unable to update local ref|Unable to create '[^']*\.lock'|\.lock': File exists/u;
+
+/**
+ * Fetch the base branch, retried while a concurrent `krn lane start` of the same repository holds
+ * refs/remotes/origin/<base>.lock: parallel lanes would otherwise fail with "cannot lock ref".
+ */
+export function fetchBase(
+  main: string,
+  base: string,
+  attempts = 40,
+  delayMs = 250,
+): void {
+  for (let attempt = 1; ; attempt += 1) {
+    const result = spawnSync(
+      'git',
+      ['-C', main, 'fetch', '-q', 'origin', base],
+      {
+        encoding: 'utf8',
+      },
+    );
+    if (result.status === 0) return;
+    const said = (result.stderr || result.stdout).trim();
+    if (attempt >= attempts || !refLockBusy.test(said))
+      throw new CliUsageError(`git fetch -q origin ${base} failed: ${said}`);
+    sleepSync(delayMs);
+  }
 }
 
 function gitOk(root: string, args: string[]): boolean {
@@ -349,7 +380,7 @@ export async function startLane(
   checkLaneBudget(main);
   await checkLaneCeiling(main, sessionClass, deps.ceiling);
   const base = contractBase(origin);
-  git(main, ['fetch', '-q', 'origin', base]);
+  fetchBase(main, base);
   const carried =
     task === undefined ? undefined : untrackedTaskRecord(origin, task, base);
   git(main, ['worktree', 'add', '-q', '-b', slug, path, `origin/${base}`]);

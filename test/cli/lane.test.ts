@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { fetchBase } from '../../src/cli/lane.ts';
 
 // KRN-12: runs `krn lane start` against real temporary git repositories.
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
@@ -309,6 +310,57 @@ test('lane drop refuses while the worktree holds the only copy of a task record'
     );
     assert.equal(lane(repo, 'drop', 'only').status, 0);
     assert.equal(existsSync(path), false);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+function laneAsync(
+  repo: string,
+  ...args: string[]
+): Promise<{ status: number | null; stderr: string }> {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [cli, 'lane', ...args], {
+      cwd: repo,
+    });
+    let stderr = '';
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('close', (status) => resolve({ status, stderr }));
+  });
+}
+
+test('concurrent lane starts in one repository all succeed', async () => {
+  // Seen on the pilot: two parallel starts raced on `git fetch origin main` ("cannot lock ref", exit 64).
+  const { base, repo } = fixture();
+  try {
+    const slugs = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'];
+    const results = await Promise.all(
+      slugs.map((slug) => laneAsync(repo, 'start', slug)),
+    );
+    for (const result of results) assert.equal(result.status, 0, result.stderr);
+    for (const slug of slugs)
+      assert.ok(existsSync(join(repo, '.krn', 'worktrees', slug, 'newer.txt')));
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('fetchBase waits out a ref lock another fetch holds and fails at once on any other error', async () => {
+  const { base, repo } = fixture();
+  try {
+    const lock = join(repo, '.git', 'refs', 'remotes', 'origin', 'main.lock');
+    writeFileSync(lock, '');
+    const releaser = spawn('sh', ['-c', `sleep 0.6; rm -f '${lock}'`]);
+    const released = new Promise((resolve) => releaser.on('close', resolve));
+    fetchBase(repo, 'main', 40, 100);
+    await released;
+    assert.equal(
+      git(repo, 'rev-parse', 'origin/main'),
+      git(join(base, 'other'), 'rev-parse', 'HEAD'),
+    );
+    assert.throws(() => fetchBase(repo, 'no-such-branch', 40, 1000), /failed/u);
   } finally {
     rmSync(base, { recursive: true, force: true });
   }

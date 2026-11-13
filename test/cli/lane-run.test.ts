@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   chmodSync,
   copyFileSync,
@@ -17,14 +17,18 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { laneBriefText, startLane, workerRules } from '../../src/cli/lane.ts';
 import {
+  baselineReason,
+  failingTests,
   goalBrief,
   goalSlug,
   laneRunCommand,
   laneSandboxSettings,
   mintFailure,
   parseSessionResult,
+  remoteFailure,
   sandboxPlaceholders,
   sessionTimeoutMs,
+  settingsFailure,
   taskBrief,
   ticketCommitTitle,
   tokenMinimumRemainingSeconds,
@@ -936,10 +940,14 @@ function npmFiles(
   };
 }
 
-async function runPrepared(files: Record<string, string>) {
+async function runPrepared(
+  files: Record<string, string>,
+  before: (repo: string, base: string) => void = () => {},
+) {
   const { base, repo, claude } = fixture('echo x > started', files);
   process.env.KRN_LANE_CLAUDE = claude;
   try {
+    before(repo, base);
     const verdict = await laneRunCommand(
       ['--task', 't-abc1234', '--root', repo],
       {
@@ -996,4 +1004,141 @@ test('lane run exits 72 on a red baseline and starts no session', async () => {
 test('lane run skips install and baseline when the contract names none', async () => {
   const out = await runPrepared({});
   assert.equal(out.started, true);
+});
+
+// KRN-12: verbatim captures of a red vitest 5 run (stdout, stderr) and a red node --test run.
+const fixtureText = (path: string) =>
+  readFileSync(
+    fileURLToPath(new URL(`../fixtures/${path}`, import.meta.url)),
+    'utf8',
+  );
+const vitestRed = {
+  stdout: fixtureText('vitest/failing-run.stdout.txt'),
+  stderr: fixtureText('vitest/failing-run.stderr.txt'),
+};
+
+test('failingTests names the failing files of a red vitest run', () => {
+  assert.deepEqual(failingTests(`${vitestRed.stdout}\n${vitestRed.stderr}`), [
+    'test/math.test.ts',
+    'test/other.test.ts',
+  ]);
+});
+
+test('failingTests names the failing file of a red node --test run', () => {
+  assert.deepEqual(
+    failingTests(fixtureText('node-test/failing-run.stdout.txt')),
+    ['test/math.test.mjs'],
+  );
+});
+
+test('failingTests reads plain jest and pytest failure lines', () => {
+  assert.deepEqual(
+    failingTests(
+      'FAIL src/a.test.js\nFAILED tests/test_b.py::test_x - assert 1 == 2\n',
+    ),
+    ['src/a.test.js', 'tests/test_b.py'],
+  );
+});
+
+test('a red baseline names the failing test files, never the vitest separator', () => {
+  // Seen on the pilot: the exit-72 detail quoted `⎯⎯⎯⎯[3/3]⎯` instead of the failing tests.
+  const reason = baselineReason({ status: 1, ...vitestRed });
+  assert.equal(
+    reason,
+    'exit 1; failing: test/math.test.ts, test/other.test.ts',
+  );
+  assert.equal(
+    baselineReason({ status: 1, stdout: '', stderr: 'boom\n⎯⎯⎯⎯[1/1]⎯\n' }),
+    'exit 1: boom',
+  );
+});
+
+test('lane run exit 72 names the failing test file', async () => {
+  const out = await runPrepared(
+    npmFiles(`printf ' FAIL  test/a.test.ts > adds\\n'; exit 1`),
+  );
+  assert.equal(out.verdict.exitCode, 72);
+  assert.match(out.verdict.line, /failing: test\/a\.test\.ts\)/u);
+  assert.equal(out.started, false);
+});
+
+test('lane run waits for the baseline lock another lane holds under the main checkout', async () => {
+  // Seen on the pilot: five lanes ran the suite at once, it timed out, and every lane refused with 72.
+  const out = await runPrepared(
+    npmFiles('test -e ../../../../released'),
+    (repo, base) => {
+      const lock = join(repo, '.krn', 'tmp', 'lane-baseline.lock');
+      mkdirSync(join(repo, '.krn', 'tmp'), { recursive: true });
+      const other = spawn('sh', [
+        '-c',
+        `sleep 1.5; touch '${join(base, 'released')}'; rm -f '${lock}'`,
+      ]);
+      writeFileSync(lock, String(other.pid));
+    },
+  );
+  assert.equal(out.started, true, out.verdict.line);
+});
+
+test('settingsFailure names a missing or unreadable sandbox settings file', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'krn-settings-'));
+  try {
+    const file = join(dir, 'settings.sandbox.json');
+    assert.match(settingsFailure(file) ?? '', /settings file missing/u);
+    writeFileSync(file, '{ not json');
+    assert.match(settingsFailure(file) ?? '', /settings file is not JSON/u);
+    writeFileSync(file, '{}');
+    assert.equal(settingsFailure(file), undefined);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('lane run refuses an unreadable sandbox settings file before the install and the session', async () => {
+  const out = await runPrepared({
+    ...npmFiles('true'),
+    '.claude/settings.sandbox.json': '{ not json',
+  });
+  assert.equal(out.verdict.exitCode, 69);
+  assert.match(
+    out.verdict.line,
+    /preflight: sandbox settings file is not JSON/u,
+  );
+  assert.equal(out.started, false);
+  assert.equal(out.installed, false);
+  assert.notEqual(out.claim.state, 'live');
+});
+
+test('remoteFailure reads origin with the session credentials, not the operator ones', () => {
+  const { base, repo } = fixture('true');
+  try {
+    assert.equal(remoteFailure(repo, 'main', process.env), undefined);
+    assert.equal(
+      remoteFailure(repo, 'nope', process.env),
+      'origin has no branch nope',
+    );
+    // A session environment the remote refuses (here: file transport forbidden) fails the preflight.
+    assert.match(
+      remoteFailure(repo, 'main', {
+        ...process.env,
+        GIT_CONFIG_COUNT: '1',
+        GIT_CONFIG_KEY_0: 'protocol.file.allow',
+        GIT_CONFIG_VALUE_0: 'never',
+      }) ?? '',
+      /origin unreachable with the lane credentials/u,
+    );
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('lane run fails in seconds on an unreachable remote and creates no worktree', async () => {
+  const out = await runPrepared({}, (repo, base) =>
+    git(repo, 'remote', 'set-url', 'origin', join(base, 'missing.git')),
+  );
+  assert.equal(out.verdict.exitCode, 69);
+  assert.match(
+    out.verdict.line,
+    /^lane t-abc1234: preflight: origin unreachable with the lane credentials/u,
+  );
+  assert.equal(out.started, false);
 });
