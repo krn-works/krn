@@ -93,7 +93,16 @@ export async function waitCommand(
     const cwd = runtime.cwd ?? process.cwd();
     const runner = runtime.run ?? run;
     const wait = runtime.sleep ?? sleep;
-    const gh = runtime.gh ?? ((args) => github(args, cwd, runner, wait));
+    // Every GitHub read for --repo uses an App token minted for that repository.
+    const scoped: Runner = (command, args, ...rest) =>
+      command === 'gh'
+        ? runner(
+            'env',
+            [`KRN_APP_REPOSITORY=${options.repo}`, command, ...args],
+            ...rest,
+          )
+        : runner(command, args, ...rest);
+    const gh = runtime.gh ?? ((args) => github(args, cwd, scoped, wait));
     // The checkout may be another repository: its git has no object for this
     // base, so the policy is then read from the repository through GitHub.
     let policy: GateAdmissionPolicy;

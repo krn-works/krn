@@ -1,18 +1,18 @@
 {
   "name": "ci-admission.json",
   "path": "spec/ci-admission.json",
-  "sha": "7843eb9ee12c5a1e11e572e229f5449d2329a806",
-  "size": 70,
-  "url": "https://api.github.com/repos/krn-works/krn/contents/spec/ci-admission.json?ref=abd64f3d6b61de2273669429d771ad8ef1f772d8",
-  "html_url": "https://github.com/krn-works/krn/blob/abd64f3d6b61de2273669429d771ad8ef1f772d8/spec/ci-admission.json",
-  "git_url": "https://api.github.com/repos/krn-works/krn/git/blobs/7843eb9ee12c5a1e11e572e229f5449d2329a806",
-  "download_url": "https://raw.githubusercontent.com/krn-works/krn/abd64f3d6b61de2273669429d771ad8ef1f772d8/spec/ci-admission.json",
+  "sha": "bff037947f64c4927da1cf2badd774c387448ec7",
+  "size": 75,
+  "url": "https://api.github.com/repos/krn-works/seo-audit-harness/contents/spec/ci-admission.json?ref=0a94a191e1d13046b8b071745a787b2f00ed77d5",
+  "html_url": "https://github.com/krn-works/seo-audit-harness/blob/0a94a191e1d13046b8b071745a787b2f00ed77d5/spec/ci-admission.json",
+  "git_url": "https://api.github.com/repos/krn-works/seo-audit-harness/git/blobs/bff037947f64c4927da1cf2badd774c387448ec7",
+  "download_url": "https://raw.githubusercontent.com/krn-works/seo-audit-harness/0a94a191e1d13046b8b071745a787b2f00ed77d5/spec/ci-admission.json?token=CUTOGSSGOTXDM7OO5LCX3STK64J4BAVPNFXHG5DBNRWGC5DJN5XF62LE2MAAAAAFCXVXC5FRNFXHG5DBNRWGC5DJN5XF65DZOBS32U3DN5YGKZCJNZ2GKZ3SMF2GS33OJFXHG5DBNRWGC5DJN5XA",
   "type": "file",
-  "content": "ewogICJzY2hlbWFWZXJzaW9uIjogMSwKICAiY2hlY2tSdW5OYW1lIjogIkNo\nZWNrIiwKICAiYXBwSWQiOiAxNTM2OAp9Cg==\n",
+  "content": "ewogICJzY2hlbWFWZXJzaW9uIjogMSwKICAiY2hlY2tSdW5OYW1lIjogImNp\nIC8gQ2hlY2siLAogICJhcHBJZCI6IDE1MzY4Cn0K\n",
   "encoding": "base64",
   "_links": {
-    "self": "https://api.github.com/repos/krn-works/krn/contents/spec/ci-admission.json?ref=abd64f3d6b61de2273669429d771ad8ef1f772d8",
-    "git": "https://api.github.com/repos/krn-works/krn/git/blobs/7843eb9ee12c5a1e11e572e229f5449d2329a806",
-    "html": "https://github.com/krn-works/krn/blob/abd64f3d6b61de2273669429d771ad8ef1f772d8/spec/ci-admission.json"
+    "self": "https://api.github.com/repos/krn-works/seo-audit-harness/contents/spec/ci-admission.json?ref=0a94a191e1d13046b8b071745a787b2f00ed77d5",
+    "git": "https://api.github.com/repos/krn-works/seo-audit-harness/git/blobs/bff037947f64c4927da1cf2badd774c387448ec7",
+    "html": "https://github.com/krn-works/seo-audit-harness/blob/0a94a191e1d13046b8b071745a787b2f00ed77d5/spec/ci-admission.json"
   }
 }

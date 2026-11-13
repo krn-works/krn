@@ -106,7 +106,9 @@ function policyFromContents(contents: string): GateAdmissionPolicy {
 /**
  * The same policy read through the GitHub contents API at the exact base, for
  * a repository whose objects the local checkout does not hold. A 404 means the
- * base has no policy file.
+ * base has no policy file only when the token can read the repository itself:
+ * GitHub also answers 404 for a repository the token is not installed on, and
+ * that must fail loudly instead of selecting the legacy gate name.
  */
 export async function gateAdmissionPolicyFromApi(
   repo: string,
@@ -123,12 +125,19 @@ export async function gateAdmissionPolicyFromApi(
     ]);
   } catch (error) {
     if (
-      /HTTP 404/u.test(
+      !/HTTP 404/u.test(
         String(Reflect.get(error as object, 'result')?.stderr ?? ''),
       )
     )
-      return legacyActionsPolicy;
-    throw error;
+      throw error;
+    try {
+      await gh(['api', `repos/${repo}`]);
+    } catch {
+      throw new Error(
+        `cannot read ${repo} with the token used for it (404 on ${GATE_ADMISSION_POLICY_PATH} and on the repository): install the KRN App on ${repo}, or fix KRN_APP_REPOSITORY`,
+      );
+    }
+    return legacyActionsPolicy;
   }
   const file = z
     .object({
