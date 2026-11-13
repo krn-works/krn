@@ -67,7 +67,17 @@ const PROSE_RULE_TESTS = new Set([
 ]);
 
 /**
- * Tests to run: changed tests, tests whose imports resolve to a changed or removed file,
+ * A test that exercises modules only through a child process (a CLI fixture) names the
+ * path prefixes it covers in a `// fast-covers: <prefix> [<prefix>...]` comment.
+ */
+const COVERS = /^\/\/ fast-covers:(.+)$/mu;
+
+function coveredPrefixes(source: string): string[] {
+  return (COVERS.exec(source)?.[1] ?? '').trim().split(/\s+/u).filter(Boolean);
+}
+
+/**
+ * Tests to run: changed tests, tests whose `fast-covers` prefixes match a changed path, tests whose imports resolve to a changed or removed file,
  * tests that name a changed or removed file by repository path, and the rule tests
  * (prose rule tests only when the diff touches the prose paths they scan).
  * A removed file is also matched by its basename when no surviving file shares it, so
@@ -97,7 +107,14 @@ export function selectTests(
   }
   if (targets.size > 0)
     for (const [path, source] of tests) {
-      if (names.some((name) => source.includes(name))) picked.add(path);
+      const covers = coveredPrefixes(source);
+      if (
+        names.some((name) => source.includes(name)) ||
+        [...targets].some((target) =>
+          covers.some((prefix) => target.startsWith(prefix)),
+        )
+      )
+        picked.add(path);
       else
         for (const target of importedPaths(path, source))
           if (targets.has(target)) picked.add(path);
@@ -480,6 +497,14 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
       .map((v) => `${v.file}:${v.line}: forbidden import ${v.edge}`)
       .join('\n'),
   });
+  // CI's Lint step runs the same floor on the PR diff; here it reads the working tree too.
+  steps.push(
+    await run(root, 'weak-tests', process.execPath, [
+      fileURLToPath(new URL('./weak-tests.mjs', import.meta.url)),
+      parsed.base ?? mergeBase(root),
+      '--worktree',
+    ]),
+  );
   steps.push(...(await verified));
   const failed = steps.filter((step) => !step.ok);
   for (const step of failed)

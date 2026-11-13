@@ -1,0 +1,16 @@
+{
+  "id": "t-ef75x2q",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "npm run fast runs scripts/weak-tests.mjs --worktree against the merge base (fixed diff prefixes) and selects tests by a // fast-covers prefix header; test/portability/fixtures.test.ts covers src/repo/ and src/adopt/."
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "npm run fast catches weakened tests and indirect fixture tests before CI",
+  "after": [],
+  "body": [
+    "Why: two lanes shipped red CI after a green `npm run fast` (2026-11-13): run 43500265555 Lint \"Weakened tests\" (`node scripts/weak-tests.mjs BASE HEAD`: net 5 assertions removed in test/brain/worker-packet.test.ts) — fast never runs weak-tests; run 43498935222 test/portability/fixtures.test.ts failed after src/repo/contract.ts changed — fast's related-test selection (scripts/fast-check.ts selectTests) did not pick the fixture test that exercises contract detection through adopt. Each red Check cost a full lane rerun (~$0.35-$2.20).\nOutcome: `npm run fast` runs scripts/weak-tests.mjs against the merge base with origin/main (same verdict as CI, cheap) and its related-test selection includes tests that exercise a changed module indirectly (at least: a change under src/repo/ or src/adopt/ selects test/portability/fixtures.test.ts), by a rule in data or import-graph, not a one-off special case if a general rule is feasible.\nProof: fast-check unit tests: a diff removing assertions makes fast FAIL naming weak-tests; a diff touching src/repo/contract.ts selects test/portability/fixtures.test.ts. `npm run fast` PASS."
+  ]
+}

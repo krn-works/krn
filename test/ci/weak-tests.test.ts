@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import { checkWeakTests } from '../../scripts/weak-tests.mjs';
+
+const script = join(import.meta.dirname, '../../scripts/weak-tests.mjs');
 
 const modify = (path: string, removed: string[], added: string[]) =>
   [
@@ -66,4 +72,32 @@ test('Weakens-tests line in the body overrides', () => {
   assert.equal(r.ok, true);
   assert.equal(r.overridden, true);
   assert.equal(run(diff, 'Weakens-tests:').ok, false);
+});
+
+test('weak-tests --worktree reads uncommitted edits against the base', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'weak-worktree-'));
+  const git = (...args: string[]) =>
+    execFileSync(
+      'git',
+      ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args],
+      { cwd: dir },
+    );
+  git('init', '-q', '-b', 'main');
+  mkdirSync(join(dir, 'test'));
+  writeFileSync(
+    join(dir, 'test/a.test.ts'),
+    'assert.equal(a, 1);\nassert.equal(b, 2);\n',
+  );
+  git('add', '.');
+  git('commit', '-qm', 'base');
+  writeFileSync(join(dir, 'test/a.test.ts'), 'assert.equal(a, 1);\n');
+  const result = spawnSync(process.execPath, [script, 'HEAD', '--worktree'], {
+    cwd: dir,
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(
+    result.stdout,
+    /weak-tests: test\/a\.test\.ts: net 1 assertion\(s\) removed/u,
+  );
 });
