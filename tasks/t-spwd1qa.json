@@ -1,7 +1,11 @@
 {
   "id": "t-spwd1qa",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "MEASURED, LEAD_ONLY, live-records and the fr40 import left src/brain; records carry an optional audience (lead stays out of the lane packet); krn.json conventions point at .agents/conventions.json; the lane verdict records the packet sha256"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "The lane packet takes audience and live records from data and each run records its sha",

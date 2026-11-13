@@ -1,9 +1,9 @@
-// `krn brain packet`: build the FR-40 arm material for one convention task (ADR 0014 D32).
+// FR-40 arm material for one convention task (ADR 0014 D32): `node evals/fr40/packets.ts`
+// prints it. The experiment's material, not the product's: `krn brain` is retired.
 // Shadow packets are agent state under .krn/; nothing here injects them into a brief or prompt.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { BASE_DATE, generate } from '../../evals/fr40/tasks.ts';
-import { CliUsageError } from '../cli/usage-error.ts';
+import { fileURLToPath } from 'node:url';
 import {
   type Arm,
   BUDGET,
@@ -11,19 +11,24 @@ import {
   type Packet,
   parseRecords,
   staticPacket,
-} from './packet.ts';
+} from '../../src/brain/packet.ts';
+import { BASE_DATE, generate } from './tasks.ts';
 
 export { BUDGET };
 
 export const usage =
-  'usage: krn brain packet <fr40-task-id> [--arm brain|static] [--write] [--json]';
+  'usage: node evals/fr40/packets.ts packet <fr40-task-id> [--arm brain|static] [--write] [--json]';
 
-const material = new URL('../../evals/fr40/', import.meta.url);
+class UsageError extends Error {
+  readonly exitCode = 64;
+}
+
+const material = new URL('./', import.meta.url);
 
 export function fr40Packet(id: string, arm: Arm): Packet {
   const task = generate().find((candidate) => candidate.id === id);
   if (task === undefined)
-    throw new CliUsageError(`krn brain packet: unknown FR-40 task ${id}`);
+    throw new UsageError(`fr40 packet: unknown FR-40 task ${id}`);
   if (arm === 'static')
     return staticPacket({
       task: id,
@@ -50,7 +55,7 @@ function parse(args: readonly string[]): {
 } {
   const [verb, id, ...rest] = args;
   if (verb !== 'packet' || id === undefined || id.startsWith('-'))
-    throw new CliUsageError(usage);
+    throw new UsageError(usage);
   let arm: Arm = 'brain';
   let write = false;
   let json = false;
@@ -60,10 +65,9 @@ function parse(args: readonly string[]): {
     else if (flag === '--json') json = true;
     else if (flag === '--arm') {
       const value = rest[++i];
-      if (value !== 'brain' && value !== 'static')
-        throw new CliUsageError(usage);
+      if (value !== 'brain' && value !== 'static') throw new UsageError(usage);
       arm = value;
-    } else throw new CliUsageError(usage);
+    } else throw new UsageError(usage);
   }
   return { id, arm, write, json };
 }
@@ -94,3 +98,9 @@ export async function brainCommand(args: string[]): Promise<void> {
     ].join('\n')}\n`,
   );
 }
+
+if (process.argv[1] === fileURLToPath(import.meta.url))
+  brainCommand(process.argv.slice(2)).catch((error: unknown) => {
+    process.stderr.write(`${(error as Error).message}\n`);
+    process.exitCode = error instanceof UsageError ? error.exitCode : 1;
+  });

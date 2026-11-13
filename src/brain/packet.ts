@@ -11,7 +11,11 @@ export type BrainRecord = {
   readonly valid_from: string;
   readonly valid_to: string | null;
   readonly source: string;
+  /** Who the record addresses: `lead` keeps it out of the lane packet a worker receives; absent means everyone. */
+  readonly audience?: Audience;
 };
+
+export type Audience = 'lead' | 'worker';
 
 export type Arm = 'brain' | 'static';
 
@@ -50,12 +54,16 @@ export function parseRecords(value: unknown): BrainRecord[] {
     const where = `records[${index}]`;
     if (typeof item !== 'object' || item === null || Array.isArray(item))
       throw new BrainDataError(`${where}: expected an object`);
-    const keys = Object.keys(item).sort();
+    const keys = Object.keys(item)
+      .filter((key) => key !== 'audience')
+      .sort();
     if (keys.join() !== [...FIELDS].sort().join())
       throw new BrainDataError(
-        `${where}: fields must be exactly ${FIELDS.join(', ')}`,
+        `${where}: fields must be exactly ${FIELDS.join(', ')} and an optional audience`,
       );
     const r = item as Record<string, unknown>;
+    if ('audience' in r && r.audience !== 'lead' && r.audience !== 'worker')
+      throw new BrainDataError(`${where}.audience: expected lead or worker`);
     for (const field of ['id', 'type', 'text', 'source'] as const)
       if (typeof r[field] !== 'string' || r[field] === '')
         throw new BrainDataError(`${where}.${field}: expected text`);

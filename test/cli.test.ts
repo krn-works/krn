@@ -23,6 +23,7 @@ test('unknown and retired commands exit 64 with a clear stderr message and print
     'review',
     'worker',
     'eval',
+    'brain',
   ]) {
     const result = spawnSync(process.execPath, [cli, command], {
       encoding: 'utf8',

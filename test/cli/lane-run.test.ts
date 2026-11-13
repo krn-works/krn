@@ -435,6 +435,56 @@ test('lane run pins the model and passes --model to the session', async () => {
   }
 });
 
+test('the lane verdict records the sha of the packet its session prompt carried', async () => {
+  const conventions = `[
+  {"id": "r-trailer", "type": "convention", "text": "Every commit for a task carries a Ticket trailer.", "recorded_at": "2026-01-01", "valid_from": "2026-01-01", "valid_to": null, "source": "AGENTS.md"}
+]
+`;
+  const seen = mkdtempSync(join(tmpdir(), 'krn-lane-run-sha-'));
+  const { base, repo, claude } = fixture(
+    `printf '%s' "$2" > ${seen}/prompt; ${deliver()}`,
+    { '.krn/conventions.json': conventions },
+  );
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      {
+        start: startLane,
+        ship: async () => 'merged\nverdict: merged abc1234',
+        mint: async () => undefined,
+      },
+    );
+    assert.equal(verdict.exitCode, 0, verdict.line);
+    const sha = verdict.packet ?? '';
+    assert.match(sha, /^[0-9a-f]{64}$/u);
+    assert.ok(
+      verdict.line.endsWith(` packet ${sha.slice(0, 12)}`),
+      verdict.line,
+    );
+    const prompt = readFileSync(join(seen, 'prompt'), 'utf8');
+    assert.ok(
+      prompt.startsWith(
+        `Repository conventions (brain packet ${sha.slice(0, 12)}):\n- [r-trailer] `,
+      ),
+      prompt,
+    );
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+    rmSync(seen, { recursive: true, force: true });
+  }
+});
+
+test('a lane whose prompt carries no packet records none', async () => {
+  const { verdict } = await run(
+    deliver(),
+    async () => 'merged\nverdict: merged abc1234',
+  );
+  assert.equal(verdict.packet, null);
+  assert.doesNotMatch(verdict.line, / packet /u);
+});
+
 test('lane run marks the session as a lane session', async () => {
   const seen = mkdtempSync(join(tmpdir(), 'krn-lane-run-class-'));
   try {

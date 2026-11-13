@@ -27,7 +27,7 @@ import {
 import { isTaskId } from '../task/record.ts';
 import { getTask, repositoryRoot } from '../task/store.ts';
 import { flagValue } from './flag-value.ts';
-import { laneBriefText } from './lane.ts';
+import { laneBrief } from './lane.ts';
 import { withFileLock } from './lane-lock.ts';
 import { renderPrBody } from './pr-body.ts';
 import { CliUsageError } from './usage-error.ts';
@@ -35,6 +35,8 @@ import { CliUsageError } from './usage-error.ts';
 export interface LaneVerdict {
   line: string;
   exitCode: number;
+  /** sha256 of the brain packet the session prompt carried; null when it carried none or no session prompt was built. */
+  packet?: string | null;
 }
 
 /** The steps a task run takes outside its own logic; tests replace the ones that reach GitHub. */
@@ -288,7 +290,15 @@ export function goalBrief(
   goal: string,
   asOf = new Date().toISOString().slice(0, 10),
 ): string {
-  return laneBriefText(
+  return goalLaneBrief(root, goal, asOf).text;
+}
+
+function goalLaneBrief(
+  root: string,
+  goal: string,
+  asOf = new Date().toISOString().slice(0, 10),
+): { text: string; packet: string | null } {
+  return laneBrief(
     root,
     [
       goal.trim(),
@@ -317,7 +327,16 @@ export function taskBrief(
   asOf = new Date().toISOString().slice(0, 10),
   lanes: string[] = [],
 ): string {
-  return laneBriefText(root, taskRecordBrief(root, id, lanes), asOf, id);
+  return taskLaneBrief(root, id, asOf, lanes).text;
+}
+
+function taskLaneBrief(
+  root: string,
+  id: string,
+  asOf = new Date().toISOString().slice(0, 10),
+  lanes: string[] = [],
+): { text: string; packet: string | null } {
+  return laneBrief(root, taskRecordBrief(root, id, lanes), asOf, id);
 }
 
 /** Why a token helper run failed (its first stderr line, else why it could not start), or undefined when it succeeded. */
@@ -714,12 +733,16 @@ export async function laneRunCommand(
   const label = task ?? lane;
   const main = mainCheckoutRoot(origin);
   const base = contractBase(origin);
-  const brief =
+  const prompt =
     task === undefined
-      ? goalBrief(origin, goal ?? '')
-      : taskBrief(origin, task, undefined, [
+      ? goalLaneBrief(origin, goal ?? '')
+      : taskLaneBrief(origin, task, undefined, [
           join(main, '.krn', 'worktrees', lane),
         ]);
+  const brief = prompt.text;
+  // The verdict records which packet the session served, so a run is traceable to its conventions.
+  const served =
+    prompt.packet === null ? '' : ` packet ${prompt.packet.slice(0, 12)}`;
 
   const environment = sessionEnvironment(
     process.env,
@@ -849,8 +872,9 @@ export async function laneRunCommand(
         /* No claim left to release. */
       }
     return {
-      line: `lane ${label}: ${reason} (${kept}${task === undefined ? '' : ', claim released'}) model ${model}${spent}`,
+      line: `lane ${label}: ${reason} (${kept}${task === undefined ? '' : ', claim released'}) model ${model}${spent}${served}`,
       exitCode,
+      packet: prompt.packet,
     };
   };
 
@@ -956,8 +980,9 @@ export async function laneRunCommand(
       '';
     const merged = /^verdict: merged\b/u.test(last);
     return {
-      line: `lane ${label}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}`,
+      line: `lane ${label}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}${served}`,
       exitCode: merged ? 0 : exitNoDelivery,
+      packet: prompt.packet,
     };
   } catch (error) {
     // A throw after the claim (git, ship push, red Check, timeout) must not leave the claim live.
