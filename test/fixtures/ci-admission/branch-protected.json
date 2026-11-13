@@ -1,0 +1,17 @@
+{
+  "name": "main",
+  "protected": true,
+  "protection": {
+    "enabled": true,
+    "required_status_checks": {
+      "enforcement_level": "non_admins",
+      "contexts": ["ci / Check"],
+      "checks": [
+        {
+          "context": "ci / Check",
+          "app_id": 15368
+        }
+      ]
+    }
+  }
+}

@@ -7,6 +7,7 @@ import {
   type GateAdmissionPolicy,
   gateAdmissionPolicyFromApi,
   gateAdmissionPolicyFromBase,
+  gateAdmissionPolicyFromBranch,
 } from '../deliver/admission-policy.ts';
 import {
   GateStopped,
@@ -131,6 +132,14 @@ export async function waitCommand(
     await waitForGate({
       ...options,
       policy,
+      // No admission file at the base (a first adoption PR adds it): the base branch's required check decides.
+      branchPolicy: async (ref) =>
+        gateAdmissionPolicyFromBranch(
+          await gh([
+            'api',
+            `repos/${options.repo}/branches/${encodeURIComponent(ref)}`,
+          ]),
+        ),
       gh,
       sleep: wait,
       now,

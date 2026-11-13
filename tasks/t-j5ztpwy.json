@@ -1,0 +1,16 @@
+{
+  "id": "t-j5ztpwy",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ci wait asks the base branch's required Actions check when the base has no admission file; regression on the verbatim krn-pilot-py branches capture"
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "krn pr ship on a first adoption PR waits for the base branch's required check",
+  "after": [],
+  "body": [
+    "Why: Python pilot t-811vn27 adoption PR krn-works/krn-pilot-py#1 (head c5f42fee94cb88f2d45744011eae34b2902bf973) merged green with `ci / Check` (App 15368), yet `krn pr ship --repo krn-works/krn-pilot-py` exited 69 \"gate never started ... within 300s\": the base has no spec/ci-admission.json yet (the adoption PR adds it), so src/ci/wait.ts selected the legacy `gate` check. Every first adoption PR hits this.\nOutcome: when the base tree has no admission file, `krn ci wait` / `krn pr ship` read the base branch's required status checks (`gh api repos/<repo>/branches/<base ref>`, `.protection.required_status_checks.checks`) and, when exactly one check is pinned to App 15368, wait for that check name; otherwise the legacy `gate` policy stays. The PR head never chooses its own gate.\nProof: a test in test/deliver feeds the verbatim branches API capture of krn-works/krn-pilot-py main and asserts the pinned `ci / Check` policy; a capture without protection keeps legacy."
+  ]
+}

@@ -164,3 +164,40 @@ export function matchesGateCheckRun(
     ? check.app?.slug === policy.appSlug
     : check.app?.id === policy.appId;
 }
+
+const branchSchema = z.object({
+  protection: z
+    .object({
+      required_status_checks: z
+        .object({
+          checks: z
+            .array(
+              z.object({ context: z.string(), app_id: z.number().nullable() }),
+            )
+            .optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+});
+
+/**
+ * The gate a base without an admission file still pins: the base branch's one required status check
+ * from GitHub Actions (`gh api repos/<repo>/branches/<ref>`; capture:
+ * test/fixtures/ci-admission/branch-protected.json). A first adoption PR adds spec/ci-admission.json
+ * itself, and a PR head never chooses its own gate, so repository settings decide; anything else is legacy.
+ */
+export function gateAdmissionPolicyFromBranch(
+  body: string,
+): GateAdmissionPolicy {
+  const branch = branchSchema.safeParse(JSON.parse(body));
+  const checks = branch.success
+    ? (branch.data.protection?.required_status_checks?.checks ?? [])
+    : [];
+  const pinned = checks.filter((check) => check.app_id === ACTIONS_APP_ID);
+  const name = pinned.length === 1 ? pinned[0]?.context : undefined;
+  return name !== undefined &&
+    admissionPolicySchema.shape.checkRunName.safeParse(name).success
+    ? { source: 'pinned-app', checkRunName: name, appId: ACTIONS_APP_ID }
+    : legacyActionsPolicy;
+}

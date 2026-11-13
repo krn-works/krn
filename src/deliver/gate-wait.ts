@@ -34,6 +34,7 @@ export const pullSchema = z.object({
   merged: z.boolean().optional(),
   merge_commit_sha: sha.nullable().optional(),
   auto_merge: z.unknown().optional(),
+  base: z.object({ ref: z.string().min(1) }).optional(),
 });
 export type Pull = z.infer<typeof pullSchema>;
 
@@ -51,6 +52,8 @@ interface GateWaitOptions {
   startTimeoutMs?: number;
   /** Receives every pull read, so a caller can see auto-merge without another request. */
   onPull?: (pull: Pull) => void;
+  /** The gate the base branch's settings pin, asked once when the base tree names none (a first adoption PR). */
+  branchPolicy?: (ref: string) => Promise<GateAdmissionPolicy>;
 }
 /** Why a wait stopped before its gate concluded; each reason owns an exit code. */
 type GateStopReason = 'conflict' | 'head-moved' | 'never-started';
@@ -112,7 +115,7 @@ export async function waitForGate({
   repo,
   pr,
   head,
-  policy,
+  policy: basePolicy,
   gh,
   sleep,
   now,
@@ -120,7 +123,10 @@ export async function waitForGate({
   timeoutMs,
   startTimeoutMs = timeoutMs,
   onPull,
+  branchPolicy,
 }: GateWaitOptions): Promise<string> {
+  let policy = basePolicy;
+  let askBranch = basePolicy.source === 'legacy-actions';
   const started = now();
   const deadline = started + timeoutMs;
   let cancelledSince: number | undefined;
@@ -131,6 +137,10 @@ export async function waitForGate({
       JSON.parse(await gh(['api', `repos/${repo}/pulls/${pr}`])),
     );
     onPull?.(pull);
+    if (askBranch && branchPolicy && pull.base) {
+      askBranch = false;
+      policy = await branchPolicy(pull.base.ref).catch(() => policy);
+    }
     if (pull.head.sha !== head)
       throw new GateStopped(
         'head-moved',
