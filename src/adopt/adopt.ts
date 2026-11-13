@@ -11,7 +11,13 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CONTRACT_FILE, detectBase, findContract } from '../repo/contract.ts';
+import {
+  CONTRACT_FILE,
+  detectBase,
+  detectSubpackage,
+  findContract,
+  subpackageCandidates,
+} from '../repo/contract.ts';
 import { createTask } from '../task/store.ts';
 import { seedConventions } from './conventions.ts';
 
@@ -62,6 +68,7 @@ function quoted(value: string): string {
 
 export function renderWorkflow(
   options: AdoptOptions & { ref: string },
+  name = 'CI',
 ): string {
   if (!/^[0-9a-f]{40}$/u.test(options.ref))
     throw new Error('--ref must be a full 40-character commit sha');
@@ -78,7 +85,7 @@ export function renderWorkflow(
       : [`      ${name}: ${quoted(value)}`],
   );
   return [
-    'name: CI',
+    `name: ${name}`,
     '',
     'on:',
     '  push:',
@@ -220,10 +227,15 @@ function writeContract(
     return;
   }
   const found = findContract(root);
+  const candidates = found ? [] : subpackageCandidates(root);
   const test = options.test ?? found?.contract.test;
   if (test === undefined) {
     report.skipped.push(
-      `${CONTRACT_FILE} (no test command detected; pass --test CMD or write it)`,
+      `${CONTRACT_FILE} (${
+        candidates.length > 1
+          ? `several packages hold a test command: ${candidates.map((c) => c.dir).join(', ')}; pass --test CMD or write it`
+          : 'no test command detected; pass --test CMD or write it'
+      })`,
     );
     return;
   }
@@ -319,11 +331,27 @@ function writeHooks(root: string, report: AdoptionReport): void {
 export function adopt(root: string, options: AdoptOptions): AdoptionReport {
   if (!existsSync(join(root, '.git')))
     throw new Error(`${root} is not a git repository root`);
+  const sub = detectSubpackage(root);
+  if (sub !== undefined)
+    options = {
+      ...options,
+      ...(options.install === undefined && sub.install
+        ? { install: sub.install }
+        : {}),
+      ...(options.lint === undefined && sub.lint ? { lint: sub.lint } : {}),
+      ...(options.typecheck === undefined && sub.typecheck
+        ? { typecheck: sub.typecheck }
+        : {}),
+      test: options.test ?? sub.test,
+    };
   const report: AdoptionReport = { written: [], unchanged: [], skipped: [] };
   const workflow =
     options.ref === undefined
       ? undefined
-      : renderWorkflow({ ...options, ref: options.ref });
+      : renderWorkflow(
+          { ...options, ref: options.ref },
+          workflowPath(root).endsWith('krn-ci.yml') ? 'KRN CI' : 'CI',
+        );
   if (options.ref !== undefined || options.tracker) seedTasks(root, report);
   writeContract(root, options, report);
   writeHooks(root, report);

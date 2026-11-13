@@ -270,3 +270,47 @@ test('adopt seeds the conventions file from the instruction files and the packet
     edited,
   );
 });
+
+function packageAt(root: string, dir: string, scripts: object) {
+  mkdirSync(join(root, dir), { recursive: true });
+  writeFileSync(join(root, dir, 'package.json'), JSON.stringify({ scripts }));
+  writeFileSync(join(root, dir, 'package-lock.json'), '{}');
+}
+
+test('adopt detects the commands of the only package below a manifest-less root and names its workflow apart from an existing CI', () => {
+  const root = scratch();
+  packageAt(root, 'packages/seo', {
+    test: 'node --test',
+    lint: 'biome check',
+    typecheck: 'tsc',
+    verify: 'x',
+  });
+  mkdirSync(join(root, '.github/workflows'), { recursive: true });
+  writeFileSync(join(root, '.github/workflows/ci.yml'), 'name: CI\n');
+  const run = adopt(root);
+  assert.equal(run.status, 0, run.stderr);
+  const contract = JSON.parse(readFileSync(join(root, 'krn.json'), 'utf8'));
+  assert.equal(contract.test, 'npm --prefix packages/seo test');
+  const workflow = readFileSync(
+    join(root, '.github/workflows/krn-ci.yml'),
+    'utf8',
+  );
+  assert.match(workflow, /^name: KRN CI$/mu);
+  assert.match(workflow, /install: "npm --prefix packages\/seo ci"/u);
+  assert.match(workflow, /lint: "npm --prefix packages\/seo run lint"/u);
+  assert.match(
+    workflow,
+    /typecheck: "npm --prefix packages\/seo run typecheck"/u,
+  );
+  assert.match(workflow, /test: "npm --prefix packages\/seo test"/u);
+});
+
+test('adopt skips krn.json naming every package when two hold a test command', () => {
+  const root = scratch();
+  packageAt(root, 'packages/a', { test: 'node --test' });
+  packageAt(root, 'web', { test: 'vitest run' });
+  const run = adopt(root);
+  assert.equal(run.status, 0, run.stderr);
+  assert.match(run.stdout, /^skipped krn\.json .*packages\/a, web/mu);
+  assert.equal(existsSync(join(root, 'krn.json')), false);
+});
