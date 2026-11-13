@@ -11,7 +11,7 @@ import {
   report,
   unitMeans,
 } from '../../evals/d23/analysis.ts';
-import { observation, runFacts } from '../../evals/d23/runs.ts';
+import { isInfraError, observation, runFacts } from '../../evals/d23/runs.ts';
 
 const o = (
   unit: string,
@@ -115,6 +115,7 @@ test('a refusal is a normal end without a patch; a failed session is not', () =>
       finished: true,
       costUsd: 2,
       endedNormally: true,
+      infraError: false,
     }).refusal,
     true,
   );
@@ -123,6 +124,7 @@ test('a refusal is a normal end without a patch; a failed session is not', () =>
       finished: true,
       costUsd: 2,
       endedNormally: false,
+      infraError: false,
     }).refusal,
     false,
   );
@@ -145,8 +147,49 @@ test('run facts read cost and normal end from the session record and need a fini
       finished: true,
       costUsd: 1.5,
       endedNormally: true,
+      infraError: false,
     });
     assert.equal(runFacts(dir, '2.K').finished, false);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('an API, auth, overload or usage-limit error is infrastructure; a normal answer quoting one is not', () => {
+  const failed = (result: string, api_error_status?: number) =>
+    isInfraError({ is_error: true, result, api_error_status });
+  assert.equal(
+    failed('Failed to authenticate. API Error: 403 Attention Required!', 403),
+    true,
+  );
+  assert.equal(failed('API Error: 529 {"type":"overloaded_error"}', 529), true);
+  assert.equal(failed("You've hit your 5-hour limit - resets 3pm"), true);
+  assert.equal(failed('something else broke'), false);
+  assert.equal(
+    isInfraError({
+      is_error: false,
+      result: 'The retry handles API Error: 403 and overloaded replies.',
+    }),
+    false,
+  );
+});
+
+test('a session that ended on an auth error is not graded as an outcome', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'd23-runs-'));
+  try {
+    writeFileSync(join(dir, '560.K.meas'), 'claude_exit=0\nmeasured\n');
+    writeFileSync(
+      join(dir, '560.K.claude.json'),
+      JSON.stringify({
+        is_error: true,
+        subtype: 'success',
+        api_error_status: 403,
+        result: 'Failed to authenticate. API Error: 403 Attention Required!',
+      }),
+    );
+    const facts = runFacts(dir, '560.K');
+    assert.equal(facts.infraError, true);
+    assert.equal(facts.endedNormally, false);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

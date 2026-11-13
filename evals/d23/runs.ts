@@ -28,6 +28,22 @@ export interface RunFacts {
   costUsd: number;
   /** The session ended normally with text. */
   endedNormally: boolean;
+  /** The session ended on a usage limit, auth, API or overload error: infrastructure, never a graded outcome. */
+  infraError: boolean;
+}
+
+const infraErrorText =
+  /hit your .*limit|weekly limit|usage limit|API Error: \d{3}|Failed to authenticate|overloaded/i;
+
+/** claude reports an infrastructure failure as is_error; a successful answer may quote the same words. */
+export function isInfraError(d: {
+  is_error?: unknown;
+  result?: unknown;
+  api_error_status?: unknown;
+}): boolean {
+  if (d.is_error !== true) return false;
+  const status = Number(d.api_error_status);
+  return status >= 400 || infraErrorText.test(String(d.result ?? ''));
 }
 
 /** What the arm's result files say about the session: finished, what it cost, whether it ended normally. */
@@ -37,15 +53,17 @@ export function runFacts(dir: string, tag: string): RunFacts {
     existsSync(meas) && /^measured$/m.test(readFileSync(meas, 'utf8'));
   let costUsd = 0;
   let endedNormally = false;
+  let infraError = false;
   try {
     const d = JSON.parse(readFileSync(join(dir, `${tag}.claude.json`), 'utf8'));
     costUsd = Number(d.total_cost_usd ?? 0) || 0;
     endedNormally =
       d.is_error === false && String(d.result ?? '').trim() !== '';
+    infraError = isInfraError(d);
   } catch {
     // no readable session record: cost 0, not a normal end
   }
-  return { finished, costUsd, endedNormally };
+  return { finished, costUsd, endedNormally, infraError };
 }
 
 export function observation(
@@ -122,7 +140,7 @@ async function main() {
         const file = join(out, `${tag}.${job.r}.json`);
         if (existsSync(file)) continue;
         const facts = runFacts(dir, tag);
-        if (!facts.finished) continue;
+        if (!facts.finished || facts.infraError) continue;
         const { spec, cls } = await unitFor(job.u);
         const grade = await gradeArm(
           spec,
