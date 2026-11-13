@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { stopCommand } from '../../src/adopt/stop-hook.ts';
 import { lanePacket } from '../../src/brain/worker-packet.ts';
 
 // KRN-12: runs the real `krn adopt` entry against a scratch git repository and
@@ -171,7 +172,7 @@ function stopAsLane(root: string) {
   const settings = JSON.parse(
     readFileSync(join(root, '.claude/settings.json'), 'utf8'),
   ) as { hooks: { Stop: { hooks: { command: string }[] }[] } };
-  assert.equal(settings.hooks.Stop[0]?.hooks[0]?.command, 'krn hook stop');
+  assert.equal(settings.hooks.Stop[0]?.hooks[0]?.command, stopCommand);
   return spawnSync(process.execPath, [cli, 'hook', 'stop'], {
     cwd: root,
     input: '{}',
@@ -313,4 +314,53 @@ test('adopt skips krn.json naming every package when two hold a test command', (
   assert.equal(run.status, 0, run.stderr);
   assert.match(run.stdout, /^skipped krn\.json .*packages\/a, web/mu);
   assert.equal(existsSync(join(root, 'krn.json')), false);
+});
+
+// The receiver is the shell Claude Code runs the hook command in: exit 2 is the only blocking exit.
+test('the installed Stop command blocks with exit 2 and names krn when krn is not on PATH', () => {
+  const bin = mkdtempSync(join(tmpdir(), 'krn-stop-path-'));
+  const sh = spawnSync('/bin/sh', ['-c', stopCommand], {
+    input: '{}',
+    encoding: 'utf8',
+    env: { PATH: bin },
+  });
+  assert.equal(sh.error, undefined);
+  assert.equal(sh.status, 2);
+  assert.match(sh.stderr, /krn is not on PATH/u);
+
+  writeFileSync(join(bin, 'krn'), '#!/bin/sh\necho "ran $*"\nexit 0\n', {
+    mode: 0o755,
+  });
+  const found = spawnSync('/bin/sh', ['-c', stopCommand], {
+    input: '{}',
+    encoding: 'utf8',
+    env: { PATH: `${bin}:/usr/bin:/bin` },
+  });
+  assert.equal(found.status, 0, found.stderr);
+  assert.equal(found.stdout, 'ran hook stop\n');
+});
+
+test('adopt replaces an earlier bare krn hook stop entry and keeps other Stop hooks', () => {
+  const root = scratch();
+  mkdirSync(join(root, '.claude'));
+  writeFileSync(
+    join(root, '.claude/settings.json'),
+    JSON.stringify({
+      hooks: {
+        Stop: [
+          { hooks: [{ type: 'command', command: 'krn hook stop' }] },
+          { hooks: [{ type: 'command', command: 'own-check' }] },
+        ],
+      },
+    }),
+  );
+  const run = adopt(root, '--no-canary');
+  assert.equal(run.status, 0, run.stderr);
+  const settings = JSON.parse(
+    readFileSync(join(root, '.claude/settings.json'), 'utf8'),
+  ) as { hooks: { Stop: { hooks: { command: string }[] }[] } };
+  assert.deepEqual(
+    settings.hooks.Stop.map((entry) => entry.hooks[0]?.command),
+    [stopCommand, 'own-check'],
+  );
 });
