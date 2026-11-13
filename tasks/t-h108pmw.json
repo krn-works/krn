@@ -1,0 +1,16 @@
+{
+  "id": "t-h108pmw",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane start carries a locally edited tracked record into the worktree and restores the committed version in the invoking checkout."
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "Lane start carries a locally edited task record into the worktree",
+  "after": [],
+  "body": [
+    "Why: 2026-11-13 the lead ran krn task edit --append-body in the main checkout before krn lane run; the lane worktree is cut from origin/<base>, so the note never reached the worker, and the main checkout was left dirty.\nOutcome: krn lane run (and lane start) carries a locally modified tracked task record into the lane worktree, as it already carries an untracked one, or refuses naming the uncommitted edit.\nProof: a test in test/cli/lane.test.ts edits a committed record locally, starts a lane, and finds the edit in the worktree record."
+  ]
+}
