@@ -1,0 +1,12 @@
+{
+  "id": "t-jtpbrm3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "Each worker hook earns its place in a D23 ablation",
+  "after": [],
+  "body": [
+    "Why: architecture audit 2026-11-13: 14 hook entries in .claude/settings.json and most harness mechanisms are justified by decision, not measurement; D23 shows K - PB +9 pp (n.s.).\nOutcome: after the v3 confirmatory run, an ablation drops one hook family per arm (stop gate, scope guard, context gauge, subagent routing, memory budget) on a dev subset; a hook without a measured benefit or a prevented-failure count leaves the universal profile.\nProof: ablation table with per-arm correctness and cost.\nScope: evals/d23/, .claude/settings.json."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-q7fjr31",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "Task tools find a task record that lives only in its lane worktree",
+  "after": [],
+  "body": [
+    "Why: logic audit + observed today: src/cli/lane.ts:316 moves an uncommitted task record into the lane and deletes it from the source checkout; lane run rerun reads the brief from root (lane-run.ts:334) and gets 'Unknown task'; lane drop (:230) worktree remove --force destroys the only copy; krn pr body --task from the root failed the same way for a task created in a lane.\nOutcome: one task lookup resolves the claim's worktree before the root; lane drop refuses (or rescues the record) when the worktree holds the only copy.\nProof: tests for pr body, lane run rerun and drop with a worktree-only record.\nScope: src/task/, src/cli/, test/."
+  ]
+}

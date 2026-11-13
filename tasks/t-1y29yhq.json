@@ -1,0 +1,12 @@
+{
+  "id": "t-1y29yhq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "FR-40 arm C measures the conventions packet against the instruction file alone",
+  "after": [],
+  "body": [
+    "Why: memory audit: FR-40 compared packet vs none and vs static standards, never vs the repository instruction file alone, which already carries most rules (lanes arm A 75%).\nOutcome: arm C (CLAUDE.md/AGENTS.md only) on the 133 lane units; keep the packet only if B - C is significant.\nProof: evals/fr40 report prints B - C with n and p.\nScope: evals/fr40/."
+  ]
+}

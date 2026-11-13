@@ -1,0 +1,12 @@
+{
+  "id": "t-vdwmr57",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 0,
+  "title": "One deleted lane directory never freezes every task claim",
+  "after": [],
+  "body": [
+    "Why: logic audit 2026-11-13: src/task/claims.ts:605 registeredWorktrees calls realpathSync on every registered worktree; a lane directory removed without git worktree prune throws ENOENT, claimLiveness (:461) catches and returns live for every claim, and resolveClaimWorktree (:578) fails every claim with 'not registered'.\nOutcome: a missing registered worktree is skipped (and reported once), never poisons other claims.\nProof: regression test with a registered-then-deleted worktree: other claims expire and claim succeeds.\nScope: src/task/, test/task/."
+  ]
+}

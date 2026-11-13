@@ -1,0 +1,12 @@
+{
+  "id": "t-6rrmgd2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 0,
+  "title": "A failed lane ship releases its claim and a rerun resumes the same lane",
+  "after": [],
+  "body": [
+    "Why: logic audit: src/cli/lane-run.ts:472 an exception from steps.ship (red Check, timeout, push failure, missing origin/main at :440) skips stop(), the claim stays live, and a rerun's claimTask (:351 reclaimLane) refuses even the same actor.\nOutcome: every failure path after claim releases it or a rerun by the same actor and slug reclaims it.\nProof: tests for ship throw and missing origin/main: claim released or reclaimed, rerun proceeds.\nScope: src/cli/, src/task/, test/."
+  ]
+}

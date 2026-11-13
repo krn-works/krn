@@ -1,0 +1,12 @@
+{
+  "id": "t-r2638hx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "krn pr ship exits non-zero unless the PR merged, and a rerun after merge only cleans up",
+  "after": [],
+  "body": [
+    "Why: logic audit: src/ci/wait.ts:119-122,178-187 return 'not merging', 'closed unmerged' and 'blocked' as normal verdicts so ship exits 0 without a merge; src/ci/ship.ts:101-147 a rerun after a merged PR with failed cleanup hits 'No commits between' before cleanup, and a failed worktree remove after merge (:179) exits non-zero.\nOutcome: exit 0 means merged; every other verdict has its own non-zero code; a rerun detects the merged PR and only cleans up.\nProof: strict-gh tests for each verdict and for rerun-after-merge.\nScope: src/ci/, test/ci/."
+  ]
+}

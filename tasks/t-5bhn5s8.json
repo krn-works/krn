@@ -1,0 +1,12 @@
+{
+  "id": "t-5bhn5s8",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 0,
+  "title": "A lane session always runs the worker hooks, whatever its slug",
+  "after": [],
+  "body": [
+    "Why: logic audit: src/cli/lane-run.ts:90 sets KRN_SESSION_CLASS=lane but not KRN_TASK; scripts/claude/worker-scope.ts:80-86 derives the task only from a t-id in branch or path, so a lane with --slug lacking the id runs as a lead and worker-stop and worker-scope allow everything.\nOutcome: lane run exports KRN_TASK; a lane-class session with no task id is refused at the first hook, never treated as lead.\nProof: test: lane run with slug 'fix-x' blocks Stop without a commit.\nScope: src/cli/, scripts/claude/, test/."
+  ]
+}
