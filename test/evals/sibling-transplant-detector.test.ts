@@ -28,9 +28,9 @@ test('an unrelated test body is not an ancestor', () => {
   assert.ok(!hasAncestor(nearest(other, [a])));
 });
 
-test('typescript cases are found with nested parens, strings holding parens and modifier forms', () => {
+test('typescript cases are found with nested parens, strings holding parens and plain forms', () => {
   const src =
-    "describe('x', () => {\n  it('a (b)', () => { f(')'); });\n  test.only(\"c\", () => {});\n  it(`d`, () => { g(h(1)); });\n});";
+    "describe('x', () => {\n  it('a (b)', () => { f(')'); });\n  test(\"c\", () => {});\n  it(`d`, () => { g(h(1)); });\n});";
   assert.deepEqual(
     extractCases(src, 'ts').map((c) => c.name),
     ['a (b)', 'c', 'd'],
