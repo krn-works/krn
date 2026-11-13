@@ -424,13 +424,20 @@ function lastLine(text: string): string {
 
 /**
  * The test files a red test run names as failing: vitest and jest (`FAIL  file > name`,
- * `❯ file (n tests | m failed)`), node:test (`test at file:line:col`) and pytest (`FAILED file::name`).
+ * `❯ file (n tests | m failed)`), node:test (`test at file:line:col`, TAP `location:` of a `not ok`) and pytest (`FAILED file::name`).
  */
 export function failingTests(output: string): string[] {
   const files: string[] = [];
+  // node:test TAP names the file only in the `location:` line of a `not ok` block.
+  let failedBlock = false;
   for (const raw of output.replace(ansi, '').split('\n')) {
     const line = raw.trim();
+    if (/^not ok\b/u.test(line)) failedBlock = true;
+    else if (/^ok\b/u.test(line)) failedBlock = false;
     const file =
+      (failedBlock
+        ? /^location: '(.+?):\d+:\d+'$/u.exec(line)?.[1]
+        : undefined) ??
       /^FAIL\s+(\S+)/u.exec(line)?.[1] ??
       /^❯\s+(\S+)\s+\(.*\bfailed\b/u.exec(line)?.[1] ??
       /^test at (.+?):\d+:\d+$/u.exec(line)?.[1] ??

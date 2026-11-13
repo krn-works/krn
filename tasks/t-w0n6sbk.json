@@ -1,0 +1,16 @@
+{
+  "id": "t-w0n6sbk",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Root cause: worker-scope matched /t-[a-z0-9]{7}/ inside any path or branch, so a lane worktree named verdict-evidence read 't-evidenc' as its task id; ids now stand alone (taskId). Baseline: failingTests reads the TAP location of a not-ok block, so the reason names the file and the flaky-rerun runs."
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "A red baseline names its failing tests, and worker-stop and worker-scope pass under full-suite load",
+  "after": [],
+  "body": [
+    "Why: lane verdict-evidence (t-vpks6m5) 18:19 refused a red baseline on clean main 4e5df85+ with reason 'npm test fails (exit 1: mise ERROR Run with --verbose ...)'; the real failures were two tests under full-suite load (test/claude/worker-stop.test.ts 'fix-x is blocked at Stop', test/claude/worker-scope.test.ts 'takes its Scope from the task record named by the branch') that pass alone, while the quoted line is a pnpm-store warning printed before the tests (log: .krn/worktrees/ve-test.log, lines 7-9, 2133, 5037).\nOutcome: the baseline refusal names the failing test files and titles, never a preamble warning; the two tests pass under the full suite (find the shared state they race on).\nProof: a lane-run unit test with a preamble warning and one failing test asserts the stop line names the test; npm test green twice in a row on the host."
+  ]
+}

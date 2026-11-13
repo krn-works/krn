@@ -9,6 +9,7 @@ import {
   decide,
   judge,
   parseScope,
+  taskId,
 } from '../../scripts/claude/worker-scope.ts';
 
 const hook = fileURLToPath(
@@ -226,4 +227,11 @@ test('a lane session may not write the main checkout outside its worktree and .k
     decide(w(`${main}/src/a.ts`), { CLAUDE_PROJECT_DIR: lane }),
     undefined,
   );
+});
+
+test('a task id stands alone in a branch or path, so a slug that spells t- plus seven letters names no task', () => {
+  assert.equal(taskId('verdict-evidence'), undefined);
+  assert.equal(taskId('/repo/.krn/worktrees/verdict-evidence/tmp'), undefined);
+  assert.equal(taskId('fix-t-abc1234'), 't-abc1234');
+  assert.equal(taskId('/repo/.krn/worktrees/t-abc1234'), 't-abc1234');
 });
