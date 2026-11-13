@@ -1,0 +1,12 @@
+{
+  "id": "t-ejt6hpt",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 0,
+  "title": "krn lane run installs dependencies with the contract install command in a fresh worktree",
+  "after": [],
+  "body": [
+    "Why: src/cli/lane-run.ts has no install step (lead-verified); contract.install exists (src/repo/contract.ts:179). A fresh pilot worktree has no node_modules, so every check fails at worktree and base alike. Pilot blocker for t-djnrw3t.\nEvidence: .krn/runs/state-review/decisions.md (state review 2026-11-13, Fable 5.2; data verified by the lead where noted), .krn/runs/state-review/portability-probe.md.\nSource: operator 2026-11-13 ordered the state-review decisions executed ('lecisz z tym wszystkim')."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-sgh0smf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "The adopted Stop hook blocks when krn is not on PATH",
+  "after": [],
+  "body": [
+    "Why: Probe: fail closed, not open.\nEvidence: .krn/runs/state-review/decisions.md (state review 2026-11-13, Fable 5.2; data verified by the lead where noted), .krn/runs/state-review/portability-probe.md.\nSource: operator 2026-11-13 ordered the state-review decisions executed ('lecisz z tym wszystkim')."
+  ]
+}

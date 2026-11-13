@@ -1,0 +1,12 @@
+{
+  "id": "t-yab3e8p",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 0,
+  "title": "The eval overlay carries every file the worker hooks import",
+  "after": [],
+  "body": [
+    "Why: D23 replay: HARNESS_ROOTS lacks src/repo, so the Stop gate crashed in every graded replay.\nEvidence: .krn/runs/state-review/decisions.md (state review 2026-11-13, Fable 5.2; data verified by the lead where noted), .krn/runs/state-review/portability-probe.md.\nSource: operator 2026-11-13 ordered the state-review decisions executed ('lecisz z tym wszystkim')."
+  ]
+}

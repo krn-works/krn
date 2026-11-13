@@ -1,0 +1,12 @@
+{
+  "id": "t-8bwcy6e",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "The task record carries acceptance lines and the lane brief requires them",
+  "after": [],
+  "body": [
+    "Why: D5: specification is the main lever (PB 62.5% vs P 10.7%, inflated); measure with requirements written without seeing hidden tests.\nEvidence: .krn/runs/state-review/decisions.md (state review 2026-11-13, Fable 5.2; data verified by the lead where noted), .krn/runs/state-review/portability-probe.md.\nSource: operator 2026-11-13 ordered the state-review decisions executed ('lecisz z tym wszystkim')."
+  ]
+}
