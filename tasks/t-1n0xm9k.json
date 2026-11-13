@@ -6,7 +6,8 @@
   "priority": 2,
   "title": "A lane PR body carries the verification line for any contract fast command",
   "after": [
-    "t-6tdhxwe"
+    "t-6tdhxwe",
+    "t-6yrmt81"
   ],
   "body": [
     "Why: PP:67, CAP:131\nOutcome: The stamp is written by `krn` after it runs the contract `fast` command; the brief never names `bin/krn` or `npm run fast` outside KRN\nProof: e2e test of t-6yrmt81 asserts the line in the PR body of the outside-shaped repo. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): N02\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N05)."

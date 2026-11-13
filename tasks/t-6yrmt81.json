@@ -1,7 +1,11 @@
 {
   "id": "t-6yrmt81",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Merged #699 d26d1f7 and #701 7d16d0f: fetch retry, serialized baselines, failing-file names, preflight exit 69, outside-repo e2e, rerun-failing-once."
+  },
   "created": "2026-11-13",
   "priority": 0,
   "title": "lane run survives an outside repository and concurrent lanes end to end",

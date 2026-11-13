@@ -236,6 +236,9 @@ function childEnvironment(
     TMP: temp,
     TEMP: temp,
     TMPDIR: temp,
+    // Temp dirs live under the checkout's .krn/tmp; without a ceiling, git in a
+    // test's temp dir finds the enclosing checkout, which differs in a linked worktree.
+    GIT_CEILING_DIRECTORIES: workerDirectory,
     XDG_CACHE_HOME: join(home, '.cache'),
     XDG_CONFIG_HOME: join(home, '.config'),
     XDG_DATA_HOME: join(home, '.local', 'share'),

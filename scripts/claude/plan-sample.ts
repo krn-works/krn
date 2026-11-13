@@ -96,7 +96,9 @@ export function sampleOf(
 // Worktrees live under <main>/.krn/worktrees/<slug>; agent state belongs to
 // the main checkout (KRN-08), resolved without spawning git on every refresh.
 export function mainCheckout(directory: string) {
-  const at = directory.indexOf('/.krn/worktrees/');
+  // The innermost worktree segment wins: a checkout may itself sit inside a
+  // worktree (test temp dirs under <worktree>/.krn/tmp).
+  const at = directory.lastIndexOf('/.krn/worktrees/');
   return at === -1 ? directory : directory.slice(0, at);
 }
 
@@ -106,7 +108,11 @@ export function mainCheckout(directory: string) {
 export function stateRoot(directory: string) {
   let at = directory;
   for (;;) {
-    if (existsSync(join(at, '.git'))) return mainCheckout(at);
+    const git = join(at, '.git');
+    // A .git directory is a main checkout even under a worktree path; only a
+    // .git file (a linked worktree) maps back to its main checkout.
+    if (existsSync(git))
+      return statSync(git).isDirectory() ? at : mainCheckout(at);
     const parent = dirname(at);
     if (parent === at) return undefined;
     at = parent;
