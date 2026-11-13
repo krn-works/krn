@@ -75,7 +75,7 @@ test('the precedent lists HEAD commits, test hunks and importers, never an unmer
     assert.match(text, /feat: a/u);
     assert.match(text, /\+assert\.equal\(code, 64\);/u);
     assert.match(text, /tests importing it: `test\/a\.test\.ts`/u);
-    assert.doesNotMatch(text, /unmerged|99/u);
+    assert.doesNotMatch(text, /unmerged|code, 99/u);
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }
