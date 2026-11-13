@@ -5,8 +5,9 @@ import { flagValue } from './flag-value.ts';
 import { CliUsageError } from './usage-error.ts';
 
 export const adoptUsage =
-  'krn adopt <path> --ref SHA [--install CMD] [--lint CMD] [--typecheck CMD] [--test CMD]  write tasks/, the generated rules block in AGENTS.md (CLAUDE.md links to it), .krn/ in .gitignore and the .github/workflows/ci.yml call of the shared project CI at SHA into the git repository at <path>; reruns change nothing';
+  'krn adopt <path> [--tracker] [--ref SHA [--install CMD] [--lint CMD] [--typecheck CMD]] [--test CMD]  write krn.json from detection (kept when present), the .claude/settings.json Stop hook calling `krn hook stop`, the generated rules block in AGENTS.md (CLAUDE.md links to it) and .krn/ in .gitignore into the git repository at <path>; --tracker seeds tasks/; --ref SHA also seeds tasks/ and writes the .github/workflows/ci.yml call of the shared project CI at SHA; reruns change nothing';
 
+const switches = ['--tracker'] as const;
 const flags = [
   '--ref',
   '--install',
@@ -18,9 +19,11 @@ const flags = [
 export function adoptCommand(args: string[]): void {
   let path: string | undefined;
   const values: Record<string, string> = {};
+  let tracker = false;
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i] as string;
-    if ((flags as readonly string[]).includes(arg)) {
+    if ((switches as readonly string[]).includes(arg)) tracker = true;
+    else if ((flags as readonly string[]).includes(arg)) {
       values[arg.slice(2)] = flagValue(
         args,
         i,
@@ -33,12 +36,10 @@ export function adoptCommand(args: string[]): void {
     else throw new CliUsageError('krn adopt takes one path');
   }
   if (path === undefined) throw new CliUsageError(adoptUsage);
-  if (values.ref === undefined)
-    throw new CliUsageError('--ref SHA is required');
   const root = resolve(path);
   let report: ReturnType<typeof adopt>;
   try {
-    report = adopt(root, { ...values, ref: values.ref });
+    report = adopt(root, { ...values, tracker });
   } catch (error) {
     throw new CliUsageError(
       error instanceof Error ? error.message : String(error),
@@ -47,4 +48,5 @@ export function adoptCommand(args: string[]): void {
   for (const file of report.written) process.stdout.write(`wrote ${file}\n`);
   for (const file of report.unchanged)
     process.stdout.write(`unchanged ${file}\n`);
+  for (const file of report.skipped) process.stdout.write(`skipped ${file}\n`);
 }

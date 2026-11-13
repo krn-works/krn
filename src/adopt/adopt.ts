@@ -9,11 +9,14 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { CONTRACT_FILE, detectBase, findContract } from '../repo/contract.ts';
 import { createTask } from '../task/store.ts';
 
 export interface AdoptOptions {
-  /** Commit sha of krn-works/krn that holds the shared project-ci.yml. */
-  ref: string;
+  /** Commit sha of krn-works/krn that holds the shared project-ci.yml; CI is written only when given. */
+  ref?: string;
+  /** Seed tasks/ with the tracker; implied by `ref`. */
+  tracker?: boolean;
   install?: string;
   lint?: string;
   typecheck?: string;
@@ -23,6 +26,8 @@ export interface AdoptOptions {
 export interface AdoptionReport {
   written: string[];
   unchanged: string[];
+  /** Files not written, each with its reason. */
+  skipped: string[];
 }
 
 const sharedWorkflow = 'krn-works/krn/.github/workflows/project-ci.yml';
@@ -52,7 +57,9 @@ function quoted(value: string): string {
   return JSON.stringify(value);
 }
 
-export function renderWorkflow(options: AdoptOptions): string {
+export function renderWorkflow(
+  options: AdoptOptions & { ref: string },
+): string {
   if (!/^[0-9a-f]{40}$/u.test(options.ref))
     throw new Error('--ref must be a full 40-character commit sha');
   const inputs = (
@@ -165,15 +172,101 @@ function seedTasks(root: string, report: AdoptionReport): void {
   report.written.push('tasks');
 }
 
+/** krn.json from detection (the operator may edit it); an existing file is never touched. */
+function writeContract(
+  root: string,
+  options: AdoptOptions,
+  report: AdoptionReport,
+): void {
+  if (existsSync(join(root, CONTRACT_FILE))) {
+    report.unchanged.push(CONTRACT_FILE);
+    return;
+  }
+  const found = findContract(root);
+  const test = options.test ?? found?.contract.test;
+  if (test === undefined) {
+    report.skipped.push(
+      `${CONTRACT_FILE} (no test command detected; pass --test CMD or write it)`,
+    );
+    return;
+  }
+  const { contract } = found ?? {};
+  const body = {
+    base: contract?.base ?? detectBase(root),
+    test,
+    ...(contract?.related && options.test === undefined
+      ? { related: contract.related }
+      : {}),
+    ...(contract?.fast && options.test === undefined
+      ? { fast: contract.fast }
+      : {}),
+    tracker: options.ref !== undefined || options.tracker ? 'krn' : 'none',
+  };
+  writeIfChanged(
+    root,
+    CONTRACT_FILE,
+    `${JSON.stringify(body, null, 2)}\n`,
+    report,
+  );
+}
+
+const stopCommand = 'krn hook stop';
+
+interface HookEntry {
+  hooks?: { type?: string; command?: unknown }[];
+}
+
+/** Adds the Stop hook that calls `krn hook stop`, keeping every other setting and hook. */
+function writeHooks(root: string, report: AdoptionReport): void {
+  const relative = '.claude/settings.json';
+  const path = join(root, relative);
+  let settings: Record<string, unknown> = {};
+  if (existsSync(path)) {
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+      if (
+        typeof parsed !== 'object' ||
+        parsed === null ||
+        Array.isArray(parsed)
+      )
+        throw new Error('expected an object');
+      settings = parsed as Record<string, unknown>;
+    } catch (error) {
+      throw new Error(`${relative}: ${(error as Error).message}`);
+    }
+  }
+  const hooks = (settings.hooks ?? {}) as Record<string, unknown>;
+  const stop = Array.isArray(hooks.Stop) ? (hooks.Stop as HookEntry[]) : [];
+  if (
+    !stop.some((entry) =>
+      entry.hooks?.some((hook) => hook.command === stopCommand),
+    )
+  )
+    stop.push({ hooks: [{ type: 'command', command: stopCommand }] });
+  settings.hooks = { ...hooks, Stop: stop };
+  writeIfChanged(
+    root,
+    relative,
+    `${JSON.stringify(settings, null, 2)}\n`,
+    report,
+  );
+}
+
 /** Writes the adoption set into `root`, a git repository; reruns change nothing. */
 export function adopt(root: string, options: AdoptOptions): AdoptionReport {
   if (!existsSync(join(root, '.git')))
     throw new Error(`${root} is not a git repository root`);
-  const report: AdoptionReport = { written: [], unchanged: [] };
-  const workflow = renderWorkflow(options);
-  seedTasks(root, report);
+  const report: AdoptionReport = { written: [], unchanged: [], skipped: [] };
+  const workflow =
+    options.ref === undefined
+      ? undefined
+      : renderWorkflow({ ...options, ref: options.ref });
+  if (options.ref !== undefined || options.tracker) seedTasks(root, report);
+  writeContract(root, options, report);
+  writeHooks(root, report);
   writeRules(root, report);
   ignoreAgentState(root, report);
-  writeIfChanged(root, '.github/workflows/ci.yml', workflow, report);
+  if (workflow !== undefined)
+    writeIfChanged(root, '.github/workflows/ci.yml', workflow, report);
   return report;
 }

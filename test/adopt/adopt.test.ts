@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+  existsSync,
   lstatSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
   readlinkSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -28,13 +31,13 @@ function scratch(): string {
 }
 
 function adopt(root: string, ...extra: string[]) {
-  return spawnSync(
-    process.execPath,
-    [cli, 'adopt', root, '--ref', ref, ...extra],
-    {
-      encoding: 'utf8',
-    },
-  );
+  return adoptArgs(root, '--ref', ref, ...extra);
+}
+
+function adoptArgs(root: string, ...extra: string[]) {
+  return spawnSync(process.execPath, [cli, 'adopt', root, ...extra], {
+    encoding: 'utf8',
+  });
 }
 
 test('adopt writes the task directory, rules block, ignore entry and Check workflow call', () => {
@@ -96,4 +99,112 @@ test('adopt refuses a path that is not a git repository and a ref that is not a 
   );
   assert.equal(badRef.status, 64);
   assert.match(badRef.stderr, /40-character/u);
+});
+
+function fixture(files: Record<string, string>): string {
+  const root = scratch();
+  for (const [name, text] of Object.entries(files))
+    writeFileSync(join(root, name), text);
+  git(root, 'add', '.');
+  git(root, 'commit', '-qm', 'init');
+  return root;
+}
+
+function git(root: string, ...args: string[]) {
+  const run = spawnSync(
+    'git',
+    ['-c', 'user.email=a@b.c', '-c', 'user.name=t', ...args],
+    { cwd: root, encoding: 'utf8' },
+  );
+  assert.equal(run.status, 0, run.stderr);
+}
+
+function contractOf(root: string) {
+  const run = spawnSync(
+    process.execPath,
+    [cli, 'repo', 'contract', '--root', root],
+    { encoding: 'utf8' },
+  );
+  assert.equal(run.status, 0, run.stderr);
+  return JSON.parse(run.stdout) as {
+    source: string;
+    contract: { test: string; related?: string; tracker: string };
+  };
+}
+
+// The receiver of the installed hook: the Stop entry `krn hook stop` as a lane session.
+function stopAsLane(root: string) {
+  const settings = JSON.parse(
+    readFileSync(join(root, '.claude/settings.json'), 'utf8'),
+  ) as { hooks: { Stop: { hooks: { command: string }[] }[] } };
+  assert.equal(settings.hooks.Stop[0]?.hooks[0]?.command, 'krn hook stop');
+  return spawnSync(process.execPath, [cli, 'hook', 'stop'], {
+    cwd: root,
+    input: '{}',
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: root,
+      KRN_SESSION_CLASS: 'lane',
+      KRN_LANE: 'x',
+    },
+  });
+}
+
+test('adopt on a pytest repository writes a contract that krn repo contract reads back and a Stop hook that runs', () => {
+  const root = fixture({ 'pyproject.toml': '[project]\nname = "x"\n' });
+  const run = adoptArgs(root);
+  assert.equal(run.status, 0, run.stderr);
+  const body = JSON.parse(readFileSync(join(root, 'krn.json'), 'utf8'));
+  assert.equal(body.test, 'python -m pytest');
+  assert.equal(body.tracker, 'none');
+  const read = contractOf(root);
+  assert.equal(read.source, 'krn.json');
+  assert.equal(read.contract.test, 'python -m pytest');
+  assert.equal(read.contract.related, 'python -m pytest {files}');
+  // Without --ref: no CI workflow and no tasks/ seed.
+  assert.equal(existsSync(join(root, '.github')), false);
+  assert.equal(existsSync(join(root, 'tasks')), false);
+  const stop = stopAsLane(root);
+  assert.equal(stop.status, 2, stop.stderr);
+  assert.match(stop.stderr, /Stop refused/u);
+});
+
+test('adopt on an npm repository detects its runner, seeds the tracker on request and keeps an edited krn.json', () => {
+  const root = fixture({
+    'package.json': JSON.stringify({ scripts: { test: 'vitest run' } }),
+  });
+  const run = adoptArgs(root, '--tracker');
+  assert.equal(run.status, 0, run.stderr);
+  const read = contractOf(root);
+  assert.equal(read.contract.test, 'npm test');
+  assert.equal(read.contract.related, 'npx vitest run {files}');
+  assert.equal(read.contract.tracker, 'krn');
+  assert.equal(readdirSync(join(root, 'tasks')).length, 1);
+  assert.equal(stopAsLane(root).status, 2);
+
+  writeFileSync(join(root, 'krn.json'), '{"test":"make check"}\n');
+  const again = adoptArgs(root, '--tracker');
+  assert.equal(again.status, 0, again.stderr);
+  assert.equal(contractOf(root).contract.test, 'make check');
+  assert.doesNotMatch(again.stdout, /^wrote /mu);
+});
+
+test('adopt merges the Stop hook into existing settings and skips krn.json when no test command is known', () => {
+  const root = scratch();
+  mkdirSync(join(root, '.claude'));
+  writeFileSync(
+    join(root, '.claude/settings.json'),
+    JSON.stringify({ env: { A: '1' }, hooks: { Stop: [{ hooks: [] }] } }),
+  );
+  const run = adoptArgs(root);
+  assert.equal(run.status, 0, run.stderr);
+  assert.match(run.stdout, /^skipped krn\.json/mu);
+  assert.equal(existsSync(join(root, 'krn.json')), false);
+  const settings = JSON.parse(
+    readFileSync(join(root, '.claude/settings.json'), 'utf8'),
+  );
+  assert.equal(settings.env.A, '1');
+  assert.equal(settings.hooks.Stop.length, 2);
+  assert.equal(adoptArgs(root).stdout.includes('wrote '), false);
 });
