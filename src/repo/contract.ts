@@ -187,21 +187,45 @@ export function detectBase(root: string): string {
   return git(root, ['branch', '--show-current']) || 'main';
 }
 
-export function resolveContract(root: string): ResolvedContract {
+function declaredContract(root: string): Declared | undefined {
   const file = join(root, CONTRACT_FILE);
-  const declared = existsSync(file)
+  return existsSync(file)
     ? parseContractFile(readFileSync(file, 'utf8'))
     : undefined;
+}
+
+/** The branch lanes start from: krn.json `base`, else detected; it needs no test command. */
+export function contractBase(root: string): string {
+  return declaredContract(root)?.base ?? detectBase(root);
+}
+
+/** Whether work items live in tasks/: krn.json `tracker`, else a tasks/ directory means krn. */
+export function contractTracker(root: string): Tracker {
+  return (
+    declaredContract(root)?.tracker ??
+    (existsSync(join(root, 'tasks')) ? 'krn' : 'none')
+  );
+}
+
+export function resolveContract(root: string): ResolvedContract {
+  const found = findContract(root);
+  if (found === undefined)
+    throw new ContractError(
+      `no test command: KRN recognises Cargo.toml, go.mod, package.json with a test script, pyproject.toml/pytest.ini/setup.cfg/tox.ini/setup.py, or a Makefile test target; otherwise write ${CONTRACT_FILE} with {"test": "<command>"}`,
+    );
+  return found;
+}
+
+/** The contract, or undefined when neither krn.json nor detection names a test command; a malformed krn.json still throws. */
+export function findContract(root: string): ResolvedContract | undefined {
+  const declared = declaredContract(root);
   const needsDetection =
     declared?.test === undefined ||
     declared.related === undefined ||
     declared.fast === undefined;
   const detected = needsDetection ? detectStack(root) : undefined;
   const test = declared?.test ?? detected?.test;
-  if (test === undefined)
-    throw new ContractError(
-      `no test command: KRN recognises Cargo.toml, go.mod, package.json with a test script, pyproject.toml/pytest.ini/setup.cfg/tox.ini/setup.py, or a Makefile test target; otherwise write ${CONTRACT_FILE} with {"test": "<command>"}`,
-    );
+  if (test === undefined) return undefined;
   const related = declared?.related ?? detected?.related;
   const fast = declared?.fast ?? detected?.fast;
   const contract: RepoContract = {
@@ -210,8 +234,7 @@ export function resolveContract(root: string): ResolvedContract {
     ...(related ? { related } : {}),
     ...(fast ? { fast } : {}),
     ...(declared?.guard ? { guard: declared.guard } : {}),
-    tracker:
-      declared?.tracker ?? (existsSync(join(root, 'tasks')) ? 'krn' : 'none'),
+    tracker: contractTracker(root),
   };
   return {
     contract,

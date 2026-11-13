@@ -16,6 +16,7 @@ import {
   collectWindow,
   nonDeliveryCeiling,
 } from '../outcome/window.ts';
+import { contractBase, findContract } from '../repo/contract.ts';
 import { claimTask, mainCheckoutRoot, releaseClaim } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
@@ -23,8 +24,8 @@ import { flagValue } from './flag-value.ts';
 import { CliUsageError } from './usage-error.ts';
 
 export const laneUsage = [
-  'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--class delivery|non-delivery] [--root DIR]  fetch origin main, create branch SLUG in .krn/worktrees/SLUG, claim the task; a non-delivery lane is refused while `krn ledger --check-ceiling` is over; prints the path and branch',
-  'krn lane run --task ID [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree and take its claim again after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line, exit 0 only when merged',
+  'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--class delivery|non-delivery] [--root DIR]  fetch the repo contract base branch from origin, create branch SLUG from it in .krn/worktrees/SLUG, claim the task; a non-delivery lane is refused while `krn ledger --check-ceiling` is over; prints the path and branch',
+  'krn lane run (--task ID | --goal TEXT) [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree and take its claim again after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line, exit 0 only when merged',
   'krn lane drop SLUG [--root DIR]  remove the lane worktree and branch and release the claim held from that worktree',
   'krn lane brief [--file PATH] [--task ID] [--as-of YYYY-MM-DD] [--root DIR]  print the lane brief (file, else stdin) behind the FR-40 brain packet of the repository records',
 ].join('\n');
@@ -33,11 +34,30 @@ export const laneUsage = [
  * What a worker is told about the tracker. D23 arm K refused five units because the record or the
  * history said the work was done, while the unit's tests were red: the repository, not the record, is the truth.
  */
-export const WORKER_RULES = `Worker rules:
+const SHARED_RULES = `Worker rules:
 - Done means every behavior the task describes has a test in this clone that passes, and your change is committed. A closed task record, an earlier commit or a green existing suite never means done: an earlier commit may cover only part of the task.
 - For each behavior, outcome or interface the task states, write a test that checks it at its receiver. If it fails, fix the code; if it passes already, keep the test: the commit then carries the proof. Stop without a commit only when you can name an existing test for every described behavior.
-- A red test outranks tracker state and scope: if a test needs a file outside Scope (other than tasks/ and the roadmap), edit it and name it in your final reply.
-- Before you end, run 'node scripts/claude/worker-stop.ts --check' (it runs the tests the repo contract selects for the files you changed, its guard tests, or the full test command when none relate; '--related' lists them). The session is refused its end while there is no commit or that check is red; the one escape is a final line 'BLOCKER: <what stops you>'.`;
+- A red test outranks tracker state and scope: if a test needs a file outside Scope (other than tasks/ and the roadmap), edit it and name it in your final reply.`;
+
+const STOP_SCRIPT = 'scripts/claude/worker-stop.ts';
+
+/**
+ * The worker rules for this repository: the closing check names the Stop script where the
+ * repository ships it, else the repo contract's own commands, so a pytest repository on master
+ * is never told to run npm.
+ */
+export function workerRules(repo: string): string {
+  if (existsSync(join(repo, STOP_SCRIPT)))
+    return `${SHARED_RULES}\n- Before you end, run 'node ${STOP_SCRIPT} --check' (it runs the tests the repo contract selects for the files you changed, its guard tests, or the full test command when none relate; '--related' lists them). The session is refused its end while there is no commit or that check is red; the one escape is a final line 'BLOCKER: <what stops you>'.`;
+  const contract = findContract(repo)?.contract;
+  if (contract === undefined)
+    return `${SHARED_RULES}\n- Before you end, run the repository's tests and fix what they report; when you cannot make them pass, end with a final line 'BLOCKER: <what stops you>'.`;
+  const fast =
+    contract.fast === undefined || contract.fast === contract.test
+      ? ''
+      : `'${contract.fast}' while you work, then `;
+  return `${SHARED_RULES}\n- Before you end, run ${fast}the full test command '${contract.test}' and fix what it reports; changes target branch '${contract.base}'. When you cannot make the tests pass, end with a final line 'BLOCKER: <what stops you>'.`;
+}
 
 /** The lane brief with the FR-40 carrier prefix (D0, t-5983e6g): the measured arm-B prompt. */
 export function laneBriefText(
@@ -49,7 +69,7 @@ export function laneBriefText(
   const text = packetBrief(lanePacket(repo, brief, asOf, task), brief);
   const precedent = precedentSection(repo, brief);
   const body = precedent === '' ? text : `${text}\n\n${precedent}\n`;
-  return `${body.trimEnd()}\n\n${WORKER_RULES}\n`;
+  return `${body.trimEnd()}\n\n${workerRules(repo)}\n`;
 }
 
 function briefCommand(rest: string[]): void {
@@ -133,15 +153,19 @@ function gitOk(root: string, args: string[]): boolean {
 }
 
 // A task created but not yet committed exists only in the invoking checkout;
-// the new worktree is cut from origin/main, so the record moves with the lane.
-function untrackedTaskRecord(origin: string, id: string): string | undefined {
+// the new worktree is cut from the origin base branch, so the record moves with the lane.
+function untrackedTaskRecord(
+  origin: string,
+  id: string,
+  base: string,
+): string | undefined {
   const file = join(origin, 'tasks', `${id}.json`);
   if (!existsSync(file)) return undefined;
   if (gitOk(origin, ['ls-files', '--error-unmatch', `tasks/${id}.json`])) {
-    if (gitOk(origin, ['cat-file', '-e', `origin/main:tasks/${id}.json`]))
+    if (gitOk(origin, ['cat-file', '-e', `origin/${base}:tasks/${id}.json`]))
       return undefined;
     throw new CliUsageError(
-      `tasks/${id}.json is tracked in ${origin} but not on origin/main; commit and push it first`,
+      `tasks/${id}.json is tracked in ${origin} but not on origin/${base}; commit and push it first`,
     );
   }
   return file;
@@ -300,10 +324,11 @@ export async function startLane(
 
   checkLaneBudget(main);
   await checkLaneCeiling(main, sessionClass, deps.ceiling);
-  git(main, ['fetch', '-q', 'origin', 'main']);
+  const base = contractBase(origin);
+  git(main, ['fetch', '-q', 'origin', base]);
   const carried =
-    task === undefined ? undefined : untrackedTaskRecord(origin, task);
-  git(main, ['worktree', 'add', '-q', '-b', slug, path, 'origin/main']);
+    task === undefined ? undefined : untrackedTaskRecord(origin, task, base);
+  git(main, ['worktree', 'add', '-q', '-b', slug, path, `origin/${base}`]);
   if (task !== undefined) {
     try {
       const copied =

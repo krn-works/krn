@@ -13,7 +13,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { laneBrief } from '../../evals/fr40/lanes.ts';
 import { BASE_DATE, generate } from '../../evals/fr40/tasks.ts';
-import { laneBriefText, WORKER_RULES } from '../../src/cli/lane.ts';
+import { laneBriefText, workerRules } from '../../src/cli/lane.ts';
 
 // KRN-12: the receiver is the FR-40 lane runner; its arm-B prompt is the measured carrier.
 const repo = fileURLToPath(new URL('../..', import.meta.url));
@@ -42,7 +42,7 @@ test('the lane brief of every frozen unit equals the lane runner arm-B prompt', 
     const brief = `${unit.prompt.trim()}\n`;
     assert.equal(
       laneBriefText(frozen, brief, BASE_DATE, unit.id),
-      `${laneBrief(unit, 'B').prompt.trimEnd()}\n\n${WORKER_RULES}\n`,
+      `${laneBrief(unit, 'B').prompt.trimEnd()}\n\n${workerRules(frozen)}\n`,
       unit.id,
     );
   }
@@ -89,7 +89,7 @@ test('a repository without records gets the brief and the worker rules', () => {
     spawnSync('git', ['init', '-q', dir]);
     const result = lane(dir, [], 'Fix the parser.\n');
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, `Fix the parser.\n\n${WORKER_RULES}\n`);
+    assert.equal(result.stdout, `Fix the parser.\n\n${workerRules(dir)}\n`);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -105,4 +105,42 @@ test('krn lane brief refuses an empty brief, a bad date and a bad task id', () =
     assert.equal(result.status, 64, `${args.join(' ')}: ${result.stderr}`);
     assert.equal(result.stdout, '');
   }
+});
+
+test('a pytest repository on master without a tracker gets its own commands, never npm', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'krn-lane-brief-py-'));
+  try {
+    const git = (...args: string[]) =>
+      spawnSync('git', ['-C', dir, ...args], { encoding: 'utf8' });
+    git('init', '-q', '-b', 'master');
+    writeFileSync(join(dir, 'pyproject.toml'), '[project]\nname = "p"\n');
+    git('add', '.');
+    git(
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@example.invalid',
+      'commit',
+      '-qm',
+      'seed',
+    );
+    const result = lane(dir, [], 'Fix the parser.\n');
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /'python -m pytest'/u);
+    assert.match(result.stdout, /branch 'master'/u);
+    assert.match(result.stdout, /BLOCKER:/u);
+    assert.doesNotMatch(
+      result.stdout,
+      /npm|worker-stop|tasks\/<|origin\/main/u,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the KRN repository brief keeps the Stop script check', () => {
+  assert.match(
+    workerRules(repo),
+    /node scripts\/claude\/worker-stop\.ts --check/u,
+  );
 });
