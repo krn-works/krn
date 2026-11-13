@@ -1,0 +1,12 @@
+{
+  "id": "t-k2mg5t6",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "The brain packet reads repo conventions from the repo contract and is named for what it is",
+  "after": [],
+  "body": [
+    "Why: memory audit 2026-11-13: src/brain/worker-packet.ts:51 reads the fixed path evals/fr40/records.json, so an adopted repository gets an empty packet; the 19 records are hand-written repo conventions with valid_to always null and no write path (ADR 0002 marks the temporal brain unbuilt). Measured value is real but is convention injection (FR-40 lanes +22.6 pp, n=133, in-sample).\nOutcome: the records path comes from the repo contract (default .krn/conventions.json), adopt seeds it from the repository's instruction files, the packet is documented as a conventions packet, and the temporal fields are either enforced (a superseded record never enters a packet) or removed.\nProof: adopt on a fixture repo yields a non-empty packet; a superseded-record test.\nScope: src/brain/, src/adopt/, src/repo/, docs/adr/, test/."
+  ]
+}

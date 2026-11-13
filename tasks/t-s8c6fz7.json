@@ -1,0 +1,12 @@
+{
+  "id": "t-s8c6fz7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 0,
+  "title": "D23 replay never grades a session that ended on an API or auth error",
+  "after": [],
+  "body": [
+    "Why: dev-k4 (.krn/runs/d23-comparison/v2/dev-k4) graded 560 and 621 WRONG although both sessions ended 'Failed to authenticate. API Error: 403' with subtype success; evals/d23/replay.sh only detects usage-limit text, so infra failures count as K losses.\nOutcome: replay.sh and runs.ts classify API/auth/overload errors like usage limits: the run is retried and never graded.\nProof: unit test over captured claude.json results (403 auth, 529 overload, usage limit, a normal answer quoting 'API Error'); dev-k4 regrade drops 560 and 621.\nScope: evals/d23/, test/evals/."
+  ]
+}

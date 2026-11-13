@@ -1,0 +1,12 @@
+{
+  "id": "t-zkgmh4t",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "Critical modules are proven by mutation samples, and tests stop freezing tracker text",
+  "after": [],
+  "body": [
+    "Why: test audit 2026-11-13: ship, worker-stop, lane-run have tests but their strength is unmeasured; test/rules/lead-traps.test.ts syncs SKILL.md text with open tasks; FR-40 freeze hashes scripts/boundaries.ts so any layer edit trips an unrelated test (hit in #653).\nOutcome: 5 hand mutations each in src/ci/ship.ts, scripts/claude/worker-stop.ts, src/cli/lane-run.ts with the kill rate recorded and surviving mutants turned into tests; lead-traps checks structure, not task lists; the FR-40 freeze hashes only files the scorer behaviour depends on.\nProof: mutation table under docs/ or evals/ with kill rate >= 80%; lead-traps no longer reads tasks/.\nScope: test/, evals/fr40/, src/ci/, scripts/claude/, src/cli/."
+  ]
+}
