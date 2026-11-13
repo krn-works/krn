@@ -1,8 +1,10 @@
-// Brain packet for a lane brief (ADR 0002, FR-40 GO): the arm-B selection over the
-// seven conventions FR-40 measured, prepended to the brief and recorded with the run.
-// The records are the target repository's own: a repository without them gets no packet.
+// Conventions packet for a lane brief (ADR 0002, FR-40 GO): the arm-B selection over the
+// repository's own conventions, prepended to the brief and recorded with the run. The
+// records file comes from the repo contract (`conventions`, default .krn/conventions.json);
+// a repository without it gets no packet. A record outside its valid dates never enters.
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { contractConventions } from '../repo/contract.ts';
 import {
   type BrainRecord,
   BUDGET,
@@ -39,17 +41,20 @@ export function applicable(
   brief: string,
 ): BrainRecord[] {
   const measured = new Set<string>(MEASURED);
+  // The measured subset restricts only the pool FR-40 measured; another repository's conventions all apply.
+  const restrict = records.some((record) => measured.has(record.id));
   const hasTaskId = TASK_ID.test(brief);
   return records.filter(
     (record) =>
-      measured.has(record.id) &&
+      (!restrict || measured.has(record.id)) &&
       !LEAD_ONLY.has(record.id) &&
       (hasTaskId || !NEEDS_TASK_ID.test(record.text)),
   );
 }
 
-/** Where a repository keeps the records FR-40 measured. */
-const RECORDS = 'evals/fr40/records.json';
+/** Where a repository keeps its conventions: the repo contract names the file. */
+const recordsPath = (repo: string): string =>
+  join(repo, contractConventions(repo));
 
 /**
  * Live wording that supersedes a frozen record of the same id. evals/fr40/records.json is
@@ -59,8 +64,9 @@ const LIVE_RECORDS = 'docs/program/live-records.json';
 
 /** The frozen records with each live record replacing the frozen one of its id. */
 export function liveRecords(repo: string): BrainRecord[] {
+  if (!existsSync(recordsPath(repo))) return [];
   const frozen = parseRecords(
-    JSON.parse(readFileSync(join(repo, RECORDS), 'utf8')),
+    JSON.parse(readFileSync(recordsPath(repo), 'utf8')),
   );
   const path = join(repo, LIVE_RECORDS);
   if (!existsSync(path)) return frozen;
@@ -74,7 +80,7 @@ export function workerPacket(
   brief: string,
   asOf: string,
 ): Packet | null {
-  const path = join(repo, RECORDS);
+  const path = recordsPath(repo);
   if (!existsSync(path)) return null;
   return brainPacket({
     task: 'worker-brief',
@@ -97,7 +103,7 @@ export function lanePacket(
   asOf: string,
   task: string,
 ): Packet | null {
-  const path = join(repo, RECORDS);
+  const path = recordsPath(repo);
   if (!existsSync(path)) return null;
   return brainPacket({
     task,

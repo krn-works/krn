@@ -1,5 +1,11 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
@@ -123,4 +129,54 @@ test('the worker brief never carries the lead-only tracker rule', () => {
       !workerSelection(task.prompt).includes('r-tracker-owner'),
       `${task.id} carries r-tracker-owner`,
     );
+});
+
+function conventionsRepo(
+  t: import('node:test').TestContext,
+  rows: unknown,
+  contract?: string,
+): string {
+  const root = mkdtempSync(join(tmpdir(), 'krn-conventions-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, '.krn'));
+  writeFileSync(join(root, '.krn/conventions.json'), JSON.stringify(rows));
+  if (contract) writeFileSync(join(root, 'krn.json'), contract);
+  return root;
+}
+
+const row = (id: string, text: string, valid_to: string | null) => ({
+  id,
+  type: 'convention',
+  text,
+  recorded_at: '2026-01-01',
+  valid_from: '2026-01-01',
+  valid_to,
+  source: 'AGENTS.md',
+});
+
+test('a superseded convention never enters a packet and the live one does', (t) => {
+  const root = conventionsRepo(t, [
+    row('r-old', 'Format the parser with the legacy formatter.', '2026-05-01'),
+    row('r-new', 'Format the parser with biome.', null),
+  ]);
+  const packet = lanePacket(root, 'format the parser', '2026-11-13', 'unit');
+  assert.deepEqual(packet?.records, ['r-new']);
+  const worker = workerPacket(root, 'format the parser', '2026-11-13');
+  assert.deepEqual(worker?.records, ['r-new']);
+});
+
+test('the repo contract names the conventions file', (t) => {
+  const root = conventionsRepo(
+    t,
+    [],
+    JSON.stringify({ test: 'true', conventions: 'rules/c.json' }),
+  );
+  assert.equal(lanePacket(root, 'format the parser', '2026-11-13', 'u'), null);
+  mkdirSync(join(root, 'rules'));
+  writeFileSync(
+    join(root, 'rules/c.json'),
+    JSON.stringify([row('r-x', 'Format the parser with biome.', null)]),
+  );
+  const packet = lanePacket(root, 'format the parser', '2026-11-13', 'u');
+  assert.deepEqual(packet?.records, ['r-x']);
 });

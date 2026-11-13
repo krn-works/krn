@@ -13,6 +13,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CONTRACT_FILE, detectBase, findContract } from '../repo/contract.ts';
 import { createTask } from '../task/store.ts';
+import { seedConventions } from './conventions.ts';
 
 export interface AdoptOptions {
   /** Commit sha of krn-works/krn that holds the shared project-ci.yml; CI is written only when given. */
@@ -295,6 +296,9 @@ export function adopt(root: string, options: AdoptOptions): AdoptionReport {
   writeSkills(root, report);
   writeRules(root, report);
   ignoreAgentState(root, report);
+  const seeded = seedConventions(root, new Date().toISOString().slice(0, 10));
+  if (seeded) report.written.push(seeded);
+  else report.unchanged.push('conventions');
   if (workflow !== undefined)
     writeIfChanged(root, '.github/workflows/ci.yml', workflow, report);
   return report;
