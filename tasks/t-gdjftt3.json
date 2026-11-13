@@ -1,7 +1,11 @@
 {
   "id": "t-gdjftt3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Claim refuted: regrade of 40 stored patches with and without --index gives identical verdicts (K 2/20, P 3/20 functional); --index fails to apply 7 patches. grade.ts unchanged. Table: .krn/runs/d23-regrade/table.md (#686)."
+  },
   "created": "2026-11-13",
   "priority": 0,
   "title": "The D23 grader stages the patch and the stored patches are regraded",
