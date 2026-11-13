@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -119,4 +126,44 @@ test('the lane brief names the related-test command and the blocker escape', asy
   const { WORKER_RULES } = await import('../../src/cli/lane.ts');
   assert.match(WORKER_RULES, /scripts\/claude\/worker-stop\.ts --check/u);
   assert.match(WORKER_RULES, /BLOCKER:/u);
+});
+
+function realTests(): Map<string, string> {
+  const found = new Map<string, string>();
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(path);
+      else if (/\.test\.(?:ts|mjs|js|cjs)$/u.test(path))
+        found.set(path, readFileSync(path, 'utf8'));
+    }
+  };
+  walk('test');
+  return found;
+}
+
+test('relatedTests selects tests naming a changed data file by path in the real test tree', () => {
+  const tests = realTests();
+  const settings = relatedTests(['.claude/settings.json'], tests);
+  assert.ok(settings.includes('test/claude/thinking-settings.test.ts'));
+  assert.ok(settings.includes('test/rules/context-budget.test.ts'));
+  const receivers = relatedTests(['spec/receivers.json'], tests);
+  assert.ok(receivers.includes('test/rules/receiver-evidence.test.mjs'));
+  assert.deepEqual(receivers, [...receivers].sort());
+});
+
+test('relatedTests keeps an unrelated source change to importers plus the test/rules guards', () => {
+  const tests = realTests();
+  const picked = relatedTests(['scripts/claude/worker-stop.ts'], tests);
+  const guards = [...tests.keys()].filter((p) => p.startsWith('test/rules/'));
+  assert.ok(guards.length > 0);
+  for (const guard of guards) assert.ok(picked.includes(guard), guard);
+  assert.ok(picked.includes('test/claude/worker-stop.test.ts'));
+  assert.ok(
+    picked.every(
+      (p) =>
+        p.startsWith('test/rules/') || tests.get(p)?.includes('worker-stop'),
+    ),
+  );
+  assert.deepEqual(relatedTests([], tests), []);
 });
