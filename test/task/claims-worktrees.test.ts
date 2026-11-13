@@ -280,3 +280,35 @@ test('closing and editing a lead-claimed task inside a linked worktree writes on
     await rm(repo, { recursive: true, force: true });
   }
 });
+
+test('a registered worktree deleted without pruning does not freeze other claims', async () => {
+  const repo = await fixtureRepo('claim-unpruned-', [task('T-1'), task('T-2')]);
+  const gone = join(dirname(repo), 'claim-unpruned-gone');
+  const kept = join(dirname(repo), 'claim-unpruned-kept');
+  try {
+    addWorktree(repo, gone, 'claim-unpruned-gone-branch');
+    addWorktree(repo, kept, 'claim-unpruned-kept-branch');
+    assert.equal(
+      (await runCli(gone, ['claim', 'T-1', '--actor', 'a'])).status,
+      0,
+    );
+    await rm(gone, { recursive: true, force: true });
+    const claim = await runCli(kept, ['claim', 'T-2', '--actor', 'b']);
+    assert.equal(claim.status, 0, claim.stderr);
+    const show = JSON.parse(
+      (await runCli(repo, ['show', 'T-1', '--json'])).stdout,
+    );
+    assert.equal(show.claim.state, 'expired');
+    assert.equal(
+      JSON.parse((await runCli(repo, ['show', 'T-2', '--json'])).stdout).claim
+        .state,
+      'live',
+    );
+    const again = await runCli(kept, ['claim', 'T-1', '--actor', 'b']);
+    assert.equal(again.status, 0, again.stderr);
+  } finally {
+    removeWorktree(repo, kept);
+    git(repo, 'worktree', 'prune');
+    await rm(repo, { recursive: true, force: true });
+  }
+});

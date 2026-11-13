@@ -1,7 +1,11 @@
 {
   "id": "t-vdwmr57",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "missing registered worktree is skipped with a stderr note; regression in claims-worktrees.test.ts"
+  },
   "created": "2026-11-13",
   "priority": 0,
   "title": "One deleted lane directory never freezes every task claim",
