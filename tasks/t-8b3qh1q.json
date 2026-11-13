@@ -1,0 +1,12 @@
+{
+  "id": "t-8b3qh1q",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "Process rules and the plan file have one owner each",
+  "after": [],
+  "body": [
+    "Why: t-0a9xgwe (91d97e1) left two duplications: PLAN.md and PLANS.md, and process rules repeated across docs/, AGENTS.md and spec/rules.json (its close note).\nOutcome: one owner per process rule and one plan file; the others point to it (D19).\nProof: grep shows each rule text once; npm run fast passes.\nScope: docs/, AGENTS.md, spec/rules.json, PLAN.md, PLANS.md, test/rules/."
+  ]
+}
