@@ -144,3 +144,22 @@ test('the KRN repository brief keeps the Stop script check', () => {
     /node scripts\/claude\/worker-stop\.ts --check/u,
   );
 });
+
+test('a lane brief tells the worker to test the plainest hand-written input of every named format', () => {
+  // D23 unit 621 (K): the patch reader handled only `diff --git` diffs because its own tests used that form;
+  // the task said "unified diffs" and the hidden fixture was a plain ---/+++ diff.
+  const text = laneBriefText(
+    repo,
+    'Task t-abc1234: x\n',
+    BASE_DATE,
+    't-abc1234',
+  );
+  assert.match(
+    text,
+    /plainest hand-written example of that format exactly as the task words it, never only input your own code or tool produced/u,
+  );
+  assert.match(
+    workerRules(repo),
+    /only ---\/\+\+\+ headers and no diff --git line/u,
+  );
+});

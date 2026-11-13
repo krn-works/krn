@@ -1,7 +1,11 @@
 {
   "id": "t-8wnb1v3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Cause: K patch reader handled only 'diff --git' diffs; worker tests used that form while the task said 'unified diffs' and the hidden fixture is a plain ---/+++ diff (regrade.test.ts:60 false). Fix: worker rule to test the plainest hand-written input of each named format (src/cli/lane.ts, test/cli/lane-brief.test.ts). Dev replay 621 arm K (80743d8): correct, scope-clean, all 3 hidden files pass. Evidence .krn/runs/d23-comparison/v2/dev-k5 and dev-k6."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "K delivers D23 unit 621: its worker proves the regrade requirement before it ends",
