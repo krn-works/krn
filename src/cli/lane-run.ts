@@ -144,6 +144,7 @@ interface SessionResult {
   ok: boolean;
   detail: string;
   cost: number | undefined;
+  turns?: number;
 }
 
 const exitNoDelivery = 74;
@@ -253,7 +254,14 @@ export function parseSessionResult(stdout: string, stderr = ''): SessionResult {
   const subtype =
     typeof record.subtype === 'string' ? record.subtype : 'unknown';
   const failed = record.is_error === true || subtype !== 'success';
-  return { ok: !failed, detail: `session ${subtype}`, cost };
+  const turns =
+    typeof record.num_turns === 'number' ? record.num_turns : undefined;
+  return {
+    ok: !failed,
+    detail: `session ${subtype}`,
+    cost,
+    ...(turns === undefined ? {} : { turns }),
+  };
 }
 
 function git(cwd: string, args: string[]): string {
@@ -1012,7 +1020,8 @@ export async function laneRunCommand(
       ? { ok: false, detail: refusal.detail, cost: undefined }
       : runSession();
   const spent =
-    result.cost === undefined ? '' : ` cost $${result.cost.toFixed(2)}`;
+    (result.cost === undefined ? '' : ` cost $${result.cost.toFixed(2)}`) +
+    (result.turns === undefined ? '' : ` turns ${result.turns}`);
   const kept = `worktree ${started.path}, rerun reuses it`;
   // A failed run keeps its worktree as evidence and frees the task for a retry.
   const stop = async (

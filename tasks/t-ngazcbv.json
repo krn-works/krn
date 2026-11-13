@@ -1,0 +1,16 @@
+{
+  "id": "t-ngazcbv",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane verdict prints turns N from num_turns; test reads verbatim capture"
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "lane run verdict reports the session's turn count",
+  "after": [],
+  "body": [
+    "Why: the Python pilot table (t-811vn27) needs turns per lane; lane run reports cost but drops num_turns from the session result.\nOutcome: the lane verdict line prints `turns N` next to the cost when the session result carries num_turns.\nProof: test/cli/lane-run.test.ts parses the verbatim capture test/fixtures/claude/headless-session-result.json (num_turns 1)."
+  ]
+}
