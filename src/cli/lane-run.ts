@@ -86,6 +86,18 @@ const fastCheck = fileURLToPath(
 const wrapperDirectory = fileURLToPath(
   new URL('../../scripts/app-bin', import.meta.url),
 );
+const productSandboxSettings = fileURLToPath(
+  new URL('../../.claude/settings.sandbox.json', import.meta.url),
+);
+
+/**
+ * The lane sandbox settings: the repository's own file when it ships one, else the copy that
+ * travels with KRN, so an adopted repository runs lanes without adding the file.
+ */
+export function laneSandboxSettings(worktree: string): string {
+  const own = join(worktree, '.claude', 'settings.sandbox.json');
+  return existsSync(own) ? own : productSandboxSettings;
+}
 
 /**
  * The session environment: the operator's credentials removed, the `gh` wrapper first on PATH,
@@ -201,14 +213,19 @@ export function sandboxPlaceholders(
     });
 }
 
-export function parseSessionResult(stdout: string): SessionResult {
+export function parseSessionResult(stdout: string, stderr = ''): SessionResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(stdout);
   } catch {
+    const said = `${stderr}\n${stdout}`
+      .trim()
+      .split('\n')
+      .slice(-3)
+      .join(' | ');
     return {
       ok: false,
-      detail: 'session printed no JSON result (not a timeout)',
+      detail: `session printed no JSON result (not a timeout)${said === '' ? '' : `: ${said.slice(0, 400)}`}`,
       cost: undefined,
     };
   }
@@ -557,7 +574,7 @@ export async function laneRunCommand(
         '--output-format',
         'json',
         '--settings',
-        join(started.path, '.claude', 'settings.sandbox.json'),
+        laneSandboxSettings(started.path),
         '--permission-mode',
         'acceptEdits',
         '--model',
@@ -581,7 +598,7 @@ export async function laneRunCommand(
             detail: `session did not run: ${session.error.message}`,
             cost: undefined,
           }
-        : parseSessionResult(session.stdout ?? '');
+        : parseSessionResult(session.stdout ?? '', session.stderr ?? '');
     notStarted = session.error !== undefined && !timedOut;
     return result;
   };

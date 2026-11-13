@@ -20,6 +20,7 @@ import {
   goalBrief,
   goalSlug,
   laneRunCommand,
+  laneSandboxSettings,
   mintFailure,
   parseSessionResult,
   sandboxPlaceholders,
@@ -134,6 +135,35 @@ test('parseSessionResult reads the captured result', () => {
       JSON.stringify({ ...JSON.parse(capture), is_error: true }),
     ).ok,
     false,
+  );
+});
+
+test('an adopted repository without its own sandbox settings uses the copy KRN ships', () => {
+  // Seen on the pilot: claude printed 'Error: Settings file not found: .../.claude/settings.sandbox.json'.
+  const adopted = mkdtempSync(join(tmpdir(), 'krn-adopted-'));
+  try {
+    const settings = laneSandboxSettings(adopted);
+    assert.ok(existsSync(settings), settings);
+    assert.match(settings, /\.claude\/settings\.sandbox\.json$/u);
+    mkdirSync(join(adopted, '.claude'));
+    writeFileSync(join(adopted, '.claude', 'settings.sandbox.json'), '{}');
+    assert.equal(
+      laneSandboxSettings(adopted),
+      join(adopted, '.claude', 'settings.sandbox.json'),
+    );
+  } finally {
+    rmSync(adopted, { recursive: true, force: true });
+  }
+});
+
+test('a session without a JSON result names what claude said', () => {
+  const said =
+    'Error: Settings file not found: /w/.claude/settings.sandbox.json';
+  const result = parseSessionResult(`${said}\n`, '');
+  assert.equal(result.ok, false);
+  assert.match(
+    result.detail,
+    /not a timeout\): Error: Settings file not found/u,
   );
 });
 
