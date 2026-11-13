@@ -449,6 +449,18 @@ export function baselineReason(run: {
   return `${exit}: ${lastLine(`${run.stderr ?? ''}`) || lastLine(`${run.stdout ?? ''}`)}`;
 }
 
+/**
+ * The contract test narrowed to `files`: the paths go after the last command, behind `--` when an
+ * npm-style runner forwards them to its script (`npm --prefix packages/x test -- a.test.ts`).
+ */
+export function rerunCommand(test: string, files: readonly string[]): string {
+  const quoted = files.map((file) => `'${file.replaceAll("'", "'\\''")}'`);
+  const last = test.split(/&&|\|\||;/u).pop() ?? test;
+  const forward =
+    /\b(?:npm|pnpm|yarn|bun)\b/u.test(last) && !/\s--(?:\s|$)/u.test(last);
+  return `${test}${forward ? ' --' : ''} ${quoted.join(' ')}`;
+}
+
 /** The lock that makes concurrent lanes of one repository run their baseline tests one at a time. */
 export function baselineLockFile(main: string): string {
   return join(main, '.krn', 'tmp', 'lane-baseline.lock');
@@ -529,9 +541,21 @@ export function prepareWorktree(
   )
     return undefined;
   // Concurrent lanes take turns: a suite run by five lanes at once timed out and read as red.
-  const baseline = withFileLock(baselineLockFile(main), () =>
-    execute(contract.test),
-  );
+  // A timing-flaky suite fails under host load and passes alone: a red run reruns only its
+  // failing files once, and the baseline is red only when they fail again.
+  const baseline = withFileLock(baselineLockFile(main), () => {
+    const first = execute(contract.test);
+    if (first.status === 0) return first;
+    const files = failingTests(`${first.stdout ?? ''}\n${first.stderr ?? ''}`);
+    if (files.length === 0) return first;
+    const again = execute(rerunCommand(contract.test, files));
+    if (again.status === 0) return again;
+    // The detail names the files that failed twice, else the ones the first run named.
+    return failingTests(`${again.stdout ?? ''}\n${again.stderr ?? ''}`).length >
+      0
+      ? again
+      : first;
+  });
   if (baseline.status !== 0)
     return {
       detail: `red baseline: ${contract.test} fails on a clean origin/${base} (${baselineReason(baseline)}); no session started`,
