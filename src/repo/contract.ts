@@ -1,7 +1,7 @@
 // The repo contract: how KRN tests, checks and branches in one repository, whatever its stack.
 // A tracked krn.json declares it; any field it leaves out is detected from the repository's own files.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export type Tracker = 'krn' | 'none';
@@ -172,6 +172,79 @@ export function detectStack(root: string): Detected | undefined {
       related: 'go test {files}',
     };
   return detectNode(root) ?? detectPython(root) ?? detectMakeTest(root);
+}
+
+export interface Subpackage {
+  dir: string;
+  install?: string;
+  lint?: string;
+  typecheck?: string;
+  test: string;
+}
+
+const manifests = ['package.json', 'pyproject.toml'];
+
+function hasManifest(dir: string): boolean {
+  return manifests.some((file) => existsSync(join(dir, file)));
+}
+
+function subdirectories(dir: string): string[] {
+  try {
+    return readdirSync(dir, { withFileTypes: true })
+      .filter(
+        (entry) =>
+          entry.isDirectory() &&
+          !entry.name.startsWith('.') &&
+          entry.name !== 'node_modules',
+      )
+      .map((entry) => entry.name)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+/** The directories one or two levels down that hold a manifest with a test command. */
+export function subpackageCandidates(root: string): Subpackage[] {
+  const found: Subpackage[] = [];
+  const check = (dir: string): void => {
+    const full = join(root, dir);
+    const pkg = readJson(join(full, 'package.json'));
+    if (pkg && detectNode(full)) {
+      const scripts = (pkg.scripts ?? {}) as Record<string, unknown>;
+      const prefix = `npm --prefix ${dir}`;
+      found.push({
+        dir,
+        install: `${prefix} ${existsSync(join(full, 'package-lock.json')) ? 'ci' : 'install'}`,
+        ...(typeof scripts.lint === 'string'
+          ? { lint: `${prefix} run lint` }
+          : {}),
+        ...(typeof scripts.typecheck === 'string'
+          ? { typecheck: `${prefix} run typecheck` }
+          : {}),
+        test: `${prefix} test`,
+      });
+      return;
+    }
+    const python = detectPython(full);
+    if (python) found.push({ dir, test: `cd ${dir} && ${python.test}` });
+  };
+  for (const first of subdirectories(root)) {
+    if (hasManifest(join(root, first))) check(first);
+    else
+      for (const second of subdirectories(join(root, first))) {
+        const dir = `${first}/${second}`;
+        if (hasManifest(join(root, dir))) check(dir);
+      }
+  }
+  return found;
+}
+
+/** The single package of a repository whose root has no manifest; undefined when root has one or candidates are not exactly one. */
+export function detectSubpackage(root: string): Subpackage | undefined {
+  if (hasManifest(root) || detectStack(root)) return undefined;
+  const found = subpackageCandidates(root);
+  return found.length === 1 ? found[0] : undefined;
 }
 
 function git(root: string, args: string[]): string | undefined {
