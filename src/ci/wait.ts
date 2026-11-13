@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
@@ -31,6 +33,16 @@ export const stopExitCodes = {
 const releaseScript = fileURLToPath(
   new URL('../../scripts/product-release.sh', import.meta.url),
 );
+/**
+ * True when cwd sits in a checkout of the KRN product itself: only that repository has a
+ * pinned Product entry to refresh, so an adopted repository skips the release script.
+ */
+export function ownsProductRelease(cwd: string): boolean {
+  for (let dir = cwd; ; dir = dirname(dir)) {
+    if (existsSync(join(dir, 'scripts', 'product-release.sh'))) return true;
+    if (existsSync(join(dir, '.git')) || dirname(dir) === dir) return false;
+  }
+}
 export const waitUsage =
   'Usage: krn ci wait --repo <owner/repo> --pr <n> --head <sha> --base <sha> [--timeout-seconds <n>] [--start-timeout-seconds <n>] [--merge-timeout-seconds <n>]; with auto-merge on, waits for the merge, refreshes the pinned Product entry and ends with one `verdict:` line (merged <sha>, closed unmerged, open: blocked, or not merging); exits 0 success (a merged PR whose pinned-entry refresh failed still exits 0 with a `warning:` line), 64 usage, 74 failed gate, 75 timeout, 76 conflict, 77 head moved, 69 never started';
 
@@ -135,7 +147,10 @@ export async function waitCommand(
           gh,
           sleep: wait,
           now,
-          refresh: () => runner('bash', [releaseScript], cwd),
+          refresh: () =>
+            ownsProductRelease(cwd)
+              ? runner('bash', [releaseScript], cwd)
+              : { code: 0, stdout: '', stderr: '' },
         })),
       );
     else
