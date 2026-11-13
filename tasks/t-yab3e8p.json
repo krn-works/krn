@@ -1,7 +1,11 @@
 {
   "id": "t-yab3e8p",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "overlay computed from the import graph (overlayFiles/importClosure in evals/d23/harness.ts), test in test/evals/d23-harness.test.ts"
+  },
   "created": "2026-11-13",
   "priority": 0,
   "title": "The eval overlay carries every file the worker hooks import",
