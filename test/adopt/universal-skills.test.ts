@@ -82,6 +82,11 @@ test('adopt on a pytest fixture installs skills whose every command resolves the
     const text = readFileSync(join(installed, name, 'SKILL.md'), 'utf8');
     assert.equal(text, readFileSync(join(source, name, 'SKILL.md'), 'utf8'));
     for (const words of krnCommands(text)) seen.add(words.join(' '));
+    // An adopted repository's own docs checks (krn-works/seo-audit-harness#83) skip only a line
+    // whose krn command sits in inline code; a bare command line with options reads as theirs.
+    for (const line of text.split('\n'))
+      if (/(^|\s)krn [a-z]+.* --[a-z]/u.test(line))
+        assert.match(line, /`krn [a-z]/u, `${name}: ${line}`);
   }
   assert.ok(seen.has('repo contract'), 'skills read the repo contract');
   assert.ok(

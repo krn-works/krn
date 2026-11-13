@@ -265,6 +265,37 @@
     "valid_to": null
   },
   {
+    "id": "s-clean-checkout-tests",
+    "area": "tests",
+    "layer": "universal",
+    "audience": "worker",
+    "text": "The test suite gives the same verdict on a clean checkout: no test depends on untracked local state such as an earlier build or the enclosing repository.",
+    "why": "A suite that reads a local build or the surrounding repository is green on one machine and red in CI or in a fresh worktree, so its verdict proves nothing about the change.",
+    "evidence": [
+      "https://github.com/krn-works/seo-audit-harness/pull/76",
+      "https://github.com/krn-works/seo-audit-harness/pull/83",
+      "https://github.com/krn-works/seo-audit-harness/commit/6f58fc4",
+      "#702",
+      "d8399da",
+      ".agents/standards-proposals/the-test-suite-gives-the-same-6553558c.json"
+    ],
+    "enforcement": {
+      "kind": "command",
+      "run": "[ ! -f package.json ] || node -e 'const fs=require(\"fs\"),cp=require(\"child_process\");const s=JSON.parse(fs.readFileSync(\"package.json\",\"utf8\")).scripts||{};if(/\\b(build|tsc|tsup|esbuild|rollup|webpack)\\b/.test([s.pretest,s.test].join(\" \")))process.exit(0);const files=cp.execFileSync(\"git\",[\"ls-files\",\"-z\"],{encoding:\"utf8\"}).split(\"\\0\");if(files.some(f=>/(^|\\/)dist\\//.test(f)))process.exit(0);const bad=files.filter(f=>/\\.(test|spec)\\.[cm]?[jt]sx?$|(^|\\/)(tests?|__tests__)\\/.*\\.[cm]?[jt]sx?$/.test(f)&&fs.existsSync(f)&&/[\"\\x27`][^\"\\x27`\\s]*\\bdist\\/[^\"\\x27`\\s]*\\.[cm]?js[\"\\x27`]/.test(fs.readFileSync(f,\"utf8\")));if(bad.length){console.error(\"tests read untracked dist/ output but the test script builds nothing: \"+bad.slice(0,3).join(\", \"));process.exit(1)}'"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null,
+    "harvested": {
+      "origins": ["krn-works/seo-audit-harness", "krn-works/krn"],
+      "occurrences": 2
+    }
+  },
+  {
     "id": "s-regression-lowest-layer",
     "area": "tests",
     "layer": "universal",

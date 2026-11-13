@@ -1,0 +1,6 @@
+{
+  "text": "The test suite gives the same verdict on a clean checkout: no test depends on untracked local state such as an earlier build or the enclosing repository.",
+  "kind": "check",
+  "evidence": ["#702", "d8399da"],
+  "recorded_at": "2026-11-13"
+}

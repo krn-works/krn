@@ -224,12 +224,15 @@ test('toBrainRecord projects a standard onto the ADR 0002 record', () => {
   });
 });
 
-test('the shipped pack holds 15-25 valid standards in both layers, with evidence that resolves in KRN', () => {
+test('the shipped pack holds 15-25 universal standards in both layers, with evidence that resolves in KRN', () => {
   const root = fileURLToPath(new URL('../../', import.meta.url));
   const pack = parseStandards(
     JSON.parse(readFileSync(`${root}standards/records.json`, 'utf8')),
   );
-  assert.ok(pack.length >= 15 && pack.length <= 25, `${pack.length} records`);
+  // The universal layer is the budget every adopted repository inherits; krn-delivery
+  // records apply only where KRN is adopted.
+  const universal = pack.filter((r) => r.layer === 'universal').length;
+  assert.ok(universal >= 15 && universal <= 25, `${universal} universal`);
   const layers = new Set(pack.map((record) => record.layer));
   assert.deepEqual([...layers].sort(), ['krn-delivery', 'universal']);
   const enforced = pack.filter((r) => r.enforcement.kind !== 'advisory');

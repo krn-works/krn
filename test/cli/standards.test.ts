@@ -12,7 +12,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { appliesTo, parseStandards } from '../../src/brain/standards.ts';
+import {
+  appliesTo,
+  parseStandards,
+  promotionFailures,
+} from '../../src/brain/standards.ts';
 import {
   ENFORCEMENT_TIMEOUT_MS,
   enforcer,
@@ -142,6 +146,51 @@ test('standards check names the failing standard and its exit when an enforced u
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// The pack record promoted from the first harvest (krn-works/seo-audit-harness #76 and
+// krn-works/krn #702): a test reading untracked dist/ output needs a build in the test script.
+test('standards check fails s-clean-checkout-tests when a test runs untracked dist/ output and the test script builds nothing', () => {
+  const spawnsBuild = {
+    ...typescript,
+    'test/cli.test.ts':
+      "import { spawnSync } from 'node:child_process';\nspawnSync('node', ['dist/cli.js']);\n",
+  };
+  const unbuilt = repository(spawnsBuild);
+  const built = repository({
+    ...spawnsBuild,
+    'package.json': JSON.stringify({
+      name: 'probe',
+      scripts: { test: 'npm run build && vitest run', build: 'tsc' },
+    }),
+  });
+  try {
+    const red = check(unbuilt);
+    assert.equal(red.status, 1, red.stdout);
+    assert.match(
+      red.stderr,
+      /^s-clean-checkout-tests: exit 1 from \[ ! -f package\.json \]/mu,
+    );
+    assert.match(red.stdout, /^FAIL standards: \d+ enforced, 1 failed, /u);
+    const green = check(built);
+    assert.equal(green.status, 0, green.stderr);
+    assert.match(green.stdout, /^PASS standards: /u);
+  } finally {
+    rmSync(unbuilt, { recursive: true, force: true });
+    rmSync(built, { recursive: true, force: true });
+  }
+});
+
+test('the shipped pack holds 15-25 universal records and its harvested records pass the promotion rule', () => {
+  const pack = parseStandards(JSON.parse(readFileSync(packFile, 'utf8')));
+  const universal = pack.filter((s) => s.layer === 'universal').length;
+  assert.ok(universal >= 15 && universal <= 25, `${universal} universal`);
+  const harvested = pack.filter((s) => s.harvested !== undefined);
+  assert.ok(
+    harvested.some((s) => s.id === 's-clean-checkout-tests'),
+    'the first harvest landed s-clean-checkout-tests',
+  );
+  assert.deepEqual(promotionFailures(pack), []);
 });
 
 /** One project record; the plainest hand-written shape of `.agents/standards.json`. */
