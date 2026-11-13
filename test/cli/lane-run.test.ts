@@ -53,6 +53,10 @@ const capture = readFileSync(
   'utf8',
 );
 
+// A lane session exports these; the tests start lanes of their own and must not inherit its class.
+for (const name of ['KRN_SESSION_CLASS', 'KRN_LANE', 'KRN_TASK'])
+  delete process.env[name];
+
 const fastCheck = fileURLToPath(
   new URL('../../scripts/fast-check.ts', import.meta.url),
 );
@@ -547,6 +551,38 @@ test('lane run refuses to ship when no check passed on the final tree', async ()
   const { verdict } = await run(deliver('feat(x): done (t-abc1234)', false));
   assert.equal(verdict.exitCode, 74);
   assert.match(verdict.line, /no passing check on the final tree/u);
+});
+
+test('lane run names the failing check, its files and its output path when the final tree is red', async () => {
+  const { base, repo, claude } = fixture(
+    `${deliver('feat(x): done (t-abc1234)', false)}`,
+  );
+  withContract(repo, {
+    base: 'main',
+    test: 'true',
+    fast: "echo 'not ok 1 - test/a/broken.test.ts'; echo 'fast FAIL (test): 1 changed'; exit 1",
+  });
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      {
+        start: startLane,
+        ship: async () => 'unreachable',
+        mint: async () => undefined,
+      },
+    );
+    assert.equal(verdict.exitCode, 74);
+    assert.match(verdict.line, /no passing check on the final tree/u);
+    assert.match(verdict.line, /fast FAIL \(test\)/u);
+    assert.match(verdict.line, /failing files: test\/a\/broken\.test\.ts/u);
+    const path = /full output (\S+?);? /u.exec(verdict.line)?.[1] ?? '';
+    assert.ok(existsSync(path), path);
+    assert.match(readFileSync(path, 'utf8'), /not ok 1/u);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
 });
 
 test('a Ticket line outside the trailer block still names the task', () => {

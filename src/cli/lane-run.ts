@@ -8,7 +8,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { basename, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { shipCommand } from '../ci/ship.ts';
 import {
@@ -578,17 +578,49 @@ function goalPrBody(
  * The runner's own proof where the repository has no fast-pass marker: the contract's quick
  * check (else its tests) passes on the final tree.
  */
-export function contractVerification(worktree: string): string | undefined {
+export function contractVerification(
+  worktree: string,
+  logPath: string,
+): { verified: string } | { failure: string } | undefined {
   const contract = findContract(worktree)?.contract;
   if (contract === undefined) return undefined;
   const command = contract.fast ?? contract.test;
   const run = spawnSync(command, {
     cwd: worktree,
     shell: true,
-    stdio: 'ignore',
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
     timeout: 30 * 60 * 1000,
   });
-  return run.status === 0 ? `${command} PASS on the final tree` : undefined;
+  if (run.status === 0)
+    return { verified: `${command} PASS on the final tree` };
+  const output = `${run.stdout ?? ''}${run.stderr ?? ''}`;
+  mkdirSync(dirname(logPath), { recursive: true });
+  writeFileSync(logPath, output);
+  return { failure: failedCheckDetail(command, output, logPath) };
+}
+
+/** The failing check's verdict line, its failing test files and the path of its full output. */
+export function failedCheckDetail(
+  command: string,
+  output: string,
+  logPath: string,
+): string {
+  const lines = output.split('\n').filter((line) => line.trim() !== '');
+  const verdict =
+    [...lines]
+      .reverse()
+      .find((line) => /\bFAIL\b|\bfail(ed|ing)?\b/iu.test(line)) ??
+    lines[lines.length - 1] ??
+    'no output';
+  const files = [
+    ...new Set(
+      lines
+        .filter((line) => /not ok|✖|test at|FAIL|failing/iu.test(line))
+        .flatMap((line) => line.match(/[\w./-]+\.test\.[cm]?[jt]s/gu) ?? []),
+    ),
+  ];
+  return `no passing check on the final tree: ${command} failed: ${verdict.trim()}; failing files: ${files.length === 0 ? 'none named' : files.join(', ')}; full output ${logPath}`;
 }
 
 export async function laneRunCommand(
@@ -781,8 +813,19 @@ export async function laneRunCommand(
           (notStarted ? exitCredentialUnavailable : exitNoDelivery),
       );
     // Taken before the placeholders go: the fast-pass key was written with them in the tree.
+    const session = sessionVerification(started.path);
+    const contractCheck =
+      session === undefined
+        ? contractVerification(
+            started.path,
+            join(main, '.krn', 'tmp', `lane-run-${lane}-check.log`),
+          )
+        : undefined;
     const verified =
-      sessionVerification(started.path) ?? contractVerification(started.path);
+      session ??
+      (contractCheck !== undefined && 'verified' in contractCheck
+        ? contractCheck.verified
+        : undefined);
     for (const path of sandboxPlaceholders(
       git(started.path, [
         'status',
@@ -812,7 +855,11 @@ export async function laneRunCommand(
     if (task !== undefined && getTask(started.path, task).status !== 'closed')
       return await stop('task not closed');
     if (verified === undefined)
-      return await stop('no passing check on the final tree');
+      return await stop(
+        contractCheck !== undefined && 'failure' in contractCheck
+          ? contractCheck.failure
+          : 'no passing check on the final tree',
+      );
 
     const bodyDir = join(main, '.krn', 'tmp');
     mkdirSync(bodyDir, { recursive: true });
