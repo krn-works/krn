@@ -68,10 +68,20 @@ function commitsSince(root: string, base: string): string[] {
     ['-C', root, 'log', '--reverse', '--format=%s', `${base}..HEAD`],
     { encoding: 'utf8' },
   );
-  if (result.status !== 0)
-    throw new CliUsageError(
-      `git log ${base}..HEAD failed: ${result.stderr.trim()}`,
+  if (result.status !== 0) {
+    const remote = spawnSync(
+      'git',
+      ['-C', root, 'remote', 'get-url', 'origin'],
+      {
+        encoding: 'utf8',
+      },
     );
+    throw new CliUsageError(
+      remote.status !== 0 && base.startsWith('origin/')
+        ? `${root} has no git remote origin, so ${base} does not exist: add one (git remote add origin <url>) or pass --base <ref>`
+        : `git log ${base}..HEAD failed: ${result.stderr.trim()}`,
+    );
+  }
   return result.stdout.split('\n').filter(Boolean);
 }
 
