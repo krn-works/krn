@@ -1,0 +1,12 @@
+{
+  "id": "t-w8t0amv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "krn adopt writes ci inputs for the detected stack",
+  "after": [],
+  "body": [
+    "Why: src/adopt/adopt.ts:72-103 omits with: when nothing is detected (lead-verified); probe D5/D16.\nEvidence: .krn/runs/state-review/decisions.md (state review 2026-11-13, Fable 5.2; data verified by the lead where noted), .krn/runs/state-review/portability-probe.md.\nSource: operator 2026-11-13 ordered the state-review decisions executed ('lecisz z tym wszystkim')."
+  ]
+}

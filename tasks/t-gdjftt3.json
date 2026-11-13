@@ -1,0 +1,12 @@
+{
+  "id": "t-gdjftt3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 0,
+  "title": "The D23 grader stages the patch and the stored patches are regraded",
+  "after": [],
+  "body": [
+    "Why: D3 claims evals/d23/grade.ts:244 git apply lacks --index; lead verification found no later step relying on the index (only :123/:142 checkouts), so first reproduce a lost unit before changing it; then regrade stored patches with no model session.\nEvidence: .krn/runs/state-review/decisions.md (state review 2026-11-13, Fable 5.2; data verified by the lead where noted), .krn/runs/state-review/portability-probe.md.\nSource: operator 2026-11-13 ordered the state-review decisions executed ('lecisz z tym wszystkim')."
+  ]
+}

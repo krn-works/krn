@@ -1,7 +1,11 @@
 {
   "id": "t-sg7n605",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "State review D4 (.krn/runs/state-review/decisions.md): v2 run1 recomputed K 41/57 vs PB 35/56, p=0.227; no confirmatory run on tuned v2 units. Successor: t-p70b19s rescoped."
+  },
   "created": "2026-11-12",
   "priority": 1,
   "title": "D23 arms run with the requirements paragraph and are compared",
