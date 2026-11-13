@@ -1,7 +1,11 @@
 {
   "id": "t-wt0k84t",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane rerun three-way merges the task record (src/task/record-merge.ts): disjoint field edits and body appends merge into both copies and the lane commits the carry with a Refs trailer, so the clean-tree check passes; the same field edited differently still exits 64 naming it; the carry commit never counts as the fix after a red Check"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "A lane rerun merges disjoint task record edits instead of refusing",

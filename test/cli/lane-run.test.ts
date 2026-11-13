@@ -38,6 +38,7 @@ import {
   ticketCommitTitle,
   tokenMinimumRemainingSeconds,
 } from '../../src/cli/lane-run.ts';
+import { CliUsageError } from '../../src/cli/usage-error.ts';
 
 // An ambient lane session sets KRN_SESSION_CLASS=lane, which `krn lane start` rejects; the tests own their environment.
 Reflect.deleteProperty(process.env, 'KRN_SESSION_CLASS');
@@ -766,6 +767,87 @@ test('a rerun carries a task record edited after the failed run into the worktre
         'utf8',
       ),
       edited,
+    );
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a rerun merges a lead body note into the record the lane closed, commits it and ships', async () => {
+  const { base, repo, claude } = fixture(deliver());
+  // The carry commit changes the tree, so the rerun verifies it with the contract check.
+  withContract(repo, { base: 'main', test: 'true' });
+  process.env.KRN_LANE_CLAUDE = claude;
+  let shipCalls = 0;
+  const steps = {
+    start: startLane,
+    ship: async () => {
+      shipCalls += 1;
+      if (shipCalls === 1) throw new Error('push rejected');
+      return 'verdict: merged abc1234';
+    },
+    mint: async () => undefined,
+  };
+  const worktree = join(repo, '.krn', 'worktrees', 't-abc1234');
+  const lanePath = join(worktree, 'tasks', 't-abc1234.json');
+  const mainPath = join(repo, 'tasks', 't-abc1234.json');
+  try {
+    const first = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(first.exitCode, 74, first.line);
+    writeFileSync(
+      mainPath,
+      readFileSync(mainPath, 'utf8').replace(
+        '"Outcome: o"',
+        '"Outcome: o",\n    "Lead note: rework"',
+      ),
+    );
+    const second = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(second.exitCode, 0, second.line);
+    for (const path of [lanePath, mainPath]) {
+      const record = JSON.parse(readFileSync(path, 'utf8'));
+      assert.equal(record.status, 'closed', path);
+      assert.deepEqual(record.body, ['Outcome: o', 'Lead note: rework'], path);
+    }
+    assert.equal(git(worktree, 'status', '--porcelain'), '');
+    assert.equal(
+      git(worktree, 'log', '-1', '--format=%s%n%b'),
+      "chore(tasks): carry the lead's record edits into the lane (t-abc1234)\nRefs: t-abc1234",
+    );
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a rerun refuses a record both sides changed in the same field and names it', async () => {
+  const { base, repo, claude } = fixture(deliver());
+  process.env.KRN_LANE_CLAUDE = claude;
+  const steps = {
+    start: startLane,
+    ship: async () => {
+      throw new Error('push rejected');
+    },
+    mint: async () => undefined,
+  };
+  const mainPath = join(repo, 'tasks', 't-abc1234.json');
+  try {
+    await laneRunCommand(['--task', 't-abc1234', '--root', repo], steps);
+    const record = JSON.parse(readFileSync(mainPath, 'utf8'));
+    record.status = 'closed';
+    record.resolution = { kind: 'done', ref: null, note: 'lead closed it' };
+    writeFileSync(mainPath, `${JSON.stringify(record, null, 2)}\n`);
+    await assert.rejects(
+      laneRunCommand(['--task', 't-abc1234', '--root', repo], steps),
+      (error: Error) =>
+        error instanceof CliUsageError &&
+        /both changed resolution; reconcile them/u.test(error.message),
     );
   } finally {
     delete process.env.KRN_LANE_CLAUDE;

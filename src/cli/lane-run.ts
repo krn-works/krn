@@ -26,6 +26,7 @@ import {
   taskLookupRoot,
 } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
+import { mergeTaskRecords } from '../task/record-merge.ts';
 import { getTask, repositoryRoot } from '../task/store.ts';
 import { flagValue } from './flag-value.ts';
 import { laneBrief } from './lane.ts';
@@ -417,11 +418,45 @@ function carryEditedRecord(
   const original = shown(`origin/${base}`) ?? shown('HEAD');
   // The invoking checkout never moved from the base record: the worktree's own changes stand.
   if (edited === original) return;
-  if (original !== undefined && current !== original)
+  if (original === undefined || current === original) {
+    writeFileSync(target, edited);
+    return;
+  }
+  // Both changed (the lane closed the task, the lead appended a rework note): merge disjoint edits.
+  const merge = mergeTaskRecords({
+    base: original,
+    lane: current,
+    main: edited,
+  });
+  if (!('merged' in merge))
     throw new CliUsageError(
-      `${rel} differs between ${origin} and the lane worktree ${path} and both changed; reconcile them before rerunning`,
+      'conflict' in merge
+        ? `${rel} differs between ${origin} and the lane worktree ${path}: both changed ${merge.conflict}; reconcile them before rerunning`
+        : `${rel} cannot be merged between ${origin} and the lane worktree ${path}: ${merge.invalid}`,
     );
-  writeFileSync(target, edited);
+  writeFileSync(source, merge.merged);
+  if (merge.merged === current) return;
+  writeFileSync(target, merge.merged);
+  // Committed, so the lane's clean-tree check passes and the shipped commit carries the note.
+  git(path, ['add', '--', rel]);
+  git(path, ['commit', '-q', '-m', carrySubject(task), '-m', `Refs: ${task}`]);
+}
+
+/** The subject of the commit a rerun makes to carry the invoking checkout's record edits into the lane. */
+export function carrySubject(task: string): string {
+  return `chore(tasks): carry the lead's record edits into the lane (${task})`;
+}
+
+/** Commits after the red Check's head other than a record carry; a rewritten history counts as new work. */
+function commitsSinceRed(path: string, red: RedCheck, task: string): string[] {
+  const log = spawnSync('git', ['log', '--format=%s', `${red.sha}..HEAD`], {
+    cwd: path,
+    encoding: 'utf8',
+  });
+  if (log.status !== 0) return ['history rewritten since the red Check'];
+  return log.stdout
+    .split('\n')
+    .filter((line) => line !== '' && line !== carrySubject(task));
 }
 
 async function reclaimLane(
@@ -1032,7 +1067,7 @@ export async function laneRunCommand(
       return await stop('dirty tree');
     if (
       red !== undefined &&
-      git(started.path, ['rev-parse', 'HEAD']).startsWith(red.sha)
+      commitsSinceRed(started.path, red, task ?? lane).length === 0
     )
       return await stop(
         `no new commit since the red Check (run ${red.run} on ${red.sha.slice(0, 12)})`,
