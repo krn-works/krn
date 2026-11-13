@@ -1,5 +1,13 @@
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { worker } from './worker-scope.ts';
@@ -116,40 +124,113 @@ export interface Outcome {
   reason: string;
 }
 
-export type Runner = (root: string, tests: string[]) => boolean;
+/** Failing tests of one run as `<file>::<name>` keys; a run that dies without naming a test yields `<run>::exit <status>`. */
+export type Runner = (root: string, tests: string[]) => string[];
 
-const runTests: Runner = (root, tests) =>
-  spawnSync(process.execPath, ['--test', '--test-reporter=dot', ...tests], {
-    cwd: root,
-    stdio: ['ignore', 'ignore', 'ignore'],
-    timeout: 600_000,
-  }).status === 0;
+const REPORTER = fileURLToPath(
+  new URL('./failure-reporter.mjs', import.meta.url),
+);
 
-/** Whether the branch may stop: a commit past the base and the related tests green. */
-export function inspect(root: string, run: Runner = runTests): Outcome {
+const runTests: Runner = (root, tests) => {
+  const run = spawnSync(
+    process.execPath,
+    ['--test', `--test-reporter=${REPORTER}`, ...tests],
+    {
+      cwd: root,
+      encoding: 'utf8',
+      // Inside a `node --test` parent this variable turns the child into a nested run with no reporter output.
+      env: { ...process.env, NODE_TEST_CONTEXT: undefined },
+      stdio: ['ignore', 'pipe', 'ignore'],
+      maxBuffer: 64 * 1024 * 1024,
+      timeout: 600_000,
+    },
+  );
+  const failed: string[] = [];
+  for (const line of run.stdout.split('\n')) {
+    if (!line.startsWith('{')) continue;
+    try {
+      const { file, name } = JSON.parse(line) as {
+        file: string;
+        name: string;
+      };
+      failed.push(`${file}::${name}`);
+    } catch {}
+  }
+  if (failed.length === 0 && run.status !== 0)
+    failed.push(`<run>::exit ${run.status ?? run.signal}`);
+  return failed;
+};
+
+/** Failing keys of `tests` at the base commit, run in a temporary detached worktree that is always removed. */
+function failuresAtBase(
+  root: string,
+  from: string,
+  tests: string[],
+  run: Runner,
+): Set<string> {
+  const present = tests.filter(
+    (file) => git(root, ['cat-file', '-e', `${from}:${file}`]).status === 0,
+  );
+  if (present.length === 0) return new Set();
+  const dir = mkdtempSync(join(tmpdir(), 'worker-stop-base-'));
+  try {
+    const added = git(root, ['worktree', 'add', '--detach', dir, from]);
+    if (added.status !== 0) return new Set();
+    if (existsSync(join(root, 'node_modules')))
+      symlinkSync(join(root, 'node_modules'), join(dir, 'node_modules'));
+    return new Set(run(dir, present));
+  } finally {
+    git(root, ['worktree', 'remove', '--force', dir]);
+    rmSync(dir, { recursive: true, force: true });
+    git(root, ['worktree', 'prune']);
+  }
+}
+
+const SHOWN = 10;
+
+/**
+ * Whether the branch may stop: a commit past the base and no new test failure. A test failing now that
+ * also fails at the base is pre-existing and ignored; `ignored` counts those.
+ */
+export function inspect(
+  root: string,
+  run: Runner = runTests,
+): Outcome & { ignored: number } {
   const from = base(root);
   if (!from)
     return {
       ok: false,
+      ignored: 0,
       reason:
         'no base resolves (neither origin/main nor main exists here), so the branch cannot be checked. Point a `main` branch at the base commit and commit your change, or end with a line `BLOCKER: <what stops you>`.',
     };
-  {
-    const ahead = git(root, ['rev-list', '--count', `${from}..HEAD`]).stdout;
-    if (Number(ahead.trim()) === 0)
-      return {
-        ok: false,
-        reason:
-          'there is no commit on this branch yet. Commit your change (run `npm run fast` first), or end with a line `BLOCKER: <what stops you>`.',
-      };
-  }
-  const tests = relatedTests(changedSinceBase(root), listTests(root));
-  if (tests.length > 0 && !run(root, tests))
+  const ahead = git(root, ['rev-list', '--count', `${from}..HEAD`]).stdout;
+  if (Number(ahead.trim()) === 0)
     return {
       ok: false,
-      reason: `the related tests are red (${tests.length}: node --test ${tests.join(' ')}). Fix them and commit, or end with a line \`BLOCKER: <what stops you>\`.`,
+      ignored: 0,
+      reason:
+        'there is no commit on this branch yet. Commit your change (run `npm run fast` first), or end with a line `BLOCKER: <what stops you>`.',
     };
-  return { ok: true, reason: '' };
+  const tests = relatedTests(changedSinceBase(root), listTests(root));
+  const failing = tests.length > 0 ? run(root, tests) : [];
+  if (failing.length === 0) return { ok: true, reason: '', ignored: 0 };
+  const files = [...new Set(failing.map((key) => key.split('::')[0] ?? ''))];
+  const before = failuresAtBase(root, from, files, run);
+  const fresh = failing.filter((key) => !before.has(key));
+  if (fresh.length === 0)
+    return { ok: true, reason: '', ignored: failing.length };
+  const listed = fresh
+    .slice(0, SHOWN)
+    .map((key) => `  ${key.replace('::', ' :: ')}`)
+    .join('\n');
+  const more =
+    fresh.length > SHOWN ? `\n  ... ${fresh.length - SHOWN} more` : '';
+  return {
+    ok: false,
+    ignored: failing.length - fresh.length,
+    reason: `${fresh.length} related test(s) fail that passed at the base (pre-existing failures were ignored):\n${listed}${more}\nFix them and commit, or end with a line \`BLOCKER: <what stops you>\`.`,
+  };
 }
 
 /** The refusal reason for a Stop payload, or undefined when the session may end. */
@@ -190,7 +271,7 @@ function main() {
     const outcome = inspect(root);
     process.stdout.write(
       outcome.ok
-        ? 'worker-stop PASS\n'
+        ? `worker-stop PASS${outcome.ignored > 0 ? ` (${outcome.ignored} pre-existing failure(s) ignored)` : ''}\n`
         : `worker-stop FAIL: ${outcome.reason}\n`,
     );
     process.exitCode = outcome.ok ? 0 : 1;
