@@ -1,7 +1,11 @@
 {
   "id": "t-8bwcy6e",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Lane brief lists the task record's acceptance lines and requires them to pass; test in test/cli/lane.test.ts"
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "The task record carries acceptance lines and the lane brief requires them",
