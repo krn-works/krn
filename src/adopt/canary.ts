@@ -17,6 +17,7 @@ import {
   findContract,
   type RepoContract,
 } from '../repo/contract.ts';
+import { isKrnStopCommand } from './stop-hook.ts';
 
 export interface CanaryResult {
   /** pass: the gate refused the broken test and passed the clean tree; fail: it did not; skipped: nothing to break. */
@@ -25,7 +26,6 @@ export interface CanaryResult {
 }
 
 const productCli = fileURLToPath(new URL('../cli/main.ts', import.meta.url));
-const STOP_COMMAND = 'krn hook stop';
 const TEST_FILE = [
   /\.(?:test|spec)\.[cm]?[jt]sx?$/u,
   /(?:^|\/)test_[^/]+\.py$/u,
@@ -122,7 +122,7 @@ function prepare(
 
 function stop(tree: string, commands: string[]) {
   const command =
-    commands.find((c) => c === STOP_COMMAND) ??
+    commands.find((c) => isKrnStopCommand(c)) ??
     commands.find((c) => /worker-stop/u.test(c));
   const env = {
     CLAUDE_PROJECT_DIR: tree,
@@ -130,7 +130,7 @@ function stop(tree: string, commands: string[]) {
     KRN_LANE: 'canary',
   };
   const result =
-    command === STOP_COMMAND || command === undefined
+    isKrnStopCommand(command) || command === undefined
       ? spawnSync(process.execPath, [productCli, 'hook', 'stop'], {
           cwd: tree,
           input: '{}',
@@ -166,7 +166,7 @@ export function runCanary(root: string): CanaryResult {
     return skipped('no test command in the repo contract');
   const { contract } = found;
   const commands = stopCommands(root);
-  if (!commands.some((c) => c === STOP_COMMAND || /worker-stop/u.test(c)))
+  if (!commands.some((c) => isKrnStopCommand(c) || /worker-stop/u.test(c)))
     return fail(
       'the Stop hook is not installed: .claude/settings.json has no Stop entry calling `krn hook stop`, so a broken test would not be refused',
     );
