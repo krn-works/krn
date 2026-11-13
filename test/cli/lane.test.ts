@@ -182,6 +182,30 @@ test('lane start refuses an adoption that is not on origin yet', () => {
   }
 });
 
+test('lane start carries a locally edited task record and restores the committed one', () => {
+  const { base, repo } = fixture();
+  try {
+    const file = join(repo, 'tasks', 't-abc1234.json');
+    const edited = readFileSync(file, 'utf8').replace(
+      '"Outcome: o"',
+      '"Outcome: o",\n    "Lead note: n"',
+    );
+    writeFileSync(file, edited);
+    const result = lane(repo, 'start', 'noted', '--task', 't-abc1234');
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(
+      readFileSync(
+        join(repo, '.krn', 'worktrees', 'noted', 'tasks', 't-abc1234.json'),
+        'utf8',
+      ),
+      edited,
+    );
+    assert.equal(git(repo, 'status', '--porcelain', '--', 'tasks'), '');
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('lane start rejects a duplicate slug and a bad slug with exit 64', () => {
   const { base, repo } = fixture();
   try {

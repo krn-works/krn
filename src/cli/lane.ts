@@ -191,27 +191,46 @@ function gitOk(root: string, args: string[]): boolean {
 
 // A task created but not yet committed exists only in the invoking checkout;
 // the new worktree is cut from the origin base branch, so the record moves with the lane.
+// A record edited locally (a note appended before the lane) moves too: the worktree gets the
+// edit and the invoking checkout returns to its committed version.
+interface CarriedRecord {
+  readonly file: string;
+  readonly tracked: boolean;
+}
+
 function untrackedTaskRecord(
   origin: string,
   id: string,
   base: string,
-): string | undefined {
+): CarriedRecord | undefined {
   const file = join(origin, 'tasks', `${id}.json`);
   if (!existsSync(file)) return undefined;
   if (gitOk(origin, ['ls-files', '--error-unmatch', `tasks/${id}.json`])) {
     if (gitOk(origin, ['cat-file', '-e', `origin/${base}:tasks/${id}.json`]))
-      return undefined;
+      return gitOk(origin, [
+        'diff',
+        '--quiet',
+        'HEAD',
+        '--',
+        `tasks/${id}.json`,
+      ])
+        ? undefined
+        : { file, tracked: true };
     throw new CliUsageError(
       `tasks/${id}.json is tracked in ${origin} but not on origin/${base}; commit and push it first`,
     );
   }
-  return file;
+  return { file, tracked: false };
 }
 
 // The copy lands first; the original goes only once the claim has succeeded.
-function carryTaskRecord(file: string, worktree: string, id: string): boolean {
+function carryTaskRecord(
+  { file, tracked }: CarriedRecord,
+  worktree: string,
+  id: string,
+): boolean {
   const target = join(worktree, 'tasks', `${id}.json`);
-  if (existsSync(target)) return false;
+  if (existsSync(target) && !tracked) return false;
   mkdirSync(dirname(target), { recursive: true });
   copyFileSync(file, target);
   return true;
@@ -426,7 +445,11 @@ export async function startLane(
         worktree: path,
         reason: reason ?? `lane ${slug}`,
       });
-      if (copied && carried !== undefined) rmSync(carried);
+      if (copied && carried !== undefined) {
+        if (carried.tracked)
+          git(origin, ['checkout', '--', `tasks/${task}.json`]);
+        else rmSync(carried.file);
+      }
     } catch (error) {
       git(main, ['worktree', 'remove', '--force', path]);
       git(main, ['branch', '-D', slug]);
