@@ -161,6 +161,34 @@ test('task create checks working tree and origin/main id collisions', async () =
   }
 });
 
+test('task create checks id collisions against the contract base, not main', async () => {
+  const repo = await tempRepo('origin-contract-base-');
+  try {
+    const collisionId = 't-abc1234';
+    await writeFile(
+      join(repo, 'krn.json'),
+      '{"base":"trunk","test":"true","tracker":"krn"}\n',
+    );
+    await writeTask(repo, { ...validTask, id: collisionId });
+    git(repo, 'add', 'tasks', 'krn.json');
+    git(repo, 'commit', '-qm', 'add trunk task');
+    git(repo, 'update-ref', 'refs/remotes/origin/trunk', 'HEAD');
+    git(repo, 'switch', '--quiet', '-c', 'feature', 'HEAD^');
+    await writeFile(
+      join(repo, 'krn.json'),
+      '{"base":"trunk","test":"true","tracker":"krn"}\n',
+    );
+    const created = createTask(
+      repo,
+      { title: 'created after trunk collision' },
+      { makeId: idSequence(collisionId, 't-fed5678') },
+    );
+    assert.equal(created.id, 't-fed5678');
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 test('task close refuses a second close and dep add refuses a cycle', async () => {
   const repo = await tempRepo('mutation-refusals-');
   try {

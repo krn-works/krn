@@ -12,6 +12,7 @@ import {
 import { createServer, type Server } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
+import { contractBase } from '../repo/contract.ts';
 import {
   parseTaskDocument,
   TaskCommandError,
@@ -514,7 +515,7 @@ export function claimLiveness(
     originParsed.record?.id === claim.id &&
     originParsed.record.status === 'closed'
   )
-    return expired('task is closed in origin/main');
+    return expired(`task is closed in origin/${contractBase(mainRoot)}`);
   return state;
 }
 
@@ -536,10 +537,10 @@ function defaultClaimLivenessProbes(): ClaimLivenessProbes {
         'rev-parse',
         '--verify',
         '--quiet',
-        'origin/main^{commit}',
+        `origin/${contractBase(root)}^{commit}`,
       ]),
     originTask: (root, id) =>
-      gitProbe(root, ['show', `origin/main:tasks/${id}.json`]),
+      gitProbe(root, ['show', `origin/${contractBase(root)}:tasks/${id}.json`]),
   };
 }
 

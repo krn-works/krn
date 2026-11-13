@@ -9,6 +9,7 @@ import {
   type Stats,
 } from 'node:fs';
 import { join } from 'node:path';
+import { contractBase } from '../repo/contract.ts';
 import { commentFileTaskId, parseComments } from './comments.ts';
 import {
   createTaskId,
@@ -507,15 +508,16 @@ function validateTaskFields(input: {
 }
 
 function existsInOriginMain(root: string, id: TaskId): boolean {
+  const base = `origin/${contractBase(root)}`;
   const branch = spawnSync(
     'git',
-    ['-C', root, 'rev-parse', '--verify', '--quiet', 'origin/main^{commit}'],
+    ['-C', root, 'rev-parse', '--verify', '--quiet', `${base}^{commit}`],
     { encoding: 'utf8' },
   );
   if (branch.status !== 0) return false;
   const object = spawnSync(
     'git',
-    ['-C', root, 'cat-file', '-e', `origin/main:tasks/${id}.json`],
+    ['-C', root, 'cat-file', '-e', `${base}:tasks/${id}.json`],
     { encoding: 'utf8' },
   );
   return object.status === 0;
