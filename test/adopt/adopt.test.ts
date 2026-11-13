@@ -167,7 +167,12 @@ function contractOf(root: string) {
   assert.equal(run.status, 0, run.stderr);
   return JSON.parse(run.stdout) as {
     source: string;
-    contract: { test: string; related?: string; tracker: string };
+    contract: {
+      install?: string;
+      test: string;
+      related?: string;
+      tracker: string;
+    };
   };
 }
 
@@ -195,12 +200,23 @@ test('adopt on a pytest repository writes a contract that krn repo contract read
   const run = adoptArgs(root);
   assert.equal(run.status, 0, run.stderr);
   const body = JSON.parse(readFileSync(join(root, 'krn.json'), 'utf8'));
-  assert.equal(body.test, 'python -m pytest');
+  // An installable project: its own venv, never the externally managed system interpreter.
+  assert.equal(
+    body.install,
+    'python3 -m venv .venv && .venv/bin/python -m pip install -e . pytest',
+  );
+  assert.equal(body.test, '.venv/bin/python -m pytest');
   assert.equal(body.tracker, 'none');
   const read = contractOf(root);
   assert.equal(read.source, 'krn.json');
-  assert.equal(read.contract.test, 'python -m pytest');
-  assert.equal(read.contract.related, 'python -m pytest {files}');
+  assert.equal(read.contract.install, body.install);
+  // The venv every worktree install creates stays out of git.
+  assert.deepEqual(
+    readFileSync(join(root, '.gitignore'), 'utf8').split('\n').filter(Boolean),
+    ['.krn/', '.venv/'],
+  );
+  assert.equal(read.contract.test, '.venv/bin/python -m pytest');
+  assert.equal(read.contract.related, '.venv/bin/python -m pytest {files}');
   // Without --ref: no CI workflow and no tasks/ seed.
   assert.equal(existsSync(join(root, '.github')), false);
   assert.equal(existsSync(join(root, 'tasks')), false);

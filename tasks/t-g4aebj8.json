@@ -1,0 +1,16 @@
+{
+  "id": "t-g4aebj8",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Python detection names a venv install (test extra/group, uv sync, poetry install), adopt writes it to krn.json and ignores .venv/, the Stop gate names a missing Python module; pilot adopt canary passes on krn-works/krn-pilot-py"
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "Python repositories get a detected install and the Stop gate names a missing Python module",
+  "after": [],
+  "body": [
+    "Why: Python pilot t-811vn27, `krn adopt` on krn-works/krn-pilot-py (humanize 4.17.0, pyproject with a `tests` extra) wrote `\"test\": \"python -m pytest\"` and no install; the canary's Stop gate ran the system interpreter (`/usr/bin/python: No module named pytest`, exit 1) and refused the clean tree with \"1 related test(s) fail that passed at the base ... <run> :: exit 1\", a message that names neither the missing module nor the install step (scripts/claude/worker-stop.ts MISSING_DEPENDENCY has no Python pattern; src/repo/contract.ts detectPython names no install).\nOutcome: detection of a pyproject/setup.py repository without uv.lock or poetry.lock names install `python3 -m venv .venv && .venv/bin/python -m pip install -e '.[<test extra>]'` (extra `tests`, `test` or `dev` that exists, else `-e . pytest`) and test `.venv/bin/python -m pytest`; uv.lock names `uv sync --all-extras`, poetry.lock `poetry install`; adopt writes the detected install to krn.json; the Stop gate counts `No module named` / `ModuleNotFoundError` as a missing dependency and its refusal for a failure that names no test says the run failed before any test ran and prints the last output line instead of \"passed at the base\".\nProof: tests in test/repo (contract detection on fixture trees) and the worker-stop tests (a verbatim `No module named pytest` capture); the pilot adopt canary passes on krn-works/krn-pilot-py."
+  ]
+}

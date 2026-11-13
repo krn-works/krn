@@ -126,7 +126,7 @@ test('a pytest repository on master without a tracker gets its own commands, nev
     );
     const result = lane(dir, [], 'Fix the parser.\n');
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /'python -m pytest'/u);
+    assert.match(result.stdout, /'\.venv\/bin\/python -m pytest'/u);
     assert.match(result.stdout, /branch 'master'/u);
     assert.match(result.stdout, /BLOCKER:/u);
     assert.doesNotMatch(

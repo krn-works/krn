@@ -278,7 +278,7 @@ const FAILURE_LINES: readonly RegExp[] = [
 
 const MISSING_KEY = '<run>::missing dependency';
 const MISSING_DEPENDENCY =
-  /Cannot find (?:module|package)|ERR_MODULE_NOT_FOUND|Failed to resolve import|command not found|: not found$/mu;
+  /Cannot find (?:module|package)|ERR_MODULE_NOT_FOUND|Failed to resolve import|No module named |ModuleNotFoundError|command not found|: not found$/mu;
 
 /** Failing keys in a test command's output; a nonzero exit naming no test is `<run>::exit <status>`. */
 export function failuresIn(output: string, status: number | string): string[] {
@@ -538,6 +538,20 @@ export function inspect(
   const more =
     fresh.length > SHOWN ? `\n  ... ${fresh.length - SHOWN} more` : '';
   const ran = command === undefined ? '' : ` (ran: ${command})`;
+  // No test was named: the run broke before any test, so nothing can have "passed at the base".
+  if (fresh.every((key) => NAMELESS.test(key))) {
+    const install = contract?.install
+      ? `run the install the repo contract names (${contract.install})`
+      : 'install the dependencies (krn.json "install" names the command lane worktrees run)';
+    const why = fresh.includes(MISSING_KEY)
+      ? `a module or tool is missing, so ${install} or fix the import`
+      : 'read its output';
+    return {
+      ok: false,
+      ignored: failing.length - fresh.length,
+      reason: `the test command failed before naming any test (${fresh.map((key) => key.slice(7)).join(', ')})${ran}: ${why}, then commit, or end with a line \`BLOCKER: <what stops you>\`.`,
+    };
+  }
   return {
     ok: false,
     ignored: failing.length - fresh.length,

@@ -108,7 +108,10 @@ test('adopt on a pytest fixture installs skills whose every command resolves the
     encoding: 'utf8',
   });
   assert.equal(contract.status, 0, contract.stderr);
-  assert.equal(JSON.parse(contract.stdout).contract.test, 'python -m pytest');
+  assert.equal(
+    JSON.parse(contract.stdout).contract.test,
+    '.venv/bin/python -m pytest',
+  );
 });
 
 test('every universal skill declares the Agent Skills compatibility field', () => {
