@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import {
   armSecondary,
+  discordantUnits,
   type Observation,
   pairedDifference,
   report,
@@ -83,6 +84,28 @@ test('the report names every arm and the paired difference against P', () => {
   const text = report(fixture, ['K', 'P']);
   assert.match(text, /\| K \| 3 \|/);
   assert.match(text, /K - P: 55\.6 pp over 3 units/);
+});
+
+test('with K and PB the report adds the harness contrast and the units where K loses', () => {
+  const obs = [
+    o('a', 'K', 1, false),
+    o('a', 'PB', 1, true),
+    o('a', 'P', 1, false),
+    o('b', 'K', 1, true),
+    o('b', 'PB', 1, false),
+    o('b', 'P', 1, false),
+    o('c', 'K', 1, true),
+    o('c', 'PB', 1, true),
+    o('c', 'P', 1, true),
+  ];
+  assert.deepEqual(discordantUnits(obs, 'K', 'PB'), {
+    below: ['a'],
+    above: ['b'],
+  });
+  const text = report(obs, ['K', 'P', 'PB']);
+  assert.match(text, /K - PB: 0\.0 pp over 3 units/);
+  assert.match(text, /K below PB: a\nK above PB: b/);
+  assert.doesNotMatch(report(obs, ['K', 'P']), /K - PB|K below PB/);
 });
 
 test('a refusal is a normal end without a patch; a failed session is not', () => {
