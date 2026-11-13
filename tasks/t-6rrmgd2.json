@@ -1,7 +1,11 @@
 {
   "id": "t-6rrmgd2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "post-session throws (git, ship) release the claim; a rerun by the same actor resumes its live claim or ships a commit an earlier run delivered without a new session"
+  },
   "created": "2026-11-13",
   "priority": 0,
   "title": "A failed lane ship releases its claim and a rerun resumes the same lane",

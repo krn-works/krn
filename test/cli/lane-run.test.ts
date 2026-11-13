@@ -26,6 +26,7 @@ import {
   taskBrief,
   tokenMinimumRemainingSeconds,
 } from '../../src/cli/lane-run.ts';
+import { claimTask, inspectClaim } from '../../src/task/claims.ts';
 
 // KRN-12: the session result is a verbatim `claude -p --output-format json` capture;
 // a stand-in claude executable prints it, the repositories are real git repositories.
@@ -701,6 +702,110 @@ test('the goal brief names the contract check and no task record', () => {
     assert.doesNotMatch(brief, /Ticket|npm run fast|task close/u);
     assert.equal(goalSlug('  Fix the parser!  '), 'goal-fix-the-parser');
   } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a ship that throws releases the claim and a rerun ships', async () => {
+  const { base, repo, claude } = fixture(deliver());
+  process.env.KRN_LANE_CLAUDE = claude;
+  let shipCalls = 0;
+  const steps = {
+    start: startLane,
+    ship: async () => {
+      shipCalls += 1;
+      if (shipCalls === 1) throw new Error('push rejected\nremote detail');
+      return 'verdict: merged abc1234';
+    },
+    mint: async () => undefined,
+  };
+  try {
+    const first = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(first.exitCode, 74, first.line);
+    assert.match(first.line, /failed: push rejected \(.*claim released\)/u);
+    assert.equal(inspectClaim(repo, 't-abc1234').state, 'none');
+    const second = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(second.exitCode, 0, second.line);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a missing origin base ref after the session releases the claim', async () => {
+  const { base, repo, claude } = fixture(
+    `${deliver()}; git update-ref -d refs/remotes/origin/main`,
+  );
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      {
+        start: startLane,
+        ship: async () => assert.fail('nothing may ship'),
+        mint: async () => undefined,
+      },
+    );
+    assert.equal(verdict.exitCode, 74, verdict.line);
+    assert.match(verdict.line, /failed: git log/u);
+    assert.equal(inspectClaim(repo, 't-abc1234').state, 'none');
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a rerun resumes the live claim its own actor left in the lane worktree', async () => {
+  const { base, repo, claude } = fixture(deliver());
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    // A run killed before it released: the worktree and a live claim of the lane actor remain.
+    const started = await startLane(['t-abc1234', '--root', repo]);
+    await claimTask(repo, 't-abc1234', {
+      actor: 'lane-t-abc1234',
+      worktree: started.path,
+      reason: 'lane t-abc1234',
+    });
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      {
+        start: async () => assert.fail('the lane exists'),
+        ship: async () => 'verdict: merged abc1234',
+        mint: async () => undefined,
+      },
+    );
+    assert.equal(verdict.exitCode, 0, verdict.line);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a rerun never resumes a claim another actor holds', async () => {
+  const { base, repo, claude } = fixture(deliver());
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    const started = await startLane(['t-abc1234', '--root', repo]);
+    await claimTask(repo, 't-abc1234', {
+      actor: 'someone-else',
+      worktree: started.path,
+      reason: 'theirs',
+    });
+    await assert.rejects(
+      laneRunCommand(['--task', 't-abc1234', '--root', repo], {
+        start: async () => assert.fail('the lane exists'),
+        ship: async () => 'unreachable',
+        mint: async () => undefined,
+      }),
+    );
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
     rmSync(base, { recursive: true, force: true });
   }
 });
