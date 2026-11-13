@@ -82,7 +82,10 @@ export function gateAdmissionPolicyFromBase(
   if (!match?.[1])
     throw new Error('base gate policy must be a regular tracked file');
 
-  const contents = readGit(['cat-file', 'blob', match[1]]);
+  return policyFromContents(readGit(['cat-file', 'blob', match[1]]));
+}
+
+function policyFromContents(contents: string): GateAdmissionPolicy {
   if (Buffer.byteLength(contents, 'utf8') > 4096)
     throw new Error('base gate policy exceeds its size limit');
   let decoded: unknown;
@@ -98,6 +101,47 @@ export function gateAdmissionPolicyFromBase(
     checkRunName: parsed.data.checkRunName,
     appId: ACTIONS_APP_ID,
   };
+}
+
+/**
+ * The same policy read through the GitHub contents API at the exact base, for
+ * a repository whose objects the local checkout does not hold. A 404 means the
+ * base has no policy file.
+ */
+export async function gateAdmissionPolicyFromApi(
+  repo: string,
+  baseSha: string,
+  gh: (args: string[]) => Promise<string>,
+): Promise<GateAdmissionPolicy> {
+  if (!sha.safeParse(baseSha).success)
+    throw new Error('gate policy base must be a full commit ID');
+  let body: string;
+  try {
+    body = await gh([
+      'api',
+      `repos/${repo}/contents/${GATE_ADMISSION_POLICY_PATH}?ref=${baseSha}`,
+    ]);
+  } catch (error) {
+    if (
+      /HTTP 404/u.test(
+        String(Reflect.get(error as object, 'result')?.stderr ?? ''),
+      )
+    )
+      return legacyActionsPolicy;
+    throw error;
+  }
+  const file = z
+    .object({
+      type: z.literal('file'),
+      encoding: z.literal('base64'),
+      content: z.string(),
+    })
+    .safeParse(JSON.parse(body));
+  if (!file.success)
+    throw new Error('base gate policy must be a regular tracked file');
+  return policyFromContents(
+    Buffer.from(file.data.content, 'base64').toString('utf8'),
+  );
 }
 
 export function matchesGateCheckRun(

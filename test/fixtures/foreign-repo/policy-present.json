@@ -1,0 +1,18 @@
+{
+  "name": "ci-admission.json",
+  "path": "spec/ci-admission.json",
+  "sha": "7843eb9ee12c5a1e11e572e229f5449d2329a806",
+  "size": 70,
+  "url": "https://api.github.com/repos/krn-works/krn/contents/spec/ci-admission.json?ref=abd64f3d6b61de2273669429d771ad8ef1f772d8",
+  "html_url": "https://github.com/krn-works/krn/blob/abd64f3d6b61de2273669429d771ad8ef1f772d8/spec/ci-admission.json",
+  "git_url": "https://api.github.com/repos/krn-works/krn/git/blobs/7843eb9ee12c5a1e11e572e229f5449d2329a806",
+  "download_url": "https://raw.githubusercontent.com/krn-works/krn/abd64f3d6b61de2273669429d771ad8ef1f772d8/spec/ci-admission.json",
+  "type": "file",
+  "content": "ewogICJzY2hlbWFWZXJzaW9uIjogMSwKICAiY2hlY2tSdW5OYW1lIjogIkNo\nZWNrIiwKICAiYXBwSWQiOiAxNTM2OAp9Cg==\n",
+  "encoding": "base64",
+  "_links": {
+    "self": "https://api.github.com/repos/krn-works/krn/contents/spec/ci-admission.json?ref=abd64f3d6b61de2273669429d771ad8ef1f772d8",
+    "git": "https://api.github.com/repos/krn-works/krn/git/blobs/7843eb9ee12c5a1e11e572e229f5449d2329a806",
+    "html": "https://github.com/krn-works/krn/blob/abd64f3d6b61de2273669429d771ad8ef1f772d8/spec/ci-admission.json"
+  }
+}

@@ -148,3 +148,142 @@ test('ci wait reads the admission policy from real git at base and admits the ca
     /Check concluded failure on 12faa099/u,
   );
 });
+
+// KRN-12: a checkout of another repository holds none of the base objects, so
+// git fails with the captured message and the policy comes from the contents
+// API; the 404 and the present file are verbatim `gh api` captures.
+const foreign = (name: string) =>
+  readFile(
+    new URL(`../fixtures/foreign-repo/${name}`, import.meta.url),
+    'utf8',
+  );
+const notATree = () => ({
+  code: 128,
+  stdout: '',
+  stderr: 'fatal: not a tree object\n',
+});
+
+const gateSuccess = await capture('gate-success');
+
+function foreignReceiver(
+  repo: string,
+  head: string,
+  base: string,
+  policy: () => string,
+  checks: string,
+) {
+  const { gh } = strictGh(repo, 1, head, {
+    pull: () => pull(head),
+    checks: () => checks,
+  });
+  const reads: string[][] = [];
+  return {
+    reads,
+    runtime: {
+      cwd: '/work/repo',
+      run: (_command: string, args: string[]) => {
+        reads.push(args);
+        return notATree();
+      },
+      gh: async (args: string[]) => {
+        if (
+          args[1] ===
+          `repos/${repo}/contents/spec/ci-admission.json?ref=${base}`
+        )
+          return policy();
+        return gh(args);
+      },
+      sleep: async () => {},
+      now: () => 0,
+    },
+  };
+}
+
+test('ci wait outside the repository reads a missing policy through the API and succeeds on the captured gate', async () => {
+  const head = 'e8df90177ce27145655d219c5c0d9784a42db437';
+  const base = 'b'.repeat(40);
+  const { runtime } = foreignReceiver(
+    'o/r',
+    head,
+    base,
+    () => {
+      throw Object.assign(new Error('gh: Not Found (HTTP 404)'), {
+        result: { stderr: 'gh: Not Found (HTTP 404)\n' },
+      });
+    },
+    JSON.stringify([JSON.parse(gateSuccess)]),
+  );
+  const out = await waitCommand(
+    ['--repo', 'o/r', '--pr', '1', '--head', head, '--base', base],
+    runtime,
+  );
+  assert.match(out, new RegExp(`^gate: success ${head}`, 'u'));
+});
+
+test('ci wait outside the repository takes the gate name from the policy file read through the API', async () => {
+  const head = '12faa099bdb389b3b520a62ad0a74a63f3a7528e';
+  const base = 'b'.repeat(40);
+  const { runtime, reads } = foreignReceiver(
+    'krn-works/krn',
+    head,
+    base,
+    () => '',
+    await capture('review-gate-failure'),
+  );
+  const present = await foreign('policy-present.json');
+  const wrapped = {
+    ...runtime,
+    gh: async (args: string[]) =>
+      args[1]?.includes('/contents/spec/ci-admission.json')
+        ? present
+        : runtime.gh(args),
+  };
+  await assert.rejects(
+    waitCommand(
+      ['--repo', 'krn-works/krn', '--pr', '1', '--head', head, '--base', base],
+      wrapped,
+    ),
+    /Check concluded failure on 12faa099/u,
+  );
+  assert.equal(reads[0]?.[0], 'ls-tree');
+});
+
+test('ci wait on the captured foreign pull never finds the legacy gate and exits 69', async () => {
+  const pr = JSON.parse(await foreign('pull.json'));
+  const head: string = pr.head.sha;
+  const base: string = pr.base.sha;
+  const { runtime } = foreignReceiver(
+    'krn-works/seo-audit-harness',
+    head,
+    base,
+    () => {
+      throw Object.assign(new Error('x'), {
+        result: { stderr: 'gh: Not Found (HTTP 404)\n' },
+      });
+    },
+    await foreign('check-runs.json'),
+  );
+  let time = 0;
+  await assert.rejects(
+    waitCommand(
+      [
+        '--repo',
+        'krn-works/seo-audit-harness',
+        '--pr',
+        '1',
+        '--head',
+        head,
+        '--base',
+        base,
+      ],
+      {
+        ...runtime,
+        now: () => time,
+        sleep: async (ms: number) => {
+          time += ms;
+        },
+      },
+    ),
+    { exitCode: 69 },
+  );
+});

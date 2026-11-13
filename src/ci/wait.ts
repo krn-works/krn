@@ -1,7 +1,11 @@
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { z } from 'zod';
-import { gateAdmissionPolicyFromBase } from '../deliver/admission-policy.ts';
+import {
+  type GateAdmissionPolicy,
+  gateAdmissionPolicyFromApi,
+  gateAdmissionPolicyFromBase,
+} from '../deliver/admission-policy.ts';
 import {
   GateStopped,
   GateTimeout,
@@ -10,6 +14,7 @@ import {
   waitForGate,
 } from '../deliver/gate-wait.ts';
 import {
+  CommandFailure,
   checked,
   github,
   type Runner,
@@ -88,10 +93,18 @@ export async function waitCommand(
     const cwd = runtime.cwd ?? process.cwd();
     const runner = runtime.run ?? run;
     const wait = runtime.sleep ?? sleep;
-    const policy = gateAdmissionPolicyFromBase(options.base, (args) =>
-      checked(runner('git', args, cwd)),
-    );
     const gh = runtime.gh ?? ((args) => github(args, cwd, runner, wait));
+    // The checkout may be another repository: its git has no object for this
+    // base, so the policy is then read from the repository through GitHub.
+    let policy: GateAdmissionPolicy;
+    try {
+      policy = gateAdmissionPolicyFromBase(options.base, (args) =>
+        checked(runner('git', args, cwd)),
+      );
+    } catch (error) {
+      if (!(error instanceof CommandFailure)) throw error;
+      policy = await gateAdmissionPolicyFromApi(options.repo, options.base, gh);
+    }
     const now = runtime.now ?? Date.now;
     let last: Pull | undefined;
     await waitForGate({
