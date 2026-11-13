@@ -149,14 +149,16 @@ export function ticketCommitTitle(
   task: string,
 ): string | undefined {
   for (const entry of log.split('\x1e')) {
-    const [subject, trailers] = entry.trim().split('\x1f');
-    if (
-      subject &&
-      (trailers ?? '')
-        .split(',')
-        .map((item) => item.trim())
-        .includes(task)
-    )
+    const [subject, body] = entry.trim().split('\x1f');
+    // A `Ticket:` line anywhere in the body counts: agents often put Co-Authored-By in its own
+    // paragraph, which leaves Ticket outside git's trailer block.
+    const tickets = (body ?? '')
+      .split('\n')
+      .flatMap(
+        (line) => /^Ticket:\s*(.+)$/u.exec(line.trim())?.[1]?.split(',') ?? [],
+      )
+      .map((item) => item.trim());
+    if (subject && tickets.includes(task))
       return subject.endsWith(`(${task})`) ? subject : `${subject} (${task})`;
   }
   return undefined;
@@ -663,11 +665,7 @@ export async function laneRunCommand(
       task === undefined
         ? commits[commits.length - 1]
         : ticketCommitTitle(
-            git(started.path, [
-              'log',
-              '--format=%s%x1f%(trailers:key=Ticket,valueonly,separator=%x2C)%x1e',
-              range,
-            ]),
+            git(started.path, ['log', '--format=%s%x1f%b%x1e', range]),
             task,
           );
     if (title === undefined)
