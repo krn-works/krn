@@ -306,6 +306,7 @@ describe('test runner subprocess runs', { concurrency: 4 }, () => {
             '    xdgConfigHome: process.env.XDG_CONFIG_HOME,',
             '    xdgDataHome: process.env.XDG_DATA_HOME,',
             '    xdgStateHome: process.env.XDG_STATE_HOME,',
+            '    gitCeiling: process.env.GIT_CEILING_DIRECTORIES,',
             '    miseDataDir: process.env.MISE_DATA_DIR,',
             '    miseConfigDir: process.env.MISE_CONFIG_DIR ?? null,',
             '    miseCacheDir: process.env.MISE_CACHE_DIR ?? null,',
@@ -408,6 +409,7 @@ describe('test runner subprocess runs', { concurrency: 4 }, () => {
         xdgConfigHome,
         xdgDataHome,
         xdgStateHome,
+        gitCeiling,
         miseDataDir,
         miseConfigDir,
         miseCacheDir,
@@ -427,6 +429,7 @@ describe('test runner subprocess runs', { concurrency: 4 }, () => {
         assert.equal(xdgConfigHome, join(home, '.config'));
         assert.equal(xdgDataHome, join(home, '.local', 'share'));
         assert.equal(xdgStateHome, join(home, '.local', 'state'));
+        assert.equal(gitCeiling, dirname(home));
         assert.equal(miseDataDir, expectedMiseDataDir);
         assert.equal(miseConfigDir, process.env.MISE_CONFIG_DIR ?? null);
         assert.equal(miseCacheDir, process.env.MISE_CACHE_DIR ?? null);

@@ -111,6 +111,10 @@ test('a sample is appended only when a window moves, and reads back', () => {
 test('worktree state resolves to the main checkout', () => {
   assert.equal(mainCheckout('/r/.krn/worktrees/slug/sub'), '/r');
   assert.equal(mainCheckout('/r/src'), '/r/src');
+  assert.equal(
+    mainCheckout('/w/.krn/worktrees/lane/.krn/tmp/r/.krn/worktrees/x'),
+    '/w/.krn/worktrees/lane/.krn/tmp/r',
+  );
   assert.equal(gauge(undefined), 'plan —');
 });
 
