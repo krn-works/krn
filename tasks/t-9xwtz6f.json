@@ -1,0 +1,16 @@
+{
+  "id": "t-9xwtz6f",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "src/repo/contract.ts + krn repo contract; krn.json for KRN; detection for rust, go, node (npm/pnpm/yarn/bun; vitest/jest/node --test), python (pytest/uv/poetry), make; 7 tests in test/repo/contract.test.ts."
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "A repository declares or KRN detects how to test it in one repo contract",
+  "after": [],
+  "body": [
+    "Why: KRN works only in its own repository: the worker Stop check, lane and adopt assume Node, test/, npm run fast and origin/main (portability audit 2026-11-13: scripts/claude/worker-stop.ts:27,98,105,136; src/cli/lane.ts:40,303; src/adopt/adopt.ts:14-37). Operator 2026-11-13: KRN must work in any repository with any stack.\nOutcome: src/repo/contract.ts resolves a RepoContract (base branch, full test command, related-test command, fast check, tracker) from a tracked krn.json, else by detection (package.json, pyproject/pytest, Cargo.toml, go.mod; base from origin/HEAD); `krn repo contract` prints it with its source; KRN's own krn.json declares today's commands.\nProof: unit tests over fixture repos per stack and a repo with krn.json; krn repo contract in this checkout prints source file.\nScope: src/repo/, src/cli/, test/, krn.json."
+  ]
+}

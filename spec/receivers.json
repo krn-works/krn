@@ -1,6 +1,10 @@
 {
   "schemaVersion": 1,
   "modules": {
+    "src/repo/contract.ts": {
+      "receivers": ["git"],
+      "real": "test/repo/contract.test.ts"
+    },
     "src/ci/logs.ts": {
       "receivers": ["gh"],
       "capture": [

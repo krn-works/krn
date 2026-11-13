@@ -16,12 +16,13 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   state: [],
   deliver: [],
   ci: ['deliver'],
-  adopt: ['task'],
+  adopt: ['task', 'repo'],
+  repo: [],
   task: ['cli', 'fs'],
   evals: ['cli', 'hosts'],
   hosts: [],
   brain: ['cli', 'evals/fr40/tasks.ts'],
-  cli: ['adopt', 'brain', 'ci', 'core', 'outcome', 'state', 'task'],
+  cli: ['adopt', 'brain', 'ci', 'core', 'outcome', 'repo', 'state', 'task'],
 };
 
 export type Violation = {
