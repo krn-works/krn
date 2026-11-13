@@ -1,0 +1,16 @@
+{
+  "id": "t-3f6cshw",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane run records the red Check a ship hit (.krn/tmp/lane-run-<lane>-red-check.json); the rerun in the same worktree briefs run, failing job/step and first finding from krn ci logs at the top, skips the delivered shortcut, and exits 74 'no new commit since the red Check' when HEAD is still the red sha; proven on verbatim captures of runs 43501009193 and 43501061076"
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "A lane rerun after a red Check briefs the failure and requires a new commit",
+  "after": [],
+  "body": [
+    "Why: 2026-11-13 reruns of packet-data (t-spwd1qa) and contract-layouts (t-1q7znxx) after a red Check pushed no fix: the sessions saw their earlier commit and ended; the same weak-tests and fixtures failures came back (runs 43501009193, 43501061076) and the lead fixed both by hand. The lead rework note was in the record, but the brief does not say the previous attempt failed CI or why.\nOutcome: a lane run that reuses a worktree after exit 74 puts the failing Check (run id, failing step, the first failing test or lint finding from krn ci logs) at the top of the brief and requires a new commit; a rerun that adds no commit exits non-zero naming that.\nProof: lane-run test with a stub ci-logs capture: the rerun brief names the failing step and finding; a rerun with no new commit exits 74 with \"no new commit since the red Check\"."
+  ]
+}

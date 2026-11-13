@@ -1,0 +1,83 @@
+run 43501061076: 1 attempt, 2 failed jobs
+== attempt 1 job 132146713456 Test (11/13): failure; failed step 4 Run test shard
+  ...
+# Subtest: Claude context budget settings wire documented hooks and read-only reader
+ok 21 - Claude context budget settings wire documented hooks and read-only reader
+  ---
+  duration_ms: 2.846239
+  type: 'test'
+  ...
+# Subtest: Claude project gauge matcher covers every built-in tool the ceiling refuses
+ok 22 - Claude project gauge matcher covers every built-in tool the ceiling refuses
+  ---
+  duration_ms: 14.904538
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 20
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 5442.96545
+# group 4: ok, 12 tests, 4 files
+# tests 91
+## Slowest tests (top-level)
+
+| Test | File | Seconds |
+| --- | --- | ---: |
+| strict wrapper requires real native test evidence for every selected file | test/gate-summary.test.ts | 5.110 |
+| expired claim has one winner across two worktrees and twenty claimers | test/task/claims-recovery.test.ts | 2.125 |
+| fixture 7 (develop, no remote): the contract names the base and lane start names the missing remote | test/portability/fixtures.test.ts | 0.952 |
+| fixture 7 (master, no remote): the contract names the base and lane start names the missing remote | test/portability/fixtures.test.ts | 0.792 |
+| an indented level-one or level-two heading ends the operator requests section | test/claude/handoff-requests-sections.test.ts | 0.526 |
+| doctor reports the pinned entry commit and goes stale when origin/main moves | test/cli/entry-pin.test.ts | 0.497 |
+| takeover requires a reason, reports the previous holder, and release removes it | test/task/claims-recovery.test.ts | 0.466 |
+| fixture 1: python pyproject with pytest is detected and carried into CI | test/portability/fixtures.test.ts | 0.367 |
+| unreadable claims stay live and can be released or taken over | test/task/claims-recovery.test.ts | 0.362 |
+| screen.ts drives a fake claude with the real prompt and writes the screen file, resumably | test/evals/d23-screen.test.ts | 0.322 |
+KRN_TEST_SUMMARY_JSON={"version":1,"success":false,"counts":{"tests":91,"passed":89,"failed":2,"skipped":0,"todo":0,"cancelled":0},"files":[{"file":"/home/runner/work/krn/krn/test/ci/gate-wait-capture.test.ts","tests":10,"passed":10,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":203},{"file":"/home/runner/work/krn/krn/test/claude/capture-fixture.test.ts","tests":9,"passed":9,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":26},{"file":"/home/runner/work/krn/krn/test/claude/handoff-requests-sections.test.ts","tests":2,"passed":2,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":652},{"file":"/home/runner/work/krn/krn/test/claude/successor-running-work.test.ts","tests":4,"passed":4,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":802},{"file":"/home/runner/work/krn/krn/test/cli/entry-pin.test.ts","tests":4,"passed":4,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":912},{"file":"/home/runner/work/krn/krn/test/evals/d23-screen.test.ts","tests":5,"passed":5,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":334},{"file":"/home/runner/work/krn/krn/test/gate-summary.test.ts","tests":24,"passed":24,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":5392},{"file":"/home/runner/work/krn/krn/test/helpers/herdr-stub.test.ts","tests":5,"passed":5,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":71},{"file":"/home/runner/work/krn/krn/test/portability/fixtures.test.ts","tests":9,"passed":7,"failed":2,"skipped":0,"todo":0,"cancelled":0,"durationMs":3093},{"file":"/home/runner/work/krn/krn/test/rules/context-budget.test.ts","tests":2,"passed":2,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":25},{"file":"/home/runner/work/krn/krn/test/rules/typecheck-coverage.test.ts","tests":2,"passed":2,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":25},{"file":"/home/runner/work/krn/krn/test/state/sandbox-placeholders.test.ts","tests":1,"passed":1,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":87},{"file":"/home/runner/work/krn/krn/test/task/claims-recovery.test.ts","tests":14,"passed":14,"failed":0,"skipped":0,"todo":0,"cancelled":0,"durationMs":4171}]}
+##[error]Process completed with exit code 1.
+== attempt 1 job 132147073094 Check: failure; failed step 2 Require every job to succeed, or be skipped by the change filter
+set -euo pipefail
+printf '%s' "$RESULTS" | node -e '
+  const needs = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+  let bad = 0;
+  for (const [name, { result }] of Object.entries(needs)) {
+    console.log(`${name}: ${result}`);
+    const skipOk = name === "test" && result === "skipped" && needs.changes?.outputs?.test === "false";
+    if (result !== "success" && !skipOk) bad += 1;
+  }
+  process.exit(bad ? 1 : 0);
+'
+shell: /usr/bin/bash -e {0}
+env:
+  KRN_LIVE: 
+  RESULTS: {
+  "changes": {
+    "result": "success",
+    "outputs": {
+      "test": "true"
+    }
+  },
+  "lint": {
+    "result": "success",
+    "outputs": {}
+  },
+  "typecheck": {
+    "result": "success",
+    "outputs": {}
+  },
+  "test": {
+    "result": "failure",
+    "outputs": {}
+  }
+}
+##[endgroup]
+changes: success
+lint: success
+typecheck: success
+test: failure
+##[error]Process completed with exit code 1.

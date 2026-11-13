@@ -1,0 +1,83 @@
+run 43501009193: 1 attempt, 2 failed jobs
+== attempt 1 job 132146534102 Lint: failure; failed step 6 Weakened tests
+  PNPM_STORE_PATH: /home/runner/.local/share/pnpm/store/v11
+  pnpm_config_store_dir: /home/runner/.local/share/pnpm/store/v11
+  PR_TITLE: refactor(brain): the lane packet takes audience and conventions from data and each run records its sha (t-spwd1qa)
+##[endgroup]
+commit-title: PASS
+##[group]Run node scripts/weak-tests.mjs "$BASE" "$HEAD"
+node scripts/weak-tests.mjs "$BASE" "$HEAD"
+shell: /usr/bin/bash -e {0}
+env:
+  KRN_LIVE: 
+  PNPM_STORE_PATH: /home/runner/.local/share/pnpm/store/v11
+  pnpm_config_store_dir: /home/runner/.local/share/pnpm/store/v11
+  BASE: f8378e799601cece20fc8e3193c073470f2ad9fc
+  HEAD: dde09ec3d8ba484dce8afd4e4079fc84daefbe3a
+  PR_BODY: ## Problem
+
+MEM:213, MEM:253
+
+## Change
+
+Outcome: `MEASURED`, `LEAD_ONLY`, the `docs/program/live-records.json` path and the fr40 import leave `src/brain`; KRN's krn.json points at its own tracked standards file; the lane verdict record stores the sha
+
+- refactor(brain): the lane packet takes audience and conventions from data and each run records its sha (t-spwd1qa)
+
+## Verification
+
+npm run fast PASS on the final tree
+
+## Task
+
+Ticket: t-spwd1qa
+
+Agent: headless claude session session success
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+##[endgroup]
+weak-tests: test/brain/worker-packet.test.ts: net 5 assertion(s) removed
+weak-tests: add "Weakens-tests: <reason>" to the PR body if intended
+##[error]Process completed with exit code 1.
+== attempt 1 job 132146890598 Check: failure; failed step 2 Require every job to succeed, or be skipped by the change filter
+set -euo pipefail
+printf '%s' "$RESULTS" | node -e '
+  const needs = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+  let bad = 0;
+  for (const [name, { result }] of Object.entries(needs)) {
+    console.log(`${name}: ${result}`);
+    const skipOk = name === "test" && result === "skipped" && needs.changes?.outputs?.test === "false";
+    if (result !== "success" && !skipOk) bad += 1;
+  }
+  process.exit(bad ? 1 : 0);
+'
+shell: /usr/bin/bash -e {0}
+env:
+  KRN_LIVE: 
+  RESULTS: {
+  "changes": {
+    "result": "success",
+    "outputs": {
+      "test": "true"
+    }
+  },
+  "lint": {
+    "result": "failure",
+    "outputs": {}
+  },
+  "typecheck": {
+    "result": "success",
+    "outputs": {}
+  },
+  "test": {
+    "result": "success",
+    "outputs": {}
+  }
+}
+##[endgroup]
+changes: success
+lint: failure
+typecheck: success
+test: success
+##[error]Process completed with exit code 1.
