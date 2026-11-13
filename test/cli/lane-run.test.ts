@@ -369,10 +369,10 @@ test('lane run marks the session as a lane session', async () => {
   const seen = mkdtempSync(join(tmpdir(), 'krn-lane-run-class-'));
   try {
     await run(`env > ${seen}/env`);
-    assert.match(
-      readFileSync(join(seen, 'env'), 'utf8'),
-      /^KRN_SESSION_CLASS=lane$/mu,
-    );
+    const env = readFileSync(join(seen, 'env'), 'utf8');
+    assert.match(env, /^KRN_SESSION_CLASS=lane$/mu);
+    assert.match(env, /^KRN_TASK=t-abc1234$/mu);
+    assert.match(env, /^KRN_LANE=\S+$/mu);
   } finally {
     rmSync(seen, { recursive: true, force: true });
   }

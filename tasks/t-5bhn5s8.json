@@ -1,7 +1,11 @@
 {
   "id": "t-5bhn5s8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane run exports KRN_TASK and KRN_LANE; worker hooks treat every lane session as a worker and refuse one with no identity"
+  },
   "created": "2026-11-13",
   "priority": 0,
   "title": "A lane session always runs the worker hooks, whatever its slug",

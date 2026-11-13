@@ -17,7 +17,7 @@ import {
   relatedCommand,
   resolveContract,
 } from '../../src/repo/contract.ts';
-import { worker } from './worker-scope.ts';
+import { UNIDENTIFIED_LANE, worker } from './worker-scope.ts';
 
 // Stop hook for worker sessions, and the related-test command a lane brief names:
 //   node scripts/claude/worker-stop.ts --related    prints the tests (or Go packages) this branch's change selects
@@ -475,7 +475,9 @@ export function judgeStop(
     env.CLAUDE_PROJECT_DIR ??
       (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd()),
   );
-  if (!worker(env, root, branch)) return undefined;
+  const who = worker(env, root, branch);
+  if (!who) return undefined;
+  if (who.unidentified) return `Stop refused: ${UNIDENTIFIED_LANE}`;
   if (statesBlocker(fields?.last_assistant_message)) return undefined;
   const outcome = inspect(root, run, shell);
   if (outcome.ok) return undefined;
