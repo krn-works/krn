@@ -10,6 +10,11 @@ import {
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { shipCommand } from '../ci/ship.ts';
+import {
+  contractBase,
+  contractTracker,
+  findContract,
+} from '../repo/contract.ts';
 import { claimTask, mainCheckoutRoot, releaseClaim } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
 import { getTask, repositoryRoot } from '../task/store.ts';
@@ -216,6 +221,12 @@ function git(cwd: string, args: string[]): string {
   return result.stdout.trim();
 }
 
+/** The command the session runs before it finishes: the contract's quick check, else its tests. */
+function checkCommand(root: string): string {
+  const contract = findContract(root)?.contract;
+  return contract?.fast ?? contract?.test ?? 'npm run fast';
+}
+
 function taskRecordBrief(root: string, id: string): string {
   const task = getTask(root, id);
   return [
@@ -223,8 +234,36 @@ function taskRecordBrief(root: string, id: string): string {
     '',
     ...task.body,
     '',
-    `Deliver this task in the current worktree: commit with a "Ticket: ${task.id}" trailer and close the task with \`bin/krn task close ${task.id} --as done --note ...\` in the same commit. The commit title is \`type(scope): outcome (${task.id})\`. Run \`npm run fast\` and fix what it reports before you finish; the caller ships only a tree it passed on. Do not push or open a pull request; the caller ships the commit.`,
+    `Deliver this task in the current worktree: commit with a "Ticket: ${task.id}" trailer and close the task with \`bin/krn task close ${task.id} --as done --note ...\` in the same commit. The commit title is \`type(scope): outcome (${task.id})\`. Run \`${checkCommand(root)}\` and fix what it reports before you finish; the caller ships only a tree it passed on. Do not push or open a pull request; the caller ships the commit.`,
   ].join('\n');
+}
+
+/** The session prompt for a repository without a tracker: the goal text instead of a task record. */
+export function goalBrief(
+  root: string,
+  goal: string,
+  asOf = new Date().toISOString().slice(0, 10),
+): string {
+  return laneBriefText(
+    root,
+    [
+      goal.trim(),
+      '',
+      `Deliver this goal in the current worktree: commit with a title \`type(scope): outcome\`. Run \`${checkCommand(root)}\` and fix what it reports before you finish; the caller ships only a tree it passed on. Do not push or open a pull request; the caller ships the commit.`,
+    ].join('\n'),
+    asOf,
+  );
+}
+
+/** A lane slug from the goal's first words. */
+export function goalSlug(goal: string): string {
+  const slug = goal
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/gu, '-')
+    .replace(/^-+/u, '')
+    .slice(0, 40)
+    .replace(/-+$/u, '');
+  return `goal-${slug || 'lane'}`;
 }
 
 /** The session prompt: the packet `krn lane brief --task ID` prints (ADR 0002, FR-40), then the task record. */
@@ -303,11 +342,41 @@ function killGroup(pid: number | undefined): void {
   }
 }
 
+const laneRunUsage =
+  'krn lane run (--task ID | --goal TEXT) [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]';
+
+/** The PR body of a goal lane: no task record, so the goal is the problem and the outcome. */
+function goalPrBody(
+  goal: string,
+  commits: readonly string[],
+  verified: string,
+): string {
+  return `## Problem\n\n${goal.trim()}\n\n## Change\n\n${commits.map((line) => `- ${line}`).join('\n')}\n\n## Verification\n\n${verified}\n`;
+}
+
+/**
+ * The runner's own proof where the repository has no fast-pass marker: the contract's quick
+ * check (else its tests) passes on the final tree.
+ */
+export function contractVerification(worktree: string): string | undefined {
+  const contract = findContract(worktree)?.contract;
+  if (contract === undefined) return undefined;
+  const command = contract.fast ?? contract.test;
+  const run = spawnSync(command, {
+    cwd: worktree,
+    shell: true,
+    stdio: 'ignore',
+    timeout: 30 * 60 * 1000,
+  });
+  return run.status === 0 ? `${command} PASS on the final tree` : undefined;
+}
+
 export async function laneRunCommand(
   args: string[],
   steps: LaneRunSteps = defaultSteps,
 ): Promise<LaneVerdict> {
   let task: string | undefined;
+  let goal: string | undefined;
   let slug: string | undefined;
   let actor: string | undefined;
   let root: string | undefined;
@@ -317,21 +386,43 @@ export async function laneRunCommand(
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index] as string;
     if (arg === '--task') task = value(index++, arg);
+    else if (arg === '--goal') goal = value(index++, arg);
     else if (arg === '--slug') slug = value(index++, arg);
     else if (arg === '--actor') actor = value(index++, arg);
     else if (arg === '--root') root = value(index++, arg);
     else if (arg === '--model') model = value(index++, arg);
-    else
-      throw new CliUsageError(
-        'krn lane run --task ID [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]',
-      );
+    else throw new CliUsageError(laneRunUsage);
   }
-  if (task === undefined || !isTaskId(task))
-    throw new CliUsageError(`--task needs a task id: ${task ?? ''}`);
-  const lane = slug ?? task;
   const origin = repositoryRoot(root ?? process.cwd());
+  const tracker = contractTracker(origin);
+  if (goal !== undefined) {
+    if (task !== undefined)
+      throw new CliUsageError('--goal and --task exclude each other');
+    if (tracker !== 'none')
+      throw new CliUsageError(
+        'this repository tracks work in tasks/: pass --task ID, not --goal',
+      );
+    if (goal.trim() === '') throw new CliUsageError('--goal needs text');
+  } else if (task === undefined || !isTaskId(task))
+    throw new CliUsageError(
+      tracker === 'none'
+        ? `--goal TEXT names the work in a repository without a tracker: ${laneRunUsage}`
+        : `--task needs a task id: ${task ?? ''}`,
+    );
+  const lane = slug ?? task ?? goalSlug(goal ?? '');
+  const label = task ?? lane;
   const main = mainCheckoutRoot(origin);
-  const brief = taskBrief(origin, task);
+  const base = contractBase(origin);
+  // krn pr ship opens the PR against main; another base waits on t-asa2qhx, so no session is spent first.
+  if (base !== 'main')
+    return {
+      line: `lane ${label}: base ${base} cannot ship yet: krn pr ship targets main (t-asa2qhx)`,
+      exitCode: exitNoDelivery,
+    };
+  const brief =
+    task === undefined
+      ? goalBrief(origin, goal ?? '')
+      : taskBrief(origin, task);
 
   const environment = sessionEnvironment(
     process.env,
@@ -340,7 +431,7 @@ export async function laneRunCommand(
   const unavailable = await steps.mint(environment);
   if (unavailable !== undefined)
     return {
-      line: `lane ${task}: GitHub App credential unavailable (${unavailable})`,
+      line: `lane ${label}: GitHub App credential unavailable (${unavailable})`,
       exitCode: exitCredentialUnavailable,
     };
 
@@ -348,11 +439,12 @@ export async function laneRunCommand(
   const holder = actor ?? `lane-${lane}`;
   // A rerun after a failed run reuses its worktree and branch; the failed run released the claim.
   const started = existsSync(existing)
-    ? await reclaimLane(main, existing, lane, task, holder)
+    ? task === undefined
+      ? reusableLane(existing, lane)
+      : await reclaimLane(main, existing, lane, task, holder)
     : await steps.start([
         lane,
-        '--task',
-        task,
+        ...(task === undefined ? [] : ['--task', task]),
         '--actor',
         holder,
         '--root',
@@ -410,13 +502,14 @@ export async function laneRunCommand(
     reason: string,
     exitCode = exitNoDelivery,
   ): Promise<LaneVerdict> => {
-    try {
-      await releaseClaim(main, task);
-    } catch {
-      /* No claim left to release. */
-    }
+    if (task !== undefined)
+      try {
+        await releaseClaim(main, task);
+      } catch {
+        /* No claim left to release. */
+      }
     return {
-      line: `lane ${task}: ${reason} (${kept}, claim released) model ${model}${spent}`,
+      line: `lane ${label}: ${reason} (${kept}${task === undefined ? '' : ', claim released'}) model ${model}${spent}`,
       exitCode,
     };
   };
@@ -429,7 +522,8 @@ export async function laneRunCommand(
         : exitNoDelivery,
     );
   // Taken before the placeholders go: the fast-pass key was written with them in the tree.
-  const verified = sessionVerification(started.path);
+  const verified =
+    sessionVerification(started.path) ?? contractVerification(started.path);
   for (const path of sandboxPlaceholders(
     git(started.path, ['status', '--porcelain', '-z', '--untracked-files=all']),
     (file) => lstatSync(join(started.path, file)),
@@ -437,21 +531,25 @@ export async function laneRunCommand(
     rmSync(join(started.path, path));
   if (git(started.path, ['status', '--porcelain']) !== '')
     return await stop('dirty tree');
-  const commits = git(started.path, ['log', '--format=%s', 'origin/main..HEAD'])
+  const range = `origin/${base}..HEAD`;
+  const commits = git(started.path, ['log', '--format=%s', range])
     .split('\n')
     .filter((line) => line !== '');
   if (commits.length === 0) return await stop('no commit');
-  const title = ticketCommitTitle(
-    git(started.path, [
-      'log',
-      '--format=%s%x1f%(trailers:key=Ticket,valueonly,separator=%x2C)%x1e',
-      'origin/main..HEAD',
-    ]),
-    task,
-  );
+  const title =
+    task === undefined
+      ? commits[commits.length - 1]
+      : ticketCommitTitle(
+          git(started.path, [
+            'log',
+            '--format=%s%x1f%(trailers:key=Ticket,valueonly,separator=%x2C)%x1e',
+            range,
+          ]),
+          task,
+        );
   if (title === undefined)
     return await stop(`no commit with a Ticket: ${task} trailer`);
-  if (getTask(started.path, task).status !== 'closed')
+  if (task !== undefined && getTask(started.path, task).status !== 'closed')
     return await stop('task not closed');
   if (verified === undefined)
     return await stop('no passing check on the final tree');
@@ -461,13 +559,15 @@ export async function laneRunCommand(
   const bodyFile = join(bodyDir, `lane-run-${lane}.md`);
   writeFileSync(
     bodyFile,
-    renderPrBody({
-      task: getTask(started.path, task),
-      commits,
-      verified,
-      agent: `headless claude session ${result.detail}`,
-      refs: false,
-    }),
+    task === undefined
+      ? goalPrBody(goal ?? '', commits, verified)
+      : renderPrBody({
+          task: getTask(started.path, task),
+          commits,
+          verified,
+          agent: `headless claude session ${result.detail}`,
+          refs: false,
+        }),
   );
   const shipped = await steps.ship([
     '--worktree',
@@ -480,7 +580,7 @@ export async function laneRunCommand(
   const last = shipped.trim().split('\n').pop() ?? '';
   const merged = /^verdict: merged\b/u.test(last);
   return {
-    line: `lane ${task}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}`,
+    line: `lane ${label}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}`,
     exitCode: merged ? 0 : exitNoDelivery,
   };
 }

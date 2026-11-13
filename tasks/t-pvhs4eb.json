@@ -1,7 +1,11 @@
 {
   "id": "t-pvhs4eb",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane start fetches and branches from the contract base; lane brief and lane run name the contract check commands; lane run --goal works without a tracker; ship base left to t-asa2qhx"
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "Lane brief and lane run take base, commands and task from the repo contract",

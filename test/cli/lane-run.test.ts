@@ -15,8 +15,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { laneBriefText, startLane, WORKER_RULES } from '../../src/cli/lane.ts';
+import { laneBriefText, startLane, workerRules } from '../../src/cli/lane.ts';
 import {
+  goalBrief,
+  goalSlug,
   laneRunCommand,
   parseSessionResult,
   sandboxPlaceholders,
@@ -341,7 +343,7 @@ test('the session prompt starts with the packet krn lane brief prints for the ta
     assert.match(prompt, /^Repository conventions \(brain packet /u);
     const record = prompt
       .slice(prompt.indexOf('\n\nTask t-abc1234: ') + 2)
-      .replace(`\n\n${WORKER_RULES}\n`, '\n');
+      .replace(`\n\n${workerRules(dir)}\n`, '\n');
     assert.match(record, /^Task t-abc1234: Lane run task/u);
     assert.equal(prompt, laneBriefText(dir, record, '2026-11-10', 't-abc1234'));
   } finally {
@@ -576,6 +578,128 @@ test('the headless brief states the title format and npm run fast', () => {
     const brief = taskBrief(repo, 't-abc1234');
     assert.match(brief, /type\(scope\): outcome \(t-abc1234\)/u);
     assert.match(brief, /npm run fast/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+/** The fixture turned into a repository with this contract, committed and pushed. */
+function withContract(repo: string, contract: object): void {
+  writeFileSync(join(repo, 'krn.json'), `${JSON.stringify(contract)}\n`);
+  git(repo, 'add', 'krn.json');
+  git(repo, 'commit', '-qm', 'contract');
+  git(repo, 'push', '-q', 'origin', 'main');
+}
+
+test('lane start cuts the worktree from the contract base branch', async () => {
+  const { base, repo } = fixture('true');
+  try {
+    git(repo, 'checkout', '-q', '-b', 'master');
+    git(repo, 'commit', '-q', '--allow-empty', '-m', 'only on master');
+    git(repo, 'push', '-q', 'origin', 'master');
+    git(repo, 'checkout', '-q', 'main');
+    writeFileSync(
+      join(repo, 'krn.json'),
+      '{"base": "master", "test": "true", "tracker": "none"}\n',
+    );
+    const started = await startLane(['on-master', '--root', repo]);
+    assert.equal(
+      git(started.path, 'rev-parse', 'HEAD'),
+      git(repo, 'rev-parse', 'origin/master'),
+    );
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('lane run --goal ships a repository without a tracker, verified by its contract check', async () => {
+  const { base, repo, claude } = fixture(
+    'echo x > goal.txt; git add goal.txt; git commit -qm "feat(x): goal done"',
+  );
+  withContract(repo, { base: 'main', test: 'true', tracker: 'none' });
+  process.env.KRN_LANE_CLAUDE = claude;
+  const shipped: string[][] = [];
+  try {
+    const verdict = await laneRunCommand(
+      ['--goal', 'Fix the parser.', '--root', repo],
+      {
+        start: startLane,
+        ship: async (args) => {
+          shipped.push(args);
+          return 'verdict: merged abc1234';
+        },
+        mint: async () => undefined,
+      },
+    );
+    assert.equal(verdict.exitCode, 0, verdict.line);
+    assert.match(verdict.line, /^lane goal-fix-the-parser: shipped /u);
+    const args = shipped[0] ?? [];
+    assert.equal(args[args.indexOf('--title') + 1], 'feat(x): goal done');
+    const body = readFileSync(
+      args[args.indexOf('--body-file') + 1] ?? '',
+      'utf8',
+    );
+    assert.match(body, /Fix the parser\./u);
+    assert.match(body, /true PASS on the final tree/u);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('lane run takes --goal only without a tracker and --task only with one', async () => {
+  const { base, repo } = fixture('true');
+  const steps = {
+    start: startLane,
+    ship: async () => 'unreachable',
+    mint: async () => undefined,
+  };
+  try {
+    await assert.rejects(
+      laneRunCommand(['--goal', 'x', '--root', repo], steps),
+      /tracks work in tasks\//u,
+    );
+    withContract(repo, { test: 'true', tracker: 'none' });
+    await assert.rejects(
+      laneRunCommand(['--root', repo], steps),
+      /--goal TEXT names the work/u,
+    );
+    await assert.rejects(
+      laneRunCommand(
+        ['--goal', 'x', '--task', 't-abc1234', '--root', repo],
+        steps,
+      ),
+      /exclude each other/u,
+    );
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('lane run on a base other than main stops before a session is spent', async () => {
+  const { base, repo } = fixture('exit 1');
+  try {
+    withContract(repo, { base: 'master', test: 'true', tracker: 'none' });
+    const verdict = await laneRunCommand(['--goal', 'x', '--root', repo], {
+      start: async () => assert.fail('no lane may start'),
+      ship: async () => 'unreachable',
+      mint: async () => assert.fail('no token may be minted'),
+    });
+    assert.equal(verdict.exitCode, 74);
+    assert.match(verdict.line, /base master cannot ship yet/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('the goal brief names the contract check and no task record', () => {
+  const { base, repo } = fixture('true');
+  try {
+    withContract(repo, { test: 'pytest -q', tracker: 'none' });
+    const brief = goalBrief(repo, 'Fix the parser.', '2026-11-13');
+    assert.match(brief, /Run `pytest -q`/u);
+    assert.doesNotMatch(brief, /Ticket|npm run fast|task close/u);
+    assert.equal(goalSlug('  Fix the parser!  '), 'goal-fix-the-parser');
   } finally {
     rmSync(base, { recursive: true, force: true });
   }

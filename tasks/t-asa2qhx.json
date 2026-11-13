@@ -1,0 +1,12 @@
+{
+  "id": "t-asa2qhx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "krn pr ship and pr body target the repo contract base branch",
+  "after": [],
+  "body": [
+    "Why: krn pr ship pushes against main only (src/ci/ship.ts:60,128,165,172,190 and src/cli/pr-body.ts:81 base 'origin/main'); krn lane run on a contract with base master refuses before the session (src/cli/lane-run.ts goal and task modes).\nOutcome: krn pr ship and krn pr body take the base branch from the repo contract (src/repo/contract.ts contractBase); lane run ships on any base.\nProof: ship unit test on a fixture whose origin default branch is master: PR opens with --base master and the rebase target is origin/master.\nScope: src/ci/, src/cli/pr-body.ts, src/cli/lane-run.ts, test/."
+  ]
+}
