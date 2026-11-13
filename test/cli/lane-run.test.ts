@@ -26,6 +26,9 @@ import {
   mintFailure,
   parseSessionResult,
   prepareWorktree,
+  redCheckFile,
+  redCheckFinding,
+  redCheckOf,
   remoteFailure,
   rerunCommand,
   sandboxPlaceholders,
@@ -996,6 +999,130 @@ test('a ship that throws releases the claim and a rerun ships', async () => {
       steps,
     );
     assert.equal(second.exitCode, 0, second.line);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+// KRN-12: verbatim `krn ci logs` captures of the two red Checks a rerun pushed no fix for (2026-11-13).
+const ciLogsCapture = (name: string) =>
+  readFileSync(
+    fileURLToPath(new URL(`../fixtures/ci/${name}`, import.meta.url)),
+    'utf8',
+  );
+
+test('redCheckOf reads the run and head of a red Check ship failure and nothing else', () => {
+  const sha = 'dde09ec3d8ba484dce8afd4e4079fc84daefbe3a';
+  assert.deepEqual(
+    redCheckOf(
+      `Check concluded failure on ${sha} in run 43501009193; logs: bin/krn ci logs --run 43501009193; rerun: gh run rerun 43501009193 --failed`,
+    ),
+    { sha, run: '43501009193' },
+  );
+  assert.equal(redCheckOf('push rejected'), undefined);
+  assert.equal(
+    redCheckOf(`Check concluded success on ${sha} in run 1`),
+    undefined,
+  );
+});
+
+test('redCheckFinding names the failing step and its first finding in real ci logs captures', () => {
+  const weak = redCheckFinding(
+    ciLogsCapture('logs-weak-tests-43501009193.txt'),
+  );
+  assert.equal(weak.job, 'Lint: failure; failed step 6 Weakened tests');
+  assert.match(
+    weak.finding,
+    /^weak-tests: test\/brain\/worker-packet\.test\.ts: net 5 assertion\(s\) removed/u,
+  );
+  const shard = redCheckFinding(
+    ciLogsCapture('logs-test-shard-43501061076.txt'),
+  );
+  assert.equal(
+    shard.job,
+    'Test (11/13): failure; failed step 4 Run test shard',
+  );
+  assert.equal(
+    shard.finding,
+    'failing tests: test/portability/fixtures.test.ts (2 failed)',
+  );
+});
+
+test('a rerun after a red Check briefs the failure, exits 74 without a new commit and ships after one', async () => {
+  const { base, repo, claude } = fixture(deliver());
+  process.env.KRN_LANE_CLAUDE = claude;
+  const brief = join(base, 'brief.txt');
+  const logRuns: string[] = [];
+  let shipCalls = 0;
+  let redSha = '';
+  const steps = {
+    start: startLane,
+    ship: async (args: string[]) => {
+      shipCalls += 1;
+      if (shipCalls > 1) return 'verdict: merged abc1234';
+      redSha = git(args[1] as string, 'rev-parse', 'HEAD');
+      throw new Error(
+        `ship: Check concluded failure on ${redSha} in run 43501009193; logs: bin/krn ci logs --run 43501009193`,
+      );
+    },
+    mint: async () => undefined,
+    ciLogs: async (run: string) => {
+      logRuns.push(run);
+      return ciLogsCapture('logs-weak-tests-43501009193.txt');
+    },
+  };
+  const rewrite = (action: string) =>
+    writeFileSync(
+      claude,
+      `#!/bin/sh\nprintf '%s' "$2" > '${brief}'\n${action}\ncat <<'JSON'\n${capture}\nJSON\n`,
+    );
+  try {
+    const first = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(first.exitCode, 74, first.line);
+    assert.ok(existsSync(redCheckFile(repo, 't-abc1234')));
+
+    // The session sees its earlier commit and ends without a fix.
+    rewrite('true');
+    const idle = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(idle.exitCode, 74, idle.line);
+    assert.match(
+      idle.line,
+      new RegExp(
+        `no new commit since the red Check \\(run 43501009193 on ${redSha.slice(0, 12)}\\)`,
+        'u',
+      ),
+    );
+    assert.deepEqual(logRuns, ['43501009193']);
+    const text = readFileSync(brief, 'utf8');
+    assert.match(text, /^The previous attempt of this lane FAILED CI/u);
+    assert.match(
+      text,
+      /Failing job and step: Lint: failure; failed step 6 Weakened tests/u,
+    );
+    assert.match(
+      text,
+      /First finding: weak-tests: test\/brain\/worker-packet\.test\.ts: net 5 assertion\(s\) removed/u,
+    );
+    assert.equal(shipCalls, 1);
+
+    // A session that commits a fix ships, and the red record goes.
+    rewrite(
+      `echo fix > fix.txt && git add fix.txt && ${deliver('fix(x): repair (t-abc1234)')}`,
+    );
+    const fixed = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(fixed.exitCode, 0, fixed.line);
+    assert.equal(shipCalls, 2);
+    assert.equal(existsSync(redCheckFile(repo, 't-abc1234')), false);
   } finally {
     delete process.env.KRN_LANE_CLAUDE;
     rmSync(base, { recursive: true, force: true });

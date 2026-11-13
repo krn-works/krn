@@ -13,7 +13,6 @@ Maintenance:
 
 | Id | Opportunity | Area | Evidence | Expected saving | Task |
 |---|---|---|---|---|---|
-| R28 | `krn pr ship` and `krn pr body` take the base branch from the repo contract, so lanes ship in master-based repositories | src/ci/ship.ts | lane run now stops before the session on a non-main base (t-pvhs4eb); ship.ts holds 5 main literals | unblocks the pilot repository lane runs (t-djnrw3t) | t-asa2qhx |
 
 Sector plan (t-8hnmfr9), refilled by t-y3chym7: cost is dollars per merged PR (cache reads ~10% of input), not raw tokens. Since 2026-11-07 lead sessions cost median $1.62 and 41 turns per PR; Bash results are 94% of lead tool bytes, half of them file reads; 35% of lead cache reads come from turns over 150k (`.krn/runs/roadmap-refill-2/tokens.md`). Subagent spend (t-akp44kt): after the krn-lane 90-turn cap (#496) subagents fell from $2.03 to $0.28 per PR and agents over 100 turns from 15 to 0 on 15 PRs (`.krn/runs/subagent-spend/agent-scan.py`). KRN-owned startup text is ~2.3k of the ~25k first turn: closed as a track after t-bdhn7mw. The global skill listing (~17 kB per turn, mostly non-KRN skills) is the operator's call. t-qdzy8w7: handoff re-reads fell from 104 of 109 sessions to 1 of 4 (provisional). Delivery and CI time hold no row: PR open-to-merge median 1.6 min, Check median 58 s, 2 of 60 runs failed and none was rerun (`.krn/runs/roadmap-refill-3/ci-friction.md`, refilled by t-kb4mvq8).
 

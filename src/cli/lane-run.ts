@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { logsCommand } from '../ci/logs.ts';
 import { shipCommand } from '../ci/ship.ts';
 import {
   contractBase,
@@ -45,6 +46,8 @@ export interface LaneRunSteps {
   ship(args: string[]): Promise<string>;
   /** Mint the GitHub App token (warming its cache) before the session starts; a string is the failure. */
   mint(env: NodeJS.ProcessEnv): Promise<string | undefined>;
+  /** `krn ci logs --run RUN` output, read when a rerun follows a red Check. */
+  ciLogs?(run: string, cwd: string): Promise<string>;
 }
 
 /** Operator credentials that never reach a lane session; only the cached App token does, and the sandbox blocks localhost so bw serve is out of reach. */
@@ -353,7 +356,8 @@ export function mintFailure(result: {
   );
 }
 
-const defaultSteps: LaneRunSteps = {
+const defaultSteps: Required<LaneRunSteps> = {
+  ciLogs: (run, cwd) => logsCommand(['--run', run], { cwd }),
   start: async (args) => (await import('./lane.ts')).startLane(args),
   ship: (args) => shipCommand(args),
   mint: async (env) => {
@@ -669,6 +673,101 @@ export function contractVerification(
 }
 
 /** The failing check's verdict line, its failing test files and the path of its full output. */
+/** A red required Check a ship reported: the run that failed and the head it judged. */
+export interface RedCheck {
+  run: string;
+  sha: string;
+}
+
+/** The red Check named in a ship failure (`<check> concluded <conclusion> on <sha> in run <id>`), if any. */
+export function redCheckOf(message: string): RedCheck | undefined {
+  const match = /\bconcluded (\w+) on ([0-9a-f]{7,40}) in run (\d+)/u.exec(
+    message,
+  );
+  if (match === null || match[1] === 'success') return undefined;
+  return { sha: match[2] as string, run: match[3] as string };
+}
+
+/** The failing job's step and its first finding in a `krn ci logs` capture; the first failing job is the cause, an aggregate job after it only repeats it. */
+export function redCheckFinding(logs: string): {
+  job: string;
+  section: string[];
+  finding: string;
+} {
+  const lines = logs.split('\n');
+  const start = lines.findIndex((line) => line.startsWith('== attempt '));
+  if (start === -1)
+    return {
+      job: 'no failed job in the logs',
+      section: [],
+      finding: lastLine(logs) || 'no output',
+    };
+  const next = lines.findIndex(
+    (line, index) => index > start && line.startsWith('== attempt '),
+  );
+  const section = lines.slice(start, next === -1 ? undefined : next);
+  const job = (section[0] as string).replace(/^== attempt \d+ job \d+ /u, '');
+  const body = section.slice(1);
+  const summary = body.find((line) =>
+    line.startsWith('KRN_TEST_SUMMARY_JSON='),
+  );
+  if (summary !== undefined)
+    try {
+      const parsed = JSON.parse(
+        summary.slice('KRN_TEST_SUMMARY_JSON='.length),
+      ) as { files?: { file: string; failed: number }[] };
+      const red = (parsed.files ?? []).filter((file) => file.failed > 0);
+      if (red.length > 0)
+        return {
+          job,
+          section,
+          finding: `failing tests: ${red
+            .map(
+              (file) =>
+                `${file.file.replace(/^\/home\/runner\/work\/[^/]+\/[^/]+\//u, '')} (${file.failed} failed)`,
+            )
+            .join(', ')}`,
+        };
+    } catch {
+      /* A truncated summary line falls through to the log lines. */
+    }
+  const files = failingTests(body.join('\n'));
+  if (files.length > 0)
+    return { job, section, finding: `failing tests: ${files.join(', ')}` };
+  // The step's own output ends just before the runner's error line, after its last log group.
+  const end = body.findIndex((line) => line.startsWith('##[error]'));
+  const before = body.slice(0, end === -1 ? body.length : end);
+  const group = before.findLastIndex((line) => line.startsWith('##['));
+  const output = before
+    .slice(group + 1)
+    .filter((line) => line.trim() !== '')
+    .slice(-3);
+  return {
+    job,
+    section,
+    finding:
+      output.length > 0
+        ? output.join('; ')
+        : (body.find((line) => line.startsWith('##[error]')) ??
+          'no finding in the log tail'),
+  };
+}
+
+/** The top of a rerun's brief: the previous attempt's red Check, its failing step and finding, and the demand for a new commit. */
+export function redCheckBrief(red: RedCheck, logs: string | Error): string {
+  const head = `The previous attempt of this lane FAILED CI: the required Check concluded failure on ${red.sha.slice(0, 12)} in run ${red.run}.`;
+  const demand = `Your earlier commit ${red.sha.slice(0, 12)} is already in this worktree and is not enough. Fix the cause, add a NEW commit with the same trailer, and run npm run fast; a run that adds no commit since the red Check exits 74 with "no new commit since the red Check". Full log: bin/krn ci logs --run ${red.run}.`;
+  if (logs instanceof Error)
+    return `${head}\nThe CI log could not be read (${logs.message.split('\n')[0]}); read it with bin/krn ci logs --run ${red.run}.\n${demand}\n\n`;
+  const { job, section, finding } = redCheckFinding(logs);
+  return `${head}\nFailing job and step: ${job}\nFirst finding: ${finding}\n${demand}\n\nFailing job log tail:\n\`\`\`\n${section.slice(-40).join('\n')}\n\`\`\`\n\n`;
+}
+
+/** Where a lane run records the red Check its ship hit, so the rerun in the same worktree briefs it. */
+export function redCheckFile(main: string, lane: string): string {
+  return join(main, '.krn', 'tmp', `lane-run-${lane}-red-check.json`);
+}
+
 export function failedCheckDetail(
   command: string,
   output: string,
@@ -739,7 +838,24 @@ export async function laneRunCommand(
       : taskLaneBrief(origin, task, undefined, [
           join(main, '.krn', 'worktrees', lane),
         ]);
-  const brief = prompt.text;
+  // A rerun after a red Check reuses the worktree that holds the failed commit: brief the failure first.
+  const redFile = redCheckFile(main, lane);
+  let red: RedCheck | undefined;
+  if (existsSync(redFile)) {
+    if (existsSync(join(main, '.krn', 'worktrees', lane)))
+      red = JSON.parse(readFileSync(redFile, 'utf8')) as RedCheck;
+    else rmSync(redFile);
+  }
+  const brief =
+    red === undefined
+      ? prompt.text
+      : `${redCheckBrief(
+          red,
+          await (steps.ciLogs ?? defaultSteps.ciLogs)(red.run, origin).catch(
+            (error: unknown) =>
+              error instanceof Error ? error : new Error(String(error)),
+          ),
+        )}${prompt.text}`;
   // The verdict records which packet the session served, so a run is traceable to its conventions.
   const served =
     prompt.packet === null ? '' : ` packet ${prompt.packet.slice(0, 12)}`;
@@ -779,8 +895,11 @@ export async function laneRunCommand(
         origin,
       ]);
   // A rerun after a failed ship finds the task closed in its worktree: the commit is delivered, so it ships without a session.
+  // After a red Check the closed task is the failed delivery, so the rerun needs a session.
   const delivered =
-    task !== undefined && getTask(started.path, task).status === 'closed';
+    task !== undefined &&
+    red === undefined &&
+    getTask(started.path, task).status === 'closed';
   let notStarted = false;
   let timedOut = false;
   const runSession = (): SessionResult => {
@@ -911,6 +1030,13 @@ export async function laneRunCommand(
       rmSync(join(started.path, path));
     if (git(started.path, ['status', '--porcelain']) !== '')
       return await stop('dirty tree');
+    if (
+      red !== undefined &&
+      git(started.path, ['rev-parse', 'HEAD']).startsWith(red.sha)
+    )
+      return await stop(
+        `no new commit since the red Check (run ${red.run} on ${red.sha.slice(0, 12)})`,
+      );
     const range = `origin/${base}..HEAD`;
     const commits = git(started.path, ['log', '--format=%s', range])
       .split('\n')
@@ -979,6 +1105,7 @@ export async function laneRunCommand(
       lines.pop() ??
       '';
     const merged = /^verdict: merged\b/u.test(last);
+    if (merged) rmSync(redFile, { force: true });
     return {
       line: `lane ${label}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}${served}`,
       exitCode: merged ? 0 : exitNoDelivery,
@@ -986,6 +1113,11 @@ export async function laneRunCommand(
     };
   } catch (error) {
     // A throw after the claim (git, ship push, red Check, timeout) must not leave the claim live.
+    const failed = redCheckOf((error as Error).message);
+    if (failed !== undefined) {
+      mkdirSync(dirname(redFile), { recursive: true });
+      writeFileSync(redFile, `${JSON.stringify(failed)}\n`);
+    }
     return await stop(`failed: ${(error as Error).message.split('\n')[0]}`);
   }
 }
