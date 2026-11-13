@@ -74,6 +74,15 @@ function namesPath(source: string, file: string): boolean {
   return ["'", '"', '`'].some((quote) => source.includes(quote + file + quote));
 }
 
+/** A test that runs the whole project's tools (`npm test`, `npm run check`) on a probe: it reads every config by path without naming one. */
+function runsProjectTools(source: string): boolean {
+  return /\[\s*(['"])npm\1\s*,\s*\[\s*(['"])(?:test|run)\2/u.test(source);
+}
+
+/** A changed file that configures tools rather than being code or prose: .claude/settings.json, package.json, tsconfig.json. */
+const isToolConfig = (file: string) =>
+  /\.(?:json|ya?ml|toml)$/u.test(file) && !file.startsWith('tasks/');
+
 const isGuard = (path: string, guard: readonly string[]) =>
   guard.some((prefix) => path === prefix || path.startsWith(prefix));
 
@@ -106,6 +115,8 @@ export function relatedTests(
     for (const [path, source] of tests) {
       if (isGuard(path, guard)) picked.add(path);
       else if ([...targets].some((file) => namesPath(source, file)))
+        picked.add(path);
+      else if (runsProjectTools(source) && [...targets].some(isToolConfig))
         picked.add(path);
     }
   return [...picked].sort();
