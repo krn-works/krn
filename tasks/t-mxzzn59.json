@@ -1,0 +1,12 @@
+{
+  "id": "t-mxzzn59",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "A pull request with an empty diff against main cannot merge",
+  "after": [],
+  "body": [
+    "Why: #643 merged as an empty squash commit (7b34dc7): its change already landed as #642, the PR stayed green, and enabling auto-merge by hand did not look at the diff against main.\nOutcome: the required Check fails (or krn pr ship refuses) when the PR's diff against its merge base with main is empty, naming the PR that already carries the change if the title matches one.\nProof: a test feeds an empty diff and expects failure; a non-empty diff passes.\nScope: src/cli/, .github/workflows/, test/."
+  ]
+}

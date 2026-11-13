@@ -1,7 +1,11 @@
 {
   "id": "t-cbwqm50",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "run1 diagnostic graded (57/56/56 units; harness 27fe971): K 71.9%, PB 62.5%, P 10.7%; K-P +60.7 pp p<0.001; K-PB +8.9 pp SE 5.9 CI [-2.5,20.4] p=0.127 (not shown); stopped early, amendment 2026-11-13 08:30 in v2/protocol.md; K losses -> dev replay v2/dev-k1; confirmatory run -> t-p70b19s"
+  },
   "created": "2026-11-12",
   "priority": 1,
   "title": "The D23 v2 comparison runs K, P and P-with-brief three times each on about 150 derivable units",
