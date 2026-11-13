@@ -51,6 +51,10 @@
       "capture": ["test/fixtures/claude/headless-session-result.json"],
       "test": "test/cli/lane-run.test.ts"
     },
+    "src/cli/hook.ts": {
+      "receivers": ["node"],
+      "real": "test/adopt/adopt.test.ts"
+    },
     "src/cli/lane.ts": {
       "receivers": ["git"],
       "real": "test/cli/lane.test.ts"

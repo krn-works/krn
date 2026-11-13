@@ -1,7 +1,11 @@
 {
   "id": "t-d25znwp",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt writes krn.json from detection (kept when present), the Stop hook calling new 'krn hook stop', CI and tasks/ only on --ref/--tracker; proven on pytest and npm fixtures at test/adopt/adopt.test.ts. Proof run in full."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "krn adopt writes the repo contract and the worker hooks into any repository",
