@@ -437,19 +437,6 @@ const ADD_RED = 'def add(a, b):\n    return a - b\n';
 const PY_TEST =
   'from calc import add\n\ndef test_add():\n    assert add(1, 2) == 3\n\ndef test_ok():\n    assert True\n';
 
-/** A pytest command that runs on this host, or undefined. */
-function pytest(): string | undefined {
-  for (const [cmd, args] of [
-    ['python3', ['-m', 'pytest', '--version']],
-    ['uvx', ['pytest', '--version']],
-  ] as const)
-    if (
-      spawnSync(cmd, args, { encoding: 'utf8', timeout: 120_000 }).status === 0
-    )
-      return cmd === 'python3' ? 'python3 -m pytest' : 'uvx pytest';
-  return undefined;
-}
-
 test('a pytest repository: the detected contract runs the name-matched test; red refuses, green allows', () => {
   const dir = stackRepo({
     'pyproject.toml': '[tool.pytest.ini_options]\npythonpath = ["."]\n',
@@ -479,9 +466,17 @@ test('a pytest repository: the detected contract runs the name-matched test; red
   }
 });
 
-test('a pytest repository against real pytest: red refuses, green commit allows', (t) => {
-  const command = pytest();
-  if (!command) return t.skip('no pytest on this host; quarantine: t-298z99b');
+// pytest is pinned in mise.toml; its absolute path works from fixture directories outside the repository.
+const PYTEST = ((found) =>
+  found.status === 0 ? found.stdout.trim() : 'pytest')(
+  spawnSync('mise', ['which', 'pytest'], {
+    cwd: fileURLToPath(new URL('../..', import.meta.url)),
+    encoding: 'utf8',
+  }),
+);
+
+test('a pytest repository against real pytest: red refuses, green commit allows', () => {
+  const command = `'${PYTEST}'`;
   const dir = stackRepo({
     'pyproject.toml': '[tool.pytest.ini_options]\npythonpath = ["."]\n',
     'krn.json': JSON.stringify({
@@ -508,25 +503,37 @@ const GO_ADD = (op: string) =>
 const GO_TEST =
   'package calc\n\nimport "testing"\n\nfunc TestAdd(t *testing.T) {\n\tif Add(1, 2) != 3 {\n\t\tt.Fatal("bad")\n\t}\n}\n';
 
-test('a go repository against real go test: the changed package runs; red refuses, green commit allows', (t) => {
-  if (spawnSync('go', ['version'], { encoding: 'utf8' }).status !== 0)
-    return t.skip('no go on this host; quarantine: t-298z99b');
+test('a go repository: the changed package runs through the detected go test; red refuses, green allows', () => {
   const dir = stackRepo({
     'go.mod': 'module example.com/gom\n\ngo 1.22\n',
     'calc/calc.go': GO_ADD('+'),
     'calc/calc_test.go': GO_TEST,
-    'other/other.go': 'package other\n',
-    'other/other_test.go':
-      'package other\n\nimport "testing"\n\nfunc TestOther(t *testing.T) { t.Fatal("never selected") }\n',
+    'other/other_test.go': 'package other\n',
   });
   try {
     commitFile(dir, 'calc/calc.go', GO_ADD('-'));
-    const red = inspect(dir);
+    const commands: string[] = [];
+    let output = GO_RED;
+    // The receiver output is the captured `go test ./calc` run above.
+    const shell = (root: string, command: string) => {
+      if (root !== dir) return [];
+      commands.push(command);
+      return failuresIn(output, output === '' ? 0 : 1);
+    };
+    const red = inspect(dir, () => [], shell);
     assert.equal(red.ok, false);
     assert.match(red.reason, /TestAdd/u);
-    assert.match(red.reason, /go test '\.\/calc'/u);
+    assert.deepEqual(commands, ["go test './calc'"]);
+    output = '';
     commitFile(dir, 'calc/calc.go', `${GO_ADD('+')}// fixed\n`);
-    assert.deepEqual(inspect(dir), { ok: true, reason: '', ignored: 0 });
+    assert.deepEqual(
+      inspect(dir, () => [], shell),
+      {
+        ok: true,
+        reason: '',
+        ignored: 0,
+      },
+    );
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
