@@ -562,6 +562,27 @@ test('a change no test relates to runs the full test command, not nothing', () =
   }
 });
 
+test('a missing test runner refuses even though the base fails the same way', () => {
+  const dir = stackRepo({
+    'krn.json': JSON.stringify({
+      test: 'no-such-runner',
+      related: 'no-such-runner {files}',
+    }),
+    'notes.txt': 'a\n',
+  });
+  try {
+    commitFile(dir, 'notes.txt', 'b\n');
+    const outcome = inspect(dir);
+    assert.equal(outcome.ok, false);
+    assert.match(
+      outcome.reason,
+      /could not start \(exit 127.*no-such-runner/su,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('an invalid krn.json refuses once, naming the contract', () => {
   const dir = stackRepo({ 'krn.json': '{"tests": "x"}', 'a.txt': 'a\n' });
   try {

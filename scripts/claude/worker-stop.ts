@@ -432,6 +432,14 @@ export function inspect(
     before = () => failuresAtBase(root, from, (dir) => shell(dir, command));
   }
   if (failing.length === 0) return { ok: true, reason: '', ignored: 0 };
+  // A missing runner fails the same way at the base, so it would pass as pre-existing: refuse it instead.
+  const missing = failing.find((key) => /^<run>::exit 12[67]$/u.test(key));
+  if (missing)
+    return {
+      ok: false,
+      ignored: 0,
+      reason: `the test command could not start (${missing.slice(7)}: command not found or not executable)${command === undefined ? '' : `: ${command}`}. Install the runner the repo contract names or fix krn.json, or end with a line \`BLOCKER: <what stops you>\`.`,
+    };
   const earlier = before();
   const fresh = failing.filter((key) => !earlier.has(key));
   if (fresh.length === 0)

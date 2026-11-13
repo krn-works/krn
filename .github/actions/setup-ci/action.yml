@@ -93,6 +93,14 @@ runs:
         cp -a "$(dirname "$(dirname "$(command -v node)")")" "$data/installs/node/$version"
         echo "MISE_DATA_DIR=$data" >> "$GITHUB_ENV"
 
+    - name: Install the pinned pytest for the Stop check receiver tests
+      shell: bash
+      run: |
+        version=$(sed -n 's/^"pipx:pytest" = "\(.*\)"$/\1/p' mise.toml)
+        test -n "$version"
+        pipx install --quiet "pytest==$version"
+        pytest --version
+
     - name: Enable pnpm through Corepack
       shell: bash
       run: |
