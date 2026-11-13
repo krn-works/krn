@@ -1,0 +1,12 @@
+{
+  "id": "t-g9m2svp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "krn adopt detects the test commands of a single package in a subdirectory",
+  "after": [],
+  "body": [
+    "Why: on the pilot (seo-audit-harness clone at /mnt/storage/tmp/krn/pilot/seo-audit, 2026-11-13) `krn adopt . --ref <sha>` printed \"skipped krn.json (no test command detected)\": the only package.json is packages/seo/package.json (scripts test, lint, typecheck, verify) and the root has none. Every flag had to be passed by hand (--install 'npm --prefix packages/seo ci', --test 'npm --prefix packages/seo test', ...).\nOutcome: when the root has no manifest and exactly one first- or second-level directory holds a recognised manifest (package.json, pyproject.toml, ...), detection returns that package's install/lint/typecheck/test commands prefixed for the root (npm --prefix <dir> ...), and krn.json records them; two or more candidates still skip with a message naming them. The generated krn-ci.yml beside an existing ci.yml is named so it does not repeat the repository's own workflow name (pilot: two workflows named CI).\nProof: a test in test/adopt or test/repo builds a scratch repo with packages/seo/package.json only and asserts krn.json and the workflow inputs; a second test with two packages asserts the skip message.\nTicket parent: t-djnrw3t."
+  ]
+}
