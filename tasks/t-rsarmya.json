@@ -1,7 +1,11 @@
 {
   "id": "t-rsarmya",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Claims and the tracker read the base from the repo contract (contractBase); tests with a non-main base added."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "Task claims and the tracker read the base from the repo contract",

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync, realpathSync } from 'node:fs';
-import { copyFile, readdir, rm } from 'node:fs/promises';
+import { copyFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import {
@@ -309,6 +309,45 @@ test('a registered worktree deleted without pruning does not freeze other claims
   } finally {
     removeWorktree(repo, kept);
     git(repo, 'worktree', 'prune');
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
+test('a claim expires when the contract base, not main, closes the task', async () => {
+  const repo = await fixtureRepo('claim-contract-base-', [task('T-1')]);
+  const linked = join(dirname(repo), 'claim-contract-base-linked');
+  try {
+    await writeFile(
+      join(repo, 'krn.json'),
+      '{"base":"trunk","test":"true","tracker":"krn"}\n',
+    );
+    git(repo, 'add', 'krn.json');
+    git(repo, 'commit', '-qm', 'declare the trunk base');
+    git(repo, 'update-ref', 'refs/remotes/origin/trunk', 'HEAD');
+    git(repo, 'update-ref', '-d', 'refs/remotes/origin/main');
+    addWorktree(repo, linked, 'claim-contract-base-branch');
+    assert.equal(
+      (await runCli(linked, ['claim', 'T-1', '--actor', 'worker'])).status,
+      0,
+    );
+    assert.equal(
+      (await runCli(linked, ['close', 'T-1', '--as', 'done'])).status,
+      0,
+    );
+    await copyFile(
+      join(linked, 'tasks', 'T-1.json'),
+      join(repo, 'tasks', 'T-1.json'),
+    );
+    git(repo, 'add', 'tasks/T-1.json');
+    git(repo, 'commit', '-qm', 'merge the delivery branch');
+    git(repo, 'update-ref', 'refs/remotes/origin/trunk', 'HEAD');
+    const merged = JSON.parse(
+      (await runCli(repo, ['show', 'T-1', '--json'])).stdout,
+    ).claim;
+    assert.equal(merged.state, 'expired');
+    assert.equal(merged.reason, 'expired: task is closed in origin/trunk');
+  } finally {
+    removeWorktree(repo, linked);
     await rm(repo, { recursive: true, force: true });
   }
 });
