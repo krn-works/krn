@@ -25,7 +25,9 @@ import {
   laneSandboxSettings,
   mintFailure,
   parseSessionResult,
+  prepareWorktree,
   remoteFailure,
+  rerunCommand,
   sandboxPlaceholders,
   sessionTimeoutMs,
   settingsFailure,
@@ -1055,7 +1057,9 @@ test('a red baseline names the failing test files, never the vitest separator', 
 
 test('lane run exit 72 names the failing test file', async () => {
   const out = await runPrepared(
-    npmFiles(`printf ' FAIL  test/a.test.ts > adds\\n'; exit 1`),
+    npmFiles(
+      `node -e "console.log(' FAIL  test/a.test.ts > adds'); process.exit(1)"`,
+    ),
   );
   assert.equal(out.verdict.exitCode, 72);
   assert.match(out.verdict.line, /failing: test\/a\.test\.ts\)/u);
@@ -1141,4 +1145,57 @@ test('lane run fails in seconds on an unreachable remote and creates no worktree
     /^lane t-abc1234: preflight: origin unreachable with the lane credentials/u,
   );
   assert.equal(out.started, false);
+});
+
+test('rerunCommand appends the failing files, behind -- for an npm script', () => {
+  assert.equal(
+    rerunCommand(
+      'npm --prefix packages/seo run build && npm --prefix packages/seo test',
+      ['test/a.test.ts', 'test/b.test.ts'],
+    ),
+    "npm --prefix packages/seo run build && npm --prefix packages/seo test -- 'test/a.test.ts' 'test/b.test.ts'",
+  );
+  assert.equal(
+    rerunCommand('pytest', ['tests/test_a.py']),
+    "pytest 'tests/test_a.py'",
+  );
+  assert.equal(
+    rerunCommand('npm test -- --run', ['a.test.ts']),
+    "npm test -- --run 'a.test.ts'",
+  );
+});
+
+/** A clean base checkout whose contract test is check.mjs: red without arguments, then `rerun` decides. */
+function flakyBaseline(rerun: 'pass' | 'fail') {
+  return fixture('true', {
+    'krn.json': JSON.stringify({ test: 'node check.mjs' }),
+    'check.mjs': `const files = process.argv.slice(2);
+if (files.length === 0 || ${rerun === 'fail'}) {
+  console.log(' FAIL  test/flaky.test.ts > times out under load');
+  process.exit(1);
+}
+console.log('reran ' + files.join(' '));
+`,
+  });
+}
+
+test('a red baseline reruns only its failing test files once and passes when they pass alone', () => {
+  // Seen on the pilot: lanes run one at a time still refused with 72 while the suite passed by hand.
+  const { base, repo } = flakyBaseline('pass');
+  try {
+    assert.equal(prepareWorktree(repo, 'main', repo), undefined);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a red baseline whose failing files fail again refuses with 72 and names them', () => {
+  const { base, repo } = flakyBaseline('fail');
+  try {
+    const refusal = prepareWorktree(repo, 'main', repo);
+    assert.equal(refusal?.exitCode, 72);
+    assert.match(refusal?.detail ?? '', /failing: test\/flaky\.test\.ts\)/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
 });
