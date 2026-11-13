@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -13,6 +14,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  inspect,
   judgeStop,
   relatedTests,
   statesBlocker,
@@ -75,8 +77,8 @@ const lane = (dir: string) => ({
 test('no commit refuses, red refuses, green commit allows, blocker and lead escape', () => {
   const dir = clone();
   try {
-    const green = () => true;
-    const red = () => false;
+    const green = () => [];
+    const red = (root: string) => (root === dir ? ['test/a.test.ts::x'] : []);
     assert.match(judgeStop(payload(dir), lane(dir), green) ?? '', /no commit/u);
     writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
     writeFileSync(
@@ -175,7 +177,7 @@ test('a worker clone with no origin/main or main is refused once, naming the mis
     writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
     sh(dir, 'add', '.');
     sh(dir, 'commit', '-q', '-m', 'change');
-    const green = () => true;
+    const green = () => [];
     assert.match(
       judgeStop(payload(dir), lane(dir), green) ?? '',
       /no base resolves.*BLOCKER:/su,
@@ -192,6 +194,111 @@ test('a worker clone with no origin/main or main is refused once, naming the mis
       judgeStop(payload(dir), { CLAUDE_PROJECT_DIR: dir }, green),
       undefined,
     );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+const PASSING =
+  "import test from 'node:test';\ntest('one', () => {});\ntest('two', () => {});\n";
+const FAILING_ONE =
+  "import test from 'node:test';\nimport assert from 'node:assert';\ntest('one', () => { assert.fail('red'); });\ntest('two', () => {});\n";
+const FAILING_TWO =
+  "import test from 'node:test';\nimport assert from 'node:assert';\ntest('one', () => { assert.fail('red'); });\ntest('two', () => { assert.fail('red'); });\n";
+
+/** A repo whose base holds `before` as test/t.test.mjs and whose branch commit changes it to `after`. */
+function repoWith(before: string, after: string) {
+  const dir = mkdtempSync(join(tmpdir(), 'worker-stop-'));
+  sh(dir, 'init', '-q', '-b', 'main');
+  sh(dir, 'config', 'user.email', 'a@b.c');
+  sh(dir, 'config', 'user.name', 'a');
+  mkdirSync(join(dir, 'test'));
+  writeFileSync(join(dir, 'test/t.test.mjs'), before);
+  sh(dir, 'add', '.');
+  sh(dir, 'commit', '-q', '-m', 'base');
+  sh(dir, 'checkout', '-q', '-b', 'work');
+  writeFileSync(join(dir, 'test/t.test.mjs'), after);
+  sh(dir, 'add', '.');
+  sh(dir, 'commit', '-q', '-m', 'change');
+  return dir;
+}
+
+const worktrees = (dir: string) =>
+  spawnSync('git', ['worktree', 'list', '--porcelain'], {
+    cwd: dir,
+    encoding: 'utf8',
+  }).stdout.match(/^worktree /gmu)?.length;
+
+test('a test red at the base and red at HEAD is ignored and counted', () => {
+  const dir = repoWith(FAILING_ONE, `${FAILING_ONE}// touched\n`);
+  try {
+    const outcome = inspect(dir);
+    assert.equal(outcome.ok, true, outcome.reason);
+    assert.equal(outcome.ignored, 1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a test green at the base and red at HEAD is refused by name', () => {
+  const dir = repoWith(PASSING, FAILING_ONE);
+  try {
+    const outcome = inspect(dir);
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.reason, /test\/t\.test\.mjs :: one/u);
+    assert.doesNotMatch(outcome.reason, /:: two/u);
+    assert.match(outcome.reason, /pre-existing failures were ignored/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a different test newly red beside one already red is refused', () => {
+  const dir = repoWith(FAILING_ONE, FAILING_TWO);
+  try {
+    const outcome = inspect(dir);
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.reason, /:: two/u);
+    assert.doesNotMatch(outcome.reason, /:: one/u);
+    assert.equal(outcome.ignored, 1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a file that loads at the base and fails to load at HEAD is refused', () => {
+  const dir = repoWith(PASSING, "import './missing.mjs';\n");
+  try {
+    const outcome = inspect(dir);
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.reason, /test\/t\.test\.mjs/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the temporary base worktree exists while the base run happens and is gone after', () => {
+  const dir = repoWith(PASSING, FAILING_ONE);
+  try {
+    const roots: string[] = [];
+    const seen: boolean[] = [];
+    const run = (root: string) => {
+      roots.push(root);
+      seen.push(existsSync(root));
+      return root === dir ? ['test/t.test.mjs::one'] : [];
+    };
+    assert.equal(inspect(dir, run).ok, false);
+    assert.equal(roots.length, 2);
+    assert.notEqual(roots[1], dir);
+    assert.deepEqual(seen, [true, true]);
+    assert.equal(existsSync(roots[1] ?? dir), false);
+    assert.equal(worktrees(dir), 1);
+    const throwing = (root: string): string[] => {
+      if (root !== dir) throw new Error('base run died');
+      return ['test/t.test.mjs::one'];
+    };
+    assert.throws(() => inspect(dir, throwing), /base run died/u);
+    assert.equal(worktrees(dir), 1);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
