@@ -186,7 +186,10 @@ function detectUnittest(root: string): Detected | undefined {
     if (usesUnittest)
       return {
         stack: 'python/unittest',
-        test: sub === '' ? 'python -m unittest discover' : `python -m unittest discover -s ${sub}`,
+        test:
+          sub === ''
+            ? 'python -m unittest discover'
+            : `python -m unittest discover -s ${sub}`,
         related: 'python -m unittest {files}',
       };
   }
