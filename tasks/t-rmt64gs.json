@@ -1,7 +1,11 @@
 {
   "id": "t-rmt64gs",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Dev replay on harness f4dd015 (.krn/runs/d23-comparison/stopgate/run1): 5/7 previously abandoned K units now commit (434 470 547 566 606; were 0/7); 467 and 586 end with a stated-blocker escape on invalid units (other-repo task; task delivered before parent), follow-up task filed; zero runs ended by a Stop refusal (all end_turn, claude_exit 0)."
+  },
   "created": "2026-11-12",
   "priority": 1,
   "title": "A K worker cannot finish without a commit and its scoped related tests green",

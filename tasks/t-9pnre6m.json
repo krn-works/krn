@@ -1,0 +1,12 @@
+{
+  "id": "t-9pnre6m",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "D23 unit selection rejects tasks delivered before the parent or scoped to other repositories",
+  "after": [],
+  "body": [
+    "Why: the t-rmt64gs dev replay (.krn/runs/d23-comparison/stopgate/run1) ended 2 of 7 K runs without a commit, both correct stated-blocker escapes on invalid units: 467 (t-kfydr8a) changes other repositories, and 586 carries t-2yggc19 whose work was already delivered at the parent (ad71bae). Both sit in .krn/runs/d23-comparison/v2/units.txt, so the confirmatory run t-p70b19s would score them as K losses.\nOutcome: evals/d23/select.ts refuses a unit whose task was delivered by an earlier first-parent commit naming the same task id, or whose task body scopes only paths outside the repository; the v2 unit list drops 467 and 586.\nProof: unit test of the selector on both cases; select.ts output on origin/main excludes 467 and 586.\nScope: evals/d23/, test/."
+  ]
+}
