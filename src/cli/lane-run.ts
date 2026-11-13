@@ -720,7 +720,10 @@ export async function laneRunCommand(
       : session.error !== undefined
         ? {
             ok: false,
-            detail: `session did not run: ${session.error.message}`,
+            detail:
+              (session.error as NodeJS.ErrnoException).code === 'ENOENT'
+                ? `session did not run: ${claude} not found (put claude on PATH or set KRN_LANE_CLAUDE)`
+                : `session did not run: ${session.error.message}`,
             cost: undefined,
           }
         : parseSessionResult(session.stdout ?? '', session.stderr ?? '');
