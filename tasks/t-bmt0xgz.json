@@ -1,12 +1,17 @@
 {
   "id": "t-bmt0xgz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "12 fixtures (9 distinct) generated in test/portability/fixtures.test.ts"
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "The portability fixtures run in CI",
   "after": [],
   "body": [
-    "Why: D9: the 12 probe fixtures become a regression suite.\nEvidence: .krn/runs/state-review/decisions.md (state review 2026-11-13, Fable 5.2; data verified by the lead where noted), .krn/runs/state-review/portability-probe.md.\nSource: operator 2026-11-13 ordered the state-review decisions executed ('lecisz z tym wszystkim')."
+    "Why: D9: the 12 probe fixtures become a regression suite.\nEvidence: .krn/runs/state-review/decisions.md (state review 2026-11-13, Fable 5.2; data verified by the lead where noted), .krn/runs/state-review/portability-probe.md.\nSource: operator 2026-11-13 ordered the state-review decisions executed ('lecisz z tym wszystkim').",
+    "Lead note: the 12 fixtures and their observed verdicts are the table in .krn/runs/state-review/portability-probe.md (lines 10-30, copied into this worktree, untracked): fixtures 1 py pyproject+pytest, 2 requirements.txt+unittest, 3 go, 6 api/+ui/ monorepo, 7a master no remote, 7b develop no remote, 9 no stack, 10 phpunit, 11 adopted-not-on-origin. Build them as generated scratch repos in one test file (test/portability/fixtures.test.ts) that runs krn adopt --no-canary and krn repo contract and asserts the per-fixture verdict fixed since (D5 CI inputs 46a7603, D7 remote/unpublished 7cfde83, D4 Stop hook 826d7d0); toolchains absent on the CI runner are skipped with a reason, never faked."
   ]
 }
