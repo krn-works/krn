@@ -1,0 +1,12 @@
+{
+  "id": "t-36je2x1",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "Stop check base run links dependencies of subdirectory packages (canary fails on the pilot)",
+  "after": [],
+  "body": [
+    "Outcome: the Stop check measures failures at the base with the dependencies of a package in a subdirectory.\nWhy: failuresAtBase links only the root node_modules, so in a layout like packages/seo the base run fails the same way as a broken test and the broken test is ignored as pre-existing. krn adopt --canary on the seo-audit-harness pilot clone exits 1 (gate did not refuse a broken vitest test) for this reason.\nProof: krn adopt <pilot> --canary exits 0."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-dmpz54r",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "Canary vitest and pytest fixtures run where CI lacks the runners",
+  "after": [],
+  "body": [
+    "Outcome: the canary vitest and pytest fixtures run in CI instead of skipping where the runner is absent.\nWhy: they skip without pytest or a vitest install to link.\nProof: both canary tests run, none skipped."
+  ]
+}

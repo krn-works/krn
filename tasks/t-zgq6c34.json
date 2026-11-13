@@ -1,7 +1,11 @@
 {
   "id": "t-zgq6c34",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn adopt runs the canary; pilot finding t-36je2x1"
+  },
   "created": "2026-11-13",
   "priority": 0,
   "title": "krn adopt proves the gate on the clean tree or records that the operator declined it",

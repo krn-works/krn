@@ -100,6 +100,10 @@
     "src/task/store.ts": {
       "receivers": ["git"],
       "real": "test/task/task.test.ts"
+    },
+    "src/adopt/canary.ts": {
+      "receivers": ["git", "node"],
+      "real": "test/adopt/canary.test.ts"
     }
   }
 }
