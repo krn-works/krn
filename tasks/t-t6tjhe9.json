@@ -1,0 +1,12 @@
+{
+  "id": "t-t6tjhe9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "Rung 0: the share of new hidden test cases with an ancestor among existing tests is measured on 200 PRs",
+  "after": [],
+  "body": [
+    "Why: the hidden-test mechanism research (.krn/runs/hidden-test-mechanism-research/report.md, 2026-11-13) ranks sibling-test transplant first: a blind agent ports the human test cases of the nearest existing sibling (command, handler, parser) to the new entity and the port gates Stop. Rung 0 decides whether the premise holds before any build, with no model calls.\nOutcome: 200 merged PRs that add tests, 50 each from 4 public repositories (2 TypeScript, 2 Python, cloned under .krn/sources); for every added test case, the nearest pre-existing test case in the parent tree by a clone detector, with a threshold fixed before looking at results; the share with an ancestor, split by new feature vs fix and by language, with its 95% interval (about ±7 pp).\nKill criterion: share with an ancestor below 30% drops the sibling transplant line; otherwise rung 1 (precision on gold patches vs issue-only tests) becomes a task.\nCost: under $5, no model sessions. Record: .krn/runs/sibling-transplant/rung0.md with the commands and counts."
+  ]
+}
