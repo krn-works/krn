@@ -1,0 +1,16 @@
+{
+  "id": "t-3nm1kvr",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "A lane rerun copies a task record the lead edited in the invoking checkout into the reused worktree, or refuses naming the divergence when both changed; test in lane-run.test.ts"
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "A lane rerun carries a task record edited after the first run",
+  "after": [],
+  "body": [
+    "Why: the lead appended a rework note to t-8vk9p13 in the main checkout, then reran lane standards-pack, which reuses its worktree; the note never reached the lane's record and the merged record (d63a811) lacks it, so the lead's spec was lost from the durable record.\nOutcome: a lane run that reuses its worktree carries the main checkout's newer task record into it, as lane start does (5802b3c), or refuses with a message naming the divergence.\nProof: lane-run test: edit the record after a failed run, rerun, the worktree record holds the edit."
+  ]
+}

@@ -685,6 +685,41 @@ test('a failed run releases the claim, keeps the worktree and a rerun claims it 
   }
 });
 
+test('a rerun carries a task record edited after the failed run into the worktree', async () => {
+  const { base, repo, claude } = fixture('true');
+  process.env.KRN_LANE_CLAUDE = claude;
+  const steps = {
+    start: startLane,
+    ship: async () => 'verdict: merged abc1234',
+    mint: async () => undefined,
+  };
+  try {
+    const first = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      steps,
+    );
+    assert.equal(first.exitCode, 74);
+    const file = join(repo, 'tasks', 't-abc1234.json');
+    const edited = readFileSync(file, 'utf8').replace(
+      '"Outcome: o"',
+      '"Outcome: o",\n    "Lead note: rework"',
+    );
+    assert.notEqual(edited, readFileSync(file, 'utf8'));
+    writeFileSync(file, edited);
+    await laneRunCommand(['--task', 't-abc1234', '--root', repo], steps);
+    assert.equal(
+      readFileSync(
+        join(repo, '.krn', 'worktrees', 't-abc1234', 'tasks', 't-abc1234.json'),
+        'utf8',
+      ),
+      edited,
+    );
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('a session that cannot start exits 69, not the no-delivery 74', async () => {
   const { base, repo } = fixture('true');
   process.env.KRN_LANE_CLAUDE = join(base, 'missing-claude');

@@ -370,14 +370,48 @@ function reusableLane(
 }
 
 /** Reuse the worktree a failed run left and take its claim again. */
+/** A record the lead edited in the invoking checkout after the first run moves into the reused worktree; a worktree record the worker changed too is a divergence and refuses. */
+function carryEditedRecord(
+  origin: string,
+  path: string,
+  task: string,
+  base: string,
+): void {
+  const rel = `tasks/${task}.json`;
+  const source = join(origin, rel);
+  const target = join(path, rel);
+  if (!existsSync(source) || !existsSync(target)) return;
+  const edited = readFileSync(source, 'utf8');
+  const current = readFileSync(target, 'utf8');
+  if (edited === current) return;
+  const shown = (ref: string) => {
+    const result = spawnSync('git', ['show', `${ref}:${rel}`], {
+      cwd: path,
+      encoding: 'utf8',
+    });
+    return result.status === 0 ? result.stdout : undefined;
+  };
+  const original = shown(`origin/${base}`) ?? shown('HEAD');
+  // The invoking checkout never moved from the base record: the worktree's own changes stand.
+  if (edited === original) return;
+  if (original !== undefined && current !== original)
+    throw new CliUsageError(
+      `${rel} differs between ${origin} and the lane worktree ${path} and both changed; reconcile them before rerunning`,
+    );
+  writeFileSync(target, edited);
+}
+
 async function reclaimLane(
   main: string,
   path: string,
   slug: string,
   task: string,
   actor: string,
+  origin: string,
+  base: string,
 ): Promise<{ path: string; slug: string }> {
   const lane = reusableLane(path, slug);
+  carryEditedRecord(origin, path, task, base);
   // The task closed in the lane worktree: an earlier run delivered it and only the ship failed.
   if (getTask(path, task).status === 'closed') return lane;
   // A run that died before it released its own claim leaves it live: the same actor and worktree resume it.
@@ -712,7 +746,7 @@ export async function laneRunCommand(
   const started = existsSync(existing)
     ? task === undefined
       ? reusableLane(existing, lane)
-      : await reclaimLane(main, existing, lane, task, holder)
+      : await reclaimLane(main, existing, lane, task, holder, origin, base)
     : await steps.start([
         lane,
         ...(task === undefined ? [] : ['--task', task]),
