@@ -10,6 +10,8 @@ import { worker } from './worker-scope.ts';
 // D23 arm K ended 7 of 20 n100 runs without a commit (four in under 40 s), and a scoped test list given to the
 // agent measured +5 pp at lower cost. A worker session (KRN_SESSION_CLASS=lane or KRN_ROLE=worker) is refused
 // the end of its turn while its branch has no commit past the base or the related tests are red.
+// A worker whose clone has neither origin/main nor main has no base to measure against: that refuses once
+// too (a replay clone once ended every arm K run unchecked this way), naming the missing base.
 // One explicit escape: a final message with a line starting `BLOCKER:` that states the blocker.
 // The lead sets neither variable, so it is never held here.
 
@@ -126,7 +128,13 @@ const runTests: Runner = (root, tests) =>
 /** Whether the branch may stop: a commit past the base and the related tests green. */
 export function inspect(root: string, run: Runner = runTests): Outcome {
   const from = base(root);
-  if (from) {
+  if (!from)
+    return {
+      ok: false,
+      reason:
+        'no base resolves (neither origin/main nor main exists here), so the branch cannot be checked. Point a `main` branch at the base commit and commit your change, or end with a line `BLOCKER: <what stops you>`.',
+    };
+  {
     const ahead = git(root, ['rev-list', '--count', `${from}..HEAD`]).stdout;
     if (Number(ahead.trim()) === 0)
       return {
@@ -154,6 +162,7 @@ export function judgeStop(
   const fields = payload as {
     cwd?: unknown;
     last_assistant_message?: unknown;
+    stop_hook_active?: unknown;
   } | null;
   const root = resolve(
     env.CLAUDE_PROJECT_DIR ??
@@ -162,6 +171,9 @@ export function judgeStop(
   if (!worker(env, root, branch)) return undefined;
   if (statesBlocker(fields?.last_assistant_message)) return undefined;
   const outcome = inspect(root, run);
+  // A missing base is refused once: a continued stop (stop_hook_active) is not held again for it.
+  if (!outcome.ok && fields?.stop_hook_active === true && !base(root))
+    return undefined;
   return outcome.ok ? undefined : `Stop refused: ${outcome.reason}`;
 }
 

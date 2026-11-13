@@ -167,3 +167,32 @@ test('relatedTests keeps an unrelated source change to importers plus the test/r
   );
   assert.deepEqual(relatedTests([], tests), []);
 });
+
+test('a worker clone with no origin/main or main is refused once, naming the missing base', () => {
+  const dir = clone();
+  try {
+    sh(dir, 'branch', '-m', 'main', 'replay');
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'change');
+    const green = () => true;
+    assert.match(
+      judgeStop(payload(dir), lane(dir), green) ?? '',
+      /no base resolves.*BLOCKER:/su,
+    );
+    assert.equal(
+      judgeStop(payload(dir, 'BLOCKER: no base'), lane(dir), green),
+      undefined,
+    );
+    assert.equal(
+      judgeStop({ ...payload(dir), stop_hook_active: true }, lane(dir), green),
+      undefined,
+    );
+    assert.equal(
+      judgeStop(payload(dir), { CLAUDE_PROJECT_DIR: dir }, green),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

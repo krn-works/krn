@@ -54,6 +54,8 @@ else
   fi
   asof=$(git -C $REPO log -1 --format=%cs $parent)
   prompt=$(cd $D && { printf 'This repository clone has no remote: commit locally with a conventional commit title ending in the task id; do not push or open a pull request.\n\n'; cat $OUT/$tag.task.txt; } | $krnroot/bin/krn lane brief --root $D --task $task --as-of $asof)
+  # A lane worktree has main at its base; the worker's Stop check measures against it.
+  git branch -f main $base
   export KRN_ROLE=worker
   export KRN_SCOPE="$(grep -m1 '^Scope:' $OUT/$tag.task.txt || true)"
   export KRN_TASK=$task

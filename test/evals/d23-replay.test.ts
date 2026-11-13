@@ -193,10 +193,11 @@ test('arm K runs the HARNESS_REF lane brief as a worker and both arms clone only
     const bin = join(root, 'bin');
     mkdirSync(bin);
     const seen = join(root, 'seen');
+    const out = join(root, 'out');
     writeFileSync(
       join(bin, 'claude'),
       `#!/usr/bin/env bash
-{ echo "ROLE=$KRN_ROLE"; echo "SCOPE=$KRN_SCOPE"; echo "TASK=$KRN_TASK"; echo "PROMPT=$*"
+{ echo "MAIN=$(git rev-parse --verify -q refs/heads/main || echo none)"; echo "ROLE=$KRN_ROLE"; echo "SCOPE=$KRN_SCOPE"; echo "TASK=$KRN_TASK"; echo "PROMPT=$*"
   git rev-list --all --invert-grep --grep="^harness at\\|^strip harness" | while read c; do git merge-base --is-ancestor $c ${parent} || echo "NOT-ANCESTOR $c"; done
   echo "COUNT=$(git rev-list --all --invert-grep --grep="^harness at\\|^strip harness" | wc -l)"; } > ${seen}.$KRN_ARM
 echo x > made.txt; git add made.txt; git commit -qm "feat: made (t-abc1234)"
@@ -204,7 +205,6 @@ echo '{"session_id":"s"}'
 `,
     );
     chmodSync(join(bin, 'claude'), 0o755);
-    const out = join(root, 'out');
     const arm = (name: 'K' | 'P') =>
       spawnSync('bash', [replay, '7', name], {
         encoding: 'utf8',
@@ -236,7 +236,10 @@ echo '{"session_id":"s"}'
         assert.match(text, /BRIEF-BEGIN/u);
         assert.match(text, /Task t-abc1234: Fix it/u);
         assert.doesNotMatch(text, /KRN lead/u);
+        const base = readFileSync(`${out}/7.K.base`, 'utf8').trim();
+        assert.match(text, new RegExp(`^MAIN=${base}$`, 'm'));
       } else {
+        assert.match(text, /^MAIN=none$/m);
         assert.match(text, /^ROLE=$/m);
         assert.doesNotMatch(text, /ARGS: lane brief/u);
       }
