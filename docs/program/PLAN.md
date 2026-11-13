@@ -4,7 +4,7 @@ This plan records program sequence and exit conditions. It is not task status, a
 
 ## Scope and decision owners
 
-Follow [ADR 0014 D20–D29](../adr/0014-operator-decisions-2026-10-23.md). The numbered tracks are a sequence, not parallel work; the WIP limit counts deliveries in flight, at most two. Product is the one repository ([ADR 0013](../adr/0013-repository-consolidation.md), trigger superseded). Name work by role and purpose, not by phase, slice, ticket, round, date, or version.
+Follow [ADR 0014 D20–D29](../adr/0014-operator-decisions-2026-10-23.md). The numbered tracks are a sequence, not parallel work; the WIP limit counts deliveries in flight, at most two. Product is the one repository ([ADR 0013](../adr/0013-repository-consolidation.md), trigger superseded). Naming follows [`repository-workflow.md`](repository-workflow.md).
 
 ## Sequence and exit checks
 
@@ -22,7 +22,7 @@ KRN ships no review command or judge panel (ADR 0014 D10/D22 amendment). Review 
 
 ### 3. One merge path and delivery record
 
-Product merges through GitHub auto-merge: the author pushes, opens the PR and runs `gh pr merge --auto --squash`; GitHub merges once the required Actions `Check` (App `15368`) passes on the exact HEAD (ADR 0014 D30). GitHub refuses direct pushes and PRs missing the required check.
+Product merges through GitHub auto-merge: the author pushes, opens the PR and runs `gh pr merge --auto --squash`; the merge rule is in [`lead-rules.md`](lead-rules.md) (ADR 0014 D30). GitHub refuses direct pushes and PRs missing the required check.
 
 **Exit:** GitHub refuses a direct push and a PR missing a required check; one delivery record holds review, gate, CI, and merge evidence.
 
@@ -64,3 +64,27 @@ Product's shipped tracker uses committed `tasks/<id>.json` records, dependencies
 - `t-zkepy2m` — move host lead policy into GLOBAL and install it by release.
 
 See [proposal register](proposals.md), [lead rules](lead-rules.md), and [ADR index](../adr/README.md).
+
+## Working plans
+
+Use a living plan for work spanning sessions, pull requests, or modules. Keep task plans in ignored repository state under `.krn/runs/<owner>/<outcome>/plan.md`; a plan is working state, not durable policy or task status.
+
+### Required contents
+
+- Outcome and observable result.
+- Current task, owner, authority, checkout, base/head, and dirty-file ownership.
+- Progress, verified discoveries, decisions, and remaining work.
+- Ordered file-level steps, exact checks, expected evidence, and recovery path.
+- The next action needed to resume without relying on an unrecorded conversation.
+
+### At each stopping point
+
+Update progress and discoveries before a long command, handoff, commit, or interruption. Read current Git and in-repository tracker state back; do not copy stale status from a previous plan.
+
+### Proof
+
+- Each changed runtime contract needs a focused falsifier. Where applicable, observe it fail by assertion at the base before making it pass.
+- Never invent a before-state, acceptance, or clean result. Compare a failure with the base before attributing it to the change.
+- Do not weaken or remove an existing test or gate to reach green.
+- Delivery follows the loop in [`lead-rules.md`](lead-rules.md).
+- Label evidence claims as defined in [`lead-rules.md`](lead-rules.md).
