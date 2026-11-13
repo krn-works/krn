@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { globSync } from 'node:fs';
+import { globSync, statSync } from 'node:fs';
 import {
   chmod,
   mkdir,
@@ -30,6 +30,7 @@ import { fixture, passed, runAsync, spawnAsync } from './test-suite-fixture.ts';
 const newShardExports = {
   configuredTestShardSelection: testShards.configuredTestShardSelection,
   selectTestShardFiles: testShards.selectTestShardFiles,
+  fileWeight: testShards.fileWeight,
 };
 function shardExport(name) {
   const value = newShardExports[name];
@@ -109,15 +110,17 @@ test('shard selection puts every test file in exactly one of the runner shards',
       ),
     );
   }
+  // Weigh each file exactly as the planner does: measured seconds, else size.
+  const fileWeight = shardExport('fileWeight');
+  const weightOfFile = (file) =>
+    fileWeight(file, statSync(join(projectRoot, file)).size);
   const weightOf = (list) =>
-    list.reduce((sum, file) => sum + (TEST_FILE_WEIGHTS[file] ?? 1), 0);
+    list.reduce((sum, file) => sum + weightOfFile(file), 0);
   for (const total of [2, 6, 8]) {
     const loads = Array.from({ length: total }, (_, index) =>
       weightOf(selectTestShardFiles(files, index + 1, total)),
     );
-    const heaviestFile = Math.max(
-      ...files.map((file) => TEST_FILE_WEIGHTS[file] ?? 1),
-    );
+    const heaviestFile = Math.max(...files.map(weightOfFile));
     assert.ok(
       Math.max(...loads) - Math.min(...loads) <= heaviestFile,
       `total ${total}: runner loads ${loads.map((w) => w.toFixed(1)).join(' ')} must stay within one file`,
