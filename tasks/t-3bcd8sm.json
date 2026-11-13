@@ -1,7 +1,11 @@
 {
   "id": "t-3bcd8sm",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Worker rules rewritten generally: no eval-unit example, no KRN-only scope phrase; test guards it"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "The shared worker rules carry no eval-unit wording",

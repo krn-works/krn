@@ -146,8 +146,7 @@ test('the KRN repository brief keeps the Stop script check', () => {
 });
 
 test('a lane brief tells the worker to test the plainest hand-written input of every named format', () => {
-  // D23 unit 621 (K): the patch reader handled only `diff --git` diffs because its own tests used that form;
-  // the task said "unified diffs" and the hidden fixture was a plain ---/+++ diff.
+  // A reader tested only with its own tool's output misses the plain form the task wording allows.
   const text = laneBriefText(
     repo,
     'Task t-abc1234: x\n',
@@ -160,6 +159,12 @@ test('a lane brief tells the worker to test the plainest hand-written input of e
   );
   assert.match(
     workerRules(repo),
-    /only ---\/\+\+\+ headers and no diff --git line/u,
+    /must accept every form the wording allows, including the shortest and plainest one/u,
   );
+});
+
+test('the shared worker rules carry no wording taken from an eval unit or this repository', () => {
+  const rules = workerRules(repo);
+  assert.doesNotMatch(rules, /diff --git|---\/\+\+\+|unit[- ]?\d+|D23/u);
+  assert.doesNotMatch(rules, /tasks\/ and the roadmap/u);
 });
