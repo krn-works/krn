@@ -76,9 +76,15 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
       encoding: 'utf8',
       maxBuffer: 256 * 1024 * 1024,
     });
-  const diff = git('diff', '--no-renames', '-U0', `${base}...${head}`);
+  // `--worktree` compares the working tree with base, so `npm run fast` sees uncommitted edits.
+  const worktree = head === '--worktree';
+  // Fixed prefixes: parseDiff reads `b/`, which diff.mnemonicPrefix would turn into `w/`.
+  const options = ['--no-renames', '-U0', '--src-prefix=a/', '--dst-prefix=b/'];
+  const diff = worktree
+    ? git('diff', ...options, base)
+    : git('diff', ...options, `${base}...${head}`);
   const stems = new Set(
-    git('ls-tree', '-r', '--name-only', head)
+    (worktree ? git('ls-files') : git('ls-tree', '-r', '--name-only', head))
       .split('\n')
       .filter((path) => path && !TEST_FILE.test(path))
       .map((path) => stemOf(path).replace(/\.\w+$/u, '')),

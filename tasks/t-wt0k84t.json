@@ -1,0 +1,13 @@
+{
+  "id": "t-wt0k84t",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "A lane rerun merges disjoint task record edits instead of refusing",
+  "after": [],
+  "body": [
+    "Why: 2026-11-13 reruns of packet-data (t-spwd1qa) and contract-layouts (t-1q7znxx) exited 64 \"differs ... and both changed\": the lane commit closed the record (status, resolution) while the lead appended a rework note to body in the main checkout; the lead merged them by hand.\nOutcome: lane run merges the two records when the changes are disjoint (main appended body items, worktree changed status/resolution or appended other items), writes the merged record to both copies, and still refuses with exit 64 naming the field when both edited the same field differently.\nProof: lane-run test: worktree closes, main appends a body note, rerun proceeds and both copies hold the close and the note; conflicting status edits still exit 64.",
+    "Second failure of the same flow: after the lead wrote the merged record into the worktree uncommitted, the rerun exited 74 'dirty tree' after 43 s. The merge must commit the merged record in the worktree (Refs trailer) or the rerun must accept a dirty tasks/<id>.json it wrote itself."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-jn4r3vn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 3,
+  "title": "The finish-gate standard names no KRN-only script",
+  "after": [],
+  "body": [
+    "Why: c6e6b03 widened s-finish-gate to grep -qE 'krn hook stop|worker-stop' .claude/settings.json; worker-stop is a KRN script name inside a universal record, and any settings text containing the word passes.\nOutcome: the universal record recognises an adopted Stop hook by a stack-neutral marker (e.g. a Stop hook entry whose command exits non-zero on red tests, or krn hook stop), and KRN carries its own worker-stop variant as a project record in .agents/standards.json.\nProof: standards test: a settings file mentioning worker-stop outside a Stop hook fails the record; KRN and a freshly adopted repo pass."
+  ]
+}

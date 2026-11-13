@@ -426,3 +426,39 @@ test('fast check re-stages fixes to fully staged files only', () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('fast check selects a test whose fast-covers prefix matches a changed path', () => {
+  const covering = new Map([
+    [
+      'test/portability/fixtures.test.ts',
+      "// fast-covers: src/repo/ src/adopt/\nimport x from 'y';",
+    ],
+    ['test/other.test.ts', 'no header; mentions src/repo/ in prose only'],
+  ]);
+  assert.deepEqual(selectTests(['src/repo/contract.ts'], covering), [
+    'test/portability/fixtures.test.ts',
+  ]);
+  assert.deepEqual(selectTests(['src/adopt/adopt.ts'], covering), [
+    'test/portability/fixtures.test.ts',
+  ]);
+  assert.deepEqual(selectTests(['src/task/claim.ts'], covering), []);
+});
+
+// Regression (t-ef75x2q): fast passed while CI's Weakened tests step failed on net removed assertions.
+test('fast check fails naming weak-tests when the working tree removes an assertion', () => {
+  const { dir, git } = repoWithChange();
+  const body =
+    "import assert from 'node:assert/strict';\nassert.equal(1, 1);\n";
+  writeFileSync(join(dir, 'test/x.test.ts'), `${body}assert.equal(2, 2);\n`);
+  git('add', '.');
+  git('commit', '-qm', 'adds a test');
+  writeFileSync(join(dir, 'test/x.test.ts'), body);
+  stubTools(dir, 'exit 0');
+  const result = runFast(dir);
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stdout, /fast FAIL \(weak-tests\)/u);
+  assert.match(
+    result.stdout,
+    /test\/x\.test\.ts: net 1 assertion\(s\) removed/u,
+  );
+});
