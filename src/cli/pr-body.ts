@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
+import { contractBase } from '../repo/contract.ts';
 import { taskLookupRoot } from '../task/claims.ts';
 import { isTaskId, type TaskRecord } from '../task/record.ts';
 import { loadTaskIndex, repositoryRoot } from '../task/store.ts';
@@ -7,7 +8,7 @@ import { flagValue } from './flag-value.ts';
 import { CliUsageError } from './usage-error.ts';
 
 export const prBodyUsage =
-  'krn pr body --task ID [--verified TEXT] [--agent TEXT] [--refs] [--base REF] [--worktree PATH] [--out PATH]  print the PR body (Problem/Change/Verification/Task/Agent) from the task record and the commits since the base, both read from the worktree (default: the current one); the author only reviews it';
+  'krn pr body --task ID [--verified TEXT] [--agent TEXT] [--refs] [--base REF (default origin/<contract base>)] [--worktree PATH] [--out PATH]  print the PR body (Problem/Change/Verification/Task/Agent) from the task record and the commits since the base, both read from the worktree (default: the current one); the author only reviews it';
 
 export interface BodyInput {
   task: TaskRecord;
@@ -79,7 +80,7 @@ export function prBodyCommand(args: string[]): string {
   let verified = '';
   let agent = 'Claude Sonnet 5.5 in Claude Code';
   let refs = false;
-  let base = 'origin/main';
+  let base: string | undefined;
   let out: string | undefined;
   let worktree: string | undefined;
   for (let i = 0; i < args.length; i++) {
@@ -120,7 +121,7 @@ export function prBodyCommand(args: string[]): string {
   if (task === undefined) throw new CliUsageError(`Unknown task ${id}`);
   const text = renderPrBody({
     task,
-    commits: commitsSince(root, base),
+    commits: commitsSince(root, base ?? `origin/${contractBase(root)}`),
     verified,
     agent,
     refs,

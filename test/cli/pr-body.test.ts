@@ -126,3 +126,33 @@ test('krn pr body --worktree finds a task created only in that worktree', () => 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('krn pr body defaults the base to the contract base branch', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pr-body-base-'));
+  try {
+    const git = (...a: string[]) =>
+      spawnSync('git', ['-C', dir, ...a], { encoding: 'utf8' });
+    git('init', '-q', '-b', 'master');
+    git('config', 'user.name', 't');
+    git('config', 'user.email', 't@example.invalid');
+    mkdirSync(join(dir, 'tasks'));
+    writeFileSync(
+      join(dir, 'tasks', 't-abc1234.json'),
+      `${JSON.stringify(task, null, 2)}\n`,
+    );
+    writeFileSync(join(dir, 'krn.json'), '{"base": "master"}\n');
+    git('add', '.');
+    git('commit', '-qm', 'seed');
+    git('update-ref', 'refs/remotes/origin/master', 'HEAD');
+    git('commit', '-q', '--allow-empty', '-m', 'feat(x): one (t-abc1234)');
+    const result = spawnSync(
+      process.execPath,
+      [cli, 'pr', 'body', '--task', 't-abc1234'],
+      { cwd: dir, encoding: 'utf8' },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /- feat\(x\): one \(t-abc1234\)/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

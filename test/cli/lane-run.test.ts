@@ -677,18 +677,31 @@ test('lane run takes --goal only without a tracker and --task only with one', as
   }
 });
 
-test('lane run on a base other than main stops before a session is spent', async () => {
-  const { base, repo } = fixture('exit 1');
+test('a lane on a master base ships with --base master', async () => {
+  const { base, repo, claude } = fixture(
+    'echo x > goal.txt; git add goal.txt; git commit -qm "feat(x): goal done"',
+  );
+  withContract(repo, { base: 'master', test: 'true', tracker: 'none' });
+  git(repo, 'branch', 'master');
+  git(repo, 'push', '-q', 'origin', 'master');
+  process.env.KRN_LANE_CLAUDE = claude;
+  const shipped: string[][] = [];
   try {
-    withContract(repo, { base: 'master', test: 'true', tracker: 'none' });
     const verdict = await laneRunCommand(['--goal', 'x', '--root', repo], {
-      start: async () => assert.fail('no lane may start'),
-      ship: async () => 'unreachable',
-      mint: async () => assert.fail('no token may be minted'),
+      start: startLane,
+      ship: async (args) => {
+        shipped.push(args);
+        return 'verdict: merged abc1234';
+      },
+      mint: async () => undefined,
     });
-    assert.equal(verdict.exitCode, 74);
-    assert.match(verdict.line, /base master cannot ship yet/u);
+    assert.equal(verdict.exitCode, 0, verdict.line);
+    const args = shipped[0] ?? [];
+    assert.equal(args[args.indexOf('--base') + 1], 'master');
+    assert.equal(args[args.indexOf('--title') + 1], 'feat(x): goal done');
+    assert.match(verdict.line, /^lane goal-x: shipped /u);
   } finally {
+    delete process.env.KRN_LANE_CLAUDE;
     rmSync(base, { recursive: true, force: true });
   }
 });

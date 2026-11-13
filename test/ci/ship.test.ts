@@ -20,6 +20,8 @@ function receiver(options: {
   existing?: string;
   dirty?: boolean;
   branch?: string;
+  target?: string;
+  cwd?: string;
   createRefusal?: string;
   rule?: { code: number; stderr: string };
 }) {
@@ -79,7 +81,8 @@ function receiver(options: {
       return out(`${options.branch ?? 'feat-x'}\n`);
     if (a[0] === 'status') return out(options.dirty ? ' M f\n' : '');
     if (line === 'rev-parse HEAD') return out(`${head}\n`);
-    if (line === 'rev-parse origin/main') return out(`${base}\n`);
+    if (line === `rev-parse origin/${options.target ?? 'main'}`)
+      return out(`${base}\n`);
     if (line === 'rev-parse --show-toplevel')
       return out('/r/.krn/worktrees/feat-x\n');
     if (a.includes('--git-common-dir')) return out('/r/.git\n');
@@ -92,7 +95,7 @@ function receiver(options: {
     dirs,
     run,
     gh,
-    cwd: '/r/.krn/worktrees/feat-x',
+    cwd: options.cwd ?? '/r/.krn/worktrees/feat-x',
     now: () => time,
     sleep: async (ms: number) => {
       time += ms;
@@ -128,6 +131,22 @@ test('ship pushes, creates, auto-merges, waits through the merge and cleans up',
     at = found;
   }
   assert.ok(r.calls.some((c) => c.includes(`--title ${title}`)));
+});
+
+test('ship on a repository whose default branch is master opens the PR against master', async () => {
+  const r = receiver({ pulls: [auto, merged], target: 'master' });
+  const out = await shipCommand(args, { ...r, baseOf: () => 'master' });
+  assert.match(out, /^verdict: merged /mu);
+  const create = r.calls.find((c) => c.startsWith('gh pr create')) ?? '';
+  assert.match(create, /--base master /u);
+  assert.ok(r.calls.includes('git fetch -q origin master'));
+  assert.ok(!r.calls.some((c) => c.includes('origin/main')));
+});
+
+test('ship --base overrides the contract base', async () => {
+  const r = receiver({ pulls: [auto, merged], target: 'dev' });
+  await shipCommand([...args, '--base', 'dev'], r);
+  assert.ok(r.calls.some((c) => /^gh pr create .*--base dev /u.test(c)));
 });
 
 test('ship reuses the open PR of the branch instead of creating another', async () => {
