@@ -601,6 +601,25 @@ test('a missing test runner refuses even though the base fails the same way', ()
   }
 });
 
+test('a test runner that is not executable (exit 126) refuses like a missing one', () => {
+  const dir = stackRepo({
+    'krn.json': JSON.stringify({
+      test: './not-executable.sh',
+      related: './not-executable.sh {files}',
+    }),
+    'not-executable.sh': 'exit 0\n',
+    'notes.txt': 'a\n',
+  });
+  try {
+    commitFile(dir, 'notes.txt', 'b\n');
+    const outcome = inspect(dir);
+    assert.equal(outcome.ok, false);
+    assert.match(outcome.reason, /could not start \(exit 126/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('an invalid krn.json refuses once, naming the contract', () => {
   const dir = stackRepo({ 'krn.json': '{"tests": "x"}', 'a.txt': 'a\n' });
   try {

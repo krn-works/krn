@@ -1,44 +1,67 @@
 // Freeze the FR-40 experiment: write tasks.json (every convention task),
 // material.json (arm B brain packet and arm S static standards per task) and
-// scorer-imports.json (hashes of files the scorer imports from outside evals/fr40)
+// scorer-imports.json (what the scorer's core-imports check returns on a fixed fixture tree)
 // and manifest.json (arms, fixed strata, scorer argv, D20 thresholds, input hashes).
 // `--check` regenerates in memory and exits 1 when a committed file drifted;
 // `--write` rewrites the committed files; any other argument exits 64 and writes nothing.
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { check } from '../../scripts/boundaries.ts';
 import { fr40Packet } from '../../src/brain/cli.ts';
 import { generate } from './tasks.ts';
 
 const here = new URL('./', import.meta.url);
 
-const dir = fileURLToPath(here);
-const repo = resolve(dir, '../..');
-
-/** Local imports of the given entries, transitively, as absolute paths. */
-export function importClosure(entries: readonly string[]): string[] {
-  const seen = new Set<string>();
-  const visit = (file: string) => {
-    if (seen.has(file)) return;
-    seen.add(file);
-    const text = readFileSync(file, 'utf8');
-    for (const [, specifier] of text.matchAll(
-      /(?:from|import)\s*\(?\s*['"](\.{1,2}\/[^'"]+)['"]/gu,
-    ))
-      visit(resolve(dirname(file), specifier as string));
-  };
-  for (const entry of entries) visit(resolve(dir, entry));
-  return [...seen];
+/**
+ * The core-imports scorer asks scripts/boundaries.ts for violations under src/core, so the
+ * experiment depends on that verdict, not on the file's bytes: this runs the same call on a
+ * fixed tree, and an edit to any other layer leaves the frozen record unchanged.
+ */
+export function coreImportVerdicts(): unknown {
+  const fixture = mkdtempSync(join(tmpdir(), 'fr40-core-imports-'));
+  try {
+    const files: Record<string, string> = {
+      'src/core/own.ts':
+        "import './nested/deep.ts';\nexport * from './sibling.ts';\n",
+      'src/core/sibling.ts': 'export const sibling = 1;\n',
+      'src/core/nested/deep.ts':
+        "import '../sibling.ts';\nimport '../../cli/adapter.ts';\n",
+      'src/core/dynamic.ts':
+        "export const load = () => import('../brain/adapter.ts');\n",
+      'src/core/reexport.ts': "export { adapter } from '../ci/adapter.ts';\n",
+      'src/core/builtin.ts': "import 'node:fs';\n",
+      'src/core/commented.ts': "// import '../cli/adapter.ts';\n",
+      'src/core/top-level.ts': "import '../../core/outside.ts';\n",
+    };
+    for (const [path, text] of Object.entries(files)) {
+      mkdirSync(dirname(join(fixture, path)), { recursive: true });
+      writeFileSync(join(fixture, path), text);
+    }
+    return check(fixture)
+      .filter((violation) => violation.file.startsWith('src/core/'))
+      .map(({ file, line, specifier }) => ({ file, line, specifier }))
+      .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
+  }
 }
 
 const SCORER = ['scorers.ts', 'tasks.ts'];
 
 /**
  * Hashed beside the generated files: the scorer, its task source and the arm
- * material sources. Manifest inputs stay inside the experiment, so files the
- * scorer imports from elsewhere (scripts/boundaries.ts decides core-imports)
- * are hashed into the generated scorer-imports.json.
+ * material sources. Manifest inputs stay inside the experiment, so the one outside
+ * behaviour the scorer uses (scripts/boundaries.ts decides core-imports) is recorded as
+ * its verdicts on a fixed tree in the generated scorer-imports.json.
  */
 const SOURCES = [
   ...SCORER,
@@ -67,17 +90,9 @@ export function freeze(): Record<string, string> {
         ]),
       ),
     ),
-    'scorer-imports.json': json(
-      Object.fromEntries(
-        importClosure(SCORER)
-          .filter((file) => !file.startsWith(dir))
-          .map((file) => [
-            relative(repo, file),
-            sha256(readFileSync(file, 'utf8')),
-          ])
-          .sort(([a], [b]) => (a as string).localeCompare(b as string)),
-      ),
-    ),
+    'scorer-imports.json': json({
+      'src/core violations on a fixed tree': coreImportVerdicts(),
+    }),
   };
   const inputs: Record<string, string> = {};
   for (const path of [...SOURCES, ...Object.keys(files)].sort())

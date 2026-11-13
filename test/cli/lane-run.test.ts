@@ -20,6 +20,7 @@ import {
   goalBrief,
   goalSlug,
   laneRunCommand,
+  mintFailure,
   parseSessionResult,
   sandboxPlaceholders,
   sessionTimeoutMs,
@@ -821,4 +822,20 @@ test('a rerun never resumes a claim another actor holds', async () => {
     delete process.env.KRN_LANE_CLAUDE;
     rmSync(base, { recursive: true, force: true });
   }
+});
+
+test('a token helper run is a failure unless it exited 0, and names its first stderr line', () => {
+  assert.equal(mintFailure({ status: 0, stderr: 'noise' }), undefined);
+  assert.equal(
+    mintFailure({ status: 1, stderr: 'bw serve unavailable\nmore' }),
+    'bw serve unavailable',
+  );
+  assert.equal(
+    mintFailure({ status: null, stderr: '', error: new Error('spawn failed') }),
+    'spawn failed',
+  );
+  assert.equal(
+    mintFailure({ status: 3, stderr: '' }),
+    'token helper exited with status 3',
+  );
 });
