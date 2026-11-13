@@ -37,6 +37,9 @@ import {
 } from '../../src/cli/lane-run.ts';
 import { claimTask, inspectClaim } from '../../src/task/claims.ts';
 
+// A lane session exports its class; these tests start lanes of their own.
+delete process.env.KRN_SESSION_CLASS;
+
 // KRN-12: the session result is a verbatim `claude -p --output-format json` capture;
 // a stand-in claude executable prints it, the repositories are real git repositories.
 const capture = readFileSync(
@@ -1200,6 +1203,29 @@ test('a red baseline whose failing files fail again refuses with 72 and names th
     assert.equal(refusal?.exitCode, 72);
     assert.match(refusal?.detail ?? '', /failing: test\/flaky\.test\.ts\)/u);
   } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('lane run removes the empty placeholders a session left in the main checkout and keeps a non-empty one', async () => {
+  const { base, repo, claude } = fixture('');
+  const gitDir = join(repo, '.git');
+  writeFileSync(
+    claude,
+    `#!/bin/sh\n: > '${join(repo, '.mcp.json')}'; : > '${join(gitDir, 'config.lock')}'; chmod 444 '${join(repo, '.mcp.json')}' '${join(gitDir, 'config.lock')}'; echo keep > '${join(repo, '.npmrc')}'; ${deliver()}\ncat <<'JSON'\n${capture}\nJSON\n`,
+  );
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    await laneRunCommand(['--task', 't-abc1234', '--root', repo], {
+      start: startLane,
+      ship: async () => 'verdict: merged abc1234',
+      mint: async () => undefined,
+    });
+    assert.equal(existsSync(join(repo, '.mcp.json')), false);
+    assert.equal(existsSync(join(gitDir, 'config.lock')), false);
+    assert.equal(existsSync(join(repo, '.npmrc')), true);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
     rmSync(base, { recursive: true, force: true });
   }
 });

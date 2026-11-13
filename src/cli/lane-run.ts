@@ -16,6 +16,7 @@ import {
   contractTracker,
   findContract,
 } from '../repo/contract.ts';
+import { mainCheckoutPlaceholders } from '../state/sandbox-placeholders.ts';
 import {
   claimTask,
   inspectClaim,
@@ -728,6 +729,8 @@ export async function laneRunCommand(
           }
         : parseSessionResult(session.stdout ?? '', session.stderr ?? '');
     notStarted = session.error !== undefined && !timedOut;
+    // The session's sandbox can leave empty placeholders in the main checkout and its git dir.
+    for (const path of mainCheckoutPlaceholders(main)) rmSync(path);
     return result;
   };
   const unusable = delivered

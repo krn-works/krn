@@ -17,6 +17,9 @@ import { fileURLToPath } from 'node:url';
 import { startLane } from '../../src/cli/lane.ts';
 import { laneRunCommand } from '../../src/cli/lane-run.ts';
 
+// A lane session exports its class; these tests start lanes of their own.
+delete process.env.KRN_SESSION_CLASS;
+
 // KRN-12: `krn lane run` end to end on an outside-shaped repository, the shape of the first outside
 // pilot: no root package.json, code in packages/x, a krn.json contract with npm --prefix, a local
 // bare remote. The session is a script that does what Claude did there. Only the GitHub steps

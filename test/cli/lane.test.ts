@@ -17,6 +17,9 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { fetchBase } from '../../src/cli/lane.ts';
 
+// A lane session exports its class; these tests start lanes of their own.
+delete process.env.KRN_SESSION_CLASS;
+
 // KRN-12: runs `krn lane start` against real temporary git repositories.
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 
