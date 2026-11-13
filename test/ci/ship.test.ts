@@ -16,6 +16,7 @@ const line0 = (a: string[]) => a.join(' ');
 
 function receiver(options: {
   pulls: Array<Record<string, unknown>>;
+  hasRule?: boolean;
   check?: string;
   existing?: string;
   mergedBefore?: string;
@@ -107,6 +108,7 @@ function receiver(options: {
     run,
     gh,
     cwd: options.cwd ?? '/r/.krn/worktrees/feat-x',
+    hasFile: () => options.hasRule ?? true,
     now: () => time,
     sleep: async (ms: number) => {
       time += ms;
@@ -377,4 +379,11 @@ test('an empty diff with no matching merged PR still refuses', async () => {
     assert.doesNotMatch(error.message, /already carries/u);
     return true;
   });
+});
+
+test('an adopted repository without the instruction-bytes rule ships without running it', async () => {
+  const r = receiver({ pulls: [auto, merged], hasRule: false });
+  await shipCommand(args, r);
+  assert.ok(!r.calls.some((c) => c.startsWith('node --test')));
+  assert.ok(r.calls.some((c) => c.includes('push')));
 });

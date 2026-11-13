@@ -1,6 +1,7 @@
 ---
 name: delivery-retro
 description: Run a short retrospective before a slice's last commit or when it stops, and turn each lesson into an executable check, a repository rule or a task. Use at the end of a slice; skip mid-slice.
+compatibility: Requires the krn CLI on PATH and git; works in any repository stack, reading commands from `krn repo contract`.
 ---
 
 # Delivery retro

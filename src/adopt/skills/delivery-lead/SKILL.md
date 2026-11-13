@@ -1,6 +1,7 @@
 ---
 name: delivery-lead
 description: Lead delivery in this repository: pick one slice, code it in its own worktree, ship it through auto-merge on the required check, and brief parallel lanes. Use when resuming the delivery loop or starting a slice; skip for a single read-only question.
+compatibility: Requires the krn CLI on PATH and git; works in any repository stack, reading commands from `krn repo contract`.
 ---
 
 # Delivery lead

@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import {
@@ -40,6 +41,8 @@ export async function shipCommand(
     now?: () => number;
     /** The repo contract base for a worktree; the cli supplies it, the default is main. */
     baseOf?: (cwd: string) => string;
+    /** Whether `path` exists under `cwd`; the default reads the file system. */
+    hasFile?: (cwd: string, path: string) => boolean;
   } = {},
 ): Promise<string> {
   let values: ReturnType<typeof parse>;
@@ -165,7 +168,12 @@ export async function shipCommand(
     );
   }
 
-  const rule = runner('node', ['--test', instructionBytesRule], cwd);
+  // The rule is KRN's own; an adopted repository without it ships without it.
+  const hasFile =
+    runtime.hasFile ?? ((at, path) => existsSync(resolve(at, path)));
+  const rule = hasFile(cwd, instructionBytesRule)
+    ? runner('node', ['--test', instructionBytesRule], cwd)
+    : { code: 0, stdout: '', stderr: '' };
   if (rule.code !== 0)
     throw Object.assign(
       new Error(
