@@ -260,3 +260,73 @@ test('an undetected stack prints the fields to write', () => {
       /\{files\}/.test(e.message),
   );
 });
+
+test('an installable Python project gets a venv install with its test extra or group, and tests run in that venv', () => {
+  const venv = (target: string) =>
+    `python3 -m venv .venv && .venv/bin/python -m pip install ${target}`;
+  const cases: [Record<string, string>, string | undefined, string][] = [
+    // humanize 4.17.0 pyproject.toml shape: dotted optional-dependencies under [project].
+    [
+      {
+        'pyproject.toml':
+          '[build-system]\nbuild-backend = "hatchling.build"\n\n[project]\nname = "humanize"\noptional-dependencies.tests = [\n  "freezegun",\n  "pytest>=9",\n]\n',
+      },
+      venv(`-e '.[tests]'`),
+      '.venv/bin/python -m pytest',
+    ],
+    [
+      {
+        'pyproject.toml':
+          '[project]\nname = "x"\n\n[project.optional-dependencies]\ndocs = ["mkdocs"]\ndev = ["pytest"]\n',
+      },
+      venv(`-e '.[dev]'`),
+      '.venv/bin/python -m pytest',
+    ],
+    [
+      {
+        'pyproject.toml':
+          '[project]\nname = "x"\n\n[dependency-groups]\ntest = ["pytest"]\n',
+      },
+      venv('-e . --group test'),
+      '.venv/bin/python -m pytest',
+    ],
+    [
+      { 'pyproject.toml': '[project]\nname = "x"\n' },
+      venv('-e . pytest'),
+      '.venv/bin/python -m pytest',
+    ],
+    [{ 'setup.py': '' }, venv('-e . pytest'), '.venv/bin/python -m pytest'],
+    // Configuration only, nothing to install: the interpreter on PATH.
+    [
+      { 'pyproject.toml': '[tool.pytest.ini_options]\n' },
+      undefined,
+      'python -m pytest',
+    ],
+    [
+      { 'pyproject.toml': '[project]\nname = "x"\n', 'uv.lock': '' },
+      'uv sync --all-extras',
+      'uv run pytest',
+    ],
+    [
+      { 'pyproject.toml': '[tool.poetry]\nname = "x"\n', 'poetry.lock': '' },
+      'poetry install',
+      'poetry run pytest',
+    ],
+  ];
+  for (const [files, install, testCommand] of cases) {
+    const { contract } = resolveContract(fixture(files));
+    assert.equal(contract.install, install, JSON.stringify(files));
+    assert.equal(contract.test, testCommand, JSON.stringify(files));
+    assert.equal(contract.related, `${testCommand} {files}`);
+  }
+});
+
+test('krn.json naming its own test command never inherits the detected install', () => {
+  const { contract } = resolveContract(
+    fixture({
+      'pyproject.toml': '[project]\nname = "x"\n',
+      'krn.json': JSON.stringify({ test: 'tox' }),
+    }),
+  );
+  assert.equal(contract.install, undefined);
+});

@@ -92,6 +92,7 @@ interface Detected {
   test: string;
   related?: string;
   fast?: string;
+  install?: string;
 }
 
 function readJson(path: string): Record<string, unknown> | undefined {
@@ -223,12 +224,75 @@ function detectPython(root: string): Detected | undefined {
   ];
   const hasMarker = markers.some((file) => existsSync(join(root, file)));
   if (!hasMarker) return detectUnittest(root);
-  const pytest = existsSync(join(root, 'uv.lock'))
-    ? 'uv run pytest'
-    : existsSync(join(root, 'poetry.lock'))
-      ? 'poetry run pytest'
-      : 'python -m pytest';
-  return { stack: 'python', test: pytest, related: `${pytest} {files}` };
+  if (existsSync(join(root, 'uv.lock')))
+    return python('uv run pytest', 'uv sync --all-extras');
+  if (existsSync(join(root, 'poetry.lock')))
+    return python('poetry run pytest', 'poetry install');
+  const install = pipInstall(root);
+  // A system interpreter is externally managed on most hosts (PEP 668): an installable project gets its own venv.
+  return install
+    ? python(`${VENV_PYTHON} -m pytest`, install)
+    : python('python -m pytest');
+}
+
+const VENV_PYTHON = '.venv/bin/python';
+
+function python(pytest: string, install?: string): Detected {
+  return {
+    stack: 'python',
+    test: pytest,
+    related: `${pytest} {files}`,
+    ...(install ? { install } : {}),
+  };
+}
+
+const TEST_EXTRAS = ['tests', 'test', 'dev'];
+
+/** A venv install of an installable project (pyproject [project] or setup.py) with its test extra or group, else with pytest. */
+function pipInstall(root: string): string | undefined {
+  let text = '';
+  try {
+    text = readFileSync(join(root, 'pyproject.toml'), 'utf8');
+  } catch {}
+  const installable =
+    /^\[project\]\s*$/mu.test(text) || existsSync(join(root, 'setup.py'));
+  if (!installable) return undefined;
+  const { extras, groups } = testSelectors(text);
+  const extra = TEST_EXTRAS.find((name) => extras.has(name));
+  const group = TEST_EXTRAS.find((name) => groups.has(name));
+  const target = extra
+    ? `-e '.[${extra}]'`
+    : group
+      ? `-e . --group ${group}`
+      : '-e . pytest';
+  return `python3 -m venv .venv && ${VENV_PYTHON} -m pip install ${target}`;
+}
+
+/** Optional-dependency extras and PEP 735 dependency groups a pyproject declares, in table or dotted-key form. */
+function testSelectors(text: string): {
+  extras: Set<string>;
+  groups: Set<string>;
+} {
+  const extras = new Set<string>();
+  const groups = new Set<string>();
+  let table = '';
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    const header = /^\[([^[\]]+)\]$/u.exec(line);
+    if (header?.[1]) {
+      table = header[1].trim();
+      continue;
+    }
+    const key = /^([A-Za-z0-9_.-]+)\s*=/u.exec(line)?.[1];
+    if (!key) continue;
+    if (table === 'project.optional-dependencies') extras.add(key);
+    else if (table === 'dependency-groups') groups.add(key);
+    else if (table === 'project' && key.startsWith('optional-dependencies.'))
+      extras.add(key.slice('optional-dependencies.'.length));
+    else if (table === '' && key.startsWith('dependency-groups.'))
+      groups.add(key.slice('dependency-groups.'.length));
+  }
+  return { extras, groups };
 }
 
 function detectMakeTest(root: string): Detected | undefined {
@@ -426,12 +490,16 @@ export function findContract(root: string): ResolvedContract | undefined {
   if (test === undefined) return undefined;
   const related = declared?.related ?? detected?.related;
   const fast = declared?.fast ?? detected?.fast;
+  // A detected install belongs to the detected test command; krn.json naming its own test keeps its own install.
+  const install =
+    declared?.install ??
+    (declared?.test === undefined ? detected?.install : undefined);
   const contract: RepoContract = {
     base: declared?.base ?? detectBase(root),
     test,
     ...(related ? { related } : {}),
     ...(fast ? { fast } : {}),
-    ...(declared?.install ? { install: declared.install } : {}),
+    ...(install ? { install } : {}),
     ...(declared?.guard ? { guard: declared.guard } : {}),
     ...(declared?.conventions ? { conventions: declared.conventions } : {}),
     tracker: contractTracker(root),

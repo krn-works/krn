@@ -1,0 +1,12 @@
+{
+  "id": "t-2y7e1mz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "npm run fast selects the CLI-subprocess tests that assert a changed src module",
+  "after": [],
+  "body": [
+    "Why: slice t-g4aebj8 changed src/repo/contract.ts detection; `npm run fast` reported PASS on 28 tests, yet test/adopt/adopt.test.ts, test/adopt/universal-skills.test.ts and test/cli/lane-brief.test.ts (which assert the detected Python command through the CLI) failed when run directly. fast selects by import or name, and those tests reach contract.ts only through bin/krn subprocesses.\nOutcome: `npm run fast` on a change to src/repo/contract.ts (or any module the CLI reaches) also runs the tests that spawn bin/krn and assert that module's output, e.g. by mapping CLI-subprocess tests to the src modules the CLI command imports; a regression test changes contract.ts in a fixture and lists those three tests in the selection.\nProof: fast selection test in test/ naming the three files for a contract.ts change."
+  ]
+}

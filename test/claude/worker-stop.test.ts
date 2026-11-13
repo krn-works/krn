@@ -698,7 +698,7 @@ test('a failure naming no test refuses even when the base fails the same way', (
     const outcome = inspect(dir, () => [], bothExit1);
     assert.equal(outcome.ok, false);
     assert.equal(outcome.ignored, 0);
-    assert.match(outcome.reason, /<run> :: exit 1/u);
+    assert.match(outcome.reason, /failed before naming any test \(exit 1\)/u);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -815,6 +815,35 @@ test('a base failure from a missing module never makes a worktree failure pre-ex
     );
     assert.equal(outcome.ok, false);
     assert.match(outcome.reason, /tests\/a\.test\.ts/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a Python run without its runner is refused as a missing module, never as a test that passed at the base', () => {
+  // Verbatim capture: `python -m pytest` in a krn-pilot-py clone before the install ran.
+  const keys = failuresIn('/usr/bin/python: No module named pytest\n', 1);
+  assert.deepEqual(keys, ['<run>::exit 1', '<run>::missing dependency']);
+  const dir = stackRepo({
+    'krn.json': JSON.stringify({
+      install: 'python3 -m venv .venv',
+      test: 'python -m pytest',
+      related: 'python -m pytest {files}',
+    }),
+    'notes.txt': 'a\n',
+  });
+  try {
+    commitFile(dir, 'notes.txt', 'b\n');
+    const outcome = inspect(
+      dir,
+      () => [],
+      () => keys,
+    );
+    assert.equal(outcome.ok, false);
+    assert.doesNotMatch(outcome.reason, /passed at the base/u);
+    assert.match(outcome.reason, /failed before naming any test/u);
+    assert.match(outcome.reason, /module or tool is missing/u);
+    assert.match(outcome.reason, /python3 -m venv \.venv/u);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -263,15 +263,29 @@ function isSymlink(path: string): boolean {
 function ignoreAgentState(root: string, report: AdoptionReport): void {
   const path = join(root, '.gitignore');
   const current = existsSync(path) ? readFileSync(path, 'utf8') : '';
-  if (current.split('\n').some((line) => line.trim() === '.krn/')) {
+  const lines = new Set(current.split('\n').map((line) => line.trim()));
+  // A venv the contract install creates inside every worktree is never a tracked input.
+  const venv = /(?:^|[\s/])\.venv\b/u.test(installOf(root) ?? '');
+  const missing = ['.krn/', ...(venv ? ['.venv/'] : [])].filter(
+    (entry) => !lines.has(entry) && !lines.has(entry.slice(0, -1)),
+  );
+  if (missing.length === 0) {
     report.unchanged.push('.gitignore');
     return;
   }
   appendFileSync(
     path,
-    `${current === '' || current.endsWith('\n') ? '' : '\n'}.krn/\n`,
+    `${current === '' || current.endsWith('\n') ? '' : '\n'}${missing.join('\n')}\n`,
   );
   report.written.push('.gitignore');
+}
+
+function installOf(root: string): string | undefined {
+  try {
+    return findContract(root)?.contract.install;
+  } catch {
+    return undefined;
+  }
 }
 
 function seedTasks(root: string, report: AdoptionReport): void {
@@ -315,8 +329,13 @@ function writeContract(
     return;
   }
   const { contract } = found ?? {};
+  // Lane worktrees, the canary and the Stop gate run this install before the test command.
+  const install =
+    options.install ??
+    (options.test === undefined ? contract?.install : undefined);
   const body = {
     base: contract?.base ?? detectBase(root),
+    ...(install === undefined ? {} : { install }),
     test,
     ...(contract?.related && options.test === undefined
       ? { related: contract.related }
