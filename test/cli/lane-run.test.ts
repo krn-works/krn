@@ -26,6 +26,7 @@ import {
   sandboxPlaceholders,
   sessionTimeoutMs,
   taskBrief,
+  ticketCommitTitle,
   tokenMinimumRemainingSeconds,
 } from '../../src/cli/lane-run.ts';
 import { claimTask, inspectClaim } from '../../src/task/claims.ts';
@@ -518,6 +519,20 @@ test('lane run refuses to ship when no check passed on the final tree', async ()
   const { verdict } = await run(deliver('feat(x): done (t-abc1234)', false));
   assert.equal(verdict.exitCode, 74);
   assert.match(verdict.line, /no passing check on the final tree/u);
+});
+
+test('a Ticket line outside the trailer block still names the task', () => {
+  // Seen on pilot lane t-g1fc0cz: Ticket, a blank line, then Co-Authored-By.
+  const log =
+    'fix(onsite): treat empty alt as decorative (t-g1fc0cz)\x1fTicket: t-g1fc0cz\n\nCo-Authored-By: Claude <noreply@anthropic.com>\n\x1e';
+  assert.equal(
+    ticketCommitTitle(log, 't-g1fc0cz'),
+    'fix(onsite): treat empty alt as decorative (t-g1fc0cz)',
+  );
+  assert.equal(
+    ticketCommitTitle('feat(x): y\x1fRefs: t-g1fc0cz\n\x1e', 't-g1fc0cz'),
+    undefined,
+  );
 });
 
 test('lane run refuses to ship without a commit carrying the Ticket trailer', async () => {
