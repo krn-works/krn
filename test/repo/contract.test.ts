@@ -187,6 +187,12 @@ test('unittest, phpunit, nested modules and workspaces are detected with test an
       [
         { 'tests/test_a.py': 'import unittest\n' },
         'python/unittest',
+        'python -m unittest discover -s tests',
+        'python -m unittest {files}',
+      ],
+      [
+        { 'test_a.py': 'import unittest\n' },
+        'python/unittest',
         'python -m unittest discover',
         'python -m unittest {files}',
       ],

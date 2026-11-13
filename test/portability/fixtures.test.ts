@@ -107,7 +107,7 @@ test('fixture 1: python pyproject with pytest is detected and carried into CI', 
   });
 });
 
-test('fixture 2: requirements.txt with unittest has no contract and says so', () => {
+test('fixture 2: requirements.txt with unittest in tests/ runs discover from that directory', () => {
   withRepository(
     {
       'requirements.txt': 'requests\n',
@@ -116,18 +116,18 @@ test('fixture 2: requirements.txt with unittest has no contract and says so', ()
     },
     (root) => {
       const done = adopt(root);
-      assert.match(
-        done.stdout,
-        /skipped krn\.json \(no test command detected/u,
-      );
-      assert.match(done.stdout, /skipped \.github\/workflows\/ci\.yml/u);
+      assert.match(done.stdout, /wrote krn\.json/u);
       const contract = krn(root, 'repo', 'contract');
-      assert.equal(contract.status, 65);
-      assert.match(contract.stderr, /no test command/u);
+      assert.equal(contract.status, 0, contract.stderr);
+      assert.match(contract.stdout, /python -m unittest discover -s tests/u);
+      assert.match(
+        workflow(root),
+        /^ {6}test: "python -m unittest discover -s tests"$/mu,
+      );
+      assert.equal(stopHook(root), stopCommand);
     },
   );
 });
-
 test('fixture 3: go module is detected, carried into CI and runs the guarded Stop hook', () => {
   withRepository(
     {
@@ -208,7 +208,7 @@ test('fixture 9: a repository with no stack adopts without a contract', () => {
   });
 });
 
-test('fixture 10: php composer with phpunit is not detected and says so', () => {
+test('fixture 10: php composer with phpunit runs vendor/bin/phpunit', () => {
   withRepository(
     {
       'composer.json': '{"require-dev":{"phpunit/phpunit":"^11"}}\n',
@@ -217,15 +217,13 @@ test('fixture 10: php composer with phpunit is not detected and says so', () => 
     },
     (root) => {
       const done = adopt(root);
-      assert.match(
-        done.stdout,
-        /skipped krn\.json \(no test command detected/u,
-      );
-      assert.equal(krn(root, 'repo', 'contract').status, 65);
+      assert.match(done.stdout, /wrote krn\.json/u);
+      const contract = krn(root, 'repo', 'contract');
+      assert.equal(contract.status, 0, contract.stderr);
+      assert.match(contract.stdout, /vendor\/bin\/phpunit/u);
     },
   );
 });
-
 test('fixture 11: an adoption that is not on origin yet stops lane start with the remedy', () => {
   withRepository(pytestProject, (root) => {
     const bare = mkdtempSync(join(tmpdir(), 'krn-portability-origin-'));

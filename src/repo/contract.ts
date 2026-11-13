@@ -177,14 +177,16 @@ function pythonTestFiles(dir: string): string[] {
 
 // A Python repository without pytest markers whose tests import unittest.
 function detectUnittest(root: string): Detected | undefined {
-  for (const dir of [root, join(root, 'tests'), join(root, 'test')]) {
+  for (const sub of ['', 'tests', 'test']) {
+    const dir = join(root, sub);
     const usesUnittest = pythonTestFiles(dir).some((file) =>
       /\bunittest\b/.test(readFileSync(join(dir, file), 'utf8')),
     );
+    // Plain discover skips a tests/ directory without __init__.py and exits 5 (no tests ran).
     if (usesUnittest)
       return {
         stack: 'python/unittest',
-        test: 'python -m unittest discover',
+        test: sub === '' ? 'python -m unittest discover' : `python -m unittest discover -s ${sub}`,
         related: 'python -m unittest {files}',
       };
   }
