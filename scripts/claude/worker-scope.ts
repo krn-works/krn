@@ -76,6 +76,13 @@ function taskScope(root: string, id: string): string[] | undefined {
 }
 
 /** The worker identity of this session, or undefined for the lead. */
+// A task id stands alone in a branch or path: `verdict-evidence` holds `t-evidenc`, which is no id.
+const taskIdToken = /(?<![a-z0-9])t-[a-z0-9]{7}(?![a-z0-9])/u;
+
+export function taskId(text: string): string | undefined {
+  return taskIdToken.exec(text)?.[0];
+}
+
 export function worker(
   env: NodeJS.ProcessEnv,
   root: string,
@@ -84,10 +91,7 @@ export function worker(
   const lane = env.KRN_SESSION_CLASS === 'lane';
   if (!lane && env.KRN_ROLE !== 'worker') return undefined;
   if (env.KRN_SCOPE !== undefined) return { scope: parseScope(env.KRN_SCOPE) };
-  const id =
-    env.KRN_TASK ??
-    /t-[a-z0-9]{7}/u.exec(branch)?.[0] ??
-    /t-[a-z0-9]{7}/u.exec(root)?.[0];
+  const id = env.KRN_TASK ?? taskId(branch) ?? taskId(root);
   const scope = id === undefined ? undefined : taskScope(root, id);
   if (scope) return { scope };
   if (!lane) return { scope: [] };

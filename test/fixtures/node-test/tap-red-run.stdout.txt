@@ -1,0 +1,56 @@
+
+> krn@0.1.0 test
+> node scripts/test-suite.mjs
+
+Isolation capability probe: bwrap=available; systemd user scope=available
+Test shard plan: K=4; parallel groups=4
+Warning: unable to resolve the parent pnpm store; shards will not receive pnpm_config_store_dir (mise ERROR pnpm@12.10.1 not installed
+mise ERROR Version: 2026.11.5 linux-x64 (2026-11-09)
+mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information)
+TAP version 13
+# Subtest: adopt writes the task directory, rules block, ignore entry and Check workflow call
+ok 1 - adopt writes the task directory, rules block, ignore entry and Check workflow call
+# Subtest: an invalid krn.json refuses once, naming the contract
+ok 75 - an invalid krn.json refuses once, naming the contract
+  ---
+  duration_ms: 63.78855
+  type: 'test'
+  ...
+# Subtest: a crash in the Stop check refuses with exit 2, and a continued stop is let go
+ok 76 - a crash in the Stop check refuses with exit 2, and a continued stop is let go
+  ---
+  duration_ms: 0.984895
+  type: 'test'
+  ...
+# Subtest: a lane session with slug fix-x is blocked at Stop without a commit, and one with no identity is refused
+not ok 77 - a lane session with slug fix-x is blocked at Stop without a commit, and one with no identity is refused
+  ---
+  duration_ms: 93.285495
+  type: 'test'
+  location: '/work/repo/test/claude/worker-stop.test.ts:658:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /names no task/u. Input:
+    
+    'Stop refused: there is no commit on this branch yet. Commit your change (run `the tests` first), or end with a line `BLOCKER: <what stops you>`.'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: 'Stop refused: there is no commit on this branch yet. Commit your change (run `the tests` first), or end with a line `BLOCKER: <what stops you>`.'
+  operator: 'match'
+  stack: |-
+    TestContext.<anonymous> (file:///work/repo/test/claude/worker-stop.test.ts:677:12)
+    Test.runInAsyncScope (node:async_hooks:227:14)
+    Test.run (node:internal/test_runner/test:1402:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+    Test.postRun (node:internal/test_runner/test:1542:19)
+    Test.run (node:internal/test_runner/test:1467:12)
+    async Test.processPendingSubtests (node:internal/test_runner/test:974:7)
+  ...
+# Subtest: a failure naming no test refuses even when the base fails the same way
+ok 78 - a failure naming no test refuses even when the base fails the same way
+  ---
+  duration_ms: 115.779982
+  type: 'test'
+  ...

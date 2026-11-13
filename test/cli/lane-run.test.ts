@@ -1080,6 +1080,17 @@ test('failingTests names the failing file of a red node --test run', () => {
   );
 });
 
+test('failingTests names the file of a red node:test TAP run, so a preamble warning is never the baseline reason', () => {
+  const stdout = fixtureText('node-test/tap-red-run.stdout.txt');
+  assert.deepEqual(failingTests(stdout), [
+    '/work/repo/test/claude/worker-stop.test.ts',
+  ]);
+  assert.equal(
+    baselineReason({ status: 1, stdout, stderr: '' }),
+    'exit 1; failing: /work/repo/test/claude/worker-stop.test.ts',
+  );
+});
+
 test('failingTests reads plain jest and pytest failure lines', () => {
   assert.deepEqual(
     failingTests(
