@@ -11,6 +11,8 @@ import {
 } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
 import { precedentSection } from '../brain/precedent.ts';
+import { briefStandards } from '../brain/standards.ts';
+import { PROJECT_STANDARDS, readProject } from '../brain/standards-cli.ts';
 import { lanePacket, packetBrief } from '../brain/worker-packet.ts';
 import {
   CEILING_WINDOW_PRS,
@@ -29,7 +31,7 @@ export const laneUsage = [
   'krn lane start SLUG [--task ID] [--actor NAME] [--reason TEXT] [--class delivery|non-delivery] [--root DIR]  fetch the repo contract base branch from origin, create branch SLUG from it in .krn/worktrees/SLUG, claim the task; a non-delivery lane is refused while `krn ledger --check-ceiling` is over; prints the path and branch',
   'krn lane run (--task ID | --goal TEXT) [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]  start the lane (or reuse its worktree and take its claim again after a failed run), run one headless claude session on the task record, ship the commit through `krn pr ship`; prints one verdict line, exit 0 only when merged; before the session a preflight checks origin with the lane credentials and the sandbox settings file (exit 69 in seconds), then it runs the krn.json `install` command (exit 71 when it fails) and the contract test on the clean base, one lane at a time per repository (a red run reruns only its failing test files once; exit 72 when they fail again, naming them), starting no session in any of these cases',
   'krn lane drop SLUG [--root DIR]  remove the lane worktree and branch and release the claim held from that worktree',
-  'krn lane brief [--file PATH] [--task ID] [--as-of YYYY-MM-DD] [--root DIR]  print the lane brief (file, else stdin) behind the FR-40 brain packet of the repository records',
+  'krn lane brief [--file PATH] [--task ID] [--as-of YYYY-MM-DD] [--root DIR]  print the lane brief (file, else stdin) behind the FR-40 brain packet of the repository records, followed by the in-force worker standards of .agents/standards.json (inherited ones marked)',
 ].join('\n');
 
 /**
@@ -72,7 +74,11 @@ export function laneBriefText(
 ): string {
   const text = packetBrief(lanePacket(repo, brief, asOf, task), brief);
   const precedent = precedentSection(repo, brief);
-  const body = precedent === '' ? text : `${text}\n\n${precedent}\n`;
+  const standards = briefStandards(readProject(repo), asOf, PROJECT_STANDARDS);
+  const body = [text, precedent, standards]
+    .filter((part) => part !== '')
+    .map((part) => part.trimEnd())
+    .join('\n\n');
   return `${body.trimEnd()}\n\n${workerRules(repo)}\n`;
 }
 

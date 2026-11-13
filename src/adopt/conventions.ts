@@ -3,6 +3,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { type BrainRecord, parseRecords } from '../brain/packet.ts';
+import { BLOCK_END, BLOCK_START } from '../brain/standards.ts';
 import { contractConventions } from '../repo/contract.ts';
 
 const INSTRUCTION_FILES = ['AGENTS.md', 'CLAUDE.md'] as const;
@@ -25,8 +26,13 @@ export function conventionRecords(root: string, today: string): BrainRecord[] {
     const path = join(root, file);
     if (!existsSync(path)) continue;
     const text = readFileSync(path, 'utf8');
-    // CLAUDE.md is usually a link to AGENTS.md: the same bullets count once.
+    // CLAUDE.md is usually a link to AGENTS.md: the same bullets count once. The generated
+    // standards block is skipped: the lane brief lists those records from .agents/standards.json.
+    let inStandards = false;
     for (const line of text.split('\n')) {
+      if (line.trim() === BLOCK_START) inStandards = true;
+      if (line.trim() === BLOCK_END) inStandards = false;
+      if (inStandards) continue;
       const bullet = BULLET.exec(line)?.[1]?.trim();
       if (bullet === undefined || bullet.length < 20) continue;
       const rule = RULE_ID.exec(bullet);
