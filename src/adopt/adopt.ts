@@ -16,6 +16,7 @@ import {
   detectBase,
   detectSubpackage,
   findContract,
+  type RepoContract,
   subpackageCandidates,
 } from '../repo/contract.ts';
 import { createTask } from '../task/store.ts';
@@ -70,6 +71,7 @@ function quoted(value: string): string {
 export function renderWorkflow(
   options: AdoptOptions & { ref: string },
   name = 'CI',
+  base = 'main',
 ): string {
   if (!/^[0-9a-f]{40}$/u.test(options.ref))
     throw new Error('--ref must be a full 40-character commit sha');
@@ -90,7 +92,7 @@ export function renderWorkflow(
     '',
     'on:',
     '  push:',
-    '    branches: [main]',
+    `    branches: [${base}]`,
     '  pull_request:',
     '',
     'permissions:',
@@ -102,6 +104,43 @@ export function renderWorkflow(
     ...(inputs.length > 0 ? ['    with:', ...inputs] : []),
     '',
   ].join('\n');
+}
+
+/**
+ * The CI call with inputs from the flags, else from the written contract (krn.json or detection):
+ * the shared workflow refuses a call without lint, typecheck or test. Pushes run on the contract
+ * base. Undefined, with a skipped line, when no command is known.
+ */
+function ciWorkflow(
+  root: string,
+  options: AdoptOptions & { ref: string },
+  report: AdoptionReport,
+): string | undefined {
+  let contract: RepoContract | undefined;
+  try {
+    contract = findContract(root)?.contract;
+  } catch {
+    contract = undefined;
+  }
+  const install = options.install ?? contract?.install;
+  const test = options.test ?? contract?.test;
+  const inputs = {
+    ...options,
+    ...(install === undefined ? {} : { install }),
+    ...(test === undefined ? {} : { test }),
+  };
+  const path = workflowPath(root);
+  if (!inputs.lint && !inputs.typecheck && !inputs.test) {
+    report.skipped.push(
+      `${path} (no lint, typecheck or test command; pass --test CMD)`,
+    );
+    return undefined;
+  }
+  return renderWorkflow(
+    inputs,
+    path.endsWith('krn-ci.yml') ? 'KRN CI' : 'CI',
+    contract?.base ?? 'main',
+  );
 }
 
 function writeIfChanged(
@@ -348,15 +387,14 @@ export function adopt(root: string, options: AdoptOptions): AdoptionReport {
       test: options.test ?? sub.test,
     };
   const report: AdoptionReport = { written: [], unchanged: [], skipped: [] };
+  if (options.ref !== undefined && !/^[0-9a-f]{40}$/u.test(options.ref))
+    throw new Error('--ref must be a full 40-character commit sha');
+  if (options.ref !== undefined || options.tracker) seedTasks(root, report);
+  writeContract(root, options, report);
   const workflow =
     options.ref === undefined
       ? undefined
-      : renderWorkflow(
-          { ...options, ref: options.ref },
-          workflowPath(root).endsWith('krn-ci.yml') ? 'KRN CI' : 'CI',
-        );
-  if (options.ref !== undefined || options.tracker) seedTasks(root, report);
-  writeContract(root, options, report);
+      : ciWorkflow(root, { ...options, ref: options.ref }, report);
   writeHooks(root, report);
   writeSkills(root, report);
   writeRules(root, report);
