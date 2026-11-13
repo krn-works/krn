@@ -1,7 +1,11 @@
 {
   "id": "t-jskrfrm",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "dev replay v2/dev-k1 (16 run1 K losses, K 7b34dc7): model-visible hook messages per K session = 1 (16/16, the SessionStart context). The '10.1 vs 1.1' premise was a measurement artifact: replay.sh counted silent hook_success records and every session sharing the project directory; evals/d23/transcript.ts now counts per session (hook_events vs hook_msgs). run1 K (27fe971) also had 1 per session."
+  },
   "created": "2026-11-12",
   "priority": 1,
   "title": "The K worker sees only scope prohibitions and task facts, not lead rules or positive directives",
