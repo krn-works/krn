@@ -45,6 +45,9 @@ export async function dispatch(args: string[]): Promise<boolean> {
   } else if (command === 'plan') {
     const { planCommand } = await import('./plan.ts');
     await planCommand(options);
+  } else if (command === 'repo') {
+    const { repoCommand } = await import('./repo.ts');
+    repoCommand(options);
   } else if (command === 'adopt') {
     const { adoptCommand } = await import('./adopt.ts');
     adoptCommand(options);

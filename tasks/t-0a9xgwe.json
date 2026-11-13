@@ -1,0 +1,14 @@
+{
+  "id": "t-0a9xgwe",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "Skills, rules and docs KRN injects work in any repository without KRN-specific text",
+  "after": [
+    "t-d25znwp"
+  ],
+  "body": [
+    "Why: operator 2026-11-13: descriptions, docs, rules and skills must not be hard-bound to the KRN repository; after injection and onboarding the system must work in any environment. Today the lead/lane skills, lead-rules and AGENTS rules name npm run fast, bin/krn, test/rules, App 15368, tasks/ and krn-works paths.\nOutcome: the skills and rules that adopt installs are split into a universal layer (reads every command, path and gate from the repo contract via krn repo contract) and a KRN-only profile kept in this repository; a scan test refuses KRN-specific literals (npm run fast, test/rules, krn-works, App 15368, /mnt/storage) in the universal layer.\nProof: the scan test; adopt on a pytest fixture installs skills whose every command resolves in that fixture.\nScope: .agents/skills/, .claude/skills/, docs/, src/adopt/, test/."
+  ]
+}

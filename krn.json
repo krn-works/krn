@@ -1,0 +1,7 @@
+{
+  "base": "main",
+  "test": "npm test",
+  "related": "node --test {files}",
+  "fast": "npm run fast",
+  "tracker": "krn"
+}

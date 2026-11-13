@@ -1,0 +1,14 @@
+{
+  "id": "t-pvhs4eb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "Lane brief and lane run take base, commands and task from the repo contract",
+  "after": [
+    "t-9xwtz6f"
+  ],
+  "body": [
+    "Why: lane fetches origin/main, requires tasks/<id>.json and briefs npm run fast and node scripts/claude/worker-stop.ts (src/cli/lane.ts:40,141-144,303-306); 26 origin/main literals in src/.\nOutcome: lane uses the contract base branch and fast/test commands in the brief; a task id is optional when the contract tracker is none (brief text from --goal).\nProof: lane brief unit test on a contract with base master, pytest and no tracker.\nScope: src/cli/, src/repo/, test/."
+  ]
+}

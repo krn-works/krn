@@ -1,0 +1,14 @@
+{
+  "id": "t-p226jft",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "The worker Stop check and related-test selection run any stack's tests from the repo contract",
+  "after": [
+    "t-9xwtz6f"
+  ],
+  "body": [
+    "Why: in a foreign repository the Stop check finds no test/*.test.ts and allows without running anything (scripts/claude/worker-stop.ts:27,98,136); hooks are repo scripts adopt never installs (.claude/settings.json:36-128).\nOutcome: the Stop check reads the repo contract (base, related command, full test fallback); related selection keeps the JS import graph and adds a name-match selector for other stacks, falling back to the full test command; hooks run as `krn hook <name>` from the installed binary.\nProof: Stop check unit tests on a pytest fixture repo (red refuses, green commit allows) and a go fixture; KRN's own Stop check behaviour unchanged.\nScope: scripts/claude/, src/repo/, src/cli/, test/."
+  ]
+}
