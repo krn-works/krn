@@ -5,6 +5,8 @@ const usage: Readonly<Record<string, string>> = {
     'krn ledger [--since YYYY-MM-DD] [--pr N] [--limit N] [--repo OWNER/REPO] [--root DIR] [--transcripts DIR] [--json]  outcome ledger',
   brain:
     'krn brain packet <fr40-task-id> [--arm brain|static] [--write] [--json]  FR-40 shadow packet: record ids, as-of date, tokens',
+  standards:
+    'krn standards check [--root DIR]  validate the shipped standards pack (standards/records.json) and .agents/standards.json: dates, enforcement refs and evidence paths; one PASS or FAIL line naming the standards that apply to the repository; exit 1 on a problem, 65 on a malformed file',
   doctor:
     'krn doctor  reports the host `krn task` entry, its commit and origin/main; exit 78 when stale or unpinned',
   state:

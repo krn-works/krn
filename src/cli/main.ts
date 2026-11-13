@@ -36,6 +36,7 @@ export function main(args = process.argv.slice(2)): void {
       'pr',
       'doctor',
       'brain',
+      'standards',
       'state',
       'lane',
       'decide',

@@ -1,0 +1,339 @@
+[
+  {
+    "id": "s-commit-title",
+    "area": "commit",
+    "audience": "worker",
+    "text": "A pull request title, which becomes the squash commit subject, has the form `type(scope): outcome (<task id>)` with a Conventional Commits type.",
+    "why": "A squash merge turns the title into the only subject on the base branch; titles without a type and id stopped being traceable.",
+    "evidence": ["src/ci/commit-title.ts#400", "AGENTS.md#KRN-11"],
+    "enforcement": { "kind": "check", "ref": "src/ci/commit-title.ts" },
+    "applies": { "stacks": [], "needs": ["tracker", "ci"] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-ticket-trailer",
+    "area": "commit",
+    "audience": "worker",
+    "text": "A commit that completes a managed task ends with a `Ticket: <id>` trailer; a commit that leaves the task open carries `Refs: <id>` instead.",
+    "why": "Delivery stays traceable to its task, and the branch that names a ticket must close it before it merges.",
+    "evidence": ["AGENTS.md#KRN-11", "src/task/branch-tickets.ts#Ticket: <id>"],
+    "enforcement": { "kind": "check", "ref": "src/task/branch-tickets.ts" },
+    "applies": { "stacks": [], "needs": ["tracker"] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-tracker-owner",
+    "area": "tracker",
+    "audience": "lead",
+    "text": "Only the lead changes task status, through `krn task`; a worker never edits, closes or deletes a tracker file.",
+    "why": "Workers running as the lead edited tracker state outside their scope in 11 of 20 units.",
+    "evidence": [
+      "AGENTS.md#KRN-11",
+      "scripts/claude/worker-scope.ts#11 of 20 units"
+    ],
+    "enforcement": { "kind": "check", "ref": "scripts/claude/worker-scope.ts" },
+    "applies": { "stacks": [], "needs": ["tracker"] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-task-record",
+    "area": "tracker",
+    "audience": "lead",
+    "text": "A task record states Why, Outcome and Proof; the pull request body is generated from the record instead of written by hand.",
+    "why": "The pull request is the delivery record, so its problem statement and proof come from the task that defined them.",
+    "evidence": [
+      "docs/adr/0016-pull-request-is-the-delivery-record.md",
+      "src/cli/pr-body.ts#'Why'"
+    ],
+    "enforcement": { "kind": "template", "ref": "src/cli/pr-body.ts" },
+    "applies": { "stacks": [], "needs": ["tracker"] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-required-check",
+    "area": "integration",
+    "audience": "worker",
+    "text": "A change is integrated only after the repository's full required CI check passes on the exact head commit; local runs cover lint, typecheck and touched tests.",
+    "why": "One required check on the exact head is the only gate; local green on another tree proves nothing about the merged one.",
+    "evidence": ["AGENTS.md#KRN-07"],
+    "enforcement": {
+      "kind": "template",
+      "ref": ".github/workflows/project-ci.yml"
+    },
+    "applies": { "stacks": [], "needs": ["ci"] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-agent-state",
+    "area": "agent-state",
+    "audience": "worker",
+    "text": "Agent notes, plans, logs and scratch files go under the git-ignored `.krn/` directory, never into tracked files or the repository root.",
+    "why": "Agent state is repository-local and must stay out of the tracked project inputs.",
+    "evidence": [
+      "AGENTS.md#KRN-08",
+      "docs/program/repository-workflow.md#.krn/runs/<owner>/"
+    ],
+    "enforcement": { "kind": "template", "ref": "src/adopt/adopt.ts#.krn/" },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-finish-gate",
+    "area": "finish-gate",
+    "audience": "worker",
+    "text": "A session cannot end while the tests related to its change are red, and the finish gate fails closed when it cannot run them.",
+    "why": "A gate that lets a session end on an unrun or red test turns a broken tree into a delivered one.",
+    "evidence": ["src/adopt/stop-hook.ts#cannot check this tree"],
+    "enforcement": { "kind": "check", "ref": "src/adopt/stop-hook.ts" },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-adoption-canary",
+    "area": "finish-gate",
+    "audience": "adopt",
+    "text": "Adoption proves the finish gate in the adopted repository by breaking one existing test, seeing the gate refuse, and restoring the test.",
+    "why": "A gate that was never seen refusing may be wired to nothing.",
+    "evidence": ["src/adopt/canary.ts#proves the Stop gate works"],
+    "enforcement": { "kind": "check", "ref": "src/adopt/canary.ts" },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-regression-lowest-layer",
+    "area": "tests",
+    "audience": "worker",
+    "text": "A fixed defect gets its regression test at the lowest layer that reproduces it.",
+    "why": "Low-layer tests fail fast and name the broken unit.",
+    "evidence": ["AGENTS.md#KRN-14"],
+    "enforcement": { "kind": "prose", "ref": "AGENTS.md#KRN-14" },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-receiver-evidence",
+    "area": "tests",
+    "audience": "worker",
+    "text": "Every integration or forward is tested against its real receiver or a verbatim capture of the receiver's output, never against a hand-made imitation.",
+    "why": "An integration is only proven where it is received.",
+    "evidence": ["AGENTS.md#KRN-12"],
+    "enforcement": { "kind": "check", "ref": "test/receivers" },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-no-weakened-tests",
+    "area": "tests",
+    "audience": "worker",
+    "text": "A change does not remove assertions, add skip, only or todo markers, or delete a test whose target stays, unless its pull request states `Weakens-tests: <reason>`.",
+    "why": "Weakening a test is the cheapest way to turn a red check green without fixing anything.",
+    "evidence": [
+      "scripts/weak-tests.mjs#Deterministic floor against weakened tests"
+    ],
+    "enforcement": { "kind": "check", "ref": "scripts/weak-tests.mjs" },
+    "applies": { "stacks": ["node"], "needs": ["ci"] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-plainest-input",
+    "area": "tests",
+    "audience": "worker",
+    "text": "When a task names an input or output format, at least one test feeds the plainest hand-written example of that format exactly as the task words it.",
+    "why": "A reader tested only on its own tool's output rejects the short, plain forms real callers send.",
+    "evidence": ["src/cli/lane.ts#plainest"],
+    "enforcement": { "kind": "prose", "ref": "src/cli/lane.ts#plainest" },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-own-worktree",
+    "area": "lanes",
+    "audience": "lead",
+    "text": "Each parallel lane works in its own git worktree and branch, so no two writers share a checkout.",
+    "why": "Two writers in one checkout overwrite or commit each other's edits.",
+    "evidence": [
+      "docs/program/repository-workflow.md#in its own worktree",
+      "AGENTS.md#parallel worktree lanes"
+    ],
+    "enforcement": { "kind": "check", "ref": "src/cli/lane.ts" },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-no-shared-stash",
+    "area": "lanes",
+    "audience": "worker",
+    "text": "Never change the git stash stack with a bare `git stash` or `git stash pop`; set work aside with a commit.",
+    "why": "Every worktree of a repository shares one stash stack, so a bare pop can take another lane's edits.",
+    "evidence": ["scripts/claude/stash-guard.ts#t-cbkxj6w"],
+    "enforcement": { "kind": "check", "ref": "scripts/claude/stash-guard.ts" },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-check-exit-code",
+    "area": "lanes",
+    "audience": "worker",
+    "text": "A test, typecheck or lint run is never piped into a text filter that hides its exit code.",
+    "why": "A piped test run once printed `fail 0` while CI had 20 failures.",
+    "evidence": ["scripts/claude/piped-check.ts#fail 0"],
+    "enforcement": { "kind": "check", "ref": "scripts/claude/piped-check.ts" },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-unpushed-delete",
+    "area": "lanes",
+    "audience": "lead",
+    "text": "Never delete a branch or worktree whose tip exists on no remote while it names an open task.",
+    "why": "A lead once deleted the only copy of a task's implementation this way.",
+    "evidence": ["scripts/claude/unpushed-delete.ts#t-9ser2tw"],
+    "enforcement": {
+      "kind": "check",
+      "ref": "scripts/claude/unpushed-delete.ts"
+    },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-layer-map",
+    "area": "architecture",
+    "audience": "worker",
+    "text": "Module dependencies follow a declared layer map that a check enforces; the core imports no replaceable adapter.",
+    "why": "The core stays independent of adapters only while something refuses the forbidden import.",
+    "evidence": ["AGENTS.md#KRN-05"],
+    "enforcement": { "kind": "check", "ref": "scripts/boundaries.ts" },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-one-instruction-file",
+    "area": "instructions",
+    "audience": "adopt",
+    "text": "A repository keeps one instruction file for agents, AGENTS.md, and any other agent instruction file only points to it.",
+    "why": "Two instruction files drift apart and agents follow whichever they read first.",
+    "evidence": ["docs/adr/0001-product-krn.md#generate `AGENTS.md`"],
+    "enforcement": {
+      "kind": "template",
+      "ref": "src/adopt/adopt.ts#AGENTS.md"
+    },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-role-names",
+    "area": "naming",
+    "audience": "worker",
+    "text": "Files, functions, tests and work are named by purpose and role, never by phase, ticket, round, date or version.",
+    "why": "Phase and ticket names lose their meaning as soon as the phase or ticket ends.",
+    "evidence": ["evals/fr40/records.json#r-role-names"],
+    "enforcement": {
+      "kind": "prose",
+      "ref": "evals/fr40/records.json#r-role-names"
+    },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-exit-codes",
+    "area": "hardening",
+    "audience": "worker",
+    "text": "Every error path has a stated exit code (64 usage, 65 invalid data, 70 internal, 75 temporary) and a message on stderr.",
+    "why": "Callers and agents branch on exit codes; an unstated one makes a failure look like success or the wrong failure.",
+    "evidence": ["docs/program/hardening-checklist.md#exit-codes"],
+    "enforcement": {
+      "kind": "prose",
+      "ref": "docs/program/hardening-checklist.md#exit-codes"
+    },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-secrets-redacted",
+    "area": "hardening",
+    "audience": "worker",
+    "text": "Values that may hold credentials, multiline ones included, are redacted before they are logged, persisted or forwarded.",
+    "why": "A secret written to a log or a record leaks to everyone who can read it later.",
+    "evidence": ["docs/program/hardening-checklist.md#secrets"],
+    "enforcement": {
+      "kind": "prose",
+      "ref": "docs/program/hardening-checklist.md#secrets"
+    },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-retro-to-check",
+    "area": "process",
+    "audience": "lead",
+    "text": "A slice ends with a short retrospective whose every lesson becomes an executable check, a repository rule or a task.",
+    "why": "A lesson kept only as prose is repeated; a check refuses the repeat.",
+    "evidence": ["src/adopt/skills/delivery-retro/SKILL.md"],
+    "enforcement": {
+      "kind": "skill",
+      "ref": "src/adopt/skills/delivery-retro/SKILL.md"
+    },
+    "applies": { "stacks": [], "needs": [] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-slice-delivery",
+    "area": "process",
+    "audience": "lead",
+    "text": "The lead delivers one slice per pull request and lets it merge on the required check.",
+    "why": "Small slices merged on one check keep review and rework bounded.",
+    "evidence": ["src/adopt/skills/delivery-lead/SKILL.md"],
+    "enforcement": {
+      "kind": "skill",
+      "ref": "src/adopt/skills/delivery-lead/SKILL.md"
+    },
+    "applies": { "stacks": [], "needs": ["ci"] },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  }
+]

@@ -62,6 +62,9 @@ export async function dispatch(args: string[]): Promise<boolean> {
   } else if (command === 'brain') {
     const { brainCommand } = await import('../brain/cli.ts');
     await brainCommand(options);
+  } else if (command === 'standards') {
+    const { standardsCommand } = await import('../brain/standards-cli.ts');
+    standardsCommand(options);
   } else return false;
   return true;
 }
