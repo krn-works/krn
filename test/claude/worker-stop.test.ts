@@ -7,6 +7,7 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -301,5 +302,29 @@ test('the temporary base worktree exists while the base run happens and is gone 
     assert.equal(worktrees(dir), 1);
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a base that already tracks a node_modules symlink still runs at the base', () => {
+  // D23 clones commit the node_modules symlink with the harness; linking it again threw EEXIST (dev-k3 unit 568).
+  const dir = repoWith(PASSING, FAILING_ONE);
+  const modules = mkdtempSync(join(tmpdir(), 'worker-stop-modules-'));
+  try {
+    symlinkSync(modules, join(dir, 'node_modules'));
+    sh(dir, 'checkout', '-q', 'main');
+    sh(dir, 'add', 'node_modules');
+    sh(dir, 'commit', '-q', '-m', 'track node_modules');
+    sh(dir, 'checkout', '-q', 'work');
+    sh(dir, 'rebase', '-q', 'main');
+    const roots: string[] = [];
+    const run = (root: string) => {
+      roots.push(root);
+      return root === dir ? ['test/t.test.mjs::one'] : [];
+    };
+    assert.equal(inspect(dir, run).ok, false);
+    assert.equal(roots.length, 2);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+    rmSync(modules, { recursive: true, force: true });
   }
 });
