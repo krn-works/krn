@@ -4,7 +4,7 @@
   "resolution": {
     "kind": "done",
     "ref": null,
-    "note": "ci wait reads the gate policy through the GitHub API when the checkout is another repository"
+    "note": "ci wait mints the token for --repo; a policy 404 is absent only when the repository is readable; real run on seo-audit-harness PR 76 exits 0 in 7 s"
   },
   "created": "2026-11-13",
   "priority": 1,

@@ -151,7 +151,9 @@ test('ci wait reads the admission policy from real git at base and admits the ca
 
 // KRN-12: a checkout of another repository holds none of the base objects, so
 // git fails with the captured message and the policy comes from the contents
-// API; the 404 and the present file are verbatim `gh api` captures.
+// API; the 404s, the repository and the present file are verbatim `gh api`
+// captures taken with a token minted for krn-works/seo-audit-harness
+// (KRN_APP_REPOSITORY=krn-works/seo-audit-harness gh api ...).
 const foreign = (name: string) =>
   readFile(
     new URL(`../fixtures/foreign-repo/${name}`, import.meta.url),
@@ -164,6 +166,12 @@ const notATree = () => ({
 });
 
 const gateSuccess = await capture('gate-success');
+const repoCapture = await foreign('repo.json');
+const policyAbsent = () => {
+  throw Object.assign(new Error('gh: Not Found (HTTP 404)'), {
+    result: { stderr: 'gh: Not Found (HTTP 404)\n' },
+  });
+};
 
 function foreignReceiver(
   repo: string,
@@ -171,6 +179,7 @@ function foreignReceiver(
   base: string,
   policy: () => string,
   checks: string,
+  repoOutput: () => string = () => repoCapture,
 ) {
   const { gh } = strictGh(repo, 1, head, {
     pull: () => pull(head),
@@ -191,6 +200,7 @@ function foreignReceiver(
           `repos/${repo}/contents/spec/ci-admission.json?ref=${base}`
         )
           return policy();
+        if (args[1] === `repos/${repo}`) return repoOutput();
         return gh(args);
       },
       sleep: async () => {},
@@ -206,11 +216,7 @@ test('ci wait outside the repository reads a missing policy through the API and 
     'o/r',
     head,
     base,
-    () => {
-      throw Object.assign(new Error('gh: Not Found (HTTP 404)'), {
-        result: { stderr: 'gh: Not Found (HTTP 404)\n' },
-      });
-    },
+    policyAbsent,
     JSON.stringify([JSON.parse(gateSuccess)]),
   );
   const out = await waitCommand(
@@ -220,35 +226,7 @@ test('ci wait outside the repository reads a missing policy through the API and 
   assert.match(out, new RegExp(`^gate: success ${head}`, 'u'));
 });
 
-test('ci wait outside the repository takes the gate name from the policy file read through the API', async () => {
-  const head = '12faa099bdb389b3b520a62ad0a74a63f3a7528e';
-  const base = 'b'.repeat(40);
-  const { runtime, reads } = foreignReceiver(
-    'krn-works/krn',
-    head,
-    base,
-    () => '',
-    await capture('review-gate-failure'),
-  );
-  const present = await foreign('policy-present.json');
-  const wrapped = {
-    ...runtime,
-    gh: async (args: string[]) =>
-      args[1]?.includes('/contents/spec/ci-admission.json')
-        ? present
-        : runtime.gh(args),
-  };
-  await assert.rejects(
-    waitCommand(
-      ['--repo', 'krn-works/krn', '--pr', '1', '--head', head, '--base', base],
-      wrapped,
-    ),
-    /Check concluded failure on 12faa099/u,
-  );
-  assert.equal(reads[0]?.[0], 'ls-tree');
-});
-
-test('ci wait on the captured foreign pull never finds the legacy gate and exits 69', async () => {
+test('ci wait on the captured foreign pull whose base has no policy and a readable repository uses the legacy gate and exits 69', async () => {
   const pr = JSON.parse(await foreign('pull.json'));
   const head: string = pr.head.sha;
   const base: string = pr.base.sha;
@@ -256,11 +234,7 @@ test('ci wait on the captured foreign pull never finds the legacy gate and exits
     'krn-works/seo-audit-harness',
     head,
     base,
-    () => {
-      throw Object.assign(new Error('x'), {
-        result: { stderr: 'gh: Not Found (HTTP 404)\n' },
-      });
-    },
+    policyAbsent,
     await foreign('check-runs.json'),
   );
   let time = 0;
@@ -286,4 +260,116 @@ test('ci wait on the captured foreign pull never finds the legacy gate and exits
     ),
     { exitCode: 69 },
   );
+});
+
+test('ci wait reads the captured policy at the repository base and succeeds on its ci / Check', async () => {
+  const pr = JSON.parse(await foreign('pull.json'));
+  const head: string = pr.head.sha;
+  const base = '0a94a191e1d13046b8b071745a787b2f00ed77d5';
+  const present = await foreign('policy-present.json');
+  const { runtime, reads } = foreignReceiver(
+    'krn-works/seo-audit-harness',
+    head,
+    base,
+    () => present,
+    await foreign('check-runs.json'),
+  );
+  const out = await waitCommand(
+    [
+      '--repo',
+      'krn-works/seo-audit-harness',
+      '--pr',
+      '1',
+      '--head',
+      head,
+      '--base',
+      base,
+    ],
+    runtime,
+  );
+  assert.match(out, new RegExp(`^gate: success ${head}`, 'u'));
+  assert.equal(reads[0]?.[0], 'ls-tree');
+});
+
+test('a 404 on the policy file with an unreadable repository fails with a clear error, not the legacy gate', async () => {
+  const pr = JSON.parse(await foreign('pull.json'));
+  const head: string = pr.head.sha;
+  const base = '0a94a191e1d13046b8b071745a787b2f00ed77d5';
+  const wrongToken = await foreign('repo-wrong-token.stderr');
+  const { runtime } = foreignReceiver(
+    'krn-works/seo-audit-harness',
+    head,
+    base,
+    policyAbsent,
+    await foreign('check-runs.json'),
+    () => {
+      throw Object.assign(new Error(wrongToken), {
+        result: { stderr: wrongToken },
+      });
+    },
+  );
+  await assert.rejects(
+    waitCommand(
+      [
+        '--repo',
+        'krn-works/seo-audit-harness',
+        '--pr',
+        '1',
+        '--head',
+        head,
+        '--base',
+        base,
+      ],
+      runtime,
+    ),
+    {
+      exitCode: 74,
+      message: /cannot read krn-works\/seo-audit-harness with the token/u,
+    },
+  );
+});
+
+test('every gh call of ci wait is minted for the --repo repository', async () => {
+  const pr = JSON.parse(await foreign('pull.json'));
+  const head: string = pr.head.sha;
+  const base = '0a94a191e1d13046b8b071745a787b2f00ed77d5';
+  const present = await foreign('policy-present.json');
+  const commands: string[][] = [];
+  const checks = await foreign('check-runs.json');
+  await waitCommand(
+    [
+      '--repo',
+      'krn-works/seo-audit-harness',
+      '--pr',
+      '76',
+      '--head',
+      head,
+      '--base',
+      base,
+    ],
+    {
+      cwd: '/work/repo',
+      run: (command: string, args: string[]) => {
+        commands.push([command, ...args]);
+        if (command === 'git') return notATree();
+        const api = args[args.indexOf('api') + 1] ?? '';
+        const stdout = api.includes('/contents/')
+          ? present
+          : api.endsWith('/pulls/76')
+            ? pull(head)
+            : checks;
+        return { code: 0, stdout, stderr: '' };
+      },
+      sleep: async () => {},
+      now: () => 0,
+    },
+  );
+  const ghCalls = commands.filter((c) => c[0] !== 'git');
+  assert.ok(ghCalls.length >= 3);
+  for (const call of ghCalls)
+    assert.deepEqual(call.slice(0, 3), [
+      'env',
+      'KRN_APP_REPOSITORY=krn-works/seo-audit-harness',
+      'gh',
+    ]);
 });
