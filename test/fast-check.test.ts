@@ -468,3 +468,18 @@ test('fast check fails naming weak-tests when the working tree removes an assert
     /test\/x\.test\.ts: net 1 assertion\(s\) removed/u,
   );
 });
+
+test('fast check selects the CLI-subprocess tests that assert the repo contract detection', () => {
+  const real = new Map(
+    [
+      'test/adopt/adopt.test.ts',
+      'test/adopt/universal-skills.test.ts',
+      'test/cli/lane-brief.test.ts',
+    ].map((path) => [path, readFileSync(path, 'utf8')]),
+  );
+  assert.deepEqual(selectTests(['src/repo/contract.ts'], real), [
+    'test/adopt/adopt.test.ts',
+    'test/adopt/universal-skills.test.ts',
+    'test/cli/lane-brief.test.ts',
+  ]);
+});
