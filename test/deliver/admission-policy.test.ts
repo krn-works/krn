@@ -3,8 +3,10 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import {
   gateAdmissionPolicyFromBase,
+  gateAdmissionPolicyFromBranch,
   matchesGateCheckRun,
 } from '../../src/deliver/admission-policy.ts';
+import { waitForGate } from '../../src/deliver/gate-wait.ts';
 
 const base = 'a'.repeat(40);
 test('missing base policy preserves the legacy Actions selector', () => {
@@ -135,4 +137,91 @@ test('base policy selects a reusable workflow aggregate as `<caller job> / <job>
     ),
     false,
   );
+});
+
+test('a base without an admission file waits for the base branch required Actions check', () => {
+  // Verbatim `gh api repos/krn-works/krn-pilot-py/branches/main` before the adoption PR merged.
+  const protectedBranch = readFileSync(
+    new URL('../fixtures/ci-admission/branch-protected.json', import.meta.url),
+    'utf8',
+  );
+  assert.deepEqual(gateAdmissionPolicyFromBranch(protectedBranch), {
+    source: 'pinned-app',
+    checkRunName: 'ci / Check',
+    appId: 15368,
+  });
+  // Verbatim krn-works/krn main: protection without a pinned check keeps the legacy name.
+  const unpinned = readFileSync(
+    new URL('../fixtures/ci-admission/branch-unpinned.json', import.meta.url),
+    'utf8',
+  );
+  assert.equal(
+    gateAdmissionPolicyFromBranch(unpinned).source,
+    'legacy-actions',
+  );
+  assert.equal(
+    gateAdmissionPolicyFromBranch(
+      JSON.stringify({
+        protection: {
+          required_status_checks: {
+            checks: [
+              { context: 'a', app_id: 15368 },
+              { context: 'b', app_id: 15368 },
+            ],
+          },
+        },
+      }),
+    ).source,
+    'legacy-actions',
+  );
+});
+
+test('a gate wait whose base names no policy waits for the check the base branch requires', async () => {
+  const head = 'c'.repeat(40);
+  const calls: string[] = [];
+  const result = await waitForGate({
+    repo: 'krn-works/krn-pilot-py',
+    pr: 1,
+    head,
+    policy: gateAdmissionPolicyFromBase(base, () => ''),
+    branchPolicy: async (ref) => {
+      calls.push(ref);
+      return gateAdmissionPolicyFromBranch(
+        readFileSync(
+          new URL(
+            '../fixtures/ci-admission/branch-protected.json',
+            import.meta.url,
+          ),
+          'utf8',
+        ),
+      );
+    },
+    gh: async (args) =>
+      args.includes('repos/krn-works/krn-pilot-py/pulls/1')
+        ? JSON.stringify({
+            head: { sha: head },
+            mergeable_state: 'clean',
+            base: { ref: 'main' },
+          })
+        : JSON.stringify([
+            {
+              check_runs: [
+                {
+                  id: 1,
+                  name: 'ci / Check',
+                  head_sha: head,
+                  status: 'completed',
+                  conclusion: 'success',
+                  app: { id: 15368, slug: 'github-actions' },
+                },
+              ],
+            },
+          ]),
+    sleep: async () => {},
+    now: () => 0,
+    pollMs: 1,
+    timeoutMs: 1000,
+  });
+  assert.equal(result, 'success');
+  assert.deepEqual(calls, ['main']);
 });

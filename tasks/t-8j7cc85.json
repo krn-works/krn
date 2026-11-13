@@ -1,0 +1,12 @@
+{
+  "id": "t-8j7cc85",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "An adoption PR push names the missing workflows permission and its remedy",
+  "after": [],
+  "body": [
+    "Why: Python pilot t-811vn27 adoption: `krn pr ship --repo krn-works/krn-pilot-py` push was rejected \"refusing to allow a GitHub App to create or update workflow `.github/workflows/ci.yml` without `workflows` permission\"; the lead pushed the branch with the operator keyring login, then shipped. Every adoption PR writes .github/workflows/ci.yml, so an unattended adoption cannot push.\nOutcome: either the KRN App (krn-works-delivery) holds Workflows: write (App settings, operator-owned; then installations accept it) and `krn pr ship` pushes adoption PRs, or `krn pr ship` on exit 70 with this rejection prints the exact remedy (keyring push command or the App permission to grant) instead of \"after a rebase rerun with --force\".\nProof: a test feeding the verbatim rejection text asserts the remedy message; the next adoption pushes without the keyring."
+  ]
+}
