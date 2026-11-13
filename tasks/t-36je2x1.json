@@ -1,7 +1,11 @@
 {
   "id": "t-36je2x1",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "subpackage tests route through the contract; base links nested node_modules and fails closed on missing modules"
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "Stop check base run links dependencies of subdirectory packages (canary fails on the pilot)",
