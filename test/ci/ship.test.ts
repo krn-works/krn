@@ -26,6 +26,8 @@ function receiver(options: {
   cwd?: string;
   createRefusal?: string;
   rule?: { code: number; stderr: string };
+  diff?: string;
+  carrier?: string;
 }) {
   let time = 0;
   const calls: string[] = [];
@@ -33,6 +35,8 @@ function receiver(options: {
   const pulls = [...options.pulls];
   const gh = async (a: string[]): Promise<string> => {
     calls.push(`gh ${a.join(' ')}`);
+    if (a[0] === 'pr' && a[1] === 'list' && a.includes('--search'))
+      return options.carrier ?? '';
     if (a[0] === 'pr' && a[1] === 'list' && a.includes('merged'))
       return options.mergedBefore ?? '';
     if (a[0] === 'pr' && a[1] === 'list') return options.existing ?? '';
@@ -83,6 +87,7 @@ function receiver(options: {
     const line = a.join(' ');
     if (line === 'rev-parse --abbrev-ref HEAD')
       return out(`${options.branch ?? 'feat-x'}\n`);
+    if (a[0] === 'diff') return out(options.diff ?? 'src/x.ts\n');
     if (a[0] === 'status') return out(options.dirty ? ' M f\n' : '');
     if (line === 'rev-parse HEAD') return out(`${head}\n`);
     if (line === `rev-parse origin/${options.target ?? 'main'}`)
@@ -351,4 +356,25 @@ test('a refused push exits 70 and names the --force rerun after a rebase', async
     return true;
   });
   assert.ok(!r.calls.some((c) => c.startsWith('gh pr create')));
+});
+
+test('an empty diff against the base refuses the push and names the PR that carries the change', async () => {
+  const r = receiver({ pulls: [auto, merged], diff: '', carrier: '642\n' });
+  await assert.rejects(shipCommand(args, r), (error: Failure) => {
+    assert.equal(error.exitCode, 66);
+    assert.match(error.message, /diff against origin\/main is empty/u);
+    assert.match(error.message, /PR #642 already carries/u);
+    return true;
+  });
+  assert.ok(!r.calls.some((c) => c.startsWith('git push')));
+  assert.ok(!r.calls.some((c) => c.includes('gh pr create')));
+});
+
+test('an empty diff with no matching merged PR still refuses', async () => {
+  const r = receiver({ pulls: [auto, merged], diff: '' });
+  await assert.rejects(shipCommand(args, r), (error: Failure) => {
+    assert.equal(error.exitCode, 66);
+    assert.doesNotMatch(error.message, /already carries/u);
+    return true;
+  });
 });
