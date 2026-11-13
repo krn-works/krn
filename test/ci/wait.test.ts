@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
-import { stopExitCodes, waitCommand, waitUsage } from '../../src/ci/wait.ts';
+import {
+  ownsProductRelease,
+  stopExitCodes,
+  waitCommand,
+  waitUsage,
+} from '../../src/ci/wait.ts';
 import { GateTimeout, waitForGate } from '../../src/deliver/gate-wait.ts';
 import { checkRunArgs, pull, pullArgs, strictGh } from './strict-gh.ts';
 
@@ -449,6 +456,32 @@ test('wait refreshes the pinned Product entry once the auto-merging PR merges', 
   const refreshes = receiver.runs.filter(([command]) => command === 'bash');
   assert.equal(refreshes.length, 1);
   assert.match(refreshes[0]?.[1][0] ?? '', /scripts\/product-release\.sh$/u);
+});
+
+test('an adopted repository merges without running the KRN release script', async (t) => {
+  // Seen on the pilot: ship from krn-works/seo-audit-harness ran product-release.sh and warned exit 78.
+  const pilot = await mkdtemp(join(tmpdir(), 'krn-adopted-'));
+  t.after(() => rm(pilot, { recursive: true, force: true }));
+  await mkdir(join(pilot, '.git'));
+  await mkdir(join(pilot, 'packages', 'seo'), { recursive: true });
+  assert.equal(ownsProductRelease(join(pilot, 'packages', 'seo')), false);
+  assert.equal(ownsProductRelease(process.cwd()), true);
+  const receiver = mergeRuntime(
+    [autoMerge, { state: 'closed', merged: true, merge_commit_sha: merge }],
+    { code: 78, stdout: '', stderr: 'must not run' },
+  );
+  assert.equal(
+    await waitCommand(args, { ...receiver, cwd: pilot }),
+    [
+      `gate: success ${head}`,
+      `merged: ${merge}`,
+      `verdict: merged ${merge}`,
+    ].join('\n'),
+  );
+  assert.equal(
+    receiver.runs.filter(([command]) => command === 'bash').length,
+    0,
+  );
 });
 
 test('a failed refresh after the merge still reports merged, with a warning', async () => {
