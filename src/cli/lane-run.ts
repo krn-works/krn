@@ -56,6 +56,10 @@ export const OPERATOR_CREDENTIAL_VARIABLES = [
 ] as const;
 
 const exitCredentialUnavailable = 69;
+/** The contract install command failed in the lane worktree; no session started. */
+export const exitInstallFailed = 71;
+/** The contract test command is red on the clean base worktree; no session started. */
+export const exitRedBaseline = 72;
 
 const defaultSessionTimeoutMs = 45 * 60 * 1000;
 
@@ -376,6 +380,55 @@ function killGroup(pid: number | undefined): void {
 const laneRunUsage =
   'krn lane run (--task ID | --goal TEXT) [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]';
 
+function lastLine(text: string): string {
+  const lines = text.trim().split('\n');
+  return lines[lines.length - 1] ?? '';
+}
+
+/**
+ * Before the session: the contract install runs in the worktree, then the contract test runs on the
+ * clean base (a worktree whose HEAD is still origin/base). A string is the refusal; undefined starts the session.
+ */
+export function prepareWorktree(
+  worktree: string,
+  base: string,
+): { detail: string; exitCode: number } | undefined {
+  const contract = findContract(worktree)?.contract;
+  if (contract === undefined) return undefined;
+  const execute = (command: string) =>
+    spawnSync(command, {
+      cwd: worktree,
+      shell: true,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+      timeout: 30 * 60 * 1000,
+    });
+  const reason = (run: ReturnType<typeof execute>) =>
+    run.error !== undefined
+      ? run.error.message
+      : `exit ${run.status ?? 'signal'}: ${lastLine(`${run.stderr ?? ''}`) || lastLine(`${run.stdout ?? ''}`)}`;
+  if (contract.install !== undefined) {
+    const installed = execute(contract.install);
+    if (installed.status !== 0)
+      return {
+        detail: `install failed (${contract.install}, ${reason(installed)})`,
+        exitCode: exitInstallFailed,
+      };
+  }
+  if (
+    git(worktree, ['rev-parse', 'HEAD']) !==
+    git(worktree, ['rev-parse', `origin/${base}`])
+  )
+    return undefined;
+  const baseline = execute(contract.test);
+  if (baseline.status !== 0)
+    return {
+      detail: `red baseline: ${contract.test} fails on a clean origin/${base} (${reason(baseline)}); no session started`,
+      exitCode: exitRedBaseline,
+    };
+  return undefined;
+}
+
 /** The PR body of a goal lane: no task record, so the goal is the problem and the outcome. */
 function goalPrBody(
   goal: string,
@@ -532,13 +585,16 @@ export async function laneRunCommand(
     notStarted = session.error !== undefined && !timedOut;
     return result;
   };
+  const refusal = delivered ? undefined : prepareWorktree(started.path, base);
   const result: SessionResult = delivered
     ? {
         ok: true,
         detail: 'resumed: an earlier run delivered the commit',
         cost: undefined,
       }
-    : runSession();
+    : refusal !== undefined
+      ? { ok: false, detail: refusal.detail, cost: undefined }
+      : runSession();
   const spent =
     result.cost === undefined ? '' : ` cost $${result.cost.toFixed(2)}`;
   const kept = `worktree ${started.path}, rerun reuses it`;
@@ -563,7 +619,8 @@ export async function laneRunCommand(
     if (!result.ok)
       return await stop(
         result.detail,
-        notStarted ? exitCredentialUnavailable : exitNoDelivery,
+        refusal?.exitCode ??
+          (notStarted ? exitCredentialUnavailable : exitNoDelivery),
       );
     // Taken before the placeholders go: the fast-pass key was written with them in the tree.
     const verified =
