@@ -1,0 +1,16 @@
+{
+  "id": "t-7r3ybeq",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane run removes empty read-only placeholders left in the main checkout and git dir; state check names them transient"
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "Lane run removes sandbox placeholders a session left in the main checkout",
+  "after": [],
+  "body": [
+    "Why: 2026-11-13 while lane sessions ran, empty read-only files appeared in the MAIN checkout: .git/config.lock (17:04, broke git config writes, fixed around in 53969be) and .mcp.json (17:34, untracked, dirties git status). They are the harness sandbox placeholders over write-denied paths outside the worktree; lane run cleans placeholders only inside the lane worktree (sandboxPlaceholders in src/cli/lane-run.ts).\nOutcome: after a lane session ends, lane run removes the empty untracked placeholder files the session left in the main checkout and its git dir (.git/config.lock, .mcp.json and the placeholderName set), never a non-empty or tracked file; while sessions run, krn state check names them as transient.\nProof: a lane-run test with a scripted KRN_LANE_CLAUDE that creates an empty read-only <main>/.mcp.json and <main>/.git/config.lock finds both gone after the run and a non-empty one kept."
+  ]
+}

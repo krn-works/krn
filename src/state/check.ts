@@ -31,6 +31,7 @@ import {
   resolveRepositoryRoot,
   runDirectoriesDetailed,
 } from './runs.ts';
+import { mainCheckoutPlaceholders } from './sandbox-placeholders.ts';
 
 export interface CheckReport {
   root: string;
@@ -637,6 +638,14 @@ export function inspectState(repo: string): CheckReport {
     };
     for (const rule of CAPSULE_RULES) rule(ctx);
   }
+
+  if (usableGit)
+    for (const path of mainCheckoutPlaceholders(root))
+      warnings.push({
+        id: 'sandbox',
+        rule: 'transient-sandbox-placeholder',
+        detail: `${path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path} is an empty sandbox placeholder a running lane session left; lane run removes it when the session ends`,
+      });
 
   const inventory = runDirectoriesDetailed(root);
   for (const detail of inventory.errors)
