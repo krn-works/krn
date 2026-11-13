@@ -61,6 +61,24 @@ test('fast check runs the repository rule tests for any change', () => {
   assert.deepEqual(selectTests([], withRules), []);
 });
 
+test('fast check selects prose rule tests only when the diff touches prose paths', () => {
+  const rules = new Map([
+    ['test/rules/host-path-guard.test.mjs', ''],
+    ['test/rules/instruction-bytes.test.ts', ''],
+    ['test/rules/project-skills.test.ts', ''],
+  ]);
+  assert.deepEqual(selectTests(['src/x/y.ts'], rules), [
+    'test/rules/host-path-guard.test.mjs',
+  ]);
+  assert.deepEqual(selectTests(['AGENTS.md'], rules), [
+    'test/rules/host-path-guard.test.mjs',
+    'test/rules/instruction-bytes.test.ts',
+    'test/rules/project-skills.test.ts',
+  ]);
+  assert.deepEqual(selectTests([], rules, ['src/gone.ts']).length, 1);
+  assert.deepEqual(selectTests([], rules, ['docs/gone.md']).length, 3);
+});
+
 test('fast check ignores same-name modules and basename-only matches', () => {
   assert.deepEqual(selectTests(['src/other/claim.ts'], tests), []);
   assert.deepEqual(selectTests(['src/main.ts'], tests), []);
