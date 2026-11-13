@@ -4,6 +4,7 @@ import {
   lstatSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -15,7 +16,12 @@ import {
   contractTracker,
   findContract,
 } from '../repo/contract.ts';
-import { claimTask, mainCheckoutRoot, releaseClaim } from '../task/claims.ts';
+import {
+  claimTask,
+  inspectClaim,
+  mainCheckoutRoot,
+  releaseClaim,
+} from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
 import { getTask, repositoryRoot } from '../task/store.ts';
 import { flagValue } from './flag-value.ts';
@@ -328,6 +334,16 @@ async function reclaimLane(
   actor: string,
 ): Promise<{ path: string; slug: string }> {
   const lane = reusableLane(path, slug);
+  // The task closed in the lane worktree: an earlier run delivered it and only the ship failed.
+  if (getTask(path, task).status === 'closed') return lane;
+  // A run that died before it released its own claim leaves it live: the same actor and worktree resume it.
+  const held = inspectClaim(main, task);
+  if (
+    held.state === 'live' &&
+    held.claim?.actor === actor &&
+    held.claim.worktree === realpathSync(path)
+  )
+    return lane;
   await claimTask(main, task, {
     actor,
     worktree: path,
@@ -455,50 +471,67 @@ export async function laneRunCommand(
         '--root',
         origin,
       ]);
-  const claude = process.env.KRN_LANE_CLAUDE ?? 'claude';
-  // Node's spawnSync honours `detached` (a new session and process group) though its types omit it.
-  const sessionOptions = {
-    cwd: started.path,
-    encoding: 'utf8' as const,
-    maxBuffer: 64 * 1024 * 1024,
-    env: environment,
-    timeout: sessionTimeoutMs(process.env),
-    killSignal: 'SIGKILL' as const,
-    // Its own process group, so the timeout kills the session's children with it.
-    detached: true,
-  };
-  const session = spawnSync(
-    claude,
-    [
-      '-p',
-      brief,
-      '--output-format',
-      'json',
-      '--settings',
-      join(started.path, '.claude', 'settings.sandbox.json'),
-      '--permission-mode',
-      'acceptEdits',
-      '--model',
-      model,
-    ],
-    sessionOptions,
-  );
-  killGroup(session.pid);
-  const timedOut =
-    (session.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT';
-  const result = timedOut
-    ? {
-        ok: false,
-        detail: `session timeout after ${Math.round(sessionTimeoutMs(process.env) / 1000)}s (capped below the App token lifetime)`,
-        cost: undefined,
-      }
-    : session.error !== undefined
+  // A rerun after a failed ship finds the task closed in its worktree: the commit is delivered, so it ships without a session.
+  const delivered =
+    task !== undefined && getTask(started.path, task).status === 'closed';
+  let notStarted = false;
+  let timedOut = false;
+  const runSession = (): SessionResult => {
+    const claude = process.env.KRN_LANE_CLAUDE ?? 'claude';
+    // Node's spawnSync honours `detached` (a new session and process group) though its types omit it.
+    const sessionOptions = {
+      cwd: started.path,
+      encoding: 'utf8' as const,
+      maxBuffer: 64 * 1024 * 1024,
+      env: environment,
+      timeout: sessionTimeoutMs(process.env),
+      killSignal: 'SIGKILL' as const,
+      // Its own process group, so the timeout kills the session's children with it.
+      detached: true,
+    };
+    const session = spawnSync(
+      claude,
+      [
+        '-p',
+        brief,
+        '--output-format',
+        'json',
+        '--settings',
+        join(started.path, '.claude', 'settings.sandbox.json'),
+        '--permission-mode',
+        'acceptEdits',
+        '--model',
+        model,
+      ],
+      sessionOptions,
+    );
+    killGroup(session.pid);
+    timedOut =
+      (session.error as NodeJS.ErrnoException | undefined)?.code ===
+      'ETIMEDOUT';
+    const result = timedOut
       ? {
           ok: false,
-          detail: `session did not run: ${session.error.message}`,
+          detail: `session timeout after ${Math.round(sessionTimeoutMs(process.env) / 1000)}s (capped below the App token lifetime)`,
           cost: undefined,
         }
-      : parseSessionResult(session.stdout ?? '');
+      : session.error !== undefined
+        ? {
+            ok: false,
+            detail: `session did not run: ${session.error.message}`,
+            cost: undefined,
+          }
+        : parseSessionResult(session.stdout ?? '');
+    notStarted = session.error !== undefined && !timedOut;
+    return result;
+  };
+  const result: SessionResult = delivered
+    ? {
+        ok: true,
+        detail: 'resumed: an earlier run delivered the commit',
+        cost: undefined,
+      }
+    : runSession();
   const spent =
     result.cost === undefined ? '' : ` cost $${result.cost.toFixed(2)}`;
   const kept = `worktree ${started.path}, rerun reuses it`;
@@ -519,73 +552,81 @@ export async function laneRunCommand(
     };
   };
 
-  if (!result.ok)
-    return await stop(
-      result.detail,
-      session.error !== undefined && !timedOut
-        ? exitCredentialUnavailable
-        : exitNoDelivery,
-    );
-  // Taken before the placeholders go: the fast-pass key was written with them in the tree.
-  const verified =
-    sessionVerification(started.path) ?? contractVerification(started.path);
-  for (const path of sandboxPlaceholders(
-    git(started.path, ['status', '--porcelain', '-z', '--untracked-files=all']),
-    (file) => lstatSync(join(started.path, file)),
-  ))
-    rmSync(join(started.path, path));
-  if (git(started.path, ['status', '--porcelain']) !== '')
-    return await stop('dirty tree');
-  const range = `origin/${base}..HEAD`;
-  const commits = git(started.path, ['log', '--format=%s', range])
-    .split('\n')
-    .filter((line) => line !== '');
-  if (commits.length === 0) return await stop('no commit');
-  const title =
-    task === undefined
-      ? commits[commits.length - 1]
-      : ticketCommitTitle(
-          git(started.path, [
-            'log',
-            '--format=%s%x1f%(trailers:key=Ticket,valueonly,separator=%x2C)%x1e',
-            range,
-          ]),
-          task,
-        );
-  if (title === undefined)
-    return await stop(`no commit with a Ticket: ${task} trailer`);
-  if (task !== undefined && getTask(started.path, task).status !== 'closed')
-    return await stop('task not closed');
-  if (verified === undefined)
-    return await stop('no passing check on the final tree');
+  try {
+    if (!result.ok)
+      return await stop(
+        result.detail,
+        notStarted ? exitCredentialUnavailable : exitNoDelivery,
+      );
+    // Taken before the placeholders go: the fast-pass key was written with them in the tree.
+    const verified =
+      sessionVerification(started.path) ?? contractVerification(started.path);
+    for (const path of sandboxPlaceholders(
+      git(started.path, [
+        'status',
+        '--porcelain',
+        '-z',
+        '--untracked-files=all',
+      ]),
+      (file) => lstatSync(join(started.path, file)),
+    ))
+      rmSync(join(started.path, path));
+    if (git(started.path, ['status', '--porcelain']) !== '')
+      return await stop('dirty tree');
+    const range = `origin/${base}..HEAD`;
+    const commits = git(started.path, ['log', '--format=%s', range])
+      .split('\n')
+      .filter((line) => line !== '');
+    if (commits.length === 0) return await stop('no commit');
+    const title =
+      task === undefined
+        ? commits[commits.length - 1]
+        : ticketCommitTitle(
+            git(started.path, [
+              'log',
+              '--format=%s%x1f%(trailers:key=Ticket,valueonly,separator=%x2C)%x1e',
+              range,
+            ]),
+            task,
+          );
+    if (title === undefined)
+      return await stop(`no commit with a Ticket: ${task} trailer`);
+    if (task !== undefined && getTask(started.path, task).status !== 'closed')
+      return await stop('task not closed');
+    if (verified === undefined)
+      return await stop('no passing check on the final tree');
 
-  const bodyDir = join(main, '.krn', 'tmp');
-  mkdirSync(bodyDir, { recursive: true });
-  const bodyFile = join(bodyDir, `lane-run-${lane}.md`);
-  writeFileSync(
-    bodyFile,
-    task === undefined
-      ? goalPrBody(goal ?? '', commits, verified)
-      : renderPrBody({
-          task: getTask(started.path, task),
-          commits,
-          verified,
-          agent: `headless claude session ${result.detail}`,
-          refs: false,
-        }),
-  );
-  const shipped = await steps.ship([
-    '--worktree',
-    started.path,
-    '--title',
-    title,
-    '--body-file',
-    bodyFile,
-  ]);
-  const last = shipped.trim().split('\n').pop() ?? '';
-  const merged = /^verdict: merged\b/u.test(last);
-  return {
-    line: `lane ${label}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}`,
-    exitCode: merged ? 0 : exitNoDelivery,
-  };
+    const bodyDir = join(main, '.krn', 'tmp');
+    mkdirSync(bodyDir, { recursive: true });
+    const bodyFile = join(bodyDir, `lane-run-${lane}.md`);
+    writeFileSync(
+      bodyFile,
+      task === undefined
+        ? goalPrBody(goal ?? '', commits, verified)
+        : renderPrBody({
+            task: getTask(started.path, task),
+            commits,
+            verified,
+            agent: `headless claude session ${result.detail}`,
+            refs: false,
+          }),
+    );
+    const shipped = await steps.ship([
+      '--worktree',
+      started.path,
+      '--title',
+      title,
+      '--body-file',
+      bodyFile,
+    ]);
+    const last = shipped.trim().split('\n').pop() ?? '';
+    const merged = /^verdict: merged\b/u.test(last);
+    return {
+      line: `lane ${label}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}`,
+      exitCode: merged ? 0 : exitNoDelivery,
+    };
+  } catch (error) {
+    // A throw after the claim (git, ship push, red Check, timeout) must not leave the claim live.
+    return await stop(`failed: ${(error as Error).message.split('\n')[0]}`);
+  }
 }
