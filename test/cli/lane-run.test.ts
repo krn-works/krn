@@ -53,6 +53,10 @@ const capture = readFileSync(
   'utf8',
 );
 
+// A lane session exports these; the tests start lanes of their own and must not inherit its class.
+for (const name of ['KRN_SESSION_CLASS', 'KRN_LANE', 'KRN_TASK'])
+  delete process.env[name];
+
 const fastCheck = fileURLToPath(
   new URL('../../scripts/fast-check.ts', import.meta.url),
 );

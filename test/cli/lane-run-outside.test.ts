@@ -17,8 +17,9 @@ import { fileURLToPath } from 'node:url';
 import { startLane } from '../../src/cli/lane.ts';
 import { laneRunCommand } from '../../src/cli/lane-run.ts';
 
-// A lane session exports its class; these tests start lanes of their own.
-delete process.env.KRN_SESSION_CLASS;
+// A lane session exports these; the tests start lanes of their own and must not inherit its class.
+for (const name of ['KRN_SESSION_CLASS', 'KRN_LANE', 'KRN_TASK'])
+  delete process.env[name];
 
 // KRN-12: `krn lane run` end to end on an outside-shaped repository, the shape of the first outside
 // pilot: no root package.json, code in packages/x, a krn.json contract with npm --prefix, a local
