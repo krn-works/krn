@@ -1,7 +1,11 @@
 {
   "id": "t-0a9xgwe",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Universal delivery-lead and delivery-retro skills in src/adopt/skills, installed by adopt; scan test and pytest-fixture test. Not done: dedupe of .claude/.agents (already a symlink), PLAN.md/PLANS.md and rules text across docs/AGENTS (outside this slice)."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "Skills, rules and docs KRN injects work in any repository without KRN-specific text",
