@@ -10,12 +10,15 @@ export interface TestCase {
   body: string;
 }
 
-const TS_DECL = /(^|[^\w.$])(it|test)(\.(?:only|skip|concurrent|todo|fails))*\s*\(\s*(['"`])/g;
+const TS_DECL =
+  /(^|[^\w.$])(it|test)(\.(?:only|skip|concurrent|todo|fails))*\s*\(\s*(['"`])/g;
 const TS_PATH = /(^|\/)(__tests__|tests?)\/|\.(test|spec)\.[cm]?[jt]sx?$/;
 const PY_PATH = /(^|\/)(tests?\/|test_[^/]*\.py$)|_test\.py$/;
 
 export function isTestPath(path: string, lang: Lang): boolean {
-  return lang === 'ts' ? TS_PATH.test(path) && /\.[cm]?[jt]sx?$/.test(path) : PY_PATH.test(path) && path.endsWith('.py');
+  return lang === 'ts'
+    ? TS_PATH.test(path) && /\.[cm]?[jt]sx?$/.test(path)
+    : PY_PATH.test(path) && path.endsWith('.py');
 }
 
 // Index just past the closing paren of the call whose "(" is at `open`, skipping strings, templates and comments.
@@ -45,7 +48,10 @@ function tsCases(src: string): TestCase[] {
     const nameStart = open + src.slice(open).indexOf(quote) + 1;
     let i = nameStart;
     while (i < src.length && src[i] !== quote) i += src[i] === '\\' ? 2 : 1;
-    out.push({ name: src.slice(nameStart, i), body: src.slice(start, callEnd(src, open)) });
+    out.push({
+      name: src.slice(nameStart, i),
+      body: src.slice(start, callEnd(src, open)),
+    });
   }
   return out;
 }
@@ -80,7 +86,8 @@ const KEYWORDS = new Set(
 
 // Abstract tokens: literals become S or N, non-keyword identifiers become I, punctuation stays.
 export function abstractTokens(body: string): string[] {
-  const re = /"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\d[\w.]*|[A-Za-z_$][\w$]*|[^\s\w]/g;
+  const re =
+    /"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\d[\w.]*|[A-Za-z_$][\w$]*|[^\s\w]/g;
   const out: string[] = [];
   for (const [t] of body.matchAll(re)) {
     const c = t[0] as string;
@@ -100,7 +107,8 @@ export interface Fingerprint {
 export function fingerprint(body: string): Fingerprint {
   const tokens = abstractTokens(body);
   const shingles = new Set<string>();
-  for (let i = 0; i + SHINGLE <= tokens.length; i++) shingles.add(tokens.slice(i, i + SHINGLE).join(' '));
+  for (let i = 0; i + SHINGLE <= tokens.length; i++)
+    shingles.add(tokens.slice(i, i + SHINGLE).join(' '));
   return { tokens: tokens.length, shingles };
 }
 
@@ -112,7 +120,10 @@ export function similarity(a: Fingerprint, b: Fingerprint): number {
   return both / (a.shingles.size + b.shingles.size - both);
 }
 
-export function nearest(target: Fingerprint, pool: readonly Fingerprint[]): number {
+export function nearest(
+  target: Fingerprint,
+  pool: readonly Fingerprint[],
+): number {
   let best = 0;
   for (const p of pool) best = Math.max(best, similarity(target, p));
   return best;
@@ -122,7 +133,11 @@ export function hasAncestor(similarityScore: number): boolean {
   return similarityScore >= THRESHOLD;
 }
 
-export function wilson(k: number, n: number, z = 1.96): { lo: number; hi: number } {
+export function wilson(
+  k: number,
+  n: number,
+  z = 1.96,
+): { lo: number; hi: number } {
   if (n === 0) return { lo: 0, hi: 1 };
   const p = k / n;
   const d = 1 + (z * z) / n;
@@ -153,9 +168,14 @@ export function clusterBootstrap(
     if (n > 0) shares.push(k / n);
   }
   shares.sort((a, b) => a - b);
-  return { lo: shares[Math.floor(0.025 * shares.length)] ?? 0, hi: shares[Math.ceil(0.975 * shares.length) - 1] ?? 1 };
+  return {
+    lo: shares[Math.floor(0.025 * shares.length)] ?? 0,
+    hi: shares[Math.ceil(0.975 * shares.length) - 1] ?? 1,
+  };
 }
 
 export function isFix(subject: string): boolean {
-  return /^(fix|bugfix|hotfix)\b|\b(fix|fixes|fixed|bug|regression)\b/i.test(subject);
+  return /^(fix|bugfix|hotfix)\b|\b(fix|fixes|fixed|bug|regression)\b/i.test(
+    subject,
+  );
 }

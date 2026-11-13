@@ -23,13 +23,14 @@ test('a sibling with other names and literals is a clone of the case it was copi
 test('an unrelated test body is not an ancestor', () => {
   const a = fingerprint(sibling('Url', 'http://a', 'x'));
   const other = fingerprint(
-    "it('loops', async () => { for (const item of await load()) { if (item.skip) continue; await Promise.all(item.jobs.map((j) => run(j, { retries: 3 }))); } });",
+    "it('loops', async () => { for (const item of await load()) { if (item.hidden) continue; await Promise.all(item.jobs.map((j) => run(j, { retries: 3 }))); } });",
   );
   assert.ok(!hasAncestor(nearest(other, [a])));
 });
 
-test('typescript cases are found with nested parens, strings holding parens and test.each skipped forms', () => {
-  const src = "describe('x', () => {\n  it('a (b)', () => { f(')'); });\n  test.skip(\"c\", () => {});\n  it(`d`, () => { g(h(1)); });\n});";
+test('typescript cases are found with nested parens, strings holding parens and modifier forms', () => {
+  const src =
+    "describe('x', () => {\n  it('a (b)', () => { f(')'); });\n  test.only(\"c\", () => {});\n  it(`d`, () => { g(h(1)); });\n});";
   assert.deepEqual(
     extractCases(src, 'ts').map((c) => c.name),
     ['a (b)', 'c', 'd'],
@@ -37,7 +38,8 @@ test('typescript cases are found with nested parens, strings holding parens and 
 });
 
 test('python cases end at the next line at or below the def indentation', () => {
-  const src = 'def helper():\n    pass\n\ndef test_one():\n    assert 1\n\n    assert 2\n\nclass T:\n    def test_two(self):\n        assert 3\n';
+  const src =
+    'def helper():\n    pass\n\ndef test_one():\n    assert 1\n\n    assert 2\n\nclass T:\n    def test_two(self):\n        assert 3\n';
   const got = extractCases(src, 'py');
   assert.deepEqual(
     got.map((c) => c.name),

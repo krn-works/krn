@@ -1,0 +1,12 @@
+{
+  "id": "t-mq1ppm5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "Rung 1: sibling-test port precision on gold patches vs issue-only tests",
+  "after": [],
+  "body": [
+    "Rung 1: measure precision of the sibling-test port on gold patches versus issue-only tests, and audit the rung 0 detector precision at threshold 0.6 (hono 87% looks inflated). Follows t-t6tjhe9 (share 54.3%)."
+  ]
+}
