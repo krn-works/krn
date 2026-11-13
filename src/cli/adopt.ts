@@ -71,4 +71,17 @@ export function adoptCommand(args: string[]): void {
         `adopt failed: the canary did not prove the Stop gate (${result.message}); the adoption files stay written, fix the cause (a repository without tests needs one test file, e.g. *.test.ts, test_*.py or *_test.go, and a test command) or pass --no-canary to decline`,
       );
   }
+  process.stdout.write(nextSteps(path));
+}
+
+/** The closing lines: what the operator still does, since adopt only writes files. */
+export function nextSteps(path: string): string {
+  return [
+    'next steps:',
+    `  1. commit the adoption files: git -C ${path} add -A && git -C ${path} commit -m "chore: adopt krn"`,
+    '  2. merge them through a pull request on the default branch (never push the default branch directly)',
+    '  3. put krn on PATH for every agent session: the Stop hook refuses (exit 2) while `command -v krn` fails',
+    '  4. install the repository dependencies, then run `krn repo contract` to check the commands krn.json names',
+    '',
+  ].join('\n');
 }

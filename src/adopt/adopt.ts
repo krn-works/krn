@@ -193,28 +193,40 @@ function writeAdmission(root: string, report: AdoptionReport): void {
   writeIfChanged(root, relative, admissionPolicy, report);
 }
 
-function writeRules(root: string, report: AdoptionReport): void {
-  const path = join(root, 'AGENTS.md');
+function upsertRules(current: string): string {
   const block = renderRules();
-  const current = existsSync(path) ? readFileSync(path, 'utf8') : '';
   const start = current.indexOf(rulesStart);
   const end = current.indexOf(rulesEnd);
-  let next: string;
   if (start >= 0 && end > start)
-    next = `${current.slice(0, start)}${block}${current.slice(end + rulesEnd.length).replace(/^\n/u, '')}`;
-  else
-    next =
-      current === '' ? block : `${current.replace(/\n*$/u, '\n')}\n${block}`;
-  if (next === current) report.unchanged.push('AGENTS.md');
+    return `${current.slice(0, start)}${block}${current.slice(end + rulesEnd.length).replace(/^\n/u, '')}`;
+  return current === '' ? block : `${current.replace(/\n*$/u, '\n')}\n${block}`;
+}
+
+function writeRuleFile(
+  root: string,
+  relative: string,
+  report: AdoptionReport,
+): void {
+  const path = join(root, relative);
+  const current = existsSync(path) ? readFileSync(path, 'utf8') : '';
+  const next = upsertRules(current);
+  if (next === current) report.unchanged.push(relative);
   else {
     writeFileSync(path, next);
-    report.written.push('AGENTS.md');
+    report.written.push(relative);
   }
+}
+
+/** Rules go to AGENTS.md; CLAUDE.md links to it, and a regular CLAUDE.md (which Claude reads instead) carries the block too. */
+function writeRules(root: string, report: AdoptionReport): void {
+  writeRuleFile(root, 'AGENTS.md', report);
   const link = join(root, 'CLAUDE.md');
-  if (!existsSync(link) && !isSymlink(link)) {
+  if (isSymlink(link)) report.unchanged.push('CLAUDE.md');
+  else if (existsSync(link)) writeRuleFile(root, 'CLAUDE.md', report);
+  else {
     symlinkSync('AGENTS.md', link);
     report.written.push('CLAUDE.md');
-  } else report.unchanged.push('CLAUDE.md');
+  }
 }
 
 function isSymlink(path: string): boolean {
@@ -329,25 +341,30 @@ interface HookEntry {
   hooks?: { type?: string; command?: unknown }[];
 }
 
-/** Adds the Stop hook that calls `krn hook stop` (failing closed without krn on PATH), keeping every other setting and hook. */
-function writeHooks(root: string, report: AdoptionReport): void {
+/** The existing settings object, or an error naming the file; read before anything is written. */
+function readSettings(root: string): Record<string, unknown> {
   const relative = '.claude/settings.json';
   const path = join(root, relative);
-  let settings: Record<string, unknown> = {};
-  if (existsSync(path)) {
-    try {
-      const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
-      if (
-        typeof parsed !== 'object' ||
-        parsed === null ||
-        Array.isArray(parsed)
-      )
-        throw new Error('expected an object');
-      settings = parsed as Record<string, unknown>;
-    } catch (error) {
-      throw new Error(`${relative}: ${(error as Error).message}`);
-    }
+  if (!existsSync(path)) return {};
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
+      throw new Error('expected an object');
+    return parsed as Record<string, unknown>;
+  } catch (error) {
+    throw new Error(
+      `${relative}: ${(error as Error).message}; nothing was written, fix or remove the file and rerun`,
+    );
   }
+}
+
+/** Adds the Stop hook that calls `krn hook stop` (failing closed without krn on PATH), keeping every other setting and hook. */
+function writeHooks(
+  root: string,
+  settings: Record<string, unknown>,
+  report: AdoptionReport,
+): void {
+  const relative = '.claude/settings.json';
   const hooks = (settings.hooks ?? {}) as Record<string, unknown>;
   const stop = Array.isArray(hooks.Stop) ? (hooks.Stop as HookEntry[]) : [];
   // An earlier adoption's bare command exits 127 without krn on PATH, which does not block.
@@ -389,13 +406,15 @@ export function adopt(root: string, options: AdoptOptions): AdoptionReport {
   const report: AdoptionReport = { written: [], unchanged: [], skipped: [] };
   if (options.ref !== undefined && !/^[0-9a-f]{40}$/u.test(options.ref))
     throw new Error('--ref must be a full 40-character commit sha');
+  // Everything that can refuse runs before the first write.
+  const settings = readSettings(root);
   if (options.ref !== undefined || options.tracker) seedTasks(root, report);
   writeContract(root, options, report);
   const workflow =
     options.ref === undefined
       ? undefined
       : ciWorkflow(root, { ...options, ref: options.ref }, report);
-  writeHooks(root, report);
+  writeHooks(root, settings, report);
   writeSkills(root, report);
   writeRules(root, report);
   ignoreAgentState(root, report);
