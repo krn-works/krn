@@ -1,7 +1,11 @@
 {
   "id": "t-vbgpw7w",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "PreToolUse worker-scope hook refuses lane writes in the main checkout outside own worktree and .krn/runs; fixture test in test/claude/worker-scope.test.ts"
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "A lane session cannot write in the main checkout",
