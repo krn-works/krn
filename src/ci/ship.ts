@@ -12,7 +12,7 @@ import { titleProblem } from './commit-title.ts';
 import { waitCommand } from './wait.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh or cleanup still exits 0 with a warning); a rerun after the merge only cleans up; otherwise 65 instruction-bytes rule failed before the push, 74 failed gate, 75 timeout, 76 conflict, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh or cleanup still exits 0 with a warning); a rerun after the merge only cleans up; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 75 timeout, 76 conflict, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
 
 /** Exit codes for a ship whose wait ended without a merge. */
 const unmergedExitCodes = [
@@ -128,6 +128,43 @@ export async function shipCommand(
     ].join('\n');
   }
 
+  // Parallel lanes share one object store: retry a fetch another git blocks.
+  for (let attempt = 1; ; attempt++) {
+    const fetched = runner('git', ['fetch', '-q', 'origin', target], cwd);
+    if (fetched.code === 0) break;
+    if (attempt >= gitLockAttempts || !gitLockError.test(fetched.stderr))
+      checked(fetched);
+    await wait(attempt * 1000);
+  }
+  const changed = git(['diff', '--name-only', `origin/${target}...HEAD`]);
+  if (changed === '') {
+    // An empty squash commit would merge green; name the PR that carries it.
+    const carrier = (
+      await gh([
+        'pr',
+        'list',
+        '--repo',
+        repo,
+        '--base',
+        target,
+        '--state',
+        'merged',
+        '--search',
+        `${JSON.stringify(title)} in:title`,
+        '--json',
+        'number,title',
+        '--jq',
+        `[.[] | select(.title == ${JSON.stringify(title)})][0].number // empty`,
+      ])
+    ).trim();
+    throw Object.assign(
+      new Error(
+        `refused push: the diff against origin/${target} is empty${carrier === '' ? '' : `; PR #${carrier} already carries this change`}`,
+      ),
+      { exitCode: 66 },
+    );
+  }
+
   const rule = runner('node', ['--test', instructionBytesRule], cwd);
   if (rule.code !== 0)
     throw Object.assign(
@@ -212,14 +249,6 @@ export async function shipCommand(
   }
   await gh(['pr', 'merge', String(pr), '--repo', repo, '--auto', '--squash']);
 
-  // Parallel lanes share one object store: retry a fetch another git blocks.
-  for (let attempt = 1; ; attempt++) {
-    const fetched = runner('git', ['fetch', '-q', 'origin', target], cwd);
-    if (fetched.code === 0) break;
-    if (attempt >= gitLockAttempts || !gitLockError.test(fetched.stderr))
-      checked(fetched);
-    await wait(attempt * 1000);
-  }
   const head = git(['rev-parse', 'HEAD']);
   const base = git(['rev-parse', `origin/${target}`]);
   const waitArgs = [

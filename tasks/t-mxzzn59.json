@@ -1,7 +1,11 @@
 {
   "id": "t-mxzzn59",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn pr ship refuses an empty diff against the base (exit 66) and names the merged PR with the same title; the required Check workflow was not changed"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "A pull request with an empty diff against main cannot merge",
