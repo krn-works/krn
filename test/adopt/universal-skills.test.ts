@@ -63,7 +63,7 @@ test('adopt on a pytest fixture installs skills whose every command resolves the
   const root = mkdtempSync(join(tmpdir(), 'krn-skills-'));
   assert.equal(spawnSync('git', ['init', '-q', root]).status, 0);
   writeFileSync(join(root, 'pyproject.toml'), '[project]\nname = "x"\n');
-  const run = spawnSync(process.execPath, [cli, 'adopt', root], {
+  const run = spawnSync(process.execPath, [cli, 'adopt', root, '--no-canary'], {
     encoding: 'utf8',
   });
   assert.equal(run.status, 0, run.stderr);
