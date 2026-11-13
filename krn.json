@@ -3,5 +3,6 @@
   "test": "npm test",
   "related": "node --test {files}",
   "fast": "npm run fast",
+  "guard": "test/rules/ test/evals/fr40-freeze.test.ts",
   "tracker": "krn"
 }

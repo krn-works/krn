@@ -15,11 +15,15 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
+  failuresIn,
   inspect,
   judgeStop,
   relatedTests,
+  selectTests,
   statesBlocker,
+  stopHook,
 } from '../../scripts/claude/worker-stop.ts';
+import { resolveContract } from '../../src/repo/contract.ts';
 
 const hook = fileURLToPath(
   new URL('../../scripts/claude/worker-stop.ts', import.meta.url),
@@ -155,20 +159,25 @@ test('relatedTests selects tests naming a changed data file by path in the real 
   assert.deepEqual(receivers, [...receivers].sort());
 });
 
-test('relatedTests keeps an unrelated source change to importers plus the test/rules guards', () => {
+test('KRN own contract keeps an unrelated source change to importers plus its guards', () => {
   const tests = realTests();
-  const picked = relatedTests(['scripts/claude/worker-stop.ts'], tests);
+  const guard = (resolveContract('.').contract.guard ?? '').split(' ');
+  assert.ok(guard.includes('test/rules/'));
+  const picked = relatedTests(['scripts/claude/worker-stop.ts'], tests, guard);
   const guards = [...tests.keys()].filter((p) => p.startsWith('test/rules/'));
   assert.ok(guards.length > 0);
-  for (const guard of guards) assert.ok(picked.includes(guard), guard);
+  for (const each of guards) assert.ok(picked.includes(each), each);
+  assert.ok(picked.includes('test/evals/fr40-freeze.test.ts'));
   assert.ok(picked.includes('test/claude/worker-stop.test.ts'));
   assert.ok(
     picked.every(
       (p) =>
-        p.startsWith('test/rules/') || tests.get(p)?.includes('worker-stop'),
+        p.startsWith('test/rules/') ||
+        p === 'test/evals/fr40-freeze.test.ts' ||
+        tests.get(p)?.includes('worker-stop'),
     ),
   );
-  assert.deepEqual(relatedTests([], tests), []);
+  assert.deepEqual(relatedTests([], tests, guard), []);
 });
 
 test('a worker clone with no origin/main or main is refused once, naming the missing base', () => {
@@ -327,4 +336,254 @@ test('a base that already tracks a node_modules symlink still runs at the base',
     rmSync(dir, { recursive: true, force: true });
     rmSync(modules, { recursive: true, force: true });
   }
+});
+
+// Verbatim failure output of real runners (pytest 9 via uvx, go 1.27.3 `go test ./calc`), captured 2026-11-13.
+const PYTEST_RED =
+  'FAILED tests/test_calc.py::test_add - assert -1 == 3\n========================= 1 failed, 1 passed in 0.04s ==========================\n';
+const GO_RED =
+  '--- FAIL: TestAdd (0.00s)\n    calc_test.go:7: bad\nFAIL\nFAIL\texample.com/gom/calc\t0.003s\nFAIL\n';
+
+test('failuresIn names failing tests from pytest and go output, else the exit status', () => {
+  assert.deepEqual(failuresIn(PYTEST_RED, 1), ['tests/test_calc.py::test_add']);
+  assert.deepEqual(failuresIn(GO_RED, 1), ['TestAdd', 'example.com/gom/calc']);
+  assert.deepEqual(failuresIn('boom\n', 2), ['<run>::exit 2']);
+  assert.deepEqual(failuresIn('ok\n', 0), []);
+});
+
+test('selectTests: name match for other stacks, go packages, guards, full fallback, deleted files', () => {
+  const py = new Map([
+    ['tests/test_calc.py', 'from calc import add'],
+    ['tests/test_other.py', ''],
+    ['tests/invariants/test_tree.py', ''],
+  ]);
+  assert.deepEqual(selectTests(['src/calc.py'], py), {
+    files: ['tests/test_calc.py'],
+    full: false,
+  });
+  // A change no test relates to runs the guards when the contract has some, else the full test command.
+  assert.deepEqual(selectTests(['README.md'], py), { files: [], full: true });
+  assert.deepEqual(selectTests(['README.md'], py, ['tests/invariants/']), {
+    files: ['tests/invariants/test_tree.py'],
+    full: false,
+  });
+  assert.deepEqual(selectTests([], py), { files: [], full: false });
+  // A deleted module still selects the tests importing it.
+  const js = new Map([
+    ['test/a.test.ts', "import { a } from '../src/gone.ts';"],
+  ]);
+  assert.deepEqual(selectTests(['src/gone.ts'], js).files, ['test/a.test.ts']);
+  const go = new Map([['calc/calc_test.go', '']]);
+  assert.deepEqual(
+    selectTests(
+      ['calc/calc.go', 'main.go', 'gone/x.go'],
+      go,
+      [],
+      true,
+      (d) => d !== 'gone',
+    ),
+    { files: ['.', './calc'], full: false },
+  );
+});
+
+test('a deleted file is in the change set, so its importers are selected', () => {
+  const dir = clone();
+  try {
+    writeFileSync(
+      join(dir, 'test/a.test.ts'),
+      "import { a } from '../src/a.ts';\nvoid a;\n",
+    );
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'test');
+    sh(dir, 'branch', '-f', 'main');
+    sh(dir, 'rm', '-q', 'src/a.ts');
+    sh(dir, 'commit', '-q', '-m', 'delete');
+    const seen: string[][] = [];
+    const run = (root: string, tests: string[]) => {
+      if (root === dir) seen.push(tests);
+      return root === dir ? ['test/a.test.ts::<load>'] : [];
+    };
+    assert.equal(inspect(dir, run).ok, false);
+    assert.deepEqual(seen, [['test/a.test.ts']]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/** A git repository on `main` holding `files`, then a `work` branch. */
+function stackRepo(files: Record<string, string>) {
+  const dir = mkdtempSync(join(tmpdir(), 'worker-stop-stack-'));
+  sh(dir, 'init', '-q', '-b', 'main');
+  sh(dir, 'config', 'user.email', 'a@b.c');
+  sh(dir, 'config', 'user.name', 'a');
+  for (const [path, text] of Object.entries(files)) {
+    mkdirSync(join(dir, path, '..'), { recursive: true });
+    writeFileSync(join(dir, path), text);
+  }
+  sh(dir, 'add', '.');
+  sh(dir, 'commit', '-q', '-m', 'base');
+  sh(dir, 'checkout', '-q', '-b', 'work');
+  return dir;
+}
+
+function commitFile(dir: string, path: string, text: string) {
+  writeFileSync(join(dir, path), text);
+  sh(dir, 'add', '.');
+  sh(dir, 'commit', '-q', '-m', `edit ${path}`);
+}
+
+const ADD_GREEN = 'def add(a, b):\n    return a + b\n';
+const ADD_RED = 'def add(a, b):\n    return a - b\n';
+const PY_TEST =
+  'from calc import add\n\ndef test_add():\n    assert add(1, 2) == 3\n\ndef test_ok():\n    assert True\n';
+
+/** A pytest command that runs on this host, or undefined. */
+function pytest(): string | undefined {
+  for (const [cmd, args] of [
+    ['python3', ['-m', 'pytest', '--version']],
+    ['uvx', ['pytest', '--version']],
+  ] as const)
+    if (
+      spawnSync(cmd, args, { encoding: 'utf8', timeout: 120_000 }).status === 0
+    )
+      return cmd === 'python3' ? 'python3 -m pytest' : 'uvx pytest';
+  return undefined;
+}
+
+test('a pytest repository: the detected contract runs the name-matched test; red refuses, green allows', () => {
+  const dir = stackRepo({
+    'pyproject.toml': '[tool.pytest.ini_options]\npythonpath = ["."]\n',
+    'calc.py': ADD_GREEN,
+    'tests/test_calc.py': PY_TEST,
+  });
+  try {
+    const commands: string[] = [];
+    // The detected `python -m pytest` receives the name-matched test; its output is the captured pytest run.
+    const shell = (root: string, command: string) => {
+      if (root === dir) commands.push(command);
+      return failuresIn(root === dir ? PYTEST_RED : '', root === dir ? 1 : 0);
+    };
+    const never = () => assert.fail('the node reporter must not run');
+    assert.match(
+      judgeStop(payload(dir), lane(dir), never, '', shell) ?? '',
+      /no commit/u,
+    );
+    commitFile(dir, 'calc.py', ADD_RED);
+    assert.match(
+      judgeStop(payload(dir), lane(dir), never, '', shell) ?? '',
+      /tests\/test_calc\.py :: test_add/u,
+    );
+    assert.deepEqual(commands, ["python -m pytest 'tests/test_calc.py'"]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a pytest repository against real pytest: red refuses, green commit allows', (t) => {
+  const command = pytest();
+  if (!command) return t.skip('no pytest on this host; quarantine: t-298z99b');
+  const dir = stackRepo({
+    'pyproject.toml': '[tool.pytest.ini_options]\npythonpath = ["."]\n',
+    'krn.json': JSON.stringify({
+      test: command,
+      related: `${command} {files}`,
+    }),
+    'calc.py': ADD_GREEN,
+    'tests/test_calc.py': PY_TEST,
+  });
+  try {
+    commitFile(dir, 'calc.py', ADD_RED);
+    const red = inspect(dir);
+    assert.equal(red.ok, false);
+    assert.match(red.reason, /tests\/test_calc\.py :: test_add/u);
+    commitFile(dir, 'calc.py', `${ADD_GREEN}# fixed\n`);
+    assert.deepEqual(inspect(dir), { ok: true, reason: '', ignored: 0 });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+const GO_ADD = (op: string) =>
+  `package calc\n\nfunc Add(a, b int) int { return a ${op} b }\n`;
+const GO_TEST =
+  'package calc\n\nimport "testing"\n\nfunc TestAdd(t *testing.T) {\n\tif Add(1, 2) != 3 {\n\t\tt.Fatal("bad")\n\t}\n}\n';
+
+test('a go repository against real go test: the changed package runs; red refuses, green commit allows', (t) => {
+  if (spawnSync('go', ['version'], { encoding: 'utf8' }).status !== 0)
+    return t.skip('no go on this host; quarantine: t-298z99b');
+  const dir = stackRepo({
+    'go.mod': 'module example.com/gom\n\ngo 1.22\n',
+    'calc/calc.go': GO_ADD('+'),
+    'calc/calc_test.go': GO_TEST,
+    'other/other.go': 'package other\n',
+    'other/other_test.go':
+      'package other\n\nimport "testing"\n\nfunc TestOther(t *testing.T) { t.Fatal("never selected") }\n',
+  });
+  try {
+    commitFile(dir, 'calc/calc.go', GO_ADD('-'));
+    const red = inspect(dir);
+    assert.equal(red.ok, false);
+    assert.match(red.reason, /TestAdd/u);
+    assert.match(red.reason, /go test '\.\/calc'/u);
+    commitFile(dir, 'calc/calc.go', `${GO_ADD('+')}// fixed\n`);
+    assert.deepEqual(inspect(dir), { ok: true, reason: '', ignored: 0 });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a change no test relates to runs the full test command, not nothing', () => {
+  const dir = stackRepo({
+    'krn.json': JSON.stringify({
+      test: 'sh check.sh',
+      related: 'sh check.sh {files}',
+    }),
+    'check.sh': 'exit 0\n',
+    'notes.txt': 'a\n',
+  });
+  try {
+    commitFile(dir, 'notes.txt', 'b\n');
+    const commands: string[] = [];
+    const shell = (root: string, command: string) => {
+      if (root === dir) commands.push(command);
+      return root === dir ? ['<run>::exit 1'] : [];
+    };
+    assert.equal(inspect(dir, () => [], shell).ok, false);
+    assert.deepEqual(commands, ['sh check.sh']);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('an invalid krn.json refuses once, naming the contract', () => {
+  const dir = stackRepo({ 'krn.json': '{"tests": "x"}', 'a.txt': 'a\n' });
+  try {
+    commitFile(dir, 'a.txt', 'b\n');
+    assert.match(
+      judgeStop(payload(dir), lane(dir)) ?? '',
+      /repo contract is invalid.*unknown field "tests"/su,
+    );
+    assert.equal(
+      judgeStop({ ...payload(dir), stop_hook_active: true }, lane(dir)),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a crash in the Stop check refuses with exit 2, and a continued stop is let go', () => {
+  const crash = () => {
+    throw new Error('selector broke');
+  };
+  const first = stopHook('{}', {}, '', crash);
+  assert.equal(first.code, 2);
+  assert.match(
+    first.stderr,
+    /Stop refused: Stop check crashed: Error: selector broke/u,
+  );
+  assert.equal(stopHook('not json', {}, '', crash).code, 2);
+  const again = stopHook('{"stop_hook_active":true}', {}, '', crash);
+  assert.equal(again.code, 0);
+  assert.match(again.stderr, /crashed/u);
 });

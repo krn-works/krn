@@ -37,7 +37,7 @@ export const WORKER_RULES = `Worker rules:
 - Done means every behavior the task describes has a test in this clone that passes, and your change is committed. A closed task record, an earlier commit or a green existing suite never means done: an earlier commit may cover only part of the task.
 - For each behavior, outcome or interface the task states, write a test that checks it at its receiver. If it fails, fix the code; if it passes already, keep the test: the commit then carries the proof. Stop without a commit only when you can name an existing test for every described behavior.
 - A red test outranks tracker state and scope: if a test needs a file outside Scope (other than tasks/ and the roadmap), edit it and name it in your final reply.
-- Before you end, run 'node scripts/claude/worker-stop.ts --check' (it runs the tests importing the files you changed; '--related' lists them). The session is refused its end while there is no commit or that check is red; the one escape is a final line 'BLOCKER: <what stops you>'.`;
+- Before you end, run 'node scripts/claude/worker-stop.ts --check' (it runs the tests the repo contract selects for the files you changed, its guard tests, or the full test command when none relate; '--related' lists them). The session is refused its end while there is no commit or that check is red; the one escape is a final line 'BLOCKER: <what stops you>'.`;
 
 /** The lane brief with the FR-40 carrier prefix (D0, t-5983e6g): the measured arm-B prompt. */
 export function laneBriefText(

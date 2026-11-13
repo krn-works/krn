@@ -9,6 +9,7 @@
     "t-p226jft"
   ],
   "body": [
-    "Why: adopt writes only a krn-works CI workflow ref, rules R-1..R-4 and a tasks/ seed (src/adopt/adopt.ts:28,32-37,150-178); a foreign repo gets no hooks and no test contract.\nAfter: t-p226jft (Stop check) and t-pvhs4eb (lane).\nOutcome: adopt writes krn.json from detection (operator may edit), .claude/settings.json hooks calling krn hook, an optional tracker seed, and CI only on request.\nProof: adopt on pytest and npm fixture repos yields a contract that krn repo contract reads back and hooks that run.\nScope: src/adopt/, src/cli/, test/."
+    "Why: adopt writes only a krn-works CI workflow ref, rules R-1..R-4 and a tasks/ seed (src/adopt/adopt.ts:28,32-37,150-178); a foreign repo gets no hooks and no test contract.\nAfter: t-p226jft (Stop check) and t-pvhs4eb (lane).\nOutcome: adopt writes krn.json from detection (operator may edit), .claude/settings.json hooks calling krn hook, an optional tracker seed, and CI only on request.\nProof: adopt on pytest and npm fixture repos yields a contract that krn repo contract reads back and hooks that run.\nScope: src/adopt/, src/cli/, test/.",
+    "Carried from t-p226jft: hooks run as `krn hook <name>` from the installed binary (the Stop check is scripts/claude/worker-stop.ts, contract-driven since t-p226jft); adopt installs them, so the CLI entry ships here."
   ]
 }

@@ -15,6 +15,8 @@ export interface RepoContract {
   readonly related?: string;
   /** Quick local check before a commit; the test command when absent. */
   readonly fast?: string;
+  /** Whole-tree invariant tests the Stop check runs on every change: space-separated paths or path prefixes. */
+  readonly guard?: string;
   readonly tracker: Tracker;
 }
 
@@ -27,7 +29,7 @@ export interface ResolvedContract {
 }
 
 export const CONTRACT_FILE = 'krn.json';
-const FIELDS = ['base', 'test', 'related', 'fast', 'tracker'] as const;
+const FIELDS = ['base', 'test', 'related', 'fast', 'guard', 'tracker'] as const;
 
 export class ContractError extends Error {}
 
@@ -207,6 +209,7 @@ export function resolveContract(root: string): ResolvedContract {
     test,
     ...(related ? { related } : {}),
     ...(fast ? { fast } : {}),
+    ...(declared?.guard ? { guard: declared.guard } : {}),
     tracker:
       declared?.tracker ?? (existsSync(join(root, 'tasks')) ? 'krn' : 'none'),
   };
