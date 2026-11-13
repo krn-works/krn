@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -246,6 +247,68 @@ test('lane drop refuses an unknown lane with exit 64', () => {
     const result = lane(repo, 'drop', 'nothing');
     assert.equal(result.status, 64);
     assert.match(result.stderr, /lane nothing does not exist/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+function laneWithOnlyCopy(repo: string, id: string, slug: string) {
+  const file = join(repo, 'tasks', `${id}.json`);
+  writeFileSync(file, record(id));
+  const result = lane(repo, 'start', slug, '--task', id);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(file), false);
+  return join(repo, '.krn', 'worktrees', slug);
+}
+
+test('krn pr body from the main checkout finds a record only the lane worktree holds', () => {
+  const { base, repo } = fixture();
+  try {
+    laneWithOnlyCopy(repo, 't-only123', 'only');
+    const result = spawnSync(
+      process.execPath,
+      [cli, 'pr', 'body', '--task', 't-only123', '--base', 'origin/main'],
+      { cwd: repo, encoding: 'utf8' },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Ticket: t-only123/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('the lane brief reads a record only the lane worktree holds, claimed or released', async () => {
+  const { taskBrief } = await import('../../src/cli/lane-run.ts');
+  const { base, repo } = fixture();
+  try {
+    const path = laneWithOnlyCopy(repo, 't-only123', 'only');
+    assert.match(taskBrief(repo, 't-only123'), /Task t-only123: New/u);
+    const { releaseClaim } = await import('../../src/task/claims.ts');
+    await releaseClaim(repo, 't-only123');
+    assert.throws(() => taskBrief(repo, 't-only123'), /does not exist/u);
+    assert.match(
+      taskBrief(repo, 't-only123', '2026-11-13', [path]),
+      /Task t-only123: New/u,
+    );
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('lane drop refuses while the worktree holds the only copy of a task record', () => {
+  const { base, repo } = fixture();
+  try {
+    const path = laneWithOnlyCopy(repo, 't-only123', 'only');
+    const refused = lane(repo, 'drop', 'only');
+    assert.equal(refused.status, 64);
+    assert.match(refused.stderr, /only copy of t-only123/u);
+    assert.ok(existsSync(join(path, 'tasks', 't-only123.json')));
+    copyFileSync(
+      join(path, 'tasks', 't-only123.json'),
+      join(repo, 'tasks', 't-only123.json'),
+    );
+    assert.equal(lane(repo, 'drop', 'only').status, 0);
+    assert.equal(existsSync(path), false);
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
