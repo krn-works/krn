@@ -1,0 +1,12 @@
+{
+  "id": "t-6yrmt81",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 0,
+  "title": "lane run survives an outside repository and concurrent lanes end to end",
+  "after": [],
+  "body": [
+    "Why: the first outside pilot (krn-works/seo-audit-harness, t-djnrw3t) found six lane-run defects one expensive session at a time (fixed in f06353c 21f77d4 c6f0efd 062a4a9 23d23ea); three more remain: (1) parallel `krn lane start` races on `git fetch origin main` (\"cannot lock ref refs/remotes/origin/main\", exit 64; .krn/runs/pilot/lanes/summary.txt); (2) parallel lanes run their red-baseline check at once and the pilot suite times out under load, so every lane refuses with exit 72 although the suite is green alone (.krn/runs/pilot/lanes/baseline-solo.log: 271 files pass); (3) the exit-72 detail quotes vitest's separator line instead of the failing test names. Root cause of all nine: lane-run tests use fakes of the receiver, never an outside-shaped repository (KRN-12).\nOutcome: concurrent lane starts in one repository succeed (fetch serialized or retried on a ref lock); baseline checks of concurrent lanes are serialized by a lock under the main checkout's .krn/; a red baseline names the failing test files; a preflight before the model session fails in seconds on a missing settings file, unusable token or unreachable remote; and an end-to-end test runs `krn lane run` on a generated outside-shaped repository (no root package.json, code in packages/x, krn.json contract with --prefix, local bare remote) with a scripted session (KRN_LANE_CLAUDE) that writes the commit the way Claude does (Ticket line, blank line, Co-Authored-By) and reaches the ship step.\nProof: the e2e test fails on main before the fixes for at least the sandbox-placeholder and fetch-race cases and passes after; npm run fast PASS."
+  ]
+}

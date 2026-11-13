@@ -27,6 +27,7 @@ import { isTaskId } from '../task/record.ts';
 import { getTask, repositoryRoot } from '../task/store.ts';
 import { flagValue } from './flag-value.ts';
 import { laneBriefText } from './lane.ts';
+import { withFileLock } from './lane-lock.ts';
 import { renderPrBody } from './pr-body.ts';
 import { CliUsageError } from './usage-error.ts';
 
@@ -399,9 +400,96 @@ function killGroup(pid: number | undefined): void {
 const laneRunUsage =
   'krn lane run (--task ID | --goal TEXT) [--slug SLUG] [--actor NAME] [--model MODEL] [--root DIR]';
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI colour codes start with ESC.
+const ansi = /\u001b\[[0-9;]*m/gu;
+
+/** The last line that says something: vitest ends its output with a bare separator such as `⎯⎯⎯[3/3]⎯`. */
 function lastLine(text: string): string {
-  const lines = text.trim().split('\n');
+  const lines = text
+    .replace(ansi, '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => /\p{L}/u.test(line));
   return lines[lines.length - 1] ?? '';
+}
+
+/**
+ * The test files a red test run names as failing: vitest and jest (`FAIL  file > name`,
+ * `❯ file (n tests | m failed)`), node:test (`test at file:line:col`) and pytest (`FAILED file::name`).
+ */
+export function failingTests(output: string): string[] {
+  const files: string[] = [];
+  for (const raw of output.replace(ansi, '').split('\n')) {
+    const line = raw.trim();
+    const file =
+      /^FAIL\s+(\S+)/u.exec(line)?.[1] ??
+      /^❯\s+(\S+)\s+\(.*\bfailed\b/u.exec(line)?.[1] ??
+      /^test at (.+?):\d+:\d+$/u.exec(line)?.[1] ??
+      /^FAILED\s+([^\s:]+)::/u.exec(line)?.[1];
+    if (file !== undefined && !files.includes(file)) files.push(file);
+  }
+  return files;
+}
+
+/** Why the baseline test run failed: its exit and the failing test files, else its last meaningful line. */
+export function baselineReason(run: {
+  status: number | null;
+  stdout?: string | null;
+  stderr?: string | null;
+  error?: Error | undefined;
+}): string {
+  if (run.error !== undefined) return run.error.message;
+  const exit = `exit ${run.status ?? 'signal'}`;
+  const files = failingTests(`${run.stdout ?? ''}\n${run.stderr ?? ''}`);
+  if (files.length > 0) {
+    const shown = files.slice(0, 10).join(', ');
+    const more = files.length > 10 ? ` and ${files.length - 10} more` : '';
+    return `${exit}; failing: ${shown}${more}`;
+  }
+  return `${exit}: ${lastLine(`${run.stderr ?? ''}`) || lastLine(`${run.stdout ?? ''}`)}`;
+}
+
+/** The lock that makes concurrent lanes of one repository run their baseline tests one at a time. */
+export function baselineLockFile(main: string): string {
+  return join(main, '.krn', 'tmp', 'lane-baseline.lock');
+}
+
+/** A lane sandbox settings file claude cannot load, else undefined. */
+export function settingsFailure(settings: string): string | undefined {
+  if (!existsSync(settings))
+    return `sandbox settings file missing: ${settings}`;
+  try {
+    JSON.parse(readFileSync(settings, 'utf8'));
+    return undefined;
+  } catch (error) {
+    return `sandbox settings file is not JSON: ${settings} (${(error as Error).message})`;
+  }
+}
+
+/**
+ * Whether the session's own git credentials reach origin and its base branch: an unreachable
+ * remote or a token the remote refuses fails here in seconds, not after a model session.
+ */
+export function remoteFailure(
+  repo: string,
+  base: string,
+  env: NodeJS.ProcessEnv,
+): string | undefined {
+  const result = spawnSync(
+    'git',
+    ['-C', repo, 'ls-remote', '--exit-code', 'origin', `refs/heads/${base}`],
+    {
+      encoding: 'utf8',
+      env: { ...env, GIT_TERMINAL_PROMPT: '0' },
+      timeout: 30000,
+    },
+  );
+  if (result.status === 0) return undefined;
+  if (result.status === 2) return `origin has no branch ${base}`;
+  const said =
+    result.error?.message ??
+    (result.stderr.trim().split('\n')[0] || `exit ${result.status}`);
+  return `origin unreachable with the lane credentials (git ls-remote: ${said})`;
 }
 
 /**
@@ -411,6 +499,7 @@ function lastLine(text: string): string {
 export function prepareWorktree(
   worktree: string,
   base: string,
+  main: string = mainCheckoutRoot(worktree),
 ): { detail: string; exitCode: number } | undefined {
   const contract = findContract(worktree)?.contract;
   if (contract === undefined) return undefined;
@@ -439,10 +528,13 @@ export function prepareWorktree(
     git(worktree, ['rev-parse', `origin/${base}`])
   )
     return undefined;
-  const baseline = execute(contract.test);
+  // Concurrent lanes take turns: a suite run by five lanes at once timed out and read as red.
+  const baseline = withFileLock(baselineLockFile(main), () =>
+    execute(contract.test),
+  );
   if (baseline.status !== 0)
     return {
-      detail: `red baseline: ${contract.test} fails on a clean origin/${base} (${reason(baseline)}); no session started`,
+      detail: `red baseline: ${contract.test} fails on a clean origin/${base} (${baselineReason(baseline)}); no session started`,
       exitCode: exitRedBaseline,
     };
   return undefined;
@@ -535,6 +627,13 @@ export async function laneRunCommand(
       exitCode: exitCredentialUnavailable,
     };
 
+  const unreachable = remoteFailure(origin, base, environment);
+  if (unreachable !== undefined)
+    return {
+      line: `lane ${label}: preflight: ${unreachable}; no session started`,
+      exitCode: exitCredentialUnavailable,
+    };
+
   const existing = join(main, '.krn', 'worktrees', lane);
   const holder = actor ?? `lane-${lane}`;
   // A rerun after a failed run reuses its worktree and branch; the failed run released the claim.
@@ -604,7 +703,17 @@ export async function laneRunCommand(
     notStarted = session.error !== undefined && !timedOut;
     return result;
   };
-  const refusal = delivered ? undefined : prepareWorktree(started.path, base);
+  const unusable = delivered
+    ? undefined
+    : settingsFailure(laneSandboxSettings(started.path));
+  const refusal = delivered
+    ? undefined
+    : unusable !== undefined
+      ? {
+          detail: `preflight: ${unusable}; no session started`,
+          exitCode: exitCredentialUnavailable,
+        }
+      : prepareWorktree(started.path, base, main);
   const result: SessionResult = delivered
     ? {
         ok: true,
