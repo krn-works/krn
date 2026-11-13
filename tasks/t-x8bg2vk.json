@@ -1,7 +1,11 @@
 {
   "id": "t-x8bg2vk",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt validates settings.json before the first write, writes rules into a regular CLAUDE.md, ends with next steps"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "krn adopt writes nothing when a later step cannot succeed and ends with next steps",

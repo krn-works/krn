@@ -394,3 +394,53 @@ test('adopt --ref writes no CI call it cannot fill and says why', () => {
     /\.github\/workflows\/ci\.yml \(no lint, typecheck or test command; pass --test CMD\)/u,
   );
 });
+
+function tree(root: string): string[] {
+  return readdirSync(root, { recursive: true, withFileTypes: false })
+    .map(String)
+    .filter((name) => !name.startsWith('.git/') && name !== '.git')
+    .sort();
+}
+
+test('adopt leaves the tree unchanged when settings.json is not plain JSON', () => {
+  const root = scratch();
+  mkdirSync(join(root, '.claude'));
+  const commented = '{\n  // my hooks\n  "model": "opus"\n}\n';
+  writeFileSync(join(root, '.claude/settings.json'), commented);
+  const before = tree(root);
+  const run = adopt(root, '--tracker', '--test', 'npm test');
+  assert.notEqual(run.status, 0);
+  assert.match(run.stderr, /\.claude\/settings\.json/u);
+  assert.match(run.stderr, /nothing was written/u);
+  assert.deepEqual(tree(root), before);
+  assert.equal(
+    readFileSync(join(root, '.claude/settings.json'), 'utf8'),
+    commented,
+  );
+});
+
+test('adopt puts the rules block into a regular CLAUDE.md and keeps its text', () => {
+  const root = scratch();
+  writeFileSync(join(root, 'CLAUDE.md'), '# Mine\n\nKeep this.\n');
+  const run = adoptArgs(root, '--test', 'npm test');
+  assert.equal(run.status, 0, run.stderr);
+  const claude = readFileSync(join(root, 'CLAUDE.md'), 'utf8');
+  assert.equal(lstatSync(join(root, 'CLAUDE.md')).isSymbolicLink(), false);
+  assert.match(claude, /^# Mine\n\nKeep this\.\n/u);
+  assert.match(claude, /krn-adoption:start/u);
+  const rerun = adoptArgs(root, '--test', 'npm test');
+  assert.equal(rerun.status, 0, rerun.stderr);
+  assert.equal(readFileSync(join(root, 'CLAUDE.md'), 'utf8'), claude);
+});
+
+test('adopt ends with the commit, merge, PATH and install steps', () => {
+  const root = scratch();
+  const run = adoptArgs(root, '--test', 'npm test');
+  assert.equal(run.status, 0, run.stderr);
+  const last = run.stdout.trimEnd().split('\n').slice(-5);
+  assert.match(last[0] as string, /^next steps:/u);
+  assert.match(last[1] as string, /commit/u);
+  assert.match(last[2] as string, /merge/u);
+  assert.match(last[3] as string, /PATH/u);
+  assert.match(last[4] as string, /install/u);
+});
