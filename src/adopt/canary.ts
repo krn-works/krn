@@ -198,6 +198,7 @@ export function runCanary(root: string): CanaryResult {
       'worktree',
       'add',
       '-q',
+      '--no-track',
       '-b',
       branch,
       tree,

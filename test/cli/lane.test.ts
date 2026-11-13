@@ -93,6 +93,27 @@ test('lane start fetches origin main, creates the worktree and claims the task',
   }
 });
 
+test('lane start works while a running lane sandbox holds .git/config.lock', () => {
+  const { base, repo } = fixture();
+  // The harness sandbox mounts an empty read-only placeholder over the shared config lock.
+  const lock = join(repo, '.git', 'config.lock');
+  writeFileSync(lock, '', { mode: 0o444 });
+  try {
+    const result = lane(repo, 'start', 'locked', '--task', 't-abc1234');
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(
+      git(
+        join(repo, '.krn', 'worktrees', 'locked'),
+        'branch',
+        '--show-current',
+      ),
+      'locked',
+    );
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('lane start rejects a duplicate slug and a bad slug with exit 64', () => {
   const { base, repo } = fixture();
   try {

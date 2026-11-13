@@ -1,0 +1,16 @@
+{
+  "id": "t-0njadp6",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane start and canary use worktree add --no-track; ship pushes without -u; regression test red without the fix."
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "Lane start and ship work while a running lane holds the git config lock",
+  "after": [],
+  "body": [
+    "Why: while a lane session runs, its harness sandbox mounts an empty read-only placeholder over <main>/.git/config.lock (observed 2026-11-13 17:04, 0 bytes, r--r--r--, no git process). Every .git/config write in the shared git dir then fails: krn lane start (worktree add -b with upstream tracking) failed twice, and ship push -u would fail to set the upstream.\nOutcome: lane start, the adopt canary and pr ship write no git config, so they work beside running lanes.\nProof: test/cli/lane.test.ts \"lane start works while a running lane sandbox holds .git/config.lock\" fails without --no-track (exit 1) and passes with it."
+  ]
+}
