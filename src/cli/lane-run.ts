@@ -290,8 +290,8 @@ export function taskBrief(
 /** Why a token helper run failed (its first stderr line, else why it could not start), or undefined when it succeeded. */
 export function mintFailure(result: {
   status: number | null;
-  stderr?: string | null;
-  error?: Error;
+  stderr?: string | null | undefined;
+  error?: Error | undefined;
 }): string | undefined {
   if (result.status === 0) return undefined;
   return (
