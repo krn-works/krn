@@ -5,7 +5,7 @@
 // Usage: node evals/d23/harness.ts <checkout> <ref> <parent> <merge>
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type Rule, render, workerRules } from '../../scripts/render-agents.ts';
 
@@ -41,6 +41,68 @@ const git = (repo: string, ...args: string[]) =>
 
 const lines = (out: string) => out.split('\n').filter(Boolean);
 
+/** Relative module specifiers a source file names: static, re-export and dynamic imports. */
+export function relativeImports(source: string): string[] {
+  return [
+    ...source.matchAll(
+      /(?:\bfrom\s*|\bimport\s*\(?\s*)['"](\.{1,2}\/[^'"]+)['"]/g,
+    ),
+  ].map((m) => m[1] ?? '');
+}
+
+/**
+ * Files outside `roots` that the files under `roots` import, transitively, computed from the import graph
+ * at `commit` (a hook importing src/repo/contract.ts pulls it and whatever it imports into the overlay).
+ */
+export function importClosure(
+  roots: string[],
+  listed: (commit: string, roots: string[]) => string[],
+  read: (file: string) => string | undefined,
+  commit: string,
+): string[] {
+  const inRoot = (f: string) =>
+    roots.some((r) => f === r || f.startsWith(`${r}/`));
+  const seen = new Set<string>();
+  const queue = listed(commit, roots).filter((f) => f.endsWith('.ts'));
+  const visited = new Set(queue);
+  while (queue.length > 0) {
+    const file = queue.pop() as string;
+    const source = read(file);
+    if (source === undefined) continue;
+    for (const spec of relativeImports(source)) {
+      const target = posix.normalize(posix.join(posix.dirname(file), spec));
+      if (visited.has(target) || target.startsWith('..')) continue;
+      visited.add(target);
+      if (read(target) === undefined) continue;
+      if (!inRoot(target)) seen.add(target);
+      queue.push(target);
+    }
+  }
+  return [...seen].sort();
+}
+
+/** The overlay at `commit`: the fixed roots plus every file their hooks import, from the import graph. */
+export function overlayFiles(repo: string, commit: string): Set<string> {
+  const listed = (c: string, roots: string[]) =>
+    lines(git(repo, 'ls-tree', '-r', '--name-only', c, '--', ...roots));
+  const read = (f: string) => {
+    try {
+      return execFileSync('git', ['show', `${commit}:${f}`], {
+        cwd: repo,
+        encoding: 'utf8',
+        maxBuffer: 64 << 20,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      });
+    } catch {
+      return undefined;
+    }
+  };
+  return new Set([
+    ...listed(commit, HARNESS_ROOTS),
+    ...importClosure(HARNESS_ROOTS, listed, read, commit),
+  ]);
+}
+
 export interface HarnessPlan {
   write: string[];
   remove: string[];
@@ -56,20 +118,7 @@ export function harnessPlan(
   const touched = new Set(
     lines(git(repo, 'diff', '--name-only', parent, merge)),
   );
-  const at = (commit: string) =>
-    new Set(
-      lines(
-        git(
-          repo,
-          'ls-tree',
-          '-r',
-          '--name-only',
-          commit,
-          '--',
-          ...HARNESS_ROOTS,
-        ),
-      ),
-    );
+  const at = (commit: string) => overlayFiles(repo, commit);
   const onRef = at(ref);
   const onParent = at(parent);
   return {

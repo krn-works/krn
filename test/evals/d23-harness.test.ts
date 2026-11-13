@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -8,9 +9,16 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, posix } from 'node:path';
 import test from 'node:test';
-import { harnessPlan, layHarness } from '../../evals/d23/harness.ts';
+import { fileURLToPath } from 'node:url';
+import {
+  harnessPlan,
+  importClosure,
+  layHarness,
+  overlayFiles,
+  relativeImports,
+} from '../../evals/d23/harness.ts';
 
 test('the replay harness keeps every file the merged change touched at the parent version', () => {
   const root = mkdtempSync(join(tmpdir(), 'd23-harness-'));
@@ -128,4 +136,49 @@ test('the worker tree lists no lead-only rule line, lead skill or positive workf
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('the overlay carries every file a worker hook imports, computed from the import graph', () => {
+  const repo = fileURLToPath(new URL('../..', import.meta.url));
+  const head = execFileSync('git', ['rev-parse', 'HEAD'], {
+    cwd: repo,
+    encoding: 'utf8',
+  }).trim();
+  const overlay = overlayFiles(repo, head);
+  const missing: string[] = [];
+  const walk = (file: string, seen: Set<string>) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    for (const spec of relativeImports(
+      readFileSync(join(repo, file), 'utf8'),
+    )) {
+      const target = posix.normalize(posix.join(posix.dirname(file), spec));
+      if (!existsSync(join(repo, target))) continue;
+      if (!overlay.has(target)) missing.push(`${file} -> ${target}`);
+      walk(target, seen);
+    }
+  };
+  const seen = new Set<string>();
+  for (const f of overlay)
+    if (f.startsWith('scripts/claude/') && f.endsWith('.ts')) walk(f, seen);
+  assert.deepEqual(missing, []);
+  assert.ok(overlay.has('src/repo/contract.ts'), 'the Stop gate imports it');
+});
+
+test('a hook importing a file outside the overlay roots pulls it and its own imports in', () => {
+  const files: Record<string, string> = {
+    'scripts/claude/h.ts':
+      "import { a } from '../../src/a.ts';\nawait import('./x.ts');",
+    'scripts/claude/x.ts': 'export {};',
+    'src/a.ts': "export { b } from './deep/b.ts';",
+    'src/deep/b.ts': "import 'node:fs';",
+    'src/unrelated.ts': '',
+  };
+  const got = importClosure(
+    ['scripts/claude'],
+    () => ['scripts/claude/h.ts', 'scripts/claude/x.ts'],
+    (f) => files[f],
+    'c',
+  );
+  assert.deepEqual(got, ['src/a.ts', 'src/deep/b.ts']);
 });
