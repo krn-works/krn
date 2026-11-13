@@ -160,6 +160,23 @@ test('relatedTests selects tests naming a changed data file by path in the real 
   assert.deepEqual(receivers, [...receivers].sort());
 });
 
+test('relatedTests selects the whole-project tool probe when a tool config changes', () => {
+  const tests = realTests();
+  assert.ok(
+    relatedTests(['.claude/settings.json'], tests).includes(
+      'test/tool-scope.test.ts',
+    ),
+  );
+  assert.ok(
+    !relatedTests(['docs/x.md'], tests).includes('test/tool-scope.test.ts'),
+  );
+  assert.ok(
+    !relatedTests(['tasks/t-1.json'], tests).includes(
+      'test/tool-scope.test.ts',
+    ),
+  );
+});
+
 test('KRN own contract keeps an unrelated source change to importers plus its guards', () => {
   const tests = realTests();
   const guard = (resolveContract('.').contract.guard ?? '').split(' ');

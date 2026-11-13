@@ -1,7 +1,11 @@
 {
   "id": "t-484295s",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Stop check selects data-file readers by path literal, test/rules guards, and the whole-project tool probe on tool-config changes; dev replay of 566 and 621 not run in this lane"
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "The K worker stop check also runs the guard tests that read changed data files by path",
