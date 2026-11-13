@@ -51,9 +51,25 @@ export function testRunnerArgs(
 /** Repository-wide rule tests scan every tracked file; they cost ~0.5 s, so any change runs them. */
 const RULE_TEST = /^test\/rules\//u;
 
+/** Paths the instruction and documentation rule tests scan; a removed path always counts. */
+const PROSE_PATHS =
+  /^(?:AGENTS\.md|CLAUDE\.md|CONTEXT\.md|README\.md|docs\/|\.agents\/|\.claude\/|spec\/|tasks\/|\.github\/pull_request_template\.md$)/u;
+
+/** Rule tests that read only prose paths: selected when the diff touches those, else CI runs them. */
+const PROSE_RULE_TESTS = new Set([
+  'test/rules/instruction-bytes.test.ts',
+  'test/rules/instruction-references.test.ts',
+  'test/rules/lead-traps.test.ts',
+  'test/rules/one-owner-docs.test.ts',
+  'test/rules/project-skills.test.ts',
+  'test/rules/roadmap-open-tasks.test.ts',
+  'test/rules/session-role.test.ts',
+]);
+
 /**
  * Tests to run: changed tests, tests whose imports resolve to a changed or removed file,
- * tests that name a changed or removed file by repository path, and the rule tests.
+ * tests that name a changed or removed file by repository path, and the rule tests
+ * (prose rule tests only when the diff touches the prose paths they scan).
  * A removed file is also matched by its basename when no surviving file shares it, so
  * `join(root, 'scripts', 'gone.mjs')` and doc assertions still find the reference.
  */
@@ -64,8 +80,12 @@ export function selectTests(
   surviving: ReadonlySet<string> = new Set(),
 ): string[] {
   const picked = new Set(changed.filter((file) => tests.has(file)));
-  if (changed.length + removed.length > 0)
-    for (const path of tests.keys()) if (RULE_TEST.test(path)) picked.add(path);
+  const touched = [...changed, ...removed];
+  const prose = touched.some((file) => PROSE_PATHS.test(file));
+  if (touched.length > 0)
+    for (const path of tests.keys())
+      if (RULE_TEST.test(path) && (prose || !PROSE_RULE_TESTS.has(path)))
+        picked.add(path);
   const targets = new Set(
     [...changed, ...removed].filter((name) => !tests.has(name)),
   );

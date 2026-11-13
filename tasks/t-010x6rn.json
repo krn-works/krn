@@ -1,7 +1,11 @@
 {
   "id": "t-010x6rn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast-check selects 7 prose rule tests only for prose-path or removed-file diffs; test added; before/after wall time not measured separately"
+  },
   "created": "2026-11-11",
   "priority": 2,
   "title": "npm run fast runs rule tests only when the diff touches what they scan",
