@@ -184,7 +184,9 @@ export async function shipCommand(
 
   const pushed = runner(
     'git',
-    ['push', '-u', ...(force ? ['--force-with-lease'] : []), 'origin', branch],
+    // No -u: an upstream is a .git/config write, which a running lane's sandbox placeholder
+    // over .git/config.lock refuses; nothing reads the upstream.
+    ['push', ...(force ? ['--force-with-lease'] : []), 'origin', branch],
     cwd,
   );
   if (pushed.code !== 0)

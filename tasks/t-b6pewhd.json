@@ -1,7 +1,11 @@
 {
   "id": "t-b6pewhd",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane start and pr body name a missing origin remote; lane start refuses a krn.json not on origin/<base> before cutting the worktree; carrying a task record creates tasks/ when origin lacks it."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "Lane and PR commands name a missing remote or unpublished adoption plainly",

@@ -1,7 +1,11 @@
 {
   "id": "t-sgh0smf",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt installs a Stop command that exits 2 naming krn when krn is not on PATH; a rerun replaces the legacy bare entry; the canary accepts both. Receiver test runs the command in /bin/sh."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "The adopted Stop hook blocks when krn is not on PATH",

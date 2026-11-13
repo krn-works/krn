@@ -20,6 +20,7 @@ import {
 } from '../repo/contract.ts';
 import { createTask } from '../task/store.ts';
 import { seedConventions } from './conventions.ts';
+import { legacyStopCommand, stopCommand } from './stop-hook.ts';
 
 export interface AdoptOptions {
   /** Commit sha of krn-works/krn that holds the shared project-ci.yml; CI is written only when given. */
@@ -285,13 +286,11 @@ function writeSkills(root: string, report: AdoptionReport): void {
   } else report.unchanged.push('.claude/skills');
 }
 
-const stopCommand = 'krn hook stop';
-
 interface HookEntry {
   hooks?: { type?: string; command?: unknown }[];
 }
 
-/** Adds the Stop hook that calls `krn hook stop`, keeping every other setting and hook. */
+/** Adds the Stop hook that calls `krn hook stop` (failing closed without krn on PATH), keeping every other setting and hook. */
 function writeHooks(root: string, report: AdoptionReport): void {
   const relative = '.claude/settings.json';
   const path = join(root, relative);
@@ -312,6 +311,10 @@ function writeHooks(root: string, report: AdoptionReport): void {
   }
   const hooks = (settings.hooks ?? {}) as Record<string, unknown>;
   const stop = Array.isArray(hooks.Stop) ? (hooks.Stop as HookEntry[]) : [];
+  // An earlier adoption's bare command exits 127 without krn on PATH, which does not block.
+  for (const entry of stop)
+    for (const hook of entry.hooks ?? [])
+      if (hook.command === legacyStopCommand) hook.command = stopCommand;
   if (
     !stop.some((entry) =>
       entry.hooks?.some((hook) => hook.command === stopCommand),

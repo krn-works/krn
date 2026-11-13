@@ -619,7 +619,10 @@ test('a session that cannot start exits 69, not the no-delivery 74', async () =>
       { start: startLane, ship: async () => 'x', mint: async () => undefined },
     );
     assert.equal(verdict.exitCode, 69);
-    assert.match(verdict.line, /session did not run/u);
+    assert.match(
+      verdict.line,
+      /session did not run: \S*missing-claude not found \(put claude on PATH or set KRN_LANE_CLAUDE\)/u,
+    );
   } finally {
     delete process.env.KRN_LANE_CLAUDE;
     rmSync(base, { recursive: true, force: true });
@@ -683,13 +686,14 @@ test('lane start cuts the worktree from the contract base branch', async () => {
   const { base, repo } = fixture('true');
   try {
     git(repo, 'checkout', '-q', '-b', 'master');
-    git(repo, 'commit', '-q', '--allow-empty', '-m', 'only on master');
-    git(repo, 'push', '-q', 'origin', 'master');
-    git(repo, 'checkout', '-q', 'main');
+    // The adoption is on origin/master, the contract's base; lane start refuses one only local.
     writeFileSync(
       join(repo, 'krn.json'),
       '{"base": "master", "test": "true", "tracker": "none"}\n',
     );
+    git(repo, 'add', 'krn.json');
+    git(repo, 'commit', '-q', '-m', 'only on master');
+    git(repo, 'push', '-q', 'origin', 'master');
     const started = await startLane(['on-master', '--root', repo]);
     assert.equal(
       git(started.path, 'rev-parse', 'HEAD'),
