@@ -1,7 +1,11 @@
 {
   "id": "t-1q7znxx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "contract detects unittest, phpunit, nested go/cargo, workspaces; undetected stack names fields"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "The repo contract detects unittest, phpunit and workspace layouts, or adopt names the gap",
