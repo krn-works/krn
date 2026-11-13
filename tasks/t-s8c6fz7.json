@@ -1,7 +1,11 @@
 {
   "id": "t-s8c6fz7",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "replay.sh retries API/auth/overload errors like usage limits; runs.ts never grades them"
+  },
   "created": "2026-11-13",
   "priority": 0,
   "title": "D23 replay never grades a session that ended on an API or auth error",

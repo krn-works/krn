@@ -65,21 +65,25 @@ start=$(date +%s)
 run_claude() {
   CLAUDE_CODE_SESSION_ATTENDED=0 timeout 1500 claude -p --model claude-opus-5-5 --effort medium --permission-mode bypassPermissions --max-budget-usd 6 --output-format json "$prompt" > $OUT/$tag.claude.json 2> $OUT/$tag.claude.err
 }
-# A usage limit is an error claude reports, never text a successful arm wrote (its task may quote one).
-limit_hit() {
+# An error claude reports (usage limit, auth, API or overload failure) is infrastructure, never a graded outcome; text a successful arm wrote may quote one.
+# Prints the kind: limit (waits for the reset) or api (short wait); prints nothing for a normal end.
+error_kind() {
   python3 - "$OUT/$tag.claude.json" "$OUT/$tag.claude.err" <<'PY'
 import json,re,sys
 def read(p):
     try: return open(p).read()
     except OSError: return ""
 raw=read(sys.argv[1]); err=read(sys.argv[2])
+status=None
 try:
     d=json.loads(raw)
-    if not d.get("is_error"): sys.exit(1)
+    if not d.get("is_error"): sys.exit(0)
     text=err+"\n"+str(d.get("result",""))
+    status=d.get("api_error_status")
 except ValueError:
     text=err+"\n"+raw
-sys.exit(0 if re.search(r"hit your .*limit|weekly limit|usage limit",text,re.I) else 1)
+if re.search(r"hit your .*limit|weekly limit|usage limit",text,re.I): print("limit")
+elif (isinstance(status,int) and status>=400) or re.search(r"API Error: \d{3}|Failed to authenticate|overloaded",text,re.I): print("api")
 PY
 }
 # seconds until the "resets <time>" the limit message names; capped at 5 h, which is also the answer when no time parses
@@ -100,8 +104,9 @@ print(min(cap,int((t-now).total_seconds())+60))'
 limit_retry=0
 run_claude
 claude_rc=$?
-if limit_hit; then
-  ${D23_SLEEP:-sleep} "$(limit_wait)"
+kind=$(error_kind)
+if [ -n "$kind" ]; then
+  if [ "$kind" = limit ]; then ${D23_SLEEP:-sleep} "$(limit_wait)"; else ${D23_SLEEP:-sleep} "${D23_API_WAIT:-120}"; fi
   limit_retry=1
   run_claude
   claude_rc=$?
