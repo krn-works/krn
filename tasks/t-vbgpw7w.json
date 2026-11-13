@@ -1,0 +1,12 @@
+{
+  "id": "t-vbgpw7w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "A lane session cannot write in the main checkout",
+  "after": [],
+  "body": [
+    "Why: 2026-11-13 the ci-wait lane edited src/ci/wait.ts and src/deliver/admission-policy.ts in the main checkout instead of its worktree (lead moved them to branch ci-wait-wip). lanes.md says own worktree, but nothing refuses it.\nOutcome: a PreToolUse hook in lane sessions refuses Edit/Write/Bash writes under the repository root outside .krn/worktrees/<own slug> and .krn/runs; test with a lane-session fixture."
+  ]
+}

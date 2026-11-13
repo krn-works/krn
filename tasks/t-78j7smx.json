@@ -1,0 +1,12 @@
+{
+  "id": "t-78j7smx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "A canary that cannot run fails adopt instead of reporting skipped",
+  "after": [],
+  "body": [
+    "Why: #690 canary returns 'skipped' (exit 0) for no test file, an unsupported language or no commit; D1 says the gate fails closed and proves itself.\nOutcome: adopt fails on a skipped canary unless --no-canary records the operator's decline; a repo with no tests gets a clear message naming what to add."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-vpks6m5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "Lane verdicts carry the command and exit behind every claim about an external system",
+  "after": [],
+  "body": [
+    "Why: 2026-11-13 two lanes reported confident false facts: #688 claimed the pilot lacked krn.json and spec/ci-admission.json (it read with a krn-scoped token and got 404); #684 claimed a vitest receiver but used node --test. The lead caught both only by rerunning against the real receiver.\nOutcome: the lane verdict template requires, for every claim about an external system, the exact command and its exit code, and krn lane brief adds that line; the lead reruns one such command per lane before accepting."
+  ]
+}
