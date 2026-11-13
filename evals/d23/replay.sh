@@ -122,21 +122,7 @@ if [ -n "$own" ]; then node --test --test-concurrency=1 $own > $OUT/$tag.own.log
 # noise from transcript
 sid=$(python3 -c "import json;print(json.load(open('$OUT/$tag.claude.json')).get('session_id',''))" 2>/dev/null)
 proj=$HOME/.claude/projects/$(echo $D | sed 's#[/.]#-#g')
-python3 - "$proj" "$sid" >> $OUT/$tag.meas <<'P'
-import sys,json,glob
-proj,sid=sys.argv[1:]
-tools=hooks=0
-for f in glob.glob(proj+'/**/*.jsonl',recursive=True):
-    for l in open(f):
-        try: d=json.loads(l)
-        except: continue
-        if d.get('type')=='assistant':
-            c=d.get('message',{}).get('content',[])
-            if isinstance(c,list): tools+=sum(1 for b in c if isinstance(b,dict) and b.get('type')=='tool_use')
-        a=d.get('attachment') or {}
-        if str(a.get('type','')).startswith('hook_') or d.get('subtype')=='stop_hook_summary': hooks+=1
-print('tool_calls=%d'%tools); print('hook_msgs=%d'%hooks)
-P
+node $HERE/transcript.ts "$proj" "$sid" >> $OUT/$tag.meas
 echo measured >> $OUT/$tag.meas
 cd /; rm -rf $D
 if [ -n "${krnroot:-}" ] && [ "$krnroot" != "$D" ]; then git -C $REPO worktree remove --force $krnroot; fi
