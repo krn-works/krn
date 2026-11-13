@@ -13,6 +13,7 @@ import {
   INHERITED,
   parsePack,
   parseStandards,
+  promotionFailures,
   reference,
   renderStandardsBlock,
   type Standard,
@@ -404,4 +405,64 @@ test('briefStandards lists in-force worker standards and marks the inherited one
     '- [s-own] A project rule.',
   ]);
   assert.equal(briefStandards([records[2] as Standard], '2026-11-13', 'f'), '');
+});
+
+test('a harvested record keeps its origins and parses only with a consistent occurrence count', () => {
+  const record = {
+    ...base(),
+    harvested: { origins: ['alpha', 'beta'], occurrences: 2 },
+  };
+  assert.deepEqual(parseStandards([record])[0]?.harvested, {
+    origins: ['alpha', 'beta'],
+    occurrences: 2,
+  });
+  rejects(
+    (r) => Object.assign(r, { harvested: { origins: [], occurrences: 1 } }),
+    /harvested\.origins: expected at least one/u,
+  );
+  rejects(
+    (r) =>
+      Object.assign(r, { harvested: { origins: ['a', 'b'], occurrences: 1 } }),
+    /harvested\.occurrences: expected an integer of at least 2/u,
+  );
+  rejects(
+    (r) => Object.assign(r, { harvested: { origins: ['a'] } }),
+    /harvested: fields must be exactly origins, occurrences/u,
+  );
+});
+
+test('promotionFailures holds a harvested record to recurrence and enforcement, and ignores the rest', () => {
+  const harvested = (
+    origins: string[],
+    occurrences: number,
+    extra: Record<string, unknown> = {},
+  ) =>
+    parseStandards([
+      { ...base(), harvested: { origins, occurrences }, ...extra },
+    ]);
+  assert.deepEqual(promotionFailures(parseStandards([base()])), []);
+  assert.deepEqual(promotionFailures(harvested(['alpha', 'beta'], 2)), []);
+  assert.deepEqual(promotionFailures(harvested(['alpha'], 3)), []);
+  assert.deepEqual(
+    promotionFailures(
+      harvested(['alpha'], 1, { evidence: ['https://example.com/source'] }),
+    ),
+    [],
+  );
+  const once = promotionFailures(harvested(['alpha'], 1));
+  assert.equal(once.length, 1);
+  assert.equal(once[0]?.id, 's-example');
+  assert.match(
+    once[0]?.message ?? '',
+    /^promotion rule: .*origins alpha in 1 proposals; needs 2 repositories, 3 proposals or an https evidence source$/u,
+  );
+  const advisory = promotionFailures(
+    harvested(['alpha', 'beta'], 2, { enforcement: { kind: 'advisory' } }),
+  );
+  assert.deepEqual(
+    advisory.map((failure) => failure.message),
+    [
+      'promotion rule: a harvested standard needs a command or krn enforcement, not advisory',
+    ],
+  );
 });

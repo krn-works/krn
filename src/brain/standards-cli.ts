@@ -1,8 +1,18 @@
 // `krn standards check [--root DIR]`: run the enforcement of every standard that applies to one
 // repository (the shipped pack plus its .agents/standards.json) and print one PASS or FAIL line.
+// `krn standards propose` writes a retro lesson as a tracked proposal file in a repository;
+// `krn standards harvest` groups the proposals of adopted repositories into pack candidates.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { basename, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CliUsageError } from '../cli/usage-error.ts';
 import {
@@ -10,6 +20,18 @@ import {
   contractTracker,
   detectStack,
 } from '../repo/contract.ts';
+import {
+  formatProposal,
+  harvestCandidates,
+  normalizeText,
+  PROPOSAL_KINDS,
+  PROPOSALS_DIR,
+  type ProposalKind,
+  parseProposal,
+  proposalFileName,
+  renderHarvest,
+  type Sourced,
+} from './proposals.ts';
 import {
   appliesTo,
   assertNoClash,
@@ -19,18 +41,22 @@ import {
   type Need,
   parsePack,
   parseStandards,
+  promotionFailures,
   type Repository,
   type Standard,
   StandardsDataError,
   splitProject,
 } from './standards.ts';
 
-export const usage = 'usage: krn standards check [--root DIR]';
+export const usage =
+  'usage: krn standards check [--root DIR] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [REPO...] [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
 /** A project's own standards, relative to its root; they add to the pack and never share a pack id. */
 export const PROJECT_STANDARDS = '.agents/standards.json';
+/** The host-local list of adopted repositories `harvest` reads when given none: a JSON array of paths, untracked because it names private repositories. */
+export const ADOPTED_LIST = '.krn/adopted.json';
 /** How long one enforcement may run before it counts as failed. */
 export const ENFORCEMENT_TIMEOUT_MS = 60_000;
 
@@ -103,22 +129,20 @@ function environment(): NodeJS.ProcessEnv {
 /** Refuses a root that is not a directory or not the top level of its own git repository. */
 export function repositoryRoot(root: string): string {
   if (!existsSync(root) || !statSync(root).isDirectory())
-    throw new StandardsInputError(
-      `krn standards check: ${root} is not a directory`,
-    );
+    throw new StandardsInputError(`krn standards: ${root} is not a directory`);
   const top = spawnSync('git', ['-C', root, 'rev-parse', '--show-toplevel'], {
     encoding: 'utf8',
     env: environment(),
   });
   if (top.status !== 0)
     throw new StandardsInputError(
-      `krn standards check: ${root} is not a git repository (${top.stderr.trim() || `git exit ${top.status}`})`,
+      `krn standards: ${root} is not a git repository (${top.stderr.trim() || `git exit ${top.status}`})`,
     );
   const real = realpathSync(root);
   const toplevel = realpathSync(top.stdout.trim());
   if (real !== toplevel)
     throw new StandardsInputError(
-      `krn standards check: ${root} is not the top level of its git repository (${toplevel})`,
+      `krn standards: ${root} is not the top level of its git repository (${toplevel})`,
     );
   return real;
 }
@@ -216,10 +240,12 @@ export function standardsCheck(
     asOf,
     enforce: enforcer(root, options.timeoutMs ?? ENFORCEMENT_TIMEOUT_MS),
   });
-  const failures: Failure[] = [...stale, ...report.failures];
+  // The pack's own promotion rule: a record harvested from proposals recurs and is enforced.
+  const promotion = promotionFailures(records);
+  const failures: Failure[] = [...promotion, ...stale, ...report.failures];
   if (report.enforced === 0)
     failures.push({ id: root, message: 'no enforced standard applies' });
-  const counts = `${report.enforced} enforced, ${report.failures.length + stale.length} failed, ${report.advisory} advisory`;
+  const counts = `${report.enforced} enforced, ${report.failures.length + stale.length + promotion.length} failed, ${report.advisory} advisory`;
   const summary = `${counts}; ${applicable.length} standards apply to ${root} (${inherited.length} of ${records.length} pack, ${project.length} project; stack ${repository.stack ?? 'none'}; krn ${repository.adopted ? 'adopted' : 'not adopted'})`;
   if (failures.length === 0)
     return { exitCode: 0, lines: [`PASS standards: ${summary}`] };
@@ -232,26 +258,192 @@ export function standardsCheck(
   };
 }
 
-function parse(args: readonly string[]): { root: string } {
-  const [verb, ...rest] = args;
-  if (verb !== 'check') throw new CliUsageError(usage);
-  let root = process.cwd();
+function flags(
+  rest: readonly string[],
+  repeatable: ReadonlySet<string>,
+  single: ReadonlySet<string>,
+): { values: Map<string, string[]>; positional: string[] } {
+  const values = new Map<string, string[]>();
+  const positional: string[] = [];
   for (let i = 0; i < rest.length; i++) {
+    const flag = rest[i] ?? '';
+    if (!flag.startsWith('-')) {
+      positional.push(flag);
+      continue;
+    }
     const value = rest[i + 1];
-    if (rest[i] === '--root' && value !== undefined && !value.startsWith('-')) {
-      root = value;
-      i++;
-    } else throw new CliUsageError(usage);
+    if (
+      (!repeatable.has(flag) && !single.has(flag)) ||
+      value === undefined ||
+      value.startsWith('-') ||
+      (single.has(flag) && values.has(flag))
+    )
+      throw new CliUsageError(usage);
+    values.set(flag, [...(values.get(flag) ?? []), value]);
+    i++;
   }
-  return { root: repositoryRoot(resolve(root)) };
+  return { values, positional };
 }
 
-export function standardsCommand(args: string[]): void {
-  const { root } = parse(args);
+const ROOT = new Set(['--root']);
+
+function checkCommand(rest: readonly string[]): void {
+  const { values, positional } = flags(rest, new Set(), ROOT);
+  if (positional.length > 0) throw new CliUsageError(usage);
+  const root = repositoryRoot(
+    resolve(values.get('--root')?.[0] ?? process.cwd()),
+  );
   const verdict = standardsCheck(root, new Date().toISOString().slice(0, 10));
   const verdictLine = verdict.lines.at(-1) ?? '';
   for (const line of verdict.lines.slice(0, -1))
     process.stderr.write(`${line}\n`);
   process.stdout.write(`${verdictLine}\n`);
   process.exitCode = verdict.exitCode;
+}
+
+/** Writes one proposal file into `root`; an equal lesson already proposed there is kept, not duplicated. */
+export function propose(
+  root: string,
+  input: {
+    readonly text: string;
+    readonly kind: string;
+    readonly evidence: readonly string[];
+  },
+  asOf: string,
+): { readonly file: string; readonly created: boolean } {
+  const proposal = parseProposal({
+    text: input.text,
+    kind: input.kind,
+    evidence: [...input.evidence],
+    recorded_at: asOf,
+  });
+  const file = `${PROPOSALS_DIR}/${proposalFileName(proposal.text)}`;
+  const path = join(root, file);
+  if (existsSync(path)) {
+    const existing = parseProposal(
+      JSON.parse(readFileSync(path, 'utf8')),
+      file,
+    );
+    if (normalizeText(existing.text) === normalizeText(proposal.text))
+      return { file, created: false };
+    throw new StandardsDataError(
+      `${file} already holds another lesson: ${existing.text}`,
+    );
+  }
+  mkdirSync(join(root, PROPOSALS_DIR), { recursive: true });
+  writeFileSync(path, formatProposal(proposal));
+  return { file, created: true };
+}
+
+function proposeCommand(rest: readonly string[]): void {
+  const { values, positional } = flags(
+    rest,
+    new Set(['--evidence']),
+    new Set(['--root', '--text', '--kind']),
+  );
+  const text = values.get('--text')?.[0];
+  const kind = values.get('--kind')?.[0];
+  const evidence = values.get('--evidence') ?? [];
+  if (
+    positional.length > 0 ||
+    text === undefined ||
+    kind === undefined ||
+    evidence.length === 0
+  )
+    throw new CliUsageError(usage);
+  if (!PROPOSAL_KINDS.includes(kind as ProposalKind))
+    throw new CliUsageError(
+      `krn standards propose: --kind must be one of ${PROPOSAL_KINDS.join(', ')}, got ${JSON.stringify(kind)}\n${usage}`,
+    );
+  const root = repositoryRoot(
+    resolve(values.get('--root')?.[0] ?? process.cwd()),
+  );
+  const { file, created } = propose(
+    root,
+    { text, kind, evidence },
+    new Date().toISOString().slice(0, 10),
+  );
+  process.stdout.write(
+    `${created ? 'proposed' : 'already proposed'} ${file}; commit it with the slice\n`,
+  );
+}
+
+/** The repositories `harvest` reads when given none: the paths in `<root>/.krn/adopted.json`. */
+export function adoptedRepositories(root: string): string[] {
+  const path = join(root, ADOPTED_LIST);
+  if (!existsSync(path))
+    throw new StandardsInputError(
+      `krn standards harvest: no repository given and no ${ADOPTED_LIST} in ${root}`,
+    );
+  let value: unknown;
+  try {
+    value = JSON.parse(readFileSync(path, 'utf8'));
+  } catch (error) {
+    throw new StandardsDataError(
+      `${ADOPTED_LIST}: not JSON (${(error as Error).message})`,
+    );
+  }
+  if (
+    !Array.isArray(value) ||
+    value.some((entry) => typeof entry !== 'string' || entry.trim() === '')
+  )
+    throw new StandardsDataError(
+      `${ADOPTED_LIST}: expected a JSON array of repository paths`,
+    );
+  return (value as string[]).map((entry) =>
+    isAbsolute(entry) ? entry : resolve(root, entry),
+  );
+}
+
+/** Every proposal of one repository top level, in file-name order; none when it has no proposals. */
+export function readProposals(root: string): Sourced[] {
+  const dir = join(root, PROPOSALS_DIR);
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((name) => name.endsWith('.json'))
+    .sort()
+    .map((name) => {
+      const file = `${PROPOSALS_DIR}/${name}`;
+      let value: unknown;
+      try {
+        value = JSON.parse(readFileSync(join(root, file), 'utf8'));
+      } catch (error) {
+        throw new StandardsDataError(
+          `${root}/${file}: not JSON (${(error as Error).message})`,
+        );
+      }
+      return {
+        origin: basename(root),
+        repository: root,
+        file,
+        proposal: parseProposal(value, `${root}/${file}`),
+      };
+    });
+}
+
+/** Groups the proposals of `repositories` (repository top levels) into report lines. */
+export function standardsHarvest(repositories: readonly string[]): string[] {
+  const roots = [...new Set(repositories.map((path) => repositoryRoot(path)))];
+  const sourced = roots.flatMap(readProposals);
+  return renderHarvest(harvestCandidates(sourced), roots.length);
+}
+
+function harvestCommand(rest: readonly string[]): void {
+  const { values, positional } = flags(rest, new Set(), ROOT);
+  const repositories =
+    positional.length > 0
+      ? positional.map((path) => resolve(path))
+      : adoptedRepositories(
+          resolve(values.get('--root')?.[0] ?? process.cwd()),
+        );
+  for (const line of standardsHarvest(repositories))
+    process.stdout.write(`${line}\n`);
+}
+
+export function standardsCommand(args: string[]): void {
+  const [verb, ...rest] = args;
+  if (verb === 'check') checkCommand(rest);
+  else if (verb === 'propose') proposeCommand(rest);
+  else if (verb === 'harvest') harvestCommand(rest);
+  else throw new CliUsageError(usage);
 }

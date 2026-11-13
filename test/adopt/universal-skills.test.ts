@@ -84,6 +84,10 @@ test('adopt on a pytest fixture installs skills whose every command resolves the
     for (const words of krnCommands(text)) seen.add(words.join(' '));
   }
   assert.ok(seen.has('repo contract'), 'skills read the repo contract');
+  assert.ok(
+    seen.has('standards propose'),
+    'the retro turns a lesson into a standards proposal',
+  );
   for (const command of seen) {
     const [top, verb] = command.split(' ') as [string, string | undefined];
     const help = spawnSync(process.execPath, [cli, top, '--help'], {

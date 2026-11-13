@@ -45,6 +45,14 @@ export type Standard = {
   readonly valid_to: string | null;
   /** Set only on a pack record copied into a project by `krn adopt`; a project's own record has none. */
   readonly origin?: typeof INHERITED;
+  /** Set on a record promoted from harvested proposals: the repositories that proposed it and how often. */
+  readonly harvested?: Harvested;
+};
+
+/** Where a promoted record came from: every proposing repository is kept (SR:66). */
+export type Harvested = {
+  readonly origins: readonly string[];
+  readonly occurrences: number;
 };
 
 /** The origin of a record `krn adopt` copied from the shipped pack into a project. */
@@ -68,6 +76,8 @@ const FIELDS = [
   'valid_from',
   'valid_to',
 ] as const;
+/** Fields a record may carry beyond FIELDS. */
+const OPTIONAL = ['origin', 'harvested'] as const;
 const ID = /^s-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const DATE = /^\d{4}-\d{2}-\d{2}$/u;
 const AREA = /^[a-z][a-z0-9-]*$/u;
@@ -191,7 +201,7 @@ function parseEnforcement(
 
 function parseStandard(item: unknown, where: string): Standard {
   const r = object(item, where);
-  exactKeys(r, 'origin' in r ? [...FIELDS, 'origin'] : FIELDS, where);
+  exactKeys(r, [...FIELDS, ...OPTIONAL.filter((field) => field in r)], where);
   if ('origin' in r && r.origin !== INHERITED)
     throw new StandardsDataError(
       `${where}.origin: expected ${JSON.stringify(INHERITED)} (a record krn adopt inherited) or no origin`,
@@ -239,7 +249,74 @@ function parseStandard(item: unknown, where: string): Standard {
     valid_from: validFrom,
     valid_to: validTo,
     ...('origin' in r ? ({ origin: INHERITED } as const) : {}),
+    ...('harvested' in r
+      ? { harvested: parseHarvested(r.harvested, `${where}.harvested`) }
+      : {}),
   };
+}
+
+function parseHarvested(value: unknown, where: string): Harvested {
+  const h = object(value, where);
+  exactKeys(h, ['origins', 'occurrences'], where);
+  const origins = list(h.origins, `${where}.origins`, (entry, at) =>
+    text(entry, at),
+  );
+  if (origins.length === 0)
+    throw new StandardsDataError(`${where}.origins: expected at least one`);
+  const occurrences = h.occurrences;
+  if (
+    typeof occurrences !== 'number' ||
+    !Number.isInteger(occurrences) ||
+    occurrences < origins.length
+  )
+    throw new StandardsDataError(
+      `${where}.occurrences: expected an integer of at least ${origins.length} (one per origin)`,
+    );
+  return { origins, occurrences };
+}
+
+/** A harvested lesson is promotable when this many repositories proposed it... */
+export const PROMOTE_REPOSITORIES = 2;
+/** ...or it was proposed this many times in total. */
+export const PROMOTE_OCCURRENCES = 3;
+
+/** True when a lesson recurs enough to promote: ≥2 repositories, ≥3 proposals, or an external https source. */
+export function recursEnough(
+  repositories: number,
+  occurrences: number,
+  evidence: readonly string[],
+): boolean {
+  return (
+    repositories >= PROMOTE_REPOSITORIES ||
+    occurrences >= PROMOTE_OCCURRENCES ||
+    evidence.some((entry) => reference(entry)?.kind === 'url')
+  );
+}
+
+/**
+ * The promotion rule for pack records promoted from harvested proposals: they recur
+ * (`recursEnough`) and carry an enforcement, since a lesson that no check proves is not
+ * promoted (no compliance eval exists for prose yet). Evidence is mandatory for every record.
+ */
+export function promotionFailures(standards: readonly Standard[]): Failure[] {
+  const failures: Failure[] = [];
+  for (const { id, harvested, evidence, enforcement } of standards) {
+    if (harvested === undefined) continue;
+    if (
+      !recursEnough(harvested.origins.length, harvested.occurrences, evidence)
+    )
+      failures.push({
+        id,
+        message: `promotion rule: harvested from origins ${harvested.origins.join(', ')} in ${harvested.occurrences} proposals; needs ${PROMOTE_REPOSITORIES} repositories, ${PROMOTE_OCCURRENCES} proposals or an https evidence source`,
+      });
+    if (enforcement.kind === 'advisory')
+      failures.push({
+        id,
+        message:
+          'promotion rule: a harvested standard needs a command or krn enforcement, not advisory',
+      });
+  }
+  return failures;
 }
 
 /** Rejects anything but a list of exact standards with unique ids; the error names the first bad field. */
