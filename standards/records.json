@@ -95,7 +95,7 @@
       "run": "git ls-files | grep -qE '(^|/)(package-lock\\.json|npm-shrinkwrap\\.json|pnpm-lock\\.yaml|yarn\\.lock|bun\\.lockb?|uv\\.lock|poetry\\.lock|Pipfile\\.lock|pdm\\.lock|requirements[^/]*\\.txt|go\\.sum|go\\.mod|Cargo\\.lock)$'"
     },
     "applies": {
-      "stacks": [],
+      "stacks": ["node", "go"],
       "needs": []
     },
     "recorded_at": "2026-11-13",

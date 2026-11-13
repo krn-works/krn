@@ -126,7 +126,7 @@ for (const [name, files, stack] of fixtures) {
 }
 
 test('standards check names the failing standard and its exit when an enforced universal standard does not hold', () => {
-  const { 'uv.lock': _lock, ...unlocked } = python;
+  const { 'package-lock.json': _lock, ...unlocked } = typescript;
   const root = repository({ ...unlocked, '.env': 'TOKEN=x\n' });
   try {
     const done = check(root);
@@ -182,6 +182,25 @@ test('standards check fails on a failing project enforcement command and names i
     assert.match(
       done.stdout,
       /^FAIL standards: \d+ enforced, 1 failed, \d+ advisory; .*, 1 project;/u,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a project standard that reuses a pack id is refused, so a project cannot neutralise an inherited standard', () => {
+  const root = repository({
+    ...python,
+    '.agents/standards.json': JSON.stringify([
+      projectRecord({ id: 's-ci-runs-tests' }),
+    ]),
+  });
+  try {
+    const done = check(root);
+    assert.equal(done.status, 65);
+    assert.match(
+      done.stdout,
+      /^FAIL standards: \.agents\/standards\.json redefines pack standard s-ci-runs-tests;/u,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

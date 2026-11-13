@@ -26,7 +26,7 @@ export const usage = 'usage: krn standards check [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
-/** A project's own standards, relative to its root; a project record wins over a pack record of its id. */
+/** A project's own standards, relative to its root; they add to the pack and never share a pack id. */
 export const PROJECT_STANDARDS = '.agents/standards.json';
 /** How long one enforcement may run before it counts as failed. */
 export const ENFORCEMENT_TIMEOUT_MS = 60_000;
@@ -175,10 +175,20 @@ export function standardsCheck(
       lines: [`FAIL standards: ${error.message}`],
     };
   }
+  // A project adds standards and never replaces one it inherits: a same-id record would silently
+  // neutralise a pack standard. The check runs the root's own commands, so it is for trusted roots.
+  const packIds = new Set(records.map((standard) => standard.id));
+  const clash = project.filter((standard) => packIds.has(standard.id));
+  if (clash.length > 0)
+    return {
+      exitCode: 65,
+      lines: [
+        `FAIL standards: ${PROJECT_STANDARDS} redefines pack standard ${clash.map((standard) => standard.id).join(', ')}; give a project standard its own id`,
+      ],
+    };
   const repository = repositoryFacts(root);
-  const own = new Set(project.map((standard) => standard.id));
-  const inherited = records.filter(
-    (standard) => !own.has(standard.id) && appliesTo(standard, repository),
+  const inherited = records.filter((standard) =>
+    appliesTo(standard, repository),
   );
   const applicable = [...inherited, ...project];
   const report = checkStandards(applicable, {
