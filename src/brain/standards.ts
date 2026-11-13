@@ -1,32 +1,40 @@
 // The standards pack (ADR 0002 records with enforcement): reviewed, dated delivery rules every
-// adopted project inherits. Pure parsing, selection and validation; file reads are injected so the
-// caller owns the filesystem.
+// adopted project inherits. Pure parsing, selection and planning; running an enforcement belongs
+// to the caller, which owns processes and the filesystem.
 import type { BrainRecord } from './packet.ts';
 
 export const AUDIENCES = ['worker', 'lead', 'adopt'] as const;
-/** Strength order: a check refuses a violation, a template makes the right shape the default, a skill is loaded on demand, prose is a line in the brief. */
-export const ENFORCEMENTS = ['check', 'template', 'skill', 'prose'] as const;
-export const NEEDS = ['tracker', 'ci', 'remote'] as const;
+/** `universal` holds in any repository with no KRN; `krn-delivery` needs KRN adopted there. */
+export const LAYERS = ['universal', 'krn-delivery'] as const;
+/** `command` runs a shell command in the repository, `krn` a krn subcommand there, `advisory` is unenforced. */
+export const ENFORCEMENTS = ['command', 'krn', 'advisory'] as const;
+export const NEEDS = ['tracker'] as const;
 
 export type Audience = (typeof AUDIENCES)[number];
+export type Layer = (typeof LAYERS)[number];
 export type EnforcementKind = (typeof ENFORCEMENTS)[number];
 export type Need = (typeof NEEDS)[number];
+
+export type Enforcement =
+  /** A shell command run in the repository root; exit 0 means the standard holds. */
+  | { readonly kind: 'command'; readonly run: string }
+  /** `krn <args>` run in the repository root; valid only for `krn-delivery` records. */
+  | { readonly kind: 'krn'; readonly args: readonly string[] }
+  /** Explicitly unenforced: counted, never part of a PASS. */
+  | { readonly kind: 'advisory' };
 
 export type Standard = {
   readonly id: string;
   readonly area: string;
+  readonly layer: Layer;
   readonly audience: Audience;
   /** The rule as one statement. */
   readonly text: string;
   /** Why the rule exists, in one sentence. */
   readonly why: string;
-  /** Where the rule comes from: `path[#text]`, `#<PR>`, a commit SHA or an https URL. */
+  /** Provenance only, never resolved in the checked repository: `path[#text]`, `#<PR>`, a commit SHA or an https URL. */
   readonly evidence: readonly string[];
-  /** What proves the rule: `ref` is `path[#text]` of the check, template, skill or prose line. */
-  readonly enforcement: {
-    readonly kind: EnforcementKind;
-    readonly ref: string;
-  };
+  readonly enforcement: Enforcement;
   /** Empty lists apply everywhere; `stacks` match the detected stack or its family (`node` matches `node/npm`). */
   readonly applies: {
     readonly stacks: readonly string[];
@@ -44,6 +52,7 @@ export class StandardsDataError extends Error {
 const FIELDS = [
   'id',
   'area',
+  'layer',
   'audience',
   'text',
   'why',
@@ -120,7 +129,7 @@ export type Reference =
   | { readonly kind: 'path'; readonly path: string; readonly fragment?: string }
   | { readonly kind: 'pr' | 'commit' | 'url'; readonly value: string };
 
-/** Classifies one evidence or enforcement reference; undefined when it has none of the accepted forms. */
+/** Classifies one evidence reference; undefined when it has none of the accepted forms. */
 export function reference(entry: string): Reference | undefined {
   if (/^#\d+$/u.test(entry)) return { kind: 'pr', value: entry };
   if (/^[0-9a-f]{7,40}$/u.test(entry)) return { kind: 'commit', value: entry };
@@ -140,16 +149,39 @@ export function reference(entry: string): Reference | undefined {
     : { kind: 'path', path, fragment };
 }
 
-function referenceText(value: unknown, where: string, pathOnly: boolean) {
+function evidenceText(value: unknown, where: string): string {
   const entry = text(value, where);
-  const form = reference(entry);
-  if (form === undefined || (pathOnly && form.kind !== 'path'))
+  if (reference(entry) === undefined)
     throw new StandardsDataError(
-      pathOnly
-        ? `${where}: expected a repository path, optionally with #text`
-        : `${where}: expected a repository path[#text], #<PR>, a commit SHA or an https URL`,
+      `${where}: expected a repository path[#text], #<PR>, a commit SHA or an https URL`,
     );
   return entry;
+}
+
+function parseEnforcement(
+  value: unknown,
+  layer: Layer,
+  where: string,
+): Enforcement {
+  const e = object(value, where);
+  const kind = member(e.kind, ENFORCEMENTS, `${where}.kind`);
+  if (kind === 'advisory') {
+    exactKeys(e, ['kind'], where);
+    return { kind };
+  }
+  if (kind === 'command') {
+    exactKeys(e, ['kind', 'run'], where);
+    return { kind, run: text(e.run, `${where}.run`) };
+  }
+  exactKeys(e, ['kind', 'args'], where);
+  if (layer !== 'krn-delivery')
+    throw new StandardsDataError(
+      `${where}.kind: krn enforcement is valid only for layer krn-delivery`,
+    );
+  const args = list(e.args, `${where}.args`, (entry, at) => text(entry, at));
+  if (args.length === 0)
+    throw new StandardsDataError(`${where}.args: expected a krn subcommand`);
+  return { kind, args };
 }
 
 function parseStandard(item: unknown, where: string): Standard {
@@ -163,13 +195,10 @@ function parseStandard(item: unknown, where: string): Standard {
   const area = text(r.area, `${where}.area`);
   if (!AREA.test(area))
     throw new StandardsDataError(`${where}.area: expected a kebab-case word`);
-  const evidence = list(r.evidence, `${where}.evidence`, (entry, at) =>
-    referenceText(entry, at, false),
-  );
+  const layer = member(r.layer, LAYERS, `${where}.layer`);
+  const evidence = list(r.evidence, `${where}.evidence`, evidenceText);
   if (evidence.length === 0)
     throw new StandardsDataError(`${where}.evidence: expected at least one`);
-  const enforcement = object(r.enforcement, `${where}.enforcement`);
-  exactKeys(enforcement, ['kind', 'ref'], `${where}.enforcement`);
   const applies = object(r.applies, `${where}.applies`);
   exactKeys(applies, ['stacks', 'needs'], `${where}.applies`);
   const validFrom = date(r.valid_from, `${where}.valid_from`);
@@ -180,14 +209,12 @@ function parseStandard(item: unknown, where: string): Standard {
   return {
     id,
     area,
+    layer,
     audience: member(r.audience, AUDIENCES, `${where}.audience`),
     text: text(r.text, `${where}.text`),
     why: text(r.why, `${where}.why`),
     evidence,
-    enforcement: {
-      kind: member(enforcement.kind, ENFORCEMENTS, `${where}.enforcement.kind`),
-      ref: referenceText(enforcement.ref, `${where}.enforcement.ref`, true),
-    },
+    enforcement: parseEnforcement(r.enforcement, layer, `${where}.enforcement`),
     applies: {
       stacks: list(applies.stacks, `${where}.applies.stacks`, (entry, at) => {
         const stack = text(entry, at);
@@ -225,10 +252,13 @@ export function parseStandards(value: unknown): Standard[] {
 export type Repository = {
   /** Detected stack (`python`, `node/npm`, ...), undefined when none was detected. */
   readonly stack?: string;
+  /** True when KRN is adopted there, so `krn-delivery` standards apply. */
+  readonly adopted: boolean;
   readonly needs: ReadonlySet<Need>;
 };
 
 export function appliesTo(standard: Standard, repository: Repository): boolean {
+  if (standard.layer === 'krn-delivery' && !repository.adopted) return false;
   const { stacks, needs } = standard.applies;
   const stack = repository.stack;
   const stackMatches =
@@ -259,68 +289,60 @@ export function toBrainRecord(standard: Standard): BrainRecord {
   };
 }
 
-export type Problem = { readonly id: string; readonly message: string };
+/** One enforcement run: `exit` is null when the process was killed (timeout) or could not start. */
+export type Outcome = { readonly exit: number | null; readonly detail: string };
 
-/** Reads a repository-relative file; undefined when it does not exist. */
-export type ReadFile = (path: string) => string | undefined;
+/** Runs one enforcement in the repository root. */
+export type Enforce = (
+  enforcement: Exclude<Enforcement, { kind: 'advisory' }>,
+) => Outcome;
 
-function resolves(entry: string, read: ReadFile): string | undefined {
-  const form = reference(entry);
-  if (form === undefined) return `${entry} is not a reference`;
-  if (form.kind !== 'path') return undefined;
-  const content = read(form.path);
-  if (content === undefined) return `${form.path} does not exist`;
-  if (form.fragment !== undefined && !content.includes(form.fragment))
-    return `${form.path} does not contain ${JSON.stringify(form.fragment)}`;
-  return undefined;
+export type Failure = { readonly id: string; readonly message: string };
+
+export type Report = {
+  readonly enforced: number;
+  readonly advisory: number;
+  readonly failures: readonly Failure[];
+};
+
+/** How an enforcement reads in a failure line. */
+export function describe(enforcement: Enforcement): string {
+  if (enforcement.kind === 'command') return enforcement.run;
+  if (enforcement.kind === 'krn') return `krn ${enforcement.args.join(' ')}`;
+  return 'advisory';
 }
 
-/** Every standard outside its dates, every enforcement ref and evidence path that does not resolve. */
+/**
+ * Runs every enforced standard, counts advisory ones. A standard outside its dates is a failure
+ * and is not run: an expired standard needs review, not silent enforcement.
+ */
 export function checkStandards(
   standards: readonly Standard[],
-  options: { readonly asOf: string; readonly read: ReadFile },
-): Problem[] {
-  const problems: Problem[] = [];
+  options: { readonly asOf: string; readonly enforce: Enforce },
+): Report {
+  const failures: Failure[] = [];
+  let enforced = 0;
+  let advisory = 0;
   for (const standard of standards) {
-    const id = standard.id;
-    if (!inForce(standard, options.asOf))
-      problems.push({
+    const { id, enforcement } = standard;
+    if (!inForce(standard, options.asOf)) {
+      failures.push({
         id,
         message: `outside its dates on ${options.asOf} (valid ${standard.valid_from}..${standard.valid_to ?? 'open'})`,
       });
-    const ref = resolves(standard.enforcement.ref, options.read);
-    if (ref !== undefined) problems.push({ id, message: `enforcement ${ref}` });
-    for (const entry of standard.evidence) {
-      const miss = resolves(entry, options.read);
-      if (miss !== undefined)
-        problems.push({ id, message: `evidence ${miss}` });
+      continue;
     }
+    if (enforcement.kind === 'advisory') {
+      advisory++;
+      continue;
+    }
+    enforced++;
+    const outcome = options.enforce(enforcement);
+    if (outcome.exit !== 0)
+      failures.push({
+        id,
+        message: `exit ${outcome.exit ?? 'none'} from ${describe(enforcement)}${outcome.detail === '' ? '' : `: ${outcome.detail}`}`,
+      });
   }
-  return problems;
-}
-
-export type Health = {
-  readonly total: number;
-  /** Share of standards enforced by a check or a template, 0..1. */
-  readonly enforced: number;
-  readonly stale: number;
-  /** Worker standards that only prose or a skill carries: they spend brief tokens. */
-  readonly workerProse: number;
-};
-
-export function health(standards: readonly Standard[], asOf: string): Health {
-  const total = standards.length;
-  const strong = standards.filter(
-    (s) => s.enforcement.kind === 'check' || s.enforcement.kind === 'template',
-  ).length;
-  return {
-    total,
-    enforced: total === 0 ? 0 : strong / total,
-    stale: standards.filter((s) => !inForce(s, asOf)).length,
-    workerProse: standards.filter(
-      (s) =>
-        s.audience === 'worker' &&
-        (s.enforcement.kind === 'prose' || s.enforcement.kind === 'skill'),
-    ).length,
-  };
+  return { enforced, advisory, failures };
 }

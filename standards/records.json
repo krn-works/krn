@@ -1,241 +1,245 @@
 [
   {
-    "id": "s-commit-title",
-    "area": "commit",
+    "id": "s-tests-tracked",
+    "area": "tests",
+    "layer": "universal",
     "audience": "worker",
-    "text": "A pull request title, which becomes the squash commit subject, has the form `type(scope): outcome (<task id>)` with a Conventional Commits type.",
-    "why": "A squash merge turns the title into the only subject on the base branch; titles without a type and id stopped being traceable.",
-    "evidence": ["src/ci/commit-title.ts#400", "AGENTS.md#KRN-11"],
-    "enforcement": { "kind": "check", "ref": "src/ci/commit-title.ts" },
-    "applies": { "stacks": [], "needs": ["tracker", "ci"] },
-    "recorded_at": "2026-11-13",
-    "valid_from": "2026-11-13",
-    "valid_to": null
-  },
-  {
-    "id": "s-ticket-trailer",
-    "area": "commit",
-    "audience": "worker",
-    "text": "A commit that completes a managed task ends with a `Ticket: <id>` trailer; a commit that leaves the task open carries `Refs: <id>` instead.",
-    "why": "Delivery stays traceable to its task, and the branch that names a ticket must close it before it merges.",
-    "evidence": ["AGENTS.md#KRN-11", "src/task/branch-tickets.ts#Ticket: <id>"],
-    "enforcement": { "kind": "check", "ref": "src/task/branch-tickets.ts" },
-    "applies": { "stacks": [], "needs": ["tracker"] },
-    "recorded_at": "2026-11-13",
-    "valid_from": "2026-11-13",
-    "valid_to": null
-  },
-  {
-    "id": "s-tracker-owner",
-    "area": "tracker",
-    "audience": "lead",
-    "text": "Only the lead changes task status, through `krn task`; a worker never edits, closes or deletes a tracker file.",
-    "why": "Workers running as the lead edited tracker state outside their scope in 11 of 20 units.",
-    "evidence": [
-      "AGENTS.md#KRN-11",
-      "scripts/claude/worker-scope.ts#11 of 20 units"
-    ],
-    "enforcement": { "kind": "check", "ref": "scripts/claude/worker-scope.ts" },
-    "applies": { "stacks": [], "needs": ["tracker"] },
-    "recorded_at": "2026-11-13",
-    "valid_from": "2026-11-13",
-    "valid_to": null
-  },
-  {
-    "id": "s-task-record",
-    "area": "tracker",
-    "audience": "lead",
-    "text": "A task record states Why, Outcome and Proof; the pull request body is generated from the record instead of written by hand.",
-    "why": "The pull request is the delivery record, so its problem statement and proof come from the task that defined them.",
-    "evidence": [
-      "docs/adr/0016-pull-request-is-the-delivery-record.md",
-      "src/cli/pr-body.ts#'Why'"
-    ],
-    "enforcement": { "kind": "template", "ref": "src/cli/pr-body.ts" },
-    "applies": { "stacks": [], "needs": ["tracker"] },
-    "recorded_at": "2026-11-13",
-    "valid_from": "2026-11-13",
-    "valid_to": null
-  },
-  {
-    "id": "s-required-check",
-    "area": "integration",
-    "audience": "worker",
-    "text": "A change is integrated only after the repository's full required CI check passes on the exact head commit; local runs cover lint, typecheck and touched tests.",
-    "why": "One required check on the exact head is the only gate; local green on another tree proves nothing about the merged one.",
-    "evidence": ["AGENTS.md#KRN-07"],
+    "text": "The repository tracks automated tests next to the code they cover.",
+    "why": "Untested code has no executable statement of what it must do, so every change is a guess.",
+    "evidence": ["AGENTS.md#KRN-14", "src/repo/contract.ts#detectStack"],
     "enforcement": {
-      "kind": "template",
-      "ref": ".github/workflows/project-ci.yml"
+      "kind": "command",
+      "run": "git ls-files | grep -qE '(^|/)(tests?|__tests__|spec)/|(_test\\.go|_test\\.py|(^|/)test_[^/]*\\.py|\\.(test|spec)\\.[cm]?[jt]sx?)$'"
     },
-    "applies": { "stacks": [], "needs": ["ci"] },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
     "valid_to": null
   },
   {
-    "id": "s-agent-state",
-    "area": "agent-state",
-    "audience": "worker",
-    "text": "Agent notes, plans, logs and scratch files go under the git-ignored `.krn/` directory, never into tracked files or the repository root.",
-    "why": "Agent state is repository-local and must stay out of the tracked project inputs.",
-    "evidence": [
-      "AGENTS.md#KRN-08",
-      "docs/program/repository-workflow.md#.krn/runs/<owner>/"
-    ],
-    "enforcement": { "kind": "template", "ref": "src/adopt/adopt.ts#.krn/" },
-    "applies": { "stacks": [], "needs": [] },
-    "recorded_at": "2026-11-13",
-    "valid_from": "2026-11-13",
-    "valid_to": null
-  },
-  {
-    "id": "s-finish-gate",
-    "area": "finish-gate",
-    "audience": "worker",
-    "text": "A session cannot end while the tests related to its change are red, and the finish gate fails closed when it cannot run them.",
-    "why": "A gate that lets a session end on an unrun or red test turns a broken tree into a delivered one.",
-    "evidence": ["src/adopt/stop-hook.ts#cannot check this tree"],
-    "enforcement": { "kind": "check", "ref": "src/adopt/stop-hook.ts" },
-    "applies": { "stacks": [], "needs": [] },
-    "recorded_at": "2026-11-13",
-    "valid_from": "2026-11-13",
-    "valid_to": null
-  },
-  {
-    "id": "s-adoption-canary",
-    "area": "finish-gate",
-    "audience": "adopt",
-    "text": "Adoption proves the finish gate in the adopted repository by breaking one existing test, seeing the gate refuse, and restoring the test.",
-    "why": "A gate that was never seen refusing may be wired to nothing.",
-    "evidence": ["src/adopt/canary.ts#proves the Stop gate works"],
-    "enforcement": { "kind": "check", "ref": "src/adopt/canary.ts" },
-    "applies": { "stacks": [], "needs": [] },
-    "recorded_at": "2026-11-13",
-    "valid_from": "2026-11-13",
-    "valid_to": null
-  },
-  {
-    "id": "s-regression-lowest-layer",
+    "id": "s-test-command",
     "area": "tests",
+    "layer": "universal",
     "audience": "worker",
-    "text": "A fixed defect gets its regression test at the lowest layer that reproduces it.",
-    "why": "Low-layer tests fail fast and name the broken unit.",
-    "evidence": ["AGENTS.md#KRN-14"],
-    "enforcement": { "kind": "prose", "ref": "AGENTS.md#KRN-14" },
-    "applies": { "stacks": [], "needs": [] },
+    "text": "The repository declares one test command that runs its tests, never a placeholder.",
+    "why": "Agents and CI run what the repository declares; a missing or placeholder test command makes every run a silent no-op.",
+    "evidence": ["src/repo/contract.ts#no test command"],
+    "enforcement": {
+      "kind": "command",
+      "run": "if [ -f package.json ]; then node -e 'const t=(JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\")).scripts||{}).test||\"\";process.exit(t.trim()===\"\"||/no test specified/.test(t)?1:0)'; elif [ -f go.mod ]; then git ls-files | grep -q '_test\\.go$'; elif [ -f Cargo.toml ]; then true; elif [ -f pyproject.toml ] || [ -f setup.cfg ] || [ -f setup.py ] || [ -f tox.ini ] || [ -f pytest.ini ]; then git ls-files | grep -qE '(^|/)(test_[^/]*|[^/]*_test)\\.py$'; else grep -qE '^test:' Makefile 2>/dev/null; fi"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
     "valid_to": null
   },
   {
-    "id": "s-receiver-evidence",
+    "id": "s-test-exit-code",
     "area": "tests",
+    "layer": "universal",
     "audience": "worker",
-    "text": "Every integration or forward is tested against its real receiver or a verbatim capture of the receiver's output, never against a hand-made imitation.",
-    "why": "An integration is only proven where it is received.",
-    "evidence": ["AGENTS.md#KRN-12"],
-    "enforcement": { "kind": "check", "ref": "test/receivers" },
-    "applies": { "stacks": [], "needs": [] },
-    "recorded_at": "2026-11-13",
-    "valid_from": "2026-11-13",
-    "valid_to": null
-  },
-  {
-    "id": "s-no-weakened-tests",
-    "area": "tests",
-    "audience": "worker",
-    "text": "A change does not remove assertions, add skip, only or todo markers, or delete a test whose target stays, unless its pull request states `Weakens-tests: <reason>`.",
-    "why": "Weakening a test is the cheapest way to turn a red check green without fixing anything.",
-    "evidence": [
-      "scripts/weak-tests.mjs#Deterministic floor against weakened tests"
-    ],
-    "enforcement": { "kind": "check", "ref": "scripts/weak-tests.mjs" },
-    "applies": { "stacks": ["node"], "needs": ["ci"] },
-    "recorded_at": "2026-11-13",
-    "valid_from": "2026-11-13",
-    "valid_to": null
-  },
-  {
-    "id": "s-plainest-input",
-    "area": "tests",
-    "audience": "worker",
-    "text": "When a task names an input or output format, at least one test feeds the plainest hand-written example of that format exactly as the task words it.",
-    "why": "A reader tested only on its own tool's output rejects the short, plain forms real callers send.",
-    "evidence": ["src/cli/lane.ts#plainest"],
-    "enforcement": { "kind": "prose", "ref": "src/cli/lane.ts#plainest" },
-    "applies": { "stacks": [], "needs": [] },
-    "recorded_at": "2026-11-13",
-    "valid_from": "2026-11-13",
-    "valid_to": null
-  },
-  {
-    "id": "s-own-worktree",
-    "area": "lanes",
-    "audience": "lead",
-    "text": "Each parallel lane works in its own git worktree and branch, so no two writers share a checkout.",
-    "why": "Two writers in one checkout overwrite or commit each other's edits.",
-    "evidence": [
-      "docs/program/repository-workflow.md#in its own worktree",
-      "AGENTS.md#parallel worktree lanes"
-    ],
-    "enforcement": { "kind": "check", "ref": "src/cli/lane.ts" },
-    "applies": { "stacks": [], "needs": [] },
-    "recorded_at": "2026-11-13",
-    "valid_from": "2026-11-13",
-    "valid_to": null
-  },
-  {
-    "id": "s-no-shared-stash",
-    "area": "lanes",
-    "audience": "worker",
-    "text": "Never change the git stash stack with a bare `git stash` or `git stash pop`; set work aside with a commit.",
-    "why": "Every worktree of a repository shares one stash stack, so a bare pop can take another lane's edits.",
-    "evidence": ["scripts/claude/stash-guard.ts#t-cbkxj6w"],
-    "enforcement": { "kind": "check", "ref": "scripts/claude/stash-guard.ts" },
-    "applies": { "stacks": [], "needs": [] },
-    "recorded_at": "2026-11-13",
-    "valid_from": "2026-11-13",
-    "valid_to": null
-  },
-  {
-    "id": "s-check-exit-code",
-    "area": "lanes",
-    "audience": "worker",
-    "text": "A test, typecheck or lint run is never piped into a text filter that hides its exit code.",
-    "why": "A piped test run once printed `fail 0` while CI had 20 failures.",
+    "text": "The test command exits non-zero when a test fails: no `|| true`, `; exit 0` or leading `-` masks its status.",
+    "why": "A test run whose failure exits 0 turns every red tree into a delivered one.",
     "evidence": ["scripts/claude/piped-check.ts#fail 0"],
-    "enforcement": { "kind": "check", "ref": "scripts/claude/piped-check.ts" },
-    "applies": { "stacks": [], "needs": [] },
-    "recorded_at": "2026-11-13",
-    "valid_from": "2026-11-13",
-    "valid_to": null
-  },
-  {
-    "id": "s-unpushed-delete",
-    "area": "lanes",
-    "audience": "lead",
-    "text": "Never delete a branch or worktree whose tip exists on no remote while it names an open task.",
-    "why": "A lead once deleted the only copy of a task's implementation this way.",
-    "evidence": ["scripts/claude/unpushed-delete.ts#t-9ser2tw"],
     "enforcement": {
-      "kind": "check",
-      "ref": "scripts/claude/unpushed-delete.ts"
+      "kind": "command",
+      "run": "{ [ ! -f package.json ] || node -e 'const s=JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\")).scripts||{};const bad=Object.entries(s).filter(([k,v])=>/^test/.test(k)&&/\\|\\|\\s*(true|:|exit 0)|;\\s*exit 0\\s*$/.test(String(v)));if(bad.length){console.error(\"masked: \"+bad.map(b=>b[0]).join(\", \"));process.exit(1)}'; } && { [ ! -f Makefile ] || awk '/^test[a-zA-Z0-9_-]*:/{t=1;next} /^[^\\t]/{t=0} t&&(/\\|\\| *(true|:)/||/^\\t-/){bad=1} END{exit bad}' Makefile; }"
     },
-    "applies": { "stacks": [], "needs": [] },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
     "valid_to": null
   },
   {
-    "id": "s-layer-map",
-    "area": "architecture",
+    "id": "s-ci-runs-tests",
+    "area": "integration",
+    "layer": "universal",
+    "audience": "lead",
+    "text": "Continuous integration runs the tests on every pull request.",
+    "why": "Only a check on the proposed head proves the merged tree; local green on another tree proves nothing.",
+    "evidence": [
+      "AGENTS.md#KRN-07",
+      "docs/adr/0016-pull-request-is-the-delivery-record.md"
+    ],
+    "enforcement": {
+      "kind": "command",
+      "run": "ci=$(cat .github/workflows/*.yml .github/workflows/*.yaml .gitlab-ci.yml 2>/dev/null); printf '%s\\n' \"$ci\" | grep -qE 'pull_request|merge_request' && printf '%s\\n' \"$ci\" | grep -qE '(pytest|tox|nox|unittest|(npm|pnpm|yarn|bun)( run)? test|vitest|jest|node --test|go test|cargo test|make test|uv run|hatch run|poetry run)|uses: *[^ ]*/[^ ]*ci\\.ya?ml'"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-lockfile-committed",
+    "area": "dependencies",
+    "layer": "universal",
     "audience": "worker",
-    "text": "Module dependencies follow a declared layer map that a check enforces; the core imports no replaceable adapter.",
-    "why": "The core stays independent of adapters only while something refuses the forbidden import.",
-    "evidence": ["AGENTS.md#KRN-05"],
-    "enforcement": { "kind": "check", "ref": "scripts/boundaries.ts" },
-    "applies": { "stacks": [], "needs": [] },
+    "text": "The dependency lockfile of the stack is tracked, so every checkout installs the same versions.",
+    "why": "Without a lockfile a green run on one machine says nothing about the versions the next run installs.",
+    "evidence": ["src/repo/contract.ts#detectStack"],
+    "enforcement": {
+      "kind": "command",
+      "run": "git ls-files | grep -qE '(^|/)(package-lock\\.json|npm-shrinkwrap\\.json|pnpm-lock\\.yaml|yarn\\.lock|bun\\.lockb?|uv\\.lock|poetry\\.lock|Pipfile\\.lock|pdm\\.lock|requirements[^/]*\\.txt|go\\.sum|go\\.mod|Cargo\\.lock)$'"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-no-secrets-tracked",
+    "area": "secrets",
+    "layer": "universal",
+    "audience": "worker",
+    "text": "No tracked file is a credential file or holds a private key or provider token.",
+    "why": "A secret in git history leaks to every clone and stays there after the file is deleted.",
+    "evidence": ["docs/program/hardening-checklist.md#secrets"],
+    "enforcement": {
+      "kind": "command",
+      "run": "! git ls-files | grep -vE '\\.env\\.(example|sample|template|dist)$' | grep -qE '(^|/)(\\.env(\\.[^/]*)?|id_rsa|id_ecdsa|id_ed25519|[^/]*\\.pem|[^/]*\\.p12|\\.netrc|\\.git-credentials)$' && ! git grep -qIE -e '-----BEGIN [A-Z ]*PRIVATE KEY-----' -e 'AKIA[0-9A-Z]{16}' -e 'gh[pousr]_[A-Za-z0-9]{36}' -e 'xox[abp]-[0-9A-Za-z-]{20,}'"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-no-dependency-dirs-tracked",
+    "area": "dependencies",
+    "layer": "universal",
+    "audience": "worker",
+    "text": "Installed dependencies, caches and bytecode are never tracked.",
+    "why": "Tracked install output bloats every clone and drifts from the lockfile it should come from.",
+    "evidence": ["src/adopt/adopt.ts#.gitignore"],
+    "enforcement": {
+      "kind": "command",
+      "run": "! git ls-files | grep -qE '(^|/)(node_modules|__pycache__|\\.venv|venv|\\.pytest_cache|\\.mypy_cache|\\.ruff_cache|\\.tox)/|\\.py[co]$'"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-gitignore-deps",
+    "area": "dependencies",
+    "layer": "universal",
+    "audience": "worker",
+    "text": "The ignore rules cover the dependency and build directories of the stack.",
+    "why": "An unignored install directory is one `git add .` away from being committed.",
+    "evidence": ["src/adopt/adopt.ts#.gitignore"],
+    "enforcement": {
+      "kind": "command",
+      "run": "if [ -f package.json ]; then git check-ignore -q --no-index node_modules/probe; else git check-ignore -q --no-index __pycache__/probe.pyc && { git check-ignore -q --no-index .venv/probe || git check-ignore -q --no-index venv/probe; }; fi"
+    },
+    "applies": {
+      "stacks": ["node", "python"],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-linter-configured",
+    "area": "style",
+    "layer": "universal",
+    "audience": "worker",
+    "text": "A formatter or linter is configured for the stack, so style is checked by a tool, not by review.",
+    "why": "Style left to review costs a round trip per nit and is applied unevenly.",
+    "evidence": ["AGENTS.md#npm run fast"],
+    "enforcement": {
+      "kind": "command",
+      "run": "for f in biome.json biome.jsonc .eslintrc .eslintrc.* eslint.config.* .prettierrc .prettierrc.* prettier.config.* ruff.toml .ruff.toml .flake8 .pylintrc .golangci.yml .golangci.yaml .golangci.toml rustfmt.toml .rustfmt.toml; do [ -e \"$f\" ] && exit 0; done; grep -qE '^\\[tool\\.(ruff|black|flake8|pylint)' pyproject.toml 2>/dev/null || grep -qE '\"(@biomejs/biome|eslint|prettier)\"' package.json 2>/dev/null || cat .github/workflows/*.y*ml 2>/dev/null | grep -qE 'gofmt|go vet|golangci|cargo fmt|cargo clippy'"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-typescript-strict",
+    "area": "types",
+    "layer": "universal",
+    "audience": "worker",
+    "text": "A TypeScript project compiles with `strict` on.",
+    "why": "Without strict checks the compiler accepts the null and implicit-any errors it exists to catch.",
+    "evidence": ["tsconfig.json#strict"],
+    "enforcement": {
+      "kind": "command",
+      "run": "[ ! -f tsconfig.json ] || grep -qE '\"strict\" *: *true' tsconfig.json || grep -qE '\"extends\"' tsconfig.json"
+    },
+    "applies": {
+      "stacks": ["node"],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-readme-test-command",
+    "area": "docs",
+    "layer": "universal",
+    "audience": "adopt",
+    "text": "The README states how to run the tests.",
+    "why": "A newcomer or agent that cannot find the test command ships untested changes.",
+    "evidence": ["src/repo/contract.ts#no test command"],
+    "enforcement": {
+      "kind": "command",
+      "run": "cat README* readme* 2>/dev/null | grep -qiE '(pytest|tox|nox|unittest|(npm|pnpm|yarn|bun)( run)? test|vitest|jest|node --test|go test|cargo test|make test|uv run|hatch run|poetry run)'"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-no-conflict-markers",
+    "area": "integration",
+    "layer": "universal",
+    "audience": "worker",
+    "text": "No tracked file holds an unresolved merge conflict marker.",
+    "why": "A committed conflict marker breaks the build or, in prose and data, silently ships both sides.",
+    "evidence": [
+      "https://git-scm.com/docs/git-merge#_how_conflicts_are_presented"
+    ],
+    "enforcement": {
+      "kind": "command",
+      "run": "! git grep -qIE '^(<<<<<<<|>>>>>>>) '"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
     "valid_to": null
@@ -243,15 +247,76 @@
   {
     "id": "s-one-instruction-file",
     "area": "instructions",
+    "layer": "universal",
     "audience": "adopt",
-    "text": "A repository keeps one instruction file for agents, AGENTS.md, and any other agent instruction file only points to it.",
+    "text": "A repository keeps one instruction file for agents, AGENTS.md; any other agent instruction file is a link to it or points to it.",
     "why": "Two instruction files drift apart and agents follow whichever they read first.",
     "evidence": ["docs/adr/0001-product-krn.md#generate `AGENTS.md`"],
     "enforcement": {
-      "kind": "template",
-      "ref": "src/adopt/adopt.ts#AGENTS.md"
+      "kind": "command",
+      "run": "for f in CLAUDE.md GEMINI.md .cursorrules .github/copilot-instructions.md; do [ ! -e \"$f\" ] || [ \"$(readlink \"$f\")\" = AGENTS.md ] || grep -q 'AGENTS.md' \"$f\" || { echo \"$f does not point to AGENTS.md\" >&2; exit 1; }; done"
     },
-    "applies": { "stacks": [], "needs": [] },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-regression-lowest-layer",
+    "area": "tests",
+    "layer": "universal",
+    "audience": "worker",
+    "text": "A fixed defect gets its regression test at the lowest layer that reproduces it.",
+    "why": "Low-layer tests fail fast and name the broken unit.",
+    "evidence": ["AGENTS.md#KRN-14"],
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-plainest-input",
+    "area": "tests",
+    "layer": "universal",
+    "audience": "worker",
+    "text": "When a task names an input or output format, at least one test feeds the plainest hand-written example of that format exactly as the task words it.",
+    "why": "A reader tested only on its own tool's output rejects the short, plain forms real callers send.",
+    "evidence": ["src/cli/lane.ts#plainest"],
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-receiver-evidence",
+    "area": "tests",
+    "layer": "universal",
+    "audience": "worker",
+    "text": "Every integration or forward is tested against its real receiver or a verbatim capture of the receiver's output, never against a hand-made imitation.",
+    "why": "An integration is only proven where it is received.",
+    "evidence": ["AGENTS.md#KRN-12"],
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
     "valid_to": null
@@ -259,15 +324,18 @@
   {
     "id": "s-role-names",
     "area": "naming",
+    "layer": "universal",
     "audience": "worker",
     "text": "Files, functions, tests and work are named by purpose and role, never by phase, ticket, round, date or version.",
     "why": "Phase and ticket names lose their meaning as soon as the phase or ticket ends.",
     "evidence": ["evals/fr40/records.json#r-role-names"],
     "enforcement": {
-      "kind": "prose",
-      "ref": "evals/fr40/records.json#r-role-names"
+      "kind": "advisory"
     },
-    "applies": { "stacks": [], "needs": [] },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
     "valid_to": null
@@ -275,15 +343,18 @@
   {
     "id": "s-exit-codes",
     "area": "hardening",
+    "layer": "universal",
     "audience": "worker",
     "text": "Every error path has a stated exit code (64 usage, 65 invalid data, 70 internal, 75 temporary) and a message on stderr.",
     "why": "Callers and agents branch on exit codes; an unstated one makes a failure look like success or the wrong failure.",
     "evidence": ["docs/program/hardening-checklist.md#exit-codes"],
     "enforcement": {
-      "kind": "prose",
-      "ref": "docs/program/hardening-checklist.md#exit-codes"
+      "kind": "advisory"
     },
-    "applies": { "stacks": [], "needs": [] },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
     "valid_to": null
@@ -291,47 +362,142 @@
   {
     "id": "s-secrets-redacted",
     "area": "hardening",
+    "layer": "universal",
     "audience": "worker",
     "text": "Values that may hold credentials, multiline ones included, are redacted before they are logged, persisted or forwarded.",
     "why": "A secret written to a log or a record leaks to everyone who can read it later.",
     "evidence": ["docs/program/hardening-checklist.md#secrets"],
     "enforcement": {
-      "kind": "prose",
-      "ref": "docs/program/hardening-checklist.md#secrets"
+      "kind": "advisory"
     },
-    "applies": { "stacks": [], "needs": [] },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
     "valid_to": null
   },
   {
-    "id": "s-retro-to-check",
-    "area": "process",
-    "audience": "lead",
-    "text": "A slice ends with a short retrospective whose every lesson becomes an executable check, a repository rule or a task.",
-    "why": "A lesson kept only as prose is repeated; a check refuses the repeat.",
-    "evidence": ["src/adopt/skills/delivery-retro/SKILL.md"],
+    "id": "s-no-shared-stash",
+    "area": "lanes",
+    "layer": "universal",
+    "audience": "worker",
+    "text": "Never change the git stash stack with a bare `git stash` or `git stash pop`; set work aside with a commit.",
+    "why": "Every worktree of a repository shares one stash stack, so a bare pop can take another lane's edits.",
+    "evidence": ["scripts/claude/stash-guard.ts#t-cbkxj6w"],
     "enforcement": {
-      "kind": "skill",
-      "ref": "src/adopt/skills/delivery-retro/SKILL.md"
+      "kind": "advisory"
     },
-    "applies": { "stacks": [], "needs": [] },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
     "valid_to": null
   },
   {
-    "id": "s-slice-delivery",
-    "area": "process",
+    "id": "s-task-records",
+    "area": "tracker",
+    "layer": "krn-delivery",
     "audience": "lead",
-    "text": "The lead delivers one slice per pull request and lets it merge on the required check.",
-    "why": "Small slices merged on one check keep review and rework bounded.",
-    "evidence": ["src/adopt/skills/delivery-lead/SKILL.md"],
+    "text": "Task status lives in valid `tasks/<id>.json` records that only `krn task` changes.",
+    "why": "Work status travels with the repository, and delivery stays traceable to the task that defined it.",
+    "evidence": [
+      "AGENTS.md#KRN-11",
+      "scripts/claude/worker-scope.ts#11 of 20 units"
+    ],
     "enforcement": {
-      "kind": "skill",
-      "ref": "src/adopt/skills/delivery-lead/SKILL.md"
+      "kind": "krn",
+      "args": ["task", "check"]
     },
-    "applies": { "stacks": [], "needs": ["ci"] },
+    "applies": {
+      "stacks": [],
+      "needs": ["tracker"]
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-repo-contract",
+    "area": "tests",
+    "layer": "krn-delivery",
+    "audience": "adopt",
+    "text": "The repository contract names a test command, so lanes and the finish gate know what to run.",
+    "why": "A lane without a test command cannot prove its change and the finish gate cannot refuse a red tree.",
+    "evidence": ["src/repo/contract.ts#no test command"],
+    "enforcement": {
+      "kind": "krn",
+      "args": ["repo", "contract"]
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-agent-state",
+    "area": "agent-state",
+    "layer": "krn-delivery",
+    "audience": "worker",
+    "text": "Agent notes, plans, logs and scratch files go under the git-ignored `.krn/` directory, never into tracked files or the repository root.",
+    "why": "Agent state is repository-local and must stay out of the tracked project inputs.",
+    "evidence": [
+      "AGENTS.md#KRN-08",
+      "docs/program/repository-workflow.md#.krn/runs/<owner>/"
+    ],
+    "enforcement": {
+      "kind": "command",
+      "run": "git check-ignore -q --no-index .krn/probe"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-finish-gate",
+    "area": "finish-gate",
+    "layer": "krn-delivery",
+    "audience": "worker",
+    "text": "A session cannot end while the tests related to its change are red: the Claude Code Stop hook runs `krn hook stop`.",
+    "why": "A gate that lets a session end on an unrun or red test turns a broken tree into a delivered one.",
+    "evidence": ["src/adopt/stop-hook.ts#cannot check this tree"],
+    "enforcement": {
+      "kind": "command",
+      "run": "grep -qF 'exec krn hook stop' .claude/settings.json"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "recorded_at": "2026-11-13",
+    "valid_from": "2026-11-13",
+    "valid_to": null
+  },
+  {
+    "id": "s-ticket-trailer",
+    "area": "commit",
+    "layer": "krn-delivery",
+    "audience": "worker",
+    "text": "A commit that completes a managed task ends with a `Ticket: <id>` trailer; a commit that leaves the task open carries `Refs: <id>` instead.",
+    "why": "Delivery stays traceable to its task, and the branch that names a ticket must close it before it merges.",
+    "evidence": ["AGENTS.md#KRN-11", "src/task/branch-tickets.ts#Ticket: <id>"],
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": ["tracker"]
+    },
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
     "valid_to": null

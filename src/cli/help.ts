@@ -6,7 +6,7 @@ const usage: Readonly<Record<string, string>> = {
   brain:
     'krn brain packet <fr40-task-id> [--arm brain|static] [--write] [--json]  FR-40 shadow packet: record ids, as-of date, tokens',
   standards:
-    'krn standards check [--root DIR]  validate the shipped standards pack (standards/records.json) and .agents/standards.json: dates, enforcement refs and evidence paths; one PASS or FAIL line naming the standards that apply to the repository; exit 1 on a problem, 65 on a malformed file',
+    "krn standards check [--root DIR]  run the enforcement of every standard that applies to a repository top level (the shipped standards/records.json plus .agents/standards.json): 'command' and 'krn' standards run there, 'advisory' ones are only counted; one PASS or FAIL line with enforced, failed and advisory counts, one stderr line per failure naming the standard and its exit; exit 1 on a failure, 65 on a malformed file, 66 when the root or a file cannot be read",
   doctor:
     'krn doctor  reports the host `krn task` entry, its commit and origin/main; exit 78 when stale or unpinned',
   state:
