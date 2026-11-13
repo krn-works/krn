@@ -12,7 +12,7 @@ import { titleProblem } from './commit-title.ts';
 import { waitCommand } from './wait.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>]; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits like `krn ci wait`, where a merged PR with a failed pinned-entry refresh still exits 0 with a warning (65 instruction-bytes rule failed before the push, 74 failed gate, 75 timeout, 76 conflict, 77 head moved), 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits like `krn ci wait`, where a merged PR with a failed pinned-entry refresh still exits 0 with a warning (65 instruction-bytes rule failed before the push, 74 failed gate, 75 timeout, 76 conflict, 77 head moved), 64 usage or refused title';
 
 /** Transient git refusals while a parallel lane holds a ref or index lock. */
 export const gitLockError = /cannot lock ref|Unable to create '[^']*\.lock'/u;
@@ -31,6 +31,8 @@ export async function shipCommand(
     gh?: (args: string[]) => Promise<string>;
     sleep?: (ms: number) => Promise<void>;
     now?: () => number;
+    /** The repo contract base for a worktree; the cli supplies it, the default is main. */
+    baseOf?: (cwd: string) => string;
   } = {},
 ): Promise<string> {
   let values: ReturnType<typeof parse>;
@@ -57,7 +59,8 @@ export async function shipCommand(
   const git = (a: string[], at = cwd) => checked(runner('git', a, at));
 
   const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']);
-  if (branch === 'main' || branch === 'HEAD')
+  const target = values.base ?? (runtime.baseOf ?? (() => 'main'))(cwd);
+  if (branch === target || branch === 'main' || branch === 'HEAD')
     throw usageError(
       `refusing to ship from "${branch}"; run inside the branch worktree`,
     );
@@ -126,7 +129,7 @@ export async function shipCommand(
         '--head',
         branch,
         '--base',
-        'main',
+        target,
         '--title',
         title,
         '--body-file',
@@ -162,14 +165,14 @@ export async function shipCommand(
 
   // Parallel lanes share one object store: retry a fetch another git blocks.
   for (let attempt = 1; ; attempt++) {
-    const fetched = runner('git', ['fetch', '-q', 'origin', 'main'], cwd);
+    const fetched = runner('git', ['fetch', '-q', 'origin', target], cwd);
     if (fetched.code === 0) break;
     if (attempt >= gitLockAttempts || !gitLockError.test(fetched.stderr))
       checked(fetched);
     await wait(attempt * 1000);
   }
   const head = git(['rev-parse', 'HEAD']);
-  const base = git(['rev-parse', 'origin/main']);
+  const base = git(['rev-parse', `origin/${target}`]);
   const worktree = git(['rev-parse', '--show-toplevel']);
   const main = dirname(
     git(['rev-parse', '--path-format=absolute', '--git-common-dir']),
@@ -213,12 +216,14 @@ function parse(args: string[]) {
       repo: { type: 'string' },
       force: { type: 'boolean' },
       worktree: { type: 'string' },
+      base: { type: 'string' },
     },
   });
   return {
     title: values.title,
     bodyFile: values['body-file'],
     worktree: values.worktree,
+    base: values.base,
     repo: values.repo,
     force: values.force === true,
   };

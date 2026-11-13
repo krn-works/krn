@@ -435,12 +435,6 @@ export async function laneRunCommand(
   const label = task ?? lane;
   const main = mainCheckoutRoot(origin);
   const base = contractBase(origin);
-  // krn pr ship opens the PR against main; another base waits on t-asa2qhx, so no session is spent first.
-  if (base !== 'main')
-    return {
-      line: `lane ${label}: base ${base} cannot ship yet: krn pr ship targets main (t-asa2qhx)`,
-      exitCode: exitNoDelivery,
-    };
   const brief =
     task === undefined
       ? goalBrief(origin, goal ?? '')
@@ -618,6 +612,8 @@ export async function laneRunCommand(
     const shipped = await steps.ship([
       '--worktree',
       started.path,
+      '--base',
+      base,
       '--title',
       title,
       '--body-file',
