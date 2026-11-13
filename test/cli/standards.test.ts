@@ -154,7 +154,8 @@ test('standards check fails s-clean-checkout-tests when a test runs untracked di
   const spawnsBuild = {
     ...typescript,
     'test/cli.test.ts':
-      "import { spawnSync } from 'node:child_process';\nspawnSync('node', ['dist/cli.js']);\n",
+      "import { spawnSync } from 'node:child_process';\nspawnSync('node', ['dist" +
+      "/cli.js']);\n",
   };
   const unbuilt = repository(spawnsBuild);
   const built = repository({
@@ -656,5 +657,32 @@ test('standards check fails on an inherited copy the pack no longer holds and as
     );
   } finally {
     rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// The Stop hook is wired either as the adopted `exec krn hook stop` or as a repository
+// stop script (KRN's own `scripts/claude/worker-stop.ts`); an unwired hook still fails.
+test('s-finish-gate enforcement accepts both Stop hook wirings and rejects a settings file without one', () => {
+  const pack = parseStandards(JSON.parse(readFileSync(packFile, 'utf8')));
+  const record = pack.find((s) => s.id === 's-finish-gate');
+  assert.equal(record?.enforcement.kind, 'command');
+  const run =
+    record?.enforcement.kind === 'command' ? record.enforcement.run : '';
+  const wirings: [string, number][] = [
+    ['{"hooks":{"Stop":[{"command":"exec krn hook stop"}]}}', 0],
+    [
+      '{"hooks":{"Stop":[{"command":"node scripts/claude/worker-stop.ts"}]}}',
+      0,
+    ],
+    ['{"hooks":{"Stop":[]}}', 1],
+  ];
+  for (const [settings, status] of wirings) {
+    const root = repository({ '.claude/settings.json': settings });
+    try {
+      const done = spawnSync('sh', ['-c', run], { cwd: root });
+      assert.equal(done.status, status, settings);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   }
 });

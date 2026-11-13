@@ -1,0 +1,23 @@
+{
+  "id": "t-amvr1hq",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn standards check passes on KRN: README names npm test, finish-gate enforcement accepts worker-stop wiring, test fixture no longer trips the dist rule"
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "KRN passes its own standards pack",
+  "after": [],
+  "body": [
+    "Why: `bin/krn standards check --root .` on main dc3acaa prints FAIL 18 enforced, 3 failed: s-readme-test-command, s-clean-checkout-tests, s-finish-gate. The pilot repository fails too (first-harvest lane verdict, logs /mnt/storage/tmp/krn/first-harvest/). A pack its own author fails is either a wrong record or a real gap.\nOutcome: for each failing record, either KRN is fixed (README names the test command; tests pass from a clean checkout; finish gate wiring) or the record's enforcement is corrected because it misjudges a valid setup (e.g. KRN's Stop hook may be wired differently than `exec krn hook stop`).\nProof: `bin/krn standards check --root .` prints PASS on main; a regression test at the lowest layer for any enforcement changed; `npm run fast` PASS."
+  ],
+  "acceptance": [
+    {
+      "verify": "bin/krn standards check --root .",
+      "passes": true,
+      "exit": 0
+    }
+  ]
+}
