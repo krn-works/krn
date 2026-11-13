@@ -507,6 +507,21 @@ test('lane run titles the PR from the Ticket commit and ships its verification',
   assert.match(body, /npm run fast PASS on the final tree/u);
 });
 
+test('lane run reads the ship verdict before the cleanup lines a merge prints', async () => {
+  // Verbatim tail of krn pr ship on pilot PR krn-works/seo-audit-harness#78 (merged, yet the lane said 'not merged').
+  const shipped = [
+    'pr: #78 krn-works/seo-audit-harness 0f1e2d3',
+    'gate: success 0f1e2d3',
+    'merged: 4b5c6d7e8f',
+    'verdict: merged 4b5c6d7e8f',
+    'cleanup: removed worktree /p/.krn/worktrees/empty-alt and branch empty-alt',
+    'main checkout: /p',
+  ].join('\n');
+  const { verdict } = await run(deliver(), async () => shipped);
+  assert.equal(verdict.exitCode, 0);
+  assert.match(verdict.line, /shipped verdict: merged 4b5c6d7e8f/u);
+});
+
 test('lane run refuses to ship a task the session left open', async () => {
   const { verdict } = await run(
     `${deliver()}; git reset -q --hard HEAD~1; git commit -q --allow-empty -m "feat(x): done (t-abc1234)" -m "Ticket: t-abc1234"`,

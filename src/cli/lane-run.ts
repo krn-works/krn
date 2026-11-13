@@ -700,7 +700,12 @@ export async function laneRunCommand(
       '--body-file',
       bodyFile,
     ]);
-    const last = shipped.trim().split('\n').pop() ?? '';
+    // Ship ends a merge with cleanup lines after its verdict, so read the verdict line itself.
+    const lines = shipped.trim().split('\n');
+    const last =
+      lines.findLast((line) => line.startsWith('verdict: ')) ??
+      lines.pop() ??
+      '';
     const merged = /^verdict: merged\b/u.test(last);
     return {
       line: `lane ${label}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}`,
