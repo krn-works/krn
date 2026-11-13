@@ -37,9 +37,13 @@ function adopt(root: string, ...extra: string[]) {
 }
 
 function adoptArgs(root: string, ...extra: string[]) {
-  return spawnSync(process.execPath, [cli, 'adopt', root, ...extra], {
-    encoding: 'utf8',
-  });
+  return spawnSync(
+    process.execPath,
+    [cli, 'adopt', root, '--no-canary', ...extra],
+    {
+      encoding: 'utf8',
+    },
+  );
 }
 
 test('adopt writes the task directory, rules block, ignore entry and Check workflow call', () => {
