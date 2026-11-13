@@ -18,6 +18,8 @@ function receiver(options: {
   pulls: Array<Record<string, unknown>>;
   check?: string;
   existing?: string;
+  mergedBefore?: string;
+  failRemove?: boolean;
   dirty?: boolean;
   branch?: string;
   target?: string;
@@ -31,6 +33,8 @@ function receiver(options: {
   const pulls = [...options.pulls];
   const gh = async (a: string[]): Promise<string> => {
     calls.push(`gh ${a.join(' ')}`);
+    if (a[0] === 'pr' && a[1] === 'list' && a.includes('merged'))
+      return options.mergedBefore ?? '';
     if (a[0] === 'pr' && a[1] === 'list') return options.existing ?? '';
     if (a[0] === 'pr' && a[1] === 'create' && options.createRefusal)
       throw new CommandFailure({
@@ -86,6 +90,8 @@ function receiver(options: {
     if (line === 'rev-parse --show-toplevel')
       return out('/r/.krn/worktrees/feat-x\n');
     if (a.includes('--git-common-dir')) return out('/r/.git\n');
+    if (options.failRemove && a[0] === 'worktree')
+      return { code: 1, stdout: '', stderr: 'fatal: cannot remove' };
     if (['push', 'fetch', 'worktree', 'branch', 'ls-tree'].includes(a[0] ?? ''))
       return out('');
     assert.fail(`unexpected ${command} ${line}`);
@@ -276,4 +282,57 @@ test('a fetch that hits a ref lock is retried, a real fetch failure is not', asy
     CommandFailure,
   );
   assert.equal(attempts, 1);
+});
+
+test('exit 0 means merged: each unmerged verdict exits with its own code and keeps the worktree', async () => {
+  const cases: Array<[Record<string, unknown>[], number, RegExp]> = [
+    [[{ auto_merge: null }], 78, /^verdict: not merging/mu],
+    [
+      [auto, { state: 'closed', merged: false, auto_merge: null }],
+      79,
+      /^verdict: closed unmerged PR #7$/mu,
+    ],
+  ];
+  for (const [pulls, code, verdict] of cases) {
+    const r = receiver({ pulls });
+    await assert.rejects(shipCommand(args, r), (e: Failure) => {
+      assert.equal(e.exitCode, code);
+      assert.match(e.message, verdict);
+      assert.match(e.message, /^pr: #7 o\/r a{40}$/mu);
+      return true;
+    });
+    assert.ok(!r.calls.some((c) => c.includes('worktree remove')));
+  }
+  const blocked = receiver({ pulls: [auto] });
+  let elapsed = 0;
+  await assert.rejects(
+    shipCommand([...args], {
+      ...blocked,
+      now: () => (elapsed += 1_000_000),
+    }),
+    (e: Failure) => {
+      assert.equal(e.exitCode, 80);
+      assert.match(e.message, /^verdict: open: /mu);
+      return true;
+    },
+  );
+});
+
+test('a rerun after the PR merged only cleans up and pushes nothing', async () => {
+  const r = receiver({ pulls: [auto], mergedBefore: `7 ${merge}\n` });
+  const out = await shipCommand(args, r);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.match(out, /^cleanup: removed worktree /mu);
+  assert.ok(r.calls.some((c) => c.includes('branch -D feat-x')));
+  for (const step of ['push', 'pr create', 'pr merge', 'node --test'])
+    assert.ok(!r.calls.some((c) => c.includes(step)), step);
+  const lookup = r.calls.find((c) => c.includes('--state merged')) ?? '';
+  assert.ok(lookup.includes(`headRefOid == "${head}"`), lookup);
+});
+
+test('a refused worktree removal after the merge is a warning, not a failed ship', async () => {
+  const r = receiver({ pulls: [auto, merged], failRemove: true });
+  const out = await shipCommand(args, r);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.match(out, /^warning: cleanup failed \(.*cannot remove/mu);
 });
