@@ -37,6 +37,7 @@ export const laneUsage = [
 const SHARED_RULES = `Worker rules:
 - Done means every behavior the task describes has a test in this clone that passes, and your change is committed. A closed task record, an earlier commit or a green existing suite never means done: an earlier commit may cover only part of the task.
 - For each behavior, outcome or interface the task states, write a test that checks it at its receiver. If it fails, fix the code; if it passes already, keep the test: the commit then carries the proof. Stop without a commit only when you can name an existing test for every described behavior.
+- When the task names an input or output format (for example "unified diffs", "newline-separated lists", "JSON"), write at least one test whose input is the plainest hand-written example of that format exactly as the task words it, never only input your own code or tool produced: your parser must accept every form the wording allows, such as a diff with only ---/+++ headers and no diff --git line.
 - A red test outranks tracker state and scope: if a test needs a file outside Scope (other than tasks/ and the roadmap), edit it and name it in your final reply.`;
 
 const STOP_SCRIPT = 'scripts/claude/worker-stop.ts';
