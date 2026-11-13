@@ -21,6 +21,7 @@ import {
   inspectClaim,
   mainCheckoutRoot,
   releaseClaim,
+  taskLookupRoot,
 } from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
 import { getTask, repositoryRoot } from '../task/store.ts';
@@ -237,8 +238,8 @@ function checkCommand(root: string): string {
   return contract?.fast ?? contract?.test ?? 'npm run fast';
 }
 
-function taskRecordBrief(root: string, id: string): string {
-  const task = getTask(root, id);
+function taskRecordBrief(root: string, id: string, lanes: string[]): string {
+  const task = getTask(taskLookupRoot(root, id, lanes), id);
   return [
     `Task ${task.id}: ${task.title}`,
     '',
@@ -281,8 +282,9 @@ export function taskBrief(
   root: string,
   id: string,
   asOf = new Date().toISOString().slice(0, 10),
+  lanes: string[] = [],
 ): string {
-  return laneBriefText(root, taskRecordBrief(root, id), asOf, id);
+  return laneBriefText(root, taskRecordBrief(root, id, lanes), asOf, id);
 }
 
 const defaultSteps: LaneRunSteps = {
@@ -442,7 +444,9 @@ export async function laneRunCommand(
   const brief =
     task === undefined
       ? goalBrief(origin, goal ?? '')
-      : taskBrief(origin, task);
+      : taskBrief(origin, task, undefined, [
+          join(main, '.krn', 'worktrees', lane),
+        ]);
 
   const environment = sessionEnvironment(
     process.env,

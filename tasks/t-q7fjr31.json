@@ -1,7 +1,11 @@
 {
   "id": "t-q7fjr31",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "task lookup resolves the claim or lane worktree; lane drop refuses a sole-copy record"
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "Task tools find a task record that lives only in its lane worktree",

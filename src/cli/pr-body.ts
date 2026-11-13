@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
+import { taskLookupRoot } from '../task/claims.ts';
 import { isTaskId, type TaskRecord } from '../task/record.ts';
 import { loadTaskIndex, repositoryRoot } from '../task/store.ts';
 import { flagValue } from './flag-value.ts';
@@ -115,7 +116,7 @@ export function prBodyCommand(args: string[]): string {
   // The task may exist only in the branch the PR describes, so the record and
   // the commits both come from that worktree, not from the main checkout.
   const root = repositoryRoot(worktree);
-  const task = loadTaskIndex(root).get(id);
+  const task = loadTaskIndex(taskLookupRoot(root, id)).get(id);
   if (task === undefined) throw new CliUsageError(`Unknown task ${id}`);
   const text = renderPrBody({
     task,

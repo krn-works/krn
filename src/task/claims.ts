@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
+  existsSync,
   lstatSync,
   readdirSync,
   readFileSync,
@@ -163,6 +164,25 @@ export function taskRecordRoot(cwdRoot: string, id: TaskId): string {
     claim.claim.worktree !== realpathSync(cwdRoot)
     ? claim.claim.worktree
     : cwdRoot;
+}
+
+/**
+ * The root that holds the task record: `root` when it has one, else the
+ * worktree of the task's claim or of a named lane, else `root` again so the
+ * caller reports the usual unknown-task error.
+ */
+export function taskLookupRoot(
+  root: string,
+  id: TaskId,
+  lanes: string[] = [],
+): string {
+  if (loadTaskIndex(root).has(id)) return root;
+  const held = inspectClaimAt(mainCheckoutRoot(root), id).claim?.worktree;
+  for (const candidate of [...(held ? [held] : []), ...lanes]) {
+    if (!existsSync(join(candidate, 'tasks', `${id}.json`))) continue;
+    if (loadTaskIndex(candidate).has(id)) return candidate;
+  }
+  return root;
 }
 
 export function registeredTaskWorktree(root: string, path: string): string {

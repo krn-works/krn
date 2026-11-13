@@ -217,6 +217,24 @@ function claimsFrom(main: string, worktree: string): string[] {
   return ids;
 }
 
+/** Task records in the worktree that are uncommitted there and absent from the main checkout. */
+function soleTaskRecords(main: string, worktree: string): string[] {
+  const status = spawnSync(
+    'git',
+    ['-C', worktree, 'status', '--porcelain', '-uall', '--', 'tasks'],
+    { encoding: 'utf8' },
+  );
+  if (status.status !== 0) return [];
+  const ids: string[] = [];
+  for (const line of status.stdout.split('\n')) {
+    const match = /tasks\/(t-[a-z0-9]+)\.json$/u.exec(line);
+    if (match?.[1] === undefined || line.startsWith(' D')) continue;
+    if (!existsSync(join(main, 'tasks', `${match[1]}.json`)))
+      ids.push(match[1]);
+  }
+  return ids;
+}
+
 /** Drop a dead lane: release its claims, remove the worktree and delete the branch. */
 export async function dropLane(rest: string[]): Promise<string> {
   let slug: string | undefined;
@@ -247,6 +265,11 @@ export async function dropLane(rest: string[]): Promise<string> {
     throw new CliUsageError(`lane ${slug} does not exist`);
   const released: string[] = [];
   if (existsSync(path)) {
+    const only = soleTaskRecords(main, path);
+    if (only.length > 0)
+      throw new CliUsageError(
+        `lane ${slug} holds the only copy of ${only.join(', ')}; commit it on the lane branch or copy it to the main checkout, then drop again`,
+      );
     for (const id of claimsFrom(main, realpathSync(path))) {
       await releaseClaim(main, id);
       released.push(id);
