@@ -1,0 +1,12 @@
+{
+  "id": "t-8wnb1v3",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "K delivers D23 unit 621: its worker proves the regrade requirement before it ends",
+  "after": [],
+  "body": [
+    "Why: D23 dev-k5 (K 6830288, .krn/runs/d23-comparison/v2/dev-k5/grades/report.md and 621.K.1.json) unit 621 fails its hidden test test/evals/d23-regrade.test.ts:60 (false !== true: the fixture unit's fixing patch is not graded passing) while d23-harness and d23-interface pass; scope-clean, no infra error, cost $2.20. The K worker ended on green local checks that never ran the failing requirement.\nOutcome: the cause is named from the 621 K transcript and patch (missed requirement in the brief, Stop check selection, or worker behavior), and K is changed so a worker on 621 runs a test that covers that requirement before it ends; dev replay of 621 passes or the remaining gap is recorded with evidence.\nProof: diagnosis note with transcript/patch pointers; regression test for the K change at the lowest layer; one dev replay of 621 arm K (operator allowed dev replays of single units).\nScope: scripts/claude/, src/brain/, src/cli/lane*.ts, evals/d23/, test/, .krn/runs/d23-comparison/v2/."
+  ]
+}
