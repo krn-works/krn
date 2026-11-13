@@ -16,10 +16,12 @@ import {
   appliesTo,
   parseStandards,
   promotionFailures,
+  type Standard,
 } from '../../src/brain/standards.ts';
 import {
   ENFORCEMENT_TIMEOUT_MS,
   enforcer,
+  readProject,
   repositoryFacts,
   standardsCheck,
 } from '../../src/brain/standards-cli.ts';
@@ -660,29 +662,55 @@ test('standards check fails on an inherited copy the pack no longer holds and as
   }
 });
 
-// The Stop hook is wired either as the adopted `exec krn hook stop` or as a repository
-// stop script (KRN's own `scripts/claude/worker-stop.ts`); an unwired hook still fails.
-test('s-finish-gate enforcement accepts both Stop hook wirings and rejects a settings file without one', () => {
-  const pack = parseStandards(JSON.parse(readFileSync(packFile, 'utf8')));
-  const record = pack.find((s) => s.id === 's-finish-gate');
+// The universal record knows no KRN script: it accepts any Stop hook entry with a command (the
+// adopted `exec krn hook stop` or a repository's own stop script) and rejects a settings file
+// that only mentions a stop script outside a Stop hook. KRN's own `worker-stop` is a project record.
+function enforcementOf(record: Standard | undefined): string {
   assert.equal(record?.enforcement.kind, 'command');
-  const run =
-    record?.enforcement.kind === 'command' ? record.enforcement.run : '';
+  return record?.enforcement.kind === 'command' ? record.enforcement.run : '';
+}
+
+function runsOn(run: string, settings: string): number | null {
+  const root = repository({ '.claude/settings.json': settings });
+  try {
+    return spawnSync('sh', ['-c', run], { cwd: root }).status;
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test('s-finish-gate enforcement accepts any Stop hook command and rejects a script named outside a Stop hook', () => {
+  const pack = parseStandards(JSON.parse(readFileSync(packFile, 'utf8')));
+  const run = enforcementOf(pack.find((s) => s.id === 's-finish-gate'));
+  assert.doesNotMatch(run, /worker-stop/u);
   const wirings: [string, number][] = [
     ['{"hooks":{"Stop":[{"command":"exec krn hook stop"}]}}', 0],
     [
-      '{"hooks":{"Stop":[{"command":"node scripts/claude/worker-stop.ts"}]}}',
+      '{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"node scripts/stop.ts"}]}]}}',
       0,
     ],
     ['{"hooks":{"Stop":[]}}', 1],
+    ['{"hooks":{"SubagentStop":[{"command":"node worker-stop.ts"}]}}', 1],
+    ['{"note":"worker-stop"}', 1],
+    ['{"hooks":{"Stop":[{"command":""}]}}', 1],
   ];
-  for (const [settings, status] of wirings) {
-    const root = repository({ '.claude/settings.json': settings });
-    try {
-      const done = spawnSync('sh', ['-c', run], { cwd: root });
-      assert.equal(done.status, status, settings);
-    } finally {
-      rmSync(root, { recursive: true, force: true });
-    }
-  }
+  for (const [settings, status] of wirings)
+    assert.equal(runsOn(run, settings), status, settings);
+});
+
+test('KRN carries worker-stop as a project record that only a Stop hook entry satisfies', () => {
+  const own = readProject(fileURLToPath(new URL('../..', import.meta.url)));
+  const run = enforcementOf(
+    own.find((s) => s.id === 's-finish-gate-worker-stop'),
+  );
+  const wirings: [string, number][] = [
+    [
+      '{"hooks":{"Stop":[{"hooks":[{"command":"node scripts/claude/worker-stop.ts"}]}]}}',
+      0,
+    ],
+    ['{"hooks":{"Stop":[{"command":"exec krn hook stop"}]}}', 1],
+    ['{"hooks":{"SubagentStop":[{"command":"node worker-stop.ts"}]}}', 1],
+  ];
+  for (const [settings, status] of wirings)
+    assert.equal(runsOn(run, settings), status, settings);
 });
