@@ -40,7 +40,8 @@ const SHARED_RULES = `Worker rules:
 - Done means every behavior the task describes has a test in this clone that passes, and your change is committed. A closed task record, an earlier commit or a green existing suite never means done: an earlier commit may cover only part of the task.
 - For each behavior, outcome or interface the task states, write a test that checks it at its receiver. If it fails, fix the code; if it passes already, keep the test: the commit then carries the proof. Stop without a commit only when you can name an existing test for every described behavior.
 - When the task names an input or output format (for example "unified diffs", "newline-separated lists", "JSON"), write at least one test whose input is the plainest hand-written example of that format exactly as the task words it, never only input your own code or tool produced: your reader must accept every form the wording allows, including the shortest and plainest one.
-- A red test outranks tracker state and scope: if a test needs a file outside Scope, edit it and name it in your final reply.`;
+- A red test outranks tracker state and scope: if a test needs a file outside Scope, edit it and name it in your final reply.
+- Your final reply states every claim about an external system (a remote repository, a service, a receiver, a CI run) together with the exact command you ran and its exit code; a claim without them is treated as unverified. Name the credential or token scope the command used, and run the real receiver, not a stand-in.`;
 
 const STOP_SCRIPT = 'scripts/claude/worker-stop.ts';
 
