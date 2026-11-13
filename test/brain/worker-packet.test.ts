@@ -28,7 +28,10 @@ test('the lane brief starts with the packet and keeps the lead brief intact', ()
   // The lane packet stays within the measured 400-token budget.
   assert.equal(packet.budget, 400);
   assert.ok(packet.tokens <= packet.budget, `${packet.tokens} tokens`);
-  assert.ok(packet.records.every((id) => id.startsWith('r-')), packet.records.join());
+  assert.ok(
+    packet.records.every((id) => id.startsWith('r-')),
+    packet.records.join(),
+  );
   const text = packetBrief(packet, brief);
   assert.ok(
     text.startsWith(

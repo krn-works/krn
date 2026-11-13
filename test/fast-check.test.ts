@@ -204,8 +204,10 @@ function repoWithChange(): { dir: string; git: (...a: string[]) => void } {
 }
 
 const script = join(import.meta.dirname, '../scripts/fast-check.ts');
+// PR_BODY may carry a Weakens-tests override from the caller; the child must not inherit it.
+const { PR_BODY: _body, ...fastEnv } = process.env;
 const runFast = (cwd: string) =>
-  spawnSync(process.execPath, [script], { cwd, encoding: 'utf8' });
+  spawnSync(process.execPath, [script], { cwd, encoding: 'utf8', env: fastEnv });
 
 test('fast check exits 64 naming the fix when no node_modules exists', () => {
   const { dir } = repoWithChange();
