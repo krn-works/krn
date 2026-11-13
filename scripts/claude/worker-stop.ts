@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import {
   existsSync,
+  lstatSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -176,8 +177,16 @@ function failuresAtBase(
   try {
     const added = git(root, ['worktree', 'add', '--detach', dir, from]);
     if (added.status !== 0) return new Set();
-    if (existsSync(join(root, 'node_modules')))
-      symlinkSync(join(root, 'node_modules'), join(dir, 'node_modules'));
+    // The base may already carry node_modules (a D23 clone commits its symlink); link only when absent.
+    const modules = join(dir, 'node_modules');
+    let linked = true;
+    try {
+      lstatSync(modules);
+    } catch {
+      linked = false;
+    }
+    if (!linked && existsSync(join(root, 'node_modules')))
+      symlinkSync(join(root, 'node_modules'), modules);
     return new Set(run(dir, present));
   } finally {
     git(root, ['worktree', 'remove', '--force', dir]);
