@@ -1,7 +1,11 @@
 {
   "id": "t-2y7e1mz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "CLI-subprocess tests declare fast-covers src/repo/contract.ts; selection test added"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "npm run fast selects the CLI-subprocess tests that assert a changed src module",
