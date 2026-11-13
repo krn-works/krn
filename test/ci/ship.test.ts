@@ -360,6 +360,28 @@ test('a refused push exits 70 and names the --force rerun after a rebase', async
   assert.ok(!r.calls.some((c) => c.startsWith('gh pr create')));
 });
 
+test('a push refused for a workflow file names the App permission, not a rebase', async () => {
+  // Verbatim stderr of the krn-works/krn-pilot-py adoption push with the App token.
+  const refused = [
+    'To https://github.com/krn-works/krn-pilot-py.git',
+    ' ! [remote rejected] krn-adopt -> krn-adopt (refusing to allow a GitHub App to create or update workflow `.github/workflows/ci.yml` without `workflows` permission)',
+    "error: failed to push some refs to 'https://github.com/krn-works/krn-pilot-py.git'",
+  ].join('\n');
+  const r = receiver({ pulls: [auto] });
+  const inner = r.run;
+  const run = (command: string, a: string[], at?: string) =>
+    command === 'git' && a[0] === 'push'
+      ? { code: 1, stdout: '', stderr: refused }
+      : inner(command, a, at);
+  await assert.rejects(shipCommand(args, { ...r, run }), (e: Failure) => {
+    assert.equal(e.exitCode, 70);
+    assert.match(e.message, /Workflows \(write\) permission/u);
+    assert.match(e.message, /workflow scope/u);
+    assert.doesNotMatch(e.message, /rebase/u);
+    return true;
+  });
+});
+
 test('an empty diff against the base refuses the push and names the PR that carries the change', async () => {
   const r = receiver({ pulls: [auto, merged], diff: '', carrier: '642\n' });
   await assert.rejects(shipCommand(args, r), (error: Failure) => {

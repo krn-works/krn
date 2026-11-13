@@ -192,7 +192,7 @@ export async function shipCommand(
   if (pushed.code !== 0)
     throw Object.assign(
       new Error(
-        `push failed: ${pushed.stderr.trim()}${force ? '' : '\nafter a rebase rerun with --force'}`,
+        `push failed: ${pushed.stderr.trim()}\n${pushRemedy(pushed.stderr, force)}`,
       ),
       { exitCode: 70 },
     );
@@ -310,4 +310,17 @@ function parse(args: string[]) {
     repo: values.repo,
     force: values.force === true,
   };
+}
+
+/**
+ * What to do after a refused push. GitHub refuses a workflow file from an App token without the
+ * `workflows` permission (verbatim: krn-works/krn-pilot-py adoption push), and every adoption PR
+ * writes .github/workflows/ci.yml; a rebase cannot fix that, so the remedy names the permission.
+ */
+export function pushRemedy(stderr: string, force: boolean): string {
+  if (/without `?workflows`? permission/u.test(stderr))
+    return 'the token cannot write workflow files: grant the KRN GitHub App the Workflows (write) permission, or push this branch once with a user login holding the workflow scope (`env -u GH_TOKEN gh auth status` lists it), then rerun the same krn pr ship; the pushed branch is reused';
+  return force
+    ? 'fetch, rebase and rerun with --force'
+    : 'after a rebase rerun with --force';
 }

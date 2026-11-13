@@ -1,7 +1,11 @@
 {
   "id": "t-8j7cc85",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn pr ship names the Workflows permission or a user-login push when GitHub refuses a workflow file from the App token"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "An adoption PR push names the missing workflows permission and its remedy",
