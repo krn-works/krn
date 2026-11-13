@@ -168,3 +168,16 @@ test('the shared worker rules carry no wording taken from an eval unit or this r
   assert.doesNotMatch(rules, /diff --git|---\/\+\+\+|unit[- ]?\d+|D23/u);
   assert.doesNotMatch(rules, /tasks\/ and the roadmap/u);
 });
+
+test('a lane brief requires the command and exit code behind every external-system claim', () => {
+  const text = laneBriefText(
+    repo,
+    'Task t-abc1234: x\n',
+    BASE_DATE,
+    't-abc1234',
+  );
+  assert.match(
+    text,
+    /every claim about an external system[^\n]*exact command you ran and its exit code/u,
+  );
+});

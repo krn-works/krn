@@ -1,7 +1,11 @@
 {
   "id": "t-vpks6m5",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane brief worker rules require command and exit code behind external-system claims; lead rule reruns one per lane"
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "Lane verdicts carry the command and exit behind every claim about an external system",
