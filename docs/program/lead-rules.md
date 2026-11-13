@@ -18,7 +18,7 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 
 ## Scope and delivery
 
-- For work spanning sessions, PRs, or modules, maintain a living plan using [`PLANS.md`](PLANS.md). Read back the task, authority, checkout, base/head, and dirty-file ownership before a handoff.
+- For work spanning sessions, PRs, or modules, maintain a living plan using [`PLAN.md`](PLAN.md#working-plans). Read it back before a handoff.
 - Use one writer per outcome. Preserve unrelated work and use only the authorized paths and delivery route.
 - Run the cheapest relevant falsifier, then the required repository checks. Do not claim acceptance from a successful command alone.
 - Delivery is the no-gates loop: code in a worktree, run `npm run fast` once before commit (Biome `--write`, tsc and related tests on changed files, one verdict; CI runs the rest), push, `gh pr create --head <branch>`, then `gh pr merge --auto --squash`. The only gate is required CI on the exact HEAD: the aggregate GitHub Actions `Check` (App `15368`, `.github/workflows/ci.yml`). Codex workers and `npm run gate` are opt-in tools the lead picks when they save time, never prerequisites. Use Conventional Commits.

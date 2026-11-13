@@ -20,11 +20,11 @@ test('cheap preflight reuses local observers', async () => {
     scripts.preflight,
     'npm run check && npm run lint && npm run rules && node src/cli/main.ts task check',
   );
-  const plans = await readFile(
-    new URL('../docs/program/PLANS.md', import.meta.url),
+  const leadRules = await readFile(
+    new URL('../docs/program/lead-rules.md', import.meta.url),
     'utf8',
   );
-  assert.match(plans, /npm run fast/u);
+  assert.match(leadRules, /npm run fast/u);
 });
 
 function jobBlocks(source: string): Map<string, string> {
@@ -295,18 +295,26 @@ test('Product uses required exact-head Actions Check and optional local diagnost
     /run: npm test$/mu,
   ])
     assert.match(workflow, step);
+  const owners = ['README.md', 'docs/program/lead-rules.md'];
   for (const path of [
-    'README.md',
+    ...owners,
     'docs/program/repository-workflow.md',
-    'docs/program/lead-rules.md',
-    'docs/program/PLANS.md',
+    'docs/program/PLAN.md',
   ]) {
     const source = await readFile(
       new URL(`../${path}`, import.meta.url),
       'utf8',
     );
-    assert.match(source, /required CI on the exact HEAD/u, path);
-    assert.match(source, /`Check`.*App `15368`/u, path);
+    if (owners.includes(path)) {
+      assert.match(source, /required CI on the exact HEAD/u, path);
+      assert.match(source, /`Check`.*App `15368`/u, path);
+    } else {
+      assert.doesNotMatch(
+        source,
+        /App `15368`/u,
+        `${path} points to the owner`,
+      );
+    }
     assert.doesNotMatch(
       source,
       /after review the lead runs .*gate:local/iu,

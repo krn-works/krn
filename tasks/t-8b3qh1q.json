@@ -1,7 +1,11 @@
 {
   "id": "t-8b3qh1q",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "PLANS.md folded into PLAN.md (Working plans); delivery gate text owned by lead-rules.md and README, PLAN.md and repository-workflow.md point to it; AGENTS.md and spec/rules.json already point to docs. Edited test/workflow.test.ts and spec/context-budget.json for the moved text. Brief named FR-40 scorer comparison; that is t-xmg07c9, not run here."
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "Process rules and the plan file have one owner each",
