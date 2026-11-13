@@ -1,7 +1,11 @@
 {
   "id": "t-djnrw3t",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "5 pilot PRs #78-#82 merged in krn-works/seo-audit-harness, hidden tests 5/5 PASS; 4 of 5 shipped by krn lane run with no lead turn ($0.19-$0.42); task 1 needed the lead."
+  },
   "created": "2026-11-11",
   "priority": 1,
   "title": "A pilot repository outside KRN delivers five tasks through krn lane run",
@@ -20,6 +24,7 @@
     "Before the first pilot lane (state review D1, operator 2026-11-13): t-99scx6x Stop refuses nameless failures, t-zgq6c34 canary (broken test in a pilot worktree gives exit 2 from krn hook stop with real vitest), t-ejt6hpt lane installs dependencies, t-1h43kq9 Stop uses contract test in a subdirectory. Pilot main protection requires seo/local-verify, krn/judge-standards, krn/judge-spec (pilot AGENTS.md:62), not ci / Check: PR #76 is green on ci / * but merge-blocked pending the operator's choice.",
     "Progress 2026-11-13 (lead): pilot adopted, krn-works/seo-audit-harness#76 merged 0a94a19 on green ci / Check. Operator chose the faster path: main requires only ci / Check (three local statuses retired, pilot AGENTS.md updated), auto-merge on; krn.json declares install and build-then-test. KRN fixes merged: #684 Stop nameless failures and --prefix paths, #685 lane run install (exit 71) and red-baseline refusal (exit 72), #686 eval overlay. Next: canary t-zgq6c34 (lane paused by quota), then five pilot tasks through krn lane run.",
     "Progress 2026-11-13 (lead, later): gate proven on the pilot. Canary krn adopt /mnt/storage/tmp/krn/pilot/adopt --canary: exit 1 before #692, exit 0 after (Stop refuses a broken vitest test with exit 2). krn ci wait on pilot PR 76: exit 0 in 7 s after #691. Rung 0 (#689) keeps the sibling-transplant line (54.3%, CI 42-66%; rung 1 is t-mq1ppm5). Next: five real pilot tasks through krn lane run, each graded by lead-written hidden tests (t-ahepzts shape); first create the five pilot tasks in the pilot repository tracker (tracker: krn in its krn.json).",
-    "Lane baselines were red only in linked worktrees: test temp dirs under <worktree>/.krn/tmp resolved git and plan-sample state to the enclosing checkout. Fixed with GIT_CEILING_DIRECTORIES per test worker and plan-sample treating a .git directory as a main checkout; full npm test green in a linked worktree."
+    "Lane baselines were red only in linked worktrees: test temp dirs under <worktree>/.krn/tmp resolved git and plan-sample state to the enclosing checkout. Fixed with GIT_CEILING_DIRECTORIES per test worker and plan-sample treating a .git directory as a main checkout; full npm test green in a linked worktree.",
+    "Proof (2026-11-13, krn-works/seo-audit-harness, hidden tests in the t-ahepzts grader shape via .krn/runs/pilot/hidden/grade.sh):\n| # | task | PR | merge | lane $ | lead turns | hidden |\n| 1 | t-g1fc0cz empty alt decorative | #78 | 15790fb | 4 lane runs exit 74 (pilot suite flaky under load), merged by the lead | >0 (lead finished) | PASS 4/4 |\n| 2 | t-q4sanca 403/429 blocked | #80 | 76e9ffc | $0.29 | 0 | PASS 6/6 |\n| 3 | t-63hy84q LCP selector | #81 | 303d187 | $0.23 | 0 | PASS 5/5 |\n| 4 | t-h35ja9z sitemap reasons | #82 | c163929 | $0.42 | 0 | PASS 6/6 |\n| 5 | t-t8bzf8z robots Sitemap lines | #79 | 932b924 | $0.19 | 0 | PASS 5/5 |\nTasks 2-5 first failed exit 72/64 in krn lane run; each failure became a KRN fix (t-6yrmt81 baseline rerun, d8399da linked-worktree suite, portability t-9xwtz6f t-p226jft t-pvhs4eb) before the reruns above shipped with no lead turn. Onboarding: adopt PR 0a94a19 in the pilot repository; App token scoped by KRN_APP_REPOSITORY."
   ]
 }
