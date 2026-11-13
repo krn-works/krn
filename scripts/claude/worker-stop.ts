@@ -37,7 +37,18 @@ function imported(testPath: string, source: string): Set<string> {
   return found;
 }
 
-/** Tests among `tests` (path to source) that are changed or import a changed file, sorted. */
+const GUARD_DIR = 'test/rules/';
+
+/** Whether the source holds the repository path as a quoted string literal. */
+function namesPath(source: string, file: string): boolean {
+  return ["'", '"', '`'].some((quote) => source.includes(quote + file + quote));
+}
+
+/**
+ * Tests among `tests` (path to source) sorted that are changed, import a changed file, name a changed
+ * file's repository path as a string literal (data files read by path), or are a tree-scanning guard
+ * under test/rules/ (selected whenever any file changed).
+ */
 export function relatedTests(
   changed: string[],
   tests: Map<string, string>,
@@ -47,6 +58,12 @@ export function relatedTests(
   for (const [path, source] of tests)
     for (const target of imported(path, source))
       if (targets.has(target)) picked.add(path);
+  if (changed.length > 0)
+    for (const [path, source] of tests) {
+      if (path.startsWith(GUARD_DIR)) picked.add(path);
+      else if ([...targets].some((file) => namesPath(source, file)))
+        picked.add(path);
+    }
   return [...picked].sort();
 }
 
