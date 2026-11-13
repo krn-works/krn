@@ -107,7 +107,11 @@ test('npm init placeholder test script is not a test command, and nothing found 
 test('krn.json fields win and missing ones fall back to detection', () => {
   const root = fixture({
     'pyproject.toml': '',
-    'krn.json': JSON.stringify({ base: 'develop', fast: 'ruff check .' }),
+    'krn.json': JSON.stringify({
+      base: 'develop',
+      fast: 'ruff check .',
+      guard: 'tests/invariants/',
+    }),
     'tasks/.keep': '',
   });
   const { contract, source } = resolveContract(root);
@@ -117,6 +121,7 @@ test('krn.json fields win and missing ones fall back to detection', () => {
     test: 'python -m pytest',
     related: 'python -m pytest {files}',
     fast: 'ruff check .',
+    guard: 'tests/invariants/',
     tracker: 'krn',
   });
 });

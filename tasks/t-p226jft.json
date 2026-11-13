@@ -1,7 +1,11 @@
 {
   "id": "t-p226jft",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Stop check reads the repo contract (base, related, full fallback, guard); name-match and go-package selection; deleted files, no-relation fall-through and crash fail-open closed; proven on real pytest (uvx) and go 1.27.3 fixtures; krn hook entry carried to t-d25znwp"
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "The worker Stop check and related-test selection run any stack's tests from the repo contract",

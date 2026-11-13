@@ -1,2 +1,4 @@
 [tools]
 node = "24.22.1"
+# The Stop check proves its pytest path on the real runner (test/claude/worker-stop.test.ts).
+"pipx:pytest" = "9.2.0"

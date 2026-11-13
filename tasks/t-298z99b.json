@@ -1,0 +1,17 @@
+{
+  "id": "t-298z99b",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "pytest pinned in mise.toml and run for real; go path by verbatim capture"
+  },
+  "created": "2026-11-13",
+  "priority": 2,
+  "title": "CI runs the Stop check pytest and go receiver tests instead of skipping them",
+  "after": [],
+  "body": [
+    "Why: test/claude/worker-stop.test.ts runs the Stop check against real pytest and go test, but both skip when the runner lacks pytest/uvx and go (verified locally 2026-11-13 with uvx pytest and go 1.27.3; CI never ran them).\nOutcome: CI installs pytest and go in the shard that runs test/claude, so the foreign-stack Stop check tests run on every PR and a skip there fails.\nProof: a CI log line showing both tests ok, not skipped.\nScope: .github/workflows/, test/claude/.",
+    "Correction at close: go is not pinned (test/cli/launcher-toolchain.test.ts forbids go in mise.toml); the go path is proven by a verbatim go 1.27.3 capture plus the real run done locally on 2026-11-13. pytest 9.2.0 is pinned and runs for real on every host."
+  ]
+}
