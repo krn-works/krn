@@ -265,11 +265,19 @@ function checkCommand(root: string): string {
 
 function taskRecordBrief(root: string, id: string, lanes: string[]): string {
   const task = getTask(taskLookupRoot(root, id, lanes), id);
+  const acceptance = task.acceptance ?? [];
   return [
     `Task ${task.id}: ${task.title}`,
     '',
     ...task.body,
     '',
+    ...(acceptance.length === 0
+      ? []
+      : [
+          'Acceptance lines (each command must exit 0 in this worktree before you finish; `krn task close` runs them):',
+          ...acceptance.map((entry) => `- \`${entry.verify}\``),
+          '',
+        ]),
     `Deliver this task in the current worktree: commit with a "Ticket: ${task.id}" trailer and close the task with \`bin/krn task close ${task.id} --as done --note ...\` in the same commit. The commit title is \`type(scope): outcome (${task.id})\`. Run \`${checkCommand(root)}\` and fix what it reports before you finish; the caller ships only a tree it passed on. Do not push or open a pull request; the caller ships the commit.`,
   ].join('\n');
 }

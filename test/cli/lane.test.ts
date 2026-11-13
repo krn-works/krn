@@ -415,6 +415,25 @@ test('the lane brief reads a record only the lane worktree holds, claimed or rel
   }
 });
 
+test('the lane brief lists the acceptance lines of the task record and requires them to pass', async () => {
+  const { taskBrief } = await import('../../src/cli/lane-run.ts');
+  const { base, repo } = fixture();
+  try {
+    const path = laneWithOnlyCopy(repo, 't-only123', 'only');
+    const file = join(path, 'tasks', 't-only123.json');
+    const record = JSON.parse(readFileSync(file, 'utf8'));
+    record.acceptance = [
+      { verify: 'node --test test/a.test.ts', passes: false, exit: null },
+    ];
+    writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
+    const brief = taskBrief(repo, 't-only123', '2026-11-13', [path]);
+    assert.match(brief, /Acceptance lines[^\n]*must exit 0/u);
+    assert.match(brief, /^- `node --test test\/a\.test\.ts`$/mu);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('lane drop refuses while the worktree holds the only copy of a task record', () => {
   const { base, repo } = fixture();
   try {
