@@ -20,6 +20,9 @@ import { fetchBase } from '../../src/cli/lane.ts';
 // KRN-12: runs `krn lane start` against real temporary git repositories.
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
 
+// An ambient lane session sets KRN_SESSION_CLASS=lane, which `krn lane start` rejects; the tests own their environment.
+Reflect.deleteProperty(process.env, 'KRN_SESSION_CLASS');
+
 function git(cwd: string, ...args: string[]): string {
   const result = spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
