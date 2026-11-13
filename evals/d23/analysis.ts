@@ -111,6 +111,21 @@ export function armSecondary(obs: Observation[], arm: string): ArmSecondary {
 
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 
+/** Units where arm A's mean correctness is below or above arm B's, sorted; the per-unit pairs that name where a harness loses. */
+export function discordantUnits(
+  obs: Observation[],
+  a: string,
+  b: string,
+): { below: string[]; above: string[] } {
+  const ma = unitMeans(obs, a);
+  const mb = unitMeans(obs, b);
+  const units = [...ma.keys()].filter((u) => mb.has(u)).sort();
+  return {
+    below: units.filter((u) => (ma.get(u) ?? 0) < (mb.get(u) ?? 0)),
+    above: units.filter((u) => (ma.get(u) ?? 0) > (mb.get(u) ?? 0)),
+  };
+}
+
 /** The report: per-arm means, the paired differences against the baseline arm, and the secondary measures. */
 export function report(
   obs: Observation[],
@@ -129,10 +144,23 @@ export function report(
     );
   }
   lines.push('');
-  for (const arm of arms.filter((x) => x !== baseline)) {
-    const r = pairedDifference(obs, arm, baseline);
+  const contrasts: [string, string][] = arms
+    .filter((x) => x !== baseline)
+    .map((arm) => [arm, baseline]);
+  // K - PB isolates the harness: both arms receive the same requirements text.
+  if (arms.includes('K') && arms.includes('PB')) contrasts.push(['K', 'PB']);
+  for (const [a, b] of contrasts) {
+    const r = pairedDifference(obs, a, b);
     lines.push(
-      `${arm} - ${baseline}: ${(r.diff * 100).toFixed(1)} pp over ${r.units} units, SE ${(r.se * 100).toFixed(1)} pp, 95% CI [${(r.ciLow * 100).toFixed(1)}, ${(r.ciHigh * 100).toFixed(1)}], p=${r.p.toFixed(3)}`,
+      `${a} - ${b}: ${(r.diff * 100).toFixed(1)} pp over ${r.units} units, SE ${(r.se * 100).toFixed(1)} pp, 95% CI [${(r.ciLow * 100).toFixed(1)}, ${(r.ciHigh * 100).toFixed(1)}], p=${r.p.toFixed(3)}`,
+    );
+  }
+  if (arms.includes('K') && arms.includes('PB')) {
+    const d = discordantUnits(obs, 'K', 'PB');
+    lines.push(
+      '',
+      `K below PB: ${d.below.join(' ') || 'none'}`,
+      `K above PB: ${d.above.join(' ') || 'none'}`,
     );
   }
   return `${lines.join('\n')}\n`;
