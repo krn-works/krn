@@ -21,6 +21,10 @@
       "receivers": ["git"],
       "real": "test/brain/precedent.test.ts"
     },
+    "src/brain/standards-cli.ts": {
+      "receivers": ["git"],
+      "real": "test/cli/standards.test.ts"
+    },
     "src/cli/entry-pin.ts": {
       "receivers": ["git"],
       "real": "test/cli/entry-pin.test.ts"
