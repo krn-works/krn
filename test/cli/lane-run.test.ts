@@ -35,6 +35,10 @@ import {
   ticketCommitTitle,
   tokenMinimumRemainingSeconds,
 } from '../../src/cli/lane-run.ts';
+
+// An ambient lane session sets KRN_SESSION_CLASS=lane, which `krn lane start` rejects; the tests own their environment.
+Reflect.deleteProperty(process.env, 'KRN_SESSION_CLASS');
+
 import { claimTask, inspectClaim } from '../../src/task/claims.ts';
 
 // KRN-12: the session result is a verbatim `claude -p --output-format json` capture;
