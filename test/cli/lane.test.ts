@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import {
+  chmodSync,
   copyFileSync,
   existsSync,
   mkdirSync,
@@ -110,6 +111,29 @@ test('lane start works while a running lane sandbox holds .git/config.lock', () 
       'locked',
     );
   } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a failed worktree add leaves no branch behind, so a retry starts the lane', () => {
+  const { base, repo } = fixture();
+  const worktrees = join(repo, '.krn', 'worktrees');
+  mkdirSync(worktrees, { recursive: true });
+  chmodSync(worktrees, 0o555);
+  try {
+    const failed = lane(repo, 'start', 'retry', '--task', 't-abc1234');
+    assert.notEqual(failed.status, 0);
+    assert.equal(
+      spawnSync('git', ['show-ref', '--quiet', 'refs/heads/retry'], {
+        cwd: repo,
+      }).status,
+      1,
+    );
+    chmodSync(worktrees, 0o755);
+    const retried = lane(repo, 'start', 'retry', '--task', 't-abc1234');
+    assert.equal(retried.status, 0, retried.stderr);
+  } finally {
+    chmodSync(worktrees, 0o755);
     rmSync(base, { recursive: true, force: true });
   }
 });

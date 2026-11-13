@@ -1,0 +1,16 @@
+{
+  "id": "t-a3e38vd",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "worktree add failure prunes worktrees and deletes the branch, then rethrows; regression test red without it."
+  },
+  "created": "2026-11-13",
+  "priority": 1,
+  "title": "A failed lane start leaves no branch behind",
+  "after": [],
+  "body": [
+    "Why: 2026-11-13 a krn lane start failed in git worktree add (config lock) after git had created the branch; every retry then refused with \"branch <slug> already exists\" until the lead deleted it by hand.\nOutcome: a failed worktree add prunes and deletes the branch it created, so a retry starts the lane.\nProof: test/cli/lane.test.ts \"a failed worktree add leaves no branch behind\" red without the rollback (exit 1), green with it."
+  ]
+}

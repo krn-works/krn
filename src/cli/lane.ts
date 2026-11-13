@@ -385,16 +385,24 @@ export async function startLane(
     task === undefined ? undefined : untrackedTaskRecord(origin, task, base);
   // --no-track: a lane session's sandbox mounts a read-only placeholder over .git/config.lock in
   // the shared git dir, so any config write (upstream tracking) fails while a lane runs.
-  git(main, [
-    'worktree',
-    'add',
-    '-q',
-    '--no-track',
-    '-b',
-    slug,
-    path,
-    `origin/${base}`,
-  ]);
+  try {
+    git(main, [
+      'worktree',
+      'add',
+      '-q',
+      '--no-track',
+      '-b',
+      slug,
+      path,
+      `origin/${base}`,
+    ]);
+  } catch (error) {
+    // git creates the branch before the worktree directory; a failed add would leave it behind
+    // and every retry would refuse with "branch already exists".
+    gitOk(main, ['worktree', 'prune']);
+    gitOk(main, ['branch', '-D', slug]);
+    throw error;
+  }
   if (task !== undefined) {
     try {
       const copied =
