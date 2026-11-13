@@ -110,8 +110,13 @@ function detectNode(root: string): Detected | undefined {
   if (!pkg) return undefined;
   const scripts = (pkg.scripts ?? {}) as Record<string, unknown>;
   const script = typeof scripts.test === 'string' ? scripts.test : '';
+  const workspace =
+    existsSync(join(root, 'pnpm-workspace.yaml')) ||
+    Array.isArray(pkg.workspaces) ||
+    (typeof pkg.workspaces === 'object' && pkg.workspaces !== null);
   // npm init writes a test script that only fails.
-  if (script === '' || /no test specified/.test(script)) return undefined;
+  const noScript = script === '' || /no test specified/.test(script);
+  if (noScript && !workspace) return undefined;
   const pm = existsSync(join(root, 'pnpm-lock.yaml'))
     ? 'pnpm'
     : existsSync(join(root, 'yarn.lock'))
@@ -121,6 +126,32 @@ function detectNode(root: string): Detected | undefined {
         ? 'bun'
         : 'npm';
   const run = pm === 'npm' ? 'npm run' : pm;
+  if (noScript) {
+    // A workspace root without its own test script: run every member's test script.
+    const deps = {
+      ...(pkg.devDependencies as object),
+      ...(pkg.dependencies as object),
+    };
+    const member =
+      pm === 'pnpm'
+        ? 'pnpm -r --if-present test'
+        : pm === 'yarn'
+          ? 'yarn workspaces foreach -A run test'
+          : pm === 'bun'
+            ? 'bun run --filter "*" test'
+            : 'npm test --workspaces --if-present';
+    return {
+      stack: `node/${pm}-workspace`,
+      test: member,
+      ...('vitest' in deps
+        ? {
+            related: `${pm === 'npm' ? 'npx' : `${pm} exec`} vitest run {files}`,
+          }
+        : 'jest' in deps
+          ? { related: `${pm === 'npm' ? 'npx' : `${pm} exec`} jest {files}` }
+          : {}),
+    };
+  }
   const runner = /\bvitest\b/.test(script)
     ? `${pm === 'npm' ? 'npx' : `${pm} exec`} vitest run {files}`
     : /\bjest\b/.test(script)
@@ -136,6 +167,52 @@ function detectNode(root: string): Detected | undefined {
   };
 }
 
+function pythonTestFiles(dir: string): string[] {
+  try {
+    return readdirSync(dir).filter((f) => /^test.*\.py$/.test(f));
+  } catch {
+    return [];
+  }
+}
+
+// A Python repository without pytest markers whose tests import unittest.
+function detectUnittest(root: string): Detected | undefined {
+  for (const sub of ['', 'tests', 'test']) {
+    const dir = join(root, sub);
+    const usesUnittest = pythonTestFiles(dir).some((file) =>
+      /\bunittest\b/.test(readFileSync(join(dir, file), 'utf8')),
+    );
+    // Plain discover skips a tests/ directory without __init__.py and exits 5 (no tests ran).
+    if (usesUnittest)
+      return {
+        stack: 'python/unittest',
+        test:
+          sub === ''
+            ? 'python -m unittest discover'
+            : `python -m unittest discover -s ${sub}`,
+        related: 'python -m unittest {files}',
+      };
+  }
+  return undefined;
+}
+
+function detectPhpunit(root: string): Detected | undefined {
+  const config =
+    existsSync(join(root, 'phpunit.xml')) ||
+    existsSync(join(root, 'phpunit.xml.dist'));
+  const composer = readJson(join(root, 'composer.json'));
+  const requires = {
+    ...(composer?.require as object),
+    ...(composer?.['require-dev'] as object),
+  };
+  if (!config && !('phpunit/phpunit' in requires)) return undefined;
+  return {
+    stack: 'php/phpunit',
+    test: 'vendor/bin/phpunit',
+    related: 'vendor/bin/phpunit {files}',
+  };
+}
+
 function detectPython(root: string): Detected | undefined {
   const markers = [
     'pyproject.toml',
@@ -144,7 +221,8 @@ function detectPython(root: string): Detected | undefined {
     'tox.ini',
     'setup.py',
   ];
-  if (!markers.some((file) => existsSync(join(root, file)))) return undefined;
+  const hasMarker = markers.some((file) => existsSync(join(root, file)));
+  if (!hasMarker) return detectUnittest(root);
   const pytest = existsSync(join(root, 'uv.lock'))
     ? 'uv run pytest'
     : existsSync(join(root, 'poetry.lock'))
@@ -174,7 +252,33 @@ export function detectStack(root: string): Detected | undefined {
       test: 'go test ./...',
       related: 'go test {files}',
     };
-  return detectNode(root) ?? detectPython(root) ?? detectMakeTest(root);
+  return (
+    detectNode(root) ??
+    detectPython(root) ??
+    detectPhpunit(root) ??
+    detectMakeTest(root) ??
+    detectNestedModule(root)
+  );
+}
+
+// A Go or Rust module one level down, when the root holds no manifest of its own.
+function detectNestedModule(root: string): Detected | undefined {
+  const dirs = subdirectories(root);
+  const go = dirs.find((d) => existsSync(join(root, d, 'go.mod')));
+  if (go)
+    return {
+      stack: 'go',
+      test: `cd ${go} && go test ./...`,
+      related: `cd ${go} && go test ./...`,
+    };
+  const rust = dirs.find((d) => existsSync(join(root, d, 'Cargo.toml')));
+  if (rust)
+    return {
+      stack: 'rust',
+      test: `cd ${rust} && cargo test`,
+      related: `cd ${rust} && cargo test`,
+    };
+  return undefined;
 }
 
 export interface Subpackage {
@@ -305,7 +409,7 @@ export function resolveContract(root: string): ResolvedContract {
   const found = findContract(root);
   if (found === undefined)
     throw new ContractError(
-      `no test command: KRN recognises Cargo.toml, go.mod, package.json with a test script, pyproject.toml/pytest.ini/setup.cfg/tox.ini/setup.py, or a Makefile test target; otherwise write ${CONTRACT_FILE} with {"test": "<command>"}`,
+      `no test command: KRN recognises Cargo.toml or go.mod (root or one level down), package.json with a test script or workspaces, pyproject.toml/pytest.ini/setup.cfg/tox.ini/setup.py, unittest files, phpunit.xml/composer.json, or a Makefile test target; otherwise write ${CONTRACT_FILE} with {"test": "<full suite command>", "related": "<command for chosen files, containing {files}>", "install": "<dependency install, optional>", "fast": "<quick check, optional>"}`,
     );
   return found;
 }

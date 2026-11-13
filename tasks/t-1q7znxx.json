@@ -1,7 +1,11 @@
 {
   "id": "t-1q7znxx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "contract detects unittest, phpunit, nested go/cargo, workspaces; undetected stack names fields"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "The repo contract detects unittest, phpunit and workspace layouts, or adopt names the gap",
@@ -9,6 +13,7 @@
     "t-bmt0xgz"
   ],
   "body": [
-    "Why: PP:46, PP:66\nOutcome: `krn repo contract` returns test and related for unittest, phpunit, nested go.mod/Cargo.toml, pnpm workspace; an undetected stack prints the fields to write\nProof: `node --test test/repo/contract.test.ts` on generated fixtures. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): t-bmt0xgz\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N03)."
+    "Why: PP:46, PP:66\nOutcome: `krn repo contract` returns test and related for unittest, phpunit, nested go.mod/Cargo.toml, pnpm workspace; an undetected stack prints the fields to write\nProof: `node --test test/repo/contract.test.ts` on generated fixtures. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): t-bmt0xgz\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N03).",
+    "Lead rework (CI run 43498935222 red): test/portability/fixtures.test.ts 2 of 9 fail: expected /skipped krn\\.json \\(no test command detected/ but adopt now writes krn.json; the widened src/repo/contract.ts detection finds a test command in fixtures meant to have none (check fixtures 1 python pyproject+pytest and 7). Decide per fixture: if the new detection is right, update the fixture expectation and say why in the commit; if wrong (e.g. composer/go.mod/Cargo one-level-down without tests), narrow detection. Run node --test test/portability/fixtures.test.ts locally before shipping."
   ]
 }

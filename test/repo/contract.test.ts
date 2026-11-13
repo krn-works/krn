@@ -180,3 +180,83 @@ test('krn repo contract prints JSON and exits 65 when no test command exists', (
   assert.equal(none.stdout, '');
   assert.match(none.stderr, /no test command/);
 });
+
+test('unittest, phpunit, nested modules and workspaces are detected with test and related', () => {
+  const cases: [Record<string, string>, string, string, string | undefined][] =
+    [
+      [
+        { 'tests/test_a.py': 'import unittest\n' },
+        'python/unittest',
+        'python -m unittest discover -s tests',
+        'python -m unittest {files}',
+      ],
+      [
+        { 'test_a.py': 'import unittest\n' },
+        'python/unittest',
+        'python -m unittest discover',
+        'python -m unittest {files}',
+      ],
+      [
+        { 'phpunit.xml': '<phpunit/>' },
+        'php/phpunit',
+        'vendor/bin/phpunit',
+        'vendor/bin/phpunit {files}',
+      ],
+      [
+        { 'composer.json': '{"require-dev":{"phpunit/phpunit":"^10"}}' },
+        'php/phpunit',
+        'vendor/bin/phpunit',
+        'vendor/bin/phpunit {files}',
+      ],
+      [
+        { 'services/go.mod': 'module x' },
+        'go',
+        'cd services && go test ./...',
+        'cd services && go test ./...',
+      ],
+      [
+        { 'core/Cargo.toml': '' },
+        'rust',
+        'cd core && cargo test',
+        'cd core && cargo test',
+      ],
+      [
+        {
+          'package.json': '{"private":true}',
+          'pnpm-workspace.yaml': 'packages:\n  - "packages/*"\n',
+          'pnpm-lock.yaml': '',
+        },
+        'node/pnpm-workspace',
+        'pnpm -r --if-present test',
+        undefined,
+      ],
+      [
+        {
+          'package.json': JSON.stringify({
+            workspaces: ['packages/*'],
+            devDependencies: { vitest: '1' },
+          }),
+        },
+        'node/npm-workspace',
+        'npm test --workspaces --if-present',
+        'npx vitest run {files}',
+      ],
+    ];
+  for (const [files, stack, testCommand, related] of cases) {
+    const resolved = resolveContract(fixture(files));
+    assert.equal(resolved.stack, stack, stack);
+    assert.equal(resolved.contract.test, testCommand, stack);
+    assert.equal(resolved.contract.related, related, stack);
+  }
+});
+
+test('an undetected stack prints the fields to write', () => {
+  assert.throws(
+    () => resolveContract(fixture({ 'README.md': '' })),
+    (e: unknown) =>
+      e instanceof ContractError &&
+      /"test"/.test(e.message) &&
+      /"related"/.test(e.message) &&
+      /\{files\}/.test(e.message),
+  );
+});
