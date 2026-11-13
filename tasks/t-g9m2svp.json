@@ -1,7 +1,11 @@
 {
   "id": "t-g9m2svp",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "single-package subdirectory detection with tests"
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "krn adopt detects the test commands of a single package in a subdirectory",
