@@ -162,6 +162,19 @@ export interface Classified {
   changes: HiddenChange[];
 }
 
+/** A unit measures something only when its merge turns at least one hidden test from red to green. */
+export function validUnit(mergeResults: readonly boolean[]): boolean {
+  return mergeResults.length > 0 && mergeResults.every(Boolean);
+}
+
+/** A red full suite that names no failing file (a load error, a non-TAP crash) is a failure, never a pass. */
+export function unattributedSuiteFailure(
+  code: number,
+  named: readonly string[],
+): boolean {
+  return code !== 0 && named.length === 0;
+}
+
 /** Split the hidden test files into FAIL_TO_PASS and PASS_TO_PASS by running them on parent and merge. */
 export async function classify(
   spec: UnitSpec,
@@ -185,10 +198,10 @@ export async function classify(
   rmSync(dir, { recursive: true, force: true });
   const mdir = join(spec.workRoot, `${tag}.merge`);
   await prepare(spec, mdir, spec.merge);
-  let validOnMerge = true;
-  for (const f of failToPass) {
-    if ((await nodeTest(mdir, [f])).code !== 0) validOnMerge = false;
-  }
+  const onMerge: boolean[] = [];
+  for (const f of failToPass)
+    onMerge.push((await nodeTest(mdir, [f])).code === 0);
+  const validOnMerge = validUnit(onMerge);
   rmSync(mdir, { recursive: true, force: true });
   return { failToPass, passToPassHidden, validOnMerge, changes };
 }
@@ -283,7 +296,18 @@ export async function gradeArm(
   if (spec.fullSuite) {
     const full = await exec('npm', ['test'], dir, 900_000);
     const hidden = new Set([...cls.failToPass, ...cls.passToPassHidden]);
-    for (const f of failingFiles(full.out, dir)) {
+    const named = failingFiles(full.out, dir);
+    if (unattributedSuiteFailure(full.code, named)) {
+      const pdir = join(spec.workRoot, `${tag}.parent-suite`);
+      await prepare(spec, pdir, spec.parent);
+      const parentSuite = await exec('npm', ['test'], pdir, 900_000);
+      rmSync(pdir, { recursive: true, force: true });
+      if (parentSuite.code === 0)
+        regressions.push(
+          `(full suite exit ${full.code}, no failing file named)`,
+        );
+    }
+    for (const f of named) {
       if (hidden.has(f) || !existsSync(join(dir, f))) continue;
       // A file outside the hidden set is a regression only if it fails alone on the arm and passes on the parent.
       if ((await nodeTest(dir, [f])).code === 0) continue;
