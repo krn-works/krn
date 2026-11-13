@@ -1,7 +1,11 @@
 {
   "id": "t-jn4r3vn",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "The universal s-finish-gate accepts any Stop hook command; KRN's worker-stop check is the project record s-finish-gate-worker-stop in .agents/standards.json."
+  },
   "created": "2026-11-13",
   "priority": 3,
   "title": "The finish-gate standard names no KRN-only script",

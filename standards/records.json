@@ -499,12 +499,12 @@
     "area": "finish-gate",
     "layer": "krn-delivery",
     "audience": "worker",
-    "text": "A session cannot end while the tests related to its change are red: the Claude Code Stop hook runs `krn hook stop` or a repository stop script such as `worker-stop`.",
+    "text": "A session cannot end while the tests related to its change are red: a Stop hook entry in `.claude/settings.json` runs a command that refuses the end (`krn hook stop` when adopted, or the repository's own stop script).",
     "why": "A gate that lets a session end on an unrun or red test turns a broken tree into a delivered one.",
     "evidence": ["src/adopt/stop-hook.ts#cannot check this tree"],
     "enforcement": {
       "kind": "command",
-      "run": "grep -qE 'krn hook stop|worker-stop' .claude/settings.json"
+      "run": "node -e \"const s=JSON.parse(require('fs').readFileSync('.claude/settings.json','utf8'));const e=((s.hooks||{}).Stop)||[];const c=e.flatMap(x=>[x.command,...((x.hooks||[]).map(h=>h.command))]).filter(x=>typeof x==='string');process.exit(c.some(x=>x.trim().length>0)?0:1)\""
     },
     "applies": {
       "stacks": [],
