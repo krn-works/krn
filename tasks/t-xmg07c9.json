@@ -1,7 +1,11 @@
 {
   "id": "t-xmg07c9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Proof run: scorer core-imports on 4 fixture scratch repos (clean, ../adopt, ../cli, ../brain imports) with checkouts at fe0c6b9^ and fe0c6b9: identical output, diff empty for all 12 frozen core-imports tasks. Regression test in test/evals/fr40-freeze.test.ts."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "The FR-40 freeze regeneration in fe0c6b9 is proven score-neutral",

@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { check, LAYERS } from '../../scripts/boundaries.ts';
 
 const freeze = fileURLToPath(
   new URL('../../evals/fr40/freeze.ts', import.meta.url),
@@ -28,4 +31,33 @@ test('the freeze refuses unknown arguments with exit 64 and writes nothing', () 
     assert.equal(result.stdout, '');
   }
   assert.deepEqual(names.map(frozen), before);
+});
+
+// The layer map as it stood before the freeze was regenerated for the repo-contract change.
+const LAYERS_BEFORE_REGENERATION: Record<string, readonly string[]> = {
+  ...LAYERS,
+  adopt: ['task', 'repo'],
+  brain: ['cli', 'evals/fr40/tasks.ts'],
+};
+
+test('regenerating the freeze for new layers leaves the core-imports score unchanged', () => {
+  const root = mkdtempSync(join(tmpdir(), 'fr40-core-'));
+  mkdirSync(join(root, 'src/core'), { recursive: true });
+  const cases = {
+    clean: 'export const x = 1;\n',
+    adopt: "import '../adopt/adopt.ts';\n",
+    brain: "import '../brain/cli.ts';\n",
+    cli: "import '../cli/main.ts';\n",
+    repo: "import '../repo/contract.ts';\n",
+  };
+  for (const [name, source] of Object.entries(cases)) {
+    writeFileSync(join(root, 'src/core', `${name}.ts`), source);
+  }
+  const scored = (layers: Record<string, readonly string[]>) =>
+    check(root, layers)
+      .filter((v) => v.file.startsWith('src/core/'))
+      .map((v) => `${v.file}:${v.line} ${v.specifier}`);
+  assert.deepEqual(scored(LAYERS), scored(LAYERS_BEFORE_REGENERATION));
+  assert.equal(scored(LAYERS).length, 4);
+  assert.deepEqual(LAYERS.core, []);
 });
