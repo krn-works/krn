@@ -336,3 +336,19 @@ test('a refused worktree removal after the merge is a warning, not a failed ship
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   assert.match(out, /^warning: cleanup failed \(.*cannot remove/mu);
 });
+
+test('a refused push exits 70 and names the --force rerun after a rebase', async () => {
+  const r = receiver({ pulls: [auto] });
+  const inner = r.run;
+  const run = (command: string, a: string[], at?: string) =>
+    command === 'git' && a[0] === 'push'
+      ? { code: 1, stdout: '', stderr: 'rejected: non-fast-forward' }
+      : inner(command, a, at);
+  await assert.rejects(shipCommand(args, { ...r, run }), (e: Failure) => {
+    assert.equal(e.exitCode, 70);
+    assert.match(e.message, /push failed: rejected: non-fast-forward/u);
+    assert.match(e.message, /rerun with --force/u);
+    return true;
+  });
+  assert.ok(!r.calls.some((c) => c.startsWith('gh pr create')));
+});

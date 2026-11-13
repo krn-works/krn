@@ -61,3 +61,24 @@ test('regenerating the freeze for new layers leaves the core-imports score uncha
   assert.equal(scored(LAYERS).length, 4);
   assert.deepEqual(LAYERS.core, []);
 });
+
+test('the scorer record holds core-imports verdicts, not the bytes of boundaries.ts', () => {
+  const record = JSON.parse(frozen('scorer-imports.json')) as Record<
+    string,
+    { file: string; specifier: string }[]
+  >;
+  assert.deepEqual(Object.keys(record), [
+    'src/core violations on a fixed tree',
+  ]);
+  const files = record['src/core violations on a fixed tree']?.map(
+    (violation) => violation.file,
+  );
+  // A dynamic import, a nested file, a re-export and a top-level core/ directory are
+  // violations; own files, node: builtins and comments are not.
+  assert.deepEqual(files, [
+    'src/core/dynamic.ts',
+    'src/core/nested/deep.ts',
+    'src/core/reexport.ts',
+    'src/core/top-level.ts',
+  ]);
+});

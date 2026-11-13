@@ -1,7 +1,11 @@
 {
   "id": "t-zkgmh4t",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Mutation table evals/mutation-samples/results.md: 15/15 killed after (10/15 before); lead-traps no longer reads tasks/; FR-40 freeze records core-imports verdicts. All Proof steps run."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "Critical modules are proven by mutation samples, and tests stop freezing tracker text",

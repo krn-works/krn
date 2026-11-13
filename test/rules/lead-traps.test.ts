@@ -1,32 +1,11 @@
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const read = (path: string): string => readFileSync(join(root, path), 'utf8');
-
-interface TaskRecord {
-  id: string;
-  status: string;
-  body: string[];
-}
-
-function openTrapIds(): string[] {
-  const ids: string[] = [];
-  for (const name of readdirSync(join(root, 'tasks')).filter((file) =>
-    file.endsWith('.json'),
-  )) {
-    const task = JSON.parse(read(join('tasks', name))) as TaskRecord;
-    if (
-      task.status === 'open' &&
-      task.body.some((entry) => /^Lead trap: /mu.test(entry))
-    )
-      ids.push(task.id);
-  }
-  return ids.sort();
-}
 
 function section(
   text: string,
@@ -42,15 +21,19 @@ function section(
   };
 }
 
-test('the lead skill lists exactly the open tasks tagged as lead traps', () => {
+test('the open traps section is either "none" or a list of ids that each have a workaround in the lead loop', () => {
   const lead = read('.agents/skills/krn-lead/SKILL.md');
   const { body, rest } = section(lead, 'Open traps');
-  const listed = [...body.matchAll(/\bt-[0-9a-z]{7}\b/gu)]
-    .map((match) => match[0])
-    .sort();
-  const tagged = openTrapIds();
-  assert.deepEqual(listed, tagged);
+  const ids = [...body.matchAll(/\bt-[0-9a-z]{7}\b/gu)].map(
+    (match) => match[0],
+  );
+  const lines = body
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '' && !line.startsWith('#'));
+  if (ids.length === 0 && !lines.some((line) => line === 'none'))
+    assert.fail('an empty "Open traps" section must say `none`');
   // Every listed trap is steered around where the lead acts, not only listed.
-  for (const id of tagged)
+  for (const id of new Set(ids))
     assert.ok(rest.includes(id), `${id} needs a workaround in the lead loop`);
 });

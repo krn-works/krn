@@ -1,3 +1,24 @@
 {
-  "scripts/boundaries.ts": "582f85fcfef9296211808c7a428e2cb1998841b132eef195d9f3ba721e8ed32c"
+  "src/core violations on a fixed tree": [
+    {
+      "file": "src/core/dynamic.ts",
+      "line": 1,
+      "specifier": "../brain/adapter.ts"
+    },
+    {
+      "file": "src/core/nested/deep.ts",
+      "line": 2,
+      "specifier": "../../cli/adapter.ts"
+    },
+    {
+      "file": "src/core/reexport.ts",
+      "line": 1,
+      "specifier": "../ci/adapter.ts"
+    },
+    {
+      "file": "src/core/top-level.ts",
+      "line": 1,
+      "specifier": "../../core/outside.ts"
+    }
+  ]
 }

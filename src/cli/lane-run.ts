@@ -287,6 +287,20 @@ export function taskBrief(
   return laneBriefText(root, taskRecordBrief(root, id, lanes), asOf, id);
 }
 
+/** Why a token helper run failed (its first stderr line, else why it could not start), or undefined when it succeeded. */
+export function mintFailure(result: {
+  status: number | null;
+  stderr?: string | null;
+  error?: Error;
+}): string | undefined {
+  if (result.status === 0) return undefined;
+  return (
+    result.stderr?.trim().split('\n')[0] ||
+    result.error?.message ||
+    `token helper exited with status ${result.status}`
+  );
+}
+
 const defaultSteps: LaneRunSteps = {
   start: async (args) => (await import('./lane.ts')).startLane(args),
   ship: (args) => shipCommand(args),
@@ -301,12 +315,7 @@ const defaultSteps: LaneRunSteps = {
       },
       timeout: 30000,
     });
-    if (result.status === 0) return undefined;
-    return (
-      result.stderr?.trim().split('\n')[0] ||
-      result.error?.message ||
-      `token helper exited with status ${result.status}`
-    );
+    return mintFailure(result);
   },
 };
 
