@@ -1,7 +1,11 @@
 {
   "id": "t-6tdhxwe",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Group kill on timeout was already in #699 with its test (a timeout kills the whole session process group); this PR names the missing binary: exit 69 'session did not run: <path> not found (put claude on PATH or set KRN_LANE_CLAUDE)'."
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "lane run kills the session process group on timeout and names a missing claude binary",

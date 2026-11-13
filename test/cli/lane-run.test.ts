@@ -619,7 +619,10 @@ test('a session that cannot start exits 69, not the no-delivery 74', async () =>
       { start: startLane, ship: async () => 'x', mint: async () => undefined },
     );
     assert.equal(verdict.exitCode, 69);
-    assert.match(verdict.line, /session did not run/u);
+    assert.match(
+      verdict.line,
+      /session did not run: \S*missing-claude not found \(put claude on PATH or set KRN_LANE_CLAUDE\)/u,
+    );
   } finally {
     delete process.env.KRN_LANE_CLAUDE;
     rmSync(base, { recursive: true, force: true });
