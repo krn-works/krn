@@ -1,7 +1,11 @@
 {
   "id": "t-1h43kq9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "--prefix package gets package-relative paths; real npm --prefix test"
+  },
   "created": "2026-11-13",
   "priority": 0,
   "title": "The Stop check uses the contract test command for a package in a subdirectory",
