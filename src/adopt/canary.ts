@@ -124,6 +124,39 @@ function stopCommands(root: string): string[] {
   }
 }
 
+/**
+ * The test files a test command's path and glob arguments (`node --test test/*.test.mjs`) select, with shell glob
+ * semantics relative to the repository root. `named` is false when the command names no glob or test-file path.
+ */
+export function namedTests(
+  command: string,
+  files: string[],
+): { named: boolean; matched: string[] } {
+  const patterns = (command.match(/[\w./*-]+/gu) ?? [])
+    .map((token) => token.replace(/^\.\//u, ''))
+    .filter(
+      (token) => token.includes('*') || TEST_FILE.some((p) => p.test(token)),
+    )
+    .map(
+      (token) =>
+        new RegExp(
+          `^${token
+            .replace(/[.+?^${}()|[\]\\]/gu, '\\$&')
+            .replace(/\*\*\//gu, '(?:.*/)?')
+            .replace(/\*\*/gu, '.*')
+            .replace(/\*/gu, '[^/]*')}$`,
+          'u',
+        ),
+    );
+  return {
+    named: patterns.length > 0,
+    matched: files.filter(
+      (f) =>
+        TEST_FILE.some((p) => p.test(f)) && patterns.some((p) => p.test(f)),
+    ),
+  };
+}
+
 /** Candidate test files, best first: under the package the test command names, then under a test directory. */
 function testFiles(root: string, contract: RepoContract): string[] {
   const listed = run(root, 'git', ['ls-files']).stdout.split('\n');
@@ -132,19 +165,9 @@ function testFiles(root: string, contract: RepoContract): string[] {
     /--prefix\s+(\S+)/u.exec(contract.test)?.[1] ??
     /\bcd\s+(\S+)/u.exec(contract.test)?.[1];
   const dir = scope?.replace(/^\.\//u, '').replace(/\/$/u, '');
-  // A file the test command names by path or glob (`node --test test/*.test.mjs`) is one it really runs.
-  const named = (contract.test.match(/[\w./-]*[/*][\w./*-]*/gu) ?? []).map(
-    (glob) =>
-      new RegExp(
-        `^${glob
-          .replace(/^\.\//u, '')
-          .replace(/[.+?^${}()|[\]\\]/gu, '\\$&')
-          .replace(/\*/gu, '[^/]*')}$`,
-        'u',
-      ),
-  );
+  const named = namedTests(contract.test, listed);
   const rank = (f: string) =>
-    (named.some((pattern) => pattern.test(f)) ? 0 : 4) +
+    (named.matched.includes(f) ? 0 : 4) +
     (dir && f.startsWith(`${dir}/`) ? 0 : 2) +
     (/(?:^|\/)(?:tests?|__tests__)\//u.test(f) ? 0 : 1);
   return tests.sort((x, y) => rank(x) - rank(y));
@@ -285,7 +308,14 @@ function canary(root: string): CanaryResult {
         'bootstrap state: the contract is vacuous and the Stop gate refused it (exit 2); the first admitted task adds one real test and a test command',
     };
   }
-  const files = testFiles(root, contract).filter(
+  const ranked = testFiles(root, contract);
+  const named = namedTests(contract.test, ranked);
+  // A test command that names paths or globs runs only those files: breaking another file proves nothing.
+  if (named.named && named.matched.length === 0)
+    return fail(
+      `the test command (${contract.test}) names test paths that match no tracked test file, so it runs no test and the Stop gate cannot refuse a broken one; add a test the command runs or fix the command`,
+    );
+  const files = (named.named ? named.matched : ranked).filter(
     (f) => breakage(f) !== undefined,
   );
   if (files.length === 0)

@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { namedTests } from '../../src/adopt/canary.ts';
 
 // KRN-12: the canary runs against real runners (node --test, vitest, pytest) through the real `krn adopt` entry.
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
@@ -149,6 +150,27 @@ test('canary breaks the test file the test command names, not another test file'
   assert.match(run.stdout, /canary pass: .*test\/a\.test\.mjs/u);
 });
 
+test('canary breaks only a file the test command glob selects and fails deliberately when the glob selects none', () => {
+  const tsOnly = {
+    'package.json': JSON.stringify({
+      scripts: { test: 'node --test test/*.test.mjs' },
+    }),
+    'test/adapters/b.test.ts': 'export {};\n',
+  };
+  const root = fixture({
+    ...tsOnly,
+    'krn.json': JSON.stringify({
+      base: 'main',
+      test: 'node --test test/*.test.mjs',
+      tracker: 'none',
+    }),
+  });
+  const run = krn(root);
+  assert.equal(run.status, 64, run.stdout + run.stderr);
+  assert.match(run.stdout, /names test paths that match no tracked test file/u);
+  assert.doesNotMatch(run.stdout, /b\.test\.ts/u);
+});
+
 test('a canary past its time limit exits 124, names the timeout and leaves the repository as it was', () => {
   const root = fixture({
     ...nodeFiles,
@@ -253,4 +275,18 @@ test('adopt on a red clean tree exits 0 in bootstrap state with a seeded green-b
     env,
   });
   assert.equal(only.status, 69, only.stdout + only.stderr);
+});
+
+test('namedTests expands globs from the repository root and reports commands that name none', () => {
+  const files = ['test/a.test.mjs', 'test/sub/b.test.mjs', 'test/c.test.ts'];
+  assert.deepEqual(namedTests('node --test test/*.test.mjs', files), {
+    named: true,
+    matched: ['test/a.test.mjs'],
+  });
+  assert.deepEqual(
+    namedTests('node --test test/**/*.test.mjs', files).matched,
+    ['test/a.test.mjs', 'test/sub/b.test.mjs'],
+  );
+  assert.equal(namedTests('npm test', files).named, false);
+  assert.equal(namedTests('.venv/bin/python -m pytest', files).named, false);
 });
