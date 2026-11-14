@@ -1,0 +1,12 @@
+{
+  "id": "t-23mpm31",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "Ship's pre-push check reads the PR body's Weakens-tests line",
+  "after": [],
+  "body": [
+    "Why: on 2026-11-14 the t-kynrffp lane's bin/krn pr ship exited 81 at the pre-push fast run on weak-tests although the PR body carried a Weakens-tests: line; it passed only after the lane exported PR_BODY by hand.\nOutcome: krn pr ship passes --body-file to the pre-push check (PR_BODY or equivalent), so a declared Weakens-tests line is honoured exactly as CI honours it.\nProof: a ship test with a body carrying Weakens-tests and a weakened test asserts no exit 81; npm run fast PASS."
+  ]
+}
