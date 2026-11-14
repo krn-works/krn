@@ -1,0 +1,12 @@
+{
+  "id": "t-aanzxqr",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "The ledger attributes lane sessions so cost per unattended task is computable",
+  "after": [],
+  "body": [
+    "Why: Fable plan 1114e (.krn/runs/overnight/fable-plan-1114e.md) slice 11: krn ledger --limit 20 reports workerInput: unknown (n=0), judgeInput unknown.\nOutcome: lane session transcripts (krn lane run / krn-lane subagents) are attributed to their PR and task; workerInput n>0.\nProof: ledger test on captured lane transcripts; krn ledger --limit 20 shows workerInput n>0."
+  ]
+}

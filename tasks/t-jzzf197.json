@@ -1,0 +1,14 @@
+{
+  "id": "t-jzzf197",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "KRN's advantage is proven on an adopted PHP repository and by the D23 confirmatory run",
+  "after": [
+    "t-d19z692"
+  ],
+  "body": [
+    "Why: Fable plan 1114e (.krn/runs/overnight/fable-plan-1114e.md) slice 12: D23 diagnostic +8.9 pp CI [-2.5,20.4] p=0.127; instruction-file arm unrun (t-1y29yhq).\nOutcome: preregistered instruction-file arm on an adopted PHP repo and the D23 confirmatory (t-p70b19s) reported.\nProof: preregistered reports. Paid."
+  ]
+}

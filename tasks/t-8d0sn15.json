@@ -1,0 +1,12 @@
+{
+  "id": "t-8d0sn15",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "src/successor drives the terminal host through a TerminalHost port with a herdr adapter, behaviour unchanged",
+  "after": [],
+  "body": [
+    "Why: Fable plan 1114e (.krn/runs/overnight/fable-plan-1114e.md) slice 1: Herdr leaks across src/successor (~25 run('herdr') calls, HERDR_PANE_ID x3, reply shapes parsed inline, probe.ts:163 regex).\nOutcome: src/successor/terminal-host.ts port (self, open, type, agent, wait, busy, list, close, rename over opaque SessionRef); host-herdr.ts adapter; selection by env (HERDR_PANE_ID now, HC_TERMINAL_ID later).\nProof: contract suite over test/fixtures/herdr captures; grep \"run('herdr'\" src/successor hits only host-herdr.ts; npm run fast."
+  ]
+}

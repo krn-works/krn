@@ -1,0 +1,14 @@
+{
+  "id": "t-b0rfqra",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "Prose standards carry a deterministic holdout and retire automatically when they show no effect",
+  "after": [
+    "t-91xs1pq"
+  ],
+  "body": [
+    "Why: Fable plan 1114e (.krn/runs/overnight/fable-plan-1114e.md) slice 10: no record can be retired; ADR 0002 requires operator promotion.\nOutcome: hash(task,record) 10% holdout per prose record; krn standards retire generates a PR setting valid_to for records with >=30 exposures and no served-vs-withheld difference; ADR 0002 amended (auto trial + retire, operator veto).\nProof: deterministic holdout test; retire PR generated on fixture exposures.\nBlocked on: operator decision (ADR 0002 amendment)."
+  ]
+}

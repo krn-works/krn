@@ -1,0 +1,14 @@
+{
+  "id": "t-ea10z3f",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "One budgeted lane packet ranked by match and effect replaces the unbudgeted briefStandards block",
+  "after": [
+    "t-pznhsyq"
+  ],
+  "body": [
+    "Why: Fable plan 1114e (.krn/runs/overnight/fable-plan-1114e.md) slice 7: lane brief has two uncoordinated blocks; briefStandards (src/brain/standards.ts:590) unbudgeted, never measured.\nOutcome: one 600-token packet ranked by match x effect; command-enforced records omitted (the check teaches them).\nProof: FR-40 lanes rerun (about $10, paid): B-A >= +15 pp kept."
+  ]
+}
