@@ -1,7 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { resumeProblems, roadmapIds } from './handoff-resume.ts';
+import {
+  resumeProblems,
+  section as resumeSection,
+  roadmapIds,
+} from './handoff-resume.ts';
 import { memoryDirectory } from './memory-directory.ts';
 import { markHandoff, oneLine, openEntries } from './operator-inbox-store.ts';
 
@@ -211,6 +215,36 @@ if (changed.length > 0) {
       failures.push(
         `FAIL ${handoff}: Roadmap names ${id}, which has no row in docs/program/roadmap.md`,
       );
+}
+// "Roadmap: unchanged" is only true while the roadmap still ranks open work.
+if (
+  /^\s*-\s+Roadmap:\s*unchanged\b/imu.test(resumeSection(text, 'Resume') ?? '')
+) {
+  let roadmap = '';
+  try {
+    roadmap = readFileSync(join(root, 'docs/program/roadmap.md'), 'utf8');
+  } catch {
+    /* an unreadable roadmap names no open task */
+  }
+  const ranksOpenTask = roadmap
+    .split(/\r\n|\r|\n/u)
+    .filter((row) => row.trimStart().startsWith('|'))
+    .some((row) =>
+      [...row.matchAll(/\bt-[a-z0-9]{7}\b/gu)].some((match) => {
+        try {
+          const task = JSON.parse(
+            readFileSync(join(root, 'tasks', `${match[0]}.json`), 'utf8'),
+          );
+          return task.status === 'open';
+        } catch {
+          return false;
+        }
+      }),
+    );
+  if (!ranksOpenTask)
+    failures.push(
+      `FAIL ${handoff}: "Roadmap: unchanged" while docs/program/roadmap.md has no row naming an open task; refill the roadmap (krn-radar scan) and name the new R ids`,
+    );
 }
 const none = items.filter((item) => /^none\.?$/iu.test(item.text));
 if (none.length > 0 && items.length > 1)
