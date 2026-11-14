@@ -93,7 +93,6 @@ src/outcome/slice-cost.ts: Per-slice cost: split each transcript into the turns 
 src/outcome/window.ts: The delivery window unit: merged PRs, dollars by session class, PRs per task, lead time
 src/repo/ci-admission-contract.ts: (no header) exports REQUIRED_CHECK_NAME, REQUIRED_CHECK_APP_ID
 src/repo/contract.ts: The repo contract: how KRN tests, checks and branches in one repository, whatever its st
-src/repo/rerun.ts: The contract test narrowed to `files`: the paths go after the last command, behind `--` whe
 src/state/capsule.ts: The outcome capsule field contract: labels, state vocabularies, and the parsers for the 
 src/state/check.ts: `krn state check`: validates the delivery-loop capsules under .krn/runs/delivery-loop. Eac
 src/state/git.ts: (no header) exports git, gitRaw, gitAvailable

@@ -20,9 +20,9 @@ import {
   ContractError,
   type RepoContract,
   relatedCommand,
+  rerunCommand,
   resolveContract,
 } from '../repo/contract.ts';
-import { rerunCommand } from '../repo/rerun.ts';
 import { UNIDENTIFIED_LANE, worker } from './scope.ts';
 
 // Stop hook for worker sessions, and the related-test command a lane brief names:

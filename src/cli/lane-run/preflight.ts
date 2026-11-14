@@ -1,8 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { findContract } from '../../repo/contract.ts';
-import { rerunCommand } from '../../repo/rerun.ts';
+import { findContract, rerunCommand } from '../../repo/contract.ts';
 import { mainCheckoutRoot } from '../../task/claims.ts';
 import { withFileLock } from '../lane-lock.ts';
 import { git } from './git.ts';
