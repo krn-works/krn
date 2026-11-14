@@ -148,9 +148,13 @@ interface SessionResult {
   turns?: number;
   /** The session ended at its spend cap. */
   capped?: boolean;
+  /** The session's final result line when it starts with `BLOCKER:`. */
+  blocker?: string;
 }
 
 const exitNoDelivery = 74;
+/** The session ended with a `BLOCKER:` line; the verdict prints it instead of the tree state. */
+export const exitSessionBlocked = 73;
 /** The session stopped at its spend cap (`--max-budget-usd`); the commit, if any, is not shipped. */
 export const exitBudgetCapped = 75;
 
@@ -234,6 +238,17 @@ export function sandboxPlaceholders(
     });
 }
 
+/** The final non-empty line of the session result text when it is a `BLOCKER:` line. */
+function blockerOf(text: unknown): { blocker?: string } {
+  if (typeof text !== 'string') return {};
+  const last = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .pop();
+  return last?.startsWith('BLOCKER:') ? { blocker: last.slice(0, 200) } : {};
+}
+
 export function parseSessionResult(stdout: string, stderr = ''): SessionResult {
   let parsed: unknown;
   try {
@@ -272,6 +287,7 @@ export function parseSessionResult(stdout: string, stderr = ''): SessionResult {
     cost,
     ...(turns === undefined ? {} : { turns }),
     ...(subtype === 'error_max_budget_usd' ? { capped: true } : {}),
+    ...blockerOf(record.result),
   };
 }
 
@@ -1080,6 +1096,8 @@ export async function laneRunCommand(
               ? exitBudgetCapped
               : exitNoDelivery),
       );
+    if (result.blocker !== undefined)
+      return await stop(result.blocker, exitSessionBlocked);
     // Taken before the placeholders go: the fast-pass key was written with them in the tree.
     const session = sessionVerification(started.path);
     const contractCheck =

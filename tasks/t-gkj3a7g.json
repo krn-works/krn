@@ -1,7 +1,11 @@
 {
   "id": "t-gkj3a7g",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane verdict prints the session BLOCKER line, exit 73"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "The lane verdict prints the session's BLOCKER line",
