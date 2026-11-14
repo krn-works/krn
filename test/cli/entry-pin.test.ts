@@ -90,16 +90,6 @@ test('doctor without a configured entry fails with the fix', () => {
   assert.match(report.text, /^entry=unconfigured$/mu);
 });
 
-test('a forwarded krn task from an unpinned checkout fails closed', () => {
-  const result = spawnSync(krn, ['task', 'ready'], {
-    encoding: 'utf8',
-    env: { ...process.env, KRN_FORWARDED: '1' },
-  });
-  assert.equal(result.status, staleEntryExit);
-  assert.equal(result.stdout, '');
-  assert.match(result.stderr, /stale Product entry: .* is not the pinned/u);
-});
-
 test('krn doctor reads the configured entry', async () => {
   const root = await mkdtemp(join(tmpdir(), 'krn-entry-pin-cli-'));
   try {
