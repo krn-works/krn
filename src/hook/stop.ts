@@ -22,6 +22,7 @@ import {
   relatedCommand,
   resolveContract,
 } from '../repo/contract.ts';
+import { rerunCommand } from '../repo/rerun.ts';
 import { UNIDENTIFIED_LANE, worker } from './scope.ts';
 
 // Stop hook for worker sessions, and the related-test command a lane brief names:
@@ -227,6 +228,44 @@ export function changedSinceBase(root: string, from = base(root)): string[] {
 export interface Outcome {
   ok: boolean;
   reason: string;
+  /** Test files that failed, then passed on the one rerun. */
+  flaky?: string[];
+}
+
+/** The file a failing key names; `<run>::` keys name none. */
+function keyFile(key: string): string | undefined {
+  return NAMELESS.test(key) ? undefined : key.split('::')[0];
+}
+
+/**
+ * Rerun the failing test files once: a key that passes on the rerun is flaky, a key that fails again stays
+ * failing, and a failure naming no file (or no file on disk for a command run) is not rerun.
+ */
+function settleFailures(
+  failing: string[],
+  rerun: (files: string[]) => string[],
+  rerunnable: (file: string) => boolean,
+): { failing: string[]; flaky: string[] } {
+  const files = [
+    ...new Set(
+      failing
+        .map(keyFile)
+        .filter(
+          (file): file is string => file !== undefined && rerunnable(file),
+        ),
+    ),
+  ];
+  if (files.length === 0) return { failing, flaky: [] };
+  const again = new Set(rerun(files));
+  const kept = failing.filter((key) => {
+    const file = keyFile(key);
+    return file === undefined || !files.includes(file) || again.has(key);
+  });
+  const extra = [...again].filter((key) => !failing.includes(key));
+  return {
+    failing: [...kept, ...extra].sort(),
+    flaky: failing.filter((key) => !kept.includes(key)),
+  };
 }
 
 const SKIP_MARK =
@@ -681,11 +720,33 @@ function inspectTests(
     failing = shell(root, command);
     before = () => failuresAtBase(root, from, (dir) => shell(dir, command));
   }
+  let flaky: string[] = [];
+  if (failing.length > 0) {
+    const settled = settleFailures(
+      failing,
+      (named) =>
+        command === undefined
+          ? run(root, named)
+          : shell(
+              root,
+              selection.full || contract === undefined
+                ? rerunCommand(command, named)
+                : relatedCommand(
+                    contract,
+                    withinPackage(contract.related ?? '', named),
+                  ),
+            ),
+      (file) => command === undefined || existsSync(join(root, file)),
+    );
+    failing = settled.failing;
+    flaky = settled.flaky;
+  }
   if (failing.length === 0)
     return {
       ok: true,
       reason: '',
       ignored: 0,
+      ...(flaky.length > 0 ? { flaky } : {}),
       ...(edits.modified.length > 0 ? { modified: edits.modified } : {}),
     };
   // A missing runner fails the same way at the base, so it would pass as pre-existing: refuse it instead.
@@ -818,7 +879,7 @@ function main() {
       : '';
     process.stdout.write(
       outcome.ok
-        ? `stop PASS${outcome.ignored > 0 ? ` (${outcome.ignored} pre-existing failure(s) ignored)` : ''}${changedTests}\n`
+        ? `stop PASS${outcome.ignored > 0 ? ` (${outcome.ignored} pre-existing failure(s) ignored)` : ''}${outcome.flaky?.length ? ` (flaky, passed on rerun: ${outcome.flaky.join(', ')})` : ''}${changedTests}\n`
         : `stop FAIL: ${outcome.reason}\n`,
     );
     process.exitCode = outcome.ok ? 0 : 1;
