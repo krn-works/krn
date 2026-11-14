@@ -1,5 +1,7 @@
-// Deploy detection: a workflow that runs on a push to the base branch and deploys ships to production
-// the moment auto-merge lands a PR. Workflows are read as text; the shapes below are the ones GitHub accepts.
+// Deploy workflows on the base branch.
+
+// A workflow that runs on a push to the base branch and deploys ships to production when auto-merge
+// lands a PR. Workflows are read as text; the shapes below are the ones GitHub accepts.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 

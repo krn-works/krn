@@ -9,6 +9,7 @@ import { cutText } from './cut-text.ts';
 export const indexPath = 'docs/generated/capability-index.md';
 
 const lineLimit = 120;
+const moduleLineLimit = 110;
 
 function sources(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true })
@@ -60,7 +61,7 @@ export function buildIndex(root: string): string {
     const name = relative(root, path).split('\\').join('/');
     return cutText(
       `${name}: ${moduleHeader(source) ?? exportsOf(source)}`,
-      lineLimit,
+      moduleLineLimit,
     );
   });
   const commands = commandLines().map((line) => {
