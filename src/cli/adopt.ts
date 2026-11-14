@@ -2,6 +2,7 @@
 import { resolve } from 'node:path';
 import { adopt } from '../adopt/adopt.ts';
 import { runCanary } from '../adopt/canary.ts';
+import { adoptionGaps } from '../adopt/gaps.ts';
 import {
   initDirectory,
   initInstallCommand,
@@ -13,8 +14,33 @@ import { StandardsInputError } from '../brain/standards-cli.ts';
 import { flagValue } from './flag-value.ts';
 import { CliUsageError } from './usage-error.ts';
 
+/** A named failure of adopt with its own exit: 124 the canary timed out, 69 the repository's clean base is red. */
+class AdoptFailure extends Error {
+  readonly exitCode: number;
+  constructor(message: string, exitCode: number) {
+    super(message);
+    this.exitCode = exitCode;
+  }
+}
+
+export const CANARY_TIMEOUT_EXIT = 124;
+export const RED_BASE_EXIT = 69;
+
+const canaryExit = (outcome: string) =>
+  outcome === 'timeout'
+    ? CANARY_TIMEOUT_EXIT
+    : outcome === 'red-base'
+      ? RED_BASE_EXIT
+      : 1;
+
+function printGaps(root: string): void {
+  const gaps = adoptionGaps(root, new Date().toISOString().slice(0, 10));
+  for (const line of gaps.lines) process.stdout.write(`${line}\n`);
+  for (const title of gaps.tasks) process.stdout.write(`task ${title}\n`);
+}
+
 export const adoptUsage =
-  'krn adopt <path> [--tracker] [--no-canary] [--ref SHA [--install CMD] [--lint CMD] [--typecheck CMD]] [--test CMD] [--init [--stack ts|php|python]]  write krn.json from detection (kept when present), the .claude/settings.json Stop hook calling `krn hook stop`, the generated rules block in AGENTS.md (CLAUDE.md links to it), .agents/standards.json with the universal standards of the shipped pack that apply to the detected stack (tracker ones only with a tracker) followed by the project own records (one reusing a pack id exits 65) and the AGENTS.md standards block rendered from it and .krn/ in .gitignore into the git repository at <path>; --tracker seeds tasks/; --ref SHA also seeds tasks/, writes the call of the shared project CI at SHA to .github/workflows/ci.yml (krn-ci.yml beside a ci.yml of its own) and spec/ci-admission.json selecting the required `ci / Check`; reruns change nothing; then the canary breaks one test in a temporary worktree of the base and requires the Stop gate to refuse it (exit 2) and to pass the restored tree, else adopt fails (--no-canary records the decline); `--init` first prepares an empty or non-git directory (refused when it is a git repository with commits: run plain adopt): git init on main, the stack from package.json, composer.json or pyproject.toml or --stack, a minimal real test with its test command committed as the base, and the tracker; `krn adopt <path> --canary` runs only the canary; `krn adopt <path> --verify` only reads the repository through gh and exits 1 naming each gap when the default branch lacks one required check from GitHub Actions or auto-merge is off (no setting is changed)';
+  'krn adopt <path> [--tracker] [--no-canary] [--ref SHA [--install CMD] [--lint CMD] [--typecheck CMD]] [--test CMD] [--init [--stack ts|php|python]]  write krn.json from detection (kept when present), the .claude/settings.json Stop hook calling `krn hook stop`, the generated rules block in AGENTS.md (CLAUDE.md links to it), .agents/standards.json with the universal standards of the shipped pack that apply to the detected stack (tracker ones only with a tracker) followed by the project own records (one reusing a pack id exits 65) and the AGENTS.md standards block rendered from it and .krn/ in .gitignore into the git repository at <path>; --tracker seeds tasks/; --ref SHA also seeds tasks/, writes the call of the shared project CI at SHA to .github/workflows/ci.yml (krn-ci.yml beside a ci.yml of its own) and spec/ci-admission.json selecting the required `ci / Check`; reruns change nothing; then the canary breaks one test in a temporary worktree of the base and requires the Stop gate to refuse it (exit 2) and to pass the restored tree, else adopt fails (--no-canary records the decline); the canary is bounded by KRN_CANARY_TIMEOUT_MS (default 180000): past it adopt removes everything it wrote and exits 124, a clean base whose own test command fails exits 69 naming that command (not a gate failure); adopt then prints each failing standard as a `gap` line and, in a repository with a tracker, writes one task per floor or reflex failure; `--init` first prepares an empty or non-git directory (refused when it is a git repository with commits: run plain adopt): git init on main, the stack from package.json, composer.json or pyproject.toml or --stack, a minimal real test with its test command committed as the base, and the tracker; `krn adopt <path> --canary` runs only the canary; `krn adopt <path> --verify` only reads the repository through gh and exits 1 naming each gap when the default branch lacks one required check from GitHub Actions or auto-merge is off (no setting is changed); a repository whose origin is not on GitHub prints `verify skipped: no GitHub host` and skips those CI checks';
 
 const switches = [
   '--tracker',
@@ -61,7 +87,9 @@ export function adoptCommand(args: string[]): void {
     if (on.size > 1 || Object.keys(values).length > 0)
       throw new CliUsageError('--verify stands alone');
     const report = verifyRepository(root);
-    if (report.ok)
+    if (report.skipped !== undefined)
+      process.stdout.write(`verify skipped: ${report.skipped}\n`);
+    else if (report.ok)
       process.stdout.write(
         'verify ok: required check and auto-merge are set\n',
       );
@@ -72,7 +100,8 @@ export function adoptCommand(args: string[]): void {
   if (on.has('--canary')) {
     const result = runCanary(root);
     process.stdout.write(`canary ${result.outcome}: ${result.message}\n`);
-    if (result.outcome !== 'pass') process.exitCode = 1;
+    if (result.outcome !== 'pass')
+      process.exitCode = canaryExit(result.outcome);
     return;
   }
   let tracker = on.has('--tracker');
@@ -121,11 +150,28 @@ export function adoptCommand(args: string[]): void {
   else {
     const result = runCanary(root);
     process.stdout.write(`canary ${result.outcome}: ${result.message}\n`);
-    if (result.outcome !== 'pass')
+    if (result.outcome === 'timeout') {
+      report.rollback();
+      throw new AdoptFailure(
+        `adopt failed: ${result.message}; everything adopt wrote was removed`,
+        CANARY_TIMEOUT_EXIT,
+      );
+    }
+    if (result.outcome === 'red-base') {
+      printGaps(root);
+      throw new AdoptFailure(
+        `adopt failed: ${result.message}; the adoption files stay written`,
+        RED_BASE_EXIT,
+      );
+    }
+    if (result.outcome !== 'pass') {
+      printGaps(root);
       throw new CliUsageError(
         `adopt failed: the canary did not prove the Stop gate (${result.message}); the adoption files stay written, fix the cause (a repository without tests needs one test file, e.g. *.test.ts, test_*.py or *_test.go, and a test command) or pass --no-canary to decline`,
       );
+    }
   }
+  printGaps(root);
   process.stdout.write(nextSteps(path));
 }
 

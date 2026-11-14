@@ -110,3 +110,49 @@ test('canary passes on a pytest repository and fails with the gate disabled', (t
   writeFileSync(join(root, '.claude/settings.json'), '{}\n');
   assert.equal(krn(root, '--canary').status, 1);
 });
+
+test('a canary past its time limit exits 124, names the timeout and leaves the repository as it was', () => {
+  const root = fixture({
+    ...nodeFiles,
+    'package.json': JSON.stringify({
+      scripts: { test: 'sleep 20 && node --test' },
+    }),
+  });
+  const run = spawnSync(process.execPath, [cli, 'adopt', root], {
+    encoding: 'utf8',
+    env: { ...process.env, KRN_CANARY_TIMEOUT_MS: '2500' },
+  });
+  assert.equal(run.status, 124, run.stdout + run.stderr);
+  assert.match(run.stdout, /canary timeout: the canary did not finish within/u);
+  assert.match(run.stderr, /everything adopt wrote was removed/u);
+  const status = spawnSync('git', ['status', '--porcelain', '--ignored'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  assert.equal(status.stdout.replace(/^!! node_modules\/\n/mu, ''), '');
+  const trees = spawnSync('git', ['worktree', 'list'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  assert.equal(trees.stdout.trim().split('\n').length, 1);
+});
+
+test('a red clean tree is reported as a red base with the failing command, exit 69, not as a gate failure', () => {
+  const root = fixture({
+    ...nodeFiles,
+    'sum.test.js':
+      "import test from 'node:test';\nimport assert from 'node:assert/strict';\ntest('sum', () => assert.equal(1 + 1, 3));\n",
+  });
+  // Under `node --test` the child's own `node --test` would join the parent run and exit 0.
+  const { NODE_TEST_CONTEXT: _context, ...env } = process.env;
+  const run = spawnSync(process.execPath, [cli, 'adopt', root], {
+    encoding: 'utf8',
+    env,
+  });
+  assert.equal(run.status, 69, run.stdout + run.stderr);
+  assert.match(
+    run.stdout,
+    /canary red-base: red base: the repository's own test command `npm test` exits 1/u,
+  );
+  assert.doesNotMatch(run.stdout, /does not pass the clean tree/u);
+});

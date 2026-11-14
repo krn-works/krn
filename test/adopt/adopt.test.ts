@@ -33,6 +33,20 @@ function scratch(): string {
   return root;
 }
 
+/** Task files other than the standard-gap tasks the adoption writes for failing floor and reflex standards. */
+function seededTasks(root: string): string[] {
+  return readdirSync(join(root, 'tasks')).filter(
+    (file) =>
+      !/^Make standard /u.test(
+        (
+          JSON.parse(readFileSync(join(root, 'tasks', file), 'utf8')) as {
+            title: string;
+          }
+        ).title,
+      ),
+  );
+}
+
 function adopt(root: string, ...extra: string[]) {
   return adoptArgs(root, '--ref', ref, ...extra);
 }
@@ -53,8 +67,8 @@ test('adopt writes the task directory, rules block, ignore entry and Check workf
   assert.equal(run.status, 0, run.stderr);
 
   const tasks = readdirSync(join(root, 'tasks'));
-  assert.equal(tasks.length, 1);
   assert.match(tasks[0] as string, /^t-[0-9a-z]+\.json$/u);
+  assert.equal(seededTasks(root).length, 1);
 
   const rules = readFileSync(join(root, 'AGENTS.md'), 'utf8');
   assert.match(rules, /krn-adoption:start/u);
@@ -122,7 +136,7 @@ test('adopt rerun changes nothing and keeps existing instructions', () => {
   assert.equal(again.status, 0, again.stderr);
   assert.doesNotMatch(again.stdout, /^wrote /mu);
   assert.equal(readFileSync(join(root, 'AGENTS.md'), 'utf8'), first);
-  assert.equal(readdirSync(join(root, 'tasks')).length, 2);
+  assert.equal(seededTasks(root).length, 2);
 });
 
 test('adopt refuses a path that is not a git repository and a ref that is not a sha', () => {
@@ -236,7 +250,7 @@ test('adopt on an npm repository detects its runner, seeds the tracker on reques
   assert.equal(read.contract.test, 'npm test');
   assert.equal(read.contract.related, 'npx vitest run {files}');
   assert.equal(read.contract.tracker, 'krn');
-  assert.equal(readdirSync(join(root, 'tasks')).length, 1);
+  assert.equal(seededTasks(root).length, 1);
   assert.equal(stopAsLane(root).status, 2);
 
   writeFileSync(join(root, 'krn.json'), '{"test":"make check"}\n');
@@ -549,12 +563,18 @@ test('adopt installs the worker guards and each installed guard refuses a probe 
   assert.equal(again.hooks.PreToolUse.length, settings.hooks.PreToolUse.length);
 });
 
+/** The seeded first-test task; the gap tasks (`Make standard ... pass`) ride beside it. */
 function firstTask(root: string): { title: string; status: string } {
-  const files = readdirSync(join(root, 'tasks'));
-  assert.equal(files.length, 1);
-  return JSON.parse(
-    readFileSync(join(root, 'tasks', files[0] as string), 'utf8'),
+  const tasks = readdirSync(join(root, 'tasks')).map(
+    (file) =>
+      JSON.parse(readFileSync(join(root, 'tasks', file), 'utf8')) as {
+        title: string;
+        status: string;
+      },
   );
+  const seeded = tasks.filter((task) => !/^Make standard /u.test(task.title));
+  assert.equal(seeded.length, 1);
+  return seeded[0] as { title: string; status: string };
 }
 
 test('adopt on a repository without a test command marks the contract vacuous and seeds the first test task', () => {
@@ -606,5 +626,45 @@ test('adopt on a workspace with a member test script stays non-vacuous and seeds
     contract: { vacuous?: boolean };
   };
   assert.equal(contract.vacuous, undefined);
+  assert.equal(existsSync(join(root, 'tasks')), false);
+});
+
+test('adopt prints every failing standard as a gap and writes one tracker task per floor or reflex failure, once', () => {
+  const root = scratch();
+  const first = adoptArgs(root, '--tracker', '--test', 'npm test');
+  assert.equal(first.status, 0, first.stderr);
+  const gaps = first.stdout
+    .split('\n')
+    .filter((line) => line.startsWith('gap '));
+  assert.ok(gaps.length > 0, first.stdout);
+  assert.ok(gaps.some((line) => /^gap s-\S+ \((floor|reflex)\): /u.test(line)));
+  const titles = readdirSync(join(root, 'tasks')).map(
+    (file) =>
+      (
+        JSON.parse(readFileSync(join(root, 'tasks', file), 'utf8')) as {
+          title: string;
+        }
+      ).title,
+  );
+  const gapped = gaps.filter((line) => /\((floor|reflex)\)/u.test(line));
+  for (const line of gapped) {
+    const id = /^gap (\S+)/u.exec(line)?.[1] as string;
+    assert.ok(titles.includes(`Make standard ${id} pass`), `${id}: ${titles}`);
+  }
+  const again = adoptArgs(root, '--tracker', '--test', 'npm test');
+  assert.equal(again.status, 0, again.stderr);
+  assert.equal(
+    readdirSync(join(root, 'tasks')).length,
+    titles.length,
+    'a rerun writes no duplicate task',
+  );
+  assert.doesNotMatch(again.stdout, /^task Make standard/mu);
+});
+
+test('adopt without a tracker prints the gaps and writes no task', () => {
+  const root = scratch();
+  const run = adoptArgs(root, '--test', 'npm test');
+  assert.equal(run.status, 0, run.stderr);
+  assert.match(run.stdout, /^gap s-/mu);
   assert.equal(existsSync(join(root, 'tasks')), false);
 });

@@ -50,6 +50,32 @@ const rulesSchema = z.array(
 export interface VerifyReport {
   ok: boolean;
   gaps: string[];
+  /** Set when the CI checks were skipped, with the reason (no GitHub origin). */
+  skipped?: string;
+}
+
+/** The `origin` URL of `root`, or undefined without one. */
+function originUrl(root: string): string | undefined {
+  const run = spawnSync('git', ['remote', 'get-url', 'origin'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  const url = run.stdout.trim();
+  return run.status === 0 && url !== '' ? url : undefined;
+}
+
+/** True when the origin names a GitHub host (github.com or a host gh is logged in to through GH_HOST). */
+export function hasGithubHost(url: string | undefined): boolean {
+  if (url === undefined) return false;
+  const host =
+    /^[a-z+]+:\/\/(?:[^@/]+@)?([^/:]+)/iu.exec(url)?.[1] ??
+    /^[^@/\s]+@([^:/]+):/u.exec(url)?.[1];
+  if (host === undefined) return false;
+  const extra = process.env.GH_HOST;
+  return (
+    host.toLowerCase() === 'github.com' ||
+    (extra !== undefined && host.toLowerCase() === extra.toLowerCase())
+  );
 }
 
 /**
@@ -96,6 +122,19 @@ function gh(root: string, path: string): string {
 
 /** Reads the repository of `root` through gh; changes no setting. */
 export function verifyRepository(root: string): VerifyReport {
+  const origin = originUrl(root);
+  if (!hasGithubHost(origin)) {
+    const gaps: string[] = [];
+    const deployBase = contractBase(root);
+    const deploying = deployWorkflows(root, deployBase);
+    if (deploying.length > 0 && !contractDeployAcknowledged(root))
+      gaps.push(deployRemedy(deploying, deployBase));
+    return {
+      ok: gaps.length === 0,
+      gaps,
+      skipped: `no GitHub host (origin ${origin ?? 'none'}): the required check and auto-merge were not checked`,
+    };
+  }
   const repoBody = gh(root, 'repos/{owner}/{repo}');
   const branch = defaultBranch(repoBody);
   const branchBody = gh(root, `repos/{owner}/{repo}/branches/${branch}`);

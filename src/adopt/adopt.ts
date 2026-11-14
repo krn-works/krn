@@ -1,14 +1,5 @@
 // The adoption set: what a repository needs so KRN delivery works there.
-import {
-  appendFileSync,
-  existsSync,
-  lstatSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -39,6 +30,15 @@ import {
 } from '../repo/contract.ts';
 import { createTask } from '../task/store.ts';
 import { seedConventions } from './conventions.ts';
+import {
+  appendFileSync,
+  Journal,
+  mkdirSync,
+  noteWrite,
+  recording,
+  symlinkSync,
+  writeFileSync,
+} from './journal.ts';
 import { legacyStopCommand, preToolGuards, stopCommand } from './stop-hook.ts';
 
 export interface AdoptOptions {
@@ -57,6 +57,8 @@ export interface AdoptionReport {
   unchanged: string[];
   /** Files not written, each with its reason. */
   skipped: string[];
+  /** Restores the repository to its state before this adoption: new files go, changed ones get their old content. */
+  rollback: () => void;
 }
 
 const sharedWorkflow = 'krn-works/krn/.github/workflows/project-ci.yml';
@@ -173,7 +175,7 @@ function writeIfChanged(
     report.unchanged.push(relative);
     return;
   }
-  mkdirSync(dirname(path), { recursive: true });
+  mkdirSync(dirname(path));
   writeFileSync(path, content);
   report.written.push(relative);
 }
@@ -306,6 +308,7 @@ function seedTasks(
     report.unchanged.push('tasks');
     return;
   }
+  noteWrite(join(root, 'tasks'));
   if (seed.ci)
     createTask(root, {
       title: 'Require the ci / Check status on the default branch',
@@ -425,7 +428,7 @@ function writeSkills(root: string, report: AdoptionReport): void {
   }
   const link = join(root, '.claude', 'skills');
   if (!existsSync(link) && !isSymlink(link)) {
-    mkdirSync(dirname(link), { recursive: true });
+    mkdirSync(dirname(link));
     symlinkSync(join('..', '.agents', 'skills'), link);
     report.written.push('.claude/skills');
   } else report.unchanged.push('.claude/skills');
@@ -515,6 +518,13 @@ function writeHooks(
 
 /** Writes the adoption set into `root`, a git repository; reruns change nothing. */
 export function adopt(root: string, options: AdoptOptions): AdoptionReport {
+  const journal = new Journal();
+  const report = recording(journal, () => writeAdoption(root, options));
+  report.rollback = () => journal.rollback();
+  return report;
+}
+
+function writeAdoption(root: string, options: AdoptOptions): AdoptionReport {
   if (!existsSync(join(root, '.git')))
     throw new Error(`${root} is not a git repository root`);
   const sub = detectSubpackage(root);
@@ -530,7 +540,12 @@ export function adopt(root: string, options: AdoptOptions): AdoptionReport {
         : {}),
       test: options.test ?? sub.test,
     };
-  const report: AdoptionReport = { written: [], unchanged: [], skipped: [] };
+  const report: AdoptionReport = {
+    written: [],
+    unchanged: [],
+    skipped: [],
+    rollback: () => undefined,
+  };
   if (options.ref !== undefined && !/^[0-9a-f]{40}$/u.test(options.ref))
     throw new Error('--ref must be a full 40-character commit sha');
   // Everything that can refuse runs before the first write.

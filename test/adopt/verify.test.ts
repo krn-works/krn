@@ -54,8 +54,12 @@ function verify(
   branchBody: string,
   rulesBody = '[]',
   prepare: (root: string) => void = () => {},
+  origin: string | null = 'https://github.com/krn-works/krn.git',
 ) {
   const dir = mkdtempSync(join(tmpdir(), 'krn-verify-'));
+  spawnSync('git', ['init', '-q', '-b', 'main', dir]);
+  if (origin !== null)
+    spawnSync('git', ['remote', 'add', 'origin', origin], { cwd: dir });
   prepare(dir);
   writeFileSync(join(dir, 'repo.json'), repoBody);
   writeFileSync(join(dir, 'branch.json'), branchBody);
@@ -121,4 +125,32 @@ test('adopt --verify names a deploying base-branch workflow until krn.json ackno
     withWorkflow('test-only.yml'),
   );
   assert.equal(plain.status, 0, plain.stdout + plain.stderr);
+});
+
+// A repository whose origin is not on GitHub: the CI checks are skipped with a named line, never a gh failure.
+for (const origin of [
+  null,
+  'git@gitlab.com:team/app.git',
+  'https://git.example.org/team/app.git',
+  '../elsewhere/bare.git',
+]) {
+  test(`adopt --verify with origin ${origin ?? 'none'} says there is no GitHub host and skips the CI checks`, () => {
+    const run = verify(repo, unpinned, '[]', () => {}, origin);
+    assert.equal(run.status, 0, run.stdout + run.stderr);
+    assert.match(run.stdout, /^verify skipped: no GitHub host \(origin /u);
+    assert.doesNotMatch(run.stdout + run.stderr, /placehol|verify gap/u);
+  });
+}
+
+test('adopt --verify on a non-GitHub origin still names an unacknowledged deploy workflow', () => {
+  const run = verify(
+    repo,
+    protectedBranch,
+    '[]',
+    withWorkflow('deploy-on-push.yml'),
+    'git@gitlab.com:team/app.git',
+  );
+  assert.equal(run.status, 1, run.stdout + run.stderr);
+  assert.match(run.stdout, /verify skipped: no GitHub host/u);
+  assert.match(run.stdout, /verify gap: \.github\/workflows\/deploy-on-push/u);
 });

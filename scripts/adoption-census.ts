@@ -161,7 +161,8 @@ function census(repo: string): Row {
     : undefined;
   const stack = detectStack(files, pkg);
   const krn = join(repoRoot, 'bin/krn');
-  const adopt = run(krn, ['adopt', clone], clone, 180_000);
+  // adopt bounds its own canary (exit 124 after 180s); the census limit only catches a hang beyond it.
+  const adopt = run(krn, ['adopt', clone], clone, 420_000);
   const standards = run(krn, ['standards', 'check', '--root', clone], clone);
   const verify = run(krn, ['adopt', clone, '--verify'], clone);
   let test = 'none';
@@ -176,8 +177,8 @@ function census(repo: string): Row {
   const gaps = [
     adopt.status === 0
       ? ''
-      : adopt.status === 124
-        ? 'adopt: timed out after 180s'
+      : adopt.status === 124 && !adopt.out.includes('canary timeout')
+        ? 'adopt: killed by the census after 420s'
         : `adopt: ${brief(adopt.out.split('\n').find((l) => l.includes('failed')) ?? lastLine(adopt.out), 130)}`,
     standards.status === 0
       ? ''
