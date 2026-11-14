@@ -1,7 +1,11 @@
 {
   "id": "t-ykjv790",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "7 krn decide rows d-fd1379..d-be28a6, deadline 2026-11-21; krn decide list exit 0"
+  },
   "created": "2026-11-13",
   "priority": 3,
   "title": "Open operator questions are krn decide rows with a default and a deadline",
