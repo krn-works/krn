@@ -37,6 +37,7 @@ import {
   taskBrief,
   ticketCommitTitle,
   tokenMinimumRemainingSeconds,
+  transcriptTurns,
 } from '../../src/cli/lane-run.ts';
 import { CliUsageError } from '../../src/cli/usage-error.ts';
 
@@ -157,12 +158,11 @@ test('parseSessionResult marks a session stopped at its budget', () => {
 });
 
 test('parseSessionResult reads the captured result', () => {
-  const result = parseSessionResult(capture);
+  const result = parseSessionResult(capture, '', () => undefined);
   assert.deepEqual(result, {
     ok: true,
     detail: 'session success',
     cost: 0.08594,
-    turns: 1,
   });
   assert.equal(parseSessionResult('not json').ok, false);
   assert.equal(
@@ -170,6 +170,39 @@ test('parseSessionResult reads the captured result', () => {
       JSON.stringify({ ...JSON.parse(capture), is_error: true }),
     ).ok,
     false,
+  );
+});
+
+test('the verdict counts the distinct assistant messages of the transcript, not num_turns', () => {
+  // Verbatim shape of the t-cencnmk session: num_turns printed 1 while the transcript held 22 messages.
+  const result = JSON.stringify({
+    type: 'result',
+    subtype: 'success',
+    is_error: false,
+    num_turns: 1,
+    session_id: 'fa1a426f-e206-423b-b515-a259639f9f05',
+    total_cost_usd: 1.5,
+  });
+  const lines = [];
+  for (let n = 0; n < 22; n++)
+    for (const block of ['thinking', 'tool_use'])
+      lines.push(
+        JSON.stringify({
+          type: 'assistant',
+          message: { id: `msg_${n}`, content: [{ type: block }] },
+        }),
+        JSON.stringify({ type: 'user', message: { content: [] } }),
+      );
+  const transcript = lines.join('\n');
+  assert.equal(transcriptTurns(transcript), 22);
+  const parsed = parseSessionResult(result, '', (id) => {
+    assert.equal(id, 'fa1a426f-e206-423b-b515-a259639f9f05');
+    return transcriptTurns(transcript);
+  });
+  assert.equal(parsed.turns, 22);
+  assert.equal(
+    parseSessionResult(result, '', () => undefined).turns,
+    undefined,
   );
 });
 
@@ -210,7 +243,7 @@ test('lane run ships a committed task and prints the ship verdict', async () => 
   assert.equal(verdict.exitCode, 0);
   assert.match(
     verdict.line,
-    /^lane t-abc1234: shipped verdict: merged abc1234 model sonnet cost \$0\.09 turns 1$/u,
+    /^lane t-abc1234: shipped verdict: merged abc1234 model sonnet cost \$0\.09$/u,
   );
 });
 
@@ -219,7 +252,7 @@ test('lane run reports no commit and keeps the worktree', async () => {
   assert.equal(verdict.exitCode, 74);
   assert.match(
     verdict.line,
-    /^lane t-abc1234: no commit \(worktree .+, rerun reuses it, claim released\) model sonnet cost \$0\.09 turns 1$/u,
+    /^lane t-abc1234: no commit \(worktree .+, rerun reuses it, claim released\) model sonnet cost \$0\.09$/u,
   );
 });
 
