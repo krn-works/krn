@@ -1,7 +1,11 @@
 {
   "id": "t-f26er7t",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Replay test proves exit 2 at Stop in an overlaid clone; select.ts drops red-baseline units for every arm and prints the excluded count"
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "A red test blocks Stop in a D23 replay clone and red-baseline units are excluded",

@@ -2,11 +2,14 @@
 // whose diff changes at least one test/**/*.test.* file and at least one non-test source file,
 // and whose task no earlier first-parent commit names: the replay prompts with the task body, which a
 // follow-up PR's parent already delivers (D23 units 467 and 586 ended with a correct "already done").
+// A unit whose parent already fails the tests its change selects (red K baseline) is dropped for every arm
+// (--no-baseline-check skips that run); stderr prints the count of excluded units.
 // Usage: node evals/d23/select.ts [--ref origin/main] [--limit N] [--exclude <units file>] [--out <units.txt>]
 // Prints one PR number per line, newest first; --out also writes them to a file.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { redAtParent } from './baseline.ts';
 
 export interface Candidate {
   /** Empty for a first-parent commit without a (#n) suffix; it still names a task. */
@@ -56,18 +59,39 @@ function firstDeliveries(candidates: Candidate[]): Set<Candidate> {
   return first;
 }
 
+export interface Selection {
+  units: string[];
+  /** Eligible units dropped because their K baseline is red; they are excluded for every arm. */
+  redBaseline: string[];
+}
+
+export function selectUnits(
+  candidates: Candidate[],
+  opts: {
+    limit?: number;
+    exclude?: Set<string>;
+    /** True when the unit's parent already fails the tests its change selects. */
+    redBaseline?: (pr: string) => boolean;
+  },
+): Selection {
+  const first = firstDeliveries(candidates);
+  const units: string[] = [];
+  const redBaseline: string[] = [];
+  for (const c of candidates) {
+    if (opts.limit && units.length >= opts.limit) break;
+    if (c.pr === '' || !first.has(c) || !eligible(c)) continue;
+    if (opts.exclude?.has(c.pr)) continue;
+    if (opts.redBaseline?.(c.pr)) redBaseline.push(c.pr);
+    else units.push(c.pr);
+  }
+  return { units, redBaseline };
+}
+
 export function select(
   candidates: Candidate[],
   opts: { limit?: number; exclude?: Set<string> },
 ): string[] {
-  const first = firstDeliveries(candidates);
-  const picked = candidates
-    .filter(
-      (c) =>
-        c.pr !== '' && first.has(c) && eligible(c) && !opts.exclude?.has(c.pr),
-    )
-    .map((c) => c.pr);
-  return opts.limit ? picked.slice(0, opts.limit) : picked;
+  return selectUnits(candidates, opts).units;
 }
 
 const arg = (name: string) => {
@@ -100,14 +124,28 @@ function main() {
       : [],
   );
   const limit = arg('limit');
-  const prs = select(parseLog(log), {
+  const merged = execFileSync(
+    'git',
+    ['log', '--first-parent', '--format=%H %s', arg('ref') ?? 'origin/main'],
+    { cwd: repo, encoding: 'utf8', maxBuffer: 1 << 28 },
+  ).split('\n');
+  const redBaseline = (pr: string) => {
+    const sha = merged.find((l) => l.endsWith(`(#${pr})`))?.split(' ')[0];
+    if (!sha) return false;
+    return redAtParent(repo, `${sha}^`, sha);
+  };
+  const { units, redBaseline: red } = selectUnits(parseLog(log), {
     ...(limit ? { limit: Number(limit) } : {}),
     exclude,
+    ...(process.argv.includes('--no-baseline-check') ? {} : { redBaseline }),
   });
-  const text = prs.map((p) => `${p}\n`).join('');
+  const text = units.map((p) => `${p}\n`).join('');
   const out = arg('out');
   if (out) writeFileSync(out, text);
   process.stdout.write(text);
+  process.stderr.write(
+    `excluded ${red.length} red-baseline units${red.length ? `: ${red.join(' ')}` : ''}\n`,
+  );
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) main();
