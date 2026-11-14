@@ -1,0 +1,4 @@
+interface:
+  display_name: "Grill"
+  short_description: "Stress-test plans against docs"
+  default_prompt: "Use $grill to challenge this plan against project language and decisions."

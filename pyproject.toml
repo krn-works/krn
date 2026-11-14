@@ -1,0 +1,30 @@
+[project]
+name = "krn-search-lab"
+version = "0.1.0"
+description = "Minimal URL to evidence pack tool for controlled untrusted web ingestion"
+requires-python = ">=3.12"
+dependencies = [
+    "httpx>=0.27",
+    "beautifulsoup4>=4.12",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[project.scripts]
+krn-search = "search_tool.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["search_tool*"]
+
+[tool.setuptools.package-data]
+search_tool = ["templates/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

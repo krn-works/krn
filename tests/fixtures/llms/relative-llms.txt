@@ -1,0 +1,13 @@
+# Relative URL Test
+
+Base docs at https://docs.example.com/base/
+
+Key URLs:
+- External: https://example.com/external
+
+Relative links:
+- [Guide](/docs/guide)
+- [API](/docs/api/)
+
+Section-scoped:
+- [Tutorial](tutorials/overview)

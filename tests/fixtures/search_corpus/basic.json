@@ -1,0 +1,261 @@
+{
+  "schema_version": "0.1",
+  "scenarios": [
+    {
+      "id": "safe_single",
+      "description": "Standard happy path with one safe result",
+      "query": "python async docs",
+      "provider": "static",
+      "candidates": [
+        {
+          "url": "https://docs.python.org/3/library/asyncio.html",
+          "title": "asyncio",
+          "snippet": "Python asyncio documentation"
+        }
+      ],
+      "mock_responses": {
+        "https://docs.python.org/3/library/asyncio.html": {
+          "status_code": 200,
+          "content_type": "text/html",
+          "body": "<html><title>asyncio</title><body>Full documentation for asyncio.</body></html>"
+        }
+      },
+      "expect": {
+        "discovery": {
+          "total": 1,
+          "selected": 1,
+          "blocked": 0,
+          "duplicates": 0
+        },
+        "fetch": {
+          "succeeded": 1,
+          "evidence_packs": 1
+        }
+      }
+    },
+    {
+      "id": "duplicate_results",
+      "description": "Canonical dedup collapses https://example.com and https://example.com/ into 1 candidate",
+      "query": "duplicate test",
+      "provider": "static",
+      "candidates": [
+        { "url": "https://example.com" },
+        { "url": "https://example.com/" }
+      ],
+      "mock_responses": {
+        "https://example.com/": {
+          "status_code": 200,
+          "content_type": "text/plain",
+          "body": "Example content"
+        }
+      },
+      "expect": {
+        "discovery": {
+          "total": 1,
+          "selected": 1,
+          "blocked": 0,
+          "duplicates": 0,
+          "collapsed_duplicates_in_limitations": true
+        },
+        "fetch": {
+          "succeeded": 1,
+          "evidence_packs": 1
+        }
+      }
+    },
+    {
+      "id": "blocked_candidate",
+      "description": "Discovery returns a blocked URL (file scheme)",
+      "query": "blocked test",
+      "provider": "static",
+      "candidates": [
+        { "url": "file:///etc/passwd" }
+      ],
+      "expect": {
+        "discovery": {
+          "total": 1,
+          "selected": 0,
+          "blocked": 1,
+          "duplicates": 0
+        },
+        "fetch": {
+          "succeeded": 0,
+          "evidence_packs": 0
+        }
+      }
+    },
+    {
+      "id": "mixed_candidates",
+      "description": "Safe, blocked, and canonical-duplicate candidates: safe.com and safe.com/ collapse",
+      "query": "mixed test",
+      "provider": "static",
+      "candidates": [
+        { "url": "https://safe.com", "title": "Safe" },
+        { "url": "file:///etc/hosts", "title": "Blocked" },
+        { "url": "https://safe.com/", "title": "Duplicate" }
+      ],
+      "mock_responses": {
+        "https://safe.com/": {
+          "status_code": 200,
+          "body": "Safe content"
+        }
+      },
+      "expect": {
+        "discovery": {
+          "total": 2,
+          "selected": 1,
+          "blocked": 1,
+          "duplicates": 0,
+          "collapsed_duplicates_in_limitations": true
+        },
+        "fetch": {
+          "succeeded": 1,
+          "evidence_packs": 1
+        }
+      }
+    },
+    {
+      "id": "provider_error",
+      "description": "Discovery provider returns an error",
+      "query": "error test",
+      "provider": "static",
+      "force_discovery_error": {
+        "code": "server_error",
+        "message": "Mocked provider failure"
+      },
+      "expect": {
+        "discovery": {
+          "total": 0,
+          "errors": 1
+        },
+        "fetch": {
+          "succeeded": 0,
+          "evidence_packs": 0
+        }
+      }
+    },
+    {
+      "id": "zero_candidates",
+      "description": "Discovery returns an empty list",
+      "query": "empty test",
+      "provider": "static",
+      "candidates": [],
+      "expect": {
+        "discovery": {
+          "total": 0,
+          "selected": 0
+        },
+        "fetch": {
+          "succeeded": 0,
+          "evidence_packs": 0
+        }
+      }
+    },
+    {
+      "id": "fetch_failure",
+      "description": "Discovery succeeds but HTTP fetch returns 404",
+      "query": "fetch fail test",
+      "provider": "static",
+      "candidates": [
+        { "url": "https://notfound.com" }
+      ],
+      "mock_responses": {
+        "https://notfound.com": {
+          "status_code": 404,
+          "body": "Not Found"
+        }
+      },
+      "expect": {
+        "discovery": {
+          "total": 1,
+          "selected": 1
+        },
+        "fetch": {
+          "succeeded": 0,
+          "failed": 1
+        }
+      }
+    },
+    {
+      "id": "fetch_blocked_redirect",
+      "description": "Fetch redirects to a blocked target (private IP)",
+      "query": "redirect blocked test",
+      "provider": "static",
+      "follow_redirects": true,
+      "candidates": [
+        { "url": "https://redirect-to-private.com/" }
+      ],
+      "mock_responses": {
+        "https://redirect-to-private.com/": {
+          "status_code": 302,
+          "headers": { "Location": "http://192.168.1.1" }
+        }
+      },
+      "expect": {
+        "discovery": {
+          "total": 1,
+          "selected": 1
+        },
+        "fetch": {
+          "succeeded": 0,
+          "blocked": 1
+        }
+      }
+    },
+    {
+      "id": "extraction_truncated",
+      "description": "Content exceeds character limit (simulated via small limit in runner)",
+      "query": "long content",
+      "provider": "static",
+      "candidates": [
+        { "url": "https://long.com/" }
+      ],
+      "mock_responses": {
+        "https://long.com/": {
+          "status_code": 200,
+          "body": "This is a very long body that should be truncated when the limit is low enough."
+        }
+      },
+      "expect": {
+        "fetch": {
+          "succeeded": 1,
+          "truncated": 1
+        }
+      }
+    },
+    {
+      "id": "query_redaction_check",
+      "description": "Query contains a secret that must be redacted in manifest",
+      "query": "search for sk-1234567890abcdef",
+      "provider": "static",
+      "candidates": [
+        { "url": "https://example.com" }
+      ],
+      "mock_responses": {
+        "https://example.com": { "status_code": 200, "body": "ok" }
+      },
+      "expect": {
+        "manifests": {
+          "query_redacted": true,
+          "contains_secret": false
+        }
+      }
+    },
+    {
+      "id": "provider_redaction_check",
+      "description": "SearXNG URL with credentials must be redacted in manifest",
+      "query": "redaction test",
+      "provider": "searxng",
+      "provider_config": {
+        "searxng_url": "https://user:pass@search.example.com",
+        "searxng_url_redacted": "https://search.example.com"
+      },
+      "candidates": [],
+      "expect": {
+        "manifests": {
+          "contains_password": false
+        }
+      }
+    }
+  ]
+}

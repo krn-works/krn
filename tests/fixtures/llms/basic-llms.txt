@@ -1,0 +1,31 @@
+# Project Docs
+
+Documentation for Project — a library for data validation.
+
+Key URLs:
+- Homepage: https://example.com/project
+- Docs: https://docs.example.com/project
+- GitHub: https://github.com/example/project
+- PyPI: https://pypi.org/project/example
+- Blog: https://blog.example.com
+
+For AI Agents:
+Use proper naming: "Project" not "ProjectLib".
+Do not fabricate capabilities.
+
+## Guides
+
+- Getting Started: https://docs.example.com/project/guide/intro
+- API Reference: https://docs.example.com/project/api
+- Deployment: https://docs.example.com/project/deploy
+
+## Examples
+
+- Basic usage: https://docs.example.com/project/examples/basic
+- Advanced patterns: https://docs.example.com/project/examples/advanced
+- Testing: https://docs.example.com/project/examples/testing
+
+## Tutorials
+
+- Hello world: https://docs.example.com/project/tutorial/hello
+- Configuration: https://docs.example.com/project/tutorial/config

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review"
+  short_description: "Review code for bugs and proof gaps"
+  default_prompt: "Use $review to find correctness, maintainability, and verification issues."

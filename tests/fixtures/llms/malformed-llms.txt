@@ -1,0 +1,16 @@
+# Malformed llms.txt
+
+Some broken content that should not crash the parser.
+
+This is not valid markdown but has a URL in it:
+https://example.com/valid-line
+
+[broken link: no url
+[also broken]](missing)
+
+file:///etc/passwd
+javascript:void(0)
+data:text/html,<script>alert(1)</script>
+mailto:bad@example.com
+
+Empty link: [](https://example.com/ok)

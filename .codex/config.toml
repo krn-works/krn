@@ -1,0 +1,25 @@
+# Project-scoped Codex configuration for this agentic coding setup.
+
+[[skills.config]]
+path = ".codex/skills/coding-system"
+enabled = true
+
+[[skills.config]]
+path = ".codex/skills/grill"
+enabled = true
+
+[[skills.config]]
+path = ".codex/skills/debug"
+enabled = true
+
+[[skills.config]]
+path = ".codex/skills/implementation"
+enabled = true
+
+[[skills.config]]
+path = ".codex/skills/review"
+enabled = true
+
+[[skills.config]]
+path = ".codex/skills/handoff"
+enabled = true

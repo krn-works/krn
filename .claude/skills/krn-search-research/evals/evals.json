@@ -1,0 +1,41 @@
+{
+  "skill_name": "krn-search-research",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to understand how Claude Code hooks work, specifically the PreToolUse event. What is the correct JSON schema for hook output, and what values can permissionDecision take? I want the official documentation, not blog posts.",
+      "expected_output": "Claude should use krn-search (SearXNG or static) to find official Claude Code hooks documentation. The answer should cite evidence packs from official sources (claude.com/docs or GitHub). It should report permissionDecision values and the hook output schema based on evidence. If using SearXNG, it should run the search-query command, read manifests, then evidence packs. Quality scores should be mentioned.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Check what the Python docs say about http.server — is it safe to use in production? Look at https://docs.python.org/3/library/http.server.html and give me the answer based on the official documentation.",
+      "expected_output": "Claude should use krn-search with static provider to fetch the specific Python docs URL. It should run search-query with --provider static --candidate-url. After reading the evidence pack, it should answer whether http.server is production-safe based on the evidence content, citing the source URL and quality score.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "What is the current stock price of NVIDIA and what was their latest earnings report date? I need this info right now.",
+      "expected_output": "This is a real-time data query that krn-search cannot reliably answer (stock prices change constantly, SearXNG may find stale info). Claude should either: (a) attempt krn-search and honestly report that the evidence is likely stale/insufficient for real-time data, or (b) recognize upfront that this requires real-time data that krn-search can't provide and report the limitation. Key behavior: honest limitation reporting, not fabricating an answer from stale evidence. Do not suggest WebSearch.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "I've been seeing a lot about Anthropic's new prompt caching feature for the Claude API. How does it work exactly? What's the cache TTL, how does cache control work with the /v1/messages endpoint, and are there any gotchas I should know about when building production apps? I want the actual API docs, not some tutorial blog post.",
+      "expected_output": "Claude should use krn-search (SearXNG preferred) to find official Anthropic API documentation about prompt caching. The answer should cover cache TTL, cache_control headers, how breakpoints work, and any known gotchas. All claims must cite evidence packs from docs.anthropic.com. Quality scores and evidence limitations should be mentioned. If SearXNG is unavailable, should ask for candidate URLs or fall back gracefully.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "We're running a local SearXNG instance at localhost:9999 as a search provider for our krn-search tool. Sometimes it returns 502 or 503 errors under load, and we get redirect loops on some sites. I want to research: (1) SearXNG rate limiting and reliability configuration, (2) how other Python projects handle redirect loops in URL fetching without browser automation, and (3) whether there are lighter alternatives to beautifulsoup4+httpx for our evidence extraction pipeline that handle JS-rendered content better.",
+      "expected_output": "Claude should use krn-search to research all three subtopics. Should run multiple search-query calls or one broader query with higher --max-candidates. The answer should cite evidence packs for each subtopic, report which evidence was useful and which wasn't. For JS-rendered content alternatives, should honestly report that browser automation (Playwright etc.) is the real solution but note the project's non-goal constraints. Quality scores per evidence pack, failure reporting for any blocked/failed URLs.",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "Znajdź mi najnowsze metodyki tworzenia agentów AI.",
+      "expected_output": "Claude should start with `krn-search searxng status`, then `krn-search searxng up` if status fails, and only then run `krn-search search-query \"<query>\" --research`. It must not begin with `--provider static`, `--provider searxng`, or guessed candidate URLs. If bootstrap fails or SearXNG is still unavailable and the user did not supply exact URLs and none are already present in inspected local/source context or prior krn-search output, Claude should stop and report the limitation honestly with the exact command/log pointer. It must not invent arXiv IDs, docs paths, fallback candidate URLs, or answer from general knowledge after the failed research run.",
+      "files": []
+    }
+  ]
+}

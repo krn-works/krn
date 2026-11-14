@@ -1,0 +1,4 @@
+interface:
+  display_name: "Implementation"
+  short_description: "Implement surgical verified changes"
+  default_prompt: "Use $implementation to build this change in small verified slices."
