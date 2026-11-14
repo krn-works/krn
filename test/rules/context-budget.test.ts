@@ -39,7 +39,7 @@ test('Claude context budget settings wire documented hooks and read-only reader'
     [
       'Write|Edit',
       'Bash',
-      'Agent|Task|Workflow|WebFetch|WebSearch|NotebookEdit|Write|Edit|Bash|Read|Glob|Grep',
+      'Agent|Task|WebFetch|WebSearch|NotebookEdit|Write|Edit|Bash|Read|Glob|Grep',
       // Built-in Explore and Plan get the configured subagent model.
       'Agent|Task',
       // The lead gets no whole-file dump; subagents read freely.
@@ -107,7 +107,6 @@ test('Claude project gauge matcher covers every built-in tool the ceiling refuse
   const builtIn = [
     'Agent',
     'Task',
-    'Workflow',
     'WebFetch',
     'WebSearch',
     'NotebookEdit',

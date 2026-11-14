@@ -9,7 +9,7 @@ import {
   readSync,
   writeFileSync,
 } from 'node:fs';
-import { isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { projectsStore } from '../harness/transcripts.ts';
 import { isWorkerSession } from '../hook/session.ts';
 import { emitContext, hookInput, object } from './io.ts';
@@ -231,7 +231,30 @@ export async function main(): Promise<void> {
       : 'run krn-handoff';
     const { total, boundary } = gaugeReading(tail(input.transcriptPath));
     if (total === undefined) throw new Error('No usage');
-    const window = budget(input.project, host ? 400000 : 200000);
+    const fallbackWindow = host ? 400000 : 200000;
+    let window = fallbackWindow;
+    let notice: string | undefined;
+    // One hook output per run: the notice rides with an advisory when one fires.
+    const say = (text: string) => {
+      emitContext(input.event, [notice, text].filter(Boolean).join(' '));
+      notice = undefined;
+    };
+    try {
+      window = budget(input.project, fallbackWindow);
+    } catch {
+      // A broken window setting must not drop the ceiling: gauge against the
+      // default window and say so once per session, outside the tool hot path.
+      const note = join(
+        input.project,
+        '.krn/runs/claude/context-gauge',
+        `${input.sessionId}.invalid-window`,
+      );
+      if (input.event !== 'PreToolUse' && !existsSync(note)) {
+        mkdirSync(dirname(note), { recursive: true });
+        writeFileSync(note, '', { mode: 0o600 });
+        notice = `Context gauge: autoCompactWindow in .claude/settings.json is invalid; gauging against the default ${Math.floor(fallbackWindow / 1000)}k window.`;
+      }
+    }
     const { first, second } = advisoriesOf(window);
     const ceiling = ceilingOf(window);
     if (input.event === 'PreToolUse') {
@@ -302,8 +325,7 @@ export async function main(): Promise<void> {
       { mode: 0o600 },
     );
     if (repeat && level <= highest) {
-      emitContext(
-        input.event,
+      say(
         `Context at ${Math.floor(total / 1000)}k of ${Math.floor(window / 1000)}k, still past the handoff advisory. Stop the current step and ${handoff}; at ${Math.floor(ceiling / 1000)}k new work is refused.`,
       );
     } else if (level > highest) {
@@ -311,8 +333,7 @@ export async function main(): Promise<void> {
       const finish = `Finish the current step, then ${handoff}.`;
       const exhausted = `Context budget nearly exhausted. Finish the current step now, then ${handoff} before starting any new work.`;
       // Jumping past both thresholds still delivers the first advisory.
-      emitContext(
-        input.event,
+      say(
         level === first
           ? `${prefix} ${finish}`
           : highest < first
@@ -320,6 +341,7 @@ export async function main(): Promise<void> {
             : `${prefix} ${exhausted}`,
       );
     }
+    if (notice) say('');
   } catch {
     /* Hooks fail open without adding misleading context. */
   }

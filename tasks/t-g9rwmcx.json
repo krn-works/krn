@@ -1,7 +1,11 @@
 {
   "id": "t-g9rwmcx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "hygiene test enforces timeouts, existing scripts, no denied tool in matcher, no shell for radar/research; gauge emits one advisory on invalid window. Not done: python3 allow and ~/.claude stale text (outside repo), unused-skill overrides, guard bad-JSON; memory-refs already fails on missing links (MISSING-INDEX/DANGLING)"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "Harness settings hygiene: timeouts, existing scripts, no denied tools in matchers, read-only agents without shell, fail-open made visible",
