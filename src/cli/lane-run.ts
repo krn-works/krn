@@ -3,11 +3,13 @@ import {
   existsSync,
   lstatSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
+import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { logsCommand } from '../ci/logs.ts';
@@ -249,7 +251,50 @@ function blockerOf(text: unknown): { blocker?: string } {
   return last?.startsWith('BLOCKER:') ? { blocker: last.slice(0, 200) } : {};
 }
 
-export function parseSessionResult(stdout: string, stderr = ''): SessionResult {
+
+/** Distinct assistant messages of a session transcript: one per model turn, however many lines a message spans. */
+export function transcriptTurns(transcript: string): number {
+  const ids = new Set<string>();
+  for (const line of transcript.split('\n')) {
+    if (line.trim() === '') continue;
+    try {
+      const entry = JSON.parse(line) as {
+        type?: unknown;
+        message?: { id?: unknown };
+      };
+      if (entry.type === 'assistant' && typeof entry.message?.id === 'string')
+        ids.add(entry.message.id);
+    } catch {
+      // A torn line is not a message.
+    }
+  }
+  return ids.size;
+}
+
+/** The turn count of a session read from its transcript under the Claude config directory; undefined when none is found. */
+function sessionTurns(sessionId: string): number | undefined {
+  if (!/^[\w-]+$/u.test(sessionId)) return undefined;
+  const projects = join(
+    process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'),
+    'projects',
+  );
+  try {
+    for (const directory of readdirSync(projects)) {
+      const file = join(projects, directory, `${sessionId}.jsonl`);
+      if (existsSync(file)) return transcriptTurns(readFileSync(file, 'utf8'));
+    }
+  } catch {
+    // No transcript directory: the count stays unknown.
+  }
+  return undefined;
+}
+
+/** `num_turns` from `claude -p` is not a turn count (it printed 1 for a 22-message session), so the verdict counts the transcript or drops the field. */
+export function parseSessionResult(
+  stdout: string,
+  stderr = '',
+  turnsOf: (sessionId: string) => number | undefined = sessionTurns,
+): SessionResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(stdout);
@@ -280,7 +325,9 @@ export function parseSessionResult(stdout: string, stderr = ''): SessionResult {
     typeof record.subtype === 'string' ? record.subtype : 'unknown';
   const failed = record.is_error === true || subtype !== 'success';
   const turns =
-    typeof record.num_turns === 'number' ? record.num_turns : undefined;
+    typeof record.session_id === 'string'
+      ? turnsOf(record.session_id)
+      : undefined;
   return {
     ok: !failed,
     detail: `session ${subtype}`,
