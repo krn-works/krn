@@ -120,6 +120,8 @@ function receiver(options: {
         stderr: '',
       };
     }
+    // The fake branch is already based on the target: nothing to refresh.
+    if (a.includes('merge-base')) return out('');
     if (a[0] === '-c' && a.includes('rebase')) return out('');
     if (['push', 'fetch', 'worktree', 'branch', 'ls-tree'].includes(a[0] ?? ''))
       return out('');
