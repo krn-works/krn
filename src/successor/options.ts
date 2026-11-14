@@ -19,6 +19,8 @@ export interface SuccessorLaunchOptions {
   // True keeps the operator's own credential; false (default) gives the
   // session the GitHub App credential.
   operatorToken: boolean;
+  // True: no operator is watching; the launch runs `krn doctor --unattended` first and refuses on failure.
+  unattended: boolean;
 }
 
 // The operator capped every KRN session: medium by default, high when medium is
@@ -60,15 +62,17 @@ export function parseArgs(
     '--start-seconds',
     '--class',
   ]);
-  const switches = new Set(['--operator-token']);
+  const switches = new Set(['--operator-token', '--unattended']);
   let operatorToken = false;
+  let unattended = false;
 
   for (let index = 0; index < args.length; index += 1) {
     const flag = args[index] ?? '';
     if (switches.has(flag)) {
       if (seen.has(flag)) throw new Error(`duplicate argument: ${flag}`);
       seen.add(flag);
-      operatorToken = true;
+      if (flag === '--unattended') unattended = true;
+      else operatorToken = true;
       continue;
     }
     if (!flags.has(flag)) throw new Error(`unknown argument: ${flag}`);
@@ -119,6 +123,7 @@ export function parseArgs(
     cwd,
     sessionClass,
     operatorToken,
+    unattended,
     ...(model === undefined ? {} : { model }),
     ...(effort === undefined ? {} : { effort }),
     ...(startSeconds === undefined ? {} : { startSeconds }),

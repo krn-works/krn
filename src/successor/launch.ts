@@ -28,7 +28,10 @@ import {
 // The successor launch: open a Herdr tab running the next agent, wait for it to show, retire the caller.
 // Without Herdr a Claude lead falls back to `claude --bg`; Codex has no background mode and fails.
 
-export function main(args: string[]): number {
+export function main(
+  args: string[],
+  doctor?: (args: string[]) => { text: string; exitCode: number },
+): number {
   if (args[0] === '--retire') return retireMode(args.slice(1));
   let options: SuccessorLaunchOptions;
   try {
@@ -38,6 +41,20 @@ export function main(args: string[]): number {
       `${error instanceof Error ? error.message : 'invalid arguments'}\n`,
     );
     return 2;
+  }
+
+  // An unattended successor with no App token or a short vault session dies mid-slice; refuse before opening a tab.
+  if (options.unattended) {
+    const report = doctor?.(['--unattended']) ?? {
+      text: 'no unattended doctor wired',
+      exitCode: 1,
+    };
+    if (report.exitCode !== 0) {
+      process.stderr.write(
+        `unattended launch refused: ${report.text.trim()}\n`,
+      );
+      return report.exitCode;
+    }
   }
 
   const detected = detectHarness(process.env);

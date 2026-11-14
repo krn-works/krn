@@ -1,7 +1,11 @@
 {
   "id": "t-fcsztvw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "successor-launch --unattended refuses on failed doctor (launcher tests); watchdog handles a StopFailure payload (watchdog tests); settings.json StopFailure wiring left to the lead"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "An unattended lead that dies on quota or an API error is restarted, and successor launch runs the unattended doctor first",

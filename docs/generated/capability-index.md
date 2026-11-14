@@ -151,6 +151,7 @@ src/successor/options.ts: Launcher options.
 src/successor/probe.ts: Launcher probe.
 src/successor/retire.ts: Retire predecessors.
 src/successor/terminal-host.ts: The terminal host por
+src/successor/watchdog.ts: Watchdog for an unattended
 src/task/branch-evidence.ts: (no header) exports bran
 src/task/branch-tickets.ts: (no header) exports branc
 src/task/claims.ts: (no header) exports claimKeys, Cl
