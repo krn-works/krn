@@ -704,9 +704,10 @@ test('KRN carries worker-stop as a project record that only a Stop hook entry sa
     own.find((s) => s.id === 's-finish-gate-worker-stop'),
   );
   const wirings: [string, number][] = [
+    ['{"hooks":{"Stop":[{"hooks":[{"command":"node src/hook/stop.ts"}]}]}}', 0],
     [
       '{"hooks":{"Stop":[{"hooks":[{"command":"node scripts/claude/worker-stop.ts"}]}]}}',
-      0,
+      1,
     ],
     ['{"hooks":{"Stop":[{"command":"exec krn hook stop"}]}}', 1],
     ['{"hooks":{"SubagentStop":[{"command":"node worker-stop.ts"}]}}', 1],

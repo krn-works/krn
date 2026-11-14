@@ -57,7 +57,15 @@
     },
     "src/cli/hook.ts": {
       "receivers": ["node"],
-      "real": "test/adopt/adopt.test.ts"
+      "real": "test/cli/hook.test.ts"
+    },
+    "src/hook/scope.ts": {
+      "receivers": ["git"],
+      "real": "test/hook/scope.test.ts"
+    },
+    "src/hook/stop.ts": {
+      "receivers": ["git", "node", "sh"],
+      "real": "test/hook/stop.test.ts"
     },
     "src/cli/lane.ts": {
       "receivers": ["git"],

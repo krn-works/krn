@@ -435,10 +435,7 @@
     "audience": "lead",
     "text": "Task status lives in valid `tasks/<id>.json` records that only `krn task` changes.",
     "why": "Work status travels with the repository, and delivery stays traceable to the task that defined it.",
-    "evidence": [
-      "AGENTS.md#KRN-11",
-      "scripts/claude/worker-scope.ts#11 of 20 units"
-    ],
+    "evidence": ["AGENTS.md#KRN-11", "src/hook/scope.ts#11 of 20 units"],
     "enforcement": {
       "kind": "krn",
       "args": ["task", "check"]

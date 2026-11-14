@@ -5,16 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import {
-  decide,
-  judge,
-  parseScope,
-  taskId,
-} from '../../scripts/claude/worker-scope.ts';
+import { decide, judge, parseScope, taskId } from '../../src/hook/scope.ts';
 
-const hook = fileURLToPath(
-  new URL('../../scripts/claude/worker-scope.ts', import.meta.url),
-);
+const hook = fileURLToPath(new URL('../../src/hook/scope.ts', import.meta.url));
 const root = '/r/clone';
 const write = (file_path: string) => ({
   tool_name: 'Write',

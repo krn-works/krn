@@ -30,6 +30,7 @@ export const HARNESS_ROOTS = [
   'AGENTS.md',
   'CLAUDE.md',
   'scripts/claude',
+  'src/hook',
 ];
 
 const git = (repo: string, ...args: string[]) =>

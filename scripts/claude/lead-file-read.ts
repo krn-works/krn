@@ -1,7 +1,7 @@
 import { readFileSync, statSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isWorkerSession } from './worker-session.ts';
+import { isWorkerSession } from '../../src/hook/session.ts';
 
 // PreToolUse hook for Bash and Read: refuses the lead a large file dump. `sed -n`, `cat`
 // and `grep` returned 54% of the lead's Bash result bytes before the first refusal and 51%

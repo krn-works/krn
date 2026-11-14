@@ -1,0 +1,12 @@
+{
+  "id": "t-z82wamv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "krn state set never silently drops cleanup entries",
+  "after": [],
+  "body": [
+    "Why: 2026-11-14 the lead ran `krn state set cleanup \"[one entry]\"` to add one run pointer and silently replaced the 60-entry list, producing 59 orphaned-run errors that the lead had to rebuild by hand.\nOutcome: `krn state set` on a list field refuses a value that drops existing entries unless --replace is given, or `krn state add-cleanup <tuple>` appends one entry.\nProof: test on a capsule fixture with two cleanup entries: setting one without --replace exits non-zero naming the dropped pointer; npm run fast PASS."
+  ]
+}

@@ -24,12 +24,10 @@ import {
   statesBlocker,
   stopHook,
   withinPackage,
-} from '../../scripts/claude/worker-stop.ts';
+} from '../../src/hook/stop.ts';
 import { resolveContract } from '../../src/repo/contract.ts';
 
-const hook = fileURLToPath(
-  new URL('../../scripts/claude/worker-stop.ts', import.meta.url),
-);
+const hook = fileURLToPath(new URL('../../src/hook/stop.ts', import.meta.url));
 
 test('relatedTests picks changed tests and tests importing a changed file', () => {
   const tests = new Map([
@@ -134,7 +132,7 @@ test('the hook refuses with exit 2 and a reason when a worker has no commit', ()
 test('the lane brief names the related-test command and the blocker escape', async () => {
   const { workerRules } = await import('../../src/cli/lane.ts');
   const rules = workerRules(fileURLToPath(new URL('../..', import.meta.url)));
-  assert.match(rules, /scripts\/claude\/worker-stop\.ts --check/u);
+  assert.match(rules, /bin\/krn hook stop --check/u);
   assert.match(rules, /BLOCKER:/u);
 });
 
@@ -183,18 +181,18 @@ test('KRN own contract keeps an unrelated source change to importers plus its gu
   const tests = realTests();
   const guard = (resolveContract('.').contract.guard ?? '').split(' ');
   assert.ok(guard.includes('test/rules/'));
-  const picked = relatedTests(['scripts/claude/worker-stop.ts'], tests, guard);
+  const picked = relatedTests(['src/hook/stop.ts'], tests, guard);
   const guards = [...tests.keys()].filter((p) => p.startsWith('test/rules/'));
   assert.ok(guards.length > 0);
   for (const each of guards) assert.ok(picked.includes(each), each);
   assert.ok(picked.includes('test/evals/fr40-freeze.test.ts'));
-  assert.ok(picked.includes('test/claude/worker-stop.test.ts'));
+  assert.ok(picked.includes('test/hook/stop.test.ts'));
   assert.ok(
     picked.every(
       (p) =>
         p.startsWith('test/rules/') ||
         p === 'test/evals/fr40-freeze.test.ts' ||
-        tests.get(p)?.includes('worker-stop'),
+        tests.get(p)?.includes('hook/stop'),
     ),
   );
   assert.deepEqual(relatedTests([], tests, guard), []);

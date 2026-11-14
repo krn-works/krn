@@ -140,10 +140,7 @@ test('a pytest repository on master without a tracker gets its own commands, nev
 });
 
 test('the KRN repository brief keeps the Stop script check', () => {
-  assert.match(
-    workerRules(repo),
-    /node scripts\/claude\/worker-stop\.ts --check/u,
-  );
+  assert.match(workerRules(repo), /bin\/krn hook stop --check/u);
 });
 
 test('a lane brief tells the worker to test the plainest hand-written input of every named format', () => {
