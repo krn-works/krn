@@ -3,8 +3,8 @@ import { randomBytes } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { flagValue } from './flag-value.ts';
-import { CliUsageError } from './usage-error.ts';
+import { flagValue } from '../cli-kit/flag-value.ts';
+import { CliUsageError } from '../cli-kit/usage-error.ts';
 
 export const decideUsage =
   'krn decide add --question T --recommendation T --default T --deadline YYYY-MM-DD [--root DIR]  open a decision row\n' +

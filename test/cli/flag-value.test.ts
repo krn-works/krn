@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { flagValue } from '../../src/cli/flag-value.ts';
+import { flagValue } from '../../src/cli-kit/flag-value.ts';
 
 const missing = () => new Error('missing');
 

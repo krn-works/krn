@@ -1,6 +1,6 @@
 // Review findings: a schema a validator checks; only a fresh-context verifier sets `confirmed`.
 import { readFileSync } from 'node:fs';
-import { CliUsageError } from './usage-error.ts';
+import { CliUsageError } from '../cli-kit/usage-error.ts';
 
 export const findingsUsage =
   'krn findings validate <file>  check a findings JSON file ({"findings":[...]}); each finding has id, title, status confirmed|needs_validation|rejected; confirmed needs evidence ["path:line"], a reproduce command, and verifiedBy naming a verifier other than foundBy; needs_validation carries no severity; exit 1 with one stderr line per problem, 65 on malformed JSON, 66 when unreadable';

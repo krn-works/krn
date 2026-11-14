@@ -2,7 +2,7 @@
 // hook module under src/hook/ with the remaining arguments (`krn hook stop --check|--related`).
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
-import { CliUsageError } from './usage-error.ts';
+import { CliUsageError } from '../cli-kit/usage-error.ts';
 
 const scripts: Readonly<Record<string, string>> = {
   stop: 'src/hook/stop.ts',

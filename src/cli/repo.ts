@@ -1,8 +1,8 @@
 // `krn repo contract`: print the repo contract (krn.json merged over detection) as JSON.
 import { resolve } from 'node:path';
+import { flagValue } from '../cli-kit/flag-value.ts';
+import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { ContractError, resolveContract } from '../repo/contract.ts';
-import { flagValue } from './flag-value.ts';
-import { CliUsageError } from './usage-error.ts';
 
 export function repoCommand(args: string[]): void {
   const [verb, ...rest] = args;

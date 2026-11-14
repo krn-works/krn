@@ -130,7 +130,7 @@ test('the hook refuses with exit 2 and a reason when a worker has no commit', ()
 });
 
 test('the lane brief names the related-test command and the blocker escape', async () => {
-  const { workerRules } = await import('../../src/cli/lane.ts');
+  const { workerRules } = await import('../../src/cli/lane-brief.ts');
   const rules = workerRules(fileURLToPath(new URL('../..', import.meta.url)));
   assert.match(rules, /bin\/krn hook stop --check/u);
   assert.match(rules, /BLOCKER:/u);
@@ -1032,7 +1032,7 @@ test('without KRN_TEST_FIRST a green branch with no base-red test still ends', (
 
 test('the test-first rule line is in the worker rules only with the arm on', async () => {
   const { workerRules, TEST_FIRST_RULE } = await import(
-    '../../src/cli/lane.ts'
+    '../../src/cli/lane-brief.ts'
   );
   const repo = fileURLToPath(new URL('../..', import.meta.url));
   assert.ok(workerRules(repo, true).includes(TEST_FIRST_RULE));

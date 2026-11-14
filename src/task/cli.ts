@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { commandErrorExitCode } from '../cli/command-error.ts';
-import { flagValue } from '../cli/flag-value.ts';
+import { commandErrorExitCode } from '../cli-kit/command-error.ts';
+import { flagValue } from '../cli-kit/flag-value.ts';
 import {
   branchMisses,
   formatBranchMiss,

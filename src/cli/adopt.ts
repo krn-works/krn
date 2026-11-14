@@ -13,8 +13,8 @@ import {
 import { verifyRepository } from '../adopt/verify.ts';
 import { StandardsDataError } from '../brain/standards.ts';
 import { StandardsInputError } from '../brain/standards-cli.ts';
-import { flagValue } from './flag-value.ts';
-import { CliUsageError } from './usage-error.ts';
+import { flagValue } from '../cli-kit/flag-value.ts';
+import { CliUsageError } from '../cli-kit/usage-error.ts';
 
 /** A named failure of adopt with its own exit: 124 the canary timed out, 69 the repository's clean base is red. */
 class AdoptFailure extends Error {

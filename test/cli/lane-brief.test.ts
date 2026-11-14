@@ -14,7 +14,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { laneBrief } from '../../evals/fr40/lanes.ts';
 import { BASE_DATE, generate } from '../../evals/fr40/tasks.ts';
-import { laneBriefText, workerRules } from '../../src/cli/lane.ts';
+import { laneBriefText, workerRules } from '../../src/cli/lane-brief.ts';
 
 // KRN-12: the receiver is the FR-40 lane runner; its arm-B prompt is the measured carrier.
 const repo = fileURLToPath(new URL('../..', import.meta.url));

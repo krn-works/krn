@@ -15,7 +15,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { laneBriefText, startLane, workerRules } from '../../src/cli/lane.ts';
+import { startLane } from '../../src/cli/lane.ts';
+import { laneBriefText, workerRules } from '../../src/cli/lane-brief.ts';
 import {
   goalBrief,
   goalSlug,
@@ -51,7 +52,7 @@ import {
 } from '../../src/cli/lane-run/result.ts';
 import { mintFailure } from '../../src/cli/lane-run/steps.ts';
 import { laneRunCommand } from '../../src/cli/lane-run.ts';
-import { CliUsageError } from '../../src/cli/usage-error.ts';
+import { CliUsageError } from '../../src/cli-kit/usage-error.ts';
 
 // An ambient lane session sets KRN_SESSION_CLASS=lane, which `krn lane start` rejects; the tests own their environment.
 Reflect.deleteProperty(process.env, 'KRN_SESSION_CLASS');
