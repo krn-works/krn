@@ -12,7 +12,7 @@
 
 The in-repository `krn task` tracker is the task-status source. Its committed `tasks/<id>.json` records support dependencies, readiness, and claiming. It replaces the legacy Git-ref task queue and host-SQLite `krn work`; no Paperclip or legacy queue data is imported. Paperclip integration was removed from Product in #109 and from GLOBAL in krn-works/krn-codex-skills #461 (merge 26446dd5). The host Paperclip service and data were removed on operator order on 2026-10-27, without an archive. On the host, `~/.local/bin/krn` links to the pinned Product checkout's `bin/krn` at `.krn/product-release` (t-ez3nsc3); the GLOBAL release no longer sits on PATH. Git history and PRs provide delivery evidence; no board publication replaces them. ADR 0014 D8 and ADR 0015 record the tracker decision; ADR 0013 records Product as the home; its consolidation trigger is superseded by the one-repository shape.
 
-The [plan](docs/program/PLAN.md) records sequence, not task status or additional authority. Read tracker status from `krn task`.
+The [roadmap](docs/program/roadmap.md) ranks opportunities, not task status or additional authority. Read tracker status from `krn task`.
 
 ## Durable state
 
@@ -23,6 +23,6 @@ The [plan](docs/program/PLAN.md) records sequence, not task status or additional
 
 ## Working links
 
-- [Delivery plan](docs/program/PLAN.md)
+- [Roadmap](docs/program/roadmap.md)
 - [Lead rules](docs/program/lead-rules.md)
 - [ADR index](docs/adr/README.md)

@@ -1,7 +1,11 @@
 {
   "id": "t-31exd5c",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "PLAN.md and preflight removed, ADR 0014 marks stale rows and records D34-D37, instruction-reference rule covers CLAUDE.md and all skills"
+  },
   "created": "2026-11-11",
   "priority": 3,
   "title": "Retired plan text and the preflight script stop misleading agents",

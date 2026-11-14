@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 // refuses only when the command swallows the failure anyway. It classifies only that shape
 // and never judges safety; anything it cannot classify is allowed unchanged.
 const check =
-  /^(?:npm (?:test|t|run (?:test\S*|fast|check|lint|typecheck|gate|preflight))|node (?:\S+ )*--test|tsc|biome)(?:\s|$)/u;
+  /^(?:npm (?:test|t|run (?:test\S*|fast|check|lint|typecheck|gate))|node (?:\S+ )*--test|tsc|biome)(?:\s|$)/u;
 const filter = /^(?:head|tail|grep|rg|sed|awk)(?:\s|$)/u;
 const prefix = /^(?:\w+=\S*\s+)*(?:npx\s+|exec\s+|time\s+)*/u;
 const swallow = /\|\|\s*(?:true|:|exit 0)(?:\s|;|$)|;\s*(?:true|:)\s*$/u;

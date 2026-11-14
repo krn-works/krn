@@ -5,7 +5,7 @@ import { test } from 'node:test';
 
 const workflowPath = new URL('../.github/workflows/ci.yml', import.meta.url);
 
-test('cheap preflight reuses local observers', async () => {
+test('the retired preflight script stays gone and gate owns the rendered rules', async () => {
   const manifest: unknown = JSON.parse(
     await readFile(new URL('../package.json', import.meta.url), 'utf8'),
   );
@@ -14,12 +14,10 @@ test('cheap preflight reuses local observers', async () => {
   );
   const scripts = manifest.scripts;
   assert.ok(
-    typeof scripts === 'object' && scripts !== null && 'preflight' in scripts,
+    typeof scripts === 'object' && scripts !== null && 'gate' in scripts,
   );
-  assert.equal(
-    scripts.preflight,
-    'npm run check && npm run lint && npm run rules && node src/cli/main.ts task check',
-  );
+  assert.ok(!('preflight' in scripts));
+  assert.match(String(scripts.gate), /npm run rules/u);
   const leadRules = await readFile(
     new URL('../docs/program/lead-rules.md', import.meta.url),
     'utf8',
@@ -68,7 +66,7 @@ test('CI workflow runs lint, typecheck and twelve test shards on hosted runners 
   assert.match(test, /^ {8}run: npm test$/mu);
   const lint = jobs.get('lint') ?? '';
   assert.match(lint, /run: npm run lint$/mu);
-  // Rendered rules belong to local preflight.
+  // Rendered rules belong to the local gate.
   assert.doesNotMatch(lint, /npm run rules/u);
   // A pull request may not carry `Ticket: <id>` while that task stays open.
   assert.match(lint, /^ {10}fetch-depth: 0$/mu);
@@ -296,11 +294,7 @@ test('Product uses required exact-head Actions Check and optional local diagnost
   ])
     assert.match(workflow, step);
   const owners = ['README.md', 'docs/program/lead-rules.md'];
-  for (const path of [
-    ...owners,
-    'docs/program/repository-workflow.md',
-    'docs/program/PLAN.md',
-  ]) {
+  for (const path of [...owners, 'docs/program/repository-workflow.md']) {
     const source = await readFile(
       new URL(`../${path}`, import.meta.url),
       'utf8',
