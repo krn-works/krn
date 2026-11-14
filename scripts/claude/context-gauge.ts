@@ -197,7 +197,9 @@ async function capturePrompt(raw: string): Promise<void> {
       typeof root === 'string' &&
       typeof input.session_id === 'string'
     ) {
-      const { capture } = await import('./operator-inbox-store.ts');
+      const { capture } = await import(
+        '../../src/memory/operator-inbox-store.ts'
+      );
       capture(root, input.session_id, input.prompt);
     }
   } catch {

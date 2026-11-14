@@ -6,7 +6,7 @@ import {
   dispose,
   oneLine,
   openEntries,
-} from './operator-inbox-store.ts';
+} from '../../src/memory/operator-inbox-store.ts';
 
 const usage = `Usage:
   operator-inbox.ts capture            (UserPromptSubmit hook; reads hook JSON on stdin)
@@ -38,7 +38,9 @@ if (command === 'capture') {
   process.exit(0);
 }
 
-const { memoryDirectory } = await import('./memory-directory.ts');
+const { memoryDirectory } = await import(
+  '../../src/memory/memory-directory.ts'
+);
 
 function flags(arguments_: string[]) {
   const values = new Map<string, string>();

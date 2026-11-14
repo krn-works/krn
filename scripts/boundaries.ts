@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
  */
 export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   core: [],
+  memory: [],
   fs: [],
   harness: [],
   outcome: ['harness', 'repo'],

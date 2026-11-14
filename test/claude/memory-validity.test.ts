@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { noteValidity } from '../../scripts/claude/memory-refs.ts';
+import { noteValidity } from '../../src/memory/memory-refs.ts';
 
 const scripts = (name: string) =>
   fileURLToPath(new URL(`../../scripts/claude/${name}.ts`, import.meta.url));

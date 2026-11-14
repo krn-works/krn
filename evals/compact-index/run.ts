@@ -11,7 +11,7 @@ import {
   mentionsOf,
   parseTranscript,
   rankIdentifiers,
-} from '../../scripts/claude/identifier-index.ts';
+} from '../../src/memory/identifier-index.ts';
 
 // Window of tool calls after a boundary: at least `minCalls`, at most `maxCalls`.
 export const minCalls = 3;

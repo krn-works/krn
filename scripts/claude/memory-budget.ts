@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
-import { memoryDirectory } from './memory-directory.ts';
-import { indexBudget, indexLineBudget } from './memory-refs.ts';
+import { memoryDirectory } from '../../src/memory/memory-directory.ts';
+import { indexBudget, indexLineBudget } from '../../src/memory/memory-refs.ts';
 
 // PreToolUse hook for Write|Edit: refuses a change that would push the auto-memory index
 // over its budget, so the writer consolidates first. A write that does not grow the

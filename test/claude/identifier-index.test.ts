@@ -10,7 +10,7 @@ import {
   parseTranscript,
   rankIdentifiers,
   renderPaths,
-} from '../../scripts/claude/identifier-index.ts';
+} from '../../src/memory/identifier-index.ts';
 
 const root = '/repo';
 
