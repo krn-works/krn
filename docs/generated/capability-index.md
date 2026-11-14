@@ -11,7 +11,7 @@ krn lane start|run|drop|brief [...]: run: start the lane, run one headless claud
 krn decide add|list|close [...]: operator decisions: rows with a recommendation, a default and a deadline under .krn/ope
 krn repo contract [--root DIR]: print the repo contract as JSON: base branch, test, related ({files}) and fast commands,
 krn plan [--root DIR]: one line: plan points left per account (5h, 7d) from .krn/plan/samples.jsonl and the account to s
-krn adopt <path> [--tracker] [--ref SHA [--install CMD] [--lint CMD] [--typecheck CMD]] [--test CMD]: write krn.json fro
+krn adopt <path> [--tracker] [--ref SHA [--install|--lint|--typecheck CMD]] [--test CMD] [--init [--stack S]]: write krn
 krn hook stop|scope [--check|--related]: Claude Code hook entry: stdin payload in; stop exits 2 to refuse a worker Stop 
 krn ci wait|logs: wait: --repo OWNER/REPO --pr N --head SHA --base SHA [--timeout-seconds N] [--start-timeout-seconds N]
 krn pr ship --title TITLE --body-file PATH [--repo OWNER/REPO] [--force]: in a branch worktree: push, create the PR, ena
@@ -21,6 +21,7 @@ src/adopt/adopt.ts: The adoption set: what a repository needs so KRN delivery wo
 src/adopt/canary.ts: The adoption canary: proves the Stop gate works in the adopted repository by breaking one
 src/adopt/conventions.ts: Seeds a repository's conventions file from its own instruction files, so the lane pa
 src/adopt/deploy.ts: Deploy workflows on the base branch.
+src/adopt/init.ts: `krn adopt <path> --init`: turn an empty or non-git directory into a repository adopt can s
 src/adopt/stop-hook.ts: The hook command `krn adopt` installs for `krn hook <name>`. Claude Code treats any ex
 src/adopt/verify.ts: `krn adopt <path> --verify`: a read-only report of the repository settings adoption relie
 src/brain/global-standards.ts: The user-level standards file: the in-force records marked universal (they hold

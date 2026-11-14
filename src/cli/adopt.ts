@@ -2,6 +2,11 @@
 import { resolve } from 'node:path';
 import { adopt } from '../adopt/adopt.ts';
 import { runCanary } from '../adopt/canary.ts';
+import {
+  initDirectory,
+  initInstallCommand,
+  initTestCommand,
+} from '../adopt/init.ts';
 import { verifyRepository } from '../adopt/verify.ts';
 import { StandardsDataError } from '../brain/standards.ts';
 import { StandardsInputError } from '../brain/standards-cli.ts';
@@ -9,15 +14,22 @@ import { flagValue } from './flag-value.ts';
 import { CliUsageError } from './usage-error.ts';
 
 export const adoptUsage =
-  'krn adopt <path> [--tracker] [--no-canary] [--ref SHA [--install CMD] [--lint CMD] [--typecheck CMD]] [--test CMD]  write krn.json from detection (kept when present), the .claude/settings.json Stop hook calling `krn hook stop`, the generated rules block in AGENTS.md (CLAUDE.md links to it), .agents/standards.json with the universal standards of the shipped pack that apply to the detected stack (tracker ones only with a tracker) followed by the project own records (one reusing a pack id exits 65) and the AGENTS.md standards block rendered from it and .krn/ in .gitignore into the git repository at <path>; --tracker seeds tasks/; --ref SHA also seeds tasks/, writes the call of the shared project CI at SHA to .github/workflows/ci.yml (krn-ci.yml beside a ci.yml of its own) and spec/ci-admission.json selecting the required `ci / Check`; reruns change nothing; then the canary breaks one test in a temporary worktree of the base and requires the Stop gate to refuse it (exit 2) and to pass the restored tree, else adopt fails (--no-canary records the decline); `krn adopt <path> --canary` runs only the canary; `krn adopt <path> --verify` only reads the repository through gh and exits 1 naming each gap when the default branch lacks one required check from GitHub Actions or auto-merge is off (no setting is changed)';
+  'krn adopt <path> [--tracker] [--no-canary] [--ref SHA [--install CMD] [--lint CMD] [--typecheck CMD]] [--test CMD] [--init [--stack ts|php|python]]  write krn.json from detection (kept when present), the .claude/settings.json Stop hook calling `krn hook stop`, the generated rules block in AGENTS.md (CLAUDE.md links to it), .agents/standards.json with the universal standards of the shipped pack that apply to the detected stack (tracker ones only with a tracker) followed by the project own records (one reusing a pack id exits 65) and the AGENTS.md standards block rendered from it and .krn/ in .gitignore into the git repository at <path>; --tracker seeds tasks/; --ref SHA also seeds tasks/, writes the call of the shared project CI at SHA to .github/workflows/ci.yml (krn-ci.yml beside a ci.yml of its own) and spec/ci-admission.json selecting the required `ci / Check`; reruns change nothing; then the canary breaks one test in a temporary worktree of the base and requires the Stop gate to refuse it (exit 2) and to pass the restored tree, else adopt fails (--no-canary records the decline); `--init` first prepares an empty or non-git directory (refused when it is a git repository with commits: run plain adopt): git init on main, the stack from package.json, composer.json or pyproject.toml or --stack, a minimal real test with its test command committed as the base, and the tracker; `krn adopt <path> --canary` runs only the canary; `krn adopt <path> --verify` only reads the repository through gh and exits 1 naming each gap when the default branch lacks one required check from GitHub Actions or auto-merge is off (no setting is changed)';
 
-const switches = ['--tracker', '--canary', '--no-canary', '--verify'] as const;
+const switches = [
+  '--tracker',
+  '--canary',
+  '--no-canary',
+  '--verify',
+  '--init',
+] as const;
 const flags = [
   '--ref',
   '--install',
   '--lint',
   '--typecheck',
   '--test',
+  '--stack',
 ] as const;
 
 export function adoptCommand(args: string[]): void {
@@ -42,6 +54,8 @@ export function adoptCommand(args: string[]): void {
   if (path === undefined) throw new CliUsageError(adoptUsage);
   if (on.has('--canary') && on.has('--no-canary'))
     throw new CliUsageError('--canary and --no-canary exclude each other');
+  if (on.has('--init') && on.has('--canary'))
+    throw new CliUsageError('--init and --canary exclude each other');
   const root = resolve(path);
   if (on.has('--verify')) {
     if (on.size > 1 || Object.keys(values).length > 0)
@@ -61,7 +75,27 @@ export function adoptCommand(args: string[]): void {
     if (result.outcome !== 'pass') process.exitCode = 1;
     return;
   }
-  const tracker = on.has('--tracker');
+  let tracker = on.has('--tracker');
+  if (values.stack !== undefined && !on.has('--init'))
+    throw new CliUsageError('--stack needs --init');
+  if (on.has('--init')) {
+    let init: ReturnType<typeof initDirectory>;
+    try {
+      init = initDirectory(root, values.stack);
+    } catch (error) {
+      throw new CliUsageError(
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+    for (const file of init.written) process.stdout.write(`wrote ${file}\n`);
+    process.stdout.write(`init ${init.stack}: git init on main, committed\n`);
+    tracker = true;
+    values.test ??= initTestCommand(init.stack) ?? '';
+    if (values.test === '') delete values.test;
+    const install = initInstallCommand(init.stack);
+    if (install !== undefined) values.install ??= install;
+  }
+  delete values.stack;
   let report: ReturnType<typeof adopt>;
   try {
     report = adopt(root, { ...values, tracker });
