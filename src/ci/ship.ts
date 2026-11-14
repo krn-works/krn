@@ -322,7 +322,19 @@ export async function shipCommand(
       publishedBody,
     ]);
   }
-  await gh(['pr', 'merge', String(pr), '--repo', repo, '--auto', '--squash']);
+  try {
+    await gh(['pr', 'merge', String(pr), '--repo', repo, '--auto', '--squash']);
+  } catch (error) {
+    // A base with no required check is already clean: GitHub refuses auto-merge there, so merge now.
+    if (
+      !(
+        error instanceof CommandFailure &&
+        /is in clean status/u.test(error.result.stderr)
+      )
+    )
+      throw error;
+    await gh(['pr', 'merge', String(pr), '--repo', repo, '--squash']);
+  }
 
   let head = git(['rev-parse', 'HEAD']);
   let waited: string;

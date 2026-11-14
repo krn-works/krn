@@ -34,6 +34,7 @@ function receiver(options: {
   carrier?: string;
   proofExit?: number;
   lateConflict?: string;
+  autoRefusal?: string;
 }) {
   let time = 0;
   const calls: string[] = [];
@@ -54,6 +55,17 @@ function receiver(options: {
       });
     if (a[0] === 'pr' && a[1] === 'create')
       return 'https://github.com/o/r/pull/7\n';
+    if (
+      a[0] === 'pr' &&
+      a[1] === 'merge' &&
+      a.includes('--auto') &&
+      options.autoRefusal
+    )
+      throw new CommandFailure({
+        code: 1,
+        stdout: '',
+        stderr: options.autoRefusal,
+      });
     if (a[0] === 'pr') return '';
     if (a[1] === 'repos/o/r/pulls/7') {
       const next = pulls.length > 1 ? pulls.shift() : pulls[0];
@@ -647,3 +659,20 @@ for (const declared of [true, false]) {
       });
   });
 }
+
+test('a base without a required check merges the clean PR directly when auto-merge is refused', async () => {
+  const r = receiver({
+    pulls: [merged],
+    autoRefusal:
+      'GraphQL: Pull request Pull request is in clean status (enablePullRequestAutoMerge)',
+  });
+  const out = await shipCommand(args, r);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  assert.ok(r.calls.includes('gh pr merge 7 --repo o/r --squash'));
+});
+
+test('any other auto-merge refusal still fails the ship', async () => {
+  const r = receiver({ pulls: [merged], autoRefusal: 'GraphQL: not allowed' });
+  await assert.rejects(shipCommand(args, r), /not allowed/u);
+  assert.ok(!r.calls.includes('gh pr merge 7 --repo o/r --squash'));
+});
