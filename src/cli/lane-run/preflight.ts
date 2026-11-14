@@ -129,6 +129,11 @@ export function prepareWorktree(
 ): { detail: string; exitCode: number } | undefined {
   const contract = findContract(worktree)?.contract;
   if (contract === undefined) return undefined;
+  if (contract.vacuous)
+    return {
+      detail: `vacuous test command: ${contract.test} runs no real test, so a green run proves nothing; add one real test and a test command (krn.json "test", drop "vacuous"); no session started`,
+      exitCode: exitRedBaseline,
+    };
   const execute = (command: string) =>
     spawnSync(command, {
       cwd: worktree,

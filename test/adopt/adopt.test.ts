@@ -122,7 +122,7 @@ test('adopt rerun changes nothing and keeps existing instructions', () => {
   assert.equal(again.status, 0, again.stderr);
   assert.doesNotMatch(again.stdout, /^wrote /mu);
   assert.equal(readFileSync(join(root, 'AGENTS.md'), 'utf8'), first);
-  assert.equal(readdirSync(join(root, 'tasks')).length, 1);
+  assert.equal(readdirSync(join(root, 'tasks')).length, 2);
 });
 
 test('adopt refuses a path that is not a git repository and a ref that is not a sha', () => {
@@ -246,7 +246,7 @@ test('adopt on an npm repository detects its runner, seeds the tracker on reques
   assert.doesNotMatch(again.stdout, /^wrote /mu);
 });
 
-test('adopt merges the Stop hook into existing settings and skips krn.json when no test command is known', () => {
+test('adopt merges the Stop hook into existing settings and writes a vacuous krn.json when no test command is known', () => {
   const root = scratch();
   mkdirSync(join(root, '.claude'));
   writeFileSync(
@@ -255,8 +255,7 @@ test('adopt merges the Stop hook into existing settings and skips krn.json when 
   );
   const run = adoptArgs(root);
   assert.equal(run.status, 0, run.stderr);
-  assert.match(run.stdout, /^skipped krn\.json/mu);
-  assert.equal(existsSync(join(root, 'krn.json')), false);
+  assert.match(run.stdout, /^wrote krn\.json/mu);
   const settings = JSON.parse(
     readFileSync(join(root, '.claude/settings.json'), 'utf8'),
   );
@@ -548,4 +547,64 @@ test('adopt installs the worker guards and each installed guard refuses a probe 
     readFileSync(join(root, '.claude/settings.json'), 'utf8'),
   ) as typeof settings;
   assert.equal(again.hooks.PreToolUse.length, settings.hooks.PreToolUse.length);
+});
+
+function firstTask(root: string): { title: string; status: string } {
+  const files = readdirSync(join(root, 'tasks'));
+  assert.equal(files.length, 1);
+  return JSON.parse(
+    readFileSync(join(root, 'tasks', files[0] as string), 'utf8'),
+  );
+}
+
+test('adopt on a repository without a test command marks the contract vacuous and seeds the first test task', () => {
+  const root = scratch();
+  const run = adoptArgs(root);
+  assert.equal(run.status, 0, run.stderr);
+  const { contract } = contractOf(root) as unknown as {
+    contract: { vacuous?: boolean; tracker: string };
+  };
+  assert.equal(contract.vacuous, true);
+  assert.equal(contract.tracker, 'krn');
+  const task = firstTask(root);
+  assert.equal(task.title, 'one real test and a test command');
+  assert.equal(task.status, 'open');
+});
+
+test('adopt on a workspace whose members have no tests marks the contract vacuous and seeds the first test task', () => {
+  const root = scratch();
+  writeFileSync(
+    join(root, 'package.json'),
+    JSON.stringify({ private: true, workspaces: ['packages/*'] }),
+  );
+  mkdirSync(join(root, 'packages/a'), { recursive: true });
+  writeFileSync(join(root, 'packages/a/package.json'), '{"name":"a"}');
+  const run = adoptArgs(root);
+  assert.equal(run.status, 0, run.stderr);
+  const { contract } = contractOf(root) as unknown as {
+    contract: { vacuous?: boolean; test: string };
+  };
+  assert.equal(contract.test, 'npm test --workspaces --if-present');
+  assert.equal(contract.vacuous, true);
+  assert.equal(firstTask(root).title, 'one real test and a test command');
+});
+
+test('adopt on a workspace with a member test script stays non-vacuous and seeds no test task', () => {
+  const root = scratch();
+  writeFileSync(
+    join(root, 'package.json'),
+    JSON.stringify({ private: true, workspaces: ['packages/*'] }),
+  );
+  mkdirSync(join(root, 'packages/a'), { recursive: true });
+  writeFileSync(
+    join(root, 'packages/a/package.json'),
+    JSON.stringify({ name: 'a', scripts: { test: 'node --test' } }),
+  );
+  const run = adoptArgs(root);
+  assert.equal(run.status, 0, run.stderr);
+  const { contract } = contractOf(root) as unknown as {
+    contract: { vacuous?: boolean };
+  };
+  assert.equal(contract.vacuous, undefined);
+  assert.equal(existsSync(join(root, 'tasks')), false);
 });

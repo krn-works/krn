@@ -1,7 +1,11 @@
 {
   "id": "t-82d6fvs",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "vacuous contract flag, adopt first test task, Stop gate and lane run refuse vacuous green"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "Adopting a repository without tests creates a first task for one real test and refuses vacuous green",

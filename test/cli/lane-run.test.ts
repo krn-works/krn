@@ -1693,6 +1693,18 @@ test('a red baseline reruns only its failing test files once and passes when the
   }
 });
 
+test('a vacuous test command refuses the lane before the session with 72', () => {
+  const { base, repo } = flakyBaseline('pass');
+  try {
+    writeFileSync(join(repo, 'krn.json'), '{"test":"exit 0","vacuous":true}\n');
+    const refusal = prepareWorktree(repo, 'main', repo);
+    assert.equal(refusal?.exitCode, 72);
+    assert.match(refusal?.detail ?? '', /vacuous/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('a red baseline whose failing files fail again refuses with 72 and names them', () => {
   const { base, repo } = flakyBaseline('fail');
   try {

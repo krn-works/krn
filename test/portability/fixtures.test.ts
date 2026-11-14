@@ -198,13 +198,13 @@ for (const branch of ['master', 'develop']) {
   });
 }
 
-test('fixture 9: a repository with no stack adopts without a contract', () => {
+test('fixture 9: a repository with no stack adopts with a vacuous contract', () => {
   withRepository({ 'README.md': '# notes\n' }, (root) => {
     const done = adopt(root);
-    assert.match(done.stdout, /skipped krn\.json \(no test command detected/u);
+    assert.match(done.stdout, /wrote krn\.json/u);
     const contract = krn(root, 'repo', 'contract');
-    assert.equal(contract.status, 65);
-    assert.match(contract.stderr, /no test command/u);
+    assert.equal(contract.status, 0, contract.stderr);
+    assert.equal(JSON.parse(contract.stdout).contract.vacuous, true);
   });
 });
 

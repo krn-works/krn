@@ -636,6 +636,12 @@ function inspectTests(
       ignored: 0,
       reason: `the repo contract is invalid (${error}). Fix krn.json and commit, or end with a line \`BLOCKER: <what stops you>\`.`,
     };
+  if (contract?.vacuous)
+    return {
+      ok: false,
+      ignored: 0,
+      reason: `the repo contract marks the test command vacuous (${contract.test} runs no real test), so green proves nothing. Add one real test and a test command that runs it (krn.json "test", drop "vacuous"), commit, or end with a line \`BLOCKER: <what stops you>\`.`,
+    };
   const from = base(root, contract);
   const named = contract?.base ?? 'main';
   if (!from)

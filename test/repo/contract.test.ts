@@ -348,3 +348,40 @@ test('krn.json naming its own test command never inherits the detected install',
   );
   assert.equal(contract.install, undefined);
 });
+
+test('a workspace fallback with no member test script is vacuous, one with a member test is not', () => {
+  const none = fixture({
+    'package.json': '{"workspaces":["packages/*"]}',
+    'packages/a/package.json': '{"name":"a"}',
+    'packages/b/package.json':
+      '{"scripts":{"test":"echo \\"Error: no test specified\\" && exit 1"}}',
+  });
+  assert.equal(resolveContract(none).contract.vacuous, true);
+  const some = fixture({
+    'package.json': '{"workspaces":["packages/*"]}',
+    'packages/a/package.json': '{"scripts":{"test":"node --test"}}',
+  });
+  assert.equal(resolveContract(some).contract.vacuous, undefined);
+  const pnpm = fixture({
+    'package.json': '{"private":true}',
+    'pnpm-workspace.yaml': 'packages:\n  - "packages/*"\n',
+    'packages/a/package.json': '{"scripts":{"test":"vitest run"}}',
+  });
+  assert.equal(resolveContract(pnpm).contract.vacuous, undefined);
+});
+
+test('krn.json may declare vacuous, and a declared test command is never marked vacuous by detection', () => {
+  assert.equal(
+    parseContractFile('{"test":"exit 1","vacuous":true}').vacuous,
+    true,
+  );
+  assert.throws(
+    () => parseContractFile('{"test":"t","vacuous":"yes"}'),
+    ContractError,
+  );
+  const declared = fixture({
+    'krn.json': '{"test":"make check"}',
+    'package.json': '{"workspaces":["packages/*"]}',
+  });
+  assert.equal(resolveContract(declared).contract.vacuous, undefined);
+});
