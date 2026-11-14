@@ -55,8 +55,14 @@ export async function dispatch(args: string[]): Promise<boolean> {
     const { adoptCommand } = await import('./adopt.ts');
     adoptCommand(options);
   } else if (command === 'doctor') {
-    const pin = await import('./entry-pin.ts');
-    const report = pin.doctorReport(pin.configuredEntryRoot());
+    let report: { text: string; exitCode: number };
+    if (options.includes('--unattended')) {
+      const { unattendedReport } = await import('./doctor-unattended.ts');
+      report = unattendedReport(options);
+    } else {
+      const pin = await import('./entry-pin.ts');
+      report = pin.doctorReport(pin.configuredEntryRoot());
+    }
     process.stdout.write(report.text);
     process.exitCode = report.exitCode;
   } else if (command === 'standards') {

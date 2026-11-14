@@ -1,7 +1,11 @@
 {
   "id": "t-2zchmfk",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn doctor --unattended: mint probe (69) and bw serve session age vs window (75); drain command does not exist yet, so it is wired by t-mmbx0zw"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "krn doctor --unattended checks App token mint and vault session expiry before unattended work",

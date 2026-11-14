@@ -5,7 +5,7 @@ Before calling anything foreign, unknown or missing, grep this index and src.
 krn task <ready|claim|show|list|create|edit|comment|dep|close|release|check> [...]: repository work tracker; `krn task` 
 krn ledger [--since YYYY-MM-DD] [--pr N] [--limit N] [--repo OWNER/REPO] [--root DIR] [--transcripts DIR] [--json]: outc
 krn standards check|propose|harvest [...]: check [--root DIR]: run the enforcement of every standard that applies to a r
-krn doctor: reports the host `krn task` entry, its commit and origin/main; exit 78 when stale or unpinned
+krn doctor: reports the host `krn task` entry, its commit and origin/main; exit 78 when stale or unpinned; `krn doctor -
 krn state check|resume|set|accept|handoff|retro [--root DIR]: delivery-loop capsule check, resume brief and writers; che
 krn lane start|run|drop|brief [...]: run: start the lane, run one headless claude session on a task, ship the commit (ex
 krn decide add|list|close [...]: operator decisions: rows with a recommendation, a default and a deadline under .krn/ope
@@ -38,6 +38,7 @@ src/cli/adopt.ts: `krn adopt <path>`: write the adoption set into a named reposi
 src/cli/ci.ts: (no header) exports ciCommand
 src/cli/command-error.ts: (no header) exports commandErrorExitCode
 src/cli/decide.ts: Operator decisions: rows with a recommendation, a default and a deadline.
+src/cli/doctor-unattended.ts: (no header) exports exitMintFailed, exitVaultShort, exitUsage, ProbeResult
 src/cli/entry-pin.ts: Product entry pin: which commit the host's `krn task` entry runs, and whether it matches origin/ma
 src/cli/flag-value.ts: Reads the value that follows the flag at `index`. Only an absent argument is missing: free-text v
 src/cli/help.ts: Usage text for the commands this CLI owns.
