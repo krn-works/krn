@@ -1,6 +1,6 @@
 // Grade every run of every arm of the D23 v2 comparison and print the repeated-run report.
 // Usage: node evals/d23/runs.ts --units-file <file> --results <dir holding run1..runN> --classify <dir of <pr>.classify.json> --out <dir>
-//   [--confirmatory --prereg <file> --prereg-sha256 <hex>] [--arms K,P,PB] [--runs 3] [--harness-ref <sha>] [--jobs 8] [--work <dir>] [--no-full]
+//   [--confirmatory --prereg <file> --prereg-sha256 <hex>] [--arms K,P,PB,KT] [--runs 3] [--harness-ref <sha>] [--jobs 8] [--work <dir>] [--no-full]
 // Offline: reads <results>/run<r>/<pr>.<arm>.patch|files|claude.json, never starts a model session.
 // Resumes from <out>/<pr>.<arm>.<r>.json; a run without a finished .meas is skipped, not graded as a failure.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -26,6 +26,14 @@ const arg = (name: string, fallback: string) => {
   const i = process.argv.indexOf(`--${name}`);
   return (i > 0 ? process.argv[i + 1] : undefined) ?? fallback;
 };
+
+/** Arms of the comparison; KT is K plus the test-first Stop rule, exploratory (preregistration.md). */
+export const ARMS = ['K', 'P', 'PB', 'KT'];
+
+/** Environment a session of this arm starts with: only KT turns the test-first Stop rule on. */
+export function armEnv(arm: string): Record<string, string> {
+  return arm === 'KT' ? { KRN_TEST_FIRST: '1' } : {};
+}
 
 export interface RunFacts {
   finished: boolean;
@@ -102,6 +110,13 @@ async function main() {
   const results = resolve(arg('results', ''));
   const classifyDir = resolve(arg('classify', ''));
   const arms = arg('arms', 'K,P,PB').split(',');
+  const unknown = arms.filter((a) => !ARMS.includes(a));
+  if (unknown.length > 0) {
+    process.stderr.write(
+      `unknown arm ${unknown.join(',')}; arms are ${ARMS.join(',')}\n`,
+    );
+    process.exit(64);
+  }
   const runs = Number(arg('runs', '3'));
   const jobs = Number(arg('jobs', '8'));
   const work = resolve(arg('work', '/mnt/storage/tmp/d23-runs'));

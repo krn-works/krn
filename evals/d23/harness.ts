@@ -134,14 +134,18 @@ export function harnessPlan(
  * AGENTS.md as a worker sees it: the ref's rule registry without lead and governance rules (`audience: lead`)
  * and without the lead's workflow paragraph. A ref without a registry keeps its own file.
  */
-export function workerAgents(repo: string, ref: string): string {
+export function workerAgents(
+  repo: string,
+  ref: string,
+  testFirst = process.env.KRN_TEST_FIRST === '1',
+): string {
   try {
     const { rules } = JSON.parse(
       git(repo, 'show', `${ref}:spec/rules.json`),
     ) as {
       rules: Rule[];
     };
-    return render(workerRules(rules), true);
+    return render(workerRules(rules, testFirst), true);
   } catch {
     return git(repo, 'show', `${ref}:AGENTS.md`);
   }

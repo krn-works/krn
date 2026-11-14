@@ -194,3 +194,10 @@ test('a session that ended on an auth error is not graded as an outcome', () => 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('arm KT is a known arm and alone sets KRN_TEST_FIRST for its session', async () => {
+  const { ARMS, armEnv } = await import('../../evals/d23/runs.ts');
+  assert.ok(ARMS.includes('KT'));
+  assert.deepEqual(armEnv('KT'), { KRN_TEST_FIRST: '1' });
+  for (const arm of ['K', 'P', 'PB']) assert.deepEqual(armEnv(arm), {});
+});

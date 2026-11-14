@@ -382,3 +382,66 @@ test('arm PB gets the same requirements text as K, P gets the base text, and a r
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+for (const [arm, expected] of [
+  ['KT', '1'],
+  ['K', 'unset'],
+] as const) {
+  test(`replay of arm ${arm} starts the session with KRN_TEST_FIRST ${expected}`, () => {
+    const root = mkdtempSync(join(tmpdir(), 'd23-replay-'));
+    try {
+      const repo = join(root, 'repo');
+      const git = (...a: string[]) =>
+        execFileSync('git', a, { cwd: repo, encoding: 'utf8' }).trim();
+      mkdirSync(join(repo, 'tasks'), { recursive: true });
+      mkdirSync(join(repo, 'bin'));
+      execFileSync('git', ['init', '-q', '-b', 'main', repo]);
+      git('config', 'user.name', 't');
+      git('config', 'user.email', 't@invalid');
+      writeFileSync(
+        join(repo, 'package.json'),
+        '{"scripts":{"test":"true"}}\n',
+      );
+      // The K arm builds its prompt through the clone's own `krn lane brief`: a stand-in that echoes stdin.
+      writeFileSync(join(repo, 'bin/krn'), '#!/usr/bin/env bash\ncat\n');
+      chmodSync(join(repo, 'bin/krn'), 0o755);
+      git('add', '.');
+      git('commit', '-qm', 'parent');
+      writeFileSync(
+        join(repo, 'tasks/t-abc1234.json'),
+        JSON.stringify({ id: 't-abc1234', title: 'Fix it', body: ['Do it.'] }),
+      );
+      git('add', '.');
+      git('commit', '-qm', 'fix(x): it is fixed (t-abc1234) (#7)');
+      const bin = join(root, 'bin');
+      mkdirSync(bin);
+      const seen = join(root, 'seen');
+      writeFileSync(
+        join(bin, 'claude'),
+        `#!/usr/bin/env bash
+echo "\${KRN_TEST_FIRST-unset}" > ${seen}
+echo x > made.txt; git add made.txt; git commit -qm "feat: made (t-abc1234)"
+echo '{"session_id":"s"}'
+`,
+      );
+      chmodSync(join(bin, 'claude'), 0o755);
+      const out = join(root, 'out');
+      const r = spawnSync('bash', [replay, '7', arm], {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          PATH: `${bin}:${process.env.PATH}`,
+          REPO: repo,
+          OUT: out,
+          D23_TMP: join(root, 'work'),
+          HOME: join(root, 'home'),
+          KRN_TEST_FIRST: undefined,
+        },
+      });
+      assert.equal(r.status, 0, r.stderr);
+      assert.equal(readFileSync(seen, 'utf8').trim(), expected);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+}

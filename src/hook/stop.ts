@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import {
+  copyFileSync,
   type Dirent,
   existsSync,
   lstatSync,
@@ -12,7 +13,7 @@ import {
   symlinkSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, posix, resolve } from 'node:path';
+import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   ContractError,
@@ -558,6 +559,74 @@ export function inspect(
   run: Runner = runTests,
   shell: CommandRunner = runCommand,
   env: NodeJS.ProcessEnv = process.env,
+): Outcome & { ignored: number; modified?: string[] } {
+  const outcome = inspectTests(root, run, shell, env);
+  if (!outcome.ok || env.KRN_TEST_FIRST !== '1') return outcome;
+  const { contract } = loadContract(root);
+  const reason = testFirstRefusal(
+    root,
+    base(root, contract),
+    run,
+    shell,
+    contract,
+  );
+  return reason === undefined ? outcome : { ...outcome, ok: false, reason };
+}
+
+/**
+ * Test-first arm (KRN_TEST_FIRST=1): at least one changed test file must fail against the base source
+ * with the head test file in place, and pass on head. The base run happens in a detached worktree.
+ */
+function testFirstRefusal(
+  root: string,
+  from: string,
+  run: Runner,
+  shell: CommandRunner,
+  contract?: RepoContract,
+): string | undefined {
+  const rule =
+    'Test-first rule (KRN_TEST_FIRST): a changed test must fail against the base source and pass on your commit.';
+  const changed = changedSinceBase(root, from).filter(
+    (path) => isTestFile(path) && existsSync(join(root, path)),
+  );
+  const runFile = (dir: string, file: string): string[] =>
+    LEGACY_TEST.test(file) || !contract
+      ? run(dir, [file])
+      : shell(
+          dir,
+          relatedCommand(
+            contract,
+            withinPackage(contract.related ?? '', [file]),
+          ),
+        );
+  const red = new Set<string>();
+  if (changed.length > 0)
+    failuresAtBase(root, from, (dir) => {
+      for (const file of changed) {
+        mkdirSync(dirname(join(dir, file)), { recursive: true });
+        copyFileSync(join(root, file), join(dir, file));
+        if (runFile(dir, file).length > 0) red.add(file);
+      }
+      return [];
+    });
+  const proven = changed.find(
+    (file) => red.has(file) && runFile(root, file).length === 0,
+  );
+  if (proven !== undefined) return undefined;
+  const why =
+    changed.length === 0
+      ? 'no test file changed on this branch'
+      : red.size === 0
+        ? `no changed test fails at the base (${changed.slice(0, SHOWN).join(', ')})`
+        : `the tests that fail at the base do not pass on your commit (${[...red].slice(0, SHOWN).join(', ')})`;
+  return `${rule} ${why}. Commit a test that is red at the base and green on your fix, or end with a line \`BLOCKER: <what stops you>\`.`;
+}
+
+function inspectTests(
+  root: string,
+  run: Runner,
+  shell: CommandRunner,
+  env: NodeJS.ProcessEnv,
 ): Outcome & { ignored: number; modified?: string[] } {
   const { contract, error } = loadContract(root);
   if (error)

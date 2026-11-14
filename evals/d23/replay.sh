@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# usage: replay.sh <pr> <K|P|PB>   one arm of one unit, then its measures
+# usage: replay.sh <pr> <K|KT|P|PB>   one arm of one unit, then its measures
 # P is the plain clone, PB the plain clone given the same requirements text K gets, K the KRN product.
 # RUN names a repeat: results land in $OUT/run$RUN; work dirs carry it so repeats can run side by side.
 # IFACE: text appended for K and PB; IFACE_BASE (default IFACE): text appended for P.
@@ -16,6 +16,8 @@ OUT=${OUT:-$REPO/.krn/runs/d23-comparison/results}
 # HARNESS_REF: K runs on that ref's harness files minus the ones the PR changed (evals/d23/harness.ts), committed as its base.
 mkdir -p $OUT
 n=$1; arm=$2; tag=$n.$arm
+# KT is arm K plus the test-first Stop rule (exploratory arm): every K branch below keys on $kind.
+kind=$arm; if [ $arm = KT ]; then kind=K; export KRN_TEST_FIRST=1; else unset KRN_TEST_FIRST; fi
 sha=$(git -C $REPO log --first-parent --format='%H %s' | grep -E "\(#$n\)\$" | cut -d' ' -f1)
 parent=$(git -C $REPO rev-parse $sha^)
 task=$(git -C $REPO log -1 --format=%s $sha | grep -oE 't-[a-z0-9]{7}' | tail -1)
@@ -25,14 +27,14 @@ git -C $REPO show $sha:tasks/$task.json | python3 -c '
 import json,sys
 t=json.load(sys.stdin)
 print("Task %s: %s\n\n%s" % (t["id"],t["title"],"\n".join(t["body"])))' > $OUT/$tag.task.txt
-text=${IFACE:-}; [ $arm = P ] && text=${IFACE_BASE:-${IFACE:-}}
+text=${IFACE:-}; [ $kind = P ] && text=${IFACE_BASE:-${IFACE:-}}
 if [ -n "$text" ] && [ -f "$text/$n.txt" ]; then cat "$text/$n.txt" >> $OUT/$tag.task.txt; fi
 # Both arms get the whole history up to the parent and nothing after it: the fetch names only the parent.
 cd $D && git init -q . && git fetch -q file://$REPO $parent && git checkout -q FETCH_HEAD && git checkout -q -b replay
 git config user.name replay; git config user.email replay@invalid
 ln -s $REPO/node_modules node_modules
 base=$parent
-if [ $arm != K ]; then
+if [ $kind != K ]; then
   git rm -rq --ignore-unmatch .claude .agents CLAUDE.md AGENTS.md && git commit -qm "strip harness files" && base=$(git rev-parse HEAD)
   export PATH=$WORK/shim:$PATH
   prompt="You are working in this repository clone (no remote; do not try to push or open a PR). Deliver this task: $(cat $OUT/$tag.task.txt)
@@ -123,7 +125,7 @@ echo "outscope: $(grep -E '^(tasks/|docs/program/roadmap.md|\.claude/|\.agents/|
 own=$(grep -E '^test/.*\.test\.' $OUT/$tag.files | grep -v '^$')
 echo "own_tests: $(echo $own)" >> $OUT/$tag.meas
 # gate runs on the commit with stripped harness files restored (arm P deleted them only as an arm treatment)
-[ $arm != K ] && git checkout -q $parent -- .claude .agents CLAUDE.md AGENTS.md 2>/dev/null
+[ $kind != K ] && git checkout -q $parent -- .claude .agents CLAUDE.md AGENTS.md 2>/dev/null
 if [ -n "$own" ]; then node --test --test-concurrency=1 $own > $OUT/$tag.own.log 2>&1; echo "own_exit=$?" >> $OUT/$tag.meas; else echo own_exit=none >> $OUT/$tag.meas; fi
 # no full suite here: runs.ts grades every run on the hidden tests and the full suite; a serialized npm test per run halved throughput
 # noise from transcript
