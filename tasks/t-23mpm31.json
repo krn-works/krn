@@ -1,7 +1,11 @@
 {
   "id": "t-23mpm31",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship runs Proof commands with PR_BODY set from --body-file, as CI does; proven with the real weak-tests script over a weakening commit"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "Ship's pre-push check reads the PR body's Weakens-tests line",

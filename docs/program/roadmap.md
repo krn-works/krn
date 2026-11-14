@@ -6,7 +6,6 @@ Generated from the open tasks in `tasks/` by `node scripts/claude/roadmap-prune.
 |---|---|---|---|
 | t-db6tyeb | 1 | Twenty tasks are delivered by record and the lead-cost verdict is recorded | the lead costs $0.87 per PR over 18.6 turns (`krn ledger --last 20`); the task-record shape is unproven on live delivery. |
 | t-1y29yhq | 2 | FR-40 arm C measures the conventions packet against the instruction file alone | memory audit: FR-40 compared packet vs none and vs static standards, never vs the repository instruction file alone, which already carries most rules (lanes arm A 75%). |
-| t-23mpm31 | 2 | Ship's pre-push check reads the PR body's Weakens-tests line | on 2026-11-14 the t-kynrffp lane's bin/krn pr ship exited 81 at the pre-push fast run on weak-tests although the PR body carried a Weakens-tests: line; it passed only after the lane exported PR_BODY … |
 | t-czn62h3 | 2 | A worker proves a failing reproduction test before its fix and ends on green | Agentless reproduction+regression selection 25.67 -> 32.0; TestPrune +4.8 pp; R2E-Gym verifier 42.9 -> 51.0 (papers.md). A red test, not tracker state, defines done. |
 | t-5wzk8zf | 3 | One refactor pass removes duplicated helpers, unchecked JSON boundaries, scripts logic and cli cycles after the adoption census | Fable plan 1114c merged t-rd8zndx, t-x4yx6df, t-x7nqpz9, t-mcfrwdf and t-15w1zrz into one refactor held until the adoption census shows which seams outside repositories stress. |
 | t-aj36bdz | 3 | Mutation samples run on a schedule over the touched critical modules | ARCH:177, DEC:90 |
