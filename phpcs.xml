@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<ruleset name="antispam-lite">
+  <description>WPCS + PSR-12 (bez kolizji) dla wtyczki.</description>
+
+  <!-- WordPress Coding Standards -->
+  <rule ref="WordPress-Core" />
+  <rule ref="WordPress-Extra" />
+  <rule ref="WordPress-Docs" />
+
+  <!-- PSR-12 removed to avoid conflicts with WPCS function call spacing -->
+
+  <!-- Accept Windows line endings in working tree -->
+  <rule ref="Generic.Files.LineEndings">
+    <properties>
+      <property name="eolChar" value="\r\n"/>
+    </properties>
+  </rule>
+
+  <!-- Permit spaces indentation (don't force tabs) -->
+  <rule ref="Generic.WhiteSpace.DisallowSpaceIndent">
+    <severity>0</severity>
+  </rule>
+
+  <!-- Allow skipping nonce verification for this plugin's simple honeypot -->
+  <rule ref="WordPress.Security.NonceVerification.Missing">
+    <severity>0</severity>
+  </rule>
+
+  <arg name="basepath" value="."/>
+  <file>./</file>
+  <exclude-pattern>vendor/*</exclude-pattern>
+</ruleset>

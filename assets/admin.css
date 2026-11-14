@@ -1,0 +1,82 @@
+/* Rekurencja Antyspam – admin bento grid */
+.asl-grid {
+	display: grid;
+	grid-template-columns: repeat(12, 1fr);
+	gap: 16px;
+	margin-top: 12px;
+}
+
+/* Treat any direct child as a card for flexibility */
+.asl-card,
+.asl-grid > * {
+	background: #fff;
+	border: 1px dashed #b9c5b2;
+	border-radius: 14px;
+	padding: 16px;
+	box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.asl-card h2,
+.asl-card h3 {
+	margin-top: 0;
+}
+
+/* Olive → mint theme shades */
+.asl-theme-soft { background: #f3f7f1; }
+.asl-theme-light { background: #eef6ea; }
+.asl-theme-accent { background: #e5f1df; }
+
+/* Spans for 12-col grid */
+.asl-span-12 { grid-column: span 12; }
+.asl-span-8 { grid-column: span 8; }
+.asl-span-6 { grid-column: span 6; }
+.asl-span-4 { grid-column: span 4; }
+.asl-span-3 { grid-column: span 3; }
+.asl-span-2 { grid-column: span 2; }
+
+@media (max-width: 1024px) {
+	.asl-span-8 { grid-column: span 6; }
+	.asl-span-6 { grid-column: span 6; }
+	.asl-span-4 { grid-column: span 6; }
+	.asl-span-3 { grid-column: span 3; }
+}
+@media (max-width: 782px) {
+	.asl-span-12, .asl-span-8, .asl-span-6, .asl-span-4, .asl-span-3, .asl-span-2 { grid-column: span 12; }
+}
+
+/* Dotted dividers inside cards */
+.asl-divider { border-top: 1px dotted #b9c5b2; margin: 12px 0; }
+
+/* Compact label controls */
+.asl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 782px) { .asl-row { grid-template-columns: 1fr; } }
+
+/* Tables inside cards */
+.asl-grid table.widefat {
+	margin: 0;
+}
+
+/* Inputs fill the card width nicely */
+.asl-card input[type="number"],
+.asl-card textarea {
+	width: 100%;
+}
+
+/* Collapsible language table */
+.asl-collapsible {
+	position: relative;
+}
+.asl-collapsible .asl-caret {
+	position: absolute; right: 12px; top: 12px; cursor: pointer; opacity: .6;
+}
+.asl-collapsible.collapsed .asl-collapsible-body { display: none; }
+.asl-collapsible .asl-collapsible-header { padding-right: 28px; }
+
+/* Tabs for language selection */
+.asl-tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.asl-tab { padding: 6px 10px; border: 1px solid #b9c5b2; border-radius: 999px; cursor: pointer; background: #fff; }
+.asl-tab.active { background: #e5f1df; }
+
+/* Hide long lists by default inside a scrollbox with smooth expand */
+.asl-scrollbox { max-height: 220px; overflow: auto; background: #f8fbf6; border: 1px solid #e3eadf; padding: 8px; border-radius: 8px; }
+
