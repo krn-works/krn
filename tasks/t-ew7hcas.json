@@ -1,0 +1,16 @@
+{
+  "id": "t-ew7hcas",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "baseline, final-tree and Stop-gate test runs rerun failing files once; passes are recorded as flaky"
+  },
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Lane runs rerun failing test files once and record flaky tests instead of a red base",
+  "after": [],
+  "body": [
+    "Why: pilot lanes in seo-audit-harness exited 72/73/74 on load-dependent 5000 ms test timeouts (tests/cli/url-language.test.ts; .krn/runs/units-ts/lanes/*.run1.log); reruns merged. KRN cannot tell a flaky test from a red base or a broken change, so unattended drains stop on host load.\nOutcome: when the baseline or the final-tree test run fails, krn lane run reruns only the failing test files once; a failure that passes on rerun is recorded as flaky (named in the lane summary and PR body) and does not count as red; a failure that repeats stays red. The same rule applies to the Stop gate's related-test run.\nProof: tests with a stubbed test runner (fail-then-pass is flaky, fail-fail is red); npm run fast PASS."
+  ]
+}

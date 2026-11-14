@@ -37,6 +37,7 @@ import {
   remoteFailure,
   rerunCommand,
   settingsFailure,
+  settledRun,
 } from '../../src/cli/lane-run/preflight.ts';
 import {
   redCheckFile,
@@ -1687,10 +1688,35 @@ test('a red baseline reruns only its failing test files once and passes when the
   // Seen on the pilot: lanes run one at a time still refused with 72 while the suite passed by hand.
   const { base, repo } = flakyBaseline('pass');
   try {
-    assert.equal(prepareWorktree(repo, 'main', repo), undefined);
+    const flaky: string[] = [];
+    assert.equal(prepareWorktree(repo, 'main', repo, flaky), undefined);
+    assert.deepEqual(flaky, ['test/flaky.test.ts']);
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
+});
+
+test('settledRun: fail then pass is flaky, fail then fail stays red, a nameless failure is not rerun', () => {
+  const failed = { status: 1, stdout: ' FAIL  test/a.test.ts > slow\n' };
+  const commands: string[] = [];
+  const stub = (results: Array<{ status: number; stdout: string }>) => {
+    commands.length = 0;
+    return (command: string) => {
+      commands.push(command);
+      return results.shift() as { status: number; stdout: string };
+    };
+  };
+  const pass = { status: 0, stdout: '' };
+  const flaky = settledRun(stub([failed, pass]), 'node t.mjs');
+  assert.equal(flaky.run.status, 0);
+  assert.deepEqual(flaky.flaky, ['test/a.test.ts']);
+  assert.deepEqual(commands, ['node t.mjs', "node t.mjs 'test/a.test.ts'"]);
+  const red = settledRun(stub([failed, failed]), 'node t.mjs');
+  assert.equal(red.run.status, 1);
+  assert.deepEqual(red.flaky, []);
+  const nameless = settledRun(stub([{ status: 2, stdout: 'boom' }]), 'x');
+  assert.equal(nameless.run.status, 2);
+  assert.equal(commands.length, 1);
 });
 
 test('a vacuous test command refuses the lane before the session with 72', () => {

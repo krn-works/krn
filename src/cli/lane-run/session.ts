@@ -30,6 +30,8 @@ export interface SessionOutcome {
   result: SessionResult;
   refusal: { detail: string; exitCode: number } | undefined;
   notStarted: boolean;
+  /** Baseline test files that failed, then passed on a rerun. */
+  flaky: string[];
 }
 
 /** Stage three: spawn the headless session in the lane worktree and read its result. */
@@ -94,6 +96,7 @@ export function runSession(lane: PreparedLane): SessionOutcome {
     result,
     refusal: undefined,
     notStarted: session.error !== undefined && !timedOut,
+    flaky: [],
   };
 }
 
@@ -109,7 +112,9 @@ export function sessionStage(lane: PreparedLane): SessionOutcome {
       },
       refusal: undefined,
       notStarted: false,
+      flaky: [],
     };
+  const flaky: string[] = [];
   const unusable = settingsFailure(laneSandboxSettings(worktree));
   const refusal =
     unusable !== undefined
@@ -117,12 +122,13 @@ export function sessionStage(lane: PreparedLane): SessionOutcome {
           detail: `preflight: ${unusable}; no session started`,
           exitCode: exitCredentialUnavailable,
         }
-      : prepareWorktree(worktree, base, main);
+      : prepareWorktree(worktree, base, main, flaky);
   if (refusal !== undefined)
     return {
       result: { ok: false, detail: refusal.detail, cost: undefined },
       refusal,
       notStarted: false,
+      flaky,
     };
-  return runSession(lane);
+  return { ...runSession(lane), flaky };
 }

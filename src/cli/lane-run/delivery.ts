@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { findContract } from '../../repo/contract.ts';
 import { fastCheck } from './environment.ts';
+import { settledRun } from './preflight.ts';
 import { failedCheckDetail } from './red-check.ts';
 
 /** The subject of the session's commit that carries the task's Ticket trailer, else undefined. */
@@ -93,7 +94,7 @@ export function goalPrBody(
 export function contractVerification(
   worktree: string,
   logPath: string,
-): { verified: string } | { failure: string } | undefined {
+): { verified: string; flaky: string[] } | { failure: string } | undefined {
   const contract = findContract(worktree)?.contract;
   if (contract === undefined) return undefined;
   if (contract.vacuous)
@@ -101,15 +102,19 @@ export function contractVerification(
       failure: `the test command ${contract.test} is vacuous (runs no real test), so its pass is not a proof`,
     };
   const command = contract.fast ?? contract.test;
-  const run = spawnSync(command, {
-    cwd: worktree,
-    shell: true,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-    timeout: 30 * 60 * 1000,
-  });
+  const { run, flaky } = settledRun(
+    (line) =>
+      spawnSync(line, {
+        cwd: worktree,
+        shell: true,
+        encoding: 'utf8',
+        maxBuffer: 64 * 1024 * 1024,
+        timeout: 30 * 60 * 1000,
+      }),
+    command,
+  );
   if (run.status === 0)
-    return { verified: `${command} PASS on the final tree` };
+    return { verified: `${command} PASS on the final tree`, flaky };
   const output = `${run.stdout ?? ''}${run.stderr ?? ''}`;
   mkdirSync(dirname(logPath), { recursive: true });
   writeFileSync(logPath, output);

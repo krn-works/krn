@@ -77,11 +77,28 @@ export async function laneVerdict(
             join(main, '.krn', 'tmp', `lane-run-${slug}-check.log`),
           )
         : undefined;
-    const verified =
+    // Flaky: test files that failed, then passed on one rerun; named in the summary and the PR body.
+    const flaky = [
+      ...new Set([
+        ...outcome.flaky,
+        ...(contractCheck !== undefined && 'verified' in contractCheck
+          ? contractCheck.flaky
+          : []),
+      ]),
+    ];
+    const flakyNote =
+      flaky.length === 0
+        ? ''
+        : `flaky (failed, then passed on rerun): ${flaky.join(', ')}`;
+    const proof =
       session ??
       (contractCheck !== undefined && 'verified' in contractCheck
         ? contractCheck.verified
         : undefined);
+    const verified =
+      proof === undefined || flakyNote === ''
+        ? proof
+        : `${proof}; ${flakyNote}`;
     for (const file of sandboxPlaceholders(
       git(path, ['status', '--porcelain', '-z', '--untracked-files=all']),
       (name) => lstatSync(join(path, name)),
@@ -166,7 +183,7 @@ export async function laneVerdict(
     const merged = /^verdict: merged\b/u.test(last);
     if (merged) rmSync(redFile, { force: true });
     return {
-      line: `lane ${label}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}${served}`,
+      line: `lane ${label}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}${served}${flakyNote === '' ? '' : ` ${flakyNote}`}`,
       exitCode: merged ? 0 : exitNoDelivery,
       packet: lane.packet,
     };

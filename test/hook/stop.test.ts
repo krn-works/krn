@@ -316,10 +316,10 @@ test('the temporary base worktree exists while the base run happens and is gone 
       return root === dir ? ['test/t.test.mjs::one'] : [];
     };
     assert.equal(inspect(dir, run).ok, false);
-    assert.equal(roots.length, 2);
-    assert.notEqual(roots[1], dir);
-    assert.deepEqual(seen, [true, true]);
-    assert.equal(existsSync(roots[1] ?? dir), false);
+    assert.equal(roots.length, 3);
+    assert.notEqual(roots[2], dir);
+    assert.deepEqual(seen, [true, true, true]);
+    assert.equal(existsSync(roots[2] ?? dir), false);
     assert.equal(worktrees(dir), 1);
     const throwing = (root: string): string[] => {
       if (root !== dir) throw new Error('base run died');
@@ -349,7 +349,7 @@ test('a base that already tracks a node_modules symlink still runs at the base',
       return root === dir ? ['test/t.test.mjs::one'] : [];
     };
     assert.equal(inspect(dir, run).ok, false);
-    assert.equal(roots.length, 2);
+    assert.equal(roots.length, 3);
   } finally {
     rmSync(dir, { recursive: true, force: true });
     rmSync(modules, { recursive: true, force: true });
@@ -422,7 +422,8 @@ test('a deleted file is in the change set, so its importers are selected', () =>
       return root === dir ? ['test/a.test.ts::<load>'] : [];
     };
     assert.equal(inspect(dir, run).ok, false);
-    assert.deepEqual(seen, [['test/a.test.ts']]);
+    // The first run and its one rerun of the failing file.
+    assert.deepEqual(seen, [['test/a.test.ts'], ['test/a.test.ts']]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -478,7 +479,11 @@ test('a pytest repository: the detected contract runs the name-matched test; red
       judgeStop(payload(dir), lane(dir), never, '', shell) ?? '',
       /tests\/test_calc\.py :: test_add/u,
     );
-    assert.deepEqual(commands, ["python -m pytest 'tests/test_calc.py'"]);
+    // The red run reruns its failing file once (still red), then the base run repeats the command.
+    assert.deepEqual(commands.slice(0, 2), [
+      "python -m pytest 'tests/test_calc.py'",
+      "python -m pytest 'tests/test_calc.py'",
+    ]);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -1124,6 +1129,39 @@ test('a vacuous test command is never green: the Stop gate refuses a committed c
       judgeStop(payload(dir, 'BLOCKER: no tests yet'), lane(dir), green),
       undefined,
     );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a failing related test that passes on one rerun is flaky, one that fails again stays red', () => {
+  const dir = clone();
+  try {
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+    writeFileSync(
+      join(dir, 'test/a.test.ts'),
+      "import { a } from '../src/a.ts';\nvoid a;\n",
+    );
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'change');
+    const calls: string[][] = [];
+    const flaky = (_root: string, tests: string[]) => {
+      calls.push(tests);
+      return calls.length === 1 ? ['test/a.test.ts::slow'] : [];
+    };
+    const passed = inspect(dir, flaky, () => []);
+    assert.equal(passed.ok, true);
+    assert.deepEqual(passed.flaky, ['test/a.test.ts::slow']);
+    assert.deepEqual(calls[1], ['test/a.test.ts']);
+    assert.equal(
+      judgeStop(payload(dir), lane(dir), () => []),
+      undefined,
+    );
+    const again = (root: string) =>
+      root === dir ? ['test/a.test.ts::slow'] : [];
+    const red = inspect(dir, again, () => []);
+    assert.equal(red.ok, false);
+    assert.match(red.reason, /a\.test\.ts :: slow/u);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
