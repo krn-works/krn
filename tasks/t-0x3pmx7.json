@@ -1,0 +1,19 @@
+{
+  "id": "t-0x3pmx7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 0,
+  "title": "Add a focused py test for one untested function",
+  "after": [],
+  "body": [
+    "Add one focused test for one untested public function (the smallest one); keep `.venv/bin/python -m pytest` green. No other change."
+  ],
+  "acceptance": [
+    {
+      "verify": ".venv/bin/python -m pytest",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}

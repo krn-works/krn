@@ -13,5 +13,37 @@
     "mcp-server-dev@claude-plugins-official": false,
     "code-simplifier@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v krn >/dev/null 2>&1 || { while read -r _; do :; done; echo 'krn is not on PATH: the KRN Stop hook cannot check this tree; put krn on PATH for this session' >&2; exit 2; }; exec krn hook stop"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|NotebookEdit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v krn >/dev/null 2>&1 || { while read -r _; do :; done; echo 'krn is not on PATH: the KRN scope guard cannot check this call; put krn on PATH for this session' >&2; exit 2; }; exec krn hook scope"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "command -v krn >/dev/null 2>&1 || { while read -r _; do :; done; echo 'krn is not on PATH: the KRN stash guard cannot check this call; put krn on PATH for this session' >&2; exit 2; }; exec krn hook stash"
+          }
+        ]
+      }
+    ]
   }
 }

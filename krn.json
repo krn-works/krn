@@ -1,0 +1,7 @@
+{
+  "base": "outside/py",
+  "test": ".venv/bin/python -m pytest",
+  "tracker": "krn",
+  "install": "python3 -m venv .venv && .venv/bin/python -m pip install -e '.[dev]'",
+  "related": ".venv/bin/python -m pytest {files}"
+}
