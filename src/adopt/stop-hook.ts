@@ -5,7 +5,11 @@
  * with the shell's own `read` first, so the writer never meets a closed pipe.
  */
 export function guardCommand(name: string): string {
-  return `command -v krn >/dev/null 2>&1 || { while read -r _; do :; done; echo 'krn is not on PATH: the KRN ${name} hook cannot check this call; put krn on PATH for this session' >&2; exit 2; }; exec krn hook ${name}`;
+  const what =
+    name === 'stop'
+      ? 'Stop hook cannot check this tree'
+      : `${name} guard cannot check this call`;
+  return `command -v krn >/dev/null 2>&1 || { while read -r _; do :; done; echo 'krn is not on PATH: the KRN ${what}; put krn on PATH for this session' >&2; exit 2; }; exec krn hook ${name}`;
 }
 
 /** The Stop hook command: refuses the end of a session while the related tests are red. */
