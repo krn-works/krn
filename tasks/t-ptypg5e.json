@@ -1,0 +1,12 @@
+{
+  "id": "t-ptypg5e",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "krn adopt --verify and doctor name the GitHub App not installed on a repository with the install URL",
+  "after": [],
+  "body": [
+    "Why: Fable plan 1114d slice 5: census verify 14/15 exit 64 with raw 'gh api repos/{owner}/{repo} failed: Not Found (HTTP 404)'.\nOutcome: a 404 on the repository becomes 'GitHub App not installed on <owner>/<repo>: install at <url>' with a distinct exit; doctor --unattended --root <repo> checks the same.\nProof: test with a verbatim captured gh 404 reply (KRN-12)."
+  ]
+}
