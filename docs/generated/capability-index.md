@@ -18,150 +18,151 @@ krn ci wait|logs: wait: --repo OWNER/REPO --pr N --head SHA --base SHA [--timeou
 krn pr ship --title TITLE --body-file PATH [--repo OWNER/REPO] [--force]: in a branch worktree
 
 ## src modules
-src/adopt/adopt.ts: The adoption set: what a reposit
-src/adopt/canary.ts: The adoption canary: proves the
-src/adopt/census.ts: Adoption census over repos. the
-src/adopt/conventions.ts: Seeds a repository's conve
-src/adopt/deploy.ts: Deploy workflows on the base br
-src/adopt/drift.ts: Drift of an adopted repository: 
-src/adopt/first-turn.ts: `krn adopt <path> --verify`
-src/adopt/gaps.ts: Adoption gaps: every standard the
-src/adopt/init.ts: krn adopt --init: git init and a 
-src/adopt/journal.ts: A write journal for adoption: 
-src/adopt/stop-hook.ts: The hook command `krn adopt`
-src/adopt/verify.ts: `krn adopt <path> --verify`: a 
-src/brain/exposures.ts: The exposure log: one append
-src/brain/global-standards.ts: The user-level standa
-src/brain/packet.ts: Deterministic brain packets (AD
-src/brain/precedent.ts: Precedent for a lane brief: 
-src/brain/proposals.ts: Standards proposals: a lesso
-src/brain/record.ts: The one record schema of the br
-src/brain/standards-cli.ts: `krn standards check [--
-src/brain/standards.ts: The standards pack (ADR 0002
-src/brain/worker-packet.ts: Conventions packet for a
+src/adopt/adopt.ts: The adoption set: what a reposi
+src/adopt/canary.ts: The adoption canary: proves th
+src/adopt/census.ts: Adoption census over repos. th
+src/adopt/conventions.ts: Seeds a repository's conv
+src/adopt/deploy.ts: Deploy workflows on the base b
+src/adopt/drift.ts: Drift of an adopted repository:
+src/adopt/first-turn.ts: `krn adopt <path> --verify
+src/adopt/gaps.ts: Adoption gaps: every standard th
+src/adopt/init.ts: krn adopt --init: git init and a
+src/adopt/journal.ts: A write journal for adoption:
+src/adopt/stop-hook.ts: The hook command `krn adopt
+src/adopt/verify.ts: `krn adopt <path> --verify`: a
+src/brain/exposures.ts: The exposure log: one appen
+src/brain/first-test.ts: First-test recipes (the wo
+src/brain/global-standards.ts: The user-level stand
+src/brain/packet.ts: Deterministic brain packets (A
+src/brain/precedent.ts: Precedent for a lane brief:
+src/brain/proposals.ts: Standards proposals: a less
+src/brain/record.ts: The one record schema of the b
+src/brain/standards-cli.ts: `krn standards check [-
+src/brain/standards.ts: The standards pack (ADR 000
+src/brain/worker-packet.ts: Conventions packet for 
 src/ci/app-token.ts: GitHub App token minting.
-src/ci/commit-title.ts: A squash merge makes the pul
-src/ci/gh-reply.ts: (no header) exports Gh, withRepl
-src/ci/git-lock.ts: Transient git refusals while ano
-src/ci/logs.ts: (no header) exports logsUsage, runAt
-src/ci/rebase-generated.ts: Ship's rebase of a branc
-src/ci/ship.ts: (no header) exports shipUsage, shipC
-src/ci/wait.ts: (no header) exports stopExitCodes, o
-src/cli-kit/command-error.ts: (no header) exports co
-src/cli-kit/flag-value.ts: Reads the value that foll
-src/cli-kit/usage-error.ts: (no header) exports CliU
-src/cli/adopt.ts: `krn adopt <path>`: write the adop
+src/ci/commit-title.ts: A squash merge makes the pu
+src/ci/gh-reply.ts: (no header) exports Gh, withRep
+src/ci/git-lock.ts: Transient git refusals while an
+src/ci/logs.ts: (no header) exports logsUsage, runA
+src/ci/rebase-generated.ts: Ship's rebase of a bran
+src/ci/ship.ts: (no header) exports shipUsage, ship
+src/ci/wait.ts: (no header) exports stopExitCodes, 
+src/cli-kit/command-error.ts: (no header) exports c
+src/cli-kit/flag-value.ts: Reads the value that fol
+src/cli-kit/usage-error.ts: (no header) exports Cli
+src/cli/adopt.ts: `krn adopt <path>`: write the ado
 src/cli/ci.ts: (no header) exports ciCommand
-src/cli/decide.ts: Operator decisions: rows with a r
-src/cli/doctor-host.ts: (no header) exports HostFact
-src/cli/doctor-unattended.ts: (no header) exports ex
-src/cli/entry-pin.ts: Product entry pin: which commi
-src/cli/findings.ts: Review findings: a schema a val
-src/cli/help.ts: Usage text for the commands this CL
-src/cli/hook.ts: `krn hook <name> [args]`: the Claud
-src/cli/index.ts: Command router: one table keyed by
-src/cli/lane-brief.ts: (no header) exports workerRul
+src/cli/decide.ts: Operator decisions: rows with a 
+src/cli/doctor-host.ts: (no header) exports HostFac
+src/cli/doctor-unattended.ts: (no header) exports e
+src/cli/entry-pin.ts: Product entry pin: which comm
+src/cli/findings.ts: Review findings: a schema a va
+src/cli/help.ts: Usage text for the commands this C
+src/cli/hook.ts: `krn hook <name> [args]`: the Clau
+src/cli/index.ts: Command router: one table keyed b
+src/cli/lane-brief.ts: (no header) exports workerRu
 src/cli/lane-canary.ts: Lane canary on a pilot.
-src/cli/lane-lock.ts: (no header) exports sleepSync,
-src/cli/lane-run-verb.ts: `krn lane run`: the verb t
-src/cli/lane-run.ts: (no header) exports laneRunComm
-src/cli/lane-run/args.ts: (no header) exports laneRu
-src/cli/lane-run/bootstrap.ts: (no header) exports i
-src/cli/lane-run/brief.ts: (no header) exports check
-src/cli/lane-run/delivery.ts: (no header) exports ti
-src/cli/lane-run/drain.ts: (no header) exports drain
-src/cli/lane-run/environment.ts: (no header) exports
-src/cli/lane-run/git.ts: (no header) exports gitWith
-src/cli/lane-run/preflight.ts: (no header) exports a
-src/cli/lane-run/prepare.ts: (no header) exports Pre
-src/cli/lane-run/red-check.ts: (no header) exports r
-src/cli/lane-run/result.ts: (no header) exports exit
-src/cli/lane-run/session.ts: (no header) exports kil
-src/cli/lane-run/steps.ts: (no header) exports LaneV
-src/cli/lane-run/verdict.ts: (no header) exports lan
-src/cli/lane-run/worktree.ts: (no header) exports re
-src/cli/lane.ts: (no header) exports laneUsage, chec
-src/cli/ledger.ts: (no header) exports ledgerCommand
+src/cli/lane-lock.ts: (no header) exports sleepSync
+src/cli/lane-run-verb.ts: `krn lane run`: the verb 
+src/cli/lane-run.ts: (no header) exports laneRunCom
+src/cli/lane-run/args.ts: (no header) exports laneR
+src/cli/lane-run/bootstrap.ts: (no header) exports 
+src/cli/lane-run/brief.ts: (no header) exports chec
+src/cli/lane-run/delivery.ts: (no header) exports t
+src/cli/lane-run/drain.ts: (no header) exports drai
+src/cli/lane-run/environment.ts: (no header) export
+src/cli/lane-run/git.ts: (no header) exports gitWit
+src/cli/lane-run/preflight.ts: (no header) exports 
+src/cli/lane-run/prepare.ts: (no header) exports Pr
+src/cli/lane-run/red-check.ts: (no header) exports 
+src/cli/lane-run/result.ts: (no header) exports exi
+src/cli/lane-run/session.ts: (no header) exports ki
+src/cli/lane-run/steps.ts: (no header) exports Lane
+src/cli/lane-run/verdict.ts: (no header) exports la
+src/cli/lane-run/worktree.ts: (no header) exports r
+src/cli/lane.ts: (no header) exports laneUsage, che
+src/cli/ledger.ts: (no header) exports ledgerComman
 src/cli/main.ts: (no header) exports main
-src/cli/outside-git.ts: (no header) exports reposito
-src/cli/plan.ts: `krn plan`: one line with plan poin
-src/cli/pr-body.ts: (no header) exports prBodyUsage,
+src/cli/outside-git.ts: (no header) exports reposit
+src/cli/plan.ts: `krn plan`: one line with plan poi
+src/cli/pr-body.ts: (no header) exports prBodyUsage
 src/cli/pr.ts: (no header) exports prCommand
-src/cli/repo.ts: `krn repo contract`: print the repo
+src/cli/repo.ts: `krn repo contract`: print the rep
 src/cli/state.ts: (no header) exports stateCommand
-src/context/cc-clearing-watch.ts: Watches whether Cl
-src/context/disk-pressure.ts: Disk-volume probe and 
-src/context/gauge.ts: Context gauge hook: advisories
-src/context/io.ts: Hook input and context output hel
-src/context/plan-sample.ts: Status line command: sam
-src/context/replay.ts: Replays a transcript through 
-src/context/report.ts: Per-transcript context report
-src/context/restart.ts: SessionStart restart brief f
-src/core/index.ts: Shared identity and outcomes stay
-src/deliver/admission-policy.ts: (no header) exports
-src/deliver/gate-wait.ts: (no header) exports pullSc
-src/deliver/transport.ts: (no header) exports Comman
-src/evals/manifest.ts: (no header) exports EvalDataE
-src/evals/plan.ts: (no header) exports planExperimen
-src/evals/stats.ts: Paired-binary statistics for FR-
-src/fs/read-regular-file.ts: (no header) exports rea
-src/harness/memory-directory.ts: (no header) exports
-src/harness/transcripts.ts: (no header) exports Tran
+src/context/cc-clearing-watch.ts: Watches whether C
+src/context/disk-pressure.ts: Disk-volume probe and
+src/context/gauge.ts: Context gauge hook: advisorie
+src/context/io.ts: Hook input and context output he
+src/context/plan-sample.ts: Status line command: sa
+src/context/replay.ts: Replays a transcript through
+src/context/report.ts: Per-transcript context repor
+src/context/restart.ts: SessionStart restart brief 
+src/core/index.ts: Shared identity and outcomes sta
+src/deliver/admission-policy.ts: (no header) export
+src/deliver/gate-wait.ts: (no header) exports pullS
+src/deliver/transport.ts: (no header) exports Comma
+src/evals/manifest.ts: (no header) exports EvalData
+src/evals/plan.ts: (no header) exports planExperime
+src/evals/stats.ts: Paired-binary statistics for FR
+src/fs/read-regular-file.ts: (no header) exports re
+src/harness/memory-directory.ts: (no header) export
+src/harness/transcripts.ts: (no header) exports Tra
 src/hook/lead-file-read.ts: Lead file-read hook.
-src/hook/scope.ts: (no header) exports guarded, harn
-src/hook/session.ts: A worker session is one `krn la
+src/hook/scope.ts: (no header) exports guarded, har
+src/hook/session.ts: A worker session is one `krn l
 src/hook/stash.ts: (no header) exports decide
-src/hook/stop.ts: (no header) exports failureLine, s
-src/hook/subagent-hook-errors.ts: Subagent hook-erro
+src/hook/stop.ts: (no header) exports failureLine, 
+src/hook/subagent-hook-errors.ts: Subagent hook-err
 src/hook/unpushed-delete.ts: Unpushed-delete hook.
-src/memory/cut-text.ts: Longest code-point prefix of
-src/memory/handoff-resume.ts: (no header) exports re
-src/memory/identifier-index.ts: One owner for the me
-src/memory/memory-refs.ts: (no header) exports Findi
-src/memory/operator-inbox-store.ts: (no header) expo
-src/outcome/gate-manifest.ts: The gate manifest: eve
-src/outcome/holdings.ts: Who held the window's dolla
-src/outcome/ledger.ts: (no header) exports object, a
-src/outcome/plan-gauge.ts: The plan gauge: points of
-src/outcome/rework-blame.ts: (no header) exports fix
-src/outcome/slice-cost.ts: Per-slice cost: split eac
-src/outcome/task-id.ts: The task id a PR title ends 
-src/outcome/window.ts: The delivery window unit: mer
+src/memory/cut-text.ts: Longest code-point prefix o
+src/memory/handoff-resume.ts: (no header) exports r
+src/memory/identifier-index.ts: One owner for the m
+src/memory/memory-refs.ts: (no header) exports Find
+src/memory/operator-inbox-store.ts: (no header) exp
+src/outcome/gate-manifest.ts: The gate manifest: ev
+src/outcome/holdings.ts: Who held the window's doll
+src/outcome/ledger.ts: (no header) exports object, 
+src/outcome/plan-gauge.ts: The plan gauge: points o
+src/outcome/rework-blame.ts: (no header) exports fi
+src/outcome/slice-cost.ts: Per-slice cost: split ea
+src/outcome/task-id.ts: The task id a PR title ends
+src/outcome/window.ts: The delivery window unit: me
 src/repo/agents-render.ts: AGENTS.md rendering.
-src/repo/ci-admission-contract.ts: (no header) expor
-src/repo/contract.ts: The repo contract: how KRN tes
+src/repo/ci-admission-contract.ts: (no header) expo
+src/repo/contract.ts: The repo contract: how KRN te
 src/repo/json-text.ts: JSON text zod schema.
 src/repo/roadmap.ts: Roadmap generation.
-src/repo/shell-text.ts: One word, single-quoted so `
-src/state/capsule.ts: The outcome capsule field cont
-src/state/check.ts: `krn state check`: validates the
-src/state/git.ts: (no header) exports git, gitRaw, g
-src/state/loss.ts: State loss: an open task claim th
-src/state/resume.ts: `krn state resume`: the brief a
-src/state/retro.ts: The retro skeleton `krn state re
-src/state/runs.ts: (no header) exports Finding, isIn
-src/state/sandbox-placeholders.ts: .mcp.json sandbox
-src/state/write.ts: Writers for the capsule and hand
-src/successor/command.ts: Child process helpers shar
+src/repo/shell-text.ts: One word, single-quoted so 
+src/state/capsule.ts: The outcome capsule field con
+src/state/check.ts: `krn state check`: validates th
+src/state/git.ts: (no header) exports git, gitRaw, 
+src/state/loss.ts: State loss: an open task claim t
+src/state/resume.ts: `krn state resume`: the brief 
+src/state/retro.ts: The retro skeleton `krn state r
+src/state/runs.ts: (no header) exports Finding, isI
+src/state/sandbox-placeholders.ts: .mcp.json sandbo
+src/state/write.ts: Writers for the capsule and han
+src/successor/command.ts: Child process helpers sha
 src/successor/compose.ts: Launch composition.
-src/successor/handoff-requests.ts: Handoff request c
-src/successor/host-herdr.ts: The Herdr adapter of th
-src/successor/intent-to-task.ts: Prompt to task meas
+src/successor/handoff-requests.ts: Handoff request 
+src/successor/host-herdr.ts: The Herdr adapter of t
+src/successor/intent-to-task.ts: Prompt to task mea
 src/successor/launch.ts: Successor launch.
-src/successor/operator-inbox.ts: Operator inbox CLI.
+src/successor/operator-inbox.ts: Operator inbox CLI
 src/successor/options.ts: Launcher options.
 src/successor/probe.ts: Launcher probe.
 src/successor/retire.ts: Retire predecessors.
-src/successor/terminal-host.ts: The terminal host po
-src/successor/watchdog.ts: Watchdog for an unattende
-src/task/branch-evidence.ts: (no header) exports bra
-src/task/branch-tickets.ts: (no header) exports bran
-src/task/claims.ts: (no header) exports claimKeys, C
+src/successor/terminal-host.ts: The terminal host p
+src/successor/watchdog.ts: Watchdog for an unattend
+src/task/branch-evidence.ts: (no header) exports br
+src/task/branch-tickets.ts: (no header) exports bra
+src/task/claims.ts: (no header) exports claimKeys, 
 src/task/cli.ts: (no header) exports taskCommand
-src/task/comments.ts: (no header) exports TaskCommen
-src/task/evidence.ts: (no header) exports evidenceMi
-src/task/lock-host.ts: Claim locks are abstract unix
-src/task/record-merge.ts: (no header) exports Record
-src/task/record.ts: (no header) exports TASK_ID_MAX_
-src/task/staged-write.ts: (no header) exports atomic
-src/task/store.ts: (no header) exports repositoryRoo
+src/task/comments.ts: (no header) exports TaskComme
+src/task/evidence.ts: (no header) exports evidenceM
+src/task/lock-host.ts: Claim locks are abstract uni
+src/task/record-merge.ts: (no header) exports Recor
+src/task/record.ts: (no header) exports TASK_ID_MAX
+src/task/staged-write.ts: (no header) exports atomi
+src/task/store.ts: (no header) exports repositoryRo
