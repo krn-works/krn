@@ -642,6 +642,23 @@ export function relatedCommand(
   return contract.related.replaceAll('{files}', shellWords(files));
 }
 /**
+ * Paths as a `--prefix <dir>` command accepts them: relative to that package, files outside it dropped.
+ * A related command without --prefix takes the repository paths unchanged.
+ */
+export function withinPackage(
+  related: string,
+  files: readonly string[],
+): readonly string[] {
+  const dir = /--prefix[ =]+(\S+)/u
+    .exec(related)?.[1]
+    ?.replace(/^\.\//u, '')
+    .replace(/\/+$/u, '');
+  if (!dir || dir === '.') return files;
+  return files
+    .filter((file) => file.startsWith(`${dir}/`))
+    .map((file) => file.slice(dir.length + 1));
+}
+/**
  * The contract test narrowed to `files`: the paths go after the last command, behind `--` when an
  * npm-style runner forwards them to its script (`npm --prefix packages/x test -- a.test.ts`).
  */

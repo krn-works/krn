@@ -119,8 +119,11 @@ test('canary passes on a pytest repository and fails with the gate disabled', ()
 test('a canary past its time limit exits 124, names the timeout and leaves the repository as it was', () => {
   const root = fixture({
     ...nodeFiles,
-    'package.json': JSON.stringify({
-      scripts: { test: 'sleep 20 && node --test' },
+    'krn.json': JSON.stringify({
+      base: 'main',
+      test: 'sleep 20 && node --test',
+      related: 'sleep 20 && node --test {files}',
+      tracker: 'none',
     }),
   });
   const run = spawnSync(process.execPath, [cli, 'adopt', root], {
@@ -141,6 +144,23 @@ test('a canary past its time limit exits 124, names the timeout and leaves the r
     encoding: 'utf8',
   });
   assert.equal(trees.stdout.trim().split('\n').length, 1);
+});
+
+test('a test command too slow to finish is not run whole on the clean tree: the related subset decides', () => {
+  const root = fixture({
+    ...nodeFiles,
+    'krn.json': JSON.stringify({
+      base: 'main',
+      test: 'sleep 60 && node --test',
+      related: 'node --test {files}',
+      tracker: 'none',
+    }),
+  });
+  const run = spawnSync(process.execPath, [cli, 'adopt', root], {
+    encoding: 'utf8',
+    env: { ...process.env, KRN_CANARY_TIMEOUT_MS: '30000' },
+  });
+  assert.equal(run.status, 0, run.stdout + run.stderr);
 });
 
 test('a slow install names the install step as the one that exceeded the limit', () => {

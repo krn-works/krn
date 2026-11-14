@@ -18,6 +18,8 @@ import {
   CONTRACT_FILE,
   findContract,
   type RepoContract,
+  relatedCommand,
+  withinPackage,
 } from '../repo/contract.ts';
 import { isKrnStopCommand } from './stop-hook.ts';
 
@@ -335,23 +337,38 @@ function canary(root: string): CanaryResult {
     const file = refusedFile;
 
     gitIn(tree, 'reset', '-q', '--hard', 'HEAD~1');
-    gitIn(tree, 'commit', '-q', '--allow-empty', '-m', 'canary: clean tree');
+    // The restored commit touches the same test file with a blank line, so the gate selects that test's related
+    // subset; an empty commit selects nothing and the gate would run the whole (possibly unfinishable) test command.
+    appendFileSync(join(tree, file), '\n');
+    gitIn(tree, 'commit', '-qm', 'canary: clean tree', '--', file);
     enter('Stop gate on the clean tree');
     const clean = stop(tree, commands);
-    if (clean.status !== 0) {
-      // A red base (the repository's own command fails on its clean tree: missing dependencies, a broken test)
-      // is not a gate defect: name the command.
+    // A red base (the repository's own command fails on its clean tree: missing dependencies, a broken test)
+    // is not a gate defect: name the command. The gate ignores failures the base already had, so the touched
+    // test is also run by the command the gate selects for it, never the whole suite when a related one exists.
+    const redBase = () => {
       enter('test command on the clean base');
-      const own = run(tree, 'sh', ['-c', contract.test]);
-      if (own.status !== 0)
-        return {
-          outcome: 'red-base',
-          message: `red base: the repository's own test command \`${contract.test}\` exits ${own.status} on the clean ${baseRef} tree, so the Stop gate cannot pass it; make it pass (install the dependencies) and rerun. ${(own.stderr || own.stdout).replace(/\s+/gu, ' ').trim().slice(-300)}`,
-        };
+      const command =
+        clean.status === 0
+          ? relatedCommand(
+              contract,
+              withinPackage(contract.related ?? '', [file]),
+            )
+          : contract.test;
+      const own = run(tree, 'sh', ['-c', command]);
+      return own.status === 0
+        ? undefined
+        : {
+            outcome: 'red-base' as const,
+            message: `red base: the repository's own test command \`${contract.test}\` exits ${own.status} on the clean ${baseRef} tree, so the Stop gate cannot pass it; make it pass (install the dependencies) and rerun. ${(own.stderr || own.stdout).replace(/\s+/gu, ' ').trim().slice(-300)}`,
+          };
+    };
+    const red = redBase();
+    if (red) return red;
+    if (clean.status !== 0)
       return fail(
         `the Stop gate does not pass the clean tree after the canary was restored: exit ${clean.status}. ${clean.stderr.slice(-400)}`,
       );
-    }
     return {
       outcome: 'pass',
       message: `the Stop gate refused a broken ${file} (exit 2) and passed the restored tree (exit 0)`,
