@@ -48,6 +48,16 @@ export function isFresh(pin: EntryPin): boolean {
   );
 }
 
+/** True when the checkout has never fetched origin/main, so no pin exists to compare. */
+export function isUnfetched(pin: EntryPin): boolean {
+  return pin.releaseCommit === null;
+}
+
+/** One-line warning for a fresh clone that runs from its working tree. */
+export function unfetchedWarning(pin: EntryPin): string {
+  return `krn: warning: ${pin.root} has not fetched origin/main yet; running krn task from the working tree (run git fetch origin to pin it).\n`;
+}
+
 /** Product checkout named by KRN_PRODUCT_ENTRY or ~/.config/krn/product-entry. */
 export function configuredEntryRoot(
   env: NodeJS.ProcessEnv = process.env,

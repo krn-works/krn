@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import {
   doctorReport,
   isFresh,
+  isUnfetched,
   readEntryPin,
   staleEntryExit,
 } from '../../src/cli/entry-pin.ts';
@@ -114,6 +115,53 @@ test('krn doctor reads the configured entry', async () => {
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, new RegExp(`^entry=${entry}$`, 'mu'));
     assert.match(result.stdout, /^status=fresh$/mu);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+async function freshClone(root: string): Promise<string> {
+  const repo = fileURLToPath(new URL('../..', import.meta.url));
+  const work = join(root, 'work');
+  git(root, 'clone', '-q', '--no-hardlinks', repo, work);
+  await cp(join(repo, 'src'), join(work, 'src'), { recursive: true });
+  return work;
+}
+
+test('a forwarded krn task in a fresh clone that never fetched warns once and runs', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-entry-pin-fresh-'));
+  try {
+    const work = await freshClone(root);
+    git(work, 'update-ref', '-d', 'refs/remotes/origin/main');
+    assert.equal(isUnfetched(readEntryPin(work)), true);
+    const result = spawnSync(join(work, 'bin', 'krn'), ['task', 'ready'], {
+      cwd: work,
+      encoding: 'utf8',
+      env: { ...process.env, KRN_FORWARDED: '1' },
+    });
+    assert.notEqual(result.status, staleEntryExit, result.stderr);
+    assert.equal(
+      result.stderr.match(/has not fetched origin\/main/gu)?.length,
+      1,
+    );
+    assert.doesNotMatch(result.stderr, /stale Product entry/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('a forwarded krn task whose pin exists but mismatches still fails closed', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-entry-pin-mismatch-'));
+  try {
+    const work = await freshClone(root);
+    git(work, 'update-ref', 'refs/remotes/origin/main', 'HEAD~1');
+    const result = spawnSync(join(work, 'bin', 'krn'), ['task', 'ready'], {
+      cwd: work,
+      encoding: 'utf8',
+      env: { ...process.env, KRN_FORWARDED: '1' },
+    });
+    assert.equal(result.status, staleEntryExit);
+    assert.match(result.stderr, /stale Product entry/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
