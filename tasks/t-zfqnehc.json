@@ -1,7 +1,11 @@
 {
   "id": "t-zfqnehc",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "weak-tests diffs with rename detection; rename is a move"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "weak-tests accepts a renamed test file as a move, not a deleted test",

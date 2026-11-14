@@ -20,6 +20,8 @@ const modify = (path: string, removed: string[], added: string[]) =>
   ].join('\n');
 const remove = (path: string) =>
   `diff --git a/${path} b/${path}\ndeleted file mode 100644\n--- a/${path}\n+++ /dev/null\n@@ -1 +0,0 @@\n-x\n`;
+const rename = (from: string, to: string) =>
+  `diff --git a/${from} b/${to}\nsimilarity index 100%\nrename from ${from}\nrename to ${to}\n`;
 const run = (diff: string, body = '', targets: string[] = []) =>
   checkWeakTests({
     diff,
@@ -99,5 +101,58 @@ test('weak-tests --worktree reads uncommitted edits against the base', () => {
   assert.match(
     result.stdout,
     /weak-tests: test\/a\.test\.ts: net 1 assertion\(s\) removed/u,
+  );
+});
+
+test('a renamed test file is a move, not a deleted test', () => {
+  const r = run(rename('test/claude/a.test.ts', 'test/context/a.test.ts'), '', [
+    'a',
+  ]);
+  assert.equal(r.ok, true, r.findings.join('\n'));
+});
+
+test('a test file renamed to a non-test file fails', () => {
+  const r = run(rename('test/a.test.ts', 'test/a.ts'));
+  assert.equal(r.ok, false);
+});
+
+test('a rename that drops an assertion still fails', () => {
+  const diff = `${rename('test/x/a.test.ts', 'test/y/a.test.ts')}@@ -1 +0,0 @@\n-assert.ok(a);\n`;
+  assert.equal(run(diff).ok, false);
+});
+
+test('weak-tests reads a real git rename as a move and a real removal as a deletion', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'weak-rename-'));
+  const git = (...args: string[]) =>
+    execFileSync(
+      'git',
+      ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args],
+      { cwd: dir },
+    );
+  const weak = () =>
+    spawnSync(process.execPath, [script, 'HEAD', '--worktree'], {
+      cwd: dir,
+      encoding: 'utf8',
+    });
+  git('init', '-q', '-b', 'main');
+  mkdirSync(join(dir, 'test/old'), { recursive: true });
+  mkdirSync(join(dir, 'test/new'));
+  mkdirSync(join(dir, 'src'));
+  writeFileSync(join(dir, 'src/a.ts'), 'export const a = 1;\n');
+  writeFileSync(
+    join(dir, 'test/old/a.test.ts'),
+    'assert.equal(a, 1);\nassert.equal(b, 2);\n',
+  );
+  git('add', '.');
+  git('commit', '-qm', 'base');
+  git('mv', 'test/old/a.test.ts', 'test/new/a.test.ts');
+  const moved = weak();
+  assert.equal(moved.status, 0, moved.stdout + moved.stderr);
+  git('rm', '-qf', 'test/new/a.test.ts');
+  const removed = weak();
+  assert.equal(removed.status, 1, removed.stdout + removed.stderr);
+  assert.match(
+    removed.stdout,
+    /test file deleted while its target "a" remains/u,
   );
 });
