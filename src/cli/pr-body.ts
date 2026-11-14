@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
+import { titleTaskId } from '../outcome/task-id.ts';
 import { contractBase } from '../repo/contract.ts';
 import { taskLookupRoot } from '../task/claims.ts';
 import { isTaskId, type TaskRecord } from '../task/record.ts';
@@ -45,7 +46,7 @@ export function proofCommands(task: TaskRecord): string[] {
 
 /** The Proof commands of the task a PR title names (`... (t-id)`), read from the worktree; none when the title or record is absent. */
 export function proofOfTitle(cwd: string, title: string): string[] {
-  const id = /\((t-[a-z0-9]+)\)$/u.exec(title)?.[1];
+  const id = titleTaskId(title);
   if (id === undefined || !isTaskId(id)) return [];
   const root = repositoryRoot(cwd);
   const task = loadTaskIndex(taskLookupRoot(root, id)).get(id);

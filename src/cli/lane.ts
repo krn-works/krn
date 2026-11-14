@@ -26,6 +26,7 @@ import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
 import { flagValue } from './flag-value.ts';
 import { sleepSync } from './lane-lock.ts';
+import { gitWith } from './lane-run/git.ts';
 import { outsideCredentialArgs } from './outside-git.ts';
 import { CliUsageError } from './usage-error.ts';
 
@@ -179,14 +180,7 @@ export function checkLaneBudget(main: string): void {
     );
 }
 
-function git(root: string, args: string[]): string {
-  const result = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8' });
-  if (result.status !== 0)
-    throw new CliUsageError(
-      `git ${args.join(' ')} failed: ${(result.stderr || result.stdout).trim()}`,
-    );
-  return result.stdout.trim();
-}
+const git = gitWith((message) => new CliUsageError(message));
 
 /**
  * Fetch the base branch, retried while a concurrent `krn lane start` of the same repository holds
