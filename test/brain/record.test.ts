@@ -1,13 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { brainPacket, parseRecords } from '../../src/brain/packet.ts';
-import {
-  parseUnified,
-  RecordSchema,
-  standardRecord,
-} from '../../src/brain/record.ts';
-import { parseStandards } from '../../src/brain/standards.ts';
+import { parseUnified, RecordSchema } from '../../src/brain/record.ts';
 
 const json = (path: string): unknown =>
   JSON.parse(readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8'));
@@ -73,11 +70,10 @@ test('the shipped overlay and every pack record satisfy the one schema', () => {
   assert.ok(overlay.length > 0);
   for (const raw of json('.agents/records.json') as object[])
     assert.ok('provenance' in raw && 'status' in raw, 'overlay is migrated');
-  const pack = parseStandards(json('standards/records.json')).map(
-    standardRecord,
-  );
+  const pack = parseUnified(json('standards/records.json'));
   assert.ok(pack.length > 4);
   assert.equal(parseUnified(pack).length, pack.length);
+  assert.ok(parseUnified(json('.agents/standards.json')).length > 0);
 });
 
 test('the packet is the same for a legacy row and its migrated form', () => {
@@ -111,4 +107,14 @@ test('a retired record never enters a packet', () => {
     budget: 400,
   });
   assert.deepEqual(p.records, []);
+});
+
+test('no source file names the deleted standardRecord adapter', () => {
+  const root = fileURLToPath(new URL('../../src', import.meta.url));
+  const hits = (readdirSync(root, { recursive: true }) as string[]).filter(
+    (name) =>
+      name.endsWith('.ts') &&
+      readFileSync(join(root, name), 'utf8').includes('standardRecord'),
+  );
+  assert.deepEqual(hits, []);
 });

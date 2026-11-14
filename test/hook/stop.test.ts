@@ -1046,18 +1046,21 @@ test('the Stop hook refuses a floor and an unwaived reflex standard and only rep
     writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
     const record = (change: Record<string, unknown>) => ({
       id: 's-probe',
+      type: 'standard',
       area: 'tests',
       layer: 'universal',
       audience: 'worker',
       tier: 'floor',
       text: 'A probe rule.',
       why: 'The hook must read the tier.',
-      evidence: ['README.md'],
+      provenance: { origin: 'test', evidence: ['README.md'], proposals: [] },
       enforcement: { kind: 'command', run: 'false' },
-      applies: { stacks: [], needs: [] },
+      applies: { stacks: [], needs: [], paths: [], terms: [] },
+      status: 'accepted',
       recorded_at: '2026-01-01',
       valid_from: '2026-01-01',
       valid_to: null,
+      supersedes: [],
       ...change,
     });
     sh(dir, 'add', '.');

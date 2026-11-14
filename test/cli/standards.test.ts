@@ -219,18 +219,21 @@ test('the shipped pack holds 15-25 universal records and its harvested records p
 /** One project record; the plainest hand-written shape of `.agents/standards.json`. */
 const projectRecord = (change: Record<string, unknown>) => ({
   id: 's-project',
+  type: 'standard',
   area: 'tests',
   layer: 'universal',
   audience: 'worker',
   tier: 'floor',
   text: 'A project rule.',
   why: 'The project needs it.',
-  evidence: ['README.md'],
+  provenance: { origin: 'test', evidence: ['README.md'], proposals: [] },
   enforcement: { kind: 'command', run: 'true' },
-  applies: { stacks: [], needs: [] },
+  applies: { stacks: [], needs: [], paths: [], terms: [] },
+  status: 'accepted',
   recorded_at: '2026-01-01',
   valid_from: '2026-01-01',
   valid_to: null,
+  supersedes: [],
   ...change,
 });
 
@@ -531,7 +534,7 @@ for (const [name, files, stack] of fixtures.slice(0, 2)) {
       );
       assert.ok(records.length >= 10, `${records.length} records`);
       for (const record of records) {
-        assert.equal(record.origin, 'krn');
+        assert.equal(record.provenance.origin, 'krn pack (inherited)');
         assert.equal(record.layer, 'universal');
       }
       const ids = records.map((record) => record.id);
@@ -589,13 +592,14 @@ test('adopt keeps a hand-written project record beside the inherited ones and re
   const plainFile = `[
   {
     "id": "s-changelog",
+    "type": "standard",
     "area": "docs",
     "layer": "universal",
     "audience": "worker",
     "tier": "floor",
     "text": "Every change adds a line to CHANGELOG.md.",
     "why": "Releases are written from it.",
-    "evidence": ["CHANGELOG.md"],
+    "provenance": { "origin": "project", "evidence": ["CHANGELOG.md"], "proposals": [] },
     "enforcement": { "kind": "command", "run": "test -f CHANGELOG.md" },
     "applies": { "stacks": [], "needs": [] },
     "recorded_at": "2026-11-13",
@@ -617,7 +621,7 @@ test('adopt keeps a hand-written project record beside the inherited ones and re
       JSON.parse(readFileSync(join(root, seeded), 'utf8')),
     );
     assert.equal(records.at(-1)?.id, 's-changelog');
-    assert.equal(records.at(-1)?.origin, undefined);
+    assert.equal(records.at(-1)?.provenance.origin, 'project');
     assert.ok(records.length > 1);
     assert.match(
       readFileSync(join(root, 'AGENTS.md'), 'utf8'),
@@ -657,7 +661,14 @@ test('standards check fails on an inherited copy the pack no longer holds and as
   const root = repository({
     ...python,
     [seeded]: JSON.stringify([
-      { ...projectRecord({ id: 's-dropped' }), origin: 'krn' },
+      projectRecord({
+        id: 's-dropped',
+        provenance: {
+          origin: 'krn pack (inherited)',
+          evidence: ['README.md'],
+          proposals: [],
+        },
+      }),
     ]),
   });
   try {
