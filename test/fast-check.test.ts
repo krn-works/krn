@@ -537,3 +537,20 @@ test('a file a standards record names as evidence selects the standards test', (
   ]);
   assert.deepEqual(evidenceTests(['src/ci/ship.ts'], records), []);
 });
+
+// KRN-12: the real repository and the real canary test are the receiver of the selection.
+test('changing the adopt canary selects the test that spawns the CLI entry with adopt', () => {
+  const canary = 'test/adopt/canary.test.ts';
+  const source = readFileSync(canary, 'utf8');
+  const modules = cliCommandModules('.');
+  assert.ok(modules.get('adopt')?.has('src/adopt/canary.ts'));
+  assert.ok(
+    selectTests(
+      ['src/adopt/canary.ts'],
+      new Map([[canary, source]]),
+      [],
+      new Set(),
+      modules,
+    ).includes(canary),
+  );
+});

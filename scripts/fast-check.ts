@@ -77,8 +77,8 @@ const INDEX_FILE = 'docs/generated/capability-index.md';
 const INDEX_SOURCE = /^src\/.*\.ts$/u;
 const INDEX_TEST = 'test/claude/capability-index.test.ts';
 
-const CLI_SPAWN = /bin\/krn|'bin',\s*'krn'|krn\.mjs/u;
-const ROUTE = /command === '([\w-]+)'/u;
+const CLI_SPAWN = /bin\/krn|cli\/main\.ts|'bin',\s*'krn'|krn\.mjs/u;
+const ROUTE = /^(?:command === '([\w-]+)'| {2}'?([\w-]+)'?: )/u;
 
 /** Repo modules reached from an entry through relative imports, transitively. */
 function importClosure(root: string, entry: string): Set<string> {
@@ -101,8 +101,11 @@ export function cliCommandModules(root: string): Map<string, Set<string>> {
   const index = 'src/cli/index.ts';
   const file = join(root, index);
   if (!existsSync(file)) return modules;
-  for (const branch of readFileSync(file, 'utf8').split(/(?=command === ')/u)) {
-    const name = ROUTE.exec(branch)?.[1];
+  for (const branch of readFileSync(file, 'utf8').split(
+    /(?=command === ')|(?=^ {2}'?[\w-]+'?: )/mu,
+  )) {
+    const hit = ROUTE.exec(branch);
+    const name = hit?.[1] ?? hit?.[2];
     if (name === undefined) continue;
     const closure = modules.get(name) ?? new Set<string>();
     for (const entry of importedPaths(index, branch))
