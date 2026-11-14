@@ -133,6 +133,14 @@ export function workerTotals(
   };
 }
 
+/** Worker spend: review-round metrics when a run wrote them, else the tokens of the PR's attributed lane and subagent transcripts. */
+export function withLaneTokens(
+  worker: ReturnType<typeof workerTotals>,
+  lane: { input: number; cached: number; output: number } | null | undefined,
+) {
+  return worker.input === null && lane ? { ...worker, ...lane } : worker;
+}
+
 type Tokens = {
   input: Value;
   cache_read: Value;
@@ -752,7 +760,7 @@ export async function collectLedger(options: LedgerOptions = {}) {
         ),
         ...checks,
         review: reviewTotals(records, repo, pr.number),
-        worker: workerTotals(groups, hashes),
+        worker: withLaneTokens(workerTotals(groups, hashes), cost?.laneTokens),
         deliver: launches.length ? launches : null,
         lead,
         leadUncachedInput: sum([lead.input, lead.cache_creation]),
