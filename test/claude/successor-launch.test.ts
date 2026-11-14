@@ -164,6 +164,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       cwd: resolve('/repo', 'work tree'),
       sessionClass: 'delivery',
       operatorToken: false,
+      unattended: false,
     },
   );
   assert.throws(() => api.parseArgs(['--name', 'Next slice']), /--prompt/u);
@@ -186,6 +187,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       cwd: '/repo',
       sessionClass: 'delivery',
       operatorToken: false,
+      unattended: false,
     },
   );
   assert.throws(
@@ -222,6 +224,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       cwd: '/repo',
       sessionClass: 'delivery',
       operatorToken: false,
+      unattended: false,
       model: 'claude-opus-5-5',
       effort: 'medium',
     },
@@ -245,6 +248,7 @@ test('argument parser accepts the required flags and resolves cwd', () => {
       cwd: '/repo',
       sessionClass: 'delivery',
       operatorToken: false,
+      unattended: false,
       startSeconds: 600,
     },
   );
@@ -1057,4 +1061,14 @@ test('the successor harness follows the runtime environment, never an assumption
     assert.equal(both.result.status, 2);
     assert.match(both.result.stderr, /ambiguous harness/u);
   });
+});
+
+test('the launcher script refuses an unattended launch when the doctor fails', () => {
+  const run = spawnSync(
+    process.execPath,
+    [script, '--unattended', '--name', 'n', '--prompt', 'run its Verify'],
+    { encoding: 'utf8', env: { PATH: process.env.PATH ?? '', HOME: tmpdir() } },
+  );
+  assert.notEqual(run.status, 0);
+  assert.match(run.stderr, /unattended launch refused: FAIL/u);
 });
