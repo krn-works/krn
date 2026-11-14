@@ -1,0 +1,12 @@
+{
+  "id": "t-ppkczgj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "Ship names an empty gh reply instead of exiting 74",
+  "after": [],
+  "body": [
+    "Why: on 2026-11-14 the t-4868c64 lane's first bin/krn pr ship exited 74 with 'unexpected end of JSON input' before the Check wait started (PR #801); a 74 means a red Check, so the exit lied about the cause.\nOutcome: an empty or truncated gh JSON reply in ship (create/view/merge) is retried once and otherwise exits with a named transport exit and the gh command, never 74.\nProof: a ship test with a stubbed gh returning empty stdout asserts the named exit and message; npm run fast PASS."
+  ]
+}
