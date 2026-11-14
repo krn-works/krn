@@ -23,6 +23,7 @@ import {
   time,
 } from './ledger.ts';
 import { dollarsPerPoint, readPlanPoints } from './plan-gauge.ts';
+import { fixChangesIntroducedLines } from './rework-blame.ts';
 import { type Turn, turnDollars } from './slice-cost.ts';
 
 type Value = number | null;
@@ -35,6 +36,12 @@ export type WindowOptions = {
   transcripts?: string;
   repo?: string;
   run?: Run;
+  /** Whether `fix` changes lines `introduced` added; defaults to git blame in `root`. */
+  blamed?: (
+    introduced: string,
+    fix: string,
+    files: string[],
+  ) => Promise<boolean>;
 };
 const percentile = (values: number[], p: number): Value => {
   const sorted = [...values].sort((a, b) => a - b);
@@ -148,7 +155,7 @@ export async function collectWindow(options: WindowOptions) {
       '--search',
       `merged:>=${iso(from)}`,
       '--json',
-      'number,title,body,createdAt,mergedAt,headRefName,files',
+      'number,title,body,createdAt,mergedAt,headRefName,files,mergeCommit',
     ])
   ).map(object);
   const rows = fetched
@@ -158,6 +165,7 @@ export async function collectWindow(options: WindowOptions) {
       created: time(p.createdAt),
       merged: time(p.mergedAt),
       branch: string(p.headRefName),
+      oid: string(object(p.mergeCommit).oid),
       body: typeof p.body === 'string' ? p.body : '',
       files: array(p.files).map((f) => string(object(f).path)),
       frame: frameChanges(
@@ -176,6 +184,7 @@ export async function collectWindow(options: WindowOptions) {
     created: number;
     merged: number;
     branch: string;
+    oid: string;
     body: string;
     files: string[];
     frame: ReturnType<typeof frameChanges>;
@@ -303,19 +312,32 @@ export async function collectWindow(options: WindowOptions) {
     });
     return own.reduce((n, r) => n + (number(r.attempt) ?? 1), 0);
   });
-  // Rework: a later fix PR (within 48 h and inside the window, so a closed window's count never changes) touching a same file, or a revert naming the title.
+  // Rework: a later fix PR (within 48 h and inside the window, so a closed window's count never changes) that changes lines this PR introduced (git blame on the fix's parent), or a revert naming the title.
   const work = (f: string) => !f.startsWith('tasks/');
-  const reworked = inWindow.filter((p) => {
+  const blamed =
+    options.blamed ??
+    ((intro: string, fix: string, files: string[]) =>
+      fixChangesIntroducedLines(root, intro, fix, files));
+  const reworked: typeof inWindow = [];
+  for (const p of inWindow) {
     const mine = new Set(p.files.filter(work));
-    return rows.some(
+    const later = rows.filter(
       (q) =>
         q.number !== p.number &&
         q.merged > p.merged &&
-        q.merged <= Math.min(p.merged + 48 * 3600000, to) &&
-        ((/^fix(\(|:|!)/i.test(q.title) && q.files.some((f) => mine.has(f))) ||
-          (/^revert/i.test(q.title) && q.title.includes(p.title))),
+        q.merged <= Math.min(p.merged + 48 * 3600000, to),
     );
-  });
+    let hit = later.some(
+      (q) => /^revert/i.test(q.title) && q.title.includes(p.title),
+    );
+    for (const q of later) {
+      if (hit) break;
+      const shared = q.files.filter((f) => mine.has(f));
+      if (/^fix(\(|:|!)/i.test(q.title) && shared.length > 0 && p.oid && q.oid)
+        hit = await blamed(p.oid, q.oid, shared);
+    }
+    if (hit) reworked.push(p);
+  }
   const lanePrs = inWindow
     .filter((p) => isLanePr(p, laneDirs))
     .map((p) => p.number);
