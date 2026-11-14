@@ -57,7 +57,9 @@ function briefCommand(rest: string[]): void {
   const brief = readFileSync(file ?? 0, 'utf8');
   if (brief.trim() === '') throw new CliUsageError('lane brief is empty');
   const repo = repositoryRoot(root ?? process.cwd());
-  process.stdout.write(laneBriefText(repo, brief, asOf, task));
+  process.stdout.write(
+    laneBriefText(repo, brief, asOf, task, task !== undefined),
+  );
 }
 
 // Host budget: refuse below KRN_LANE_MIN_FREE_GB free (default 5) on the

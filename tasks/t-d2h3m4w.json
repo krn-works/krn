@@ -1,7 +1,11 @@
 {
   "id": "t-d2h3m4w",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "KRN-11 and lanes.md say a lane closes its own task in its own PR; krn lane brief --task prints the close command; rules test proves both"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "KRN-11 and lanes.md agree on who closes a task in a lane PR, and the lane brief prints it",
