@@ -1,4 +1,11 @@
 import { spawnSync } from 'node:child_process';
+import {
+  APP_NOT_INSTALLED_EXIT,
+  AppNotInstalledError,
+  isRepositoryNotFound,
+  originUrl,
+  repoSlug,
+} from '../adopt/verify.ts';
 import { tokenHelper } from './lane-run/environment.ts';
 
 /** The mint failed: no App token, so nothing can ship. */
@@ -6,6 +13,8 @@ export const exitMintFailed = 69;
 /** The vault session ends inside the window, or no vault session could be read. */
 export const exitVaultShort = 75;
 export const exitUsage = 64;
+/** The App token mints but the repository named by --root is not visible to the App. */
+export const exitAppNotInstalled = APP_NOT_INSTALLED_EXIT;
 
 /** bw serve locks the vault after this long; an unattended run outliving it loses the App token. */
 const defaultSessionLimitHours = 10;
@@ -47,6 +56,10 @@ function parseWindowHours(args: string[]): number | undefined {
   for (let index = 0; index < args.length; index++) {
     const arg = args[index];
     if (arg === '--unattended') continue;
+    if (arg === '--root') {
+      index++;
+      continue;
+    }
     const value = arg === '--window-hours' ? args[++index] : undefined;
     const number = Number(value);
     if (value === undefined || !(number > 0) || !Number.isFinite(number))
@@ -83,7 +96,7 @@ export function unattendedReport(
   const window = parseWindowHours(args);
   if (window === undefined)
     return {
-      text: 'usage: krn doctor --unattended [--window-hours N]  (N a positive number)\n',
+      text: 'usage: krn doctor --unattended [--window-hours N] [--root <repo>]  (N a positive number)\n',
       exitCode: exitUsage,
     };
   const sessionEnv = { ...env, KRN_SESSION_CLASS: undefined };
@@ -94,6 +107,22 @@ export function unattendedReport(
       text: `FAIL mint: no App token (${reason}). Remedy: run bw-up to unlock the vault and start bw serve, then rerun krn doctor --unattended.\n`,
       exitCode: exitMintFailed,
     };
+  }
+  const rootIndex = args.indexOf('--root');
+  const root = rootIndex < 0 ? undefined : args[rootIndex + 1];
+  if (root !== undefined) {
+    const slug = repoSlug(originUrl(root));
+    if (slug !== undefined) {
+      const seen = probe('gh', ['api', `repos/${slug}`, '--silent'], {
+        ...sessionEnv,
+        GH_TOKEN: mint.stdout.trim(),
+      });
+      if (isRepositoryNotFound(seen.status, seen.stderr))
+        return {
+          text: `FAIL app: ${new AppNotInstalledError(slug).message}\n`,
+          exitCode: exitAppNotInstalled,
+        };
+    }
   }
   const limit = Number(env.KRN_BW_SESSION_HOURS) || defaultSessionLimitHours;
   const elapsed = serveElapsedSeconds(probe, env);

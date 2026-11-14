@@ -80,10 +80,12 @@
       "real": "test/cli/lane-run.test.ts"
     },
     "src/cli/doctor-unattended.ts": {
-      "receivers": ["node", "ss", "ps"],
+      "receivers": ["node", "ss", "ps", "gh"],
       "capture": [
         "test/fixtures/bw-serve/ss-listen.txt",
-        "test/fixtures/bw-serve/ps-etimes.txt"
+        "test/fixtures/bw-serve/ps-etimes.txt",
+        "test/fixtures/gh/repo-not-installed.stderr.log",
+        "test/fixtures/gh/repo-not-installed.stdout.json"
       ],
       "test": "test/cli/doctor-unattended.test.ts"
     },
@@ -159,7 +161,8 @@
         "test/fixtures/gh/repo-krn-works-krn.stdout.json",
         "test/fixtures/ci-admission/branch-protected.json",
         "test/fixtures/ci-admission/branch-unpinned.json",
-        "test/fixtures/gh/rules-branches-main-krn-works-krn.stdout.json"
+        "test/fixtures/gh/rules-branches-main-krn-works-krn.stdout.json",
+        "test/fixtures/gh/repo-not-installed.stderr.log"
       ],
       "test": "test/adopt/verify.test.ts"
     },

@@ -55,7 +55,7 @@ export interface VerifyReport {
 }
 
 /** The `origin` URL of `root`, or undefined without one. */
-function originUrl(root: string): string | undefined {
+export function originUrl(root: string): string | undefined {
   const run = spawnSync('git', ['remote', 'get-url', 'origin'], {
     cwd: root,
     encoding: 'utf8',
@@ -111,8 +111,42 @@ export function defaultBranch(repoBody: string): string {
   return repoSchema.parse(JSON.parse(repoBody)).default_branch;
 }
 
+/** Where the KRN delivery GitHub App is installed on a repository. */
+export const APP_INSTALL_URL =
+  'https://github.com/apps/krn-works-delivery/installations/new';
+/** Exit of a repository the GitHub App cannot see. */
+export const APP_NOT_INSTALLED_EXIT = 67;
+
+export class AppNotInstalledError extends Error {
+  readonly exitCode = APP_NOT_INSTALLED_EXIT;
+  constructor(slug: string) {
+    super(`GitHub App not installed on ${slug}: install at ${APP_INSTALL_URL}`);
+  }
+}
+
+/** `<owner>/<repo>` of a GitHub origin url, or undefined. */
+export function repoSlug(url: string | undefined): string | undefined {
+  const match =
+    /^[a-z+]+:\/\/(?:[^@/]+@)?[^/:]+(?::\d+)?\/([^/]+)\/([^/]+?)(?:\.git)?\/?$/iu.exec(
+      url ?? '',
+    ) ?? /^[^@/\s]+@[^:/]+:([^/]+)\/([^/]+?)(?:\.git)?$/u.exec(url ?? '');
+  return match ? `${match[1]}/${match[2]}` : undefined;
+}
+
+/** True when a `gh api repos/<repo>` failure is the 404 gh prints for a repository the token cannot see. */
+export function isRepositoryNotFound(status: number | null, stderr: string) {
+  return status !== 0 && /\(HTTP 404\)/u.test(stderr);
+}
+
 function gh(root: string, path: string): string {
   const run = spawnSync('gh', ['api', path], { cwd: root, encoding: 'utf8' });
+  if (
+    path === 'repos/{owner}/{repo}' &&
+    isRepositoryNotFound(run.status, run.stderr ?? '')
+  )
+    throw new AppNotInstalledError(
+      repoSlug(originUrl(root)) ?? '{owner}/{repo}',
+    );
   if (run.status !== 0)
     throw new Error(
       `gh api ${path} failed (exit ${run.status ?? 'none'}): ${run.stderr.trim() || run.error?.message || ''}`,
