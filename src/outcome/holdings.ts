@@ -1,6 +1,7 @@
 // Who held the window's dollars: delivery lead, lanes, other subagents, and sessions that deliver nothing.
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { z } from 'zod';
 import type { Transcript } from './slice-cost.ts';
 
 export const HOLDINGS = [
@@ -27,20 +28,20 @@ export async function sessionMarkers(
   }
   for (const line of text.split('\n')) {
     try {
-      const row = JSON.parse(line) as { session?: unknown; class?: unknown };
-      if (
-        typeof row.session === 'string' &&
-        (row.class === 'delivery' ||
-          row.class === 'non-delivery' ||
-          row.class === 'lane')
-      )
-        marks.set(row.session, row.class);
+      const row = sessionMarkSchema.safeParse(JSON.parse(line));
+      if (row.success) marks.set(row.data.session, row.data.class);
     } catch {
       /* A torn or blank line hides nothing else. */
     }
   }
   return marks;
 }
+
+/** One row of .krn/operator/sessions.jsonl, written by the operator's session marker. */
+export const sessionMarkSchema = z.looseObject({
+  session: z.string(),
+  class: z.enum(['delivery', 'non-delivery', 'lane']),
+});
 
 const launcherPrompt = /^First run `node scripts\/claude\/successor-launch\.ts/;
 const programPrompt =

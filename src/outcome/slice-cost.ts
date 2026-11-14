@@ -1,5 +1,6 @@
 // Per-slice cost: split each transcript into the turns of the PR it was working on, price them, and name the author.
 import { readFileSync } from 'node:fs';
+import { z } from 'zod';
 import { titleTaskId } from './task-id.ts';
 
 type ObjectValue = Record<string, unknown>;
@@ -66,12 +67,19 @@ export function usageOf(raw: unknown): Usage {
 }
 
 // The one price table lives in model-prices.json (shared with scripts/claude/spend-window.py).
-const priceTable = JSON.parse(
-  readFileSync(new URL('./model-prices.json', import.meta.url), 'utf8'),
-) as {
-  models: Record<string, readonly [number, number, number]>;
-  longPrompt: { model: string; tokens: number; scale: number };
-};
+export const priceTableSchema = z.object({
+  models: z.record(z.string(), z.tuple([z.number(), z.number(), z.number()])),
+  longPrompt: z.object({
+    model: z.string(),
+    tokens: z.number(),
+    scale: z.number(),
+  }),
+});
+const priceTable = priceTableSchema.parse(
+  JSON.parse(
+    readFileSync(new URL('./model-prices.json', import.meta.url), 'utf8'),
+  ),
+);
 
 /** Dollars for one turn, or null when the model has no known price. */
 export function turnDollars(turn: Turn): number | null {

@@ -1,6 +1,7 @@
 // The plan gauge: points of the five-hour and seven-day plan limits used in a window, against the window's dollars.
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { z } from 'zod';
 
 type PlanSample = {
   at: number;
@@ -14,6 +15,16 @@ type PlanPoints = {
   sevenDay: number;
 };
 
+/** One row of .krn/plan/samples.jsonl as the plan sampler writes it. */
+export const planSampleRowSchema = z.looseObject({
+  time: z.unknown(),
+  five_hour: z.number(),
+  seven_day: z.number(),
+  five_hour_resets: z.unknown().optional(),
+  seven_day_resets: z.unknown().optional(),
+  account: z.unknown().optional(),
+});
+
 const planSamplesPath = (root: string) =>
   join(root, '.krn', 'plan', 'samples.jsonl');
 
@@ -22,17 +33,15 @@ export function parsePlanSamples(text: string): PlanSample[] {
   const rows: PlanSample[] = [];
   for (const line of text.split('\n')) {
     try {
-      const r: unknown = JSON.parse(line);
-      if (typeof r !== 'object' || r === null) continue;
-      const at = Date.parse(String((r as { time?: unknown }).time));
-      const five = (r as { five_hour?: unknown }).five_hour;
-      const seven = (r as { seven_day?: unknown }).seven_day;
-      if (
-        Number.isFinite(at) &&
-        typeof five === 'number' &&
-        typeof seven === 'number'
-      )
-        rows.push({ at, fiveHour: five, sevenDay: seven });
+      const r = planSampleRowSchema.safeParse(JSON.parse(line));
+      if (!r.success) continue;
+      const at = Date.parse(String(r.data.time));
+      if (Number.isFinite(at))
+        rows.push({
+          at,
+          fiveHour: r.data.five_hour,
+          sevenDay: r.data.seven_day,
+        });
     } catch {
       // blank or partial line
     }
@@ -119,11 +128,11 @@ type Group = {
 export function accountHeadroom(text: string, now: number): AccountHeadroom[] {
   const groups = new Map<number, Group>();
   for (const line of text.split('\n')) {
-    let r: Record<string, unknown>;
+    let r: z.infer<typeof planSampleRowSchema>;
     try {
-      const parsed: unknown = JSON.parse(line);
-      if (typeof parsed !== 'object' || parsed === null) continue;
-      r = parsed as Record<string, unknown>;
+      const parsed = planSampleRowSchema.safeParse(JSON.parse(line));
+      if (!parsed.success) continue;
+      r = parsed.data;
     } catch {
       continue;
     }

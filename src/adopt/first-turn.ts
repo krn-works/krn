@@ -1,6 +1,7 @@
 // `krn adopt <path> --verify`: an estimate of what the first agent turn loads from the repository.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { z } from 'zod';
 
 /** Tokens per MCP server: its tool schemas are loaded on the first turn; a flat estimate, the real count needs the server. */
 const MCP_SERVER_TOKENS = 1500;
@@ -34,18 +35,17 @@ function skillHeader(text: string): { header: string; hidden: boolean } {
   };
 }
 
+/** A project .mcp.json: only the server names are read. */
+export const mcpConfigSchema = z.looseObject({
+  mcpServers: z.record(z.string(), z.unknown()).optional(),
+});
+
 function mcpServerNames(root: string): string[] {
   const text = readIfFile(join(root, '.mcp.json'));
   if (text === undefined) return [];
   try {
-    const parsed: unknown = JSON.parse(text);
-    const servers =
-      typeof parsed === 'object' && parsed !== null
-        ? (parsed as { mcpServers?: unknown }).mcpServers
-        : undefined;
-    return typeof servers === 'object' && servers !== null
-      ? Object.keys(servers)
-      : [];
+    const parsed = mcpConfigSchema.safeParse(JSON.parse(text));
+    return parsed.success ? Object.keys(parsed.data.mcpServers ?? {}) : [];
   } catch {
     return [];
   }

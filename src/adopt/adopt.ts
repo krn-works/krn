@@ -2,6 +2,7 @@
 import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { z } from 'zod';
 import {
   formatStandards,
   type Need,
@@ -480,16 +481,20 @@ interface HookEntry {
   hooks?: { type?: string; command?: unknown }[];
 }
 
+/** .claude/settings.json: any JSON object, every key kept. */
+export const settingsFileSchema = z.record(z.string(), z.unknown());
+
 /** The existing settings object, or an error naming the file; read before anything is written. */
 function readSettings(root: string): Record<string, unknown> {
   const relative = '.claude/settings.json';
   const path = join(root, relative);
   if (!existsSync(path)) return {};
   try {
-    const parsed: unknown = JSON.parse(readFileSync(path, 'utf8'));
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))
-      throw new Error('expected an object');
-    return parsed as Record<string, unknown>;
+    const parsed = settingsFileSchema.safeParse(
+      JSON.parse(readFileSync(path, 'utf8')),
+    );
+    if (!parsed.success) throw new Error('expected an object');
+    return parsed.data;
   } catch (error) {
     throw new Error(
       `${relative}: ${(error as Error).message}; nothing was written, fix or remove the file and rerun`,
