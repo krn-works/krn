@@ -33,6 +33,25 @@ function bodyField(task: TaskRecord, name: string): string | undefined {
   return undefined;
 }
 
+const runnableProof = /^(?:node|npm|npx|krn|bin\/krn|\.\/\S+) /u;
+
+/** The runnable commands of a task's `Proof:` field: backtick spans that start with a known runner. */
+export function proofCommands(task: TaskRecord): string[] {
+  const proof = bodyField(task, 'Proof') ?? '';
+  return [...proof.matchAll(/`([^`\n]+)`/gu)]
+    .map((match) => (match[1] ?? '').trim())
+    .filter((command) => runnableProof.test(command));
+}
+
+/** The Proof commands of the task a PR title names (`... (t-id)`), read from the worktree; none when the title or record is absent. */
+export function proofOfTitle(cwd: string, title: string): string[] {
+  const id = /\((t-[a-z0-9]+)\)$/u.exec(title)?.[1];
+  if (id === undefined || !isTaskId(id)) return [];
+  const root = repositoryRoot(cwd);
+  const task = loadTaskIndex(taskLookupRoot(root, id)).get(id);
+  return task === undefined ? [] : proofCommands(task);
+}
+
 export function renderPrBody(input: BodyInput): string {
   const { task } = input;
   const problem = bodyField(task, 'Why') ?? task.title;

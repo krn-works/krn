@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { logsCommand } from '../../ci/logs.ts';
 import { shipCommand } from '../../ci/ship.ts';
+import { proofOfTitle } from '../pr-body.ts';
 import { tokenHelper, tokenMinimumRemainingSeconds } from './environment.ts';
 
 export interface LaneVerdict {
@@ -37,7 +38,7 @@ export function mintFailure(result: {
 export const defaultSteps: Required<LaneRunSteps> = {
   ciLogs: (run, cwd) => logsCommand(['--run', run], { cwd }),
   start: async (args) => (await import('../lane.ts')).startLane(args),
-  ship: (args) => shipCommand(args),
+  ship: (args) => shipCommand(args, { proofOf: proofOfTitle }),
   mint: async (env) => {
     const result = spawnSync(process.execPath, [tokenHelper, 'token'], {
       encoding: 'utf8',

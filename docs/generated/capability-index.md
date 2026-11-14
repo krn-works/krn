@@ -62,7 +62,7 @@ src/cli/lane.ts: (no header) exports laneUsage, workerRules, TEST_FIRST_RULE, la
 src/cli/ledger.ts: (no header) exports ledgerCommand
 src/cli/main.ts: (no header) exports main
 src/cli/plan.ts: `krn plan`: one line with plan points left per account and the account to spend next.
-src/cli/pr-body.ts: (no header) exports prBodyUsage, LANE_MARKER, BodyInput, renderPrBody
+src/cli/pr-body.ts: (no header) exports prBodyUsage, LANE_MARKER, BodyInput, proofCommands
 src/cli/pr.ts: (no header) exports prCommand
 src/cli/repo.ts: `krn repo contract`: print the repo contract (krn.json merged over detection) as JSON.
 src/cli/state.ts: (no header) exports stateCommand

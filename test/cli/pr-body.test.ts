@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { renderPrBody } from '../../src/cli/pr-body.ts';
+import { proofCommands, renderPrBody } from '../../src/cli/pr-body.ts';
 import type { TaskRecord } from '../../src/task/record.ts';
 
 const cli = fileURLToPath(new URL('../../src/cli/main.ts', import.meta.url));
@@ -167,4 +167,18 @@ test('pr body --lane adds the lane marker line and the plain body has none', () 
     /^Lane: krn lane brief$/m,
   );
   assert.doesNotMatch(renderPrBody(input), /^Lane:/m);
+});
+
+test('proofCommands keeps the runnable backtick spans of the Proof field', () => {
+  const record = {
+    ...task,
+    body: [
+      'Outcome: x.\nProof: `node --test test/ci/ship.test.ts`. Also `npm run fast` PASS, see `main` and `docs/x.md`.',
+    ],
+  };
+  assert.deepEqual(proofCommands(record), [
+    'node --test test/ci/ship.test.ts',
+    'npm run fast',
+  ]);
+  assert.deepEqual(proofCommands(task), []);
 });
