@@ -1,0 +1,16 @@
+{
+  "id": "t-dntf4z6",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast selects test/adopt/canary.test.ts on src/adopt/canary.ts change: CLI route map parsed, cli/main.ts spawn recognised; test in test/fast-check.test.ts"
+  },
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "npm run fast selects the canary test when the adopt canary changes",
+  "after": [],
+  "body": [
+    "Why: lane bootstrap-adopt (#832): changing src/adopt/canary.ts and src/cli/adopt.ts, npm run fast (in ship) passed but CI failed on test/adopt/canary.test.ts, which asserts the old behaviour; fast did not select it (two red Checks).\nOutcome: fast selects every test that imports or spawns a changed module (including tests that run bin/krn adopt), so the canary test runs on a canary.ts change.\nProof: a fast-check test: changing src/adopt/canary.ts selects test/adopt/canary.test.ts."
+  ]
+}
