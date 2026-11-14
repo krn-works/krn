@@ -9,6 +9,7 @@ import {
   realpathSync,
 } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
+import { z } from 'zod';
 import {
   ABI_LABELS,
   type CapsuleFields,
@@ -103,6 +104,9 @@ function frictionCandidates(friction: string | null): string[] {
   ].map((match) => (match[1] ?? '').replace(/[.,]+$/, ''));
 }
 
+/** A tasks/<id>.json record: only its id is read here. */
+export const taskIdSchema = z.looseObject({ id: z.string() });
+
 function taskRecordIds(root: string): Set<string> {
   const ids = new Set<string>();
   const directory = join(root, 'tasks');
@@ -115,11 +119,10 @@ function taskRecordIds(root: string): Set<string> {
     for (const file of readdirSync(directory, { withFileTypes: true })) {
       if (!file.isFile() || !file.name.endsWith('.json')) continue;
       try {
-        const record: unknown = JSON.parse(
-          readFileSync(join(directory, file.name), 'utf8'),
+        const record = taskIdSchema.parse(
+          JSON.parse(readFileSync(join(directory, file.name), 'utf8')),
         );
-        const id = (record as { id?: unknown }).id;
-        if (typeof id === 'string' && `${id}.json` === file.name) ids.add(id);
+        if (`${record.id}.json` === file.name) ids.add(record.id);
       } catch {
         // An unreadable record resolves no candidate.
       }

@@ -12,6 +12,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { z } from 'zod';
 import {
   CONTRACT_FILE,
   findContract,
@@ -75,12 +76,29 @@ const gitIn = (cwd: string, ...args: string[]) =>
     ...args,
   ]);
 
+/** The slice of .claude/settings.json the canary reads: Stop hook commands. */
+export const stopSettingsSchema = z.looseObject({
+  hooks: z
+    .looseObject({
+      Stop: z
+        .array(
+          z.looseObject({
+            hooks: z
+              .array(z.looseObject({ command: z.unknown().optional() }))
+              .optional(),
+          }),
+        )
+        .optional(),
+    })
+    .optional(),
+});
+
 /** The Stop commands the adopted settings call, or none when the gate is not installed. */
 function stopCommands(root: string): string[] {
   try {
-    const settings = JSON.parse(
-      readFileSync(join(root, '.claude/settings.json'), 'utf8'),
-    ) as { hooks?: { Stop?: { hooks?: { command?: unknown }[] }[] } };
+    const settings = stopSettingsSchema.parse(
+      JSON.parse(readFileSync(join(root, '.claude/settings.json'), 'utf8')),
+    );
     return (settings.hooks?.Stop ?? [])
       .flatMap((entry) => entry.hooks ?? [])
       .flatMap((hook) =>
