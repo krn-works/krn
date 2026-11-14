@@ -344,7 +344,7 @@ const CALL_TIMEOUT_MS = 5_000;
 // block the event loop, losing the concurrent row fetch that keeps this fast.
 const CALL_ATTEMPTS = 3;
 export const callRun =
-  (timeout: number): Run =>
+  (timeout: number, cwd?: string): Run =>
   async (cmd, args) => {
     for (let attempt = 1; ; attempt++) {
       try {
@@ -352,6 +352,7 @@ export const callRun =
           await exec(cmd, args, {
             maxBuffer: 16 * 1024 * 1024,
             timeout,
+            ...(cwd === undefined ? {} : { cwd }),
           })
         ).stdout;
       } catch (error) {

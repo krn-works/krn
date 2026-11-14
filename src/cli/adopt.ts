@@ -15,6 +15,7 @@ import {
   initTestCommand,
 } from '../adopt/init.ts';
 import { verifyRepository } from '../adopt/verify.ts';
+import { registerAdopted } from '../brain/adopted-registry.ts';
 import { StandardsDataError } from '../brain/standards.ts';
 import { StandardsInputError } from '../brain/standards-cli.ts';
 import { flagValue } from '../cli-kit/flag-value.ts';
@@ -200,6 +201,10 @@ export function adoptCommand(args: string[]): void {
       );
     }
   }
+  if (registerAdopted(root))
+    process.stdout.write(
+      'registered in the host registry of adopted repositories\n',
+    );
   printGaps(root);
   process.stdout.write(nextSteps(path));
 }

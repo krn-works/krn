@@ -1,7 +1,11 @@
 {
   "id": "t-0bct43k",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt registers in a host registry; harvest with no arguments and --from-ledger proved by test/cli/standards-registry.test.ts"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "Adopt writes a host registry of adopted repositories and harvest --from-ledger proposes records from rework and red-CI PRs",

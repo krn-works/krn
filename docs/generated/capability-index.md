@@ -30,6 +30,7 @@ src/adopt/init.ts: krn adopt --init: git init and a
 src/adopt/journal.ts: A write journal for adoption:
 src/adopt/stop-hook.ts: The hook command `krn adopt
 src/adopt/verify.ts: `krn adopt <path> --verify`: a
+src/brain/adopted-registry.ts: The host registry of
 src/brain/exposures.ts: The exposure log: one appen
 src/brain/first-test.ts: First-test recipes (the wo
 src/brain/global-standards.ts: The user-level stand
@@ -89,6 +90,7 @@ src/cli/plan.ts: `krn plan`: one line with plan poi
 src/cli/pr-body.ts: (no header) exports prBodyUsage
 src/cli/pr.ts: (no header) exports prCommand
 src/cli/repo.ts: `krn repo contract`: print the rep
+src/cli/standards-ledger.ts: `krn standards harvest
 src/cli/state.ts: (no header) exports stateCommand
 src/context/cc-clearing-watch.ts: Watches whether C
 src/context/disk-pressure.ts: Disk-volume probe and
