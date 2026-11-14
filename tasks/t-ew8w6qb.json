@@ -1,0 +1,16 @@
+{
+  "id": "t-ew8w6qb",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "evidenceTests in scripts/fast-check.ts"
+  },
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "npm run fast runs the standards test when a file named in standards evidence changes",
+  "after": [],
+  "body": [
+    "Why: on 2026-11-14 the refactor-clikit lane (t-5wzk8zf) moved text a standards record anchors (s-plainest-input) out of src/cli/lane.ts; npm run fast passed and the Check went red on test/brain/standards.test.ts.\nOutcome: npm run fast selects test/brain/standards.test.ts when a changed or removed file is named in standards/records.json evidence.\nProof: test/fast-check.test.ts evidenceTests over the real records PASS; npm run fast PASS."
+  ]
+}
