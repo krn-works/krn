@@ -1,0 +1,12 @@
+{
+  "id": "t-tgf314k",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Fresh eval units come from pilot repositories with hidden tests",
+  "after": [],
+  "body": [
+    "Why: evals/d23/preregistration.md (t-ajp3meg #756): the K vs PB claim needs about 188 units for power 0.8 at +9 pp; D23 has 33 untouched units (power 0.217). The two pilots (TS seo-audit-harness, krn-pilot-py) delivered 5/5 hidden PASS each with lead-written hidden tests, so pilot repositories are the fresh-unit source.\nOutcome: a unit format and a builder under evals/ that turns a pilot repository task (base SHA, task text, hidden test file, PB spec) into a replayable unit; at least 20 units committed from the two pilot repositories as the first batch, each verified red on base and green on the reference fix.\nProof: test that every committed unit is red on base and green on its reference (scripted, no paid model runs); npm run fast PASS."
+  ]
+}

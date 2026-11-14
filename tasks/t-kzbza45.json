@@ -1,0 +1,12 @@
+{
+  "id": "t-kzbza45",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "The ledger counts lanes started with the Agent tool as lanes",
+  "after": [],
+  "body": [
+    "Why: t-496nx1h (#757) attributes a PR to a lane only when its body says \"headless claude session\" or a lane transcript directory exists; lanes the lead starts with the Agent tool (krn-lane subagent, `bin/krn lane brief` prompt) carry neither, so the 2026-11-14 batch (#749-#757, all lanes) counts as lead and the lane/lead split is wrong.\nOutcome: a PR shipped from a `bin/krn lane brief` lane carries a machine-readable lane marker (pr body or commit trailer written by `krn pr body`/`krn pr ship` when the brief set it), and the ledger counts it as lane.\nProof: ledger test on a PR body with the marker counts lane; `krn ledger --last 10` after the next lane batch shows the lanes; npm run fast PASS."
+  ]
+}
