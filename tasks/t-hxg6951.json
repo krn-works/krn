@@ -1,0 +1,12 @@
+{
+  "id": "t-hxg6951",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "A handoff cannot carry Roadmap unchanged over an empty roadmap",
+  "after": [],
+  "body": [
+    "Why: operator 2026-11-14: knowledge is lost between sessions. The handoff of 2026-11-13 carried \"Roadmap: unchanged\" while docs/program/roadmap.md had an empty table, so no session saw that the plan was exhausted (fixed by t-72wjf0z dea255f).\nOutcome: scripts/claude/handoff-requests.ts refuses `Roadmap: unchanged` when the roadmap table has no row naming an open task, and names the fix (refill the roadmap).\nProof: test/claude/handoff-requests.test.ts with an empty-table roadmap fixture exits non-zero; npm run fast PASS."
+  ]
+}
