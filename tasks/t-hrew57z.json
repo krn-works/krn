@@ -1,7 +1,11 @@
 {
   "id": "t-hrew57z",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship regenerates a generated-only conflict that appears while it waits (base moved after the push) and force-pushes; cause: t-vnm73ha only covered the pre-push rebase, ci wait exited 76 on mergeable_state dirty"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "Ship regenerates a capability-index-only conflict instead of exiting 76",

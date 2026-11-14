@@ -16,7 +16,7 @@ import { rebaseGenerated } from './rebase-generated.ts';
 import { waitCommand } from './wait.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh or cleanup still exits 0 with a warning); a rerun after the merge only cleans up; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 71 gh returned an empty or truncated reply twice (transport fault; the message names the gh command), 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh or cleanup still exits 0 with a warning); a rerun after the merge only cleans up; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 71 gh returned an empty or truncated reply twice (transport fault; the message names the gh command), 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict outside generated files (a conflict only in generated files, before the push or after the base moved during the wait, is regenerated and force-pushed), 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
 
 /** Exit codes for a ship whose wait ended without a merge. */
 const unmergedExitCodes = [
@@ -26,6 +26,8 @@ const unmergedExitCodes = [
 ] as const;
 
 const gitLockAttempts = 5;
+/** Regenerate-and-push rounds after the PR turns conflicting while it waits. */
+const conflictRebases = 3;
 const workflowsRejection = /without `?workflows`? permission/u;
 const instructionBytesRule = 'test/rules/instruction-bytes.test.ts';
 
@@ -142,13 +144,16 @@ export async function shipCommand(
   }
 
   // Parallel lanes share one object store: retry a fetch another git blocks.
-  for (let attempt = 1; ; attempt++) {
-    const fetched = runner('git', ['fetch', '-q', 'origin', target], cwd);
-    if (fetched.code === 0) break;
-    if (attempt >= gitLockAttempts || !gitLockError.test(fetched.stderr))
-      checked(fetched);
-    await wait(attempt * 1000);
-  }
+  const fetchTarget = async () => {
+    for (let attempt = 1; ; attempt++) {
+      const fetched = runner('git', ['fetch', '-q', 'origin', target], cwd);
+      if (fetched.code === 0) return;
+      if (attempt >= gitLockAttempts || !gitLockError.test(fetched.stderr))
+        checked(fetched);
+      await wait(attempt * 1000);
+    }
+  };
+  await fetchTarget();
   // A conflict confined to generated files is regenerated here; any other conflict exits 76.
   const rebased = rebaseGenerated(cwd, target, runner);
   const changed = git(['diff', '--name-only', `origin/${target}...HEAD`]);
@@ -315,25 +320,32 @@ export async function shipCommand(
   }
   await gh(['pr', 'merge', String(pr), '--repo', repo, '--auto', '--squash']);
 
-  const head = git(['rev-parse', 'HEAD']);
-  const base = git(['rev-parse', `origin/${target}`]);
-  const waitArgs = [
-    '--repo',
-    repo,
-    '--pr',
-    String(pr),
-    '--head',
-    head,
-    '--base',
-    base,
-  ];
-  const waited = await waitCommand(waitArgs, {
-    ...runtime,
-    cwd: worktree,
-    run: runner,
-    gh,
-    sleep: wait,
-  });
+  let head = git(['rev-parse', 'HEAD']);
+  let waited: string;
+  for (let rebases = 0; ; rebases++) {
+    const base = git(['rev-parse', `origin/${target}`]);
+    try {
+      waited = await waitCommand(
+        ['--repo', repo, '--pr', String(pr), '--head', head, '--base', base],
+        { ...runtime, cwd: worktree, run: runner, gh, sleep: wait },
+      );
+      break;
+    } catch (error) {
+      // Another lane merged after the push: the PR now conflicts with its base. A conflict
+      // confined to generated files is regenerated and force-pushed; any other stays exit 76.
+      if (
+        (error as { exitCode?: number }).exitCode !== 76 ||
+        rebases >= conflictRebases
+      )
+        throw error;
+      await fetchTarget();
+      if (!rebaseGenerated(cwd, target, runner)) throw error;
+      checked(
+        runner('git', ['push', '--force-with-lease', 'origin', branch], cwd),
+      );
+      head = git(['rev-parse', 'HEAD']);
+    }
+  }
   const lines = [`pr: #${pr} ${repo} ${head}`, waited];
   if (/^verdict: merged /mu.test(waited)) {
     lines.push(cleanup());
