@@ -4,8 +4,6 @@ Generated from the open tasks in `tasks/` by `node scripts/claude/roadmap-prune.
 
 | Task | Priority | Opportunity | Evidence |
 |---|---|---|---|
-| t-12yk5za | 1 | A lane subagent whose PR merged and whose worktree ship removed may end without a BLOCKER line | on 2026-11-14 five lanes (#844 #845 #846 #847 #848) merged through bin/krn pr ship, which removes the lane worktree and branch; the SubagentStop hook added by t-07p7k0y (#839) then evaluated the main… |
-| t-1gdxgx7 | 1 | The Stop hook laid into a clone without node_modules loads without a bare zod import | on main 24e7081 locally, test/evals/d23-harness.test.ts 'a replay clone with the harness laid over its parent refuses Stop with exit 2 while a related test is red' fails with ERR_MODULE_NOT_FOUND: Ca… |
 | t-91xs1pq | 1 | Every lane run logs which standards it was served and their outcome; krn standards effect reports per record | Fable plan 1114e (.krn/runs/overnight/fable-plan-1114e.md) slice 6: lane verdict stores only the packet sha (src/cli/lane-run/verdict.ts:54); no record has outcome evidence. |
 | t-d19z692 | 1 | Bootstrap then unattended drain is proven live in three operator repositories | Fable plan 1114d slice 6 (folds t-db6tyeb): acceptance of the breakthrough. |
 | t-d93e0n8 | 1 | Claude Code specifics live behind one harness module (headless run, hook codec, usage normaliser, instruction home) | Fable plan 1114e (.krn/runs/overnight/fable-plan-1114e.md) slice 3: Claude specifics leak into lane-run/session.ts:53, delivery.ts:56, result.ts:66, context/io.ts, hook/scope.ts:232, outcome/slice-co… |
@@ -15,8 +13,11 @@ Generated from the open tasks in `tasks/` by `node scripts/claude/roadmap-prune.
 | t-1y29yhq | 2 | FR-40 arm C measures the conventions packet against the instruction file alone | memory audit: FR-40 compared packet vs none and vs static standards, never vs the repository instruction file alone, which already carries most rules (lanes arm A 75%). |
 | t-8ngxh95 | 2 | adopt on a red base seeds a green-base task and a canary timeout names its slow step | Fable plan 1114d slice 4: census 3x exit 69 (red base: mise-en-plesk, lsn2-map, wycena-master) and 1x 124 (perfect-memory canary 180s). |
 | t-aanzxqr | 2 | The ledger attributes lane sessions so cost per unattended task is computable | Fable plan 1114e (.krn/runs/overnight/fable-plan-1114e.md) slice 11: krn ledger --limit 20 reports workerInput: unknown (n=0), judgeInput unknown. |
-| t-bx46d0r | 2 | npm run fast selects tests that read a changed data file such as AGENTS.md | PR #850 (t-m1ak2s4) changed AGENTS.md; npm run fast PASSed locally but CI run 43618415681 failed test/brain/standards.test.ts, which checks that standards/records.json evidence 'AGENTS.md#KRN-08' sti… |
 | t-czn62h3 | 2 | A worker proves a failing reproduction test before its fix and ends on green | Agentless reproduction+regression selection 25.67 -> 32.0; TestPrune +4.8 pp; R2E-Gym verifier 42.9 -> 51.0 (papers.md). A red test, not tracker state, defines done. |
 | t-dcdad8m | 2 | The worker packet carries per-stack first-test recipes for PHP, WordPress and npm sites | Fable plan 1114d slice 3; risk: a first test in a WordPress/PHP site is vacuous in spirit or needs a missing runtime. |
+| t-t5qsy59 | 2 | Migrate the standards pack and project standards file to the one record schema | t-ea10z3f shipped the one budgeted lane packet but kept the Standard shape for standards/records.json, .agents/standards.json and adopt. |
+| t-zj8jj5y | 2 | Layer map matches the code and external binaries are called only from their adapter module | Fable plan 1114e (.krn/runs/overnight/fable-plan-1114e.md) slice 4: scripts/boundaries.ts lists removed areas (hosts, evals->cli/hosts) and unused edges (brain->cli, brain->evals/fr40/tasks.ts); gh a… |
+| t-9bfd07m | 2 | Adopted repositories get a task-scoped standards packet at session start and the Stop hook teaches the violated record | Fable plan 1114e (.krn/runs/overnight/fable-plan-1114e.md) slice 8: src/hook/session.ts injects nothing; Stop blocks without teaching or logging. |
+| t-b0rfqra | 2 | Prose standards carry a deterministic holdout and retire automatically when they show no effect | Fable plan 1114e (.krn/runs/overnight/fable-plan-1114e.md) slice 10: no record can be retired; ADR 0002 requires operator promotion. |
 
-13 more open task(s) are not shown; `krn task list` lists them.
+8 more open task(s) are not shown; `krn task list` lists them.

@@ -1201,3 +1201,36 @@ test('the Stop hook import graph names only node builtins, relative files and zo
   assert.ok(seen.size > 5, 'the walk reached the hook sources');
   assert.deepEqual([...bare].sort(), ['zod']);
 });
+
+test('a krn-lane subagent whose ship merged ends at the main checkout; an unmerged verdict is still refused', () => {
+  // Evidence: lanes #844-#849 (2026-11-14) merged via krn pr ship, which removed their worktree, and
+  // SubagentStop then refused them at the main checkout with "no commit" (t-12yk5za).
+  const dir = clone();
+  try {
+    const leadEnv = { CLAUDE_PROJECT_DIR: '/somewhere/else' };
+    const head = spawnSync('git', ['rev-parse', 'HEAD'], {
+      cwd: dir,
+      encoding: 'utf8',
+    }).stdout.trim();
+    const sub = (message: string) => ({
+      ...payload(dir),
+      agent_id: 'a1',
+      agent_type: 'krn-lane',
+      last_assistant_message: message,
+    });
+    assert.equal(
+      judgeStop(sub(`shipped\nverdict: merged ${head}`), leadEnv, () => []),
+      undefined,
+    );
+    assert.match(
+      judgeStop(
+        sub('verdict: merged 0123456789abcdef0123456789abcdef01234567'),
+        leadEnv,
+        () => [],
+      ) ?? '',
+      /no commit/u,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
