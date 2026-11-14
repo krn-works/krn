@@ -1,0 +1,16 @@
+{
+  "id": "t-jmqb989",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "missing tier defaults to finish; regression test at the parser"
+  },
+  "created": "2026-11-14",
+  "priority": 0,
+  "title": "A standards record adopted before tiers parses as a finish standard",
+  "after": [],
+  "body": [
+    "Why: #777 made tier a required standards field; an adopted repository whose .agents/standards.json predates tiers is refused with exit 65 and every krn lane run there stops (.krn/runs/units-ts/lanes/self-link.log).\nOutcome: a record without a tier parses as a finish standard.\nProof: test/brain/standards.test.ts PASS; npm run fast PASS."
+  ]
+}
