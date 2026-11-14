@@ -476,8 +476,14 @@ test('promotionFailures holds a harvested record to recurrence and enforcement, 
   );
 });
 
-test('parseStandards refuses a record without a tier, with an unknown tier, or a waiver off reflex', () => {
-  rejects((r) => delete r.tier, /fields must be exactly/u);
+test('parseStandards reads a record adopted before tiers as a finish standard', () => {
+  const record = base();
+  delete record.tier;
+  const [standard] = parseStandards([record]);
+  assert.equal(standard?.tier, 'finish');
+});
+
+test('parseStandards refuses an unknown tier or a waiver off reflex', () => {
   rejects(
     (r) => (r.tier = 'optional'),
     /\.tier: expected one of floor, reflex, finish/u,

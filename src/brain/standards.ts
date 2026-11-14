@@ -77,7 +77,6 @@ const FIELDS = [
   'area',
   'layer',
   'audience',
-  'tier',
   'text',
   'why',
   'evidence',
@@ -87,8 +86,13 @@ const FIELDS = [
   'valid_from',
   'valid_to',
 ] as const;
-/** Fields a record may carry beyond FIELDS. */
-const OPTIONAL = ['origin', 'harvested', 'waiver'] as const;
+/**
+ * Fields a record may carry beyond FIELDS. A record without a tier is a
+ * finish standard: files adopted before tiers existed carry none, and
+ * refusing them stopped every lane in those repositories with exit 65.
+ */
+const OPTIONAL = ['origin', 'harvested', 'tier', 'waiver'] as const;
+const DEFAULT_TIER: Tier = 'finish';
 const ID = /^s-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const DATE = /^\d{4}-\d{2}-\d{2}$/u;
 const AREA = /^[a-z][a-z0-9-]*$/u;
@@ -226,7 +230,8 @@ function parseStandard(item: unknown, where: string): Standard {
   if (!AREA.test(area))
     throw new StandardsDataError(`${where}.area: expected a kebab-case word`);
   const layer = member(r.layer, LAYERS, `${where}.layer`);
-  const tier = member(r.tier, TIERS, `${where}.tier`);
+  const tier =
+    'tier' in r ? member(r.tier, TIERS, `${where}.tier`) : DEFAULT_TIER;
   if ('waiver' in r && tier !== 'reflex')
     throw new StandardsDataError(
       `${where}.waiver: only a reflex standard takes a waiver`,
