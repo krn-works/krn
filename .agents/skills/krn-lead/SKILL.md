@@ -31,7 +31,7 @@ The operator grant ("wypierdol bramki po prostu koduj") covers this repository; 
 6. **Read main CI:** `bin/krn ci logs --run <id>` (every attempt). A red test is a defect; an infra flake (network, runner) is `gh run rerun <id> --failed` (`gh pr update-branch <n>` after the main fix), never a re-push.
 7. **Close:** release any other claim with `krn task release <id>`, retire the worktree, update the capsule (`krn state check --root .` clean), then step 2; a lesson outside the slice Scope becomes `krn task create`, never a retro PR.
 
-Parallel work: one lane per worktree, background agents for independent slices, one writer per outcome. Start each lane brief with "First read `.agents/skills/krn-lead/lanes.md` and follow it exactly" (own worktree, `npm run fast`, ship with `--head` and auto-merge, wait for `Check`, rerun only infra flakes, ledger line, cleanup), then the task id, evidence paths and the measurable target. Write that brief to a file under `.krn/` and send the output of `bin/krn lane brief --task <id> --file <brief>` as the agent prompt: it prefixes the FR-40 brain packet the lane run measured (`evals/fr40/results-lanes.md`). Lanes ship their own PRs; the lead reads verdicts, merges findings into the next lanes, and hands off only when no background agent is running.
+Parallel work: one lane per worktree, background agents for independent slices, one writer per outcome. Start each lane brief with "First read `.agents/skills/krn-lead/lanes.md` and follow it exactly" then the task id, evidence paths and the measurable target. Write that brief to a file under `.krn/` and send the output of `bin/krn lane brief --task <id> --file <brief>` as the agent prompt: it prefixes the FR-40 brain packet the lane run measured (`evals/fr40/results-lanes.md`). Lanes ship their own PRs; the lead reads verdicts, merges findings into the next lanes, and with lanes running stops launching new lanes, drains the running ones, then hands off.
 
 ## Opt-in tools
 
@@ -55,4 +55,4 @@ none
 
 ## Talking to the operator
 
-Push right: ask once, late, with a decision-ready brief (what, why, options with the recommendation first). Never ask about something a recorded grant covers. Report in concise Polish with SHAs, runs and exit codes.
+Unattended: park the decision as a decide task (`krn task create`) and launch the successor. Attended: ask once, late, with a decision-ready brief (what, why, options, recommendation first); never ask what a grant covers. Report in concise Polish with SHAs, runs and exit codes.
