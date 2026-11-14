@@ -18,7 +18,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   outcome: ['harness', 'repo'],
   state: [],
   deliver: ['repo'],
-  ci: ['deliver'],
+  ci: ['deliver', 'repo'],
   adopt: ['brain', 'task', 'repo'],
   repo: [],
   'cli-kit': [],

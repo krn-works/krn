@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { runCanary, touchesLane } from '../../scripts/lane-canary.ts';
+import { runCanary, touchesLane } from '../../src/cli/lane-canary.ts';
 
 test('the canary path filter selects lane, adopt and ci changes only', () => {
   assert.equal(touchesLane(['src/cli/lane-run.ts']), true);

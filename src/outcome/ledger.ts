@@ -22,6 +22,7 @@ import {
   REQUIRED_CHECK_APP_ID,
   REQUIRED_CHECK_NAME,
 } from '../repo/ci-admission-contract.ts';
+import { readJson } from '../repo/json-text.ts';
 import { sessionMarkers } from './holdings.ts';
 import {
   addedLines,
@@ -47,13 +48,7 @@ export const array = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 export const number = (v: unknown): Value =>
   typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
 export const string = (v: unknown): string => (typeof v === 'string' ? v : '');
-export const parse = (v: string): unknown => {
-  try {
-    return JSON.parse(v);
-  } catch {
-    return null;
-  }
-};
+export const parse = (v: string): unknown => readJson(v) ?? null;
 const sum = (values: Value[], empty: Value = null): Value =>
   values.length === 0
     ? empty

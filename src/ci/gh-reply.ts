@@ -1,3 +1,5 @@
+import { readJson } from '../repo/json-text.ts';
+
 export type Gh = (args: string[]) => Promise<string>;
 
 const transportExit = 71;
@@ -13,12 +15,7 @@ function expectsReply(args: string[]): 'json' | 'text' | undefined {
 function usable(kind: 'json' | 'text', reply: string): boolean {
   if (reply.trim() === '') return false;
   if (kind === 'text') return true;
-  try {
-    JSON.parse(reply);
-    return true;
-  } catch {
-    return false;
-  }
+  return readJson(reply) !== undefined;
 }
 
 /**
