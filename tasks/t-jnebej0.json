@@ -1,0 +1,16 @@
+{
+  "id": "t-jnebej0",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "skill passes --worktree; error names it"
+  },
+  "created": "2026-11-14",
+  "priority": 3,
+  "title": "krn pr body names --worktree when the task lives in a slice worktree",
+  "after": [],
+  "body": [
+    "Why: 2026-11-14 lead slice t-e21xbq6: the krn-lead skill said to run `krn pr body --task <id>` from the repository root without --worktree, so a task created inside the slice worktree failed with exit 64 \"Unknown task\" and no hint; `--worktree` already existed.\nOutcome: the skill's pr body line passes `--worktree .krn/worktrees/<slug>`, and the Unknown task error names the root it searched and the --worktree flag.\nProof: test/cli/pr-body.test.ts asserts the hint; npm run fast PASS.\nScope: src/cli/pr-body.ts, test/cli/pr-body.test.ts, krn-lead SKILL.md (both copies)."
+  ]
+}

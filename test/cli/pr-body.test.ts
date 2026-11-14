@@ -113,7 +113,10 @@ test('krn pr body --worktree finds a task created only in that worktree', () => 
       );
     const missing = run();
     assert.equal(missing.status, 64);
-    assert.match(missing.stderr, /Unknown task t-abc1234/);
+    assert.match(
+      missing.stderr,
+      /Unknown task t-abc1234 in .*needs --worktree <path>/,
+    );
     const result = run('--worktree', lane);
     assert.equal(result.status, 0, result.stderr);
     assert.match(
