@@ -21,11 +21,19 @@ export function parseDiff(diff) {
   for (const line of diff.split('\n')) {
     const header = /^diff --git a\/(.+) b\/(.+)$/u.exec(line);
     if (header) {
-      current = { path: header[2], deleted: false, added: [], removed: [] };
+      current = {
+        path: header[2],
+        from: header[1],
+        deleted: false,
+        added: [],
+        removed: [],
+      };
       files.push(current);
     } else if (!current) {
     } else if (line.startsWith('deleted file mode')) {
       current.deleted = true;
+    } else if (line.startsWith('rename from ')) {
+      current.from = line.slice('rename from '.length);
     } else if (line.startsWith('+++') || line.startsWith('---')) {
     } else if (line.startsWith('+')) {
       current.added.push(line.slice(1));
@@ -46,7 +54,13 @@ const stemOf = (path) =>
 export function checkWeakTests({ diff, body = '', targetExists }) {
   const findings = [];
   for (const file of parseDiff(diff)) {
-    if (!TEST_FILE.test(file.path)) continue;
+    if (!TEST_FILE.test(file.path)) {
+      if (file.from !== file.path && TEST_FILE.test(file.from))
+        findings.push(
+          `${file.from}: test file renamed to ${file.path}, which is not a test file`,
+        );
+      continue;
+    }
     if (file.deleted) {
       if (targetExists(stemOf(file.path)))
         findings.push(
@@ -79,7 +93,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   // `--worktree` compares the working tree with base, so `npm run fast` sees uncommitted edits.
   const worktree = head === '--worktree';
   // Fixed prefixes: parseDiff reads `b/`, which diff.mnemonicPrefix would turn into `w/`.
-  const options = ['--no-renames', '-U0', '--src-prefix=a/', '--dst-prefix=b/'];
+  // -M: a renamed test file is a move, so it is not read as a deleted test plus a new one.
+  const options = ['-M', '-U0', '--src-prefix=a/', '--dst-prefix=b/'];
   const diff = worktree
     ? git('diff', ...options, base)
     : git('diff', ...options, `${base}...${head}`);
