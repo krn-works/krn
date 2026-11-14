@@ -1,7 +1,11 @@
 {
   "id": "t-02kc4mc",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Worker rule and hook note: out-of-scope harness edits only when a named red test needs them, else reverted; tracker and roadmap stay refused."
+  },
   "created": "2026-11-12",
   "priority": 2,
   "title": "K scope drift: harness edits outside scope now allowed; keep K scope-clean without blocking tests",

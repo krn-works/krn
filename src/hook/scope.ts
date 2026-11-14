@@ -208,7 +208,7 @@ export function judge(
   return notes.length === 0
     ? {}
     : {
-        note: `Allowed outside Scope: ${notes.join(', ')} (harness file). Name it in your final reply so the lead can review it; do not leave a failing test behind to avoid it.`,
+        note: `Allowed outside Scope: ${notes.join(', ')} (harness file). Keep it only if a named test is red without it, and name it in your final reply; otherwise revert it and stay inside Scope. Never leave a failing test behind to avoid it.`,
       };
 }
 

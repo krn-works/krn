@@ -61,6 +61,8 @@ test('a lane brief tells the worker that a red test outranks a closed tracker re
     /closed task record, an earlier commit or a green existing suite never means done/u,
   );
   assert.match(text, /red test outranks tracker state/u);
+  assert.match(text, /Otherwise stay inside Scope/u);
+  assert.match(text, /revert such an edit before you commit/u);
 });
 
 test('krn lane brief prints the carrier prefix over a brief file and stdin', () => {

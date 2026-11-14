@@ -48,6 +48,7 @@ test('tracker paths are denied to a worker; harness files are allowed and report
     const verdict = judge(write(`${root}/${path}`), worker('src/'));
     assert.equal(verdict.refusal, undefined, path);
     assert.match(verdict.note ?? '', new RegExp(path.replace('.', '\\.'), 'u'));
+    assert.match(verdict.note ?? '', /only if a named test is red without it/u);
   }
   assert.equal(
     judge(write(`${root}/AGENTS.md`), worker('AGENTS.md')).note,
