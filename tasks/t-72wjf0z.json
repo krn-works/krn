@@ -1,0 +1,16 @@
+{
+  "id": "t-72wjf0z",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "roadmap R40-R50 ranked by goal priorities"
+  },
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "The roadmap ranks the open work by the overnight goal priorities",
+  "after": [],
+  "body": [
+    "Why: operator 2026-11-14 asked where KRN stands against the roadmap; docs/program/roadmap.md has an empty table while the goal (.krn/runs/overnight/goal.md) ranks pilot, brain of standards, rest. Handoffs said \"Roadmap: unchanged\".\nOutcome: the roadmap table ranks open tasks R40+ by the goal priorities with evidence; the pilot priority is marked met by two pilots.\nProof: node --test test/rules/roadmap-open-tasks.test.ts PASS; npm run fast PASS."
+  ]
+}
