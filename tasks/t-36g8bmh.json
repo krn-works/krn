@@ -1,0 +1,12 @@
+{
+  "id": "t-36g8bmh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "Each standard has a tier: floor blocks Stop, reflex needs a recorded waiver, finish reports",
+  "after": [],
+  "body": [
+    "Why: operator-shared GitHub trending triage 2026-11-14: Nutlope/hallmark (Floor/Reflex/Finish gates), pbakaus/impeccable (LLM-free detector, exit 2 with JSON, per-file exemptions, hook before done). KRN standards (.agents/standards.json) carry enforcement but no tier and no recorded waiver.\nOutcome: every standard has a tier: floor (a violation blocks the worker Stop in an adopted repository), reflex (blocks unless a waiver with a reason is recorded next to the code or in the standards file), finish (reported only); `krn standards check` prints per-tier counts and exits non-zero only on floor or unwaived reflex.\nProof: tests: a floor violation blocks Stop with exit 2 in an adopted fixture repo; a reflex violation with a recorded reason passes and without it blocks; a finish violation only reports. npm run fast PASS.\nScope: src/brain/, src/hook/, .agents/standards.json, test/."
+  ]
+}

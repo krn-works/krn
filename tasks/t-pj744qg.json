@@ -1,0 +1,12 @@
+{
+  "id": "t-pj744qg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 3,
+  "title": "Review findings follow a schema a validator checks and a fresh-context verifier confirms",
+  "after": [],
+  "body": [
+    "Why: operator-shared trending triage 2026-11-14: cloudflare/security-audit-skill (findings.json with a schema and validator; confirmed requires a full trace, needs_validation carries no severity; the checker is never the finder) and google/elephant-goldfish-model (fresh-context reviewers; review stops instead of pretending when no fresh context exists). KRN review output is free text and self-assessment is not independent acceptance.\nOutcome: a findings schema (confirmed | needs_validation | rejected; confirmed requires file:line evidence and a reproducing command), `krn findings validate <file>` exiting non-zero on a confirmed finding without evidence, and the review procedure in docs/program states that a fresh-context verifier, not the finder, sets confirmed.\nProof: validator tests (valid file passes; confirmed without evidence fails; severity on needs_validation fails). npm run fast PASS.\nScope: src/, docs/program/, test/."
+  ]
+}
