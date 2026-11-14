@@ -28,9 +28,24 @@ function renderRule(rule: Rule): string {
 }
 
 /** The rules a worker session sees: scope prohibitions stay, lead and governance rules go. */
-export function workerRules(all: readonly Rule[]): Rule[] {
-  return all.filter((rule) => rule.audience !== 'lead');
+export function workerRules(all: readonly Rule[], testFirst = false): Rule[] {
+  const rules = all.filter((rule) => rule.audience !== 'lead');
+  return testFirst ? [...rules, TEST_FIRST] : rules;
 }
+
+/** Arm KT only (KRN_TEST_FIRST=1): a worker's rule list gains the test-first rule the Stop hook enforces. */
+export const TEST_FIRST: Rule = {
+  id: 'KRN-TF',
+  trigger: 'a worker changes source',
+  action:
+    'the worker MUST commit a test that fails against the base source and passes on its commit',
+  owner: 'worker',
+  enforcement: {
+    kind: 'test',
+    check: 'src/hook/stop.ts under KRN_TEST_FIRST=1',
+  },
+  rationale: 'A red test, not tracker state, defines done',
+};
 
 /** `worker` omits the lead's workflow paragraph: it is a positive process directive. */
 export function render(

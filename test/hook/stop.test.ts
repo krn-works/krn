@@ -953,3 +953,83 @@ test('an edited pre-existing test is not refused', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+function testFirstBranch(dir: string) {
+  writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+  writeFileSync(
+    join(dir, 'test/a.test.ts'),
+    "import { a } from '../src/a.ts';\nvoid a;\n",
+  );
+  sh(dir, 'add', '.');
+  sh(dir, 'commit', '-q', '-m', 'change');
+}
+
+test('test-first: Stop refuses when no changed test is red at the base', () => {
+  const dir = clone();
+  try {
+    testFirstBranch(dir);
+    const green = () => [];
+    const env = { ...lane(dir), KRN_TEST_FIRST: '1' };
+    const reason = judgeStop(payload(dir), env, green) ?? '';
+    assert.match(reason, /Test-first rule/u);
+    assert.match(reason, /no changed test fails at the base/u);
+    assert.equal(
+      judgeStop(payload(dir, 'BLOCKER: no defect to show'), env, green),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('test-first: Stop accepts a test red at the base and green on head', () => {
+  const dir = clone();
+  try {
+    testFirstBranch(dir);
+    const baseRed = (root: string) =>
+      root === dir ? [] : ['test/a.test.ts::a is 2'];
+    const env = { ...lane(dir), KRN_TEST_FIRST: '1' };
+    assert.equal(judgeStop(payload(dir), env, baseRed), undefined);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('test-first: a test red at the base that is not green on head is refused', () => {
+  const dir = clone();
+  try {
+    testFirstBranch(dir);
+    const redAlways = () => ['test/a.test.ts::a is 2'];
+    const env = { ...lane(dir), KRN_TEST_FIRST: '1' };
+    assert.match(judgeStop(payload(dir), env, redAlways) ?? '', /red/u);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('without KRN_TEST_FIRST a green branch with no base-red test still ends', () => {
+  const dir = clone();
+  try {
+    testFirstBranch(dir);
+    assert.equal(
+      judgeStop(payload(dir), lane(dir), () => []),
+      undefined,
+    );
+    const off = { ...lane(dir), KRN_TEST_FIRST: '0' };
+    assert.equal(
+      judgeStop(payload(dir), off, () => []),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the test-first rule line is in the worker rules only with the arm on', async () => {
+  const { workerRules, TEST_FIRST_RULE } = await import(
+    '../../src/cli/lane.ts'
+  );
+  const repo = fileURLToPath(new URL('../..', import.meta.url));
+  assert.ok(workerRules(repo, true).includes(TEST_FIRST_RULE));
+  assert.ok(!workerRules(repo, false).includes(TEST_FIRST_RULE));
+});

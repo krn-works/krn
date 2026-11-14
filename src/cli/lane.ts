@@ -53,7 +53,19 @@ const STOP_SCRIPT = 'src/hook/stop.ts';
  * repository ships it, else the repo contract's own commands, so a pytest repository on master
  * is never told to run npm.
  */
-export function workerRules(repo: string): string {
+export function workerRules(
+  repo: string,
+  testFirst = process.env.KRN_TEST_FIRST === '1',
+): string {
+  const rules = baseWorkerRules(repo);
+  return testFirst ? `${rules}\n- ${TEST_FIRST_RULE}` : rules;
+}
+
+/** Arm KT only (KRN_TEST_FIRST=1): the Stop hook enforces it. */
+export const TEST_FIRST_RULE =
+  'Test first: before you change source, commit or at least write a test that fails against the base source and shows the defect or missing behavior; your session is refused its end unless a changed test fails at the base and passes on your commit.';
+
+function baseWorkerRules(repo: string): string {
   if (existsSync(join(repo, STOP_SCRIPT)))
     return `${SHARED_RULES}\n- Before you end, run 'bin/krn hook stop --check' (it runs the tests the repo contract selects for the files you changed, its guard tests, or the full test command when none relate; '--related' lists them). The session is refused its end while there is no commit or that check is red; the one escape is a final line 'BLOCKER: <what stops you>'.`;
   const contract = findContract(repo)?.contract;

@@ -46,3 +46,6 @@ Fresh units are tasks with hidden tests written before any arm runs, kept outsid
 - krn-works/krn-pilot-py (Python pilot; task t-811vn27): 5 units, K arm exists; PB arm to run.
 - New pilot tasks authored on these two repositories with hidden tests to reach the unit count the question needs (166 for equivalence at 10 pp, 188 for +9 pp). Until then 10 pilot units alone have power 0.099 at +9 pp and are reported as descriptive.
 Fresh units are analysed on their own with the same rule and never pooled with the 33 units after a K change.
+
+## Arm KT
+Arm KT (K plus the test-first Stop rule, `KRN_TEST_FIRST=1`) is exploratory, not confirmatory: it carries no hypothesis, no power claim and no part in the confirmatory contrasts above.

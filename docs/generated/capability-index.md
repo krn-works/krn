@@ -56,7 +56,7 @@ src/cli/lane-run/session.ts: (no header) exports killGroup, SessionOutcome, runS
 src/cli/lane-run/steps.ts: (no header) exports LaneVerdict, LaneRunSteps, mintFailure, defaultSteps
 src/cli/lane-run/verdict.ts: (no header) exports laneVerdict
 src/cli/lane-run/worktree.ts: (no header) exports reusableLane, carryEditedRecord, carrySubject, commitsSinceRed
-src/cli/lane.ts: (no header) exports laneUsage, workerRules, laneBriefText, laneBrief
+src/cli/lane.ts: (no header) exports laneUsage, workerRules, TEST_FIRST_RULE, laneBriefText
 src/cli/ledger.ts: (no header) exports ledgerCommand
 src/cli/main.ts: (no header) exports main
 src/cli/plan.ts: `krn plan`: one line with plan points left per account and the account to spend next.
