@@ -14,7 +14,7 @@ import { gitLockError } from './git-lock.ts';
 import { waitCommand } from './wait.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh or cleanup still exits 0 with a warning); a rerun after the merge only cleans up; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push (--force does not bypass it), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh or cleanup still exits 0 with a warning); a rerun after the merge only cleans up; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
 
 /** Exit codes for a ship whose wait ended without a merge. */
 const unmergedExitCodes = [
@@ -24,6 +24,7 @@ const unmergedExitCodes = [
 ] as const;
 
 const gitLockAttempts = 5;
+const workflowsRejection = /without `?workflows`? permission/u;
 const instructionBytesRule = 'test/rules/instruction-bytes.test.ts';
 
 function usageError(message: string): Error {
@@ -223,6 +224,16 @@ export async function shipCommand(
     ['push', ...(force ? ['--force-with-lease'] : []), 'origin', branch],
     cwd,
   );
+  if (pushed.code !== 0 && workflowsRejection.test(pushed.stderr))
+    throw Object.assign(
+      new Error(
+        `refused push: the token lacks workflows write for ${changed
+          .split('\n')
+          .filter((file) => file.startsWith('.github/workflows/'))
+          .join(', ')}\n${pushRemedy(pushed.stderr, force)}`,
+      ),
+      { exitCode: 83 },
+    );
   if (pushed.code !== 0)
     throw Object.assign(
       new Error(
@@ -360,7 +371,7 @@ function parse(args: string[]) {
  * writes .github/workflows/ci.yml; a rebase cannot fix that, so the remedy names the permission.
  */
 export function pushRemedy(stderr: string, force: boolean): string {
-  if (/without `?workflows`? permission/u.test(stderr))
+  if (workflowsRejection.test(stderr))
     return 'the token cannot write workflow files: grant the KRN GitHub App the Workflows (write) permission, or push this branch once with a user login holding the workflow scope (`env -u GH_TOKEN gh auth status` lists it), then rerun the same krn pr ship; the pushed branch is reused';
   return force
     ? 'fetch, rebase and rerun with --force'
