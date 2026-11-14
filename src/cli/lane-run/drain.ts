@@ -5,7 +5,7 @@ import { repositoryRoot } from '../../task/store.ts';
 import type { LaneVerdict } from './steps.ts';
 
 export const drainUsage =
-  'krn lane run --ready --max N [--actor NAME] [--model MODEL] [--root DIR]';
+  'krn lane run --ready --max N [--actor NAME] [--model MODEL] [--root DIR] [--window-hours N]';
 
 /** Two consecutive runs ending in this same non-zero exit stop the drain. */
 export const repeatedClassLimit = 2;
@@ -15,6 +15,8 @@ export interface DrainRequest {
   /** The flags a single-task run takes besides the task: `--actor`, `--model`, `--root`. */
   passthrough: string[];
   root: string | undefined;
+  /** The vault window `doctor --unattended` requires, in hours; undefined keeps the doctor default. */
+  windowHours?: string | undefined;
 }
 
 /** The seams of a drain: the doctor check, the ready order, one lane run and the clock. Tests replace them. */
@@ -31,6 +33,7 @@ export interface DrainSeams {
 export function parseDrainRequest(args: string[]): DrainRequest {
   let max: number | undefined;
   let root: string | undefined;
+  let windowHours: string | undefined;
   const passthrough: string[] = [];
   const value = (index: number, name: string) =>
     flagValue(args, index, () => new CliUsageError(`${name} requires a value`));
@@ -42,6 +45,12 @@ export function parseDrainRequest(args: string[]): DrainRequest {
       if (!/^[1-9]\d*$/u.test(text))
         throw new CliUsageError(`--max needs a positive integer: ${text}`);
       max = Number(text);
+    } else if (arg === '--window-hours') {
+      windowHours = value(index++, arg);
+      if (!/^\d+(\.\d+)?$/u.test(windowHours) || Number(windowHours) <= 0)
+        throw new CliUsageError(
+          `--window-hours needs a positive number: ${windowHours}`,
+        );
     } else if (arg === '--root') {
       root = value(index++, arg);
       passthrough.push(arg, root);
@@ -51,7 +60,7 @@ export function parseDrainRequest(args: string[]): DrainRequest {
   }
   if (max === undefined)
     throw new CliUsageError(`--ready needs --max N: ${drainUsage}`);
-  return { max, passthrough, root };
+  return { max, passthrough, root, windowHours };
 }
 
 export const defaultDrainSeams: DrainSeams = {
@@ -65,9 +74,15 @@ export const defaultDrainSeams: DrainSeams = {
   now: Date.now,
 };
 
-export async function defaultDoctor(): Promise<DrainSeams['doctor']> {
+export async function defaultDoctor(
+  windowHours?: string,
+): Promise<DrainSeams['doctor']> {
   const { unattendedReport } = await import('../doctor-unattended.ts');
-  return () => unattendedReport(['--unattended']);
+  return () =>
+    unattendedReport([
+      '--unattended',
+      ...(windowHours === undefined ? [] : ['--window-hours', windowHours]),
+    ]);
 }
 
 export interface DrainResult {

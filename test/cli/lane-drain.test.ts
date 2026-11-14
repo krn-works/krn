@@ -133,3 +133,23 @@ test('parseDrainRequest needs --max and passes actor, model and root through', (
     '/r',
   ]);
 });
+
+test('parseDrainRequest takes --window-hours for the doctor and keeps it out of the lane flags', () => {
+  const parsed = parseDrainRequest([
+    '--ready',
+    '--max',
+    '1',
+    '--window-hours',
+    '2.5',
+  ]);
+  assert.equal(parsed.windowHours, '2.5');
+  assert.deepEqual(parsed.passthrough, []);
+  assert.equal(
+    parseDrainRequest(['--ready', '--max', '1']).windowHours,
+    undefined,
+  );
+  assert.throws(
+    () => parseDrainRequest(['--ready', '--max', '1', '--window-hours', '0']),
+    /positive/u,
+  );
+});
