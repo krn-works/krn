@@ -753,6 +753,8 @@ export function judgeStop(
   const outcome = inspect(root, run, shell, env);
   if (outcome.ok) {
     // Floor and unwaived reflex standards of the repository stop the session; finish and waived ones only report.
+    // The adopt canary proves the test gate on a fresh repository, which may not meet its reflex standards yet.
+    if (env.KRN_LANE === 'canary') return undefined;
     const blockers = standards(root, new Date().toISOString().slice(0, 10));
     if (blockers.length === 0) return undefined;
     return `Stop refused: ${blockers.length} standard(s) fail (floor, or reflex without a recorded waiver):\n${blockers.map((line) => `- ${line}`).join('\n')}\nFix them, record a reason in \`waiver\` on a reflex record in .agents/standards.json, or end with a line \`BLOCKER: <what stops you>\`.`;

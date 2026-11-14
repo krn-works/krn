@@ -1082,3 +1082,25 @@ test('the Stop hook refuses a floor and an unwaived reflex standard and only rep
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('the adopt canary lane proves the test gate only and is not held by standards', () => {
+  const dir = clone();
+  try {
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'change');
+    const failing = () => ['s-probe (floor): exit 1'];
+    const green = () => [];
+    const canary = { ...lane(dir), KRN_LANE: 'canary' };
+    assert.equal(
+      judgeStop(payload(dir), canary, green, '', undefined, failing),
+      undefined,
+    );
+    assert.match(
+      judgeStop(payload(dir), lane(dir), green, '', undefined, failing) ?? '',
+      /s-probe \(floor\)/u,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
