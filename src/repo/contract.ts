@@ -149,7 +149,10 @@ function workspaceMembers(
     const yaml = readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8');
     for (const m of yaml.matchAll(/^\s*-\s*['"]?([^'"\s#]+)['"]?/gmu))
       if (m[1]) globs.push(m[1]);
-  } catch {}
+  } catch (error) {
+    // A missing file is the expected case; any other read failure is real.
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
   const dirs: string[] = [];
   for (const glob of globs) {
     const clean = glob.replace(/^\.\//u, '').replace(/\/+$/u, '');
@@ -178,14 +181,24 @@ function membersHaveTests(root: string, pkg: Record<string, unknown>): boolean {
   });
 }
 
+/** A JSON object (not an array, scalar or null). */
+// Hand-checked, not zod: this file loads in the Stop hook, which runs in clones without node_modules.
+export function jsonObject(
+  value: unknown,
+): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
 function readJson(path: string): Record<string, unknown> | undefined {
   try {
-    const value: unknown = JSON.parse(readFileSync(path, 'utf8'));
-    return typeof value === 'object' && value !== null
-      ? (value as Record<string, unknown>)
-      : undefined;
-  } catch {
-    return undefined;
+    return jsonObject(JSON.parse(readFileSync(path, 'utf8')));
+  } catch (error) {
+    // Unreadable or malformed package files count as absent; other errors are real.
+    if (error instanceof SyntaxError) return undefined;
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
   }
 }
 
@@ -337,7 +350,10 @@ function pipInstall(root: string): string | undefined {
   let text = '';
   try {
     text = readFileSync(join(root, 'pyproject.toml'), 'utf8');
-  } catch {}
+  } catch (error) {
+    // A missing file is the expected case; any other read failure is real.
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
   const installable =
     /^\[project\]\s*$/mu.test(text) || existsSync(join(root, 'setup.py'));
   if (!installable) return undefined;

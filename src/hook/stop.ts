@@ -44,6 +44,18 @@ import { UNIDENTIFIED_LANE, worker } from './scope.ts';
 // The lead sets neither variable, so it is never held here. A crash refuses (exit 2), never allows.
 
 const LEGACY_TEST = /^test\/.+\.test\.(?:ts|js|mjs|cjs)$/u;
+/** One failure line of the node test runner's JSON reporter. */
+export function failureLine(
+  value: unknown,
+): { file: string; name: string } | undefined {
+  // Hand-checked, not zod: the Stop hook runs in replay clones that have no node_modules.
+  if (typeof value !== 'object' || value === null) return undefined;
+  const { file, name } = value as { file?: unknown; name?: unknown };
+  return typeof file === 'string' && typeof name === 'string'
+    ? { file, name }
+    : undefined;
+}
+
 const TEST_FILE = [
   LEGACY_TEST,
   /\.(?:test|spec)\.[cm]?[jt]sx?$/u,
@@ -180,7 +192,10 @@ function listTests(root: string): Map<string, string> {
     if (TEST_FILE.some((pattern) => pattern.test(path)))
       try {
         tests.set(path, readFileSync(join(root, path), 'utf8'));
-      } catch {}
+      } catch (error) {
+        // A path git lists but the tree no longer has (deleted, unstaged) is not a test to run.
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      }
   return tests;
 }
 
@@ -381,12 +396,12 @@ const runTests: Runner = (root, tests) => {
   for (const line of run.stdout.split('\n')) {
     if (!line.startsWith('{')) continue;
     try {
-      const { file, name } = JSON.parse(line) as {
-        file: string;
-        name: string;
-      };
-      failed.push(`${file}::${name}`);
-    } catch {}
+      const failure = failureLine(JSON.parse(line));
+      if (failure) failed.push(`${failure.file}::${failure.name}`);
+    } catch (error) {
+      // Runner output mixes JSON failure lines with other text starting with `{`.
+      if (!(error instanceof SyntaxError)) throw error;
+    }
   }
   if (failed.length === 0 && run.status !== 0)
     failed.push(`<run>::exit ${run.status ?? run.signal}`);
@@ -461,7 +476,10 @@ export function linkPackageModules(root: string, dir: string, depth = 3) {
           try {
             mkdirSync(join(dir, child), { recursive: true });
             symlinkSync(join(root, child, 'node_modules'), target);
-          } catch {}
+          } catch (error) {
+            // A concurrent run may have created it first; the copy then already has its modules.
+            if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+          }
         }
       }
       if (left > 1) walk(child, left - 1);
@@ -848,7 +866,10 @@ export function stopHook(
   let payload: unknown = {};
   try {
     payload = JSON.parse(input);
-  } catch {}
+  } catch (error) {
+    // Hook input that is not JSON is judged as an empty payload.
+    if (!(error instanceof SyntaxError)) throw error;
+  }
   try {
     const refusal = judge(payload, env, runTests, branch);
     return refusal === undefined
@@ -888,7 +909,11 @@ function main() {
   let input = '';
   try {
     input = readFileSync(0, 'utf8');
-  } catch {}
+  } catch (error) {
+    // No stdin attached (closed or a terminal with no data) is an empty payload.
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== 'EAGAIN' && code !== 'EOF' && code !== 'ENXIO') throw error;
+  }
   const branch = git(root, ['branch', '--show-current']).stdout;
   const { code, stderr } = stopHook(input, process.env, branch);
   if (stderr) process.stderr.write(stderr);
