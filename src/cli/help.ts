@@ -1,5 +1,5 @@
 // Usage text for the commands this CLI owns.
-const usage: Readonly<Record<string, string>> = {
+const usage = {
   task: 'krn task <ready|claim|show|list|create|edit|comment|dep|close|release|check> [...]  repository work tracker; `krn task` lists verbs',
   ledger:
     'krn ledger [--since YYYY-MM-DD] [--pr N] [--limit N] [--repo OWNER/REPO] [--root DIR] [--transcripts DIR] [--json]  outcome ledger',
@@ -20,7 +20,14 @@ const usage: Readonly<Record<string, string>> = {
   hook: 'krn hook stop|scope [--check|--related]  Claude Code hook entry: stdin payload in; stop exits 2 to refuse a worker Stop (contract-driven tests), --check runs the related tests, --related lists them; scope refuses a worker write to tracker state outside its Scope; stop is installed by `krn adopt`',
   ci: 'krn ci wait|logs  wait: --repo OWNER/REPO --pr N --head SHA --base SHA [--timeout-seconds N] [--start-timeout-seconds N] [--merge-timeout-seconds N] (auto-merge: waits for the merge, refreshes the pinned Product entry); logs: --repo OWNER/REPO --run ID [--lines N] prints failed-job log tails across every attempt',
   pr: 'krn pr ship --title TITLE --body-file PATH [--repo OWNER/REPO] [--force]  in a branch worktree: push, create the PR, enable auto-merge, wait through the merge, remove the worktree and branch; one verdict line; `krn pr body --task ID [--verified TEXT] [--refs] [--out PATH]` generates the body from the task record and commits',
-};
+} as const satisfies Readonly<Record<string, string>>;
+
+/** The one list of owned commands: the router table (index.ts) is typed by it. */
+export type CommandName = keyof typeof usage;
+
+export function isCommand(name: string | undefined): name is CommandName {
+  return name !== undefined && Object.hasOwn(usage, name);
+}
 
 /** One `krn <command> ...  <description>` line per owned command, for the capability index. */
 export function commandLines(): string[] {
@@ -33,7 +40,7 @@ export function commandHelp(args: string[]): string | undefined {
   // `task` prints its own, richer help.
   if (command === 'task') return undefined;
   if (!rest.some((arg) => arg === '--help' || arg === '-h')) return undefined;
-  const line = usage[command];
+  const line = isCommand(command) ? usage[command] : undefined;
   return line === undefined ? undefined : `Usage: ${line}\n`;
 }
 

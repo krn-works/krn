@@ -1,3 +1,5 @@
+import { flagValue } from '../cli-kit/flag-value.ts';
+import { CliUsageError } from '../cli-kit/usage-error.ts';
 import { collectWindow, renderWindow } from '../outcome/window.ts';
 import { inspectState } from '../state/check.ts';
 import { resumeBrief } from '../state/resume.ts';
@@ -9,8 +11,6 @@ import {
   setFields,
   writeHandoff,
 } from '../state/write.ts';
-import { flagValue } from './flag-value.ts';
-import { CliUsageError } from './usage-error.ts';
 
 const usage =
   'krn state check|resume [--root DIR] [--json]  capsule check (one verdict line) and resume\n' +

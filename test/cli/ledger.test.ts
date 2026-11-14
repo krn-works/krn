@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { ledgerCommand } from '../../src/cli/ledger.ts';
-import { CliUsageError } from '../../src/cli/usage-error.ts';
+import { CliUsageError } from '../../src/cli-kit/usage-error.ts';
 
 test('--window takes full ISO timestamps, not only dates, and refuses anything else', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'ledger-cli-'));

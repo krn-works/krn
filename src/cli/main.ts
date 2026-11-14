@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { commandErrorExitCode } from './command-error.ts';
-import { commandHelp, topLevelHelp } from './help.ts';
+import { commandErrorExitCode } from '../cli-kit/command-error.ts';
+import { commandHelp, isCommand, topLevelHelp } from './help.ts';
 
 const version = '0.1.0';
 
@@ -33,24 +33,7 @@ export function main(args = process.argv.slice(2)): void {
     return;
   }
 
-  if (
-    [
-      'ledger',
-      'task',
-      'ci',
-      'pr',
-      'doctor',
-      'standards',
-      'state',
-      'lane',
-      'decide',
-      'findings',
-      'adopt',
-      'plan',
-      'repo',
-      'hook',
-    ].includes(args[0] ?? '')
-  ) {
+  if (isCommand(args[0])) {
     void dispatch(args).catch((error: unknown) => {
       process.stderr.write(
         `${error instanceof Error ? error.message : String(error)}\n`,

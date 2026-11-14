@@ -1,10 +1,10 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { CliUsageError } from '../../cli-kit/usage-error.ts';
 import { claimTask, inspectClaim } from '../../task/claims.ts';
 import { mergeTaskRecords } from '../../task/record-merge.ts';
 import { getTask } from '../../task/store.ts';
-import { CliUsageError } from '../usage-error.ts';
 import { git } from './git.ts';
 import type { RedCheck } from './red-check.ts';
 

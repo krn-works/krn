@@ -15,7 +15,7 @@ import {
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CliUsageError } from '../cli/usage-error.ts';
+import { CliUsageError } from '../cli-kit/usage-error.ts';
 import {
   CONTRACT_FILE,
   contractTracker,

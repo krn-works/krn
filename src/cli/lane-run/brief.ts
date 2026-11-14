@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { findContract } from '../../repo/contract.ts';
 import { taskLookupRoot } from '../../task/claims.ts';
 import { getTask } from '../../task/store.ts';
-import { laneBrief } from '../lane.ts';
+import { laneBrief } from '../lane-brief.ts';
 
 /** The command the session runs before it finishes: the contract's quick check, else its tests. */
 export function checkCommand(root: string): string {
