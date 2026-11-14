@@ -190,3 +190,43 @@ test('adopt --verify names an edited hook file and a deleted standards record an
     /verify drift: \.agents\/standards\.json is missing/u,
   );
 });
+
+test('adopt --verify prints the first-turn token estimate and the settings that cut it', () => {
+  const run = verify(
+    repo,
+    protectedBranch,
+    '[]',
+    (dir) => writeFileSync(join(dir, 'CLAUDE.md'), 'rule\n'.repeat(3000)),
+    'https://github.com/krn-works/krn.git',
+    (dir) => {
+      mkdirSync(join(dir, '.claude/skills/big'), { recursive: true });
+      writeFileSync(
+        join(dir, '.claude/skills/big/SKILL.md'),
+        `---\nname: big\ndescription: ${'word '.repeat(400)}\n---\nbody\n`,
+      );
+      writeFileSync(
+        join(dir, '.mcp.json'),
+        '{"mcpServers":{"a":{"command":"x"},"b":{"command":"y"}}}\n',
+      );
+    },
+  );
+  assert.equal(run.status, 0, run.stdout + run.stderr);
+  assert.match(
+    run.stdout,
+    /verify context: first turn ~\d+ tokens .*\d instruction file\(s\), \d+ skill\(s\), 2 MCP server\(s\)/u,
+  );
+  assert.match(run.stdout, /verify context setting: .*enabledMcpjsonServers/u);
+  assert.match(
+    run.stdout,
+    /verify context setting: .*disable-model-invocation/u,
+  );
+  assert.match(
+    run.stdout,
+    /verify context setting: CLAUDE\.md is ~\d+ tokens/u,
+  );
+  const total = Number(/first turn ~(\d+) tokens/u.exec(run.stdout)?.[1]);
+  assert.ok(
+    total > 3000 + 2 * 1500,
+    `estimate ${total} counts all three parts`,
+  );
+});
