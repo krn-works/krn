@@ -1,7 +1,11 @@
 {
   "id": "t-hkxkffg",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt --verify names drifted or missing adoption files; --refresh rewrites them; any canary failure rolls back"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "krn adopt --verify reports adoption files that drifted from what adopt writes",

@@ -6,6 +6,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -55,12 +56,21 @@ function verify(
   rulesBody = '[]',
   prepare: (root: string) => void = () => {},
   origin: string | null = 'https://github.com/krn-works/krn.git',
+  edit: (root: string) => void = () => {},
 ) {
   const dir = mkdtempSync(join(tmpdir(), 'krn-verify-'));
   spawnSync('git', ['init', '-q', '-b', 'main', dir]);
   if (origin !== null)
     spawnSync('git', ['remote', 'add', 'origin', origin], { cwd: dir });
   prepare(dir);
+  // An adopted repository: the adoption files match, so only settings and deploys can be gaps.
+  const adopted = spawnSync(
+    process.execPath,
+    [cli, 'adopt', dir, '--no-canary', '--test', 'true'],
+    { encoding: 'utf8' },
+  );
+  assert.equal(adopted.status, 0, adopted.stdout + adopted.stderr);
+  edit(dir);
   writeFileSync(join(dir, 'repo.json'), repoBody);
   writeFileSync(join(dir, 'branch.json'), branchBody);
   writeFileSync(join(dir, 'rules.json'), rulesBody);
@@ -153,4 +163,30 @@ test('adopt --verify on a non-GitHub origin still names an unacknowledged deploy
   assert.equal(run.status, 1, run.stdout + run.stderr);
   assert.match(run.stdout, /verify skipped: no GitHub host/u);
   assert.match(run.stdout, /verify gap: \.github\/workflows\/deploy-on-push/u);
+});
+
+test('adopt --verify names an edited hook file and a deleted standards record and exits 1; an untouched adoption is clean', () => {
+  const run = verify(repo, protectedBranch, '[]', () => {});
+  assert.equal(run.status, 0, run.stdout + run.stderr);
+  assert.match(run.stdout, /verify ok: adoption files match/u);
+  const drifted = verify(
+    repo,
+    protectedBranch,
+    '[]',
+    () => {},
+    'https://github.com/krn-works/krn.git',
+    (dir) => {
+      writeFileSync(join(dir, '.claude/settings.json'), '{}\n');
+      unlinkSync(join(dir, '.agents/standards.json'));
+    },
+  );
+  assert.equal(drifted.status, 1, drifted.stdout);
+  assert.match(
+    drifted.stdout,
+    /verify drift: \.claude\/settings\.json differs/u,
+  );
+  assert.match(
+    drifted.stdout,
+    /verify drift: \.agents\/standards\.json is missing/u,
+  );
 });
