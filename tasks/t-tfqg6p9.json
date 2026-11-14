@@ -1,7 +1,11 @@
 {
   "id": "t-tfqg6p9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test command php tests/run.php wired in krn.json"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "one real test and a test command",
