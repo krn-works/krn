@@ -1,0 +1,12 @@
+{
+  "id": "t-zfqnehc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "weak-tests accepts a renamed test file as a move, not a deleted test",
+  "after": [],
+  "body": [
+    "Why: lane refactor-context moved test files from test/claude/ to test/context/ and weak-tests flagged them as deleted tests (red), so the lane moved them back; tests now sit outside the area they cover (r-node-test mirrors src area).\nOutcome: weak-tests treats a git rename of a test file (same tests, new path) as a move, not a deletion.\nProof: a weak-tests test with a renamed test file passes; one with a removed test still fails."
+  ]
+}
