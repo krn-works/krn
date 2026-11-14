@@ -21,6 +21,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   task: ['cli', 'fs', 'repo'],
   evals: ['cli', 'hosts'],
   hosts: [],
+  hook: ['repo'],
   brain: ['cli', 'repo', 'evals/fr40/tasks.ts'],
   cli: ['adopt', 'brain', 'ci', 'core', 'outcome', 'repo', 'state', 'task'],
 };

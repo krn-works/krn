@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import test from 'node:test';
-import { isWorkerSession } from '../../scripts/claude/worker-session.ts';
+import { isWorkerSession } from '../../src/hook/session.ts';
 
 test('informational hooks are silent in a worker session and speak for the lead', () => {
   assert.equal(isWorkerSession({ KRN_ROLE: 'worker' }), true);

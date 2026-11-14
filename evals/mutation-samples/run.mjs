@@ -36,8 +36,8 @@ const modules = [
     ],
   },
   {
-    file: 'scripts/claude/worker-stop.ts',
-    test: 'test/claude/worker-stop.test.ts',
+    file: 'src/hook/stop.ts',
+    test: 'test/hook/stop.test.ts',
     mutants: [
       [
         'a branch with no commit passes',

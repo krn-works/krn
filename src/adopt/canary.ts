@@ -120,10 +120,13 @@ function prepare(
   return undefined;
 }
 
+/** A Stop entry that runs the gate module by path: KRN's own (src/hook/stop.ts) or the legacy worker-stop script. */
+const OWN_STOP = /src\/hook\/stop\.ts|worker-stop/u;
+
 function stop(tree: string, commands: string[]) {
   const command =
     commands.find((c) => isKrnStopCommand(c)) ??
-    commands.find((c) => /worker-stop/u.test(c));
+    commands.find((c) => OWN_STOP.test(c));
   const env = {
     CLAUDE_PROJECT_DIR: tree,
     KRN_SESSION_CLASS: 'lane',
@@ -166,7 +169,7 @@ export function runCanary(root: string): CanaryResult {
     return skipped('no test command in the repo contract');
   const { contract } = found;
   const commands = stopCommands(root);
-  if (!commands.some((c) => isKrnStopCommand(c) || /worker-stop/u.test(c)))
+  if (!commands.some((c) => isKrnStopCommand(c) || OWN_STOP.test(c)))
     return fail(
       'the Stop hook is not installed: .claude/settings.json has no Stop entry calling `krn hook stop`, so a broken test would not be refused',
     );

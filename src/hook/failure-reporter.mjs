@@ -1,4 +1,4 @@
-// node --test reporter for worker-stop: one JSON line per failing test, {"file": <path relative to cwd>, "name": <test name>}.
+// node --test reporter for the Stop hook (src/hook/stop.ts): one JSON line per failing test, {"file": <path relative to cwd>, "name": <test name>}.
 // A file that fails to load or exits nonzero is reported under its own file name.
 import { relative } from 'node:path';
 

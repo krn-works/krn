@@ -7,7 +7,7 @@ import {
   rmSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { isWorkerSession } from './worker-session.ts';
+import { isWorkerSession } from '../../src/hook/session.ts';
 
 // One script, two events. A subagent's hook errors (a refused Bash call, a failing Stop
 // hook) are visible only in its own transcript; the lead never saw them.

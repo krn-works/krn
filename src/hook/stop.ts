@@ -19,12 +19,12 @@ import {
   type RepoContract,
   relatedCommand,
   resolveContract,
-} from '../../src/repo/contract.ts';
-import { UNIDENTIFIED_LANE, worker } from './worker-scope.ts';
+} from '../repo/contract.ts';
+import { UNIDENTIFIED_LANE, worker } from './scope.ts';
 
 // Stop hook for worker sessions, and the related-test command a lane brief names:
-//   node scripts/claude/worker-stop.ts --related    prints the tests (or Go packages) this branch's change selects
-//   node scripts/claude/worker-stop.ts --check      runs them; exit 0 only with a commit and green tests
+//   krn hook stop --related    prints the tests (or Go packages) this branch's change selects
+//   krn hook stop --check      runs them; exit 0 only with a commit and green tests
 // D23 arm K ended 7 of 20 n100 runs without a commit (four in under 40 s), and a scoped test list given to the
 // agent measured +5 pp at lower cost. A worker session (KRN_SESSION_CLASS=lane or KRN_ROLE=worker) is refused
 // the end of its turn while its branch has no commit past the base or the selected tests are red.
@@ -712,7 +712,7 @@ export function stopHook(
       return { code: 0, stderr: `${message}\n` };
     return {
       code: 2,
-      stderr: `Stop refused: ${message}\nRun \`node scripts/claude/worker-stop.ts --check\`, or end with a line \`BLOCKER: <what stops you>\`.\n`,
+      stderr: `Stop refused: ${message}\nRun \`krn hook stop --check\`, or end with a line \`BLOCKER: <what stops you>\`.\n`,
     };
   }
 }
@@ -731,8 +731,8 @@ function main() {
       : '';
     process.stdout.write(
       outcome.ok
-        ? `worker-stop PASS${outcome.ignored > 0 ? ` (${outcome.ignored} pre-existing failure(s) ignored)` : ''}${changedTests}\n`
-        : `worker-stop FAIL: ${outcome.reason}\n`,
+        ? `stop PASS${outcome.ignored > 0 ? ` (${outcome.ignored} pre-existing failure(s) ignored)` : ''}${changedTests}\n`
+        : `stop FAIL: ${outcome.reason}\n`,
     );
     process.exitCode = outcome.ok ? 0 : 1;
     return;

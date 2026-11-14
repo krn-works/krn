@@ -186,7 +186,7 @@ export function judge(
   );
   if (escaped !== undefined)
     return {
-      refusal: `Refused: ${escaped} is in the main checkout, outside this lane's worktree (${root}). Nothing in this call ran. Write under your own worktree or .krn/runs/ (scripts/claude/worker-scope.ts).`,
+      refusal: `Refused: ${escaped} is in the main checkout, outside this lane's worktree (${root}). Nothing in this call ran. Write under your own worktree or .krn/runs/ (src/hook/scope.ts).`,
     };
   if (who.unscoped) return {};
   const notes: string[] = [];
@@ -202,7 +202,7 @@ export function judge(
     }
     if (!under(guarded, path)) continue;
     return {
-      refusal: `Refused: ${path} is tracker state that only the lead changes, and the brief's Scope does not name it (${who.scope.join(', ') || 'no scope'}). Nothing in this call ran. Leave it unchanged and report the need in your final reply (scripts/claude/worker-scope.ts).`,
+      refusal: `Refused: ${path} is tracker state that only the lead changes, and the brief's Scope does not name it (${who.scope.join(', ') || 'no scope'}). Nothing in this call ran. Leave it unchanged and report the need in your final reply (src/hook/scope.ts).`,
     };
   }
   return notes.length === 0

@@ -9,8 +9,8 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
+import { isWorkerSession } from '../../src/hook/session.ts';
 import { emitContext, hookInput, object } from './context-io.ts';
-import { isWorkerSession } from './worker-session.ts';
 
 // Missing counters are invalid, rather than evidence of a small context.
 export function gaugeReading(transcript: string): {

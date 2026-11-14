@@ -45,7 +45,7 @@ const SHARED_RULES = `Worker rules:
 - A red test outranks tracker state and scope: if a test needs a file outside Scope, edit it and name it in your final reply.
 - Your final reply states every claim about an external system (a remote repository, a service, a receiver, a CI run) together with the exact command you ran and its exit code; a claim without them is treated as unverified. Name the credential or token scope the command used, and run the real receiver, not a stand-in.`;
 
-const STOP_SCRIPT = 'scripts/claude/worker-stop.ts';
+const STOP_SCRIPT = 'src/hook/stop.ts';
 
 /**
  * The worker rules for this repository: the closing check names the Stop script where the
@@ -54,7 +54,7 @@ const STOP_SCRIPT = 'scripts/claude/worker-stop.ts';
  */
 export function workerRules(repo: string): string {
   if (existsSync(join(repo, STOP_SCRIPT)))
-    return `${SHARED_RULES}\n- Before you end, run 'node ${STOP_SCRIPT} --check' (it runs the tests the repo contract selects for the files you changed, its guard tests, or the full test command when none relate; '--related' lists them). The session is refused its end while there is no commit or that check is red; the one escape is a final line 'BLOCKER: <what stops you>'.`;
+    return `${SHARED_RULES}\n- Before you end, run 'bin/krn hook stop --check' (it runs the tests the repo contract selects for the files you changed, its guard tests, or the full test command when none relate; '--related' lists them). The session is refused its end while there is no commit or that check is red; the one escape is a final line 'BLOCKER: <what stops you>'.`;
   const contract = findContract(repo)?.contract;
   if (contract === undefined)
     return `${SHARED_RULES}\n- Before you end, run the repository's tests and fix what they report; when you cannot make them pass, end with a final line 'BLOCKER: <what stops you>'.`;

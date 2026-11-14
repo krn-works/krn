@@ -1,7 +1,11 @@
 {
   "id": "t-nfjxshj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "worker-{stop,scope,session}.ts and failure-reporter.mjs live in src/hook/; krn hook stop|scope forwards --check/--related; KRN settings, lane brief, canary, standard and receivers updated"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "Worker hooks live in src behind krn hook",
