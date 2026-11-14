@@ -1,0 +1,12 @@
+{
+  "id": "t-hkxkffg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "krn adopt --verify reports adoption files that drifted from what adopt writes",
+  "after": [],
+  "body": [
+    "Why: operator-shared trending triage 2026-11-14: NVIDIA/auto-ontology publishes with a read-back (re-export and compare, success:true is not proof). `krn adopt` writes the adoption set (hooks, standards, skills, conventions) but nothing proves an adopted repository still holds what adopt wrote; inherited standards drift silently.\nOutcome: `krn adopt <path> --verify` also compares every adoption-set file in the repository with what the current `krn adopt` would write (content hash) and reports each drifted or missing file by path; exit non-zero on drift.\nProof: test against a real adopted fixture: an edited hook file and a deleted standards record are each named; an untouched adoption reports clean. npm run fast PASS.\nScope: src/adopt/, test/."
+  ]
+}

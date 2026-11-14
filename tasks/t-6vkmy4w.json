@@ -1,0 +1,12 @@
+{
+  "id": "t-6vkmy4w",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 3,
+  "title": "A rule test fails on a path or command named in instruction files that does not exist",
+  "after": [],
+  "body": [
+    "Why: operator-shared trending triage 2026-11-14: google/elephant-goldfish-model drift report (docs compared with code). KRN instruction files (AGENTS.md, CLAUDE.md, .agents/skills/**, docs/program/*.md) name paths and `krn`/`npm run` commands; a renamed path or retired command keeps misleading agents (see t-31exd5c).\nOutcome: a rule test lists every repository path and every `krn <command>` / `npm run <script>` named in those files and fails naming each one that does not exist (paths under .krn/ and placeholders like <id> exempt).\nProof: the rule test red on a fixture line naming a missing path and a retired command, green on the repository. npm run fast PASS.\nScope: test/rules/, the instruction files it fixes."
+  ]
+}

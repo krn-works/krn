@@ -10,6 +10,7 @@
     "t-p70b19s"
   ],
   "body": [
-    "Why: LLM-written context files lower success 0.5-2 pp and add 20-23% cost (https://arxiv.org/html/2602.11988); per-task commit precedent helps (MemCoder +9.4 pp, one source). KRN's scope-clean edge (22 vs 9, p=0.029, exploratory) may come from the guard, not the packet.\nOutcome: on the D23 v2 harness, arms K-full vs K-without-static-conventions vs K-precedent-only; packet trimmed to the winning form.\nProof: ablation table with correctness, scope-clean and tokens per arm.\nScope: src/brain/, evals/d23/, test/."
+    "Why: LLM-written context files lower success 0.5-2 pp and add 20-23% cost (https://arxiv.org/html/2602.11988); per-task commit precedent helps (MemCoder +9.4 pp, one source). KRN's scope-clean edge (22 vs 9, p=0.029, exploratory) may come from the guard, not the packet.\nOutcome: on the D23 v2 harness, arms K-full vs K-without-static-conventions vs K-precedent-only; packet trimmed to the winning form.\nProof: ablation table with correctness, scope-clean and tokens per arm.\nScope: src/brain/, evals/d23/, test/.",
+    "Candidate from trending triage 2026-11-14 (thedotmack/claude-mem layered injection: index, then timeline, then full records on demand): the packet carries only ids and titles, and a show command returns a standard's full text; measure packet bytes at equal enforced rules."
   ]
 }
