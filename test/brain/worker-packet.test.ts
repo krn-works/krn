@@ -57,7 +57,7 @@ test('a repository without conventions gets no packet', (t) => {
 
 test('KRN keeps its conventions in its own tracked file, not in the frozen FR-40 material', () => {
   const file = contractConventions(repo);
-  assert.equal(file, '.agents/conventions.json');
+  assert.equal(file, '.agents/records.json');
   const tracked = spawnSync(
     'git',
     ['-C', repo, 'ls-files', '--error-unmatch', file],
@@ -186,6 +186,6 @@ test('a record addressed to the lead never enters the lane packet', (t) => {
 test('an audience other than lead or worker is refused', () => {
   assert.throws(
     () => parseRecords([{ ...row('r-x', 'x', null), audience: 'everyone' }]),
-    /audience: expected lead or worker/u,
+    /audience: Invalid option/u,
   );
 });
