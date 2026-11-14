@@ -1,0 +1,16 @@
+{
+  "id": "t-hmg6eff",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn standards install --global writes ~/.claude/krn-standards.md from universal records, @import hook-in, skill links, --check drift"
+  },
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Universal repository standards reach every project on the host without imposing KRN process",
+  "after": [],
+  "body": [
+    "Why: operator 2026-11-14 (verbatim): \"wyłącz również w koncu skillsy globalne zeby nie affectować contextu, najlepsze standardy realizowane w tym repo powinny być również globalne\". Global domain skills were turned off the same day (~/.claude/settings.json skillOverrides). The repository's standards live in .agents/conventions.json (r-* records), .agents/standards.json (one s-* standard) and the project skills architecture and typescript; none reaches a project that has not run krn adopt. The global contract (~/.claude/CLAUDE.md) forbids imposing a workflow or tracker on a project that has not adopted one, so only stack-agnostic engineering standards may go global, never KRN process (tracker, lanes, ship).\nOutcome: `krn standards install --global` writes one generated user-level file (loaded by every Claude Code session on the host, e.g. a ~/.claude/CLAUDE.md @import of a KRN-owned file) holding the in-force records marked universal (a new record field; KRN-process and repo-specific records are excluded) within a byte budget, and links the universal project skills (architecture, typescript) into ~/.claude/skills; rerunning is idempotent and `--check` reports drift; KRN-process rules never appear in it.\nProof: tests on a temporary HOME: the file holds exactly the universal in-force records, stays under the budget, excludes every process record, rerun is a no-op, --check exits non-zero after a manual edit. npm run fast PASS. Applied on this host after merge (install grant memory:krn-install-seal).\nScope: src/brain/, src/cli/, .agents/conventions.json, test/."
+  ]
+}

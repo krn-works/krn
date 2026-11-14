@@ -69,7 +69,8 @@
     "recorded_at": "2026-10-09",
     "valid_from": "2026-10-09",
     "valid_to": null,
-    "source": "AGENTS.md KRN-12"
+    "source": "AGENTS.md KRN-12",
+    "universal": true
   },
   {
     "id": "r-bounded-context",
@@ -87,7 +88,8 @@
     "recorded_at": "2026-10-09",
     "valid_from": "2026-10-09",
     "valid_to": null,
-    "source": "AGENTS.md KRN-14"
+    "source": "AGENTS.md KRN-14",
+    "universal": true
   },
   {
     "id": "r-role-names",
@@ -141,7 +143,8 @@
     "recorded_at": "2026-10-23",
     "valid_from": "2026-10-23",
     "valid_to": null,
-    "source": "docs/program/repository-workflow.md"
+    "source": "docs/program/repository-workflow.md",
+    "universal": true
   },
   {
     "id": "r-piped-checks",
@@ -150,7 +153,8 @@
     "recorded_at": "2026-11-08",
     "valid_from": "2026-11-08",
     "valid_to": null,
-    "source": ".agents/skills/krn-lead/SKILL.md"
+    "source": ".agents/skills/krn-lead/SKILL.md",
+    "universal": true
   },
   {
     "id": "r-shard-weights",
