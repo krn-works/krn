@@ -21,7 +21,11 @@ import {
   readCalls,
 } from '../helpers/herdr-stub.ts';
 
-const api = await import('../../scripts/claude/successor-launch.ts');
+const api = {
+  ...(await import('../../src/successor/options.ts')),
+  ...(await import('../../src/successor/herdr.ts')),
+  ...(await import('../../src/successor/retire.ts')),
+};
 const script = fileURLToPath(
   new URL('../../scripts/claude/successor-launch.ts', import.meta.url),
 );

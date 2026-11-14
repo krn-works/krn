@@ -12,6 +12,7 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   core: [],
   memory: ['harness'],
   context: ['harness', 'hook', 'memory', 'state'],
+  successor: ['harness', 'memory', 'task', 'repo'],
   fs: [],
   harness: [],
   outcome: ['harness', 'repo'],

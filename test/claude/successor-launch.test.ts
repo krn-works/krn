@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import type { AgentInfo } from '../../scripts/claude/successor-launch.ts';
+import type { AgentInfo } from '../../src/successor/herdr.ts';
 import {
   captureReply,
   failure,
@@ -38,9 +38,11 @@ const hostEnvironment = Object.fromEntries(
       name !== 'KRN_SUCCESSOR_AGENT',
   ),
 );
-const api = await import('../../scripts/claude/successor-launch.ts').catch(
-  () => undefined,
-);
+const api = {
+  ...(await import('../../src/successor/options.ts')),
+  ...(await import('../../src/successor/herdr.ts')),
+  ...(await import('../../src/successor/retire.ts')),
+};
 
 function fixture(name: string): Buffer {
   return readFileSync(new URL(name, fixtures));

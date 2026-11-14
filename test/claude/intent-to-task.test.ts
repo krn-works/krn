@@ -5,7 +5,7 @@ import {
   type Input,
   median,
   summary,
-} from '../../scripts/claude/intent-to-task.ts';
+} from '../../src/successor/intent-to-task.ts';
 
 const entry = (hash: string, time: string, text: string) => ({
   hash,
