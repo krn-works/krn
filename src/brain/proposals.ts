@@ -166,3 +166,119 @@ export function renderHarvest(
     `harvest: ${candidates.length} ${candidates.length === 1 ? 'candidate' : 'candidates'} from ${proposals} ${proposals === 1 ? 'proposal' : 'proposals'} in ${repositories} ${repositories === 1 ? 'repository' : 'repositories'}, ${promotable} promotable`,
   ];
 }
+
+/** The instruction files `harvest --repos` reads at the top of each named repository. */
+export const INSTRUCTION_FILES = ['AGENTS.md', 'CLAUDE.md'] as const;
+
+const BULLET = /^(\s*)(?:[-*+]|\d+[.)])\s+(.*)$/u;
+const MIN_BULLET_WORDS = 3;
+
+/**
+ * The grouping key of an instruction bullet: markdown, case, punctuation and spacing do not make
+ * a different rule. Empty when the bullet is too short to be a rule.
+ */
+export function normalizeBullet(text: string): string {
+  const key = text
+    .normalize('NFKC')
+    .replace(/\[([^\]]*)\]\([^)]*\)/gu, '$1')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+  return key.split(' ').length < MIN_BULLET_WORDS ? '' : key;
+}
+
+/** The bullets of one markdown document as written, continuation lines joined; code fences are skipped. */
+export function instructionBullets(markdown: string): string[] {
+  const bullets: string[] = [];
+  let open: { indent: number; text: string } | undefined;
+  let fenced = false;
+  const close = () => {
+    if (open !== undefined) bullets.push(open.text.trim());
+    open = undefined;
+  };
+  for (const line of markdown.split(/\r?\n/u)) {
+    if (/^\s*(```|~~~)/u.test(line)) {
+      close();
+      fenced = !fenced;
+      continue;
+    }
+    if (fenced) continue;
+    const match = BULLET.exec(line);
+    if (match !== null) {
+      close();
+      open = { indent: (match[1] ?? '').length, text: match[2] ?? '' };
+    } else if (open !== undefined && line.trim() !== '') {
+      const indent = line.length - line.trimStart().length;
+      if (indent > open.indent) open.text += ` ${line.trim()}`;
+      else close();
+    } else close();
+  }
+  close();
+  return bullets;
+}
+
+/** One instruction file of one repository, as data. */
+export type InstructionSource = {
+  readonly repository: string;
+  readonly origin: string;
+  readonly file: string;
+  readonly text: string;
+};
+
+export type BulletCandidate = {
+  /** The first bullet of the group, as written. */
+  readonly text: string;
+  readonly repositories: number;
+  /** Each place the bullet appears: `origin/file`. */
+  readonly sources: readonly string[];
+};
+
+/** Bullets recurring in at least `minRepositories` distinct repositories; most repositories first, then by text. */
+export function harvestInstructionBullets(
+  sources: readonly InstructionSource[],
+  minRepositories = 2,
+): BulletCandidate[] {
+  const groups = new Map<
+    string,
+    { text: string; repositories: Set<string>; sources: string[] }
+  >();
+  for (const source of sources) {
+    for (const bullet of instructionBullets(source.text)) {
+      const key = normalizeBullet(bullet);
+      if (key === '') continue;
+      const group = groups.get(key) ?? {
+        text: bullet,
+        repositories: new Set<string>(),
+        sources: [],
+      };
+      group.repositories.add(source.repository);
+      const place = `${source.origin}/${source.file}`;
+      if (!group.sources.includes(place)) group.sources.push(place);
+      groups.set(key, group);
+    }
+  }
+  return [...groups.values()]
+    .filter((group) => group.repositories.size >= minRepositories)
+    .map((group) => ({
+      text: group.text,
+      repositories: group.repositories.size,
+      sources: group.sources,
+    }))
+    .sort(
+      (a, b) => b.repositories - a.repositories || a.text.localeCompare(b.text),
+    );
+}
+
+/** The report: one `candidate` line per recurring bullet with its sources, a summary line last. Nothing is recorded. */
+export function renderBulletHarvest(
+  candidates: readonly BulletCandidate[],
+  repositories: number,
+): string[] {
+  return [
+    ...candidates.flatMap((c) => [
+      `candidate in ${c.repositories} repositories: ${c.text}`,
+      `  sources: ${c.sources.join(', ')}`,
+    ]),
+    `harvest: ${candidates.length} ${candidates.length === 1 ? 'candidate' : 'candidates'} from instruction files of ${repositories} ${repositories === 1 ? 'repository' : 'repositories'}; review each into a record, none was written`,
+  ];
+}

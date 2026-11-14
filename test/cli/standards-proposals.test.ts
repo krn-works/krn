@@ -269,3 +269,56 @@ test('standards check fails a harvested pack record that breaks the promotion ru
       rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('harvest --repos prints bullets recurring in two of three synthetic repositories and writes nothing', () => {
+  const base = mkdtempSync(join(tmpdir(), 'krn-harvest-repos-'));
+  const make = (name: string, files: Record<string, string>) => {
+    for (const [file, content] of Object.entries(files)) {
+      mkdirSync(join(base, name), { recursive: true });
+      writeFileSync(join(base, name, file), content);
+    }
+    return join(base, name);
+  };
+  try {
+    const one = make('one', {
+      'AGENTS.md':
+        '# Rules\n- Run the linter before every commit.\n- Only one repo has this rule.\n```\n- Run the shell example twice.\n```\n',
+    });
+    const two = make('two', {
+      'CLAUDE.md':
+        '* **Run** the  LINTER before every commit!\n1. Always `escape` output in templates.\n- Run the shell example twice.\n',
+    });
+    const three = make('three', {
+      'AGENTS.md':
+        '- Always escape output in templates.\n- Always escape output in templates.\n- Unrelated bullet nobody shares.\n',
+      'CLAUDE.md': '- Always escape output in templates.\n',
+    });
+    const result = krn(['harvest', '--repos', one, two, three]);
+    assert.equal(result.status, 0, result.stderr);
+    const lines = result.stdout.trimEnd().split('\n');
+    assert.deepEqual(lines, [
+      'candidate in 2 repositories: Always `escape` output in templates.',
+      '  sources: two/CLAUDE.md, three/AGENTS.md, three/CLAUDE.md',
+      'candidate in 2 repositories: Run the linter before every commit.',
+      '  sources: one/AGENTS.md, two/CLAUDE.md',
+      'harvest: 2 candidates from instruction files of 3 repositories; review each into a record, none was written',
+    ]);
+    assert.equal(result.stdout.includes('Only one repo'), false);
+    assert.equal(result.stdout.includes('shell example'), false);
+
+    // A list file names the same repositories, one per line, relative to the file.
+    writeFileSync(join(base, 'list.txt'), '# repos\none\n\ntwo\n');
+    const listed = krn(['harvest', '--repos-file', join(base, 'list.txt')]);
+    assert.equal(listed.status, 0, listed.stderr);
+    assert.match(listed.stdout, /candidate in 2 repositories: Run the linter/u);
+    assert.match(
+      listed.stdout,
+      /1 candidate from instruction files of 2 repositories/u,
+    );
+
+    assert.equal(krn(['harvest', '--repos', join(base, 'nope')]).status, 66);
+    assert.equal(readdirSync(one).includes('.agents'), false);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});

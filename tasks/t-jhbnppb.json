@@ -1,7 +1,11 @@
 {
   "id": "t-jhbnppb",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn standards harvest --repos reads AGENTS.md and CLAUDE.md bullets and prints candidates in 2+ repositories"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "Standards candidates are mined from AGENTS.md bullets that recur in at least two operator repositories",

@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, isAbsolute, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CliUsageError } from '../cli/usage-error.ts';
 import {
@@ -25,12 +25,16 @@ import { globalDrift, installGlobal } from './global-standards.ts';
 import {
   formatProposal,
   harvestCandidates,
+  harvestInstructionBullets,
+  INSTRUCTION_FILES,
+  type InstructionSource,
   normalizeText,
   PROPOSAL_KINDS,
   PROPOSALS_DIR,
   type ProposalKind,
   parseProposal,
   proposalFileName,
+  renderBulletHarvest,
   renderHarvest,
   type Sourced,
 } from './proposals.ts';
@@ -52,7 +56,7 @@ import {
 } from './standards.ts';
 
 export const usage =
-  'usage: krn standards check [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [REPO...] [--root DIR]';
+  'usage: krn standards check [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [REPO...] [--root DIR] | harvest --repos DIR... [--repos-file FILE]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -468,8 +472,59 @@ export function standardsHarvest(repositories: readonly string[]): string[] {
   return renderHarvest(harvestCandidates(sourced), roots.length);
 }
 
+/** The paths of a `--repos-file`: one per line, blank lines and `#` comments ignored; relative to the file. */
+export function repositoryList(file: string): string[] {
+  if (!existsSync(file))
+    throw new StandardsInputError(`krn standards harvest: no file ${file}`);
+  return readFileSync(file, 'utf8')
+    .split(/\r?\n/u)
+    .map((line) => line.trim())
+    .filter((line) => line !== '' && !line.startsWith('#'))
+    .map((line) => resolve(dirname(file), line));
+}
+
+/** Recurring AGENTS.md and CLAUDE.md bullets of the named directories (read as data, never written). */
+export function instructionHarvest(directories: readonly string[]): string[] {
+  const roots = [...new Set(directories.map((path) => resolve(path)))];
+  const sources: InstructionSource[] = [];
+  for (const root of roots) {
+    if (!existsSync(root))
+      throw new StandardsInputError(
+        `krn standards harvest: no directory ${root}`,
+      );
+    for (const file of INSTRUCTION_FILES) {
+      const path = join(root, file);
+      if (existsSync(path))
+        sources.push({
+          repository: root,
+          origin: basename(root),
+          file,
+          text: readFileSync(path, 'utf8'),
+        });
+    }
+  }
+  return renderBulletHarvest(harvestInstructionBullets(sources), roots.length);
+}
+
 function harvestCommand(rest: readonly string[]): void {
-  const { values, positional } = flags(rest, new Set(), ROOT);
+  const parsed = flags(
+    rest,
+    new Set(['--repos']),
+    new Set(['--root', '--repos-file']),
+  );
+  const { values, positional } = parsed;
+  if (values.has('--repos') || values.has('--repos-file')) {
+    const file = values.get('--repos-file')?.[0];
+    const directories = [
+      ...(values.get('--repos') ?? []),
+      ...positional,
+      ...(file === undefined ? [] : repositoryList(resolve(file))),
+    ];
+    if (directories.length === 0) throw new CliUsageError(usage);
+    for (const line of instructionHarvest(directories))
+      process.stdout.write(`${line}\n`);
+    return;
+  }
   const repositories =
     positional.length > 0
       ? positional.map((path) => resolve(path))
