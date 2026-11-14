@@ -137,7 +137,10 @@ export function prBodyCommand(args: string[]): string {
   // the commits both come from that worktree, not from the main checkout.
   const root = repositoryRoot(worktree);
   const task = loadTaskIndex(taskLookupRoot(root, id)).get(id);
-  if (task === undefined) throw new CliUsageError(`Unknown task ${id}`);
+  if (task === undefined)
+    throw new CliUsageError(
+      `Unknown task ${id} in ${root}; a task created in a slice worktree needs --worktree <path>`,
+    );
   const text = renderPrBody({
     task,
     commits: commitsSince(root, base ?? `origin/${contractBase(root)}`),
