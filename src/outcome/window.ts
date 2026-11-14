@@ -1,6 +1,7 @@
 // The delivery window unit: merged PRs, dollars by session class, PRs per task, lead time, CI attempts, rework and main reds.
 import { resolve } from 'node:path';
 import { transcriptDirs } from '../harness/transcripts.ts';
+import { gh, ghRepoView } from '../repo/gh.ts';
 import { frameChanges, gateManifest } from './gate-manifest.ts';
 import {
   classifyLead,
@@ -107,15 +108,10 @@ export async function collectWindow(options: WindowOptions) {
   const manifest = gateManifest(root);
   const t0 = Date.now();
   const repo =
-    options.repo ??
-    string(
-      object(
-        parse(await run('gh', ['repo', 'view', '--json', 'nameWithOwner'])),
-      ).nameWithOwner,
-    );
+    options.repo ?? string(object(parse(await ghRepoView(run))).nameWithOwner);
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo))
     throw internalError('Invalid repository');
-  const json = async (args: string[]) => array(parse(await run('gh', args)));
+  const json = async (args: string[]) => array(parse(await gh(run, args)));
   let from = Date.parse(options.from ?? '');
   let to = Date.parse(options.to ?? '');
   if (options.last !== undefined) {
