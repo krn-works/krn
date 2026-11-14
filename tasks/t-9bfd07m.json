@@ -1,7 +1,11 @@
 {
   "id": "t-9bfd07m",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "SessionStart injects a 400-token matching standards block and logs the session exposure; a refused Stop names record id and why and logs the violation (tests on SessionStart and Stop payloads)"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "Adopted repositories get a task-scoped standards packet at session start and the Stop hook teaches the violated record",

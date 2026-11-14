@@ -19,6 +19,9 @@ import { readProject } from './standards-cli.ts';
 /** Token budget of the one lane packet; the frozen FR-40 arms stay at BUDGET. */
 export const LANE_BUDGET = 600;
 
+/** Token budget of the packet SessionStart injects into an interactive session. */
+export const SESSION_BUDGET = 400;
+
 /** What a failure of a record costs a worker, so a floor rule outranks an equally matching finish rule. */
 export const EFFECT = { floor: 3, reflex: 2, finish: 1 } as const;
 

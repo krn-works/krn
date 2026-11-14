@@ -15,6 +15,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { appendExposure, violatedExposure } from '../brain/exposures.ts';
 import { standardsBlockers } from '../brain/standards-cli.ts';
 import {
   ContractError,
@@ -841,6 +842,27 @@ export function shippedMerge(root: string, message: unknown): boolean {
 /** The blocking standards of a repository on a date (YYYY-MM-DD), one line each. */
 export type StandardsRunner = (root: string, asOf: string) => string[];
 
+/** Logs the refused records to the exposure log; the log is evidence, never a reason to fail a Stop. */
+function logViolations(
+  root: string,
+  payload: unknown,
+  blockers: readonly string[],
+): void {
+  try {
+    const ids = blockers.flatMap((line) => /^(\S+) \(/u.exec(line)?.[1] ?? []);
+    const session = (payload as { session_id?: unknown } | null)?.session_id;
+    if (ids.length > 0)
+      appendExposure(
+        dirname(
+          resolve(root, git(root, ['rev-parse', '--git-common-dir']).stdout),
+        ),
+        violatedExposure(typeof session === 'string' ? session : 'stop', ids),
+      );
+  } catch {
+    /* Evidence only. */
+  }
+}
+
 /** The refusal reason for a Stop payload, or undefined when the session may end. */
 export function judgeStop(
   payload: unknown,
@@ -876,6 +898,7 @@ export function judgeStop(
     if (env.KRN_LANE === 'canary') return undefined;
     const blockers = standards(root, new Date().toISOString().slice(0, 10));
     if (blockers.length === 0) return undefined;
+    logViolations(root, payload, blockers);
     return `Stop refused: ${blockers.length} standard(s) fail (floor, or reflex without a recorded waiver):\n${blockers.map((line) => `- ${line}`).join('\n')}\nFix them, record a reason in \`waiver\` on a reflex record in .agents/standards.json, or end with a line \`BLOCKER: <what stops you>\`.`;
   }
   // A missing base or an invalid contract is refused once: a continued stop (stop_hook_active) is not held again.

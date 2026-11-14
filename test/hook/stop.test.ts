@@ -14,6 +14,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { readExposures } from '../../src/brain/exposures.ts';
 import {
   failuresIn,
   inspect,
@@ -1087,6 +1088,58 @@ test('the Stop hook refuses a floor and an unwaived reflex standard and only rep
       0,
     );
     assert.equal(stop({ tier: 'finish' }).status, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a refused Stop names the violated record and why, and logs the violation to the exposure log', () => {
+  const dir = clone();
+  try {
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'change');
+    mkdirSync(join(dir, '.agents'), { recursive: true });
+    writeFileSync(
+      join(dir, '.agents/standards.json'),
+      JSON.stringify([
+        {
+          id: 's-probe',
+          type: 'standard',
+          area: 'tests',
+          layer: 'universal',
+          audience: 'worker',
+          tier: 'floor',
+          text: 'A probe rule.',
+          why: 'Unrun probes ship broken trees.',
+          provenance: {
+            origin: 'test',
+            evidence: ['README.md'],
+            proposals: [],
+          },
+          enforcement: { kind: 'command', run: 'false' },
+          applies: { stacks: [], needs: [], paths: [], terms: [] },
+          status: 'accepted',
+          supersedes: [],
+          recorded_at: '2026-01-01',
+          valid_from: '2026-01-01',
+          valid_to: null,
+        },
+      ]),
+    );
+    const stopped = spawnSync(process.execPath, [hook], {
+      cwd: dir,
+      encoding: 'utf8',
+      input: JSON.stringify({ ...payload(dir), session_id: 'sess-1' }),
+      env: { ...process.env, ...lane(dir) },
+    });
+    assert.equal(stopped.status, 2);
+    assert.match(stopped.stderr, /s-probe \(floor\)/u);
+    assert.match(stopped.stderr, /why: Unrun probes ship broken trees\./u);
+    const [exposure] = readExposures(dir);
+    assert.deepEqual(exposure?.served, ['s-probe']);
+    assert.equal(exposure?.run, 'sess-1');
+    assert.equal(exposure?.outcome['s-probe'], 'violated');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

@@ -358,10 +358,13 @@ export function standardsBlockers(
     asOf,
     enforce: enforcer(root, timeoutMs),
   });
-  return report.blocking.map(
-    (failure) =>
-      `${failure.id} (${failure.tier ?? 'standard'}): ${failure.message}`,
+  const why = new Map(
+    applicable.map((standard) => [standard.id, standard.why]),
   );
+  return report.blocking.map((failure) => {
+    const reason = why.get(failure.id);
+    return `${failure.id} (${failure.tier ?? 'standard'}): ${failure.message}${reason ? `\n  why: ${reason}` : ''}`;
+  });
 }
 
 function flags(
