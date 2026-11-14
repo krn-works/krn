@@ -2,6 +2,7 @@
 // `herdr`, names its flags or reads its replies. Every reader answers an empty
 // or undefined value for a reply it cannot parse.
 
+import { claudeAgent } from '../harness/claude.ts';
 import { readJson } from '../repo/json-text.ts';
 import { type CommandResult, record, run, text } from './command.ts';
 import type {
@@ -86,7 +87,7 @@ export function hostsRunningWork(paneId: string): boolean {
     if (!Array.isArray(processes)) return false;
     for (const value of processes) {
       const process = record(value);
-      if (process?.name !== 'claude') return true;
+      if (process?.name !== claudeAgent) return true;
       const pid = process.pid;
       if (typeof pid !== 'number') continue;
       const children = run('ps', ['-o', 'pid=,comm=', '--ppid', String(pid)]);

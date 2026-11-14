@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { claudeAgent } from '../harness/claude.ts';
 import { startLane } from './lane.ts';
 import { laneRunCommand } from './lane-run.ts';
 
@@ -82,7 +83,7 @@ export async function runCanary(
       options.deliver === false
         ? 'true'
         : `${close}; git commit -qam "feat(x): done (${TASK})" -m "Ticket: ${TASK}"; ${marker}`;
-    const claude = join(base, 'claude');
+    const claude = join(base, claudeAgent);
     const result = JSON.stringify({
       type: 'result',
       subtype: 'success',

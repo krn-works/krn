@@ -10,6 +10,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { projectPath } from '../harness/claude.ts';
 import { ceilingOf, gaugeReading, refusesAtCeiling } from './gauge.ts';
 import { object } from './io.ts';
 
@@ -107,9 +108,9 @@ export function replay(
     .map((item) => item.line);
   const root = mkdtempSync(join(tmpdir(), 'context-replay-'));
   try {
-    mkdirSync(join(root, '.claude'));
+    mkdirSync(projectPath(root));
     writeFileSync(
-      join(root, '.claude/settings.json'),
+      projectPath(root, 'settings.json'),
       JSON.stringify({ autoCompactWindow: window }),
     );
     const path = join(root, 'transcript.jsonl');

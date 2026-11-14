@@ -10,9 +10,15 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import {
+  emitContext,
+  hookInput,
+  projectPath,
+  promptCounters,
+} from '../harness/claude.ts';
 import { projectsStore } from '../harness/transcripts.ts';
 import { isWorkerSession } from '../hook/session.ts';
-import { emitContext, hookInput, object } from './io.ts';
+import { object } from './io.ts';
 
 // Missing counters are invalid, rather than evidence of a small context.
 export function gaugeReading(transcript: string): {
@@ -38,11 +44,7 @@ export function gaugeReading(transcript: string): {
     const message = object(entry.message);
     if (message.usage === undefined) continue;
     const usage = object(message.usage);
-    const counters = [
-      usage.input_tokens,
-      usage.cache_read_input_tokens,
-      usage.cache_creation_input_tokens,
-    ];
+    const counters = promptCounters(usage);
     let sum = 0;
     for (const counter of counters) {
       if (
@@ -68,7 +70,7 @@ export function contextTotal(transcript: string): number | undefined {
 // A first lead turn measured 46-48k on 2026-11-01, well below the first one.
 // Host mode defaults to the 400k window KRN measured its advisories against.
 function budget(project: string, fallback: number): number {
-  const path = join(project, '.claude/settings.json');
+  const path = projectPath(project, 'settings.json');
   if (!existsSync(path)) return fallback;
   const window = object(
     JSON.parse(readFileSync(path, 'utf8')),
@@ -207,7 +209,7 @@ async function capturePrompt(raw: string): Promise<void> {
 // A project that wires its own gauge (KRN) would otherwise be gauged twice.
 export function wiresOwnGauge(project: string): boolean {
   return ['settings.json', 'settings.local.json'].some((name) => {
-    const path = join(project, '.claude', name);
+    const path = projectPath(project, name);
     return (
       existsSync(path) && readFileSync(path, 'utf8').includes('context-gauge')
     );

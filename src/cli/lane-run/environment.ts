@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { projectPath, projectRelative } from '../../harness/claude.ts';
 
 /** Operator credentials that never reach a lane session; only the cached App token does, and the sandbox blocks localhost so bw serve is out of reach. */
 export const OPERATOR_CREDENTIAL_VARIABLES = [
@@ -40,15 +40,15 @@ export const wrapperDirectory = fileURLToPath(
   new URL('../../../scripts/app-bin', import.meta.url),
 );
 export const productSandboxSettings = fileURLToPath(
-  new URL('../../../.claude/settings.sandbox.json', import.meta.url),
-);
+  new URL('../../../', import.meta.url),
+).concat(projectRelative('settings.sandbox.json'));
 
 /**
  * The lane sandbox settings: the repository's own file when it ships one, else the copy that
  * travels with KRN, so an adopted repository runs lanes without adding the file.
  */
 export function laneSandboxSettings(worktree: string): string {
-  const own = join(worktree, '.claude', 'settings.sandbox.json');
+  const own = projectPath(worktree, 'settings.sandbox.json');
   return existsSync(own) ? own : productSandboxSettings;
 }
 

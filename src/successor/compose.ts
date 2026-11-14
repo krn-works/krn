@@ -2,6 +2,7 @@
 import { spawnSync } from 'node:child_process';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { claudeAgent, isClaudeSession, relayFlags } from '../harness/claude.ts';
 import { SESSION_CLASS_VARIABLE } from '../memory/operator-inbox-store.ts';
 import type { SuccessorLaunchOptions } from './options.ts';
 
@@ -83,7 +84,7 @@ export function checkAppCredential(env: NodeJS.ProcessEnv): string | undefined {
   );
 }
 
-export type Harness = 'claude' | 'codex' | 'other';
+export type Harness = typeof claudeAgent | 'codex' | 'other';
 
 /**
  * The harness the lead is running in, read from the runtime environment.
@@ -101,21 +102,21 @@ export function detectHarness(
       harness:
         basename(override) === 'codex'
           ? 'codex'
-          : basename(override) === 'claude'
-            ? 'claude'
+          : basename(override) === claudeAgent
+            ? claudeAgent
             : 'other',
     };
   const codex = Boolean(
     env.CODEX_THREAD_ID || env.CODEX_SANDBOX || env.CODEX_CI,
   );
-  const claude = env.CLAUDECODE === '1' || Boolean(env.CLAUDE_CODE_SESSION_ID);
+  const claude = isClaudeSession(env);
   if (codex && claude)
     return {
       error:
         'ambiguous harness: both Codex and Claude Code markers are set; set KRN_SUCCESSOR_AGENT',
     };
   if (codex) return { agent: 'codex', harness: 'codex' };
-  if (claude) return { agent: 'claude', harness: 'claude' };
+  if (claude) return { agent: claudeAgent, harness: claudeAgent };
   return {
     error:
       'unknown harness: no Codex or Claude Code marker in the environment; set KRN_SUCCESSOR_AGENT',
@@ -129,14 +130,7 @@ export function agentFlags(
   harness: Harness,
   options: SuccessorLaunchOptions,
 ): string[] {
-  return harness === 'claude'
-    ? [
-        '--permission-mode',
-        'bypassPermissions',
-        ...(options.model ? ['--model', options.model] : []),
-        ...(options.effort ? ['--effort', options.effort] : []),
-      ]
-    : [];
+  return harness === claudeAgent ? relayFlags(options) : [];
 }
 
 // The first words every successor reads: retire the predecessor panes, then the caller's prompt.

@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { z } from 'zod';
+import { configHome } from '../../harness/claude.ts';
 
 export const exitCredentialUnavailable = 69;
 /** The contract install command failed in the lane worktree; no session started. */
@@ -62,10 +62,7 @@ export function transcriptTurns(transcript: string): number {
 /** The turn count of a session read from its transcript under the Claude config directory; undefined when none is found. */
 export function sessionTurns(sessionId: string): number | undefined {
   if (!/^[\w-]+$/u.test(sessionId)) return undefined;
-  const projects = join(
-    process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'),
-    'projects',
-  );
+  const projects = join(configHome(), 'projects');
   try {
     for (const directory of readdirSync(projects)) {
       const file = join(projects, directory, `${sessionId}.jsonl`);

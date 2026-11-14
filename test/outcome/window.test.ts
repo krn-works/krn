@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { turnDollars, usageOf } from '../../src/outcome/slice-cost.ts';
+import { usageOf } from '../../src/harness/claude.ts';
+import { turnDollars } from '../../src/outcome/slice-cost.ts';
 import {
   collectWindow,
   isLanePr,

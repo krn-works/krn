@@ -95,7 +95,7 @@ src/cli/state.ts: (no header) exports stateCommand
 src/context/cc-clearing-watch.ts: Watches whether 
 src/context/disk-pressure.ts: Disk-volume probe an
 src/context/gauge.ts: Context gauge hook: advisori
-src/context/io.ts: Hook input and context output h
+src/context/io.ts: Strict object narrowing for hoo
 src/context/plan-sample.ts: Status line command: s
 src/context/replay.ts: Replays a transcript throug
 src/context/report.ts: Per-transcript context repo
@@ -108,6 +108,7 @@ src/evals/manifest.ts: (no header) exports EvalDat
 src/evals/plan.ts: (no header) exports planExperim
 src/evals/stats.ts: Paired-binary statistics for F
 src/fs/read-regular-file.ts: (no header) exports r
+src/harness/claude.ts: Claude Code specifics: the 
 src/harness/memory-directory.ts: (no header) expor
 src/harness/transcripts.ts: (no header) exports Tr
 src/hook/lead-file-read.ts: Lead file-read hook.

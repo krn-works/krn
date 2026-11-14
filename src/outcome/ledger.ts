@@ -11,6 +11,7 @@ import {
   sep,
 } from 'node:path';
 import { promisify } from 'node:util';
+import { usageKeys, usageOf } from '../harness/claude.ts';
 import {
   subagentFiles,
   type TranscriptFile,
@@ -35,7 +36,6 @@ import {
   survivingLines,
   type Transcript,
   type Turn,
-  usageOf,
 } from './slice-cost.ts';
 import { titleTaskId } from './task-id.ts';
 
@@ -244,10 +244,10 @@ function sessionParser(sidechain = false) {
       return {
         id: '',
         tokens: {
-          input: total('input_tokens'),
-          cache_read: total('cache_read_input_tokens'),
-          cache_creation: total('cache_creation_input_tokens'),
-          output: total('output_tokens'),
+          input: total(usageKeys.input),
+          cache_read: total(usageKeys.cache_read),
+          cache_creation: total(usageKeys.cache_creation),
+          output: total(usageKeys.output),
         },
         commands: [...commands.values()],
         turns: [...turns.values()],

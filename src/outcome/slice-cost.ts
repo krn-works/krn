@@ -1,17 +1,9 @@
 // Per-slice cost: split each transcript into the turns of the PR it was working on, price them, and name the author.
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
+import type { Usage } from '../harness/claude.ts';
 import { titleTaskId } from './task-id.ts';
 
-type ObjectValue = Record<string, unknown>;
-
-type Usage = {
-  input: number;
-  cacheRead: number;
-  cacheWrite5m: number;
-  cacheWrite1h: number;
-  output: number;
-};
 export type Turn = {
   model: string;
   usage: Usage;
@@ -36,35 +28,6 @@ export type SlicePr = {
   mergedAt: unknown;
   createdAt?: unknown;
 };
-
-const object = (v: unknown): ObjectValue =>
-  typeof v === 'object' && v !== null && !Array.isArray(v)
-    ? (v as ObjectValue)
-    : {};
-const count = (v: unknown): number =>
-  typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0;
-
-export function usageOf(raw: unknown): Usage {
-  const u = object(raw);
-  const split = object(u.cache_creation);
-  const total = count(u.cache_creation_input_tokens);
-  const has5m = typeof split.ephemeral_5m_input_tokens === 'number';
-  const has1h = typeof split.ephemeral_1h_input_tokens === 'number';
-  // Without the split every cache write is priced as a 5-minute write.
-  const w1h = has1h ? count(split.ephemeral_1h_input_tokens) : 0;
-  const w5m =
-    has5m || has1h
-      ? count(split.ephemeral_5m_input_tokens) +
-        Math.max(0, total - count(split.ephemeral_5m_input_tokens) - w1h)
-      : total;
-  return {
-    input: count(u.input_tokens),
-    cacheRead: count(u.cache_read_input_tokens),
-    cacheWrite5m: w5m,
-    cacheWrite1h: w1h,
-    output: count(u.output_tokens),
-  };
-}
 
 // The one price table lives in model-prices.json (shared with scripts/claude/spend-window.py).
 export const priceTableSchema = z.object({
