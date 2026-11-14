@@ -162,6 +162,14 @@
         "test/fixtures/gh/rules-branches-main-krn-works-krn.stdout.json"
       ],
       "test": "test/adopt/verify.test.ts"
+    },
+    "src/harness/memory-directory.ts": {
+      "receivers": ["git"],
+      "real": "test/claude/memory-budget-hook.test.ts"
+    },
+    "src/memory/memory-refs.ts": {
+      "receivers": ["git"],
+      "real": "test/claude/memory-validity.test.ts"
     }
   }
 }

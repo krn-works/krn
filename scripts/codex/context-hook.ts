@@ -12,9 +12,9 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { cutText } from '../../src/memory/cut-text.ts';
 import { object } from '../claude/context-io.ts';
 import { restartText } from '../claude/context-restart.ts';
-import { cutText } from '../claude/cut-text.ts';
 
 // Codex hook entry for a KRN lead: one process serves SessionStart (restart
 // block), UserPromptSubmit and PostToolUse (usage advisories) and PreCompact

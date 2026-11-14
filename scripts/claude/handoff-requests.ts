@@ -1,12 +1,16 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { memoryDirectory } from '../../src/harness/memory-directory.ts';
 import {
   resumeProblems,
   section as resumeSection,
   roadmapIds,
-} from './handoff-resume.ts';
-import { memoryDirectory } from './memory-directory.ts';
-import { markHandoff, oneLine, openEntries } from './operator-inbox-store.ts';
+} from '../../src/memory/handoff-resume.ts';
+import {
+  markHandoff,
+  oneLine,
+  openEntries,
+} from '../../src/memory/operator-inbox-store.ts';
 
 // A handoff must record every open operator request durably: a task, a memory entry, or an explicit close.
 const usage =

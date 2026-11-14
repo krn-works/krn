@@ -2,15 +2,18 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { memoryDirectory } from '../../src/harness/memory-directory.ts';
+import { cutText } from '../../src/memory/cut-text.ts';
+import { resumeBlock, section } from '../../src/memory/handoff-resume.ts';
+import { compactIndex } from '../../src/memory/identifier-index.ts';
+import { checkMemory } from '../../src/memory/memory-refs.ts';
+import {
+  openEntries,
+  recordSessionClass,
+} from '../../src/memory/operator-inbox-store.ts';
 import { stateLoss } from '../../src/state/loss.ts';
 import { emitContext, hookInput, object } from './context-io.ts';
-import { cutText } from './cut-text.ts';
 import { pressureLines, probe } from './disk-pressure.ts';
-import { resumeBlock, section } from './handoff-resume.ts';
-import { compactIndex } from './identifier-index.ts';
-import { memoryDirectory } from './memory-directory.ts';
-import { checkMemory } from './memory-refs.ts';
-import { openEntries, recordSessionClass } from './operator-inbox-store.ts';
 
 function closed(project: string, id: unknown): boolean {
   if (typeof id !== 'string' || !/^[a-z0-9-]+$/u.test(id)) return false;

@@ -7,7 +7,7 @@ import {
   inboxRoot,
   isHarnessText,
   oneLine,
-} from './operator-inbox-store.ts';
+} from '../../src/memory/operator-inbox-store.ts';
 
 // Read-only measurement: of the operator prompts in a window, how many became a task, how many of
 // those tasks closed done, and how long from the prompt to the first merge. The join is the

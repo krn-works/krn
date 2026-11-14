@@ -4,7 +4,7 @@ import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { commandLines } from '../../src/cli/help.ts';
-import { cutText } from './cut-text.ts';
+import { cutText } from '../../src/memory/cut-text.ts';
 
 export const indexPath = 'docs/generated/capability-index.md';
 

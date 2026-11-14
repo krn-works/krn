@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { fitEnvelope } from '../../scripts/claude/context-restart.ts';
-import { cutText } from '../../scripts/claude/cut-text.ts';
-import { resumeBlock } from '../../scripts/claude/handoff-resume.ts';
+import { bounded } from '../../scripts/codex/context-hook.ts';
+import { cutText } from '../../src/memory/cut-text.ts';
+import { resumeBlock } from '../../src/memory/handoff-resume.ts';
 import {
   inboxText,
   maxText,
   oneLine,
-} from '../../scripts/claude/operator-inbox-store.ts';
-import { bounded } from '../../scripts/codex/context-hook.ts';
+} from '../../src/memory/operator-inbox-store.ts';
 
 // Every bound in a run of consecutive limits lands inside some astral
 // character, so a UTF-16 slice would leave a lone surrogate at one of them.

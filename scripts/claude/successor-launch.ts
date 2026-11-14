@@ -7,7 +7,7 @@ import {
   SESSION_CLASS_VARIABLE,
   SESSION_CLASSES,
   type SessionClass,
-} from './operator-inbox-store.ts';
+} from '../../src/memory/operator-inbox-store.ts';
 
 // Usage: node scripts/claude/successor-launch.ts --name <label> --prompt <text>
 //   [--cwd <dir>] [--class <session class>] [--model <id>] [--effort <level>]
