@@ -159,7 +159,10 @@ export function repositoryFacts(root: string): Repository {
   const needs = new Set<Need>();
   if (contractTracker(root) === 'krn') needs.add('tracker');
   const adopted = existsSync(join(root, CONTRACT_FILE)) || needs.has('tracker');
-  const stack = detectStack(root)?.stack;
+  // A Composer project without PHPUnit has no detected test stack but is still PHP.
+  const stack =
+    detectStack(root)?.stack ??
+    (existsSync(join(root, 'composer.json')) ? 'php' : undefined);
   return stack === undefined ? { adopted, needs } : { stack, adopted, needs };
 }
 

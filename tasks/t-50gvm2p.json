@@ -1,0 +1,16 @@
+{
+  "id": "t-50gvm2p",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "7 pack records added (PHP, commits, scripts, whitespace); php stack fallback for composer-only repositories"
+  },
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "Recurring operator instruction bullets become reviewed standards records with stack scope",
+  "after": [],
+  "body": [
+    "Why: Fable plan 1114c #5 second PR. krn standards harvest --repos-file over 89 operator repositories (.krn/runs/lanes-1114c/harvest-out.txt, 275 lines) lists recurring instruction bullets; standards/records.json has 26 records and none for PHP, WordPress or frontend.\nOutcome: candidates that are real engineering standards (not tracker or session boilerplate from a shared template, not Beads/bd workflow, which the operator retired) become records in standards/records.json with tier, scope (stack applicability) and enforcement where mechanically checkable; the rejected candidate groups are listed with a one-line reason in the PR body.\nProof: standards schema tests PASS; krn standards check --root . PASS; npm run fast PASS."
+  ]
+}
