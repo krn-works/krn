@@ -136,6 +136,15 @@
     "src/adopt/canary.ts": {
       "receivers": ["git", "node"],
       "real": "test/adopt/canary.test.ts"
+    },
+    "src/adopt/verify.ts": {
+      "receivers": ["gh"],
+      "capture": [
+        "test/fixtures/gh/repo-krn-works-krn.stdout.json",
+        "test/fixtures/ci-admission/branch-protected.json",
+        "test/fixtures/ci-admission/branch-unpinned.json"
+      ],
+      "test": "test/adopt/verify.test.ts"
     }
   }
 }
