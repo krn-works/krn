@@ -23,6 +23,8 @@ export interface RepoContract {
   readonly conventions?: string;
   /** Spend cap in USD for one lane session (`krn lane run`); 3 when absent. */
   readonly laneBudgetUsd?: number;
+  /** `acknowledged` when the operator accepts auto-merge in a repository that deploys on a push to the base branch. */
+  readonly deploy?: 'acknowledged';
   readonly tracker: Tracker;
 }
 
@@ -45,6 +47,7 @@ const FIELDS = [
   'conventions',
   'tracker',
   'laneBudgetUsd',
+  'deploy',
 ] as const;
 
 /** Where conventions live when krn.json does not name a file. */
@@ -54,7 +57,7 @@ export class ContractError extends Error {}
 
 type StringField = Exclude<
   (typeof FIELDS)[number],
-  'tracker' | 'laneBudgetUsd'
+  'tracker' | 'laneBudgetUsd' | 'deploy'
 >;
 
 type Declared = { -readonly [K in keyof RepoContract]?: RepoContract[K] };
@@ -88,7 +91,13 @@ export function parseContractFile(text: string): Declared {
       throw new ContractError(
         `${CONTRACT_FILE}: "${key}" must be a non-empty string`,
       );
-    if (key === 'tracker') {
+    if (key === 'deploy') {
+      if (value !== 'acknowledged')
+        throw new ContractError(
+          `${CONTRACT_FILE}: "deploy" must be "acknowledged"`,
+        );
+      out.deploy = value;
+    } else if (key === 'tracker') {
       if (value !== 'krn' && value !== 'none')
         throw new ContractError(
           `${CONTRACT_FILE}: "tracker" must be "krn" or "none"`,
@@ -477,6 +486,11 @@ export function contractConventions(root: string): string {
   return declaredContract(root)?.conventions ?? DEFAULT_CONVENTIONS;
 }
 
+/** Whether krn.json acknowledges auto-merge into a deploying base branch; it needs no test command. */
+export function contractDeployAcknowledged(root: string): boolean {
+  return declaredContract(root)?.deploy === 'acknowledged';
+}
+
 export const DEFAULT_LANE_BUDGET_USD = 3;
 
 /** The spend cap of one lane session: krn.json `laneBudgetUsd`, else 3; it needs no test command. */
@@ -528,6 +542,7 @@ export function findContract(root: string): ResolvedContract | undefined {
     ...(declared?.laneBudgetUsd
       ? { laneBudgetUsd: declared.laneBudgetUsd }
       : {}),
+    ...(declared?.deploy ? { deploy: declared.deploy } : {}),
     tracker: contractTracker(root),
   };
   return {

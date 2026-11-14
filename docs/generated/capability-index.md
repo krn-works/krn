@@ -20,6 +20,7 @@ krn pr ship --title TITLE --body-file PATH [--repo OWNER/REPO] [--force]: in a b
 src/adopt/adopt.ts: The adoption set: what a repository needs so KRN delivery works there.
 src/adopt/canary.ts: The adoption canary: proves the Stop gate works in the adopted repository by breaking one existing 
 src/adopt/conventions.ts: Seeds a repository's conventions file from its own instruction files, so the lane packet is no
+src/adopt/deploy.ts: Deploy detection: a workflow that runs on a push to the base branch and deploys ships to production
 src/adopt/stop-hook.ts: The hook command `krn adopt` installs for `krn hook <name>`. Claude Code treats any exit other t
 src/adopt/verify.ts: `krn adopt <path> --verify`: a read-only report of the repository settings adoption relies on.
 src/brain/global-standards.ts: The user-level standards file: the in-force records marked universal (they hold in any re

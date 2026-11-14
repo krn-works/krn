@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  chmodSync,
+  copyFileSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import test from 'node:test';
@@ -42,8 +49,14 @@ test('a check required by a ruleset counts, as on krn-works/krn', () => {
   assert.deepEqual(verifyGaps(repo, unpinned, rulesetOnly), []);
 });
 
-function verify(repoBody: string, branchBody: string, rulesBody = '[]') {
+function verify(
+  repoBody: string,
+  branchBody: string,
+  rulesBody = '[]',
+  prepare: (root: string) => void = () => {},
+) {
   const dir = mkdtempSync(join(tmpdir(), 'krn-verify-'));
+  prepare(dir);
   writeFileSync(join(dir, 'repo.json'), repoBody);
   writeFileSync(join(dir, 'branch.json'), branchBody);
   writeFileSync(join(dir, 'rules.json'), rulesBody);
@@ -67,4 +80,45 @@ test('adopt --verify exits 0 when set and 1 naming the gap otherwise', () => {
   assert.match(bad.stdout, /verify gap: branch main has no single required/u);
   const ruleset = verify(repo, unpinned, rulesetOnly);
   assert.equal(ruleset.status, 0, ruleset.stdout);
+});
+
+const withWorkflow = (name: string, contract?: string) => (root: string) => {
+  mkdirSync(join(root, '.github/workflows'), { recursive: true });
+  copyFileSync(
+    fileURLToPath(new URL(`../fixtures/workflows/${name}`, import.meta.url)),
+    join(root, '.github/workflows', name),
+  );
+  if (contract) writeFileSync(join(root, 'krn.json'), contract);
+};
+
+test('adopt --verify names a deploying base-branch workflow until krn.json acknowledges it', () => {
+  const bad = verify(
+    repo,
+    protectedBranch,
+    '[]',
+    withWorkflow('deploy-on-push.yml'),
+  );
+  assert.equal(bad.status, 1, bad.stderr);
+  assert.match(
+    bad.stdout,
+    /verify gap: \.github\/workflows\/deploy-on-push\.yml deploys on a push to main/u,
+  );
+  assert.match(bad.stdout, /"deploy": "acknowledged"/u);
+  const ok = verify(
+    repo,
+    protectedBranch,
+    '[]',
+    withWorkflow(
+      'deploy-on-push.yml',
+      '{"test":"true","deploy":"acknowledged"}',
+    ),
+  );
+  assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+  const plain = verify(
+    repo,
+    protectedBranch,
+    '[]',
+    withWorkflow('test-only.yml'),
+  );
+  assert.equal(plain.status, 0, plain.stdout + plain.stderr);
 });

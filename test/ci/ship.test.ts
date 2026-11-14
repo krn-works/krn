@@ -463,3 +463,26 @@ for (const force of [false, true]) {
     );
   });
 }
+
+test('ship refuses with exit 82 before the push when the base branch deploys without an acknowledgement', async () => {
+  const r = receiver({ pulls: [auto, merged] });
+  await assert.rejects(
+    shipCommand(args, {
+      ...r,
+      deployRefusal: () =>
+        '.github/workflows/deploy.yml deploys on a push to main; set "deploy": "acknowledged" in krn.json',
+    }),
+    (error: Failure) => {
+      assert.equal(error.exitCode, 82);
+      assert.match(
+        error.message,
+        /refused auto-merge: .*"deploy": "acknowledged"/u,
+      );
+      return true;
+    },
+  );
+  assert.equal(
+    r.calls.some((c) => c.startsWith('push') || c.includes('auto')),
+    false,
+  );
+});

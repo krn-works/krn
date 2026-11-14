@@ -14,7 +14,7 @@ import { gitLockError } from './git-lock.ts';
 import { waitCommand } from './wait.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh or cleanup still exits 0 with a warning); a rerun after the merge only cleans up; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push (--force does not bypass it), 75 timeout, 76 conflict, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh or cleanup still exits 0 with a warning); a rerun after the merge only cleans up; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push (--force does not bypass it), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
 
 /** Exit codes for a ship whose wait ended without a merge. */
 const unmergedExitCodes = [
@@ -42,6 +42,8 @@ export async function shipCommand(
     baseOf?: (cwd: string) => string;
     /** Whether `path` exists under `cwd`; the default reads the file system. */
     hasFile?: (cwd: string, path: string) => boolean;
+    /** The remedy text when the worktree deploys on a push to `base` and krn.json does not acknowledge it, else undefined; the cli supplies it. */
+    deployRefusal?: (cwd: string, base: string) => string | undefined;
     /** The runnable Proof commands of the task the title names, read from the worktree; the cli supplies it. */
     proofOf?: (cwd: string, title: string) => string[];
     /** The PR body to publish: `text` is the body file plus the proof record; the default writes it under .krn/tmp of `cwd`. */
@@ -170,6 +172,15 @@ export async function shipCommand(
       { exitCode: 66 },
     );
   }
+
+  const deployRefusal = (runtime.deployRefusal ?? (() => undefined))(
+    cwd,
+    target,
+  );
+  if (deployRefusal !== undefined)
+    throw Object.assign(new Error(`refused auto-merge: ${deployRefusal}`), {
+      exitCode: 82,
+    });
 
   // The rule is KRN's own; an adopted repository without it ships without it.
   const hasFile =
