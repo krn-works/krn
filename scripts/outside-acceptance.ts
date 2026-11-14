@@ -125,14 +125,18 @@ export function drainFacts(exitCode: number, output: string): DrainFacts {
   const sessions = lines.filter((line) =>
     /^t-\w+ t-\w+ exit=\d+/u.test(line),
   ).length;
-  const merged = lines.filter((line) =>
-    /^verdict: merged\b/u.test(line),
-  ).length;
+  // The drain prints the lane's verdict line: `lane <id>: shipped verdict: merged <sha> model ...`.
+  const shas = [
+    ...output.matchAll(/\bverdict: merged ([0-9a-f]{7,40})\b/gu),
+  ].map((match) => (match[1] as string).slice(0, 7));
+  const merged = shas.length;
   const prs: string[] = [];
   for (const match of output.matchAll(/(?:pull\/|PR #|pr #)(\d+)/gu)) {
     const pr = `#${match[1]}`;
     if (!prs.includes(pr)) prs.push(pr);
   }
+  // A merge verdict names a commit, not a PR: the commit stands for its PR when no number is printed.
+  if (prs.length === 0) prs.push(...shas);
   let usd = 0;
   for (const match of output.matchAll(/cost \$(\d+(?:\.\d+)?)/gu))
     usd += Number(match[1]);
