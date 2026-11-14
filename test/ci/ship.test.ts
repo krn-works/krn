@@ -494,3 +494,60 @@ test('ship refuses with exit 82 before the push when the base branch deploys wit
     false,
   );
 });
+
+function flaky(
+  r: ReturnType<typeof receiver>,
+  match: (a: string[]) => boolean,
+  replies: string[],
+) {
+  const queue = [...replies];
+  return {
+    ...r,
+    gh: async (a: string[]) => {
+      if (match(a) && queue.length > 0) {
+        r.calls.push(`gh ${a.join(' ')}`);
+        return queue.shift() as string;
+      }
+      return r.gh(a);
+    },
+  };
+}
+const isPull = (a: string[]) => a[1] === 'repos/o/r/pulls/7';
+
+test('ship retries an empty pull reply once and then merges', async () => {
+  const r = flaky(receiver({ pulls: [auto, merged] }), isPull, ['']);
+  const out = await shipCommand(args, r);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+});
+
+test('ship with an empty gh pull reply twice exits 71 naming the command, never 74', async () => {
+  const r = flaky(receiver({ pulls: [auto] }), isPull, ['', '']);
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 71);
+    assert.match(e.message, /empty reply to `gh api repos\/o\/r\/pulls\/7`/u);
+    return true;
+  });
+});
+
+test('ship with a truncated gh pull reply twice exits 71', async () => {
+  const r = flaky(receiver({ pulls: [auto] }), isPull, ['{"head":', '{"he']);
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 71);
+    assert.match(e.message, /truncated reply/u);
+    return true;
+  });
+});
+
+test('ship with an empty gh pr create reply exits 71 without a second create', async () => {
+  const r = flaky(
+    receiver({ pulls: [auto] }),
+    (a) => a[0] === 'pr' && a[1] === 'create',
+    [''],
+  );
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 71);
+    assert.match(e.message, /gh pr create/u);
+    return true;
+  });
+  assert.equal(r.calls.filter((c) => c.startsWith('gh pr create')).length, 1);
+});

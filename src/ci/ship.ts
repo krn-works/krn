@@ -10,12 +10,13 @@ import {
   sleep,
 } from '../deliver/transport.ts';
 import { titleProblem } from './commit-title.ts';
+import { withReplyCheck } from './gh-reply.ts';
 import { gitLockError } from './git-lock.ts';
 import { rebaseGenerated } from './rebase-generated.ts';
 import { waitCommand } from './wait.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh or cleanup still exits 0 with a warning); a rerun after the merge only cleans up; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh or cleanup still exits 0 with a warning); a rerun after the merge only cleans up; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 71 gh returned an empty or truncated reply twice (transport fault; the message names the gh command), 81 a task Proof command exited non-zero before the push (--force does not bypass it), 83 the push was rejected because the App token lacks the workflows permission for a .github/workflows edit (the message names the files and the remedy), 82 the repository deploys on a push to the base branch and krn.json lacks "deploy": "acknowledged" (no push, no auto-merge), 75 timeout, 76 conflict, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
 
 /** Exit codes for a ship whose wait ended without a merge. */
 const unmergedExitCodes = [
@@ -72,7 +73,9 @@ export async function shipCommand(
   const body = resolve(caller, bodyFile);
   const runner = runtime.run ?? run;
   const wait = runtime.sleep ?? sleep;
-  const gh = runtime.gh ?? ((a) => github(a, cwd, runner, wait));
+  const gh = withReplyCheck(
+    runtime.gh ?? ((a) => github(a, cwd, runner, wait)),
+  );
   const git = (a: string[], at = cwd) => checked(runner('git', a, at));
 
   const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']);
