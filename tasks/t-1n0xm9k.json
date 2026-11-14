@@ -1,7 +1,11 @@
 {
   "id": "t-1n0xm9k",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Brief and red-check brief name krn from PATH outside KRN and the contract check command; the PR body line already comes from the contract fast command"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "A lane PR body carries the verification line for any contract fast command",
