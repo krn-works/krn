@@ -22,6 +22,7 @@ export interface RunOptions {
   stacks: string[];
   scratch: string;
   max: number;
+  windowHours: number;
   summary: string;
 }
 
@@ -41,6 +42,7 @@ export function parseOptions(
     stacks: [],
     scratch,
     max: 2,
+    windowHours: 8,
     summary: join(root, '.krn/runs/outside/summary.txt'),
   };
   for (let index = 0; index < args.length; index += 1) {
@@ -57,7 +59,14 @@ export function parseOptions(
       options.stacks.push(stack);
     } else if (arg === '--scratch') options.scratch = resolve(value());
     else if (arg === '--summary') options.summary = resolve(value());
-    else if (arg === '--max') {
+    else if (arg === '--window-hours') {
+      const text = value();
+      if (!/^[1-9]\d*$/u.test(text))
+        throw new Error(
+          'outside-acceptance: --window-hours needs a positive integer',
+        );
+      options.windowHours = Number(text);
+    } else if (arg === '--max') {
       const text = value();
       if (!/^[1-9]\d*$/u.test(text))
         throw new Error('outside-acceptance: --max needs a positive integer');
@@ -196,6 +205,10 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
   const krn = join(root, 'bin/krn');
   const git = (args: string[], cwd = dir) =>
     run('git', [...credentialConfig(root), ...args], cwd);
+  if (!existsSync(join(source, '.git')))
+    throw new Error(
+      `outside-acceptance: no scratch copy at ${source} (pass --scratch or KRN_OUTSIDE_SCRATCH)`,
+    );
   const log = run('git', ['log', '--format=%H %P|%s'], source)
     .output.split('\n')
     .filter(Boolean)
@@ -226,6 +239,12 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
     if (existsSync(configPath))
       config = JSON.parse(readFileSync(configPath, 'utf8')) as AdoptFlags;
     const adopt = run(krn, adoptArgs(dir, config), dir);
+    const keep = (name: string, text: string) =>
+      appendFileSync(
+        join(dirname(options.summary), `${stack}.log`),
+        `## ${name}\n${text}\n`,
+      );
+    keep('adopt', adopt.output);
     git(['add', '-A']);
     git(['commit', '--quiet', '-m', 'chore: adopt krn']);
     git(['push', 'origin', branch]);
@@ -238,10 +257,11 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
         '--max',
         String(options.max),
         '--window-hours',
-        '24',
+        String(options.windowHours),
       ],
       dir,
     );
+    keep('drain', drain.output);
     return gradedRow({
       stack,
       adoptExit: adopt.status,

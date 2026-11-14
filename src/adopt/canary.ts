@@ -38,6 +38,8 @@ const TEST_FILE = [
   /\.(?:test|spec)\.[cm]?[jt]sx?$/u,
   /(?:^|\/)test_[^/]+\.py$/u,
   /_test\.(?:py|go)$/u,
+  /(?:^|\/)tests?\/[^/]+\.php$/u,
+  /Test\.php$/u,
 ];
 
 /** The whole canary may run this long (KRN_CANARY_TIMEOUT_MS overrides); a slow install or test suite ends it with outcome timeout. */
@@ -138,6 +140,9 @@ function testFiles(root: string, contract: RepoContract): string[] {
 
 function breakage(file: string): string | undefined {
   if (/\.py$/u.test(file)) return '\nassert False, "krn canary"\n';
+  // `?>` ends PHP mode when the file is still in it and is plain text when it is not.
+  if (/\.php$/u.test(file))
+    return '\n?>\n<?php throw new Exception("krn canary");\n';
   if (/\.go$/u.test(file))
     return '\nfunc TestKrnCanary(t *testing.T) { t.Fatal("krn canary") }\n';
   if (/\.[cm]?[jt]sx?$/u.test(file))

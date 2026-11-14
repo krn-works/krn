@@ -19,6 +19,9 @@ test('options default to the three stacks, two tasks per drain, and reject unkno
   const options = parseOptions([], '/repo');
   assert.deepEqual(options.stacks, ['php', 'npm', 'py']);
   assert.equal(options.max, 2);
+  // The drain's own 8h vault window: a bw serve session lasts 10h, so 24h can never pass doctor.
+  assert.equal(options.windowHours, 8);
+  assert.equal(parseOptions(['--window-hours', '3'], '/repo').windowHours, 3);
   assert.equal(options.summary, '/repo/.krn/runs/outside/summary.txt');
   assert.deepEqual(
     parseOptions(['--stack', 'py', '--max', '1'], '/repo').stacks,
