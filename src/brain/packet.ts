@@ -16,11 +16,15 @@ export type BrainRecord = {
   readonly audience?: Audience;
   /** True only for a rule that holds in any repository and any stack; `krn standards install --global` writes exactly these. */
   readonly universal?: true;
+  /** How a failure weighs: floor outranks reflex outranks finish when the packet ranks by match times effect. */
+  readonly tier?: 'floor' | 'reflex' | 'finish';
+  /** True when a command or krn check enforces the record; the check teaches it, so a lane packet omits it. */
+  readonly enforced?: true;
   /** Status `retired`: never enters a packet. */
   readonly retired?: true;
 };
 
-export type Audience = 'lead' | 'worker';
+export type Audience = 'lead' | 'worker' | 'adopt';
 
 export type Arm = 'brain' | 'static';
 
@@ -47,7 +51,12 @@ export function parseRecords(value: unknown): BrainRecord[] {
   } catch (error) {
     throw new BrainDataError((error as Error).message);
   }
-  return records.map((r) => ({
+  return records.map(packetRecord);
+}
+
+/** The packet view of one record of the one schema. */
+export function packetRecord(r: UnifiedRecord): BrainRecord {
+  return {
     id: r.id,
     type: r.type,
     text: r.text,
@@ -55,16 +64,16 @@ export function parseRecords(value: unknown): BrainRecord[] {
     valid_from: r.valid_from,
     valid_to: r.valid_to,
     source: r.provenance.origin,
-    ...(r.audience === 'lead' || r.audience === 'worker'
-      ? { audience: r.audience }
-      : {}),
+    tier: r.tier,
+    ...(r.audience === 'all' ? {} : { audience: r.audience }),
+    ...(r.enforcement.kind === 'advisory' ? {} : { enforced: true as const }),
     ...(r.universal === true ? { universal: true as const } : {}),
     ...(r.status === 'retired' ? { retired: true as const } : {}),
-  }));
+  };
 }
 
-/** Token budget FR-40 measured for both arms; equality is checked by test/brain/packet.test.ts. */
-export const BUDGET = 400;
+/** Token budget of a brain packet, for both FR-40 arms and the lane packet; equality is checked by test/brain/packet.test.ts. */
+export const BUDGET = 600;
 
 /** Budget unit shared by both arms: four characters per token, rounded up. */
 export function tokens(text: string): number {
@@ -113,6 +122,8 @@ export function brainPacket(input: {
   readonly records: readonly BrainRecord[];
   readonly asOf: string;
   readonly budget: number;
+  /** Multiplies a record's match score (default 1: pure match, the FR-40 arm). */
+  readonly effect?: (record: BrainRecord) => number;
 }): Packet {
   const pool = input.records.filter((record) => known(record, input.asOf));
   const bags = new Map(pool.map((record) => [record.id, terms(record.text)]));
@@ -125,7 +136,7 @@ export function brainPacket(input: {
     for (const term of bags.get(record.id) ?? [])
       if (query.has(term))
         total += Math.log(pool.length / (frequency.get(term) ?? 1)) + 1;
-    return total;
+    return total * (input.effect?.(record) ?? 1);
   };
   const ranked = pool
     .map((record) => ({ record, score: score(record) }))

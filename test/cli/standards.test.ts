@@ -513,7 +513,7 @@ function laneBrief(root: string) {
 const seeded = '.agents/standards.json';
 
 for (const [name, files, stack] of fixtures.slice(0, 2)) {
-  test(`adopt seeds tracked standards on a generated ${name} repository: check PASS, the lane brief lists inherited records, a rerun changes nothing`, () => {
+  test(`adopt seeds tracked standards on a generated ${name} repository: check PASS, the lane brief omits the command-enforced ones, a rerun changes nothing`, () => {
     const root = repository(files);
     try {
       const adopted = adoptRepo(root);
@@ -549,14 +549,9 @@ for (const [name, files, stack] of fixtures.slice(0, 2)) {
 
       const brief = laneBrief(root);
       assert.equal(brief.status, 0, brief.stderr);
-      assert.match(
-        brief.stdout,
-        /^Repository standards \(\.agents\/standards\.json; /mu,
-      );
-      assert.match(
-        brief.stdout,
-        /^- \[s-tests-tracked\] \(inherited from krn\) The repository tracks automated tests/mu,
-      );
+      // Command-enforced records are omitted: the check teaches them.
+      assert.doesNotMatch(brief.stdout, /^Repository standards /mu);
+      assert.doesNotMatch(brief.stdout, /\[s-tests-tracked\]/u);
       assert.doesNotMatch(brief.stdout, /\[s-ci-runs-tests\]/u); // lead audience
 
       const agents = readFileSync(join(root, 'AGENTS.md'), 'utf8');
@@ -631,10 +626,7 @@ test('adopt keeps a hand-written project record beside the inherited ones and re
     const done = check(root);
     assert.equal(done.status, 0, `${done.stderr}${done.stdout}`);
     assert.match(done.stdout, /, 1 project; stack python; krn adopted\)$/mu);
-    assert.match(
-      laneBrief(root).stdout,
-      /^- \[s-changelog\] Every change adds a line to CHANGELOG\.md\.$/mu,
-    );
+    assert.doesNotMatch(laneBrief(root).stdout, /\[s-changelog\]/u);
     const again = adoptRepo(root, '--tracker');
     assert.equal(again.status, 0, again.stderr);
     assert.match(again.stdout, /^unchanged \.agents\/standards\.json$/mu);

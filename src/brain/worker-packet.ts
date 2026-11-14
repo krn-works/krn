@@ -11,22 +11,40 @@ import {
   BUDGET,
   brainPacket,
   type Packet,
+  packetRecord,
   parseRecords,
 } from './packet.ts';
+import { standardRecord } from './record.ts';
+import { readProject } from './standards-cli.ts';
+
+/** What a failure of a record costs a worker, so a floor rule outranks an equally matching finish rule. */
+export const EFFECT = { floor: 3, reflex: 2, finish: 1 } as const;
+
+/** The effect weight of a record: its tier, reflex when it names none. */
+export const tierEffect = (record: BrainRecord): number =>
+  EFFECT[record.tier ?? 'reflex'];
 
 /** Where a repository keeps its conventions: the repo contract names the file. */
 const recordsPath = (repo: string): string =>
   join(repo, contractConventions(repo));
 
-/** The records a worker's lane packet may carry: every record but those addressed to the lead. */
+/**
+ * The records a worker's lane packet may carry: not those addressed to the lead or to adoption, and
+ * not those a command or krn check enforces (the check teaches them when it fails).
+ */
 export function workerRecords(records: readonly BrainRecord[]): BrainRecord[] {
-  return records.filter((record) => record.audience !== 'lead');
+  return records.filter(
+    (record) =>
+      record.audience !== 'lead' &&
+      record.audience !== 'adopt' &&
+      record.enforced !== true,
+  );
 }
 
 /**
- * Packet for a lead's lane brief: the carrier FR-40's Claude lane run measured (arm B,
- * `evals/fr40/lanes.ts` laneBrief), a selection over every record of the repository by the
- * brief's own terms, without records addressed to the lead. `task` names the unit the
+ * Packet for a lead's lane brief: the one packet of the repository's conventions and its worker
+ * standards, ranked by match with the brief's own terms times the effect of the record's tier,
+ * within BUDGET tokens (the FR-40 arm-B carrier selects the same way). `task` names the unit the
  * packet serves (its digest covers it). A repository without records gets no packet.
  */
 export function lanePacket(
@@ -36,15 +54,22 @@ export function lanePacket(
   task: string,
 ): Packet | null {
   const path = recordsPath(repo);
-  if (!existsSync(path)) return null;
+  const own = existsSync(path)
+    ? parseRecords(JSON.parse(readFileSync(path, 'utf8')))
+    : [];
+  const ids = new Set(own.map((record) => record.id));
+  const standards = readProject(repo)
+    .map((standard) => packetRecord(standardRecord(standard)))
+    .filter((record) => !ids.has(record.id));
+  const records = workerRecords([...own, ...standards]);
+  if (records.length === 0) return null;
   return brainPacket({
     task,
     query: brief,
-    records: workerRecords(
-      parseRecords(JSON.parse(readFileSync(path, 'utf8'))),
-    ),
+    records,
     asOf,
     budget: BUDGET,
+    effect: tierEffect,
   });
 }
 

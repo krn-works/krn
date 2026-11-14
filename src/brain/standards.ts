@@ -585,21 +585,3 @@ export function upsertStandardsBlock(current: string, block: string): string {
     return `${current.slice(0, start)}${block}${current.slice(end + BLOCK_END.length).replace(/^\n/u, '')}`;
   return current === '' ? block : `${current.replace(/\n*$/u, '\n')}\n${block}`;
 }
-
-/** The worker brief section: the in-force worker standards of a project, inherited ones marked. */
-export function briefStandards(
-  standards: readonly Standard[],
-  asOf: string,
-  file: string,
-): string {
-  const lines = standards
-    .filter(
-      (standard) => standard.audience === 'worker' && inForce(standard, asOf),
-    )
-    .map(
-      (standard) =>
-        `- [${standard.id}]${standard.origin === INHERITED ? ' (inherited from krn)' : ''} ${standard.text}`,
-    );
-  if (lines.length === 0) return '';
-  return `Repository standards (${file}; \`krn standards check\` enforces the checked ones):\n${lines.join('\n')}`;
-}

@@ -1,0 +1,14 @@
+{
+  "id": "t-t5qsy59",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "Migrate the standards pack and project standards file to the one record schema",
+  "after": [
+    "t-ea10z3f"
+  ],
+  "body": [
+    "Why: t-ea10z3f shipped the one budgeted lane packet but kept the Standard shape for standards/records.json, .agents/standards.json and adopt.\nOutcome: standards/records.json and the adopt-seeded project file use the src/brain/record.ts schema; the standardRecord adapter is deleted; lanePacket reads only that schema.\nProof: lanePacket reads both files with parseUnified; no import of standardRecord remains."
+  ]
+}

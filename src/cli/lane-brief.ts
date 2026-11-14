@@ -1,8 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { precedentSection } from '../brain/precedent.ts';
-import { briefStandards } from '../brain/standards.ts';
-import { PROJECT_STANDARDS, readProject } from '../brain/standards-cli.ts';
 import { lanePacket, packetBrief } from '../brain/worker-packet.ts';
 import { findContract } from '../repo/contract.ts';
 
@@ -77,8 +75,7 @@ export function laneBrief(
   const packet = lanePacket(repo, brief, asOf, task);
   const text = packetBrief(packet, brief);
   const precedent = precedentSection(repo, brief);
-  const standards = briefStandards(readProject(repo), asOf, PROJECT_STANDARDS);
-  const body = [text, precedent, standards]
+  const body = [text, precedent]
     .filter((part) => part !== '')
     .map((part) => part.trimEnd())
     .join('\n\n');
