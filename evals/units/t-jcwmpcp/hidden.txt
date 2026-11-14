@@ -1,0 +1,21 @@
+import { describe, expect, it } from "vitest";
+import { crawlDelay, parseRobots } from "../../src/domain/robots.ts";
+
+const delay = (text: string) => crawlDelay(parseRobots(text), "seo-cli");
+
+describe("robots crawl-delay accepts only a non-negative number", () => {
+  it.each(["-5", "-0.5", ""])("ignores Crawl-delay %j", (value) => {
+    expect(delay(`User-agent: *\nCrawl-delay: ${value}\n`)).toBeNull();
+  });
+
+  it("keeps an earlier valid delay when a later line in the group is invalid", () => {
+    expect(delay("User-agent: *\nCrawl-delay: 5\nCrawl-delay: -1\n")).toBe(5);
+  });
+
+  it("still reads valid values", () => {
+    expect(delay("User-agent: *\nCrawl-delay: 10\n")).toBe(10);
+    expect(delay("User-agent: *\nCrawl-delay: 0\n")).toBe(0);
+    expect(delay("User-agent: *\nCrawl-delay: 2.5\n")).toBe(2.5);
+    expect(delay("User-agent: *\nCrawl-delay: abc\n")).toBeNull();
+  });
+});
