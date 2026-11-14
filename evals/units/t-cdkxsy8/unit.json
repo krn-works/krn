@@ -1,0 +1,17 @@
+{
+  "id": "t-cdkxsy8",
+  "repo": "krn-works/krn-pilot-py",
+  "base": "9d723561249714f3d3c6c6d188bc779abed7d223",
+  "reference": "7a23ba63e38f396af1e4b1f192fa32656c1f7fd2",
+  "task": {
+    "title": "naturalday names weekdays for dates within six days",
+    "body": "Why: https://github.com/python-humanize/humanize/issues/102 ; src/humanize/time.py naturalday names only yesterday, today and tomorrow and prints a month and day for everything else.\nOutcome: `humanize.naturalday(value, format=\"%b %d\", weekday=False)` takes a new keyword parameter `weekday` (bool, default False). With `weekday=True` a date 2 to 6 days in the past is 'last <Weekday>' and a date 2 to 6 days in the future is 'this <Weekday>', with the English weekday name (Monday ... Sunday); yesterday, today and tomorrow keep their words and every other date is formatted with `format`. With today 2026-11-14 (a Saturday): `naturalday(dt.date(2026, 11, 12), weekday=True) == 'last Thursday'`, `naturalday(dt.date(2026, 11, 8), weekday=True) == 'last Sunday'`, `naturalday(dt.date(2026, 11, 16), weekday=True) == 'this Monday'`, `naturalday(dt.date(2026, 11, 20), weekday=True) == 'this Friday'`, `naturalday(dt.date(2026, 11, 7), weekday=True) == 'Nov 07'`, `naturalday(dt.date(2026, 11, 21), weekday=True) == 'Nov 21'`, `naturalday(dt.date(2026, 11, 13), weekday=True) == 'yesterday'`. With `weekday` left False nothing changes: `naturalday(dt.date(2026, 11, 12)) == 'Nov 12'`.\nProof: add tests to tests/test_time.py using freeze_time."
+  },
+  "spec": "`humanize.naturalday(value, format=\"%b %d\", weekday=False)` takes a new keyword parameter `weekday` (bool, default False). With `weekday=True` a date 2 to 6 days in the past is 'last <Weekday>' and a date 2 to 6 days in the future is 'this <Weekday>', with the English weekday name (Monday ... Sunday); yesterday, today and tomorrow keep their words and every other date is formatted with `format`. With today 2026-11-14 (a Saturday): `naturalday(dt.date(2026, 11, 12), weekday=True) == 'last Thursday'`, `naturalday(dt.date(2026, 11, 8), weekday=True) == 'last Sunday'`, `naturalday(dt.date(2026, 11, 16), weekday=True) == 'this Monday'`, `naturalday(dt.date(2026, 11, 20), weekday=True) == 'this Friday'`, `naturalday(dt.date(2026, 11, 7), weekday=True) == 'Nov 07'`, `naturalday(dt.date(2026, 11, 21), weekday=True) == 'Nov 21'`, `naturalday(dt.date(2026, 11, 13), weekday=True) == 'yesterday'`. With `weekday` left False nothing changes: `naturalday(dt.date(2026, 11, 12)) == 'Nov 12'`.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/hidden/test_hidden.py"
+  },
+  "install": "python3 -m venv .venv && .venv/bin/python -m pip install -q babel -e '.[tests]' && .venv/bin/pybabel --quiet compile --directory src/humanize/locale --domain humanize",
+  "test": ".venv/bin/python -m pytest -q -p no:cacheprovider tests/hidden/test_hidden.py"
+}

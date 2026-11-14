@@ -1,0 +1,17 @@
+{
+  "id": "t-t4cd2c3",
+  "repo": "krn-works/krn-pilot-py",
+  "base": "fe0e0f5df6fe6996b1b767c31e8c19629ac52180",
+  "reference": "80403521849f5565e4551a241e2d5c410a5d27e8",
+  "task": {
+    "title": "naturalsize writes the locale decimal separator",
+    "body": "Why: https://github.com/python-humanize/humanize/issues/460 ; src/humanize/filesize.py formats with the format string only and never calls decimal_separator(), unlike intword and intcomma. After `humanize.i18n.activate(\"fr_FR\")`, `naturalsize(1_500_000)` returns '1.5 Mo' while `intcomma(1.5)` returns '1,5'.\nOutcome: `humanize.naturalsize(value, binary=False, gnu=False, format=\"%.1f\")` writes the locale decimal separator in the number part for the active locale: with fr_FR active `naturalsize(1_500_000) == '1,5 Mo'` and `naturalsize(1_500_000, format=\"%.2f\") == '1,50 Mo'` and `naturalsize(1_500_000, gnu=True) == '1,4M'`; with de_DE active `naturalsize(1_500_000) == '1,5 MB'`. A value without a fraction digit keeps no separator: fr_FR `naturalsize(3_000_000, format=\"%.0f\") == '3 Mo'`. With no locale active (or after `humanize.i18n.deactivate()`) nothing changes: `naturalsize(1_500_000) == '1.5 MB'`, `naturalsize(1_500_000, gnu=True) == '1.4M'`.\nProof: add tests to tests/test_filesize.py that activate and deactivate the locales."
+  },
+  "spec": "`humanize.naturalsize(value, binary=False, gnu=False, format=\"%.1f\")` writes the locale decimal separator in the number part for the active locale: with fr_FR active `naturalsize(1_500_000) == '1,5 Mo'` and `naturalsize(1_500_000, format=\"%.2f\") == '1,50 Mo'` and `naturalsize(1_500_000, gnu=True) == '1,4M'`; with de_DE active `naturalsize(1_500_000) == '1,5 MB'`. A value without a fraction digit keeps no separator: fr_FR `naturalsize(3_000_000, format=\"%.0f\") == '3 Mo'`. With no locale active (or after `humanize.i18n.deactivate()`) nothing changes: `naturalsize(1_500_000) == '1.5 MB'`, `naturalsize(1_500_000, gnu=True) == '1.4M'`.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/hidden/test_hidden.py"
+  },
+  "install": "python3 -m venv .venv && .venv/bin/python -m pip install -q babel -e '.[tests]' && .venv/bin/pybabel --quiet compile --directory src/humanize/locale --domain humanize",
+  "test": ".venv/bin/python -m pytest -q -p no:cacheprovider tests/hidden/test_hidden.py"
+}

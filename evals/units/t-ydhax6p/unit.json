@@ -1,0 +1,17 @@
+{
+  "id": "t-ydhax6p",
+  "repo": "krn-works/krn-pilot-py",
+  "base": "a4b9d31231a4415f2dad4309902d3c1539cef399",
+  "reference": "9d723561249714f3d3c6c6d188bc779abed7d223",
+  "task": {
+    "title": "naturalday and naturaldate accept ISO 8601 strings",
+    "body": "Why: https://github.com/python-humanize/humanize/issues/129 ; src/humanize/time.py naturalday and naturaldate treat a str as not date-ish and return it unchanged, so a template that holds an ISO 8601 text must parse it first.\nOutcome: `humanize.naturalday(value)` and `humanize.naturaldate(value)` accept an ISO 8601 string in addition to date and datetime: a string that `datetime.date.fromisoformat` or `datetime.datetime.fromisoformat` parses is converted to that object and then formatted exactly as the object would be. With today 2026-11-14: `naturalday(\"2026-11-13\") == 'yesterday'`, `naturalday(\"2026-11-15T09:30:00\") == 'tomorrow'`, `naturalday(\"2026-11-14T23:59:59+00:00\") == 'today'`, `naturalday(\"2026-11-10\", format=\"%d.%m\") == '10.11'`, `naturaldate(\"2026-11-13\") == 'yesterday'`, `naturaldate(\"2025-01-02\") == 'Jan 02 2025'`. A string that is not ISO 8601 is returned unchanged: `naturalday(\"hello\") == 'hello'`, `naturaldate(\"hello\") == 'hello'`, `naturalday(\"\") == ''`. date and datetime input is unchanged.\nProof: add tests to tests/test_time.py using freeze_time."
+  },
+  "spec": "`humanize.naturalday(value)` and `humanize.naturaldate(value)` accept an ISO 8601 string in addition to date and datetime: a string that `datetime.date.fromisoformat` or `datetime.datetime.fromisoformat` parses is converted to that object and then formatted exactly as the object would be. With today 2026-11-14: `naturalday(\"2026-11-13\") == 'yesterday'`, `naturalday(\"2026-11-15T09:30:00\") == 'tomorrow'`, `naturalday(\"2026-11-14T23:59:59+00:00\") == 'today'`, `naturalday(\"2026-11-10\", format=\"%d.%m\") == '10.11'`, `naturaldate(\"2026-11-13\") == 'yesterday'`, `naturaldate(\"2025-01-02\") == 'Jan 02 2025'`. A string that is not ISO 8601 is returned unchanged: `naturalday(\"hello\") == 'hello'`, `naturaldate(\"hello\") == 'hello'`, `naturalday(\"\") == ''`. date and datetime input is unchanged.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/hidden/test_hidden.py"
+  },
+  "install": "python3 -m venv .venv && .venv/bin/python -m pip install -q babel -e '.[tests]' && .venv/bin/pybabel --quiet compile --directory src/humanize/locale --domain humanize",
+  "test": ".venv/bin/python -m pytest -q -p no:cacheprovider tests/hidden/test_hidden.py"
+}

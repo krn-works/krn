@@ -1,0 +1,17 @@
+{
+  "id": "t-j3t8x6g",
+  "repo": "krn-works/krn-pilot-py",
+  "base": "dba53939049f9d83f4aea86973cf14013b1d4e74",
+  "reference": "a4b9d31231a4415f2dad4309902d3c1539cef399",
+  "task": {
+    "title": "intword returns the plain integer for values from 10**36 up to a googol",
+    "body": "Why: https://github.com/python-humanize/humanize/issues/356 ; src/humanize/number.py intword picks decillion for every value between 10**36 and a googol, so `intword(10**50)` returns '100000000000000000.0 decillion' and `intword(10**99)` returns a 66 digit count.\nOutcome: `humanize.intword(value, format=\"%.1f\")` falls back to the plain integer text `str(int(value))` for every integer whose absolute value is at least 10**36 and that does not round to a googol: `intword(10**36) == '1000000000000000000000000000000000000'`, `intword(10**50) == '100000000000000000000000000000000000000000000000000'`, `intword(-10**50) == '-100000000000000000000000000000000000000000000000000'`, `intword(10**99 - 1)` equals `str(10**99 - 1)`. Unchanged: `intword(999 * 10**33) == '999.0 decillion'`, `intword(10**35) == '100.0 decillion'`, `intword(10**100) == '1.0 googol'`, `intword(10**100 - 10**93) == '1.0 googol'`, `intword(-10**100) == '-1.0 googol'`, `intword(10**101) == '10.0 googol'`.\nProof: add tests to tests/test_number.py."
+  },
+  "spec": "`humanize.intword(value, format=\"%.1f\")` falls back to the plain integer text `str(int(value))` for every integer whose absolute value is at least 10**36 and that does not round to a googol: `intword(10**36) == '1000000000000000000000000000000000000'`, `intword(10**50) == '100000000000000000000000000000000000000000000000000'`, `intword(-10**50) == '-100000000000000000000000000000000000000000000000000'`, `intword(10**99 - 1)` equals `str(10**99 - 1)`. Unchanged: `intword(999 * 10**33) == '999.0 decillion'`, `intword(10**35) == '100.0 decillion'`, `intword(10**100) == '1.0 googol'`, `intword(10**100 - 10**93) == '1.0 googol'`, `intword(-10**100) == '-1.0 googol'`, `intword(10**101) == '10.0 googol'`.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/hidden/test_hidden.py"
+  },
+  "install": "python3 -m venv .venv && .venv/bin/python -m pip install -q babel -e '.[tests]' && .venv/bin/pybabel --quiet compile --directory src/humanize/locale --domain humanize",
+  "test": ".venv/bin/python -m pytest -q -p no:cacheprovider tests/hidden/test_hidden.py"
+}

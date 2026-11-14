@@ -1,0 +1,23 @@
+import datetime as dt
+
+import humanize
+from freezegun import freeze_time
+
+
+@freeze_time("2026-11-14 12:00:00")
+def test_weekdays():
+    nd = humanize.naturalday
+    assert nd(dt.date(2026, 11, 12), weekday=True) == "last Thursday"
+    assert nd(dt.date(2026, 11, 8), weekday=True) == "last Sunday"
+    assert nd(dt.date(2026, 11, 16), weekday=True) == "this Monday"
+    assert nd(dt.date(2026, 11, 20), weekday=True) == "this Friday"
+    assert nd(dt.date(2026, 11, 7), weekday=True) == "Nov 07"
+    assert nd(dt.date(2026, 11, 21), weekday=True) == "Nov 21"
+    assert nd(dt.date(2026, 11, 13), weekday=True) == "yesterday"
+
+
+@freeze_time("2026-11-14 12:00:00")
+def test_default_unchanged():
+    assert humanize.naturalday(dt.date(2026, 11, 12)) == "Nov 12"
+    assert humanize.naturalday(dt.date(2026, 11, 16)) == "Nov 16"
+    assert humanize.naturalday(dt.date(2026, 11, 15)) == "tomorrow"
