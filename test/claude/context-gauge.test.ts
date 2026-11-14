@@ -275,9 +275,16 @@ test('gauge budget follows the project auto-compact window and ignores the measu
       run(reading(201000), 'wide'),
       /201k of 300k.*nearly exhausted/u,
     );
-    // An invalid window fails open without a misleading advisory.
+    // An invalid window keeps the default gauge and says so exactly once.
     writeFileSync(settings, JSON.stringify({ autoCompactWindow: '200000' }));
-    assert.equal(run(fixture('second'), 'invalid'), '');
+    const notice = run(reading(47144), 'invalid');
+    assert.match(notice, /autoCompactWindow.*invalid/u);
+    assert.equal(notice.match(/autoCompactWindow/gu)?.length, 1);
+    assert.equal(run(reading(47144), 'invalid'), '');
+    // The notice rides with an advisory in one hook output.
+    const joined = run(fixture('second'), 'invalid-advised');
+    assert.equal(joined.match(/^\{.*\}$/u)?.length, 1);
+    assert.match(joined, /autoCompactWindow.*163k of 200k/u);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

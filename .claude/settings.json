@@ -45,7 +45,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/context-gauge.ts\""
+            "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/context-gauge.ts\"",
+            "timeout": 10
           },
           {
             "type": "command",
@@ -88,15 +89,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/context-restart.ts\""
+            "command": "NODE_COMPILE_CACHE=\"$CLAUDE_PROJECT_DIR/.krn/cache/node\" node \"$CLAUDE_PROJECT_DIR/scripts/claude/context-restart.ts\"",
+            "timeout": 10
           },
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/claude/cc-clearing-watch.ts\" --hook"
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/claude/cc-clearing-watch.ts\" --hook",
+            "timeout": 10
           },
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/claude/capability-index.ts\""
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/claude/capability-index.ts\"",
+            "timeout": 10
           }
         ]
       }
@@ -123,7 +127,7 @@
         ]
       },
       {
-        "matcher": "Agent|Task|Workflow|WebFetch|WebSearch|NotebookEdit|Write|Edit|Bash|Read|Glob|Grep",
+        "matcher": "Agent|Task|WebFetch|WebSearch|NotebookEdit|Write|Edit|Bash|Read|Glob|Grep",
         "hooks": [
           {
             "type": "command",

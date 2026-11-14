@@ -127,7 +127,7 @@ test('the radar agent is read-only, bounded, named by the roadmap, and rss_news 
   const tools = (fields.get('tools') ?? '')
     .split(',')
     .map((tool) => tool.trim());
-  assert.deepEqual(tools, ['Bash', 'Read', 'Grep']);
+  assert.deepEqual(tools, ['Read', 'Grep']);
   for (const banned of ['Edit', 'Write', 'Agent'])
     assert.ok(!tools.includes(banned), `krn-radar must not get ${banned}`);
   assert.match(
