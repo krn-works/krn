@@ -93,7 +93,7 @@ src/harness/transcripts.ts: (no header) exports TranscriptFile, SubagentFi
 src/hook/scope.ts: (no header) exports guarded, harness, parseScope, Worke
 src/hook/session.ts: A worker session is one `krn lane run` started (KRN_S
 src/hook/stash.ts: (no header) exports decide
-src/hook/stop.ts: (no header) exports statesBlocker, relatedTests, Selecti
+src/hook/stop.ts: (no header) exports failureLine, statesBlocker, relatedT
 src/outcome/gate-manifest.ts: The gate manifest: every producer of the CI 
 src/outcome/holdings.ts: Who held the window's dollars: delivery lead, lan
 src/outcome/ledger.ts: (no header) exports object, array, number, string

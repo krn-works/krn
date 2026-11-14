@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { z } from 'zod';
 
 export interface CommandResult {
   code: number;
@@ -38,6 +39,12 @@ export const exitCodes = {
   hygiene: 77,
 } as const;
 
+/** The JSON refusal a KRN receiver prints on stdout: `{"ok":false,"reason":"..."}`. */
+export const refusalSchema = z.object({
+  ok: z.literal(false),
+  reason: z.string(),
+});
+
 export class CommandFailure extends Error {
   readonly result: CommandResult;
   readonly commandExitCode: number;
@@ -52,10 +59,12 @@ export class CommandFailure extends Error {
     const first = failureText.match(/(?:not ok \d+ - |✖\s+)([^\r\n]+)/u)?.[1];
     let message = result.stderr || `command exited ${result.code}`;
     try {
-      const refusal = JSON.parse(result.stdout);
-      if (refusal?.ok === false && typeof refusal.reason === 'string')
-        message = refusal.reason;
-    } catch {}
+      const refusal = refusalSchema.safeParse(JSON.parse(result.stdout));
+      if (refusal.success) message = refusal.data.reason;
+    } catch (error) {
+      // Most failures print no JSON on stdout; only that parse error is expected.
+      if (!(error instanceof SyntaxError)) throw error;
+    }
     super(message);
     this.commandExitCode = result.code;
     this.result = result;

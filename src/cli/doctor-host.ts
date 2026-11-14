@@ -15,7 +15,10 @@ export function readHostFacts(productRoot: string): HostFacts {
   let miseToml: string | null = null;
   try {
     miseToml = readFileSync(join(productRoot, 'mise.toml'), 'utf8');
-  } catch {}
+  } catch (error) {
+    // A missing file is the expected case; any other read failure is real.
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
   return {
     platform: process.platform,
     nodeVersion: process.versions.node,
