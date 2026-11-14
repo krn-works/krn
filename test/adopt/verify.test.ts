@@ -13,7 +13,11 @@ import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { verifyGaps } from '../../src/adopt/verify.ts';
+import {
+  isRepositoryNotFound,
+  repoSlug,
+  verifyGaps,
+} from '../../src/adopt/verify.ts';
 
 // KRN-12: verbatim `gh api` captures; the CLI test puts a gh that replays them first on PATH.
 const fixture = (name: string) =>
@@ -229,4 +233,48 @@ test('adopt --verify prints the first-turn token estimate and the settings that 
     total > 3000 + 2 * 1500,
     `estimate ${total} counts all three parts`,
   );
+});
+
+// A repository the GitHub App cannot see: gh answers 404, replayed from a verbatim capture of the real receiver.
+const notInstalledStderr = readFileSync(
+  new URL('../fixtures/gh/repo-not-installed.stderr.log', import.meta.url),
+  'utf8',
+);
+
+test('adopt --verify names the GitHub App not installed with the install URL and exits 67', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'krn-verify-404-'));
+  spawnSync('git', ['init', '-q', '-b', 'main', dir]);
+  spawnSync(
+    'git',
+    ['remote', 'add', 'origin', 'git@github.com:acme/private-app.git'],
+    { cwd: dir },
+  );
+  writeFileSync(
+    join(dir, 'gh'),
+    `#!/bin/sh\ncat >&2 <<'EOF'\n${notInstalledStderr}EOF\nexit 1\n`,
+  );
+  chmodSync(join(dir, 'gh'), 0o755);
+  const run = spawnSync(process.execPath, [cli, 'adopt', dir, '--verify'], {
+    encoding: 'utf8',
+    env: { ...process.env, PATH: `${dir}${delimiter}${process.env.PATH}` },
+  });
+  assert.equal(run.status, 67, run.stdout + run.stderr);
+  assert.match(
+    run.stderr,
+    /GitHub App not installed on acme\/private-app: install at https:\/\/github\.com\/apps\/krn-works-delivery\/installations\/new/u,
+  );
+  assert.doesNotMatch(run.stderr, /failed: Not Found/u);
+});
+
+test('repoSlug reads owner and repo from https, ssh and scp origins', () => {
+  assert.equal(repoSlug('https://github.com/a/b.git'), 'a/b');
+  assert.equal(repoSlug('git@github.com:a/b.git'), 'a/b');
+  assert.equal(repoSlug('ssh://git@github.com/a/b'), 'a/b');
+  assert.equal(repoSlug('../elsewhere/bare.git'), undefined);
+});
+
+test('only an HTTP 404 reply is a repository not found', () => {
+  assert.equal(isRepositoryNotFound(1, notInstalledStderr), true);
+  assert.equal(isRepositoryNotFound(0, ''), false);
+  assert.equal(isRepositoryNotFound(1, 'gh: Forbidden (HTTP 403)'), false);
 });

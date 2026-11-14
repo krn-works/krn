@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { test } from 'node:test';
 import {
   type Probe,
@@ -87,4 +90,34 @@ test('exits 64 on a bad window', () => {
       .exitCode,
     64,
   );
+});
+
+test('exits 67 naming the GitHub App not installed when gh answers the captured 404 for the --root repository', () => {
+  const root = mkdtempSync(join(tmpdir(), 'krn-doctor-404-'));
+  spawnSync('git', ['init', '-q', '-b', 'main', root]);
+  spawnSync(
+    'git',
+    ['remote', 'add', 'origin', 'https://github.com/acme/private-app.git'],
+    { cwd: root },
+  );
+  const inner = stub({ etimes: 36000 });
+  const seen: string[][] = [];
+  const probe: Probe = (command, args, env) => {
+    if (command !== 'gh') return inner(command, args, env);
+    seen.push(args);
+    assert.equal(env.GH_TOKEN, secret);
+    return {
+      status: 1,
+      stdout: capture('../gh/repo-not-installed.stdout.json'),
+      stderr: capture('../gh/repo-not-installed.stderr.log'),
+    };
+  };
+  const report = unattendedReport(['--unattended', '--root', root], {}, probe);
+  assert.equal(report.exitCode, 67);
+  assert.match(
+    report.text,
+    /GitHub App not installed on acme\/private-app: install at https:\/\/github\.com\/apps\/krn-works-delivery\/installations\/new/u,
+  );
+  assert.deepEqual(seen, [['api', 'repos/acme/private-app', '--silent']]);
+  assert.ok(!report.text.includes(secret));
 });

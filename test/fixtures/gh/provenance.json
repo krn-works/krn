@@ -68,6 +68,19 @@
         "file": "job-128751399200-log.stdout.log",
         "sha256": "133a762f4867bbd3715bea153bc4280cfacbf2807d79e760749c31cbe151f544"
       }
+    },
+    {
+      "name": "repo-not-installed",
+      "command": "gh api repos/torvalds/krn-app-not-installed-probe (gh 2.102.1)",
+      "exitCode": 1,
+      "stdout": {
+        "file": "repo-not-installed.stdout.json",
+        "sha256": "4f50e254a719a6b1b06b529bdaa08980e4acf0878aad0090cba7771f6ebdf0b9"
+      },
+      "stderr": {
+        "file": "repo-not-installed.stderr.log",
+        "sha256": "d2c8985c89b29a842ac4946d13bdbc297709f44f20bb968faf9682664b211db6"
+      }
     }
   ]
 }
