@@ -1,0 +1,17 @@
+{
+  "id": "t-jcwmpcp",
+  "repo": "krn-works/seo-audit-harness",
+  "base": "c3a9f952cfc54291552bfdcb7932cb26fb92c02d",
+  "reference": "a9d7b4174cd3653c8daa0a9a70964eb64803bc9e",
+  "task": {
+    "title": "Ignore a negative or empty robots Crawl-delay",
+    "body": "Why: packages/seo/src/domain/robots.ts:61-62 accepts any finite Number() as Crawl-delay, so `Crawl-delay: -5` and an empty `Crawl-delay:` (Number(\"\") is 0) become delays; a later invalid line also overwrites an earlier valid one.\nOutcome: `crawlDelay(parseRobots(text), userAgent)` (src/domain/robots.ts) returns the delay only for a non-negative finite number (`0`, `2.5`, `10` are valid). A negative value (`-5`), an empty value and non-numeric text are ignored: the group keeps its earlier valid delay, or `null` when it has none. For example `User-agent: *` followed by `Crawl-delay: -5` gives `null`, and `Crawl-delay: 5` then `Crawl-delay: -1` in one group gives `5`.\nProof: the implementer adds tests in tests/domain/robots.test.ts for negative, empty, non-numeric, zero and a valid-then-invalid sequence."
+  },
+  "spec": "`crawlDelay(parseRobots(text), userAgent)` (src/domain/robots.ts) returns the delay only for a non-negative finite number (`0`, `2.5`, `10` are valid). A negative value (`-5`), an empty value and non-numeric text are ignored: the group keeps its earlier valid delay, or `null` when it has none. For example `User-agent: *` followed by `Crawl-delay: -5` gives `null`, and `Crawl-delay: 5` then `Crawl-delay: -1` in one group gives `5`.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "packages/seo/tests/hidden/hidden.test.ts"
+  },
+  "install": "npm --prefix packages/seo ci --silent && npm --prefix packages/seo run build --silent",
+  "test": "cd packages/seo && npx vitest run tests/hidden/hidden.test.ts"
+}
