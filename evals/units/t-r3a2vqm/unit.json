@@ -1,0 +1,17 @@
+{
+  "id": "t-r3a2vqm",
+  "repo": "krn-works/krn-pilot-py",
+  "base": "7865122d38feea027f93901691a2abc86ec7d226",
+  "reference": "a3458d64909291e38517c77e230ba6939d2c587c",
+  "task": {
+    "title": "naturalsize keeps the fraction of non-integer byte counts below the base",
+    "body": "Why: https://github.com/python-humanize/humanize/issues/459 ; src/humanize/filesize.py:94-98 truncates with int(). On b519e48 `naturalsize(1.5)` returns '1 Bytes' and `naturalsize(1.9, gnu=True)` returns '1B', while `naturalsize(1500)` keeps '1.5 kB'.\nOutcome: `humanize.naturalsize(value, binary=False, gnu=False, format=\"%.1f\")` with a finite non-integral float whose absolute value is below the base (1000, or 1024 with `binary` or `gnu`) formats the number with `format` and always uses the plural unit: `naturalsize(1.5) == '1.5 Bytes'`, `naturalsize(0.5) == '0.5 Bytes'`, `naturalsize(-1.5) == '-1.5 Bytes'`, `naturalsize(1.5, gnu=True) == '1.5B'`, `naturalsize(1.5, binary=True) == '1.5 Bytes'`. Integral input is unchanged: `naturalsize(1) == '1 Byte'`, `naturalsize(300) == '300 Bytes'`, `naturalsize(300.0) == '300 Bytes'`, `naturalsize(0) == '0 Bytes'`, `naturalsize(1, gnu=True) == '1B'`, and `naturalsize(1500) == '1.5 kB'`. The two existing cases in tests/test_filesize.py that expect `naturalsize(1.1) == '1 Bytes'` and `naturalsize(1.1, gnu=True) == '1B'` pin the old truncation; they change to '1.1 Bytes' and '1.1B'.\nProof: add tests to tests/test_filesize.py for the values above."
+  },
+  "spec": "`humanize.naturalsize(value, binary=False, gnu=False, format=\"%.1f\")` with a finite non-integral float whose absolute value is below the base (1000, or 1024 with `binary` or `gnu`) formats the number with `format` and always uses the plural unit: `naturalsize(1.5) == '1.5 Bytes'`, `naturalsize(0.5) == '0.5 Bytes'`, `naturalsize(-1.5) == '-1.5 Bytes'`, `naturalsize(1.5, gnu=True) == '1.5B'`, `naturalsize(1.5, binary=True) == '1.5 Bytes'`. Integral input is unchanged: `naturalsize(1) == '1 Byte'`, `naturalsize(300) == '300 Bytes'`, `naturalsize(300.0) == '300 Bytes'`, `naturalsize(0) == '0 Bytes'`, `naturalsize(1, gnu=True) == '1B'`, and `naturalsize(1500) == '1.5 kB'`. The two existing cases in tests/test_filesize.py that expect `naturalsize(1.1) == '1 Bytes'` and `naturalsize(1.1, gnu=True) == '1B'` pin the old truncation; they change to '1.1 Bytes' and '1.1B'.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/hidden/test_hidden.py"
+  },
+  "install": "python3 -m venv .venv && .venv/bin/python -m pip install -q babel -e '.[tests]' && .venv/bin/pybabel --quiet compile --directory src/humanize/locale --domain humanize",
+  "test": ".venv/bin/python -m pytest -q -p no:cacheprovider tests/hidden/test_hidden.py"
+}

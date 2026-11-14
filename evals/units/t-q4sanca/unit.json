@@ -1,0 +1,17 @@
+{
+  "id": "t-q4sanca",
+  "repo": "krn-works/seo-audit-harness",
+  "base": "932b924d74fcff46598466a35979d3a003dfd7ca",
+  "reference": "76e9ffcb68dcbab5832879c12ac64ee669c37788",
+  "task": {
+    "title": "Report HTTP 403 and 429 links as blocked, not as broken internal links",
+    "body": "Why: packages/seo/docs/research/handoff-audit-unlighthouse-quality-2026-10-07.md:193 (\"403/429 probe nie dowodzi dead link\"); packages/seo/src/domain/findings.ts:155 emits `broken-internal-link` for every status >= 400.\nOutcome: `buildFindings(pages)` (src/domain/findings.ts) no longer emits `broken-internal-link` for a page whose `status` is 403 or 429. For such a page it emits exactly one finding with `ruleId` `\"link-probe-blocked\"`, `url` equal to the page url, and `evidence` containing the string `\"Target returned HTTP <status>.\"` (e.g. `\"Target returned HTTP 429.\"`), plus the existing `\"Observed same-origin link from <source>.\"` lines for each linking source. Every other status >= 400 (404, 410, 500, 503, ...) still yields `broken-internal-link` exactly as before, and no `link-probe-blocked` finding. `link-probe-blocked` must be registered as a known rule id (catalog, playbook and documented inventories).\nProof: registering the rule means the existing consistency suites must stay green: packages/seo/src/domain/rule-catalog.ts, rule-playbook.ts, docs/audit-coverage.md (rule count and register row) and references/check-catalog.md (rule count and row) all gain the new id. The implementer adds own tests in tests/domain/findings.test.ts for 403, 429 and an unchanged 404, and runs the rule-catalog suite."
+  },
+  "spec": "`buildFindings(pages)` (src/domain/findings.ts) no longer emits `broken-internal-link` for a page whose `status` is 403 or 429. For such a page it emits exactly one finding with `ruleId` `\"link-probe-blocked\"`, `url` equal to the page url, and `evidence` containing the string `\"Target returned HTTP <status>.\"` (e.g. `\"Target returned HTTP 429.\"`), plus the existing `\"Observed same-origin link from <source>.\"` lines for each linking source. Every other status >= 400 (404, 410, 500, 503, ...) still yields `broken-internal-link` exactly as before, and no `link-probe-blocked` finding. `link-probe-blocked` must be registered as a known rule id (catalog, playbook and documented inventories).",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "packages/seo/tests/hidden/hidden.test.ts"
+  },
+  "install": "npm --prefix packages/seo ci --silent && npm --prefix packages/seo run build --silent",
+  "test": "cd packages/seo && npx vitest run tests/hidden/hidden.test.ts"
+}

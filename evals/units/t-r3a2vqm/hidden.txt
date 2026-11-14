@@ -1,0 +1,34 @@
+import pytest
+
+import humanize
+
+
+@pytest.mark.parametrize(
+    ("args", "kwargs", "expected"),
+    [
+        ((1.5,), {}, "1.5 Bytes"),
+        ((0.5,), {}, "0.5 Bytes"),
+        ((-1.5,), {}, "-1.5 Bytes"),
+        ((1.5,), {"gnu": True}, "1.5B"),
+        ((1.5,), {"binary": True}, "1.5 Bytes"),
+        ((1.1,), {}, "1.1 Bytes"),
+        ((1.1,), {"gnu": True}, "1.1B"),
+    ],
+)
+def test_fraction_below_base_is_kept(args, kwargs, expected):
+    assert humanize.naturalsize(*args, **kwargs) == expected
+
+
+@pytest.mark.parametrize(
+    ("args", "kwargs", "expected"),
+    [
+        ((1,), {}, "1 Byte"),
+        ((300,), {}, "300 Bytes"),
+        ((300.0,), {}, "300 Bytes"),
+        ((0,), {}, "0 Bytes"),
+        ((1,), {"gnu": True}, "1B"),
+        ((1500,), {}, "1.5 kB"),
+    ],
+)
+def test_integral_input_unchanged(args, kwargs, expected):
+    assert humanize.naturalsize(*args, **kwargs) == expected

@@ -1,0 +1,28 @@
+import pytest
+
+import humanize
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (9.996e30, "10.0 Q"),
+        (9.996e31, "100 Q"),
+        (9.996e32, "1.00 x 10³³"),
+    ],
+)
+def test_carry_in_quetta_range(value, expected):
+    assert humanize.metric(value) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (9999, "10.0 k"),
+        (1e30, "1.00 Q"),
+        (9.99e32, "999 Q"),
+        (1e33, "1.00 x 10³³"),
+    ],
+)
+def test_existing_behaviour(value, expected):
+    assert humanize.metric(value) == expected

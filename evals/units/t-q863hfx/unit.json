@@ -1,0 +1,17 @@
+{
+  "id": "t-q863hfx",
+  "repo": "krn-works/krn-pilot-py",
+  "base": "46b1b9263656a5de9018789b3cd7ff6462f335fd",
+  "reference": "a7a15794aa2c45b3439823582640061dded8efee",
+  "task": {
+    "title": "intcomma groups floats of 1e16 and above, and tiny floats, instead of printing exponents",
+    "body": "Why: https://github.com/python-humanize/humanize/issues/431 ; src/humanize/number.py:206-208 uses f\"{value:,}\", which switches to exponent notation. On b519e48 `intcomma(1e16)` returns '1e+16', `intcomma(1.5e20)` returns '1.5e+20' and `intcomma(0.00001)` returns '1e-05'.\nOutcome: `humanize.intcomma(value, ndigits=None)` with a finite float never returns exponent notation when `ndigits` is None. The float is written in fixed notation from its shortest repr digits, thousands grouped, and a whole-number float keeps the trailing '.0': `intcomma(1e16) == '10,000,000,000,000,000.0'`, `intcomma(1.5e20) == '150,000,000,000,000,000,000.0'`, `intcomma(1e22) == '10,000,000,000,000,000,000,000.0'`, `intcomma(0.00001) == '0.00001'`, `intcomma(-1.5e16) == '-15,000,000,000,000,000.0'`. Existing results stay: `intcomma(1e15) == '1,000,000,000,000,000.0'`, `intcomma(1234567.25) == '1,234,567.25'`, `intcomma(1e16, 0) == '10,000,000,000,000,000'`, `intcomma(1000) == '1,000'`, and locale separators still apply.\nProof: add tests to tests/test_number.py."
+  },
+  "spec": "`humanize.intcomma(value, ndigits=None)` with a finite float never returns exponent notation when `ndigits` is None. The float is written in fixed notation from its shortest repr digits, thousands grouped, and a whole-number float keeps the trailing '.0': `intcomma(1e16) == '10,000,000,000,000,000.0'`, `intcomma(1.5e20) == '150,000,000,000,000,000,000.0'`, `intcomma(1e22) == '10,000,000,000,000,000,000,000.0'`, `intcomma(0.00001) == '0.00001'`, `intcomma(-1.5e16) == '-15,000,000,000,000,000.0'`. Existing results stay: `intcomma(1e15) == '1,000,000,000,000,000.0'`, `intcomma(1234567.25) == '1,234,567.25'`, `intcomma(1e16, 0) == '10,000,000,000,000,000'`, `intcomma(1000) == '1,000'`, and locale separators still apply.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/hidden/test_hidden.py"
+  },
+  "install": "python3 -m venv .venv && .venv/bin/python -m pip install -q babel -e '.[tests]' && .venv/bin/pybabel --quiet compile --directory src/humanize/locale --domain humanize",
+  "test": ".venv/bin/python -m pytest -q -p no:cacheprovider tests/hidden/test_hidden.py"
+}

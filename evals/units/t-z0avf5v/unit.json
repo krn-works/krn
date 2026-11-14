@@ -1,0 +1,17 @@
+{
+  "id": "t-z0avf5v",
+  "repo": "krn-works/krn-pilot-py",
+  "base": "a3458d64909291e38517c77e230ba6939d2c587c",
+  "reference": "46b1b9263656a5de9018789b3cd7ff6462f335fd",
+  "task": {
+    "title": "intword rounds a value just below a googol up to \"1.0 googol\"",
+    "body": "Why: https://github.com/python-humanize/humanize/issues/356 ; src/humanize/number.py:278-291 only carries between adjacent powers, but the powers list jumps from 10**33 to 10**100. On b519e48 `intword(10**100 - 10**93)` returns '9999999000000000610151082626636586748864734715312950532670947852288.0 decillion'.\nOutcome: `humanize.intword(value, format=\"%.1f\")` uses the googol unit for a positive or negative integer whose count in googols (`abs(value) / 10**100`), once formatted with `format`, reaches 1 or more: `intword(10**100 - 10**93) == '1.0 googol'`, `intword(10**100 - 10**98) == '1.0 googol'`, `intword(-(10**100 - 10**93)) == '-1.0 googol'`, `intword(10**100 - 10**93, format=\"%.0f\") == '1 googol'`. The exact count is computed with integers, so the result does not depend on float rounding of the huge value. Unchanged: `intword(10**100) == '1.0 googol'`, `intword(10**33) == '1.0 decillion'`, `intword(10**36) == '1000.0 decillion'`, `intword(999_999_999) == '1.0 billion'`, `intword(1000) == '1.0 thousand'`. Values whose googol count stays below 1 after formatting (for example `10**50`) are left unspecified.\nProof: add tests to tests/test_number.py."
+  },
+  "spec": "`humanize.intword(value, format=\"%.1f\")` uses the googol unit for a positive or negative integer whose count in googols (`abs(value) / 10**100`), once formatted with `format`, reaches 1 or more: `intword(10**100 - 10**93) == '1.0 googol'`, `intword(10**100 - 10**98) == '1.0 googol'`, `intword(-(10**100 - 10**93)) == '-1.0 googol'`, `intword(10**100 - 10**93, format=\"%.0f\") == '1 googol'`. The exact count is computed with integers, so the result does not depend on float rounding of the huge value. Unchanged: `intword(10**100) == '1.0 googol'`, `intword(10**33) == '1.0 decillion'`, `intword(10**36) == '1000.0 decillion'`, `intword(999_999_999) == '1.0 billion'`, `intword(1000) == '1.0 thousand'`. Values whose googol count stays below 1 after formatting (for example `10**50`) are left unspecified.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/hidden/test_hidden.py"
+  },
+  "install": "python3 -m venv .venv && .venv/bin/python -m pip install -q babel -e '.[tests]' && .venv/bin/pybabel --quiet compile --directory src/humanize/locale --domain humanize",
+  "test": ".venv/bin/python -m pytest -q -p no:cacheprovider tests/hidden/test_hidden.py"
+}

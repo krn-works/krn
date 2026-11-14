@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest';
+import { extractRouteDetail } from '../../src/domain/perf-detail.ts';
+
+const legacy = {
+  details: { items: [{ items: [{ node: { selector: 'main > img.hero' } }] }] },
+};
+const insight = (items: unknown[]) => ({
+  id: 'lcp-discovery-insight',
+  details: { type: 'list', items },
+});
+const report = (audits: Record<string, unknown>) => ({ audits });
+
+describe('LCP selector from the Lighthouse 12 insight audit', () => {
+  it('reads the node item of lcp-discovery-insight when the legacy audit is absent', () => {
+    const r = report({
+      'lcp-discovery-insight': insight([
+        { type: 'checklist', items: {} },
+        { type: 'node', selector: 'div.banner > img', path: '1,HTML,1,BODY' },
+      ]),
+    });
+    expect(extractRouteDetail(r, '/')?.lcpSelector).toBe('div.banner > img');
+  });
+
+  it('falls back when the legacy audit exists but has no selector', () => {
+    const r = report({
+      'largest-contentful-paint-element': { details: { items: [] } },
+      'lcp-discovery-insight': insight([
+        { type: 'node', selector: 'h1.title' },
+      ]),
+    });
+    expect(extractRouteDetail(r, '/')?.lcpSelector).toBe('h1.title');
+  });
+
+  it('prefers the legacy audit when both are present', () => {
+    const r = report({
+      'largest-contentful-paint-element': legacy,
+      'lcp-discovery-insight': insight([
+        { type: 'node', selector: 'h1.title' },
+      ]),
+    });
+    expect(extractRouteDetail(r, '/')?.lcpSelector).toBe('main > img.hero');
+  });
+
+  it('keeps an empty selector when nothing carries one', () => {
+    expect(
+      extractRouteDetail(
+        report({
+          'lcp-discovery-insight': insight([{ type: 'checklist', items: {} }]),
+        }),
+        '/',
+      )?.lcpSelector,
+    ).toBe('');
+    expect(extractRouteDetail(report({}), '/')?.lcpSelector).toBe('');
+  });
+
+  it('still returns null without audits', () => {
+    expect(extractRouteDetail({}, '/')).toBeNull();
+  });
+});

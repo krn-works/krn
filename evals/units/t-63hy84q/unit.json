@@ -1,0 +1,17 @@
+{
+  "id": "t-63hy84q",
+  "repo": "krn-works/seo-audit-harness",
+  "base": "76e9ffcb68dcbab5832879c12ac64ee669c37788",
+  "reference": "303d18721d31ee694f6255a983b4f38be6221dee",
+  "task": {
+    "title": "Read the LCP element selector from the Lighthouse 12 lcp-discovery-insight audit",
+    "body": "Why: packages/seo/docs/research/handoff-audit-unlighthouse-quality-2026-10-07.md:190 and packages/seo/docs/research/tool-delivery-roadmap.md:387; packages/seo/src/domain/perf-detail.ts:116-126 only reads `largest-contentful-paint-element`; Lighthouse 12.6.1 builds `lcp-discovery-insight` in node_modules/lighthouse/core/audits/insights/lcp-discovery-insight.js as a `list` whose items include a `node` item.\nOutcome: `extractRouteDetail(report, path)` (src/domain/perf-detail.ts) returns `lcpSelector` from the first non-empty source, in this order: (1) the existing `audits[\"largest-contentful-paint-element\"].details.items[0].items[0].node.selector`; (2) otherwise `audits[\"lcp-discovery-insight\"].details` of shape `{ type: \"list\", items: [...] }`, taking the `selector` string of the first entry in `items` whose `type` is `\"node\"` (entries of other types such as `\"checklist\"` are skipped). If neither yields a non-empty string, `lcpSelector` stays `\"\"` and nothing else about the result changes. When both audits are present the legacy one wins. Opportunities, a11y issues and byte totals are unaffected, and `extractRouteDetail` still returns `null` for input without `audits`.\nProof: the implementer adds own tests in tests/domain/perf-detail.test.ts with an insight-only report, a both-present report and a report with neither."
+  },
+  "spec": "`extractRouteDetail(report, path)` (src/domain/perf-detail.ts) returns `lcpSelector` from the first non-empty source, in this order: (1) the existing `audits[\"largest-contentful-paint-element\"].details.items[0].items[0].node.selector`; (2) otherwise `audits[\"lcp-discovery-insight\"].details` of shape `{ type: \"list\", items: [...] }`, taking the `selector` string of the first entry in `items` whose `type` is `\"node\"` (entries of other types such as `\"checklist\"` are skipped). If neither yields a non-empty string, `lcpSelector` stays `\"\"` and nothing else about the result changes. When both audits are present the legacy one wins. Opportunities, a11y issues and byte totals are unaffected, and `extractRouteDetail` still returns `null` for input without `audits`.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "packages/seo/tests/hidden/hidden.test.ts"
+  },
+  "install": "npm --prefix packages/seo ci --silent && npm --prefix packages/seo run build --silent",
+  "test": "cd packages/seo && npx vitest run tests/hidden/hidden.test.ts"
+}
