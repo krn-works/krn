@@ -1,0 +1,24 @@
+{
+  "name": "tallystick",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:ledger": "vitest run test/ledger",
+    "test:adapters": "vitest run test/adapters",
+    "test:state": "vitest run test/state",
+    "test:guards": "vitest run test/guards",
+    "test:e2e": "vitest run test/integration",
+    "test:acceptance": "npm run test:ledger && npm run test:adapters && npm run test:state && npm run test:guards && npm run test:e2e",
+    "demo": "rm -rf .demo-dist && tsc -p tsconfig.demo.json && node .demo-dist/scripts/demo.js",
+    "verify": "npm run test:acceptance && npm run demo"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}
