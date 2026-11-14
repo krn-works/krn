@@ -1,7 +1,11 @@
 {
   "id": "t-cencnmk",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Check name and App id resolve from spec/ci-admission.json via src/repo/ci-admission-contract.ts; rule test bans the literals"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "The required check name and App id have one owner read from the repo contract",

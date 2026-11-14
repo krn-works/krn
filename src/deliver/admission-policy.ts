@@ -1,12 +1,13 @@
 import { z } from 'zod';
+import { REQUIRED_CHECK_APP_ID } from '../repo/ci-admission-contract.ts';
 
 /**
- * GitHub Actions is GitHub App 15368. The base policy names the aggregate job:
+ * GitHub Actions is the GitHub App named by the repository contract. The base policy names the aggregate job:
  * `Check` in KRN, `ci / Check` in a repository whose workflow calls the shared
  * project CI (a reusable workflow's run is named `<caller job> / <job name>`,
  * capture: test/fixtures/ci-admission/reusable-check-runs.json).
  */
-const ACTIONS_APP_ID = 15368;
+const ACTIONS_APP_ID = REQUIRED_CHECK_APP_ID;
 const GATE_ADMISSION_POLICY_PATH = 'spec/ci-admission.json';
 
 const sha = z.string().regex(/^(?:[a-f\d]{40}|[a-f\d]{64})$/u);
@@ -31,7 +32,7 @@ export type GateAdmissionPolicy =
   | {
       readonly source: 'pinned-app';
       readonly checkRunName: string;
-      readonly appId: typeof ACTIONS_APP_ID;
+      readonly appId: number;
     };
 
 interface GateCheckRun {

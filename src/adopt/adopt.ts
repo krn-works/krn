@@ -25,6 +25,10 @@ import {
   readProject,
 } from '../brain/standards-cli.ts';
 import {
+  REQUIRED_CHECK_APP_ID,
+  REQUIRED_CHECK_NAME,
+} from '../repo/ci-admission-contract.ts';
+import {
   CONTRACT_FILE,
   detectBase,
   detectStack,
@@ -188,11 +192,15 @@ function workflowPath(root: string): string {
 
 /**
  * The caller job `ci` runs the shared workflow, whose aggregate job is `Check`,
- * so GitHub names the required check run `ci / Check` (App 15368). `krn pr ship`
+ * so GitHub names the required check run `ci / <check>` (the App of the repository contract). `krn pr ship`
  * reads this selector from the PR base; an existing different policy is kept.
  */
 const admissionPolicy = `${JSON.stringify(
-  { schemaVersion: 1, checkRunName: 'ci / Check', appId: 15368 },
+  {
+    schemaVersion: 1,
+    checkRunName: `ci / ${REQUIRED_CHECK_NAME}`,
+    appId: REQUIRED_CHECK_APP_ID,
+  },
   null,
   2,
 )}\n`;

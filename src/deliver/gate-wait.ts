@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { REQUIRED_CHECK_NAME } from '../repo/ci-admission-contract.ts';
 import {
   type GateAdmissionPolicy,
   matchesGateCheckRun,
@@ -71,7 +72,7 @@ export class GateTimeout extends Error {
     timeoutMs: number,
     state: string,
     head: string,
-    checkRunName = 'Check',
+    checkRunName = REQUIRED_CHECK_NAME,
   ) {
     const seconds = Math.floor(timeoutMs / 1000);
     const safeState = (state.split(/[\n\r\u2028\u2029]/u)[0] ?? '')
