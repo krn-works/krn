@@ -1,0 +1,19 @@
+{
+  "id": "t-vrvez0t",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 0,
+  "title": "Add a focused test for one untested function in inc/",
+  "after": [],
+  "body": [
+    "Add one focused test to tests/run.php for one untested public function under inc/ (pick the smallest one with no test), keep php tests/run.php green. No other change."
+  ],
+  "acceptance": [
+    {
+      "verify": "php tests/run.php",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
