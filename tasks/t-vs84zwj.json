@@ -1,7 +1,11 @@
 {
   "id": "t-vs84zwj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn repo golden record|check: sitemap crawl of a real local HTTP server, nonce/timestamp/asset-hash normalisation, stored HTML, undeclared diffs fail; tests green on no-op, red on template edit, green when declared"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "An adopted site repository can gate changes on an HTTP golden master of its rendered pages",

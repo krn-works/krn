@@ -5,6 +5,10 @@
       "receivers": ["git"],
       "real": "test/cli/outside-git.test.ts"
     },
+    "src/repo/golden-master.ts": {
+      "receivers": ["wp"],
+      "real": "test/repo/golden-master.test.ts"
+    },
     "src/repo/contract.ts": {
       "receivers": ["git"],
       "real": "test/repo/contract.test.ts"
