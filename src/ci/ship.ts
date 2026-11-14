@@ -11,6 +11,7 @@ import {
 } from '../deliver/transport.ts';
 import { titleProblem } from './commit-title.ts';
 import { gitLockError } from './git-lock.ts';
+import { rebaseGenerated } from './rebase-generated.ts';
 import { waitCommand } from './wait.ts';
 
 export const shipUsage =
@@ -145,6 +146,8 @@ export async function shipCommand(
       checked(fetched);
     await wait(attempt * 1000);
   }
+  // A conflict confined to generated files is regenerated here; any other conflict exits 76.
+  const rebased = rebaseGenerated(cwd, target, runner);
   const changed = git(['diff', '--name-only', `origin/${target}...HEAD`]);
   if (changed === '') {
     // An empty squash commit would merge green; name the PR that carries it.
@@ -221,7 +224,12 @@ export async function shipCommand(
     'git',
     // No -u: an upstream is a .git/config write, which a running lane's sandbox placeholder
     // over .git/config.lock refuses; nothing reads the upstream.
-    ['push', ...(force ? ['--force-with-lease'] : []), 'origin', branch],
+    [
+      'push',
+      ...(force || rebased ? ['--force-with-lease'] : []),
+      'origin',
+      branch,
+    ],
     cwd,
   );
   if (pushed.code !== 0 && workflowsRejection.test(pushed.stderr))

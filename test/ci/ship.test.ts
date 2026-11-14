@@ -104,6 +104,7 @@ function receiver(options: {
     if (a.includes('--git-common-dir')) return out('/r/.git\n');
     if (options.failRemove && a[0] === 'worktree')
       return { code: 1, stdout: '', stderr: 'fatal: cannot remove' };
+    if (a[0] === 'merge-tree') return out('');
     if (['push', 'fetch', 'worktree', 'branch', 'ls-tree'].includes(a[0] ?? ''))
       return out('');
     assert.fail(`unexpected ${command} ${line}`);
