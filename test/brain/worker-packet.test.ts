@@ -10,8 +10,9 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { BUDGET, parseRecords } from '../../src/brain/packet.ts';
+import { parseRecords } from '../../src/brain/packet.ts';
 import {
+  LANE_BUDGET,
   lanePacket,
   packetBrief,
   workerRecords,
@@ -26,7 +27,7 @@ test('the lane brief starts with the packet and keeps the lead brief intact', ()
   const packet = lanePacket(repo, brief, '2026-11-08', 'lane');
   assert.ok(packet !== null && packet.records.length > 0);
   // The lane packet stays within the 600-token lane budget.
-  assert.equal(packet.budget, BUDGET);
+  assert.equal(packet.budget, LANE_BUDGET);
   assert.ok(packet.tokens <= packet.budget, `${packet.tokens} tokens`);
   assert.ok(
     packet.records.every((id) => id.startsWith('r-')),
@@ -226,7 +227,7 @@ test('one packet carries conventions and project standards, omits command-enforc
     ]),
   );
   const packet = lanePacket(root, 'format the parser', '2026-11-13', 'u');
-  assert.equal(packet?.budget, BUDGET);
+  assert.equal(packet?.budget, LANE_BUDGET);
   assert.deepEqual(packet?.records, ['s-floor', 'r-conv', 's-finish']);
 });
 
@@ -240,6 +241,6 @@ test('the lane packet never exceeds its budget', (t) => {
   );
   const root = conventionsRepo(t, rows);
   const packet = lanePacket(root, 'format the parser', '2026-11-13', 'u');
-  assert.ok((packet?.tokens ?? 0) <= BUDGET);
+  assert.ok((packet?.tokens ?? 0) <= LANE_BUDGET);
   assert.ok((packet?.records.length ?? 0) > 10);
 });

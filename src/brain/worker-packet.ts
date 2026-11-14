@@ -8,7 +8,6 @@ import { join } from 'node:path';
 import { contractConventions } from '../repo/contract.ts';
 import {
   type BrainRecord,
-  BUDGET,
   brainPacket,
   type Packet,
   packetRecord,
@@ -16,6 +15,9 @@ import {
 } from './packet.ts';
 import { standardRecord } from './record.ts';
 import { readProject } from './standards-cli.ts';
+
+/** Token budget of the one lane packet; the frozen FR-40 arms stay at BUDGET. */
+export const LANE_BUDGET = 600;
 
 /** What a failure of a record costs a worker, so a floor rule outranks an equally matching finish rule. */
 export const EFFECT = { floor: 3, reflex: 2, finish: 1 } as const;
@@ -44,7 +46,7 @@ export function workerRecords(records: readonly BrainRecord[]): BrainRecord[] {
 /**
  * Packet for a lead's lane brief: the one packet of the repository's conventions and its worker
  * standards, ranked by match with the brief's own terms times the effect of the record's tier,
- * within BUDGET tokens (the FR-40 arm-B carrier selects the same way). `task` names the unit the
+ * within LANE_BUDGET tokens (the FR-40 arm-B carrier selects the same way at the frozen BUDGET). `task` names the unit the
  * packet serves (its digest covers it). A repository without records gets no packet.
  */
 export function lanePacket(
@@ -52,6 +54,7 @@ export function lanePacket(
   brief: string,
   asOf: string,
   task: string,
+  budget = LANE_BUDGET,
 ): Packet | null {
   const path = recordsPath(repo);
   const own = existsSync(path)
@@ -68,7 +71,7 @@ export function lanePacket(
     query: brief,
     records,
     asOf,
-    budget: BUDGET,
+    budget,
     effect: tierEffect,
   });
 }

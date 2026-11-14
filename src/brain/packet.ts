@@ -72,8 +72,8 @@ export function packetRecord(r: UnifiedRecord): BrainRecord {
   };
 }
 
-/** Token budget of a brain packet, for both FR-40 arms and the lane packet; equality is checked by test/brain/packet.test.ts. */
-export const BUDGET = 600;
+/** Token budget FR-40 measured for both arms (frozen material); equality is checked by test/brain/packet.test.ts. */
+export const BUDGET = 400;
 
 /** Budget unit shared by both arms: four characters per token, rounded up. */
 export function tokens(text: string): number {

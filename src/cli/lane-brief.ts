@@ -60,8 +60,9 @@ export function laneBriefText(
   asOf: string,
   task = 'lane-brief',
   closure = false,
+  budget?: number,
 ): string {
-  return laneBrief(repo, brief, asOf, task, closure).text;
+  return laneBrief(repo, brief, asOf, task, closure, budget).text;
 }
 
 /** The lane brief and the sha256 of the packet it carries (null when it carries none), so a run can record which packet it served. */
@@ -71,8 +72,9 @@ export function laneBrief(
   asOf: string,
   task = 'lane-brief',
   closure = false,
+  budget?: number,
 ): { text: string; packet: string | null } {
-  const packet = lanePacket(repo, brief, asOf, task);
+  const packet = lanePacket(repo, brief, asOf, task, budget);
   const text = packetBrief(packet, brief);
   const precedent = precedentSection(repo, brief);
   const body = [text, precedent]
