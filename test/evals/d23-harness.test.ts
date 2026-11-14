@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { join, posix } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { redAtParent } from '../../evals/d23/baseline.ts';
 import {
   harnessPlan,
   importClosure,
@@ -19,6 +20,7 @@ import {
   overlayFiles,
   relativeImports,
 } from '../../evals/d23/harness.ts';
+import { parseLog, selectUnits } from '../../evals/d23/select.ts';
 
 test('the replay harness keeps every file the merged change touched at the parent version', () => {
   const root = mkdtempSync(join(tmpdir(), 'd23-harness-'));
@@ -182,4 +184,113 @@ test('a hook importing a file outside the overlay roots pulls it and its own imp
     'c',
   );
   assert.deepEqual(got, ['src/a.ts', 'src/deep/b.ts']);
+});
+
+const productRoot = fileURLToPath(new URL('../..', import.meta.url));
+
+test('a replay clone with the harness laid over its parent refuses Stop with exit 2 while a related test is red', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'd23-stop-'));
+  const git = (...args: string[]) =>
+    execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+  const put = (f: string, body: string) => {
+    mkdirSync(join(dir, f, '..'), { recursive: true });
+    writeFileSync(join(dir, f), body);
+  };
+  try {
+    git('init', '-q', '-b', 'replay');
+    git('config', 'user.name', 'replay');
+    git('config', 'user.email', 'replay@invalid');
+    put('src/calc.ts', 'export const calc = () => 1;\n');
+    put(
+      'test/calc.test.ts',
+      "import assert from 'node:assert/strict';\nimport test from 'node:test';\nimport { calc } from '../src/calc.ts';\ntest('calc', () => assert.equal(calc(), 1));\n",
+    );
+    git('add', '.');
+    git('commit', '-qm', 'parent');
+    const head = execFileSync('git', ['rev-parse', 'HEAD'], {
+      cwd: productRoot,
+      encoding: 'utf8',
+    }).trim();
+    layHarness(
+      productRoot,
+      dir,
+      head,
+      harnessPlan(productRoot, head, head, head),
+    );
+    git('add', '-A');
+    git('commit', '-qm', 'harness');
+    git('branch', '-f', 'main', 'HEAD');
+    put('src/calc.ts', 'export const calc = () => 2;\n');
+    git('commit', '-qam', 'break calc');
+    const settings = JSON.parse(
+      readFileSync(join(dir, '.claude/settings.json'), 'utf8'),
+    ) as { hooks: { Stop: { hooks: { command: string }[] }[] } };
+    const command = settings.hooks.Stop[0]?.hooks[0]?.command ?? '';
+    assert.match(command, /src\/hook\/stop\.ts/u);
+    const stop = (extra: string) =>
+      spawnSync('sh', ['-c', command], {
+        cwd: dir,
+        encoding: 'utf8',
+        input: JSON.stringify({ cwd: dir, last_assistant_message: extra }),
+        env: {
+          ...process.env,
+          CLAUDE_PROJECT_DIR: dir,
+          KRN_ROLE: 'worker',
+          KRN_SCOPE: 'Scope: src/',
+        },
+      });
+    const refused = stop('done');
+    assert.equal(refused.status, 2, refused.stderr);
+    assert.match(refused.stderr, /red|fail/iu);
+    put('src/calc.ts', 'export const calc = () => 1;\n');
+    git('commit', '-qam', 'fix calc');
+    git('commit', '--allow-empty', '-qm', 'second');
+    assert.equal(stop('done').status, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('selectUnits drops units with a red baseline for every arm and counts them', () => {
+  const log = [
+    '\u0001feat(a): a (t-aaaaaaa) (#30)\nsrc/a.ts\ntest/a.test.ts\n',
+    '\u0001fix(f): f (t-fffffff) (#25)\nsrc/f.ts\ntest/f.test.ts\n',
+  ].join('');
+  const got = selectUnits(parseLog(log), { redBaseline: (pr) => pr === '30' });
+  assert.deepEqual(got, { units: ['25'], redBaseline: ['30'] });
+});
+
+test('a unit whose parent already fails the tests its change selects is red at baseline', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'd23-baseline-'));
+  const git = (...args: string[]) =>
+    execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+  const put = (f: string, body: string) => {
+    mkdirSync(join(dir, f, '..'), { recursive: true });
+    writeFileSync(join(dir, f), body);
+  };
+  const spec = (ok: boolean) =>
+    `import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport '../src/m.ts';\ntest('m', () => assert.ok(${ok}));\n`;
+  try {
+    git('init', '-q', '-b', 'main');
+    git('config', 'user.name', 't');
+    git('config', 'user.email', 't@invalid');
+    put('src/m.ts', 'export const m = 1;\n');
+    put('test/m.test.ts', spec(true));
+    git('add', '.');
+    git('commit', '-qm', 'green parent');
+    const green = git('rev-parse', 'HEAD');
+    put('src/m.ts', 'export const m = 2;\n');
+    git('commit', '-qam', 'merge one');
+    const one = git('rev-parse', 'HEAD');
+    put('test/m.test.ts', spec(false));
+    git('commit', '-qam', 'red parent');
+    const red = git('rev-parse', 'HEAD');
+    put('src/m.ts', 'export const m = 3;\n');
+    git('commit', '-qam', 'merge two');
+    const two = git('rev-parse', 'HEAD');
+    assert.equal(redAtParent(dir, green, one), false);
+    assert.equal(redAtParent(dir, red, two), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
