@@ -88,6 +88,7 @@ src/repo/contract.ts: The repo contract: how KRN tests, checks and branches in o
 src/state/capsule.ts: The outcome capsule field contract: labels, state vocabularies, and the parsers for the bracketed 
 src/state/check.ts: `krn state check`: validates the delivery-loop capsules under .krn/runs/delivery-loop. Each capsule 
 src/state/git.ts: (no header) exports git, gitRaw, gitAvailable
+src/state/loss.ts: State loss: an open task claim that no capsule (state.md) or handoff (handoff.md) under .krn/runs nam
 src/state/resume.ts: `krn state resume`: the brief a fresh session reads before it continues a capsule.
 src/state/retro.ts: The retro skeleton `krn state retro` prints: the slice's measured facts from git (commits naming the
 src/state/runs.ts: (no header) exports Finding, isInside, posixRelative, resolveRepositoryRoot

@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { stateLoss } from '../../src/state/loss.ts';
 import { emitContext, hookInput, object } from './context-io.ts';
 import { cutText } from './cut-text.ts';
 import { pressureLines, probe } from './disk-pressure.ts';
@@ -108,6 +109,7 @@ export function restartText(
   const lines = [`Branch: ${branch}; HEAD: ${sha.slice(0, 7)}`];
   const now = Date.now();
   let idleClaims = 0;
+  const liveClaims = new Set<string>();
   const claims = join(main, '.krn/task-claims');
   if (existsSync(claims)) {
     for (const entry of readdirSync(claims, { withFileTypes: true }).sort(
@@ -127,6 +129,7 @@ export function restartText(
         idleClaims += 1;
         continue;
       }
+      liveClaims.add(`.krn/task-claims/${entry.name}`);
       lines.push(
         `Open claim: ${entry.name} ${JSON.stringify({ id: claim.id, actor: claim.actor, branch: claim.branch }).slice(0, 160)}`,
       );
@@ -193,6 +196,19 @@ export function restartText(
       );
   } catch {
     /* Memory checks must never interrupt startup. */
+  }
+  try {
+    const lost = stateLoss(main, project).filter((path) =>
+      liveClaims.has(path),
+    );
+    lines.splice(
+      1,
+      0,
+      ...lost.slice(0, 5).map((path) => `STATE LOSS: ${path}`),
+      ...(lost.length > 5 ? [`STATE LOSS: ${lost.length - 5} more`] : []),
+    );
+  } catch {
+    /* The loss check must never interrupt startup. */
   }
   lines.splice(1, 0, `Newest handoff: ${newest?.path ?? 'none'}`);
   let next = 2;
