@@ -1,0 +1,16 @@
+{
+  "id": "t-js3w5es",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "canary timeout (124) with rollback, red base (69), gap lines and tasks, verify skip on non-GitHub origin, census rerun"
+  },
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Adoption survives slow, red and non-GitHub repositories and reports failing standards as gaps",
+  "after": [],
+  "body": [
+    "Why: adoption census #787 (evals/adoption-census.md) on 15 operator repositories: adopt's canary has no own timeout (perfect-memory: 124 after 180s, leaves .krn/conventions.json); a red clean tree (missing deps in mise-en-plesk, lsn2-map, wycena-master) is reported as 'Stop gate does not pass the clean tree after restore: exit 2', indistinguishable from a gate defect; adopt writes .agents/standards.json and its own standards check is immediately red in 15/15 (s-test-command, s-ci-runs-tests, s-linter-configured) with no gap reported; adopt --verify with a non-GitHub origin (krn-zakupy) fails expanding {owner}/{repo}. Census ran before #782 (vacuous contract) merged.\nOutcome: adopt's canary has a bounded timeout with a named exit and removes what it wrote on failure; a red clean tree is reported as a red base with the failing command, distinct from a gate failure; adopt prints every failing standard as a gap and writes one tracker task per floor/reflex failure; verify on a non-GitHub origin prints a clear 'no GitHub host' line and skips the CI checks; the census script rerun on main reproduces evals/adoption-census.md.\nProof: fixture tests for each case; census rerun table committed; npm run fast PASS."
+  ]
+}

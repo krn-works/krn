@@ -52,6 +52,7 @@ import {
   type Repository,
   type Standard,
   StandardsDataError,
+  type Report as StandardsReport,
   splitProject,
 } from './standards.ts';
 
@@ -206,11 +207,24 @@ export function enforcer(root: string, timeoutMs: number): Enforce {
 
 export type Verdict = { readonly exitCode: number; readonly lines: string[] };
 
-export function standardsCheck(
+type Evaluation =
+  | { readonly verdict: Verdict }
+  | {
+      readonly report: StandardsReport;
+      readonly failures: Failure[];
+      readonly blocking: Failure[];
+      readonly records: Standard[];
+      readonly project: Standard[];
+      readonly inherited: Standard[];
+      readonly applicable: Standard[];
+      readonly repository: Repository;
+    };
+
+function evaluate(
   root: string,
   asOf: string,
-  options: { readonly pack?: string; readonly timeoutMs?: number } = {},
-): Verdict {
+  options: { readonly pack?: string; readonly timeoutMs?: number },
+): Evaluation {
   let records: Standard[];
   let project: Standard[];
   let copies: Standard[];
@@ -229,8 +243,10 @@ export function standardsCheck(
     )
       throw error;
     return {
-      exitCode: error.exitCode,
-      lines: [`FAIL standards: ${error.message}`],
+      verdict: {
+        exitCode: error.exitCode,
+        lines: [`FAIL standards: ${error.message}`],
+      },
     };
   }
   // An inherited copy runs as the pack's current record; one the pack no longer holds is stale.
@@ -257,6 +273,45 @@ export function standardsCheck(
     structural.push({ id: root, message: 'no enforced standard applies' });
   const failures: Failure[] = [...structural, ...report.failures];
   const blocking: Failure[] = [...structural, ...report.blocking];
+  return {
+    report,
+    failures,
+    blocking,
+    records,
+    project,
+    inherited,
+    applicable,
+    repository,
+  };
+}
+
+/** Every failing standard of `root` with its tier, for a caller that reports gaps instead of a verdict. */
+export function standardsFailures(
+  root: string,
+  asOf: string,
+  options: { readonly pack?: string; readonly timeoutMs?: number } = {},
+): readonly Failure[] {
+  const evaluated = evaluate(root, asOf, options);
+  return 'verdict' in evaluated ? [] : evaluated.failures;
+}
+
+export function standardsCheck(
+  root: string,
+  asOf: string,
+  options: { readonly pack?: string; readonly timeoutMs?: number } = {},
+): Verdict {
+  const evaluated = evaluate(root, asOf, options);
+  if ('verdict' in evaluated) return evaluated.verdict;
+  const {
+    report,
+    failures,
+    blocking,
+    records,
+    project,
+    inherited,
+    applicable,
+    repository,
+  } = evaluated;
   const reported = failures.filter((failure) => !blocking.includes(failure));
   const { floor, reflex, finish } = report.tiers;
   const perTier = `floor ${floor.failed}/${floor.enforced}, reflex ${reflex.failed}/${reflex.enforced}, finish ${finish.failed}/${finish.enforced} failed/enforced`;

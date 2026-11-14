@@ -1,10 +1,11 @@
 // Seeds a repository's conventions file from its own instruction files, so the lane
 // packet is not empty after adoption. Hand-kept records are never overwritten.
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { type BrainRecord, parseRecords } from '../brain/packet.ts';
 import { BLOCK_END, BLOCK_START } from '../brain/standards.ts';
 import { contractConventions } from '../repo/contract.ts';
+import { mkdirSync, writeFileSync } from './journal.ts';
 
 const INSTRUCTION_FILES = ['AGENTS.md', 'CLAUDE.md'] as const;
 const BULLET = /^\s*[-*]\s+(.+)$/u;
@@ -65,7 +66,7 @@ export function seedConventions(root: string, today: string): string | null {
   if (existsSync(path)) return null;
   const records = conventionRecords(root, today);
   if (records.length === 0) return null;
-  mkdirSync(dirname(path), { recursive: true });
+  mkdirSync(dirname(path));
   writeFileSync(path, `${JSON.stringify(records, null, 2)}\n`);
   return relative;
 }

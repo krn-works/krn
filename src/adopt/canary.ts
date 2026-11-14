@@ -20,8 +20,11 @@ import {
 import { isKrnStopCommand } from './stop-hook.ts';
 
 export interface CanaryResult {
-  /** pass: the gate refused the broken test and passed the clean tree; fail: it did not; skipped: nothing to break. */
-  outcome: 'pass' | 'fail' | 'skipped';
+  /**
+   * pass: the gate refused the broken test and passed the clean tree; fail: it did not; skipped: nothing to break;
+   * timeout: the canary ran past its time limit; red-base: the repository's own test command fails on the clean base.
+   */
+  outcome: 'pass' | 'fail' | 'skipped' | 'timeout' | 'red-base';
   message: string;
 }
 
@@ -32,12 +35,35 @@ const TEST_FILE = [
   /_test\.(?:py|go)$/u,
 ];
 
+/** The whole canary may run this long (KRN_CANARY_TIMEOUT_MS overrides); a slow install or test suite ends it with outcome timeout. */
+export const CANARY_TIMEOUT_MS = 180_000;
+
+class CanaryTimeout extends Error {}
+
+let deadline = Number.POSITIVE_INFINITY;
+
+function remaining(): number {
+  const left = deadline - Date.now();
+  if (left <= 0) throw new CanaryTimeout();
+  return left;
+}
+
+function timedOut(result: { error?: Error | undefined }): boolean {
+  return (
+    (result.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT'
+  );
+}
+
 function run(cwd: string, command: string, args: string[], env = {}) {
-  return spawnSync(command, args, {
+  const result = spawnSync(command, args, {
     cwd,
     encoding: 'utf8',
     env: { ...process.env, ...env },
+    timeout: remaining(),
+    killSignal: 'SIGKILL',
   });
+  if (timedOut(result)) throw new CanaryTimeout();
+  return result;
 }
 
 const gitIn = (cwd: string, ...args: string[]) =>
@@ -132,25 +158,43 @@ function stop(tree: string, commands: string[]) {
     KRN_SESSION_CLASS: 'lane',
     KRN_LANE: 'canary',
   };
+  const limits = {
+    cwd: tree,
+    input: '{}',
+    encoding: 'utf8',
+    env: { ...process.env, ...env },
+    timeout: remaining(),
+    killSignal: 'SIGKILL',
+  } as const;
   const result =
     isKrnStopCommand(command) || command === undefined
-      ? spawnSync(process.execPath, [productCli, 'hook', 'stop'], {
-          cwd: tree,
-          input: '{}',
-          encoding: 'utf8',
-          env: { ...process.env, ...env },
-        })
-      : spawnSync('sh', ['-c', command], {
-          cwd: tree,
-          input: '{}',
-          encoding: 'utf8',
-          env: { ...process.env, ...env },
-        });
+      ? spawnSync(process.execPath, [productCli, 'hook', 'stop'], limits)
+      : spawnSync('sh', ['-c', command], limits);
+  if (timedOut(result)) throw new CanaryTimeout();
   return { status: result.status, stderr: result.stderr };
 }
 
 /** Breaks one test in a temporary worktree of the base, requires the Stop gate to refuse it (exit 2), then to pass the clean tree. */
-export function runCanary(root: string): CanaryResult {
+export function runCanary(
+  root: string,
+  timeoutMs: number = Number(process.env.KRN_CANARY_TIMEOUT_MS) ||
+    CANARY_TIMEOUT_MS,
+): CanaryResult {
+  deadline = Date.now() + timeoutMs;
+  try {
+    return canary(root);
+  } catch (error) {
+    if (!(error instanceof CanaryTimeout)) throw error;
+    return {
+      outcome: 'timeout',
+      message: `the canary did not finish within ${Math.round(timeoutMs / 1000)}s (install, test command or Stop gate too slow); raise KRN_CANARY_TIMEOUT_MS, or pass --no-canary to decline`,
+    };
+  } finally {
+    deadline = Number.POSITIVE_INFINITY;
+  }
+}
+
+function canary(root: string): CanaryResult {
   const skipped = (message: string): CanaryResult => ({
     outcome: 'skipped',
     message,
@@ -168,6 +212,11 @@ export function runCanary(root: string): CanaryResult {
   if (found === undefined)
     return skipped('no test command in the repo contract');
   const { contract } = found;
+  // A vacuous contract carries a command that fails on purpose: there is no gate to prove until a real test exists.
+  if (contract.vacuous === true)
+    return skipped(
+      'no test command in the repo contract (the contract is vacuous: add one real test and set test in krn.json)',
+    );
   const commands = stopCommands(root);
   if (!commands.some((c) => isKrnStopCommand(c) || OWN_STOP.test(c)))
     return fail(
@@ -243,17 +292,27 @@ export function runCanary(root: string): CanaryResult {
     gitIn(tree, 'reset', '-q', '--hard', 'HEAD~1');
     gitIn(tree, 'commit', '-q', '--allow-empty', '-m', 'canary: clean tree');
     const clean = stop(tree, commands);
-    if (clean.status !== 0)
+    if (clean.status !== 0) {
+      // A red base (the repository's own command fails on its clean tree: missing dependencies, a broken test)
+      // is not a gate defect: name the command.
+      const own = run(tree, 'sh', ['-c', contract.test]);
+      if (own.status !== 0)
+        return {
+          outcome: 'red-base',
+          message: `red base: the repository's own test command \`${contract.test}\` exits ${own.status} on the clean ${baseRef} tree, so the Stop gate cannot pass it; make it pass (install the dependencies) and rerun. ${(own.stderr || own.stdout).replace(/\s+/gu, ' ').trim().slice(-300)}`,
+        };
       return fail(
         `the Stop gate does not pass the clean tree after the canary was restored: exit ${clean.status}. ${clean.stderr.slice(-400)}`,
       );
+    }
     return {
       outcome: 'pass',
       message: `the Stop gate refused a broken ${file} (exit 2) and passed the restored tree (exit 0)`,
     };
   } finally {
-    run(root, 'git', ['worktree', 'remove', '--force', tree]);
-    run(root, 'git', ['branch', '-D', branch]);
+    // Cleanup ignores the deadline: a timed-out canary still removes its worktree.
+    spawnSync('git', ['worktree', 'remove', '--force', tree], { cwd: root });
+    spawnSync('git', ['branch', '-D', branch], { cwd: root });
     rmSync(parent, { recursive: true, force: true });
   }
 }
