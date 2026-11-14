@@ -280,10 +280,13 @@ function ignoreAgentState(root: string, report: AdoptionReport): void {
   const current = existsSync(path) ? readFileSync(path, 'utf8') : '';
   const lines = new Set(current.split('\n').map((line) => line.trim()));
   // A venv the contract install creates inside every worktree is never a tracked input.
-  const venv = /(?:^|[\s/])\.venv\b/u.test(installOf(root) ?? '');
-  const missing = ['.krn/', ...(venv ? ['.venv/'] : [])].filter(
-    (entry) => !lines.has(entry) && !lines.has(entry.slice(0, -1)),
-  );
+  const commands = contractCommands(root);
+  const venv = /(?:^|[\s/])\.venv\b/u.test(commands.install);
+  const missing = [
+    '.krn/',
+    ...(venv ? ['.venv/'] : []),
+    ...buildLitter(commands.all),
+  ].filter((entry) => !lines.has(entry) && !lines.has(entry.slice(0, -1)));
   if (missing.length === 0) {
     report.unchanged.push('.gitignore');
     return;
@@ -295,12 +298,27 @@ function ignoreAgentState(root: string, report: AdoptionReport): void {
   report.written.push('.gitignore');
 }
 
-function installOf(root: string): string | undefined {
+function contractCommands(root: string): { install: string; all: string } {
   try {
-    return findContract(root)?.contract.install;
+    const contract = findContract(root)?.contract;
+    const install = contract?.install ?? '';
+    return {
+      install,
+      all: [contract?.test, contract?.related, install].join(' '),
+    };
   } catch {
-    return undefined;
+    return { install: '', all: '' };
   }
+}
+
+/** Build output the stack's test command leaves in every worktree: never a tracked input. */
+function buildLitter(commands: string): string[] {
+  return [
+    ...(/\b(?:python3?|pytest|unittest)\b/u.test(commands)
+      ? ['__pycache__/']
+      : []),
+    ...(/\bcargo\b/u.test(commands) ? ['target/'] : []),
+  ];
 }
 
 function seedTasks(
