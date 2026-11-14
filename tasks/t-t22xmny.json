@@ -1,0 +1,14 @@
+{
+  "id": "t-t22xmny",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "Make standard s-semantic-commits pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check` no longer fails s-semantic-commits.",
+    "Why: adoption found this reflex standard failing: exit 1 from ! git rev-parse -q --verify HEAD >/dev/null 2>&1 || ! git log --no-merges -n 20 --format=%s | grep -vE '^(Revert \"|(feat|fix|docs|chore|refactor|tes...",
+    "Proof: `krn standards check` passes the record."
+  ]
+}

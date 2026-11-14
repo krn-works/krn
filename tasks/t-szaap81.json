@@ -1,0 +1,14 @@
+{
+  "id": "t-szaap81",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Make standard s-no-secrets-tracked pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check` no longer fails s-no-secrets-tracked.",
+    "Why: adoption found this floor standard failing: exit 1 from ! git ls-files | grep -vE '\\.env\\.(example|sample|template|dist)$' | grep -qE '(^|/)(\\.env(\\.[^/]*)?|id_rsa|id_ecdsa|id_ed25519|[^/]*\\.pem|[^/]*\\.p1...",
+    "Proof: `krn standards check` passes the record."
+  ]
+}

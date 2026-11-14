@@ -1,0 +1,14 @@
+{
+  "id": "t-5y2wh79",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Require the ci / Check status on the default branch",
+  "after": [],
+  "body": [
+    "Outcome: merging to the default branch needs a green `ci / Check` and auto-merge is enabled.",
+    "Why: the adopted delivery rules treat that Check as the only gate.",
+    "Proof: a pull request with a red Check stays unmerged."
+  ]
+}
