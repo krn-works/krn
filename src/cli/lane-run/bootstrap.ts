@@ -1,7 +1,10 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { BOOTSTRAP_TASK_TITLE } from '../../adopt/adopt.ts';
+import {
+  BOOTSTRAP_TASK_TITLE,
+  GREEN_BASE_TASK_TITLE,
+} from '../../adopt/adopt.ts';
 import { findContract, parseContractFile } from '../../repo/contract.ts';
 import { getTask } from '../../task/store.ts';
 import { git } from './git.ts';
@@ -11,6 +14,15 @@ import { settledRun } from './preflight.ts';
 export function isBootstrapTask(worktree: string, task: string): boolean {
   try {
     return getTask(worktree, task).title === BOOTSTRAP_TASK_TITLE;
+  } catch {
+    return false;
+  }
+}
+
+/** True when the task is the seeded green-base task: the one task a red baseline admits. */
+export function isGreenBaseTask(worktree: string, task: string): boolean {
+  try {
+    return getTask(worktree, task).title === GREEN_BASE_TASK_TITLE;
   } catch {
     return false;
   }

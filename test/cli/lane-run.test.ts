@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { GREEN_BASE_TASK_TITLE } from '../../src/adopt/adopt.ts';
 import { readExposures } from '../../src/brain/exposures.ts';
 import { startLane } from '../../src/cli/lane.ts';
 import { laneBriefText, workerRules } from '../../src/cli/lane-brief.ts';
@@ -54,6 +55,7 @@ import {
 import { mintFailure } from '../../src/cli/lane-run/steps.ts';
 import { laneRunCommand } from '../../src/cli/lane-run.ts';
 import { CliUsageError } from '../../src/cli-kit/usage-error.ts';
+import { createTask } from '../../src/task/store.ts';
 
 // An ambient lane session sets KRN_SESSION_CLASS=lane, which `krn lane start` rejects; the tests own their environment.
 Reflect.deleteProperty(process.env, 'KRN_SESSION_CLASS');
@@ -1774,6 +1776,29 @@ test('a red baseline whose failing files fail again refuses with 72 and names th
     const refusal = prepareWorktree(repo, 'main', repo);
     assert.equal(refusal?.exitCode, 72);
     assert.match(refusal?.detail ?? '', /failing: test\/flaky\.test\.ts\)/u);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('a red baseline admits only the seeded green-base task and refuses any other with 72', () => {
+  const { base, repo } = flakyBaseline('fail');
+  try {
+    const green = createTask(repo, {
+      title: GREEN_BASE_TASK_TITLE,
+      priority: 1,
+      body: ['Outcome: green.', 'Why: red.', 'Proof: passes.'],
+    });
+    const other = createTask(repo, {
+      title: 'something else',
+      priority: 1,
+      body: ['Outcome: x.', 'Why: y.', 'Proof: z.'],
+    });
+    assert.equal(prepareWorktree(repo, 'main', repo, [], green.id), undefined);
+    assert.equal(
+      prepareWorktree(repo, 'main', repo, [], other.id)?.exitCode,
+      72,
+    );
   } finally {
     rmSync(base, { recursive: true, force: true });
   }
