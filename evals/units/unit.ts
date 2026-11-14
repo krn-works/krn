@@ -1,7 +1,7 @@
 // Replayable eval unit: one pilot-repository task (base SHA, task text, hidden test file, PB spec).
 // A unit is evals/units/<task-id>/unit.json plus the hidden test file it names; the hidden file stays out
 // of the arm's worktree and is copied in only when grading. Usage: see evals/units/cli.ts.
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
   existsSync,
@@ -14,6 +14,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { outsideGit } from '../../src/cli/outside-git.ts';
 
 export interface Unit {
   /** Task id in the pilot repository tracker. */
@@ -74,8 +75,8 @@ export function loadUnits(dir: string): { unit: Unit; dir: string }[] {
     });
 }
 
-const git = (repo: string, ...args: string[]) =>
-  execFileSync('git', ['-C', repo, ...args], { encoding: 'utf8' }).trim();
+// A pilot checkout is an outside repository: its network git uses that repository's App token.
+const git = (repo: string, ...args: string[]) => outsideGit(repo, args);
 
 export interface BuildInput {
   /** Clone of the pilot repository. */

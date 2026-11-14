@@ -373,14 +373,21 @@ test('a push refused for a workflow file names the App permission, not a rebase'
     ' ! [remote rejected] krn-adopt -> krn-adopt (refusing to allow a GitHub App to create or update workflow `.github/workflows/ci.yml` without `workflows` permission)',
     "error: failed to push some refs to 'https://github.com/krn-works/krn-pilot-py.git'",
   ].join('\n');
-  const r = receiver({ pulls: [auto] });
+  const r = receiver({
+    pulls: [auto],
+    diff: '.github/workflows/ci.yml\nsrc/a.ts\n',
+  });
   const inner = r.run;
   const run = (command: string, a: string[], at?: string) =>
     command === 'git' && a[0] === 'push'
       ? { code: 1, stdout: '', stderr: refused }
       : inner(command, a, at);
   await assert.rejects(shipCommand(args, { ...r, run }), (e: Failure) => {
-    assert.equal(e.exitCode, 70);
+    assert.equal(e.exitCode, 83);
+    assert.match(
+      e.message,
+      /token lacks workflows write for \.github\/workflows\/ci\.yml(?!,)/u,
+    );
     assert.match(e.message, /Workflows \(write\) permission/u);
     assert.match(e.message, /workflow scope/u);
     assert.doesNotMatch(e.message, /rebase/u);

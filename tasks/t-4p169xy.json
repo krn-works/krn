@@ -1,0 +1,12 @@
+{
+  "id": "t-4p169xy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Git against outside repositories uses the per-repository App token and workflow edits fail with a named remedy",
+  "after": [],
+  "body": [
+    "Why: on 2026-11-14 the units-final lane could not fetch pilot merge 2f74787 from krn-works/seo-audit-harness: the default gh/git credential on this host is an integration token scoped to krn-works/krn and gets 404 for other repositories; the lead fetched it only by minting a per-repository App token (scripts/github-app-token.ts token with KRN_APP_REPOSITORY). Separately the App token lacks the workflows permission, so krn pr ship cannot push .github/workflows edits (t-31exd5c lane left a ci.yml comment naming the retired npm run preflight).\nOutcome: (1) git operations KRN runs against an outside repository (unit sources under .krn/sources, pilot checkouts, krn lane run fetch) use the per-repository App token credential helper for that remote, derived from the remote URL, with no manual KRN_APP_REPOSITORY; (2) krn pr ship refuses a diff touching .github/workflows with a named exit and remedy when the minted token lacks workflows write, instead of a raw push rejection; (3) the ci.yml comment naming npm run preflight is fixed once the permission exists, else the remedy is recorded.\nProof: tests with a stubbed token minter and a captured push rejection; npm run fast PASS."
+  ]
+}
