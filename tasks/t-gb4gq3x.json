@@ -1,0 +1,14 @@
+{
+  "id": "t-gb4gq3x",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Make standard s-test-command pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check` no longer fails s-test-command.",
+    "Why: adoption found this floor standard failing: exit 1 from if [ -f package.json ]; then node -e 'const t=(JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\")).scripts||{}).test||\"\";process.exit(t.tr...",
+    "Proof: `krn standards check` passes the record."
+  ]
+}
