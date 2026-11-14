@@ -7,6 +7,7 @@
     "42576614166"
   ],
   "weights": {
+    "test/adoption-census.test.ts": 0.1,
     "test/agents-render.test.ts": 2.1,
     "test/architecture/depth.test.ts": 0.1,
     "test/brain/packet.test.ts": 1.8,
