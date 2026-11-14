@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { findContract } from '../../repo/contract.ts';
+import { baseIsVacuous, bootstrapProof, isBootstrapTask } from './bootstrap.ts';
 import { fastCheck } from './environment.ts';
 import { settledRun } from './preflight.ts';
 import { failedCheckDetail } from './red-check.ts';
@@ -94,9 +95,19 @@ export function goalPrBody(
 export function contractVerification(
   worktree: string,
   logPath: string,
+  task?: string,
+  base?: string,
 ): { verified: string; flaky: string[] } | { failure: string } | undefined {
   const contract = findContract(worktree)?.contract;
   if (contract === undefined) return undefined;
+  // The first-test task of a vacuous base proves itself by mutation, not by a prior green baseline.
+  if (
+    task !== undefined &&
+    base !== undefined &&
+    isBootstrapTask(worktree, task) &&
+    baseIsVacuous(worktree, base)
+  )
+    return bootstrapProof(worktree, contract.fast ?? contract.test);
   if (contract.vacuous)
     return {
       failure: `the test command ${contract.test} is vacuous (runs no real test), so its pass is not a proof`,

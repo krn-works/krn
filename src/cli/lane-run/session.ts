@@ -122,7 +122,7 @@ export function sessionStage(lane: PreparedLane): SessionOutcome {
           detail: `preflight: ${unusable}; no session started`,
           exitCode: exitCredentialUnavailable,
         }
-      : prepareWorktree(worktree, base, main, flaky);
+      : prepareWorktree(worktree, base, main, flaky, lane.task);
   if (refusal !== undefined)
     return {
       result: { ok: false, detail: refusal.detail, cost: undefined },

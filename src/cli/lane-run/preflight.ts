@@ -1,9 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { BOOTSTRAP_TASK_TITLE } from '../../adopt/adopt.ts';
 import { findContract, rerunCommand } from '../../repo/contract.ts';
 import { mainCheckoutRoot } from '../../task/claims.ts';
 import { withFileLock } from '../lane-lock.ts';
+import { isBootstrapTask } from './bootstrap.ts';
 import { git } from './git.ts';
 import { exitInstallFailed, exitRedBaseline } from './result.ts';
 
@@ -145,12 +147,18 @@ export function prepareWorktree(
   base: string,
   main: string = mainCheckoutRoot(worktree),
   flaky: string[] = [],
+  task?: string,
 ): { detail: string; exitCode: number } | undefined {
   const contract = findContract(worktree)?.contract;
   if (contract === undefined) return undefined;
-  if (contract.vacuous)
+  // The bootstrap state admits only the seeded first-test task; it has no baseline to be green.
+  const bootstrap =
+    contract.vacuous === true &&
+    task !== undefined &&
+    isBootstrapTask(worktree, task);
+  if (contract.vacuous && !bootstrap)
     return {
-      detail: `vacuous test command: ${contract.test} runs no real test, so a green run proves nothing; add one real test and a test command (krn.json "test", drop "vacuous"); no session started`,
+      detail: `vacuous test command: ${contract.test} runs no real test, so a green run proves nothing; only the seeded bootstrap task "${BOOTSTRAP_TASK_TITLE}" may run on it, or add one real test and a test command (krn.json "test", drop "vacuous"); no session started`,
       exitCode: exitRedBaseline,
     };
   const execute = (command: string) =>
@@ -173,6 +181,7 @@ export function prepareWorktree(
         exitCode: exitInstallFailed,
       };
   }
+  if (bootstrap) return undefined;
   if (
     git(worktree, ['rev-parse', 'HEAD']) !==
     git(worktree, ['rev-parse', `origin/${base}`])

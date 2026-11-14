@@ -75,6 +75,8 @@ export async function laneVerdict(
         ? contractVerification(
             path,
             join(main, '.krn', 'tmp', `lane-run-${slug}-check.log`),
+            task,
+            base,
           )
         : undefined;
     // Flaky: test files that failed, then passed on one rerun; named in the summary and the PR body.
