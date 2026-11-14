@@ -1,0 +1,21 @@
+import { describe, expect, it } from "vitest";
+import { lintContent } from "../../src/domain/content-lint.ts";
+import { parseHtml } from "../../src/domain/html.ts";
+
+const ids = (body: string): readonly string[] => {
+  const html = `<!doctype html><html lang="pl"><head><title>Tytuł strony</title><meta name="description" content="Opis strony"></head><body>${body}</body></html>`;
+  return lintContent(html, parseHtml(html, "https://ex.test/")).map((issue) => issue.ruleId);
+};
+
+describe("a word repeated across element boundaries is not a doubled word", () => {
+  it("ignores the same word ending one block and starting the next", () => {
+    expect(ids("<h1>Oferta</h1><p>Oferta dla firm</p>")).not.toContain("content-doubled-word");
+    expect(ids("<p>Zobacz nasz katalog</p><p>Katalog produktów</p>")).not.toContain("content-doubled-word");
+    expect(ids("<ul><li>Kontakt</li><li>Kontakt telefoniczny</li></ul>")).not.toContain("content-doubled-word");
+  });
+
+  it("still reports a doubled word inside one text node", () => {
+    expect(ids("<h1>Nagłówek</h1><p>Zamów zamów ofertę</p>")).toContain("content-doubled-word");
+    expect(ids("<p>Dziś dziś jest promocja</p>")).toContain("content-doubled-word");
+  });
+});

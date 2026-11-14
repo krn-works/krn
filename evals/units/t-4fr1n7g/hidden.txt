@@ -1,0 +1,29 @@
+import { describe, expect, it } from "vitest";
+import { isNoindex } from "../../src/domain/directives.ts";
+import { sitemapNoindexFinding } from "../../src/domain/findings.ts";
+import { pageObservation } from "../helpers/page.ts";
+
+const page = (robotsMeta: Record<string, string[]> | null, xRobotsTag = "") =>
+  pageObservation({ robotsMeta, xRobotsTag, inSitemap: true }, { url: "https://ex.test/x", finalUrl: "https://ex.test/x", title: "X", h1: [], wordCount: 0, lang: "" });
+
+describe("the robots directive none means noindex", () => {
+  it("reads none from a robots meta tag and from X-Robots-Tag", () => {
+    expect(isNoindex(page({ robots: ["none"] }))).toBe(true);
+    expect(isNoindex(page({ robots: ["NONE"] }))).toBe(true);
+    expect(isNoindex(page({ googlebot: ["nosnippet, none"] }))).toBe(true);
+    expect(isNoindex(page(null, "none"))).toBe(true);
+    expect(isNoindex(page(null, "googlebot: none"))).toBe(true);
+  });
+
+  it("makes a sitemap URL with none a sitemap-noindex-conflict", () => {
+    expect(sitemapNoindexFinding(page({ robots: ["none"] }))?.ruleId).toBe("sitemap-noindex-conflict");
+  });
+
+  it("keeps existing behaviour", () => {
+    expect(isNoindex(page({ robots: ["noindex, follow"] }))).toBe(true);
+    expect(isNoindex(page(null, "noindex"))).toBe(true);
+    expect(isNoindex(page({ robots: ["index, follow"] }))).toBe(false);
+    expect(isNoindex(page({ robots: ["nosnippet"] }, "noarchive"))).toBe(false);
+    expect(isNoindex(page(null))).toBe(false);
+  });
+});

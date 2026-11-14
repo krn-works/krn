@@ -1,0 +1,17 @@
+{
+  "id": "t-wkrrcag",
+  "repo": "krn-works/seo-audit-harness",
+  "base": "46846d693f2fc5a33cfade47a6eb1de646ccf83b",
+  "reference": "7248143ff13b1fea5b5c20a1eef8503b669c06a1",
+  "task": {
+    "title": "Count a repeated word only inside one text node as a doubled word",
+    "body": "Why: packages/seo/src/domain/content-lint.ts:73-81 tokenises the whole page text, which stripTags joins with spaces across element boundaries, so a heading `Oferta` followed by a paragraph starting `Oferta dla firm`, or two list items starting with the same word, raise a false `content-doubled-word`.\nOutcome: `lintContent(html, facts)` (src/domain/content-lint.ts) reports `content-doubled-word` only for a word repeated inside one text node (for example `<p>Zamów zamów ofertę</p>`, `<p>Dziś dziś jest promocja</p>`). The same word ending one block element and starting the next (`<h1>Oferta</h1><p>Oferta dla firm</p>`, `<ul><li>Kontakt</li><li>Kontakt telefoniczny</li></ul>`) is not reported. All other content rules are unchanged.\nProof: the implementer adds tests in tests/domain/content-lint.test.ts for a repetition across a heading and paragraph, across list items, and inside one paragraph."
+  },
+  "spec": "`lintContent(html, facts)` (src/domain/content-lint.ts) reports `content-doubled-word` only for a word repeated inside one text node (for example `<p>Zamów zamów ofertę</p>`, `<p>Dziś dziś jest promocja</p>`). The same word ending one block element and starting the next (`<h1>Oferta</h1><p>Oferta dla firm</p>`, `<ul><li>Kontakt</li><li>Kontakt telefoniczny</li></ul>`) is not reported. All other content rules are unchanged.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "packages/seo/tests/hidden/hidden.test.ts"
+  },
+  "install": "npm --prefix packages/seo ci --silent && npm --prefix packages/seo run build --silent",
+  "test": "cd packages/seo && npx vitest run tests/hidden/hidden.test.ts"
+}
