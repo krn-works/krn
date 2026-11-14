@@ -9,6 +9,8 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { BOOTSTRAP_TASK_TITLE } from '../src/adopt/adopt.ts';
+import { namedTests } from '../src/adopt/canary.ts';
 
 // One command reruns the outside acceptance: for each scratch copy it pushes a fresh orphan base
 // outside/<stack> to krn-works/krn, adopts, drains the ready tasks unattended, appends one graded
@@ -185,6 +187,7 @@ export function seedTask(
   stack: string,
   test: string | undefined,
   created: string,
+  bootstrap = false,
 ): { file: string; text: string } {
   const id = `t-${Math.abs(
     [...`${stack}${created}`].reduce(
@@ -202,11 +205,19 @@ export function seedTask(
     resolution: null,
     created,
     priority: 0,
-    title: `Add a focused ${stack} test for one untested function`,
+    title: bootstrap
+      ? BOOTSTRAP_TASK_TITLE
+      : `Add a focused ${stack} test for one untested function`,
     after: [] as string[],
-    body: [
-      `Add one focused test for one untested public function (the smallest one); keep \`${verify}\` green. No other change.`,
-    ],
+    body: bootstrap
+      ? [
+          'Outcome: the repository has one real test and a test command in krn.json that runs it; "vacuous" is dropped from krn.json.',
+          'Why: the base declares no test command, and lane run admits only this task on it.',
+          'Proof: the test command exits 0 and runs at least one test.',
+        ]
+      : [
+          `Add one focused test for one untested public function (the smallest one); keep \`${verify}\` green. No other change.`,
+        ],
     acceptance: [{ verify, passes: false, exit: null }],
   };
   return {
@@ -289,7 +300,17 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
     const configPath = join(source, 'krn.json');
     if (existsSync(configPath))
       config = JSON.parse(readFileSync(configPath, 'utf8')) as AdoptFlags;
-    const adopt = run(krn, adoptArgs(dir, config), dir);
+    // The test command is the delivery's own result when the base has no test file it names (the first task adds it):
+    // adopt then detects the base's contract instead of being handed a command that runs nothing.
+    const baseFiles = git(['ls-files']).output.split('\n');
+    const named =
+      config.test === undefined
+        ? undefined
+        : namedTests(config.test, baseFiles);
+    const { test: _delivered, ...withoutTest } = config;
+    const adoptConfig: AdoptFlags =
+      named?.named && named.matched.length === 0 ? withoutTest : config;
+    const adopt = run(krn, adoptArgs(dir, adoptConfig), dir);
     const keep = (name: string, text: string) =>
       appendFileSync(
         join(dirname(options.summary), `${stack}.log`),
@@ -303,10 +324,15 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
         clonePath,
         `${JSON.stringify({ ...JSON.parse(readFileSync(clonePath, 'utf8')), ...pick(config) }, null, 2)}\n`,
       );
+    // A vacuous base admits only the bootstrap task (it adds the first test); adopt seeds it only into a fresh tasks/.
+    const vacuous =
+      existsSync(clonePath) &&
+      JSON.parse(readFileSync(clonePath, 'utf8')).vacuous === true;
     const seed = seedTask(
       stack,
       config.test,
       new Date().toISOString().slice(0, 10),
+      vacuous,
     );
     writeFileSync(join(dir, seed.file), seed.text);
     git(['add', '-A']);
