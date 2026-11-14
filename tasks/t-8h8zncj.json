@@ -1,0 +1,16 @@
+{
+  "id": "t-8h8zncj",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "shippedMerge fetches origin <base> once on a miss; test/hook/stop.test.ts lagging-clone case red before, green after"
+  },
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "A lane whose ship merged ends even when the main checkout has not fetched the merge",
+  "after": [],
+  "body": [
+    "Why: lane t-0bct43k (merged debf26c) was refused its end after a merged ship: shippedMerge (src/hook/stop.ts:819) tests ancestry against origin/<base> and local <base> without fetching, and the main checkout refs lagged the merge.\nOutcome: shippedMerge fetches origin <base> once when the sha is not yet an ancestor, then re-checks.\nProof: test/hook/stop.test.ts: a clone whose main lags origin accepts verdict: merged <sha> pushed only to origin."
+  ]
+}

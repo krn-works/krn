@@ -810,22 +810,32 @@ function inspectTests(
   };
 }
 
-/** The blocking standards of a repository on a date (YYYY-MM-DD), one line each. */
 /**
  * A lane whose ship merged has no branch left: ship removed its worktree, so the payload cwd is the
  * main checkout on the base. Its last message names the merge (`verdict: merged <sha>`); the end is
- * accepted when that commit is on the base.
+ * accepted when that commit is on the base. The main checkout may not have fetched the merge yet
+ * (t-0bct43k, debf26c), so a miss fetches the base once and checks again.
  */
 export function shippedMerge(root: string, message: unknown): boolean {
   if (typeof message !== 'string') return false;
   const sha = /^verdict: merged ([0-9a-f]{7,40})\b/mu.exec(message)?.[1];
   if (sha === undefined) return false;
   const named = loadContract(root).contract?.base ?? 'main';
-  return [`origin/${named}`, named].some(
-    (ref) => git(root, ['merge-base', '--is-ancestor', sha, ref]).status === 0,
-  );
+  const onBase = () =>
+    [`origin/${named}`, named].some(
+      (ref) =>
+        git(root, ['merge-base', '--is-ancestor', sha, ref]).status === 0,
+    );
+  if (onBase()) return true;
+  const fetched = spawnSync('git', ['fetch', '-q', 'origin', named], {
+    cwd: root,
+    encoding: 'utf8',
+    timeout: 30_000,
+  });
+  return fetched.status === 0 && onBase();
 }
 
+/** The blocking standards of a repository on a date (YYYY-MM-DD), one line each. */
 export type StandardsRunner = (root: string, asOf: string) => string[];
 
 /** The refusal reason for a Stop payload, or undefined when the session may end. */
