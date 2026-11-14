@@ -62,6 +62,12 @@ export async function dispatch(args: string[]): Promise<boolean> {
     } else {
       const pin = await import('./entry-pin.ts');
       report = pin.doctorReport(pin.configuredEntryRoot());
+      const host = await import('./doctor-host.ts');
+      const facts = host.hostReport(host.readHostFacts(productRoot()));
+      report = {
+        text: report.text + facts.text,
+        exitCode: report.exitCode || facts.exitCode,
+      };
     }
     process.stdout.write(report.text);
     process.exitCode = report.exitCode;

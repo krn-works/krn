@@ -12,6 +12,7 @@ import { createServer, type Server } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { contractBase } from '../repo/contract.ts';
+import { lockHostRefusal } from './lock-host.ts';
 import {
   parseTaskDocument,
   TaskCommandError,
@@ -692,8 +693,8 @@ async function withTaskLock<T>(
 }
 
 async function acquireTaskLock(mainRoot: string, id: TaskId): Promise<Server> {
-  if (process.platform !== 'linux')
-    throw new TaskUsageError('claim locking requires Linux');
+  const refusal = lockHostRefusal(process.platform);
+  if (refusal) throw new TaskUsageError(refusal);
 
   const lockId = createHash('sha256')
     .update(mainRoot)
