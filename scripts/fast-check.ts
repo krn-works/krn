@@ -77,8 +77,59 @@ const INDEX_FILE = 'docs/generated/capability-index.md';
 const INDEX_SOURCE = /^src\/.*\.ts$/u;
 const INDEX_TEST = 'test/claude/capability-index.test.ts';
 
+const CLI_SPAWN = /bin\/krn|'bin',\s*'krn'|krn\.mjs/u;
+const ROUTE = /command === '([\w-]+)'/u;
+
+/** Repo modules reached from an entry through relative imports, transitively. */
+function importClosure(root: string, entry: string): Set<string> {
+  const seen = new Set<string>();
+  const queue = [entry];
+  for (let path = queue.pop(); path !== undefined; path = queue.pop()) {
+    if (seen.has(path)) continue;
+    const file = join(root, path);
+    if (!existsSync(file) || !lstatSync(file).isFile()) continue;
+    seen.add(path);
+    for (const target of importedPaths(path, readFileSync(file, 'utf8')))
+      if (!seen.has(target)) queue.push(target);
+  }
+  return seen;
+}
+
+/** CLI command name -> src modules its entry in src/cli/index.ts imports, transitively. */
+export function cliCommandModules(root: string): Map<string, Set<string>> {
+  const modules = new Map<string, Set<string>>();
+  const index = 'src/cli/index.ts';
+  const file = join(root, index);
+  if (!existsSync(file)) return modules;
+  for (const branch of readFileSync(file, 'utf8').split(/(?=command === ')/u)) {
+    const name = ROUTE.exec(branch)?.[1];
+    if (name === undefined) continue;
+    const closure = modules.get(name) ?? new Set<string>();
+    for (const entry of importedPaths(index, branch))
+      for (const path of importClosure(root, entry)) closure.add(path);
+    modules.set(name, closure);
+  }
+  return modules;
+}
+
 function coveredPrefixes(source: string): string[] {
   return (COVERS.exec(source)?.[1] ?? '').trim().split(/\s+/u).filter(Boolean);
+}
+
+/** A test that spawns bin/krn with a command name covers that command's modules. */
+function spawnsCoveredModule(
+  source: string,
+  targets: ReadonlySet<string>,
+  cliModules: ReadonlyMap<string, ReadonlySet<string>>,
+): boolean {
+  if (!CLI_SPAWN.test(source)) return false;
+  for (const [command, modules] of cliModules)
+    if (
+      new RegExp(`['"\`]${command}['"\`]`, 'u').test(source) &&
+      [...targets].some((target) => modules.has(target))
+    )
+      return true;
+  return false;
 }
 
 /**
@@ -93,6 +144,7 @@ export function selectTests(
   tests: Map<string, string>,
   removed: string[] = [],
   surviving: ReadonlySet<string> = new Set(),
+  cliModules: ReadonlyMap<string, ReadonlySet<string>> = new Map(),
 ): string[] {
   const picked = new Set(changed.filter((file) => tests.has(file)));
   // The generated capability index and every src module header feed one budgeted test.
@@ -118,6 +170,7 @@ export function selectTests(
       const covers = coveredPrefixes(source);
       if (
         names.some((name) => source.includes(name)) ||
+        spawnsCoveredModule(source, targets, cliModules) ||
         [...targets].some((target) =>
           covers.some((prefix) => target.startsWith(prefix)),
         )
@@ -439,7 +492,13 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
   const files = lintable(changed);
   const cache = join(root, '.krn/cache');
   mkdirSync(cache, { recursive: true });
-  const related = selectTests(changed, listTests(root), removed, surviving);
+  const related = selectTests(
+    changed,
+    listTests(root),
+    removed,
+    surviving,
+    cliCommandModules(root),
+  );
   const snapshot = (): string =>
     changed.map((file) => readFileSync(join(root, file), 'utf8')).join('\0');
   const verify = (): Promise<Step[]> =>

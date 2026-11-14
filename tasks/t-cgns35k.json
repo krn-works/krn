@@ -1,7 +1,11 @@
 {
   "id": "t-cgns35k",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast derives CLI-subprocess coverage from src/cli/index.ts command imports"
+  },
   "created": "2026-11-13",
   "priority": 3,
   "title": "fast derives the src modules a bin/krn subprocess test covers",
