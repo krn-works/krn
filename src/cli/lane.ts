@@ -14,6 +14,7 @@ import { precedentSection } from '../brain/precedent.ts';
 import { briefStandards } from '../brain/standards.ts';
 import { PROJECT_STANDARDS, readProject } from '../brain/standards-cli.ts';
 import { lanePacket, packetBrief } from '../brain/worker-packet.ts';
+import { gitLockError } from '../ci/git-lock.ts';
 import {
   CEILING_WINDOW_PRS,
   collectWindow,
@@ -186,10 +187,6 @@ function git(root: string, args: string[]): string {
   return result.stdout.trim();
 }
 
-/** What git prints when another process holds a ref lock it needs (a concurrent fetch of the same repository). */
-const refLockBusy =
-  /cannot lock ref|unable to update local ref|Unable to create '[^']*\.lock'|\.lock': File exists/u;
-
 /**
  * Fetch the base branch, retried while a concurrent `krn lane start` of the same repository holds
  * refs/remotes/origin/<base>.lock: parallel lanes would otherwise fail with "cannot lock ref".
@@ -214,7 +211,7 @@ export function fetchBase(
     );
     if (result.status === 0) return;
     const said = (result.stderr || result.stdout).trim();
-    if (attempt >= attempts || !refLockBusy.test(said))
+    if (attempt >= attempts || !gitLockError.test(said))
       throw new CliUsageError(`git fetch -q origin ${base} failed: ${said}`);
     sleepSync(delayMs);
   }

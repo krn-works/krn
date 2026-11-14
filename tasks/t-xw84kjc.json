@@ -1,7 +1,11 @@
 {
   "id": "t-xw84kjc",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "four gaps fixed with regression tests"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "Minor tracker and hook gaps from the logic audit",

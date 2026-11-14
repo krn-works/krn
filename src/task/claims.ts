@@ -7,7 +7,6 @@ import {
   readFileSync,
   realpathSync,
   unlinkSync,
-  writeSync,
 } from 'node:fs';
 import { createServer, type Server } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
@@ -165,6 +164,25 @@ export function taskRecordRoot(cwdRoot: string, id: TaskId): string {
     claim.claim.worktree !== realpathSync(cwdRoot)
     ? claim.claim.worktree
     : cwdRoot;
+}
+
+/**
+ * The root `close --as done` writes. An expired claim no longer routes writes,
+ * yet its lane worktree may still hold the newer record: read that one, and
+ * when the worktree is gone refuse naming the root record as the stale source.
+ */
+export function closeRecordRoot(cwdRoot: string, id: TaskId): string {
+  const root = taskRecordRoot(cwdRoot, id);
+  if (root !== cwdRoot || realpathSync(cwdRoot) !== mainCheckoutRoot(cwdRoot))
+    return root;
+  const claim = inspectClaim(cwdRoot, id);
+  const held = claim.claim?.worktree;
+  if (claim.state !== 'expired' || held === undefined) return root;
+  if (existsSync(join(held, 'tasks', `${id}.json`))) return held;
+  throw new TaskCommandError(
+    `${id} has an ${claim.reason} claim and its worktree ${held} no longer holds the record; the record in ${join(cwdRoot, 'tasks', `${id}.json`)} is a stale source, so closing it as done would lose lane work: release the claim or close from the lane worktree`,
+    75,
+  );
 }
 
 /**
@@ -652,6 +670,13 @@ function claimPath(mainRoot: string, id: TaskId): string {
   return join(mainRoot, '.krn', 'task-claims', `${id}.json`);
 }
 
+let afterLockAcquired: () => void | Promise<void> = () => {};
+
+/** Test seam: run `hook` while a task lock is held, before its operation; production sets none. */
+export function onTaskLockAcquired(hook: () => void | Promise<void>): void {
+  afterLockAcquired = hook;
+}
+
 async function withTaskLock<T>(
   mainRoot: string,
   id: TaskId,
@@ -659,7 +684,7 @@ async function withTaskLock<T>(
 ): Promise<T> {
   const lock = await acquireTaskLock(mainRoot, id);
   try {
-    await holdTaskLockForTest();
+    await afterLockAcquired();
     return await operation();
   } finally {
     await releaseTaskLock(lock);
@@ -723,14 +748,6 @@ function lockWaitMs(): number {
   )
     return override;
   return 2_000;
-}
-
-async function holdTaskLockForTest(): Promise<void> {
-  if (process.env.NODE_ENV !== 'test') return;
-  const descriptor = Number(process.env.KRN_TASK_LOCK_HOLD_FD);
-  if (!Number.isSafeInteger(descriptor) || descriptor < 3) return;
-  writeSync(descriptor, 'locked\n');
-  await new Promise<void>(() => {});
 }
 
 function wait(milliseconds: number): Promise<void> {

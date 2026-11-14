@@ -181,3 +181,9 @@ test('repository settings wire the ci poll hook to Bash', () => {
     ),
   );
 });
+
+test('piped check hook rewrites a piped npm run typecheck with pipefail', () => {
+  const out = bash('npm run typecheck 2>&1 | tail -n 5');
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /set -o pipefail; npm run typecheck/u);
+});
