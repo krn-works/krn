@@ -227,6 +227,7 @@ test('standards check fails a harvested pack record that breaks the promotion ru
       area: 'checks',
       layer: 'universal',
       audience: 'worker',
+      tier: 'floor',
       text: lesson,
       why: 'Two repositories shipped lint errors their CI then refused.',
       evidence: ['#7'],

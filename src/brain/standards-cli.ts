@@ -40,6 +40,7 @@ import {
   checkStandards,
   type Enforce,
   type Failure,
+  inForce,
   type Need,
   parsePack,
   parseStandards,
@@ -244,20 +245,57 @@ export function standardsCheck(
   });
   // The pack's own promotion rule: a record harvested from proposals recurs and is enforced.
   const promotion = promotionFailures(records);
-  const failures: Failure[] = [...promotion, ...stale, ...report.failures];
+  const structural: Failure[] = [...promotion, ...stale];
   if (report.enforced === 0)
-    failures.push({ id: root, message: 'no enforced standard applies' });
-  const counts = `${report.enforced} enforced, ${report.failures.length + stale.length + promotion.length} failed, ${report.advisory} advisory`;
+    structural.push({ id: root, message: 'no enforced standard applies' });
+  const failures: Failure[] = [...structural, ...report.failures];
+  const blocking: Failure[] = [...structural, ...report.blocking];
+  const reported = failures.filter((failure) => !blocking.includes(failure));
+  const { floor, reflex, finish } = report.tiers;
+  const perTier = `floor ${floor.failed}/${floor.enforced}, reflex ${reflex.failed}/${reflex.enforced}, finish ${finish.failed}/${finish.enforced} failed/enforced`;
+  const counts = `${report.enforced} enforced, ${failures.length} failed, ${report.advisory} advisory; ${perTier}`;
   const summary = `${counts}; ${applicable.length} standards apply to ${root} (${inherited.length} of ${records.length} pack, ${project.length} project; stack ${repository.stack ?? 'none'}; krn ${repository.adopted ? 'adopted' : 'not adopted'})`;
-  if (failures.length === 0)
-    return { exitCode: 0, lines: [`PASS standards: ${summary}`] };
+  const notes = reported.map(
+    (failure) =>
+      `${failure.id}: ${failure.message} (${failure.tier === 'reflex' ? 'waived reflex' : 'finish'}, reported only)`,
+  );
+  if (blocking.length === 0)
+    return { exitCode: 0, lines: [...notes, `PASS standards: ${summary}`] };
   return {
     exitCode: 1,
     lines: [
-      ...failures.map((failure) => `${failure.id}: ${failure.message}`),
+      ...blocking.map((failure) => `${failure.id}: ${failure.message}`),
+      ...notes,
       `FAIL standards: ${summary}`,
     ],
   };
+}
+
+/**
+ * The failures of the project's own standards file that must stop a worker: floor and unwaived
+ * reflex. Runs only the records in `.agents/standards.json` that apply and are in force (the
+ * pack is not read), so the Stop hook stays fast; no file or no record means nothing blocks.
+ */
+export function standardsBlockers(
+  root: string,
+  asOf: string,
+  timeoutMs: number = ENFORCEMENT_TIMEOUT_MS,
+): string[] {
+  const repository = repositoryFacts(root);
+  const applicable = readProject(root).filter(
+    (standard) =>
+      appliesTo(standard, repository) &&
+      inForce(standard, asOf) &&
+      standard.audience === 'worker',
+  );
+  const report = checkStandards(applicable, {
+    asOf,
+    enforce: enforcer(root, timeoutMs),
+  });
+  return report.blocking.map(
+    (failure) =>
+      `${failure.id} (${failure.tier ?? 'standard'}): ${failure.message}`,
+  );
 }
 
 function flags(

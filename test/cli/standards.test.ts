@@ -114,7 +114,7 @@ for (const [name, files, stack] of fixtures) {
       const lines = done.stdout.trimEnd().split('\n');
       assert.equal(lines.length, 1);
       const match =
-        /^PASS standards: (\d+) enforced, 0 failed, (\d+) advisory; (\d+) standards apply to .* \((\d+) of (\d+) pack, 0 project; stack ([^;]+); krn not adopted\)$/u.exec(
+        /^PASS standards: (\d+) enforced, 0 failed, (\d+) advisory; floor [^;]+; (\d+) standards apply to .* \((\d+) of (\d+) pack, 0 project; stack ([^;]+); krn not adopted\)$/u.exec(
           lines[0] ?? '',
         );
       assert.ok(match, lines[0]);
@@ -202,6 +202,7 @@ const projectRecord = (change: Record<string, unknown>) => ({
   area: 'tests',
   layer: 'universal',
   audience: 'worker',
+  tier: 'floor',
   text: 'A project rule.',
   why: 'The project needs it.',
   evidence: ['README.md'],
@@ -576,6 +577,7 @@ test('adopt keeps a hand-written project record beside the inherited ones and re
     "area": "docs",
     "layer": "universal",
     "audience": "worker",
+    "tier": "floor",
     "text": "Every change adds a line to CHANGELOG.md.",
     "why": "Releases are written from it.",
     "evidence": ["CHANGELOG.md"],
@@ -714,4 +716,35 @@ test('KRN carries worker-stop as a project record that only a Stop hook entry sa
   ];
   for (const [settings, status] of wirings)
     assert.equal(runsOn(run, settings), status, settings);
+});
+
+test('standards check exits 1 on a floor failure and an unwaived reflex, 0 on a waived reflex and a finish failure', () => {
+  const run = (change: Record<string, unknown>) => {
+    const root = repository({
+      ...python,
+      '.agents/standards.json': JSON.stringify([
+        projectRecord({
+          enforcement: { kind: 'command', run: 'false' },
+          ...change,
+        }),
+      ]),
+    });
+    try {
+      return check(root);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  };
+  const floor = run({ tier: 'floor' });
+  assert.equal(floor.status, 1);
+  assert.match(floor.stdout, /floor 1\/\d+/u);
+  assert.equal(run({ tier: 'reflex' }).status, 1);
+  const waived = run({ tier: 'reflex', waiver: 'tracked in the migration' });
+  assert.equal(waived.status, 0);
+  assert.match(waived.stderr, /s-project: .*waived reflex, reported only/u);
+  assert.equal(run({ tier: 'finish' }).status, 0);
+  assert.match(
+    run({ tier: 'finish' }).stderr,
+    /s-project: .*finish, reported only/u,
+  );
 });

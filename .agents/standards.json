@@ -4,6 +4,7 @@
     "area": "finish-gate",
     "layer": "krn-delivery",
     "audience": "worker",
+    "tier": "floor",
     "text": "KRN's own Stop hook runs `src/hook/stop.ts` (the gate `krn hook stop` runs in adopted repositories), which refuses the end of a session while the related tests are red.",
     "why": "A gate that lets a session end on an unrun or red test turns a broken tree into a delivered one.",
     "evidence": ["src/hook/stop.ts"],

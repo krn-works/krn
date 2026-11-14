@@ -30,6 +30,7 @@ const plain = `[
     "area": "tests",
     "layer": "universal",
     "audience": "worker",
+    "tier": "floor",
     "text": "The repository tracks automated tests.",
     "why": "Untested code has no statement of what it must do.",
     "evidence": ["#12"],
@@ -202,8 +203,12 @@ test('checkStandards runs enforced standards, counts advisory ones and names eac
   assert.equal(report.enforced, 4);
   assert.equal(report.advisory, 1);
   assert.deepEqual(report.failures, [
-    { id: 's-broken', message: 'exit 1 from false: it broke' },
-    { id: 's-slow', message: 'exit none from sleep: timed out after 5 ms' },
+    { id: 's-broken', tier: 'floor', message: 'exit 1 from false: it broke' },
+    {
+      id: 's-slow',
+      tier: 'floor',
+      message: 'exit none from sleep: timed out after 5 ms',
+    },
     {
       id: 's-retired',
       message: 'outside its dates on 2026-11-14 (valid 2026-11-13..2026-11-13)',
@@ -272,6 +277,7 @@ const inheritedPlain = `[
     "area": "tests",
     "layer": "universal",
     "audience": "worker",
+    "tier": "floor",
     "text": "The repository tracks automated tests.",
     "why": "Untested code has no statement of what it must do.",
     "evidence": ["#12"],
@@ -468,4 +474,46 @@ test('promotionFailures holds a harvested record to recurrence and enforcement, 
       'promotion rule: a harvested standard needs a command or krn enforcement, not advisory',
     ],
   );
+});
+
+test('parseStandards refuses a record without a tier, with an unknown tier, or a waiver off reflex', () => {
+  rejects((r) => delete r.tier, /fields must be exactly/u);
+  rejects(
+    (r) => (r.tier = 'optional'),
+    /\.tier: expected one of floor, reflex, finish/u,
+  );
+  rejects(
+    (r) => (r.waiver = 'later'),
+    /only a reflex standard takes a waiver/u,
+  );
+  rejects((r) => {
+    r.tier = 'reflex';
+    r.waiver = ' ';
+  }, /\.waiver: expected a non-empty string/u);
+});
+
+test('checkStandards counts per tier and blocks only floor and an unwaived reflex', () => {
+  const failing: Enforce = () => ({ exit: 1, detail: '' });
+  const standards = parseStandards([
+    { ...base(), id: 's-floor', tier: 'floor' },
+    { ...base(), id: 's-reflex', tier: 'reflex' },
+    {
+      ...base(),
+      id: 's-waived',
+      tier: 'reflex',
+      waiver: 'migration in flight',
+    },
+    { ...base(), id: 's-finish', tier: 'finish' },
+  ]);
+  const report = checkStandards(standards, {
+    asOf: '2026-11-14',
+    enforce: failing,
+  });
+  assert.deepEqual(
+    report.blocking.map((failure) => failure.id),
+    ['s-floor', 's-reflex'],
+  );
+  assert.equal(report.failures.length, 4);
+  assert.deepEqual(report.tiers.reflex, { enforced: 2, failed: 2 });
+  assert.deepEqual(report.tiers.finish, { enforced: 1, failed: 1 });
 });

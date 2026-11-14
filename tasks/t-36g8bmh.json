@@ -1,7 +1,11 @@
 {
   "id": "t-36g8bmh",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "tiers on every standard; Stop and check honour them"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "Each standard has a tier: floor blocks Stop, reflex needs a recorded waiver, finish reports",
