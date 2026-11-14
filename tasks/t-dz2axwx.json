@@ -1,12 +1,16 @@
 {
   "id": "t-dz2axwx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "canary clean-tree step runs the related subset; perfect-memory clone adopts exit 0 in 8s"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "krn adopt exceeds the canary budget on a slow-test repository (perfect-memory exits 124)",
   "after": [],
   "body": [
-    "Why: census rerun on HEAD (KRN_CENSUS_CODING=/mnt/storage/coding TMPDIR=/mnt/storage/tmp/census node scripts/adoption-census.ts --write, exit 0, log /mnt/storage/tmp/census/run.log, table evals/adoption-census.md): `krn adopt` on krn/active/perfect-memory (python, HEAD 0ded4f5) exits 124: the canary step \"Stop gate on the clean tree\" exceeded 180s (176.3s). The other 14 of 15 repos adopt with exit 0.\nOutcome: adopt on a slow-test repository either finishes within the canary budget or fails with a deliberate exit and a message naming the step and the way to raise the limit; the Stop-gate canary does not spend its whole budget on a test command that cannot finish.\nProof: `krn adopt <clone of perfect-memory>` exits 0 or a deliberate non-124 code; a regression test at the canary layer covers a slow test command."
+    "Why: census rerun on HEAD (KRN_CENSUS_CODING=/mnt/storage/coding TMPDIR=/mnt/storage/tmp/census node scripts/adoption-census.ts --write, exit 0, log /mnt/storage/tmp/census/run.log, table evals/adoption-census.md): `krn adopt` on krn/active/perfect-memory (python, HEAD 0ded4f5) exits 124: the canary step \"Stop gate on the clean tree\" exceeded 180s (176.3s). The other 14 of 15 repos adopt with exit 0.\nOutcome: adopt on a slow-test repository either finishes within the canary budget or fails with a deliberate exit and a message naming the step and the way to raise the limit; the Stop-gate canary does not spend its whole budget on a test command that cannot finish.\nProof: krn adopt on a clone of perfect-memory exits 0 or a deliberate non-124 code; a regression test at the canary layer covers a slow test command."
   ]
 }

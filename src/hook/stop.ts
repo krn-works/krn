@@ -23,7 +23,11 @@ import {
   relatedCommand,
   rerunCommand,
   resolveContract,
+  withinPackage,
 } from '../repo/contract.ts';
+
+export { withinPackage };
+
 import { isLaneSubagent, UNIDENTIFIED_LANE, worker } from './scope.ts';
 
 // Stop hook for worker sessions, and the related-test command a lane brief names:
@@ -578,24 +582,6 @@ function plan(root: string, from: string, contract?: RepoContract): Plan {
           withinPackage(contract.related ?? '', selection.files),
         ),
   };
-}
-
-/**
- * Paths as a `--prefix <dir>` command accepts them: relative to that package, files outside it dropped.
- * A related command without --prefix takes the repository paths unchanged.
- */
-export function withinPackage(
-  related: string,
-  files: readonly string[],
-): readonly string[] {
-  const dir = /--prefix[ =]+(\S+)/u
-    .exec(related)?.[1]
-    ?.replace(/^\.\//u, '')
-    .replace(/\/+$/u, '');
-  if (!dir || dir === '.') return files;
-  return files
-    .filter((file) => file.startsWith(`${dir}/`))
-    .map((file) => file.slice(dir.length + 1));
 }
 
 /** The tests the change selects, as `--related` prints them. */
