@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import {
@@ -180,42 +179,13 @@ for (const problem of resumeProblems(text))
 const file = (path: string) =>
   statSync(path, { throwIfNoEntry: false })?.isFile() === true;
 
-// Ids of rows deleted from the roadmap in its last 20 commits; stable ids
-// let a handoff name a row it pruned.
-function gitRemovedIds(dir: string): Set<string> {
-  const log = spawnSync(
-    'git',
-    ['log', '-n', '20', '-p', '--format=', '--', 'docs/program/roadmap.md'],
-    { cwd: dir, encoding: 'utf8', timeout: 5000 },
-  );
-  return new Set(
-    [...(log.stdout ?? '').matchAll(/^-\|\s*(R\d+)\s*\|/gmu)].map(
-      (match) => match[1] ?? '',
-    ),
-  );
-}
-
-// A named roadmap change must point at a row of docs/program/roadmap.md that
-// exists or was recently removed.
-const changed = roadmapIds(text);
-if (changed.length > 0) {
-  let roadmap = '';
-  try {
-    roadmap = readFileSync(join(root, 'docs/program/roadmap.md'), 'utf8');
-  } catch {
-    /* reported per id below */
-  }
-  // Stable ids: a row removed in this slice is still a named change.
-  const removed = gitRemovedIds(root);
-  for (const id of changed)
-    if (
-      !new RegExp(`^\\|\\s*${id}\\s*\\|`, 'mu').test(roadmap) &&
-      !removed.has(id)
-    )
-      failures.push(
-        `FAIL ${handoff}: Roadmap names ${id}, which has no row in docs/program/roadmap.md`,
-      );
-}
+// A named roadmap change is a task id: the roadmap is generated from tasks/,
+// so a closed task still names a change but an unknown id does not.
+for (const id of roadmapIds(text))
+  if (!file(join(root, 'tasks', `${id}.json`)))
+    failures.push(
+      `FAIL ${handoff}: Roadmap names ${id}, which has no task file in tasks/`,
+    );
 // "Roadmap: unchanged" is only true while the roadmap still ranks open work.
 if (
   /^\s*-\s+Roadmap:\s*unchanged\b/imu.test(resumeSection(text, 'Resume') ?? '')
@@ -243,7 +213,7 @@ if (
     );
   if (!ranksOpenTask)
     failures.push(
-      `FAIL ${handoff}: "Roadmap: unchanged" while docs/program/roadmap.md has no row naming an open task; refill the roadmap (krn-radar scan) and name the new R ids`,
+      `FAIL ${handoff}: "Roadmap: unchanged" while docs/program/roadmap.md has no row naming an open task; refill the roadmap (krn-radar scan) and name the new task ids`,
     );
 }
 const none = items.filter((item) => /^none\.?$/iu.test(item.text));

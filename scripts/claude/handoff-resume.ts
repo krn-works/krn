@@ -16,15 +16,17 @@ export const resumeFields = [
   {
     name: 'Roadmap',
     pattern:
-      /^\s*-\s+Roadmap:\s*(?:unchanged\s+\(\s*[^)\s][^)]*\)|.*\bR\d+\b)/imu,
+      /^\s*-\s+Roadmap:\s*(?:unchanged\s+\(\s*[^)\s][^)]*\)|.*\bt-[a-z0-9]{7}\b)/imu,
   },
 ];
 
-// Roadmap entry ids (R1, R2, ...) a handoff's "- Roadmap:" line names as changed.
+// Task ids (t-xxxxxxx) a handoff's "- Roadmap:" line names as changed.
 export function roadmapIds(text: string): string[] {
   const line = /^\s*-\s+Roadmap:(.*)$/imu.exec(section(text, 'Resume') ?? '');
   if (!line || /^\s*unchanged\b/iu.test(line[1] ?? '')) return [];
-  return [...(line[1] ?? '').matchAll(/\bR\d+\b/gu)].map((match) => match[0]);
+  return [...(line[1] ?? '').matchAll(/\bt-[a-z0-9]{7}\b/gu)].map(
+    (match) => match[0],
+  );
 }
 
 function lines(text: string): string[] {
@@ -58,13 +60,13 @@ export function resumeProblems(text: string): string[] {
   const resume = section(text, 'Resume');
   if (resume === undefined)
     return [
-      'no "## Resume" section with "- Task: <id>", "- SHAs: <sha...>", "- Verify: `<command>`" and "- Roadmap: <R ids changed> | unchanged (<reason>)"',
+      'no "## Resume" section with "- Task: <id>", "- SHAs: <sha...>", "- Verify: `<command>`" and "- Roadmap: <task ids changed> | unchanged (<reason>)"',
     ];
   return resumeFields
     .filter((field) => !field.pattern.test(resume))
     .map(
       (field) =>
-        `"## Resume" lacks "- ${field.name}:" (Task: t-id; SHAs: hex 7-40; Verify: backticked command; Roadmap: R ids changed in docs/program/roadmap.md or "unchanged (<reason>)")`,
+        `"## Resume" lacks "- ${field.name}:" (Task: t-id; SHAs: hex 7-40; Verify: backticked command; Roadmap: task ids changed in docs/program/roadmap.md or "unchanged (<reason>)")`,
     );
 }
 
