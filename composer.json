@@ -1,0 +1,20 @@
+{
+    "name": "rekurencja/lightweight-rekurencja-antyspam",
+    "description": "Privacy-conscious local spam scoring for WordPress comments and Contact Form 7.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require-dev": {
+        "squizlabs/php_codesniffer": "*",
+        "wp-coding-standards/wpcs": "*",
+        "dealerdirect/phpcodesniffer-composer-installer": "*"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "scripts": {
+        "lint": "vendor/bin/phpcs -p --standard=phpcs.xml .",
+        "fix": "vendor/bin/phpcbf -p --standard=phpcs.xml ."
+    }
+}
