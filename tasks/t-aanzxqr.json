@@ -1,7 +1,11 @@
 {
   "id": "t-aanzxqr",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ledger worker totals fall back to attributed lane/subagent transcript tokens; real ledger --limit 20 workerInput n=16; tests in test/outcome/slice-cost.test.ts"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "The ledger attributes lane sessions so cost per unattended task is computable",

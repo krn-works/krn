@@ -122,9 +122,15 @@ test('subagents bill to their own referenced PR, else to the slice that launched
       cache_creation: 0,
       output: 0,
     },
+    laneTokens: { input: 1_000_000, cached: 0, output: 0 },
     author: { role: 'lead', model: 'claude-opus-5-5' },
   });
   assert.equal(costs.get(11)?.leadTokens, null);
+  assert.deepEqual(costs.get(11)?.laneTokens, {
+    input: 1_000_000,
+    cached: 0,
+    output: 10,
+  });
   assert.deepEqual(costs.get(11)?.author, {
     role: 'subagent:general-purpose',
     model: 'claude-sonnet-5-5',
@@ -322,4 +328,98 @@ test('a headless lane session bills as subagent dollars, not lead dollars', () =
   assert.equal(asLane?.leadDollars, 0);
   assert.equal(asLane?.subagentDollars, asLead?.leadDollars);
   assert.equal(asLane?.dollars, asLead?.dollars);
+});
+
+test('a headless lane session reports its tokens as lane tokens, not lead tokens', () => {
+  const lane = sliceCosts(
+    [
+      {
+        role: LANE_ROLE,
+        malformed: false,
+        turns: [turn('krn task claim t-aaaaaaa'), turn('gh pr merge 10')],
+      },
+    ],
+    [],
+    prs,
+  ).get(10);
+  assert.equal(lane?.leadTokens, null);
+  assert.deepEqual(lane?.laneTokens, {
+    input: 2_000_000,
+    cached: 0,
+    output: 0,
+  });
+});
+
+test('the ledger reports workerInput from a krn-lane subagent transcript attributed to its PR', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'ledger-lane-'));
+  const line = (value: unknown) => `${JSON.stringify(value)}\n`;
+  const assistant = (id: string, command: string, at: string) =>
+    line({
+      type: 'assistant',
+      timestamp: at,
+      message: {
+        id,
+        role: 'assistant',
+        model: 'claude-sonnet-5-5',
+        usage: {
+          input_tokens: 700,
+          cache_read_input_tokens: 5000,
+          cache_creation_input_tokens: 0,
+          output_tokens: 40,
+        },
+        content: [
+          {
+            type: 'tool_use',
+            id: `tu-${id}`,
+            name: 'Bash',
+            input: { command },
+          },
+        ],
+      },
+    });
+  try {
+    const sub = join(root, 'transcripts/lead-1/subagents');
+    await mkdir(sub, { recursive: true });
+    await writeFile(
+      join(root, 'transcripts/lead-1.jsonl'),
+      line({ type: 'user', message: { role: 'user', content: 'go' } }),
+    );
+    await writeFile(
+      join(sub, 'agent-a.jsonl'),
+      assistant('m1', 'bin/krn task claim t-aaaaaaa', '2026-11-01T09:00:00Z') +
+        assistant('m2', 'bin/krn ci wait --pr 10', '2026-11-01T09:30:00Z'),
+    );
+    await writeFile(
+      join(sub, 'agent-a.meta.json'),
+      JSON.stringify({ agentType: 'krn-lane', toolUseId: 'launch-1' }),
+    );
+    const list = [
+      {
+        number: 10,
+        title: 'First (t-aaaaaaa)',
+        createdAt: '2026-11-01T09:00:00Z',
+        mergedAt: '2026-11-01T10:00:00Z',
+        mergeCommit: { oid: 'a'.repeat(40) },
+      },
+    ];
+    const report = await collectLedger({
+      root,
+      repo: 'krn-works/krn',
+      transcripts: join(root, 'transcripts'),
+      run: (cmd, args) => {
+        if (cmd === 'git') throw new Error('no repository');
+        if (args[1] === 'list') return JSON.stringify(list);
+        return '{}';
+      },
+    });
+    assert.deepEqual(report.rows[0]?.worker, {
+      rounds: null,
+      input: 1400,
+      cached: 10000,
+      output: 80,
+    });
+    assert.deepEqual(report.medians.workerInput, { value: 1400, n: 1 });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

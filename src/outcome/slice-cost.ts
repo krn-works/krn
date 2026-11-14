@@ -191,6 +191,8 @@ type SliceCost = {
     cache_creation: number;
     output: number;
   } | null;
+  /** Token totals of the slice's subagent and lane-session turns; null when none were attributed or a transcript did not parse. */
+  laneTokens: { input: number; cached: number; output: number } | null;
   author: { role: string; model: string } | null;
 };
 
@@ -242,6 +244,7 @@ export function sliceCosts(
     let unpriced = 0;
     let malformed = false;
     const tokens = { input: 0, cache_read: 0, cache_creation: 0, output: 0 };
+    const laneTokens = { input: 0, cached: 0, output: 0 };
     let best: {
       role: string;
       output: number;
@@ -256,6 +259,11 @@ export function sliceCosts(
         if (d === null) unpriced++;
         else if (part.lead) lead += d;
         else sub += d;
+        if (!part.lead) {
+          laneTokens.input += turn.usage.input;
+          laneTokens.cached += turn.usage.cacheRead;
+          laneTokens.output += turn.usage.output;
+        }
         if (part.lead) {
           tokens.input += turn.usage.input;
           tokens.cache_read += turn.usage.cacheRead;
@@ -283,6 +291,7 @@ export function sliceCosts(
         .reduce((n, p) => n + p.turns.length, 0),
       unpricedTurns: unpriced,
       leadTokens: malformed || !list.some((p) => p.lead) ? null : tokens,
+      laneTokens: malformed || list.every((p) => p.lead) ? null : laneTokens,
       author: best ? { role: best.role, model } : null,
     });
   }
