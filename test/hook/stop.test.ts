@@ -1151,7 +1151,8 @@ test('the adopt canary lane proves the test gate only and is not held by standar
     writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
     sh(dir, 'add', '.');
     sh(dir, 'commit', '-q', '-m', 'change');
-    const failing = () => ['s-probe (floor): exit 1'];
+    const failing = (root: string) =>
+      root === dir ? ['s-probe (floor): exit 1'] : [];
     const green = () => [];
     const canary = { ...lane(dir), KRN_LANE: 'canary' };
     assert.equal(
@@ -1340,6 +1341,63 @@ test('a krn-lane subagent whose ship merged ends at the main checkout; an unmerg
         () => [],
       ),
       undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+const redRecord = (id: string, run: string) => ({
+  id,
+  type: 'standard',
+  area: 'tests',
+  layer: 'universal',
+  audience: 'worker',
+  tier: 'reflex',
+  text: 'A probe rule.',
+  why: 'The hook must tell inherited red from new red.',
+  provenance: { origin: 'test', evidence: ['README.md'], proposals: [] },
+  enforcement: { kind: 'command', run },
+  applies: { stacks: [], needs: [], paths: [], terms: [] },
+  status: 'accepted',
+  supersedes: [],
+  recorded_at: '2026-01-01',
+  valid_from: '2026-01-01',
+  valid_to: null,
+});
+
+test('Stop ends green on a standard that was already red at the base and refuses one the branch newly broke', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'worker-stop-'));
+  try {
+    sh(dir, 'init', '-q', '-b', 'main');
+    sh(dir, 'config', 'user.email', 'a@b.c');
+    sh(dir, 'config', 'user.name', 'a');
+    mkdirSync(join(dir, 'src'));
+    mkdirSync(join(dir, '.agents'));
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 1;\n');
+    const write = (...records: ReturnType<typeof redRecord>[]) =>
+      writeFileSync(
+        join(dir, '.agents/standards.json'),
+        JSON.stringify(records),
+      );
+    write(redRecord('s-old', 'false'), redRecord('s-new', 'test ! -f broken'));
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'base');
+    sh(dir, 'checkout', '-q', '-b', 'work');
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'change');
+    const run = () => judgeStop(payload(dir), lane(dir), () => []);
+    assert.equal(run(), undefined);
+    writeFileSync(join(dir, 'broken'), 'x\n');
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'break');
+    const refused = run() ?? '';
+    assert.match(refused, /- s-new \(reflex\)/u);
+    assert.doesNotMatch(refused, /- s-old/u);
+    assert.match(
+      refused,
+      /already failed at the base and do not block: s-old/u,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });

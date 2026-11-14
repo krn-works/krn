@@ -4,7 +4,7 @@ Before calling anything foreign, unknown or missing, grep this index and src.
 ## krn commands
 krn task <ready|claim|show|list|create|edit|comment|dep|close|release|check> [...]: repository work trac
 krn ledger [--since YYYY-MM-DD] [--pr N] [--limit N] [--repo OWNER/REPO] [--root DIR] [--transcripts DIR] [--json]: outcome ledger
-krn standards check|propose|harvest|effect|retire [...]: check [--root DIR]: run t
+krn standards check|propose|harvest|effect|retire [...]: check [--record ID] [--ro
 krn doctor: reports the host `krn task` entry, its commit and origin/main; exit 78
 krn state check|resume|set|accept|handoff|retro [--root DIR]: delivery-loop capsul
 krn lane start|run|drop|brief [...]: run: start the lane, run one headless claude 

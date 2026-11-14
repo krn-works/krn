@@ -63,7 +63,7 @@ import {
 } from './standards.ts';
 
 export const usage =
-  'usage: krn standards check [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos DIR... [--repos-file FILE] | effect [--root DIR] | retire [--write] [--root DIR]';
+  'usage: krn standards check [--record ID] [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos DIR... [--repos-file FILE] | effect [--root DIR] | retire [--write] [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -334,10 +334,36 @@ export function standardsFailures(
 export function standardsCheck(
   root: string,
   asOf: string,
-  options: { readonly pack?: string; readonly timeoutMs?: number } = {},
+  options: {
+    readonly pack?: string;
+    readonly timeoutMs?: number;
+    /** Judge one record only: other standards, red or not, do not change the verdict. */
+    readonly record?: string;
+  } = {},
 ): Verdict {
   const evaluated = evaluate(root, asOf, options);
   if ('verdict' in evaluated) return evaluated.verdict;
+  if (options.record !== undefined) {
+    const id = options.record;
+    if (!evaluated.applicable.some((standard) => standard.id === id))
+      return {
+        exitCode: 1,
+        lines: [
+          `${id}: no standard with this id applies to ${root}`,
+          `FAIL standards: record ${id} not found`,
+        ],
+      };
+    const own = evaluated.failures.filter((failure) => failure.id === id);
+    if (own.length === 0)
+      return { exitCode: 0, lines: [`PASS standards: record ${id} passes`] };
+    return {
+      exitCode: 1,
+      lines: [
+        ...own.map((failure) => `${failure.id}: ${failure.message}`),
+        `FAIL standards: record ${id} fails`,
+      ],
+    };
+  }
   const {
     report,
     failures,
@@ -427,14 +453,19 @@ function flags(
 }
 
 const ROOT = new Set(['--root']);
+const CHECK_FLAGS = new Set(['--root', '--record']);
 
 function checkCommand(rest: readonly string[]): void {
-  const { values, positional } = flags(rest, new Set(), ROOT);
+  const { values, positional } = flags(rest, new Set(), CHECK_FLAGS);
   if (positional.length > 0) throw new CliUsageError(usage);
   const root = repositoryRoot(
     resolve(values.get('--root')?.[0] ?? process.cwd()),
   );
-  const verdict = standardsCheck(root, new Date().toISOString().slice(0, 10));
+  const verdict = standardsCheck(root, new Date().toISOString().slice(0, 10), {
+    ...(values.has('--record') && {
+      record: values.get('--record')?.[0] as string,
+    }),
+  });
   const verdictLine = verdict.lines.at(-1) ?? '';
   for (const line of verdict.lines.slice(0, -1))
     process.stderr.write(`${line}\n`);

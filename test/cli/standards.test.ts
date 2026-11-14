@@ -987,3 +987,43 @@ test('krn standards retire is a dry run until --write, then ends the record that
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('standards check --record judges one record whatever else is red and fails an unknown id', () => {
+  const root = repository({
+    ...python,
+    '.agents/standards.json': JSON.stringify([
+      projectRecord({
+        id: 's-red',
+        enforcement: { kind: 'command', run: 'exit 3' },
+      }),
+      projectRecord({
+        id: 's-green',
+        enforcement: { kind: 'command', run: 'true' },
+      }),
+    ]),
+  });
+  const record = (id: string) =>
+    spawnSync(
+      process.execPath,
+      [cli, 'standards', 'check', '--record', id, '--root', root],
+      { encoding: 'utf8', cwd: tmpdir() },
+    );
+  try {
+    assert.equal(check(root).status, 1);
+    const green = record('s-green');
+    assert.equal(green.status, 0, green.stderr);
+    assert.match(green.stdout, /^PASS standards: record s-green passes$/mu);
+    const red = record('s-red');
+    assert.equal(red.status, 1);
+    assert.match(red.stderr, /^s-red: exit 3 from exit 3/mu);
+    assert.match(red.stdout, /^FAIL standards: record s-red fails$/mu);
+    const unknown = record('s-nothing');
+    assert.equal(unknown.status, 1);
+    assert.match(
+      unknown.stderr,
+      /s-nothing: no standard with this id applies/u,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
