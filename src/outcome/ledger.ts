@@ -35,6 +35,7 @@ import {
   type Turn,
   usageOf,
 } from './slice-cost.ts';
+import { titleTaskId } from './task-id.ts';
 
 type Value = number | null;
 type ObjectValue = Record<string, unknown>;
@@ -290,10 +291,7 @@ export function attributeSession(
 ): number | null {
   const scores = prs
     .map((pr) => {
-      const task = /\(t-[0-9a-z]{7}\)\s*$/
-        .exec(pr.title)?.[0]
-        .trim()
-        .slice(1, -1);
+      const task = titleTaskId(pr.title);
       let score = 0;
       for (const command of session.commands) {
         if (task)
@@ -691,7 +689,7 @@ export async function collectLedger(options: LedgerOptions = {}) {
     async ([position, index, pr]) => {
       const checks = (await github)[position];
       if (!checks) throw new Error(`no GitHub row for #${pr.number}`);
-      const task = /\((t-[0-9a-z]{7})\)\s*$/.exec(pr.title)?.[1];
+      const task = titleTaskId(pr.title);
       const dirs = new Set<string>();
       if (task) {
         for (const dir of runs.dirs) if (basename(dir) === task) dirs.add(dir);

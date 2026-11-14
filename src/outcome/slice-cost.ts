@@ -1,5 +1,6 @@
 // Per-slice cost: split each transcript into the turns of the PR it was working on, price them, and name the author.
 import { readFileSync } from 'node:fs';
+import { titleTaskId } from './task-id.ts';
 
 type ObjectValue = Record<string, unknown>;
 
@@ -98,9 +99,6 @@ export function turnDollars(turn: Turn): number | null {
 const SLACK_MS = 10 * 60 * 1000;
 /** How long before its PR opened a multi-day task's work can begin. */
 const TASK_SPAN_MS = 48 * 60 * 60 * 1000;
-function taskOf(title: string): string | undefined {
-  return /\((t-[0-9a-z]{7})\)\s*$/.exec(title)?.[1];
-}
 /**
  * Whether a turn's commands name the PR: its task id, or `--pr N`, `#N` or
  * `gh pr <verb> N` once the PR exists (an earlier `#N` names something else).
@@ -115,7 +113,7 @@ export function references(
   at: number | null = null,
   since: number | null = null,
 ): boolean {
-  const task = taskOf(pr.title);
+  const task = titleTaskId(pr.title);
   const created = Date.parse(String(pr.createdAt));
   // A turn naming several tasks lists them; only a turn naming this task alone works on it.
   const tasks = new Set(text.match(/\bt-[0-9a-z]{7}\b/g));
@@ -136,11 +134,11 @@ export function references(
 function taskSince(prs: SlicePr[]): Map<SlicePr, number | null> {
   const result = new Map<SlicePr, number | null>();
   for (const pr of prs) {
-    const task = taskOf(pr.title);
+    const task = titleTaskId(pr.title);
     const opened = Date.parse(String(pr.createdAt ?? pr.mergedAt));
     let since: number | null = null;
     for (const other of prs) {
-      if (other === pr || !task || taskOf(other.title) !== task) continue;
+      if (other === pr || !task || titleTaskId(other.title) !== task) continue;
       const merged = Date.parse(String(other.mergedAt));
       if (Number.isFinite(merged) && merged <= opened)
         since = Math.max(since ?? merged, merged);

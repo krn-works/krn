@@ -100,6 +100,7 @@ src/outcome/ledger.ts: (no header) exports object, array, number, string
 src/outcome/plan-gauge.ts: The plan gauge: points of the five-hour and seve
 src/outcome/rework-blame.ts: (no header) exports fixChangesIntroducedLines
 src/outcome/slice-cost.ts: Per-slice cost: split each transcript into the t
+src/outcome/task-id.ts: The task id a PR title ends with, as `type(scope): 
 src/outcome/window.ts: The delivery window unit: merged PRs, dollars by ses
 src/repo/ci-admission-contract.ts: (no header) exports REQUIRED_CHECK_NAME,
 src/repo/contract.ts: The repo contract: how KRN tests, checks and branches
