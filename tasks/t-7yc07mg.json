@@ -1,7 +1,11 @@
 {
   "id": "t-7yc07mg",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test resolves node_modules from require.resolve('zod'); 3/3 pass in a lane worktree without node_modules"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "agents-render test resolves node_modules the way Node does, so it passes in a lane worktree",

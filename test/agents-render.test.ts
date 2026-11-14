@@ -9,8 +9,9 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
@@ -20,7 +21,14 @@ const script = fileURLToPath(
 const registry = fileURLToPath(new URL('../spec/rules.json', import.meta.url));
 const agents = fileURLToPath(new URL('../AGENTS.md', import.meta.url));
 const sources = fileURLToPath(new URL('../src/', import.meta.url));
-const modules = fileURLToPath(new URL('../node_modules', import.meta.url));
+// The node_modules directory Node resolves from here: a lane worktree under
+// .krn/worktrees/<slug> has none of its own and resolves the checkout's.
+const zodEntry = createRequire(import.meta.url).resolve('zod');
+const modules = zodEntry.slice(
+  0,
+  zodEntry.lastIndexOf(`${sep}node_modules${sep}`) +
+    `${sep}node_modules`.length,
+);
 const tests = fileURLToPath(new URL('../test/', import.meta.url));
 const packageFile = fileURLToPath(new URL('../package.json', import.meta.url));
 
