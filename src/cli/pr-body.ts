@@ -35,13 +35,17 @@ function bodyField(task: TaskRecord, name: string): string | undefined {
 }
 
 const runnableProof = /^(?:node|npm|npx|krn|bin\/krn|\.\/\S+) /u;
+// `krn adopt <clone of x>` names a value the reader supplies; sh would fail on it (t-et62hcd).
+const placeholder = /<[A-Za-z][^<>]*>/u;
 
-/** The runnable commands of a task's `Proof:` field: backtick spans that start with a known runner. */
+/** The runnable commands of a task's `Proof:` field: backtick spans that start with a known runner and name no `<placeholder>`. */
 export function proofCommands(task: TaskRecord): string[] {
   const proof = bodyField(task, 'Proof') ?? '';
   return [...proof.matchAll(/`([^`\n]+)`/gu)]
     .map((match) => (match[1] ?? '').trim())
-    .filter((command) => runnableProof.test(command));
+    .filter(
+      (command) => runnableProof.test(command) && !placeholder.test(command),
+    );
 }
 
 /** The Proof commands of the task a PR title names (`... (t-id)`), read from the worktree; none when the title or record is absent. */
