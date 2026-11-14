@@ -36,7 +36,7 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 
 ## Parallel lanes
 
-- Run at most 8 live lane worktrees (`KRN_LANE_MAX_LIVE`). A lane is one lead session that owns one outcome: its own claimed task, its own worktree under `.krn/worktrees/`, and its own capsule and handoff under `.krn/runs/delivery-loop/<outcome>/`. One writer per outcome still holds; a lane never writes another lane's outcome, branch, PR, or capsule.
+- Run at most 8 live lane worktrees (`KRN_LANE_MAX_LIVE`). A lane is a subagent of the lead session that owns one outcome: its own claimed task, its own worktree under `.krn/worktrees/`, and its own PR. One writer per outcome still holds; a lane never writes another lane's outcome, branch, PR, or capsule.
 - Before claiming, list open claims in `.krn/task-claims` and open PRs, and pick a task whose `--allow` paths do not overlap another lane's open PR. Overlapping work waits for that merge.
 - After the other lane merges, rebase only on a conflict, push with `--force-with-lease`, and let auto-merge wait for the new `Check`.
 - Retry a merge that stops on a main-checkout `index.lock` held by the other lane; the refusal is transient.

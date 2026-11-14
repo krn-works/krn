@@ -1,7 +1,11 @@
 {
   "id": "t-883jber",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "spec/steering-facts.json plus test/rules/steering-consistency.test.ts; surfaces edited for contradictions 1,4,5,6; forbid strings were present on origin/main lead-rules.md:39 and repository-workflow.md"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "Steering facts are declared once and a test fails when any surface contradicts them; contradictions 1-6 are edited out",

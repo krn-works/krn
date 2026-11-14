@@ -30,7 +30,7 @@ The lead follows the project skills in `.agents/skills` (also exposed to Claude 
 
 Opt-in canary (not a CI gate): before merging a PR that touches `src/cli/lane*`, `src/adopt/` or `src/ci/`, run `node scripts/lane-canary.ts [base-ref]` (default `origin/main`). It runs one `krn lane run` against a local pilot repository fixture and exits non-zero when the lane fails; it prints SKIP and exits 0 when no such path changed.
 
-Merges go through `gh pr merge --auto --squash` once the `Check` passes; the `main integrity` ruleset requires it and allows only squash, so a PR is one commit on main. Bodies follow `.github/pull_request_template.md`; retro edits ride in the slice PR.
+`bin/krn pr ship` merges once the `Check` passes; the `main integrity` ruleset allows only squash, so a PR is one commit on main. Bodies follow `.github/pull_request_template.md`; retro edits ride in the slice PR.
 
 - **Lead:** follows [lead rules](lead-rules.md) and owns the outcome loop. Do not treat a task update or worker handoff as acceptance.
 - **Worker:** a lane is a subagent of the lead session in its own worktree (`krn lane start`); it ships its own PR.
