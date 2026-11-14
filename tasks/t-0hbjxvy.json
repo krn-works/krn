@@ -1,0 +1,16 @@
+{
+  "id": "t-0hbjxvy",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "census rerun on HEAD: adopt exit 0 on 14/15, one defect task for perfect-memory (124), operator task for verify 67"
+  },
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "The adoption census reruns on HEAD and every failing row becomes a defect task",
+  "after": [],
+  "body": [
+    "Why: Fable direction review 2026-11-14: every outside evidence predates tonight's adoption fixes; evals/adoption-census.md still reads 0/15.\nOutcome: the census reruns on HEAD over the same 15 repos; evals/adoption-census.md is regenerated; every non-zero row becomes a defect task with command, exit and log path.\nProof: census table committed; >=12/15 adopt exit 0 or a defect task per failing row."
+  ]
+}
