@@ -21,6 +21,7 @@ import {
   contractTracker,
   detectStack,
 } from '../repo/contract.ts';
+import { readRegistry, registryPath } from './adopted-registry.ts';
 import { effectRows, readExposures } from './exposures.ts';
 import { globalDrift, installGlobal } from './global-standards.ts';
 import {
@@ -58,7 +59,7 @@ import {
 } from './standards.ts';
 
 export const usage =
-  'usage: krn standards check [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [REPO...] [--root DIR] | harvest --repos DIR... [--repos-file FILE] | effect [--root DIR]';
+  'usage: krn standards check [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --repos DIR... [--repos-file FILE] | effect [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -511,6 +512,17 @@ export function adoptedRepositories(root: string): string[] {
   );
 }
 
+/** The repositories of the host registry `krn adopt` writes; an error when none is registered. */
+export function hostRepositories(): string[] {
+  const file = registryPath();
+  const listed = readRegistry(file);
+  if (listed.length === 0)
+    throw new StandardsInputError(
+      `krn standards harvest: no repository given and none registered in ${file}`,
+    );
+  return listed;
+}
+
 /** Every proposal of one repository top level, in file-name order; none when it has no proposals. */
 export function readProposals(root: string): Sourced[] {
   const dir = join(root, PROPOSALS_DIR);
@@ -538,9 +550,15 @@ export function readProposals(root: string): Sourced[] {
 }
 
 /** Groups the proposals of `repositories` (repository top levels) into report lines. */
-export function standardsHarvest(repositories: readonly string[]): string[] {
+export function standardsHarvest(
+  repositories: readonly string[],
+  extra: (root: string) => Sourced[] = () => [],
+): string[] {
   const roots = [...new Set(repositories.map((path) => repositoryRoot(path)))];
-  const sourced = roots.flatMap(readProposals);
+  const sourced = roots.flatMap((root) => [
+    ...readProposals(root),
+    ...extra(root),
+  ]);
   return renderHarvest(harvestCandidates(sourced), roots.length);
 }
 
@@ -597,12 +615,13 @@ function harvestCommand(rest: readonly string[]): void {
       process.stdout.write(`${line}\n`);
     return;
   }
+  const rootFlag = values.get('--root')?.[0];
   const repositories =
     positional.length > 0
       ? positional.map((path) => resolve(path))
-      : adoptedRepositories(
-          resolve(values.get('--root')?.[0] ?? process.cwd()),
-        );
+      : rootFlag === undefined
+        ? hostRepositories()
+        : adoptedRepositories(resolve(rootFlag));
   for (const line of standardsHarvest(repositories))
     process.stdout.write(`${line}\n`);
 }

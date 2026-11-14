@@ -282,3 +282,43 @@ export function renderBulletHarvest(
     `harvest: ${candidates.length} ${candidates.length === 1 ? 'candidate' : 'candidates'} from instruction files of ${repositories} ${repositories === 1 ? 'repository' : 'repositories'}; review each into a record, none was written`,
   ];
 }
+
+/** The part of a ledger row a lesson is drawn from. */
+export type LedgerRow = {
+  readonly number: number;
+  readonly prGate: { readonly reruns: number | null };
+  readonly outcome: { readonly status: string };
+};
+
+const RED_CI_LESSON =
+  'Run the full local checks before shipping: a merged pull request needed a rerun of the required CI check.';
+const REWORK_LESSON =
+  'Verify the change against its receiver before shipping: a merged pull request was later changed or reverted.';
+
+/** One proposal per rework or CI-failed merged PR, with `#PR` evidence; a PR with both gives both. */
+export function ledgerProposals(
+  origin: string,
+  repository: string,
+  rows: readonly LedgerRow[],
+  recordedAt: string,
+): Sourced[] {
+  const lessons = (row: LedgerRow): string[] => [
+    ...((row.prGate.reruns ?? 0) > 0 ? [RED_CI_LESSON] : []),
+    ...(row.outcome.status === 'changed' || row.outcome.status === 'reverted'
+      ? [REWORK_LESSON]
+      : []),
+  ];
+  return rows.flatMap((row) =>
+    lessons(row).map((text) => ({
+      origin,
+      repository,
+      file: `ledger#${row.number}`,
+      proposal: {
+        text,
+        kind: 'check' as const,
+        evidence: [`#${row.number}`],
+        recorded_at: recordedAt,
+      },
+    })),
+  );
+}
