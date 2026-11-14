@@ -81,9 +81,10 @@ test('adopt runs the canary after writing, fails on a red gate and records --no-
   assert.equal(run.status, 0, run.stdout + run.stderr);
   assert.match(run.stdout, /canary pass/u);
   const none = krn(fixture({ 'README.md': 'x\n' }));
-  assert.equal(none.status, 64);
-  assert.match(none.stdout, /canary skipped/u);
-  assert.match(none.stderr, /needs one test file/u);
+  assert.equal(none.status, 0, none.stdout + none.stderr);
+  assert.match(none.stdout, /canary bootstrap/u);
+  assert.doesNotMatch(none.stdout, /canary skipped/u);
+  assert.doesNotMatch(none.stderr, /everything adopt wrote was removed/u);
   const only = krn(fixture({ 'README.md': 'x\n' }), '--canary');
   assert.equal(only.status, 1);
   const declinedNone = krn(fixture({ 'README.md': 'x\n' }), '--no-canary');

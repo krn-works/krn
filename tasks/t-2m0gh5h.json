@@ -1,7 +1,11 @@
 {
   "id": "t-2m0gh5h",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt admits a vacuous contract in a bootstrap state; canary proves the Stop gate refuses it; test/adopt/bootstrap.test.ts"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "krn adopt admits a testless repository in a bootstrap state whose only admitted task adds the first real test",
