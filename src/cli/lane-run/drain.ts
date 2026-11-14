@@ -129,6 +129,8 @@ export async function drainReady(
     const verdict = await seams.runTask(id, request.passthrough);
     const seconds = Math.round((seams.now() - started) / 1000);
     say(`${id} ${id} exit=${verdict.exitCode} ${seconds}s`);
+    // The verdict line carries the merge or the blocker's reason; an unattended drain has no other record of it.
+    say(verdict.line);
     exitCode = verdict.exitCode;
     if (verdict.exitCode === 0) {
       streak = 0;

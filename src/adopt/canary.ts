@@ -38,6 +38,8 @@ const TEST_FILE = [
   /\.(?:test|spec)\.[cm]?[jt]sx?$/u,
   /(?:^|\/)test_[^/]+\.py$/u,
   /_test\.(?:py|go)$/u,
+  /(?:^|\/)tests?\/[^/]+\.php$/u,
+  /Test\.php$/u,
 ];
 
 /** The whole canary may run this long (KRN_CANARY_TIMEOUT_MS overrides); a slow install or test suite ends it with outcome timeout. */
@@ -130,7 +132,19 @@ function testFiles(root: string, contract: RepoContract): string[] {
     /--prefix\s+(\S+)/u.exec(contract.test)?.[1] ??
     /\bcd\s+(\S+)/u.exec(contract.test)?.[1];
   const dir = scope?.replace(/^\.\//u, '').replace(/\/$/u, '');
+  // A file the test command names by path or glob (`node --test test/*.test.mjs`) is one it really runs.
+  const named = (contract.test.match(/[\w./-]*[/*][\w./*-]*/gu) ?? []).map(
+    (glob) =>
+      new RegExp(
+        `^${glob
+          .replace(/^\.\//u, '')
+          .replace(/[.+?^${}()|[\]\\]/gu, '\\$&')
+          .replace(/\*/gu, '[^/]*')}$`,
+        'u',
+      ),
+  );
   const rank = (f: string) =>
+    (named.some((pattern) => pattern.test(f)) ? 0 : 4) +
     (dir && f.startsWith(`${dir}/`) ? 0 : 2) +
     (/(?:^|\/)(?:tests?|__tests__)\//u.test(f) ? 0 : 1);
   return tests.sort((x, y) => rank(x) - rank(y));
@@ -138,6 +152,9 @@ function testFiles(root: string, contract: RepoContract): string[] {
 
 function breakage(file: string): string | undefined {
   if (/\.py$/u.test(file)) return '\nassert False, "krn canary"\n';
+  // `?>` ends PHP mode when the file is still in it and is plain text when it is not.
+  if (/\.php$/u.test(file))
+    return '\n?>\n<?php throw new Exception("krn canary");\n';
   if (/\.go$/u.test(file))
     return '\nfunc TestKrnCanary(t *testing.T) { t.Fatal("krn canary") }\n';
   if (/\.[cm]?[jt]sx?$/u.test(file))

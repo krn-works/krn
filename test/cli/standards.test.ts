@@ -189,7 +189,7 @@ test('standards check fails s-clean-checkout-tests when a test runs untracked di
     assert.equal(red.status, 1, red.stdout);
     assert.match(
       red.stderr,
-      /^s-clean-checkout-tests: exit 1 from \[ ! -f package\.json \]/mu,
+      /^s-clean-checkout-tests: exit 1 from \[ ! -s package\.json \]/mu,
     );
     assert.match(red.stdout, /^FAIL standards: \d+ enforced, 1 failed, /u);
     const green = check(built);

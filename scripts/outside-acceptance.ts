@@ -5,6 +5,7 @@ import {
   mkdirSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -22,6 +23,7 @@ export interface RunOptions {
   stacks: string[];
   scratch: string;
   max: number;
+  windowHours: number;
   summary: string;
 }
 
@@ -40,7 +42,8 @@ export function parseOptions(
   const options: RunOptions = {
     stacks: [],
     scratch,
-    max: 2,
+    max: 1,
+    windowHours: 8,
     summary: join(root, '.krn/runs/outside/summary.txt'),
   };
   for (let index = 0; index < args.length; index += 1) {
@@ -57,7 +60,14 @@ export function parseOptions(
       options.stacks.push(stack);
     } else if (arg === '--scratch') options.scratch = resolve(value());
     else if (arg === '--summary') options.summary = resolve(value());
-    else if (arg === '--max') {
+    else if (arg === '--window-hours') {
+      const text = value();
+      if (!/^[1-9]\d*$/u.test(text))
+        throw new Error(
+          'outside-acceptance: --window-hours needs a positive integer',
+        );
+      options.windowHours = Number(text);
+    } else if (arg === '--max') {
       const text = value();
       if (!/^[1-9]\d*$/u.test(text))
         throw new Error('outside-acceptance: --max needs a positive integer');
@@ -115,14 +125,18 @@ export function drainFacts(exitCode: number, output: string): DrainFacts {
   const sessions = lines.filter((line) =>
     /^t-\w+ t-\w+ exit=\d+/u.test(line),
   ).length;
-  const merged = lines.filter((line) =>
-    /^verdict: merged\b/u.test(line),
-  ).length;
+  // The drain prints the lane's verdict line: `lane <id>: shipped verdict: merged <sha> model ...`.
+  const shas = [
+    ...output.matchAll(/\bverdict: merged ([0-9a-f]{7,40})\b/gu),
+  ].map((match) => (match[1] as string).slice(0, 7));
+  const merged = shas.length;
   const prs: string[] = [];
   for (const match of output.matchAll(/(?:pull\/|PR #|pr #)(\d+)/gu)) {
     const pr = `#${match[1]}`;
     if (!prs.includes(pr)) prs.push(pr);
   }
+  // A merge verdict names a commit, not a PR: the commit stands for its PR when no number is printed.
+  if (prs.length === 0) prs.push(...shas);
   let usd = 0;
   for (const match of output.matchAll(/cost \$(\d+(?:\.\d+)?)/gu))
     usd += Number(match[1]);
@@ -163,6 +177,52 @@ export function gradedRow(input: RowInput): string {
   return input.note === undefined ? row : `${row} | ${input.note}`;
 }
 
+/**
+ * The one real small task each drain delivers. Adopt seeds only gap tasks at priority 1 and 2, which
+ * ask for CI workflows and settings an outside base cannot take, so the drain needs its own at priority 0.
+ */
+export function seedTask(
+  stack: string,
+  test: string | undefined,
+  created: string,
+): { file: string; text: string } {
+  const id = `t-${Math.abs(
+    [...`${stack}${created}`].reduce(
+      (hash, char) => (hash * 31 + char.charCodeAt(0)) | 0,
+      7,
+    ),
+  )
+    .toString(36)
+    .padStart(7, '0')
+    .slice(0, 7)}`;
+  const verify = test ?? 'true';
+  const task = {
+    id,
+    status: 'open',
+    resolution: null,
+    created,
+    priority: 0,
+    title: `Add a focused ${stack} test for one untested function`,
+    after: [] as string[],
+    body: [
+      `Add one focused test for one untested public function (the smallest one); keep \`${verify}\` green. No other change.`,
+    ],
+    acceptance: [{ verify, passes: false, exit: null }],
+  };
+  return {
+    file: `tasks/${id}.json`,
+    text: `${JSON.stringify(task, null, 2)}\n`,
+  };
+}
+
+/** The krn.json keys adopt has no flag for. */
+export function pick(config: AdoptFlags): AdoptFlags {
+  const kept: AdoptFlags = {};
+  if (config.install !== undefined) kept.install = config.install;
+  if (config.related !== undefined) kept.related = config.related;
+  return kept;
+}
+
 const run = (
   command: string,
   args: string[],
@@ -196,6 +256,10 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
   const krn = join(root, 'bin/krn');
   const git = (args: string[], cwd = dir) =>
     run('git', [...credentialConfig(root), ...args], cwd);
+  if (!existsSync(join(source, '.git')))
+    throw new Error(
+      `outside-acceptance: no scratch copy at ${source} (pass --scratch or KRN_OUTSIDE_SCRATCH)`,
+    );
   const log = run('git', ['log', '--format=%H %P|%s'], source)
     .output.split('\n')
     .filter(Boolean)
@@ -226,6 +290,25 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
     if (existsSync(configPath))
       config = JSON.parse(readFileSync(configPath, 'utf8')) as AdoptFlags;
     const adopt = run(krn, adoptArgs(dir, config), dir);
+    const keep = (name: string, text: string) =>
+      appendFileSync(
+        join(dirname(options.summary), `${stack}.log`),
+        `## ${name}\n${text}\n`,
+      );
+    keep('adopt', adopt.output);
+    // Adopt cannot take install or related without --ref: carry them from the scratch copy's krn.json.
+    const clonePath = join(dir, 'krn.json');
+    if (existsSync(clonePath))
+      writeFileSync(
+        clonePath,
+        `${JSON.stringify({ ...JSON.parse(readFileSync(clonePath, 'utf8')), ...pick(config) }, null, 2)}\n`,
+      );
+    const seed = seedTask(
+      stack,
+      config.test,
+      new Date().toISOString().slice(0, 10),
+    );
+    writeFileSync(join(dir, seed.file), seed.text);
     git(['add', '-A']);
     git(['commit', '--quiet', '-m', 'chore: adopt krn']);
     git(['push', 'origin', branch]);
@@ -238,10 +321,11 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
         '--max',
         String(options.max),
         '--window-hours',
-        '24',
+        String(options.windowHours),
       ],
       dir,
     );
+    keep('drain', drain.output);
     return gradedRow({
       stack,
       adoptExit: adopt.status,
@@ -277,6 +361,8 @@ if (import.meta.main) {
     console.log(row);
     if (/\| 0 \| [^|]*\(all merged\)/u.test(row) === false) failed += 1;
   }
-  rmSync(join(options.scratch, 'runs'), { recursive: true, force: true });
+  // A red row keeps its clone: the session transcript and lane logs there are the evidence.
+  if (failed === 0)
+    rmSync(join(options.scratch, 'runs'), { recursive: true, force: true });
   process.exit(failed === 0 ? 0 : 1);
 }
