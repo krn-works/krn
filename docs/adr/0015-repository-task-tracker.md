@@ -40,7 +40,8 @@ Records contain open or closed status, typed closure resolution, creation date,
 priority, title, blocking `after` dependencies, and paragraph body text. Ready
 tasks are open, have every `after` dependency closed as `done`, and have no live
 claim. Order them by ascending priority, creation date, then id. Closing a
-dependency as `dropped`, `duplicate`, or `superseded` does not unblock it.
+dependency as `dropped`, `duplicate`, or `superseded` does not unblock it;
+`krn task check` refuses an open task still ordered after such a dependency.
 
 Claims stay outside tracked task records, in
 `.krn/task-claims/<id>.json` under the main checkout shared by linked
