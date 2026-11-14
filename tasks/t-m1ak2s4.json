@@ -1,7 +1,11 @@
 {
   "id": "t-m1ak2s4",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lead AGENTS.md 3679 -> 1926 bytes: no rule tails, KRN-05/06/08 owned by tests; budget 2400; worker render unchanged"
+  },
   "created": "2026-11-14",
   "priority": 3,
   "title": "The rendered AGENTS.md drops test-owned invariants and rule tails, within 2400 bytes",

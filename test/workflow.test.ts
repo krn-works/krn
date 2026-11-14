@@ -342,7 +342,7 @@ test('Product uses required exact-head Actions Check and optional local diagnost
   );
   assert.match(
     agents,
-    /KRN-07.*MUST.*`Check` from GitHub Actions \(App `15368`\).*gate: npm run gate/u,
+    /KRN-07.*MUST.*`Check` from GitHub Actions \(App `15368`\)/u,
   );
   assert.doesNotMatch(agents, /KRN-07.*MUST pass `npm run gate:local`/u);
   assert.match(adr, /^\| D30 \|.*D11.*Product/mu);

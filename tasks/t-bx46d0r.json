@@ -1,0 +1,12 @@
+{
+  "id": "t-bx46d0r",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "npm run fast selects tests that read a changed data file such as AGENTS.md",
+  "after": [],
+  "body": [
+    "Why: PR #850 (t-m1ak2s4) changed AGENTS.md; npm run fast PASSed locally but CI run 43618415681 failed test/brain/standards.test.ts, which checks that standards/records.json evidence 'AGENTS.md#KRN-08' still holds its fragment. fast selects tests by import graph and name, not by the repository files a test reads (AGENTS.md, spec/*.json, standards/*.json).\nOutcome: fast also selects every test whose source names a changed non-code repository path (literal path string match), so a data-file change runs its readers.\nProof: test/fast-check.test.ts: a change to AGENTS.md selects test/brain/standards.test.ts on the real repository."
+  ]
+}

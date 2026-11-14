@@ -32,6 +32,21 @@ function renderRule(rule: Rule): string {
   return `- **${rule.id}** When ${rule.trigger}, ${rule.action} _(owner: ${rule.owner}; ${rule.enforcement.kind}: ${rule.enforcement.check}; ${rule.rationale})_`;
 }
 
+/** The lead file carries only what the lead acts on: the owner, check and rationale stay in spec/rules.json. */
+function renderAction(rule: Rule): string {
+  return `- **${rule.id}** When ${rule.trigger}, ${rule.action}`;
+}
+
+/**
+ * The rules the lead file renders: a worker scope prohibition a test enforces
+ * is owned by that test, so it costs the lead bytes without changing an action.
+ */
+export function leadRules(all: readonly Rule[]): Rule[] {
+  return all.filter(
+    (rule) => rule.audience === 'lead' || rule.enforcement.kind !== 'test',
+  );
+}
+
 /** The rules a worker session sees: scope prohibitions stay, lead and governance rules go. */
 export function workerRules(all: readonly Rule[], testFirst = false): Rule[] {
   const rules = all.filter((rule) => rule.audience !== 'lead');
@@ -65,7 +80,9 @@ export function render(selected: readonly Rule[], worker = false): string {
           'This file is already loaded as CLAUDE.md; do not read it again. Small change: edit, run `npm run fast` once (biome --write, tsc, related tests, one verdict), commit; CI runs the rest.',
           '',
         ]),
-    ...selected.map(renderRule),
+    ...(worker
+      ? selected.map(renderRule)
+      : leadRules(selected).map(renderAction)),
     '<!-- krn-agent-workflow:end -->',
     '',
   ].join('\n');
