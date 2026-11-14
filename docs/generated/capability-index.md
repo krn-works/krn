@@ -137,7 +137,7 @@ src/state/loss.ts: State loss: an open task claim that
 src/state/resume.ts: `krn state resume`: the brief a fr
 src/state/retro.ts: The retro skeleton `krn state retro
 src/state/runs.ts: (no header) exports Finding, isInsid
-src/state/sandbox-placeholders.ts: Placeholders: .mcp.j .mcp.json
+src/state/sandbox-placeholders.ts: .mcp.json sandbox pl
 src/state/write.ts: Writers for the capsule and handoff
 src/successor/compose.ts: Launch composition.
 src/successor/handoff-requests.ts: Handoff request chec
