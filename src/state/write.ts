@@ -106,6 +106,62 @@ function validateValue(label: AbiLabel, value: string): void {
   }
 }
 
+const CLEANUP_LABEL = 'Outstanding workflow-run cleanup';
+
+function fieldValue(text: string, label: string): string | undefined {
+  return text
+    .split('\n')
+    .find((line) => line.trimStart().startsWith(`${label}:`))
+    ?.trimStart()
+    .slice(label.length + 1)
+    .trim();
+}
+
+function currentCleanupPointers(text: string): string[] {
+  const current = fieldValue(text, CLEANUP_LABEL);
+  if (current === undefined) return [];
+  return parseCleanup(current.replace(/^\*\*|\*\*$/g, '')).entries.map(
+    (entry) => entry.pointer,
+  );
+}
+
+// `set cleanup "[one entry]"` once replaced a 60-entry list without a word.
+function refuseDroppedCleanup(
+  text: string,
+  label: AbiLabel,
+  value: string,
+): void {
+  if (label !== CLEANUP_LABEL) return;
+  const kept = new Set(parseCleanup(value).entries.map((e) => e.pointer));
+  const dropped = currentCleanupPointers(text).filter((p) => !kept.has(p));
+  if (dropped.length > 0)
+    throw new Error(
+      `refusing to drop ${dropped.length} existing cleanup entr${dropped.length === 1 ? 'y' : 'ies'} (${dropped.join(', ')}); pass --replace to overwrite or use \`krn state add-cleanup <tuple>\``,
+    );
+}
+
+/** Appends one cleanup tuple to the existing list, replacing a same-pointer entry. */
+export function addCleanup(directory: string, tuple: string): string {
+  const file = join(directory, 'state.md');
+  const text = readFileSync(file, 'utf8');
+  const one = oneLine(tuple);
+  const added = parseCleanup(`[${one}]`);
+  if (added.malformed.length > 0 || added.entries.length !== 1)
+    throw new Error(
+      `cleanup tuple must read pointer; workflow; consumer; trigger; ACTIVE|CLEANUP_PENDING|BLOCKED with no comma: ${one}`,
+    );
+  const entry = added.entries[0] as (typeof added.entries)[number];
+  const current = fieldValue(text, CLEANUP_LABEL) ?? 'none';
+  const existing = parseCleanup(current).entries.filter(
+    (e) => e.pointer !== entry.pointer,
+  );
+  const render = (e: typeof entry) =>
+    `${e.pointer}; ${e.workflow}; ${e.consumer}; ${e.trigger}; ${e.state}`;
+  const value = `[${[...existing, entry].map(render).join(', ')}]`;
+  writeCapsuleFile(file, setLine(text, CLEANUP_LABEL, value));
+  return entry.pointer;
+}
+
 function setLine(text: string, label: string, value: string): string {
   const lines = text.split('\n');
   const index = lines.findIndex((line) =>
@@ -122,6 +178,7 @@ function setLine(text: string, label: string, value: string): string {
 export function setFields(
   directory: string,
   pairs: [string, string][],
+  options: { replace?: boolean } = {},
 ): AbiLabel[] {
   const file = join(directory, 'state.md');
   let text = readFileSync(file, 'utf8');
@@ -130,6 +187,7 @@ export function setFields(
     const label = resolveLabel(name);
     const value = oneLine(raw);
     validateValue(label, value);
+    if (!options.replace) refuseDroppedCleanup(text, label, value);
     text = setLine(text, label, value);
     changed.push(label);
   }

@@ -1,7 +1,11 @@
 {
   "id": "t-z82wamv",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "set refuses dropping cleanup entries without --replace; add-cleanup appends"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "krn state set never silently drops cleanup entries",

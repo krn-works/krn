@@ -4,6 +4,7 @@ import { resumeBrief } from '../state/resume.ts';
 import { renderRetro } from '../state/retro.ts';
 import {
   acceptCriterion,
+  addCleanup,
   capsuleDirectory,
   setFields,
   writeHandoff,
@@ -13,7 +14,8 @@ import { CliUsageError } from './usage-error.ts';
 
 const usage =
   'krn state check|resume [--root DIR] [--json]  capsule check (one verdict line) and resume\n' +
-  'krn state set <field> <value> [<field> <value>...] [--capsule ID] [--root DIR]  write capsule fields\n' +
+  'krn state set <field> <value> [<field> <value>...] [--replace] [--capsule ID] [--root DIR]  write capsule fields; a cleanup value that drops existing entries needs --replace\n' +
+  'krn state add-cleanup <pointer; workflow; consumer; trigger; STATE> [--capsule ID] [--root DIR]  append one cleanup entry\n' +
   'krn state accept <criterion> todo|pass|drop:<why> [--capsule ID] [--root DIR]  upsert an acceptance ledger entry\n' +
   'krn state handoff [--task ID] [--sha TEXT] [--verify CMD] [--roadmap TEXT] [--request TEXT]... [--priority TEXT]... [--capsule ID] [--root DIR]  regenerate handoff.md (Resume, Merged since the previous SHA)\n' +
   'krn state retro --task ID [--root DIR]  print the retro skeleton: commits, wall time and PRs naming the task, one line per candidate category';
@@ -33,7 +35,8 @@ function writeCommand(command: string, args: string[]): void {
   const positional: string[] = [];
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index] as string;
-    if (arg === '--root' || VALUE_FLAGS.includes(arg)) {
+    if (arg === '--replace') flags.set(arg, ['true']);
+    else if (arg === '--root' || VALUE_FLAGS.includes(arg)) {
       const value = flagValue(
         args,
         index,
@@ -56,9 +59,16 @@ function writeCommand(command: string, args: string[]): void {
       const pairs: [string, string][] = [];
       for (let at = 0; at < positional.length; at += 2)
         pairs.push([positional[at] as string, positional[at + 1] as string]);
-      const labels = setFields(directory, pairs);
+      const labels = setFields(directory, pairs, {
+        replace: flags.has('--replace'),
+      });
       process.stdout.write(
         `set ${labels.length} field(s): ${labels.join('; ')}\n`,
+      );
+    } else if (command === 'add-cleanup') {
+      if (positional.length !== 1) throw new CliUsageError(usage);
+      process.stdout.write(
+        `added cleanup entry: ${addCleanup(directory, positional[0] as string)}\n`,
       );
     } else if (command === 'accept') {
       if (positional.length !== 2) throw new CliUsageError(usage);
@@ -133,7 +143,12 @@ export async function stateCommand(args: string[]): Promise<void> {
     }
     return;
   }
-  if (verb === 'set' || verb === 'accept' || verb === 'handoff') {
+  if (
+    verb === 'set' ||
+    verb === 'add-cleanup' ||
+    verb === 'accept' ||
+    verb === 'handoff'
+  ) {
     writeCommand(verb, args.slice(1));
     return;
   }

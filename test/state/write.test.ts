@@ -142,6 +142,45 @@ test('set refuses values state check would reject', () => {
   }
 });
 
+test('set refuses a cleanup value that drops entries unless --replace; add-cleanup appends', () => {
+  const root = realpathSync(buildCaseRepo('active'));
+  const entry = (pointer: string) =>
+    `${pointer}; wf; consumer; trigger; ACTIVE`;
+  try {
+    const first = krn(
+      root,
+      'set',
+      'cleanup',
+      `[${entry('.krn/runs/a')}, ${entry('.krn/runs/b')}]`,
+      '--replace',
+    );
+    assert.equal(first.status, 0, first.stderr);
+    const refused = krn(root, 'set', 'cleanup', `[${entry('.krn/runs/c')}]`);
+    assert.notEqual(refused.status, 0);
+    assert.match(refused.stderr, /\.krn\/runs\/a/);
+    assert.match(refused.stderr, /\.krn\/runs\/b/);
+    const added = krn(root, 'add-cleanup', entry('.krn/runs/c'));
+    assert.equal(added.status, 0, added.stderr);
+    const keep = krn(
+      root,
+      'set',
+      'cleanup',
+      `[${entry('.krn/runs/a')}, ${entry('.krn/runs/b')}, ${entry('.krn/runs/c')}]`,
+    );
+    assert.equal(keep.status, 0, keep.stderr);
+    const replaced = krn(
+      root,
+      'set',
+      'cleanup',
+      `[${entry('.krn/runs/c')}]`,
+      '--replace',
+    );
+    assert.equal(replaced.status, 0, replaced.stderr);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('handoff lists merged commits since the previous SHA and retro measures the task', () => {
   const root = realpathSync(buildCaseRepo('active'));
   const memory = mkdtempSync(join(tmpdir(), 'krn-state-memory-'));
