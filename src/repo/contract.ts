@@ -21,6 +21,8 @@ export interface RepoContract {
   readonly guard?: string;
   /** JSON file of the repository's conventions (brain records) the lane packet reads, relative to the root. */
   readonly conventions?: string;
+  /** Spend cap in USD for one lane session (`krn lane run`); 3 when absent. */
+  readonly laneBudgetUsd?: number;
   readonly tracker: Tracker;
 }
 
@@ -42,12 +44,18 @@ const FIELDS = [
   'guard',
   'conventions',
   'tracker',
+  'laneBudgetUsd',
 ] as const;
 
 /** Where conventions live when krn.json does not name a file. */
 export const DEFAULT_CONVENTIONS = '.krn/conventions.json';
 
 export class ContractError extends Error {}
+
+type StringField = Exclude<
+  (typeof FIELDS)[number],
+  'tracker' | 'laneBudgetUsd'
+>;
 
 type Declared = { -readonly [K in keyof RepoContract]?: RepoContract[K] };
 
@@ -68,6 +76,14 @@ export function parseContractFile(text: string): Declared {
       throw new ContractError(
         `${CONTRACT_FILE}: unknown field "${key}" (fields: ${FIELDS.join(', ')})`,
       );
+    if (key === 'laneBudgetUsd') {
+      if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0)
+        throw new ContractError(
+          `${CONTRACT_FILE}: "laneBudgetUsd" must be a positive number`,
+        );
+      out.laneBudgetUsd = value;
+      continue;
+    }
     if (typeof value !== 'string' || value.trim() === '')
       throw new ContractError(
         `${CONTRACT_FILE}: "${key}" must be a non-empty string`,
@@ -82,7 +98,7 @@ export function parseContractFile(text: string): Declared {
       throw new ContractError(
         `${CONTRACT_FILE}: "related" must contain {files}`,
       );
-    else out[key as Exclude<(typeof FIELDS)[number], 'tracker'>] = value;
+    else out[key as StringField] = value;
   }
   return out;
 }
@@ -461,6 +477,13 @@ export function contractConventions(root: string): string {
   return declaredContract(root)?.conventions ?? DEFAULT_CONVENTIONS;
 }
 
+export const DEFAULT_LANE_BUDGET_USD = 3;
+
+/** The spend cap of one lane session: krn.json `laneBudgetUsd`, else 3; it needs no test command. */
+export function contractLaneBudget(root: string): number {
+  return declaredContract(root)?.laneBudgetUsd ?? DEFAULT_LANE_BUDGET_USD;
+}
+
 /** Whether work items live in tasks/: krn.json `tracker`, else a tasks/ directory means krn. */
 export function contractTracker(root: string): Tracker {
   return (
@@ -502,6 +525,9 @@ export function findContract(root: string): ResolvedContract | undefined {
     ...(install ? { install } : {}),
     ...(declared?.guard ? { guard: declared.guard } : {}),
     ...(declared?.conventions ? { conventions: declared.conventions } : {}),
+    ...(declared?.laneBudgetUsd
+      ? { laneBudgetUsd: declared.laneBudgetUsd }
+      : {}),
     tracker: contractTracker(root),
   };
   return {

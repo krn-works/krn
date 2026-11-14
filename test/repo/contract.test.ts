@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { afterEach, test } from 'node:test';
 import {
   ContractError,
+  contractLaneBudget,
   parseContractFile,
   relatedCommand,
   resolveContract,
@@ -124,6 +125,23 @@ test('krn.json fields win and missing ones fall back to detection', () => {
     guard: 'tests/invariants/',
     tracker: 'krn',
   });
+});
+
+test('krn.json laneBudgetUsd sets the lane spend cap, default 3', () => {
+  const withBudget = fixture({
+    'go.mod': 'module x',
+    'krn.json': '{"laneBudgetUsd": 1.5}',
+  });
+  assert.equal(contractLaneBudget(withBudget), 1.5);
+  assert.equal(contractLaneBudget(fixture({ 'go.mod': 'module x' })), 3);
+  assert.throws(
+    () => parseContractFile('{"laneBudgetUsd":"3"}'),
+    /positive number/,
+  );
+  assert.throws(
+    () => parseContractFile('{"laneBudgetUsd":0}'),
+    /positive number/,
+  );
 });
 
 test('a malformed krn.json names the field', () => {

@@ -14,6 +14,7 @@ import { logsCommand } from '../ci/logs.ts';
 import { shipCommand } from '../ci/ship.ts';
 import {
   contractBase,
+  contractLaneBudget,
   contractTracker,
   findContract,
 } from '../repo/contract.ts';
@@ -145,9 +146,18 @@ interface SessionResult {
   detail: string;
   cost: number | undefined;
   turns?: number;
+  /** The session ended at its spend cap. */
+  capped?: boolean;
 }
 
 const exitNoDelivery = 74;
+/** The session stopped at its spend cap (`--max-budget-usd`); the commit, if any, is not shipped. */
+export const exitBudgetCapped = 75;
+
+/** The model a session falls back to when its own is overloaded. */
+function fallbackModel(model: string): string {
+  return model === 'haiku' ? 'sonnet' : 'haiku';
+}
 
 /** The model a lane session runs on unless `--model` says otherwise (operator model policy). */
 export const defaultLaneModel = 'sonnet';
@@ -261,6 +271,7 @@ export function parseSessionResult(stdout: string, stderr = ''): SessionResult {
     detail: `session ${subtype}`,
     cost,
     ...(turns === undefined ? {} : { turns }),
+    ...(subtype === 'error_max_budget_usd' ? { capped: true } : {}),
   };
 }
 
@@ -971,6 +982,12 @@ export async function laneRunCommand(
         'acceptEdits',
         '--model',
         model,
+        '--fallback-model',
+        fallbackModel(model),
+        '--max-budget-usd',
+        String(contractLaneBudget(origin)),
+        '--setting-sources',
+        'project',
       ],
       sessionOptions,
     );
@@ -1046,7 +1063,11 @@ export async function laneRunCommand(
       return await stop(
         result.detail,
         refusal?.exitCode ??
-          (notStarted ? exitCredentialUnavailable : exitNoDelivery),
+          (notStarted
+            ? exitCredentialUnavailable
+            : result.capped
+              ? exitBudgetCapped
+              : exitNoDelivery),
       );
     // Taken before the placeholders go: the fast-pass key was written with them in the tree.
     const session = sessionVerification(started.path);
