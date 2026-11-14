@@ -45,7 +45,7 @@ const percentile = (values: number[], p: number): Value => {
 const taskId = (title: string) => /\((t-[0-9a-z]{7})\)\s*$/.exec(title)?.[1];
 /**
  * A PR is lane-authored when its body names a headless claude session (the
- * `krn lane run` body) or its branch has a worktree transcript directory that
+ * `krn lane run` body) or carries the `Lane: krn lane brief` line (`krn pr body --lane`) or its branch has a worktree transcript directory that
  * holds a session launched as a lane. Everything else is the standing lead's.
  */
 export function isLanePr(
@@ -54,6 +54,7 @@ export function isLanePr(
 ): boolean {
   return (
     /^Agent: headless claude session/m.test(pr.body) ||
+    /^Lane: krn lane brief$/m.test(pr.body) ||
     laneDirs.has(pr.branch.replace(/[^a-zA-Z0-9]/g, '-'))
   );
 }

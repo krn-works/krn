@@ -156,3 +156,12 @@ test('krn pr body defaults the base to the contract base branch', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('pr body --lane adds the lane marker line and the plain body has none', () => {
+  const input = { task, commits: [], verified: 'x', agent: 'a', refs: false };
+  assert.match(
+    renderPrBody({ ...input, lane: true }),
+    /^Lane: krn lane brief$/m,
+  );
+  assert.doesNotMatch(renderPrBody(input), /^Lane:/m);
+});

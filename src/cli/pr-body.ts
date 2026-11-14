@@ -8,7 +8,10 @@ import { flagValue } from './flag-value.ts';
 import { CliUsageError } from './usage-error.ts';
 
 export const prBodyUsage =
-  'krn pr body --task ID [--verified TEXT] [--agent TEXT] [--refs] [--base REF (default origin/<contract base>)] [--worktree PATH] [--out PATH]  print the PR body (Problem/Change/Verification/Task/Agent) from the task record and the commits since the base, both read from the worktree (default: the current one); the author only reviews it';
+  'krn pr body --task ID [--verified TEXT] [--agent TEXT] [--lane] [--refs] [--base REF (default origin/<contract base>)] [--worktree PATH] [--out PATH]  print the PR body (Problem/Change/Verification/Task/Agent) from the task record and the commits since the base, both read from the worktree (default: the current one); the author only reviews it';
+
+/** The body line `krn lane brief` tells a lane to request with `krn pr body --lane`; the ledger reads it as lane authorship. */
+export const LANE_MARKER = 'Lane: krn lane brief';
 
 export interface BodyInput {
   task: TaskRecord;
@@ -16,6 +19,7 @@ export interface BodyInput {
   verified: string;
   agent: string;
   refs: boolean;
+  lane?: boolean;
 }
 
 function bodyField(task: TaskRecord, name: string): string | undefined {
@@ -57,7 +61,7 @@ ${verified || 'TODO: commands and verdicts'}
 ${input.refs ? 'Refs' : 'Ticket'}: ${task.id}
 
 Agent: ${input.agent}
-
+${input.lane ? `\n${LANE_MARKER}\n` : ''}
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 `;
 }
@@ -90,11 +94,16 @@ export function prBodyCommand(args: string[]): string {
   let verified = '';
   let agent = 'Claude Sonnet 5.5 in Claude Code';
   let refs = false;
+  let lane = false;
   let base: string | undefined;
   let out: string | undefined;
   let worktree: string | undefined;
   for (let i = 0; i < args.length; i++) {
     const flag = args[i] ?? '';
+    if (flag === '--lane') {
+      lane = true;
+      continue;
+    }
     if (flag === '--refs') {
       refs = true;
       continue;
@@ -135,6 +144,7 @@ export function prBodyCommand(args: string[]): string {
     verified,
     agent,
     refs,
+    lane,
   });
   if (out === undefined) return text;
   writeFileSync(out, text);
