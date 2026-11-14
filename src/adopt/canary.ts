@@ -132,7 +132,19 @@ function testFiles(root: string, contract: RepoContract): string[] {
     /--prefix\s+(\S+)/u.exec(contract.test)?.[1] ??
     /\bcd\s+(\S+)/u.exec(contract.test)?.[1];
   const dir = scope?.replace(/^\.\//u, '').replace(/\/$/u, '');
+  // A file the test command names by path or glob (`node --test test/*.test.mjs`) is one it really runs.
+  const named = (contract.test.match(/[\w./-]*[/*][\w./*-]*/gu) ?? []).map(
+    (glob) =>
+      new RegExp(
+        `^${glob
+          .replace(/^\.\//u, '')
+          .replace(/[.+?^${}()|[\]\\]/gu, '\\$&')
+          .replace(/\*/gu, '[^/]*')}$`,
+        'u',
+      ),
+  );
   const rank = (f: string) =>
+    (named.some((pattern) => pattern.test(f)) ? 0 : 4) +
     (dir && f.startsWith(`${dir}/`) ? 0 : 2) +
     (/(?:^|\/)(?:tests?|__tests__)\//u.test(f) ? 0 : 1);
   return tests.sort((x, y) => rank(x) - rank(y));

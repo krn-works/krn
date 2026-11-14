@@ -215,6 +215,14 @@ export function seedTask(
   };
 }
 
+/** The krn.json keys adopt has no flag for. */
+export function pick(config: AdoptFlags): AdoptFlags {
+  const kept: AdoptFlags = {};
+  if (config.install !== undefined) kept.install = config.install;
+  if (config.related !== undefined) kept.related = config.related;
+  return kept;
+}
+
 const run = (
   command: string,
   args: string[],
@@ -288,6 +296,13 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
         `## ${name}\n${text}\n`,
       );
     keep('adopt', adopt.output);
+    // Adopt cannot take install or related without --ref: carry them from the scratch copy's krn.json.
+    const clonePath = join(dir, 'krn.json');
+    if (existsSync(clonePath))
+      writeFileSync(
+        clonePath,
+        `${JSON.stringify({ ...JSON.parse(readFileSync(clonePath, 'utf8')), ...pick(config) }, null, 2)}\n`,
+      );
     const seed = seedTask(
       stack,
       config.test,

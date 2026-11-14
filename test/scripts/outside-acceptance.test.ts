@@ -7,6 +7,7 @@ import {
   gradedRow,
   outsideBranch,
   parseOptions,
+  pick,
   seedTask,
 } from '../../scripts/outside-acceptance.ts';
 
@@ -132,4 +133,12 @@ test('the drain output of a real merged run is graded all merged with its commit
     gradedRow({ stack: 'php', adoptExit: 0, firstPr: '510b485', drain: facts }),
     /\| 0 \| 510b485 \(all merged\) \| 1 \| \$0\.12$/u,
   );
+});
+
+test('pick carries install and related from the scratch krn.json and nothing else', () => {
+  assert.deepEqual(pick({ test: 't', install: 'i', related: 'r' } as never), {
+    install: 'i',
+    related: 'r',
+  });
+  assert.deepEqual(pick({ test: 't' }), {});
 });

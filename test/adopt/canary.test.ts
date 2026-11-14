@@ -134,6 +134,21 @@ test('canary passes on a php repository whose test runs under php and fails with
   assert.equal(krn(root, '--canary').status, 1);
 });
 
+test('canary breaks the test file the test command names, not another test file', () => {
+  const root = fixture({
+    'krn.json': JSON.stringify({
+      base: 'main',
+      test: 'node --test test/*.test.mjs',
+      tracker: 'none',
+    }),
+    'test/a.test.mjs': "import test from 'node:test';\ntest('a', () => {});\n",
+    'test/adapters/b.test.ts': 'export {};\n',
+  });
+  const run = krn(root);
+  assert.equal(run.status, 0, run.stdout + run.stderr);
+  assert.match(run.stdout, /canary pass: .*test\/a\.test\.mjs/u);
+});
+
 test('a canary past its time limit exits 124, names the timeout and leaves the repository as it was', () => {
   const root = fixture({
     ...nodeFiles,
