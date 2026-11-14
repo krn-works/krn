@@ -1,7 +1,11 @@
 {
   "id": "t-dcdad8m",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "first-test recipes per stack (php, wordpress, npm, static) in the lane brief of a vacuous repo; three fixtures proven red-on-mutation via bootstrapProof"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "The worker packet carries per-stack first-test recipes for PHP, WordPress and npm sites",

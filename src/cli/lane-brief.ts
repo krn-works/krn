@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { firstTestSection } from '../brain/first-test.ts';
 import { precedentSection } from '../brain/precedent.ts';
 import {
   laneCandidates,
@@ -94,7 +95,9 @@ export function laneBrief(
     .filter((id) => !served.includes(id));
   const text = packetBrief(packet, brief);
   const precedent = precedentSection(repo, brief);
-  const body = [text, precedent]
+  const recipe =
+    findContract(repo)?.contract.vacuous === true ? firstTestSection(repo) : '';
+  const body = [text, precedent, recipe]
     .filter((part) => part !== '')
     .map((part) => part.trimEnd())
     .join('\n\n');
