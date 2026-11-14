@@ -26,6 +26,8 @@ export interface RepoContract {
   /** `acknowledged` when the operator accepts auto-merge in a repository that deploys on a push to the base branch. */
   readonly deploy?: 'acknowledged';
   readonly tracker: Tracker;
+  /** The test command runs no real test (a workspace with no member tests, or no command at all): never green. */
+  readonly vacuous?: boolean;
 }
 
 export interface ResolvedContract {
@@ -48,6 +50,7 @@ const FIELDS = [
   'tracker',
   'laneBudgetUsd',
   'deploy',
+  'vacuous',
 ] as const;
 
 /** Where conventions live when krn.json does not name a file. */
@@ -57,7 +60,7 @@ export class ContractError extends Error {}
 
 type StringField = Exclude<
   (typeof FIELDS)[number],
-  'tracker' | 'laneBudgetUsd' | 'deploy'
+  'tracker' | 'laneBudgetUsd' | 'deploy' | 'vacuous'
 >;
 
 type Declared = { -readonly [K in keyof RepoContract]?: RepoContract[K] };
@@ -85,6 +88,14 @@ export function parseContractFile(text: string): Declared {
           `${CONTRACT_FILE}: "laneBudgetUsd" must be a positive number`,
         );
       out.laneBudgetUsd = value;
+      continue;
+    }
+    if (key === 'vacuous') {
+      if (typeof value !== 'boolean')
+        throw new ContractError(
+          `${CONTRACT_FILE}: "vacuous" must be a boolean`,
+        );
+      out.vacuous = value;
       continue;
     }
     if (typeof value !== 'string' || value.trim() === '')
@@ -118,6 +129,53 @@ interface Detected {
   related?: string;
   fast?: string;
   install?: string;
+  vacuous?: boolean;
+}
+
+/** Workspace member directories named by package.json workspaces or pnpm-workspace.yaml (`dir/*` or `dir`). */
+function workspaceMembers(
+  root: string,
+  pkg: Record<string, unknown>,
+): string[] {
+  const ws = pkg.workspaces;
+  const globs: string[] = Array.isArray(ws)
+    ? ws.filter((g): g is string => typeof g === 'string')
+    : typeof ws === 'object' && ws !== null
+      ? ((
+          (ws as { packages?: unknown }).packages as string[] | undefined
+        )?.filter((g) => typeof g === 'string') ?? [])
+      : [];
+  try {
+    const yaml = readFileSync(join(root, 'pnpm-workspace.yaml'), 'utf8');
+    for (const m of yaml.matchAll(/^\s*-\s*['"]?([^'"\s#]+)['"]?/gmu))
+      if (m[1]) globs.push(m[1]);
+  } catch {}
+  const dirs: string[] = [];
+  for (const glob of globs) {
+    const clean = glob.replace(/^\.\//u, '').replace(/\/+$/u, '');
+    if (clean.startsWith('!')) continue;
+    if (clean.endsWith('/*') || clean.endsWith('/**'))
+      dirs.push(
+        ...subdirectories(join(root, clean.replace(/\/\*+$/u, ''))).map(
+          (d) => `${clean.replace(/\/\*+$/u, '')}/${d}`,
+        ),
+      );
+    else dirs.push(clean);
+  }
+  return dirs;
+}
+
+/** Whether any workspace member declares a real test script. */
+function membersHaveTests(root: string, pkg: Record<string, unknown>): boolean {
+  return workspaceMembers(root, pkg).some((dir) => {
+    const scripts = (readJson(join(root, dir, 'package.json'))?.scripts ??
+      {}) as Record<string, unknown>;
+    return (
+      typeof scripts.test === 'string' &&
+      scripts.test.trim() !== '' &&
+      !/no test specified/.test(scripts.test)
+    );
+  });
 }
 
 function readJson(path: string): Record<string, unknown> | undefined {
@@ -169,6 +227,7 @@ function detectNode(root: string): Detected | undefined {
     return {
       stack: `node/${pm}-workspace`,
       test: member,
+      ...(membersHaveTests(root, pkg) ? {} : { vacuous: true }),
       ...('vitest' in deps
         ? {
             related: `${pm === 'npm' ? 'npx' : `${pm} exec`} vitest run {files}`,
@@ -526,6 +585,10 @@ export function findContract(root: string): ResolvedContract | undefined {
   const test = declared?.test ?? detected?.test;
   if (test === undefined) return undefined;
   const related = declared?.related ?? detected?.related;
+  // A declared command is the operator's word; a detected workspace fallback with no member tests is vacuous.
+  const vacuous =
+    declared?.vacuous ??
+    (declared?.test === undefined ? detected?.vacuous : undefined);
   const fast = declared?.fast ?? detected?.fast;
   // A detected install belongs to the detected test command; krn.json naming its own test keeps its own install.
   const install =
@@ -544,6 +607,7 @@ export function findContract(root: string): ResolvedContract | undefined {
       : {}),
     ...(declared?.deploy ? { deploy: declared.deploy } : {}),
     tracker: contractTracker(root),
+    ...(vacuous ? { vacuous: true } : {}),
   };
   return {
     contract,

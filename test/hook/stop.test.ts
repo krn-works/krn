@@ -1104,3 +1104,27 @@ test('the adopt canary lane proves the test gate only and is not held by standar
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a vacuous test command is never green: the Stop gate refuses a committed change', () => {
+  const dir = clone();
+  try {
+    writeFileSync(join(dir, 'krn.json'), '{"test":"exit 0","vacuous":true}\n');
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'adopt');
+    sh(dir, 'branch', '-f', 'main');
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'change');
+    const green = () => [];
+    assert.match(
+      judgeStop(payload(dir), lane(dir), green, '', () => []) ?? '',
+      /vacuous/u,
+    );
+    assert.equal(
+      judgeStop(payload(dir, 'BLOCKER: no tests yet'), lane(dir), green),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

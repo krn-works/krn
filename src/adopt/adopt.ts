@@ -141,7 +141,8 @@ function ciWorkflow(
     contract = undefined;
   }
   const install = options.install ?? contract?.install;
-  const test = options.test ?? contract?.test;
+  // A vacuous test command is no CI test step.
+  const test = options.test ?? (contract?.vacuous ? undefined : contract?.test);
   const inputs = {
     ...options,
     ...(install === undefined ? {} : { install }),
@@ -296,22 +297,49 @@ function installOf(root: string): string | undefined {
   }
 }
 
-function seedTasks(root: string, report: AdoptionReport): void {
+function seedTasks(
+  root: string,
+  report: AdoptionReport,
+  seed: { ci: boolean; test: boolean },
+): void {
   if (existsSync(join(root, 'tasks'))) {
     report.unchanged.push('tasks');
     return;
   }
-  createTask(root, {
-    title: 'Require the ci / Check status on the default branch',
-    priority: 1,
-    body: [
-      'Outcome: merging to the default branch needs a green `ci / Check` and auto-merge is enabled.',
-      'Why: the adopted delivery rules treat that Check as the only gate.',
-      'Proof: a pull request with a red Check stays unmerged.',
-    ],
-  });
+  if (seed.ci)
+    createTask(root, {
+      title: 'Require the ci / Check status on the default branch',
+      priority: 1,
+      body: [
+        'Outcome: merging to the default branch needs a green `ci / Check` and auto-merge is enabled.',
+        'Why: the adopted delivery rules treat that Check as the only gate.',
+        'Proof: a pull request with a red Check stays unmerged.',
+      ],
+    });
+  if (seed.test)
+    createTask(root, {
+      title: 'one real test and a test command',
+      priority: 1,
+      body: [
+        'Outcome: the repository has one real test and a test command in krn.json that runs it; "vacuous" is dropped from krn.json.',
+        'Why: adoption found no test command or one that runs zero tests, and the Stop gate and lane run refuse a vacuous command as green.',
+        'Proof: the test command exits 0 and runs at least one test.',
+      ],
+    });
   report.written.push('tasks');
 }
+
+/** The repository has no test command, or detection finds one that runs no real test, and the operator names none. */
+function vacuousAdoption(root: string, options: AdoptOptions): boolean {
+  if (options.test !== undefined || existsSync(join(root, CONTRACT_FILE)))
+    return false;
+  const found = findContract(root);
+  if (found) return found.contract.vacuous === true;
+  return subpackageCandidates(root).length === 0;
+}
+
+const NO_TEST_COMMAND =
+  "echo 'no test command: add one real test and set test in krn.json' >&2; exit 1";
 
 /** krn.json from detection (the operator may edit it); an existing file is never touched. */
 function writeContract(
@@ -326,6 +354,16 @@ function writeContract(
   const found = findContract(root);
   const candidates = found ? [] : subpackageCandidates(root);
   const test = options.test ?? found?.contract.test;
+  if (test === undefined && candidates.length === 0) {
+    // No command at all: a contract that fails loudly and is marked vacuous, so no gate reads it as green.
+    writeIfChanged(
+      root,
+      CONTRACT_FILE,
+      `${JSON.stringify({ base: detectBase(root), test: NO_TEST_COMMAND, tracker: 'krn', vacuous: true }, null, 2)}\n`,
+      report,
+    );
+    return;
+  }
   if (test === undefined) {
     report.skipped.push(
       `${CONTRACT_FILE} (${
@@ -351,7 +389,13 @@ function writeContract(
     ...(contract?.fast && options.test === undefined
       ? { fast: contract.fast }
       : {}),
-    tracker: options.ref !== undefined || options.tracker ? 'krn' : 'none',
+    tracker:
+      options.ref !== undefined || options.tracker || contract?.vacuous
+        ? 'krn'
+        : 'none',
+    ...(contract?.vacuous && options.test === undefined
+      ? { vacuous: true }
+      : {}),
   };
   writeIfChanged(
     root,
@@ -492,7 +536,12 @@ export function adopt(root: string, options: AdoptOptions): AdoptionReport {
   // Everything that can refuse runs before the first write.
   const settings = readSettings(root);
   const standards = projectStandards(root, options);
-  if (options.ref !== undefined || options.tracker) seedTasks(root, report);
+  const testless = vacuousAdoption(root, options);
+  if (options.ref !== undefined || options.tracker || testless)
+    seedTasks(root, report, {
+      ci: options.ref !== undefined || options.tracker === true,
+      test: testless,
+    });
   writeContract(root, options, report);
   const workflow =
     options.ref === undefined

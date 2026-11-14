@@ -96,6 +96,10 @@ export function contractVerification(
 ): { verified: string } | { failure: string } | undefined {
   const contract = findContract(worktree)?.contract;
   if (contract === undefined) return undefined;
+  if (contract.vacuous)
+    return {
+      failure: `the test command ${contract.test} is vacuous (runs no real test), so its pass is not a proof`,
+    };
   const command = contract.fast ?? contract.test;
   const run = spawnSync(command, {
     cwd: worktree,
