@@ -34,7 +34,7 @@ Merges go through `gh pr merge --auto --squash` once the `Check` passes; the `ma
 
 - **Lead:** follows [lead rules](lead-rules.md) and owns the outcome loop. Do not treat a task update or worker handoff as acceptance.
 - **Worker:** a lane is a subagent of the lead session in its own worktree (`krn lane start`); it ships its own PR.
-- **Judge:** an optional independent review against an exact head SHA; authors never judge their own work.
+- **Judge:** an optional review of an exact head SHA, in fresh context; findings are JSON for `krn findings validate`; only the judge, never the finder, sets `confirmed`.
 
 Use one writer per outcome at a time and transfer the writer role explicitly before a mutating handoff. Parallel implementation uses isolated worktrees and returns through one integrator; independent read-only work may run in parallel. Reuse recorded authority for the same outcome's commit, push, PR, and merge without repeating per-step prompts.
 
