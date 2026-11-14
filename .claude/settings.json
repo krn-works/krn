@@ -88,6 +88,10 @@
           {
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR/scripts/claude/cc-clearing-watch.ts\" --hook"
+          },
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/scripts/claude/capability-index.ts\""
           }
         ]
       }

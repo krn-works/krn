@@ -1,7 +1,11 @@
 {
   "id": "t-zp0qer4",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "SessionStart injects docs/generated/capability-index.md (src module headers, krn commands); fast regenerates it, test checks it fresh; krn-lead skill says to grep it first."
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "The lead starts each session with KRN's own capability index",
