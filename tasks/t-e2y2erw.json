@@ -1,0 +1,16 @@
+{
+  "id": "t-e2y2erw",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "fast selects the index test; generator degrades within budget"
+  },
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Adding a src module never fails CI on the capability-index budget and fast runs the index test",
+  "after": [],
+  "body": [
+    "Why: the capability-index 9500-character budget failed the first CI Check in three lanes on 2026-11-14 (deploy-safe #780, adopt-init #786, flaky-base #790): npm run fast rewrites docs/generated/capability-index.md but does not select test/claude/capability-index.test.ts, so the overflow surfaces only in CI; lanes then shortened module headers by hand.\nOutcome: npm run fast selects the capability-index test whenever the regenerated index or any src module header changes, and the index generator degrades deterministically (shortens or drops the lowest-value lines it already ranks) instead of exceeding the budget, so adding a module never fails CI on budget alone.\nProof: fast-check selectTests test for the index; capability-index test with a synthetic src over budget; npm run fast PASS."
+  ]
+}

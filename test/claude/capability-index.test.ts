@@ -1,11 +1,19 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import {
   buildIndex,
+  indexBudget,
   indexPath,
   moduleHeader,
 } from '../../scripts/claude/capability-index.ts';
@@ -79,4 +87,37 @@ test('the lead skill tells the lead to grep the index before calling anything fo
     skill,
     /before calling anything foreign, unknown or missing[^.]*grep the index and src/u,
   );
+});
+
+test('a synthetic src over budget degrades deterministically within the budget', () => {
+  const synthetic = mkdtempSync(join(tmpdir(), 'krn-index-'));
+  mkdirSync(join(synthetic, 'src'));
+  for (let i = 0; i < 300; i++)
+    writeFileSync(
+      join(synthetic, 'src', `module-${String(i).padStart(3, '0')}.ts`),
+      `// ${'Describes a long capability sentence. '.repeat(6)}\nexport const x = 1;\n`,
+    );
+  const index = buildIndex(synthetic);
+  assert.ok(index.length <= indexBudget, String(index.length));
+  assert.equal(index, buildIndex(synthetic));
+  assert.ok(index.includes('module-000.ts: Describes'));
+  assert.ok(index.includes('(more modules: grep src)'));
+});
+
+test('a repository slightly over budget shortens module lines and keeps every module', () => {
+  const synthetic = mkdtempSync(join(tmpdir(), 'krn-index-'));
+  mkdirSync(join(synthetic, 'src'));
+  for (let i = 0; i < 40; i++)
+    writeFileSync(
+      join(synthetic, 'src', `m${i}.ts`),
+      `// ${'word '.repeat(40)}\nexport const x = 1;\n`,
+    );
+  const roomy = buildIndex(synthetic, 1e9);
+  const index = buildIndex(synthetic, roomy.length - 200);
+  assert.ok(index.length <= roomy.length - 200);
+  for (let i = 0; i < 40; i++) assert.ok(index.includes(`src/m${i}.ts: `));
+});
+
+test('the committed index fits the SessionStart budget whole', () => {
+  assert.ok(readFileSync(join(root, indexPath), 'utf8').length <= indexBudget);
 });
