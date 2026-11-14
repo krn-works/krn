@@ -227,6 +227,92 @@ export interface Outcome {
   reason: string;
 }
 
+const SKIP_MARK =
+  /\.skip\b|\b(?:xit|xdescribe|xtest)\s*\(|\bxfail\b|\bpytest\.skip\b|@(?:unittest\.)?skip(?:If|Unless)?\b|\bt\.Skip(?:Now)?\s*\(|#\[ignore\b|\{\s*skip\s*:|\bpending\s*\(/u;
+
+/** What the branch did to tests: deleted files, files that gain a skip or xfail, edited pre-existing files. */
+export interface TestEdits {
+  deleted: string[];
+  skipped: string[];
+  modified: string[];
+}
+
+const isTestFile = (path: string) => TEST_FILE.some((p) => p.test(path));
+
+function safeRead(path: string): string {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+export function testEdits(root: string, from: string): TestEdits {
+  const edits: TestEdits = { deleted: [], skipped: [], modified: [] };
+  const status = git(root, [
+    'diff',
+    '--name-status',
+    '--no-renames',
+    from,
+  ]).stdout.split('\n');
+  for (const line of status) {
+    const [kind, path] = line.split('\t');
+    if (!kind || !path || !isTestFile(path)) continue;
+    if (kind === 'D') {
+      edits.deleted.push(path);
+      continue;
+    }
+    if (kind === 'M') edits.modified.push(path);
+    const added =
+      kind === 'A'
+        ? safeRead(join(root, path)).split('\n')
+        : git(root, ['diff', '-U0', '--no-renames', from, '--', path])
+            .stdout.split('\n')
+            .filter((row) => row.startsWith('+') && !row.startsWith('+++'));
+    if (added.some((row) => SKIP_MARK.test(row))) edits.skipped.push(path);
+  }
+  const untracked = git(root, [
+    'ls-files',
+    '--others',
+    '--exclude-standard',
+  ]).stdout.split('\n');
+  for (const path of untracked)
+    if (
+      path &&
+      isTestFile(path) &&
+      safeRead(join(root, path))
+        .split('\n')
+        .some((row) => SKIP_MARK.test(row))
+    )
+      edits.skipped.push(path);
+  return edits;
+}
+
+/** The refusal for deleted tests and added skips the task text does not name, or undefined. */
+export function testTampering(
+  edits: TestEdits,
+  taskText: string,
+): string | undefined {
+  const unnamed = (paths: string[]) =>
+    paths.filter((path) => !taskText.includes(path));
+  const deleted = unnamed(edits.deleted);
+  const skipped = unnamed(edits.skipped);
+  if (deleted.length === 0 && skipped.length === 0) return undefined;
+  const parts = [
+    deleted.length > 0 ? `deleted test file(s): ${deleted.join(', ')}` : '',
+    skipped.length > 0 ? `added skip/xfail in: ${skipped.join(', ')}` : '',
+  ].filter(Boolean);
+  return `the branch weakens the tests (${parts.join('; ')}). Restore them and fix the code instead, unless the task Acceptance names them, or end with a line \`BLOCKER: <what stops you>\`.`;
+}
+
+/** The task record text of the lane (KRN_TASK), whose Acceptance may name a deleted or skipped test. */
+function taskText(root: string, env: NodeJS.ProcessEnv): string {
+  const id = env.KRN_TASK;
+  return id && /^[\w-]+$/u.test(id)
+    ? safeRead(join(root, 'tasks', `${id}.json`))
+    : '';
+}
+
 /** Failing tests of one run as `<file>::<name>` keys; a run that dies without naming a test yields `<run>::exit <status>`. */
 export type Runner = (root: string, tests: string[]) => string[];
 /** Failing keys of one shell command run at `root`, read from its output. */
@@ -471,7 +557,8 @@ export function inspect(
   root: string,
   run: Runner = runTests,
   shell: CommandRunner = runCommand,
-): Outcome & { ignored: number } {
+  env: NodeJS.ProcessEnv = process.env,
+): Outcome & { ignored: number; modified?: string[] } {
   const { contract, error } = loadContract(root);
   if (error)
     return {
@@ -494,6 +581,9 @@ export function inspect(
       ignored: 0,
       reason: `there is no commit on this branch yet. Commit your change (run \`${contract?.fast ?? contract?.test ?? 'the tests'}\` first), or end with a line \`BLOCKER: <what stops you>\`.`,
     };
+  const edits = testEdits(root, from);
+  const tampering = testTampering(edits, taskText(root, env));
+  if (tampering) return { ok: false, ignored: 0, reason: tampering };
   const { selection, command } = plan(root, from, contract);
   const files = [...selection.files];
   let failing: string[];
@@ -515,7 +605,13 @@ export function inspect(
     failing = shell(root, command);
     before = () => failuresAtBase(root, from, (dir) => shell(dir, command));
   }
-  if (failing.length === 0) return { ok: true, reason: '', ignored: 0 };
+  if (failing.length === 0)
+    return {
+      ok: true,
+      reason: '',
+      ignored: 0,
+      ...(edits.modified.length > 0 ? { modified: edits.modified } : {}),
+    };
   // A missing runner fails the same way at the base, so it would pass as pre-existing: refuse it instead.
   const missing = failing.find((key) => /^<run>::exit 12[67]$/u.test(key));
   if (missing)
@@ -580,7 +676,7 @@ export function judgeStop(
   if (!who) return undefined;
   if (who.unidentified) return `Stop refused: ${UNIDENTIFIED_LANE}`;
   if (statesBlocker(fields?.last_assistant_message)) return undefined;
-  const outcome = inspect(root, run, shell);
+  const outcome = inspect(root, run, shell, env);
   if (outcome.ok) return undefined;
   // A missing base or an invalid contract is refused once: a continued stop (stop_hook_active) is not held again.
   if (fields?.stop_hook_active === true) {
@@ -630,9 +726,12 @@ function main() {
   }
   if (mode === '--check') {
     const outcome = inspect(root);
+    const changedTests = outcome.modified?.length
+      ? `\nchanged pre-existing tests: ${outcome.modified.join(', ')}`
+      : '';
     process.stdout.write(
       outcome.ok
-        ? `worker-stop PASS${outcome.ignored > 0 ? ` (${outcome.ignored} pre-existing failure(s) ignored)` : ''}\n`
+        ? `worker-stop PASS${outcome.ignored > 0 ? ` (${outcome.ignored} pre-existing failure(s) ignored)` : ''}${changedTests}\n`
         : `worker-stop FAIL: ${outcome.reason}\n`,
     );
     process.exitCode = outcome.ok ? 0 : 1;

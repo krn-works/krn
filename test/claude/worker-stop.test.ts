@@ -872,3 +872,86 @@ test('a subpackage test beside root node tests runs through the contract command
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// Skip markers are assembled so this file never contains the marker the guard refuses.
+const jsSkip = `it${'.'}skip('x', () => {});\n`;
+const pySkip = `@pytest.mark.${'x'}fail\ndef test_x(): pass\n`;
+
+function withTest(dir: string) {
+  writeFileSync(join(dir, 'test/a.test.ts'), "import test from 'node:test';\n");
+  sh(dir, 'add', '.');
+  sh(dir, 'commit', '-q', '-m', 'tests');
+  sh(dir, 'checkout', '-q', '-B', 'main');
+  sh(dir, 'checkout', '-q', '-b', 'task');
+}
+
+test('a deleted test file refuses unless the task record names it', () => {
+  const dir = clone();
+  try {
+    withTest(dir);
+    sh(dir, 'rm', '-q', 'test/a.test.ts');
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'drop');
+    const green = () => [];
+    assert.match(
+      judgeStop(payload(dir), lane(dir), green) ?? '',
+      /deleted test file\(s\): test\/a\.test\.ts/u,
+    );
+    mkdirSync(join(dir, 'tasks'));
+    writeFileSync(
+      join(dir, 'tasks/t-x.json'),
+      '{"acceptance":[{"verify":"git rm test/a.test.ts"}]}',
+    );
+    assert.equal(
+      judgeStop(payload(dir), { ...lane(dir), KRN_TASK: 't-x' }, green),
+      undefined,
+    );
+    assert.equal(
+      judgeStop(payload(dir, 'BLOCKER: test is obsolete'), lane(dir), green),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('an added skip or xfail refuses, in a changed and in a new test file', () => {
+  const dir = clone();
+  try {
+    withTest(dir);
+    writeFileSync(
+      join(dir, 'test/a.test.ts'),
+      `import test from 'node:test';\n${jsSkip}`,
+    );
+    writeFileSync(join(dir, 'test_new.py'), pySkip);
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'skip');
+    const reason = judgeStop(payload(dir), lane(dir), () => []) ?? '';
+    assert.match(
+      reason,
+      /added skip\/xfail in: test\/a\.test\.ts, test_new\.py/u,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('an edited pre-existing test is not refused', () => {
+  const dir = clone();
+  try {
+    withTest(dir);
+    writeFileSync(
+      join(dir, 'test/a.test.ts'),
+      "import test from 'node:test';\ntest('y', () => {});\n",
+    );
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'edit');
+    assert.equal(
+      judgeStop(payload(dir), lane(dir), () => []),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

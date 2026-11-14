@@ -1,7 +1,11 @@
 {
   "id": "t-q3y4re2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Stop check refuses deleted tests and added skip/xfail unless the task record names them; changed pre-existing tests are reported"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "The Stop check reports changed pre-existing tests and refuses deleted tests and new skips",
