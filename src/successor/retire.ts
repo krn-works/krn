@@ -1,6 +1,8 @@
 // Retire predecessors.
+
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { readJson } from '../repo/json-text.ts';
 import {
   agentInfo,
   keptRunning,
@@ -139,22 +141,20 @@ function readLaunches(path: string): LaunchRecord[] {
   const launches: LaunchRecord[] = [];
   for (const line of contents.split('\n')) {
     if (!line.trim()) continue;
-    try {
-      const value = record(JSON.parse(line));
-      const paneId = text(value?.pane_id);
-      const tabId = text(value?.tab_id);
-      const sessionId = text(value?.session_id);
-      const name = text(value?.name);
-      const recordedAt = text(value?.recorded_at);
-      if (!paneId || !tabId || !sessionId || !name || !recordedAt) continue;
-      launches.push({
-        pane_id: paneId,
-        tab_id: tabId,
-        session_id: sessionId,
-        name,
-        recorded_at: recordedAt,
-      });
-    } catch {}
+    const value = record(readJson(line));
+    const paneId = text(value?.pane_id);
+    const tabId = text(value?.tab_id);
+    const sessionId = text(value?.session_id);
+    const name = text(value?.name);
+    const recordedAt = text(value?.recorded_at);
+    if (!paneId || !tabId || !sessionId || !name || !recordedAt) continue;
+    launches.push({
+      pane_id: paneId,
+      tab_id: tabId,
+      session_id: sessionId,
+      name,
+      recorded_at: recordedAt,
+    });
   }
   return launches;
 }

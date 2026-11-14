@@ -84,7 +84,7 @@ export interface DrainResult {
 export async function drainReady(
   request: DrainRequest,
   seams: DrainSeams,
-  emit: (line: string) => void = () => {},
+  emit: (line: string) => void = () => undefined,
 ): Promise<DrainResult> {
   const lines: string[] = [];
   const say = (line: string) => {

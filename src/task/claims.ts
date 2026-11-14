@@ -671,7 +671,7 @@ function claimPath(mainRoot: string, id: TaskId): string {
   return join(mainRoot, '.krn', 'task-claims', `${id}.json`);
 }
 
-let afterLockAcquired: () => void | Promise<void> = () => {};
+let afterLockAcquired: () => void | Promise<void> = () => undefined;
 
 /** Test seam: run `hook` while a task lock is held, before its operation; production sets none. */
 export function onTaskLockAcquired(hook: () => void | Promise<void>): void {
