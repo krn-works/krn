@@ -2,10 +2,10 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { memoryDirectory } from '../../src/harness/memory-directory.ts';
 import { cutText } from '../../src/memory/cut-text.ts';
 import { resumeBlock, section } from '../../src/memory/handoff-resume.ts';
 import { compactIndex } from '../../src/memory/identifier-index.ts';
-import { memoryDirectory } from '../../src/memory/memory-directory.ts';
 import { checkMemory } from '../../src/memory/memory-refs.ts';
 import {
   openEntries,

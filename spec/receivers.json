@@ -163,7 +163,7 @@
       ],
       "test": "test/adopt/verify.test.ts"
     },
-    "src/memory/memory-directory.ts": {
+    "src/harness/memory-directory.ts": {
       "receivers": ["git"],
       "real": "test/claude/memory-budget-hook.test.ts"
     },

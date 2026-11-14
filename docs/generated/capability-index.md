@@ -91,6 +91,7 @@ src/evals/manifest.ts: (no header) exports EvalDataError, Experimen
 src/evals/plan.ts: (no header) exports planExperiment
 src/evals/stats.ts: Paired-binary statistics for FR-40 (ADR 0014 D2
 src/fs/read-regular-file.ts: (no header) exports readRegularFile
+src/harness/memory-directory.ts: (no header) exports memoryDirector
 src/harness/transcripts.ts: (no header) exports TranscriptFile, Sub
 src/hook/scope.ts: (no header) exports guarded, harness, parseScope
 src/hook/session.ts: A worker session is one `krn lane run` started
@@ -99,7 +100,6 @@ src/hook/stop.ts: (no header) exports failureLine, statesBlocker, r
 src/memory/cut-text.ts: Longest code-point prefix of `text` whose m
 src/memory/handoff-resume.ts: (no header) exports resumeFields, roa
 src/memory/identifier-index.ts: One owner for the mechanical identi
-src/memory/memory-directory.ts: (no header) exports memoryDirectory
 src/memory/memory-refs.ts: (no header) exports Finding, indexBudget
 src/memory/operator-inbox-store.ts: (no header) exports InboxEntry,
 src/outcome/gate-manifest.ts: The gate manifest: every producer of 

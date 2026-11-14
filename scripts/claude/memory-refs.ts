@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { memoryDirectory } from '../../src/memory/memory-directory.ts';
+import { memoryDirectory } from '../../src/harness/memory-directory.ts';
 import {
   checkMemory,
   type Finding,

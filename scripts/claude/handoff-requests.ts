@@ -1,11 +1,11 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { memoryDirectory } from '../../src/harness/memory-directory.ts';
 import {
   resumeProblems,
   section as resumeSection,
   roadmapIds,
 } from '../../src/memory/handoff-resume.ts';
-import { memoryDirectory } from '../../src/memory/memory-directory.ts';
 import {
   markHandoff,
   oneLine,

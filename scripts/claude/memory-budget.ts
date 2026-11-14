@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
-import { memoryDirectory } from '../../src/memory/memory-directory.ts';
+import { memoryDirectory } from '../../src/harness/memory-directory.ts';
 import { indexBudget, indexLineBudget } from '../../src/memory/memory-refs.ts';
 
 // PreToolUse hook for Write|Edit: refuses a change that would push the auto-memory index

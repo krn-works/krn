@@ -39,7 +39,7 @@ if (command === 'capture') {
 }
 
 const { memoryDirectory } = await import(
-  '../../src/memory/memory-directory.ts'
+  '../../src/harness/memory-directory.ts'
 );
 
 function flags(arguments_: string[]) {
