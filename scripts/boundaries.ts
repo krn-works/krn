@@ -23,10 +23,9 @@ export const LAYERS: Readonly<Record<string, readonly string[]>> = {
   repo: [],
   'cli-kit': [],
   task: ['cli-kit', 'fs', 'repo'],
-  evals: ['cli', 'hosts'],
-  hosts: [],
+  evals: [],
   hook: ['brain', 'repo'],
-  brain: ['cli-kit', 'cli', 'repo', 'evals/fr40/tasks.ts'],
+  brain: ['cli-kit', 'repo'],
   cli: [
     'cli-kit',
     'adopt',
@@ -125,17 +124,110 @@ export function check(
   return violations;
 }
 
+/**
+ * External binaries and the only src files that may name them as the command of a call. A new call
+ * site must join an existing owner or add its file here, in review (a ratchet: the lists only shrink
+ * unless review accepts a new owner). gh reads go through src/repo/gh.ts (ledger, window, adoption)
+ * and src/deliver/transport.ts (delivery).
+ */
+export const BINARIES: Readonly<Record<string, readonly string[]>> = {
+  gh: [
+    'src/repo/gh.ts',
+    'src/deliver/transport.ts',
+    'src/cli/doctor-unattended.ts',
+  ],
+  herdr: ['src/successor/host-herdr.ts'],
+  claude: [],
+  bw: [],
+  git: [
+    'src/adopt/canary.ts',
+    'src/adopt/census.ts',
+    'src/adopt/init.ts',
+    'src/adopt/verify.ts',
+    'src/brain/precedent.ts',
+    'src/brain/standards-cli.ts',
+    'src/ci/rebase-generated.ts',
+    'src/ci/ship.ts',
+    'src/ci/wait.ts',
+    'src/cli/entry-pin.ts',
+    'src/cli/lane-canary.ts',
+    'src/cli/lane-run/git.ts',
+    'src/cli/lane-run/preflight.ts',
+    'src/cli/lane-run/worktree.ts',
+    'src/cli/lane.ts',
+    'src/cli/outside-git.ts',
+    'src/cli/pr-body.ts',
+    'src/context/restart.ts',
+    'src/harness/memory-directory.ts',
+    'src/hook/scope.ts',
+    'src/hook/stop.ts',
+    'src/hook/unpushed-delete.ts',
+    'src/memory/memory-refs.ts',
+    'src/outcome/gate-manifest.ts',
+    'src/outcome/ledger.ts',
+    'src/outcome/rework-blame.ts',
+    'src/outcome/window.ts',
+    'src/repo/contract.ts',
+    'src/state/git.ts',
+    'src/successor/intent-to-task.ts',
+    'src/task/branch-evidence.ts',
+    'src/task/branch-tickets.ts',
+    'src/task/claims.ts',
+    'src/task/comments.ts',
+    'src/task/store.ts',
+  ],
+};
+
+export type BinaryViolation = {
+  readonly file: string;
+  readonly line: number;
+  readonly binary: string;
+};
+
+/** `(`, optional whitespace, then the quoted binary and a comma: the command argument of a call. */
+const CALL = /\(\s*['"]([\w-]+)['"]\s*,/gu;
+
+/** Calls that name a mapped binary from a file outside its owners. */
+export function checkBinaries(
+  root: string,
+  binaries: Readonly<Record<string, readonly string[]>> = BINARIES,
+): BinaryViolation[] {
+  const violations: BinaryViolation[] = [];
+  const source = join(root, 'src');
+  for (const file of existsSync(source) ? walk(source) : []) {
+    const rel = relative(root, file).split(sep).join('/');
+    const code = blank(readFileSync(file, 'utf8'));
+    for (const match of code.matchAll(CALL)) {
+      const binary = match[1] ?? '';
+      const owners = binaries[binary];
+      if (owners === undefined || owners.includes(rel)) continue;
+      violations.push({
+        file: rel,
+        line: code.slice(0, match.index).split('\n').length,
+        binary,
+      });
+    }
+  }
+  return violations;
+}
+
 export function main(root: string): number {
   const violations = check(root);
+  const spawns = checkBinaries(root);
+  for (const v of spawns)
+    process.stderr.write(
+      `${v.file}:${v.line}: '${v.binary}' is called outside its owners (BINARIES in scripts/boundaries.ts)\n`,
+    );
   for (const v of violations)
     process.stderr.write(
       `${v.file}:${v.line}: forbidden import ${v.edge} ('${v.specifier}')\n`,
     );
-  if (violations.length > 0)
+  const total = violations.length + spawns.length;
+  if (total > 0)
     process.stderr.write(
-      `boundaries FAIL: ${violations.length} violation(s); layer map: scripts/boundaries.ts\n`,
+      `boundaries FAIL: ${total} violation(s); layer map and binary owners: scripts/boundaries.ts\n`,
     );
-  return violations.length === 0 ? 0 : 1;
+  return total === 0 ? 0 : 1;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url))

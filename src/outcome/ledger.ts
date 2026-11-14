@@ -22,6 +22,7 @@ import {
   REQUIRED_CHECK_APP_ID,
   REQUIRED_CHECK_NAME,
 } from '../repo/ci-admission-contract.ts';
+import { gh, ghRepoView } from '../repo/gh.ts';
 import { readJson } from '../repo/json-text.ts';
 import { sessionMarkers } from './holdings.ts';
 import {
@@ -559,14 +560,10 @@ export async function collectLedger(options: LedgerOptions = {}) {
   let repo = options.repo;
   let list: unknown;
   try {
-    repo ??= string(
-      object(
-        parse(await run('gh', ['repo', 'view', '--json', 'nameWithOwner'])),
-      ).nameWithOwner,
-    );
+    repo ??= string(object(parse(await ghRepoView(run))).nameWithOwner);
     if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error('repository');
     list = parse(
-      await run('gh', [
+      await gh(run, [
         'pr',
         'list',
         '--repo',
@@ -603,7 +600,7 @@ export async function collectLedger(options: LedgerOptions = {}) {
     if (cached) return cached;
     const pending = Promise.resolve()
       .then(() =>
-        run('gh', [
+        gh(run, [
           'api',
           `repos/${repo}/commits/${sha}/check-runs?filter=all&per_page=100`,
         ]),
@@ -626,7 +623,7 @@ export async function collectLedger(options: LedgerOptions = {}) {
     try {
       const response = object(
         parse(
-          await run('gh', [
+          await gh(run, [
             'pr',
             'view',
             String(pr.number),

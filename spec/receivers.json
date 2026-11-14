@@ -121,6 +121,14 @@
       "receivers": ["git"],
       "real": "test/outcome/gate-manifest.test.ts"
     },
+    "src/repo/gh.ts": {
+      "receivers": ["gh"],
+      "capture": [
+        "test/fixtures/outcome-ledger/pr-list.json",
+        "test/fixtures/gh/repo-krn-works-krn.stdout.json"
+      ],
+      "test": "test/repo/gh.test.ts"
+    },
     "src/outcome/ledger.ts": {
       "receivers": ["gh"],
       "capture": [

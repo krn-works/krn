@@ -1,7 +1,11 @@
 {
   "id": "t-zj8jj5y",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "boundaries.ts: stale hosts/evals/brain edges removed, BINARIES ratchet per binary with tests; ledger/window/verify gh calls via src/repo/gh.ts"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "Layer map matches the code and external binaries are called only from their adapter module",

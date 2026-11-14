@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { z } from 'zod';
 import { REQUIRED_CHECK_APP_ID } from '../repo/ci-admission-contract.ts';
 import { contractBase, contractDeployAcknowledged } from '../repo/contract.ts';
+import { ghApiSync } from '../repo/gh.ts';
 import { deployRemedy, deployWorkflows } from './deploy.ts';
 
 const repoSchema = z.object({
@@ -139,10 +140,10 @@ export function isRepositoryNotFound(status: number | null, stderr: string) {
 }
 
 function gh(root: string, path: string): string {
-  const run = spawnSync('gh', ['api', path], { cwd: root, encoding: 'utf8' });
+  const run = ghApiSync(root, path);
   if (
     path === 'repos/{owner}/{repo}' &&
-    isRepositoryNotFound(run.status, run.stderr ?? '')
+    isRepositoryNotFound(run.status, run.stderr)
   )
     throw new AppNotInstalledError(
       repoSlug(originUrl(root)) ?? '{owner}/{repo}',

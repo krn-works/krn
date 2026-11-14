@@ -3,7 +3,13 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
-import { check, LAYERS, specifiers } from '../scripts/boundaries.ts';
+import {
+  BINARIES,
+  check,
+  checkBinaries,
+  LAYERS,
+  specifiers,
+} from '../scripts/boundaries.ts';
 
 const repo = new URL('..', import.meta.url).pathname;
 
@@ -124,4 +130,30 @@ test('specifiers finds every module form with its line', () => {
 test('the repository obeys its layer map and core imports nothing', () => {
   assert.deepEqual(LAYERS.core, []);
   assert.deepEqual(check(repo), []);
+});
+
+test('the repository obeys the binary allowlist, and a new gh spawn outside it fails', () => {
+  assert.deepEqual(checkBinaries(repo), []);
+  const root = fixture({
+    'src/ci/new.ts': "spawnSync('gh', ['api', 'x']);",
+    'src/repo/gh.ts': "spawnSync('gh', ['api', 'x']);",
+    'src/cli/lane.ts': "spawnSync(\n  'git', ['status']);",
+    'src/cli/other.ts':
+      "// spawnSync('gh', [])\nrun('gh', ['pr']);\nspawnSync('herdr', ['status']);",
+  });
+  try {
+    assert.deepEqual(
+      checkBinaries(root, BINARIES).map((v) => `${v.file}:${v.binary}`),
+      ['src/ci/new.ts:gh', 'src/cli/other.ts:gh', 'src/cli/other.ts:herdr'],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('the layer map names no removed area or unused edge', () => {
+  assert.equal('hosts' in LAYERS, false);
+  assert.deepEqual(LAYERS.evals, []);
+  assert.equal(LAYERS.brain?.includes('cli'), false);
+  assert.equal(LAYERS.brain?.includes('evals/fr40/tasks.ts'), false);
 });
