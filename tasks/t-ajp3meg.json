@@ -1,0 +1,12 @@
+{
+  "id": "t-ajp3meg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "The K vs PB run starts only from a committed preregistered decision rule",
+  "after": [],
+  "body": [
+    "Why: Fable plan 2026-11-14 (risk D): the K vs PB confirmatory run on 33 units is underpowered (~60% base rates, a true +9 pp most likely returns \"not shown\"), and nothing says what that outcome triggers; the lead would tune K and rerun on the same units, burning the last untouched set.\nOutcome: before t-p70b19s runs, evals/d23 commits a preregistration: the decision rule for each outcome (K better, equivalent, not shown, worse), the power at the planned unit count, and a source of fresh units outside the D23 set (pilot repositories with hidden tests and a PB arm).\nProof: a test that the t-p70b19s runner refuses to start without the committed preregistration file and its hash; npm run fast PASS."
+  ]
+}
