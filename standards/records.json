@@ -337,7 +337,7 @@
     "tier": "finish",
     "text": "When a task names an input or output format, at least one test feeds the plainest hand-written example of that format exactly as the task words it.",
     "why": "A reader tested only on its own tool's output rejects the short, plain forms real callers send.",
-    "evidence": ["src/cli/lane.ts#plainest"],
+    "evidence": ["src/cli/lane-brief.ts#plainest"],
     "enforcement": {
       "kind": "advisory"
     },
