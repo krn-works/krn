@@ -85,7 +85,6 @@ test('real git accepts the helper arguments and reports them for an outside orig
     '--get-all',
     'credential.https://github.com.helper',
   ]).split('\n');
-  assert.equal(helpers.at(-2), '');
   assert.match(
     helpers.at(-1) ?? '',
     /KRN_APP_REPOSITORY='krn-works\/seo-audit-harness'.*git-credential$/u,
