@@ -78,7 +78,11 @@ function git(cwd: string, ...args: string[]): string {
   return result.stdout.trim();
 }
 
-function fixture(action: string, files: Record<string, string> = {}) {
+function fixture(
+  action: string,
+  files: Record<string, string> = {},
+  sessionCapture = capture,
+) {
   const base = realpathSync(mkdtempSync(join(tmpdir(), 'krn-lane-run-')));
   const origin = join(base, 'origin.git');
   const repo = join(base, 'repo');
@@ -116,7 +120,7 @@ function fixture(action: string, files: Record<string, string> = {}) {
   const claude = join(base, 'claude');
   writeFileSync(
     claude,
-    `#!/bin/sh\n${action}\ncat <<'JSON'\n${capture}\nJSON\n`,
+    `#!/bin/sh\n${action}\ncat <<'JSON'\n${sessionCapture}\nJSON\n`,
   );
   chmodSync(claude, 0o755);
   return { base, repo, claude };
@@ -272,6 +276,49 @@ test('lane run reports a dirty tree and does not ship', async () => {
   const { verdict } = await run('echo x > stray.txt');
   assert.equal(verdict.exitCode, 74);
   assert.match(verdict.line, /^lane t-abc1234: dirty tree /u);
+});
+
+const blockerCapture = JSON.stringify({
+  ...JSON.parse(capture),
+  result:
+    'I could not edit scripts/.\nBLOCKER: sandbox mounts scripts/, .claude/ and .agents/ read-only',
+});
+
+test('parseSessionResult keeps a final BLOCKER line', () => {
+  const result = parseSessionResult(blockerCapture);
+  assert.equal(
+    result.blocker,
+    'BLOCKER: sandbox mounts scripts/, .claude/ and .agents/ read-only',
+  );
+  assert.equal(parseSessionResult(capture).blocker, undefined);
+});
+
+test('lane run prints the session BLOCKER line and exits 73 instead of dirty tree', async () => {
+  const { base, repo, claude } = fixture(
+    'echo x > stray.txt',
+    {},
+    blockerCapture,
+  );
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      {
+        start: startLane,
+        ship: async () => 'unreachable',
+        mint: async () => undefined,
+      },
+    );
+    assert.equal(verdict.exitCode, 73);
+    assert.match(
+      verdict.line,
+      /^lane t-abc1234: BLOCKER: sandbox mounts scripts\/, \.claude\/ and \.agents\/ read-only /u,
+    );
+    assert.doesNotMatch(verdict.line, /dirty tree/u);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
 });
 
 test('lane run starts the session in the sandbox with only the App credential', async () => {
