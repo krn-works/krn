@@ -1,7 +1,11 @@
 {
   "id": "t-wtcdg41",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane start shares a live claim of the same actor; test starts two lanes on one claimed task"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "krn lane start admits parallel lanes on one task the lead already claimed",
