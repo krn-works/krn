@@ -1,13 +1,16 @@
 import { join } from 'node:path';
+import { z } from 'zod';
 import { checkCommand, krnInvocation } from './brief.ts';
 import { failingTests, lastLine } from './preflight.ts';
 
 /** The failing check's verdict line, its failing test files and the path of its full output. */
 /** A red required Check a ship reported: the run that failed and the head it judged. */
-export interface RedCheck {
-  run: string;
-  sha: string;
-}
+/** The red-check record `krn lane run` leaves after a red Check. */
+export const redCheckSchema = z.object(
+  { run: z.string(), sha: z.string() },
+  { error: 'red-check record under .krn/runs is malformed' },
+);
+export type RedCheck = z.infer<typeof redCheckSchema>;
 
 /** The red Check named in a ship failure (`<check> concluded <conclusion> on <sha> in run <id>`), if any. */
 export function redCheckOf(message: string): RedCheck | undefined {
@@ -17,6 +20,11 @@ export function redCheckOf(message: string): RedCheck | undefined {
   if (match === null || match[1] === 'success') return undefined;
   return { sha: match[2] as string, run: match[3] as string };
 }
+
+/** The KRN_TEST_SUMMARY_JSON line a CI test step prints. */
+export const testSummarySchema = z.object({
+  files: z.array(z.object({ file: z.string(), failed: z.number() })).optional(),
+});
 
 /** The failing job's step and its first finding in a `krn ci logs` capture; the first failing job is the cause, an aggregate job after it only repeats it. */
 export function redCheckFinding(logs: string): {
@@ -43,9 +51,9 @@ export function redCheckFinding(logs: string): {
   );
   if (summary !== undefined)
     try {
-      const parsed = JSON.parse(
-        summary.slice('KRN_TEST_SUMMARY_JSON='.length),
-      ) as { files?: { file: string; failed: number }[] };
+      const parsed = testSummarySchema.parse(
+        JSON.parse(summary.slice('KRN_TEST_SUMMARY_JSON='.length)),
+      );
       const red = (parsed.files ?? []).filter((file) => file.failed > 0);
       if (red.length > 0)
         return {

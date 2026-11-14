@@ -2,6 +2,7 @@
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { z } from 'zod';
 import { flagValue } from './flag-value.ts';
 import { CliUsageError } from './usage-error.ts';
 
@@ -10,19 +11,24 @@ export const decideUsage =
   'krn decide list [--all] [--notify] [--root DIR]  open rows with their deadline; --notify prints only rows not yet announced and marks them\n' +
   'krn decide close <id> --by WHO --decision T [--root DIR]  record who decided what';
 
-export interface Decision {
-  id: string;
-  question: string;
-  recommendation: string;
-  default: string;
-  deadline: string;
-  opened: string;
-  status: 'open' | 'closed';
-  announced?: string;
-  decidedBy?: string;
-  decision?: string;
-  closed?: string;
-}
+/** A decision row under .krn/operator, written by `krn decide`. */
+export const decisionSchema = z.object(
+  {
+    id: z.string(),
+    question: z.string(),
+    recommendation: z.string(),
+    default: z.string(),
+    deadline: z.string(),
+    opened: z.string(),
+    status: z.enum(['open', 'closed']),
+    announced: z.string().optional(),
+    decidedBy: z.string().optional(),
+    decision: z.string().optional(),
+    closed: z.string().optional(),
+  },
+  { error: 'decision row under .krn/operator is malformed' },
+);
+export type Decision = z.infer<typeof decisionSchema>;
 
 const dayPattern = /^\d{4}-\d{2}-\d{2}$/u;
 
@@ -40,7 +46,9 @@ function readAll(root: string): Decision[] {
   }
   return names
     .sort()
-    .map((name) => JSON.parse(readFileSync(join(dir, name), 'utf8')))
+    .map((name) =>
+      decisionSchema.parse(JSON.parse(readFileSync(join(dir, name), 'utf8'))),
+    )
     .sort((a: Decision, b: Decision) =>
       a.deadline === b.deadline
         ? a.id.localeCompare(b.id)

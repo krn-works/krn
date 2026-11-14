@@ -8,7 +8,12 @@ import type { LaneRequest } from './args.ts';
 import { goalLaneBrief, taskLaneBrief } from './brief.ts';
 import { sessionEnvironment } from './environment.ts';
 import { remoteFailure } from './preflight.ts';
-import { type RedCheck, redCheckBrief, redCheckFile } from './red-check.ts';
+import {
+  type RedCheck,
+  redCheckBrief,
+  redCheckFile,
+  redCheckSchema,
+} from './red-check.ts';
 import { exitCredentialUnavailable } from './result.ts';
 import { defaultSteps, type LaneRunSteps, type LaneVerdict } from './steps.ts';
 import { reclaimLane, reusableLane } from './worktree.ts';
@@ -48,7 +53,7 @@ export async function prepareLane(
   let red: RedCheck | undefined;
   if (existsSync(redFile)) {
     if (existsSync(join(main, '.krn', 'worktrees', lane)))
-      red = JSON.parse(readFileSync(redFile, 'utf8')) as RedCheck;
+      red = redCheckSchema.parse(JSON.parse(readFileSync(redFile, 'utf8')));
     else rmSync(redFile);
   }
   const brief =

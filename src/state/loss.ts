@@ -3,6 +3,7 @@
 // the claim holder had reached. Shared by `krn state check` and the SessionStart hook.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { z } from 'zod';
 
 function recordTexts(directory: string, texts: string[]): void {
   if (!existsSync(directory)) return;
@@ -21,15 +22,18 @@ function recordTexts(directory: string, texts: string[]): void {
   }
 }
 
+/** The status field of a task record tasks/<id>.json. */
+export const taskStatusSchema = z.object({ status: z.unknown() });
+
+/** The id field of a claim file .krn/task-claims/<id>.json. */
+export const claimIdSchema = z.object({ id: z.unknown() });
+
 function taskClosed(records: string, id: string): boolean {
   try {
-    const task: unknown = JSON.parse(
-      readFileSync(join(records, 'tasks', `${id}.json`), 'utf8'),
-    );
     return (
-      typeof task === 'object' &&
-      task !== null &&
-      (task as { status?: unknown }).status === 'closed'
+      taskStatusSchema.parse(
+        JSON.parse(readFileSync(join(records, 'tasks', `${id}.json`), 'utf8')),
+      ).status === 'closed'
     );
   } catch {
     return false;
@@ -50,10 +54,8 @@ export function stateLoss(main: string, records: string = main): string[] {
     if (!entry.isFile() || !entry.name.endsWith('.json')) continue;
     let id: unknown;
     try {
-      id = (
-        JSON.parse(readFileSync(join(claims, entry.name), 'utf8')) as {
-          id?: unknown;
-        }
+      id = claimIdSchema.parse(
+        JSON.parse(readFileSync(join(claims, entry.name), 'utf8')),
       ).id;
     } catch {
       continue;
