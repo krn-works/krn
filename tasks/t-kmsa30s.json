@@ -1,7 +1,11 @@
 {
   "id": "t-kmsa30s",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "duplicate",
+    "ref": "t-czn62h3",
+    "note": "Fable plan 2026-11-14: same outcome as t-czn62h3 (failing requirement test before the fix)"
+  },
   "created": "2026-11-12",
   "priority": 2,
   "title": "A K worker writes a requirement test that fails on base before editing code",

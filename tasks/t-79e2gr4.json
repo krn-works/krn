@@ -1,0 +1,12 @@
+{
+  "id": "t-79e2gr4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "The lane run is a pipeline of named stages in their own modules",
+  "after": [],
+  "body": [
+    "Why: src/cli/lane-run.ts is 1,263 lines with a ~340-line laneRunCommand; 37 commits in 14 days (39 on its test), and the ledger counts it in most frame PRs (#703-#751), so lane-area lanes run serially and collide (Fable plan 2026-11-14, slice 2).\nOutcome: laneRunCommand is a pipeline of named stages (prepare, run session, read result, verdict) in separate modules under src/cli/lane-run/; lane-run.ts is under 300 lines; behaviour and exit codes unchanged.\nProof: test/cli/lane-run.test.ts passes unchanged except imports; `wc -l src/cli/lane-run.ts` < 300; npm run fast PASS. Two PRs allowed: pure extraction first, then the stage interface."
+  ]
+}

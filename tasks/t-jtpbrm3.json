@@ -10,6 +10,7 @@
   ],
   "body": [
     "Why: architecture audit 2026-11-13: 14 hook entries in .claude/settings.json and most harness mechanisms are justified by decision, not measurement; D23 shows K - PB +9 pp (n.s.).\nOutcome: after the v3 confirmatory run, an ablation drops one hook family per arm (stop gate, scope guard, context gauge, subagent routing, memory budget) on a dev subset; a hook without a measured benefit or a prevented-failure count leaves the universal profile.\nProof: ablation table with per-arm correctness and cost.\nScope: evals/d23/, .claude/settings.json.",
-    "Priority 2 by state review D6: memory and hook ablations wait on a proven gate and specification work."
+    "Priority 2 by state review D6: memory and hook ablations wait on a proven gate and specification work.",
+    "Lead 2026-11-14 (Fable plan): no standalone ablation; runs as one gate-off arm inside the preregistered K vs PB run (t-ajp3meg, t-p70b19s). Hooks cost no turns, so a separate run buys little."
   ]
 }
