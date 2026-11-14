@@ -342,6 +342,37 @@ test('lane start refuses a non-delivery lane above the ceiling and lets delivery
   );
 });
 
+test('a second lane of the same actor shares the claim on one task', () => {
+  const { base, repo } = fixture();
+  try {
+    assert.equal(lane(repo, 'start', 'one', '--task', 't-abc1234').status, 0);
+    const claim = join(repo, '.krn', 'task-claims', 't-abc1234.json');
+    const first = readFileSync(claim, 'utf8');
+    const second = lane(repo, 'start', 'two', '--task', 't-abc1234');
+    assert.equal(second.status, 0, second.stderr);
+    assert.ok(existsSync(join(repo, '.krn', 'worktrees', 'one')));
+    assert.ok(existsSync(join(repo, '.krn', 'worktrees', 'two')));
+    assert.equal(readFileSync(claim, 'utf8'), first);
+    // Dropping the sharing lane leaves the claim with the lane that holds it.
+    assert.equal(lane(repo, 'drop', 'two').status, 0);
+    assert.equal(readFileSync(claim, 'utf8'), first);
+    // Another actor is still refused.
+    const other = lane(
+      repo,
+      'start',
+      'three',
+      '--task',
+      't-abc1234',
+      '--actor',
+      'someone',
+    );
+    assert.notEqual(other.status, 0);
+    assert.equal(existsSync(join(repo, '.krn', 'worktrees', 'three')), false);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
 test('lane drop removes the worktree and branch and releases the claim', () => {
   const { base, repo } = fixture();
   try {

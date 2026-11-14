@@ -20,7 +20,12 @@ import {
   nonDeliveryCeiling,
 } from '../outcome/window.ts';
 import { contractBase } from '../repo/contract.ts';
-import { claimTask, mainCheckoutRoot, releaseClaim } from '../task/claims.ts';
+import {
+  claimTask,
+  inspectClaim,
+  mainCheckoutRoot,
+  releaseClaim,
+} from '../task/claims.ts';
 import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
 import { laneBriefText } from './lane-brief.ts';
@@ -391,11 +396,15 @@ export async function startLane(
     try {
       const copied =
         carried !== undefined && carryTaskRecord(carried, path, task);
-      await claimTask(main, task, {
-        actor,
-        worktree: path,
-        reason: reason ?? `lane ${slug}`,
-      });
+      // A further lane of the same actor shares the claim it already holds: the claim stays held once.
+      const held = inspectClaim(main, task);
+      const shared = held.state === 'live' && held.claim?.actor === actor;
+      if (!shared)
+        await claimTask(main, task, {
+          actor,
+          worktree: path,
+          reason: reason ?? `lane ${slug}`,
+        });
       if (copied && carried !== undefined) {
         if (carried.tracked)
           git(origin, ['checkout', '--', `tasks/${task}.json`]);
