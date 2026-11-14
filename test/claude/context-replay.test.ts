@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { hookEvents, replay } from '../../scripts/claude/context-replay.ts';
+import { hookEvents, replay } from '../../src/context/replay.ts';
 
 // mid-step.jsonl is six verbatim lines (content elided by capture-fixture) of
 // one lead turn recorded before the gauge existed: the operator prompt, two

@@ -90,3 +90,8 @@ export async function transcriptDirs(
   }
   return names.sort().map((n) => join(projects, n));
 }
+
+/** The directory holding every project's transcripts and auto memory; a missing HOME maps to a path that never exists. */
+export function projectsStore(): string {
+  return join(process.env.HOME ?? '/nonexistent', '.claude/projects');
+}

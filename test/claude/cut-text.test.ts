@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { fitEnvelope } from '../../scripts/claude/context-restart.ts';
 import { bounded } from '../../scripts/codex/context-hook.ts';
+import { fitEnvelope } from '../../src/context/restart.ts';
 import { cutText } from '../../src/memory/cut-text.ts';
 import { resumeBlock } from '../../src/memory/handoff-resume.ts';
 import {

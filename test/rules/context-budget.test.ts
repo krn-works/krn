@@ -94,7 +94,7 @@ test('Claude context budget settings wire documented hooks and read-only reader'
 // gauge refuses but the matcher omits runs unchecked past the ceiling.
 test('Claude project gauge matcher covers every built-in tool the ceiling refuses', async () => {
   const { refusesAtCeiling } = await import(
-    new URL('scripts/claude/context-gauge.ts', root).href
+    new URL('src/context/gauge.ts', root).href
   );
   const settings = JSON.parse(
     readFileSync(new URL('.claude/settings.json', root), 'utf8'),

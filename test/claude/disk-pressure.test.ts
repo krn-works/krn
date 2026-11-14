@@ -6,7 +6,7 @@ import {
   pressureLines,
   probe,
   type Volume,
-} from '../../scripts/claude/disk-pressure.ts';
+} from '../../src/context/disk-pressure.ts';
 
 const gib = 2 ** 30;
 const volume = (path: string, device: number, freeGib: number): Volume => ({

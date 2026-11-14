@@ -170,6 +170,14 @@
     "src/memory/memory-refs.ts": {
       "receivers": ["git"],
       "real": "test/claude/memory-validity.test.ts"
+    },
+    "src/context/replay.ts": {
+      "receivers": ["node"],
+      "real": "test/claude/context-replay.test.ts"
+    },
+    "src/context/restart.ts": {
+      "receivers": ["git"],
+      "real": "test/claude/context-restart.test.ts"
     }
   }
 }

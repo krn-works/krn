@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { object } from '../claude/context-io.ts';
+import { object } from '../../src/context/io.ts';
 
 // Live probe of the project's Codex hooks: runs real `codex exec` sessions in
 // a trusted KRN checkout and prints one PASS/FAIL line per hook event. It reads

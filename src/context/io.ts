@@ -1,3 +1,4 @@
+// Hook input and context output helpers.
 import { readFileSync } from 'node:fs';
 
 export function object(value: unknown): Record<string, unknown> {
