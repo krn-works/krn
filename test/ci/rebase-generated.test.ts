@@ -61,6 +61,11 @@ function setup(): { work: string; main: string } {
   git(work, 'commit', '-qm', 'base');
   git(work, 'push', '-q', 'origin', 'main');
   git(root, 'clone', '-q', origin, main);
+  // The rebase under test commits with the repository's own identity (CI has no global one).
+  for (const repo of [work, main]) {
+    git(repo, 'config', 'user.name', 't');
+    git(repo, 'config', 'user.email', 't@t');
+  }
   return { work, main };
 }
 
