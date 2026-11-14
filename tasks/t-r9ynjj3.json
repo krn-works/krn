@@ -1,7 +1,11 @@
 {
   "id": "t-r9ynjj3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "doctor host section and named non-Linux lock refusal"
+  },
   "created": "2026-11-13",
   "priority": 3,
   "title": "krn doctor names every host requirement and a non-Linux host gets a stated refusal",
