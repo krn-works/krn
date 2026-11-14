@@ -228,7 +228,7 @@ test('adopt on a pytest repository writes a contract that krn repo contract read
   // The venv every worktree install creates stays out of git.
   assert.deepEqual(
     readFileSync(join(root, '.gitignore'), 'utf8').split('\n').filter(Boolean),
-    ['.krn/', '.venv/'],
+    ['.krn/', '.venv/', '__pycache__/'],
   );
   assert.equal(read.contract.test, '.venv/bin/python -m pytest');
   assert.equal(read.contract.related, '.venv/bin/python -m pytest {files}');

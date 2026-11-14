@@ -694,7 +694,7 @@ function inspectTests(
     return {
       ok: false,
       ignored: 0,
-      reason: `there is no commit on this branch yet. Commit your change (run \`${contract?.fast ?? contract?.test ?? 'the tests'}\` first), or end with a line \`BLOCKER: <what stops you>\`.`,
+      reason: `there is no commit on this branch yet. Commit your change (run \`${contract?.fast ?? contract?.test ?? 'node --test'}\` first), or end with a line \`BLOCKER: <what stops you>\`.`,
     };
   const edits = testEdits(root, from);
   const tampering = testTampering(edits, taskText(root, env));
@@ -770,7 +770,7 @@ function inspectTests(
     .join('\n');
   const more =
     fresh.length > SHOWN ? `\n  ... ${fresh.length - SHOWN} more` : '';
-  const ran = command === undefined ? '' : ` (ran: ${command})`;
+  const ran = ` (ran: ${command ?? `node --test ${files.join(' ')}`})`;
   // No test was named: the run broke before any test, so nothing can have "passed at the base".
   if (fresh.every((key) => NAMELESS.test(key))) {
     const install = contract?.install

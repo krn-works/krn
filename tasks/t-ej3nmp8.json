@@ -1,7 +1,11 @@
 {
   "id": "t-ej3nmp8",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Refusal quotes the contract command (node --test fallback); adopt ignores __pycache__/ and target/; test/claude/worker-stop.test.ts"
+  },
   "created": "2026-11-13",
   "priority": 3,
   "title": "Stop refusal names the contract test command and adopt ignores build litter",
