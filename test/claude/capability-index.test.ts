@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
+  cpSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -14,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import {
   buildIndex,
   indexBudget,
+  indexHeadroom,
   indexPath,
   moduleHeader,
 } from '../../scripts/claude/capability-index.ts';
@@ -113,11 +115,41 @@ test('a repository slightly over budget shortens module lines and keeps every mo
       `// ${'word '.repeat(40)}\nexport const x = 1;\n`,
     );
   const roomy = buildIndex(synthetic, 1e9);
-  const index = buildIndex(synthetic, roomy.length - 200);
+  const index = buildIndex(synthetic, roomy.length + indexHeadroom - 200);
   assert.ok(index.length <= roomy.length - 200);
   for (let i = 0; i < 40; i++) assert.ok(index.includes(`src/m${i}.ts: `));
 });
 
 test('the committed index fits the SessionStart budget whole', () => {
   assert.ok(readFileSync(join(root, indexPath), 'utf8').length <= indexBudget);
+});
+
+test('no pinned token falls out of the index however many modules are added', () => {
+  const synthetic = mkdtempSync(join(tmpdir(), 'krn-index-'));
+  cpSync(join(root, 'src'), join(synthetic, 'src'), { recursive: true });
+  const pinned = ['.mcp.json', 'src/state/sandbox-placeholders.ts: '];
+  for (const added of [0, 1, 10, 100, 400]) {
+    for (let i = 0; i < added; i++)
+      writeFileSync(
+        join(synthetic, 'src', `zz-extra-${String(i).padStart(3, '0')}.ts`),
+        `// ${'Describes yet another long capability sentence. '.repeat(5)}\nexport const x = 1;\n`,
+      );
+    const index = buildIndex(synthetic);
+    assert.ok(index.length <= indexBudget - indexHeadroom, String(added));
+    for (const token of pinned)
+      assert.ok(index.includes(token), `${token} survives ${added} modules`);
+  }
+});
+
+test('a pinned file name past the cut is kept whole on its module line', () => {
+  const synthetic = mkdtempSync(join(tmpdir(), 'krn-index-'));
+  mkdirSync(join(synthetic, 'src'));
+  writeFileSync(
+    join(synthetic, 'src', 'a.ts'),
+    `// ${'Filler words here. '.repeat(10)}Mounts .mcp.json over it.\nexport const x = 1;\n`,
+  );
+  const line = buildIndex(synthetic)
+    .split('\n')
+    .find((row) => row.startsWith('src/a.ts: '));
+  assert.ok(line?.endsWith(' .mcp.json'), line);
 });

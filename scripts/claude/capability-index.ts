@@ -8,7 +8,7 @@ import { cutText } from '../../src/memory/cut-text.ts';
 
 export const indexPath = 'docs/generated/capability-index.md';
 
-const lineLimit = 120;
+const lineLimit = 80;
 const moduleLineLimit = 110;
 
 function sources(directory: string): string[] {
@@ -57,6 +57,22 @@ function exportsOf(source: string): string {
 /** The SessionStart context budget in characters; the index is generated to fit it whole. */
 export const indexBudget = 9500;
 const minModuleLineLimit = 40;
+/** Characters kept free so the next added module degrades lines before it can overflow. */
+export const indexHeadroom = 300;
+
+/** File names a header documents (`.mcp.json`); a lead greps the index for them, so a cut keeps them. */
+const pinned = /(?:^|\s)(\.[\w-]+(?:\.[\w-]+)+)/gu;
+
+function pinnedTokens(line: string): string[] {
+  return [...line.matchAll(pinned)].map((match) => match[1] ?? '');
+}
+
+/** A line cut to `limit`, with any pinned token the cut lost appended whole. */
+function cutKeeping(line: string, limit: number): string {
+  const cut = cutText(line, limit);
+  const lost = pinnedTokens(line).filter((token) => !cut.includes(token));
+  return lost.length > 0 ? `${cut} ${lost.join(' ')}` : cut;
+}
 
 function render(commands: string[], modules: string[]): string {
   return `${[
@@ -72,11 +88,12 @@ function render(commands: string[], modules: string[]): string {
 }
 
 /**
- * The index text for a repository root, within `budget` characters. Over budget, module
+ * The index text for a repository root, within `ceiling` characters minus the headroom. Over budget, module
  * lines shorten uniformly (the largest per-line limit that fits, down to a floor), then
  * trailing module lines drop, so adding a module never overflows and never truncates mid-line.
  */
-export function buildIndex(root: string, budget = indexBudget): string {
+export function buildIndex(root: string, ceiling = indexBudget): string {
+  const budget = ceiling - indexHeadroom;
   const raw = sources(join(root, 'src')).map((path) => {
     const source = readFileSync(path, 'utf8');
     const name = relative(root, path).split('\\').join('/');
@@ -84,16 +101,22 @@ export function buildIndex(root: string, budget = indexBudget): string {
   });
   const commands = commandLines().map((line) => {
     const [head = '', ...rest] = line.split('  ');
-    return cutText(`${head.trim()}: ${rest.join(' ').trim()}`, lineLimit);
+    const name = head.trim();
+    // The command syntax stays whole (a lead greps it); only the summary is cut.
+    return `${name}: ${cutText(rest.join(' ').trim(), Math.max(lineLimit - name.length, 20))}`;
   });
-  const fit = (limit: number) => raw.map((line) => cutText(line, limit));
+  const fit = (limit: number) => raw.map((line) => cutKeeping(line, limit));
   for (let limit = moduleLineLimit; limit >= minModuleLineLimit; limit--) {
     const text = render(commands, fit(limit));
     if (text.length <= budget) return text;
   }
   const kept = fit(minModuleLineLimit);
   while (kept.length > 0) {
-    kept.pop();
+    // Drop the last line without a pinned token first; only then the last pinned one.
+    const lastPlain = kept.findLastIndex(
+      (line) => pinnedTokens(line).length === 0,
+    );
+    kept.splice(lastPlain >= 0 ? lastPlain : kept.length - 1, 1);
     const text = render(commands, [...kept, '(more modules: grep src)']);
     if (text.length <= budget) return text;
   }
