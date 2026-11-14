@@ -47,7 +47,7 @@
     },
     "enforcement": {
       "kind": "command",
-      "run": "if [ -f package.json ]; then node -e 'const t=(JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\")).scripts||{}).test||\"\";process.exit(t.trim()===\"\"||/no test specified/.test(t)?1:0)'; elif [ -f composer.json ] || [ -f phpunit.xml ] || [ -f phpunit.xml.dist ]; then if [ -f phpunit.xml ] || [ -f phpunit.xml.dist ]; then true; else node -e 'const s=(JSON.parse(require(\"fs\").readFileSync(\"composer.json\",\"utf8\")).scripts||{}).test;process.exit(s===undefined||/no test specified/.test(JSON.stringify(s))?1:0)'; fi; elif [ -f go.mod ]; then git ls-files | grep -q '_test\\.go$'; elif [ -f Cargo.toml ]; then true; elif [ -f pyproject.toml ] || [ -f setup.cfg ] || [ -f setup.py ] || [ -f tox.ini ] || [ -f pytest.ini ]; then git ls-files | grep -qE '(^|/)(test_[^/]*|[^/]*_test)\\.py$'; else grep -qE '^test:' Makefile 2>/dev/null; fi"
+      "run": "if [ -s package.json ]; then node -e 'const t=(JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\")).scripts||{}).test||\"\";process.exit(t.trim()===\"\"||/no test specified/.test(t)?1:0)'; elif [ -f composer.json ] || [ -f phpunit.xml ] || [ -f phpunit.xml.dist ]; then if [ -f phpunit.xml ] || [ -f phpunit.xml.dist ]; then true; else node -e 'const s=(JSON.parse(require(\"fs\").readFileSync(\"composer.json\",\"utf8\")).scripts||{}).test;process.exit(s===undefined||/no test specified/.test(JSON.stringify(s))?1:0)'; fi; elif [ -f go.mod ]; then git ls-files | grep -q '_test\\.go$'; elif [ -f Cargo.toml ]; then true; elif [ -f pyproject.toml ] || [ -f setup.cfg ] || [ -f setup.py ] || [ -f tox.ini ] || [ -f pytest.ini ]; then git ls-files | grep -qE '(^|/)(test_[^/]*|[^/]*_test)\\.py$'; else grep -qE '^test:' Makefile 2>/dev/null; fi"
     },
     "provenance": {
       "origin": "krn pack",
@@ -78,7 +78,7 @@
     },
     "enforcement": {
       "kind": "command",
-      "run": "{ [ ! -f package.json ] || node -e 'const s=JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\")).scripts||{};const bad=Object.entries(s).filter(([k,v])=>/^test/.test(k)&&/\\|\\|\\s*(true|:|exit 0)|;\\s*exit 0\\s*$/.test(String(v)));if(bad.length){console.error(\"masked: \"+bad.map(b=>b[0]).join(\", \"));process.exit(1)}'; } && { [ ! -f Makefile ] || awk '/^test[a-zA-Z0-9_-]*:/{t=1;next} /^[^\\t]/{t=0} t&&(/\\|\\| *(true|:)/||/^\\t-/){bad=1} END{exit bad}' Makefile; }"
+      "run": "{ [ ! -s package.json ] || node -e 'const s=JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\")).scripts||{};const bad=Object.entries(s).filter(([k,v])=>/^test/.test(k)&&/\\|\\|\\s*(true|:|exit 0)|;\\s*exit 0\\s*$/.test(String(v)));if(bad.length){console.error(\"masked: \"+bad.map(b=>b[0]).join(\", \"));process.exit(1)}'; } && { [ ! -f Makefile ] || awk '/^test[a-zA-Z0-9_-]*:/{t=1;next} /^[^\\t]/{t=0} t&&(/\\|\\| *(true|:)/||/^\\t-/){bad=1} END{exit bad}' Makefile; }"
     },
     "provenance": {
       "origin": "krn pack",
@@ -235,7 +235,7 @@
     },
     "enforcement": {
       "kind": "command",
-      "run": "if [ -f package.json ]; then git check-ignore -q --no-index node_modules/probe; else git check-ignore -q --no-index __pycache__/probe.pyc && { git check-ignore -q --no-index .venv/probe || git check-ignore -q --no-index venv/probe; }; fi"
+      "run": "if [ -s package.json ]; then git check-ignore -q --no-index node_modules/probe; else git check-ignore -q --no-index __pycache__/probe.pyc && { git check-ignore -q --no-index .venv/probe || git check-ignore -q --no-index venv/probe; }; fi"
     },
     "provenance": {
       "origin": "krn pack",
@@ -421,7 +421,7 @@
     },
     "enforcement": {
       "kind": "command",
-      "run": "[ ! -f package.json ] || node -e 'const fs=require(\"fs\"),cp=require(\"child_process\");const s=JSON.parse(fs.readFileSync(\"package.json\",\"utf8\")).scripts||{};if(/\\b(build|tsc|tsup|esbuild|rollup|webpack)\\b/.test([s.pretest,s.test].join(\" \")))process.exit(0);const files=cp.execFileSync(\"git\",[\"ls-files\",\"-z\"],{encoding:\"utf8\"}).split(\"\\0\");if(files.some(f=>/(^|\\/)dist\\//.test(f)))process.exit(0);const bad=files.filter(f=>/\\.(test|spec)\\.[cm]?[jt]sx?$|(^|\\/)(tests?|__tests__)\\/.*\\.[cm]?[jt]sx?$/.test(f)&&fs.existsSync(f)&&/[\"\\x27`][^\"\\x27`\\s]*\\bdist\\/[^\"\\x27`\\s]*\\.[cm]?js[\"\\x27`]/.test(fs.readFileSync(f,\"utf8\")));if(bad.length){console.error(\"tests read untracked dist/ output but the test script builds nothing: \"+bad.slice(0,3).join(\", \"));process.exit(1)}'"
+      "run": "[ ! -s package.json ] || node -e 'const fs=require(\"fs\"),cp=require(\"child_process\");const s=JSON.parse(fs.readFileSync(\"package.json\",\"utf8\")).scripts||{};if(/\\b(build|tsc|tsup|esbuild|rollup|webpack)\\b/.test([s.pretest,s.test].join(\" \")))process.exit(0);const files=cp.execFileSync(\"git\",[\"ls-files\",\"-z\"],{encoding:\"utf8\"}).split(\"\\0\");if(files.some(f=>/(^|\\/)dist\\//.test(f)))process.exit(0);const bad=files.filter(f=>/\\.(test|spec)\\.[cm]?[jt]sx?$|(^|\\/)(tests?|__tests__)\\/.*\\.[cm]?[jt]sx?$/.test(f)&&fs.existsSync(f)&&/[\"\\x27`][^\"\\x27`\\s]*\\bdist\\/[^\"\\x27`\\s]*\\.[cm]?js[\"\\x27`]/.test(fs.readFileSync(f,\"utf8\")));if(bad.length){console.error(\"tests read untracked dist/ output but the test script builds nothing: \"+bad.slice(0,3).join(\", \"));process.exit(1)}'"
     },
     "provenance": {
       "origin": "krn pack",

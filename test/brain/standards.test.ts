@@ -1,5 +1,15 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { INHERITED_ORIGIN } from '../../src/brain/record.ts';
@@ -514,4 +524,38 @@ test('checkStandards counts per tier and blocks only floor and an unwaived refle
   assert.equal(report.failures.length, 4);
   assert.deepEqual(report.tiers.reflex, { enforced: 2, failed: 2 });
   assert.deepEqual(report.tiers.finish, { enforced: 1, failed: 1 });
+});
+
+test('the pack standards that read package.json pass in a checkout whose package.json is an empty sandbox placeholder', () => {
+  const packPath = fileURLToPath(
+    new URL('../../standards/records.json', import.meta.url),
+  );
+  const dir = mkdtempSync(join(tmpdir(), 'krn-placeholder-'));
+  try {
+    writeFileSync(join(dir, 'package.json'), '');
+    spawnSync('git', ['init', '-q'], { cwd: dir });
+    const records = JSON.parse(readFileSync(packPath, 'utf8')) as Array<{
+      id: string;
+      enforcement: { kind: string; run?: string };
+    }>;
+    const reading = records.filter(
+      (record) =>
+        record.enforcement.kind === 'command' &&
+        /package\.json/u.test(record.enforcement.run ?? ''),
+    );
+    assert.ok(reading.length >= 4);
+    for (const record of reading) {
+      const run = spawnSync('bash', ['-c', record.enforcement.run ?? ''], {
+        cwd: dir,
+        encoding: 'utf8',
+      });
+      assert.doesNotMatch(
+        `${run.stderr}`,
+        /SyntaxError|Unexpected end of JSON/u,
+        `${record.id}: ${run.stderr}`,
+      );
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
