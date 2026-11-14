@@ -650,6 +650,13 @@ test('adopt prints every failing standard as a gap and writes one tracker task p
   for (const line of gapped) {
     const id = /^gap (\S+)/u.exec(line)?.[1] as string;
     assert.ok(titles.includes(`Make standard ${id} pass`), `${id}: ${titles}`);
+    const body = readdirSync(join(root, 'tasks'))
+      .map((file) => readFileSync(join(root, 'tasks', file), 'utf8'))
+      .find((text) => text.includes(`Make standard ${id} pass`)) as string;
+    assert.match(
+      body,
+      new RegExp(`Proof: .{1,3}krn standards check --record ${id}.{1,3}`, 'u'),
+    );
   }
   const again = adoptArgs(root, '--tracker', '--test', 'npm test');
   assert.equal(again.status, 0, again.stderr);

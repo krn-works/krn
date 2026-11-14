@@ -39,9 +39,9 @@ export function adoptionGaps(root: string, asOf: string): AdoptionGaps {
       title,
       priority: failure.tier === 'floor' ? 1 : 2,
       body: [
-        `Outcome: \`krn standards check\` no longer fails ${failure.id}.`,
+        `Outcome: \`krn standards check --record ${failure.id}\` no longer fails ${failure.id}.`,
         `Why: adoption found this ${failure.tier} standard failing: ${firstLine(failure.message)}`,
-        'Proof: `krn standards check` passes the record.',
+        `Proof: \`krn standards check --record ${failure.id}\``,
       ],
     });
     known.add(title);

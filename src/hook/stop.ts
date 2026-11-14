@@ -826,6 +826,9 @@ export function shippedMerge(root: string, message: unknown): boolean {
 }
 
 /** The blocking standards of a repository on a date (YYYY-MM-DD), one line each. */
+/** The record id a blocker line starts with (`<id> (<tier>): ...`). */
+const standardKey = (line: string): string => line.split(' (')[0] ?? line;
+
 export type StandardsRunner = (root: string, asOf: string) => string[];
 
 /** Logs the refused records to the exposure log; the log is evidence, never a reason to fail a Stop. */
@@ -882,10 +885,28 @@ export function judgeStop(
     // Floor and unwaived reflex standards of the repository stop the session; finish and waived ones only report.
     // The adopt canary proves the test gate on a fresh repository, which may not meet its reflex standards yet.
     if (env.KRN_LANE === 'canary') return undefined;
-    const blockers = standards(root, new Date().toISOString().slice(0, 10));
+    const asOf = new Date().toISOString().slice(0, 10);
+    const failing = standards(root, asOf);
+    if (failing.length === 0) return undefined;
+    // A standard already red at the merge base is not this branch's doing: it is reported, never blocking.
+    const from = base(root, loadContract(root).contract);
+    const red = from
+      ? failuresAtBase(root, from, (dir) =>
+          standards(dir, asOf).map(standardKey),
+        )
+      : new Set<string>();
+    const blockers = failing.filter((line) => !red.has(standardKey(line)));
     if (blockers.length === 0) return undefined;
     logViolations(root, payload, blockers);
-    return `Stop refused: ${blockers.length} standard(s) fail (floor, or reflex without a recorded waiver):\n${blockers.map((line) => `- ${line}`).join('\n')}\nFix them, record a reason in \`waiver\` on a reflex record in .agents/standards.json, or end with a line \`BLOCKER: <what stops you>\`.`;
+    const inherited = failing.length - blockers.length;
+    const preExisting =
+      inherited > 0
+        ? `\n${inherited} standard(s) already failed at the base and do not block: ${failing
+            .filter((line) => red.has(standardKey(line)))
+            .map(standardKey)
+            .join(', ')}`
+        : '';
+    return `Stop refused: ${blockers.length} standard(s) pass at the base and fail now (floor, or reflex without a recorded waiver):\n${blockers.map((line) => `- ${line}`).join('\n')}${preExisting}\nFix them, record a reason in \`waiver\` on a reflex record in .agents/standards.json, or end with a line \`BLOCKER: <what stops you>\`.`;
   }
   // A missing base or an invalid contract is refused once: a continued stop (stop_hook_active) is not held again.
   if (fields?.stop_hook_active === true) {

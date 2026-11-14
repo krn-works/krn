@@ -1,0 +1,16 @@
+{
+  "id": "t-df8xgvc",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Stop blocks only on standards that pass at the merge base; standards check --record <id>; gap Proof uses it; tests in stop, standards cli, adopt"
+  },
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "An outside drain is not blocked by standards that were already red at the base",
+  "after": [],
+  "body": [
+    "Why: live outside acceptance t-s81vp3q (792f529, .krn/runs/outside/summary.txt notes 2-3): no row is a clean zero-lead-turn drain. (a) the worker ends BLOCKER (krn lane run exit 73) after committing because Stop refuses on reflex standards that were already red at the base and unrelated to the task (linter, semantic commit subjects, empty sandbox package.json placeholder); a rerun ships it. (b) gap tasks written by src/adopt/gaps.ts carry Proof `krn standards check`, which exits non-zero while other standards stay red, so ship refuses (exit 81) / the drain ends 74.\nOutcome: Stop blocks a worker only on standards that pass at the base and fail at HEAD (pre-existing red standards are reported, not blocking), mirroring the related-test rule; `krn standards check --record <id>` checks one record and gap tasks use it as Proof.\nProof: `node --test test/hook/stop.test.ts test/adopt/gaps.test.ts`; a fixture repo with a pre-existing red reflex standard lets a lane end green, and a gap task Proof passes when only its own record is fixed."
+  ]
+}
