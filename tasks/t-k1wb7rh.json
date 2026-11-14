@@ -1,7 +1,11 @@
 {
   "id": "t-k1wb7rh",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn adopt --init: git init on main, stack skeleton with real test, then adoption; fixture ends with green standards check"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "krn adopt --init prepares an empty or non-git directory: git init, test skeleton, tracker and standards",

@@ -145,6 +145,10 @@
       "receivers": ["git", "node"],
       "real": "test/adopt/canary.test.ts"
     },
+    "src/adopt/init.ts": {
+      "receivers": ["git"],
+      "real": "test/adopt/init.test.ts"
+    },
     "src/adopt/verify.ts": {
       "receivers": ["gh"],
       "capture": [
