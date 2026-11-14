@@ -1,7 +1,11 @@
 {
   "id": "t-h4bhw5h",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane run admits only the seeded first-test task on a vacuous contract; delivery proves the new test red on a one-line mutation and green on revert; tested on a testless fixture clone with a stub session"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "krn lane run delivers the bootstrap first-test task on a vacuous contract and proves the test red on mutation",

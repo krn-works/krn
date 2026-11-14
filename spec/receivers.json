@@ -59,6 +59,10 @@
       "capture": ["test/fixtures/claude/headless-session-result.json"],
       "test": "test/cli/lane-run.test.ts"
     },
+    "src/cli/lane-run/bootstrap.ts": {
+      "receivers": ["git"],
+      "real": "test/cli/lane-run.test.ts"
+    },
     "src/cli/lane-run/delivery.ts": {
       "receivers": ["git"],
       "real": "test/cli/lane-run.test.ts"

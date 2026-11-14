@@ -322,6 +322,9 @@ function buildLitter(commands: string): string[] {
   ];
 }
 
+/** The title of the seeded first-test task: the only task lane run admits on a vacuous contract. */
+export const BOOTSTRAP_TASK_TITLE = 'one real test and a test command';
+
 function seedTasks(
   root: string,
   report: AdoptionReport,
@@ -344,7 +347,7 @@ function seedTasks(
     });
   if (seed.test)
     createTask(root, {
-      title: 'one real test and a test command',
+      title: BOOTSTRAP_TASK_TITLE,
       priority: 1,
       body: [
         'Outcome: the repository has one real test and a test command in krn.json that runs it; "vacuous" is dropped from krn.json.',

@@ -1782,3 +1782,96 @@ test('a lane session mints and helps git for its own origin repository', () => {
     undefined,
   );
 });
+
+// KRN-12: a real testless git clone (vacuous contract, seeded first-test task), a stub session that writes the test.
+const bootstrapFiles = (title: string): Record<string, string> => ({
+  'krn.json': JSON.stringify({
+    test: 'exit 1',
+    tracker: 'krn',
+    vacuous: true,
+  }),
+  'lib.mjs': 'export const add = (a, b) => {\n  return a + b;\n};\n',
+  'tasks/t-abc1234.json': `${JSON.stringify(
+    {
+      id: 't-abc1234',
+      status: 'open',
+      resolution: null,
+      created: '2026-11-09',
+      priority: 1,
+      title,
+      after: [],
+      body: ['Outcome: one real test'],
+    },
+    null,
+    2,
+  )}\n`,
+});
+
+const writeTest = (body: string) =>
+  `cat > check.mjs <<'EOF'\n${body}\nEOF\necho '{"test":"node check.mjs","tracker":"krn"}' > krn.json\ngit add -A\n${deliver('test(x): first test (t-abc1234)', false)}`;
+
+async function bootstrapRun(title: string, sessionTest: string) {
+  const { base, repo, claude } = fixture(
+    writeTest(sessionTest),
+    bootstrapFiles(title),
+  );
+  process.env.KRN_LANE_CLAUDE = claude;
+  const shipped: string[][] = [];
+  try {
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      {
+        start: startLane,
+        ship: async (args) => {
+          shipped.push(args);
+          return 'verdict: merged abc1234';
+        },
+        mint: async () => undefined,
+      },
+    );
+    const body =
+      shipped[0] === undefined
+        ? ''
+        : readFileSync(
+            shipped[0][shipped[0].indexOf('--body-file') + 1] ?? '',
+            'utf8',
+          );
+    return { verdict, body, shipped: shipped.length };
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+}
+
+test('lane run delivers the seeded first-test task on a vacuous contract, proven red on mutation and green on revert', async () => {
+  const out = await bootstrapRun(
+    'one real test and a test command',
+    "import { add } from './lib.mjs';\nif (add(1, 2) !== 3) process.exit(1);",
+  );
+  assert.equal(out.verdict.exitCode, 0, out.verdict.line);
+  assert.equal(out.shipped, 1);
+  assert.match(
+    out.body,
+    /went red with line 1 of lib\.mjs deleted .* green on revert; bootstrap state cleared/u,
+  );
+});
+
+test('a first test that never calls production code is not delivered', async () => {
+  const out = await bootstrapRun(
+    'one real test and a test command',
+    'if (1 + 1 !== 2) process.exit(1);',
+  );
+  assert.notEqual(out.verdict.exitCode, 0);
+  assert.match(out.verdict.line, /does not exercise production code/u);
+  assert.equal(out.shipped, 0);
+});
+
+test('lane run refuses any other task on a vacuous contract before the session', async () => {
+  const out = await bootstrapRun(
+    'Some other task',
+    "import { add } from './lib.mjs';\nif (add(1, 2) !== 3) process.exit(1);",
+  );
+  assert.equal(out.verdict.exitCode, 72);
+  assert.match(out.verdict.line, /vacuous test command/u);
+  assert.equal(out.shipped, 0);
+});
