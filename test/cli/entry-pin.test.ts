@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { chmod, cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import {
   doctorReport,
   isFresh,
+  isUnfetched,
   readEntryPin,
   staleEntryExit,
 } from '../../src/cli/entry-pin.ts';
@@ -89,16 +90,6 @@ test('doctor without a configured entry fails with the fix', () => {
   assert.match(report.text, /^entry=unconfigured$/mu);
 });
 
-test('a forwarded krn task from an unpinned checkout fails closed', () => {
-  const result = spawnSync(krn, ['task', 'ready'], {
-    encoding: 'utf8',
-    env: { ...process.env, KRN_FORWARDED: '1' },
-  });
-  assert.equal(result.status, staleEntryExit);
-  assert.equal(result.stdout, '');
-  assert.match(result.stderr, /stale Product entry: .* is not the pinned/u);
-});
-
 test('krn doctor reads the configured entry', async () => {
   const root = await mkdtemp(join(tmpdir(), 'krn-entry-pin-cli-'));
   try {
@@ -114,6 +105,67 @@ test('krn doctor reads the configured entry', async () => {
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, new RegExp(`^entry=${entry}$`, 'mu'));
     assert.match(result.stdout, /^status=fresh$/mu);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+async function freshClone(root: string): Promise<string> {
+  const repo = fileURLToPath(new URL('../..', import.meta.url));
+  const work = join(root, 'work');
+  await mkdir(work);
+  git(work, 'init', '-q', '-b', 'main');
+  git(work, 'config', 'user.email', 't@example.invalid');
+  git(work, 'config', 'user.name', 't');
+  await cp(join(repo, 'src'), join(work, 'src'), { recursive: true });
+  await cp(join(repo, 'package.json'), join(work, 'package.json'));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'one');
+  await writeFile(join(work, 'a'), '2');
+  git(work, 'add', 'a');
+  git(work, 'commit', '-qm', 'two');
+  git(work, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+  return work;
+}
+
+function forwardedTask(work: string) {
+  return spawnSync(
+    process.execPath,
+    [join(work, 'src', 'cli', 'krn.mjs'), 'task', 'ready'],
+    {
+      cwd: work,
+      encoding: 'utf8',
+      env: { ...process.env, KRN_FORWARDED: '1' },
+    },
+  );
+}
+
+test('a forwarded krn task in a fresh clone that never fetched warns once and runs', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-entry-pin-fresh-'));
+  try {
+    const work = await freshClone(root);
+    git(work, 'update-ref', '-d', 'refs/remotes/origin/main');
+    assert.equal(isUnfetched(readEntryPin(work)), true);
+    const result = forwardedTask(work);
+    assert.notEqual(result.status, staleEntryExit, result.stderr);
+    assert.equal(
+      result.stderr.match(/has not fetched origin\/main/gu)?.length,
+      1,
+    );
+    assert.doesNotMatch(result.stderr, /stale Product entry/u);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('a forwarded krn task whose pin exists but mismatches still fails closed', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'krn-entry-pin-mismatch-'));
+  try {
+    const work = await freshClone(root);
+    git(work, 'update-ref', 'refs/remotes/origin/main', 'HEAD~1');
+    const result = forwardedTask(work);
+    assert.equal(result.status, staleEntryExit);
+    assert.match(result.stderr, /stale Product entry/u);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

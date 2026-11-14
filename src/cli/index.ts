@@ -25,7 +25,9 @@ export async function dispatch(args: string[]): Promise<boolean> {
       // The host entry forwarded this call: refuse a stale or unpinned build.
       const pin = await import('./entry-pin.ts');
       const state = pin.readEntryPin(productRoot());
-      if (!pin.isFresh(state)) {
+      if (pin.isUnfetched(state)) {
+        process.stderr.write(pin.unfetchedWarning(state));
+      } else if (!pin.isFresh(state)) {
         process.stderr.write(pin.staleEntryMessage(state));
         process.exitCode = pin.staleEntryExit;
         return true;

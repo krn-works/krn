@@ -1,7 +1,11 @@
 {
   "id": "t-4868c64",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Missing origin/main pin warns once and runs from the working tree; mismatch still exits 78."
+  },
   "created": "2026-11-11",
   "priority": 3,
   "title": "krn task works in a fresh clone before the first fetch",
