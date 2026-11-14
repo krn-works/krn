@@ -13,14 +13,9 @@ Maintenance:
 
 | Id | Opportunity | Area | Evidence | Expected saving | Task |
 |---|---|---|---|---|---|
-| R56 | The ledger counts lanes started with the Agent tool as lanes | Measurement | `krn ledger` (t-496nx1h #757) counts the 2026-11-14 Agent-tool lanes #749-#757 as lead | A true lane/lead split for the rework baseline | t-kzbza45 |
 | R57 | Fresh eval units come from pilot repositories with hidden tests | Measurement | `evals/d23/preregistration.md`: power 0.217 at n=33, 188 units for 0.8 | Makes the K vs PB claim decidable | t-tgf314k |
-| R52 | The lane run is a pipeline of named stages in their own modules | Delivery speed | `src/cli/lane-run.ts` 1,263 lines, 37 commits in 14 days, in most ledger frame PRs | Lane-area lanes run in parallel; lane-run.ts touched at most 5 of the next 20 PRs | t-79e2gr4 |
-| R47 | A red test blocks Stop in a D23 replay clone and red-baseline units are excluded | Measurement | DEC:71-72 | Clean D23 arms before t-p70b19s | t-f26er7t |
 | R48 | The D23 confirmatory run compares a frozen K with PB | Measurement | Waits on R47 and R57 (power, `evals/d23/preregistration.md`) (memory:quota-before-big-runs) | The product claim K beats plain harness, measured | t-p70b19s |
-| R50 | krn adopt --verify reports the required check and auto-merge state | Portability (goal 1) | Python pilot needed t-j5ztpwy and t-8j7cc85 fixes found only at first ship | Adoption defects found before the first lane | t-atagtp3 |
 | R49 | A worker proves a failing reproduction test before its fix | Standards (goal 2) | Pilot hidden tests were lead-written; workers prove nothing before the fix | Fewer false-green lanes | t-czn62h3 |
-| R54 | Session start prints STATE LOSS when an open claim has no capsule or handoff | Memory (goal 2) | Knowledge lost between sessions (operator 2026-11-14) | Orphan claims surface at session start | t-8r8y9a3 |
 | R55 | The roadmap is generated from open tasks | Memory (goal 2) | roadmap.md is the most-churned file (95 commits in 14 days) | Hand edits of the roadmap drop to zero | t-n9m37wy |
 | R41 | The brain packet keeps only what its ablation shows helps | Memory (goal 2) | FR-40 GO +21.1 pp B-A (`evals/fr40/results.md`); no per-part ablation yet | Smaller packet, same pass rate | t-3kegrb2 |
 | R42 | FR-40 arm C measures the conventions packet against the instruction file alone | Memory (goal 2) | FR-40 compared packet with no packet, not with the instruction file | Proves the packet adds beyond AGENTS.md | t-1y29yhq |
