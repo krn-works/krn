@@ -19,7 +19,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { appCredentialEnvironment } from '../../scripts/claude/successor-launch.ts';
+import { appCredentialEnvironment } from '../../src/successor/compose.ts';
 import {
   captureReply,
   installAgent,

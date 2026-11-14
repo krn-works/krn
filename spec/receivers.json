@@ -178,6 +178,18 @@
     "src/context/restart.ts": {
       "receivers": ["git"],
       "real": "test/claude/context-restart.test.ts"
+    },
+    "src/successor/herdr.ts": {
+      "receivers": ["herdr", "ps"],
+      "real": "test/claude/successor-launch.test.ts"
+    },
+    "src/successor/compose.ts": {
+      "receivers": ["node"],
+      "real": "test/claude/github-app-token.test.ts"
+    },
+    "src/successor/intent-to-task.ts": {
+      "receivers": ["git"],
+      "real": "test/claude/intent-to-task.test.ts"
     }
   }
 }
