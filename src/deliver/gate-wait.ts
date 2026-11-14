@@ -53,6 +53,8 @@ interface GateWaitOptions {
   startTimeoutMs?: number;
   /** Receives every pull read, so a caller can see auto-merge without another request. */
   onPull?: (pull: Pull) => void;
+  /** The Actions run of the successful gate Check, when its details_url names one. */
+  onSuccess?: (runId: string | undefined) => void;
   /** The gate the base branch's settings pin, asked once when the base tree names none (a first adoption PR). */
   branchPolicy?: (ref: string) => Promise<GateAdmissionPolicy>;
 }
@@ -124,6 +126,7 @@ export async function waitForGate({
   timeoutMs,
   startTimeoutMs = timeoutMs,
   onPull,
+  onSuccess,
   branchPolicy,
 }: GateWaitOptions): Promise<string> {
   let policy = basePolicy;
@@ -175,10 +178,10 @@ export async function waitForGate({
           continue;
         }
       } else cancelledSince = undefined;
+      const runId = /\/actions\/runs\/(\d+)\//u.exec(
+        gate.details_url ?? '',
+      )?.[1];
       if (conclusion !== 'success') {
-        const runId = /\/actions\/runs\/(\d+)\//u.exec(
-          gate.details_url ?? '',
-        )?.[1];
         // `gh run rerun --failed` starts a newer attempt of the same run; until
         // its Check run appears the failed one is the newest, so a run that is
         // running again is awaited instead of reported failed. A cancelled run
@@ -203,6 +206,7 @@ export async function waitForGate({
             : `${policy.checkRunName} concluded ${conclusion} on ${head} in run ${runId}; logs: bin/krn ci logs --run ${runId}; rerun: gh run rerun ${runId} --failed`,
         );
       }
+      onSuccess?.(runId);
       return conclusion;
     }
     const state = gate?.status ?? 'missing';

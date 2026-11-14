@@ -226,6 +226,18 @@ test('a cancelled run with no newer run still exits 74 after the grace', async (
     },
   );
 });
+test('a successful gate names its Actions run', async () => {
+  const receiver = runtime(() => [
+    {
+      ...checkRun('completed', 'success'),
+      details_url: 'https://github.com/o/r/actions/runs/123/job/4',
+    },
+  ]);
+  assert.match(
+    await waitCommand(args, receiver),
+    new RegExp(`^gate: success ${head} in run 123\\n`, 'u'),
+  );
+});
 test('a failed attempt whose run is rerun is awaited until the new attempt succeeds', async () => {
   // Evidence: run 43047640047 failed attempt 1, then `gh run rerun --failed`
   // made the run in_progress while the failed Check stayed the newest (KRN-14).

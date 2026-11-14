@@ -132,6 +132,7 @@ export async function waitCommand(
     }
     const now = runtime.now ?? Date.now;
     let last: Pull | undefined;
+    let gateRun: string | undefined;
     await waitForGate({
       ...options,
       policy,
@@ -150,8 +151,13 @@ export async function waitCommand(
       onPull: (pull) => {
         last = pull;
       },
+      onSuccess: (runId) => {
+        gateRun = runId;
+      },
     });
-    const lines = [`gate: success ${options.head}`];
+    const lines = [
+      `gate: success ${options.head}${gateRun === undefined ? '' : ` in run ${gateRun}`}`,
+    ];
     if (last?.merged === true || (last?.auto_merge ?? null) !== null)
       lines.push(
         ...(await refreshAfterMerge({
