@@ -7,6 +7,7 @@ export const generatedFiles: Record<string, [string, string[]]> = {
     'node',
     ['scripts/claude/capability-index.ts', '--write'],
   ],
+  'docs/program/roadmap.md': ['node', ['scripts/claude/roadmap-prune.ts']],
 };
 
 const conflictExit = (message: string) =>

@@ -1,9 +1,18 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { rebaseGenerated } from '../../src/ci/rebase-generated.ts';
+import {
+  generatedFiles,
+  rebaseGenerated,
+} from '../../src/ci/rebase-generated.ts';
 import { run } from '../../src/deliver/transport.ts';
 
 // KRN-12: a real temporary git repository and the real git rebase; the generator is a
@@ -118,4 +127,12 @@ test('a conflict in any other file exits 76 and leaves no rebase running', () =>
   );
   assert.equal(git(work, 'rev-parse', 'HEAD'), before);
   assert.equal(git(work, 'status', '--porcelain'), '');
+});
+
+test('every registered generated file names a generator script this repository has', () => {
+  for (const [file, [command, args]] of Object.entries(generatedFiles)) {
+    assert.equal(command, 'node', file);
+    assert.ok(existsSync(args[0] ?? ''), `${file}: ${args[0]} missing`);
+    assert.ok(existsSync(file), `${file} missing`);
+  }
 });

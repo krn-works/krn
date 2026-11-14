@@ -33,6 +33,7 @@ function receiver(options: {
   diff?: string;
   carrier?: string;
   proofExit?: number;
+  lateConflict?: string;
 }) {
   let time = 0;
   const calls: string[] = [];
@@ -104,7 +105,22 @@ function receiver(options: {
     if (a.includes('--git-common-dir')) return out('/r/.git\n');
     if (options.failRemove && a[0] === 'worktree')
       return { code: 1, stdout: '', stderr: 'fatal: cannot remove' };
-    if (a[0] === 'merge-tree') return out('');
+    if (a[0] === 'merge-tree') {
+      // The pre-push trial merges clean; the trial after the PR turned dirty conflicts, shaped
+      // like git merge-tree --write-tree --name-only: exit 1, tree id, paths, blank line.
+      const conflict = options.lateConflict;
+      if (
+        conflict === undefined ||
+        calls.filter((c) => c.includes('merge-tree')).length < 2
+      )
+        return out('');
+      return {
+        code: 1,
+        stdout: `${'d'.repeat(40)}\n${conflict}\n\nAuto-merging ${conflict}\n`,
+        stderr: '',
+      };
+    }
+    if (a[0] === '-c' && a.includes('rebase')) return out('');
     if (['push', 'fetch', 'worktree', 'branch', 'ls-tree'].includes(a[0] ?? ''))
       return out('');
     assert.fail(`unexpected ${command} ${line}`);
@@ -208,6 +224,33 @@ test('a conflicting PR exits 76 and keeps the worktree', async () => {
     return true;
   });
   assert.ok(!r.calls.some((c) => c.includes('worktree remove')));
+});
+
+test('a PR that turns conflicting only in the capability index is regenerated, force-pushed and merged', async () => {
+  const r = receiver({
+    pulls: [{ mergeable_state: 'dirty' }, auto, merged],
+    lateConflict: 'docs/generated/capability-index.md',
+  });
+  const out = await shipCommand(args, r);
+  assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
+  const rebase = r.calls.findIndex((c) => c.includes('rebase origin/main'));
+  const push = r.calls.findIndex(
+    (c) => c === 'git push --force-with-lease origin feat-x',
+  );
+  assert.ok(rebase > 0 && push > rebase, r.calls.join('\n'));
+});
+
+test('a PR that turns conflicting in a source file still exits 76', async () => {
+  const r = receiver({
+    pulls: [{ mergeable_state: 'dirty' }],
+    lateConflict: 'src/a.ts',
+  });
+  await assert.rejects(shipCommand(args, r), (e: Failure) => {
+    assert.equal(e.exitCode, 76);
+    assert.match(e.message, /src\/a\.ts/u);
+    return true;
+  });
+  assert.ok(!r.calls.some((c) => c.includes('--force-with-lease')));
 });
 
 test('a refused title, main branch or dirty tree exits 64 before any push', async () => {
