@@ -15,7 +15,11 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { startLane } from '../../src/cli/lane.ts';
-import { laneRunCommand } from '../../src/cli/lane-run.ts';
+import {
+  laneRunCommand,
+  redCheckBrief,
+  taskBrief,
+} from '../../src/cli/lane-run.ts';
 
 // A lane session exports these; the tests start lanes of their own and must not inherit its class.
 for (const name of ['KRN_SESSION_CLASS', 'KRN_LANE', 'KRN_TASK'])
@@ -182,6 +186,25 @@ test('lane run delivers on an outside-shaped repository and reaches the ship ste
     assert.equal(existsSync(join(repo, 'package.json')), false);
   } finally {
     delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('the brief of an outside repository names neither bin/krn nor npm run fast', () => {
+  const { base, repo } = outsideRepository();
+  try {
+    const brief = taskBrief(repo, task);
+    assert.match(brief, /`krn task close t-out1234 --as done/u);
+    assert.match(brief, /Run `npm --prefix packages\/x test`/u);
+    assert.doesNotMatch(brief, /bin\/krn|npm run fast/u);
+    const red = redCheckBrief(
+      repo,
+      { run: '7', sha: 'a'.repeat(40) },
+      new Error('no log'),
+    );
+    assert.match(red, /krn ci logs --run 7/u);
+    assert.doesNotMatch(red, /bin\/krn|npm run fast/u);
+  } finally {
     rmSync(base, { recursive: true, force: true });
   }
 });

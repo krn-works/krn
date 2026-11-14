@@ -288,6 +288,11 @@ function checkCommand(root: string): string {
   return contract?.fast ?? contract?.test ?? 'npm run fast';
 }
 
+/** How a session invokes krn: the repository's own `bin/krn` inside KRN, else `krn` from PATH. */
+function krnInvocation(root: string): string {
+  return existsSync(join(root, 'bin', 'krn')) ? 'bin/krn' : 'krn';
+}
+
 function taskRecordBrief(root: string, id: string, lanes: string[]): string {
   const task = getTask(taskLookupRoot(root, id, lanes), id);
   const acceptance = task.acceptance ?? [];
@@ -303,7 +308,7 @@ function taskRecordBrief(root: string, id: string, lanes: string[]): string {
           ...acceptance.map((entry) => `- \`${entry.verify}\``),
           '',
         ]),
-    `Deliver this task in the current worktree: commit with a "Ticket: ${task.id}" trailer and close the task with \`bin/krn task close ${task.id} --as done --note ...\` in the same commit. The commit title is \`type(scope): outcome (${task.id})\`. Run \`${checkCommand(root)}\` and fix what it reports before you finish; the caller ships only a tree it passed on. Do not push or open a pull request; the caller ships the commit.`,
+    `Deliver this task in the current worktree: commit with a "Ticket: ${task.id}" trailer and close the task with \`${krnInvocation(root)} task close ${task.id} --as done --note ...\` in the same commit. The commit title is \`type(scope): outcome (${task.id})\`. Run \`${checkCommand(root)}\` and fix what it reports before you finish; the caller ships only a tree it passed on. Do not push or open a pull request; the caller ships the commit.`,
   ].join('\n');
 }
 
@@ -808,11 +813,16 @@ export function redCheckFinding(logs: string): {
 }
 
 /** The top of a rerun's brief: the previous attempt's red Check, its failing step and finding, and the demand for a new commit. */
-export function redCheckBrief(red: RedCheck, logs: string | Error): string {
+export function redCheckBrief(
+  root: string,
+  red: RedCheck,
+  logs: string | Error,
+): string {
+  const krn = krnInvocation(root);
   const head = `The previous attempt of this lane FAILED CI: the required Check concluded failure on ${red.sha.slice(0, 12)} in run ${red.run}.`;
-  const demand = `Your earlier commit ${red.sha.slice(0, 12)} is already in this worktree and is not enough. Fix the cause, add a NEW commit with the same trailer, and run npm run fast; a run that adds no commit since the red Check exits 74 with "no new commit since the red Check". Full log: bin/krn ci logs --run ${red.run}.`;
+  const demand = `Your earlier commit ${red.sha.slice(0, 12)} is already in this worktree and is not enough. Fix the cause, add a NEW commit with the same trailer, and run \`${checkCommand(root)}\`; a run that adds no commit since the red Check exits 74 with "no new commit since the red Check". Full log: ${krn} ci logs --run ${red.run}.`;
   if (logs instanceof Error)
-    return `${head}\nThe CI log could not be read (${logs.message.split('\n')[0]}); read it with bin/krn ci logs --run ${red.run}.\n${demand}\n\n`;
+    return `${head}\nThe CI log could not be read (${logs.message.split('\n')[0]}); read it with ${krn} ci logs --run ${red.run}.\n${demand}\n\n`;
   const { job, section, finding } = redCheckFinding(logs);
   return `${head}\nFailing job and step: ${job}\nFirst finding: ${finding}\n${demand}\n\nFailing job log tail:\n\`\`\`\n${section.slice(-40).join('\n')}\n\`\`\`\n\n`;
 }
@@ -904,6 +914,7 @@ export async function laneRunCommand(
     red === undefined
       ? prompt.text
       : `${redCheckBrief(
+          origin,
           red,
           await (steps.ciLogs ?? defaultSteps.ciLogs)(red.run, origin).catch(
             (error: unknown) =>
