@@ -33,7 +33,7 @@ Each candidate becomes, in this order of preference:
 
 A trap lesson (a known defect that cost a step) also needs its steering fix (the workaround in `krn-lead` or `docs/program/repository-workflow.md`) as a task unless that file is in Scope; add a `Lead trap:` line to the task with `krn task edit <id> --append-body`, and list the id under the lead skill's "Open traps". A task alone is not a disposition for a trap.
 
-Rerank `docs/program/roadmap.md` from the slice's evidence: run `node scripts/claude/roadmap-prune.ts`, then add, move or remove at least one row, or carry `- Roadmap: unchanged (<reason>)` into the handoff.
+Refresh the generated `docs/program/roadmap.md`: edit a task with `krn task`, run `node scripts/claude/roadmap-prune.ts`, name the task ids, or carry `- Roadmap: unchanged (<reason>)` into the handoff.
 
 Lead memory keeps only operator preferences and decisions; no lessons page.
 

@@ -1,7 +1,11 @@
 {
   "id": "t-n9m37wy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "roadmap.md generated from open tasks by roadmap-prune.ts (--check prints in-sync); handoff Roadmap line takes task ids"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "The roadmap is generated from open tasks and the handoff checks a task id, not a row edit",

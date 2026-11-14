@@ -303,37 +303,21 @@ test('handoff check refuses a handoff missing the resume fields', () => {
   }
 });
 
-test('handoff Roadmap line must name real roadmap rows', () => {
+test('handoff Roadmap line must name real task ids', () => {
   const { root, check } = fixture();
   try {
     const none = '## Operator requests\n- none\n';
     const header = (line: string) =>
       `# Handoff\n\n## Resume\n- Task: t-abc1234\n- SHAs: 5e1ce47\n- Verify: \`npm run fast\`\n- Roadmap: ${line}\n\n`;
-    const missing = check(none, [], header('R2 reranked after the slice'));
+    const missing = check(none, [], header('t-nofile0 reranked'));
     assert.equal(missing.status, 1);
-    assert.match(missing.stderr, /names R2, which has no row/u);
-    mkdirSync(join(root, 'docs/program'), { recursive: true });
-    writeFileSync(
-      join(root, 'docs/program/roadmap.md'),
-      '| Id | Opportunity | Task |\n|---|---|---|\n| R2 | faster CI | t-open000 |\n| R3 | less spend |\n',
-    );
-    assert.equal(check(none, [], header('R2 reranked')).status, 0);
-    assert.equal(check(none, [], header('R2 and R9')).status, 1);
-    // Stable ids: a row pruned in a recent commit is still a named change.
-    const git = (...args: string[]) =>
-      spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
-        cwd: root,
-      });
-    git('init', '-q');
-    git('add', 'docs');
-    git('commit', '-qm', 'base');
-    writeFileSync(
-      join(root, 'docs/program/roadmap.md'),
-      '| Id | Opportunity | Task |\n|---|---|---|\n| R2 | faster CI | t-open000 |\n',
-    );
-    git('commit', '-qam', 'prune R3');
-    assert.equal(check(none, [], header('R3 pruned')).status, 0);
-    assert.equal(check(none, [], header('R9 pruned')).status, 1);
+    assert.match(missing.stderr, /names t-nofile0, which has no task file/u);
+    assert.equal(check(none, [], header('t-open000 reranked')).status, 0);
+    // A closed task is still a named change: its row left the generated roadmap.
+    assert.equal(check(none, [], header('t-abc1234 closed')).status, 0);
+    assert.equal(check(none, [], header('t-open000 and t-nofile0')).status, 1);
+    // The retired row ids no longer satisfy the field.
+    assert.equal(check(none, [], header('R2 reranked')).status, 1);
     assert.equal(
       check(none, [], header('unchanged (no new evidence)')).status,
       0,
