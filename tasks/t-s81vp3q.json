@@ -1,0 +1,16 @@
+{
+  "id": "t-s81vp3q",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "three outside rows ran on orphan bases outside/{php,npm,py}: adopt exit 0, first-test and a seeded task merged per stack (#868 #871 #872 #874 #875 #878); gaps fixed with tests; no clean zero-lead drain, findings in summary"
+  },
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Live outside acceptance runs on orphan base branches of a repository the App reaches",
+  "after": [],
+  "body": [
+    "Why: t-d19z692 is blocked on repo creation (t-nhz6nn6, d-174575). Fable 1114 review: run the live acceptance now on a repository the App already reaches. The lead chose krn-works/krn itself (our repo; never an operator project repo).\nOutcome: scratch copies /mnt/storage/tmp/krn-outside/{php,npm,py} pushed as orphan base branches outside/php, outside/npm, outside/py of krn-works/krn; krn adopt, first-test PR via krn lane run and a drain of one real task run against real GitHub PRs targeting those bases; branches deleted afterwards.\nProof: three graded rows in .krn/runs/outside/summary.txt with zero lead turns; any non-default-base gap in lane run/pr ship is fixed with a regression test."
+  ]
+}

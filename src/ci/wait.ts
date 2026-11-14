@@ -133,7 +133,7 @@ export async function waitCommand(
     const now = runtime.now ?? Date.now;
     let last: Pull | undefined;
     let gateRun: string | undefined;
-    await waitForGate({
+    const conclusion = await waitForGate({
       ...options,
       policy,
       // No admission file at the base (a first adoption PR adds it): the base branch's required check decides.
@@ -156,7 +156,9 @@ export async function waitCommand(
       },
     });
     const lines = [
-      `gate: success ${options.head}${gateRun === undefined ? '' : ` in run ${gateRun}`}`,
+      conclusion === 'merged-ungated'
+        ? `gate: none ${options.head} (merged by GitHub before any ${policy.checkRunName} reported)`
+        : `gate: success ${options.head}${gateRun === undefined ? '' : ` in run ${gateRun}`}`,
     ];
     if (last?.merged === true || (last?.auto_merge ?? null) !== null)
       lines.push(
