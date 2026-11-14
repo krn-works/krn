@@ -17,28 +17,38 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { laneBriefText, startLane, workerRules } from '../../src/cli/lane.ts';
 import {
-  baselineReason,
-  failingTests,
   goalBrief,
   goalSlug,
-  laneRunCommand,
+  taskBrief,
+} from '../../src/cli/lane-run/brief.ts';
+import {
+  sandboxPlaceholders,
+  ticketCommitTitle,
+} from '../../src/cli/lane-run/delivery.ts';
+import {
   laneSandboxSettings,
-  mintFailure,
-  parseSessionResult,
+  sessionTimeoutMs,
+  tokenMinimumRemainingSeconds,
+} from '../../src/cli/lane-run/environment.ts';
+import {
+  baselineReason,
+  failingTests,
   prepareWorktree,
+  remoteFailure,
+  rerunCommand,
+  settingsFailure,
+} from '../../src/cli/lane-run/preflight.ts';
+import {
   redCheckFile,
   redCheckFinding,
   redCheckOf,
-  remoteFailure,
-  rerunCommand,
-  sandboxPlaceholders,
-  sessionTimeoutMs,
-  settingsFailure,
-  taskBrief,
-  ticketCommitTitle,
-  tokenMinimumRemainingSeconds,
+} from '../../src/cli/lane-run/red-check.ts';
+import {
+  parseSessionResult,
   transcriptTurns,
-} from '../../src/cli/lane-run.ts';
+} from '../../src/cli/lane-run/result.ts';
+import { mintFailure } from '../../src/cli/lane-run/steps.ts';
+import { laneRunCommand } from '../../src/cli/lane-run.ts';
 import { CliUsageError } from '../../src/cli/usage-error.ts';
 
 // An ambient lane session sets KRN_SESSION_CLASS=lane, which `krn lane start` rejects; the tests own their environment.

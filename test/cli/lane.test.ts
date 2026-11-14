@@ -398,7 +398,7 @@ test('krn pr body from the main checkout finds a record only the lane worktree h
 });
 
 test('the lane brief reads a record only the lane worktree holds, claimed or released', async () => {
-  const { taskBrief } = await import('../../src/cli/lane-run.ts');
+  const { taskBrief } = await import('../../src/cli/lane-run/brief.ts');
   const { base, repo } = fixture();
   try {
     const path = laneWithOnlyCopy(repo, 't-only123', 'only');
@@ -416,7 +416,7 @@ test('the lane brief reads a record only the lane worktree holds, claimed or rel
 });
 
 test('the lane brief lists the acceptance lines of the task record and requires them to pass', async () => {
-  const { taskBrief } = await import('../../src/cli/lane-run.ts');
+  const { taskBrief } = await import('../../src/cli/lane-run/brief.ts');
   const { base, repo } = fixture();
   try {
     const path = laneWithOnlyCopy(repo, 't-only123', 'only');

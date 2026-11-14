@@ -1,7 +1,11 @@
 {
   "id": "t-79e2gr4",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "laneRunCommand is four stages (parse, prepare, session, verdict) in src/cli/lane-run/; lane-run.ts is 22 lines"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "The lane run is a pipeline of named stages in their own modules",

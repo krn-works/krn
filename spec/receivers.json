@@ -50,10 +50,30 @@
       ],
       "test": "test/deliver/transport-capture.test.ts"
     },
-    "src/cli/lane-run.ts": {
+    "src/cli/lane-run/session.ts": {
       "receivers": ["claude", "git"],
       "capture": ["test/fixtures/claude/headless-session-result.json"],
       "test": "test/cli/lane-run.test.ts"
+    },
+    "src/cli/lane-run/delivery.ts": {
+      "receivers": ["git"],
+      "real": "test/cli/lane-run.test.ts"
+    },
+    "src/cli/lane-run/git.ts": {
+      "receivers": ["git"],
+      "real": "test/cli/lane-run.test.ts"
+    },
+    "src/cli/lane-run/preflight.ts": {
+      "receivers": ["git"],
+      "real": "test/cli/lane-run.test.ts"
+    },
+    "src/cli/lane-run/worktree.ts": {
+      "receivers": ["git"],
+      "real": "test/cli/lane-run.test.ts"
+    },
+    "src/cli/lane-run/steps.ts": {
+      "receivers": ["node"],
+      "real": "test/cli/lane-run.test.ts"
     },
     "src/cli/hook.ts": {
       "receivers": ["node"],
