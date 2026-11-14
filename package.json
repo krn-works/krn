@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test": "node --test test/*.test.mjs",
     "test:ledger": "vitest run test/ledger",
     "test:adapters": "vitest run test/adapters",
     "test:state": "vitest run test/state",
