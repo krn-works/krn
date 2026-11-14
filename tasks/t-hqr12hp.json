@@ -1,7 +1,11 @@
 {
   "id": "t-hqr12hp",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "hook fills model from agent frontmatter; explicit model never rerouted; unit tests on PreToolUse Agent payloads"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "Subagent model routing honours agent frontmatter and explicit model overrides",

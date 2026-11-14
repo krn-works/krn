@@ -3,7 +3,11 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { alias, updatedInput } from '../../scripts/claude/subagent-model.ts';
+import {
+  alias,
+  frontmatterModel,
+  updatedInput,
+} from '../../scripts/claude/subagent-model.ts';
 
 // Receiver evidence (live, Claude Code 2.1.316, 2026-11-09): `claude -p --model opus`
 // spawning Explore with no model ran claude-opus-5-5 without this hook and
@@ -86,10 +90,10 @@ test('project settings run the hook before every Agent call', () => {
 test('general-purpose lanes are routed to krn-lane, which carries a turn ceiling', () => {
   assert.deepEqual(
     updatedInput(
-      call({ subagent_type: 'general-purpose', model: 'opus', prompt: 'p' }),
+      call({ subagent_type: 'general-purpose', prompt: 'p' }),
       undefined,
     ),
-    { subagent_type: 'krn-lane', model: 'opus', prompt: 'p' },
+    { subagent_type: 'krn-lane', prompt: 'p' },
   );
   const agent = readFileSync(
     fileURLToPath(new URL('../../.claude/agents/krn-lane.md', import.meta.url)),
@@ -98,4 +102,58 @@ test('general-purpose lanes are routed to krn-lane, which carries a turn ceiling
   const turns = Number(/^maxTurns:\s*(\d+)/m.exec(agent)?.[1]);
   assert.ok(turns >= 60 && turns <= 90, 'krn-lane needs maxTurns of 60 to 90');
   assert.ok(!/^tools:/m.test(agent), 'krn-lane keeps the full tool set');
+});
+
+test('a call with an explicit model is never rerouted or changed', () => {
+  const pinned = () => 'haiku';
+  for (const subagent_type of ['general-purpose', 'krn-reader', 'Explore'])
+    assert.equal(
+      updatedInput(
+        call({ subagent_type, model: 'opus', prompt: 'p' }),
+        'sonnet',
+        pinned,
+      ),
+      undefined,
+    );
+});
+
+test('the hook fills the model from agent frontmatter when the call has none', () => {
+  const agents = fileURLToPath(
+    new URL('../../.claude/agents', import.meta.url),
+  );
+  assert.equal(frontmatterModel(agents, 'krn-reader'), 'haiku');
+  assert.equal(frontmatterModel(agents, 'no-such-agent'), undefined);
+  assert.equal(frontmatterModel(agents, '../settings'), undefined);
+  const pinned = (type: string) => frontmatterModel(agents, type);
+  assert.deepEqual(
+    updatedInput(
+      call({ subagent_type: 'krn-reader', prompt: 'p' }),
+      'sonnet',
+      pinned,
+    ),
+    { subagent_type: 'krn-reader', prompt: 'p', model: 'haiku' },
+  );
+  // general-purpose is rerouted to krn-lane and takes krn-lane's pinned model
+  assert.deepEqual(
+    updatedInput(
+      call({ subagent_type: 'general-purpose', prompt: 'p' }),
+      undefined,
+      (type) => (type === 'krn-lane' ? 'sonnet' : undefined),
+    ),
+    { subagent_type: 'krn-lane', prompt: 'p', model: 'sonnet' },
+  );
+  const run = spawnSync(process.execPath, [script], {
+    encoding: 'utf8',
+    input: JSON.stringify(call({ subagent_type: 'krn-reader', prompt: 'p' })),
+    env: {
+      ...process.env,
+      CLAUDE_CODE_SUBAGENT_MODEL: 'claude-sonnet-5-5',
+      CLAUDE_PROJECT_DIR: fileURLToPath(new URL('../..', import.meta.url)),
+    },
+  });
+  assert.equal(run.status, 0);
+  assert.equal(
+    JSON.parse(run.stdout).hookSpecificOutput.updatedInput.model,
+    'haiku',
+  );
 });
