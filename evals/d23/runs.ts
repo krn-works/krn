@@ -1,6 +1,6 @@
 // Grade every run of every arm of the D23 v2 comparison and print the repeated-run report.
 // Usage: node evals/d23/runs.ts --units-file <file> --results <dir holding run1..runN> --classify <dir of <pr>.classify.json> --out <dir>
-//   [--arms K,P,PB] [--runs 3] [--harness-ref <sha>] [--jobs 8] [--work <dir>] [--no-full]
+//   [--confirmatory --prereg <file> --prereg-sha256 <hex>] [--arms K,P,PB] [--runs 3] [--harness-ref <sha>] [--jobs 8] [--work <dir>] [--no-full]
 // Offline: reads <results>/run<r>/<pr>.<arm>.patch|files|claude.json, never starts a model session.
 // Resumes from <out>/<pr>.<arm>.<r>.json; a run without a finished .meas is skipped, not graded as a failure.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -14,6 +14,10 @@ import {
   hiddenChanges,
   type UnitSpec,
 } from './grade.ts';
+import {
+  PreregistrationError,
+  requirePreregistration,
+} from './preregistration.ts';
 
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 const mainRoot = repoRoot.split('/.krn/worktrees/')[0] ?? repoRoot;
@@ -85,6 +89,15 @@ export function observation(
 }
 
 async function main() {
+  if (process.argv.includes('--confirmatory')) {
+    try {
+      requirePreregistration(arg('prereg', ''), arg('prereg-sha256', ''));
+    } catch (e) {
+      if (!(e instanceof PreregistrationError)) throw e;
+      process.stderr.write(`${e.message}\n`);
+      process.exit(64);
+    }
+  }
   const out = resolve(arg('out', ''));
   const results = resolve(arg('results', ''));
   const classifyDir = resolve(arg('classify', ''));
