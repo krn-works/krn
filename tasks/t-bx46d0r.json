@@ -1,7 +1,11 @@
 {
   "id": "t-bx46d0r",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Selection of data-file readers already held (literal path match plus evidenceTests since #819); added real-repo proof test for AGENTS.md, standards/records.json, spec/context-budget.json"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "npm run fast selects tests that read a changed data file such as AGENTS.md",

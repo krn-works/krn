@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -552,5 +553,31 @@ test('changing the adopt canary selects the test that spawns the CLI entry with 
       new Set(),
       modules,
     ).includes(canary),
+  );
+});
+
+test('fast check selects the readers of a changed data file on the real repository', () => {
+  const real = new Map<string, string>();
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) walk(path);
+      else if (/\.test\.(ts|mjs)$/u.test(path))
+        real.set(path, readFileSync(path, 'utf8'));
+    }
+  };
+  walk('test');
+  assert.ok(
+    selectTests(['AGENTS.md'], real).includes('test/brain/standards.test.ts'),
+  );
+  assert.ok(
+    selectTests(['standards/records.json'], real).includes(
+      'test/brain/standards.test.ts',
+    ),
+  );
+  assert.ok(
+    selectTests(['spec/context-budget.json'], real).includes(
+      'test/rules/context-budget.test.ts',
+    ),
   );
 });
