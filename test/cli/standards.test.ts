@@ -98,10 +98,27 @@ const go = {
   '.github/workflows/ci.yml': workflow('go test ./...'),
 };
 
+const php = {
+  'composer.json': JSON.stringify({
+    name: 'probe/site',
+    'require-dev': { 'phpunit/phpunit': '10.0.0' },
+    scripts: { test: 'phpunit', lint: 'phpcs' },
+  }),
+  'composer.lock': '{}\n',
+  'phpunit.xml': '<phpunit/>\n',
+  'phpcs.xml': '<ruleset/>\n',
+  '.gitignore': 'vendor/\n',
+  'README.md': '# probe\n\n`composer test`\n',
+  '.github/workflows/ci.yml': workflow('composer test'),
+  'src/Probe.php': '<?php\necho esc_html($_GET["q"]);\n',
+  'tests/ProbeTest.php': '<?php\n',
+};
+
 const fixtures = [
   ['Python', python, 'python'],
   ['TypeScript', typescript, 'node/npm'],
   ['Go', go, 'go'],
+  ['PHP', php, 'php/phpunit'],
 ] as const;
 
 for (const [name, files, stack] of fixtures) {
@@ -186,7 +203,10 @@ test('standards check fails s-clean-checkout-tests when a test runs untracked di
 
 test('the shipped pack holds 15-25 universal records and its harvested records pass the promotion rule', () => {
   const pack = parseStandards(JSON.parse(readFileSync(packFile, 'utf8')));
-  const universal = pack.filter((s) => s.layer === 'universal').length;
+  // Stack-scoped records weigh on no repository outside their stack, so only the rest count.
+  const universal = pack.filter(
+    (s) => s.layer === 'universal' && s.applies.stacks.length === 0,
+  ).length;
   assert.ok(universal >= 15 && universal <= 25, `${universal} universal`);
   const harvested = pack.filter((s) => s.harvested !== undefined);
   assert.ok(
@@ -747,4 +767,113 @@ test('standards check exits 1 on a floor failure and an unwaived reflex, 0 on a 
     run({ tier: 'finish' }).stderr,
     /s-project: .*finish, reported only/u,
   );
+});
+
+// The standards pack stack-scoped records: each PHP, commit and script record fails on its own
+// plainest violation and is silent on a repository of another stack.
+const failsAlone = (files: Record<string, string>, id: string) => {
+  const root = repository(files);
+  try {
+    const done = check(root);
+    assert.equal(done.status, 1, done.stdout);
+    assert.match(done.stderr, new RegExp(`^${id}: exit 1`, 'mu'));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+};
+
+test('standards pack stack-scoped records: PHP rules name their violation on a Composer project', () => {
+  failsAlone(
+    { ...php, 'src/Probe.php': '<?php\necho $_GET["q"];\n' },
+    's-php-no-raw-request-output',
+  );
+  failsAlone(
+    {
+      ...php,
+      'composer.json': JSON.stringify({ scripts: { test: 'phpunit' } }),
+    },
+    's-php-composer-scripts',
+  );
+  const { 'composer.lock': _lock, ...unlocked } = php;
+  failsAlone(unlocked, 's-php-composer-lock');
+  failsAlone(
+    {
+      ...php,
+      'wp-config.php':
+        "<?php\ndefine('AUTH_KEY', 'k3j2h4k2j3h4k2j3h4k2j3h4');\n",
+    },
+    's-php-no-tracked-salts',
+  );
+});
+
+test('standards pack stack-scoped records: PHP rules do not apply to a TypeScript repository and a placeholder salt passes', () => {
+  const ts = repositoryFacts(repository(typescript));
+  const pack = parseStandards(JSON.parse(readFileSync(packFile, 'utf8')));
+  const names = pack.filter((s) => s.id.startsWith('s-php-')).map((s) => s.id);
+  assert.equal(names.length, 4);
+  for (const record of pack.filter((s) => names.includes(s.id)))
+    assert.equal(appliesTo(record, ts), false, record.id);
+  const root = repository({
+    ...php,
+    'wp-config.php':
+      "<?php\ndefine('AUTH_KEY', 'put your unique phrase here');\n",
+  });
+  try {
+    assert.equal(check(root).status, 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('a Composer project without PHPUnit is a php stack', () => {
+  const root = repository({ 'composer.json': '{"name": "a/b"}\n' });
+  try {
+    assert.equal(repositoryFacts(root).stack, 'php');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('standards pack stack-scoped records: script, commit and whitespace records fail on their plainest violation', () => {
+  failsAlone(
+    { ...typescript, 'deploy.sh': 'ssh host uptime\n' },
+    's-noninteractive-remote-commands',
+  );
+  failsAlone(
+    { ...typescript, 'setup.sh': 'sudo apt-get install git\n' },
+    's-noninteractive-remote-commands',
+  );
+  const ok = repository({
+    ...typescript,
+    'deploy.sh': 'ssh -o BatchMode=yes host uptime\napt-get install -y git\n',
+  });
+  try {
+    assert.equal(check(ok).status, 0);
+    const commit = (message: string) =>
+      git(
+        ok,
+        '-c',
+        'user.name=t',
+        '-c',
+        'user.email=t@t',
+        'commit',
+        '--allow-empty',
+        '-qm',
+        message,
+      );
+    commit('feat(x): add y (t-1)');
+    assert.equal(check(ok).status, 0);
+    writeFileSync(join(ok, 'src/index.ts'), 'export const one = 1; \n');
+    // A finish record reports without failing the check.
+    const dirty = check(ok);
+    assert.equal(dirty.status, 0);
+    assert.match(dirty.stderr, /^s-no-whitespace-errors: exit 2/mu);
+    git(ok, 'checkout', '--', 'src/index.ts');
+    commit('wip stuff');
+    const bad = check(ok);
+    assert.equal(bad.status, 1);
+    assert.match(bad.stderr, /^s-semantic-commits: exit 1/mu);
+  } finally {
+    rmSync(ok, { recursive: true, force: true });
+  }
 });

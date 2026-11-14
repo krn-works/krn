@@ -236,7 +236,10 @@ test('the shipped pack holds 15-25 universal standards in both layers, with evid
   );
   // The universal layer is the budget every adopted repository inherits; krn-delivery
   // records apply only where KRN is adopted.
-  const universal = pack.filter((r) => r.layer === 'universal').length;
+  // Stack-scoped records weigh on no repository outside their stack.
+  const universal = pack.filter(
+    (r) => r.layer === 'universal' && r.applies.stacks.length === 0,
+  ).length;
   assert.ok(universal >= 15 && universal <= 25, `${universal} universal`);
   const layers = new Set(pack.map((record) => record.layer));
   assert.deepEqual([...layers].sort(), ['krn-delivery', 'universal']);

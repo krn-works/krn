@@ -31,7 +31,7 @@
     "evidence": ["src/repo/contract.ts#no test command"],
     "enforcement": {
       "kind": "command",
-      "run": "if [ -f package.json ]; then node -e 'const t=(JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\")).scripts||{}).test||\"\";process.exit(t.trim()===\"\"||/no test specified/.test(t)?1:0)'; elif [ -f go.mod ]; then git ls-files | grep -q '_test\\.go$'; elif [ -f Cargo.toml ]; then true; elif [ -f pyproject.toml ] || [ -f setup.cfg ] || [ -f setup.py ] || [ -f tox.ini ] || [ -f pytest.ini ]; then git ls-files | grep -qE '(^|/)(test_[^/]*|[^/]*_test)\\.py$'; else grep -qE '^test:' Makefile 2>/dev/null; fi"
+      "run": "if [ -f package.json ]; then node -e 'const t=(JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\")).scripts||{}).test||\"\";process.exit(t.trim()===\"\"||/no test specified/.test(t)?1:0)'; elif [ -f composer.json ] || [ -f phpunit.xml ] || [ -f phpunit.xml.dist ]; then if [ -f phpunit.xml ] || [ -f phpunit.xml.dist ]; then true; else node -e 'const s=(JSON.parse(require(\"fs\").readFileSync(\"composer.json\",\"utf8\")).scripts||{}).test;process.exit(s===undefined||/no test specified/.test(JSON.stringify(s))?1:0)'; fi; elif [ -f go.mod ]; then git ls-files | grep -q '_test\\.go$'; elif [ -f Cargo.toml ]; then true; elif [ -f pyproject.toml ] || [ -f setup.cfg ] || [ -f setup.py ] || [ -f tox.ini ] || [ -f pytest.ini ]; then git ls-files | grep -qE '(^|/)(test_[^/]*|[^/]*_test)\\.py$'; else grep -qE '^test:' Makefile 2>/dev/null; fi"
     },
     "applies": {
       "stacks": [],
@@ -76,7 +76,7 @@
     ],
     "enforcement": {
       "kind": "command",
-      "run": "ci=$(cat .github/workflows/*.yml .github/workflows/*.yaml .gitlab-ci.yml 2>/dev/null); printf '%s\\n' \"$ci\" | grep -qE 'pull_request|merge_request' && printf '%s\\n' \"$ci\" | grep -qE '(pytest|tox|nox|unittest|(npm|pnpm|yarn|bun)( run)? test|vitest|jest|node --test|go test|cargo test|make test|uv run|hatch run|poetry run)|uses: *[^ ]*/[^ ]*ci\\.ya?ml'"
+      "run": "ci=$(cat .github/workflows/*.yml .github/workflows/*.yaml .gitlab-ci.yml 2>/dev/null); printf '%s\\n' \"$ci\" | grep -qE 'pull_request|merge_request' && printf '%s\\n' \"$ci\" | grep -qE '(pytest|tox|nox|unittest|(npm|pnpm|yarn|bun)( run)? test|vitest|jest|node --test|go test|cargo test|make test|uv run|hatch run|poetry run|phpunit|composer( run)? test)|uses: *[^ ]*/[^ ]*ci\\.ya?ml'"
     },
     "applies": {
       "stacks": [],
@@ -181,7 +181,7 @@
     "evidence": ["AGENTS.md#npm run fast"],
     "enforcement": {
       "kind": "command",
-      "run": "for f in biome.json biome.jsonc .eslintrc .eslintrc.* eslint.config.* .prettierrc .prettierrc.* prettier.config.* ruff.toml .ruff.toml .flake8 .pylintrc .golangci.yml .golangci.yaml .golangci.toml rustfmt.toml .rustfmt.toml; do [ -e \"$f\" ] && exit 0; done; grep -qE '^\\[tool\\.(ruff|black|flake8|pylint)' pyproject.toml 2>/dev/null || grep -qE '\"(@biomejs/biome|eslint|prettier)\"' package.json 2>/dev/null || cat .github/workflows/*.y*ml 2>/dev/null | grep -qE 'gofmt|go vet|golangci|cargo fmt|cargo clippy'"
+      "run": "for f in biome.json biome.jsonc .eslintrc .eslintrc.* eslint.config.* .prettierrc .prettierrc.* prettier.config.* ruff.toml .ruff.toml .flake8 .pylintrc .golangci.yml .golangci.yaml .golangci.toml rustfmt.toml .rustfmt.toml phpcs.xml phpcs.xml.dist .phpcs.xml phpstan.neon phpstan.neon.dist .php-cs-fixer.php .php-cs-fixer.dist.php pint.json psalm.xml; do [ -e \"$f\" ] && exit 0; done; grep -qE '^\\[tool\\.(ruff|black|flake8|pylint)' pyproject.toml 2>/dev/null || grep -qE '\"(@biomejs/biome|eslint|prettier)\"' package.json 2>/dev/null || cat .github/workflows/*.y*ml 2>/dev/null | grep -qE 'gofmt|go vet|golangci|cargo fmt|cargo clippy'"
     },
     "applies": {
       "stacks": [],
@@ -223,7 +223,7 @@
     "evidence": ["src/repo/contract.ts#no test command"],
     "enforcement": {
       "kind": "command",
-      "run": "cat README* readme* 2>/dev/null | grep -qiE '(pytest|tox|nox|unittest|(npm|pnpm|yarn|bun)( run)? test|vitest|jest|node --test|go test|cargo test|make test|uv run|hatch run|poetry run)'"
+      "run": "cat README* readme* 2>/dev/null | grep -qiE '(pytest|tox|nox|unittest|(npm|pnpm|yarn|bun)( run)? test|vitest|jest|node --test|go test|cargo test|make test|uv run|hatch run|poetry run|phpunit|composer( run)? test)'"
     },
     "applies": {
       "stacks": [],
@@ -555,5 +555,223 @@
     "recorded_at": "2026-11-13",
     "valid_from": "2026-11-13",
     "valid_to": null
+  },
+  {
+    "audience": "worker",
+    "layer": "universal",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "id": "s-php-composer-lock",
+    "area": "dependencies",
+    "tier": "reflex",
+    "text": "A PHP project that declares Composer dependencies tracks its composer.lock.",
+    "why": "Without the lock every checkout resolves WordPress, plugins and libraries afresh, so a green run says nothing about the next install.",
+    "evidence": [
+      "test/cli/standards.test.ts#standards pack stack-scoped records"
+    ],
+    "enforcement": {
+      "kind": "command",
+      "run": "[ ! -f composer.json ] || git ls-files --error-unmatch composer.lock >/dev/null 2>&1"
+    },
+    "applies": {
+      "stacks": ["php"],
+      "needs": []
+    },
+    "harvested": {
+      "origins": [
+        "bloom-barista-www",
+        "ekologus-projekt-www",
+        "boilerplate-rekurencja",
+        "bop-landing"
+      ],
+      "occurrences": 4
+    }
+  },
+  {
+    "audience": "worker",
+    "layer": "universal",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "id": "s-php-composer-scripts",
+    "area": "tests",
+    "tier": "reflex",
+    "text": "A PHP project with composer.json declares the composer scripts `test` and `lint`, so agents and CI run the same named checks.",
+    "why": "Agents run the commands the repository names; a PHP project without them is checked by guesswork or not at all.",
+    "evidence": [
+      "test/cli/standards.test.ts#standards pack stack-scoped records"
+    ],
+    "enforcement": {
+      "kind": "command",
+      "run": "[ ! -f composer.json ] || node -e 'const s=JSON.parse(require(\"fs\").readFileSync(\"composer.json\",\"utf8\")).scripts||{};const m=[\"test\",\"lint\"].filter(k=>!(k in s));if(m.length){console.error(\"composer.json lacks scripts: \"+m.join(\", \"));process.exit(1)}'"
+    },
+    "applies": {
+      "stacks": ["php"],
+      "needs": []
+    },
+    "harvested": {
+      "origins": [
+        "bloom-barista-www",
+        "ekologus-projekt-www",
+        "boilerplate-rekurencja",
+        "bop-landing"
+      ],
+      "occurrences": 4
+    }
+  },
+  {
+    "audience": "worker",
+    "layer": "universal",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "id": "s-php-no-raw-request-output",
+    "area": "security",
+    "tier": "reflex",
+    "text": "PHP code never echoes request input (`$_GET`, `$_POST`, `$_REQUEST`, `$_COOKIE`) without escaping it at the output boundary.",
+    "why": "Unescaped request data in a template is a cross-site scripting hole in every page that renders it.",
+    "evidence": [
+      "test/cli/standards.test.ts#standards pack stack-scoped records"
+    ],
+    "enforcement": {
+      "kind": "command",
+      "run": "! git grep -qIE '(echo|print)[[:space:]]+\\$_(GET|POST|REQUEST|COOKIE)|<\\?=[[:space:]]*\\$_(GET|POST|REQUEST|COOKIE)' -- '*.php' '*.phtml'"
+    },
+    "applies": {
+      "stacks": ["php"],
+      "needs": []
+    },
+    "harvested": {
+      "origins": [
+        "bloom-barista-www",
+        "ekologus-projekt-www",
+        "boilerplate-rekurencja",
+        "bop-landing"
+      ],
+      "occurrences": 4
+    }
+  },
+  {
+    "audience": "worker",
+    "layer": "universal",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "id": "s-php-no-tracked-salts",
+    "area": "secrets",
+    "tier": "floor",
+    "text": "No tracked PHP file defines a WordPress authentication key or salt as a literal; secrets, salts and deployment settings live in the private .env.",
+    "why": "A literal salt in git history lets anyone with the clone forge login cookies for the site.",
+    "evidence": [
+      "test/cli/standards.test.ts#standards pack stack-scoped records"
+    ],
+    "enforcement": {
+      "kind": "command",
+      "run": "! git grep -hIE \"define\\( *['\\\"](AUTH|SECURE_AUTH|LOGGED_IN|NONCE)_(KEY|SALT)['\\\"] *, *['\\\"][^'\\\"]{16,}['\\\"]\" -- '*.php' | grep -v 'put your unique phrase here' | grep -q ."
+    },
+    "applies": {
+      "stacks": ["php"],
+      "needs": []
+    },
+    "harvested": {
+      "origins": [
+        "bloom-barista-www",
+        "ekologus-projekt-www",
+        "boilerplate-rekurencja",
+        "bop-landing"
+      ],
+      "occurrences": 4
+    }
+  },
+  {
+    "audience": "worker",
+    "layer": "universal",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "id": "s-semantic-commits",
+    "area": "commits",
+    "tier": "reflex",
+    "text": "Commit subjects are semantic: `type(scope): outcome` with a conventional type such as feat, fix, docs, chore or refactor.",
+    "why": "A typed subject lets history, changelogs and review tooling classify a change without reading its diff.",
+    "evidence": [
+      "test/cli/standards.test.ts#standards pack stack-scoped records"
+    ],
+    "enforcement": {
+      "kind": "command",
+      "run": "! git rev-parse -q --verify HEAD >/dev/null 2>&1 || ! git log --no-merges -n 20 --format=%s | grep -vE '^(Revert \"|(feat|fix|docs|chore|refactor|test|perf|build|ci|style|revert)(\\([^)]+\\))?!?: )' | grep -q ."
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "harvested": {
+      "origins": [
+        "bloom-barista-www",
+        "ekologus-projekt-www",
+        "boilerplate-rekurencja",
+        "bop-landing"
+      ],
+      "occurrences": 4
+    }
+  },
+  {
+    "audience": "worker",
+    "layer": "universal",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "id": "s-noninteractive-remote-commands",
+    "area": "scripts",
+    "tier": "reflex",
+    "text": "Tracked shell scripts run ssh and scp with `-o BatchMode=yes` and apt-get install with `-y`, so they fail instead of waiting for a prompt.",
+    "why": "An agent or CI job has no one to answer a password, host or confirmation prompt, so a prompting command hangs the run.",
+    "evidence": [
+      "test/cli/standards.test.ts#standards pack stack-scoped records"
+    ],
+    "enforcement": {
+      "kind": "command",
+      "run": "! git grep -hIE '^[[:space:]]*(sudo[[:space:]]+)?(ssh|scp)[[:space:]]|apt-get[[:space:]]+install' -- '*.sh' | grep -vE 'BatchMode=yes|apt-get[[:space:]]+install[^#]*[[:space:]]-y' | grep -q ."
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "harvested": {
+      "origins": [
+        "seo",
+        "krn-skill-improver",
+        "krn-skill-improver-local-version"
+      ],
+      "occurrences": 3
+    }
+  },
+  {
+    "audience": "worker",
+    "layer": "universal",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "id": "s-no-whitespace-errors",
+    "area": "commits",
+    "tier": "finish",
+    "text": "Uncommitted changes pass `git diff --check`: no trailing whitespace, no space-before-tab, no conflict markers.",
+    "why": "Whitespace noise hides the real change in review and produces diffs that fail on the next editor.",
+    "evidence": [
+      "test/cli/standards.test.ts#standards pack stack-scoped records"
+    ],
+    "enforcement": {
+      "kind": "command",
+      "run": "! git rev-parse -q --verify HEAD >/dev/null 2>&1 || git diff --check HEAD"
+    },
+    "applies": {
+      "stacks": [],
+      "needs": []
+    },
+    "harvested": {
+      "origins": ["krn-ai-os", "krn-search"],
+      "occurrences": 2
+    }
   }
 ]
