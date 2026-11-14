@@ -1,7 +1,11 @@
 {
   "id": "t-kzbza45",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn pr body --lane writes 'Lane: krn lane brief'; lane brief rules tell lanes to pass it; ledger isLanePr counts it"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "The ledger counts lanes started with the Agent tool as lanes",

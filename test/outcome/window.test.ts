@@ -401,6 +401,13 @@ test('the window reports the rework rate and the lane and lead PR split', async 
     assert.equal(isLanePr({ body: '', branch: 'x-y' }, new Set(['x-y'])), true);
     assert.equal(isLanePr({ body: '', branch: 'x/y' }, new Set(['x-y'])), true);
     assert.equal(
+      isLanePr(
+        { body: '## Task\n\nAgent: x\n\nLane: krn lane brief\n', branch: 'z' },
+        new Set(),
+      ),
+      true,
+    );
+    assert.equal(
       isLanePr({ body: 'Agent: Claude Sonnet', branch: 'z' }, new Set()),
       false,
     );
