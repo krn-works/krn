@@ -1,0 +1,12 @@
+{
+  "id": "t-cgns35k",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-13",
+  "priority": 3,
+  "title": "fast derives the src modules a bin/krn subprocess test covers",
+  "after": [],
+  "body": [
+    "Why: t-2y7e1mz (79cfa38) fixed the fast miss for src/repo/contract.ts by adding manual `// fast-covers: src/repo/contract.ts` headers to three CLI-subprocess tests; any other src module reached only through bin/krn subprocesses still needs a hand-written header, and a missing one passes fast silently.\nOutcome: fast derives CLI-subprocess coverage automatically (a test that spawns bin/krn <command> covers the src modules that command's CLI entry imports, transitively), or a check fails when a test spawning bin/krn lacks a fast-covers header for the modules it asserts.\nProof: test/fast-check.test.ts asserts the derived selection for one more module without a manual header."
+  ]
+}

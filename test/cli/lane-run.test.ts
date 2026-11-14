@@ -150,6 +150,7 @@ test('parseSessionResult reads the captured result', () => {
     ok: true,
     detail: 'session success',
     cost: 0.08594,
+    turns: 1,
   });
   assert.equal(parseSessionResult('not json').ok, false);
   assert.equal(
@@ -197,7 +198,7 @@ test('lane run ships a committed task and prints the ship verdict', async () => 
   assert.equal(verdict.exitCode, 0);
   assert.match(
     verdict.line,
-    /^lane t-abc1234: shipped verdict: merged abc1234 model sonnet cost \$0\.09$/u,
+    /^lane t-abc1234: shipped verdict: merged abc1234 model sonnet cost \$0\.09 turns 1$/u,
   );
 });
 
@@ -206,7 +207,7 @@ test('lane run reports no commit and keeps the worktree', async () => {
   assert.equal(verdict.exitCode, 74);
   assert.match(
     verdict.line,
-    /^lane t-abc1234: no commit \(worktree .+, rerun reuses it, claim released\) model sonnet cost \$0\.09$/u,
+    /^lane t-abc1234: no commit \(worktree .+, rerun reuses it, claim released\) model sonnet cost \$0\.09 turns 1$/u,
   );
 });
 
