@@ -382,4 +382,6 @@ expect( null === asl_turnstile_failure_reason(), 'enabled Turnstile accepts a ve
 $GLOBALS['asl_test_remote_response'] = array( 'code' => 200, 'body' => '{"success":false}' );
 expect( 'turnstile' === asl_turnstile_failure_reason(), 'Turnstile rejects an unsuccessful verification response' );
 
+expect( "Hello big world" === asl_normalize_text( "Hel\u{200B}lo \n\t big   wor\u{00AD}ld" ), 'normalization strips invisible characters and collapses whitespace' );
+
 echo "OK: focused anti-spam contracts passed\n";

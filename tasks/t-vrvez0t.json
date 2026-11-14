@@ -1,7 +1,11 @@
 {
   "id": "t-vrvez0t",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "added asl_normalize_text test"
+  },
   "created": "2026-11-14",
   "priority": 0,
   "title": "Add a focused test for one untested function in inc/",
@@ -12,8 +16,8 @@
   "acceptance": [
     {
       "verify": "php tests/run.php",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }
