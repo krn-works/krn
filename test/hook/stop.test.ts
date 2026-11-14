@@ -21,6 +21,7 @@ import {
   linkPackageModules,
   relatedTests,
   selectTests,
+  shippedMerge,
   statesBlocker,
   stopHook,
   withinPackage,
@@ -1200,6 +1201,42 @@ test('the Stop hook import graph names only node builtins, relative files and zo
   walk(hook);
   assert.ok(seen.size > 5, 'the walk reached the hook sources');
   assert.deepEqual([...bare].sort(), ['zod']);
+});
+
+test('a merged ship is accepted when the main checkout has not fetched the merge yet', () => {
+  // Evidence: lane t-0bct43k merged debf26c, but the main checkout's origin/main lagged and the
+  // Stop hook refused the lane its end (t-8h8zncj).
+  const origin = mkdtempSync(join(tmpdir(), 'stop-origin-'));
+  const dir = clone();
+  const pusher = mkdtempSync(join(tmpdir(), 'stop-pusher-'));
+  try {
+    sh(origin, 'init', '-q', '--bare', '-b', 'main');
+    sh(dir, 'remote', 'add', 'origin', origin);
+    sh(dir, 'push', '-q', 'origin', 'main');
+    sh(dir, 'fetch', '-q', 'origin');
+    sh(pusher, 'clone', '-q', origin, '.');
+    sh(pusher, 'config', 'user.email', 'a@b.c');
+    sh(pusher, 'config', 'user.name', 'a');
+    writeFileSync(join(pusher, 'merged.txt'), 'merged\n');
+    sh(pusher, 'add', '.');
+    sh(pusher, 'commit', '-q', '-m', 'merge');
+    sh(pusher, 'push', '-q', 'origin', 'main');
+    const merged = spawnSync('git', ['rev-parse', 'HEAD'], {
+      cwd: pusher,
+      encoding: 'utf8',
+    }).stdout.trim();
+    assert.equal(shippedMerge(dir, `verdict: merged ${merged}`), true);
+    assert.equal(
+      shippedMerge(
+        dir,
+        'verdict: merged 0123456789abcdef0123456789abcdef01234567',
+      ),
+      false,
+    );
+  } finally {
+    for (const path of [origin, dir, pusher])
+      rmSync(path, { recursive: true, force: true });
+  }
 });
 
 test('a krn-lane subagent whose ship merged ends at the main checkout; an unmerged verdict is still refused', () => {
