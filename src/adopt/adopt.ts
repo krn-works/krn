@@ -1,6 +1,6 @@
 // The adoption set: what a repository needs so KRN delivery works there.
 import { existsSync, lstatSync, readdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   formatStandards,
@@ -50,6 +50,8 @@ export interface AdoptOptions {
   lint?: string;
   typecheck?: string;
   test?: string;
+  /** Only the KRN-owned adoption files: krn.json, tasks/, the CI call and the admission policy are left alone. */
+  refresh?: boolean;
 }
 
 export interface AdoptionReport {
@@ -59,6 +61,8 @@ export interface AdoptionReport {
   skipped: string[];
   /** Restores the repository to its state before this adoption: new files go, changed ones get their old content. */
   rollback: () => void;
+  /** Paths (relative to the root) that did not exist before this run wrote them. */
+  created: ReadonlySet<string>;
 }
 
 const sharedWorkflow = 'krn-works/krn/.github/workflows/project-ci.yml';
@@ -520,6 +524,9 @@ function writeHooks(
 export function adopt(root: string, options: AdoptOptions): AdoptionReport {
   const journal = new Journal();
   const report = recording(journal, () => writeAdoption(root, options));
+  report.created = new Set(
+    journal.absentPaths().map((path) => relative(root, path)),
+  );
   report.rollback = () => journal.rollback();
   return report;
 }
@@ -545,6 +552,7 @@ function writeAdoption(root: string, options: AdoptOptions): AdoptionReport {
     unchanged: [],
     skipped: [],
     rollback: () => undefined,
+    created: new Set(),
   };
   if (options.ref !== undefined && !/^[0-9a-f]{40}$/u.test(options.ref))
     throw new Error('--ref must be a full 40-character commit sha');
@@ -552,14 +560,17 @@ function writeAdoption(root: string, options: AdoptOptions): AdoptionReport {
   const settings = readSettings(root);
   const standards = projectStandards(root, options);
   const testless = vacuousAdoption(root, options);
-  if (options.ref !== undefined || options.tracker || testless)
+  if (
+    options.refresh !== true &&
+    (options.ref !== undefined || options.tracker || testless)
+  )
     seedTasks(root, report, {
       ci: options.ref !== undefined || options.tracker === true,
       test: testless,
     });
-  writeContract(root, options, report);
+  if (options.refresh !== true) writeContract(root, options, report);
   const workflow =
-    options.ref === undefined
+    options.ref === undefined || options.refresh === true
       ? undefined
       : ciWorkflow(root, { ...options, ref: options.ref }, report);
   writeHooks(root, settings, report);

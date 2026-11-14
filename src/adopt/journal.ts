@@ -36,6 +36,13 @@ export class Journal {
       this.record(path, { kind: 'file', content: readFileSync(path) });
   }
 
+  /** Paths noted as absent before this run wrote them. */
+  absentPaths(): string[] {
+    return [...this.before]
+      .filter(([, state]) => state.kind === 'absent')
+      .map(([path]) => path);
+  }
+
   private record(path: string, state: Before): void {
     if (!this.before.has(path)) this.before.set(path, state);
   }

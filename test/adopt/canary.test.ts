@@ -155,4 +155,10 @@ test('a red clean tree is reported as a red base with the failing command, exit 
     /canary red-base: red base: the repository's own test command `npm test` exits 1/u,
   );
   assert.doesNotMatch(run.stdout, /does not pass the clean tree/u);
+  assert.match(run.stderr, /everything adopt wrote was removed/u);
+  const status = spawnSync('git', ['status', '--porcelain'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  assert.equal(status.stdout, '');
 });

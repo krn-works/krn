@@ -2,6 +2,7 @@
 import { resolve } from 'node:path';
 import { adopt } from '../adopt/adopt.ts';
 import { runCanary } from '../adopt/canary.ts';
+import { adoptionDrift, refreshAdoption } from '../adopt/drift.ts';
 import { adoptionGaps } from '../adopt/gaps.ts';
 import {
   initDirectory,
@@ -40,13 +41,14 @@ function printGaps(root: string): void {
 }
 
 export const adoptUsage =
-  'krn adopt <path> [--tracker] [--no-canary] [--ref SHA [--install CMD] [--lint CMD] [--typecheck CMD]] [--test CMD] [--init [--stack ts|php|python]]  write krn.json from detection (kept when present), the .claude/settings.json Stop hook calling `krn hook stop`, the generated rules block in AGENTS.md (CLAUDE.md links to it), .agents/standards.json with the universal standards of the shipped pack that apply to the detected stack (tracker ones only with a tracker) followed by the project own records (one reusing a pack id exits 65) and the AGENTS.md standards block rendered from it and .krn/ in .gitignore into the git repository at <path>; --tracker seeds tasks/; --ref SHA also seeds tasks/, writes the call of the shared project CI at SHA to .github/workflows/ci.yml (krn-ci.yml beside a ci.yml of its own) and spec/ci-admission.json selecting the required `ci / Check`; reruns change nothing; then the canary breaks one test in a temporary worktree of the base and requires the Stop gate to refuse it (exit 2) and to pass the restored tree, else adopt fails (--no-canary records the decline); the canary is bounded by KRN_CANARY_TIMEOUT_MS (default 180000): past it adopt removes everything it wrote and exits 124, a clean base whose own test command fails exits 69 naming that command (not a gate failure); adopt then prints each failing standard as a `gap` line and, in a repository with a tracker, writes one task per floor or reflex failure; `--init` first prepares an empty or non-git directory (refused when it is a git repository with commits: run plain adopt): git init on main, the stack from package.json, composer.json or pyproject.toml or --stack, a minimal real test with its test command committed as the base, and the tracker; `krn adopt <path> --canary` runs only the canary; `krn adopt <path> --verify` only reads the repository through gh and exits 1 naming each gap when the default branch lacks one required check from GitHub Actions or auto-merge is off (no setting is changed); a repository whose origin is not on GitHub prints `verify skipped: no GitHub host` and skips those CI checks';
+  'krn adopt <path> [--tracker] [--no-canary] [--ref SHA [--install CMD] [--lint CMD] [--typecheck CMD]] [--test CMD] [--init [--stack ts|php|python]]  write krn.json from detection (kept when present), the .claude/settings.json Stop hook calling `krn hook stop`, the generated rules block in AGENTS.md (CLAUDE.md links to it), .agents/standards.json with the universal standards of the shipped pack that apply to the detected stack (tracker ones only with a tracker) followed by the project own records (one reusing a pack id exits 65) and the AGENTS.md standards block rendered from it and .krn/ in .gitignore into the git repository at <path>; --tracker seeds tasks/; --ref SHA also seeds tasks/, writes the call of the shared project CI at SHA to .github/workflows/ci.yml (krn-ci.yml beside a ci.yml of its own) and spec/ci-admission.json selecting the required `ci / Check`; reruns change nothing; then the canary breaks one test in a temporary worktree of the base and requires the Stop gate to refuse it (exit 2) and to pass the restored tree, else adopt fails (--no-canary records the decline); the canary is bounded by KRN_CANARY_TIMEOUT_MS (default 180000): any failed canary removes everything adopt wrote (a timeout exits 124, a clean base whose own test command fails exits 69 naming that command, any other failure exits 64); adopt then prints each failing standard as a `gap` line and, in a repository with a tracker, writes one task per floor or reflex failure; `--init` first prepares an empty or non-git directory (refused when it is a git repository with commits: run plain adopt): git init on main, the stack from package.json, composer.json or pyproject.toml or --stack, a minimal real test with its test command committed as the base, and the tracker; `krn adopt <path> --canary` runs only the canary; `krn adopt <path> --refresh` rewrites only the KRN-owned adoption files that drifted (or are missing) to what adopt writes now, never krn.json, tasks/ or the CI call, printing `updated <file>` or `kept <file>` per file, and is idempotent; `krn adopt <path> --verify` also names each adoption file that drifted or is missing (`verify drift:`), reads the repository through gh and exits 1 naming each gap or drift when the default branch lacks one required check from GitHub Actions or auto-merge is off (no setting is changed); a repository whose origin is not on GitHub prints `verify skipped: no GitHub host` and skips those CI checks';
 
 const switches = [
   '--tracker',
   '--canary',
   '--no-canary',
   '--verify',
+  '--refresh',
   '--init',
 ] as const;
 const flags = [
@@ -86,6 +88,7 @@ export function adoptCommand(args: string[]): void {
   if (on.has('--verify')) {
     if (on.size > 1 || Object.keys(values).length > 0)
       throw new CliUsageError('--verify stands alone');
+    const drift = adoptionDrift(root);
     const report = verifyRepository(root);
     if (report.skipped !== undefined)
       process.stdout.write(`verify skipped: ${report.skipped}\n`);
@@ -94,7 +97,27 @@ export function adoptCommand(args: string[]): void {
         'verify ok: required check and auto-merge are set\n',
       );
     for (const gap of report.gaps) process.stdout.write(`verify gap: ${gap}\n`);
-    if (!report.ok) process.exitCode = 1;
+    for (const file of drift.drifted)
+      process.stdout.write(
+        `verify drift: ${file} differs from what adopt writes\n`,
+      );
+    for (const file of drift.missing)
+      process.stdout.write(`verify drift: ${file} is missing\n`);
+    const drifting = drift.drifted.length + drift.missing.length > 0;
+    if (!drifting)
+      process.stdout.write(
+        'verify ok: adoption files match what adopt writes\n',
+      );
+    if (!report.ok || drifting) process.exitCode = 1;
+    return;
+  }
+  if (on.has('--refresh')) {
+    if (on.size > 1 || Object.keys(values).length > 0)
+      throw new CliUsageError('--refresh stands alone');
+    const refreshed = refreshAdoption(root);
+    for (const file of [...refreshed.drifted, ...refreshed.missing])
+      process.stdout.write(`updated ${file}\n`);
+    for (const file of refreshed.kept) process.stdout.write(`kept ${file}\n`);
     return;
   }
   if (on.has('--canary')) {
@@ -150,24 +173,17 @@ export function adoptCommand(args: string[]): void {
   else {
     const result = runCanary(root);
     process.stdout.write(`canary ${result.outcome}: ${result.message}\n`);
-    if (result.outcome === 'timeout') {
-      report.rollback();
-      throw new AdoptFailure(
-        `adopt failed: ${result.message}; everything adopt wrote was removed`,
-        CANARY_TIMEOUT_EXIT,
-      );
-    }
-    if (result.outcome === 'red-base') {
-      printGaps(root);
-      throw new AdoptFailure(
-        `adopt failed: ${result.message}; the adoption files stay written`,
-        RED_BASE_EXIT,
-      );
-    }
     if (result.outcome !== 'pass') {
-      printGaps(root);
+      // A failed canary leaves no repository half-adopted.
+      report.rollback();
+      const removed = 'everything adopt wrote was removed';
+      if (result.outcome === 'timeout' || result.outcome === 'red-base')
+        throw new AdoptFailure(
+          `adopt failed: ${result.message}; ${removed}`,
+          canaryExit(result.outcome),
+        );
       throw new CliUsageError(
-        `adopt failed: the canary did not prove the Stop gate (${result.message}); the adoption files stay written, fix the cause (a repository without tests needs one test file, e.g. *.test.ts, test_*.py or *_test.go, and a test command) or pass --no-canary to decline`,
+        `adopt failed: the canary did not prove the Stop gate (${result.message}); ${removed}; fix the cause (a repository without tests needs one test file, e.g. *.test.ts, test_*.py or *_test.go, and a test command) or pass --no-canary to decline`,
       );
     }
   }
