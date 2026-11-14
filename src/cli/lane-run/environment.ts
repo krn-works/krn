@@ -60,7 +60,7 @@ export function laneSandboxSettings(worktree: string): string {
 export function sessionEnvironment(
   env: NodeJS.ProcessEnv,
   cacheDirectory: string,
-  identity: { task?: string; lane: string },
+  identity: { task?: string; lane: string; repository?: string },
 ): NodeJS.ProcessEnv {
   const scrubbed: NodeJS.ProcessEnv = { ...env };
   for (const name of OPERATOR_CREDENTIAL_VARIABLES) delete scrubbed[name];
@@ -74,6 +74,10 @@ export function sessionEnvironment(
     KRN_LANE: identity.lane,
     ...(identity.task === undefined ? {} : { KRN_TASK: identity.task }),
     KRN_APP_CACHE_DIR: scrubbed.KRN_APP_CACHE_DIR || cacheDirectory,
+    // The minted token and the git helper serve the lane's own origin, not the product default.
+    ...(identity.repository === undefined
+      ? {}
+      : { KRN_APP_REPOSITORY: identity.repository }),
     PATH: scrubbed.PATH
       ? `${wrapperDirectory}:${scrubbed.PATH}`
       : wrapperDirectory,

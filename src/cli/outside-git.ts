@@ -29,17 +29,41 @@ export function appCredentialArgs(
   ];
 }
 
+/** The owner/name of `cwd`'s github.com origin, else undefined. */
+export function originRepository(
+  cwd: string,
+  run: typeof spawnSync = spawnSync,
+): string | undefined {
+  const url = run('git', ['-C', cwd, 'remote', 'get-url', 'origin'], {
+    encoding: 'utf8',
+  });
+  return url.status === 0 ? repositoryOfRemote(String(url.stdout)) : undefined;
+}
+
+/** The repository the host's default GitHub credential is scoped to. */
+export const productRepository = 'krn-works/krn';
+
+/**
+ * `-c` arguments that give git in `cwd` its origin's App token helper when that origin is a
+ * GitHub repository other than the product repository, which the default credential reaches.
+ */
+export function outsideCredentialArgs(
+  cwd: string,
+  run: typeof spawnSync = spawnSync,
+): string[] {
+  const repository = originRepository(cwd, run);
+  return repository === undefined || repository === productRepository
+    ? []
+    : appCredentialArgs(repository);
+}
+
 /** git in `cwd`; a github.com origin gets that repository's App token credential helper. */
 export function outsideGit(
   cwd: string,
   args: string[],
   run: typeof spawnSync = spawnSync,
 ): string {
-  const url = run('git', ['-C', cwd, 'remote', 'get-url', 'origin'], {
-    encoding: 'utf8',
-  });
-  const repository =
-    url.status === 0 ? repositoryOfRemote(String(url.stdout)) : undefined;
+  const repository = originRepository(cwd, run);
   const result = run(
     'git',
     [

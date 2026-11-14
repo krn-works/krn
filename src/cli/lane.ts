@@ -26,6 +26,7 @@ import { isTaskId } from '../task/record.ts';
 import { repositoryRoot } from '../task/store.ts';
 import { flagValue } from './flag-value.ts';
 import { sleepSync } from './lane-lock.ts';
+import { outsideCredentialArgs } from './outside-git.ts';
 import { CliUsageError } from './usage-error.ts';
 
 export const laneUsage = [
@@ -201,10 +202,12 @@ export function fetchBase(
     throw new CliUsageError(
       `${main} has no git remote origin: lanes branch from origin/${base}, so add one (git remote add origin <url>) and push ${base} first`,
     );
+  // An outside GitHub origin is fetched with its own App token: the default credential 404s there.
+  const credential = outsideCredentialArgs(main);
   for (let attempt = 1; ; attempt += 1) {
     const result = spawnSync(
       'git',
-      ['-C', main, 'fetch', '-q', 'origin', base],
+      [...credential, '-C', main, 'fetch', '-q', 'origin', base],
       {
         encoding: 'utf8',
       },
