@@ -23,6 +23,7 @@ import {
   stripMarkup,
 } from './capsule.ts';
 import { git } from './git.ts';
+import { stateLoss } from './loss.ts';
 import {
   capsuleStoreReport,
   type Finding,
@@ -646,6 +647,13 @@ export function inspectState(repo: string): CheckReport {
         rule: 'transient-sandbox-placeholder',
         detail: `${path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path} is an empty sandbox placeholder a running lane session left; lane run removes it when the session ends`,
       });
+
+  for (const path of stateLoss(root))
+    errors.push({
+      id: 'claims',
+      rule: 'state-loss',
+      detail: `${path} is an open claim without a capsule or handoff`,
+    });
 
   const inventory = runDirectoriesDetailed(root);
   for (const detail of inventory.errors)

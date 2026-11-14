@@ -60,7 +60,7 @@ test('restart hook emits bounded JSON with branch, open claims and newest handof
     });
     writeFileSync(
       join(root, '.krn/runs/delivery-loop/outcome/handoff.md'),
-      'pointer only',
+      'pointer only fixture-claim',
     );
     const result = spawnSync(process.execPath, [script], {
       env: {

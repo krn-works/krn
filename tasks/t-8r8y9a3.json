@@ -1,7 +1,11 @@
 {
   "id": "t-8r8y9a3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "SessionStart prints STATE LOSS per open claim without capsule or handoff; krn state check fails on it"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "Session start prints STATE LOSS when an open claim has no capsule or handoff",
