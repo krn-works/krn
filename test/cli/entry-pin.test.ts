@@ -123,9 +123,31 @@ test('krn doctor reads the configured entry', async () => {
 async function freshClone(root: string): Promise<string> {
   const repo = fileURLToPath(new URL('../..', import.meta.url));
   const work = join(root, 'work');
-  git(root, 'clone', '-q', '--no-hardlinks', repo, work);
+  await mkdir(work);
+  git(work, 'init', '-q', '-b', 'main');
+  git(work, 'config', 'user.email', 't@example.invalid');
+  git(work, 'config', 'user.name', 't');
   await cp(join(repo, 'src'), join(work, 'src'), { recursive: true });
+  await cp(join(repo, 'package.json'), join(work, 'package.json'));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'one');
+  await writeFile(join(work, 'a'), '2');
+  git(work, 'add', 'a');
+  git(work, 'commit', '-qm', 'two');
+  git(work, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
   return work;
+}
+
+function forwardedTask(work: string) {
+  return spawnSync(
+    process.execPath,
+    [join(work, 'src', 'cli', 'krn.mjs'), 'task', 'ready'],
+    {
+      cwd: work,
+      encoding: 'utf8',
+      env: { ...process.env, KRN_FORWARDED: '1' },
+    },
+  );
 }
 
 test('a forwarded krn task in a fresh clone that never fetched warns once and runs', async () => {
@@ -134,11 +156,7 @@ test('a forwarded krn task in a fresh clone that never fetched warns once and ru
     const work = await freshClone(root);
     git(work, 'update-ref', '-d', 'refs/remotes/origin/main');
     assert.equal(isUnfetched(readEntryPin(work)), true);
-    const result = spawnSync(join(work, 'bin', 'krn'), ['task', 'ready'], {
-      cwd: work,
-      encoding: 'utf8',
-      env: { ...process.env, KRN_FORWARDED: '1' },
-    });
+    const result = forwardedTask(work);
     assert.notEqual(result.status, staleEntryExit, result.stderr);
     assert.equal(
       result.stderr.match(/has not fetched origin\/main/gu)?.length,
@@ -155,11 +173,7 @@ test('a forwarded krn task whose pin exists but mismatches still fails closed', 
   try {
     const work = await freshClone(root);
     git(work, 'update-ref', 'refs/remotes/origin/main', 'HEAD~1');
-    const result = spawnSync(join(work, 'bin', 'krn'), ['task', 'ready'], {
-      cwd: work,
-      encoding: 'utf8',
-      env: { ...process.env, KRN_FORWARDED: '1' },
-    });
+    const result = forwardedTask(work);
     assert.equal(result.status, staleEntryExit);
     assert.match(result.stderr, /stale Product entry/u);
   } finally {
