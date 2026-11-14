@@ -165,3 +165,12 @@ class TestCacheMissingBody:
         body_path.unlink()
         result = cache_get("https://example.com/", False)
         assert result.status == "miss"
+
+
+def test_ensure_dirs_creates_objects_and_entries(tmp_path):
+    base = tmp_path / "fresh_cache"
+    cache_mod.ensure_dirs(base)
+    assert (base / "objects").is_dir()
+    assert (base / "entries").is_dir()
+    # idempotent
+    cache_mod.ensure_dirs(base)
