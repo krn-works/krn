@@ -1,0 +1,29 @@
+import humanize
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _reset_locale():
+    yield
+    humanize.i18n.deactivate()
+
+
+def test_fr_decimal_separator():
+    humanize.i18n.activate("fr_FR")
+    assert humanize.naturalsize(1_500_000) == "1,5 Mo"
+    assert humanize.naturalsize(1_500_000, format="%.2f") == "1,50 Mo"
+    assert humanize.naturalsize(1_500_000, gnu=True) == "1,4M"
+    assert humanize.naturalsize(3_000_000, format="%.0f") == "3 Mo"
+
+
+def test_de_decimal_separator():
+    humanize.i18n.activate("de_DE")
+    assert humanize.naturalsize(1_500_000) == "1,5 MB"
+
+
+def test_default_unchanged():
+    assert humanize.naturalsize(1_500_000) == "1.5 MB"
+    assert humanize.naturalsize(1_500_000, gnu=True) == "1.4M"
+    humanize.i18n.activate("fr_FR")
+    humanize.i18n.deactivate()
+    assert humanize.naturalsize(1_500_000) == "1.5 MB"

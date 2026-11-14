@@ -1,0 +1,28 @@
+import datetime as dt
+
+import humanize
+from freezegun import freeze_time
+
+
+@freeze_time("2026-11-14 12:00:00")
+def test_iso_strings():
+    assert humanize.naturalday("2026-11-13") == "yesterday"
+    assert humanize.naturalday("2026-11-15T09:30:00") == "tomorrow"
+    assert humanize.naturalday("2026-11-14T23:59:59+00:00") == "today"
+    assert humanize.naturalday("2026-11-10", format="%d.%m") == "10.11"
+    assert humanize.naturaldate("2026-11-13") == "yesterday"
+    assert humanize.naturaldate("2025-01-02") == "Jan 02 2025"
+
+
+@freeze_time("2026-11-14 12:00:00")
+def test_non_iso_unchanged():
+    assert humanize.naturalday("hello") == "hello"
+    assert humanize.naturaldate("hello") == "hello"
+    assert humanize.naturalday("") == ""
+
+
+@freeze_time("2026-11-14 12:00:00")
+def test_objects_unchanged():
+    assert humanize.naturalday(dt.date(2026, 11, 13)) == "yesterday"
+    assert humanize.naturalday(dt.datetime(2026, 11, 10, 8, 0)) == "Nov 10"
+    assert humanize.naturaldate(dt.date(2025, 1, 2)) == "Jan 02 2025"

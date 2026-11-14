@@ -123,13 +123,13 @@ test('the unit format refuses a record without a base, a spec or a hidden file',
 
 test('the committed batch holds the pilot units, each with its hidden file and the pilot repository names', () => {
   const units = loadUnits(unitsDir);
-  assert.equal(units.length, 10);
+  assert.ok(units.length >= 10);
   const repos = new Set(units.map((u) => u.unit.repo));
   assert.deepEqual([...repos].sort(), [
     'krn-works/krn-pilot-py',
     'krn-works/seo-audit-harness',
   ]);
-  assert.equal(new Set(units.map((u) => u.unit.id)).size, 10);
+  assert.equal(new Set(units.map((u) => u.unit.id)).size, units.length);
   for (const { unit, dir } of units) {
     assert.ok(existsSync(join(dir, unit.hidden.file)), unit.id);
   }

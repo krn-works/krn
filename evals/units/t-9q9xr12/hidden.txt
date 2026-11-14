@@ -1,0 +1,17 @@
+import humanize
+
+
+def test_or():
+    assert humanize.natural_list([1, 2, 3], conjunction=False) == "1, 2 or 3"
+    assert humanize.natural_list(["one", "two"], conjunction=False) == "one or two"
+
+
+def test_single_and_empty():
+    assert humanize.natural_list(["one"], conjunction=False) == "one"
+    assert humanize.natural_list([], conjunction=False) == ""
+
+
+def test_default_unchanged():
+    assert humanize.natural_list([1, 2, 3]) == "1, 2 and 3"
+    assert humanize.natural_list(["one", "two"]) == "one and two"
+    assert humanize.natural_list(iter(["a", "b", "c"]), conjunction=True) == "a, b and c"

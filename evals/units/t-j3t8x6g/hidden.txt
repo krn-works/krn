@@ -1,0 +1,17 @@
+import humanize
+
+
+def test_gap_falls_back_to_plain_integer():
+    assert humanize.intword(10**36) == "1000000000000000000000000000000000000"
+    assert humanize.intword(10**50) == str(10**50)
+    assert humanize.intword(-(10**50)) == str(-(10**50))
+    assert humanize.intword(10**99 - 1) == str(10**99 - 1)
+
+
+def test_unchanged():
+    assert humanize.intword(999 * 10**33) == "999.0 decillion"
+    assert humanize.intword(10**35) == "100.0 decillion"
+    assert humanize.intword(10**100) == "1.0 googol"
+    assert humanize.intword(10**100 - 10**93) == "1.0 googol"
+    assert humanize.intword(-(10**100)) == "-1.0 googol"
+    assert humanize.intword(10**101) == "10.0 googol"

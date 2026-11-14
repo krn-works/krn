@@ -1,0 +1,17 @@
+{
+  "id": "t-9q9xr12",
+  "repo": "krn-works/krn-pilot-py",
+  "base": "80403521849f5565e4551a241e2d5c410a5d27e8",
+  "reference": "dba53939049f9d83f4aea86973cf14013b1d4e74",
+  "task": {
+    "title": "natural_list takes a conjunction parameter to join with or",
+    "body": "Why: https://github.com/python-humanize/humanize/issues/214 ; src/humanize/lists.py natural_list always joins with 'and', so a list of alternatives cannot be written as '1, 2 or 3'.\nOutcome: `humanize.natural_list(items, conjunction=True)` takes a new keyword parameter `conjunction` (a bool, default True). With `conjunction=False` the last item is joined with 'or' instead of 'and': `natural_list([1, 2, 3], conjunction=False) == '1, 2 or 3'`, `natural_list([\"one\", \"two\"], conjunction=False) == 'one or two'`. One item and the empty list are unchanged by the parameter: `natural_list([\"one\"], conjunction=False) == 'one'`, `natural_list([], conjunction=False) == ''`. Default calls are unchanged: `natural_list([1, 2, 3]) == '1, 2 and 3'`, `natural_list([\"one\", \"two\"]) == 'one and two'`, `natural_list(iter([\"a\", \"b\", \"c\"]), conjunction=True) == 'a, b and c'`.\nProof: add tests to tests/test_lists.py."
+  },
+  "spec": "`humanize.natural_list(items, conjunction=True)` takes a new keyword parameter `conjunction` (a bool, default True). With `conjunction=False` the last item is joined with 'or' instead of 'and': `natural_list([1, 2, 3], conjunction=False) == '1, 2 or 3'`, `natural_list([\"one\", \"two\"], conjunction=False) == 'one or two'`. One item and the empty list are unchanged by the parameter: `natural_list([\"one\"], conjunction=False) == 'one'`, `natural_list([], conjunction=False) == ''`. Default calls are unchanged: `natural_list([1, 2, 3]) == '1, 2 and 3'`, `natural_list([\"one\", \"two\"]) == 'one and two'`, `natural_list(iter([\"a\", \"b\", \"c\"]), conjunction=True) == 'a, b and c'`.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/hidden/test_hidden.py"
+  },
+  "install": "python3 -m venv .venv && .venv/bin/python -m pip install -q babel -e '.[tests]' && .venv/bin/pybabel --quiet compile --directory src/humanize/locale --domain humanize",
+  "test": ".venv/bin/python -m pytest -q -p no:cacheprovider tests/hidden/test_hidden.py"
+}
