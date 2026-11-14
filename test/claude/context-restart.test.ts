@@ -309,7 +309,7 @@ test('restart hook injects one consolidated block from the newest handoff within
 });
 
 test('restart hook injects the resume task record so startup needs no cat of tasks/<id>.json', async () => {
-  const { taskBrief } = await import('../../scripts/claude/context-restart.ts');
+  const { taskBrief } = await import('../../src/context/restart.ts');
   const root = mkdtempSync(join(tmpdir(), 'context-restart-task-'));
   try {
     mkdirSync(join(root, 'tasks'));

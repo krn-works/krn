@@ -1,3 +1,4 @@
+// Disk-volume probe and pressure lines.
 import { statfsSync, statSync } from 'node:fs';
 
 // Below this free percentage builds, installs and git writes start failing;

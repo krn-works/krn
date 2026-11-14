@@ -20,12 +20,15 @@ import { fileURLToPath } from 'node:url';
 const script = fileURLToPath(
   new URL('../../scripts/claude/context-gauge.ts', import.meta.url),
 );
+const gaugeModule = fileURLToPath(
+  new URL('../../src/context/gauge.ts', import.meta.url),
+);
 const fixture = (name: string) =>
   readFileSync(new URL(`fixtures/${name}.jsonl`, import.meta.url), 'utf8');
 
 test('gauge exports a pure last main-chain context reader', async () => {
   assert.ok(existsSync(script), 'gauge script exists');
-  const module = await import(script);
+  const module = await import(gaugeModule);
   assert.equal(typeof module.contextTotal, 'function');
   for (const [name, total] of [
     ['below', 95053],
@@ -41,7 +44,7 @@ test('gauge exports a pure last main-chain context reader', async () => {
 });
 
 test('gauge caps its advisories at 150k and 200k of a 400k window', async () => {
-  const { advisoriesOf } = await import(script);
+  const { advisoriesOf } = await import(gaugeModule);
   assert.deepEqual(advisoriesOf(400000), { first: 150000, second: 200000 });
   assert.deepEqual(advisoriesOf(200000), { first: 120000, second: 160000 });
   // The project window stays 400k; a 163k captured reading already advises.
@@ -412,7 +415,7 @@ test('gauge repeats the advisory past the second threshold and refuses new work 
 });
 
 test('host gauge serves every project except one that wires its own gauge', async () => {
-  const { handoffBash, refusesAtCeiling } = await import(script);
+  const { handoffBash, refusesAtCeiling } = await import(gaugeModule);
   const root = mkdtempSync(join(tmpdir(), 'context-gauge-host-'));
   const project = join(root, 'project');
   mkdirSync(join(project, '.claude'), { recursive: true });

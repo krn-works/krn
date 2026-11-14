@@ -7,7 +7,7 @@ import {
   countTranscriptHits,
   run,
   scanFile,
-} from '../../scripts/claude/cc-clearing-watch.ts';
+} from '../../src/context/cc-clearing-watch.ts';
 
 const fx = (name: string) =>
   join(import.meta.dirname, 'fixtures', 'cc-watch', name);

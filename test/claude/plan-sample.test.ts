@@ -18,7 +18,7 @@ import {
   record,
   sampleOf,
   stateRoot,
-} from '../../scripts/claude/plan-sample.ts';
+} from '../../src/context/plan-sample.ts';
 import { parsePlanSamples } from '../../src/outcome/plan-gauge.ts';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
