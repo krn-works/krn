@@ -50,6 +50,7 @@ src/cli/lane-run.ts: (no header) exports laneRunCommand
 src/cli/lane-run/args.ts: (no header) exports laneRunUsage, LaneRequest, parseLaneRequest
 src/cli/lane-run/brief.ts: (no header) exports checkCommand, krnInvocation, taskRecordBrief, goalBrief
 src/cli/lane-run/delivery.ts: (no header) exports ticketCommitTitle, sessionVerification, placeholderName, san
+src/cli/lane-run/drain.ts: (no header) exports drainUsage, repeatedClassLimit, DrainRequest, DrainSeams
 src/cli/lane-run/environment.ts: (no header) exports OPERATOR_CREDENTIAL_VARIABLES, defaultSessionTimeoutMs, t
 src/cli/lane-run/git.ts: (no header) exports git
 src/cli/lane-run/preflight.ts: (no header) exports ansi, lastLine, failingTests, baselineReason

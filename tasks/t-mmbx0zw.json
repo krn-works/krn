@@ -1,7 +1,11 @@
 {
   "id": "t-mmbx0zw",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn lane run --ready --max N in src/cli/lane-run/drain.ts"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "krn lane run --ready --max N delivers ready tasks serially without a lead and stops on a repeated failure class",
