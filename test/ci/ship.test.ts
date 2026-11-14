@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { shipCommand } from '../../src/ci/ship.ts';
-import { CommandFailure } from '../../src/deliver/transport.ts';
+import { CommandFailure, run } from '../../src/deliver/transport.ts';
 
 // KRN-12: the fake git and gh answer only the exact calls ship may make, with
 // output shaped like the real tools (gh pr create prints the PR url).
@@ -89,7 +89,7 @@ function receiver(options: {
       assert.equal(line0(a), '--test test/rules/instruction-bytes.test.ts');
       return { code: 0, stdout: '', stderr: '', ...options.rule };
     }
-    if (command === 'sh')
+    if (command === 'env')
       return { code: options.proofExit ?? 0, stdout: '', stderr: 'proof out' };
     if (command === 'bash') return out(`commit=${merge}\n`);
     const line = a.join(' ');
@@ -485,7 +485,11 @@ test('ship runs the task Proof commands, records command and exit in the PR body
     },
   );
   assert.match(out, /^verdict: merged /mu);
-  assert.ok(r.calls.includes('sh -c node --test test/x.test.ts'));
+  assert.ok(
+    r.calls.includes(
+      'env PR_BODY=## Problem\n\nx\n sh -c node --test test/x.test.ts',
+    ),
+  );
   assert.match(published, /^## Problem/mu);
   assert.match(published, /^- `node --test test\/x\.test\.ts`: exit 0$/mu);
   assert.ok(
@@ -497,8 +501,11 @@ test('ship runs the task Proof commands, records command and exit in the PR body
 for (const force of [false, true]) {
   test(`ship refuses with exit 81 before the push when a Proof command fails (force=${force})`, async () => {
     const r = receiver({ pulls: [auto, merged], proofExit: 3 });
+    const file = join(mkdtempSync(join(tmpdir(), 'ship-proof-')), 'body.md');
+    writeFileSync(file, '## Problem\n\nx\n');
+    const withBody = ['--title', title, '--body-file', file, '--repo', 'o/r'];
     await assert.rejects(
-      shipCommand([...args, ...(force ? ['--force'] : [])], {
+      shipCommand([...withBody, ...(force ? ['--force'] : [])], {
         ...r,
         proofOf: () => ['npm run fast'],
       }),
@@ -594,3 +601,49 @@ test('ship with an empty gh pr create reply exits 71 without a second create', a
   });
   assert.equal(r.calls.filter((c) => c.startsWith('gh pr create')).length, 1);
 });
+
+// KRN-12: the Proof command is the real weak-tests script over a real git commit that drops
+// an assertion; only the fake gh and the ship-side git stay fakes.
+for (const declared of [true, false]) {
+  test(`a Proof check reads the PR body as CI does (Weakens-tests line ${declared ? 'present: merges' : 'absent: exit 81'})`, async () => {
+    const repo = mkdtempSync(join(tmpdir(), 'ship-weakens-'));
+    const sh = (command: string) => {
+      const result = run('sh', ['-c', command], repo);
+      assert.equal(result.code, 0, result.stderr);
+    };
+    sh('git init -q && git config user.name t && git config user.email t@t');
+    sh('mkdir -p src test && echo "export const a = 1;" > src/a.ts');
+    sh(
+      "printf 'assert.equal(1, 1);\\nassert.equal(2, 2);\\n' > test/a.test.ts && git add -A && git commit -qm base",
+    );
+    sh(
+      "printf 'assert.equal(1, 1);\\n' > test/a.test.ts && git commit -qam weaken",
+    );
+    const file = join(repo, 'body.md');
+    writeFileSync(
+      file,
+      `## Problem\n\nx\n${declared ? '\nWeakens-tests: the dropped assertion duplicated the first\n' : ''}`,
+    );
+    const r = receiver({ pulls: [auto, merged] });
+    const proof = `node ${join(process.cwd(), 'scripts/weak-tests.mjs')} HEAD~1 HEAD`;
+    const shipped = shipCommand(
+      ['--title', title, '--body-file', file, '--repo', 'o/r'],
+      {
+        ...r,
+        run: (command, a, at, input, timeoutMs) =>
+          command === 'env'
+            ? run(command, a, repo, input, timeoutMs)
+            : r.run(command, a, at),
+        proofOf: () => [proof],
+        publish: () => '/r/published.md',
+      },
+    );
+    if (declared) assert.match(await shipped, /^verdict: merged /mu);
+    else
+      await assert.rejects(shipped, (e: Failure) => {
+        assert.equal(e.exitCode, 81);
+        assert.match(e.message, /weak-tests/u);
+        return true;
+      });
+  });
+}

@@ -208,9 +208,13 @@ export async function shipCommand(
       { exitCode: 65 },
     );
 
-  const proofs = (runtime.proofOf ?? (() => []))(cwd, title).map((command) => ({
+  // PR_BODY as CI sets it: a check that reads the body (weak-tests' Weakens-tests line) sees
+  // the same text before the push as on the PR.
+  const proofCommands = (runtime.proofOf ?? (() => []))(cwd, title);
+  const prBody = proofCommands.length === 0 ? '' : readFileSync(body, 'utf8');
+  const proofs = proofCommands.map((command) => ({
     command,
-    result: runner('sh', ['-c', command], cwd),
+    result: runner('env', [`PR_BODY=${prBody}`, 'sh', '-c', command], cwd),
   }));
   const failedProof = proofs.find(({ result }) => result.code !== 0);
   if (failedProof !== undefined)
@@ -225,7 +229,7 @@ export async function shipCommand(
       ? body
       : (runtime.publish ?? publishBody)(
           cwd,
-          `${readFileSync(body, 'utf8').trimEnd()}\n\n## Proof run\n\n${proofs.map(({ command, result }) => `- \`${command}\`: exit ${result.code}`).join('\n')}\n`,
+          `${prBody.trimEnd()}\n\n## Proof run\n\n${proofs.map(({ command, result }) => `- \`${command}\`: exit ${result.code}`).join('\n')}\n`,
         );
 
   const pushed = runner(
