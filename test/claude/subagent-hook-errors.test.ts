@@ -12,7 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { deliver, scan } from '../../scripts/claude/subagent-hook-errors.ts';
+import { deliver, scan } from '../../src/hook/subagent-hook-errors.ts';
 
 // Receiver evidence: the fixture line is a real subagent transcript entry (Claude Code
 // 2.1.319, agent a8b33ced368d8967c) where a PreToolUse:Bash hook refused a call. The

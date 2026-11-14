@@ -7,7 +7,11 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { type Rule, render, workerRules } from '../../scripts/render-agents.ts';
+import {
+  type Rule,
+  render,
+  workerRules,
+} from '../../src/repo/agents-render.ts';
 
 /** Lead skills and agents: a worker never leads, hands off or runs a retro, and their listings cost context. */
 export const LEAD_ONLY = [

@@ -1,9 +1,9 @@
 import { readFileSync } from 'node:fs';
+import { decide as leadRead } from '../../src/hook/lead-file-read.ts';
 import { decide as stashGuard } from '../../src/hook/stash.ts';
+import { decide as unpushedDelete } from '../../src/hook/unpushed-delete.ts';
 import { decide as pollGuard } from './ci-poll.ts';
-import { decide as leadRead } from './lead-file-read.ts';
 import { judge as pipedCheck } from './piped-check.ts';
-import { decide as unpushedDelete } from './unpushed-delete.ts';
 
 // One PreToolUse entry for Bash: the five command guards run in one process instead of
 // five. Each guard stays its own module with its own tests and still runs standalone.

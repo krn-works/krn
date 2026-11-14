@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -11,6 +19,8 @@ const script = fileURLToPath(
 );
 const registry = fileURLToPath(new URL('../spec/rules.json', import.meta.url));
 const agents = fileURLToPath(new URL('../AGENTS.md', import.meta.url));
+const sources = fileURLToPath(new URL('../src/', import.meta.url));
+const modules = fileURLToPath(new URL('../node_modules', import.meta.url));
 const tests = fileURLToPath(new URL('../test/', import.meta.url));
 const packageFile = fileURLToPath(new URL('../package.json', import.meta.url));
 
@@ -31,6 +41,8 @@ async function fixture(): Promise<{
     cp(agents, copyAgents),
     cp(packageFile, join(directory, 'package.json')),
     cp(tests, join(directory, 'test'), { recursive: true }),
+    cp(sources, join(directory, 'src'), { recursive: true }),
+    symlink(modules, join(directory, 'node_modules')),
   ]);
   return { directory, script: copyScript, agents: copyAgents };
 }

@@ -16,7 +16,7 @@ import {
   generateRoadmap,
   roadmapRows,
   taskStatus,
-} from '../../scripts/claude/roadmap-prune.ts';
+} from '../../src/repo/roadmap.ts';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const script = join(root, 'scripts/claude/roadmap-prune.ts');
