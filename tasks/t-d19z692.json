@@ -1,0 +1,14 @@
+{
+  "id": "t-d19z692",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Bootstrap then unattended drain is proven live in three operator repositories",
+  "after": [
+    "t-h4bhw5h"
+  ],
+  "body": [
+    "Why: Fable plan 1114d slice 6 (folds t-db6tyeb): acceptance of the breakthrough.\nOutcome: in scratch clones/forks of one php/wordpress, one npm and one python operator repo: adopt exit 0, first test merged via krn lane run, one real task drained by krn lane run --ready --max 2 with zero lead turns; rows in .krn/runs/outside/summary.txt.\nProof: 3 rows exit 0, graded; every failure becomes a KRN defect task. Paid: about 9 sessions."
+  ]
+}

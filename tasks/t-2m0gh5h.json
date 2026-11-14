@@ -1,0 +1,12 @@
+{
+  "id": "t-2m0gh5h",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "krn adopt admits a testless repository in a bootstrap state whose only admitted task adds the first real test",
+  "after": [],
+  "body": [
+    "Why: Fable plan 1114d (.krn/runs/overnight/fable-plan-1114d.md): 11/15 operator repos fail adopt exit 64 because the contract is vacuous, and the seeded first-test task can never be delivered (deadlock: src/adopt/adopt.ts:350, src/adopt/canary.ts:234, src/cli/adopt.ts:181).\nOutcome: on a vacuous contract adopt exits 0, keeps the adoption set, records state bootstrap in krn.json (or .krn), and the canary proves the Stop gate refuses vacuous instead of skipping.\nProof: test/adopt/bootstrap.test.ts on a real testless git fixture: adopt exit 0, files kept, state bootstrap; census adopt column improves."
+  ]
+}

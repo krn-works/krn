@@ -1,0 +1,14 @@
+{
+  "id": "t-dcdad8m",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "The worker packet carries per-stack first-test recipes for PHP, WordPress and npm sites",
+  "after": [
+    "t-2m0gh5h"
+  ],
+  "body": [
+    "Why: Fable plan 1114d slice 3; risk: a first test in a WordPress/PHP site is vacuous in spirit or needs a missing runtime.\nOutcome: brain/worker packet names, per detected stack, how to add the first real test (php: composer + phpunit/pest smoke on a pure function; wordpress: unit seam without wp-env; static/npm: node:test on build output or a pure module) and how to wire krn.json test.\nProof: one fixture per stack goes from vacuous to a real red-on-mutation test via the recipe commands."
+  ]
+}
