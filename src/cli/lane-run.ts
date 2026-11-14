@@ -251,7 +251,6 @@ function blockerOf(text: unknown): { blocker?: string } {
   return last?.startsWith('BLOCKER:') ? { blocker: last.slice(0, 200) } : {};
 }
 
-
 /** Distinct assistant messages of a session transcript: one per model turn, however many lines a message spans. */
 export function transcriptTurns(transcript: string): number {
   const ids = new Set<string>();
