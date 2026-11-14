@@ -182,3 +182,14 @@ test('proofCommands keeps the runnable backtick spans of the Proof field', () =>
   ]);
   assert.deepEqual(proofCommands(task), []);
 });
+
+test('proofCommands skips a span that names a placeholder (t-et62hcd)', () => {
+  // Evidence: lane t-dz2axwx, ship exit 81: `krn adopt <clone of perfect-memory>` ran under sh.
+  const record = {
+    ...task,
+    body: [
+      'Proof: `krn adopt <clone of perfect-memory>` exits 0; `node --test a.test.ts 2>&1`.',
+    ],
+  };
+  assert.deepEqual(proofCommands(record), ['node --test a.test.ts 2>&1']);
+});

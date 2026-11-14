@@ -1,0 +1,16 @@
+{
+  "id": "t-et62hcd",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "proofCommands skips spans with <placeholder>"
+  },
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Ship does not run a Proof command that names a placeholder",
+  "after": [],
+  "body": [
+    "Why: lane t-dz2axwx was refused its ship (exit 81) because its task Proof named `krn adopt <clone of perfect-memory>`; proofCommands (src/cli/pr-body.ts) treated a backtick span with a <placeholder> as a runnable command and sh failed with a syntax error; the lane could not edit the tracker record.\nOutcome: a Proof backtick span containing a <placeholder> is not run by ship (it stays prose in the PR body).\nProof: `node --test test/cli/pr-body.test.ts`"
+  ]
+}
