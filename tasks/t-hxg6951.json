@@ -1,7 +1,11 @@
 {
   "id": "t-hxg6951",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "handoff-requests refuses Roadmap unchanged over a roadmap without an open task row"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "A handoff cannot carry Roadmap unchanged over an empty roadmap",

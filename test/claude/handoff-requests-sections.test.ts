@@ -14,6 +14,12 @@ function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'handoff-sections-'));
   mkdirSync(join(root, 'tasks'));
   writeFileSync(join(root, 'tasks/t-abc1234.json'), '{}');
+  writeFileSync(join(root, 'tasks/t-open000.json'), '{"status":"open"}');
+  mkdirSync(join(root, 'docs/program'), { recursive: true });
+  writeFileSync(
+    join(root, 'docs/program/roadmap.md'),
+    '| Id | Task |\n|---|---|\n| R1 | t-open000 |\n',
+  );
   mkdirSync(join(root, 'memory'));
   writeFileSync(join(root, 'memory/herdr-tabs.md'), 'fixture');
   const check = (body: string) => {

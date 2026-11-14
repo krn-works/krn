@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
   linkSync,
+  mkdirSync,
   mkdtempSync,
   readdirSync,
   readFileSync,
@@ -41,9 +42,20 @@ function krn(root: string, ...args: string[]) {
   }
 }
 
+function openRoadmap(root: string) {
+  mkdirSync(join(root, 'tasks'), { recursive: true });
+  writeFileSync(join(root, 'tasks/t-open000.json'), '{"status":"open"}');
+  mkdirSync(join(root, 'docs/program'), { recursive: true });
+  writeFileSync(
+    join(root, 'docs/program/roadmap.md'),
+    '| Id | Task |\n|---|---|\n| R1 | t-open000 |\n',
+  );
+}
+
 test('set, accept and handoff round-trip through state check and handoff-requests', () => {
   const root = realpathSync(buildCaseRepo('active'));
   const memory = mkdtempSync(join(tmpdir(), 'krn-state-memory-'));
+  openRoadmap(root);
   try {
     const set = krn(
       root,
@@ -145,6 +157,7 @@ test('set refuses values state check would reject', () => {
 test('handoff lists merged commits since the previous SHA and retro measures the task', () => {
   const root = realpathSync(buildCaseRepo('active'));
   const memory = mkdtempSync(join(tmpdir(), 'krn-state-memory-'));
+  openRoadmap(root);
   const commit = (subject: string) => {
     const result = spawnSync(
       'git',
