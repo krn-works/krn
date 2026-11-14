@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { firstTestSection } from '../brain/first-test.ts';
 import { precedentSection } from '../brain/precedent.ts';
 import {
+  heldOut,
   laneCandidates,
   lanePacket,
   packetBrief,
@@ -66,8 +67,9 @@ export function laneBriefText(
   task = 'lane-brief',
   closure = false,
   budget?: number,
+  holdout = true,
 ): string {
-  return laneBrief(repo, brief, asOf, task, closure, budget).text;
+  return laneBrief(repo, brief, asOf, task, closure, budget, holdout).text;
 }
 
 export type LaneBrief = {
@@ -75,7 +77,7 @@ export type LaneBrief = {
   packet: string | null;
   /** Ids of the records the packet served. */
   served: string[];
-  /** Ids of the records the lane packet could carry but did not (no match or over budget). */
+  /** Ids of the records the task's holdout kept out of the packet, so their effect can be measured. */
   withheld: string[];
 };
 
@@ -87,12 +89,14 @@ export function laneBrief(
   task = 'lane-brief',
   closure = false,
   budget?: number,
+  /** False only for the frozen FR-40 carrier, which withholds nothing. */
+  holdout = true,
 ): LaneBrief {
-  const packet = lanePacket(repo, brief, asOf, task, budget);
+  const packet = lanePacket(repo, brief, asOf, task, budget, holdout);
   const served = packet?.records ?? [];
   const withheld = laneCandidates(repo)
     .map((record) => record.id)
-    .filter((id) => !served.includes(id));
+    .filter((id) => holdout && heldOut(task, id));
   const text = packetBrief(packet, brief);
   const precedent = precedentSection(repo, brief);
   const recipe =

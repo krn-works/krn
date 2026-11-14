@@ -3,6 +3,7 @@
 // records file comes from the repo contract (`conventions`, default .krn/conventions.json);
 // a repository without it gets no packet. A record outside its valid dates never enters,
 // and a record whose `audience` is `lead` never reaches the worker.
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { contractConventions } from '../repo/contract.ts';
@@ -24,6 +25,15 @@ export const EFFECT = { floor: 3, reflex: 2, finish: 1 } as const;
 /** The effect weight of a record: its tier, reflex when it names none. */
 export const tierEffect = (record: BrainRecord): number =>
   EFFECT[record.tier ?? 'reflex'];
+
+/** One prose record in this many is withheld from a task, so its effect can be measured against the tasks that were served it. */
+export const HOLDOUT_ONE_IN = 10;
+
+/** True when the record is in the task's holdout: a pure function of task id and record id, so a rerun withholds the same records. */
+export function heldOut(task: string, id: string): boolean {
+  const digest = createHash('sha256').update(`${task}\0${id}`).digest();
+  return digest.readUInt32BE(0) % HOLDOUT_ONE_IN === 0;
+}
 
 /** Where a repository keeps its conventions: the repo contract names the file. */
 const recordsPath = (repo: string): string =>
@@ -67,13 +77,16 @@ export function lanePacket(
   asOf: string,
   task: string,
   budget = LANE_BUDGET,
+  holdout = true,
 ): Packet | null {
-  const records = laneCandidates(repo);
-  if (records.length === 0) return null;
+  const candidates = laneCandidates(repo);
+  if (candidates.length === 0) return null;
   return brainPacket({
     task,
     query: brief,
-    records,
+    records: candidates.filter(
+      (record) => !holdout || !heldOut(task, record.id),
+    ),
     asOf,
     budget,
     effect: tierEffect,

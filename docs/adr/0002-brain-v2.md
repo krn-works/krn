@@ -20,6 +20,7 @@ Built:
 | Packet | `src/brain/packet.ts` selects, `src/brain/worker-packet.ts` injects into the lane brief (`t-9w41zw0`). |
 | Pack | `standards/records.json`, parsed and checked by `src/brain/standards.ts` (`krn standards check`); the single home of universal standards, inherited by adopted projects. |
 | Proposals | `src/brain/proposals.ts`: a retro lesson becomes a proposal and `krn standards harvest` groups them across repositories; promotion needs the operator. |
+| Holdout and retirement | `src/brain/worker-packet.ts` withholds one prose record in ten per task by a hash of task id and record id and logs it as a withheld exposure; `krn standards retire` (`src/brain/retire.ts`) ends records that show no effect, see Automatic trial and retirement. |
 
 Sequenced behind a trigger (nothing below is built; each waits for its trigger):
 
@@ -252,6 +253,19 @@ expansion and requires re-review of the design before more investment.
 curated skills, but neither cited study establishes this KRN task result. Its
 local benchmark did not place retrieved text in the prompt. There is no local
 evidence for the Luna-to-Opus claim; the experiment is the required test.
+
+### Automatic trial and retirement
+
+Amended by decision d-1982f6 (operator grant, closed 2026-11-14): operator
+promotion above stays for adding a record, but a prose record now trials and
+retires without a prior operator step. Every prose record is served on trial;
+a deterministic holdout withholds it from about one task in ten (hash of task
+id and record id), and the withheld exposure is logged beside the served ones
+(`.krn/brain/exposures.jsonl`). `krn standards retire` lists the records with
+at least 30 exposures, three or more of them withheld, whose served runs
+deliver no more often than the withheld runs; `--write` sets their `valid_to`
+to the day of the edit, and the edit travels in a PR. The operator keeps the
+veto: closing that PR keeps the record.
 
 ## Consequences
 

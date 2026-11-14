@@ -1,7 +1,11 @@
 {
   "id": "t-b0rfqra",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "holdout 1/10 by hash(task,record) in lane packet, krn standards retire dry-run/--write, ADR 0002 amended; tests in test/brain/retire.test.ts"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "Prose standards carry a deterministic holdout and retire automatically when they show no effect",

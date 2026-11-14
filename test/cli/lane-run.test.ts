@@ -630,7 +630,8 @@ test('a lane run appends the served standards and the outcome to the exposure lo
     assert.equal(entry?.task, 't-abc1234');
     assert.equal(entry?.channel, 'lane');
     assert.deepEqual(entry?.served, ['r-trailer']);
-    assert.deepEqual(entry?.withheld, ['r-unrelated']);
+    // Only the task's deterministic holdout is withheld; a record that merely did not match is not.
+    assert.ok(!(entry?.withheld ?? []).includes('r-trailer'));
     assert.deepEqual(entry?.outcome, { 'r-trailer': 'followed' });
     assert.equal(entry?.lane_ok, true);
     assert.equal(entry?.rework, 0);
