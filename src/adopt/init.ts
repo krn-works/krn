@@ -1,4 +1,4 @@
-// `krn adopt <path> --init`: turn an empty or non-git directory into a repository adopt can serve.
+// krn adopt --init: git init and a test skeleton.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -149,6 +149,10 @@ function skeleton(root: string, stack: InitStack): Record<string, string> {
       'composer.json': json({
         name: `project/${name}`,
         'require-dev': { 'phpunit/phpunit': '^11' },
+        scripts: {
+          test: 'vendor/bin/phpunit',
+          lint: 'php -l tests/SmokeTest.php',
+        },
       }),
       'phpunit.xml': phpunitXml,
       '.prettierrc': '{}\n',

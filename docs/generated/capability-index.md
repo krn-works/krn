@@ -21,7 +21,7 @@ src/adopt/adopt.ts: The adoption set: what a repository needs so KRN delivery wo
 src/adopt/canary.ts: The adoption canary: proves the Stop gate works in the adopted repository by breaking one
 src/adopt/conventions.ts: Seeds a repository's conventions file from its own instruction files, so the lane pa
 src/adopt/deploy.ts: Deploy workflows on the base branch.
-src/adopt/init.ts: `krn adopt <path> --init`: turn an empty or non-git directory into a repository adopt can s
+src/adopt/init.ts: krn adopt --init: git init and a test skeleton.
 src/adopt/stop-hook.ts: The hook command `krn adopt` installs for `krn hook <name>`. Claude Code treats any ex
 src/adopt/verify.ts: `krn adopt <path> --verify`: a read-only report of the repository settings adoption relie
 src/brain/global-standards.ts: The user-level standards file: the in-force records marked universal (they hold

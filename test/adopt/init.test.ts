@@ -104,14 +104,23 @@ test('--init refuses a git repository with commits and accepts one without', () 
   );
 });
 
-test('--init python and php leave no failing standard that the skeleton can satisfy', () => {
-  for (const stack of ['python', 'php']) {
-    const root = dir();
-    assert.equal(
-      krn('adopt', root, '--init', '--stack', stack, '--no-canary').status,
-      0,
-    );
-    const check = krn('standards', 'check', '--root', root);
-    assert.equal(check.status, 0, check.stderr + check.stdout);
-  }
+test('--init python leaves no failing standard; php fails only on the composer.lock that composer install writes', () => {
+  const py = dir();
+  assert.equal(
+    krn('adopt', py, '--init', '--stack', 'python', '--no-canary').status,
+    0,
+  );
+  const green = krn('standards', 'check', '--root', py);
+  assert.equal(green.status, 0, green.stderr + green.stdout);
+  const php = dir();
+  assert.equal(
+    krn('adopt', php, '--init', '--stack', 'php', '--no-canary').status,
+    0,
+  );
+  const red = krn('standards', 'check', '--root', php);
+  assert.deepEqual(
+    red.stderr.match(/s-[a-z-]+(?=: exit)/gu),
+    ['s-php-composer-lock'],
+    red.stderr,
+  );
 });
