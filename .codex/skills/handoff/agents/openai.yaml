@@ -1,0 +1,4 @@
+interface:
+  display_name: "Handoff"
+  short_description: "Prepare compact continuation context"
+  default_prompt: "Use $handoff to prepare a compact continuation note for the next agent."

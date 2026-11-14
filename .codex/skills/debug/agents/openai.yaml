@@ -1,0 +1,4 @@
+interface:
+  display_name: "Debug"
+  short_description: "Diagnose bugs with a feedback loop"
+  default_prompt: "Use $debug to reproduce, isolate, fix, and regression-test this bug."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Coding System"
+  short_description: "Run the full agentic coding loop"
+  default_prompt: "Use $coding-system to turn this coding goal into a verified shipping loop."
