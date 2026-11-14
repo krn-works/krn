@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { rmSync } from 'node:fs';
+import { headlessArgs, laneBinary } from '../../harness/claude.ts';
 import { contractLaneBudget } from '../../repo/contract.ts';
 import { mainCheckoutPlaceholders } from '../../state/sandbox-placeholders.ts';
 import {
@@ -37,7 +38,7 @@ export interface SessionOutcome {
 /** Stage three: spawn the headless session in the lane worktree and read its result. */
 export function runSession(lane: PreparedLane): SessionOutcome {
   const { worktree, model, environment, main, brief, origin } = lane;
-  const claude = process.env.KRN_LANE_CLAUDE ?? 'claude';
+  const claude = laneBinary();
   // Node's spawnSync honours `detached` (a new session and process group) though its types omit it.
   const sessionOptions = {
     cwd: worktree,
@@ -51,24 +52,13 @@ export function runSession(lane: PreparedLane): SessionOutcome {
   };
   const session = spawnSync(
     claude,
-    [
-      '-p',
+    headlessArgs({
       brief,
-      '--output-format',
-      'json',
-      '--settings',
-      laneSandboxSettings(worktree),
-      '--permission-mode',
-      'acceptEdits',
-      '--model',
+      settings: laneSandboxSettings(worktree),
       model,
-      '--fallback-model',
-      fallbackModel(model),
-      '--max-budget-usd',
-      String(contractLaneBudget(origin)),
-      '--setting-sources',
-      'project',
-    ],
+      fallbackModel: fallbackModel(model),
+      budgetUsd: contractLaneBudget(origin),
+    }),
     sessionOptions,
   );
   killGroup(session.pid);

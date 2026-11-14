@@ -12,8 +12,8 @@ import {
   readFileSync,
   statSync,
 } from 'node:fs';
-import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { userStateFile } from '../harness/claude.ts';
 
 export type PlanSample = {
   time: string;
@@ -36,10 +36,7 @@ export function accountLabel(config: unknown): string | undefined {
 }
 
 function configAccount(): string | undefined {
-  const dir = process.env.CLAUDE_CONFIG_DIR;
-  const file = dir
-    ? join(dir, '.claude.json')
-    : join(homedir(), '.claude.json');
+  const file = userStateFile();
   try {
     return accountLabel(JSON.parse(readFileSync(file, 'utf8')));
   } catch {

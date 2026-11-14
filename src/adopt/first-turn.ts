@@ -2,10 +2,20 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
+import {
+  instructionFile,
+  projectPath,
+  projectRelative,
+} from '../harness/claude.ts';
 
 /** Tokens per MCP server: its tool schemas are loaded on the first turn; a flat estimate, the real count needs the server. */
 const MCP_SERVER_TOKENS = 1500;
-const INSTRUCTION_FILES = ['CLAUDE.md', '.claude/CLAUDE.md', 'AGENTS.md'];
+const INSTRUCTION_FILES = [
+  instructionFile,
+  projectRelative(instructionFile),
+  'AGENTS.md',
+];
+const SETTINGS = projectRelative('settings.json');
 
 export interface FirstTurnReport {
   total: number;
@@ -59,7 +69,7 @@ export function estimateFirstTurn(root: string): FirstTurnReport {
     if (text !== undefined) instructions.push({ file, tokens: tokens(text) });
   }
   const skills: FirstTurnReport['skills'] = [];
-  const skillDir = join(root, '.claude/skills');
+  const skillDir = projectPath(root, 'skills');
   if (existsSync(skillDir))
     for (const entry of readdirSync(skillDir).sort()) {
       const text = readIfFile(join(skillDir, entry, 'SKILL.md'));
@@ -75,7 +85,7 @@ export function estimateFirstTurn(root: string): FirstTurnReport {
   const settings: string[] = [];
   if (mcpServers.length > 0)
     settings.push(
-      `.claude/settings.json "enabledMcpjsonServers": list only the ${mcpServers.length} MCP server(s) the project needs (each loads ~${MCP_SERVER_TOKENS} tokens of tool schemas)`,
+      `${SETTINGS} "enabledMcpjsonServers": list only the ${mcpServers.length} MCP server(s) the project needs (each loads ~${MCP_SERVER_TOKENS} tokens of tool schemas)`,
     );
   if (skills.length > 0)
     settings.push(
@@ -87,7 +97,7 @@ export function estimateFirstTurn(root: string): FirstTurnReport {
       `${largest.file} is ~${largest.tokens} tokens on every turn: move reference text to docs/ and keep rules`,
     );
   settings.push(
-    '.claude/settings.json "enabledPlugins": set a plugin to false when the project does not use it (plugin skills and agents load on every turn)',
+    `${SETTINGS} "enabledPlugins": set a plugin to false when the project does not use it (plugin skills and agents load on every turn)`,
   );
   return { total, instructions, skills, mcpServers, settings };
 }

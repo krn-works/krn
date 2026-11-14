@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { usageOf } from '../../src/harness/claude.ts';
 import { collectLedger } from '../../src/outcome/ledger.ts';
 import {
   addedLines,
@@ -15,7 +16,6 @@ import {
   type Transcript,
   type Turn,
   turnDollars,
-  usageOf,
 } from '../../src/outcome/slice-cost.ts';
 
 const turn = (text: string, extra: Partial<Turn> = {}): Turn => ({

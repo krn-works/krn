@@ -11,6 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { instructionFile, userDir } from '../harness/claude.ts';
 import { contractConventions } from '../repo/contract.ts';
 import { parseUnified, standardRecord, type UnifiedRecord } from './record.ts';
 import { parseStandards, StandardsDataError } from './standards.ts';
@@ -103,11 +104,11 @@ export function globalDrift(
   product: string,
   asOf: string,
 ): string[] {
-  const dir = join(home, '.claude');
+  const dir = userDir(home);
   const drift: string[] = [];
   if (readOr(join(dir, GLOBAL_FILE)) !== renderGlobalFile(product, asOf))
     drift.push(`${GLOBAL_FILE}: missing or differs from the generated text`);
-  const lines = (readOr(join(dir, 'CLAUDE.md')) ?? '').split('\n');
+  const lines = (readOr(join(dir, instructionFile)) ?? '').split('\n');
   if (!lines.includes(IMPORT_LINE))
     drift.push(`CLAUDE.md: lacks the line ${IMPORT_LINE}`);
   for (const name of UNIVERSAL_SKILLS)
@@ -124,7 +125,7 @@ export function installGlobal(
   product: string,
   asOf: string,
 ): string[] {
-  const dir = join(home, '.claude');
+  const dir = userDir(home);
   const text = renderGlobalFile(product, asOf);
   for (const name of UNIVERSAL_SKILLS)
     if (
@@ -140,7 +141,7 @@ export function installGlobal(
     writeFileSync(join(dir, GLOBAL_FILE), text);
     changed.push(GLOBAL_FILE);
   }
-  const claude = readOr(join(dir, 'CLAUDE.md'));
+  const claude = readOr(join(dir, instructionFile));
   if (!(claude ?? '').split('\n').includes(IMPORT_LINE)) {
     const prefix =
       claude === null || claude === ''
@@ -148,8 +149,8 @@ export function installGlobal(
         : claude.endsWith('\n')
           ? `${claude}\n`
           : `${claude}\n\n`;
-    writeFileSync(join(dir, 'CLAUDE.md'), `${prefix}${IMPORT_LINE}\n`);
-    changed.push('CLAUDE.md');
+    writeFileSync(join(dir, instructionFile), `${prefix}${IMPORT_LINE}\n`);
+    changed.push(instructionFile);
   }
   for (const name of UNIVERSAL_SKILLS) {
     const link = join(dir, 'skills', name);

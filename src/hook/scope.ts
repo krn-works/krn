@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { harnessPaths, hookProjectDir } from '../harness/claude.ts';
 
 // PreToolUse hook for Write, Edit, NotebookEdit and Bash: a worker session may not write the tracker or
 // the roadmap unless the brief's Scope names them; a harness file outside Scope is allowed and reported (KRN-11: only the lead changes
@@ -19,7 +20,7 @@ import { fileURLToPath } from 'node:url';
 export const guarded = ['tasks/', 'docs/program/roadmap.md'];
 // Harness files outside Scope are allowed and reported: a red test that needs one must not stay red,
 // and a refusal there left finished work uncommitted in D23 (units 470 and 547).
-export const harness = ['.agents/', '.claude/', 'AGENTS.md', 'CLAUDE.md'];
+export const harness: readonly string[] = harnessPaths;
 
 /**
  * The path entries of a Scope line or comma list. A prose entry ("krn-lead skill text") names no path;
@@ -50,7 +51,7 @@ const covers = (scope: string[], path: string) =>
       : path === entry || path.startsWith(`${entry}/`),
   );
 
-const under = (list: string[], path: string) =>
+const under = (list: readonly string[], path: string) =>
   list.some((entry) =>
     entry.endsWith('/') ? path.startsWith(entry) : path === entry,
   );
@@ -232,7 +233,7 @@ function main() {
     return;
   }
   const branch = spawnSync('git', ['branch', '--show-current'], {
-    cwd: process.env.CLAUDE_PROJECT_DIR ?? process.cwd(),
+    cwd: hookProjectDir(),
     encoding: 'utf8',
   }).stdout;
   const { refusal, note } = judge(payload, process.env, branch);

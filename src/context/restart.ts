@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { emitContext, hookInput } from '../harness/claude.ts';
 import { memoryDirectory } from '../harness/memory-directory.ts';
 import { cutText } from '../memory/cut-text.ts';
 import { resumeBlock, section } from '../memory/handoff-resume.ts';
@@ -14,7 +15,7 @@ import {
 } from '../memory/operator-inbox-store.ts';
 import { stateLoss } from '../state/loss.ts';
 import { pressureLines, probe } from './disk-pressure.ts';
-import { emitContext, hookInput, object } from './io.ts';
+import { object } from './io.ts';
 
 function closed(project: string, id: unknown): boolean {
   if (typeof id !== 'string' || !/^[a-z0-9-]+$/u.test(id)) return false;

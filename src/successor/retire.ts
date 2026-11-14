@@ -2,6 +2,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
+import { claudeAgent } from '../harness/claude.ts';
 import { readJson } from '../repo/json-text.ts';
 import { record, sleep, text } from './command.ts';
 import { type SuccessorLaunchOptions, waitSeconds } from './options.ts';
@@ -84,7 +85,7 @@ export function retireMode(
         break;
       const settled = info.status === 'idle' || info.status === 'done';
       if (
-        info.agent === 'claude' &&
+        info.agent === claudeAgent &&
         info.sessionId === predSession &&
         settled
       ) {
@@ -180,7 +181,7 @@ function retireLedger(
     if (info.notFound) continue;
     if (info.sessionId && info.sessionId !== launch.session_id) continue;
     if (
-      info.agent === 'claude' &&
+      info.agent === claudeAgent &&
       info.sessionId === launch.session_id &&
       (info.status === 'idle' || info.status === 'done')
     ) {
@@ -218,7 +219,7 @@ export function retirePredecessors(
 ): void {
   const caller = host.agent(host.session(callerPaneId));
   if (
-    caller.agent !== 'claude' ||
+    caller.agent !== claudeAgent ||
     !caller.sessionId ||
     !caller.tabId ||
     caller.notFound

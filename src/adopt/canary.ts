@@ -13,6 +13,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
+import { projectPath } from '../harness/claude.ts';
 import {
   CONTRACT_FILE,
   findContract,
@@ -107,7 +108,7 @@ export const stopSettingsSchema = z.looseObject({
 function stopCommands(root: string): string[] {
   try {
     const settings = stopSettingsSchema.parse(
-      JSON.parse(readFileSync(join(root, '.claude/settings.json'), 'utf8')),
+      JSON.parse(readFileSync(projectPath(root, 'settings.json'), 'utf8')),
     );
     return (settings.hooks?.Stop ?? [])
       .flatMap((entry) => entry.hooks ?? [])

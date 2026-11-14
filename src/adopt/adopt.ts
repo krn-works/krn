@@ -16,6 +16,7 @@ import {
   readPack,
   readProject,
 } from '../brain/standards-cli.ts';
+import { projectPath, projectRelative } from '../harness/claude.ts';
 import {
   REQUIRED_CHECK_APP_ID,
   REQUIRED_CHECK_NAME,
@@ -472,12 +473,12 @@ function writeSkills(root: string, report: AdoptionReport): void {
       report,
     );
   }
-  const link = join(root, '.claude', 'skills');
+  const link = projectPath(root, 'skills');
   if (!existsSync(link) && !isSymlink(link)) {
     mkdirSync(dirname(link));
     symlinkSync(join('..', '.agents', 'skills'), link);
-    report.written.push('.claude/skills');
-  } else report.unchanged.push('.claude/skills');
+    report.written.push(projectRelative('skills'));
+  } else report.unchanged.push(projectRelative('skills'));
 }
 
 /**
@@ -509,7 +510,7 @@ export const settingsFileSchema = z.record(z.string(), z.unknown());
 
 /** The existing settings object, or an error naming the file; read before anything is written. */
 function readSettings(root: string): Record<string, unknown> {
-  const relative = '.claude/settings.json';
+  const relative = projectRelative('settings.json');
   const path = join(root, relative);
   if (!existsSync(path)) return {};
   try {
@@ -531,7 +532,7 @@ function writeHooks(
   settings: Record<string, unknown>,
   report: AdoptionReport,
 ): void {
-  const relative = '.claude/settings.json';
+  const relative = projectRelative('settings.json');
   const hooks = (settings.hooks ?? {}) as Record<string, unknown>;
   const stop = Array.isArray(hooks.Stop) ? (hooks.Stop as HookEntry[]) : [];
   // An earlier adoption's bare command exits 127 without krn on PATH, which does not block.

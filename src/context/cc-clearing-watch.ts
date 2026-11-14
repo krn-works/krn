@@ -11,6 +11,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, delimiter, dirname, join } from 'node:path';
+import { claudeAgent, claudeDir, hookProjectDir } from '../harness/claude.ts';
 
 // Watches whether Claude Code's built-in tool-result clearing (t-mbrjeja)
 // became reachable: GrowthBook environment overrides implemented, or a
@@ -112,7 +113,7 @@ export function line(v: Verdict): string {
 
 export function resolveBinary(path = process.env.PATH ?? ''): string | null {
   for (const dir of path.split(delimiter)) {
-    const candidate = join(dir, 'claude');
+    const candidate = join(dir, claudeAgent);
     if (existsSync(candidate)) return realpathSync(candidate);
   }
   return null;
@@ -170,12 +171,12 @@ export async function run(options: {
 }
 
 export async function main(): Promise<void> {
-  const root = process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  const root = hookProjectDir();
   const { output, code } = await run({
     cacheDir: join(root, '.krn', 'runs', 'cc-watch'),
     transcripts: join(
       homedir(),
-      '.claude',
+      claudeDir,
       'projects',
       '-mnt-storage-coding-krn-active-krn',
     ),

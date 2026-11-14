@@ -1,4 +1,6 @@
 // Successor launch.
+
+import { claudeAgent } from '../harness/claude.ts';
 import { SESSION_CLASS_VARIABLE } from '../memory/operator-inbox-store.ts';
 import { exitFailure, run } from './command.ts';
 import {
@@ -92,7 +94,7 @@ export function main(
     if (!workspaceId) unavailable = 'caller pane unavailable';
   }
 
-  if (harness !== 'claude' && (options.model || options.effort)) {
+  if (harness !== claudeAgent && (options.model || options.effort)) {
     process.stderr.write(
       '--model and --effort apply only to Claude successors\n',
     );
