@@ -1,0 +1,12 @@
+{
+  "id": "t-0ev7exz",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 3,
+  "title": "Operator: install the GitHub App on 14 census repositories so adopt --verify exits 0",
+  "after": [],
+  "body": [
+    "Why: the same census rerun shows `krn adopt <clone> --verify` exits 67 (APP_NOT_INSTALLED_EXIT in src/adopt/verify.ts) for 14 of 15 repositories: \"GitHub App not installed on <owner>/<repo>\" (only krn-zakupy exits 0). This is an operator action (installing the GitHub App is an install grant), not a code defect. Standards check exits 1 on all 15 with real gaps (mostly s-test-command, s-ci-runs-tests, s-linter-configured), which adopt reports without fixing.\nOutcome: the operator installs the KRN GitHub App on the listed repositories, or decides which are out of scope; then verify exits 0 for them.\nProof: rerun of the census shows verify 0 for the repositories where the App was installed."
+  ]
+}

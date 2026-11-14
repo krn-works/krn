@@ -1,7 +1,11 @@
 {
   "id": "t-db6tyeb",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-d19z692",
+    "note": "folded into t-d19z692"
+  },
   "created": "2026-11-11",
   "priority": 1,
   "title": "Twenty tasks are delivered by record and the lead-cost verdict is recorded",
