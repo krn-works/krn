@@ -1,0 +1,12 @@
+{
+  "id": "t-xwhscs0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "The generated roadmap stays within a fixed byte budget at any number of open tasks",
+  "after": [],
+  "body": [
+    "Why: shipping the Fable 1114e task records failed test/rules/instruction-bytes.test.ts: docs/program/roadmap.md 7730 > 5154 bytes; the generated roadmap grows linearly with open tasks (src/repo/roadmap.ts, 200-char cells), so every planning batch must raise the budget (raised to 9000 in the same PR).\nOutcome: the roadmap renders a bounded view (e.g. top N by priority and dependency readiness, plus a count of the rest pointing to krn task list) so its bytes stay under a fixed budget at any task count.\nProof: a roadmap test with 100 synthetic open tasks stays under the budget; context-budget.json roadmap entry returns to its earlier value."
+  ]
+}
