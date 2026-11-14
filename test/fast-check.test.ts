@@ -483,3 +483,11 @@ test('fast check selects the CLI-subprocess tests that assert the repo contract 
     'test/cli/lane-brief.test.ts',
   ]);
 });
+
+test('fast check selects the capability-index test when the index or a src module changes', () => {
+  const indexTest = 'test/claude/capability-index.test.ts';
+  const withIndex = new Map(tests).set(indexTest, '');
+  for (const file of ['docs/generated/capability-index.md', 'src/new/mod.ts'])
+    assert.ok(selectTests([file], withIndex).includes(indexTest), file);
+  assert.ok(!selectTests(['docs/x.md'], withIndex).includes(indexTest));
+});

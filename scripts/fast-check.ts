@@ -73,6 +73,10 @@ const PROSE_RULE_TESTS = new Set([
  */
 const COVERS = /^\/\/ fast-covers:(.+)$/mu;
 
+const INDEX_FILE = 'docs/generated/capability-index.md';
+const INDEX_SOURCE = /^src\/.*\.ts$/u;
+const INDEX_TEST = 'test/claude/capability-index.test.ts';
+
 function coveredPrefixes(source: string): string[] {
   return (COVERS.exec(source)?.[1] ?? '').trim().split(/\s+/u).filter(Boolean);
 }
@@ -91,6 +95,9 @@ export function selectTests(
   surviving: ReadonlySet<string> = new Set(),
 ): string[] {
   const picked = new Set(changed.filter((file) => tests.has(file)));
+  // The generated capability index and every src module header feed one budgeted test.
+  if (changed.some((file) => file === INDEX_FILE || INDEX_SOURCE.test(file)))
+    if (tests.has(INDEX_TEST)) picked.add(INDEX_TEST);
   const touched = [...changed, ...removed];
   const prose = touched.some((file) => PROSE_PATHS.test(file));
   if (touched.length > 0)
