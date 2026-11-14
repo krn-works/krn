@@ -41,7 +41,20 @@ src/cli/help.ts: Usage text for the commands this CLI owns.
 src/cli/hook.ts: `krn hook <name> [args]`: the Claude Code hook entries `krn adopt` installs; each runs the product's ow
 src/cli/index.ts: Command router; each command loads on demand.
 src/cli/lane-lock.ts: (no header) exports sleepSync, withFileLock
-src/cli/lane-run.ts: (no header) exports LaneVerdict, LaneRunSteps, OPERATOR_CREDENTIAL_VARIABLES, exitInstallFailed
+src/cli/lane-run.ts: (no header) exports laneRunCommand
+src/cli/lane-run/args.ts: (no header) exports laneRunUsage, LaneRequest, parseLaneRequest
+src/cli/lane-run/brief.ts: (no header) exports checkCommand, krnInvocation, taskRecordBrief, goalBrief
+src/cli/lane-run/delivery.ts: (no header) exports ticketCommitTitle, sessionVerification, placeholderName, sandboxPlaceh
+src/cli/lane-run/environment.ts: (no header) exports OPERATOR_CREDENTIAL_VARIABLES, defaultSessionTimeoutMs, tokenMinimu
+src/cli/lane-run/git.ts: (no header) exports git
+src/cli/lane-run/preflight.ts: (no header) exports ansi, lastLine, failingTests, baselineReason
+src/cli/lane-run/prepare.ts: (no header) exports PreparedLane, prepareLane
+src/cli/lane-run/red-check.ts: (no header) exports RedCheck, redCheckOf, redCheckFinding, redCheckBrief
+src/cli/lane-run/result.ts: (no header) exports exitCredentialUnavailable, exitInstallFailed, exitRedBaseline, SessionRe
+src/cli/lane-run/session.ts: (no header) exports killGroup, SessionOutcome, runSession, sessionStage
+src/cli/lane-run/steps.ts: (no header) exports LaneVerdict, LaneRunSteps, mintFailure, defaultSteps
+src/cli/lane-run/verdict.ts: (no header) exports laneVerdict
+src/cli/lane-run/worktree.ts: (no header) exports reusableLane, carryEditedRecord, carrySubject, commitsSinceRed
 src/cli/lane.ts: (no header) exports laneUsage, workerRules, laneBriefText, laneBrief
 src/cli/ledger.ts: (no header) exports ledgerCommand
 src/cli/main.ts: (no header) exports main
