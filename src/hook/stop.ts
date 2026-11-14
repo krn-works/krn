@@ -15,6 +15,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { standardsBlockers } from '../brain/standards-cli.ts';
 import {
   ContractError,
   type RepoContract,
@@ -724,6 +725,9 @@ function inspectTests(
   };
 }
 
+/** The blocking standards of a repository on a date (YYYY-MM-DD), one line each. */
+export type StandardsRunner = (root: string, asOf: string) => string[];
+
 /** The refusal reason for a Stop payload, or undefined when the session may end. */
 export function judgeStop(
   payload: unknown,
@@ -731,6 +735,7 @@ export function judgeStop(
   run: Runner = runTests,
   branch = '',
   shell: CommandRunner = runCommand,
+  standards: StandardsRunner = standardsBlockers,
 ): string | undefined {
   const fields = payload as {
     cwd?: unknown;
@@ -746,7 +751,14 @@ export function judgeStop(
   if (who.unidentified) return `Stop refused: ${UNIDENTIFIED_LANE}`;
   if (statesBlocker(fields?.last_assistant_message)) return undefined;
   const outcome = inspect(root, run, shell, env);
-  if (outcome.ok) return undefined;
+  if (outcome.ok) {
+    // Floor and unwaived reflex standards of the repository stop the session; finish and waived ones only report.
+    // The adopt canary proves the test gate on a fresh repository, which may not meet its reflex standards yet.
+    if (env.KRN_LANE === 'canary') return undefined;
+    const blockers = standards(root, new Date().toISOString().slice(0, 10));
+    if (blockers.length === 0) return undefined;
+    return `Stop refused: ${blockers.length} standard(s) fail (floor, or reflex without a recorded waiver):\n${blockers.map((line) => `- ${line}`).join('\n')}\nFix them, record a reason in \`waiver\` on a reflex record in .agents/standards.json, or end with a line \`BLOCKER: <what stops you>\`.`;
+  }
   // A missing base or an invalid contract is refused once: a continued stop (stop_hook_active) is not held again.
   if (fields?.stop_hook_active === true) {
     const { contract, error } = loadContract(root);

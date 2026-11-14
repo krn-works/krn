@@ -9,11 +9,17 @@ export const LAYERS = ['universal', 'krn-delivery'] as const;
 /** `command` runs a shell command in the repository, `krn` a krn subcommand there, `advisory` is unenforced. */
 export const ENFORCEMENTS = ['command', 'krn', 'advisory'] as const;
 export const NEEDS = ['tracker'] as const;
+/**
+ * `floor` failures block the worker Stop, `reflex` failures block unless a waiver with a reason is
+ * recorded on the record, `finish` failures are reported only.
+ */
+export const TIERS = ['floor', 'reflex', 'finish'] as const;
 
 export type Audience = (typeof AUDIENCES)[number];
 export type Layer = (typeof LAYERS)[number];
 export type EnforcementKind = (typeof ENFORCEMENTS)[number];
 export type Need = (typeof NEEDS)[number];
+export type Tier = (typeof TIERS)[number];
 
 export type Enforcement =
   /** A shell command run in the repository root; exit 0 means the standard holds. */
@@ -28,6 +34,10 @@ export type Standard = {
   readonly area: string;
   readonly layer: Layer;
   readonly audience: Audience;
+  /** How a failure weighs: see TIERS. */
+  readonly tier: Tier;
+  /** Why a failing `reflex` standard is accepted for now; only a reflex standard takes one. */
+  readonly waiver?: string;
   /** The rule as one statement. */
   readonly text: string;
   /** Why the rule exists, in one sentence. */
@@ -67,6 +77,7 @@ const FIELDS = [
   'area',
   'layer',
   'audience',
+  'tier',
   'text',
   'why',
   'evidence',
@@ -77,7 +88,7 @@ const FIELDS = [
   'valid_to',
 ] as const;
 /** Fields a record may carry beyond FIELDS. */
-const OPTIONAL = ['origin', 'harvested'] as const;
+const OPTIONAL = ['origin', 'harvested', 'waiver'] as const;
 const ID = /^s-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const DATE = /^\d{4}-\d{2}-\d{2}$/u;
 const AREA = /^[a-z][a-z0-9-]*$/u;
@@ -215,6 +226,11 @@ function parseStandard(item: unknown, where: string): Standard {
   if (!AREA.test(area))
     throw new StandardsDataError(`${where}.area: expected a kebab-case word`);
   const layer = member(r.layer, LAYERS, `${where}.layer`);
+  const tier = member(r.tier, TIERS, `${where}.tier`);
+  if ('waiver' in r && tier !== 'reflex')
+    throw new StandardsDataError(
+      `${where}.waiver: only a reflex standard takes a waiver`,
+    );
   const evidence = list(r.evidence, `${where}.evidence`, evidenceText);
   if (evidence.length === 0)
     throw new StandardsDataError(`${where}.evidence: expected at least one`);
@@ -230,6 +246,8 @@ function parseStandard(item: unknown, where: string): Standard {
     area,
     layer,
     audience: member(r.audience, AUDIENCES, `${where}.audience`),
+    tier,
+    ...('waiver' in r ? { waiver: text(r.waiver, `${where}.waiver`) } : {}),
     text: text(r.text, `${where}.text`),
     why: text(r.why, `${where}.why`),
     evidence,
@@ -384,13 +402,31 @@ export type Enforce = (
   enforcement: Exclude<Enforcement, { kind: 'advisory' }>,
 ) => Outcome;
 
-export type Failure = { readonly id: string; readonly message: string };
+export type Failure = {
+  readonly id: string;
+  readonly message: string;
+  /** Set on a failed enforcement of a standard; structural failures carry none and always block. */
+  readonly tier?: Tier;
+};
+
+/** Enforced and failed standards of one tier. */
+export type TierCount = { readonly enforced: number; readonly failed: number };
 
 export type Report = {
   readonly enforced: number;
   readonly advisory: number;
   readonly failures: readonly Failure[];
+  readonly tiers: Readonly<Record<Tier, TierCount>>;
+  /** The failures that stop work: floor, an unwaived reflex, and any failure without a tier. */
+  readonly blocking: readonly Failure[];
 };
+
+/** Floor and an unwaived reflex block; a waived reflex and finish only report. */
+export function blocks(failure: Failure, standard?: Standard): boolean {
+  if (failure.tier === undefined || standard === undefined) return true;
+  if (failure.tier === 'floor') return true;
+  return failure.tier === 'reflex' && standard.waiver === undefined;
+}
 
 /** How an enforcement reads in a failure line. */
 export function describe(enforcement: Enforcement): string {
@@ -408,15 +444,23 @@ export function checkStandards(
   options: { readonly asOf: string; readonly enforce: Enforce },
 ): Report {
   const failures: Failure[] = [];
+  const blocking: Failure[] = [];
+  const tiers = {
+    floor: { enforced: 0, failed: 0 },
+    reflex: { enforced: 0, failed: 0 },
+    finish: { enforced: 0, failed: 0 },
+  };
   let enforced = 0;
   let advisory = 0;
   for (const standard of standards) {
-    const { id, enforcement } = standard;
+    const { id, enforcement, tier } = standard;
     if (!inForce(standard, options.asOf)) {
-      failures.push({
+      const expired: Failure = {
         id,
         message: `outside its dates on ${options.asOf} (valid ${standard.valid_from}..${standard.valid_to ?? 'open'})`,
-      });
+      };
+      failures.push(expired);
+      blocking.push(expired);
       continue;
     }
     if (enforcement.kind === 'advisory') {
@@ -424,14 +468,20 @@ export function checkStandards(
       continue;
     }
     enforced++;
+    tiers[tier].enforced++;
     const outcome = options.enforce(enforcement);
-    if (outcome.exit !== 0)
-      failures.push({
+    if (outcome.exit !== 0) {
+      const failure: Failure = {
         id,
+        tier,
         message: `exit ${outcome.exit ?? 'none'} from ${describe(enforcement)}${outcome.detail === '' ? '' : `: ${outcome.detail}`}`,
-      });
+      };
+      tiers[tier].failed++;
+      failures.push(failure);
+      if (blocks(failure, standard)) blocking.push(failure);
+    }
   }
-  return { enforced, advisory, failures };
+  return { enforced, advisory, failures, tiers, blocking };
 }
 
 /** The shipped pack: exact standards, none of them marked as inherited. */

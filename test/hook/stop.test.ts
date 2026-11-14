@@ -1033,3 +1033,74 @@ test('the test-first rule line is in the worker rules only with the arm on', asy
   assert.ok(workerRules(repo, true).includes(TEST_FIRST_RULE));
   assert.ok(!workerRules(repo, false).includes(TEST_FIRST_RULE));
 });
+
+test('the Stop hook refuses a floor and an unwaived reflex standard and only reports finish and waived ones', () => {
+  const dir = clone();
+  try {
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+    const record = (change: Record<string, unknown>) => ({
+      id: 's-probe',
+      area: 'tests',
+      layer: 'universal',
+      audience: 'worker',
+      tier: 'floor',
+      text: 'A probe rule.',
+      why: 'The hook must read the tier.',
+      evidence: ['README.md'],
+      enforcement: { kind: 'command', run: 'false' },
+      applies: { stacks: [], needs: [] },
+      recorded_at: '2026-01-01',
+      valid_from: '2026-01-01',
+      valid_to: null,
+      ...change,
+    });
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'change');
+    const stop = (change: Record<string, unknown>) => {
+      mkdirSync(join(dir, '.agents'), { recursive: true });
+      writeFileSync(
+        join(dir, '.agents/standards.json'),
+        JSON.stringify([record(change)]),
+      );
+      return spawnSync(process.execPath, [hook], {
+        cwd: dir,
+        encoding: 'utf8',
+        input: JSON.stringify(payload(dir)),
+        env: { ...process.env, ...lane(dir) },
+      });
+    };
+    const floor = stop({ tier: 'floor' });
+    assert.equal(floor.status, 2);
+    assert.match(floor.stderr, /s-probe \(floor\)/u);
+    assert.equal(stop({ tier: 'reflex' }).status, 2);
+    assert.equal(
+      stop({ tier: 'reflex', waiver: 'accepted for the migration' }).status,
+      0,
+    );
+    assert.equal(stop({ tier: 'finish' }).status, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the adopt canary lane proves the test gate only and is not held by standards', () => {
+  const dir = clone();
+  try {
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'change');
+    const failing = () => ['s-probe (floor): exit 1'];
+    const green = () => [];
+    const canary = { ...lane(dir), KRN_LANE: 'canary' };
+    assert.equal(
+      judgeStop(payload(dir), canary, green, '', undefined, failing),
+      undefined,
+    );
+    assert.match(
+      judgeStop(payload(dir), lane(dir), green, '', undefined, failing) ?? '',
+      /s-probe \(floor\)/u,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
