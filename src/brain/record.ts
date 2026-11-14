@@ -3,7 +3,6 @@
 // The plainest hand-written row (id, type, text, three dates, source) is the shortest accepted form;
 // every other field has a default, and `source` is shorthand for provenance.origin.
 import { z } from 'zod';
-import type { Standard } from './standards.ts';
 
 export const RECORD_TYPES = [
   'standard',
@@ -15,8 +14,20 @@ export const RECORD_STATUSES = ['trial', 'accepted', 'retired'] as const;
 export const RECORD_AUDIENCES = ['all', 'worker', 'lead', 'adopt'] as const;
 export const RECORD_TIERS = ['floor', 'reflex', 'finish'] as const;
 
+/** The provenance origin of a pack record `krn adopt` copied into a project. */
+export const INHERITED_ORIGIN = 'krn pack (inherited)';
+
 const DATE = /^\d{4}-\d{2}-\d{2}$/u;
-const date = z.string().regex(DATE, 'expected YYYY-MM-DD');
+const date = z
+  .string()
+  .regex(DATE, 'expected YYYY-MM-DD')
+  .refine(
+    (v) => {
+      const at = new Date(`${v}T00:00:00Z`);
+      return !Number.isNaN(at.getTime()) && at.toISOString().slice(0, 10) === v;
+    },
+    { message: 'expected YYYY-MM-DD' },
+  );
 const words = z.string().min(1, 'expected text');
 const list = z.array(words).default([]);
 
@@ -81,6 +92,19 @@ export const RecordSchema = z.preprocess(
       supersedes: list,
       /** True only for a record that holds in any repository and any stack; the global file renders exactly these. */
       universal: z.literal(true).optional(),
+      /** Standards-pack fields: the area word, the layer (`krn-delivery` needs KRN adopted), a reflex waiver and the harvest counts. */
+      area: words.optional(),
+      layer: z.enum(['universal', 'krn-delivery']).optional(),
+      waiver: z.string().trim().min(1, 'expected text').optional(),
+      harvested: z
+        .strictObject({
+          origins: z.array(words).min(1),
+          occurrences: z.number().int(),
+        })
+        .refine((h) => h.occurrences >= h.origins.length, {
+          message: 'occurrences must be at least one per origin',
+        })
+        .optional(),
     })
     .refine((r) => r.valid_to === null || r.valid_to >= r.valid_from, {
       message: 'valid_to precedes valid_from',
@@ -107,38 +131,4 @@ export function parseUnified(value: unknown): UnifiedRecord[] {
     seen.add(parsed.data.id);
     return parsed.data;
   });
-}
-
-/** A standards-pack record in the unified shape; a universal one holds in every stack. */
-export function standardRecord(s: Standard): UnifiedRecord {
-  const universal = s.layer === 'universal' && s.applies.stacks.length === 0;
-  return {
-    id: s.id,
-    type: 'standard',
-    text: s.text,
-    why: s.why,
-    audience: s.audience,
-    tier: s.tier,
-    applies: {
-      stacks: [...s.applies.stacks],
-      needs: [...s.applies.needs],
-      paths: [],
-      terms: [],
-    },
-    enforcement:
-      s.enforcement.kind === 'krn'
-        ? { kind: 'krn', args: [...s.enforcement.args] }
-        : s.enforcement,
-    provenance: {
-      origin: s.origin === undefined ? 'krn pack' : 'krn pack (inherited)',
-      evidence: [...s.evidence],
-      proposals: [],
-    },
-    status: s.valid_to === null ? 'accepted' : 'retired',
-    recorded_at: s.recorded_at,
-    valid_from: s.valid_from,
-    valid_to: s.valid_to,
-    supersedes: [],
-    ...(universal ? { universal: true as const } : {}),
-  };
 }

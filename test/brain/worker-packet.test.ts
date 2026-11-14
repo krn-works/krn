@@ -193,18 +193,21 @@ test('an audience other than lead or worker is refused', () => {
 
 const standardRow = (id: string, text: string, extra: object) => ({
   id,
+  type: 'standard',
   area: 'tests',
   layer: 'universal',
   audience: 'worker',
   tier: 'reflex',
   text,
   why: 'Because.',
-  evidence: ['AGENTS.md'],
   enforcement: { kind: 'advisory' },
-  applies: { stacks: [], needs: [] },
+  applies: { stacks: [], needs: [], paths: [], terms: [] },
+  provenance: { origin: 'test', evidence: ['AGENTS.md'], proposals: [] },
+  status: 'accepted',
   recorded_at: '2026-01-01',
   valid_from: '2026-01-01',
   valid_to: null,
+  supersedes: [],
   ...extra,
 });
 

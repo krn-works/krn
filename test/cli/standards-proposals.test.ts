@@ -224,13 +224,14 @@ test('standards check fails a harvested pack record that breaks the promotion ru
   try {
     const record = (origins: string[], occurrences: number) => ({
       id: 's-linter-before-commit',
+      type: 'standard',
       area: 'checks',
       layer: 'universal',
       audience: 'worker',
       tier: 'floor',
       text: lesson,
       why: 'Two repositories shipped lint errors their CI then refused.',
-      evidence: ['#7'],
+      provenance: { origin: 'krn pack', evidence: ['#7'], proposals: [] },
       enforcement: { kind: 'command', run: 'true' },
       applies: { stacks: [], needs: [] },
       recorded_at: '2026-11-13',

@@ -12,8 +12,8 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { contractConventions } from '../repo/contract.ts';
-import { parseUnified, standardRecord, type UnifiedRecord } from './record.ts';
-import { parseStandards, StandardsDataError } from './standards.ts';
+import { parseUnified, type UnifiedRecord } from './record.ts';
+import { StandardsDataError } from './standards.ts';
 
 /** The generated file, relative to ~/.claude. */
 export const GLOBAL_FILE = 'krn-standards.md';
@@ -45,9 +45,9 @@ export function universalRecords(
       readFileSync(join(product, contractConventions(product)), 'utf8'),
     ),
   );
-  const pack = parseStandards(
+  const pack = parseUnified(
     JSON.parse(readFileSync(join(product, PACK), 'utf8')),
-  ).map(standardRecord);
+  );
   const inForce = (r: UnifiedRecord): boolean =>
     r.universal === true &&
     r.status !== 'retired' &&

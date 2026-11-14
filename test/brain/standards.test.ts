@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { INHERITED_ORIGIN } from '../../src/brain/record.ts';
 import {
   appliesTo,
   BLOCK_END,
@@ -9,7 +10,6 @@ import {
   checkStandards,
   type Enforce,
   formatStandards,
-  INHERITED,
   parsePack,
   parseStandards,
   promotionFailures,
@@ -26,13 +26,14 @@ import {
 const plain = `[
   {
     "id": "s-example",
+    "type": "standard",
     "area": "tests",
     "layer": "universal",
     "audience": "worker",
     "tier": "floor",
     "text": "The repository tracks automated tests.",
     "why": "Untested code has no statement of what it must do.",
-    "evidence": ["#12"],
+    "provenance": { "origin": "krn pack", "evidence": ["#12"], "proposals": [] },
     "enforcement": { "kind": "command", "run": "test -d tests" },
     "applies": { "stacks": [], "needs": [] },
     "recorded_at": "2026-11-13",
@@ -67,7 +68,12 @@ test('parseStandards accepts the plainest hand-written record', () => {
     kind: 'command',
     run: 'test -d tests',
   });
-  assert.deepEqual(record?.applies, { stacks: [], needs: [] });
+  assert.deepEqual(record?.applies, {
+    stacks: [],
+    needs: [],
+    paths: [],
+    terms: [],
+  });
   assert.equal(record?.valid_to, null);
 });
 
@@ -87,27 +93,22 @@ test('parseStandards accepts krn and advisory enforcement in their layers', () =
 
 test('parseStandards refuses malformed records and names the field', () => {
   assert.throws(() => parseStandards({}), /expected a JSON array/u);
-  rejects((r) => delete r.why, /fields must be exactly/u);
-  rejects((r) => (r.extra = 1), /fields must be exactly/u);
-  rejects((r) => (r.id = 'r-example'), /\.id: expected s-/u);
-  rejects((r) => (r.audience = 'everyone'), /\.audience: expected one of/u);
-  rejects((r) => (r.layer = 'krn'), /\.layer: expected one of/u);
-  rejects(
-    (r) => (r.enforcement = { kind: 'hope' }),
-    /enforcement\.kind: expected one of command, krn, advisory/u,
-  );
+  rejects((r) => (r.extra = 1), /^records\[0\]/u);
+  rejects((r) => (r.audience = 'everyone'), /\.audience: Invalid option/u);
+  rejects((r) => (r.layer = 'krn'), /\.layer: Invalid option/u);
+  rejects((r) => (r.enforcement = { kind: 'hope' }), /\.enforcement/u);
   // A path#fragment reference is provenance, never enforcement.
   rejects(
     (r) => (r.enforcement = { kind: 'command', ref: 'scripts/check.ts' }),
-    /enforcement: fields must be exactly kind, run/u,
+    /\.enforcement/u,
   );
   rejects(
-    (r) => (r.enforcement = { kind: 'command', run: ' ' }),
-    /enforcement\.run: expected a non-empty string/u,
+    (r) => (r.enforcement = { kind: 'command', run: '' }),
+    /enforcement\.run: expected text/u,
   );
   rejects(
     (r) => (r.enforcement = { kind: 'advisory', run: 'true' }),
-    /enforcement: fields must be exactly kind$/u,
+    /\.enforcement/u,
   );
   rejects(
     (r) => (r.enforcement = { kind: 'krn', args: ['task', 'check'] }),
@@ -116,13 +117,18 @@ test('parseStandards refuses malformed records and names the field', () => {
   rejects((r) => {
     r.layer = 'krn-delivery';
     r.enforcement = { kind: 'krn', args: [] };
-  }, /enforcement\.args: expected a krn subcommand/u);
-  rejects((r) => (r.evidence = []), /evidence: expected at least one/u);
-  rejects((r) => (r.evidence = ['../outside.md']), /evidence\[0\]/u);
-  rejects((r) => (r.evidence = ['/etc/passwd']), /evidence\[0\]/u);
+  }, /enforcement\.args/u);
+  rejects(
+    (r) => (r.provenance = { origin: 'x', evidence: ['../outside.md'] }),
+    /provenance\.evidence: "..\/outside\.md" is not/u,
+  );
+  rejects(
+    (r) => (r.provenance = { origin: 'x', evidence: ['/etc/passwd'] }),
+    /provenance\.evidence: "\/etc\/passwd" is not/u,
+  );
   rejects(
     (r) => (r.applies = { stacks: [], needs: ['cloud'] }),
-    /applies\.needs\[0\]/u,
+    /applies\.needs: expected one of tracker/u,
   );
   rejects((r) => (r.valid_from = '2026-13-01'), /valid_from: expected/u);
   rejects((r) => (r.valid_to = '2026-01-01'), /valid_to precedes/u);
@@ -130,6 +136,24 @@ test('parseStandards refuses malformed records and names the field', () => {
     () => parseStandards([base(), base()]),
     /duplicate id s-example/u,
   );
+});
+
+test('parseStandards accepts the plainest hand-written row of the one schema', () => {
+  const [record] = parseStandards([
+    {
+      id: 'r-plain',
+      type: 'standard',
+      text: 'Keep it plain.',
+      recorded_at: '2026-11-14',
+      valid_from: '2026-11-14',
+      valid_to: null,
+      source: 'AGENTS.md',
+    },
+  ]);
+  assert.equal(record?.id, 'r-plain');
+  assert.equal(record?.tier, 'reflex');
+  assert.deepEqual(record?.enforcement, { kind: 'advisory' });
+  assert.equal(record?.provenance.origin, 'AGENTS.md');
 });
 
 test('reference classifies every accepted evidence form', () => {
@@ -154,7 +178,7 @@ test('appliesTo matches the stack family, every need, and krn-delivery only wher
   const needs = new Set(['tracker'] as const);
   const repo = { adopted: false, needs };
   const applies = (stacks: string[], want: 'tracker'[] = []) =>
-    standard({ applies: { stacks, needs: want } });
+    standard({ applies: { stacks, needs: want, paths: [], terms: [] } });
   assert.ok(appliesTo(applies([]), repo));
   assert.ok(appliesTo(applies(['node']), { ...repo, stack: 'node/npm' }));
   assert.ok(!appliesTo(applies(['node']), { ...repo, stack: 'python' }));
@@ -249,7 +273,7 @@ test('the shipped pack holds 15-25 universal standards in both layers, with evid
   );
   for (const record of pack) {
     // Evidence is provenance: a KRN path must exist here and hold its fragment.
-    for (const entry of record.evidence) {
+    for (const entry of record.provenance.evidence) {
       const form = reference(entry);
       if (form?.kind !== 'path') continue;
       const full = `${root}${form.path}`;
@@ -272,33 +296,16 @@ test('the shipped pack holds 15-25 universal standards in both layers, with evid
   }
 });
 
-// The plainest hand-written inherited record: the pack fields plus `"origin": "krn"`.
-const inheritedPlain = `[
-  {
-    "id": "s-example",
-    "area": "tests",
-    "layer": "universal",
-    "audience": "worker",
-    "tier": "floor",
-    "text": "The repository tracks automated tests.",
-    "why": "Untested code has no statement of what it must do.",
-    "evidence": ["#12"],
-    "enforcement": { "kind": "command", "run": "test -d tests" },
-    "applies": { "stacks": [], "needs": [] },
-    "recorded_at": "2026-11-13",
-    "valid_from": "2026-11-13",
-    "valid_to": null,
-    "origin": "krn"
-  }
-]`;
+// The plainest hand-written inherited record: the pack fields with the inherited origin.
+const inheritedPlain = plain.replace('"krn pack"', `"${INHERITED_ORIGIN}"`);
 
-test('a project record may carry origin krn, any other origin is refused, and the pack carries none', () => {
+test('a project record may carry the inherited origin, and the pack carries none', () => {
   const [record] = parseStandards(JSON.parse(inheritedPlain));
-  assert.equal(record?.origin, INHERITED);
-  assert.equal(parseStandards(JSON.parse(plain))[0]?.origin, undefined);
-  rejects((r) => {
-    r.origin = 'elsewhere';
-  }, /standards\[0\]\.origin: expected "krn"/u);
+  assert.equal(record?.provenance.origin, INHERITED_ORIGIN);
+  assert.equal(
+    parseStandards(JSON.parse(plain))[0]?.provenance.origin,
+    'krn pack',
+  );
   assert.throws(
     () => parsePack(JSON.parse(inheritedPlain)),
     (error: unknown) =>
@@ -307,7 +314,10 @@ test('a project record may carry origin krn, any other origin is refused, and th
   );
   // Written and read back, a seeded file keeps every field and the origin.
   const written = formatStandards(parseStandards(JSON.parse(inheritedPlain)));
-  assert.deepEqual(JSON.parse(written), JSON.parse(inheritedPlain));
+  assert.equal(
+    parseStandards(JSON.parse(written))[0]?.provenance.origin,
+    INHERITED_ORIGIN,
+  );
   assert.ok(written.endsWith('}\n]\n'));
 });
 
@@ -332,12 +342,15 @@ test('seedStandards copies the universal pack records that apply, marks them inh
   const own = parsed({ id: 's-own', text: 'A project rule.' });
   const stale: Standard = {
     ...parsed({ id: 's-any', text: 'Old wording.' }),
-    origin: INHERITED,
+    provenance: { origin: INHERITED_ORIGIN, evidence: [], proposals: [] },
   };
   const python = { stack: 'python', adopted: false, needs: new Set<never>() };
   const seeded = seedStandards(pack, [stale, own], python, 'f.json');
   assert.deepEqual(
-    seeded.map((s) => [s.id, s.origin ?? 'own']),
+    seeded.map((s) => [
+      s.id,
+      s.provenance.origin === INHERITED_ORIGIN ? 'krn' : 'own',
+    ]),
     [
       ['s-any', 'krn'],
       ['s-python', 'krn'],
@@ -404,16 +417,16 @@ test('a harvested record keeps its origins and parses only with a consistent occ
   });
   rejects(
     (r) => Object.assign(r, { harvested: { origins: [], occurrences: 1 } }),
-    /harvested\.origins: expected at least one/u,
+    /harvested\.origins/u,
   );
   rejects(
     (r) =>
       Object.assign(r, { harvested: { origins: ['a', 'b'], occurrences: 1 } }),
-    /harvested\.occurrences: expected an integer of at least 2/u,
+    /harvested: occurrences must be at least one per origin/u,
   );
   rejects(
     (r) => Object.assign(r, { harvested: { origins: ['a'] } }),
-    /harvested: fields must be exactly origins, occurrences/u,
+    /harvested\.occurrences/u,
   );
 });
 
@@ -431,7 +444,13 @@ test('promotionFailures holds a harvested record to recurrence and enforcement, 
   assert.deepEqual(promotionFailures(harvested(['alpha'], 3)), []);
   assert.deepEqual(
     promotionFailures(
-      harvested(['alpha'], 1, { evidence: ['https://example.com/source'] }),
+      harvested(['alpha'], 1, {
+        provenance: {
+          origin: 'x',
+          evidence: ['https://example.com/source'],
+          proposals: [],
+        },
+      }),
     ),
     [],
   );
@@ -453,18 +472,8 @@ test('promotionFailures holds a harvested record to recurrence and enforcement, 
   );
 });
 
-test('parseStandards reads a record adopted before tiers as a finish standard', () => {
-  const record = base();
-  delete record.tier;
-  const [standard] = parseStandards([record]);
-  assert.equal(standard?.tier, 'finish');
-});
-
 test('parseStandards refuses an unknown tier or a waiver off reflex', () => {
-  rejects(
-    (r) => (r.tier = 'optional'),
-    /\.tier: expected one of floor, reflex, finish/u,
-  );
+  rejects((r) => (r.tier = 'optional'), /\.tier: Invalid option/u);
   rejects(
     (r) => (r.waiver = 'later'),
     /only a reflex standard takes a waiver/u,
@@ -472,7 +481,7 @@ test('parseStandards refuses an unknown tier or a waiver off reflex', () => {
   rejects((r) => {
     r.tier = 'reflex';
     r.waiver = ' ';
-  }, /\.waiver: expected a non-empty string/u);
+  }, /\.waiver: expected text/u);
 });
 
 test('checkStandards counts per tier and blocks only floor and an unwaived reflex', () => {

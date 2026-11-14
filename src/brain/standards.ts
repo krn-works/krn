@@ -2,6 +2,11 @@
 // adopted project inherits. Pure parsing, selection and planning; running an enforcement belongs
 // to the caller, which owns processes and the filesystem.
 import type { BrainRecord } from './packet.ts';
+import {
+  INHERITED_ORIGIN,
+  parseUnified,
+  type UnifiedRecord,
+} from './record.ts';
 
 export const AUDIENCES = ['worker', 'lead', 'adopt'] as const;
 /** `universal` holds in any repository with no KRN; `krn-delivery` needs KRN adopted there. */
@@ -29,130 +34,18 @@ export type Enforcement =
   /** Explicitly unenforced: counted, never part of a PASS. */
   | { readonly kind: 'advisory' };
 
-export type Standard = {
-  readonly id: string;
-  readonly area: string;
-  readonly layer: Layer;
-  readonly audience: Audience;
-  /** How a failure weighs: see TIERS. */
-  readonly tier: Tier;
-  /** Why a failing `reflex` standard is accepted for now; only a reflex standard takes one. */
-  readonly waiver?: string;
-  /** The rule as one statement. */
-  readonly text: string;
-  /** Why the rule exists, in one sentence. */
-  readonly why: string;
-  /** Provenance only, never resolved in the checked repository: `path[#text]`, `#<PR>`, a commit SHA or an https URL. */
-  readonly evidence: readonly string[];
-  readonly enforcement: Enforcement;
-  /** Empty lists apply everywhere; `stacks` match the detected stack or its family (`node` matches `node/npm`). */
-  readonly applies: {
-    readonly stacks: readonly string[];
-    readonly needs: readonly Need[];
-  };
-  readonly recorded_at: string;
-  readonly valid_from: string;
-  readonly valid_to: string | null;
-  /** Set only on a pack record copied into a project by `krn adopt`; a project's own record has none. */
-  readonly origin?: typeof INHERITED;
-  /** Set on a record promoted from harvested proposals: the repositories that proposed it and how often. */
-  readonly harvested?: Harvested;
-};
+/** A standard is a record of the one schema (src/brain/record.ts); `layer`, `waiver` and `harvested` are its standards-pack fields. */
+export type Standard = UnifiedRecord;
 
 /** Where a promoted record came from: every proposing repository is kept (SR:66). */
-export type Harvested = {
-  readonly origins: readonly string[];
-  readonly occurrences: number;
-};
+export type Harvested = NonNullable<UnifiedRecord['harvested']>;
 
-/** The origin of a record `krn adopt` copied from the shipped pack into a project. */
-export const INHERITED = 'krn';
+/** True for a record `krn adopt` copied from the shipped pack into a project. */
+export const isInherited = (standard: Standard): boolean =>
+  standard.provenance.origin === INHERITED_ORIGIN;
 
 export class StandardsDataError extends Error {
   readonly exitCode = 65;
-}
-
-const FIELDS = [
-  'id',
-  'area',
-  'layer',
-  'audience',
-  'text',
-  'why',
-  'evidence',
-  'enforcement',
-  'applies',
-  'recorded_at',
-  'valid_from',
-  'valid_to',
-] as const;
-/**
- * Fields a record may carry beyond FIELDS. A record without a tier is a
- * finish standard: files adopted before tiers existed carry none, and
- * refusing them stopped every lane in those repositories with exit 65.
- */
-const OPTIONAL = ['origin', 'harvested', 'tier', 'waiver'] as const;
-const DEFAULT_TIER: Tier = 'finish';
-const ID = /^s-[a-z0-9]+(?:-[a-z0-9]+)*$/u;
-const DATE = /^\d{4}-\d{2}-\d{2}$/u;
-const AREA = /^[a-z][a-z0-9-]*$/u;
-
-type Json = Record<string, unknown>;
-
-function object(value: unknown, where: string): Json {
-  if (typeof value !== 'object' || value === null || Array.isArray(value))
-    throw new StandardsDataError(`${where}: expected an object`);
-  return value as Json;
-}
-
-function exactKeys(value: Json, keys: readonly string[], where: string): void {
-  const actual = Object.keys(value).sort().join();
-  if (actual !== [...keys].sort().join())
-    throw new StandardsDataError(
-      `${where}: fields must be exactly ${keys.join(', ')}`,
-    );
-}
-
-function text(value: unknown, where: string): string {
-  if (typeof value !== 'string' || value.trim() === '')
-    throw new StandardsDataError(`${where}: expected a non-empty string`);
-  return value;
-}
-
-function date(value: unknown, where: string): string {
-  if (
-    typeof value !== 'string' ||
-    !DATE.test(value) ||
-    Number.isNaN(Date.parse(`${value}T00:00:00Z`)) ||
-    new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) !== value
-  )
-    throw new StandardsDataError(`${where}: expected a YYYY-MM-DD date`);
-  return value;
-}
-
-function member<T extends string>(
-  value: unknown,
-  allowed: readonly T[],
-  where: string,
-): T {
-  if (typeof value !== 'string' || !allowed.includes(value as T))
-    throw new StandardsDataError(
-      `${where}: expected one of ${allowed.join(', ')}`,
-    );
-  return value as T;
-}
-
-function list<T>(
-  value: unknown,
-  where: string,
-  item: (entry: unknown, at: string) => T,
-): T[] {
-  if (!Array.isArray(value))
-    throw new StandardsDataError(`${where}: expected an array`);
-  const items = value.map((entry, index) => item(entry, `${where}[${index}]`));
-  if (new Set(items).size !== items.length)
-    throw new StandardsDataError(`${where}: duplicate entry`);
-  return items;
 }
 
 export type Reference =
@@ -177,125 +70,6 @@ export function reference(entry: string): Reference | undefined {
   return fragment === undefined
     ? { kind: 'path', path }
     : { kind: 'path', path, fragment };
-}
-
-function evidenceText(value: unknown, where: string): string {
-  const entry = text(value, where);
-  if (reference(entry) === undefined)
-    throw new StandardsDataError(
-      `${where}: expected a repository path[#text], #<PR>, a commit SHA or an https URL`,
-    );
-  return entry;
-}
-
-function parseEnforcement(
-  value: unknown,
-  layer: Layer,
-  where: string,
-): Enforcement {
-  const e = object(value, where);
-  const kind = member(e.kind, ENFORCEMENTS, `${where}.kind`);
-  if (kind === 'advisory') {
-    exactKeys(e, ['kind'], where);
-    return { kind };
-  }
-  if (kind === 'command') {
-    exactKeys(e, ['kind', 'run'], where);
-    return { kind, run: text(e.run, `${where}.run`) };
-  }
-  exactKeys(e, ['kind', 'args'], where);
-  if (layer !== 'krn-delivery')
-    throw new StandardsDataError(
-      `${where}.kind: krn enforcement is valid only for layer krn-delivery`,
-    );
-  const args = list(e.args, `${where}.args`, (entry, at) => text(entry, at));
-  if (args.length === 0)
-    throw new StandardsDataError(`${where}.args: expected a krn subcommand`);
-  return { kind, args };
-}
-
-function parseStandard(item: unknown, where: string): Standard {
-  const r = object(item, where);
-  exactKeys(r, [...FIELDS, ...OPTIONAL.filter((field) => field in r)], where);
-  if ('origin' in r && r.origin !== INHERITED)
-    throw new StandardsDataError(
-      `${where}.origin: expected ${JSON.stringify(INHERITED)} (a record krn adopt inherited) or no origin`,
-    );
-  const id = text(r.id, `${where}.id`);
-  if (!ID.test(id))
-    throw new StandardsDataError(
-      `${where}.id: expected s-<kebab-case words>, got ${JSON.stringify(id)}`,
-    );
-  const area = text(r.area, `${where}.area`);
-  if (!AREA.test(area))
-    throw new StandardsDataError(`${where}.area: expected a kebab-case word`);
-  const layer = member(r.layer, LAYERS, `${where}.layer`);
-  const tier =
-    'tier' in r ? member(r.tier, TIERS, `${where}.tier`) : DEFAULT_TIER;
-  if ('waiver' in r && tier !== 'reflex')
-    throw new StandardsDataError(
-      `${where}.waiver: only a reflex standard takes a waiver`,
-    );
-  const evidence = list(r.evidence, `${where}.evidence`, evidenceText);
-  if (evidence.length === 0)
-    throw new StandardsDataError(`${where}.evidence: expected at least one`);
-  const applies = object(r.applies, `${where}.applies`);
-  exactKeys(applies, ['stacks', 'needs'], `${where}.applies`);
-  const validFrom = date(r.valid_from, `${where}.valid_from`);
-  const validTo =
-    r.valid_to === null ? null : date(r.valid_to, `${where}.valid_to`);
-  if (validTo !== null && validTo < validFrom)
-    throw new StandardsDataError(`${where}: valid_to precedes valid_from`);
-  return {
-    id,
-    area,
-    layer,
-    audience: member(r.audience, AUDIENCES, `${where}.audience`),
-    tier,
-    ...('waiver' in r ? { waiver: text(r.waiver, `${where}.waiver`) } : {}),
-    text: text(r.text, `${where}.text`),
-    why: text(r.why, `${where}.why`),
-    evidence,
-    enforcement: parseEnforcement(r.enforcement, layer, `${where}.enforcement`),
-    applies: {
-      stacks: list(applies.stacks, `${where}.applies.stacks`, (entry, at) => {
-        const stack = text(entry, at);
-        if (!AREA.test(stack.replace('/', '-')))
-          throw new StandardsDataError(`${at}: expected a stack name`);
-        return stack;
-      }),
-      needs: list(applies.needs, `${where}.applies.needs`, (entry, at) =>
-        member(entry, NEEDS, at),
-      ),
-    },
-    recorded_at: date(r.recorded_at, `${where}.recorded_at`),
-    valid_from: validFrom,
-    valid_to: validTo,
-    ...('origin' in r ? ({ origin: INHERITED } as const) : {}),
-    ...('harvested' in r
-      ? { harvested: parseHarvested(r.harvested, `${where}.harvested`) }
-      : {}),
-  };
-}
-
-function parseHarvested(value: unknown, where: string): Harvested {
-  const h = object(value, where);
-  exactKeys(h, ['origins', 'occurrences'], where);
-  const origins = list(h.origins, `${where}.origins`, (entry, at) =>
-    text(entry, at),
-  );
-  if (origins.length === 0)
-    throw new StandardsDataError(`${where}.origins: expected at least one`);
-  const occurrences = h.occurrences;
-  if (
-    typeof occurrences !== 'number' ||
-    !Number.isInteger(occurrences) ||
-    occurrences < origins.length
-  )
-    throw new StandardsDataError(
-      `${where}.occurrences: expected an integer of at least ${origins.length} (one per origin)`,
-    );
-  return { origins, occurrences };
 }
 
 /** A harvested lesson is promotable when this many repositories proposed it... */
@@ -323,8 +97,9 @@ export function recursEnough(
  */
 export function promotionFailures(standards: readonly Standard[]): Failure[] {
   const failures: Failure[] = [];
-  for (const { id, harvested, evidence, enforcement } of standards) {
+  for (const { id, harvested, provenance, enforcement } of standards) {
     if (harvested === undefined) continue;
+    const evidence = provenance.evidence;
     if (
       !recursEnough(harvested.origins.length, harvested.occurrences, evidence)
     )
@@ -344,18 +119,37 @@ export function promotionFailures(standards: readonly Standard[]): Failure[] {
 
 /** Rejects anything but a list of exact standards with unique ids; the error names the first bad field. */
 export function parseStandards(value: unknown): Standard[] {
-  if (!Array.isArray(value))
-    throw new StandardsDataError('standards: expected a JSON array');
-  const seen = new Set<string>();
-  return value.map((item, index) => {
-    const standard = parseStandard(item, `standards[${index}]`);
-    if (seen.has(standard.id))
+  let records: Standard[];
+  try {
+    records = parseUnified(value);
+  } catch (error) {
+    throw new StandardsDataError((error as Error).message);
+  }
+  records.forEach((standard, index) => {
+    const where = `records[${index}]`;
+    for (const entry of standard.provenance.evidence)
+      if (reference(entry) === undefined)
+        throw new StandardsDataError(
+          `${where}.provenance.evidence: ${JSON.stringify(entry)} is not a repository path[#text], #<PR>, a commit SHA or an https URL`,
+        );
+    for (const need of standard.applies.needs)
+      if (!(NEEDS as readonly string[]).includes(need))
+        throw new StandardsDataError(
+          `${where}.applies.needs: expected one of ${NEEDS.join(', ')}`,
+        );
+    if (standard.waiver !== undefined && standard.tier !== 'reflex')
       throw new StandardsDataError(
-        `standards[${index}].id: duplicate id ${standard.id}`,
+        `${where}.waiver: only a reflex standard takes a waiver`,
       );
-    seen.add(standard.id);
-    return standard;
+    if (
+      standard.enforcement.kind === 'krn' &&
+      standard.layer !== 'krn-delivery'
+    )
+      throw new StandardsDataError(
+        `${where}.enforcement.kind: krn enforcement is valid only for layer krn-delivery`,
+      );
   });
+  return records;
 }
 
 /** What a repository offers that a standard may need. */
@@ -364,7 +158,7 @@ export type Repository = {
   readonly stack?: string;
   /** True when KRN is adopted there, so `krn-delivery` standards apply. */
   readonly adopted: boolean;
-  readonly needs: ReadonlySet<Need>;
+  readonly needs: ReadonlySet<string>;
 };
 
 export function appliesTo(standard: Standard, repository: Repository): boolean {
@@ -390,12 +184,12 @@ export function inForce(standard: Standard, asOf: string): boolean {
 export function toBrainRecord(standard: Standard): BrainRecord {
   return {
     id: standard.id,
-    type: standard.area,
+    type: standard.area ?? standard.type,
     text: standard.text,
     recorded_at: standard.recorded_at,
     valid_from: standard.valid_from,
     valid_to: standard.valid_to,
-    source: standard.evidence.join(', '),
+    source: standard.provenance.evidence.join(', '),
   };
 }
 
@@ -492,7 +286,7 @@ export function checkStandards(
 /** The shipped pack: exact standards, none of them marked as inherited. */
 export function parsePack(value: unknown): Standard[] {
   const pack = parseStandards(value);
-  const marked = pack.find((standard) => standard.origin !== undefined);
+  const marked = pack.find((standard) => isInherited(standard));
   if (marked !== undefined)
     throw new StandardsDataError(
       `standards: pack record ${marked.id} carries an origin; only a project copy does`,
@@ -506,8 +300,8 @@ export function splitProject(project: readonly Standard[]): {
   readonly own: Standard[];
 } {
   return {
-    inherited: project.filter((standard) => standard.origin === INHERITED),
-    own: project.filter((standard) => standard.origin === undefined),
+    inherited: project.filter((standard) => isInherited(standard)),
+    own: project.filter((standard) => !isInherited(standard)),
   };
 }
 
@@ -543,7 +337,12 @@ export function seedStandards(
       (standard) =>
         standard.layer === 'universal' && appliesTo(standard, repository),
     )
-    .map((standard): Standard => ({ ...standard, origin: INHERITED }));
+    .map(
+      (standard): Standard => ({
+        ...standard,
+        provenance: { ...standard.provenance, origin: INHERITED_ORIGIN },
+      }),
+    );
   return [...inherited, ...own];
 }
 

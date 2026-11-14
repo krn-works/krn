@@ -13,7 +13,6 @@ import {
   packetRecord,
   parseRecords,
 } from './packet.ts';
-import { standardRecord } from './record.ts';
 import { readProject } from './standards-cli.ts';
 
 /** Token budget of the one lane packet; the frozen FR-40 arms stay at BUDGET. */
@@ -51,7 +50,7 @@ export function laneCandidates(repo: string): BrainRecord[] {
     : [];
   const ids = new Set(own.map((record) => record.id));
   const standards = readProject(repo)
-    .map((standard) => packetRecord(standardRecord(standard)))
+    .map(packetRecord)
     .filter((record) => !ids.has(record.id));
   return workerRecords([...own, ...standards]);
 }
