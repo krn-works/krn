@@ -14,6 +14,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import {
   changedFiles,
+  cliCommandModules,
   fullyStaged,
   lintable,
   removedFiles,
@@ -490,4 +491,39 @@ test('fast check selects the capability-index test when the index or a src modul
   for (const file of ['docs/generated/capability-index.md', 'src/new/mod.ts'])
     assert.ok(selectTests([file], withIndex).includes(indexTest), file);
   assert.ok(!selectTests(['docs/x.md'], withIndex).includes(indexTest));
+});
+
+test('fast check derives the src modules a bin/krn subprocess test covers', () => {
+  const root = mkdtempSync(join(tmpdir(), 'fast-cli-'));
+  try {
+    mkdirSync(join(root, 'src/cli'), { recursive: true });
+    mkdirSync(join(root, 'src/ledger'), { recursive: true });
+    writeFileSync(
+      join(root, 'src/cli/index.ts'),
+      "if (command === 'ledger') {\n  const { run } = await import('./ledger.ts');\n} else if (command === 'plan') {\n  const { p } = await import('./plan.ts');\n}\n",
+    );
+    writeFileSync(
+      join(root, 'src/cli/ledger.ts'),
+      "import { rows } from '../ledger/rows.ts';\n",
+    );
+    writeFileSync(join(root, 'src/ledger/rows.ts'), 'export const rows = 1;\n');
+    writeFileSync(join(root, 'src/cli/plan.ts'), 'export const p = 1;\n');
+    const modules = cliCommandModules(root);
+    assert.ok(modules.get('ledger')?.has('src/ledger/rows.ts'));
+    assert.ok(!modules.get('plan')?.has('src/ledger/rows.ts'));
+    const spawning = new Map([
+      [
+        'test/cli/ledger-cli.test.ts',
+        "spawnSync('bin/krn', ['ledger', 'show']);",
+      ],
+      ['test/cli/plan-cli.test.ts', "spawnSync('bin/krn', ['plan']);"],
+      ['test/other.test.ts', "const c = 'ledger'; // no spawn"],
+    ]);
+    assert.deepEqual(
+      selectTests(['src/ledger/rows.ts'], spawning, [], new Set(), modules),
+      ['test/cli/ledger-cli.test.ts'],
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
