@@ -259,9 +259,15 @@ test('the shipped pack holds 15-25 universal standards in both layers, with evid
   );
   // The universal layer is the budget every adopted repository inherits; krn-delivery
   // records apply only where KRN is adopted.
-  // Stack-scoped records weigh on no repository outside their stack.
+  // Stack-scoped and site-scoped (WordPress, frontend) records weigh on no repository outside
+  // their stack or kind.
   const universal = pack.filter(
-    (r) => r.layer === 'universal' && r.applies.stacks.length === 0,
+    (r) =>
+      r.layer === 'universal' &&
+      r.applies.stacks.length === 0 &&
+      !r.applies.needs.some(
+        (need) => need === 'wordpress' || need === 'frontend',
+      ),
   ).length;
   assert.ok(universal >= 15 && universal <= 25, `${universal} universal`);
   const layers = new Set(pack.map((record) => record.layer));

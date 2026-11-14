@@ -1094,5 +1094,179 @@
       "origins": ["krn-ai-os", "krn-search"],
       "occurrences": 2
     }
+  },
+  {
+    "id": "s-skill-acf-component",
+    "type": "recipe",
+    "text": "Add or change a page component of this WordPress theme (ACF PRO Flexible Content layout, component field group, static PHP template, CUBE block). Use for any new page section, field, layout or component template; CSS rules live in cube-css.",
+    "why": "Trial standard harvested read-only from the boilerplate-2026 skill acf-component.",
+    "audience": "worker",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": ["**/*.php", "**/acf-json/*.json", "web/app/themes/**"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/acf-component/SKILL.md",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "wordpress",
+    "layer": "universal"
+  },
+  {
+    "id": "s-skill-cube-css",
+    "type": "standard",
+    "text": "Write or change CSS of this WordPress theme the CUBE CSS way (global, composition, utility, block, exception) with SugarCube design tokens and Every Layout compositions. Use for any stylesheet edit, a new block, a new token or a layout problem; a new page component starts in acf-component.",
+    "why": "Trial standard harvested read-only from the boilerplate-2026 skill cube-css.",
+    "audience": "worker",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": ["frontend"],
+      "paths": ["**/*.css", "web/app/themes/**"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/cube-css/SKILL.md",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "frontend",
+    "layer": "universal"
+  },
+  {
+    "id": "s-skill-cube-review",
+    "type": "recipe",
+    "text": "Independently review a frontend diff of this WordPress theme (CSS, component templates, acf-json) and its rendered result before acceptance. Use in a fresh session that did not write the change; the author's own checks only prepare the handoff.",
+    "why": "Trial standard harvested read-only from the boilerplate-2026 skill cube-review.",
+    "audience": "worker",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": ["frontend"],
+      "paths": ["**/*.css", "**/*.php", "**/acf-json/*.json"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/cube-review/SKILL.md",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "frontend",
+    "layer": "universal"
+  },
+  {
+    "id": "s-skill-design-to-build",
+    "type": "recipe",
+    "text": "Turn a design (Figma frame, screenshot, mock-up or brief) into pages of this WordPress theme, planning before code and building in a core pass and a flair pass. Use when a client design arrives or a page has to be built from a picture; per-component steps live in acf-component and CSS rules in cube-css.",
+    "why": "Trial standard harvested read-only from the boilerplate-2026 skill design-to-build.",
+    "audience": "worker",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": ["frontend"],
+      "paths": ["**/*.css", "**/*.php", "web/app/themes/**"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/design-to-build/SKILL.md",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "frontend",
+    "layer": "universal"
+  },
+  {
+    "id": "s-skill-plesk-deploy",
+    "type": "recipe",
+    "text": "Deploy this WordPress project to a Plesk server through GitHub Actions (atomic releases over SSH to a forced-command receiver, status, rollback), prepare a Plesk domain once, and diagnose a release that does not serve. Use when setting up deploy for a client, changing what a release ships, bumping the deploy tooling, or when a deployed site returns 403 or an empty page; local runtime lives in wp-runtime.",
+    "why": "Trial standard harvested read-only from the boilerplate-2026 skill plesk-deploy.",
+    "audience": "worker",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": [".github/workflows/*.yml", "deploy/**", "composer.json"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/plesk-deploy/SKILL.md",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "wordpress",
+    "layer": "universal"
+  },
+  {
+    "id": "s-skill-wp-runtime",
+    "type": "recipe",
+    "text": "Run, set up, diagnose and verify this WordPress project locally (Bedrock on DDEV, mise tasks, Vite with CSS HMR and PHP morph, doctor, browser gate, data, staging pull, ACF PRO access). Use when starting the project, when something local is broken, before handing over runtime or theme work, or when pulling staging data; deploying to Plesk lives in plesk-deploy.",
+    "why": "Trial standard harvested read-only from the boilerplate-2026 skill wp-runtime.",
+    "audience": "worker",
+    "tier": "finish",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": ["mise.toml", ".ddev/**", "**/*.php", "vite.config.*"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/wp-runtime/SKILL.md",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "trial",
+    "recorded_at": "2026-11-14",
+    "valid_from": "2026-11-14",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "wordpress",
+    "layer": "universal"
   }
 ]
