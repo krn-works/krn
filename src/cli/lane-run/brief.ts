@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { findContract } from '../../repo/contract.ts';
 import { taskLookupRoot } from '../../task/claims.ts';
 import { getTask } from '../../task/store.ts';
-import { laneBrief } from '../lane-brief.ts';
+import { type LaneBrief, laneBrief } from '../lane-brief.ts';
 
 /** The command the session runs before it finishes: the contract's quick check, else its tests. */
 export function checkCommand(root: string): string {
@@ -52,7 +52,7 @@ export function goalLaneBrief(
   root: string,
   goal: string,
   asOf = new Date().toISOString().slice(0, 10),
-): { text: string; packet: string | null } {
+): LaneBrief {
   return laneBrief(
     root,
     [
@@ -90,6 +90,6 @@ export function taskLaneBrief(
   id: string,
   asOf = new Date().toISOString().slice(0, 10),
   lanes: string[] = [],
-): { text: string; packet: string | null } {
+): LaneBrief {
   return laneBrief(root, taskRecordBrief(root, id, lanes), asOf, id);
 }
