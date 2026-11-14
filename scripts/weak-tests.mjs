@@ -30,11 +30,13 @@ export function parseDiff(diff) {
       };
       files.push(current);
     } else if (!current) {
+      // Lines before the first file header carry no test.
     } else if (line.startsWith('deleted file mode')) {
       current.deleted = true;
     } else if (line.startsWith('rename from ')) {
       current.from = line.slice('rename from '.length);
     } else if (line.startsWith('+++') || line.startsWith('---')) {
+      // File headers are not added or removed lines.
     } else if (line.startsWith('+')) {
       current.added.push(line.slice(1));
     } else if (line.startsWith('-')) {

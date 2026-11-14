@@ -1,5 +1,7 @@
 // Herdr pane control.
+
 import { spawnSync } from 'node:child_process';
+import { readJson } from '../repo/json-text.ts';
 
 // Herdr pane control: run commands, read panes, agents and process info, wait for an agent to show.
 // Every reader answers an empty or undefined value for a reply it cannot parse.
@@ -143,15 +145,13 @@ export function runningPaneInTab(
 ): string | undefined {
   const list = run('herdr', ['pane', 'list', '--workspace', workspaceId]);
   if (list.status !== 0 || list.error) return undefined;
-  try {
-    const panes = record(record(JSON.parse(list.stdout))?.result)?.panes;
-    if (!Array.isArray(panes)) return undefined;
-    for (const value of panes) {
-      const pane = record(value);
-      const id = text(pane?.pane_id);
-      if (id && pane?.tab_id === tabId && keptRunning(id)) return id;
-    }
-  } catch {}
+  const panes = record(record(readJson(list.stdout))?.result)?.panes;
+  if (!Array.isArray(panes)) return undefined;
+  for (const value of panes) {
+    const pane = record(value);
+    const id = text(pane?.pane_id);
+    if (id && pane?.tab_id === tabId && keptRunning(id)) return id;
+  }
   return undefined;
 }
 
@@ -159,10 +159,8 @@ export function runningPaneInTab(
 // exit 1 (CLI reference; skill: "CLI server errors are JSON on stderr").
 function replyOf(result: CommandResult): Record<string, unknown> | undefined {
   for (const stream of [result.stdout, result.stderr]) {
-    try {
-      const root = record(JSON.parse(stream));
-      if (root) return root;
-    } catch {}
+    const root = record(readJson(stream));
+    if (root) return root;
   }
   return undefined;
 }

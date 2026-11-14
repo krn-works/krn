@@ -1,8 +1,10 @@
 // Launcher probe.
+
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readJson } from '../repo/json-text.ts';
 import {
   agentInfo,
   type CommandResult,
@@ -106,10 +108,8 @@ function failure(result: CommandResult): string {
     return result.error.message.includes('ENOENT')
       ? 'herdr not on PATH'
       : result.error.message;
-  try {
-    const code = record(record(JSON.parse(result.stderr))?.error)?.code;
-    if (typeof code === 'string') return code;
-  } catch {}
+  const code = record(record(readJson(result.stderr))?.error)?.code;
+  if (typeof code === 'string') return code;
   return result.stderr.trim() || `exit ${result.status}`;
 }
 

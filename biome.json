@@ -33,6 +33,16 @@
           }
         }
       }
+    },
+    {
+      "includes": ["src/**", "scripts/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noEmptyBlockStatements": "error"
+          }
+        }
+      }
     }
   ]
 }

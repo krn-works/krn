@@ -1,7 +1,11 @@
 {
   "id": "t-5wzk8zf",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scripts logic -> src/context (#823), src/successor (#825), hook/repo/ci/adopt (#828), src/memory (#821); cli-kit + one command table (#818); zod boundaries (#820,#828); titleTaskId one parser; shell-text one helper; empty blocks 5->0 guarded by biome noEmptyBlockStatements on src+scripts; git wrappers 7->5 (remaining differ in semantics: raw vs trimmed, throwing vs result); boundaries PASS, madge 0 cycles, depth 0 pass-through/0 hub"
+  },
   "created": "2026-11-14",
   "priority": 3,
   "title": "One refactor pass removes duplicated helpers, unchecked JSON boundaries, scripts logic and cli cycles after the adoption census",
