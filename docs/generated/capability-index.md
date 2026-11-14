@@ -87,6 +87,7 @@ src/outcome/gate-manifest.ts: The gate manifest: every producer of the CI verdic
 src/outcome/holdings.ts: Who held the window's dollars: delivery lead, lanes, other subagents, and sessions th
 src/outcome/ledger.ts: (no header) exports object, array, number, string
 src/outcome/plan-gauge.ts: The plan gauge: points of the five-hour and seven-day plan limits used in a window,
+src/outcome/rework-blame.ts: (no header) exports fixChangesIntroducedLines
 src/outcome/slice-cost.ts: Per-slice cost: split each transcript into the turns of the PR it was working on, p
 src/outcome/window.ts: The delivery window unit: merged PRs, dollars by session class, PRs per task, lead time
 src/repo/ci-admission-contract.ts: (no header) exports REQUIRED_CHECK_NAME, REQUIRED_CHECK_APP_ID

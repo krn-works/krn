@@ -366,6 +366,7 @@ test('the window reports the rework rate and the lane and lead PR split', async 
       mergedAt: at(minute),
       headRefName: branch,
       files: [{ path, additions: 1, deletions: 0 }],
+      mergeCommit: { oid: `${number}`.repeat(40).slice(0, 40) },
     });
     const prs = [
       pr(
@@ -390,6 +391,7 @@ test('the window reports the rework rate and the lane and lead PR split', async 
       root: dir,
       transcripts: dir,
       run,
+      blamed: async () => true,
     });
     assert.deepEqual(report.rework.prs, [1]);
     assert.equal(report.rework.rate, 1 / 3);
@@ -411,6 +413,48 @@ test('the window reports the rework rate and the lane and lead PR split', async 
       isLanePr({ body: 'Agent: Claude Sonnet', branch: 'z' }, new Set()),
       false,
     );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('a fix is rework only when it changes lines the earlier commit introduced', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'rework-blame-'));
+  try {
+    const git = (...args: string[]) =>
+      execFileSync('git', ['-C', dir, ...args], {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          GIT_AUTHOR_NAME: 't',
+          GIT_AUTHOR_EMAIL: 't@t',
+          GIT_COMMITTER_NAME: 't',
+          GIT_COMMITTER_EMAIL: 't@t',
+        },
+      }).trim();
+    const commit = async (file: string, text: string) => {
+      await writeFile(join(dir, file), text);
+      git('add', '.');
+      git('commit', '-q', '-m', text.slice(0, 8));
+      return git('rev-parse', 'HEAD');
+    };
+    git('init', '-q');
+    const base = await commit('a.txt', 'one\ntwo\nthree\n');
+    const intro = await commit('a.txt', 'one\ntwo\nthree\nfour\n');
+    // Edits line 2, which the base commit introduced: not rework of intro.
+    const old = await commit('a.txt', 'one\nTWO\nthree\nfour\n');
+    // Edits line 4, which intro introduced: rework of intro.
+    const hit = await commit('a.txt', 'one\nTWO\nthree\nFOUR\n');
+    // Only appends a line: no old line changes.
+    const add = await commit('a.txt', 'one\nTWO\nthree\nFOUR\nfive\n');
+    const { fixChangesIntroducedLines: blame } = await import(
+      '../../src/outcome/rework-blame.ts'
+    );
+    assert.equal(await blame(dir, intro, hit, ['a.txt']), true);
+    assert.equal(await blame(dir, intro, old, ['a.txt']), false);
+    assert.equal(await blame(dir, base, old, ['a.txt']), true);
+    assert.equal(await blame(dir, intro, add, ['a.txt']), false);
+    assert.equal(await blame(dir, intro, 'f'.repeat(40), ['a.txt']), false);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

@@ -1,7 +1,11 @@
 {
   "id": "t-n6sb8d9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "rework blame in window.ts; scripts/lane-canary.ts opt-in canary"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "Rework is measured by blamed lines and lane, adopt and ci PRs run a canary lane against a pilot repository before merge",
