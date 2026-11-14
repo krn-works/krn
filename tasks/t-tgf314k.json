@@ -1,7 +1,11 @@
 {
   "id": "t-tgf314k",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "20 units verified red on base, green on reference"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "Fresh eval units come from pilot repositories with hidden tests",
