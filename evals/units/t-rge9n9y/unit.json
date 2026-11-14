@@ -1,0 +1,17 @@
+{
+  "id": "t-rge9n9y",
+  "repo": "krn-works/seo-audit-harness",
+  "base": "a9d7b4174cd3653c8daa0a9a70964eb64803bc9e",
+  "reference": "2f74787d34ada8b748b2b4134602a4da04ab07f0",
+  "task": {
+    "title": "Do not count a self-link as an incoming link for orphan pages",
+    "body": "Why: packages/seo/src/domain/findings.ts:143-148 builds the incoming-link map from every link on every page including the page itself, so a self-link (a nav item pointing at the current page) hides an orphan page at findings.ts:237-238.\nOutcome: `buildFindings(pages)` (src/domain/findings.ts) does not count a link from a page to its own `url` as an incoming link. A sitemap HTML page (`inSitemap` true, not the root path `/`) whose only incoming links are self-links yields exactly one `orphan-page` finding with `url` equal to the page url; a page linked from at least one other page still yields none. The `Observed same-origin link from <source>.` evidence lines of `broken-internal-link` and `link-probe-blocked` likewise never name the target page itself as its own source.\nProof: the implementer adds tests in tests/domain/findings.test.ts for a self-linked orphan, a self-link plus a link from another page, and a page that links to itself and to another page."
+  },
+  "spec": "`buildFindings(pages)` (src/domain/findings.ts) does not count a link from a page to its own `url` as an incoming link. A sitemap HTML page (`inSitemap` true, not the root path `/`) whose only incoming links are self-links yields exactly one `orphan-page` finding with `url` equal to the page url; a page linked from at least one other page still yields none. The `Observed same-origin link from <source>.` evidence lines of `broken-internal-link` and `link-probe-blocked` likewise never name the target page itself as its own source.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "packages/seo/tests/hidden/hidden.test.ts"
+  },
+  "install": "npm --prefix packages/seo ci --silent && npm --prefix packages/seo run build --silent",
+  "test": "cd packages/seo && npx vitest run tests/hidden/hidden.test.ts"
+}

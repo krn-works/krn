@@ -1,0 +1,30 @@
+import { describe, expect, it } from "vitest";
+import { buildFindings } from "../../src/domain/findings.ts";
+import type { PageObservation } from "../../src/domain/model.ts";
+import { pageObservation } from "../helpers/page.ts";
+
+const page = (url: string, overrides: Partial<PageObservation> = {}): PageObservation =>
+  pageObservation({ inSitemap: true, ...overrides }, { url, finalUrl: url, title: `T ${url}`, metaDescription: `D ${url}`, h1: [], wordCount: 0, lang: "" });
+
+const orphans = (pages: PageObservation[]) => buildFindings(pages).filter((f) => f.ruleId === "orphan-page").map((f) => f.url);
+
+describe("a link from a page to itself is not an incoming link", () => {
+  const home = page("https://ex.test/");
+
+  it("reports a sitemap page that links only to itself as an orphan", () => {
+    const a = page("https://ex.test/a", { links: ["https://ex.test/a"] });
+    expect(orphans([home, a])).toEqual(["https://ex.test/a"]);
+  });
+
+  it("still reports a page linked by another page and self only when no other page links it", () => {
+    const b = page("https://ex.test/b", { links: ["https://ex.test/b", "https://ex.test/c"] });
+    const c = page("https://ex.test/c", { links: ["https://ex.test/c"] });
+    expect(orphans([home, b, c])).toEqual(["https://ex.test/b"]);
+  });
+
+  it("keeps a page linked from another page out of the orphans", () => {
+    const a = page("https://ex.test/a", { links: ["https://ex.test/a"] });
+    const linker = page("https://ex.test/", { links: ["https://ex.test/a"] });
+    expect(orphans([linker, a])).toEqual([]);
+  });
+});
