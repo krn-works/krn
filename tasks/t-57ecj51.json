@@ -1,0 +1,19 @@
+{
+  "id": "t-57ecj51",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 0,
+  "title": "Add a focused pytest test for one untested function (2)",
+  "after": [],
+  "body": [
+    "Add one focused pytest test under tests/ for one untested public function in search_tool (smallest one); keep python -m pytest green. No other change."
+  ],
+  "acceptance": [
+    {
+      "verify": ".venv/bin/python -m pytest -q",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
