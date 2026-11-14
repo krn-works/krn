@@ -209,6 +209,8 @@ export async function waitForGate({
       onSuccess?.(runId);
       return conclusion;
     }
+    // A base without a required check merges the PR before any gate exists (an outside base branch carries no workflows): GitHub merged it, so there is nothing left to wait on.
+    if (gate === undefined && pull.merged === true) return 'merged-ungated';
     const state = gate?.status ?? 'missing';
     if (gate === undefined && now() - started >= startTimeoutMs)
       throw new GateStopped(

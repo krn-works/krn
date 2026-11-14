@@ -412,6 +412,7 @@ for (const [status, printed] of [
 function mergeRuntime(
   pulls: Array<Record<string, unknown>>,
   refresh: { code: number; stdout: string; stderr: string },
+  checks: () => unknown[] = () => [checkRun('completed', 'success')],
 ) {
   let time = 0;
   const runs: Array<[string, string[]]> = [];
@@ -422,8 +423,7 @@ function mergeRuntime(
         mergeable_state: 'blocked',
         ...(pulls.length > 1 ? pulls.shift() : pulls[0]),
       }),
-    checks: () =>
-      JSON.stringify([{ check_runs: [checkRun('completed', 'success')] }]),
+    checks: () => JSON.stringify([{ check_runs: checks() }]),
   });
   return {
     runs,
