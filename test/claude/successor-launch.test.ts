@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import type { AgentInfo } from '../../src/successor/herdr.ts';
+import type { AgentInfo } from '../../src/successor/terminal-host.ts';
 import {
   captureReply,
   failure,
@@ -40,7 +40,8 @@ const hostEnvironment = Object.fromEntries(
 );
 const api = {
   ...(await import('../../src/successor/options.ts')),
-  ...(await import('../../src/successor/herdr.ts')),
+  ...(await import('../../src/successor/host-herdr.ts')),
+  ...(await import('../../src/successor/terminal-host.ts')),
   ...(await import('../../src/successor/retire.ts')),
 };
 

@@ -15,7 +15,8 @@ import {
 
 const api = {
   ...(await import('../../src/successor/options.ts')),
-  ...(await import('../../src/successor/herdr.ts')),
+  ...(await import('../../src/successor/host-herdr.ts')),
+  ...(await import('../../src/successor/terminal-host.ts')),
   ...(await import('../../src/successor/retire.ts')),
 };
 let ledgerRoot = '';

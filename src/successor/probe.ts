@@ -4,14 +4,15 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readJson } from '../repo/json-text.ts';
 import {
-  agentInfo,
-  type CommandResult,
-  createdIds,
-  paneInfo,
-  run,
-} from './herdr.ts';
+  isFailure,
+  parseAnnouncement,
+  type ScopeRef,
+  type SessionRef,
+  selectHost,
+  type TabRef,
+  type TerminalHost,
+} from './terminal-host.ts';
 
 /**
  * One command proves a successor-launch change against the live Herdr.
@@ -44,12 +45,13 @@ const PROMPT =
 
 export type ProbeOptions = { startSeconds: number; waitSeconds: number };
 
-type Ids = { tabId: string; paneId: string };
+type Ids = { tab: TabRef; session: SessionRef };
 
 type Probe = {
+  host: TerminalHost;
   dir: string;
-  caller: { workspaceId?: string; tabId?: string };
-  shell?: Ids & { workspaceId?: string };
+  caller: { scope?: ScopeRef; tab?: TabRef };
+  shell?: Ids & { scope?: ScopeRef };
   exit?: number;
   successor?: Ids;
   agent: string;
@@ -90,27 +92,6 @@ export function parseArgs(args: string[]): ProbeOptions {
   }
   const startSeconds = start ?? START_SECONDS;
   return { startSeconds, waitSeconds: wait ?? startSeconds + MARGIN_SECONDS };
-}
-
-function record(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : undefined;
-}
-
-function ok(result: CommandResult): boolean {
-  return result.status === 0 && !result.error;
-}
-
-// Herdr prints a server error as JSON on stderr with exit 1; name its code.
-function failure(result: CommandResult): string {
-  if (result.error)
-    return result.error.message.includes('ENOENT')
-      ? 'herdr not on PATH'
-      : result.error.message;
-  const code = record(record(readJson(result.stderr))?.error)?.code;
-  if (typeof code === 'string') return code;
-  return result.stderr.trim() || `exit ${result.status}`;
 }
 
 function quote(value: string): string {
@@ -159,71 +140,29 @@ function launcherExit(dir: string): number | undefined {
   return /^\d+\n$/u.test(status) ? Number(status.trim()) : undefined;
 }
 
-function successorOf(stdout: string): Ids | undefined {
-  const match = /^successor: herdr tab (\S+) pane (\S+) agent \S+ \S+$/mu.exec(
-    stdout,
-  );
-  return match?.[1] && match[2]
-    ? { tabId: match[1], paneId: match[2] }
-    : undefined;
-}
-
-function labelledTabs(output: string): Map<string, string> | undefined {
-  try {
-    const tabs = record(record(JSON.parse(output))?.result)?.tabs;
-    if (!Array.isArray(tabs)) return undefined;
-    const found = new Map<string, string>();
-    for (const value of tabs) {
-      const tab = record(value);
-      const id = tab?.tab_id;
-      const label = tab?.label;
-      if (
-        typeof id === 'string' &&
-        (label === SHELL_LABEL || label === SUCCESSOR_LABEL)
-      )
-        found.set(id, label);
-    }
-    return found;
-  } catch {
-    return undefined;
-  }
-}
-
 async function launch(
   probe: Probe,
   options: ProbeOptions,
   pause: (ms: number) => Promise<boolean>,
 ): Promise<void> {
-  const created = run('herdr', [
-    'tab',
-    'create',
-    ...(probe.caller.workspaceId
-      ? ['--workspace', probe.caller.workspaceId]
-      : []),
-    '--cwd',
-    probe.dir,
-    '--label',
-    SHELL_LABEL,
-    '--no-focus',
-  ]);
-  const shell = ok(created) ? createdIds(created.stdout) : undefined;
-  if (!shell) {
-    probe.problems.push(`tab create failed: ${failure(created)}`);
+  const created = probe.host.open({
+    scope: probe.caller.scope,
+    cwd: probe.dir,
+    label: SHELL_LABEL,
+    env: {},
+  });
+  if (isFailure(created)) {
+    probe.problems.push(`tab create failed: ${created.reason}`);
     return;
   }
+  const shell = created;
   probe.shell = shell;
 
   const script = join(probe.dir, 'launch.sh');
   writeFileSync(script, launchScript(probe.dir, options));
-  const typed = run('herdr', [
-    'pane',
-    'run',
-    shell.paneId,
-    '/bin/sh',
-    quote(script),
-  ]);
-  if (!ok(typed)) {
-    probe.problems.push(`pane run failed: ${failure(typed)}`);
+  const typed = probe.host.type(shell.session, ['/bin/sh', quote(script)]);
+  if (typed) {
+    probe.problems.push(`pane run failed: ${typed.reason}`);
     return;
   }
 
@@ -245,10 +184,13 @@ async function launch(
   }
   if (probe.exit !== 0) probe.problems.push(`launcher exit ${probe.exit}`);
 
-  const successor = successorOf(readText(join(probe.dir, 'launcher.stdout')));
+  const successor = parseAnnouncement(
+    probe.host,
+    readText(join(probe.dir, 'launcher.stdout')),
+  );
   if (!successor) return;
   probe.successor = successor;
-  const info = agentInfo(run('herdr', ['agent', 'get', successor.paneId]));
+  const info = probe.host.agent(successor.session);
   probe.agent = info.agent
     ? `${info.agent} ${info.status ?? 'unknown'}`
     : 'none';
@@ -262,28 +204,30 @@ async function launch(
 // and the launcher reported, and every tab carrying a probe label in the
 // workspace, never the caller's own tab.
 function cleanup(probe: Probe, stderr: string): void {
-  const successorTabs = new Set<string>();
-  const shellTabs = new Set<string>();
-  if (probe.successor) successorTabs.add(probe.successor.tabId);
+  const { host } = probe;
+  const successorTabs = new Set<TabRef>();
+  const shellTabs = new Set<TabRef>();
+  if (probe.successor) successorTabs.add(probe.successor.tab);
   for (const match of stderr.matchAll(/\btab (\S+) kept for inspection/gu))
-    if (match[1]) successorTabs.add(match[1]);
-  if (probe.shell) shellTabs.add(probe.shell.tabId);
+    if (match[1]) successorTabs.add(host.tab(match[1]));
+  if (probe.shell) shellTabs.add(probe.shell.tab);
 
-  const workspace = probe.shell?.workspaceId ?? probe.caller.workspaceId;
+  const workspace = probe.shell?.scope ?? probe.caller.scope;
   if (workspace) {
-    const list = run('herdr', ['tab', 'list', '--workspace', workspace]);
-    const found = ok(list) ? labelledTabs(list.stdout) : undefined;
-    if (!found) probe.problems.push(`tab list failed: ${failure(list)}`);
+    const found = host.list(workspace);
+    if (isFailure(found))
+      probe.problems.push(`tab list failed: ${found.reason}`);
     else
-      for (const [id, label] of found)
-        (label === SUCCESSOR_LABEL ? successorTabs : shellTabs).add(id);
+      for (const { tab, label } of found)
+        if (label === SUCCESSOR_LABEL) successorTabs.add(tab);
+        else if (label === SHELL_LABEL) shellTabs.add(tab);
   }
 
   for (const id of new Set([...successorTabs, ...shellTabs])) {
-    if (id === probe.caller.tabId) continue;
-    const closed = run('herdr', ['tab', 'close', id]);
-    if (ok(closed)) probe.closed.push(id);
-    else probe.problems.push(`tab close failed: ${id} ${failure(closed)}`);
+    if (id === probe.caller.tab) continue;
+    const closed = host.closeTab(id);
+    if (closed) probe.problems.push(`tab close failed: ${id} ${closed.reason}`);
+    else probe.closed.push(id);
   }
 }
 
@@ -318,13 +262,12 @@ export async function main(args: string[]): Promise<number> {
       if (interrupted) finish();
     });
 
-  const callerPane = process.env.HERDR_PANE_ID;
-  const callerReply = callerPane
-    ? run('herdr', ['pane', 'get', callerPane])
-    : undefined;
+  const host = selectHost();
+  const callerPane = host.self();
   const probe: Probe = {
+    host,
     dir: mkdtempSync(join(tmpdir(), 'successor-probe-')),
-    caller: callerReply && ok(callerReply) ? paneInfo(callerReply.stdout) : {},
+    caller: callerPane ? host.place(callerPane) : {},
     agent: 'none',
     problems: [],
     closed: [],
