@@ -1,0 +1,12 @@
+{
+  "id": "t-7e6yghv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "Adoption detects deploy workflows on the base branch and requires an acknowledged deploy before auto-merge",
+  "after": [],
+  "body": [
+    "Why: Fable plan 1114c missing item: auto-merge in an operator repository that deploys on push to main ships to production unattended.\nOutcome: krn adopt and krn adopt --verify detect workflows triggered by pushes to the base branch that deploy; krn.json needs deploy: acknowledged before krn pr ship enables auto-merge there.\nProof: fixture tests with a deploying and a non-deploying workflow; npm run fast PASS."
+  ]
+}

@@ -10,6 +10,7 @@
   ],
   "body": [
     "Why: memory audit: FR-40 compared packet vs none and vs static standards, never vs the repository instruction file alone, which already carries most rules (lanes arm A 75%).\nOutcome: arm C (CLAUDE.md/AGENTS.md only) on the 133 lane units; keep the packet only if B - C is significant.\nProof: evals/fr40 report prints B - C with n and p.\nScope: evals/fr40/.",
-    "Amendment A2 (fable-plan 2.3): becomes the standards measurement (fable-plan section 3.5): generated outside fixture, arms A/B/C/D, three held-out standards, stratum-level rule; after t-8vk9p13."
+    "Amendment A2 (fable-plan 2.3): becomes the standards measurement (fable-plan section 3.5): generated outside fixture, arms A/B/C/D, three held-out standards, stratum-level rule; after t-8vk9p13.",
+    "Merged in t-3kegrb2 (Fable plan 1114c): the brain packet keeps only what its ablation shows helps."
   ]
 }

@@ -1,0 +1,14 @@
+{
+  "id": "t-5wzk8zf",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 3,
+  "title": "One refactor pass removes duplicated helpers, unchecked JSON boundaries, scripts logic and cli cycles after the adoption census",
+  "after": [
+    "t-t8x7za4"
+  ],
+  "body": [
+    "Why: Fable plan 1114c merged t-rd8zndx, t-x4yx6df, t-x7nqpz9, t-mcfrwdf and t-15w1zrz into one refactor held until the adoption census shows which seams outside repositories stress.\nOutcome: one git and one shell-text helper; zod at the five external JSON boundaries and no empty catch; logic under scripts/ moved into src/ behind layer boundaries; one ledger task-id parser without review or worker totals; src/cli is no cycle hub (neutral cli-kit, one command table).\nProof: architecture depth check and layer tests PASS; npm run fast PASS."
+  ]
+}

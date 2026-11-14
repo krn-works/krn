@@ -11,6 +11,7 @@
   "body": [
     "Outcome: 20 real tasks run through `krn lane run --task <id>` under the protocol of t-v99074z; a 20-row table (PR, task, lane $, lead $, lead turns, Check attempts, rework, failure class) and the verdict are recorded in this task.\nWhy: the lead costs $0.87 per PR over 18.6 turns (`krn ledger --last 20`); the task-record shape is unproven on live delivery.\nProof: `node .krn/runs/task-record-lanes/verdict.ts` prints one line ending `PASS`, `FAIL <measure>` or `STOP <condition> at n/20`, with the protocol hash matching t-v99074z's.\nScope: `.krn/runs/task-record-lanes/results/`, this task record; the 20 PRs belong to their own tasks.\nEvidence: the protocol hash in t-v99074z; `krn ledger --since <run start> --json`.",
     "Protocol sha256 (protocol.md then verdict.ts, 2026-11-11, after the measurement fixes): dea79cde89aaf92e25ecd386dc9a93a515bbe84737a7aac577438ae2520feeca. Supersedes 5dbbce37a185...; verdict.ts now takes --window <startISO> [<nowISO>] --log, counts only run-log PRs, and holds rework until 48 h after the last merge.",
-    "Amendment A3 (fable-plan 2.3, AR:250): floor = t-75r2egx Proof exit plus t-496nx1h rework; its 20 tasks are drawn from fable-plan section 2."
+    "Amendment A3 (fable-plan 2.3, AR:250): floor = t-75r2egx Proof exit plus t-496nx1h rework; its 20 tasks are drawn from fable-plan section 2.",
+    "Re-pointed (Fable plan 1114c, 2026-11-14): the twenty tasks come from outside repositories (pilots and adoption-census repos), not from KRN itself."
   ]
 }

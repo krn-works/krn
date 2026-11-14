@@ -1,7 +1,11 @@
 {
   "id": "t-rd8zndx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-5wzk8zf",
+    "note": "Fable plan 1114c: merged into t-5wzk8zf"
+  },
   "created": "2026-11-13",
   "priority": 3,
   "title": "One git and one shell-text helper replace the duplicated copies",

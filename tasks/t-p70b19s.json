@@ -3,18 +3,18 @@
   "status": "open",
   "resolution": null,
   "created": "2026-11-13",
-  "priority": 1,
+  "priority": 3,
   "title": "The D23 confirmatory run compares a frozen K with PB on clean units, two runs each, with an equivalence test",
   "after": [
     "t-3bcd8sm",
     "t-cbwqm50",
-    "t-f26er7t",
-    "t-zpmq6e3"
+    "t-f26er7t"
   ],
   "body": [
     "Why: D23 v2 run1 (t-cbwqm50, diagnostic, harness 27fe971) put K at +8.9 pp over PB (same requirements text, plain harness) over 56 units, CI [-2.5, 20.4], p=0.127: suggestive, not shown. K has since changed (#639 lean worker tree, #640 stop check, #645 related-test selection), so run1 says nothing about the current K.\nOutcome: after the dev replay of the fixed K on run1's 16 K losses (.krn/runs/d23-comparison/v2/dev-k1/) shows recovery, a protocol preregistered under .krn/runs/d23-comparison/v3/protocol.md before any arm runs freezes one K commit and runs arms K and PB only (P dropped: K - P is settled at +60.7 pp, p<0.001) on the 130 v2 units, 2-3 runs per unit, primary = paired per-unit mean K - PB with clustered SE.\nProof: node evals/d23/runs.ts prints K - PB with CI and p over at least 120 units.\nScope: evals/d23/, test/evals/, .krn/runs/d23-comparison/v3/.\nQuota: K+PB sessions only; schedule across quota windows, never more than the window allows (12 sessions spend a 5-hour window in about 20 minutes).",
     "Rescoped 2026-11-13 (state review D4): only the 33 units K was not tuned on; two runs per unit; equivalence test. After t-99scx6x, t-yab3e8p and t-gdjftt3 (gate proven in replay, grader regraded).",
     "Lead 2026-11-14: after t-f26er7t and t-ajp3meg (preregistered decision rule, fresh units); add one gate-off K arm for t-jtpbrm3.",
-    "Lead 2026-11-14 (t-ajp3meg #756, evals/d23/preregistration.md): power 0.217 at n=33 for +9 pp; 0.8 needs 188 units, equivalence at 10 pp needs 166. Do not run on the 33 D23 units alone; first source fresh units (pilot repositories with hidden tests and a PB arm)."
+    "Lead 2026-11-14 (t-ajp3meg #756, evals/d23/preregistration.md): power 0.217 at n=33 for +9 pp; 0.8 needs 188 units, equivalence at 10 pp needs 166. Do not run on the 33 D23 units alone; first source fresh units (pilot repositories with hidden tests and a PB arm).",
+    "Parked (Fable plan 1114c, operator approved 2026-11-14): no paid D23 run until K weak spots are fixed and the unit pool is fresh (t-tgf314k). Folded in: t-zpmq6e3 (arms run in the lane sandbox, scan invalidates runs reading the main checkout), t-0nwzr7p (grade tables and amended protocol hash committed under evals/d23), t-1pekg0a (eval run above a session ceiling refuses without a committed protocol and budget)."
   ]
 }

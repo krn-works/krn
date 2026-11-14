@@ -1,0 +1,12 @@
+{
+  "id": "t-jhbnppb",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "Standards candidates are mined from AGENTS.md bullets that recur in at least two operator repositories",
+  "after": [],
+  "body": [
+    "Why: Fable plan 1114c #5. standards/records.json has 26 records and none for PHP, WordPress or frontend; .krn/adopted.json is absent, so krn standards harvest sees nothing.\nOutcome: a harvest mode that reads the instruction files (AGENTS.md, CLAUDE.md) of named repositories and proposes a standard candidate for each normalized bullet recurring in two or more of them, with source paths; candidates are reviewed into records, never auto-accepted.\nProof: fixture test with three synthetic repositories; npm run fast PASS."
+  ]
+}

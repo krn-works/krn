@@ -1,7 +1,11 @@
 {
   "id": "t-bmdbg1w",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Fable plan 1114c drop/merge, operator approved 2026-11-14"
+  },
   "created": "2026-11-13",
   "priority": 3,
   "title": "Nine unverified audit claims are reproduced or closed with a command and exit",

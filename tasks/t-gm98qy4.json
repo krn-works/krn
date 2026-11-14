@@ -6,7 +6,7 @@
   "priority": 3,
   "title": "README, CONTEXT and per-verb help name every command, flag and krn.json field",
   "after": [
-    "t-15w1zrz"
+    "t-5wzk8zf"
   ],
   "body": [
     "Why: CAP:133, CAP:105-109\nOutcome: Help table generated from the command table\nProof: a test fails when a command lacks a help row. Also `npm run fast` PASS.\nSize: 1 PR\nAfter (plan): N28\nSource: .krn/runs/overnight/fable-plan.md section 2 (plan id N27)."

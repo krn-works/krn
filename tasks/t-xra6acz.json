@@ -1,7 +1,11 @@
 {
   "id": "t-xra6acz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Fable plan 1114c drop/merge, operator approved 2026-11-14"
+  },
   "created": "2026-11-12",
   "priority": 2,
   "title": "The K brief carries one related merged PR summary chosen by path overlap, or none",

@@ -1,7 +1,11 @@
 {
   "id": "t-1pekg0a",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-p70b19s",
+    "note": "Fable plan 1114c drop/merge, operator approved 2026-11-14: folded into t-p70b19s"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "An eval run above a session ceiling refuses without a committed protocol and budget",

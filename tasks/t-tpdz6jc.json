@@ -1,7 +1,11 @@
 {
   "id": "t-tpdz6jc",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Fable plan 1114c drop/merge, operator approved 2026-11-14"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "Rung 2: sibling-test ports are scored against stored D23 patches with known verdicts",

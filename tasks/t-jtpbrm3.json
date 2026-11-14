@@ -1,7 +1,11 @@
 {
   "id": "t-jtpbrm3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Fable plan 1114c drop/merge, operator approved 2026-11-14"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "Each worker hook earns its place in a D23 ablation",

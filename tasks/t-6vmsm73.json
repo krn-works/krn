@@ -1,0 +1,12 @@
+{
+  "id": "t-6vmsm73",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 3,
+  "title": "krn adopt --verify prints the first-turn token estimate and the settings that reduce it",
+  "after": [],
+  "body": [
+    "Why: Fable plan 1114c missing item. .krn/runs/context-baseline/first-turn.txt: projects without their own .claude spend 33-53k tokens on the first turn vs 22-27k in krn.\nOutcome: adopt --verify reports an estimate of first-turn context (instruction files, skills, MCP servers listed) and names the settings that cut it.\nProof: fixture test; npm run fast PASS."
+  ]
+}
