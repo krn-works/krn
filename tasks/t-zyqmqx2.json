@@ -1,7 +1,11 @@
 {
   "id": "t-zyqmqx2",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane run passes --max-budget-usd (laneBudgetUsd, default 3), --fallback-model, --setting-sources project; capped session exits 75"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "A lane session has a budget cap, a fallback model and only project settings",

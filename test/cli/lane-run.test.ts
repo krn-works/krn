@@ -144,6 +144,14 @@ async function run(
   }
 }
 
+test('parseSessionResult marks a session stopped at its budget', () => {
+  const result = parseSessionResult(
+    '{"subtype":"error_max_budget_usd","is_error":true,"total_cost_usd":3.2}',
+  );
+  assert.equal(result.ok, false);
+  assert.equal(result.capped, true);
+});
+
 test('parseSessionResult reads the captured result', () => {
   const result = parseSessionResult(capture);
   assert.deepEqual(result, {
@@ -438,6 +446,27 @@ test('lane run pins the model and passes --model to the session', async () => {
   } finally {
     rmSync(seen, { recursive: true, force: true });
   }
+});
+
+test('lane run caps the session spend, names a fallback model and reads only project settings', async () => {
+  const seen = mkdtempSync(join(tmpdir(), 'krn-lane-run-cap-'));
+  try {
+    await run(`printf '%s\\n' "$@" > ${seen}/argv`);
+    const argv = readFileSync(join(seen, 'argv'), 'utf8');
+    assert.match(argv, /^--max-budget-usd\n3$/mu);
+    assert.match(argv, /^--fallback-model\nhaiku$/mu);
+    assert.match(argv, /^--setting-sources\nproject$/mu);
+  } finally {
+    rmSync(seen, { recursive: true, force: true });
+  }
+});
+
+test('a session that hit its spend cap exits 75 with its own reason', async () => {
+  const { verdict } = await run(
+    `printf '%s' '{"type":"result","subtype":"error_max_budget_usd","is_error":true,"total_cost_usd":3.01,"num_turns":9}'; exit 0`,
+  );
+  assert.equal(verdict.exitCode, 75);
+  assert.match(verdict.line, /session error_max_budget_usd/u);
 });
 
 test('the lane verdict records the sha of the packet its session prompt carried', async () => {
