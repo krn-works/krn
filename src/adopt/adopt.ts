@@ -15,6 +15,7 @@ import {
   PROJECT_STANDARDS,
   readPack,
   readProject,
+  repositoryFacts,
 } from '../brain/standards-cli.ts';
 import { projectPath, projectRelative } from '../harness/claude.ts';
 import {
@@ -490,6 +491,10 @@ function projectStandards(root: string, options: AdoptOptions): Standard[] {
   const needs = new Set<Need>(
     options.ref !== undefined || options.tracker ? ['tracker'] : [],
   );
+  // The kind of site (WordPress, frontend) is read from the repository, not asked for.
+  const found = repositoryFacts(root).needs;
+  if (found.has('wordpress')) needs.add('wordpress');
+  if (found.has('frontend')) needs.add('frontend');
   const stack = detectStack(root)?.stack;
   return seedStandards(
     readPack(),

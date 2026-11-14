@@ -1,0 +1,16 @@
+{
+  "id": "t-5ft289w",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "six boilerplate-2026 skills harvest from a verbatim capture into trial records in standards/records.json; adopted WordPress repo packet serves them, plain node repo does not; npm run fast PASS"
+  },
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "The brain harvests the boilerplate-2026 frontend and WordPress skills as trial standards for adopted site repositories",
+  "after": [],
+  "body": [
+    "Why: operator 2026-11-14 (inbox 2a30e5066f8d, 81301682bd2e; memory:frontend-standard-boilerplate): the newest frontend skills (acf-component, cube-css, cube-review, design-to-build, plesk-deploy, wp-runtime) in /mnt/storage/coding/krn/active/boilerplate-2026 are the target frontend/WordPress standard. Brain priority (2) of .krn/runs/overnight/goal.md; ranked after the live outside acceptance t-s81vp3q and the brain delivery t-9bfd07m per fable-direction-1114h.md, alongside t-vs84zwj (legacy PHP/WP).\nOutcome: the brain harvests those skills read-only (never edits boilerplate-2026) into trial records in standards/records.json with audience frontend/wordpress, applies globs (php, css, acf json, theme files) and provenance naming the skill path and its commit; an adopted WordPress/frontend repository receives them through the existing packet/session block.\nProof: a harvest test on a verbatim capture of the six SKILL.md files producing records that validate against src/brain/record.ts; packet test shows a WP fixture gets them and a non-frontend repo does not; git -C boilerplate-2026 status unchanged."
+  ]
+}

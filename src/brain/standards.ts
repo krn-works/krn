@@ -13,7 +13,8 @@ export const AUDIENCES = ['worker', 'lead', 'adopt'] as const;
 export const LAYERS = ['universal', 'krn-delivery'] as const;
 /** `command` runs a shell command in the repository, `krn` a krn subcommand there, `advisory` is unenforced. */
 export const ENFORCEMENTS = ['command', 'krn', 'advisory'] as const;
-export const NEEDS = ['tracker'] as const;
+/** What a repository offers a standard may need: a KRN tracker, a WordPress site, or a frontend (a WordPress theme or a Vite, Sass, PostCSS or Tailwind build). */
+export const NEEDS = ['tracker', 'wordpress', 'frontend'] as const;
 /**
  * `floor` failures block the worker Stop, `reflex` failures block unless a waiver with a reason is
  * recorded on the record, `finish` failures are reported only.

@@ -16,6 +16,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
+import { claudeDir } from '../harness/claude.ts';
 import {
   CONTRACT_FILE,
   contractConventions,
@@ -42,6 +43,7 @@ import {
   type Sourced,
 } from './proposals.ts';
 import { recordsInForce, retirable, retireInFile } from './retire.ts';
+import { harvestSkills } from './skill-harvest.ts';
 import {
   appliesTo,
   assertNoClash,
@@ -61,7 +63,7 @@ import {
 } from './standards.ts';
 
 export const usage =
-  'usage: krn standards check [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --repos DIR... [--repos-file FILE] | effect [--root DIR] | retire [--write] [--root DIR]';
+  'usage: krn standards check [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos DIR... [--repos-file FILE] | effect [--root DIR] | retire [--write] [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -168,7 +170,37 @@ export function repositoryFacts(root: string): Repository {
   const stack =
     detectStack(root)?.stack ??
     (existsSync(join(root, 'composer.json')) ? 'php' : undefined);
+  if (isWordPress(root)) needs.add('wordpress');
+  if (needs.has('wordpress') || hasFrontendBuild(root)) needs.add('frontend');
   return stack === undefined ? { adopted, needs } : { stack, adopted, needs };
+}
+
+function readText(path: string): string {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return '';
+  }
+}
+
+/** WordPress: a classic or Bedrock tree, or a Composer project requiring WordPress or Bedrock. */
+function isWordPress(root: string): boolean {
+  return (
+    ['wp-config.php', 'wp-content', 'web/wp-config.php', 'web/app'].some(
+      (path) => existsSync(join(root, path)),
+    ) ||
+    /"(?:roots\/(?:bedrock|wordpress)|johnpbloch\/wordpress[\w-]*)"/u.test(
+      readText(join(root, 'composer.json')),
+    ) ||
+    /^\s*Theme Name:/mu.test(readText(join(root, 'style.css')))
+  );
+}
+
+/** A package.json that depends on a CSS or asset build tool. */
+function hasFrontendBuild(root: string): boolean {
+  return /"(?:vite|sass|postcss|tailwindcss|@tailwindcss\/[\w-]+)"/u.test(
+    readText(join(root, 'package.json')),
+  );
 }
 
 function tail(output: string): string {
@@ -640,13 +672,50 @@ export function instructionHarvest(directories: readonly string[]): string[] {
   return renderBulletHarvest(harvestInstructionBullets(sources), roots.length);
 }
 
+/** Prints the trial records of the skill files of a repository as a JSON array; reads the repository, never writes it. */
+function skillsHarvest(repository: string, commitFlag?: string): void {
+  const directory = join(repository, claudeDir, 'skills');
+  if (!existsSync(directory))
+    throw new StandardsInputError(
+      `krn standards: ${directory} holds no skills (<name>/SKILL.md)`,
+    );
+  const sources = readdirSync(directory)
+    .sort()
+    .filter((name) => existsSync(join(directory, name, 'SKILL.md')))
+    .map((name) => ({
+      path: `${claudeDir}/skills/${name}/SKILL.md`,
+      text: readFileSync(join(directory, name, 'SKILL.md'), 'utf8'),
+    }));
+  const logged = spawnSync(
+    'git',
+    ['-C', repository, 'log', '-1', '--format=%H', '--', `${claudeDir}/skills`],
+    { encoding: 'utf8', env: environment() },
+  );
+  const commit = commitFlag ?? logged.stdout.trim();
+  if (!/^[0-9a-f]{40}$/u.test(commit))
+    throw new StandardsInputError(
+      `krn standards: no commit of ${directory}; name one with --commit SHA`,
+    );
+  const records = harvestSkills(
+    sources,
+    commit,
+    new Date().toISOString().slice(0, 10),
+  );
+  process.stdout.write(`${JSON.stringify(records, null, 2)}\n`);
+}
+
 function harvestCommand(rest: readonly string[]): void {
   const parsed = flags(
     rest,
     new Set(['--repos']),
-    new Set(['--root', '--repos-file']),
+    new Set(['--root', '--repos-file', '--skills', '--commit']),
   );
   const { values, positional } = parsed;
+  const skills = values.get('--skills')?.[0];
+  if (skills !== undefined) {
+    skillsHarvest(resolve(skills), values.get('--commit')?.[0]);
+    return;
+  }
   if (values.has('--repos') || values.has('--repos-file')) {
     const file = values.get('--repos-file')?.[0];
     const directories = [

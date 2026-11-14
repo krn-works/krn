@@ -203,9 +203,15 @@ test('standards check fails s-clean-checkout-tests when a test runs untracked di
 
 test('the shipped pack holds 15-25 universal records and its harvested records pass the promotion rule', () => {
   const pack = parseStandards(JSON.parse(readFileSync(packFile, 'utf8')));
-  // Stack-scoped records weigh on no repository outside their stack, so only the rest count.
+  // Stack-scoped and site-scoped (WordPress, frontend) records weigh on no repository outside
+  // their stack or kind, so only the rest count.
   const universal = pack.filter(
-    (s) => s.layer === 'universal' && s.applies.stacks.length === 0,
+    (s) =>
+      s.layer === 'universal' &&
+      s.applies.stacks.length === 0 &&
+      !s.applies.needs.some(
+        (need) => need === 'wordpress' || need === 'frontend',
+      ),
   ).length;
   assert.ok(universal >= 15 && universal <= 25, `${universal} universal`);
   const harvested = pack.filter((s) => s.harvested !== undefined);
