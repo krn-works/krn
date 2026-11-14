@@ -1,0 +1,12 @@
+{
+  "id": "t-82d6fvs",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Adopting a repository without tests creates a first task for one real test and refuses vacuous green",
+  "after": [],
+  "body": [
+    "Why: Fable plan 1114c #2. Swieta-na-starowce, 3d-wkladki, krn-zakupy report no test command; workspaces get npm test --workspaces --if-present (src/repo/contract.ts:154-159), which passes with zero tests.\nOutcome: krn adopt on a repository whose test command is missing or runs zero tests writes a first tracker task 'one real test and a test command' and the contract marks the test command vacuous; the Stop gate and lane run refuse to treat a vacuous test command as green.\nProof: fixture tests for a no-test repository and a workspace with no tests; npm run fast PASS."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-2zchmfk",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "krn doctor --unattended checks App token mint and vault session expiry before unattended work",
+  "after": [],
+  "body": [
+    "Why: Fable plan 1114c missing item. The bw serve 10h session limit blocked ship overnight (.krn/runs/overnight/status.md 22:38).\nOutcome: krn doctor --unattended mints a GitHub App installation token and checks the vault session lifetime against a required window; exits non-zero with the remedy when either fails. The drain command calls it first.\nProof: tests with stubbed mint and vault responses; npm run fast PASS."
+  ]
+}

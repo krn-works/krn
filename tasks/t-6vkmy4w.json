@@ -1,7 +1,11 @@
 {
   "id": "t-6vkmy4w",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-31exd5c",
+    "note": "Fable plan 1114c drop/merge, operator approved 2026-11-14"
+  },
   "created": "2026-11-14",
   "priority": 3,
   "title": "A rule test fails on a path or command named in instruction files that does not exist",

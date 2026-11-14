@@ -1,7 +1,11 @@
 {
   "id": "t-mq1ppm5",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "dropped",
+    "ref": null,
+    "note": "Fable plan 1114c drop/merge, operator approved 2026-11-14"
+  },
   "created": "2026-11-13",
   "priority": 1,
   "title": "Rung 1: sibling-test port precision on gold patches vs issue-only tests",

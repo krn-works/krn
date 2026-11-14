@@ -1,0 +1,12 @@
+{
+  "id": "t-k1wb7rh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "krn adopt --init prepares an empty or non-git directory: git init, test skeleton, tracker and standards",
+  "after": [],
+  "body": [
+    "Why: Fable plan 1114c missing item: 54 of 117 operator project dirs are not git.\nOutcome: krn adopt --init on an empty or non-git directory runs git init, writes a minimal test skeleton and test command for the detected or chosen stack, the tracker and the standards files, then the normal adoption set.\nProof: fixture test on an empty temp directory ending with a green standards check; npm run fast PASS."
+  ]
+}

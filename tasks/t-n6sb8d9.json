@@ -1,0 +1,12 @@
+{
+  "id": "t-n6sb8d9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "Rework is measured by blamed lines and lane, adopt and ci PRs run a canary lane against a pilot repository before merge",
+  "after": [],
+  "body": [
+    "Why: Fable plan 1114c: rework 67%; src/outcome/window.ts:306-317 counts any later fix PR sharing a file; since 11-13 16:00 36/78 commits were fixes, src/cli/lane-run.ts touched 21 times; defects surfaced only at real receivers after merge.\nOutcome: (1) window rework counts a later fix only when it changes lines the earlier PR introduced (git blame); (2) a pre-merge canary that runs one lane against a pilot repository for PRs touching src/cli/lane*, src/adopt or src/ci.\nProof: rework unit test on a synthetic history; canary script exits non-zero on a broken lane fixture; npm run fast PASS."
+  ]
+}

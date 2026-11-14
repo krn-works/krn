@@ -1,0 +1,12 @@
+{
+  "id": "t-t8x7za4",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "An adoption census runs krn adopt, standards check and adopt --verify on fifteen real operator repositories",
+  "after": [],
+  "body": [
+    "Why: Fable plan 1114c #1. The pilots were test-friendly (.krn/runs/pilot/decision.md:3); of 117 operator project dirs only krn has krn.json and 54 are not git.\nOutcome: a scripted census over scratch clones (no push) of about 15 operator repositories under /mnt/storage/coding (git repos, mixed stacks: TS, PHP/WordPress, Python, workspaces); a committed per-repo table (adopt exit, standards check verdict, verify gaps, test command detected); every failure becomes a fixture test in KRN or a task.\nProof: the census script reruns and reproduces the committed table; npm run fast PASS."
+  ]
+}

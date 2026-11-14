@@ -1,7 +1,11 @@
 {
   "id": "t-a5mv4rz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-31exd5c",
+    "note": "Fable plan 1114c drop/merge, operator approved 2026-11-14"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "ADR 0014 records the any-repository and correctness-first decisions and marks stale rows",

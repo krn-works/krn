@@ -1,7 +1,11 @@
 {
   "id": "t-15w1zrz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "superseded",
+    "ref": "t-5wzk8zf",
+    "note": "Fable plan 1114c: merged into t-5wzk8zf"
+  },
   "created": "2026-11-13",
   "priority": 3,
   "title": "src/cli is no cycle hub: a neutral cli-kit, one command table, no stale layer rows",
