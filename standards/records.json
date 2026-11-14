@@ -416,7 +416,7 @@
     "audience": "worker",
     "text": "Never change the git stash stack with a bare `git stash` or `git stash pop`; set work aside with a commit.",
     "why": "Every worktree of a repository shares one stash stack, so a bare pop can take another lane's edits.",
-    "evidence": ["scripts/claude/stash-guard.ts#t-cbkxj6w"],
+    "evidence": ["src/hook/stash.ts#t-cbkxj6w"],
     "enforcement": {
       "kind": "advisory"
     },

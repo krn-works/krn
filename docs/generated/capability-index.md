@@ -20,7 +20,7 @@ krn pr ship --title TITLE --body-file PATH [--repo OWNER/REPO] [--force]: in a b
 src/adopt/adopt.ts: The adoption set: what a repository needs so KRN delivery works there.
 src/adopt/canary.ts: The adoption canary: proves the Stop gate works in the adopted repository by breaking one existing 
 src/adopt/conventions.ts: Seeds a repository's conventions file from its own instruction files, so the lane packet is no
-src/adopt/stop-hook.ts: The Stop hook command `krn adopt` installs. Claude Code treats any exit other than 2 as non-bloc
+src/adopt/stop-hook.ts: The hook command `krn adopt` installs for `krn hook <name>`. Claude Code treats any exit other t
 src/brain/packet.ts: Deterministic brain packets (ADR 0002 records, ADR 0014 D32 shadow packets): select the records val
 src/brain/precedent.ts: Precedent for a lane brief: what the repository's own history asserted about the modules the bri
 src/brain/proposals.ts: Standards proposals: a lesson an adopted repository's retro writes as one tracked file under .ag
@@ -62,6 +62,7 @@ src/fs/read-regular-file.ts: (no header) exports readRegularFile
 src/harness/transcripts.ts: (no header) exports TranscriptFile, SubagentFile, transcriptFiles, subagentFiles
 src/hook/scope.ts: (no header) exports guarded, harness, parseScope, Worker
 src/hook/session.ts: A worker session is one `krn lane run` started (KRN_SESSION_CLASS=lane) or the launcher marked KRN_
+src/hook/stash.ts: (no header) exports decide
 src/hook/stop.ts: (no header) exports statesBlocker, relatedTests, Selection, selectTests
 src/outcome/gate-manifest.ts: The gate manifest: every producer of the CI verdict in two classes, and the commits that t
 src/outcome/holdings.ts: Who held the window's dollars: delivery lead, lanes, other subagents, and sessions that deliver

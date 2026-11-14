@@ -1,7 +1,11 @@
 {
   "id": "t-8qs4azg",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn adopt installs the scope and stash PreToolUse guards via krn hook; probe test asserts exit 2"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "adopt installs worker guards for tracker writes, stash and main-checkout writes",

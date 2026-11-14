@@ -461,3 +461,91 @@ test('adopt ends with the commit, merge, PATH and install steps', () => {
   assert.match(last[3] as string, /PATH/u);
   assert.match(last[4] as string, /install/u);
 });
+
+// KRN-12: the PreToolUse guards `krn adopt` installs, run as Claude Code runs them (sh -c with the
+// payload on stdin) against the product's own `krn hook <name>`: each must refuse with exit 2.
+test('adopt installs the worker guards and each installed guard refuses a probe with exit 2', () => {
+  const root = fixture({ 'README.md': 'x\n' });
+  assert.equal(adoptArgs(root, '--test', 'npm test').status, 0);
+  const settings = JSON.parse(
+    readFileSync(join(root, '.claude/settings.json'), 'utf8'),
+  ) as {
+    hooks: {
+      PreToolUse: { matcher: string; hooks: { command: string }[] }[];
+    };
+  };
+  const bin = mkdtempSync(join(tmpdir(), 'krn-guard-bin-'));
+  writeFileSync(
+    join(bin, 'krn'),
+    `#!/bin/sh\nexec ${process.execPath} ${cli} "$@"\n`,
+    { mode: 0o755 },
+  );
+  const worktree = join(root, '.krn', 'worktrees', 'w');
+  mkdirSync(worktree, { recursive: true });
+  const guard = (name: string, payload: object, project = root) => {
+    const entry = settings.hooks.PreToolUse.find((e) =>
+      e.hooks.some((h) => h.command.endsWith(`exec krn hook ${name}`)),
+    );
+    assert.ok(entry, `no PreToolUse entry for krn hook ${name}`);
+    return spawnSync('sh', ['-c', entry.hooks[0]?.command as string], {
+      input: JSON.stringify(payload),
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        CLAUDE_PROJECT_DIR: project,
+        KRN_SESSION_CLASS: 'lane',
+        KRN_LANE: 'probe',
+        KRN_SCOPE: 'src/',
+      },
+    });
+  };
+  const trackerWrite = guard('scope', {
+    tool_name: 'Write',
+    tool_input: { file_path: join(root, 'tasks', 't-x.json') },
+  });
+  assert.equal(trackerWrite.status, 2, trackerWrite.stderr);
+  assert.match(trackerWrite.stderr, /tracker state/u);
+  const mainWrite = guard(
+    'scope',
+    {
+      tool_name: 'Write',
+      tool_input: { file_path: join(root, 'src', 'x.ts') },
+    },
+    worktree,
+  );
+  assert.equal(mainWrite.status, 2, mainWrite.stderr);
+  assert.match(mainWrite.stderr, /main checkout/u);
+  const stash = guard('stash', {
+    tool_name: 'Bash',
+    tool_input: { command: 'git stash' },
+  });
+  assert.equal(stash.status, 2, stash.stderr);
+  assert.match(stash.stderr, /stash stack/u);
+  // The same calls from the lead pass: no lane or worker marker.
+  const lead = spawnSync(
+    'sh',
+    ['-c', settings.hooks.PreToolUse[0]?.hooks[0]?.command as string],
+    {
+      input: JSON.stringify({
+        tool_name: 'Write',
+        tool_input: { file_path: join(root, 'tasks', 't-x.json') },
+      }),
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        CLAUDE_PROJECT_DIR: root,
+        KRN_SESSION_CLASS: '',
+        KRN_ROLE: '',
+      },
+    },
+  );
+  assert.equal(lead.status, 0, lead.stderr);
+  // A rerun adds no duplicate entries.
+  assert.equal(adoptArgs(root, '--test', 'npm test').status, 0);
+  const again = JSON.parse(
+    readFileSync(join(root, '.claude/settings.json'), 'utf8'),
+  ) as typeof settings;
+  assert.equal(again.hooks.PreToolUse.length, settings.hooks.PreToolUse.length);
+});

@@ -39,7 +39,7 @@ import {
 } from '../repo/contract.ts';
 import { createTask } from '../task/store.ts';
 import { seedConventions } from './conventions.ts';
-import { legacyStopCommand, stopCommand } from './stop-hook.ts';
+import { legacyStopCommand, preToolGuards, stopCommand } from './stop-hook.ts';
 
 export interface AdoptOptions {
   /** Commit sha of krn-works/krn that holds the shared project-ci.yml; CI is written only when given. */
@@ -428,7 +428,7 @@ function readSettings(root: string): Record<string, unknown> {
   }
 }
 
-/** Adds the Stop hook that calls `krn hook stop` (failing closed without krn on PATH), keeping every other setting and hook. */
+/** Adds the Stop hook and the worker PreToolUse guards that call `krn hook` (failing closed without krn on PATH), keeping every other setting and hook. */
 function writeHooks(
   root: string,
   settings: Record<string, unknown>,
@@ -447,7 +447,20 @@ function writeHooks(
     )
   )
     stop.push({ hooks: [{ type: 'command', command: stopCommand }] });
-  settings.hooks = { ...hooks, Stop: stop };
+  const pre = Array.isArray(hooks.PreToolUse)
+    ? (hooks.PreToolUse as HookEntry[])
+    : [];
+  for (const guard of preToolGuards)
+    if (
+      !pre.some((entry) =>
+        entry.hooks?.some((hook) => hook.command === guard.command),
+      )
+    )
+      pre.push({
+        matcher: guard.matcher,
+        hooks: [{ type: 'command', command: guard.command }],
+      } as HookEntry);
+  settings.hooks = { ...hooks, Stop: stop, PreToolUse: pre };
   writeIfChanged(
     root,
     relative,

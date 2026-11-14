@@ -31,7 +31,7 @@ export function decide(payload: unknown): string | undefined {
   for (const match of withoutHeredocs(raw).matchAll(stash)) {
     const sub = (match[2] ?? '').trim().split(/\s+/u)[0] ?? '';
     if (allowed.has(sub)) continue;
-    return `Refused: \`git stash${sub ? ` ${sub}` : ''}\` changes the stash stack, which every worktree of this repository shares; another lane's edits can be taken or lost. Nothing in this Bash call ran. Set work aside with a WIP commit (\`git commit -m wip\`, later \`git reset --soft HEAD~1\`); \`git stash list|show|apply <sha>\` stay allowed (scripts/claude/stash-guard.ts).`;
+    return `Refused: \`git stash${sub ? ` ${sub}` : ''}\` changes the stash stack, which every worktree of this repository shares; another lane's edits can be taken or lost. Nothing in this Bash call ran. Set work aside with a WIP commit (\`git commit -m wip\`, later \`git reset --soft HEAD~1\`); \`git stash list|show|apply <sha>\` stay allowed (src/hook/stash.ts).`;
   }
   return undefined;
 }
