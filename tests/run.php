@@ -382,4 +382,6 @@ expect( null === asl_turnstile_failure_reason(), 'enabled Turnstile accepts a ve
 $GLOBALS['asl_test_remote_response'] = array( 'code' => 200, 'body' => '{"success":false}' );
 expect( 'turnstile' === asl_turnstile_failure_reason(), 'Turnstile rejects an unsuccessful verification response' );
 
+expect( 'free btc now' === asl_normalize_text( "free\u{200B}  btc\n\tno\u{00AD}w" ), 'normalization strips zero-width characters and collapses whitespace' );
+
 echo "OK: focused anti-spam contracts passed\n";
