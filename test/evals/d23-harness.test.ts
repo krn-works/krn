@@ -160,7 +160,7 @@ test('the overlay carries every file a worker hook imports, computed from the im
   };
   const seen = new Set<string>();
   for (const f of overlay)
-    if (f.startsWith('scripts/claude/') && f.endsWith('.ts')) walk(f, seen);
+    if (/^(?:scripts\/claude|src\/hook)\//u.test(f) && f.endsWith('.ts')) walk(f, seen);
   assert.deepEqual(missing, []);
   assert.ok(overlay.has('src/repo/contract.ts'), 'the Stop gate imports it');
 });
