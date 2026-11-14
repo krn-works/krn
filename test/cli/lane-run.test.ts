@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { readExposures } from '../../src/brain/exposures.ts';
 import { startLane } from '../../src/cli/lane.ts';
 import { laneBriefText, workerRules } from '../../src/cli/lane-brief.ts';
 import {
@@ -600,6 +601,40 @@ test('the lane verdict records the sha of the packet its session prompt carried'
     delete process.env.KRN_LANE_CLAUDE;
     rmSync(base, { recursive: true, force: true });
     rmSync(seen, { recursive: true, force: true });
+  }
+});
+
+test('a lane run appends the served standards and the outcome to the exposure log', async () => {
+  const conventions = `[
+  {"id": "r-trailer", "type": "convention", "text": "Every commit for a task carries a Ticket trailer.", "recorded_at": "2026-01-01", "valid_from": "2026-01-01", "valid_to": null, "source": "AGENTS.md"},
+  {"id": "r-unrelated", "type": "convention", "text": "Zebra stripes persist.", "recorded_at": "2026-01-01", "valid_from": "2026-01-01", "valid_to": null, "source": "AGENTS.md"}
+]
+`;
+  const { base, repo, claude } = fixture(deliver(), {
+    '.krn/conventions.json': conventions,
+  });
+  process.env.KRN_LANE_CLAUDE = claude;
+  try {
+    const verdict = await laneRunCommand(
+      ['--task', 't-abc1234', '--root', repo],
+      {
+        start: startLane,
+        ship: async () => 'merged\nverdict: merged abc1234',
+        mint: async () => undefined,
+      },
+    );
+    assert.equal(verdict.exitCode, 0, verdict.line);
+    const [entry] = readExposures(repo);
+    assert.equal(entry?.task, 't-abc1234');
+    assert.equal(entry?.channel, 'lane');
+    assert.deepEqual(entry?.served, ['r-trailer']);
+    assert.deepEqual(entry?.withheld, ['r-unrelated']);
+    assert.deepEqual(entry?.outcome, { 'r-trailer': 'followed' });
+    assert.equal(entry?.lane_ok, true);
+    assert.equal(entry?.rework, 0);
+  } finally {
+    delete process.env.KRN_LANE_CLAUDE;
+    rmSync(base, { recursive: true, force: true });
   }
 });
 

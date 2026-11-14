@@ -21,6 +21,7 @@ import {
   contractTracker,
   detectStack,
 } from '../repo/contract.ts';
+import { effectRows, readExposures } from './exposures.ts';
 import { globalDrift, installGlobal } from './global-standards.ts';
 import {
   formatProposal,
@@ -57,7 +58,7 @@ import {
 } from './standards.ts';
 
 export const usage =
-  'usage: krn standards check [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [REPO...] [--root DIR] | harvest --repos DIR... [--repos-file FILE]';
+  'usage: krn standards check [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [REPO...] [--root DIR] | harvest --repos DIR... [--repos-file FILE] | effect [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -403,6 +404,19 @@ function checkCommand(rest: readonly string[]): void {
   process.exitCode = verdict.exitCode;
 }
 
+function effectCommand(rest: readonly string[]): void {
+  const { values, positional } = flags(rest, new Set(), ROOT);
+  if (positional.length > 0) throw new CliUsageError(usage);
+  const root = repositoryRoot(
+    resolve(values.get('--root')?.[0] ?? process.cwd()),
+  );
+  const exposures = readExposures(root);
+  const rows = effectRows(exposures);
+  process.stdout.write(
+    `${[`effect: ${exposures.length} run(s), ${rows.length} record(s)`, ...rows].join('\n')}\n`,
+  );
+}
+
 /** Writes one proposal file into `root`; an equal lesson already proposed there is kept, not duplicated. */
 export function propose(
   root: string,
@@ -626,5 +640,6 @@ export function standardsCommand(args: string[]): void {
   else if (verb === 'install') installCommand(rest);
   else if (verb === 'propose') proposeCommand(rest);
   else if (verb === 'harvest') harvestCommand(rest);
+  else if (verb === 'effect') effectCommand(rest);
   else throw new CliUsageError(usage);
 }

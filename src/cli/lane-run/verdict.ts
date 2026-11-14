@@ -1,5 +1,6 @@
 import { lstatSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { appendExposure, exposureOf } from '../../brain/exposures.ts';
 import { releaseClaim } from '../../task/claims.ts';
 import { getTask } from '../../task/store.ts';
 import { renderPrBody } from '../pr-body.ts';
@@ -36,12 +37,32 @@ export async function laneVerdict(
   const spent =
     (result.cost === undefined ? '' : ` cost $${result.cost.toFixed(2)}`) +
     (result.turns === undefined ? '' : ` turns ${result.turns}`);
+  // Every ending logs which standards the run was served and how it ended (the effect report reads it).
+  const expose = (laneOk: boolean): void => {
+    try {
+      appendExposure(
+        main,
+        exposureOf({
+          run: slug,
+          task,
+          channel: 'lane',
+          served: lane.servedIds,
+          withheld: lane.withheldIds,
+          laneOk,
+          rework: red === undefined ? 0 : 1,
+        }),
+      );
+    } catch {
+      /* The log is evidence, never a reason to lose a delivery. */
+    }
+  };
   const kept = `worktree ${path}, rerun reuses it`;
   // A failed run keeps its worktree as evidence and frees the task for a retry.
   const stop = async (
     reason: string,
     exitCode = exitNoDelivery,
   ): Promise<LaneVerdict> => {
+    expose(false);
     if (task !== undefined)
       try {
         await releaseClaim(main, task);
@@ -184,6 +205,7 @@ export async function laneVerdict(
       '';
     const merged = /^verdict: merged\b/u.test(last);
     if (merged) rmSync(redFile, { force: true });
+    expose(merged);
     return {
       line: `lane ${label}: ${merged ? 'shipped' : 'not merged'} ${last} model ${model}${spent}${served}${flakyNote === '' ? '' : ` ${flakyNote}`}`,
       exitCode: merged ? 0 : exitNoDelivery,

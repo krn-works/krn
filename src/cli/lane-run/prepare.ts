@@ -24,6 +24,9 @@ export interface PreparedLane extends LaneRequest {
   base: string;
   brief: string;
   packet: string | null;
+  /** Ids of the records the packet served and of those it could have served but did not. */
+  servedIds: string[];
+  withheldIds: string[];
   /** The verdict suffix naming the packet the session served. */
   served: string;
   environment: NodeJS.ProcessEnv;
@@ -122,6 +125,8 @@ export async function prepareLane(
     base,
     brief,
     packet: prompt.packet,
+    servedIds: prompt.served,
+    withheldIds: prompt.withheld,
     served,
     environment,
     red,

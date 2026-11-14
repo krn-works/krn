@@ -43,6 +43,19 @@ export function workerRecords(records: readonly BrainRecord[]): BrainRecord[] {
   );
 }
 
+/** Every record a lane packet could carry for this repository: the candidates the packet selects from. */
+export function laneCandidates(repo: string): BrainRecord[] {
+  const path = recordsPath(repo);
+  const own = existsSync(path)
+    ? parseRecords(JSON.parse(readFileSync(path, 'utf8')))
+    : [];
+  const ids = new Set(own.map((record) => record.id));
+  const standards = readProject(repo)
+    .map((standard) => packetRecord(standardRecord(standard)))
+    .filter((record) => !ids.has(record.id));
+  return workerRecords([...own, ...standards]);
+}
+
 /**
  * Packet for a lead's lane brief: the one packet of the repository's conventions and its worker
  * standards, ranked by match with the brief's own terms times the effect of the record's tier,
@@ -56,15 +69,7 @@ export function lanePacket(
   task: string,
   budget = LANE_BUDGET,
 ): Packet | null {
-  const path = recordsPath(repo);
-  const own = existsSync(path)
-    ? parseRecords(JSON.parse(readFileSync(path, 'utf8')))
-    : [];
-  const ids = new Set(own.map((record) => record.id));
-  const standards = readProject(repo)
-    .map((standard) => packetRecord(standardRecord(standard)))
-    .filter((record) => !ids.has(record.id));
-  const records = workerRecords([...own, ...standards]);
+  const records = laneCandidates(repo);
   if (records.length === 0) return null;
   return brainPacket({
     task,

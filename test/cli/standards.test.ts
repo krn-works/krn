@@ -869,3 +869,35 @@ test('standards pack stack-scoped records: script, commit and whitespace records
     rmSync(ok, { recursive: true, force: true });
   }
 });
+
+test('krn standards effect prints one row per record read from the exposure log', () => {
+  const log = [
+    {
+      run: 'lane-a',
+      task: 't-1',
+      channel: 'lane',
+      served: ['r-a'],
+      withheld: ['r-b'],
+      outcome: { 'r-a': 'followed' },
+      lane_ok: true,
+      rework: 0,
+    },
+  ]
+    .map((line) => JSON.stringify(line))
+    .join('\n');
+  const root = repository({ '.krn/brain/exposures.jsonl': `${log}\n` });
+  try {
+    const done = spawnSync(
+      process.execPath,
+      [cli, 'standards', 'effect', '--root', root],
+      { encoding: 'utf8', cwd: tmpdir() },
+    );
+    assert.equal(done.status, 0, done.stderr);
+    assert.equal(
+      done.stdout,
+      'effect: 1 run(s), 2 record(s)\nr-a: served 1 (ok 100%, followed 1, violated 0) withheld 0 (ok -)\nr-b: served 0 (ok -, followed 0, violated 0) withheld 1 (ok 100%)\n',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

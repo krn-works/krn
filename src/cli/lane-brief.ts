@@ -1,7 +1,11 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { precedentSection } from '../brain/precedent.ts';
-import { lanePacket, packetBrief } from '../brain/worker-packet.ts';
+import {
+  laneCandidates,
+  lanePacket,
+  packetBrief,
+} from '../brain/worker-packet.ts';
 import { findContract } from '../repo/contract.ts';
 
 /**
@@ -65,6 +69,15 @@ export function laneBriefText(
   return laneBrief(repo, brief, asOf, task, closure, budget).text;
 }
 
+export type LaneBrief = {
+  text: string;
+  packet: string | null;
+  /** Ids of the records the packet served. */
+  served: string[];
+  /** Ids of the records the lane packet could carry but did not (no match or over budget). */
+  withheld: string[];
+};
+
 /** The lane brief and the sha256 of the packet it carries (null when it carries none), so a run can record which packet it served. */
 export function laneBrief(
   repo: string,
@@ -73,8 +86,12 @@ export function laneBrief(
   task = 'lane-brief',
   closure = false,
   budget?: number,
-): { text: string; packet: string | null } {
+): LaneBrief {
   const packet = lanePacket(repo, brief, asOf, task, budget);
+  const served = packet?.records ?? [];
+  const withheld = laneCandidates(repo)
+    .map((record) => record.id)
+    .filter((id) => !served.includes(id));
   const text = packetBrief(packet, brief);
   const precedent = precedentSection(repo, brief);
   const body = [text, precedent]
@@ -85,5 +102,7 @@ export function laneBrief(
     text: `${body.trimEnd()}\n\n${workerRules(repo)}${closure ? `\n${closureRule(task)}` : ''}\n`,
     packet:
       packet === null || packet.records.length === 0 ? null : packet.sha256,
+    served: [...served],
+    withheld,
   };
 }
