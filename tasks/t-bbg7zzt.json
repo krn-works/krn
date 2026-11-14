@@ -1,7 +1,11 @@
 {
   "id": "t-bbg7zzt",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lead surfaces state the lane budget limit 8 and krn pr ship only; rule test test/rules/lane-limit.test.ts"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "Lead rules, the lead skill and lanes.md state one concurrency limit and one delivery path",
