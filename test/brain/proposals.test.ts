@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   formatProposal,
   harvestCandidates,
+  harvestInstructionBullets,
   normalizeText,
   parseProposal,
   proposalFileName,
@@ -151,4 +152,20 @@ test('renderHarvest prints one candidate line per lesson and a summary last', ()
   assert.deepEqual(renderHarvest([], 1), [
     'harvest: 0 candidates from 0 proposals in 1 repository, 0 promotable',
   ]);
+});
+
+test('harvestInstructionBullets counts a bullet once per repository and ignores short bullets', () => {
+  const doc = (text: string) => ({
+    repository: '/r',
+    origin: 'r',
+    file: 'AGENTS.md',
+    text,
+  });
+  const one = harvestInstructionBullets([
+    doc('- Keep imports inside core.\n- Keep imports inside core.\n- Done.\n'),
+    { ...doc('- keep IMPORTS inside core'), repository: '/s', origin: 's' },
+  ]);
+  assert.equal(one.length, 1);
+  assert.equal(one[0]?.repositories, 2);
+  assert.deepEqual(one[0]?.sources, ['r/AGENTS.md', 's/AGENTS.md']);
 });
