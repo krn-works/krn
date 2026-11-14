@@ -23,7 +23,7 @@ import {
   rerunCommand,
   resolveContract,
 } from '../repo/contract.ts';
-import { UNIDENTIFIED_LANE, worker } from './scope.ts';
+import { isLaneSubagent, UNIDENTIFIED_LANE, worker } from './scope.ts';
 
 // Stop hook for worker sessions, and the related-test command a lane brief names:
 //   krn hook stop --related    prints the tests (or Go packages) this branch's change selects
@@ -827,11 +827,15 @@ export function judgeStop(
     last_assistant_message?: unknown;
     stop_hook_active?: unknown;
   } | null;
+  // A krn-lane subagent shares the lead's CLAUDE_PROJECT_DIR; its own checkout is the payload cwd.
+  const subagent = isLaneSubagent(payload) && typeof fields?.cwd === 'string';
   const root = resolve(
-    env.CLAUDE_PROJECT_DIR ??
-      (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd()),
+    subagent
+      ? (fields?.cwd as string)
+      : (env.CLAUDE_PROJECT_DIR ??
+          (typeof fields?.cwd === 'string' ? fields.cwd : process.cwd())),
   );
-  const who = worker(env, root, branch);
+  const who = worker(env, root, branch, payload);
   if (!who) return undefined;
   if (who.unidentified) return `Stop refused: ${UNIDENTIFIED_LANE}`;
   if (statesBlocker(fields?.last_assistant_message)) return undefined;

@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url';
 // KRN_ROLE=worker. The lead sets neither, so it is never refused here.
 // Scope comes from KRN_SCOPE (the brief's `Scope:` line or a comma list), else from the Scope line of
 // tasks/<id>.json for the id in KRN_TASK, else for the task id in the worktree branch or directory name.
+// An in-session krn-lane subagent is a worker too: its payload carries agent_type=krn-lane and agent_id
+// while its environment is the lead's. Without a resolvable scope it has an empty one.
 // A lane session whose scope cannot be resolved is allowed (nothing to compare with); a KRN_ROLE=worker
 // session without a scope has an empty one.
 // Tracker state is the lead's alone: a worker edit outside Scope is refused.
@@ -83,13 +85,23 @@ export function taskId(text: string): string | undefined {
   return taskIdToken.exec(text)?.[0];
 }
 
+/** Whether a hook payload comes from an in-session krn-lane subagent, which carries the lead's environment. */
+export function isLaneSubagent(payload: unknown): boolean {
+  const fields = payload as { agent_type?: unknown; agent_id?: unknown } | null;
+  return (
+    fields?.agent_type === 'krn-lane' && typeof fields.agent_id === 'string'
+  );
+}
+
 export function worker(
   env: NodeJS.ProcessEnv,
   root: string,
   branch = '',
+  payload?: unknown,
 ): Worker | undefined {
   const lane = env.KRN_SESSION_CLASS === 'lane';
-  if (!lane && env.KRN_ROLE !== 'worker') return undefined;
+  if (!lane && env.KRN_ROLE !== 'worker' && !isLaneSubagent(payload))
+    return undefined;
   if (env.KRN_SCOPE !== undefined) return { scope: parseScope(env.KRN_SCOPE) };
   const id = env.KRN_TASK ?? taskId(branch) ?? taskId(root);
   const scope = id === undefined ? undefined : taskScope(root, id);
@@ -163,7 +175,7 @@ export function judge(
     env.CLAUDE_PROJECT_DIR ??
       (typeof fields.cwd === 'string' ? fields.cwd : process.cwd()),
   );
-  const who = worker(env, root, branch);
+  const who = worker(env, root, branch, payload);
   if (!who) return {};
   if (who.unidentified) return { refusal: `Refused: ${UNIDENTIFIED_LANE}` };
   const cwd = typeof fields.cwd === 'string' ? fields.cwd : root;
