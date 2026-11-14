@@ -2,6 +2,8 @@
 import { spawnSync } from 'node:child_process';
 import { z } from 'zod';
 import { REQUIRED_CHECK_APP_ID } from '../repo/ci-admission-contract.ts';
+import { contractBase, contractDeployAcknowledged } from '../repo/contract.ts';
+import { deployRemedy, deployWorkflows } from './deploy.ts';
 
 const repoSchema = z.object({
   default_branch: z.string().min(1),
@@ -99,5 +101,10 @@ export function verifyRepository(root: string): VerifyReport {
   const branchBody = gh(root, `repos/{owner}/{repo}/branches/${branch}`);
   const rulesBody = gh(root, `repos/{owner}/{repo}/rules/branches/${branch}`);
   const gaps = verifyGaps(repoBody, branchBody, rulesBody);
+  // krn.json `base` wins over the repository default, as for lanes.
+  const deployBase = contractBase(root);
+  const deploying = deployWorkflows(root, deployBase);
+  if (deploying.length > 0 && !contractDeployAcknowledged(root))
+    gaps.push(deployRemedy(deploying, deployBase));
   return { ok: gaps.length === 0, gaps };
 }

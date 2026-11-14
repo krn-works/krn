@@ -1,7 +1,11 @@
 {
   "id": "t-7e6yghv",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Deploy workflows on the base branch are detected by adopt --verify and refuse krn pr ship (exit 82) until krn.json deploy: acknowledged."
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "Adoption detects deploy workflows on the base branch and requires an acknowledged deploy before auto-merge",
