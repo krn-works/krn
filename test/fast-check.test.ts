@@ -15,6 +15,7 @@ import test from 'node:test';
 import {
   changedFiles,
   cliCommandModules,
+  evidenceTests,
   fullyStaged,
   lintable,
   removedFiles,
@@ -526,4 +527,13 @@ test('fast check derives the src modules a bin/krn subprocess test covers', () =
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+// KRN-12: the repository's own standards records are the receiver's input.
+test('a file a standards record names as evidence selects the standards test', () => {
+  const records = readFileSync('standards/records.json', 'utf8');
+  assert.deepEqual(evidenceTests(['src/repo/contract.ts'], records), [
+    'test/brain/standards.test.ts',
+  ]);
+  assert.deepEqual(evidenceTests(['src/ci/ship.ts'], records), []);
 });

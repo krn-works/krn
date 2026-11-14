@@ -132,6 +132,20 @@ function spawnsCoveredModule(
   return false;
 }
 
+/** The test that resolves every standards evidence anchor (`path#text`) against the repository. */
+export const STANDARDS_TEST = 'test/brain/standards.test.ts';
+
+/**
+ * The standards test when a changed or removed file is named in a standards record's evidence:
+ * moving the anchored text out of that file breaks the test, though nothing imports the file.
+ */
+export function evidenceTests(touched: string[], records: string): string[] {
+  const paths = new Set<string>();
+  for (const match of records.matchAll(/"([^"#:\s]+\.[a-z]+)#[^"]*"/gu))
+    if (match[1]) paths.add(match[1]);
+  return touched.some((file) => paths.has(file)) ? [STANDARDS_TEST] : [];
+}
+
 /**
  * Tests to run: changed tests, tests whose `fast-covers` prefixes match a changed path, tests whose imports resolve to a changed or removed file,
  * tests that name a changed or removed file by repository path, and the rule tests
@@ -492,13 +506,25 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
   const files = lintable(changed);
   const cache = join(root, '.krn/cache');
   mkdirSync(cache, { recursive: true });
-  const related = selectTests(
-    changed,
-    listTests(root),
-    removed,
-    surviving,
-    cliCommandModules(root),
-  );
+  const tests = listTests(root);
+  const recordsFile = join(root, 'standards/records.json');
+  const related = [
+    ...new Set([
+      ...selectTests(
+        changed,
+        tests,
+        removed,
+        surviving,
+        cliCommandModules(root),
+      ),
+      ...(tests.has(STANDARDS_TEST) && existsSync(recordsFile)
+        ? evidenceTests(
+            [...changed, ...removed],
+            readFileSync(recordsFile, 'utf8'),
+          )
+        : []),
+    ]),
+  ];
   const snapshot = (): string =>
     changed.map((file) => readFileSync(join(root, file), 'utf8')).join('\0');
   const verify = (): Promise<Step[]> =>
