@@ -90,9 +90,7 @@ test('adopt runs the canary after writing, fails on a red gate and records --no-
   assert.equal(declinedNone.status, 0, declinedNone.stderr);
 });
 
-test('canary passes on a pytest repository and fails with the gate disabled', (t) => {
-  if (spawnSync('pytest', ['--version']).status !== 0)
-    return t.skip('quarantine: t-dmpz54r pytest is not installed');
+test('canary passes on a pytest repository and fails with the gate disabled', () => {
   const root = fixture({
     'krn.json': JSON.stringify({
       base: 'main',
