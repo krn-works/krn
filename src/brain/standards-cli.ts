@@ -18,11 +18,12 @@ import { fileURLToPath } from 'node:url';
 import { CliUsageError } from '../cli-kit/usage-error.ts';
 import {
   CONTRACT_FILE,
+  contractConventions,
   contractTracker,
   detectStack,
 } from '../repo/contract.ts';
 import { readRegistry, registryPath } from './adopted-registry.ts';
-import { effectRows, readExposures } from './exposures.ts';
+import { effectRows, effectTotals, readExposures } from './exposures.ts';
 import { globalDrift, installGlobal } from './global-standards.ts';
 import {
   formatProposal,
@@ -40,6 +41,7 @@ import {
   renderHarvest,
   type Sourced,
 } from './proposals.ts';
+import { recordsInForce, retirable, retireInFile } from './retire.ts';
 import {
   appliesTo,
   assertNoClash,
@@ -59,7 +61,7 @@ import {
 } from './standards.ts';
 
 export const usage =
-  'usage: krn standards check [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --repos DIR... [--repos-file FILE] | effect [--root DIR]';
+  'usage: krn standards check [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --repos DIR... [--repos-file FILE] | effect [--root DIR] | retire [--write] [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -418,6 +420,45 @@ function effectCommand(rest: readonly string[]): void {
   );
 }
 
+/** The records files a repository owns, relative to its root: the conventions file and the project standards. */
+function ownRecordFiles(root: string): string[] {
+  return [contractConventions(root), PROJECT_STANDARDS].filter((file) =>
+    existsSync(join(root, file)),
+  );
+}
+
+function retireCommand(rest: readonly string[]): void {
+  const write = rest.includes('--write');
+  const { values, positional } = flags(
+    rest.filter((arg) => arg !== '--write'),
+    new Set(),
+    ROOT,
+  );
+  if (positional.length > 0) throw new CliUsageError(usage);
+  const root = repositoryRoot(
+    resolve(values.get('--root')?.[0] ?? process.cwd()),
+  );
+  const asOf = new Date().toISOString().slice(0, 10);
+  const files = ownRecordFiles(root);
+  const inForce = new Set(
+    files.flatMap((file) => recordsInForce(join(root, file), asOf)),
+  );
+  const exposures = readExposures(root);
+  const ids = retirable(exposures, inForce);
+  const totals = effectTotals(exposures);
+  const lines = ids.map((id) => {
+    const t = totals.get(id);
+    return `${id}: served ${t?.served ?? 0} (ok ${t?.servedOk ?? 0}) withheld ${t?.withheld ?? 0} (ok ${t?.withheldOk ?? 0})`;
+  });
+  const set = new Set(ids);
+  const changed = write
+    ? files.flatMap((file) => retireInFile(join(root, file), set, asOf))
+    : [];
+  process.stdout.write(
+    `${[`retire: ${ids.length} record(s) show no effect${write ? `, valid_to ${asOf} written to ${changed.length}` : ' (dry run, --write edits valid_to)'}`, ...lines].join('\n')}\n`,
+  );
+}
+
 /** Writes one proposal file into `root`; an equal lesson already proposed there is kept, not duplicated. */
 export function propose(
   root: string,
@@ -660,5 +701,6 @@ export function standardsCommand(args: string[]): void {
   else if (verb === 'propose') proposeCommand(rest);
   else if (verb === 'harvest') harvestCommand(rest);
   else if (verb === 'effect') effectCommand(rest);
+  else if (verb === 'retire') retireCommand(rest);
   else throw new CliUsageError(usage);
 }

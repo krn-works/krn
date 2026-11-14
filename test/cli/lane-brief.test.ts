@@ -43,7 +43,7 @@ test('the lane brief of every frozen unit equals the lane runner arm-B prompt', 
   for (const unit of units) {
     const brief = `${unit.prompt.trim()}\n`;
     assert.equal(
-      laneBriefText(frozen, brief, BASE_DATE, unit.id, false, BUDGET),
+      laneBriefText(frozen, brief, BASE_DATE, unit.id, false, BUDGET, false),
       `${laneBrief(unit, 'B').prompt.trimEnd()}\n\n${workerRules(frozen)}\n`,
       unit.id,
     );

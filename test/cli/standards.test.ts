@@ -912,3 +912,72 @@ test('krn standards effect prints one row per record read from the exposure log'
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('krn standards retire is a dry run until --write, then ends the record that shows no effect', () => {
+  const root = mkdtempSync(join(tmpdir(), 'retire-cli-'));
+  try {
+    spawnSync('git', ['init', '-q', root]);
+    mkdirSync(join(root, '.krn/brain'), { recursive: true });
+    writeFileSync(
+      join(root, '.krn/conventions.json'),
+      JSON.stringify([
+        {
+          id: 'r-idle',
+          type: 'convention',
+          text: 'An idle rule.',
+          recorded_at: '2026-01-01',
+          valid_from: '2026-01-01',
+          valid_to: null,
+          source: 'AGENTS.md',
+        },
+      ]),
+    );
+    const line = (served: string[], withheld: string[]) =>
+      JSON.stringify({
+        run: 'x',
+        task: 't-1',
+        channel: 'lane',
+        served,
+        withheld,
+        outcome: {},
+        lane_ok: true,
+        rework: 0,
+      });
+    writeFileSync(
+      join(root, '.krn/brain/exposures.jsonl'),
+      `${[
+        ...Array.from({ length: 27 }, () => line(['r-idle'], [])),
+        ...Array.from({ length: 3 }, () => line([], ['r-idle'])),
+      ].join('\n')}\n`,
+    );
+    const retire = (...extra: string[]) =>
+      spawnSync(
+        process.execPath,
+        [cli, 'standards', 'retire', '--root', root, ...extra],
+        { encoding: 'utf8' },
+      );
+    const dry = retire();
+    assert.equal(dry.status, 0, dry.stderr);
+    assert.match(
+      dry.stdout,
+      /^retire: 1 record\(s\) show no effect \(dry run/u,
+    );
+    assert.match(
+      dry.stdout,
+      /r-idle: served 27 \(ok 27\) withheld 3 \(ok 3\)/u,
+    );
+    assert.match(
+      readFileSync(join(root, '.krn/conventions.json'), 'utf8'),
+      /"valid_to":null/u,
+    );
+    const wet = retire('--write');
+    assert.equal(wet.status, 0, wet.stderr);
+    assert.match(wet.stdout, /written to 1/u);
+    assert.doesNotMatch(
+      readFileSync(join(root, '.krn/conventions.json'), 'utf8'),
+      /"valid_to": null/u,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

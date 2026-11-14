@@ -4,7 +4,7 @@ Before calling anything foreign, unknown or missing, grep this index and src.
 ## krn commands
 krn task <ready|claim|show|list|create|edit|comment|dep|close|release|check> [...]: repository work trac
 krn ledger [--since YYYY-MM-DD] [--pr N] [--limit N] [--repo OWNER/REPO] [--root DIR] [--transcripts DIR] [--json]: outcome ledger
-krn standards check|propose|harvest|effect [...]: check [--root DIR]: run the enfo
+krn standards check|propose|harvest|effect|retire [...]: check [--root DIR]: run t
 krn doctor: reports the host `krn task` entry, its commit and origin/main; exit 78
 krn state check|resume|set|accept|handoff|retro [--root DIR]: delivery-loop capsul
 krn lane start|run|drop|brief [...]: run: start the lane, run one headless claude 
@@ -38,6 +38,7 @@ src/brain/packet.ts: Deterministic brain packets
 src/brain/precedent.ts: Precedent for a lane brie
 src/brain/proposals.ts: Standards proposals: a le
 src/brain/record.ts: The one record schema of the
+src/brain/retire.ts: Retirement of prose standard
 src/brain/standards-cli.ts: `krn standards check 
 src/brain/standards.ts: The standards pack (ADR 0
 src/brain/worker-packet.ts: Conventions packet fo

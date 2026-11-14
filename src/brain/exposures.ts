@@ -72,19 +72,20 @@ export function readExposures(main: string): Exposure[] {
 const rate = (ok: number, n: number): string =>
   n === 0 ? '-' : `${Math.round((100 * ok) / n)}%`;
 
-/** One row per record: served and withheld runs with the share of lanes that delivered, and the followed/violated counts. */
-export function effectRows(exposures: readonly Exposure[]): string[] {
-  const rows = new Map<
-    string,
-    {
-      served: number;
-      servedOk: number;
-      withheld: number;
-      withheldOk: number;
-      followed: number;
-      violated: number;
-    }
-  >();
+export type EffectTotals = {
+  served: number;
+  servedOk: number;
+  withheld: number;
+  withheldOk: number;
+  followed: number;
+  violated: number;
+};
+
+/** Per record: served and withheld runs, the lanes that delivered in each, and the followed/violated counts. */
+export function effectTotals(
+  exposures: readonly Exposure[],
+): Map<string, EffectTotals> {
+  const rows = new Map<string, EffectTotals>();
   const row = (id: string) => {
     let value = rows.get(id);
     if (value === undefined) {
@@ -114,6 +115,12 @@ export function effectRows(exposures: readonly Exposure[]): string[] {
       if (exposure.lane_ok) value.withheldOk++;
     }
   }
+  return rows;
+}
+
+/** One row per record: served and withheld runs with the share of lanes that delivered, and the followed/violated counts. */
+export function effectRows(exposures: readonly Exposure[]): string[] {
+  const rows = effectTotals(exposures);
   return [...rows.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(

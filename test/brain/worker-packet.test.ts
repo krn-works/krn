@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { parseRecords } from '../../src/brain/packet.ts';
 import {
+  heldOut,
   LANE_BUDGET,
   lanePacket,
   packetBrief,
@@ -134,7 +135,7 @@ test('a superseded convention never enters a packet and the live one does', (t) 
     row('r-old', 'Format the parser with the legacy formatter.', '2026-05-01'),
     row('r-new', 'Format the parser with biome.', null),
   ]);
-  const packet = lanePacket(root, 'format the parser', '2026-11-13', 'unit');
+  const packet = lanePacket(root, 'format the parser', '2026-11-13', 'unit-b');
   assert.deepEqual(packet?.records, ['r-new']);
 });
 
@@ -246,4 +247,27 @@ test('the lane packet never exceeds its budget', (t) => {
   const packet = lanePacket(root, 'format the parser', '2026-11-13', 'u');
   assert.ok((packet?.tokens ?? 0) <= LANE_BUDGET);
   assert.ok((packet?.records.length ?? 0) > 10);
+});
+
+test('a record in the task holdout is not served and the same task withholds it again', (t) => {
+  const root = conventionsRepo(t, [
+    row('r-new', 'Format the parser with biome.', null),
+  ]);
+  const task = Array.from({ length: 200 }, (_, i) => `unit-${i}`).find((id) =>
+    heldOut(id, 'r-new'),
+  );
+  assert.ok(task !== undefined);
+  for (let i = 0; i < 2; i++) {
+    const packet = lanePacket(root, 'format the parser', '2026-11-13', task);
+    assert.deepEqual(packet?.records, []);
+  }
+  const served = lanePacket(
+    root,
+    'format the parser',
+    '2026-11-13',
+    task,
+    undefined,
+    false,
+  );
+  assert.deepEqual(served?.records, ['r-new']);
 });
