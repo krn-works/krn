@@ -1,0 +1,14 @@
+{
+  "id": "t-vs84zwj",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "An adopted site repository can gate changes on an HTTP golden master of its rendered pages",
+  "after": [
+    "t-dcdad8m"
+  ],
+  "body": [
+    "Why: research 1114g (.krn/runs/market/research-1114g.md section 4) ranks an HTTP golden master as the strongest characterization gate for testless WordPress/PHP site repos: it protects untouched behaviour that no unit test covers.\nOutcome: an adopted site repository can enable a golden-master gate: crawl its sitemap against a fixed database fixture (wp db export/import), normalise nonces, timestamps and asset hashes, store the HTML under the repo, and the gate fails on any diff not declared by the task.\nProof: on a sample WordPress repo the gate is green on a no-op change and red on a deliberate template edit, captured verbatim (KRN-12)."
+  ]
+}

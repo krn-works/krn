@@ -7,6 +7,7 @@
   "title": "ci.yml names the rules check once the App can write workflows",
   "after": [],
   "body": [
-    "Why: the ship of t-4p169xy exited 83 on a real push of the .github/workflows/ci.yml:67 comment fix: the KRN GitHub App token lacks Workflows (write), so no KRN session can edit workflow files.\nOutcome: ci.yml:67 says rendered rules are checked by test/agents-render.test.ts (npm run rules locally), not the retired npm run preflight.\nRemedy: the operator grants the KRN GitHub App Workflows (write), or pushes the one-line edit with a login holding the workflow scope; then krn pr ship goes through.\nProof: grep -c 'npm run preflight' .github/workflows/ci.yml prints 0."
+    "Why: the ship of t-4p169xy exited 83 on a real push of the .github/workflows/ci.yml:67 comment fix: the KRN GitHub App token lacks Workflows (write), so no KRN session can edit workflow files.\nOutcome: ci.yml:67 says rendered rules are checked by test/agents-render.test.ts (npm run rules locally), not the retired npm run preflight.\nRemedy: the operator grants the KRN GitHub App Workflows (write), or pushes the one-line edit with a login holding the workflow scope; then krn pr ship goes through.\nProof: grep -c 'npm run preflight' .github/workflows/ci.yml prints 0.",
+    "2026-11-14 18:0x: a freshly minted App token still got 'refused push: the token lacks workflows write' on the one-line fix; the installation likely has not accepted the new Workflows permission (org owner approval on the installation page). Fix text: '# Rendered rules are checked by test/agents-render.test.ts.' (test/workflow.test.ts refuses 'npm run rules' in the lint job)."
   ]
 }

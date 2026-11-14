@@ -1,7 +1,11 @@
 {
   "id": "t-xwhscs0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "generateRoadmap stops rows at ROADMAP_BYTES (5000) and counts the rest; 100-task test under spec budget 5154; roadmap 9962 -> 4875 bytes"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "The generated roadmap stays within a fixed byte budget at any number of open tasks",
