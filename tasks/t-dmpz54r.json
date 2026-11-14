@@ -1,7 +1,11 @@
 {
   "id": "t-dmpz54r",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "pytest canary runs unskipped; CI setup-ci installs pinned pytest; no vitest skip remains"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "Canary vitest and pytest fixtures run where CI lacks the runners",
