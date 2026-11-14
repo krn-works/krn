@@ -6,10 +6,12 @@ import {
   mkdtempSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join, posix } from 'node:path';
+import { join, posix, sep } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { redAtParent } from '../../evals/d23/baseline.ts';
@@ -204,6 +206,12 @@ test('a replay clone with the harness laid over its parent refuses Stop with exi
     put(
       'test/calc.test.ts',
       "import assert from 'node:assert/strict';\nimport test from 'node:test';\nimport { calc } from '../src/calc.ts';\ntest('calc', () => assert.equal(calc(), 1));\n",
+    );
+    // The node_modules Node resolves from here: a lane worktree has none of its own.
+    const zodEntry = createRequire(import.meta.url).resolve('zod');
+    symlinkSync(
+      zodEntry.slice(0, zodEntry.lastIndexOf(`${sep}node_modules${sep}`) + 13),
+      join(dir, 'node_modules'),
     );
     git('add', '.');
     git('commit', '-qm', 'parent');
