@@ -1,0 +1,17 @@
+{
+  "id": "t-4fr1n7g",
+  "repo": "krn-works/seo-audit-harness",
+  "base": "a4594474dcb8772f4c3fb4055c5e86f1c043e75f",
+  "reference": "46846d693f2fc5a33cfade47a6eb1de646ccf83b",
+  "task": {
+    "title": "Treat the robots directive none as noindex",
+    "body": "Why: packages/seo/src/domain/directives.ts:9 looks only for the substring `noindex`, but the robots directive `none` is defined as `noindex, nofollow`, so a page with `<meta name=\"robots\" content=\"none\">` or `X-Robots-Tag: none` is treated as indexable (and never raises `sitemap-noindex-conflict`).\nOutcome: `isNoindex(page)` (src/domain/directives.ts) returns true when any value of `robotsMeta` or the `xRobotsTag` string contains the standalone directive `none`, compared case-insensitively and as a whole comma-separated token (for example `\"none\"`, `\"NONE\"`, `\"nosnippet, none\"`, `\"googlebot: none\"`), in addition to the existing `noindex` behaviour. `sitemapNoindexFinding(page)` (src/domain/findings.ts) therefore returns the `sitemap-noindex-conflict` finding for an in-sitemap page with `none`. Pages whose directives are only `index, follow`, `nosnippet` or `noarchive`, or that have no directives, remain indexable.\nProof: the implementer adds tests in tests/domain/findings.test.ts for `none` in a meta robots value and in X-Robots-Tag, and for unchanged indexable directives."
+  },
+  "spec": "`isNoindex(page)` (src/domain/directives.ts) returns true when any value of `robotsMeta` or the `xRobotsTag` string contains the standalone directive `none`, compared case-insensitively and as a whole comma-separated token (for example `\"none\"`, `\"NONE\"`, `\"nosnippet, none\"`, `\"googlebot: none\"`), in addition to the existing `noindex` behaviour. `sitemapNoindexFinding(page)` (src/domain/findings.ts) therefore returns the `sitemap-noindex-conflict` finding for an in-sitemap page with `none`. Pages whose directives are only `index, follow`, `nosnippet` or `noarchive`, or that have no directives, remain indexable.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "packages/seo/tests/hidden/hidden.test.ts"
+  },
+  "install": "npm --prefix packages/seo ci --silent && npm --prefix packages/seo run build --silent",
+  "test": "cd packages/seo && npx vitest run tests/hidden/hidden.test.ts"
+}

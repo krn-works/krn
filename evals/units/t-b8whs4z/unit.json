@@ -1,0 +1,17 @@
+{
+  "id": "t-b8whs4z",
+  "repo": "krn-works/seo-audit-harness",
+  "base": "17a3e1b9f389f080147e72416c3f770f442d9141",
+  "reference": "a4594474dcb8772f4c3fb4055c5e86f1c043e75f",
+  "task": {
+    "title": "Report a redirect loop when the last hop points back at the chain",
+    "body": "Why: packages/seo/src/domain/redirects.ts:161-166 detects a loop only when a hop url repeats in the chain, but `followRedirects` (its `if (seen.has(current)) break`) stops before recording a repeated url, so a loop A to B to A yields the chain [A, B] and `analyzeRedirectChain` reports only a final status 301 and no loop.\nOutcome: `analyzeRedirectChain(startUrl, chain, expectedFinal)` (src/domain/redirects.ts) adds the issue string `\"pętla przekierowań\"` exactly once when any hop's `location` equals the `url` of that hop or of an earlier hop in the chain, as well as in the existing case where a hop url repeats. This holds for a self-redirect `[{url: A, status: 301, location: A}]`, for `[A to B, B to A]` and for the chain `followRedirects` returns for a two-URL loop. A chain without a loop (for example A with location B, then B with status 200 and no location) does not get the issue.\nProof: the implementer adds tests in tests/domain/redirects.test.ts for the three loop shapes, a loop-free chain, and the single report for a chain that both repeats a hop url and points back."
+  },
+  "spec": "`analyzeRedirectChain(startUrl, chain, expectedFinal)` (src/domain/redirects.ts) adds the issue string `\"pętla przekierowań\"` exactly once when any hop's `location` equals the `url` of that hop or of an earlier hop in the chain, as well as in the existing case where a hop url repeats. This holds for a self-redirect `[{url: A, status: 301, location: A}]`, for `[A to B, B to A]` and for the chain `followRedirects` returns for a two-URL loop. A chain without a loop (for example A with location B, then B with status 200 and no location) does not get the issue.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "packages/seo/tests/hidden/hidden.test.ts"
+  },
+  "install": "npm --prefix packages/seo ci --silent && npm --prefix packages/seo run build --silent",
+  "test": "cd packages/seo && npx vitest run tests/hidden/hidden.test.ts"
+}

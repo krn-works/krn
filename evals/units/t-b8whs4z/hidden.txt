@@ -1,0 +1,29 @@
+import { describe, expect, it } from "vitest";
+import { analyzeRedirectChain, followRedirects } from "../../src/domain/redirects.ts";
+
+const A = "https://ex.test/a";
+const B = "https://ex.test/b";
+
+describe("a redirect loop is reported", () => {
+  it("flags a chain whose last hop points back at an earlier hop", () => {
+    const check = analyzeRedirectChain(A, [{ url: A, status: 301, location: B }, { url: B, status: 301, location: A }], null);
+    expect(check.issues).toContain("pętla przekierowań");
+  });
+
+  it("flags a hop that redirects to itself", () => {
+    expect(analyzeRedirectChain(A, [{ url: A, status: 301, location: A }], null).issues).toContain("pętla przekierowań");
+  });
+
+  it("flags the chain that followRedirects records for a two-URL loop", async () => {
+    const next: Record<string, string> = { [A]: B, [B]: A };
+    const chain = await followRedirects(async (url) => ({ status: 301, location: next[url] ?? null }), A);
+    expect(analyzeRedirectChain(A, chain, null).issues).toContain("pętla przekierowań");
+  });
+
+  it("does not flag a loop-free chain and keeps the repeated-hop report", () => {
+    const ok = analyzeRedirectChain(A, [{ url: A, status: 301, location: B }, { url: B, status: 200, location: null }], null);
+    expect(ok.issues).not.toContain("pętla przekierowań");
+    const repeated = analyzeRedirectChain(A, [{ url: A, status: 301, location: B }, { url: B, status: 301, location: A }, { url: A, status: 301, location: B }], null);
+    expect(repeated.issues.filter((i) => i === "pętla przekierowań")).toHaveLength(1);
+  });
+});
