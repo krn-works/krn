@@ -1,7 +1,11 @@
 {
   "id": "t-ppkczgj",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "gh empty/truncated replies retry once then exit 71 naming the command (src/ci/gh-reply.ts)"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "Ship names an empty gh reply instead of exiting 74",

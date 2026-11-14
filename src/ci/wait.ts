@@ -24,6 +24,7 @@ import {
   run,
   sleep,
 } from '../deliver/transport.ts';
+import { withReplyCheck } from './gh-reply.ts';
 
 /** Exit codes for a wait that stopped before its gate concluded. */
 export const stopExitCodes = {
@@ -115,7 +116,9 @@ export async function waitCommand(
             ...rest,
           )
         : runner(command, args, ...rest);
-    const gh = runtime.gh ?? ((args) => github(args, cwd, scoped, wait));
+    const gh = withReplyCheck(
+      runtime.gh ?? ((args) => github(args, cwd, scoped, wait)),
+    );
     // The checkout may be another repository: its git has no object for this
     // base, so the policy is then read from the repository through GitHub.
     let policy: GateAdmissionPolicy;
@@ -176,7 +179,7 @@ export async function waitCommand(
             ? stopExitCodes[error.reason]
             : error instanceof GateTimeout
               ? 75
-              : 74,
+              : ((error as { exitCode?: number }).exitCode ?? 74),
       },
     );
   }
