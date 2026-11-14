@@ -1,0 +1,12 @@
+{
+  "id": "t-xvqckym",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "The lane verdict turn count matches the session transcript",
+  "after": [],
+  "body": [
+    "Why: lane t-cencnmk (0771942) printed `turns 1` after 1747 s, while its transcript ~/.claude/projects/-mnt-storage-coding-krn-active-krn--krn-worktrees-check-name-owner/fa1a426f-*.jsonl has 22 distinct assistant messages; lanes t-zyqmqx2 and t-q3y4re2 printed 23 and 22. num_turns from `claude -p` is not a reliable turn count (likely reset by --fallback-model or a retry).\nOutcome: the lane verdict turn count equals the distinct assistant messages of the session transcript, or the field is dropped when the two disagree.\nProof: a test on a verbatim capture of that session result plus its transcript; npm run fast PASS."
+  ]
+}
