@@ -1268,7 +1268,25 @@ test('a krn-lane subagent whose ship merged ends at the main checkout; an unmerg
         leadEnv,
         () => [],
       ) ?? '',
-      /no commit/u,
+      /no commit[\s\S]*verdict: merged <sha>/u,
+    );
+    // t-310mwdm: lanes pasted the ship verdict in backticks or a bullet and were refused.
+    for (const quoted of [
+      `- verdict: merged ${head}`,
+      `\`verdict: merged ${head}\``,
+      `> verdict: merged ${head}`,
+    ])
+      assert.equal(
+        judgeStop(sub(`shipped\n${quoted}`), leadEnv, () => []),
+        undefined,
+      );
+    assert.notEqual(
+      judgeStop(
+        sub(`the earlier verdict: merged ${head} was not mine`),
+        leadEnv,
+        () => [],
+      ),
+      undefined,
     );
   } finally {
     rmSync(dir, { recursive: true, force: true });

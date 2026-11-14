@@ -814,11 +814,14 @@ function inspectTests(
  * A lane whose ship merged has no branch left: ship removed its worktree, so the payload cwd is the
  * main checkout on the base. Its last message names the merge (`verdict: merged <sha>`); the end is
  * accepted when that commit is on the base. The main checkout may not have fetched the merge yet
- * (t-0bct43k, debf26c), so a miss fetches the base once and checks again.
+ * (t-0bct43k, debf26c), so a miss fetches the base once and checks again. The line may sit in a
+ * list bullet, a quote or backticks (t-310mwdm: lanes pasted it quoted and were refused).
  */
 export function shippedMerge(root: string, message: unknown): boolean {
   if (typeof message !== 'string') return false;
-  const sha = /^verdict: merged ([0-9a-f]{7,40})\b/mu.exec(message)?.[1];
+  const sha = /^[\s>*`-]*verdict: merged ([0-9a-f]{7,40})\b/mu.exec(
+    message,
+  )?.[1];
   if (sha === undefined) return false;
   const named = loadContract(root).contract?.base ?? 'main';
   const onBase = () =>
@@ -880,8 +883,13 @@ export function judgeStop(
     const { contract, error } = loadContract(root);
     if (error || !base(root, contract)) return undefined;
   }
-  return `Stop refused: ${outcome.reason}`;
+  const shipped = subagent ? `\n${SHIPPED_HINT}` : '';
+  return `Stop refused: ${outcome.reason}${shipped}`;
 }
+
+/** A lane subagent refused at the end is told how a merged ship ends it (t-310mwdm). */
+export const SHIPPED_HINT =
+  'If `krn pr ship` merged your PR, end with its exact line `verdict: merged <sha>`.';
 
 /**
  * The Stop hook on raw stdin: exit 2 with the refusal on stderr, or 0. A crash refuses (Claude Code reads
