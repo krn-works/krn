@@ -7,6 +7,7 @@ import {
   gradedRow,
   outsideBranch,
   parseOptions,
+  seedTask,
 } from '../../scripts/outside-acceptance.ts';
 
 test('only outside/<stack> branches can be named, so a cleanup never touches another branch', () => {
@@ -15,10 +16,10 @@ test('only outside/<stack> branches can be named, so a cleanup never touches ano
     assert.throws(() => outsideBranch(bad), /bad stack name/u);
 });
 
-test('options default to the three stacks, two tasks per drain, and reject unknown input', () => {
+test('options default to the three stacks, one task per drain, and reject unknown input', () => {
   const options = parseOptions([], '/repo');
   assert.deepEqual(options.stacks, ['php', 'npm', 'py']);
-  assert.equal(options.max, 2);
+  assert.equal(options.max, 1);
   // The drain's own 8h vault window: a bw serve session lasts 10h, so 24h can never pass doctor.
   assert.equal(options.windowHours, 8);
   assert.equal(parseOptions(['--window-hours', '3'], '/repo').windowHours, 3);
@@ -102,4 +103,16 @@ test('a row is graded all merged only for exit 0 with every PR merged', () => {
     }),
     /\| not run \| none \| 0 \| \$0\.00 \| push failed$/u,
   );
+});
+
+test('the seeded task is a priority-0 open task whose acceptance is the stack test command', () => {
+  const seed = seedTask('php', 'php tests/run.php', '2026-11-15');
+  const task = JSON.parse(seed.text) as Record<string, unknown>;
+  assert.equal(seed.file, `tasks/${String(task.id)}.json`);
+  assert.match(String(task.id), /^t-[0-9a-z]{7}$/u);
+  assert.equal(task.priority, 0);
+  assert.equal(task.status, 'open');
+  assert.deepEqual(task.acceptance, [
+    { verify: 'php tests/run.php', passes: false, exit: null },
+  ]);
 });

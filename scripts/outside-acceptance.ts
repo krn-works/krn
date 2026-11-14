@@ -5,6 +5,7 @@ import {
   mkdirSync,
   readFileSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -41,7 +42,7 @@ export function parseOptions(
   const options: RunOptions = {
     stacks: [],
     scratch,
-    max: 2,
+    max: 1,
     windowHours: 8,
     summary: join(root, '.krn/runs/outside/summary.txt'),
   };
@@ -172,6 +173,44 @@ export function gradedRow(input: RowInput): string {
   return input.note === undefined ? row : `${row} | ${input.note}`;
 }
 
+/**
+ * The one real small task each drain delivers. Adopt seeds only gap tasks at priority 1 and 2, which
+ * ask for CI workflows and settings an outside base cannot take, so the drain needs its own at priority 0.
+ */
+export function seedTask(
+  stack: string,
+  test: string | undefined,
+  created: string,
+): { file: string; text: string } {
+  const id = `t-${Math.abs(
+    [...`${stack}${created}`].reduce(
+      (hash, char) => (hash * 31 + char.charCodeAt(0)) | 0,
+      7,
+    ),
+  )
+    .toString(36)
+    .padStart(7, '0')
+    .slice(0, 7)}`;
+  const verify = test ?? 'true';
+  const task = {
+    id,
+    status: 'open',
+    resolution: null,
+    created,
+    priority: 0,
+    title: `Add a focused ${stack} test for one untested function`,
+    after: [] as string[],
+    body: [
+      `Add one focused test for one untested public function (the smallest one); keep \`${verify}\` green. No other change.`,
+    ],
+    acceptance: [{ verify, passes: false, exit: null }],
+  };
+  return {
+    file: `tasks/${id}.json`,
+    text: `${JSON.stringify(task, null, 2)}\n`,
+  };
+}
+
 const run = (
   command: string,
   args: string[],
@@ -245,6 +284,12 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
         `## ${name}\n${text}\n`,
       );
     keep('adopt', adopt.output);
+    const seed = seedTask(
+      stack,
+      config.test,
+      new Date().toISOString().slice(0, 10),
+    );
+    writeFileSync(join(dir, seed.file), seed.text);
     git(['add', '-A']);
     git(['commit', '--quiet', '-m', 'chore: adopt krn']);
     git(['push', 'origin', branch]);
@@ -297,6 +342,8 @@ if (import.meta.main) {
     console.log(row);
     if (/\| 0 \| [^|]*\(all merged\)/u.test(row) === false) failed += 1;
   }
-  rmSync(join(options.scratch, 'runs'), { recursive: true, force: true });
+  // A red row keeps its clone: the session transcript and lane logs there are the evidence.
+  if (failed === 0)
+    rmSync(join(options.scratch, 'runs'), { recursive: true, force: true });
   process.exit(failed === 0 ? 0 : 1);
 }
