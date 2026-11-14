@@ -12,6 +12,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
+import { homedir } from 'node:os';
 import { basename, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CliUsageError } from '../cli/usage-error.ts';
@@ -20,6 +21,7 @@ import {
   contractTracker,
   detectStack,
 } from '../repo/contract.ts';
+import { globalDrift, installGlobal } from './global-standards.ts';
 import {
   formatProposal,
   harvestCandidates,
@@ -49,7 +51,7 @@ import {
 } from './standards.ts';
 
 export const usage =
-  'usage: krn standards check [--root DIR] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [REPO...] [--root DIR]';
+  'usage: krn standards check [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [REPO...] [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -440,9 +442,37 @@ function harvestCommand(rest: readonly string[]): void {
     process.stdout.write(`${line}\n`);
 }
 
+function installCommand(rest: readonly string[]): void {
+  const flagSet = new Set(rest);
+  if (
+    !flagSet.has('--global') ||
+    rest.some((f) => f !== '--global' && f !== '--check') ||
+    flagSet.size !== rest.length
+  )
+    throw new CliUsageError(usage);
+  const asOf = new Date().toISOString().slice(0, 10);
+  const home = homedir();
+  if (flagSet.has('--check')) {
+    const drift = globalDrift(home, productRoot, asOf);
+    for (const line of drift) process.stderr.write(`${line}\n`);
+    process.stdout.write(
+      drift.length === 0
+        ? 'PASS global standards\n'
+        : `FAIL global standards: ${drift.length} drift\n`,
+    );
+    process.exitCode = drift.length === 0 ? 0 : 1;
+    return;
+  }
+  const changed = installGlobal(home, productRoot, asOf);
+  process.stdout.write(
+    `global standards: ${changed.length === 0 ? 'unchanged' : `wrote ${changed.join(', ')}`}\n`,
+  );
+}
+
 export function standardsCommand(args: string[]): void {
   const [verb, ...rest] = args;
   if (verb === 'check') checkCommand(rest);
+  else if (verb === 'install') installCommand(rest);
   else if (verb === 'propose') proposeCommand(rest);
   else if (verb === 'harvest') harvestCommand(rest);
   else throw new CliUsageError(usage);

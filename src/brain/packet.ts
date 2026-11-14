@@ -13,6 +13,8 @@ export type BrainRecord = {
   readonly source: string;
   /** Who the record addresses: `lead` keeps it out of the lane packet a worker receives; absent means everyone. */
   readonly audience?: Audience;
+  /** True only for a rule that holds in any repository and any stack; `krn standards install --global` writes exactly these. */
+  readonly universal?: true;
 };
 
 export type Audience = 'lead' | 'worker';
@@ -55,15 +57,17 @@ export function parseRecords(value: unknown): BrainRecord[] {
     if (typeof item !== 'object' || item === null || Array.isArray(item))
       throw new BrainDataError(`${where}: expected an object`);
     const keys = Object.keys(item)
-      .filter((key) => key !== 'audience')
+      .filter((key) => key !== 'audience' && key !== 'universal')
       .sort();
     if (keys.join() !== [...FIELDS].sort().join())
       throw new BrainDataError(
-        `${where}: fields must be exactly ${FIELDS.join(', ')} and an optional audience`,
+        `${where}: fields must be exactly ${FIELDS.join(', ')} and optional audience and universal`,
       );
     const r = item as Record<string, unknown>;
     if ('audience' in r && r.audience !== 'lead' && r.audience !== 'worker')
       throw new BrainDataError(`${where}.audience: expected lead or worker`);
+    if ('universal' in r && r.universal !== true)
+      throw new BrainDataError(`${where}.universal: expected true`);
     for (const field of ['id', 'type', 'text', 'source'] as const)
       if (typeof r[field] !== 'string' || r[field] === '')
         throw new BrainDataError(`${where}.${field}: expected text`);

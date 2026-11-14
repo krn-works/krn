@@ -22,6 +22,7 @@ src/adopt/canary.ts: The adoption canary: proves the Stop gate works in the adop
 src/adopt/conventions.ts: Seeds a repository's conventions file from its own instruction files, so the lane packet is no
 src/adopt/stop-hook.ts: The hook command `krn adopt` installs for `krn hook <name>`. Claude Code treats any exit other t
 src/adopt/verify.ts: `krn adopt <path> --verify`: a read-only report of the repository settings adoption relies on.
+src/brain/global-standards.ts: The user-level standards file: the in-force records marked universal (they hold in any re
 src/brain/packet.ts: Deterministic brain packets (ADR 0002 records, ADR 0014 D32 shadow packets): select the records val
 src/brain/precedent.ts: Precedent for a lane brief: what the repository's own history asserted about the modules the bri
 src/brain/proposals.ts: Standards proposals: a lesson an adopted repository's retro writes as one tracked file under .ag
