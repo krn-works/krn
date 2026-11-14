@@ -1,0 +1,12 @@
+{
+  "id": "t-hqr12hp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "Subagent model routing honours agent frontmatter and explicit model overrides",
+  "after": [],
+  "body": [
+    "Why: Fable audit 1114f (.krn/runs/overnight/fable-audit-1114f.md) fix 3: krn-reader pinned haiku ran Sonnet 39/55 (env CLAUDE_CODE_SUBAGENT_MODEL beats frontmatter); scripts/claude/subagent-model.ts:31 reroutes general-purpose to krn-lane before checking model (6 Fable runs landed in the lane prompt).\nOutcome: the hook fills model from the agent frontmatter when the call has none; a call with an explicit model is not rerouted.\nProof: unit tests on captured PreToolUse Agent payloads."
+  ]
+}

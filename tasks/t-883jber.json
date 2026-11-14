@@ -1,0 +1,12 @@
+{
+  "id": "t-883jber",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Steering facts are declared once and a test fails when any surface contradicts them; contradictions 1-6 are edited out",
+  "after": [],
+  "body": [
+    "Why: Fable audit 1114f (.krn/runs/overnight/fable-audit-1114f.md) fixes 1, 4, 5: six contradictions across AGENTS.md (spec/rules.json), lanes.md, lead-rules.md, repository-workflow.md, krn-lead and krn-handoff skills, memory no-gates-just-code (the #833 class).\nOutcome: spec/steering-facts.json (lane definition, lane tracker verbs, merge command pr ship, fast cadence, handoff with lanes running: stop new lanes, drain, hand off; unattended: park decisions as tasks/decide rows and launch successor) checked by test/rules/steering-consistency.test.ts over every surface; surfaces edited to agree.\nProof: the test is red on today's lanes.md:7 and lead-rules.md:39 and green after the edits."
+  ]
+}

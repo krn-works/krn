@@ -1,0 +1,12 @@
+{
+  "id": "t-fcsztvw",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "An unattended lead that dies on quota or an API error is restarted, and successor launch runs the unattended doctor first",
+  "after": [],
+  "body": [
+    "Why: Fable audit 1114f (.krn/runs/overnight/fable-audit-1114f.md) missing: no watchdog, no StopFailure hook, quota rule is prose (goal.md:18); krn doctor unattended is in no steering.\nOutcome: a StopFailure/watchdog path relaunches a successor from the newest handoff (switching cswap account when 5h > 85%); successor-launch refuses an unattended launch when doctor --unattended fails.\nProof: launcher test: failed doctor exits non-zero; watchdog test with a captured StopFailure payload."
+  ]
+}
