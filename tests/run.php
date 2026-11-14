@@ -382,4 +382,9 @@ expect( null === asl_turnstile_failure_reason(), 'enabled Turnstile accepts a ve
 $GLOBALS['asl_test_remote_response'] = array( 'code' => 200, 'body' => '{"success":false}' );
 expect( 'turnstile' === asl_turnstile_failure_reason(), 'Turnstile rejects an unsuccessful verification response' );
 
+$decision_settings = array( 'threshold_soft' => 30, 'threshold_block' => 70 );
+expect( 'allow' === asl_risk_decision( 29, $decision_settings ), 'score below soft threshold is allowed' );
+expect( 'moderate' === asl_risk_decision( 30, $decision_settings ), 'soft threshold moderates' );
+expect( 'block' === asl_risk_decision( 70, $decision_settings ), 'block threshold blocks' );
+
 echo "OK: focused anti-spam contracts passed\n";

@@ -1,7 +1,11 @@
 {
   "id": "t-04ewf92",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test asl_risk_decision thresholds"
+  },
   "created": "2026-11-14",
   "priority": 0,
   "title": "Add a focused php test for one untested function",
@@ -12,8 +16,8 @@
   "acceptance": [
     {
       "verify": "php tests/run.php",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }
