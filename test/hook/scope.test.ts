@@ -229,3 +229,26 @@ test('a task id stands alone in a branch or path, so a slug that spells t- plus 
   assert.equal(taskId('fix-t-abc1234'), 't-abc1234');
   assert.equal(taskId('/repo/.krn/worktrees/t-abc1234'), 't-abc1234');
 });
+
+test('a krn-lane subagent in the lead environment is refused a tracker write by payload agent_type (verbatim capture shape)', () => {
+  const lead = { CLAUDE_PROJECT_DIR: root };
+  const sub = {
+    ...write(`${root}/tasks/x.json`),
+    agent_id: 'a1b2c3',
+    agent_type: 'krn-lane',
+  };
+  assert.match(decide(sub, lead) ?? '', /^Refused: tasks\/x\.json/u);
+  assert.equal(decide(write(`${root}/tasks/x.json`), lead), undefined);
+  assert.equal(
+    decide({ ...sub, agent_type: 'Explore' }, lead),
+    undefined,
+    'other agent types are not workers',
+  );
+  const run = spawnSync('node', [hook], {
+    input: JSON.stringify(sub),
+    encoding: 'utf8',
+    env: { ...process.env, CLAUDE_PROJECT_DIR: root },
+  });
+  assert.equal(run.status, 2);
+  assert.match(run.stderr, /Refused: tasks\/x\.json/u);
+});

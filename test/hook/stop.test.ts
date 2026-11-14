@@ -1166,3 +1166,18 @@ test('a failing related test that passes on one rerun is flaky, one that fails a
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a krn-lane subagent payload is held to the Stop check in the lead environment, at its own cwd', () => {
+  const dir = clone();
+  try {
+    const leadEnv = { CLAUDE_PROJECT_DIR: '/somewhere/else' };
+    const sub = { ...payload(dir), agent_id: 'a1', agent_type: 'krn-lane' };
+    assert.match(judgeStop(sub, leadEnv, () => []) ?? '', /no commit/u);
+    assert.equal(
+      judgeStop(payload(dir), leadEnv, () => []),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
