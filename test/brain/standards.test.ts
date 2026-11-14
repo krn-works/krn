@@ -6,7 +6,6 @@ import {
   appliesTo,
   BLOCK_END,
   BLOCK_START,
-  briefStandards,
   checkStandards,
   type Enforce,
   formatStandards,
@@ -392,31 +391,6 @@ test('the standards block renders statement and enforcement and is replaced in p
   assert.equal(replaced, `# Project\n\nOwn text.\n\n${shorter}Tail.\n`);
   assert.equal(replaced.split(BLOCK_START).length, 2);
   assert.equal(upsertStandardsBlock('', block), block);
-});
-
-test('briefStandards lists in-force worker standards and marks the inherited ones', () => {
-  const records: Standard[] = [
-    { ...parsed({ id: 's-inherited' }), origin: INHERITED },
-    parsed({ id: 's-own', text: 'A project rule.' }),
-    parsed({ id: 's-lead', audience: 'lead' }),
-    parsed({
-      id: 's-expired',
-      recorded_at: '2020-01-01',
-      valid_from: '2020-01-01',
-      valid_to: '2020-12-31',
-    }),
-  ];
-  const section = briefStandards(
-    records,
-    '2026-11-13',
-    '.agents/standards.json',
-  );
-  assert.deepEqual(section.split('\n'), [
-    'Repository standards (.agents/standards.json; `krn standards check` enforces the checked ones):',
-    '- [s-inherited] (inherited from krn) The repository tracks automated tests.',
-    '- [s-own] A project rule.',
-  ]);
-  assert.equal(briefStandards([records[2] as Standard], '2026-11-13', 'f'), '');
 });
 
 test('a harvested record keeps its origins and parses only with a consistent occurrence count', () => {

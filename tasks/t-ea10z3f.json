@@ -1,7 +1,11 @@
 {
   "id": "t-ea10z3f",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "One 600-token packet ranked by match x tier replaces briefStandards; command/krn-enforced and adopt/lead records omitted; tests in worker-packet.test.ts. FR-40 paid rerun and the schema migration (t-t5qsy59) remain."
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "One budgeted lane packet ranked by match and effect replaces the unbudgeted briefStandards block",

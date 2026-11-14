@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { parseRecords } from '../../src/brain/packet.ts';
 import {
+  LANE_BUDGET,
   lanePacket,
   packetBrief,
   workerRecords,
@@ -25,8 +26,8 @@ const brief =
 test('the lane brief starts with the packet and keeps the lead brief intact', () => {
   const packet = lanePacket(repo, brief, '2026-11-08', 'lane');
   assert.ok(packet !== null && packet.records.length > 0);
-  // The lane packet stays within the measured 400-token budget.
-  assert.equal(packet.budget, 400);
+  // The lane packet stays within the 600-token lane budget.
+  assert.equal(packet.budget, LANE_BUDGET);
   assert.ok(packet.tokens <= packet.budget, `${packet.tokens} tokens`);
   assert.ok(
     packet.records.every((id) => id.startsWith('r-')),
@@ -188,4 +189,58 @@ test('an audience other than lead or worker is refused', () => {
     () => parseRecords([{ ...row('r-x', 'x', null), audience: 'everyone' }]),
     /audience: Invalid option/u,
   );
+});
+
+const standardRow = (id: string, text: string, extra: object) => ({
+  id,
+  area: 'tests',
+  layer: 'universal',
+  audience: 'worker',
+  tier: 'reflex',
+  text,
+  why: 'Because.',
+  evidence: ['AGENTS.md'],
+  enforcement: { kind: 'advisory' },
+  applies: { stacks: [], needs: [] },
+  recorded_at: '2026-01-01',
+  valid_from: '2026-01-01',
+  valid_to: null,
+  ...extra,
+});
+
+test('one packet carries conventions and project standards, omits command-enforced ones and ranks by match times tier', (t) => {
+  const root = conventionsRepo(t, [
+    row('r-conv', 'Format the parser with biome.', null),
+  ]);
+  mkdirSync(join(root, '.agents'));
+  writeFileSync(
+    join(root, '.agents/standards.json'),
+    JSON.stringify([
+      standardRow('s-floor', 'Format the parser output.', { tier: 'floor' }),
+      standardRow('s-finish', 'Format the parser output.', { tier: 'finish' }),
+      standardRow('s-cmd', 'Format the parser with a command.', {
+        enforcement: { kind: 'command', run: 'true' },
+      }),
+      standardRow('s-adopt', 'Format the parser at adoption.', {
+        audience: 'adopt',
+      }),
+    ]),
+  );
+  const packet = lanePacket(root, 'format the parser', '2026-11-13', 'u');
+  assert.equal(packet?.budget, LANE_BUDGET);
+  assert.deepEqual(packet?.records, ['s-floor', 'r-conv', 's-finish']);
+});
+
+test('the lane packet never exceeds its budget', (t) => {
+  const rows = Array.from({ length: 60 }, (_, i) =>
+    row(
+      `r-${i}`,
+      `Format the parser with biome rule number ${i} ${'x'.repeat(60)}.`,
+      null,
+    ),
+  );
+  const root = conventionsRepo(t, rows);
+  const packet = lanePacket(root, 'format the parser', '2026-11-13', 'u');
+  assert.ok((packet?.tokens ?? 0) <= LANE_BUDGET);
+  assert.ok((packet?.records.length ?? 0) > 10);
 });
