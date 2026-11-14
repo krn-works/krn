@@ -18,6 +18,10 @@ import {
   transcriptFiles,
   transcriptLines,
 } from '../harness/transcripts.ts';
+import {
+  REQUIRED_CHECK_APP_ID,
+  REQUIRED_CHECK_NAME,
+} from '../repo/ci-admission-contract.ts';
 import { sessionMarkers } from './holdings.ts';
 import {
   addedLines,
@@ -318,7 +322,11 @@ export function gateTotals(responses: unknown[]) {
   const groups = responses.map((r) =>
     array(object(r).check_runs)
       .map(object)
-      .filter((c) => c.name === 'Check' && object(c.app).id === 15368),
+      .filter(
+        (c) =>
+          c.name === REQUIRED_CHECK_NAME &&
+          object(c.app).id === REQUIRED_CHECK_APP_ID,
+      ),
   );
   const runs = groups.flat();
   return {
