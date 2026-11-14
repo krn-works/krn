@@ -1,4 +1,4 @@
-// The empty read-only files the harness sandbox mounts over write-denied paths. A lane session
+// Sandbox placeholders (.mcp.json and other empty read-only files) the harness sandbox mounts over write-denied paths. A lane session
 // can leave them in the main checkout and its git dir; they are never work.
 import { lstatSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';

@@ -13,6 +13,7 @@ import {
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { check as checkBoundaries } from './boundaries.ts';
+import { writeIndex } from './claude/capability-index.ts';
 import { testCeilingArguments } from './lib/test-timeout.ts';
 
 const LINTABLE = /\.(?:ts|mts|cts|js|mjs|cjs|json|jsonc|css)$/u;
@@ -387,6 +388,8 @@ export async function main(root: string, argv: string[] = []): Promise<number> {
     process.stderr.write(`fast: ${parsed.error}\n`);
     return 64;
   }
+  // The capability index is generated from src; rewriting it first makes it part of the diff.
+  if (existsSync(join(root, 'src'))) writeIndex(root);
   let changed: string[];
   let removed: string[];
   let surviving: Set<string>;

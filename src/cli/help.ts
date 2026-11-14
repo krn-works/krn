@@ -20,6 +20,11 @@ const usage: Readonly<Record<string, string>> = {
   pr: 'krn pr ship --title TITLE --body-file PATH [--repo OWNER/REPO] [--force]  in a branch worktree: push, create the PR, enable auto-merge, wait through the merge, remove the worktree and branch; one verdict line; `krn pr body --task ID [--verified TEXT] [--refs] [--out PATH]` generates the body from the task record and commits',
 };
 
+/** One `krn <command> ...  <description>` line per owned command, for the capability index. */
+export function commandLines(): string[] {
+  return Object.values(usage);
+}
+
 export function commandHelp(args: string[]): string | undefined {
   const [command, ...rest] = args;
   if (command === undefined) return undefined;

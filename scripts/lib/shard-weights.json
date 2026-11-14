@@ -19,6 +19,7 @@
     "test/ci/test-summary-policy.test.mjs": 0.5,
     "test/ci/ship.test.ts": 0.1,
     "test/ci/wait.test.ts": 0.1,
+    "test/claude/capability-index.test.ts": 0.5,
     "test/claude/capture-fixture.test.ts": 0.1,
     "test/claude/cc-clearing-watch.test.ts": 1,
     "test/claude/context-gauge.test.ts": 1.9,
