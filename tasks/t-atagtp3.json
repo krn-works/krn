@@ -1,7 +1,11 @@
 {
   "id": "t-atagtp3",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt --verify reads repo and default branch via gh, exit 1 naming gaps; tested on verbatim captures"
+  },
   "created": "2026-11-13",
   "priority": 3,
   "title": "krn adopt --verify reports the required check and auto-merge state of the repository",
