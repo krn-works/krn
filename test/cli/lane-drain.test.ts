@@ -33,7 +33,7 @@ const request = (max: number) => ({
   root: process.cwd(),
 });
 
-test('drain runs ready tasks serially in queue order and prints one line each', async () => {
+test('drain runs ready tasks serially in queue order and prints a summary line and the verdict line of each', async () => {
   const { seams: s, ran } = seams(['t-a', 't-b', 't-c'], {});
   const result = await drainReady(request(3), s);
   assert.deepEqual(
@@ -43,8 +43,11 @@ test('drain runs ready tasks serially in queue order and prints one line each', 
   assert.deepEqual(ran[0]?.args, ['--actor', 'a']);
   assert.deepEqual(result.lines, [
     't-a t-a exit=0 5s',
+    't-a',
     't-b t-b exit=0 5s',
+    't-b',
     't-c t-c exit=0 5s',
+    't-c',
   ]);
   assert.equal(result.exitCode, 0);
 });
