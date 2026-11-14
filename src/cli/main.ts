@@ -44,6 +44,7 @@ export function main(args = process.argv.slice(2)): void {
       'state',
       'lane',
       'decide',
+      'findings',
       'adopt',
       'plan',
       'repo',
