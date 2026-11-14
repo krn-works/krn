@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 import { shipCommand } from '../../src/ci/ship.ts';
 import { CommandFailure } from '../../src/deliver/transport.ts';
@@ -29,6 +32,7 @@ function receiver(options: {
   rule?: { code: number; stderr: string };
   diff?: string;
   carrier?: string;
+  proofExit?: number;
 }) {
   let time = 0;
   const calls: string[] = [];
@@ -84,6 +88,8 @@ function receiver(options: {
       assert.equal(line0(a), '--test test/rules/instruction-bytes.test.ts');
       return { code: 0, stdout: '', stderr: '', ...options.rule };
     }
+    if (command === 'sh')
+      return { code: options.proofExit ?? 0, stdout: '', stderr: 'proof out' };
     if (command === 'bash') return out(`commit=${merge}\n`);
     const line = a.join(' ');
     if (line === 'rev-parse --abbrev-ref HEAD')
@@ -409,3 +415,51 @@ test('an adopted repository without the instruction-bytes rule ships without run
   assert.ok(!r.calls.some((c) => c.startsWith('node --test')));
   assert.ok(r.calls.some((c) => c.includes('push')));
 });
+
+test('ship runs the task Proof commands, records command and exit in the PR body', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ship-proof-'));
+  const file = join(dir, 'body.md');
+  writeFileSync(file, '## Problem\n\nx\n');
+  const r = receiver({ pulls: [auto, merged] });
+  let published = '';
+  const out = await shipCommand(
+    ['--title', title, '--body-file', file, '--repo', 'o/r'],
+    {
+      ...r,
+      proofOf: () => ['node --test test/x.test.ts'],
+      publish: (_cwd, text) => {
+        published = text;
+        return '/r/published.md';
+      },
+    },
+  );
+  assert.match(out, /^verdict: merged /mu);
+  assert.ok(r.calls.includes('sh -c node --test test/x.test.ts'));
+  assert.match(published, /^## Problem/mu);
+  assert.match(published, /^- `node --test test\/x\.test\.ts`: exit 0$/mu);
+  assert.ok(
+    r.calls.some((c) => c.includes('--body-file /r/published.md')),
+    'the PR is created from the augmented body',
+  );
+});
+
+for (const force of [false, true]) {
+  test(`ship refuses with exit 81 before the push when a Proof command fails (force=${force})`, async () => {
+    const r = receiver({ pulls: [auto, merged], proofExit: 3 });
+    await assert.rejects(
+      shipCommand([...args, ...(force ? ['--force'] : [])], {
+        ...r,
+        proofOf: () => ['npm run fast'],
+      }),
+      (error: Failure) => {
+        assert.equal(error.exitCode, 81);
+        assert.match(error.message, /Proof command `npm run fast` exited 3/u);
+        return true;
+      },
+    );
+    assert.equal(
+      r.calls.some((c) => c.startsWith('push')),
+      false,
+    );
+  });
+}

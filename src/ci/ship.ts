@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import {
@@ -14,7 +14,7 @@ import { gitLockError } from './git-lock.ts';
 import { waitCommand } from './wait.ts';
 
 export const shipUsage =
-  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh or cleanup still exits 0 with a warning); a rerun after the merge only cleans up; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 75 timeout, 76 conflict, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
+  'Usage: krn pr ship --title <type(scope): outcome (t-id)> --body-file <path> [--repo <owner/repo>] [--force] [--worktree <path>] [--base <branch>]; the PR targets --base, else the repo contract base; run from the repository root with --worktree (or inside the branch worktree, which leaves the shell in a removed directory): pushes the branch, creates (or reuses) the PR, enables squash auto-merge, waits through the merge, then removes the worktree and branch; prints the `krn ci wait` lines; exits 0 only when the PR merged (a merged PR with a failed pinned-entry refresh or cleanup still exits 0 with a warning); a rerun after the merge only cleans up; otherwise 65 instruction-bytes rule failed before the push, 66 empty diff against the base, 74 failed gate, 81 a task Proof command exited non-zero before the push (--force does not bypass it), 75 timeout, 76 conflict, 77 head moved, 78 auto-merge not enabled, 79 PR closed unmerged, 80 still open and blocked, 64 usage or refused title';
 
 /** Exit codes for a ship whose wait ended without a merge. */
 const unmergedExitCodes = [
@@ -42,6 +42,10 @@ export async function shipCommand(
     baseOf?: (cwd: string) => string;
     /** Whether `path` exists under `cwd`; the default reads the file system. */
     hasFile?: (cwd: string, path: string) => boolean;
+    /** The runnable Proof commands of the task the title names, read from the worktree; the cli supplies it. */
+    proofOf?: (cwd: string, title: string) => string[];
+    /** The PR body to publish: `text` is the body file plus the proof record; the default writes it under .krn/tmp of `cwd`. */
+    publish?: (cwd: string, text: string) => string;
   } = {},
 ): Promise<string> {
   let values: ReturnType<typeof parse>;
@@ -181,6 +185,26 @@ export async function shipCommand(
       { exitCode: 65 },
     );
 
+  const proofs = (runtime.proofOf ?? (() => []))(cwd, title).map((command) => ({
+    command,
+    result: runner('sh', ['-c', command], cwd),
+  }));
+  const failedProof = proofs.find(({ result }) => result.code !== 0);
+  if (failedProof !== undefined)
+    throw Object.assign(
+      new Error(
+        `refused push: Proof command \`${failedProof.command}\` exited ${failedProof.result.code}\n${(failedProof.result.stderr.trim() || failedProof.result.stdout.trim()).slice(-4000)}`,
+      ),
+      { exitCode: 81 },
+    );
+  const publishedBody =
+    proofs.length === 0
+      ? body
+      : (runtime.publish ?? publishBody)(
+          cwd,
+          `${readFileSync(body, 'utf8').trimEnd()}\n\n## Proof run\n\n${proofs.map(({ command, result }) => `- \`${command}\`: exit ${result.code}`).join('\n')}\n`,
+        );
+
   const pushed = runner(
     'git',
     // No -u: an upstream is a .git/config write, which a running lane's sandbox placeholder
@@ -228,7 +252,7 @@ export async function shipCommand(
         '--title',
         title,
         '--body-file',
-        body,
+        publishedBody,
       ]);
     } catch (error) {
       // A create retried after a timeout finds the PR its first attempt opened;
@@ -253,7 +277,7 @@ export async function shipCommand(
       '--title',
       title,
       '--body-file',
-      body,
+      publishedBody,
     ]);
   }
   await gh(['pr', 'merge', String(pr), '--repo', repo, '--auto', '--squash']);
@@ -285,6 +309,14 @@ export async function shipCommand(
   const exitCode =
     unmergedExitCodes.find(([verdict]) => verdict.test(waited))?.[1] ?? 74;
   throw Object.assign(new Error(lines.join('\n')), { exitCode });
+}
+
+function publishBody(cwd: string, text: string): string {
+  const dir = resolve(cwd, '.krn/tmp');
+  mkdirSync(dir, { recursive: true });
+  const file = resolve(dir, 'ship-body.md');
+  writeFileSync(file, text);
+  return file;
 }
 
 function parse(args: string[]) {

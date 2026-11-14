@@ -1,7 +1,11 @@
 {
   "id": "t-75r2egx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ship runs Proof commands, records exit, refuses 81"
+  },
   "created": "2026-11-13",
   "priority": 2,
   "title": "krn pr ship records the task Proof command and its exit in the PR body",
