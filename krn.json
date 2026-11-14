@@ -4,6 +4,6 @@
   "related": "node --test {files}",
   "fast": "npm run fast",
   "guard": "test/rules/ test/evals/fr40-freeze.test.ts",
-  "conventions": ".agents/conventions.json",
+  "conventions": ".agents/records.json",
   "tracker": "krn"
 }

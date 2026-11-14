@@ -1,6 +1,7 @@
 // Deterministic brain packets (ADR 0002 records, ADR 0014 D32 shadow packets): select the records
 // valid at an as-of date that best match a task's text, within a fixed token budget.
 import { createHash } from 'node:crypto';
+import { parseUnified, type UnifiedRecord } from './record.ts';
 
 /** ADR 0002 minimal record shape. Dates are ISO `YYYY-MM-DD`. */
 export type BrainRecord = {
@@ -15,6 +16,8 @@ export type BrainRecord = {
   readonly audience?: Audience;
   /** True only for a rule that holds in any repository and any stack; `krn standards install --global` writes exactly these. */
   readonly universal?: true;
+  /** Status `retired`: never enters a packet. */
+  readonly retired?: true;
 };
 
 export type Audience = 'lead' | 'worker';
@@ -36,59 +39,28 @@ class BrainDataError extends Error {
   readonly exitCode = 65;
 }
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/u;
-const FIELDS = [
-  'id',
-  'type',
-  'text',
-  'recorded_at',
-  'valid_from',
-  'valid_to',
-  'source',
-] as const;
-
-/** Rejects anything but a list of exact ADR 0002 records with unique ids and ordered dates. */
+/** Rejects anything but a list of records of the one schema (src/brain/record.ts) with unique ids and ordered dates; returns the packet view of each. */
 export function parseRecords(value: unknown): BrainRecord[] {
-  if (!Array.isArray(value))
-    throw new BrainDataError('records: expected a JSON array');
-  const seen = new Set<string>();
-  return value.map((item: unknown, index) => {
-    const where = `records[${index}]`;
-    if (typeof item !== 'object' || item === null || Array.isArray(item))
-      throw new BrainDataError(`${where}: expected an object`);
-    const keys = Object.keys(item)
-      .filter((key) => key !== 'audience' && key !== 'universal')
-      .sort();
-    if (keys.join() !== [...FIELDS].sort().join())
-      throw new BrainDataError(
-        `${where}: fields must be exactly ${FIELDS.join(', ')} and optional audience and universal`,
-      );
-    const r = item as Record<string, unknown>;
-    if ('audience' in r && r.audience !== 'lead' && r.audience !== 'worker')
-      throw new BrainDataError(`${where}.audience: expected lead or worker`);
-    if ('universal' in r && r.universal !== true)
-      throw new BrainDataError(`${where}.universal: expected true`);
-    for (const field of ['id', 'type', 'text', 'source'] as const)
-      if (typeof r[field] !== 'string' || r[field] === '')
-        throw new BrainDataError(`${where}.${field}: expected text`);
-    for (const field of ['recorded_at', 'valid_from'] as const)
-      if (typeof r[field] !== 'string' || !DATE.test(r[field]))
-        throw new BrainDataError(`${where}.${field}: expected YYYY-MM-DD`);
-    if (
-      r.valid_to !== null &&
-      (typeof r.valid_to !== 'string' || !DATE.test(r.valid_to))
-    )
-      throw new BrainDataError(
-        `${where}.valid_to: expected YYYY-MM-DD or null`,
-      );
-    const record = r as BrainRecord;
-    if (record.valid_to !== null && record.valid_to < record.valid_from)
-      throw new BrainDataError(`${where}: valid_to precedes valid_from`);
-    if (seen.has(record.id))
-      throw new BrainDataError(`${where}: duplicate id ${record.id}`);
-    seen.add(record.id);
-    return record;
-  });
+  let records: UnifiedRecord[];
+  try {
+    records = parseUnified(value);
+  } catch (error) {
+    throw new BrainDataError((error as Error).message);
+  }
+  return records.map((r) => ({
+    id: r.id,
+    type: r.type,
+    text: r.text,
+    recorded_at: r.recorded_at,
+    valid_from: r.valid_from,
+    valid_to: r.valid_to,
+    source: r.provenance.origin,
+    ...(r.audience === 'lead' || r.audience === 'worker'
+      ? { audience: r.audience }
+      : {}),
+    ...(r.universal === true ? { universal: true as const } : {}),
+    ...(r.status === 'retired' ? { retired: true as const } : {}),
+  }));
 }
 
 /** Token budget FR-40 measured for both arms; equality is checked by test/brain/packet.test.ts. */
@@ -116,6 +88,7 @@ function terms(text: string): Set<string> {
 /** Known at `asOf`: recorded on or before it and valid on it. */
 function known(record: BrainRecord, asOf: string): boolean {
   return (
+    record.retired !== true &&
     record.recorded_at <= asOf &&
     record.valid_from <= asOf &&
     (record.valid_to === null || record.valid_to >= asOf)

@@ -36,7 +36,10 @@ test('reviewed records have the ADR 0002 shape and predate the task base', () =>
 });
 
 test('parseRecords rejects extra fields, bad dates and duplicate ids', () => {
-  assert.throws(() => parseRecords([{ ...record({}), tags: [] }]), /exactly/u);
+  assert.throws(
+    () => parseRecords([{ ...record({}), tags: [] }]),
+    /Unrecognized key/u,
+  );
   assert.throws(
     () => parseRecords([record({ recorded_at: '2026/10/01' })]),
     /YYYY-MM-DD/u,

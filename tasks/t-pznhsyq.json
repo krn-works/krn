@@ -1,7 +1,11 @@
 {
   "id": "t-pznhsyq",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "One zod record schema (src/brain/record.ts); .agents/conventions.json migrated to .agents/records.json; packet reads it with identical digests; global file renders 18 universal records from pack+overlay within 2048 B; pack adapter validated by test. Pack file and briefStandards keep the Standard shape (follow-up)."
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "One standards record schema and store; the global standards file renders from the whole pack",
