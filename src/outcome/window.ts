@@ -43,6 +43,20 @@ const percentile = (values: number[], p: number): Value => {
     : (sorted[Math.max(0, Math.ceil(sorted.length * p) - 1)] ?? null);
 };
 const taskId = (title: string) => /\((t-[0-9a-z]{7})\)\s*$/.exec(title)?.[1];
+/**
+ * A PR is lane-authored when its body names a headless claude session (the
+ * `krn lane run` body) or its branch has a worktree transcript directory that
+ * holds a session launched as a lane. Everything else is the standing lead's.
+ */
+export function isLanePr(
+  pr: { body: string; branch: string },
+  laneDirs: ReadonlySet<string>,
+): boolean {
+  return (
+    /^Agent: headless claude session/m.test(pr.body) ||
+    laneDirs.has(pr.branch.replace(/[^a-zA-Z0-9]/g, '-'))
+  );
+}
 const usd = (v: number) => Math.round(v * 100) / 100;
 /**
  * A window is measured by the main checkout's code and data. A linked worktree
@@ -133,7 +147,7 @@ export async function collectWindow(options: WindowOptions) {
       '--search',
       `merged:>=${iso(from)}`,
       '--json',
-      'number,title,createdAt,mergedAt,headRefName,files',
+      'number,title,body,createdAt,mergedAt,headRefName,files',
     ])
   ).map(object);
   const rows = fetched
@@ -143,6 +157,7 @@ export async function collectWindow(options: WindowOptions) {
       created: time(p.createdAt),
       merged: time(p.mergedAt),
       branch: string(p.headRefName),
+      body: typeof p.body === 'string' ? p.body : '',
       files: array(p.files).map((f) => string(object(f).path)),
       frame: frameChanges(
         array(p.files).map((f) => ({
@@ -160,6 +175,7 @@ export async function collectWindow(options: WindowOptions) {
     created: number;
     merged: number;
     branch: string;
+    body: string;
     files: string[];
     frame: ReturnType<typeof frameChanges>;
   }[];
@@ -186,6 +202,7 @@ export async function collectWindow(options: WindowOptions) {
     ]),
   );
   let unpriced = 0;
+  const laneDirs = new Set<string>();
   const markers = await sessionMarkers(root);
   const book = (
     cls: string,
@@ -225,6 +242,8 @@ export async function collectWindow(options: WindowOptions) {
     );
     for (const s of found.lead) {
       const c = leads.get(s.id);
+      if (where === 'worktree' && c?.class === 'lane')
+        laneDirs.add(dir.slice(dir.indexOf('--krn-worktrees-') + 16));
       if (c)
         book(
           `${c.class === 'lane' ? 'lane' : 'lead'}:${where}`,
@@ -283,7 +302,7 @@ export async function collectWindow(options: WindowOptions) {
     });
     return own.reduce((n, r) => n + (number(r.attempt) ?? 1), 0);
   });
-  // Rework: a later fix PR (within 48 h) touching a same file, or a revert naming the title.
+  // Rework: a later fix PR (within 48 h and inside the window, so a closed window's count never changes) touching a same file, or a revert naming the title.
   const work = (f: string) => !f.startsWith('tasks/');
   const reworked = inWindow.filter((p) => {
     const mine = new Set(p.files.filter(work));
@@ -291,11 +310,14 @@ export async function collectWindow(options: WindowOptions) {
       (q) =>
         q.number !== p.number &&
         q.merged > p.merged &&
-        q.merged <= p.merged + 48 * 3600000 &&
+        q.merged <= Math.min(p.merged + 48 * 3600000, to) &&
         ((/^fix(\(|:|!)/i.test(q.title) && q.files.some((f) => mine.has(f))) ||
           (/^revert/i.test(q.title) && q.title.includes(p.title))),
     );
   });
+  const lanePrs = inWindow
+    .filter((p) => isLanePr(p, laneDirs))
+    .map((p) => p.number);
   // Main reds: failed CI runs on pushes to main.
   const reds = (
     await json([
@@ -361,7 +383,14 @@ export async function collectWindow(options: WindowOptions) {
       prsNeedingMore: attempts.filter((n) => n > 1).length,
       prsWithoutRun: attempts.filter((n) => n === 0).length,
     },
-    rework: { prs: reworked.map((p) => p.number) },
+    rework: {
+      prs: reworked.map((p) => p.number),
+      rate: inWindow.length ? reworked.length / inWindow.length : null,
+    },
+    authors: {
+      lane: lanePrs,
+      lead: inWindow.map((p) => p.number).filter((n) => !lanePrs.includes(n)),
+    },
     frame: inWindow
       .filter((p) => p.frame.length > 0)
       .map((p) => ({ pr: p.number, changes: p.frame })),
@@ -463,7 +492,7 @@ export function renderWindow(r: Awaited<ReturnType<typeof collectWindow>>) {
     `tasks ${r.tasks.count}, with >1 PR ${r.tasks.withMorePrs}, PRs without task id ${r.tasks.prsWithoutTask}`,
     `lead time created->merged min: median ${r.leadTimeMinutes.median ?? 'unknown'}, p90 ${r.leadTimeMinutes.p90 ?? 'unknown'}`,
     `Check attempts (CI runs incl. reruns on the PR branch): total ${r.checkAttempts.total}, PRs needing >1 ${r.checkAttempts.prsNeedingMore}, PRs with no run found ${r.checkAttempts.prsWithoutRun}`,
-    `rework within 48h: ${r.rework.prs.length} PRs${r.rework.prs.length ? ` (${r.rework.prs.map((p) => `#${p}`).join(' ')})` : ''}`,
+    `rework within 48h: ${r.rework.prs.length} of ${r.prs.length} PRs${r.rework.rate === null ? '' : ` (${(r.rework.rate * 100).toFixed(0)}%)`}; lane PRs ${r.authors.lane.length}, lead PRs ${r.authors.lead.length}${r.rework.prs.length ? ` (${r.rework.prs.map((p) => `#${p}`).join(' ')})` : ''}`,
     `frame PRs (gate producers and task check code): ${r.frame.length}${r.frame.length ? ` (${r.frame.map((p) => `#${p.pr} ${p.changes.map((c) => `${c.path} ${c.class} ${c.lines}`).join(', ')}`).join('; ')})` : ''}`,
     `main reds: ${r.mainReds}`,
     `timing: github ${r.timingMs.github} ms, transcripts ${r.timingMs.transcript} ms`,

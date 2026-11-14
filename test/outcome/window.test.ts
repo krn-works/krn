@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { turnDollars, usageOf } from '../../src/outcome/slice-cost.ts';
 import {
   collectWindow,
+  isLanePr,
   nonDeliveryCeiling,
   renderWindow,
   windowHeadline,
@@ -345,4 +346,65 @@ test('the ceiling refuses a window whose non-delivery share is above it and pass
   const at = nonDeliveryCeiling(window(70, 30));
   assert.equal(at?.over, false);
   assert.equal(nonDeliveryCeiling(window(0, 0)), null);
+});
+
+test('the window reports the rework rate and the lane and lead PR split', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'window-rework-'));
+  try {
+    const pr = (
+      number: number,
+      title: string,
+      minute: number,
+      branch: string,
+      path: string,
+      body = '',
+    ) => ({
+      number,
+      title,
+      body,
+      createdAt: at(minute - 1),
+      mergedAt: at(minute),
+      headRefName: branch,
+      files: [{ path, additions: 1, deletions: 0 }],
+    });
+    const prs = [
+      pr(
+        1,
+        'feat: a (t-aaaaaaa)',
+        1,
+        'a',
+        'src/a.ts',
+        'Agent: headless claude session x',
+      ),
+      pr(2, 'feat: b (t-bbbbbbb)', 2, 'b', 'src/b.ts'),
+      pr(3, 'fix: a again (t-ccccccc)', 3, 'c', 'src/a.ts'),
+      // Outside the window: it does not count against #2.
+      pr(4, 'fix: b again (t-ddddddd)', 40, 'd', 'src/b.ts'),
+    ];
+    const run = (_cmd: string, args: string[]) =>
+      args[0] === 'pr' ? JSON.stringify(prs) : '[]';
+    const report = await collectWindow({
+      from: at(0),
+      to: at(30),
+      repo: 'o/r',
+      root: dir,
+      transcripts: dir,
+      run,
+    });
+    assert.deepEqual(report.rework.prs, [1]);
+    assert.equal(report.rework.rate, 1 / 3);
+    assert.deepEqual(report.authors, { lane: [1], lead: [2, 3] });
+    assert.match(
+      renderWindow(report),
+      /rework within 48h: 1 of 3 PRs \(33%\); lane PRs 1, lead PRs 2/,
+    );
+    assert.equal(isLanePr({ body: '', branch: 'x-y' }, new Set(['x-y'])), true);
+    assert.equal(isLanePr({ body: '', branch: 'x/y' }, new Set(['x-y'])), true);
+    assert.equal(
+      isLanePr({ body: 'Agent: Claude Sonnet', branch: 'z' }, new Set()),
+      false,
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
