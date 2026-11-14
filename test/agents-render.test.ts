@@ -111,3 +111,16 @@ test('--check rejects rule enforcement without an existing test', async () => {
     await rm(copy.directory, { recursive: true, force: true });
   }
 });
+
+test('the lead AGENTS.md drops test-owned worker prohibitions and rule tails', async () => {
+  const { loadRules, render } = await import('../src/repo/agents-render.ts');
+  const text = render(await loadRules(new URL('../', import.meta.url)));
+  for (const id of ['KRN-05', 'KRN-06', 'KRN-08'])
+    assert.doesNotMatch(text, new RegExp(`\\*\\*${id}\\*\\*`, 'u'));
+  assert.match(text, /\*\*KRN-11\*\*/u);
+  assert.doesNotMatch(text, /_\(owner:/u);
+  assert.ok(
+    Buffer.byteLength(text) <= 2400,
+    `${Buffer.byteLength(text)} bytes`,
+  );
+});

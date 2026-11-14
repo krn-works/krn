@@ -500,7 +500,7 @@
     "text": "Agent notes, plans, logs and scratch files go under the git-ignored `.krn/` directory, never into tracked files or the repository root.",
     "why": "Agent state is repository-local and must stay out of the tracked project inputs.",
     "evidence": [
-      "AGENTS.md#KRN-08",
+      "spec/rules.json#KRN-08",
       "docs/program/repository-workflow.md#.krn/runs/<owner>/"
     ],
     "enforcement": {

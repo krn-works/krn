@@ -1,0 +1,12 @@
+{
+  "id": "t-1gdxgx7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "The Stop hook laid into a clone without node_modules loads without a bare zod import",
+  "after": [],
+  "body": [
+    "Why: on main 24e7081 locally, test/evals/d23-harness.test.ts 'a replay clone with the harness laid over its parent refuses Stop with exit 2 while a related test is red' fails with ERR_MODULE_NOT_FOUND: Cannot find package 'zod' imported from <clone>/src/brain/record.ts. The Stop hook copied into a replay clone (no node_modules) now reaches src/brain/record.ts (added by t-pznhsyq, #840), which imports zod; CI stays green only because its checkout resolves zod differently. Any outside repository whose Stop hook loads KRN sources without node_modules breaks the same way.\nOutcome: the Stop hook path (src/hook/stop.ts and what it imports) loads in a directory without node_modules, or the harness lays a node_modules link the way test/agents-render.test.ts resolves it; the D23 harness test passes locally and in CI.\nProof: node --test test/evals/d23-harness.test.ts passes from the main checkout and from a lane worktree; a test asserts the Stop hook import graph has no bare package import or the harness provides it."
+  ]
+}
