@@ -25,23 +25,54 @@ const branchSchema = z.object({
     .optional(),
 });
 
+/** Active rules of a branch (`gh api repos/<repo>/rules/branches/<branch>`): rulesets, not classic protection. */
+const rulesSchema = z.array(
+  z.object({
+    type: z.string(),
+    parameters: z
+      .object({
+        required_status_checks: z
+          .array(
+            z.object({
+              context: z.string(),
+              integration_id: z.number().optional(),
+            }),
+          )
+          .optional(),
+      })
+      .passthrough()
+      .optional(),
+  }),
+);
+
 export interface VerifyReport {
   ok: boolean;
   gaps: string[];
 }
 
-/** Gaps in the answers of `gh api repos/<repo>` and `gh api repos/<repo>/branches/<default>`. */
-export function verifyGaps(repoBody: string, branchBody: string): string[] {
+/**
+ * Gaps in the answers of `gh api repos/<repo>`, `gh api repos/<repo>/branches/<default>` and
+ * `gh api repos/<repo>/rules/branches/<default>`: a required check counts from classic protection or a ruleset.
+ */
+export function verifyGaps(
+  repoBody: string,
+  branchBody: string,
+  rulesBody = '[]',
+): string[] {
   const repo = repoSchema.parse(JSON.parse(repoBody));
   const gaps: string[] = [];
   if (repo.allow_auto_merge !== true)
     gaps.push(
       'auto-merge is not allowed (repository setting allow_auto_merge)',
     );
-  const checks =
-    branchSchema.parse(JSON.parse(branchBody)).protection
-      ?.required_status_checks?.checks ?? [];
-  if (checks.filter((check) => check.app_id === ACTIONS_APP_ID).length !== 1)
+  const contexts = new Set<string>();
+  for (const check of branchSchema.parse(JSON.parse(branchBody)).protection
+    ?.required_status_checks?.checks ?? [])
+    if (check.app_id === ACTIONS_APP_ID) contexts.add(check.context);
+  for (const rule of rulesSchema.parse(JSON.parse(rulesBody)))
+    for (const check of rule.parameters?.required_status_checks ?? [])
+      if (check.integration_id === ACTIONS_APP_ID) contexts.add(check.context);
+  if (contexts.size !== 1)
     gaps.push(
       `branch ${repo.default_branch} has no single required status check from GitHub Actions`,
     );
@@ -64,10 +95,9 @@ function gh(root: string, path: string): string {
 /** Reads the repository of `root` through gh; changes no setting. */
 export function verifyRepository(root: string): VerifyReport {
   const repoBody = gh(root, 'repos/{owner}/{repo}');
-  const branchBody = gh(
-    root,
-    `repos/{owner}/{repo}/branches/${defaultBranch(repoBody)}`,
-  );
-  const gaps = verifyGaps(repoBody, branchBody);
+  const branch = defaultBranch(repoBody);
+  const branchBody = gh(root, `repos/{owner}/{repo}/branches/${branch}`);
+  const rulesBody = gh(root, `repos/{owner}/{repo}/rules/branches/${branch}`);
+  const gaps = verifyGaps(repoBody, branchBody, rulesBody);
   return { ok: gaps.length === 0, gaps };
 }

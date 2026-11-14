@@ -16,6 +16,8 @@ const fixture = (name: string) =>
 const repo = fixture('gh/repo-krn-works-krn.stdout.json');
 const protectedBranch = fixture('ci-admission/branch-protected.json');
 const unpinned = fixture('ci-admission/branch-unpinned.json');
+// The live krn-works/krn answers: Check is required by a ruleset, so classic protection is empty.
+const rulesetOnly = fixture('gh/rules-branches-main-krn-works-krn.stdout.json');
 const noAutoMerge = repo.replace(
   '"allow_auto_merge":true',
   '"allow_auto_merge":false',
@@ -36,13 +38,18 @@ test('a missing required check and disabled auto-merge are each named', () => {
   ]);
 });
 
-function verify(repoBody: string, branchBody: string) {
+test('a check required by a ruleset counts, as on krn-works/krn', () => {
+  assert.deepEqual(verifyGaps(repo, unpinned, rulesetOnly), []);
+});
+
+function verify(repoBody: string, branchBody: string, rulesBody = '[]') {
   const dir = mkdtempSync(join(tmpdir(), 'krn-verify-'));
   writeFileSync(join(dir, 'repo.json'), repoBody);
   writeFileSync(join(dir, 'branch.json'), branchBody);
+  writeFileSync(join(dir, 'rules.json'), rulesBody);
   writeFileSync(
     join(dir, 'gh'),
-    `#!/bin/sh\ncase "$2" in */branches/*) cat "${dir}/branch.json";; *) cat "${dir}/repo.json";; esac\n`,
+    `#!/bin/sh\ncase "$2" in */rules/branches/*) cat "${dir}/rules.json";; */branches/*) cat "${dir}/branch.json";; *) cat "${dir}/repo.json";; esac\n`,
   );
   chmodSync(join(dir, 'gh'), 0o755);
   return spawnSync(process.execPath, [cli, 'adopt', dir, '--verify'], {
@@ -58,4 +65,6 @@ test('adopt --verify exits 0 when set and 1 naming the gap otherwise', () => {
   assert.equal(bad.status, 1, bad.stderr);
   assert.match(bad.stdout, /verify gap: auto-merge is not allowed/u);
   assert.match(bad.stdout, /verify gap: branch main has no single required/u);
+  const ruleset = verify(repo, unpinned, rulesetOnly);
+  assert.equal(ruleset.status, 0, ruleset.stdout);
 });

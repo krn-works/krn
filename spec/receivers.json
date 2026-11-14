@@ -142,7 +142,8 @@
       "capture": [
         "test/fixtures/gh/repo-krn-works-krn.stdout.json",
         "test/fixtures/ci-admission/branch-protected.json",
-        "test/fixtures/ci-admission/branch-unpinned.json"
+        "test/fixtures/ci-admission/branch-unpinned.json",
+        "test/fixtures/gh/rules-branches-main-krn-works-krn.stdout.json"
       ],
       "test": "test/adopt/verify.test.ts"
     }
