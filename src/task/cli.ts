@@ -12,6 +12,7 @@ import {
   claimHolder,
   claimNext,
   claimTask,
+  closeRecordRoot,
   formatClaim,
   inspectClaim,
   mainCheckoutRoot,
@@ -490,7 +491,10 @@ function close(args: string[], json: boolean): CommandOutput {
   const resolution = parseResolution(resolutionArg, note ?? '');
   const cwdRoot = repositoryRoot();
   const taskId = requireId(id);
-  const root = taskRecordRoot(cwdRoot, taskId);
+  const root =
+    resolution.kind === 'done'
+      ? closeRecordRoot(cwdRoot, taskId)
+      : taskRecordRoot(cwdRoot, taskId);
   const record = closeTask(root, taskId, resolution);
   return result({ task: record }, `${record.id}\n`, json);
 }

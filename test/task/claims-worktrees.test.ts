@@ -351,3 +351,50 @@ test('a claim expires when the contract base, not main, closes the task', async 
     await rm(repo, { recursive: true, force: true });
   }
 });
+
+test('close --as done from the main checkout reads the lane record of an expired claim and refuses when that worktree is gone', async () => {
+  const repo = await fixtureRepo('close-expired-', [task('T-1'), task('T-2')]);
+  const linked = join(dirname(repo), 'close-expired-linked');
+  try {
+    addWorktree(repo, linked, 'close-expired-branch');
+    for (const id of ['T-1', 'T-2'])
+      assert.equal(
+        (await runCli(linked, ['claim', id, '--actor', 'worker'])).status,
+        0,
+      );
+    // Expire both claims: the branch they name no longer exists.
+    for (const id of ['T-1', 'T-2']) {
+      const path = join(repo, '.krn', 'task-claims', `${id}.json`);
+      const claim = JSON.parse(readFileSync(path, 'utf8'));
+      claim.branch = 'gone-branch';
+      await writeFile(path, `${JSON.stringify(claim, null, 2)}\n`);
+    }
+    const shown = JSON.parse(
+      (await runCli(repo, ['show', 'T-1', '--json'])).stdout,
+    );
+    assert.equal(shown.claim.state, 'expired');
+
+    const done = await runCli(repo, ['close', 'T-1', '--as', 'done']);
+    assert.equal(done.status, 0, done.stderr);
+    assert.match(
+      readFileSync(join(linked, 'tasks', 'T-1.json'), 'utf8'),
+      /"closed"/u,
+    );
+    assert.match(
+      readFileSync(join(repo, 'tasks', 'T-1.json'), 'utf8'),
+      /"open"/u,
+    );
+
+    removeWorktree(repo, linked);
+    const stale = await runCli(repo, ['close', 'T-2', '--as', 'done']);
+    assert.notEqual(stale.status, 0);
+    assert.match(stale.stderr, /stale/u);
+    assert.match(
+      readFileSync(join(repo, 'tasks', 'T-2.json'), 'utf8'),
+      /"open"/u,
+    );
+  } finally {
+    removeWorktree(repo, linked);
+    await rm(repo, { recursive: true, force: true });
+  }
+});

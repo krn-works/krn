@@ -316,17 +316,38 @@ describe('task claim locks', { concurrency: true }, () => {
   });
 });
 
+test('the production claim path ignores the retired lock-hold environment hook', async () => {
+  const repo = await fixtureRepo('claim-lock-env-', [task('T-1')]);
+  try {
+    const claimed = spawnSync(
+      process.execPath,
+      [cli, 'task', 'claim', 'T-1', '--actor', 'worker'],
+      {
+        cwd: repo,
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          NODE_ENV: 'test',
+          KRN_TASK_LOCK_HOLD_FD: '3',
+        },
+        stdio: ['ignore', 'pipe', 'pipe', 'pipe'],
+        timeout: 10_000,
+      },
+    );
+    assert.equal(claimed.status, 0, claimed.stderr);
+    assert.equal(inspectClaim(repo, 'T-1' as never).state, 'live');
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});
+
 function startLockHolder(root: string, id: string) {
   const child = spawn(
     process.execPath,
-    [cli, 'task', 'claim', id, '--actor', 'holder'],
+    [fileURLToPath(new URL('./lock-holder.ts', import.meta.url)), root, id],
     {
       cwd: root,
-      env: {
-        ...process.env,
-        NODE_ENV: 'test',
-        KRN_TASK_LOCK_HOLD_FD: '3',
-      },
+      env: { ...process.env, NODE_ENV: 'test' },
       stdio: ['ignore', 'pipe', 'pipe', 'pipe'],
     },
   );

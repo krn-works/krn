@@ -10,6 +10,7 @@ import {
   sleep,
 } from '../deliver/transport.ts';
 import { titleProblem } from './commit-title.ts';
+import { gitLockError } from './git-lock.ts';
 import { waitCommand } from './wait.ts';
 
 export const shipUsage =
@@ -22,8 +23,6 @@ const unmergedExitCodes = [
   [/^verdict: open\b/mu, 80],
 ] as const;
 
-/** Transient git refusals while a parallel lane holds a ref or index lock. */
-export const gitLockError = /cannot lock ref|Unable to create '[^']*\.lock'/u;
 const gitLockAttempts = 5;
 const instructionBytesRule = 'test/rules/instruction-bytes.test.ts';
 

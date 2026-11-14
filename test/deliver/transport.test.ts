@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { gitLockError } from '../../src/ci/git-lock.ts';
 
 const api = await import('../../src/deliver/transport.ts').catch(
   () => undefined,
@@ -98,4 +99,15 @@ test('GitHub bounds each call and retries a timed-out call as transient', async 
     return { code: 0, stdout: '', stderr: '' };
   });
   assert.deepEqual(logBounds, [api.GH_LOG_TIMEOUT_MS]);
+});
+
+test('gitLockError names every transient lock refusal a fetch or push prints', () => {
+  for (const stderr of [
+    "fatal: cannot lock ref 'refs/remotes/origin/main'",
+    "error: unable to update local ref 'refs/remotes/origin/main'",
+    "fatal: Unable to create '/r/.git/index.lock': File exists.",
+    "error: cannot open '/r/.git/refs/remotes/origin/main.lock': File exists",
+  ])
+    assert.match(stderr, gitLockError, stderr);
+  assert.doesNotMatch("fatal: couldn't find remote ref x", gitLockError);
 });

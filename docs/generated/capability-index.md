@@ -29,8 +29,9 @@ src/brain/standards-cli.ts: `krn standards check [--root DIR]`: run the enforcem
 src/brain/standards.ts: The standards pack (ADR 0002 records with enforcement): reviewed, dated delivery rules every ado
 src/brain/worker-packet.ts: Conventions packet for a lane brief (ADR 0002, FR-40 GO): the arm-B selection over the repos
 src/ci/commit-title.ts: A squash merge makes the pull request title the commit subject on main, so CI checks the title: 
+src/ci/git-lock.ts: Transient git refusals while another process holds a ref or index lock (parallel lanes, a concurrent
 src/ci/logs.ts: (no header) exports logsUsage, runAttemptArgs, attemptJobsArgs, jobLogArgs
-src/ci/ship.ts: (no header) exports shipUsage, gitLockError, shipCommand, pushRemedy
+src/ci/ship.ts: (no header) exports shipUsage, shipCommand, pushRemedy
 src/ci/wait.ts: (no header) exports stopExitCodes, ownsProductRelease, waitUsage, waitCommand
 src/cli/adopt.ts: `krn adopt <path>`: write the adoption set into a named repository.
 src/cli/ci.ts: (no header) exports ciCommand
