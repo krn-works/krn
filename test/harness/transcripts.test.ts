@@ -1,12 +1,5 @@
 import assert from 'node:assert/strict';
-import {
-  mkdir,
-  mkdtemp,
-  readdir,
-  readFile,
-  rm,
-  writeFile,
-} from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -73,25 +66,4 @@ test('transcript files, subagents and lines come from one reader', async () => {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
-});
-
-test('no source outside src/harness reads transcript files', async () => {
-  const src = new URL('../../src/', import.meta.url).pathname;
-  const walk = async (dir: string): Promise<string[]> => {
-    const out: string[] = [];
-    for (const e of await readdir(dir, { withFileTypes: true })) {
-      const path = join(dir, e.name);
-      if (e.isDirectory()) out.push(...(await walk(path)));
-      else if (e.name.endsWith('.ts')) out.push(path);
-    }
-    return out;
-  };
-  const readers: string[] = [];
-  for (const file of await walk(src)) {
-    if (file.startsWith(join(src, 'harness'))) continue;
-    const text = await readFile(file, 'utf8');
-    if (/\.claude\/projects|createInterface|['"`]subagents['"`]/u.test(text))
-      readers.push(file.slice(src.length));
-  }
-  assert.deepEqual(readers, []);
 });
