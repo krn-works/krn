@@ -114,6 +114,7 @@ src/harness/memory-directory.ts: (no header) expo
 src/harness/transcripts.ts: (no header) exports T
 src/hook/lead-file-read.ts: Lead file-read hook.
 src/hook/scope.ts: (no header) exports guarded, h
+src/hook/session-standards.ts: The standards bloc
 src/hook/session.ts: A worker session is one `krn
 src/hook/stash.ts: (no header) exports decide
 src/hook/stop.ts: (no header) exports failureLine

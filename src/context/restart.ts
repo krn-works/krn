@@ -5,6 +5,8 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { emitContext, hookInput } from '../harness/claude.ts';
 import { memoryDirectory } from '../harness/memory-directory.ts';
+import { isWorkerSession } from '../hook/session.ts';
+import { sessionStandards } from '../hook/session-standards.ts';
 import { cutText } from '../memory/cut-text.ts';
 import { resumeBlock, section } from '../memory/handoff-resume.ts';
 import { compactIndex } from '../memory/identifier-index.ts';
@@ -96,6 +98,7 @@ export function restartText(
   project: string,
   event: string,
   transcriptPath?: string,
+  sessionId?: string,
 ): string {
   const [commonDirectory = '', sha = '', branch = ''] = execFileSync(
     'git',
@@ -232,6 +235,18 @@ export function restartText(
     const index = compactIndex(transcriptPath, [project, main]);
     if (index) lines.splice(next, 0, index);
   }
+  // An adopted repository's interactive session gets the standards that match its task; a worker's brief already has them.
+  if (sessionId !== undefined && !isWorkerSession()) {
+    try {
+      const query = [branch, ...lines.slice(1), ...readdirSync(project)].join(
+        '\n',
+      );
+      const block = sessionStandards(project, main, sessionId, query);
+      if (block) lines.splice(next, 0, block);
+    } catch {
+      /* Standards must never interrupt startup. */
+    }
+  }
   // A full disk fails builds and git silently; name it right after the branch.
   try {
     lines.splice(1, 0, ...pressureLines(probe([homedir(), main])));
@@ -268,6 +283,7 @@ export function main(): void {
         input.project,
         input.event,
         input.source === 'compact' ? input.transcriptPath : undefined,
+        input.sessionId,
       ),
     );
   } catch {

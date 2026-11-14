@@ -128,3 +128,38 @@ export function effectRows(exposures: readonly Exposure[]): string[] {
         `${id}: served ${v.served} (ok ${rate(v.servedOk, v.served)}, followed ${v.followed}, violated ${v.violated}) withheld ${v.withheld} (ok ${rate(v.withheldOk, v.withheld)})`,
     );
 }
+
+/** A served packet whose outcome is not known yet (the session has just started): no per-record outcome. */
+export function servedExposure(
+  run: string,
+  channel: string,
+  served: readonly string[],
+): Exposure {
+  return {
+    run,
+    task: null,
+    channel,
+    served: [...served],
+    withheld: [],
+    outcome: {},
+    lane_ok: true,
+    rework: 0,
+  };
+}
+
+/** A refused Stop: each record the session still violated, so the effect report counts the violation. */
+export function violatedExposure(
+  run: string,
+  ids: readonly string[],
+): Exposure {
+  return {
+    run,
+    task: null,
+    channel: 'stop',
+    served: [...ids],
+    withheld: [],
+    outcome: Object.fromEntries(ids.map((id) => [id, 'violated' as const])),
+    lane_ok: false,
+    rework: 1,
+  };
+}
