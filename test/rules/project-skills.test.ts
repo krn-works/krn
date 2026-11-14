@@ -42,10 +42,6 @@ test('the lead loop skills name the real launch command', () => {
     skill('krn-handoff'),
     /node scripts\/claude\/successor-launch\.ts --name "[^"]+" --model claude-opus-5-5 --effort medium --prompt /u,
   );
-  assert.match(
-    skill('krn-handoff'),
-    /detects the harness the lead is running in from the runtime environment/u,
-  );
 });
 
 test('every slice ships as one squash-merged PR with the template sections and its retro inside', () => {
@@ -71,9 +67,7 @@ test('every slice ships as one squash-merged PR with the template sections and i
     assert.doesNotMatch(text, /gh pr merge[^`\n]*--rebase/u);
   }
   assert.match(skill('krn-lead'), /krn pr ship/u);
-  assert.match(skill('krn-retro'), /never open a separate retro PR/u);
-  assert.match(skill('krn-retro'), /outside it becomes `krn task create`/u);
-  assert.match(skill('krn-lead'), /one Opus lens, a second only for/u);
+  assert.match(skill('krn-retro'), /krn task create/u);
 });
 
 function frontmatter(path: string): Map<string, string> {
@@ -124,7 +118,6 @@ test('research lanes read untrusted content without a shell, file writes or sub-
   assert.match(lanes, /`krn-research`/u);
   assert.match(lanes, /bin\/krn ci wait --repo/u);
   assert.doesNotMatch(lanes, /every 60s/u);
-  assert.match(lanes, /general-purpose lane/u);
 });
 
 test('the radar agent is read-only, bounded, named by the roadmap, and rss_news stays denied', () => {

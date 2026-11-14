@@ -1,7 +1,11 @@
 {
   "id": "t-kynrffp",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Prose-wording assertions in test/rules (project-skills, session-role) became token or existence checks; remaining rule tests already assert ids, invariants or behaviour. Proof by glob: node --test test/rules/*.test.* passes after rewording lead-rules.md; the directory form fails on this node (v24 treats it as a module path)."
+  },
   "created": "2026-11-13",
   "priority": 3,
   "title": "Rule tests assert ids and behaviour, never prose wording",

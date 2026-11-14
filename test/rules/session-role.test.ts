@@ -10,13 +10,10 @@ const workflow = readFileSync(
   'utf8',
 );
 
-test('the lead role needs an explicit brief; other sessions stay in their checkout', () => {
-  assert.match(
-    workflow,
-    /A session is the lead only when the operator or its brief names that role or invokes `krn-lead`\./u,
-  );
-  assert.match(
-    workflow,
-    /Any other session works and commits in the checkout it was started in: it creates no worktree, branch or task, claims nothing, and skips the lead skills\./u,
-  );
+test('the lead role is tied to the krn-lead skill in one workflow paragraph', () => {
+  const paragraph = workflow
+    .split('\n\n')
+    .find((block) => block.includes('`krn-lead`') && /lead/u.test(block));
+  assert.ok(paragraph, 'workflow names the krn-lead role owner');
+  assert.match(paragraph, /worktree/u);
 });
