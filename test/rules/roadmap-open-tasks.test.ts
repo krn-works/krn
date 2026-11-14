@@ -61,6 +61,46 @@ test('the roadmap lists only open tasks ranked by priority then id with the Why 
   assert.doesNotMatch(text, /t-bbbbbbb/u);
 });
 
+test('the roadmap stays under its context budget at 100 open tasks and counts the rest', () => {
+  const budget = JSON.parse(
+    readFileSync(join(root, 'spec/context-budget.json'), 'utf8'),
+  ).files['docs/program/roadmap.md'] as number;
+  const long = 'x'.repeat(400);
+  const tasks = Array.from({ length: 100 }, (_, index) => ({
+    ...task(`t-${String(index).padStart(7, '0')}`, (index % 3) + 1, 'open', [
+      `Why: ${long}`,
+    ]),
+    title: long,
+  }));
+  const text = generateRoadmap(tasks);
+  assert.ok(
+    Buffer.byteLength(text) <= budget,
+    `${Buffer.byteLength(text)} > ${budget}`,
+  );
+  const shown = roadmapRows(text).length;
+  assert.ok(shown > 0 && shown < 100);
+  assert.match(
+    text,
+    new RegExp(`\\n${100 - shown} more open task\\(s\\) are not shown`, 'u'),
+  );
+  assert.ok(roadmapRows(text).every((row) => row.line.includes('| 1 |')));
+});
+
+test('a task waiting on an open task ranks after its ready peers', () => {
+  const text = generateRoadmap([
+    { ...task('t-aaaaaaa', 1), after: ['t-ccccccc'] },
+    task('t-bbbbbbb', 1),
+    task('t-ccccccc', 2),
+    { ...task('t-ddddddd', 1), after: ['t-eeeeeee'] },
+    task('t-eeeeeee', 1, 'closed'),
+  ]);
+  assert.deepEqual(
+    roadmapRows(text).map((row) => row.task),
+    ['t-bbbbbbb', 't-ddddddd', 't-aaaaaaa', 't-ccccccc'],
+  );
+  assert.doesNotMatch(text, /not shown/u);
+});
+
 test('an evidence line is one table cell', () => {
   assert.equal(
     evidenceLine({ id: 't-a', body: ['Why: a | b\nOutcome: c'] }),

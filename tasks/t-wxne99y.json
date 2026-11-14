@@ -1,0 +1,12 @@
+{
+  "id": "t-wxne99y",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 3,
+  "title": "A failed lane proposes a brief-template edit that is accepted only on a replay gain",
+  "after": [],
+  "body": [
+    "Why: research 1114g (Agentic Harness Engineering, arXiv 2604.25850) shows a harness improving itself from its own failure log; KRN lane failures today become hand-written tasks only when the lead notices them.\nOutcome: a failed or reworked lane run emits a proposed edit to the lane brief template or worker rules; the proposal is accepted only when a replay over recorded lanes (evals/fr40) shows no regression and a gain on the failing case.\nProof: a test feeds a recorded failing lane and gets one proposal; a replay harness run prints the before/after verdict that gates acceptance."
+  ]
+}
