@@ -70,7 +70,7 @@ function adopted(files: Record<string, string>): string {
   const dir = repo(files);
   const run = spawnSync(
     process.execPath,
-    [cli, 'adopt', dir, '--no-canary', '--test', files._test ?? ''],
+    [cli, 'adopt', dir, '--no-canary', '--test', files['_test'] ?? ''],
     { encoding: 'utf8' },
   );
   assert.equal(run.status, 0, run.stderr);
