@@ -375,3 +375,33 @@ test('task check refuses an open after task whose post-merge proof keeps it open
     await rm(repo, { recursive: true, force: true });
   }
 });
+
+test('task check refuses an open task whose after task is closed other than done', async () => {
+  const repo = await tempRepo('dead-after-');
+  try {
+    const closed = (
+      id: string,
+      kind: 'done' | 'dropped' | 'duplicate',
+      ref: string | null,
+    ): TaskRecord => ({
+      ...validTask,
+      id,
+      status: 'closed',
+      resolution: { kind, ref, note: '' },
+    });
+    await writeTask(repo, closed('T-1', 'done', null));
+    await writeTask(repo, { ...validTask, id: 'T-2', after: ['T-1'] });
+    await writeTask(repo, closed('T-3', 'duplicate', 'T-4'));
+    await writeTask(repo, { ...validTask, id: 'T-4', after: ['T-3'] });
+    await writeTask(repo, closed('T-5', 'dropped', null));
+    await writeTask(repo, { ...closed('T-6', 'done', null), after: ['T-5'] });
+    const findings = checkTaskDirectory(repo);
+    assert.equal(findings.length, 1, findings.join('\n'));
+    assert.match(
+      findings[0] ?? '',
+      /tasks\/T-4\.json: after task "T-3" is closed as duplicate of T-4.*can never be claimed.*krn task dep rm T-4 --after T-3/u,
+    );
+  } finally {
+    await rm(repo, { recursive: true, force: true });
+  }
+});

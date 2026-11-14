@@ -68,7 +68,11 @@ const POST_MERGE_PROOF =
 
 export function checkTaskDirectory(root: string): string[] {
   const { findings, records } = scanTaskDirectory(root);
-  return [...findings, ...postMergeAfterFindings(records)];
+  return [
+    ...findings,
+    ...postMergeAfterFindings(records),
+    ...deadAfterFindings(records),
+  ];
 }
 
 // An open task with a post-merge proof stays open on purpose, so an open task
@@ -86,6 +90,24 @@ function postMergeAfterFindings(records: Map<TaskId, TaskRecord>): string[] {
         findings.push(
           `tasks/${record.id}.json: after task "${id}" has a post-merge proof and stays open, so this task can never be claimed; drop the after, or split the post-merge proof into its own task`,
         );
+    }
+  }
+  return findings;
+}
+
+// ADR 0015: only a `done` closure unblocks a dependent, so an open task after a
+// task closed as dropped, duplicate or superseded waits forever unless re-pointed.
+function deadAfterFindings(records: Map<TaskId, TaskRecord>): string[] {
+  const findings: string[] = [];
+  for (const record of records.values()) {
+    if (record.status !== 'open') continue;
+    for (const id of record.after) {
+      const resolution = records.get(id)?.resolution;
+      if (!resolution || resolution.kind === 'done') continue;
+      const of = resolution.ref === null ? '' : ` of ${resolution.ref}`;
+      findings.push(
+        `tasks/${record.id}.json: after task "${id}" is closed as ${resolution.kind}${of}, so this task can never be claimed; run krn task dep rm ${record.id} --after ${id}${resolution.ref !== null && resolution.ref !== record.id ? `, then krn task dep add ${record.id} --after ${resolution.ref} if that work must come first` : ''}`,
+      );
     }
   }
   return findings;

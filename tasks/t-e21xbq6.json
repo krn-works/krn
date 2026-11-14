@@ -1,0 +1,16 @@
+{
+  "id": "t-e21xbq6",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "task check dead-after finding; t-czn62h3 re-pointed"
+  },
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "Task check refuses an open task waiting on a dependency closed other than done",
+  "after": [],
+  "body": [
+    "Why: t-czn62h3 (R49) never became ready: its after task t-kmsa30s was closed as duplicate of t-czn62h3 itself, and ADR 0015 says only a done closure unblocks, so the task waited forever with nothing reporting it.\nOutcome: `krn task check` (run in CI) refuses an open task ordered after a task closed as dropped, duplicate or superseded, naming the `krn task dep rm` (and `dep add` to the duplicate's ref) that fixes it; ADR 0015 semantics unchanged; t-czn62h3 re-pointed.\nProof: test/task/task-check.test.ts dead-after case; node src/cli/main.ts task check exit 0.\nScope: src/task/, test/, docs/adr/0015, tasks/."
+  ]
+}
