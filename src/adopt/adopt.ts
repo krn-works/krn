@@ -29,7 +29,7 @@ import {
   type RepoContract,
   subpackageCandidates,
 } from '../repo/contract.ts';
-import { createTask } from '../task/store.ts';
+import { createTask, loadTaskIndex } from '../task/store.ts';
 import { seedConventions } from './conventions.ts';
 import {
   appendFileSync,
@@ -324,6 +324,26 @@ function buildLitter(commands: string): string[] {
 
 /** The title of the seeded first-test task: the only task lane run admits on a vacuous contract. */
 export const BOOTSTRAP_TASK_TITLE = 'one real test and a test command';
+
+/** The title of the seeded green-base task: the only task lane run admits on a base whose own test command is red. */
+export const GREEN_BASE_TASK_TITLE = 'make the base test command green';
+
+/** Seeds the green-base task once, naming the failing command; adopt calls it when the canary finds a red base. */
+export function seedGreenBaseTask(root: string, evidence: string): void {
+  const known = new Set(
+    [...loadTaskIndex(root).values()].map((task) => task.title),
+  );
+  if (known.has(GREEN_BASE_TASK_TITLE)) return;
+  createTask(root, {
+    title: GREEN_BASE_TASK_TITLE,
+    priority: 1,
+    body: [
+      "Outcome: the repository's own test command exits 0 on a clean checkout of the base.",
+      `Why: adoption found a red base: ${evidence}`,
+      'Proof: the test command in krn.json exits 0 on the delivered tree.',
+    ],
+  });
+}
 
 function seedTasks(
   root: string,

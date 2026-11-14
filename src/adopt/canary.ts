@@ -43,6 +43,15 @@ export const CANARY_TIMEOUT_MS = 180_000;
 class CanaryTimeout extends Error {}
 
 let deadline = Number.POSITIVE_INFINITY;
+/** The step the canary is in (install, test command, Stop gate) and when it began, so a timeout names the slow one. */
+let step = { name: 'setup', since: Date.now() };
+const steps: { name: string; ms: number }[] = [];
+
+function enter(name: string): void {
+  const now = Date.now();
+  steps.push({ name: step.name, ms: now - step.since });
+  step = { name, since: now };
+}
 
 function remaining(): number {
   const left = deadline - Date.now();
@@ -158,6 +167,7 @@ function prepare(
     }
   }
   if (!linked && contract.install) {
+    enter('install');
     const install = run(tree, 'sh', ['-c', contract.install]);
     if (install.status !== 0)
       return `the install command failed (${contract.install}): ${install.stderr.slice(-300)}`;
@@ -200,13 +210,19 @@ export function runCanary(
     CANARY_TIMEOUT_MS,
 ): CanaryResult {
   deadline = Date.now() + timeoutMs;
+  step = { name: 'setup', since: Date.now() };
+  steps.length = 0;
   try {
     return canary(root);
   } catch (error) {
     if (!(error instanceof CanaryTimeout)) throw error;
+    const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
+    const done = steps
+      .filter((s) => s.ms >= 100)
+      .map((s) => `${s.name} ${seconds(s.ms)}`);
     return {
       outcome: 'timeout',
-      message: `the canary did not finish within ${Math.round(timeoutMs / 1000)}s (install, test command or Stop gate too slow); raise KRN_CANARY_TIMEOUT_MS, or pass --no-canary to decline`,
+      message: `the canary did not finish within ${Math.round(timeoutMs / 1000)}s: step "${step.name}" exceeded it after ${seconds(Date.now() - step.since)}${done.length > 0 ? ` (earlier steps: ${done.join(', ')})` : ''}; raise KRN_CANARY_TIMEOUT_MS, or pass --no-canary to decline`,
     };
   } finally {
     deadline = Number.POSITIVE_INFINITY;
@@ -300,6 +316,7 @@ function canary(root: string): CanaryResult {
     let refusedFile: string | undefined;
     let last: { status: number | null; stderr: string } | undefined;
     for (const file of files.slice(0, 3)) {
+      enter('Stop gate on the broken test');
       appendFileSync(join(tree, file), breakage(file) as string);
       gitIn(tree, 'commit', '-qm', 'canary: break one test', '--', file);
       last = stop(tree, commands);
@@ -318,10 +335,12 @@ function canary(root: string): CanaryResult {
 
     gitIn(tree, 'reset', '-q', '--hard', 'HEAD~1');
     gitIn(tree, 'commit', '-q', '--allow-empty', '-m', 'canary: clean tree');
+    enter('Stop gate on the clean tree');
     const clean = stop(tree, commands);
     if (clean.status !== 0) {
       // A red base (the repository's own command fails on its clean tree: missing dependencies, a broken test)
       // is not a gate defect: name the command.
+      enter('test command on the clean base');
       const own = run(tree, 'sh', ['-c', contract.test]);
       if (own.status !== 0)
         return {

@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -123,6 +129,7 @@ test('a canary past its time limit exits 124, names the timeout and leaves the r
   });
   assert.equal(run.status, 124, run.stdout + run.stderr);
   assert.match(run.stdout, /canary timeout: the canary did not finish within/u);
+  assert.match(run.stdout, /step "[^"]+" exceeded it after \d+\.\ds/u);
   assert.match(run.stderr, /everything adopt wrote was removed/u);
   const status = spawnSync('git', ['status', '--porcelain', '--ignored'], {
     cwd: root,
@@ -136,7 +143,25 @@ test('a canary past its time limit exits 124, names the timeout and leaves the r
   assert.equal(trees.stdout.trim().split('\n').length, 1);
 });
 
-test('a red clean tree is reported as a red base with the failing command, exit 69, not as a gate failure', () => {
+test('a slow install names the install step as the one that exceeded the limit', () => {
+  const root = fixture({
+    ...nodeFiles,
+    'krn.json': JSON.stringify({
+      base: 'main',
+      test: 'node --test',
+      install: 'sleep 20',
+      tracker: 'none',
+    }),
+  });
+  const run = spawnSync(process.execPath, [cli, 'adopt', root], {
+    encoding: 'utf8',
+    env: { ...process.env, KRN_CANARY_TIMEOUT_MS: '2500' },
+  });
+  assert.equal(run.status, 124, run.stdout + run.stderr);
+  assert.match(run.stdout, /step "install" exceeded it after \d+\.\ds/u);
+});
+
+test('adopt on a red clean tree exits 0 in bootstrap state with a seeded green-base task naming the failing command', () => {
   const root = fixture({
     ...nodeFiles,
     'sum.test.js':
@@ -148,16 +173,31 @@ test('a red clean tree is reported as a red base with the failing command, exit 
     encoding: 'utf8',
     env,
   });
-  assert.equal(run.status, 69, run.stdout + run.stderr);
+  assert.equal(run.status, 0, run.stdout + run.stderr);
   assert.match(
     run.stdout,
     /canary red-base: red base: the repository's own test command `npm test` exits 1/u,
   );
   assert.doesNotMatch(run.stdout, /does not pass the clean tree/u);
-  assert.match(run.stderr, /everything adopt wrote was removed/u);
-  const status = spawnSync('git', ['status', '--porcelain'], {
-    cwd: root,
+  assert.match(run.stdout, /bootstrap state: the base is red/u);
+  assert.doesNotMatch(run.stderr, /everything adopt wrote was removed/u);
+  const tasks = readdirSync(join(root, 'tasks')).map((f) =>
+    readFileSync(join(root, 'tasks', f), 'utf8'),
+  );
+  const seeded = tasks.filter((t) =>
+    t.includes('make the base test command green'),
+  );
+  assert.equal(seeded.length, 1);
+  assert.match(seeded[0] as string, /npm test/u);
+  const again = spawnSync(process.execPath, [cli, 'adopt', root], {
     encoding: 'utf8',
+    env,
   });
-  assert.equal(status.stdout, '');
+  assert.equal(again.status, 0, again.stdout + again.stderr);
+  assert.equal(readdirSync(join(root, 'tasks')).length, tasks.length);
+  const only = spawnSync(process.execPath, [cli, 'adopt', root, '--canary'], {
+    encoding: 'utf8',
+    env,
+  });
+  assert.equal(only.status, 69, only.stdout + only.stderr);
 });

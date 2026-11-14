@@ -1,7 +1,11 @@
 {
   "id": "t-8ngxh95",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "adopt on a red base exits 0 in bootstrap state with a seeded green-base task that lane run admits on the red baseline; a canary timeout names the step and measured time; proven by fixtures in test/adopt/canary.test.ts and test/cli/lane-run.test.ts"
+  },
   "created": "2026-11-14",
   "priority": 2,
   "title": "adopt on a red base seeds a green-base task and a canary timeout names its slow step",

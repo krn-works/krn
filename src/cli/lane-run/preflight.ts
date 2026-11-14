@@ -5,7 +5,7 @@ import { BOOTSTRAP_TASK_TITLE } from '../../adopt/adopt.ts';
 import { findContract, rerunCommand } from '../../repo/contract.ts';
 import { mainCheckoutRoot } from '../../task/claims.ts';
 import { withFileLock } from '../lane-lock.ts';
-import { isBootstrapTask } from './bootstrap.ts';
+import { isBootstrapTask, isGreenBaseTask } from './bootstrap.ts';
 import { git } from './git.ts';
 import { exitInstallFailed, exitRedBaseline } from './result.ts';
 
@@ -194,6 +194,12 @@ export function prepareWorktree(
     settledRun(execute, contract.test),
   );
   const baseline = settled.run;
+  if (
+    baseline.status !== 0 &&
+    task !== undefined &&
+    isGreenBaseTask(worktree, task)
+  )
+    return undefined;
   if (baseline.status !== 0)
     return {
       detail: `red baseline: ${contract.test} fails on a clean origin/${base} (${baselineReason(baseline)}); no session started`,
