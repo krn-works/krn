@@ -50,14 +50,20 @@ function baseWorkerRules(repo: string): string {
   return `${SHARED_RULES}\n- Before you end, run ${fast}the full test command '${contract.test}' and fix what it reports; changes target branch '${contract.base}'. When you cannot make the tests pass, end with a final line 'BLOCKER: <what stops you>'.`;
 }
 
-/** The lane brief with the FR-40 carrier prefix (D0, t-5983e6g): the measured arm-B prompt. */
+/** The closure line for a named task: the lane closes its own record in its own PR, so the Ticket trailer passes the CI task check. */
+export function closureRule(task: string): string {
+  return `- Task record: this PR completes ${task}. Use the trailer \`Ticket: ${task}\` and, from inside your worktree, run \`bin/krn task close ${task} --as done --note <what you proved>\` so the closed record ships in your PR (CI rejects Ticket on an open task). If the task stays open, use \`Refs: ${task}\` and do not close it. Edit no other tracker file.`;
+}
+
+/** The lane brief with the FR-40 carrier prefix; `closure` appends the closure line (only `krn lane brief --task` sets it, so the measured carrier stays byte-identical) (D0, t-5983e6g): the measured arm-B prompt. */
 export function laneBriefText(
   repo: string,
   brief: string,
   asOf: string,
   task = 'lane-brief',
+  closure = false,
 ): string {
-  return laneBrief(repo, brief, asOf, task).text;
+  return laneBrief(repo, brief, asOf, task, closure).text;
 }
 
 /** The lane brief and the sha256 of the packet it carries (null when it carries none), so a run can record which packet it served. */
@@ -66,6 +72,7 @@ export function laneBrief(
   brief: string,
   asOf: string,
   task = 'lane-brief',
+  closure = false,
 ): { text: string; packet: string | null } {
   const packet = lanePacket(repo, brief, asOf, task);
   const text = packetBrief(packet, brief);
@@ -76,7 +83,7 @@ export function laneBrief(
     .map((part) => part.trimEnd())
     .join('\n\n');
   return {
-    text: `${body.trimEnd()}\n\n${workerRules(repo)}\n`,
+    text: `${body.trimEnd()}\n\n${workerRules(repo)}${closure ? `\n${closureRule(task)}` : ''}\n`,
     packet:
       packet === null || packet.records.length === 0 ? null : packet.sha256,
   };

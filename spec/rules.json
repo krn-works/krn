@@ -74,7 +74,7 @@
     {
       "id": "KRN-11",
       "trigger": "a work item is managed",
-      "action": "the lead MUST manage task status in `tasks/<id>.json` with `krn task` (`ready`, `claim`, `release`, `close`); workers MUST NOT mutate tracker state, must receive the task id in their brief, and MUST use it in commit titles and the `Ticket:` trailer (`Refs:` while the task stays open)",
+      "action": "the lead MUST manage task status in `tasks/<id>.json` with `krn task` (`ready`, `claim`, `release`, `close`); workers MUST NOT mutate tracker state except that a lane closes its own task record, inside its own worktree, in the PR that carries `Ticket:`; workers must receive the task id in their brief, and MUST use it in commit titles and the `Ticket:` trailer (`Refs:` while the task stays open)",
       "owner": "lead",
       "audience": "lead",
       "enforcement": {
