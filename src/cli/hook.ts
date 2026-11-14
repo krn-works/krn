@@ -7,6 +7,7 @@ import { CliUsageError } from './usage-error.ts';
 const scripts: Readonly<Record<string, string>> = {
   stop: 'src/hook/stop.ts',
   scope: 'src/hook/scope.ts',
+  stash: 'src/hook/stash.ts',
 };
 
 /** Runs the hook script with this process's stdin, environment and exit status. */

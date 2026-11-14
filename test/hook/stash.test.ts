@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { decide } from '../../scripts/claude/stash-guard.ts';
+import { decide } from '../../src/hook/stash.ts';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 // PreToolUse payload shape for Bash, as the other Bash hooks receive it.
@@ -42,11 +42,10 @@ test('reading the stack, applying by sha and unrelated commands are allowed', ()
 });
 
 test('the hook exits 2 with the reason on stderr', () => {
-  const run = spawnSync(
-    process.execPath,
-    [join(root, 'scripts/claude/stash-guard.ts')],
-    { input: JSON.stringify(bash('git stash')), encoding: 'utf8' },
-  );
+  const run = spawnSync(process.execPath, [join(root, 'src/hook/stash.ts')], {
+    input: JSON.stringify(bash('git stash')),
+    encoding: 'utf8',
+  });
   assert.equal(run.status, 2);
   assert.match(run.stderr, /WIP commit/u);
 });
