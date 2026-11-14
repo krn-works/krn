@@ -1,0 +1,51 @@
+import { describe, expect, it } from 'vitest';
+import { sitemapCandidates } from '../../src/domain/sitemap.ts';
+
+const ORIGIN = 'https://ex.test/';
+const DEFAULTS = [
+  'https://ex.test/sitemap.xml',
+  'https://ex.test/sitemap_index.xml',
+  'https://ex.test/sitemap-index.xml',
+];
+
+describe('sitemapCandidates robots handling', () => {
+  it('falls back to the convention paths when robots lists only unusable values', () => {
+    expect(
+      sitemapCandidates(
+        ORIGIN,
+        'Sitemap: ftp://ex.test/s.xml\nSitemap: javascript:alert(1)\nSitemap: http://',
+      ),
+    ).toEqual(DEFAULTS);
+  });
+
+  it('resolves a relative declaration against the origin', () => {
+    expect(sitemapCandidates(ORIGIN, 'Sitemap: /maps/s.xml')).toEqual([
+      'https://ex.test/maps/s.xml',
+    ]);
+  });
+
+  it('drops unusable values but keeps valid ones, first-seen order', () => {
+    expect(
+      sitemapCandidates(
+        ORIGIN,
+        'sitemap: ftp://ex.test/x.xml\nSITEMAP: https://cdn.test/b.xml\nSitemap: https://ex.test/a.xml',
+      ),
+    ).toEqual(['https://cdn.test/b.xml', 'https://ex.test/a.xml']);
+  });
+
+  it('collapses declarations that resolve to the same href', () => {
+    expect(
+      sitemapCandidates(
+        ORIGIN,
+        'Sitemap: https://ex.test/s.xml\nSitemap: /s.xml\nSitemap: https://ex.test/s.xml',
+      ),
+    ).toEqual(['https://ex.test/s.xml']);
+  });
+
+  it('keeps the existing behaviour for a plain declaration and for empty robots', () => {
+    expect(sitemapCandidates(ORIGIN, 'Sitemap: https://ex.test/s.xml')).toEqual(
+      ['https://ex.test/s.xml'],
+    );
+    expect(sitemapCandidates(ORIGIN, '')).toEqual(DEFAULTS);
+  });
+});

@@ -1,0 +1,17 @@
+{
+  "id": "t-g1fc0cz",
+  "repo": "krn-works/seo-audit-harness",
+  "base": "1099e1bc6693584416eb9907360d074b4e092627",
+  "reference": "15790fb594543837765bd700b5d58fff13669e69",
+  "task": {
+    "title": "Treat an empty alt attribute as decorative, not as a missing alt",
+    "body": "Why: packages/seo/docs/research/handoff-audit-unlighthouse-quality-2026-10-07.md:193 (\"pusty alt może być prawidłowy\"); packages/seo/src/domain/onsite.ts:41 counts `alt === \"\"` as missing; packages/seo/src/domain/rule-playbook.ts:85 already tells editors to set alt=\"\" on decorative images.\nOutcome: `analyzeOnsite(pages, options)` (src/domain/onsite.ts) counts an image toward rule `img-missing-alt` only when its `ImageFact.alt` is `null` (attribute absent). An image with `alt: \"\"` is decorative and is never counted. A page whose images all have `alt: \"\"` or a non-empty alt yields no `img-missing-alt` finding. When the finding is emitted, `evidence[0]` keeps the form `\"<missing> z <total> obrazów bez alt.\"` where `<missing>` counts only `alt: null` images and `<total>` is all images on the page. All other image rules (`img-missing-dimensions`, `img-legacy-format`, `img-no-lazy`) are unchanged.\nProof: the implementer adds own tests in tests/domain/onsite.test.ts covering empty alt (no finding), null alt (finding) and the mixed-page evidence count."
+  },
+  "spec": "`analyzeOnsite(pages, options)` (src/domain/onsite.ts) counts an image toward rule `img-missing-alt` only when its `ImageFact.alt` is `null` (attribute absent). An image with `alt: \"\"` is decorative and is never counted. A page whose images all have `alt: \"\"` or a non-empty alt yields no `img-missing-alt` finding. When the finding is emitted, `evidence[0]` keeps the form `\"<missing> z <total> obrazów bez alt.\"` where `<missing>` counts only `alt: null` images and `<total>` is all images on the page. All other image rules (`img-missing-dimensions`, `img-legacy-format`, `img-no-lazy`) are unchanged.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "packages/seo/tests/hidden/hidden.test.ts"
+  },
+  "install": "npm --prefix packages/seo ci --silent && npm --prefix packages/seo run build --silent",
+  "test": "cd packages/seo && npx vitest run tests/hidden/hidden.test.ts"
+}

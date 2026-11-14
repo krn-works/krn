@@ -1,0 +1,17 @@
+{
+  "id": "t-adpj15x",
+  "repo": "krn-works/krn-pilot-py",
+  "base": "f0a716433d79b3b49d7b1bd74749602c489e343d",
+  "reference": "7865122d38feea027f93901691a2abc86ec7d226",
+  "task": {
+    "title": "ordinal, apnumber and fractional accept integers too large for a float",
+    "body": "Why: https://github.com/python-humanize/humanize/issues/419 ; src/humanize/number.py:134, 333 and 385 call `float(value)` only to test for NaN/infinity. On b519e48 `ordinal(10**400)`, `apnumber(10**400)` and `fractional(10**400)` raise OverflowError (\"int too large to convert to float\") for a finite int.\nOutcome: for an `int` of any size (positive or negative) these never raise OverflowError and treat it as the finite integer it is. `humanize.ordinal(10**400) == str(10**400) + 'th'`, `humanize.ordinal(10**400 + 1) == str(10**400 + 1) + 'st'`, `humanize.ordinal(-(10**400)) == '-' + str(10**400) + 'th'`, `humanize.apnumber(10**400) == str(10**400)`, `humanize.fractional(10**400) == str(10**400)`, `humanize.fractional(-(10**400)) == '-' + str(10**400)`. Unchanged: `ordinal(3) == '3rd'`, `apnumber(5) == 'five'`, `fractional(1.5) == '1 1/2'`, `ordinal(float('inf')) == '+Inf'`.\nProof: add tests to tests/test_number.py."
+  },
+  "spec": "for an `int` of any size (positive or negative) these never raise OverflowError and treat it as the finite integer it is. `humanize.ordinal(10**400) == str(10**400) + 'th'`, `humanize.ordinal(10**400 + 1) == str(10**400 + 1) + 'st'`, `humanize.ordinal(-(10**400)) == '-' + str(10**400) + 'th'`, `humanize.apnumber(10**400) == str(10**400)`, `humanize.fractional(10**400) == str(10**400)`, `humanize.fractional(-(10**400)) == '-' + str(10**400)`. Unchanged: `ordinal(3) == '3rd'`, `apnumber(5) == 'five'`, `fractional(1.5) == '1 1/2'`, `ordinal(float('inf')) == '+Inf'`.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/hidden/test_hidden.py"
+  },
+  "install": "python3 -m venv .venv && .venv/bin/python -m pip install -q babel -e '.[tests]' && .venv/bin/pybabel --quiet compile --directory src/humanize/locale --domain humanize",
+  "test": ".venv/bin/python -m pytest -q -p no:cacheprovider tests/hidden/test_hidden.py"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "t-09w695n",
+  "repo": "krn-works/krn-pilot-py",
+  "base": "a7a15794aa2c45b3439823582640061dded8efee",
+  "reference": "ee5c0c4ac2162394a852c3574db02d59fc523540",
+  "task": {
+    "title": "metric carries a rounded-up value into quetta and into scientific notation without an extra digit",
+    "body": "Why: https://github.com/python-humanize/humanize/issues/423 ; src/humanize/number.py:596 skips the rounding carry when `exponent >= 30`. On b519e48 `metric(9.996e30)` returns '10.00 Q', `metric(9.996e31)` returns '100.0 Q' and `metric(9.996e32)` returns '1000 Q', while `metric(9999)` correctly gives '10.0 k'.\nOutcome: `humanize.metric(value, unit=\"\", precision=3)` applies the same rounding carry for values in the quetta range as for every other prefix, keeping `precision` significant digits: `metric(9.996e30) == '10.0 Q'`, `metric(9.996e31) == '100 Q'`. A value in the quetta range that rounds up to 1e33 is shown in scientific notation, the same as `metric(1e33)`: `metric(9.996e32) == '1.00 x 10³³'`. Unchanged: `metric(9999) == '10.0 k'`, `metric(1e30) == '1.00 Q'`, `metric(9.99e32) == '999 Q'`, `metric(1e33) == '1.00 x 10³³'`.\nProof: add tests to tests/test_number.py."
+  },
+  "spec": "`humanize.metric(value, unit=\"\", precision=3)` applies the same rounding carry for values in the quetta range as for every other prefix, keeping `precision` significant digits: `metric(9.996e30) == '10.0 Q'`, `metric(9.996e31) == '100 Q'`. A value in the quetta range that rounds up to 1e33 is shown in scientific notation, the same as `metric(1e33)`: `metric(9.996e32) == '1.00 x 10³³'`. Unchanged: `metric(9999) == '10.0 k'`, `metric(1e30) == '1.00 Q'`, `metric(9.99e32) == '999 Q'`, `metric(1e33) == '1.00 x 10³³'`.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "tests/hidden/test_hidden.py"
+  },
+  "install": "python3 -m venv .venv && .venv/bin/python -m pip install -q babel -e '.[tests]' && .venv/bin/pybabel --quiet compile --directory src/humanize/locale --domain humanize",
+  "test": ".venv/bin/python -m pytest -q -p no:cacheprovider tests/hidden/test_hidden.py"
+}

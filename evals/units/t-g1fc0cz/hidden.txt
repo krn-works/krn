@@ -1,0 +1,49 @@
+import { describe, expect, it } from 'vitest';
+import type { ImageFact, PageObservation } from '../../src/domain/model.ts';
+import { analyzeOnsite } from '../../src/domain/onsite.ts';
+import { pageObservation } from '../helpers/page.ts';
+
+const img = (overrides: Partial<ImageFact> = {}): ImageFact => ({
+  src: 'https://ex.test/a.webp',
+  alt: 'opis',
+  width: '800',
+  height: '600',
+  loading: 'lazy',
+  srcset: true,
+  ...overrides,
+});
+const page = (overrides: Partial<PageObservation> = {}): PageObservation =>
+  pageObservation(overrides, {
+    headings: [{ level: 1, text: 'H' }],
+    wordCount: 600,
+  });
+const run = (pages: readonly PageObservation[]) =>
+  analyzeOnsite(pages, { baseUrl: 'https://ex.test/', thinWords: 300 });
+
+describe('empty alt is decorative', () => {
+  it('does not flag images whose alt is the empty string', () => {
+    const found = run([page({ images: [img({ alt: '' }), img({ alt: '' })] })]);
+    expect(found.map((f) => f.ruleId)).not.toContain('img-missing-alt');
+  });
+
+  it('counts only absent alt attributes in the evidence', () => {
+    const found = run([
+      page({ images: [img({ alt: '' }), img({ alt: null }), img()] }),
+    ]).filter((f) => f.ruleId === 'img-missing-alt');
+    expect(found).toHaveLength(1);
+    expect(found[0]?.evidence[0]).toBe('1 z 3 obrazów bez alt.');
+  });
+
+  it('still flags an absent alt attribute', () => {
+    expect(
+      run([page({ images: [img({ alt: null })] })]).map((f) => f.ruleId),
+    ).toContain('img-missing-alt');
+  });
+
+  it('keeps the other image rules', () => {
+    const ids = run([
+      page({ images: [img({ alt: '', width: '', height: '' })] }),
+    ]).map((f) => f.ruleId);
+    expect(ids).toContain('img-missing-dimensions');
+  });
+});

@@ -1,0 +1,18 @@
+import humanize
+
+G = 10**100
+
+
+def test_rounds_up_to_googol():
+    assert humanize.intword(G - 10**93) == "1.0 googol"
+    assert humanize.intword(G - 10**98) == "1.0 googol"
+    assert humanize.intword(-(G - 10**93)) == "-1.0 googol"
+    assert humanize.intword(G - 10**93, format="%.0f") == "1 googol"
+
+
+def test_existing_behaviour():
+    assert humanize.intword(G) == "1.0 googol"
+    assert humanize.intword(10**33) == "1.0 decillion"
+    assert humanize.intword(10**36) == "1000.0 decillion"
+    assert humanize.intword(999_999_999) == "1.0 billion"
+    assert humanize.intword(1000) == "1.0 thousand"

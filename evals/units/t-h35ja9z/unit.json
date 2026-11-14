@@ -1,0 +1,17 @@
+{
+  "id": "t-h35ja9z",
+  "repo": "krn-works/seo-audit-harness",
+  "base": "303d18721d31ee694f6255a983b4f38be6221dee",
+  "reference": "c163929866c701ac4b0b51ed94c73c76f2ecc065",
+  "task": {
+    "title": "Say why a parsed sitemap is incomplete: truncated, entry limit exceeded, or malformed",
+    "body": "Why: packages/seo/docs/research/handoff-audit-unlighthouse-quality-2026-10-07.md:191 (crawl stores `sitemapsComplete=false` without the reason); packages/seo/src/domain/sitemap.ts:212-386 `parseSitemap` returns only a boolean `complete`.\nOutcome: `parseSitemap(xml, maxLocEntries?)` (src/domain/sitemap.ts) returns, besides `isIndex`, `locs` and `complete`, a new field `incompleteReasons: readonly string[]` of unique codes sorted alphabetically. It is `[]` exactly when `complete` is `true`. Codes: `\"entry-limit-exceeded\"` when the document holds more entries than `maxLocEntries` (the entries over the limit are still not returned in `locs`, as today); `\"truncated\"` when the input ends (or a tag/comment/CDATA section is cut off) before the root element is closed, with no other structural error found first; `\"malformed\"` for any other cause of `complete === false` (wrong root, mismatched or invalid tags, bad entries, entities, namespaces) when neither of the other two codes applies. A document with both too many entries and no closing root reports both `\"entry-limit-exceeded\"` and `\"truncated\"`. `ParsedSitemap` in the same file gains the field; `locs`, `isIndex` and `complete` keep today's values for every input.\nProof: the four existing whole-object `toEqual` assertions on `parseSitemap` in tests/domain/sitemap.test.ts must be updated for the added field (an unterminated comment inside an open root is `[\"truncated\"]`). The implementer adds own tests there for a complete file, a cut-off file, an over-limit file via a small `maxLocEntries`, and a mismatched-tag file."
+  },
+  "spec": "`parseSitemap(xml, maxLocEntries?)` (src/domain/sitemap.ts) returns, besides `isIndex`, `locs` and `complete`, a new field `incompleteReasons: readonly string[]` of unique codes sorted alphabetically. It is `[]` exactly when `complete` is `true`. Codes: `\"entry-limit-exceeded\"` when the document holds more entries than `maxLocEntries` (the entries over the limit are still not returned in `locs`, as today); `\"truncated\"` when the input ends (or a tag/comment/CDATA section is cut off) before the root element is closed, with no other structural error found first; `\"malformed\"` for any other cause of `complete === false` (wrong root, mismatched or invalid tags, bad entries, entities, namespaces) when neither of the other two codes applies. A document with both too many entries and no closing root reports both `\"entry-limit-exceeded\"` and `\"truncated\"`. `ParsedSitemap` in the same file gains the field; `locs`, `isIndex` and `complete` keep today's values for every input.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "packages/seo/tests/hidden/hidden.test.ts"
+  },
+  "install": "npm --prefix packages/seo ci --silent && npm --prefix packages/seo run build --silent",
+  "test": "cd packages/seo && npx vitest run tests/hidden/hidden.test.ts"
+}

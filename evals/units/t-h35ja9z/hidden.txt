@@ -1,0 +1,52 @@
+import { describe, expect, it } from 'vitest';
+import { parseSitemap } from '../../src/domain/sitemap.ts';
+
+const NS = 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"';
+const url = (n: number) => `<url><loc>https://ex.test/${String(n)}</loc></url>`;
+
+describe('parseSitemap incompleteness reasons', () => {
+  it('has no reasons for a complete file', () => {
+    const parsed = parseSitemap(`<urlset ${NS}>${url(1)}${url(2)}</urlset>`);
+    expect(parsed.complete).toBe(true);
+    expect(parsed.locs).toEqual(['https://ex.test/1', 'https://ex.test/2']);
+    expect(parsed.incompleteReasons).toEqual([]);
+  });
+
+  it('reports truncated when the root is never closed', () => {
+    const parsed = parseSitemap(`<urlset ${NS}>${url(1)}${url(2)}`);
+    expect(parsed.complete).toBe(false);
+    expect(parsed.incompleteReasons).toEqual(['truncated']);
+  });
+
+  it('reports truncated when the body is cut inside a tag', () => {
+    const parsed = parseSitemap(`<urlset ${NS}>${url(1)}<url><lo`);
+    expect(parsed.complete).toBe(false);
+    expect(parsed.incompleteReasons).toEqual(['truncated']);
+  });
+
+  it('reports entry-limit-exceeded and still drops the extra entries', () => {
+    const parsed = parseSitemap(
+      `<urlset ${NS}>${url(1)}${url(2)}${url(3)}</urlset>`,
+      2,
+    );
+    expect(parsed.complete).toBe(false);
+    expect(parsed.locs).toEqual(['https://ex.test/1', 'https://ex.test/2']);
+    expect(parsed.incompleteReasons).toEqual(['entry-limit-exceeded']);
+  });
+
+  it('reports both codes, sorted, for an over-limit truncated file', () => {
+    const parsed = parseSitemap(`<urlset ${NS}>${url(1)}${url(2)}${url(3)}`, 2);
+    expect(parsed.incompleteReasons).toEqual([
+      'entry-limit-exceeded',
+      'truncated',
+    ]);
+  });
+
+  it('reports malformed for a mismatched closing tag', () => {
+    const parsed = parseSitemap(
+      `<urlset ${NS}>${url(1)}<url><loc>https://ex.test/2</loc></urlx></urlset>`,
+    );
+    expect(parsed.complete).toBe(false);
+    expect(parsed.incompleteReasons).toEqual(['malformed']);
+  });
+});

@@ -1,0 +1,25 @@
+import humanize
+
+BIG = 10**400
+
+
+def test_ordinal_big_int():
+    assert humanize.ordinal(BIG) == str(BIG) + "th"
+    assert humanize.ordinal(BIG + 1) == str(BIG + 1) + "st"
+    assert humanize.ordinal(-BIG) == "-" + str(BIG) + "th"
+
+
+def test_apnumber_big_int():
+    assert humanize.apnumber(BIG) == str(BIG)
+
+
+def test_fractional_big_int():
+    assert humanize.fractional(BIG) == str(BIG)
+    assert humanize.fractional(-BIG) == "-" + str(BIG)
+
+
+def test_existing_behaviour():
+    assert humanize.ordinal(3) == "3rd"
+    assert humanize.apnumber(5) == "five"
+    assert humanize.fractional(1.5) == "1 1/2"
+    assert humanize.ordinal(float("inf")) == "+Inf"

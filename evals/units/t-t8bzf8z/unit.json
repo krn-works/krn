@@ -1,0 +1,17 @@
+{
+  "id": "t-t8bzf8z",
+  "repo": "krn-works/seo-audit-harness",
+  "base": "15790fb594543837765bd700b5d58fff13669e69",
+  "reference": "932b924d74fcff46598466a35979d3a003dfd7ca",
+  "task": {
+    "title": "Ignore unusable robots.txt Sitemap lines instead of suppressing the default sitemap paths",
+    "body": "Why: packages/seo/src/domain/sitemap.ts:398-406 `sitemapCandidates` returns robots entries verbatim whenever any `Sitemap:` line exists, so `Sitemap: ftp://ex.test/s.xml` or a relative `Sitemap: /s.xml` yields an unfetchable candidate and the convention fallback is never tried (its `Set` dedupe is real but compares raw strings only); consumers are src/application/run-crawl.ts:302 and run-redirects.ts:55.\nOutcome: `sitemapCandidates(origin, robotsText)` (src/domain/sitemap.ts) resolves each `Sitemap:` value against `origin` with `new URL(value, origin)`, keeps it only when the result protocol is `http:` or `https:`, and returns `href` strings in first-seen order deduplicated by that resolved href (so `\"/s.xml\"` and `\"https://ex.test/s.xml\"` for origin `https://ex.test/` collapse to one `\"https://ex.test/s.xml\"`). Values that are not valid http(s) URLs after resolution (e.g. `ftp://ex.test/s.xml`, `javascript:alert(1)`, the truncated `http://`); a bare word such as `none` is a relative path and therefore resolves to `https://ex.test/none` are dropped. When no valid declaration remains, the result is the three convention paths (`/sitemap.xml`, `/sitemap_index.xml`, `/sitemap-index.xml`) resolved against `origin`, exactly as for empty robots text. Case-insensitive `Sitemap` field name and whitespace tolerance are unchanged.\nProof: the implementer adds own tests in tests/domain/sitemap.test.ts for a relative entry, an invalid-only robots file, mixed valid and invalid entries and resolved-duplicate collapse."
+  },
+  "spec": "`sitemapCandidates(origin, robotsText)` (src/domain/sitemap.ts) resolves each `Sitemap:` value against `origin` with `new URL(value, origin)`, keeps it only when the result protocol is `http:` or `https:`, and returns `href` strings in first-seen order deduplicated by that resolved href (so `\"/s.xml\"` and `\"https://ex.test/s.xml\"` for origin `https://ex.test/` collapse to one `\"https://ex.test/s.xml\"`). Values that are not valid http(s) URLs after resolution (e.g. `ftp://ex.test/s.xml`, `javascript:alert(1)`, the truncated `http://`); a bare word such as `none` is a relative path and therefore resolves to `https://ex.test/none` are dropped. When no valid declaration remains, the result is the three convention paths (`/sitemap.xml`, `/sitemap_index.xml`, `/sitemap-index.xml`) resolved against `origin`, exactly as for empty robots text. Case-insensitive `Sitemap` field name and whitespace tolerance are unchanged.",
+  "hidden": {
+    "file": "hidden.txt",
+    "dest": "packages/seo/tests/hidden/hidden.test.ts"
+  },
+  "install": "npm --prefix packages/seo ci --silent && npm --prefix packages/seo run build --silent",
+  "test": "cd packages/seo && npx vitest run tests/hidden/hidden.test.ts"
+}

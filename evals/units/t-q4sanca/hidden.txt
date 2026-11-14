@@ -1,0 +1,53 @@
+import { describe, expect, it } from 'vitest';
+import { buildFindings } from '../../src/domain/findings.ts';
+import type { PageObservation } from '../../src/domain/model.ts';
+import { pageObservation } from '../helpers/page.ts';
+
+const page = (overrides: Partial<PageObservation> = {}): PageObservation =>
+  pageObservation(overrides, {
+    url: 'https://ex.test/x',
+    finalUrl: 'https://ex.test/x',
+    title: 'X',
+    h1: [],
+    wordCount: 0,
+    lang: '',
+  });
+
+const source = page({
+  url: 'https://ex.test/',
+  finalUrl: 'https://ex.test/',
+  links: ['https://ex.test/t/'],
+});
+const target = (status: number) =>
+  page({ url: 'https://ex.test/t/', finalUrl: 'https://ex.test/t/', status });
+const ids = (status: number) =>
+  buildFindings([source, target(status)]).filter(
+    (f) => f.url === 'https://ex.test/t/',
+  );
+
+describe('blocked probes are not broken links', () => {
+  it.each([403, 429])(
+    'reports HTTP %i as link-probe-blocked only',
+    (status) => {
+      const found = ids(status);
+      expect(found.map((f) => f.ruleId)).not.toContain('broken-internal-link');
+      const blocked = found.filter((f) => f.ruleId === 'link-probe-blocked');
+      expect(blocked).toHaveLength(1);
+      expect(blocked[0]?.evidence).toContain(
+        `Target returned HTTP ${String(status)}.`,
+      );
+      expect(blocked[0]?.evidence).toContain(
+        'Observed same-origin link from https://ex.test/.',
+      );
+    },
+  );
+
+  it.each([404, 410, 500, 503])(
+    'still reports HTTP %i as broken-internal-link',
+    (status) => {
+      const found = ids(status);
+      expect(found.map((f) => f.ruleId)).toContain('broken-internal-link');
+      expect(found.map((f) => f.ruleId)).not.toContain('link-probe-blocked');
+    },
+  );
+});
