@@ -1,0 +1,16 @@
+{
+  "id": "t-259afrq",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "test/ci/rebase-generated.test.ts: a clean merge with a stale generated file against a moved base ends regenerated and amended"
+  },
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "Ship regenerates generated files after a clean rebase onto a moved base",
+  "after": [],
+  "body": [
+    "Why: PR for t-d93e0n8 (run 43620707280) went red: test/claude/capability-index.test.ts found docs/generated/capability-index.md stale. The branch merged cleanly with main, but main had gained src modules (#856 #857 debf26c) after the branch was cut; rebaseGenerated (src/ci/rebase-generated.ts) returns false on a clean merge-tree and regenerates only on a textual conflict, so ship pushed a stale generated file.\nOutcome: when the branch changes a generated file and is not based on origin/<target>, ship rebases onto it, reruns that generator, amends when the output differs, and force-pushes.\nProof: test/ci/rebase-generated.test.ts: a branch whose generated file merges cleanly but is stale against the moved base ends with the regenerated content."
+  ]
+}

@@ -98,6 +98,26 @@ test('a conflict only in the generated index is regenerated from the rebased src
   );
 });
 
+test('a clean merge with a stale generated file against the moved base ends regenerated', () => {
+  const { work, main } = setup();
+  git(work, 'checkout', '-q', '-b', 'lane');
+  commitRegenerated(work, 'src/b.ts', '// b changed by the lane');
+  // Main adds a module without touching the index: the merge is textually clean.
+  edit(main, 'src/c.ts', '// c new on main\n', 'main adds c');
+  git(main, 'push', '-q', 'origin', 'main');
+  git(work, 'fetch', '-q', 'origin', 'main');
+  const commits = git(work, 'rev-list', '--count', 'origin/main..HEAD');
+
+  assert.equal(rebaseGenerated(work, 'main', run), true);
+  assert.equal(
+    readFileSync(join(work, indexFile), 'utf8'),
+    'a.ts: // a\nb.ts: // b changed by the lane\nc.ts: // c new on main\n',
+  );
+  assert.equal(git(work, 'status', '--porcelain'), '');
+  assert.equal(git(work, 'rev-list', '--count', 'origin/main..HEAD'), commits);
+  git(work, 'merge-base', '--is-ancestor', 'origin/main', 'HEAD');
+});
+
 test('a branch that merges cleanly is left untouched', () => {
   const { work, main } = setup();
   git(work, 'checkout', '-q', '-b', 'lane');
