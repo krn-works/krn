@@ -25,6 +25,7 @@ import {
 import { dollarsPerPoint, readPlanPoints } from './plan-gauge.ts';
 import { fixChangesIntroducedLines } from './rework-blame.ts';
 import { type Turn, turnDollars } from './slice-cost.ts';
+import { titleTaskId } from './task-id.ts';
 
 type Value = number | null;
 
@@ -49,7 +50,6 @@ const percentile = (values: number[], p: number): Value => {
     ? null
     : (sorted[Math.max(0, Math.ceil(sorted.length * p) - 1)] ?? null);
 };
-const taskId = (title: string) => /\((t-[0-9a-z]{7})\)\s*$/.exec(title)?.[1];
 /**
  * A PR is lane-authored when its body names a headless claude session (the
  * `krn lane run` body) or carries the `Lane: krn lane brief` line (`krn pr body --lane`) or its branch has a worktree transcript directory that
@@ -277,7 +277,7 @@ export async function collectWindow(options: WindowOptions) {
   const perTask = new Map<string, number>();
   let noTask = 0;
   for (const p of inWindow) {
-    const t = taskId(p.title);
+    const t = titleTaskId(p.title);
     if (t) perTask.set(t, (perTask.get(t) ?? 0) + 1);
     else noTask++;
   }
