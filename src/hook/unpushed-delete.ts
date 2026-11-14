@@ -1,4 +1,4 @@
-// Unpushed-delete hook logic: refuses to delete a branch or worktree holding unrecorded work.
+// Unpushed-delete hook.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, resolve } from 'node:path';

@@ -1,4 +1,4 @@
-// GitHub App installation-token minting: Bitwarden credential, JWT, scoped token and its cache.
+// GitHub App token minting.
 import { createPrivateKey, sign } from 'node:crypto';
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

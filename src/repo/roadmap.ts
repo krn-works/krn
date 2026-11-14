@@ -1,5 +1,5 @@
-// Roadmap generator logic: renders docs/program/roadmap.md from the open task records.
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+// Roadmap generation.
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { readJson } from './json-text.ts';

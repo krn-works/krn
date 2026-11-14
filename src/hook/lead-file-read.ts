@@ -1,4 +1,4 @@
-// Lead file-read hook logic: classifies Bash and Read calls and refuses or bounds large dumps.
+// Lead file-read hook.
 import { readFileSync, statSync } from 'node:fs';
 import { isAbsolute, resolve } from 'node:path';
 import { isWorkerSession } from './session.ts';

@@ -1,4 +1,4 @@
-// Lane canary: runs one lane against a local pilot repository (entry: scripts/lane-canary.ts).
+// Lane canary on a pilot.
 import { spawnSync } from 'node:child_process';
 import {
   chmodSync,

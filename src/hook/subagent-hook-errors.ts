@@ -1,4 +1,4 @@
-// Subagent hook-error logic: counts a subagent's hook errors and parks them for the lead.
+// Subagent hook-error hook.
 import {
   appendFileSync,
   existsSync,

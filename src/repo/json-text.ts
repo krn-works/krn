@@ -1,4 +1,4 @@
-// One zod schema for text that must hold a JSON document: the shared JSON.parse boundary.
+// JSON text zod schema.
 import { z } from 'zod';
 
 export const jsonText = z.string().transform((text, ctx) => {

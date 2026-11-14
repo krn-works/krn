@@ -1,4 +1,4 @@
-// Adoption census logic: copies real operator repositories into scratch clones, runs the adoption surface of
+// Adoption census over repos.
 // the CLI on each and renders one committed table (entry: scripts/adoption-census.ts).
 // Repository contents are data: only the clone is touched, the origin remote is only read by `adopt --verify`.
 import { spawnSync } from 'node:child_process';
@@ -8,7 +8,6 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
-  writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';

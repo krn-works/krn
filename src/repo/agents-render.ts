@@ -1,4 +1,4 @@
-// Renders the checked-in repository instructions from their sole rule registry and checks the registry. ADR 0001.
+// AGENTS.md rendering.
 import { readdir, readFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { readJson } from './json-text.ts';
