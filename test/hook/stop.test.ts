@@ -1181,3 +1181,23 @@ test('a krn-lane subagent payload is held to the Stop check in the lead environm
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('the Stop hook import graph names only node builtins, relative files and zod, so a clone without node_modules needs just the link the harness lays', () => {
+  const seen = new Set<string>();
+  const bare = new Set<string>();
+  const walk = (file: string): void => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    const source = readFileSync(file, 'utf8');
+    for (const match of source.matchAll(
+      /^\s*(?:import|export)\b[^;'"]*?\bfrom\s*(['"])([^'"]+)\1/gmu,
+    )) {
+      const specifier = match[2] as string;
+      if (specifier.startsWith('.')) walk(join(file, '..', specifier));
+      else if (!specifier.startsWith('node:')) bare.add(specifier);
+    }
+  };
+  walk(hook);
+  assert.ok(seen.size > 5, 'the walk reached the hook sources');
+  assert.deepEqual([...bare].sort(), ['zod']);
+});
