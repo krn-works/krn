@@ -1,5 +1,6 @@
 // Successor launch.
 import { SESSION_CLASS_VARIABLE } from '../memory/operator-inbox-store.ts';
+import { exitFailure, run } from './command.ts';
 import {
   APP_CACHE_DIRECTORY,
   agentFlags,
@@ -8,24 +9,21 @@ import {
   detectHarness,
   EXIT_UNAVAILABLE,
   launcherPrompt,
-  tabCreateArgs,
+  tabEnvironment,
 } from './compose.ts';
-import {
-  agentInfo,
-  awaitAgent,
-  callerWorkspace,
-  createdIds,
-  exitFailure,
-  herdrFailure,
-  run,
-  serverIsRunning,
-} from './herdr.ts';
 import {
   parseArgs,
   START_SECONDS,
   type SuccessorLaunchOptions,
 } from './options.ts';
 import { retireMode, retirePredecessors } from './retire.ts';
+import {
+  announcement,
+  awaitAgent,
+  isFailure,
+  type ScopeRef,
+  selectHost,
+} from './terminal-host.ts';
 
 // The successor launch: open a Herdr tab running the next agent, wait for it to show, retire the caller.
 // Without Herdr a Claude lead falls back to `claude --bg`; Codex has no background mode and fails.
@@ -67,15 +65,13 @@ export function main(args: string[]): number {
     }
   }
 
-  const status = run('herdr', ['status']);
-  const paneId = process.env.HERDR_PANE_ID;
-  let unavailable: string | undefined;
-  let workspaceId: string | undefined;
+  const host = selectHost();
+  const paneId = host.self();
+  let unavailable = host.status();
+  let workspaceId: ScopeRef | undefined;
 
-  if (status.error || status.status !== 0 || !serverIsRunning(status.stdout))
-    unavailable = herdrFailure(status);
-  else if (paneId) {
-    workspaceId = callerWorkspace(paneId);
+  if (!unavailable && paneId) {
+    workspaceId = host.place(paneId).scope;
     if (!workspaceId) unavailable = 'caller pane unavailable';
   }
 
@@ -114,67 +110,66 @@ export function main(args: string[]): number {
   }
 
   const predecessorSession =
-    paneId && workspaceId
-      ? agentInfo(run('herdr', ['agent', 'get', paneId])).sessionId
-      : undefined;
-  const createArgs = tabCreateArgs({
-    options,
-    agent,
-    prompt,
-    workspaceId,
-    appCredential,
-    predecessor:
-      paneId && predecessorSession
-        ? { paneId, sessionId: predecessorSession }
-        : undefined,
+    paneId && workspaceId ? host.agent(paneId).sessionId : undefined;
+  const created = host.open({
+    scope: workspaceId,
+    cwd: options.cwd,
+    label: options.name,
+    env: tabEnvironment({
+      options,
+      agent,
+      prompt,
+      appCredential,
+      predecessor:
+        paneId && predecessorSession
+          ? { paneId, sessionId: predecessorSession }
+          : undefined,
+    }),
   });
-  const created = run('herdr', createArgs);
-  if (created.error || created.status !== 0) return exitFailure(created);
-
-  const ids = createdIds(created.stdout);
-  if (!ids) {
-    process.stderr.write('herdr tab create returned no tab or pane id\n');
-    return 1;
+  if (isFailure(created)) {
+    process.stderr.write(created.stderr);
+    return created.exit;
   }
+  const ids = created;
 
-  const started = run('herdr', [
-    'pane',
-    'run',
-    ids.paneId,
+  const started = host.type(ids.session, [
     '"$KRN_SUCCESSOR_AGENT"',
     ...flags,
     // Codex has no session-name flag; the Herdr tab label carries the name.
     ...(harness !== 'codex' ? ['-n', '"$KRN_SUCCESSOR_NAME"'] : []),
     '"$KRN_SUCCESSOR_PROMPT"',
   ]);
-  if (started.error || started.status !== 0) return exitFailure(started);
+  if (started) {
+    process.stderr.write(started.stderr);
+    return started.exit;
+  }
 
   // Herdr names claude and codex itself; an override's binary may be a
   // wrapper, so only Herdr's own kinds are matched by name.
   const expected = harness === 'other' ? undefined : harness;
   const seconds = options.startSeconds ?? START_SECONDS;
   const successor = awaitAgent(
-    () => agentInfo(run('herdr', ['agent', 'get', ids.paneId])),
+    () => host.agent(ids.session),
     expected,
     seconds,
   );
   if (!successor) {
     process.stderr.write(
-      `successor not started: herdr pane ${ids.paneId} shows no ${expected ? `${expected} ` : ''}agent after ${seconds} s; tab ${ids.tabId} kept for inspection\n`,
+      `successor not started: ${host.name} pane ${ids.session} shows no ${expected ? `${expected} ` : ''}agent after ${seconds} s; tab ${ids.tab} kept for inspection\n`,
     );
     return 1;
   }
 
   process.stdout.write(
-    `successor: herdr tab ${ids.tabId} pane ${ids.paneId} agent ${successor.agent} ${successor.status ?? 'unknown'}\n`,
+    `${announcement(host, ids, successor.agent ?? '', successor.status ?? 'unknown')}\n`,
   );
   // A startup dialog (folder trust, an MCP approval, a login) holds a live
   // successor before its prompt. Failing the launch would invite a duplicate
   // successor, so the handoff stands and the operator learns the pane.
   if (successor.status === 'blocked')
     process.stderr.write(
-      `successor waits on a startup dialog: answer it in herdr pane ${ids.paneId} (tab ${ids.tabId})\n`,
+      `successor waits on a startup dialog: answer it in ${host.name} pane ${ids.session} (tab ${ids.tab})\n`,
     );
-  if (paneId) retirePredecessors(options, paneId);
+  if (paneId) retirePredecessors(options, paneId, host);
   return 0;
 }

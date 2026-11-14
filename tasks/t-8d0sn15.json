@@ -1,7 +1,11 @@
 {
   "id": "t-8d0sn15",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "TerminalHost port (terminal-host.ts) with herdr adapter (host-herdr.ts); run('herdr' only in host-herdr.ts; contract suite test/claude/terminal-host.test.ts over test/fixtures/herdr captures; existing launch/retire/probe tests unchanged and green"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "src/successor drives the terminal host through a TerminalHost port with a herdr adapter, behaviour unchanged",

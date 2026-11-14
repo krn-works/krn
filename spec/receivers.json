@@ -182,7 +182,11 @@
       "receivers": ["git"],
       "real": "test/claude/context-restart.test.ts"
     },
-    "src/successor/herdr.ts": {
+    "src/successor/command.ts": {
+      "receivers": ["herdr", "ps"],
+      "real": "test/claude/successor-launch.test.ts"
+    },
+    "src/successor/host-herdr.ts": {
       "receivers": ["herdr", "ps"],
       "real": "test/claude/successor-launch.test.ts"
     },

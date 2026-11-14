@@ -6,7 +6,7 @@ import { SESSION_CLASS_VARIABLE } from '../memory/operator-inbox-store.ts';
 import type { SuccessorLaunchOptions } from './options.ts';
 
 // Launch composition: the App credential environment, the harness in use, the launcher prompt,
-// the agent flags and the `herdr tab create` arguments.
+// the agent flags and the tab environment.
 
 const REPOSITORY_ROOT = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -144,43 +144,27 @@ export function launcherPrompt(options: SuccessorLaunchOptions): string {
   return `First run \`node scripts/claude/successor-launch.ts --retire\` from the repository root. ${options.prompt}`;
 }
 
-// `herdr pane run` types its words into the pane's shell, so the agent, name and prompt travel as
-// tab environment and the shell expands them.
-export function tabCreateArgs(input: {
+// A pane types its words into the shell, so the agent, name and prompt travel as tab environment
+// and the shell expands them.
+export function tabEnvironment(input: {
   options: SuccessorLaunchOptions;
   agent: string;
   prompt: string;
-  workspaceId: string | undefined;
   appCredential: Record<string, string> | undefined;
   predecessor: { paneId: string; sessionId: string } | undefined;
-}): string[] {
-  const { options, agent, prompt, workspaceId, appCredential, predecessor } =
-    input;
-  const createArgs = ['tab', 'create'];
-  if (workspaceId) createArgs.push('--workspace', workspaceId);
-  createArgs.push(
-    '--cwd',
-    options.cwd,
-    '--label',
-    options.name,
-    '--env',
-    `KRN_SUCCESSOR_AGENT=${agent}`,
-    '--env',
-    `KRN_SUCCESSOR_NAME=${options.name}`,
-    '--env',
-    `KRN_SUCCESSOR_PROMPT=${prompt}`,
-    '--env',
-    `${SESSION_CLASS_VARIABLE}=${options.sessionClass}`,
-  );
-  for (const [name, value] of Object.entries(appCredential ?? {}))
-    createArgs.push('--env', `${name}=${value}`);
-  if (predecessor)
-    createArgs.push(
-      '--env',
-      `KRN_PREDECESSOR_PANE=${predecessor.paneId}`,
-      '--env',
-      `KRN_PREDECESSOR_SESSION=${predecessor.sessionId}`,
-    );
-  createArgs.push('--no-focus');
-  return createArgs;
+}): Record<string, string> {
+  const { options, agent, prompt, appCredential, predecessor } = input;
+  return {
+    KRN_SUCCESSOR_AGENT: agent,
+    KRN_SUCCESSOR_NAME: options.name,
+    KRN_SUCCESSOR_PROMPT: prompt,
+    [SESSION_CLASS_VARIABLE]: options.sessionClass,
+    ...appCredential,
+    ...(predecessor
+      ? {
+          KRN_PREDECESSOR_PANE: predecessor.paneId,
+          KRN_PREDECESSOR_SESSION: predecessor.sessionId,
+        }
+      : {}),
+  };
 }

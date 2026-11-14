@@ -3,18 +3,16 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { readJson } from '../repo/json-text.ts';
-import {
-  agentInfo,
-  keptRunning,
-  paneInfo,
-  record,
-  run,
-  runningPaneInTab,
-  sleep,
-  text,
-  waitUntilSettled,
-} from './herdr.ts';
+import { record, sleep, text } from './command.ts';
 import { type SuccessorLaunchOptions, waitSeconds } from './options.ts';
+import {
+  isFailure,
+  type ScopeRef,
+  type SessionRef,
+  selectHost,
+  type TabRef,
+  type TerminalHost,
+} from './terminal-host.ts';
 
 // Retire: close the predecessor panes that finished, rewrite the launch ledger and rename the caller's tab.
 
@@ -26,10 +24,31 @@ type LaunchRecord = {
   recorded_at: string;
 };
 
+function keptRunning(host: TerminalHost, session: SessionRef): boolean {
+  if (!host.busy(session)) return false;
+  process.stderr.write(`retire: kept ${session}: running work\n`);
+  return true;
+}
+
+function runningSessionInTab(
+  host: TerminalHost,
+  scope: ScopeRef,
+  tab: TabRef,
+): SessionRef | undefined {
+  const tabs = host.list(scope);
+  if (isFailure(tabs)) return undefined;
+  for (const listed of tabs)
+    if (listed.tab === tab)
+      for (const session of listed.sessions() ?? [])
+        if (keptRunning(host, session)) return session;
+  return undefined;
+}
+
 export function retireMode(
   args: string[],
   pause: (seconds: number) => void = sleep,
   now: () => number = Date.now,
+  host: TerminalHost = selectHost(),
 ): number {
   let wait = 180;
   let cwd = process.cwd();
@@ -44,26 +63,23 @@ export function retireMode(
       return 64;
     }
   }
-  if (!process.env.HERDR_PANE_ID) {
+  const ownPane = host.self();
+  if (!ownPane) {
     process.stderr.write('retire: skipped: not in Herdr\n');
     return 0;
   }
-  const ownPane = process.env.HERDR_PANE_ID;
-  const ownResult = run('herdr', ['pane', 'get', ownPane]);
-  const own =
-    ownResult.status === 0 && !ownResult.error
-      ? paneInfo(ownResult.stdout)
-      : {};
-  if (!own.workspaceId || !own.tabId) {
+  const own = host.place(ownPane);
+  if (!own.scope || !own.tab) {
     process.stderr.write('retire: failed: own pane unavailable\n');
     return 0;
   }
-  const predPane = process.env.KRN_PREDECESSOR_PANE;
+  const predId = process.env.KRN_PREDECESSOR_PANE;
   const predSession = process.env.KRN_PREDECESSOR_SESSION;
-  if (predPane && predSession) {
+  if (predId && predSession) {
+    const predPane = host.session(predId);
     const deadline = now() + wait * 1000;
     for (;;) {
-      const info = agentInfo(run('herdr', ['agent', 'get', predPane]));
+      const info = host.agent(predPane);
       if (info.notFound || (info.sessionId && info.sessionId !== predSession))
         break;
       const settled = info.status === 'idle' || info.status === 'done';
@@ -72,10 +88,10 @@ export function retireMode(
         info.sessionId === predSession &&
         settled
       ) {
-        if (keptRunning(predPane)) break;
-        const closed = run('herdr', ['pane', 'close', predPane]);
+        if (keptRunning(host, predPane)) break;
+        const closed = host.close(predPane) === undefined;
         process.stderr.write(
-          `retire: ${closed.status === 0 && !closed.error ? 'closed' : 'failed to close'} predecessor ${predPane}\n`,
+          `retire: ${closed ? 'closed' : 'failed to close'} predecessor ${predPane}\n`,
         );
         break;
       }
@@ -86,43 +102,35 @@ export function retireMode(
       }
       // A settled agent returns from the wait at once, so only a working one
       // is waited on; every other path pauses and keeps the loop bounded.
-      if (settled || !waitUntilSettled(predPane, remaining))
+      if (settled || !host.wait(predPane, remaining))
         pause(Math.min(5, remaining / 1000));
     }
   }
   const ledgerPath = join(cwd, '.krn', 'successors', 'launches.jsonl');
   try {
-    rewriteLedger(ledgerPath, retireLedger(readLaunches(ledgerPath), ownPane));
+    rewriteLedger(
+      ledgerPath,
+      retireLedger(host, readLaunches(ledgerPath), ownPane),
+    );
   } catch {
     process.stderr.write('retire: failed: ledger unavailable\n');
   }
-  const list = run('herdr', ['tab', 'list', '--workspace', own.workspaceId]);
-  try {
-    const root = record(JSON.parse(list.stdout));
-    const tabs = record(root?.result)?.tabs;
-    if (list.status !== 0 || list.error || !Array.isArray(tabs))
-      throw new Error();
-    for (const value of tabs) {
-      const tab = record(value);
-      const id = text(tab?.tab_id);
-      if (!id) continue;
-      const eligible =
-        typeof tab?.label === 'string' &&
-        tab.label.startsWith('handed off → ') &&
-        tab.workspace_id === own.workspaceId &&
-        id !== own.tabId &&
-        (tab.agent_status === 'idle' || tab.agent_status === 'done');
-      if (eligible && runningPaneInTab(own.workspaceId, id))
-        process.stderr.write(`retire: kept tab ${id}\n`);
-      else if (eligible) {
-        const closed = run('herdr', ['tab', 'close', id]);
-        process.stderr.write(
-          `retire: ${closed.status === 0 && !closed.error ? 'closed' : 'kept'} tab ${id}\n`,
-        );
-      } else process.stderr.write(`retire: kept tab ${id}\n`);
-    }
-  } catch {
+  const tabs = host.list(own.scope);
+  if (isFailure(tabs))
     process.stderr.write('retire: failed: malformed tab list\n');
+  for (const tab of isFailure(tabs) ? [] : tabs) {
+    const eligible =
+      tab.label?.startsWith('handed off → ') === true &&
+      tab.scope === own.scope &&
+      tab.tab !== own.tab &&
+      (tab.status === 'idle' || tab.status === 'done');
+    if (eligible && runningSessionInTab(host, own.scope, tab.tab))
+      process.stderr.write(`retire: kept tab ${tab.tab}\n`);
+    else if (eligible)
+      process.stderr.write(
+        `retire: ${host.closeTab(tab.tab) === undefined ? 'closed' : 'kept'} tab ${tab.tab}\n`,
+      );
+    else process.stderr.write(`retire: kept tab ${tab.tab}\n`);
   }
   return 0;
 }
@@ -160,31 +168,27 @@ function readLaunches(path: string): LaunchRecord[] {
 }
 
 function retireLedger(
+  host: TerminalHost,
   launches: LaunchRecord[],
   callerPaneId: string,
 ): LaunchRecord[] {
   const kept: LaunchRecord[] = [];
   for (const launch of launches) {
     if (launch.pane_id === callerPaneId) continue;
-    const result = run('herdr', ['agent', 'get', launch.pane_id]);
-    const info = agentInfo(result);
+    const pane = host.session(launch.pane_id);
+    const info = host.agent(pane);
     if (info.notFound) continue;
-    if (result.error || result.status !== 0) {
-      kept.push(launch);
-      continue;
-    }
     if (info.sessionId && info.sessionId !== launch.session_id) continue;
     if (
       info.agent === 'claude' &&
       info.sessionId === launch.session_id &&
       (info.status === 'idle' || info.status === 'done')
     ) {
-      if (keptRunning(launch.pane_id)) {
+      if (keptRunning(host, pane)) {
         kept.push(launch);
         continue;
       }
-      const closed = run('herdr', ['pane', 'close', launch.pane_id]);
-      if (!closed.error && closed.status === 0) {
+      if (host.close(pane) === undefined) {
         process.stdout.write(
           `retired: pane ${launch.pane_id} session ${launch.session_id}\n`,
         );
@@ -210,8 +214,9 @@ function rewriteLedger(ledgerPath: string, launches: LaunchRecord[]): void {
 export function retirePredecessors(
   options: SuccessorLaunchOptions,
   callerPaneId: string,
+  host: TerminalHost = selectHost(),
 ): void {
-  const caller = agentInfo(run('herdr', ['agent', 'get', callerPaneId]));
+  const caller = host.agent(host.session(callerPaneId));
   if (
     caller.agent !== 'claude' ||
     !caller.sessionId ||
@@ -233,15 +238,9 @@ export function retirePredecessors(
     return;
   }
 
-  const kept = retireLedger(launches, callerPaneId);
+  const kept = retireLedger(host, launches, callerPaneId);
 
-  const rename = run('herdr', [
-    'tab',
-    'rename',
-    caller.tabId,
-    `handed off → ${options.name}`,
-  ]);
-  if (rename.error || rename.status !== 0)
+  if (host.rename(caller.tabId, `handed off → ${options.name}`))
     process.stderr.write(`successor retirement failed: tab ${caller.tabId}\n`);
 
   const callerLaunch: LaunchRecord = {
