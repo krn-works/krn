@@ -1,0 +1,16 @@
+{
+  "id": "t-7ew7p38",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "ci wait prints 'gate: success <head> in run <id>' from the Check details_url; test/ci/wait.test.ts"
+  },
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "pr ship and ci wait print the Check run id of a successful gate",
+  "after": [],
+  "body": [
+    "Why: four lanes on 2026-11-14 (#837 #838 #839 #840) reported they could not name the Check run id because `bin/krn pr ship` prints only `gate: success <head>`; the run id exists in the check run details_url, so a lane's evidence line lacks it.\nOutcome: on success `krn ci wait` (and so `krn pr ship`) prints `gate: success <head> in run <id>` when the Check run's details_url names an Actions run.\nProof: test/ci/wait.test.ts feeds a check run with details_url .../actions/runs/123/job/4 and asserts the line names run 123."
+  ]
+}
