@@ -1,0 +1,19 @@
+{
+  "id": "t-znarzda",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 0,
+  "title": "Add a focused test for one untested exported function in src/",
+  "after": [],
+  "body": [
+    "Add one focused node:test or vitest test under test/ for one untested exported pure function in src/ (smallest one); keep the project test command green. No other change."
+  ],
+  "acceptance": [
+    {
+      "verify": "npm test",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
