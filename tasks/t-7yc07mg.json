@@ -1,0 +1,12 @@
+{
+  "id": "t-7yc07mg",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "agents-render test resolves node_modules the way Node does, so it passes in a lane worktree",
+  "after": [],
+  "body": [
+    "Why: lane fix-close-rule (#833): test/agents-render.test.ts symlinks ../node_modules relative to the test file; in a krn lane worktree (.krn/worktrees/<slug>) there is no node_modules at that root (Node resolves upward), so the copied script fails on missing zod.\nOutcome: the test links the node_modules directory Node actually resolves (e.g. dirname of the zod package path) so it passes in the main checkout and in any lane worktree.\nProof: the test passes when run from a fresh krn lane worktree without its own node_modules."
+  ]
+}

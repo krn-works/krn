@@ -1,0 +1,12 @@
+{
+  "id": "t-0bct43k",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "Adopt writes a host registry of adopted repositories and harvest --from-ledger proposes records from rework and red-CI PRs",
+  "after": [],
+  "body": [
+    "Why: Fable plan 1114e (.krn/runs/overnight/fable-plan-1114e.md) slice 9: .krn/adopted.json absent; harvest ran once by hand.\nOutcome: adopt registers the repo in a host registry; krn standards harvest --from-ledger turns each rework or CI-failed merged PR into a proposal with #PR evidence across registered repos.\nProof: harvest with no arguments lists candidates from the registry (fixture repos)."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "id": "t-9bfd07m",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 2,
+  "title": "Adopted repositories get a task-scoped standards packet at session start and the Stop hook teaches the violated record",
+  "after": [
+    "t-91xs1pq"
+  ],
+  "body": [
+    "Why: Fable plan 1114e (.krn/runs/overnight/fable-plan-1114e.md) slice 8: src/hook/session.ts injects nothing; Stop blocks without teaching or logging.\nOutcome: SessionStart/first prompt in an adopted repo injects <=400 tokens of matching records; Stop on a violation prints record id and why and logs the outcome to exposures.\nProof: hook tests on captured Claude payloads (KRN-12)."
+  ]
+}
