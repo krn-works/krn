@@ -1,7 +1,11 @@
 {
   "id": "t-4p169xy",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "outside lane fetch and lane session use the origin App token (fetchBase, sessionEnvironment); #796 shipped outsideGit and exit 83; ci.yml comment fixed"
+  },
   "created": "2026-11-14",
   "priority": 1,
   "title": "Git against outside repositories uses the per-repository App token and workflow edits fail with a named remedy",

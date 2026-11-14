@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 import {
   appCredentialArgs,
+  outsideCredentialArgs,
   outsideGit,
   repositoryOfRemote,
 } from '../../src/cli/outside-git.ts';
@@ -88,5 +89,26 @@ test('real git accepts the helper arguments and reports them for an outside orig
   assert.match(
     helpers.at(-1) ?? '',
     /KRN_APP_REPOSITORY='krn-works\/seo-audit-harness'.*git-credential$/u,
+  );
+});
+
+test('only an outside GitHub origin gets its App helper; the product origin keeps the default credential', () => {
+  const origin = (url: string) =>
+    (() => ({
+      status: 0,
+      stdout: `${url}\n`,
+      stderr: '',
+    })) as unknown as Parameters<typeof outsideCredentialArgs>[1];
+  assert.deepEqual(
+    outsideCredentialArgs('/r', origin('https://github.com/krn-works/krn.git')),
+    [],
+  );
+  assert.deepEqual(outsideCredentialArgs('/r', origin('/srv/a.git')), []);
+  assert.match(
+    outsideCredentialArgs(
+      '/r',
+      origin('git@github.com:krn-works/seo-audit-harness.git'),
+    )[3] ?? '',
+    /KRN_APP_REPOSITORY='krn-works\/seo-audit-harness'/u,
   );
 });

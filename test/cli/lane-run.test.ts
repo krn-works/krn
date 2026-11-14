@@ -27,6 +27,7 @@ import {
 } from '../../src/cli/lane-run/delivery.ts';
 import {
   laneSandboxSettings,
+  sessionEnvironment,
   sessionTimeoutMs,
   tokenMinimumRemainingSeconds,
 } from '../../src/cli/lane-run/environment.ts';
@@ -1763,4 +1764,20 @@ test('lane run removes the empty placeholders a session left in the main checkou
     delete process.env.KRN_LANE_CLAUDE;
     rmSync(base, { recursive: true, force: true });
   }
+});
+
+test('a lane session mints and helps git for its own origin repository', () => {
+  const env = { PATH: '/bin', KRN_APP_REPOSITORY: 'krn-works/krn' };
+  assert.equal(
+    sessionEnvironment(env, '/c', {
+      lane: 'l',
+      repository: 'krn-works/seo-audit-harness',
+    }).KRN_APP_REPOSITORY,
+    'krn-works/seo-audit-harness',
+  );
+  assert.equal(
+    sessionEnvironment({ PATH: '/bin' }, '/c', { lane: 'l' })
+      .KRN_APP_REPOSITORY,
+    undefined,
+  );
 });

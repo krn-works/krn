@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { contractBase } from '../../repo/contract.ts';
 import { mainCheckoutRoot } from '../../task/claims.ts';
 import { getTask } from '../../task/store.ts';
+import { originRepository } from '../outside-git.ts';
 import type { LaneRequest } from './args.ts';
 import { goalLaneBrief, taskLaneBrief } from './brief.ts';
 import { sessionEnvironment } from './environment.ts';
@@ -65,10 +66,15 @@ export async function prepareLane(
   const served =
     prompt.packet === null ? '' : ` packet ${prompt.packet.slice(0, 12)}`;
 
+  const repository = originRepository(origin);
   const environment = sessionEnvironment(
     process.env,
     join(main, '.krn', 'tmp', 'app-cache'),
-    task === undefined ? { lane } : { lane, task },
+    {
+      lane,
+      ...(task === undefined ? {} : { task }),
+      ...(repository === undefined ? {} : { repository }),
+    },
   );
   const unavailable = await steps.mint(environment);
   if (unavailable !== undefined)
