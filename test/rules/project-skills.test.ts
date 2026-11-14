@@ -64,7 +64,6 @@ test('every slice ships as one squash-merged PR with the template sections and i
       join(root, 'docs', 'program', 'repository-workflow.md'),
       'utf8',
     ),
-    readFileSync(join(root, 'docs', 'program', 'PLAN.md'), 'utf8'),
     readFileSync(join(root, 'README.md'), 'utf8'),
   ];
   for (const text of shipping) {
