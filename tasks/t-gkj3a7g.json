@@ -1,0 +1,12 @@
+{
+  "id": "t-gkj3a7g",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-14",
+  "priority": 1,
+  "title": "The lane verdict prints the session's BLOCKER line",
+  "after": [],
+  "body": [
+    "Why: lane t-nfjxshj ended twice with the session final line `BLOCKER: sandbox mounts scripts/, .claude/ and .agents/ read-only` but the lane verdict printed only `dirty tree`; the lead had to open the transcript to learn why.\nOutcome: when the session result text ends with a BLOCKER line, the lane verdict prints it (first 200 chars) and exits with a distinct code; dirty tree stays for sessions without one.\nProof: test/cli/lane-run.test.ts on a verbatim capture of a claude -p result whose result field ends with BLOCKER; npm run fast PASS."
+  ]
+}

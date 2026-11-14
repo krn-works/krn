@@ -7,6 +7,7 @@
   "title": "Worker hooks live in src behind krn hook",
   "after": [],
   "body": [
-    "Why: D2/D11: scripts/ is a second product (10171 lines); one gate in the product.\nEvidence: .krn/runs/state-review/decisions.md (state review 2026-11-13, Fable 5.2; data verified by the lead where noted), .krn/runs/state-review/portability-probe.md.\nSource: operator 2026-11-13 ordered the state-review decisions executed ('lecisz z tym wszystkim')."
+    "Why: D2/D11: scripts/ is a second product (10171 lines); one gate in the product.\nEvidence: .krn/runs/state-review/decisions.md (state review 2026-11-13, Fable 5.2; data verified by the lead where noted), .krn/runs/state-review/portability-probe.md.\nSource: operator 2026-11-13 ordered the state-review decisions executed ('lecisz z tym wszystkim').",
+    "Lead-only (2026-11-14): two lane runs (sonnet 13 turns, opus 17 turns, transcript ~/.claude/projects/-mnt-storage-coding-krn-active-krn--krn-worktrees-hooks-in-src/) ended with BLOCKER: the lane sandbox mounts scripts/, .claude/ and .agents/ read-only, and this move must edit all three. Do it in a lead session, not krn lane run. The opus session's plan: move worker-{stop,scope,session}.ts and failure-reporter.mjs to src/hook/, tests to test/hook/; krn hook stop|scope forward --check/--related; lane.ts brief names bin/krn hook stop --check; canary keeps legacy worker-stop; update scripts/boundaries.ts allowlist, scripts/lib/shard-weights.json, .agents/standards.json s-finish-gate-worker-stop, test/cli/lane-brief.test.ts, test/cli/standards.test.ts, evals/mutation-samples/run.mjs, docs and skills."
   ]
 }
