@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { z } from 'zod';
 
 export const exitCredentialUnavailable = 69;
 /** The contract install command failed in the lane worktree; no session started. */
@@ -36,16 +37,19 @@ export function blockerOf(text: unknown): { blocker?: string } {
   return last?.startsWith('BLOCKER:') ? { blocker: last.slice(0, 200) } : {};
 }
 
+/** One line of a Claude session transcript (.jsonl under the Claude config directory). */
+export const transcriptLineSchema = z.object({
+  type: z.unknown(),
+  message: z.object({ id: z.unknown() }).optional(),
+});
+
 /** Distinct assistant messages of a session transcript: one per model turn, however many lines a message spans. */
 export function transcriptTurns(transcript: string): number {
   const ids = new Set<string>();
   for (const line of transcript.split('\n')) {
     if (line.trim() === '') continue;
     try {
-      const entry = JSON.parse(line) as {
-        type?: unknown;
-        message?: { id?: unknown };
-      };
+      const entry = transcriptLineSchema.parse(JSON.parse(line));
       if (entry.type === 'assistant' && typeof entry.message?.id === 'string')
         ids.add(entry.message.id);
     } catch {

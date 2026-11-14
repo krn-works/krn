@@ -2,6 +2,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { z } from 'zod';
 
 export const INIT_STACKS = ['ts', 'php', 'python'] as const;
 export type InitStack = (typeof INIT_STACKS)[number];
@@ -12,6 +13,12 @@ export interface InitReport {
 }
 
 const BASE = 'main';
+
+/** The package.json an existing project already has; unknown keys are kept when init adds a test script. */
+export const manifestSchema = z.looseObject(
+  { scripts: z.record(z.string(), z.string()).optional() },
+  { error: 'package.json: scripts must map names to command strings' },
+);
 
 function git(root: string, args: string[]) {
   return spawnSync('git', args, { cwd: root, encoding: 'utf8' });
@@ -222,9 +229,9 @@ export function initDirectory(root: string, named?: string): InitReport {
     const path = join(root, file);
     if (existsSync(path)) {
       if (file !== 'package.json') continue;
-      const manifest = JSON.parse(readFileSync(path, 'utf8')) as {
-        scripts?: Record<string, string>;
-      };
+      const manifest = manifestSchema.parse(
+        JSON.parse(readFileSync(path, 'utf8')),
+      );
       if (manifest.scripts?.test !== undefined) continue;
       manifest.scripts = { ...manifest.scripts, test: 'node --test' };
       writeFileSync(path, json(manifest));

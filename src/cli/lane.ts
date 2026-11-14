@@ -10,6 +10,7 @@ import {
   statfsSync,
 } from 'node:fs';
 import { dirname, join, sep } from 'node:path';
+import { z } from 'zod';
 import { precedentSection } from '../brain/precedent.ts';
 import { briefStandards } from '../brain/standards.ts';
 import { PROJECT_STANDARDS, readProject } from '../brain/standards-cli.ts';
@@ -297,6 +298,11 @@ async function drainCommand(args: string[]): Promise<void> {
   process.exitCode = result.exitCode;
 }
 
+/** A task claim file under .krn/task-claims, written by `krn task claim`. */
+export const claimFileSchema = z
+  .object({ worktree: z.unknown() })
+  .describe('task claim file');
+
 /** The ids of the claims held from `worktree`. */
 function claimsFrom(main: string, worktree: string): string[] {
   const dir = join(main, '.krn', 'task-claims');
@@ -305,9 +311,9 @@ function claimsFrom(main: string, worktree: string): string[] {
   for (const name of readdirSync(dir)) {
     if (!name.endsWith('.json')) continue;
     try {
-      const claim = JSON.parse(readFileSync(join(dir, name), 'utf8')) as {
-        worktree?: unknown;
-      };
+      const claim = claimFileSchema.parse(
+        JSON.parse(readFileSync(join(dir, name), 'utf8')),
+      );
       if (claim.worktree === worktree) ids.push(name.slice(0, -5));
     } catch {
       /* A corrupt claim belongs to no lane. */

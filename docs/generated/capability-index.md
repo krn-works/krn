@@ -65,7 +65,7 @@ src/cli/lane-run/environment.ts: (no header) exports OPERATOR_CREDENTIAL_V
 src/cli/lane-run/git.ts: (no header) exports gitWith, git
 src/cli/lane-run/preflight.ts: (no header) exports ansi, lastLine, failing
 src/cli/lane-run/prepare.ts: (no header) exports PreparedLane, prepareLane
-src/cli/lane-run/red-check.ts: (no header) exports RedCheck, redCheckOf, r
+src/cli/lane-run/red-check.ts: (no header) exports redCheckSchema, RedChec
 src/cli/lane-run/result.ts: (no header) exports exitCredentialUnavailable,
 src/cli/lane-run/session.ts: (no header) exports killGroup, SessionOutcome
 src/cli/lane-run/steps.ts: (no header) exports LaneVerdict, LaneRunSteps, 
