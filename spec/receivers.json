@@ -75,6 +75,14 @@
       "receivers": ["node"],
       "real": "test/cli/lane-run.test.ts"
     },
+    "src/cli/doctor-unattended.ts": {
+      "receivers": ["node", "ss", "ps"],
+      "capture": [
+        "test/fixtures/bw-serve/ss-listen.txt",
+        "test/fixtures/bw-serve/ps-etimes.txt"
+      ],
+      "test": "test/cli/doctor-unattended.test.ts"
+    },
     "src/cli/hook.ts": {
       "receivers": ["node"],
       "real": "test/cli/hook.test.ts"
