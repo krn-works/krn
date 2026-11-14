@@ -811,6 +811,21 @@ function inspectTests(
 }
 
 /** The blocking standards of a repository on a date (YYYY-MM-DD), one line each. */
+/**
+ * A lane whose ship merged has no branch left: ship removed its worktree, so the payload cwd is the
+ * main checkout on the base. Its last message names the merge (`verdict: merged <sha>`); the end is
+ * accepted when that commit is on the base.
+ */
+export function shippedMerge(root: string, message: unknown): boolean {
+  if (typeof message !== 'string') return false;
+  const sha = /^verdict: merged ([0-9a-f]{7,40})\b/mu.exec(message)?.[1];
+  if (sha === undefined) return false;
+  const named = loadContract(root).contract?.base ?? 'main';
+  return [`origin/${named}`, named].some(
+    (ref) => git(root, ['merge-base', '--is-ancestor', sha, ref]).status === 0,
+  );
+}
+
 export type StandardsRunner = (root: string, asOf: string) => string[];
 
 /** The refusal reason for a Stop payload, or undefined when the session may end. */
@@ -839,6 +854,8 @@ export function judgeStop(
   if (!who) return undefined;
   if (who.unidentified) return `Stop refused: ${UNIDENTIFIED_LANE}`;
   if (statesBlocker(fields?.last_assistant_message)) return undefined;
+  if (subagent && shippedMerge(root, fields?.last_assistant_message))
+    return undefined;
   const outcome = inspect(root, run, shell, env);
   if (outcome.ok) {
     // Floor and unwaived reflex standards of the repository stop the session; finish and waived ones only report.
