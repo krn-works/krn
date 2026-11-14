@@ -126,7 +126,7 @@ export function adoptCommand(args: string[]): void {
   if (on.has('--canary')) {
     const result = runCanary(root);
     process.stdout.write(`canary ${result.outcome}: ${result.message}\n`);
-    if (result.outcome !== 'pass')
+    if (result.outcome !== 'pass' && result.outcome !== 'bootstrap')
       process.exitCode = canaryExit(result.outcome);
     return;
   }
@@ -176,7 +176,7 @@ export function adoptCommand(args: string[]): void {
   else {
     const result = runCanary(root);
     process.stdout.write(`canary ${result.outcome}: ${result.message}\n`);
-    if (result.outcome !== 'pass') {
+    if (result.outcome !== 'pass' && result.outcome !== 'bootstrap') {
       // A failed canary leaves no repository half-adopted.
       report.rollback();
       const removed = 'everything adopt wrote was removed';

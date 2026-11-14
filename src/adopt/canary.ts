@@ -23,9 +23,10 @@ import { isKrnStopCommand } from './stop-hook.ts';
 export interface CanaryResult {
   /**
    * pass: the gate refused the broken test and passed the clean tree; fail: it did not; skipped: nothing to break;
-   * timeout: the canary ran past its time limit; red-base: the repository's own test command fails on the clean base.
+   * timeout: the canary ran past its time limit; red-base: the repository's own test command fails on the clean base;
+   * bootstrap: the contract is vacuous (no real test yet) and the Stop gate refused it, as it must until the first test lands.
    */
-  outcome: 'pass' | 'fail' | 'skipped' | 'timeout' | 'red-base';
+  outcome: 'pass' | 'fail' | 'skipped' | 'timeout' | 'red-base' | 'bootstrap';
   message: string;
 }
 
@@ -230,16 +231,24 @@ function canary(root: string): CanaryResult {
   if (found === undefined)
     return skipped('no test command in the repo contract');
   const { contract } = found;
-  // A vacuous contract carries a command that fails on purpose: there is no gate to prove until a real test exists.
-  if (contract.vacuous === true)
-    return skipped(
-      'no test command in the repo contract (the contract is vacuous: add one real test and set test in krn.json)',
-    );
   const commands = stopCommands(root);
   if (!commands.some((c) => isKrnStopCommand(c) || OWN_STOP.test(c)))
     return fail(
       'the Stop hook is not installed: .claude/settings.json has no Stop entry calling `krn hook stop`, so a broken test would not be refused',
     );
+  // A vacuous contract carries a command that fails on purpose: the gate must refuse it until one real test exists.
+  if (contract.vacuous === true) {
+    const gate = stop(root, commands);
+    if (gate.status !== 2)
+      return fail(
+        `the Stop gate did not refuse the vacuous contract: expected exit 2, got ${gate.status}. ${gate.stderr.slice(-300)}`,
+      );
+    return {
+      outcome: 'bootstrap',
+      message:
+        'bootstrap state: the contract is vacuous and the Stop gate refused it (exit 2); the first admitted task adds one real test and a test command',
+    };
+  }
   const files = testFiles(root, contract).filter(
     (f) => breakage(f) !== undefined,
   );
