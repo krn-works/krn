@@ -579,3 +579,21 @@ def test_frozendict_api():
 
     import copy
     assert copy.copy(fd) is fd
+
+
+def test_omd_addlist_one_shot_iterables():
+    from boltons.dictutils import OrderedMultiDict
+    from boltons.urlutils import OrderedMultiDict as UrlOMD
+    for cls in (OrderedMultiDict, UrlOMD):
+        for make in (lambda: iter([1, 2, 3]), lambda: (i for i in (1, 2, 3))):
+            omd = cls()
+            omd.addlist('a', make())
+            assert omd.getlist('a') == [1, 2, 3]
+            assert omd.get('a') == 3
+            assert list(omd.keys()) == ['a']
+            assert list(omd.iteritems(multi=True)) == [('a', 1), ('a', 2), ('a', 3)]
+            assert len(omd) == 1
+        omd = cls()
+        omd.addlist('a', (i for i in ()))
+        assert 'a' not in omd
+        assert len(omd) == len(list(omd.keys())) == 0

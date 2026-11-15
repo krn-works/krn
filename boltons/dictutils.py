@@ -225,6 +225,7 @@ class OrderedMultiDict(dict):
         Called ``addlist`` for consistency with :meth:`getlist`, but
         tuples and other sequences and iterables work.
         """
+        v = list(v)
         if not v:
             return
         self_insert = self._insert
