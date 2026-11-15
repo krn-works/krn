@@ -22,9 +22,10 @@ async function doctor(options: string[]): Promise<void> {
     report = pin.doctorReport(pin.configuredEntryRoot());
     const host = await import('./doctor-host.ts');
     const facts = host.hostReport(host.readHostFacts(productRoot()));
+    const packs = (await import('./doctor-packs.ts')).packsReport();
     report = {
-      text: report.text + facts.text,
-      exitCode: report.exitCode || facts.exitCode,
+      text: report.text + facts.text + packs.text,
+      exitCode: report.exitCode || facts.exitCode || packs.exitCode,
     };
   }
   process.stdout.write(report.text);

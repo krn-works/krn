@@ -62,6 +62,7 @@ src/cli/adopt.ts: `krn adopt <path>`: write th
 src/cli/ci.ts: (no header) exports ciCommand
 src/cli/decide.ts: Operator decisions: rows wi
 src/cli/doctor-host.ts: (no header) exports Ho
+src/cli/doctor-packs.ts: `krn doctor` pack sec
 src/cli/doctor-unattended.ts: (no header) expo
 src/cli/entry-pin.ts: Product entry pin: which
 src/cli/findings.ts: Review findings: a schema
