@@ -711,6 +711,16 @@ export function ownedLaneBranches(
   );
 }
 
+/** Writes the seed task into the row clone; adopt may have left no tasks/ directory, so it is created. */
+export function writeSeedTask(
+  dir: string,
+  seed: { file: string; text: string },
+): void {
+  const path = join(dir, seed.file);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, seed.text);
+}
+
 function acceptStack(
   stack: string,
   options: RunOptions,
@@ -863,7 +873,7 @@ function acceptStack(
     const seed = hiddenRow
       ? hiddenSeedTask(hiddenRow, created)
       : seedTask(stack, config.test, created, vacuous);
-    writeFileSync(join(dir, seed.file), seed.text);
+    writeSeedTask(dir, seed);
     git(['add', '-A']);
     git(['commit', '--quiet', '-m', 'chore: adopt krn']);
     git(['push', 'origin', branch]);

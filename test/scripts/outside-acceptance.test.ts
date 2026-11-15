@@ -35,6 +35,7 @@ import {
   rowGreen,
   seedTask,
   workflowFiles,
+  writeSeedTask,
 } from '../../scripts/outside-acceptance.ts';
 import { GREEN_BASE_TASK_TITLE } from '../../src/adopt/adopt.ts';
 import { stopCommand } from '../../src/adopt/stop-hook.ts';
@@ -649,4 +650,12 @@ test('a discriminating row body names every identifier its hidden cases assert',
     body('py-fs-sweep'),
     /SyntaxError instead of the documented ValueError/u,
   );
+});
+
+test('the seed task is written into a row clone that has no tasks directory', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'krn-seed-'));
+  const seed = seedTask('npm', 'npm test', '2026-01-01');
+  writeSeedTask(dir, seed);
+  assert.equal(readFileSync(join(dir, seed.file), 'utf8'), seed.text);
+  writeSeedTask(dir, seed);
 });
