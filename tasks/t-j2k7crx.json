@@ -1,7 +1,11 @@
 {
   "id": "t-j2k7crx",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "krn standards query ranks planted records top 3 on PHP REST, TS async, WP template fixtures within budget and logs query exposures"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "krn standards query answers the records for what a session is doing",
