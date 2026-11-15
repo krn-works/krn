@@ -11,6 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import {
+  doctorExitIs,
   namesRemedy,
   nextSteps,
   packRemedyCommand,
@@ -80,15 +81,6 @@ function runSteps(label: string, dir: string, output: string) {
 // Day two in the adopted directory: the pack grew (one pack record is missing
 // from .agents/standards.json), doctor names the remedy, the remedy refreshes,
 // and the task opened on day one is still open and its lane brief resumes it.
-// Doctor ORs the host entry-pin exit (78 while the host's Product entry lags
-// origin/main) into its own; that host state is not the pack's, so the pack
-// lines decide and the exit must equal the wanted code only on a fresh entry.
-function exitIs(run: { code: number; out: string }, want: number) {
-  return /^status=stale$|^entry=unconfigured$/mu.test(run.out)
-    ? run.code === 78
-    : run.code === want;
-}
-
 function secondDay(dir: string, id: string | undefined) {
   const file = join(dir, '.agents', 'standards.json');
   const records = JSON.parse(readFileSync(file, 'utf8')) as {
@@ -108,7 +100,7 @@ function secondDay(dir: string, id: string | undefined) {
   const stale = sh(dir, 'krn doctor');
   expect(
     'second day: doctor on a stale pack exits 65 naming the record',
-    exitIs(stale, 65) &&
+    doctorExitIs(stale, 65) &&
       stale.out.includes('pack-stale=') &&
       stale.out.includes(dropped?.id ?? '?'),
     `exit ${stale.code}: ${stale.out}`,
@@ -130,7 +122,7 @@ function secondDay(dir: string, id: string | undefined) {
   const after = sh(dir, 'krn doctor');
   expect(
     'second day: doctor is current after the refresh',
-    exitIs(after, 0) && after.out.includes('pack=current'),
+    doctorExitIs(after, 0) && after.out.includes('pack=current'),
     `exit ${after.code}: ${after.out}`,
   );
   const shown = sh(dir, `krn task show ${id ?? 't-none'}`);
@@ -174,8 +166,8 @@ function walk() {
   expect('init: adopt --init --stack ts exits 0', init.code === 0, init.out);
   runSteps('init', empty, init.out);
   expect(
-    'init: doctor exits 0',
-    sh(empty, 'krn doctor').code === 0,
+    'init: doctor exits 0 (78 on a stale host entry)',
+    doctorExitIs(sh(empty, 'krn doctor'), 0),
     'krn doctor failed',
   );
   const created = sh(empty, 'krn task create --title "First task" --json');
@@ -201,7 +193,11 @@ function walk() {
   runSteps('clone', clone, adopt.out);
   const contract = sh(clone, 'krn repo contract');
   expect('clone: repo contract exits 0', contract.code === 0, contract.out);
-  expect('clone: doctor exits 0', sh(clone, 'krn doctor').code === 0, 'failed');
+  expect(
+    'clone: doctor exits 0 (78 on a stale host entry)',
+    doctorExitIs(sh(clone, 'krn doctor'), 0),
+    'failed',
+  );
 
   const probes: [string, string, number | null][] = [
     ['unknown command', 'krn frobnicate', 64],

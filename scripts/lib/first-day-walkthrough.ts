@@ -54,3 +54,19 @@ export function summarize(results: StepResult[]): {
   );
   return { text: lines.join('\n'), exitCode: failed === 0 ? 0 : 1 };
 }
+
+/**
+ * Whether a `krn doctor` run exits as wanted, judged apart from the host entry.
+ * Doctor ORs the host entry-pin exit (78 while the host's Product entry lags
+ * origin/main or is unconfigured) into its own; that host state is not the
+ * adopted repository's, so on a stale entry only 78 is accepted and the
+ * wanted code applies on a fresh one.
+ */
+export function doctorExitIs(
+  run: { code: number; out: string },
+  want: number,
+): boolean {
+  return /^status=stale$|^entry=unconfigured$/mu.test(run.out)
+    ? run.code === 78
+    : run.code === want;
+}
