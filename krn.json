@@ -1,0 +1,6 @@
+{
+  "base": "outside/py-mistune-image-depth",
+  "test": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+  "tracker": "krn",
+  "related": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q {files}"
+}
