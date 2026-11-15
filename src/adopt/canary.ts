@@ -40,6 +40,7 @@ const TEST_FILE = [
   /(?:^|\/)(?:tests?|__tests__)\/[^/]+\.[cm]?[jt]sx?$/u,
   /(?:^|\/)test_[^/]+\.py$/u,
   /_test\.(?:py|go)$/u,
+  /(?:^|\/)tests\/[^/]+\.rs$/u,
   /(?:^|\/)tests?\/[^/]+\.php$/u,
   /Test\.php$/u,
 ];
@@ -182,6 +183,8 @@ function breakage(file: string): string | undefined {
     return '\n?>\n<?php throw new Exception("krn canary");\n';
   if (/\.go$/u.test(file))
     return '\nfunc TestKrnCanary(t *testing.T) { t.Fatal("krn canary") }\n';
+  if (/\.rs$/u.test(file))
+    return '\n#[test]\nfn krn_canary() {\n    panic!("krn canary");\n}\n';
   if (/\.[cm]?[jt]sx?$/u.test(file))
     return '\nthrow new Error("krn canary");\n';
   return undefined;
@@ -321,7 +324,7 @@ function canary(root: string): CanaryResult {
     (f) => breakage(f) !== undefined,
   );
   if (files.length === 0)
-    return skipped('no test file the canary can break (js, ts, py, go)');
+    return skipped('no test file the canary can break (js, ts, py, go, rs)');
   const baseRef =
     run(root, 'git', [
       'rev-parse',

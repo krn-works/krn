@@ -126,6 +126,7 @@ export const INIT_STACK_NAMES: readonly Stack[] = [
   'go',
   'php',
   'wp-plugin',
+  'rust',
 ];
 
 export type Bite = {
@@ -235,13 +236,12 @@ export function plantedMatrix(
       done('no-plant', 'add an entry to scripts/lib/record-plants.ts');
       continue;
     }
-    const tool = REQUIRES_TOOL[id];
+    const probe = REQUIRES_TOOL[id];
     if (
-      tool !== undefined &&
-      spawnSync(tool, ['-l'], { input: 'package p\n', encoding: 'utf8' })
-        .status !== 0
+      probe !== undefined &&
+      spawnSync('sh', ['-c', probe], { encoding: 'utf8' }).status !== 0
     ) {
-      done('tool-absent', `${tool} is not installed`);
+      done('tool-absent', `${probe} does not run`);
       continue;
     }
     if (judge(dir, record, asOf).failures.length > 0) {

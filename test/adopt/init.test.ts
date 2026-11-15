@@ -111,7 +111,7 @@ test('--init refuses a git repository with commits and accepts one without', () 
 });
 
 // Born green: an empty directory adopted with --init passes every applicable standard, tracker included.
-for (const stack of ['ts', 'php', 'python', 'wp-plugin', 'go']) {
+for (const stack of ['ts', 'php', 'python', 'wp-plugin', 'go', 'rust']) {
   test(`--init ${stack} in an empty directory leaves zero failing standards`, () => {
     const root = dir();
     const run = krn('adopt', root, '--init', '--stack', stack, '--no-canary');

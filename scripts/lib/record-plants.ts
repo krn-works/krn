@@ -4,7 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-export type Stack = 'ts' | 'python' | 'go' | 'php' | 'wp-plugin';
+export type Stack = 'ts' | 'python' | 'go' | 'php' | 'wp-plugin' | 'rust';
 
 /** What a plant does to the project: files to write (null deletes), paths to untrack, a commit to make. */
 export type Edit = {
@@ -71,7 +71,8 @@ const MEASURED_OPEN = [
  * its plant cannot bite and the matrix reports it as skipped instead of green.
  */
 export const REQUIRES_TOOL: Record<string, string> = {
-  's-go-gofmt': 'gofmt',
+  's-go-gofmt': "printf 'package p\\n' | gofmt -l",
+  's-rust-fmt-check': 'cargo fmt --version',
 };
 
 /** The plant of every enforced record of the pack, by record id. */
@@ -120,6 +121,13 @@ export const PLANTS: Record<string, Plant> = {
     if (c.stack === 'python')
       return { write: { 'pyproject.toml': '[tool.mypy]\nstrict = true\n' } };
     if (c.stack === 'go') return { write: { '.golangci.yml': null } };
+    if (c.stack === 'rust')
+      return {
+        write: {
+          '.github/workflows/ci.yml':
+            'name: ci\non: [pull_request]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - run: cargo test\n',
+        },
+      };
     return { write: { '.prettierrc': null } };
   },
   's-typescript-strict': () => ({
@@ -370,4 +378,27 @@ export const PLANTS: Record<string, Plant> = {
   's-go-pinned-toolchain': () => ({
     write: { 'go.mod': 'module example.com/go\n' },
   }),
+  's-rust-lock-committed': () => ({ untrack: ['Cargo.lock'] }),
+  's-rust-fmt-check': () => ({
+    write: { 'src/lib.rs': 'pub fn  f( )->i32{1}\n' },
+  }),
+  's-rust-clippy-deny-warnings': () => ({
+    write: {
+      '.github/workflows/ci.yml':
+        'name: ci\non: [pull_request]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - run: cargo clippy && cargo test\n',
+    },
+  }),
+  's-rust-no-library-unwrap': () => ({
+    write: {
+      'src/risky.rs':
+        'pub fn parse() -> i32 {\n    "1".parse::<i32>().unwrap()\n}\n',
+    },
+  }),
+  's-rust-pinned-toolchain': () => ({
+    write: {
+      'Cargo.toml':
+        '[package]\nname = "rust"\nversion = "0.1.0"\nedition = "2021"\n',
+    },
+  }),
+  's-rust-tests-present': (c) => ({ write: without(c.files, TEST_FILE) }),
 };

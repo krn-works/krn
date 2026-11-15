@@ -16,7 +16,7 @@
     },
     "enforcement": {
       "kind": "command",
-      "run": "git ls-files | grep -qE '(^|/)(tests?|__tests__|spec)/|(_test\\.go|_test\\.py|(^|/)test_[^/]*\\.py|\\.(test|spec)\\.[cm]?[jt]sx?)$'"
+      "run": "git ls-files | grep -qE '(^|/)(tests?|__tests__|spec)/|(_test\\.go|_test\\.py|(^|/)test_[^/]*\\.py|\\.(test|spec)\\.[cm]?[jt]sx?)$' || git grep -qIE '#\\[(cfg\\(test\\)|([a-z_]+::)*test(\\(.*\\))?)\\]' -- '*.rs'"
     },
     "provenance": {
       "origin": "krn pack",
@@ -47,7 +47,7 @@
     },
     "enforcement": {
       "kind": "command",
-      "run": "if [ -s package.json ]; then node -e 'const t=(JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\")).scripts||{}).test||\"\";process.exit(t.trim()===\"\"||/no test specified/.test(t)?1:0)'; elif [ -f composer.json ] || [ -f phpunit.xml ] || [ -f phpunit.xml.dist ]; then if [ -f phpunit.xml ] || [ -f phpunit.xml.dist ]; then true; else node -e 'const s=(JSON.parse(require(\"fs\").readFileSync(\"composer.json\",\"utf8\")).scripts||{}).test;process.exit(s===undefined||/no test specified/.test(JSON.stringify(s))?1:0)'; fi; elif [ -f go.mod ]; then git ls-files | grep -q '_test\\.go$'; elif [ -f Cargo.toml ]; then true; elif [ -f pyproject.toml ] || [ -f setup.cfg ] || [ -f setup.py ] || [ -f tox.ini ] || [ -f pytest.ini ]; then git ls-files | grep -qE '(^|/)(test_[^/]*|[^/]*_test)\\.py$'; else grep -qE '^test:' Makefile 2>/dev/null; fi"
+      "run": "if [ -s package.json ]; then node -e 'const t=(JSON.parse(require(\"fs\").readFileSync(\"package.json\",\"utf8\")).scripts||{}).test||\"\";process.exit(t.trim()===\"\"||/no test specified/.test(t)?1:0)'; elif [ -f composer.json ] || [ -f phpunit.xml ] || [ -f phpunit.xml.dist ]; then if [ -f phpunit.xml ] || [ -f phpunit.xml.dist ]; then true; else node -e 'const s=(JSON.parse(require(\"fs\").readFileSync(\"composer.json\",\"utf8\")).scripts||{}).test;process.exit(s===undefined||/no test specified/.test(JSON.stringify(s))?1:0)'; fi; elif [ -f go.mod ]; then git ls-files | grep -q '_test\\.go$'; elif [ -f Cargo.toml ]; then git ls-files | grep -qE '(^|/)tests/[^/]+\\.rs$' || git grep -qIE '#\\[(cfg\\(test\\)|([a-z_]+::)*test(\\(.*\\))?)\\]' -- '*.rs'; elif [ -f pyproject.toml ] || [ -f setup.cfg ] || [ -f setup.py ] || [ -f tox.ini ] || [ -f pytest.ini ]; then git ls-files | grep -qE '(^|/)(test_[^/]*|[^/]*_test)\\.py$'; else grep -qE '^test:' Makefile 2>/dev/null; fi"
     },
     "provenance": {
       "origin": "krn pack",
@@ -2546,6 +2546,204 @@
     "enforcement": {
       "kind": "command",
       "run": "[ -z \"$(git ls-files manage.py)\" ] || exit 0; ! git ls-files | grep -E '^[^/]+/__init__\\.py$' | grep -vE '^(tests?|docs?|examples?|scripts?|benchmarks?|tools|migrations|build|dist)/' | grep -q ."
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-rust-lock-committed",
+    "type": "standard",
+    "area": "style",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "Every tracked Cargo.toml has a tracked Cargo.lock in its directory or above it.",
+    "why": "Without Cargo.lock a green run on one machine says nothing about the crate versions the next build resolves.",
+    "applies": {
+      "stacks": ["rust"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "tracked=$(git ls-files); for m in $(git ls-files 'Cargo.toml' '*/Cargo.toml' | grep -vE '(^|/)(vendor|target|testdata|fixtures?)/'); do d=$(dirname \"$m\"); while :; do l=\"$d/Cargo.lock\"; [ \"$d\" = . ] && l=Cargo.lock; printf '%s\\n' \"$tracked\" | grep -qxF \"$l\" && continue 2; [ \"$d\" = . ] && break; d=$(dirname \"$d\"); done; echo \"$m has no tracked Cargo.lock\" >&2; exit 1; done; exit 0"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-rust-fmt-check",
+    "type": "standard",
+    "area": "style",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "Tracked Rust files pass cargo fmt --check, so formatting is never a review topic.",
+    "why": "An unformatted file turns the next author's diff into formatting noise and hides the real change.",
+    "applies": {
+      "stacks": ["rust"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "[ -f Cargo.toml ] || exit 0; cargo fmt --version >/dev/null 2>&1 || exit 0; cargo fmt --all --check >/dev/null 2>&1"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-rust-clippy-deny-warnings",
+    "type": "standard",
+    "area": "style",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "Clippy runs in the repository's checks with warnings denied (a workflow, Makefile or script passes -D warnings, or Cargo.toml sets clippy lints).",
+    "why": "A clippy warning that does not fail the run is never fixed, so the lints find nothing.",
+    "applies": {
+      "stacks": ["rust"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "for f in $(git grep -lI 'clippy' -- .github Makefile makefile GNUmakefile 'Taskfile*' justfile .gitlab-ci.yml scripts script hack .pre-commit-config.yaml 2>/dev/null); do grep -qE '(-D[ =]?warnings|--deny[ =]warnings|-D[ =]clippy::all)' \"$f\" && exit 0; done; git grep -qIE '^\\[(workspace\\.)?lints\\.clippy\\]|deny\\((warnings|clippy::all)\\)' -- Cargo.toml '*/Cargo.toml' '*.rs' .cargo/config.toml"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-rust-no-library-unwrap",
+    "type": "standard",
+    "area": "style",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "Library Rust code outside tests never calls unwrap(): return the error or state the invariant with expect.",
+    "why": "A library that panics on unwrap takes down its caller's process, where an error value would have let the caller decide.",
+    "applies": {
+      "stacks": ["rust"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "git ls-files | grep -qE '(^|/)lib\\.rs$' || exit 0; bad=$(git ls-files '*.rs' | grep -vE '(^|/)(tests|benches|examples|vendor|target|testdata|fuzz)/|(^|/)(main|build)\\.rs$|(^|/)bin/|(^|/)tests?\\.rs$|_tests?\\.rs$' | while IFS= read -r f; do awk '/#\\[cfg\\(test\\)\\]/{exit} /^[[:space:]]*\\/\\//{next} /\\.unwrap\\(\\)/{bad=1} END{exit bad}' \"$f\" || echo \"$f\"; done); [ -z \"$bad\" ] || { printf '%s\\n' \"$bad\" >&2; exit 1; }"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-rust-pinned-toolchain",
+    "type": "standard",
+    "area": "style",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "A Rust project pins its toolchain: a tracked rust-toolchain file, or rust-version in Cargo.toml.",
+    "why": "An unpinned toolchain makes a green build depend on which compiler release the machine has installed.",
+    "applies": {
+      "stacks": ["rust"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "[ -f Cargo.toml ] || exit 0; git ls-files | grep -qE '(^|/)rust-toolchain(\\.toml)?$' && exit 0; git grep -qIE '^rust-version[[:space:]]*[.=]' -- Cargo.toml '*/Cargo.toml'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        "docs/program/hardening-checklist.md",
+        "src/repo/contract.ts#detectStack"
+      ],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-rust-tests-present",
+    "type": "standard",
+    "area": "style",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "A Rust crate tracks tests: a tests/ integration file or a #[test] function.",
+    "why": "cargo test with nothing to run exits 0, so an untested crate looks green.",
+    "applies": {
+      "stacks": ["rust"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "[ -f Cargo.toml ] || exit 0; git ls-files | grep -qE '(^|/)tests/[^/]+\\.rs$' || git grep -qIE '#\\[(cfg\\(test\\)|([a-z_]+::)*test(\\(.*\\))?)\\]' -- '*.rs'"
     },
     "provenance": {
       "origin": "krn pack",

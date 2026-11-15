@@ -117,6 +117,28 @@ test('canary passes on a pytest repository and fails with the gate disabled', ()
   assert.equal(krn(root, '--canary').status, 1);
 });
 
+test('canary passes on a cargo repository whose integration test it breaks, and fails with the gate disabled', () => {
+  const root = fixture({
+    'krn.json': JSON.stringify({
+      base: 'main',
+      test: 'cargo test',
+      tracker: 'none',
+    }),
+    'Cargo.toml':
+      '[package]\nname = "canary_fx"\nversion = "0.1.0"\nedition = "2021"\n',
+    'src/lib.rs': 'pub fn one() -> i32 {\n    1\n}\n',
+    'tests/smoke.rs': '#[test]\nfn one_is_one() {\n    assert_eq!(1, 1);\n}\n',
+    '.gitignore': 'target/\n',
+  });
+  krn(root, '--no-canary');
+  git(root, 'add', '-A');
+  git(root, 'commit', '-qm', 'adopt');
+  const ok = krn(root, '--canary');
+  assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+  writeFileSync(join(root, '.claude/settings.json'), '{}\n');
+  assert.equal(krn(root, '--canary').status, 1);
+});
+
 test('canary passes on a php repository whose test runs under php and fails with the gate disabled', () => {
   const root = fixture({
     'krn.json': JSON.stringify({

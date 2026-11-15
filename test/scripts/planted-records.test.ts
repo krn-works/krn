@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { PLANTS } from '../../scripts/lib/record-plants.ts';
@@ -96,6 +96,60 @@ test('the real standards check names the record a plant turns red', () => {
     const red = check();
     assert.equal(red.status, 1);
     assert.match(red.stdout + red.stderr, /s-no-secrets-tracked/);
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+// The plainest hand-written Rust layouts: a workspace whose lock sits at the root, a library whose unwrap
+// lives in its test module, an async test attribute, and the toolchain pinned by a rust-toolchain file.
+test('the Rust records accept the plain layouts and refuse the plain violations', () => {
+  const scratch = mkdtempSync(join(tmpdir(), 'rust-records-'));
+  const identity = ['-c', 'user.name=t', '-c', 'user.email=t@example.com'];
+  const write = (name: string, text: string) => {
+    mkdirSync(dirname(join(scratch, name)), { recursive: true });
+    writeFileSync(join(scratch, name), text);
+  };
+  const check = (record: string) => {
+    spawnSync('git', ['add', '-A'], { cwd: scratch });
+    return spawnSync(
+      process.execPath,
+      [cli, 'standards', 'check', '--root', scratch, '--record', record],
+      { encoding: 'utf8' },
+    ).status;
+  };
+  try {
+    spawnSync('git', [...identity, 'init', '-q', '-b', 'main'], {
+      cwd: scratch,
+    });
+    write('Cargo.toml', '[workspace]\nmembers = ["crates/a"]\n');
+    write('crates/a/Cargo.toml', '[package]\nname = "a"\nversion = "0.1.0"\n');
+    write('Cargo.lock', 'version = 4\n');
+    write(
+      'crates/a/src/lib.rs',
+      'pub fn f() -> i32 {\n    1\n}\n\n#[cfg(test)]\nmod tests {\n    #[tokio::test]\n    async fn g() {\n        Some(1).unwrap();\n    }\n}\n',
+    );
+    write('rust-toolchain.toml', '[toolchain]\nchannel = "1.80"\n');
+    write(
+      '.github/workflows/ci.yml',
+      'on: pull_request\njobs:\n  c:\n    steps:\n      - run: cargo clippy -- -D warnings\n',
+    );
+    for (const record of [
+      's-rust-lock-committed',
+      's-rust-no-library-unwrap',
+      's-rust-pinned-toolchain',
+      's-rust-tests-present',
+      's-rust-clippy-deny-warnings',
+    ])
+      assert.equal(check(record), 0, record);
+    write(
+      'crates/a/src/lib.rs',
+      'pub fn f() -> i32 {\n    Some(1).unwrap()\n}\n',
+    );
+    assert.equal(check('s-rust-no-library-unwrap'), 1);
+    assert.equal(check('s-rust-tests-present'), 1);
+    rmSync(join(scratch, 'Cargo.lock'));
+    assert.equal(check('s-rust-lock-committed'), 1);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

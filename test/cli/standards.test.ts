@@ -99,6 +99,19 @@ const go = {
   '.github/workflows/ci.yml': workflow('go test ./...'),
 };
 
+const rust = {
+  'Cargo.toml':
+    '[package]\nname = "probe"\nversion = "0.1.0"\nedition = "2021"\nrust-version = "1.74"\n',
+  'Cargo.lock': 'version = 4\n',
+  'src/lib.rs': 'pub fn one() -> i32 {\n    1\n}\n',
+  'tests/probe.rs': '#[test]\nfn one() {\n    assert_eq!(1, 1);\n}\n',
+  '.gitignore': 'target/\n',
+  'README.md': '# probe\n\n`cargo test`\n',
+  '.github/workflows/ci.yml': workflow(
+    'cargo fmt --check && cargo clippy -- -D warnings && cargo test',
+  ),
+};
+
 const php = {
   'composer.json': JSON.stringify({
     name: 'probe/site',
@@ -126,6 +139,7 @@ const fixtures = [
   ['Python', python, 'python'],
   ['TypeScript', typescript, 'node/npm'],
   ['Go', go, 'go'],
+  ['Rust', rust, 'rust'],
   ['PHP', php, 'php/phpunit'],
   ['WordPress', wordpress, 'php/phpunit'],
 ] as const;
