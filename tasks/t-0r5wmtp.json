@@ -1,0 +1,19 @@
+{
+  "id": "t-0r5wmtp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "Table of contents heading ids collide or overwrite existing ids",
+  "after": [],
+  "body": [
+    "Bugs seen in mistune: (1) With escape=False and the fenced toc directive, a document that already contains <div id=\"toc_1\"></div> and <div id=\"toc_1_1\"></div> before a '# title' heading gets a heading id that collides with them; the heading should get the next free id, 'toc_1_2', and the toc link should point to it. (2) A before-render hook that sets token['attrs']['id'] = 'existing' on headings is overwritten by the toc: the heading must keep id 'existing', the toc link must be href=\"#existing\", and no generated 'toc_1' appears. This holds both for the directive and for add_toc_hook used alone. (3) Two toc sections in one document must still share the same heading ids."
+  ],
+  "acceptance": [
+    {
+      "verify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
