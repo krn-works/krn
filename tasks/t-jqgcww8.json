@@ -1,0 +1,16 @@
+{
+  "id": "t-jqgcww8",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "py rows failed because a finished outside-acceptance invocation wiped the shared scratch runs directory under a concurrent row (vanished worktree, missing upstream clone); each invocation now sweeps only its own row directories, and a failed row names its --repo repository"
+  },
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Outside py rows drain again: the baseline ignores KRN worktrees on the real receiver and the bug row keeps its repository",
+  "after": [],
+  "body": [
+    "Why: outside rerun 1115j on KRN afa601c (after t-6k4p11d 40d3803): (1) py plain still drains exit 72 with the same red baseline `.venv/bin/python -m pytest fails on a clean origin/outside/py (exit 1: FileNotFoundError: ... /runs/py-1794754859105/.krn/worktrees/t-0x3pmx6)` (.krn/runs/clause-proof/py-1115j.log:642) — t-6k4p11d's preflight fix did not bite on the real receiver; (2) py bug row regressed vs 1115i (merged bc25be7, hidden 13/13): now it stops before adopt with `outside-acceptance: py: tests/test_unzip_http.py not in the fix` and the row prints repository `krn-works/krn` although `--repo py=krn-works/outside-py` was passed (.krn/runs/clause-proof/py-1115j-bug.log line 1).\nCommands: `node scripts/outside-acceptance.ts --stack py --repo py=krn-works/outside-py --scratch /mnt/storage/tmp/krn-outside --window-hours 2` and the same with `--task-file scripts/outside-hidden/tasks.json`.\nOutcome: py plain drains past preflight; py bug row adopts and drains as in 1115i, against krn-works/outside-py.\nProof: reproduce each on the real receiver first (the lane may run the py rows itself for this task), regression tests red before the fix at the lowest layer, then a py plain and py bug row both reach drain exit 0."
+  ]
+}
