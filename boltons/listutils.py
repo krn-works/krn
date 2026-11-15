@@ -108,15 +108,15 @@ class BarrelList(list):
     def _translate_index(self, index):
         if index < 0:
             index += len(self)
+        if index < 0:
+            return None, None
         rel_idx, lists = index, self.lists
         for list_idx in range(len(lists)):
             len_list = len(lists[list_idx])
             if rel_idx < len_list:
-                break
+                return list_idx, rel_idx
             rel_idx -= len_list
-        if rel_idx < 0:
-            return None, None
-        return list_idx, rel_idx
+        return None, None
 
     def _balance_list(self, list_idx):
         if list_idx < 0:
@@ -137,9 +137,14 @@ class BarrelList(list):
             self.lists[0].insert(index, item)
             self._balance_list(0)
         else:
-            list_idx, rel_idx = self._translate_index(index)
-            if list_idx is None:
-                list_idx, rel_idx = 0, 0
+            len_self = len(self)
+            if index < 0:
+                index = max(index + len_self, 0)
+            if index >= len_self:
+                list_idx = len(self.lists) - 1
+                rel_idx = len(self.lists[list_idx])
+            else:
+                list_idx, rel_idx = self._translate_index(index)
             self.lists[list_idx].insert(rel_idx, item)
             self._balance_list(list_idx)
         return
@@ -152,6 +157,8 @@ class BarrelList(list):
 
     def pop(self, *a):
         lists = self.lists
+        while len(lists) > 1 and not lists[-1]:
+            lists.pop()
         if len(lists) == 1 and not a:
             return self.lists[0].pop()
         index = a and a[0]
@@ -197,8 +204,17 @@ class BarrelList(list):
             start = 0
         if stop is None:
             stop = len(self)
+        len_self = len(self)
+        if start < 0:
+            start = max(start + len_self, 0)
+        if stop < 0:
+            stop = max(stop + len_self, 0)
         start_list_idx, start_rel_idx = self._translate_index(start)
-        stop_list_idx, stop_rel_idx = self._translate_index(stop)
+        if stop >= len_self:
+            stop_list_idx = len(self.lists) - 1
+            stop_rel_idx = len(self.lists[-1])
+        else:
+            stop_list_idx, stop_rel_idx = self._translate_index(stop)
         if start_list_idx is None:
             raise IndexError()
         if stop_list_idx is None:

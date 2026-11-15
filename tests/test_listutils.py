@@ -1,3 +1,4 @@
+import pytest
 import sys
 
 from boltons.listutils import SplayList, BarrelList
@@ -138,3 +139,38 @@ bl.extend(range(int(%s)))
     except Exception as e:
         import pdb;pdb.post_mortem()
         raise
+
+
+def _split_barrel_list():
+    bl = BarrelList(range(30000))
+    bl.pop(0)
+    bl.insert(0, 0)
+    assert len(bl.lists) > 1
+    return bl
+
+
+def test_barrel_list_getitem_past_end_raises():
+    bl = _split_barrel_list()
+    for idx in (len(bl), len(bl) + 5, -len(bl) - 1):
+        with pytest.raises(IndexError):
+            bl[idx]
+    assert bl[len(bl) - 1] == 29999
+
+
+def test_barrel_list_insert_clamps_like_list():
+    bl = _split_barrel_list()
+    ref = list(bl)
+    for idx, val in ((len(bl), 'x'), (len(bl) + 50, 'y'),
+                     (-len(bl) - 50, 'z'), (-1, 'w')):
+        bl.insert(idx, val)
+        ref.insert(idx, val)
+    assert list(bl) == ref
+
+
+def test_barrel_list_pop_after_emptied_last_sublist():
+    bl = _split_barrel_list()
+    ref = list(bl)
+    while len(bl.lists[-1]) > 0:
+        assert bl.pop(len(bl) - 1) == ref.pop()
+    assert bl.pop() == ref.pop()
+    assert list(bl) == ref
