@@ -108,9 +108,9 @@ print(min(cap,int((t-now).total_seconds())+60))'
 limit_retry=0
 run_claude
 claude_rc=$?
-kind=$(error_kind)
-if [ -n "$kind" ]; then
-  if [ "$kind" = limit ]; then ${D23_SLEEP:-sleep} "$(limit_wait)"; else ${D23_SLEEP:-sleep} "${D23_API_WAIT:-120}"; fi
+errkind=$(error_kind)
+if [ -n "$errkind" ]; then
+  if [ "$errkind" = limit ]; then ${D23_SLEEP:-sleep} "$(limit_wait)"; else ${D23_SLEEP:-sleep} "${D23_API_WAIT:-120}"; fi
   limit_retry=1
   run_claude
   claude_rc=$?
@@ -127,7 +127,7 @@ echo "outscope: $(grep -E '^(tasks/|docs/program/roadmap.md|\.claude/|\.agents/|
 own=$(grep -E '^test/.*\.test\.' $OUT/$tag.files | grep -v '^$')
 echo "own_tests: $(echo $own)" >> $OUT/$tag.meas
 # gate runs on the commit with stripped harness files restored (arm P deleted them only as an arm treatment)
-[ $kind != K ] && git checkout -q $parent -- .claude .agents CLAUDE.md AGENTS.md 2>/dev/null
+[ "$kind" != K ] && git checkout -q $parent -- .claude .agents CLAUDE.md AGENTS.md 2>/dev/null
 if [ -n "$own" ]; then node --test --test-concurrency=1 $own > $OUT/$tag.own.log 2>&1; echo "own_exit=$?" >> $OUT/$tag.meas; else echo own_exit=none >> $OUT/$tag.meas; fi
 # no full suite here: runs.ts grades every run on the hidden tests and the full suite; a serialized npm test per run halved throughput
 # noise from transcript

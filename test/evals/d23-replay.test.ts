@@ -506,6 +506,7 @@ echo '{"session_id":"s"}'
       },
     });
     assert.equal(r.status, 0, r.stderr);
+    assert.doesNotMatch(r.stderr, /unary operator|integer expression/u);
     const prompt = readFileSync(seen, 'utf8');
     assert.match(prompt, /Acceptance clauses \(cover every one\):/u);
     assert.match(prompt, /1\. It rejects an empty list\./u);
