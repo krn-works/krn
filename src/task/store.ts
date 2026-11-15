@@ -13,13 +13,18 @@ import { contractBase } from '../repo/contract.ts';
 import { assertFormat } from '../repo/formats.ts';
 import {
   createTaskId,
+  isCategoryToken,
+  isTaskCategory,
   isTaskId,
   parseTaskDocument,
   serializeTask,
+  TASK_CATEGORIES,
   type TaskAcceptance,
+  type TaskCategory,
   TaskCommandError,
   TaskDataError,
   type TaskId,
+  type TaskOrigin,
   type TaskRecord,
   type TaskResolution,
   type TaskStatus,
@@ -36,6 +41,10 @@ interface NewTask {
   after?: TaskId[];
   body?: string[];
   verify?: string[];
+  kind?: TaskCategory;
+  area?: string;
+  stack?: string[];
+  from?: TaskOrigin;
 }
 
 interface EditTask {
@@ -232,9 +241,16 @@ function scanTaskDirectory(root: string): {
 export function listTasks(
   root: string,
   status: TaskStatus | 'all' = 'open',
+  filter: { kind?: TaskCategory; area?: string } = {},
 ): TaskRecord[] {
   return [...loadTaskIndex(root).values()]
     .filter((record) => status === 'all' || record.status === status)
+    .filter(
+      (record) => filter.kind === undefined || record.kind === filter.kind,
+    )
+    .filter(
+      (record) => filter.area === undefined || record.area === filter.area,
+    )
     .sort(
       (left, right) =>
         left.priority - right.priority ||
@@ -286,6 +302,12 @@ export function createTask(
       after: [...new Set(input.after ?? [])].sort(),
       body: [...(input.body ?? [])],
       ...acceptanceFor(input.verify),
+      ...(input.kind === undefined ? {} : { kind: input.kind }),
+      ...(input.area === undefined ? {} : { area: input.area }),
+      ...(input.stack === undefined || input.stack.length === 0
+        ? {}
+        : { stack: [...new Set(input.stack)].sort() }),
+      ...(input.from === undefined ? {} : { from: input.from }),
     };
     try {
       atomicWrite(root, path, serializeTask(record));
@@ -486,6 +508,15 @@ export function changeDependency(
 
 function validateNewTask(input: NewTask, index: Map<TaskId, TaskRecord>): void {
   const findings = validateTaskFields(input);
+  if (input.kind !== undefined && !isTaskCategory(input.kind))
+    findings.push(`kind must be one of ${TASK_CATEGORIES.join(', ')}`);
+  if (input.area !== undefined && !isCategoryToken(input.area))
+    findings.push('area must be a lowercase token');
+  for (const item of input.stack ?? [])
+    if (!isCategoryToken(item))
+      findings.push(`stack entry "${item}" must be a lowercase token`);
+  if (input.from !== undefined && input.from.ref.trim() === '')
+    findings.push('from ref must not be empty');
   for (const dependency of input.after ?? []) {
     if (!isTaskId(dependency))
       findings.push(`invalid after task id "${dependency}"`);

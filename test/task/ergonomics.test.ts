@@ -148,7 +148,16 @@ test('JSON mode has stable success shapes for all task verbs', async () => {
     assert.equal(check.status, 0, check.stderr);
     assert.deepEqual(parseJson(check.stdout), { ok: true, findings: [] });
 
-    const created = runCli(repo, ['create', '--title', 'Created', '--json']);
+    const created = runCli(repo, [
+      'create',
+      '--title',
+      'Created',
+      '--kind',
+      'chore',
+      '--area',
+      'task',
+      '--json',
+    ]);
     assert.equal(created.status, 0, created.stderr);
     const newTask = successJson(created, 'task').task as TaskRecord;
     assert.equal(newTask.title, 'Created');

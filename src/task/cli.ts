@@ -23,10 +23,16 @@ import {
 } from './claims.ts';
 import { evidenceMisses, formatEvidenceMiss } from './evidence.ts';
 import {
+  isTaskCategory,
   isTaskId,
+  isTaskOriginKind,
+  TASK_CATEGORIES,
   TASK_ID_MAX_LENGTH,
+  TASK_ORIGINS,
+  type TaskCategory,
   TaskDataError,
   type TaskId,
+  type TaskOrigin,
   type TaskRecord,
   type TaskResolution,
   type TaskStatus,
@@ -61,7 +67,7 @@ const quickstart = [
   'krn task claim --next --actor lead',
   'krn task show t-a1b2c3d',
   'krn task list --status all',
-  'krn task create --title "Add a task" --priority 1 --body-file -',
+  'krn task create --title "Add a task" --kind feature --area task --priority 1 --body-file -',
   'krn task edit t-a1b2c3d --title "Update task"',
   'krn task dep add t-a1b2c3d --after t-b2c3d4e',
   'krn task close t-a1b2c3d --as done',
@@ -73,9 +79,9 @@ const quickstart = [
 
 const verbHelp: Record<string, string> = {
   create:
-    'krn task create --title T [--priority 0..3] [--after ID] [--body-file FILE|-] [--verify CMD]... [--worktree PATH] [--json]\nCreate one task; each --verify is an acceptance command that `close --as done` runs (exit 66 on failure). Example: krn task create --title "Add a task" --priority 1 --json',
+    'krn task create --title T --kind feature|defect|debt|gate|chore|research --area A [--stack S]... [--from KIND:REF] [--priority 0..3] [--after ID] [--body-file FILE|-] [--verify CMD]... [--worktree PATH] [--json]\nCreate one task; each --verify is an acceptance command that `close --as done` runs (exit 66 on failure). Example: krn task create --title "Add a task" --kind feature --area task --priority 1 --json',
   show: 'krn task show ID [--json]\nShow task details, blockers, dependents, and claim. Example: krn task show t-a1b2c3d --json',
-  list: 'krn task list [--status open|closed|all] [--json]\nList tasks. Example: krn task list --status all --json',
+  list: 'krn task list [--status open|closed|all] [--kind K] [--area A] [--json]\nList tasks. Example: krn task list --status all --json',
   ready:
     'krn task ready [--limit N] [--explain ID] [--json]\nList ready tasks one line each (see `krn task show ID` for the body), or explain one task. Example: krn task ready --explain t-a1b2c3d --json',
   claim:
@@ -201,6 +207,10 @@ function create(args: string[], json: boolean): CommandOutput {
   let priority: number | undefined;
   let bodyFile: string | undefined;
   let worktree: string | undefined;
+  let kind: TaskCategory | undefined;
+  let area: string | undefined;
+  let from: TaskOrigin | undefined;
+  const stack: string[] = [];
   const after: TaskId[] = [];
   const verify: string[] = [];
   for (let index = 0; index < args.length; index += 1) {
@@ -216,6 +226,17 @@ function create(args: string[], json: boolean): CommandOutput {
       priority = parsePriority(nextValue(args, index++, option));
     } else if (option === '--after') {
       after.push(requireId(nextValue(args, index++, option)));
+    } else if (option === '--kind') {
+      if (kind !== undefined) throw usage('--kind may be supplied once');
+      kind = parseKind(nextValue(args, index++, option));
+    } else if (option === '--area') {
+      if (area !== undefined) throw usage('--area may be supplied once');
+      area = nextValue(args, index++, option);
+    } else if (option === '--stack') {
+      stack.push(nextValue(args, index++, option));
+    } else if (option === '--from') {
+      if (from !== undefined) throw usage('--from may be supplied once');
+      from = parseFrom(nextValue(args, index++, option));
     } else if (option === '--body-file') {
       if (bodyFile !== undefined)
         throw usage('--body-file may be supplied once');
@@ -227,6 +248,9 @@ function create(args: string[], json: boolean): CommandOutput {
     } else throw usage(`unknown create option "${option}"`);
   }
   if (title === undefined) throw usage('task create requires --title');
+  if (kind === undefined)
+    throw usage(`task create requires --kind ${TASK_CATEGORIES.join('|')}`);
+  if (area === undefined) throw usage('task create requires --area');
 
   const body = bodyFile === undefined ? [] : readBody(bodyFile);
   const cwdRoot = repositoryRoot();
@@ -242,11 +266,32 @@ function create(args: string[], json: boolean): CommandOutput {
       after,
       body,
       verify,
+      kind,
+      area,
+      stack,
+      ...(from === undefined ? {} : { from }),
       ...(priority === undefined ? {} : { priority }),
     },
     { uniquenessRoots: targetRoot === mainRoot ? [] : [mainRoot] },
   );
   return result({ task: record }, `${record.id}\n`, json);
+}
+
+function parseKind(value: string): TaskCategory {
+  if (!isTaskCategory(value))
+    throw usage(`--kind must be one of ${TASK_CATEGORIES.join(', ')}`);
+  return value;
+}
+
+function parseFrom(value: string): TaskOrigin {
+  const separator = value.indexOf(':');
+  const kind = separator < 0 ? value : value.slice(0, separator);
+  const ref = separator < 0 ? '' : value.slice(separator + 1);
+  if (!isTaskOriginKind(kind) || ref.trim() === '')
+    throw usage(
+      `--from must be KIND:REF with KIND one of ${TASK_ORIGINS.join(', ')}`,
+    );
+  return { kind, ref };
 }
 
 function show(args: string[], json: boolean): CommandOutput {
@@ -403,9 +448,14 @@ async function release(args: string[], json: boolean): Promise<CommandOutput> {
 function list(args: string[], json: boolean): CommandOutput {
   let status: TaskStatus | 'all' = 'open';
   let statusSeen = false;
+  const filter: { kind?: TaskCategory; area?: string } = {};
   for (let index = 0; index < args.length; index += 1) {
     const option = args[index];
-    if (option === '--status') {
+    if (option === '--kind')
+      filter.kind = parseKind(nextValue(args, index++, option));
+    else if (option === '--area')
+      filter.area = nextValue(args, index++, option);
+    else if (option === '--status') {
       if (statusSeen) throw usage('--status may be supplied once');
       const value = nextValue(args, index++, option);
       if (value !== 'open' && value !== 'closed' && value !== 'all')
@@ -414,7 +464,7 @@ function list(args: string[], json: boolean): CommandOutput {
       statusSeen = true;
     } else throw usage(`unknown list option "${option}"`);
   }
-  const records = listTasks(repositoryRoot(), status);
+  const records = listTasks(repositoryRoot(), status, filter);
   return result({ tasks: records }, records.map(formatListTask).join(''), json);
 }
 
