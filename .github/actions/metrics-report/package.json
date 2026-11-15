@@ -1,0 +1,17 @@
+{
+    "name": "metrics-report-action",
+    "version": "0.1.0",
+    "private": true,
+    "author": "Dany Castillo",
+    "scripts": {
+        "start": "node src/main.mjs"
+    },
+    "dependencies": {
+        "@actions/core": "^3.0.1",
+        "@actions/exec": "^3.0.0",
+        "@actions/github": "^9.1.1",
+        "@octokit/webhooks-types": "^7.6.1",
+        "esbuild": "^0.28.1",
+        "rollup": "^4.62.3"
+    }
+}
