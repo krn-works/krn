@@ -217,3 +217,17 @@ test('registry reads drop a path that no longer exists, rewrite the file and rep
   assert.equal(run.status, 0, run.stdout + run.stderr);
   assert.match(run.stdout, /^skipped .*: not a git repository$/mu);
 });
+
+test('drift reports a deleted skill support file as missing', () => {
+  const root = adopted();
+  try {
+    rmSync(join(root, '.agents/skills/delivery-lead/lanes.md'));
+    const drift = adoptionDrift(root);
+    assert.ok(
+      drift.missing.includes('.agents/skills/delivery-lead/lanes.md'),
+      JSON.stringify(drift),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

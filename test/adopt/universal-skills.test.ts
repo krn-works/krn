@@ -71,7 +71,12 @@ test('adopt on a pytest fixture installs skills whose every command resolves the
 
   const installed = join(root, '.agents', 'skills');
   const names = readdirSync(installed).sort();
-  assert.deepEqual(names, readdirSync(source).sort());
+  // core skills plus the python stack skill, and no other stack skill
+  assert.deepEqual(names, ['delivery-lead', 'delivery-retro', 'python']);
+  assert.equal(
+    readFileSync(join(installed, 'delivery-lead', 'lanes.md'), 'utf8'),
+    readFileSync(join(source, 'delivery-lead', 'lanes.md'), 'utf8'),
+  );
   assert.equal(
     lstatSync(join(root, '.claude', 'skills')).isSymbolicLink(),
     true,

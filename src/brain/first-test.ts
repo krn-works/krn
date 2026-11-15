@@ -10,9 +10,18 @@ export type FirstTestStack =
   | 'npm'
   | 'rust'
   | 'go'
+  | 'python'
   | 'static';
 
-/** The stack of a repository root by its marker files; WordPress wins over plain PHP, PHP over Rust, Rust over Go, Go over npm. */
+const PYTHON_MARKERS = [
+  'pyproject.toml',
+  'requirements.txt',
+  'setup.py',
+  'setup.cfg',
+  'Pipfile',
+];
+
+/** The stack of a repository root by its marker files; WordPress wins over plain PHP, PHP over Rust, Rust over Go, Go over Python, Python over npm. */
 export function firstTestStack(root: string): FirstTestStack {
   const has = (name: string) => existsSync(join(root, name));
   const php =
@@ -29,6 +38,7 @@ export function firstTestStack(root: string): FirstTestStack {
   if (php) return 'php';
   if (has('Cargo.toml')) return 'rust';
   if (has('go.mod')) return 'go';
+  if (PYTHON_MARKERS.some(has)) return 'python';
   return has('package.json') ? 'npm' : 'static';
 }
 
@@ -62,6 +72,11 @@ const RECIPES: Record<FirstTestStack, string> = {
     'First test, Go: a <module>_test.go file in the package of one pure function; `func TestX(t *testing.T)` calls it and fails with t.Errorf when the result for one hand-written input differs.',
     'krn.json "test": "go test ./..." (the related command takes the package of each changed file).',
     'The proof deletes one production line and the test must go red: assert on computed values, never on a constant.',
+  ].join(' '),
+  python: [
+    'First test, Python: a pytest test in tests/test_<module>.py that imports one pure function of the package and asserts its result for one hand-written input.',
+    'krn.json "test": the repository\'s own runner (`.venv/bin/python -m pytest` when a .venv exists, else `python -m pytest`).',
+    'The proof deletes one production line and the test must go red: assert on computed values, never on a constant or an import-only check.',
   ].join(' '),
   static: [
     'First test, static site: node:test reads one built or source HTML/CSS file and asserts a fact the page must keep (a title, a link target, a required element).',

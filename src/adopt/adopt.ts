@@ -41,6 +41,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from './journal.ts';
+import { skillSet } from './skill-set.ts';
 import {
   legacyStopCommand,
   preToolGuards,
@@ -473,21 +474,32 @@ function writeContract(
 
 const skillsSource = fileURLToPath(new URL('./skills/', import.meta.url));
 
-/** The universal skills (no KRN-repository text), one SKILL.md per directory. */
+/** Every skill directory the installer can copy, one per directory under src/adopt/skills. */
 export function universalSkills(): string[] {
   return readdirSync(skillsSource).sort();
 }
 
-/** Installs the universal skills under .agents/skills, linking .claude/skills to it when neither exists. */
+/** Every file under a directory, as paths relative to it. */
+function filesUnder(dir: string, prefix = ''): string[] {
+  return readdirSync(join(dir, prefix), { withFileTypes: true }).flatMap(
+    (entry) =>
+      entry.isDirectory()
+        ? filesUnder(dir, join(prefix, entry.name))
+        : [join(prefix, entry.name)],
+  );
+}
+
+/** Installs the skill set of this repository's stack, every file of each skill directory, under .agents/skills, linking .claude/skills to it when neither exists. */
 function writeSkills(root: string, report: AdoptionReport): void {
-  for (const name of universalSkills()) {
-    const relative = join('.agents', 'skills', name, 'SKILL.md');
-    writeIfChanged(
-      root,
-      relative,
-      readFileSync(join(skillsSource, name, 'SKILL.md'), 'utf8'),
-      report,
-    );
+  for (const name of skillSet(root, universalSkills())) {
+    const from = join(skillsSource, name);
+    for (const file of filesUnder(from).sort())
+      writeIfChanged(
+        root,
+        join('.agents', 'skills', name, file),
+        readFileSync(join(from, file), 'utf8'),
+        report,
+      );
   }
   const link = projectPath(root, 'skills');
   if (!existsSync(link) && !isSymlink(link)) {

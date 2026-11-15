@@ -263,3 +263,15 @@ test('clause 6: a Go module gets the Go recipe, and the test command a first Go 
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('a Python repository is detected by its marker files and gets a pytest recipe', () => {
+  for (const marker of ['pyproject.toml', 'requirements.txt', 'setup.py']) {
+    const root = fixture({ [marker]: '' });
+    try {
+      assert.equal(firstTestStack(root), 'python', marker);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+  assert.match(firstTestRecipe('python'), /pytest/u);
+});
