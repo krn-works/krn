@@ -10,3 +10,5 @@ build
 
 # PyCharm
 .idea
+.krn/
+__pycache__/

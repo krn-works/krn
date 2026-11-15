@@ -1,0 +1,19 @@
+{
+  "id": "t-04qawe5",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "Certain terminal title escape sequences make colorama hang or mishandle",
+  "after": [],
+  "body": [
+    "Bug: writing an OSC (operating system command) sequence to a colorama-wrapped stream with conversion on misbehaves: '\\x1b]' followed by 64 semicolons and a terminator that is not BEL makes the regex hang or crash; '\\x1b]0\\x07' with no title argument and '\\x1b]1;title\\x07' must not set the window title; only OSC 0 and OSC 2 with exactly one title argument may."
+  ],
+  "acceptance": [
+    {
+      "verify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q colorama --deselect colorama/tests/initialise_test.py::InitTest::testInitDoesntWrapOnEmulatedWindows --deselect colorama/tests/initialise_test.py::InitTest::testInitDoesntWrapOnNonWindows",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
