@@ -54,7 +54,13 @@ function contractCommands(root: string): CiCommands {
       const value = (body as Record<string, unknown>)[key];
       return typeof value === 'string' && value !== '' ? value : undefined;
     };
-    return { install: read('install'), test: read('test') };
+    // A vacuous contract records a placeholder that only fails: the workflow then runs the stack's own
+    // test command, which the first task delivers, so the CI standard needs no later workflow edit.
+    const vacuous = (body as Record<string, unknown>).vacuous === true;
+    return {
+      install: read('install'),
+      test: vacuous ? undefined : read('test'),
+    };
   } catch {
     return {};
   }

@@ -150,3 +150,35 @@ test('a refused workflow push opens one decision row, however many times it is r
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('a vacuous contract gets a workflow that runs the stack test command, not the placeholder, so no workflow task is left', () => {
+  // krn.json exactly as adopt wrote it for the vacuous npm base in the outside acceptance run.
+  const root = repo({
+    'package.json': '{"name":"vac","version":"1.0.0"}\n',
+    'package-lock.json': '{}\n',
+    'krn.json': `${JSON.stringify(
+      {
+        base: 'outside/npm',
+        test: "echo 'no test command: add one real test and set test in krn.json' >&2; exit 1",
+        tracker: 'krn',
+        vacuous: true,
+      },
+      null,
+      2,
+    )}\n`,
+  });
+  mkdirSync(join(root, 'tasks'));
+  try {
+    const gaps = adoptionGaps(root, '2026-11-15');
+    assert.ok(gaps.remediated.includes('.github/workflows/ci.yml'));
+    const text = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
+    assert.doesNotMatch(text, /no test command/u);
+    assert.match(text, /npm ci && npm test/u);
+    assert.ok(
+      !gaps.tasks.some((title) => /s-ci-runs-tests/u.test(title)),
+      gaps.tasks.join('\n'),
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
