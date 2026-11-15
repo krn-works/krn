@@ -1,7 +1,11 @@
 {
   "id": "t-f5bfhd0",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane brief asks for unstated names/behaviours; krn pr body --assumptions renders them; fixtures in lane-brief and pr-body tests"
+  },
   "created": "2026-11-15",
   "priority": 2,
   "title": "The worker lists assumptions the task body left unstated and the PR body carries them",
