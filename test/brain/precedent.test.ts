@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import {
   briefPaths,
+  callSiteSweep,
   PRECEDENT_BUDGET,
   precedentSection,
 } from '../../src/brain/precedent.ts';
@@ -166,6 +167,32 @@ test('siblings are found in py, go and rs layouts and an unrelated goal yields n
       /`tests\/shard\.rs`/u,
     );
     assert.equal(precedentSection(repo, 'Goal: zzqxunknown thing'), '');
+  } finally {
+    rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('clause 6: a bug brief gets one sibling call site per source file that holds the defect pattern, tests excluded', () => {
+  const repo = stackFixture({
+    'src/orders/total.py': 'def roundTotal(x):\n    return int(x)\n',
+    'src/invoices/total.py':
+      'from orders.total import roundTotal\nroundTotal(1)\n',
+    'src/other/mailer.py': 'def send():\n    pass\n',
+    'tests/test_total.py': 'from orders.total import roundTotal\n',
+  });
+  try {
+    const sweep = callSiteSweep(
+      repo,
+      'Bug: roundTotal truncates instead of rounding up.',
+    );
+    assert.equal(sweep.length, 2);
+    assert.match(
+      sweep[0] as string,
+      /^Sibling call site src\/(?:invoices|orders)\/total\.py:\d+/u,
+    );
+    assert.ok(sweep.some((line) => line.includes('src/invoices/total.py')));
+    assert.ok(!sweep.some((line) => line.includes('tests/')));
+    assert.ok(!sweep.some((line) => line.includes('mailer')));
   } finally {
     rmSync(repo, { recursive: true, force: true });
   }

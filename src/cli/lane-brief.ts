@@ -1,8 +1,8 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { clauseSection } from '../brain/acceptance-clauses.ts';
+import { clauseSection, isBugBody } from '../brain/acceptance-clauses.ts';
 import { firstTestSection } from '../brain/first-test.ts';
-import { precedentSection } from '../brain/precedent.ts';
+import { callSiteSweep, precedentSection } from '../brain/precedent.ts';
 import {
   gatesBlock,
   heldOut,
@@ -107,7 +107,10 @@ export function laneBrief(
   // The frozen FR-40 carrier (holdout false) stays byte-stable: no clause section.
   const clauses =
     holdout && process.env.KRN_ACCEPTANCE_CLAUSES !== '0'
-      ? clauseSection(statedBody(brief))
+      ? clauseSection(
+          statedBody(brief),
+          isBugBody(statedBody(brief)) ? callSiteSweep(repo, brief) : [],
+        )
       : '';
   // The frozen FR-40 carrier (holdout false) never gets the gates block.
   const gates = holdout ? (gatesBlock(repo, asOf) ?? '') : '';
