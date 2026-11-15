@@ -493,3 +493,13 @@ def test_unicodey():
 
 def test_str_repr():
     assert str(URL("http://googlewebsite.com/e-shops.aspx")) == "http://googlewebsite.com/e-shops.aspx"
+
+
+def test_url_password_without_username():
+    from boltons.urlutils import URL
+    url = URL('http://:secret@example.com/path')
+    assert url.to_text() == 'http://:secret@example.com/path'
+    assert url.get_authority(with_userinfo=True) == ':secret@example.com'
+    url.password = 'p@ss'
+    assert 'p%40ss' in url.to_text()
+    assert URL(url.to_text()).password == 'p@ss'
