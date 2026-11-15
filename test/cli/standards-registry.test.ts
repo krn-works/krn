@@ -201,3 +201,68 @@ esac
       rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('harvest --repos with no directory yields a candidate from the adopted repositories', () => {
+  const alpha = repository();
+  const beta = repository();
+  const host = scratch();
+  const env = { KRN_ADOPTED_REGISTRY: join(host, 'adopted.json') };
+  try {
+    for (const root of [alpha, beta]) {
+      const done = krn(['adopt', root, '--no-canary'], env);
+      assert.equal(done.status, 0, done.stderr);
+    }
+    const harvest = krn(['standards', 'harvest', '--repos'], env);
+    assert.equal(harvest.status, 0, harvest.stderr);
+    assert.match(harvest.stdout, /^candidate in 2 repositories: /mu);
+    assert.match(
+      harvest.stdout,
+      /harvest: [1-9]\d* candidates? from instruction files of 2 repositories/u,
+    );
+  } finally {
+    for (const dir of [alpha, beta, host])
+      rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('standards check --tasks turns a failing standard of an adopted repository into one ready task, once', () => {
+  const root = repository();
+  const host = scratch();
+  const env = { KRN_ADOPTED_REGISTRY: join(host, 'adopted.json') };
+  try {
+    const adopted = krn(['adopt', root, '--no-canary'], env);
+    assert.equal(adopted.status, 0, adopted.stderr);
+    const standards = join(root, '.agents', 'standards.json');
+    const own = JSON.parse(readFileSync(standards, 'utf8'));
+    const records = Array.isArray(own) ? own : own.standards;
+    records.push({
+      id: 'r-always-red',
+      type: 'standard',
+      area: 'tests',
+      layer: 'universal',
+      audience: 'worker',
+      tier: 'floor',
+      text: 'The probe command always fails.',
+      why: 'Proves a failing standard becomes a task.',
+      provenance: { origin: 'test', evidence: ['package.json'], proposals: [] },
+      enforcement: { kind: 'command', run: 'exit 1' },
+      applies: { stacks: [], needs: [], paths: [], terms: [] },
+      status: 'accepted',
+      recorded_at: '2026-01-01',
+      valid_from: '2026-01-01',
+      valid_to: null,
+      supersedes: [],
+    });
+    writeFileSync(standards, JSON.stringify(own, null, 2));
+    const first = krn(['standards', 'check', '--tasks'], env, root);
+    assert.equal(first.status, 1, first.stdout + first.stderr);
+    assert.match(first.stderr, /task: Make standard r-always-red pass/u);
+    const again = krn(['standards', 'check', '--tasks'], env, root);
+    assert.doesNotMatch(again.stderr, /task: Make standard r-always-red/u);
+    const ready = krn(['task', 'ready', '--json'], env, root);
+    assert.match(ready.stdout, /Make standard r-always-red pass/u);
+  } finally {
+    for (const dir of [root, host])
+      rmSync(dir, { recursive: true, force: true });
+  }
+});
