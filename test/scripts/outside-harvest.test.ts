@@ -158,8 +158,8 @@ test('the shipped pack marks the records the audit saw fail in every public row 
     JSON.parse(readFileSync('standards/records.json', 'utf8')),
   );
   for (const id of [
-    's-ci-runs-tests',
-    's-linter-configured',
+    's-gate-in-ci',
+    's-gate-lint-runs',
     's-readme-test-command',
   ]) {
     const record = real.find((entry) => entry.id === id);

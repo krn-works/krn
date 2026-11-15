@@ -3,6 +3,8 @@
   "test": "npm test",
   "related": "node --test {files}",
   "fast": "npm run fast",
+  "lint": "npm run lint",
+  "typecheck": "npm run check",
   "guard": "test/rules/ test/evals/fr40-freeze.test.ts",
   "conventions": ".agents/records.json",
   "tracker": "krn",

@@ -25,6 +25,14 @@
       "type": "string",
       "minLength": 1
     },
+    "lint": {
+      "type": "string",
+      "minLength": 1
+    },
+    "typecheck": {
+      "type": "string",
+      "minLength": 1
+    },
     "guard": {
       "type": "string",
       "minLength": 1

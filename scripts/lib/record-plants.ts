@@ -73,7 +73,15 @@ const MEASURED_OPEN = [
 export const REQUIRES_TOOL: Record<string, string> = {
   's-go-gofmt': "printf 'package p\\n' | gofmt -l",
   's-rust-fmt-check': 'cargo fmt --version',
+  // The contract gates run the stack's toolchain; a version-less mise shim exits 1, not 127.
+  's-gate-typecheck-runs:go': 'go version',
+  's-gate-typecheck-runs:rust': 'cargo --version',
 };
+
+/** The probe of a record in one stack: a stack-specific entry wins over the record-wide one. */
+export function toolProbe(id: string, stack: Stack): string | undefined {
+  return REQUIRES_TOOL[`${id}:${stack}`] ?? REQUIRES_TOOL[id];
+}
 
 /** The plant of every enforced record of the pack, by record id. */
 export const PLANTS: Record<string, Plant> = {
@@ -102,7 +110,7 @@ export const PLANTS: Record<string, Plant> = {
   's-test-exit-code': () => ({
     write: { Makefile: 'test:\n\ttrue || true\n' },
   }),
-  's-ci-runs-tests': () => ({
+  's-gate-in-ci': () => ({
     write: {
       '.github/workflows/ci.yml':
         'name: ci\non: [pull_request]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hello\n',
@@ -116,22 +124,13 @@ export const PLANTS: Record<string, Plant> = {
     write: { 'node_modules/left-pad/index.js': 'module.exports = 1;\n' },
   }),
   's-gitignore-deps': () => ({ write: { '.gitignore': '.krn/\n' } }),
-  's-linter-configured': (c) => {
-    if (c.stack === 'ts') return { write: { 'biome.json': null } };
-    if (c.stack === 'python')
-      return { write: { 'pyproject.toml': '[tool.mypy]\nstrict = true\n' } };
-    if (c.stack === 'go') return { write: { '.golangci.yml': null } };
-    if (c.stack === 'rust')
-      return {
-        write: {
-          '.github/workflows/ci.yml':
-            'name: ci\non: [pull_request]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - run: cargo test\n',
-        },
-      };
-    return { write: { '.prettierrc': null } };
-  },
-  's-typescript-strict': () => ({
-    write: { 'tsconfig.json': '{ "compilerOptions": {} }\n' },
+  's-gate-lint-runs': (c) => ({
+    write: { 'krn.json': jsonText({ ...json(c, 'krn.json'), lint: 'false' }) },
+  }),
+  's-gate-typecheck-runs': (c) => ({
+    write: {
+      'krn.json': jsonText({ ...json(c, 'krn.json'), typecheck: 'false' }),
+    },
   }),
   's-readme-test-command': () => ({
     write: { 'README.md': '# project\n\nNothing to see here.\n' },
@@ -319,9 +318,15 @@ export const PLANTS: Record<string, Plant> = {
   's-php-no-eval': () => ({
     write: { 'src/dynamic.php': '<?php eval($code);\n' },
   }),
-  's-php-autoload-declared': () => ({
-    write: { 'src/Thing.php': '<?php class Thing {}\n' },
-  }),
+  's-php-autoload-declared': (c) => {
+    const { autoload: _dropped, ...composer } = json(c, 'composer.json');
+    return {
+      write: {
+        'composer.json': jsonText(composer),
+        'src/Thing.php': '<?php class Thing {}\n',
+      },
+    };
+  },
   's-php-composer-no-wildcard': (c) => ({
     write: {
       'composer.json': jsonText({
@@ -369,7 +374,13 @@ export const PLANTS: Record<string, Plant> = {
   's-go-gofmt': () => ({
     write: { 'unformatted.go': 'package p\nfunc  f( ){}\n' },
   }),
-  's-go-vet-run': () => ({ write: { '.golangci.yml': null } }),
+  's-go-vet-run': () => ({
+    write: {
+      '.golangci.yml': null,
+      '.github/workflows/ci.yml':
+        'name: ci\non: [pull_request]\njobs:\n  x:\n    runs-on: ubuntu-latest\n    steps:\n      - run: go test ./...\n',
+    },
+  }),
   's-go-sum-committed': () => ({
     write: {
       'go.mod':

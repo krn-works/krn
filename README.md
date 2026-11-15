@@ -12,7 +12,7 @@ node src/cli/main.ts --version
 
 Install repository dependencies with `pnpm install --frozen-lockfile`.
 
-Product implements `--version` and the commands `ledger`, `ci`, `pr`, `task`, `lane`, `state`, `decide`, `findings`, `plan`, `repo`, `hook`, `adopt`, `doctor`, and `standards`; `krn <command> --help` prints the flags of each. `krn.json` declares the repository contract with the fields `base`, `install`, `test`, `related`, `fast`, `guard`, `conventions`, `tracker`, `laneBudgetUsd`, `deploy`, `vacuous`, `arms` (`{"red-first": bool, "clauses": bool}`, each on unless false), and `formats` (a list such as `krn.task/v1`; a major this build does not read exits 78). Unknown commands exit 64 under KRN-06. Merging is `gh pr merge --auto --squash` once the required `Check` passes.
+Product implements `--version` and the commands `ledger`, `ci`, `pr`, `task`, `lane`, `state`, `decide`, `findings`, `plan`, `repo`, `hook`, `adopt`, `doctor`, and `standards`; `krn <command> --help` prints the flags of each. `krn.json` declares the repository contract with the fields `base`, `install`, `test`, `related`, `fast`, `lint`, `typecheck`, `guard`, `conventions`, `tracker`, `laneBudgetUsd`, `deploy`, `vacuous`, `arms` (`{"red-first": bool, "clauses": bool}`, each on unless false), and `formats` (a list such as `krn.task/v1`; a major this build does not read exits 78). Unknown commands exit 64 under KRN-06. Merging is `gh pr merge --auto --squash` once the required `Check` passes.
 
 ## Checks and delivery
 

@@ -26,8 +26,8 @@ import {
 import {
   PLANTS,
   type Plant,
-  REQUIRES_TOOL,
   type Stack,
+  toolProbe,
 } from './lib/record-plants.ts';
 
 const repoRoot = join(fileURLToPath(import.meta.url), '..', '..');
@@ -236,7 +236,7 @@ export function plantedMatrix(
       done('no-plant', 'add an entry to scripts/lib/record-plants.ts');
       continue;
     }
-    const probe = REQUIRES_TOOL[id];
+    const probe = toolProbe(id, stack);
     if (
       probe !== undefined &&
       spawnSync('sh', ['-c', probe], { encoding: 'utf8' }).status !== 0

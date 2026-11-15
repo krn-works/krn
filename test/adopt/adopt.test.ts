@@ -238,7 +238,8 @@ test('adopt on a pytest repository writes a contract that krn repo contract read
   // Without --ref: no shared CI call and no tasks/ seed; the host writes a workflow that runs the recorded test command.
   const workflow = readFileSync(join(root, '.github/workflows/ci.yml'), 'utf8');
   assert.match(workflow, /pull_request:/u);
-  assert.ok(workflow.includes(`${body.install} && ${body.test}`), workflow);
+  assert.ok(workflow.includes(`- run: ${body.install}`), workflow);
+  assert.ok(workflow.includes(`- run: ${body.test}`), workflow);
   assert.doesNotMatch(workflow, /project-ci\.yml/u);
   assert.equal(existsSync(join(root, 'tasks')), false);
   const stop = stopAsLane(root);
@@ -282,7 +283,12 @@ test('adopt on an npm repository detects its runner, seeds the tracker on reques
   const again = adoptArgs(root, '--tracker');
   assert.equal(again.status, 0, again.stderr);
   assert.equal(contractOf(root).contract.test, 'make check');
-  assert.doesNotMatch(again.stdout, /^wrote /mu);
+  // The workflow runs the test command the contract names, so the edited command rewrites only the workflow.
+  assert.doesNotMatch(again.stdout, /^wrote (?!\.github\/workflows\/)/mu);
+  assert.match(
+    readFileSync(join(root, '.github/workflows/krn-ci.yml'), 'utf8'),
+    /make check/u,
+  );
 });
 
 test('adopt merges the Stop hook into existing settings and writes a vacuous krn.json when no test command is known', () => {
