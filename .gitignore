@@ -1,2 +1,5 @@
 __pycache__
 .meta
+.krn/
+.venv/
+*.egg-info/
