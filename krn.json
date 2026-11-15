@@ -1,0 +1,5 @@
+{
+  "base": "outside/php-red",
+  "test": "php tests/shim.php src/get_in.php tests/GetInTest.php",
+  "tracker": "krn"
+}
