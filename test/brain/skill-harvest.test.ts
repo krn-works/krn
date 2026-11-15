@@ -15,8 +15,10 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { parseUnified } from '../../src/brain/record.ts';
 import {
+  harvestRules,
   harvestSkills,
   SKILL_PLACEMENT,
+  SKILL_RULES,
 } from '../../src/brain/skill-harvest.ts';
 import {
   appliesTo,
@@ -24,7 +26,7 @@ import {
   StandardsDataError,
 } from '../../src/brain/standards.ts';
 import { repositoryFacts } from '../../src/brain/standards-cli.ts';
-import { lanePacket } from '../../src/brain/worker-packet.ts';
+import { editRecords, lanePacket } from '../../src/brain/worker-packet.ts';
 
 // The six boilerplate-2026 SKILL.md files are a verbatim capture under the fixture root; the
 // commit is the one that last changed them there.
@@ -38,6 +40,7 @@ const pack = fileURLToPath(
 const COMMIT = '7d1cc401683a6febb331175300045c3a7065efe6';
 const NAMES = Object.keys(SKILL_PLACEMENT).sort();
 const AS_OF = '2026-11-14';
+const EDIT_AS_OF = '2026-11-15';
 
 function skillSources() {
   return NAMES.map((name) => {
@@ -249,5 +252,152 @@ test('an adopted WordPress repository applies the enforced skill records and a n
   } finally {
     for (const root of [wp, node])
       rmSync(root, { recursive: true, force: true });
+  }
+});
+
+const TS_SKILL = '.agents/skills/typescript/SKILL.md';
+const tsSource = {
+  path: TS_SKILL,
+  text: readFileSync(
+    fileURLToPath(new URL(`../../${TS_SKILL}`, import.meta.url)),
+    'utf8',
+  ),
+};
+
+function ruleRecords() {
+  return harvestRules([...skillSources(), tsSource], COMMIT, AS_OF);
+}
+
+test('every skill rule becomes one accepted, scoped, one-sentence record that cites its source line', () => {
+  const records = ruleRecords();
+  assert.equal(records.length, SKILL_RULES.length);
+  assert.ok(records.length >= 25, `${records.length} rules`);
+  parseUnified(JSON.parse(JSON.stringify(records)));
+  const texts = new Map(
+    [...skillSources(), tsSource].map((s) => [s.path, s.text.split('\n')]),
+  );
+  for (const record of records) {
+    const { stacks, paths } = record.applies;
+    assert.ok(stacks.length + paths.length > 0, `${record.id} has no scope`);
+    assert.equal(record.status, 'accepted');
+    assert.equal(record.enforcement.kind, 'advisory');
+    assert.ok(record.text.split(/\s+/u).length <= 25, record.id);
+    assert.equal(record.text.split(/(?<=\.)\s/u).length, 1, record.id);
+    const cited = record.provenance.origin.split(' ')[1];
+    const [path = '', line = ''] = (cited ?? '').split(/:(?=\d+$)/u);
+    assert.ok(
+      (texts.get(path)?.[Number(line) - 1] ?? '').length > 0,
+      `${record.id} cites ${cited}`,
+    );
+    assert.ok(record.provenance.evidence.includes(COMMIT));
+    assert.equal(
+      record.layer,
+      undefined,
+      'served at the edit, not inherited as prose',
+    );
+  }
+  assert.ok(
+    records
+      .filter((r) => r.id.startsWith('s-ts-'))
+      .every((r) => r.applies.stacks.includes('node')),
+  );
+});
+
+test('a rule whose anchor left its skill is refused naming the path and the rule', () => {
+  assert.throws(
+    () =>
+      harvestRules(
+        [{ path: TS_SKILL, text: '---\nname: typescript\n---\nnothing\n' }],
+        COMMIT,
+        AS_OF,
+      ),
+    (error) =>
+      error instanceof StandardsDataError &&
+      error.message.startsWith(`${TS_SKILL}: rule s-ts-`),
+  );
+});
+
+test('the shipped pack holds every harvested rule with its scope and evidence', () => {
+  const shipped = parseStandards(JSON.parse(readFileSync(pack, 'utf8')));
+  for (const record of ruleRecords()) {
+    const held = shipped.find((s) => s.id === record.id);
+    assert.ok(held, `${record.id} is in standards/records.json`);
+    assert.equal(held.text, record.text);
+    assert.equal(held.status, 'accepted');
+    assert.deepEqual(held.applies, record.applies);
+    assert.deepEqual(held.provenance.origin, record.provenance.origin);
+    assert.equal(held.provenance.evidence.length, 1);
+    assert.match(held.provenance.evidence[0] ?? '', /^[0-9a-f]{40}$/u);
+  }
+});
+
+test('the first edit of a .ts file serves harvested node records and a stylesheet edit in a theme serves the CUBE ones', () => {
+  const node = repository(plain);
+  const wp = repository({
+    ...wordpress,
+    'package.json': '{"devDependencies":{"vite":"^6"}}\n',
+  });
+  try {
+    const ts = editRecords(node, 'src/a.ts', EDIT_AS_OF).map((s) => s.id);
+    assert.ok(ts.includes('s-ts-parse-at-edge'), ts.join());
+    assert.ok(!ts.some((id) => id.startsWith('s-css-')));
+    const js = editRecords(node, 'src/a.js', EDIT_AS_OF).map((s) => s.id);
+    assert.ok(!js.includes('s-ts-parse-at-edge'));
+    const css = editRecords(
+      wp,
+      'web/app/themes/site/src/css/blocks/a.css',
+      EDIT_AS_OF,
+    ).map((s) => s.id);
+    assert.ok(css.includes('s-css-token-values'), css.join());
+    const php = editRecords(wp, 'web/app/themes/site/page.php', EDIT_AS_OF).map(
+      (s) => s.id,
+    );
+    assert.ok(php.includes('s-wp-escape-output'), php.join());
+  } finally {
+    rmSync(node, { recursive: true, force: true });
+    rmSync(wp, { recursive: true, force: true });
+  }
+});
+
+test('krn standards query for a .ts file returns a harvested node record', () => {
+  const node = repository(plain);
+  try {
+    const done = krn(
+      ['standards', 'query', '--file', 'src/a.ts', 'typescript'],
+      node,
+    );
+    assert.equal(done.status, 0, done.stderr);
+    assert.match(done.stdout, /\[s-ts-[a-z-]+\]/u);
+  } finally {
+    rmSync(node, { recursive: true, force: true });
+  }
+});
+
+test('harvest --skills --rules prints the rule records of a repository and leaves it unchanged', () => {
+  const root = repository({});
+  try {
+    cpSync(join(capture, '.claude'), join(root, '.claude'), {
+      recursive: true,
+    });
+    mkdirSync(join(root, '.agents/skills/typescript'), { recursive: true });
+    writeFileSync(join(root, TS_SKILL), tsSource.text);
+    const before = spawnSync('git', ['status', '--short'], {
+      cwd: root,
+      encoding: 'utf8',
+    }).stdout;
+    const done = krn(
+      ['standards', 'harvest', '--skills', root, '--rules', '--commit', COMMIT],
+      root,
+    );
+    assert.equal(done.status, 0, done.stderr);
+    const records = parseUnified(JSON.parse(done.stdout));
+    assert.equal(records.length, SKILL_RULES.length);
+    assert.equal(
+      spawnSync('git', ['status', '--short'], { cwd: root, encoding: 'utf8' })
+        .stdout,
+      before,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });

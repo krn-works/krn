@@ -607,7 +607,7 @@ test('a fix commit that touches a test file satisfies s-regression-lowest-layer'
   }
 });
 
-test('no pack record stays advisory: a retired one carries its reason and applies nowhere', () => {
+test('no layered pack record stays advisory: a retired one carries its reason and applies nowhere; layer-less guidance is only served at the edit', () => {
   const pack = JSON.parse(
     readFileSync(
       new URL('../../standards/records.json', import.meta.url),
@@ -615,12 +615,16 @@ test('no pack record stays advisory: a retired one carries its reason and applie
     ),
   ) as {
     id: string;
+    layer?: string;
     status: string;
     why: string;
     valid_to: string | null;
     enforcement: { kind: string };
   }[];
-  const advisory = pack.filter((r) => r.enforcement.kind === 'advisory');
+  // A record without a layer is stack-scoped edit guidance harvested from a skill: no check judges it.
+  const advisory = pack.filter(
+    (r) => r.enforcement.kind === 'advisory' && r.layer !== undefined,
+  );
   assert.deepEqual(
     advisory.filter((r) => r.status !== 'retired').map((r) => r.id),
     [],

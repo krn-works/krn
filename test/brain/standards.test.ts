@@ -286,12 +286,14 @@ test('the shipped pack holds 15-25 universal standards in both layers, with evid
       ),
   ).length;
   assert.ok(universal >= 15 && universal <= 25, `${universal} universal`);
-  const layers = new Set(pack.map((record) => record.layer));
+  // A record without a layer is edit guidance harvested from a skill; the two layers hold the rest.
+  const layered = pack.filter((record) => record.layer !== undefined);
+  const layers = new Set(layered.map((record) => record.layer));
   assert.deepEqual([...layers].sort(), ['krn-delivery', 'universal']);
-  const enforced = pack.filter((r) => r.enforcement.kind !== 'advisory');
+  const enforced = layered.filter((r) => r.enforcement.kind !== 'advisory');
   assert.ok(
-    enforced.length / pack.length >= 0.6,
-    `${enforced.length} of ${pack.length} enforced`,
+    enforced.length / layered.length >= 0.6,
+    `${enforced.length} of ${layered.length} enforced`,
   );
   for (const record of pack) {
     // Evidence is provenance: a KRN path must exist here and hold its fragment.

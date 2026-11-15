@@ -2881,5 +2881,771 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": []
+  },
+  {
+    "id": "s-acf-define-once",
+    "type": "standard",
+    "text": "Define a component's fields once as a group field in the Komponenty group and clone it into each layout.",
+    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/acf-component/SKILL.md:22",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "wordpress"
+  },
+  {
+    "id": "s-acf-args-only",
+    "type": "standard",
+    "text": "Read only $args in a component template and call no get_field() or get_sub_field().",
+    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/acf-component/SKILL.md:29",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "wordpress"
+  },
+  {
+    "id": "s-acf-layout-allowlist",
+    "type": "standard",
+    "text": "Map a layout name to its template only in the static allowlist inc/flexible-content-layouts.php, never from a database value.",
+    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/acf-component/SKILL.md:24",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "wordpress"
+  },
+  {
+    "id": "s-acf-content-not-looks",
+    "type": "standard",
+    "text": "Add no appearance field (size, colour, alignment, heading level) to an ACF group; the component sets its look with a profile.",
+    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/acf-component/SKILL.md:27",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "wordpress"
+  },
+  {
+    "id": "s-acf-modified-bump",
+    "type": "standard",
+    "text": "After hand-editing acf-json set modified of each changed group to date +%s before running acf json sync.",
+    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/acf-component/SKILL.md:120",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "wordpress"
+  },
+  {
+    "id": "s-acf-empty-array",
+    "type": "standard",
+    "text": "Test is_array() on an ACF repeater or image value, because empty comes back as false or an empty string.",
+    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/acf-component/SKILL.md:88",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "wordpress"
+  },
+  {
+    "id": "s-acf-keep-keys",
+    "type": "standard",
+    "text": "Never rename an existing ACF key: keys are stored identity and a rename needs a data migration.",
+    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/acf-component/SKILL.md:159",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "wordpress"
+  },
+  {
+    "id": "s-wp-escape-output",
+    "type": "standard",
+    "text": "Escape every printed value at the output boundary with esc_html, esc_attr, esc_url or wp_kses_post.",
+    "why": "Harvested from the boilerplate-2026 skill acf-component so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": ["**/*.php", "**/acf-json/*.json"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/acf-component/SKILL.md:30",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "wordpress"
+  },
+  {
+    "id": "s-css-token-values",
+    "type": "standard",
+    "text": "Take every space, size, colour, weight, radius and duration from a design token, never a hand-written value.",
+    "why": "Harvested from the boilerplate-2026 skill cube-css so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["frontend"],
+      "paths": ["**/*.css", "web/app/themes/**"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/cube-css/SKILL.md:62",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "frontend"
+  },
+  {
+    "id": "s-css-no-clamp",
+    "type": "standard",
+    "text": "Take fluid values from the generated token steps and write no new clamp().",
+    "why": "Harvested from the boilerplate-2026 skill cube-css so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["frontend"],
+      "paths": ["**/*.css", "web/app/themes/**"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/cube-css/SKILL.md:65",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "frontend"
+  },
+  {
+    "id": "s-css-specificity",
+    "type": "standard",
+    "text": "Raise specificity only with the block class: no id selector, no !important and no :is() boost.",
+    "why": "Harvested from the boilerplate-2026 skill cube-css so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["frontend"],
+      "paths": ["**/*.css", "web/app/themes/**"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/cube-css/SKILL.md:68",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "frontend"
+  },
+  {
+    "id": "s-css-data-exception",
+    "type": "standard",
+    "text": "Express a variant as a data-* attribute with a finite value set, never as a BEM -- or is-/has- class.",
+    "why": "Harvested from the boilerplate-2026 skill cube-css so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["frontend"],
+      "paths": ["**/*.css", "web/app/themes/**"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/cube-css/SKILL.md:72",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "frontend"
+  },
+  {
+    "id": "s-css-no-block-min-height",
+    "type": "standard",
+    "text": "Give a block no min-height: let height follow content and use .region for section padding.",
+    "why": "Harvested from the boilerplate-2026 skill cube-css so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["frontend"],
+      "paths": ["**/*.css", "web/app/themes/**"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/cube-css/SKILL.md:95",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "frontend"
+  },
+  {
+    "id": "s-css-already-owned",
+    "type": "standard",
+    "text": "Delete a declaration that a global, composition, token or utility already produces and set the composition variable instead.",
+    "why": "Harvested from the boilerplate-2026 skill cube-css so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["frontend"],
+      "paths": ["**/*.css", "web/app/themes/**"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/cube-css/SKILL.md:55",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "frontend"
+  },
+  {
+    "id": "s-css-layer-owner",
+    "type": "standard",
+    "text": "Put each declaration in the layer that owns it: no colour in a composition, no layout in a utility, no component selector in globals.",
+    "why": "Harvested from the boilerplate-2026 skill cube-css so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["frontend"],
+      "paths": ["**/*.css", "web/app/themes/**"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/cube-css/SKILL.md:53",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "frontend"
+  },
+  {
+    "id": "s-review-new-names",
+    "type": "standard",
+    "text": "Name the consumer of each new token, variable, selector or field and the existing one it duplicates; a pixel-only addition is a finding.",
+    "why": "Harvested from the boilerplate-2026 skill cube-review so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["frontend"],
+      "paths": [
+        "**/*.css",
+        "web/app/themes/**",
+        "**/*.php",
+        "**/acf-json/*.json"
+      ],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/cube-review/SKILL.md:43",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "frontend"
+  },
+  {
+    "id": "s-design-scale-values",
+    "type": "standard",
+    "text": "Map design values to the nearest step of the token scale instead of chasing a pixel, and make a genuinely new value a token.",
+    "why": "Harvested from the boilerplate-2026 skill design-to-build so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["frontend"],
+      "paths": [
+        "**/*.css",
+        "web/app/themes/**",
+        "**/*.php",
+        "**/acf-json/*.json"
+      ],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/design-to-build/SKILL.md:51",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "frontend"
+  },
+  {
+    "id": "s-deploy-tooling-pin",
+    "type": "standard",
+    "text": "Bump the pinned release-tooling SHA only after reading the receiver's changes and updating receiver.php on every server.",
+    "why": "Harvested from the boilerplate-2026 skill plesk-deploy so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": [".github/workflows/*.yml", "deploy/**", "config/release.php"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/plesk-deploy/SKILL.md:44",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "wordpress"
+  },
+  {
+    "id": "s-deploy-wpcli-core-path",
+    "type": "standard",
+    "text": "Run WP-CLI against the Bedrock core directory web/wp, never --path=web.",
+    "why": "Harvested from the boilerplate-2026 skill plesk-deploy so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": [".github/workflows/*.yml", "deploy/**", "config/release.php"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/plesk-deploy/SKILL.md:141",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "wordpress"
+  },
+  {
+    "id": "s-wp-never-mutate-production",
+    "type": "standard",
+    "text": "Never mutate production, remote files, databases or credentials from the local runtime.",
+    "why": "Harvested from the boilerplate-2026 skill wp-runtime so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": ["mise.toml", ".ddev/**"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "boilerplate-2026 .claude/skills/wp-runtime/SKILL.md:9",
+      "evidence": ["7d1cc401683a6febb331175300045c3a7065efe6"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "wordpress"
+  },
+  {
+    "id": "s-ts-annotate-edge",
+    "type": "standard",
+    "text": "Annotate exported function parameters and let locals and non-contract return types infer.",
+    "why": "Harvested from the krn skill typescript so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": ["node"],
+      "needs": [],
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn .agents/skills/typescript/SKILL.md:20",
+      "evidence": ["e59229c08e932e3e3fcd981050a37cb344288cd9"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "node"
+  },
+  {
+    "id": "s-ts-parse-at-edge",
+    "type": "standard",
+    "text": "Take external input as unknown and parse it once with a zod schema, deriving the type with z.infer.",
+    "why": "Harvested from the krn skill typescript so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": ["node"],
+      "needs": [],
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn .agents/skills/typescript/SKILL.md:21",
+      "evidence": ["e59229c08e932e3e3fcd981050a37cb344288cd9"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "node"
+  },
+  {
+    "id": "s-ts-discriminated-unions",
+    "type": "standard",
+    "text": "Model states as discriminated unions with an exhaustive never-checked switch, not bags of optional fields.",
+    "why": "Harvested from the krn skill typescript so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": ["node"],
+      "needs": [],
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn .agents/skills/typescript/SKILL.md:22",
+      "evidence": ["e59229c08e932e3e3fcd981050a37cb344288cd9"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "node"
+  },
+  {
+    "id": "s-ts-isolate-casts",
+    "type": "standard",
+    "text": "Prefer unknown plus narrowing, and isolate a necessary cast or non-null assertion in the smallest scope with its runtime check.",
+    "why": "Harvested from the krn skill typescript so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": ["node"],
+      "needs": [],
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn .agents/skills/typescript/SKILL.md:23",
+      "evidence": ["e59229c08e932e3e3fcd981050a37cb344288cd9"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "node"
+  },
+  {
+    "id": "s-ts-narrow-exports",
+    "type": "standard",
+    "text": "Export only what another module imports, use export type for types and write no export * barrel.",
+    "why": "Harvested from the krn skill typescript so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": ["node"],
+      "needs": [],
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn .agents/skills/typescript/SKILL.md:24",
+      "evidence": ["e59229c08e932e3e3fcd981050a37cb344288cd9"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "node"
+  },
+  {
+    "id": "s-ts-simple-types",
+    "type": "standard",
+    "text": "Prefer a readable union or overload over conditional or mapped type machinery.",
+    "why": "Harvested from the krn skill typescript so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": ["node"],
+      "needs": [],
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn .agents/skills/typescript/SKILL.md:25",
+      "evidence": ["e59229c08e932e3e3fcd981050a37cb344288cd9"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "node"
+  },
+  {
+    "id": "s-ts-prove-types",
+    "type": "standard",
+    "text": "Run the type check after any .ts change and prove a public type relationship with a ts-expect-error line or an assignability assertion.",
+    "why": "Harvested from the krn skill typescript so a session meets it on the first edit of a matching file.",
+    "audience": "worker",
+    "tier": "reflex",
+    "applies": {
+      "stacks": ["node"],
+      "needs": [],
+      "paths": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "advisory"
+    },
+    "provenance": {
+      "origin": "krn .agents/skills/typescript/SKILL.md:26",
+      "evidence": ["e59229c08e932e3e3fcd981050a37cb344288cd9"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": [],
+    "area": "node"
   }
 ]

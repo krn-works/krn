@@ -1,7 +1,11 @@
 {
   "id": "t-ps5sgv9",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "27 stack-scoped rule records harvested from the typescript skill and six boilerplate skills; edit hook and query tests pass"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Language conventions are stack-tagged records harvested from the skills",
