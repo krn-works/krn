@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { delimiter, dirname, join, resolve } from 'node:path';
 import {
   BOOTSTRAP_TASK_TITLE,
   GREEN_BASE_TASK_TITLE,
@@ -30,7 +30,7 @@ import {
 
 export const remoteUrl = 'https://github.com/krn-works/krn.git';
 export const summaryHeader =
-  'repo/branch | stack | adopt exit | first-test PR | drain exit | PRs (all merged) | sessions (approx) | USD (approx) | hidden';
+  'repo/branch | stack | adopt exit | first-test PR | drain exit | PRs (all merged) | sessions (approx) | USD (approx) | hidden | hook';
 const defaultStacks = ['php', 'npm', 'py'];
 
 export interface RunOptions {
@@ -176,7 +176,29 @@ export interface RowInput {
   firstPr: string;
   drain: DrainFacts | undefined;
   hidden?: HiddenResult;
+  /** The krn commit the row's hooks ran, against the checkout HEAD it must equal. */
+  hook?: { commit: string | undefined; head: string };
   note?: string;
+}
+
+/** PATH with the checkout's bin/ first, so the `krn` that hooks and lanes call by name is the checkout's own. */
+export function hookPath(root: string, pathEnv: string | undefined): string {
+  return [join(root, 'bin'), ...(pathEnv ? [pathEnv] : [])].join(delimiter);
+}
+
+/** The commit a krn entry reports in `krn doctor` output (`entry-commit=<sha>`), if it reports one. */
+export function entryCommit(doctorOutput: string): string | undefined {
+  const sha = /^entry-commit=([0-9a-f]{40})$/mu.exec(doctorOutput)?.[1];
+  return sha;
+}
+
+/** The summary cell for the hook commit: it names a skew when the hook is not the checkout HEAD. */
+export function hookCell(hook: RowInput['hook']): string {
+  if (hook === undefined) return 'none';
+  const short = (sha: string | undefined) => sha?.slice(0, 7) ?? 'unknown';
+  return hook.commit === hook.head
+    ? short(hook.commit)
+    : `skew ${short(hook.commit)} != ${short(hook.head)}`;
 }
 
 /** The held-back upstream test on the merged tree: it passed, failed, or the row has none. */
@@ -204,6 +226,7 @@ export function gradedRow(input: RowInput): string {
     drain === undefined ? '0' : String(drain.sessions),
     `$${(drain?.usd ?? 0).toFixed(2)}`,
     input.hidden ?? 'none',
+    hookCell(input.hook),
   ];
   const row = cells.join(' | ');
   return input.note === undefined ? row : `${row} | ${input.note}`;
@@ -338,9 +361,11 @@ export function hiddenResult(exitCode: number | undefined): HiddenResult {
 /** A summary row is green when the drain exits 0 with every PR merged and any hidden test passes. */
 export function rowGreen(row: string): boolean {
   return (
+    !/\| skew /u.test(row) &&
     /\| 0 \| [^|]*\(all merged\) \| [^|]* \| [^|]* \| (?:pass|none)(?: \||$)/u.test(
       row,
-    ) && !/\| fail(?: \||$)/u.test(row)
+    ) &&
+    !/\| fail(?: \||$)/u.test(row)
   );
 }
 
@@ -415,9 +440,11 @@ const run = (
   command: string,
   args: string[],
   cwd: string,
+  env?: NodeJS.ProcessEnv,
 ): { status: number; output: string } => {
   const result = spawnSync(command, args, {
     cwd,
+    ...(env === undefined ? {} : { env }),
     encoding: 'utf8',
     maxBuffer: 1 << 28,
   });
@@ -550,6 +577,7 @@ function acceptStack(
     );
   const dir = join(options.scratch, 'runs', `${stack}-${Date.now()}`);
   const krn = join(root, 'bin/krn');
+  const rowEnv = { ...process.env, PATH: hookPath(root, process.env.PATH) };
   const git = (args: string[], cwd = dir) =>
     run('git', [...credentialConfig(root), ...args], cwd);
   if (!existsSync(join(source, '.git')))
@@ -626,7 +654,7 @@ function acceptStack(
     const { test: _delivered, ...withoutTest } = config;
     const adoptConfig: AdoptFlags =
       named?.named && named.matched.length === 0 ? withoutTest : config;
-    const adopt = run(krn, adoptArgs(dir, adoptConfig), dir);
+    const adopt = run(krn, adoptArgs(dir, adoptConfig), dir, rowEnv);
     const keep = (name: string, text: string) =>
       appendFileSync(
         join(dirname(options.summary), `${stack}.log`),
@@ -664,6 +692,7 @@ function acceptStack(
         String(options.windowHours),
       ],
       dir,
+      rowEnv,
     );
     keep('drain', drain.output);
     let hidden: HiddenResult = 'none';
@@ -685,7 +714,7 @@ function acceptStack(
       const graded = spawnSync('sh', ['-c', hiddenRow.hiddenVerify], {
         cwd: dir,
         encoding: 'utf8',
-        env: { ...process.env, KRN_ROOT: root },
+        env: { ...rowEnv, KRN_ROOT: root },
         maxBuffer: 1 << 28,
       });
       keep('hidden', `${graded.stdout ?? ''}${graded.stderr ?? ''}`);
@@ -694,7 +723,13 @@ function acceptStack(
     }
     collectRow(dir, stack, krn, root);
     checkouts.push(dir);
+    const hook = {
+      commit: entryCommit(run('krn', ['doctor'], dir, rowEnv).output),
+      head: run('git', ['rev-parse', 'HEAD'], root).output.trim(),
+    };
+    keep('hook', `${hookCell(hook)}`);
     return gradedRow({
+      hook,
       hidden,
       ...(note === undefined ? {} : { note }),
       stack,
