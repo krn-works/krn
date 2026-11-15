@@ -85,9 +85,8 @@ function writeCi(root: string): string | undefined {
   return file;
 }
 
-function writeLockfile(root: string): string | undefined {
-  if (!existsSync(join(root, 'package.json'))) return undefined;
-  if (existsSync(join(root, 'package-lock.json'))) return undefined;
+/** Runs npm's lockfile-only install in `root`, so the lockfile follows package.json; throws npm's last line on failure. */
+export function syncLockfile(root: string): void {
   const locked = spawnSync(
     'npm',
     [
@@ -103,6 +102,12 @@ function writeLockfile(root: string): string | undefined {
     throw new Error(
       `npm install --package-lock-only exited ${locked.status ?? 'without a status'}: ${(locked.stderr || locked.stdout).trim().split('\n').pop()}`,
     );
+}
+
+function writeLockfile(root: string): string | undefined {
+  if (!existsSync(join(root, 'package.json'))) return undefined;
+  if (existsSync(join(root, 'package-lock.json'))) return undefined;
+  syncLockfile(root);
   return 'package-lock.json';
 }
 

@@ -6,6 +6,7 @@ import { getTask } from '../../task/store.ts';
 import { renderPrBody } from '../pr-body.ts';
 import {
   contractVerification,
+  followLockfile,
   goalPrBody,
   parkCommit,
   parkedFile,
@@ -120,7 +121,7 @@ export async function laneVerdict(
       (contractCheck !== undefined && 'verified' in contractCheck
         ? contractCheck.verified
         : undefined);
-    const verified =
+    const verifiedBase =
       proof === undefined || flakyNote === ''
         ? proof
         : `${proof}; ${flakyNote}`;
@@ -143,6 +144,12 @@ export async function laneVerdict(
       .split('\n')
       .filter((line) => line !== '');
     if (commits.length === 0) return await stop('no commit');
+    // The sandbox cannot run npm against the registry: a manifest change leaves the lockfile stale, so the host follows it.
+    const lockNote = followLockfile(path, range);
+    const verified =
+      verifiedBase === undefined || lockNote === undefined
+        ? verifiedBase
+        : `${verifiedBase}; ${lockNote}`;
     const commitLog =
       task === undefined
         ? ''
