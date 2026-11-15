@@ -1,0 +1,16 @@
+{
+  "id": "t-k21w889",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "hc host opens the successor through env -u CLAUDE_CODE_CHILD_SESSION; open tests assert it; live hc probe (hc run ... env -u CLAUDE_CODE_CHILD_SESSION bash -c 'env | grep -c ...') printed 0. Restarting herdr-core from a clean environment stays with the operator."
+  },
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "A successor opened through hc saves its transcript",
+  "after": [],
+  "body": [
+    "Source: operator question 2026-11-15 on the banner \"Transcript saving is off — inherited CLAUDE_CODE_CHILD_SESSION marker\"\nWhy: the herdr-core server process carries CLAUDE_CODE_CHILD_SESSION=1 (it was started from inside a Claude Code session), every hc terminal inherits it, so a successor lead opened through the hc host saves no transcript and krn ledger (which reads transcripts) loses its cost and outcome.\nOutcome: the hc host starts the successor's shell without CLAUDE_CODE_CHILD_SESSION (`env -u`), so the successor lead saves its transcript; restarting herdr-core from a clean environment stays an operator step.\nProof: hc host open test asserts the unset word; a live successor opened through hc shows no CLAUDE_CODE_CHILD_SESSION in its environment."
+  ]
+}

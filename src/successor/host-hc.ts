@@ -35,6 +35,9 @@ const TAB_LABEL = 'krn-tab';
 // with `herdr.space` opens as a new tab of that space; without it the window
 // never shows the terminal (`herdr-app --skill`).
 const SPACE_LABEL = 'herdr.space';
+// The marker Claude Code sets for its child processes; a Claude started
+// with it saves no transcript.
+const CHILD_SESSION = 'CLAUDE_CODE_CHILD_SESSION';
 // hc reports `not_found` with exit 3 for an address it does not hold.
 const NOT_FOUND = 'not_found';
 
@@ -177,7 +180,11 @@ export function hcHost(env: NodeJS.ProcessEnv = process.env): TerminalHost {
       const space = windowSpace(env.HC_TERMINAL_ID, cwd);
       if (space) args.push('--label', `${SPACE_LABEL}=${space}`);
       args.push('--');
-      args.push('env', ...Object.entries(tabEnv).map(([k, v]) => `${k}=${v}`));
+      // A core started from inside Claude Code hands every terminal the
+      // child-session marker, and a Claude that inherits it saves no
+      // transcript, so the ledger would lose the successor.
+      args.push('env', '-u', CHILD_SESSION);
+      args.push(...Object.entries(tabEnv).map(([k, v]) => `${k}=${v}`));
       args.push('bash');
       const created = run('hc', args);
       if (!succeeded(created)) return hostFailure(created);
