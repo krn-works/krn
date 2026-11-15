@@ -1,0 +1,19 @@
+{
+  "id": "t-0muny2s",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "Deeply nested image markup makes mistune recurse without a limit",
+  "after": [],
+  "body": [
+    "Bug: converting the input '![' * 1000 + 'a' + '](u)' * 1000, and the same wrapped in a link '[' + '![' * 1000 + 'a' + '](u)' * 1000 + '](u)', takes far too long or overflows the stack, both to HTML and with renderer='ast'. Nesting of images must be bounded so such input finishes quickly, and the limit must be a setting of the inline parser that can be read and changed when the parser is built."
+  ],
+  "acceptance": [
+    {
+      "verify": "PYTHONPATH=src mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
