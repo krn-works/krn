@@ -1,6 +1,6 @@
 // KRN-12: the real `krn adopt` and `krn hook edit` entries against a fresh adopted PHP repository, fed the
 // verbatim PreToolUse payloads Claude Code sent for an Edit and a Write of two PHP files in one session
-// (fixtures/pretooluse-edit-write-php.jsonl): the first PHP edit brings the PHP-scoped records and logs
+// (fixtures/pretooluse-edit-write-php.jsonl, host paths redacted): the first PHP edit brings the PHP-scoped records and logs
 // an edit exposure, the second PHP edit of the session adds nothing.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -25,8 +25,8 @@ const capture = readFileSync(
 )
   .split('\n')
   .slice(0, -1);
-/** The directory the captured session ran in; each payload is replayed against a fresh repository. */
-const capturedRoot = '/mnt/storage/tmp/krn/edit-capture';
+/** The directory the captured session ran in, redacted to the capture placeholder (test/fixtures/README.md); each payload is replayed against a fresh repository. */
+const capturedRoot = '/work/repo';
 
 function run(cwd: string, command: string, args: string[], input = '') {
   return spawnSync(command, args, {
