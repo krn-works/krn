@@ -1,7 +1,11 @@
 {
   "id": "t-27myh15",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "push stderr in row note (4611aaf); rust row adopt 0 drain 0 hidden pass on d438caa (157223a)"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "The rust outside row pushes its base and says why when it cannot",
