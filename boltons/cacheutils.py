@@ -293,14 +293,14 @@ class LRI(dict):
                 self[key] = default
                 return default
 
-    def update(self, E, **F):
+    def update(self, E=(), **F):
         # E and F are throwback names to the dict() __doc__
         with self._lock:
-            if E is self:
-                return
             setitem = self.__setitem__
-            if callable(getattr(E, 'keys', None)):
-                for k in E.keys():
+            if E is self:
+                pass
+            elif callable(getattr(E, 'keys', None)):
+                for k in list(E.keys()):
                     setitem(k, E[k])
             else:
                 for k, v in E:
@@ -726,7 +726,7 @@ class ThresholdCounter:
         """Get the top *n* keys and counts as tuples. If *n* is omitted,
         returns all the pairs.
         """
-        if not n or n <= 0:
+        if n is not None and n <= 0:
             return []
         ret = sorted(self.iteritems(), key=lambda x: x[1], reverse=True)
         if n is None or n >= len(ret):
@@ -794,7 +794,7 @@ class ThresholdCounter:
         except KeyError:
             return default
 
-    def update(self, iterable, **kwargs):
+    def update(self, iterable=None, **kwargs):
         """Like dict.update() but add counts instead of replacing them, used
         to add multiple items in one call.
 
@@ -802,9 +802,9 @@ class ThresholdCounter:
         to integer counts.
         """
         if iterable is not None:
-            if callable(getattr(iterable, 'iteritems', None)):
-                for key, count in iterable.iteritems():
-                    for i in range(count):
+            if callable(getattr(iterable, 'keys', None)):
+                for key in list(iterable.keys()):
+                    for i in range(iterable[key]):
                         self.add(key)
             else:
                 for key in iterable:

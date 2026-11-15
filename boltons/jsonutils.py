@@ -72,20 +72,16 @@ def reverse_iter_lines(file_obj, blocksize=DEFAULT_BLOCKSIZE, preseek=True, enco
 
     """
     # This function is a bit of a pain because it attempts to be byte/text agnostic
-    try:
-        encoding = encoding or file_obj.encoding
-    except AttributeError:
-        # BytesIO
-        encoding = None
-    else:
-        encoding = 'utf-8'
-
-    # need orig_obj to keep alive otherwise __del__ on the TextWrapper will close the file
+    if not encoding:
+        encoding = getattr(file_obj, 'encoding', None)
+        if encoding is not None:
+            # text stream: decode with the stream's own encoding
+            pass
+    # read raw bytes from the underlying buffer without detaching the stream
     orig_obj = file_obj
-    try:
-        file_obj = orig_obj.detach()
-    except (AttributeError, io.UnsupportedOperation):
-        pass
+    raw = getattr(orig_obj, 'buffer', None)
+    if raw is not None:
+        file_obj = raw
 
     empty_bytes, newline_bytes, empty_text = b'', b'\n', ''
 
