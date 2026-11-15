@@ -11,6 +11,11 @@ const filter = /^(?:head|tail|grep|rg|sed|awk)(?:\s|$)/u;
 const prefix = /^(?:\w+=\S*\s+)*(?:npx\s+|exec\s+|time\s+)*/u;
 const swallow = /\|\|\s*(?:true|:|exit 0)(?:\s|;|$)|;\s*(?:true|:)\s*$/u;
 
+// A wait loop on `pgrep -f PATTERN` never ends: the pattern is in the loop's own `bash -c`
+// command line, so pgrep always finds at least that shell (same class as `pkill -f`).
+const fullMatchWait =
+  /\b(?:while|until)\b[^\n]*?\bpgrep\s+(?:-\w*f\w*|--full)\b/u;
+
 const stage = (text: string) => text.trim().replace(prefix, '');
 
 export type Verdict = { refuse: string } | { rewrite: string } | undefined;
@@ -21,6 +26,10 @@ export function judge(payload: unknown): Verdict {
   const command = (payload as { tool_input?: { command?: unknown } } | null)
     ?.tool_input?.command;
   if (typeof command !== 'string') return undefined;
+  if (fullMatchWait.test(command))
+    return {
+      refuse: `Refused: a \`while\`/\`until\` loop waits on \`pgrep -f\`, whose pattern also matches this loop's own shell command line, so the loop never ends (three lanes were left waiting forever). Nothing in this Bash call ran. Wait on a PID instead: start the job with \`cmd & pid=$!\` and \`wait $pid\` or \`while kill -0 $pid 2>/dev/null; do sleep 5; done\`; or run it with run_in_background and wait for the notification (scripts/claude/piped-check.ts).`,
+    };
   for (const list of command.split(/&&|\|\||;|\n/u)) {
     const [first, ...rest] = list.split(/\|&?/u).map(stage);
     if (!first || !check.test(first)) continue;
