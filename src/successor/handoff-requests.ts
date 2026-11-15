@@ -1,10 +1,7 @@
 // Handoff request check.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import {
-  resumeProblems,
-  roadmapIds,
-} from '../memory/handoff-resume.ts';
+import { resumeProblems, roadmapIds } from '../memory/handoff-resume.ts';
 import {
   markHandoff,
   oneLine,
