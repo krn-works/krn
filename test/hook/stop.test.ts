@@ -16,6 +16,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { readExposures } from '../../src/brain/exposures.ts';
 import {
+  changedSinceBase,
   clausesOn,
   failuresIn,
   inspect,
@@ -1072,6 +1073,38 @@ test('clause 10: characterization, a tests-only diff passing at the base and hea
       judgeStop(payload(dir), env, () => ['test/a.test.ts::a']) ?? '',
       /red|fail/u,
     );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('clause 8: a tests-only diff with empty sandbox placeholders present is characterization', () => {
+  const dir = clone();
+  try {
+    writeFileSync(
+      join(dir, 'test/a.test.ts'),
+      "import { a } from '../src/a.ts';\nvoid a;\n",
+    );
+    for (const name of ['.env', '.env.local', '.npmrc', '.mcp.json'])
+      writeFileSync(join(dir, name), '');
+    sh(dir, 'add', 'test');
+    sh(dir, 'commit', '-q', '-m', 'characterize');
+    const env = { ...lane(dir), KRN_TEST_FIRST: '1' };
+    assert.equal(
+      judgeStop(payload(dir), env, () => []),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('clause 9: one shared list names the placeholders and a non-empty file of the same name still counts', () => {
+  const dir = clone();
+  try {
+    writeFileSync(join(dir, '.npmrc'), '');
+    writeFileSync(join(dir, '.env'), 'KEY=1\n');
+    assert.deepEqual(changedSinceBase(dir), ['.env']);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

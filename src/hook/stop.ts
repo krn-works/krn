@@ -35,6 +35,7 @@ export { withinPackage };
 
 import { statesBlocker } from '../brain/proof-line.ts';
 import { shipRecordDir } from '../repo/ship-record.ts';
+import { isSandboxPlaceholder } from '../state/sandbox-placeholders.ts';
 import {
   claudeJudge,
   type JudgeCall,
@@ -245,12 +246,15 @@ function base(root: string, contract?: RepoContract): string {
   return '';
 }
 
-/** Files the branch changed past its base, committed or not, deleted ones included. */
+/** Files the branch changed past its base, committed or not, minus the empty sandbox placeholders, deleted ones included. */
 export function changedSinceBase(root: string, from = base(root)): string[] {
   if (!from) return [];
+  const untracked = git(root, ['ls-files', '--others', '--exclude-standard'])
+    .stdout.split('\n')
+    .filter((path) => !isSandboxPlaceholder(root, path));
   const out = [
     git(root, ['diff', '--name-only', from]).stdout,
-    git(root, ['ls-files', '--others', '--exclude-standard']).stdout,
+    ...untracked,
   ].join('\n');
   return [...new Set(out.split('\n').filter(Boolean))].sort();
 }
