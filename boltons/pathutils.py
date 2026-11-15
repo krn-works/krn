@@ -154,7 +154,14 @@ def shrinkuser(path, home='~'):
     """
     path = normpath(path)
     userhome_dpath = expanduser('~')
-    if path.startswith(userhome_dpath):
+    stripped = userhome_dpath.rstrip(os.path.sep)
+    if userhome_dpath != stripped and not stripped:
+        # home is the filesystem root
+        if path == userhome_dpath:
+            path = home
+        elif path.startswith(userhome_dpath):
+            path = home + os.path.sep + path[len(userhome_dpath):]
+    elif path.startswith(userhome_dpath):
         if len(path) == len(userhome_dpath):
             path = home
         elif path[len(userhome_dpath)] == os.path.sep:
