@@ -1,13 +1,8 @@
 // Drift of an adopted repository: the KRN-owned adoption files that differ from what `krn adopt` writes now.
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { appliesTo, type Standard } from '../brain/standards.ts';
-import {
-  readPack,
-  readProject,
-  repositoryFacts,
-} from '../brain/standards-cli.ts';
-import { adopt } from './adopt.ts';
+import { readProject } from '../brain/standards-cli.ts';
+import { adopt, projectStandards } from './adopt.ts';
 
 export interface Drift {
   /** Files that exist but differ from what adopt writes now. */
@@ -49,22 +44,14 @@ function split(
 }
 
 /**
- * The ids of the universal pack records that apply to an adopted repository and are absent from its
+ * The ids of the pack records `krn adopt` would copy into an adopted repository that are absent from its
  * `.agents/standards.json`: the pack grew after the repository was adopted. None when it has no such file.
+ * The pack is the one adopt reads, so a refresh always clears what this names.
  */
-export function missingPackRecords(
-  root: string,
-  pack: readonly Standard[] = readPack(),
-): string[] {
+export function missingPackRecords(root: string): string[] {
   if (!existsSync(join(root, '.agents/standards.json'))) return [];
   const held = new Set(readProject(root).map((standard) => standard.id));
-  const repository = repositoryFacts(root);
-  return pack
-    .filter(
-      (standard) =>
-        standard.layer === 'universal' &&
-        appliesTo(standard, repository) &&
-        !held.has(standard.id),
-    )
+  return projectStandards(root, options(root))
+    .filter((standard) => !held.has(standard.id))
     .map((standard) => standard.id);
 }

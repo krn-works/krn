@@ -175,3 +175,19 @@ test('refresh-all with no registered repository is a usage error', () => {
   assert.notEqual(run.status, 0);
   assert.match(run.stderr, /no adopted repository registered/u);
 });
+
+test('refresh-all and doctor skip a registered path that is not a git repository', () => {
+  const gone = mkdtempSync(join(tmpdir(), 'krn-gone-'));
+  const registry = join(
+    mkdtempSync(join(tmpdir(), 'krn-reg-')),
+    'adopted.json',
+  );
+  writeFileSync(registry, JSON.stringify([gone]));
+  assert.equal(packsReport(registry).exitCode, 0);
+  const run = spawnSync(process.execPath, [cli, 'adopt', '--refresh-all'], {
+    encoding: 'utf8',
+    env: { ...process.env, KRN_ADOPTED_REGISTRY: registry },
+  });
+  assert.equal(run.status, 0, run.stdout + run.stderr);
+  assert.match(run.stdout, /^skipped .*: not a git repository$/mu);
+});

@@ -1,5 +1,6 @@
 // `krn doctor` pack section: each registered adopted repository that lacks pack records, with the remedy.
 import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { missingPackRecords } from '../adopt/drift.ts';
 import { readRegistry, registryPath } from '../brain/adopted-registry.ts';
 
@@ -12,7 +13,7 @@ export function packsReport(file: string = registryPath()): {
   const lines: string[] = [];
   let stale = 0;
   for (const root of readRegistry(file)) {
-    if (!existsSync(root)) continue;
+    if (!existsSync(join(root, '.git'))) continue;
     const missing = missingPackRecords(root);
     if (missing.length === 0) continue;
     stale += 1;

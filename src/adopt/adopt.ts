@@ -503,7 +503,10 @@ function writeSkills(root: string, report: AdoptionReport): void {
  * stack (tracker records only with a tracker), then its own records. A malformed file or an own
  * record reusing a pack id refuses (exit 65) before anything is written.
  */
-function projectStandards(root: string, options: AdoptOptions): Standard[] {
+export function projectStandards(
+  root: string,
+  options: AdoptOptions,
+): Standard[] {
   const needs = new Set<Need>(
     options.ref !== undefined || options.tracker ? ['tracker'] : [],
   );
