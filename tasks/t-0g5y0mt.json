@@ -1,0 +1,19 @@
+{
+  "id": "t-0g5y0mt",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "gc, type and trace helpers lose state or miss objects",
+  "after": [],
+  "body": [
+    "Bugs seen in boltons: (1) gcutils.get_all(Base) misses live instances of subclasses of Base; get_all(Base, include_subtypes=False) must still return only exact instances. (2) Using the toggle_gc context manager, or nesting one GCToggler inside itself, leaves the garbage collector enabled or disabled the wrong way after exit: the state before entering must come back. (3) typeutils.get_all_subclasses fails for a class whose metaclass defines its own subclasses behaviour (a class with a custom metaclass). (4) debugutils.wrap_trace with a hook that returns a truthy value for a 'raise' event should suppress the exception and make the traced method return None, but the call still raises or misbehaves."
+  ],
+  "acceptance": [
+    {
+      "verify": "PYTHONPATH=. mise exec pipx:pytest@9.2.0 -- pytest -q tests",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
