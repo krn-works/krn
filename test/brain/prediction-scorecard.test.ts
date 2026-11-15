@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,6 +9,7 @@ import {
   parseClaim,
   parseOutsideRows,
   planOf,
+  predictionScorecard,
   type Records,
   scoreTasks,
 } from '../../src/brain/exposures.ts';
@@ -175,7 +177,7 @@ test('clause 9, clause 10 and clause 11: krn ledger --predictions prints the sco
     await ledgerCommand(['--predictions', '--root', root]);
     assert.equal(
       out,
-      'plan | hit | miss | unmeasured | unpredicted\nFable 1115g | 1 | 1 | 1 | 0\n',
+      'plan | hit | miss | unmeasured | unpredicted\nFable 1115g | 1 | 0 | 2 | 0\n',
     );
   } finally {
     process.stdout.write = write;
@@ -191,4 +193,82 @@ test('clause 9 and clause 10: the Fable plan brief template and the krn-lead ski
   assert.match(brief, /\.krn\/runs\/outside\/summary\.txt/u);
   const skill = readFileSync('.agents/skills/krn-lead/SKILL.md', 'utf8');
   assert.match(skill, /docs\/program\/fable-plan-brief\.md/u);
+});
+
+const ROWS_AFTER_MERGE = `krn-works/outside-py outside/py | py | 0 | ooooooo | 0 | ooooooo (all merged) | 1 | $5.00 | pass | ooooooo | 3/3 | none | 0 | 8
+krn-works/outside-py outside/py | py | 0 | aaaaaaa | 0 | aaaaaaa (all merged) | 1 | $0.20 | pass | aaaaaaa | 3/3 | none | 0 | 8
+krn-works/outside-py outside/py | py | 0 | bbbbbbb | 0 | bbbbbbb (all merged) | 1 | $0.30 | fail | bbbbbbb | 3/3 | none | 0 | 8
+krn-works/outside-py outside/py | py | 0 | ccccccc | 0 | ccccccc (all merged) | 1 | $9.00 | none | skew ccccccc != ddddddd
+`;
+const order = ['ooooooo', 'merge00', 'aaaaaaa', 'bbbbbbb'];
+const afterMerge: Records = {
+  proofs: new Map(),
+  outside: parseOutsideRows(ROWS_AFTER_MERGE),
+  merges: new Map([['t-x', 'merge00']]),
+  descends: (ancestor, commit) =>
+    order.includes(ancestor) &&
+    order.indexOf(commit) >= order.indexOf(ancestor),
+};
+
+test('clause 7: outside predictions score only rows whose hook commit is at or after the merge', () => {
+  const claim = parseClaim('Predicted: outside usd <= 1 in >= 2 rows');
+  const both = parseClaim('Predicted: outside usd <= 1 in >= 3 rows');
+  assert.ok(claim && both);
+  assert.equal(judge(claim, 't-x', afterMerge), 'hit');
+  assert.equal(judge(both, 't-x', afterMerge), 'miss');
+  assert.equal(judge(claim, 't-unmerged', afterMerge), 'unmeasured');
+  const none = { ...afterMerge, merges: new Map([['t-x', 'zzzzzzz']]) };
+  assert.equal(judge(claim, 't-x', none), 'unmeasured');
+});
+
+test('clause 6: the hidden field counts pass as 1, fail as 0 and skips none', () => {
+  const pass = parseClaim('Predicted: outside hidden == 1 in >= 1 rows');
+  const fail = parseClaim('Predicted: outside hidden == 0 in >= 1 rows');
+  assert.ok(pass && fail);
+  assert.equal(judge(pass, 't-x', afterMerge), 'hit');
+  assert.equal(judge(fail, 't-x', afterMerge), 'hit');
+  assert.equal(judge(pass, 't-x', records), 'unmeasured');
+});
+
+test('clause 8: the scorecard prints hit or miss for a task merged in a real git history', () => {
+  const root = mkdtempSync(join(tmpdir(), 'predictions-merge-'));
+  const git = (...a: string[]) =>
+    execFileSync('git', ['-C', root, ...a], { encoding: 'utf8' }).trim();
+  try {
+    git('init', '-q');
+    git('config', 'user.email', 'a@b.c');
+    git('config', 'user.name', 'a');
+    git('commit', '-q', '--allow-empty', '-m', 'base');
+    git('commit', '-q', '--allow-empty', '-m', 'fix\n\nTicket: t-aaaaaaa');
+    const merge = git('rev-parse', '--short', 'HEAD');
+    git('commit', '-q', '--allow-empty', '-m', 'later');
+    const later = git('rev-parse', '--short', 'HEAD');
+    mkdirSync(join(root, 'tasks'));
+    mkdirSync(join(root, '.krn/runs/outside'), { recursive: true });
+    writeFileSync(
+      join(root, 'tasks/t-aaaaaaa.json'),
+      JSON.stringify({
+        id: 't-aaaaaaa',
+        status: 'closed',
+        resolution: 'done',
+        created: '2026-11-15',
+        priority: 1,
+        title: 't',
+        after: [],
+        body: [
+          'Source: plan.md slice 1\nPredicted: outside usd <= 1 in >= 1 rows',
+        ],
+      }),
+    );
+    writeFileSync(
+      join(root, '.krn/runs/outside/summary.txt'),
+      `krn-works/o outside/py | py | 0 | ${merge} | 0 | ${merge} (all merged) | 1 | $0.20 | pass | ${later}\n`,
+    );
+    assert.equal(
+      predictionScorecard(root),
+      'plan | hit | miss | unmeasured | unpredicted\nplan.md | 1 | 0 | 0 | 0\n',
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
