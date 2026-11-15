@@ -1,0 +1,14 @@
+{
+  "id": "t-65nnfyp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "The walkthrough covers day two: stale pack, doctor remedy, refresh and a resumed task",
+  "after": [
+    "t-p8wpfq5"
+  ],
+  "body": [
+    "Why: Fable direction 1115e slice 7: day two in an adopted repo.\nOutcome: scripts/first-day-walkthrough.ts gains a second-day path: stale krn pack, doctor names the remedy, refresh, an open task resumes.\nFiles: scripts/first-day-walkthrough.ts and its test.\nProof: every printed step exits 0; findings fixed or tasked. Free."
+  ]
+}

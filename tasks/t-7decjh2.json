@@ -1,0 +1,15 @@
+{
+  "id": "t-7decjh2",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Every enforced record bites: a planted violation turns the check red in each init stack",
+  "after": [
+    "t-35zy34e",
+    "t-ytr3yvg"
+  ],
+  "body": [
+    "Why: Fable direction 1115e slice 4 (.krn/runs/overnight/fable-direction-1115e.md): prove every enforced record bites in a fresh project.\nOutcome: in each of the five init stacks, each applicable enforced record's violation is planted; the check goes red naming the record and remedy, green after revert; an enforced record without a plant fails the test; report prints 'N/N records bite'.\nFiles: scripts/standards-audit.ts, new test under test/.\nProof: the new test passes with N/N; removing one plant turns it red. Free."
+  ]
+}
