@@ -32,6 +32,7 @@ import {
   parseTaskFile,
   pick,
   publishRefusal,
+  remoteVisibility,
   repoFor,
   repoUrl,
   rowGreen,
@@ -704,4 +705,26 @@ test('the seed task is written into a row clone that has no tasks directory', ()
   writeSeedTask(dir, seed);
   assert.equal(readFileSync(join(dir, seed.file), 'utf8'), seed.text);
   writeSeedTask(dir, seed);
+});
+
+test('the visibility lookup asks for an App token scoped to the row repository, not the current directory repository', () => {
+  const seen: Array<string | undefined> = [];
+  const exec = (
+    _command: string,
+    _args: string[],
+    _cwd: string,
+    env?: NodeJS.ProcessEnv,
+  ) => {
+    seen.push(env?.KRN_APP_REPOSITORY);
+    return {
+      status: 0,
+      output:
+        env?.KRN_APP_REPOSITORY === 'krn-works/outside-php' ? 'private\n' : '',
+    };
+  };
+  assert.equal(
+    remoteVisibility('/krn-root', 'krn-works/outside-php', exec),
+    'private',
+  );
+  assert.deepEqual(seen, ['krn-works/outside-php']);
 });

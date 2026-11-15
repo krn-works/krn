@@ -20,6 +20,7 @@ import { appendExposure, readExposures } from '../src/brain/exposures.ts';
 import { harvestCandidates, renderHarvest } from '../src/brain/proposals.ts';
 import { parseUnified } from '../src/brain/record.ts';
 import { readProposals, repositoryRoot } from '../src/brain/standards-cli.ts';
+import { appCredentialArgs } from '../src/cli/outside-git.ts';
 import {
   failureArgs,
   promoteCandidates,
@@ -608,7 +609,7 @@ export function pick(config: AdoptFlags, branch: string): AdoptFlags {
   return kept;
 }
 
-const run = (
+export const run = (
   command: string,
   args: string[],
   cwd: string,
@@ -625,16 +626,6 @@ const run = (
     output: `${result.stdout ?? ''}${result.stderr ?? ''}`,
   };
 };
-
-function credentialConfig(root: string): string[] {
-  const helper = `!'${process.execPath}' '${join(root, 'scripts/github-app-token.ts')}' git-credential`;
-  return [
-    '-c',
-    'credential.https://github.com.helper=',
-    '-c',
-    `credential.https://github.com.helper=${helper}`,
-  ];
-}
 
 /**
  * Whether a scratch copy may be pushed to the remote: a private remote takes any copy; a public (or unknown)
@@ -672,12 +663,21 @@ export function publishRefusal(
   return undefined;
 }
 
-/** The visibility GitHub reports for the remote repository, undefined when it cannot be read. */
-function remoteVisibility(root: string, repo: string): string | undefined {
-  const result = run(
+/**
+ * The visibility GitHub reports for the remote repository, undefined when it cannot be read. The App token
+ * is minted for the row's own repository (not the repository of the current directory), so a private row
+ * repository is visible to the lookup.
+ */
+export function remoteVisibility(
+  root: string,
+  repo: string,
+  exec: typeof run = run,
+): string | undefined {
+  const result = exec(
     'gh',
     ['api', `repos/${repo}`, '--jq', '.visibility'],
     root,
+    { ...process.env, KRN_APP_REPOSITORY: repo },
   );
   const value = result.output.trim();
   return result.status === 0 && value !== '' ? value : undefined;
@@ -779,9 +779,13 @@ function acceptStack(
     );
   const dir = join(options.scratch, 'runs', `${stack}-${Date.now()}`);
   const krn = join(root, 'bin/krn');
-  const rowEnv = { ...process.env, PATH: hookPath(root, process.env.PATH) };
+  const rowEnv = {
+    ...process.env,
+    PATH: hookPath(root, process.env.PATH),
+    KRN_APP_REPOSITORY: repo,
+  };
   const git = (args: string[], cwd = dir) =>
-    run('git', [...credentialConfig(root), ...args], cwd);
+    run('git', [...appCredentialArgs(repo), ...args], cwd);
   if (!existsSync(join(source, '.git')))
     throw new Error(
       `outside-acceptance: no scratch copy at ${source} (pass --scratch or KRN_OUTSIDE_SCRATCH)`,
