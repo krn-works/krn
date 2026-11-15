@@ -1,0 +1,12 @@
+{
+  "id": "t-gvnwxbh",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Task create refuses a record that task-quality would fail in CI",
+  "after": [],
+  "body": [
+    "Source: lead 2026-11-15 S1 #1104: t-ab00km6 was created without a measurable Outcome; only npm run lint in CI caught it (run 43758528920), costing one CI round.\nOutcome: `krn task create` and `krn task edit` exit 65 with the task-quality message when the record fails scripts/task-quality.ts, and write nothing.\nProof: a test creates a task whose Outcome has no count, exit code or named output and gets exit 65 and no tasks/<id>.json."
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "t-tj1g7m9",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "lane budget counts only directories holding .git; regression test in test/cli/lane.test.ts"
+  },
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Lane budget counts only real git worktrees",
+  "after": [],
+  "body": [
+    "Source: lead session 2026-11-15, S26 lane refused by `krn lane start` (exit 64, 9 live > 8).\nWhy: the lane budget in src/cli/lane.ts counts every directory under .krn/worktrees, so a test fixture (test/tool-scope.test.ts writes .krn/worktrees/scope-probe-<pid>) and stale dirs block real lanes.\nOutcome: the budget counts only registered git worktrees (git worktree list) under .krn/worktrees; tool-scope fixture still cleans up.\nProof: regression test in test/cli: a plain directory under .krn/worktrees does not count toward KRN_LANE_MAX_LIVE."
+  ]
+}
