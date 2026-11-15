@@ -1,0 +1,20 @@
+{
+  "id": "t-0lpk5qu",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "parse-link-header cuts a URL that contains a semicolon",
+  "after": [],
+  "body": [
+    "Bug: parsing '<https://imaginary.url.notreal/segment;foo=bar;baz/item?name=What,+me+worry>; rel=\"next\";' loses the part of the URL after the first ';'.",
+    "Outcome: the URL is taken up to the closing '>' before the attributes are split on ';', so the url field is the whole URL. Existing behaviour is unchanged. Fix index.js and add a test."
+  ],
+  "acceptance": [
+    {
+      "verify": "node test/parse-link-header.js",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}

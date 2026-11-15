@@ -1,0 +1,6 @@
+{
+  "base": "outside/npm",
+  "test": "node test/parse-link-header.js",
+  "tracker": "krn",
+  "install": "npm install --no-package-lock"
+}
