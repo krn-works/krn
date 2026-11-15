@@ -28,6 +28,8 @@ class GetInTest extends \PHPUnit_Framework_TestCase
             [$nested, $nested, []],
             ['foo', $list, [0, 'name']],
             [null, ['foo' => null], ['foo'], 'err'],
+            ['default', ['foo' => null], ['foo', 'bar'], 'default'],
+            ['default', $single, ['key', 'x'], 'default'],
         ];
     }
 
@@ -73,6 +75,8 @@ class GetInTest extends \PHPUnit_Framework_TestCase
         return [
             [['foo' => ['bar' => ['baz' => 40]]], $nested, ['non_existent'], $identity],
             [['foo' => ['bar' => ['baz' => 40]]], $nested, ['non', 'existent'], $identity],
+            [['foo' => null], ['foo' => null], ['foo', 'bar'], $identity],
+            [['key' => 'value'], ['key' => 'value'], ['key', 'x'], $identity],
         ];
     }
 
