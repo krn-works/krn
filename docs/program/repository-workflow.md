@@ -14,7 +14,7 @@ Safety comes from system boundaries, not shell parsing ([ADR 0014 D9](../adr/001
 
 ## Control plane and durable state
 
-Use the selected in-repository `krn task` tracker as the task-status source: store each task in one canonical JSON file at `tasks/<id>.json` and compute the index in memory for each command. Comments live beside a task in append-only `tasks/<id>.comments.jsonl` (`merge=union`, so parallel branches keep both entries); add one with `krn task comment ID --body-file`. Task dependencies, readiness, and claiming are supported by one command. The tracker format follows ADR 0015.
+Use the selected in-repository `krn task` tracker as the task-status source: store each task in one canonical JSON file at `tasks/<id>.json` and compute the index in memory for each command. Notes go in the task body. Task dependencies, readiness, and claiming are supported by one command. The tracker format follows ADR 0015.
 
 The tracker records task status, not PR acceptance. Delivery follows the loop in [lead rules](lead-rules.md): one gate, required CI on the exact HEAD. No record, budget, brief or contract trailer is required for a merge.
 

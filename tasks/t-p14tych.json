@@ -1,7 +1,11 @@
 {
   "id": "t-p14tych",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "claim race test shows exclusive link alone refuses a double claim; comments.ts, socket lock and lock-host.ts deleted"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "The tracker keeps only what is used (S20)",
