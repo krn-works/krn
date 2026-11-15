@@ -1,0 +1,14 @@
+{
+  "id": "t-js6d0hx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Task commands answer in under half a second and closed tasks archive (S17)",
+  "after": [
+    "t-85wjjhq"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S17 (Sector 5 — Tasks (ADR 0018)); program t-b160jt0.\nWhy: ADR 0018 — moves the north-star items named in the plan sector.\nOutcome: single-task verbs read one file; `krn task archive` moves tasks closed over 14 days to `tasks/archive/<YYYY-MM>.jsonl`; `Ticket:` checks read both\nFiles: see ADR 0018 Consequences.\nProof: `ls tasks/*.json | wc -l: < 80` and `node --test test/task/archive-ticket.test.ts: pass`\nPredicted: metric task-show-ms < 450\nAfter: S12"
+  ]
+}

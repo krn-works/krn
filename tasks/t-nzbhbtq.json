@@ -1,0 +1,15 @@
+{
+  "id": "t-nzbhbtq",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "A closed task writes its outcome back as evidence (S19)",
+  "after": [
+    "t-c6hrj5m",
+    "t-tsak7jn"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S19 (Sector 5 — Tasks (ADR 0018)); program t-b160jt0.\nWhy: ADR 0018 — moves the north-star items named in the plan sector.\nOutcome: `close --as done` appends PR, CI conclusion and hidden-test result to each exposed record's exposure rows\nFiles: see ADR 0018 Consequences.\nProof: `node --test test/task/close-evidence.test.ts: pass`\nPredicted: proof precedent >= 1\nAfter: S5, S18"
+  ]
+}

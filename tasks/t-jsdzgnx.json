@@ -1,0 +1,14 @@
+{
+  "id": "t-jsdzgnx",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Tasks are categorised and carry their origin (S16)",
+  "after": [
+    "t-85wjjhq"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S16 (Sector 5 — Tasks (ADR 0018)); program t-b160jt0.\nWhy: ADR 0018 — moves the north-star items named in the plan sector.\nOutcome: `kind`, `area`, `stack`, `from` in `krn.task/v1`; create requires kind and area; task-quality becomes one check inside src/task\nFiles: see ADR 0018 Consequences.\nProof: `bin/krn task check: pass` and `bin/krn task list --kind gate --json: ok`\nPredicted: metric new-tasks-with-kind-share >= 0.8\nAfter: S12"
+  ]
+}

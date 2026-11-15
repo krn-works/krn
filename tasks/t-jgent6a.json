@@ -1,0 +1,13 @@
+{
+  "id": "t-jgent6a",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "KRN loses its slop: dead code, duplicates and unused paths go, every pillar stays",
+  "after": [],
+  "body": [
+    "Source: operator 2026-11-15 ~20:30: \"krn to juz teraz chyba dość sporo rzeczy ... tyle tam jest kurwa rzeczy\"; north-star \"not a task runner\"; src is ~32k lines (cli 5.1k, brain 4.9k, task 3.2k, adopt 3.0k, successor 2.7k, hook 2.5k, outcome 2.2k, state 2.0k, context 1.4k, repo 1.3k, ci 1.3k, memory 1.0k).\nWhy: half of KRN is delivery plumbing that grew faster than the brain; a smaller system is cheaper to run, read and measure (A/B/C t-jzzf197).\nOutcome: one inventory .krn/runs/prune/inventory.md gives every src module and every krn command a verdict (serves north-star item 1-5 / required plumbing / delete) with a reader count (importers, callers, hook entries); delete-verdict modules are removed in PRs that only remove code, tests stay green.\nFiles: src/**, scripts/**, docs/generated/capability-index.md\nProof: `find src -name '*.ts' | xargs cat | wc -l` drops by >= 15% from 32170 with main CI green.\nPredicted: src lines -15% with 0 new red tests",
+    "-"
+  ]
+}

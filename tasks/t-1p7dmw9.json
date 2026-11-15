@@ -1,0 +1,14 @@
+{
+  "id": "t-1p7dmw9",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Screening shows whether correctness can be proven (S7)",
+  "after": [
+    "t-26p4xm7"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S7 (Sector 2 — Proof (ADR 0021; north-star item 5)); program t-b160jt0.\nWhy: ADR 0021 — moves the north-star items named in the plan sector.\nOutcome: at least 70 post-June-2026 units with issue-only bodies; arm A screened on a separate run; go only if A passes at most 85%\nFiles: see ADR 0021 Consequences.\nProof: `node evals/replay/run.ts --screen --report: prints A pass rate and go/no-go`\nPredicted: metric abc-screen-a-pass-rate <= 0.85\nAfter: S6"
+  ]
+}

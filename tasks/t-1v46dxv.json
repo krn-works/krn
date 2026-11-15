@@ -1,0 +1,14 @@
+{
+  "id": "t-1v46dxv",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "One hook process per event inside the latency budget (S23)",
+  "after": [
+    "t-9pra0h1"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S23 (Sector 6 — Harness and delivery (ADR 0022)); program t-b160jt0.\nWhy: ADR 0022 — moves the north-star items named in the plan sector. Counts toward the slop cut t-jgent6a.\nOutcome: one `krn hook <event>` entry per event with lazy routes and a timing log; gauge once; shims, subagent-hook-errors, lead-file-read hook and stop-failure deleted; `.codex/hooks.json` generated from the same table\nFiles: see ADR 0022 Consequences.\nProof: `bin/krn doctor --hooks: tool-call p50 <= 60 ms, p95 <= 150 ms`\nPredicted: metric hook-tool-p50-ms <= 60\nAfter: S1"
+  ]
+}

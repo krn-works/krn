@@ -1,0 +1,14 @@
+{
+  "id": "t-9027pqy",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "One standards skill routes every repo to the query tool (S11)",
+  "after": [
+    "t-r35kjgy"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S11 (Sector 3 — Retrieval (ADR 0020; items 1–3)); program t-b160jt0.\nWhy: ADR 0020 — moves the north-star items named in the plan sector.\nOutcome: the `standards` skill is the same file in KRN and adopted repos; per-language prose skills are harvested into records and removed; the pull stop rule is measured after 2 weeks\nFiles: see ADR 0020 Consequences.\nProof: `bin/krn adopt --refresh . --dry-run: no drift`\nPredicted: metric query-calls-per-session >= 0.2\nAfter: S10"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "t-tsak7jn",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "A claimed task opens with its clauses and precedent (S18)",
+  "after": [
+    "t-6035vcr",
+    "t-jsdzgnx"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S18 (Sector 5 — Tasks (ADR 0018)); program t-b160jt0.\nWhy: ADR 0018 — moves the north-star items named in the plan sector.\nOutcome: `krn task claim` prints brief-derived clauses and top precedent matched by stack and area within 400 tokens, and stores clause ids\nFiles: see ADR 0018 Consequences.\nProof: `node --test test/task/claim-packet.test.ts: pass`\nPredicted: proof clauses >= 1\nAfter: S9, S16"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-n5d7fks",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "A lane that merged stops cleanly (S21)",
+  "after": [],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S21 (Sector 6 — Harness and delivery (ADR 0022)); program t-b160jt0.\nWhy: ADR 0022 — moves the north-star items named in the plan sector.\nOutcome: ship leaves the worktree and branch; the lane ends at \"auto-merge enabled\"; the lead prunes merged worktrees at the next lane start\nFiles: see ADR 0022 Consequences.\nProof: `node --test test/hook/stop-merged-lane.test.ts: pass`\nPredicted: proof stop-refusals == 0"
+  ]
+}

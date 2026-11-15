@@ -4,11 +4,12 @@ import test from 'node:test';
 
 const program = new URL('../../docs/program/', import.meta.url);
 
-test('the program docs keep no plan file', () => {
+// ADR 0024: plan.md is the one tracked plan every session starts from.
+test('the program docs keep exactly one plan file, plan.md', () => {
   const plans = readdirSync(program).filter((name) =>
     /^plans?\.md$/iu.test(name),
   );
-  assert.deepEqual(plans, []);
+  assert.deepEqual(plans, ['plan.md']);
 });
 
 test('the delivery gate text has one owner and the other docs point to it', () => {

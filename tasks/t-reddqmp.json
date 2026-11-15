@@ -1,0 +1,12 @@
+{
+  "id": "t-reddqmp",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Adopted gates run (S26)",
+  "after": [],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S26 (Sector 7 — Onboarding (ADR 0023)); program t-b160jt0.\nWhy: ADR 0023 — moves the north-star items named in the plan sector.\nOutcome: contract holds real lint, typecheck and test commands; run checks supersede the presence checks; init skeletons run every installed tool in CI; the smoke test imports a source module\nFiles: see ADR 0023 Consequences.\nProof: `node --test test/adopt/init-gates.test.ts: 5 of 5 stacks pass`\nPredicted: outside adopt >= 1 in >= 5 rows"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "t-d8wt16e",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "A research candidate enters by file and leaves with a verdict (S30)",
+  "after": [
+    "t-cbsn9kz",
+    "t-r35kjgy"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S30 (Sector 8 — Research to practice (ADR 0017)); program t-b160jt0.\nWhy: ADR 0017 — moves the north-star items named in the plan sector.\nOutcome: `krn.candidate/v1` and `krn.verdict/v1` schemas; `krn standards propose --from-candidate` refuses candidates without `motivated_by`; radar ritual lines deleted; cap of one experiment and 10 USD a week\nFiles: see ADR 0017 Consequences.\nProof: `node --test test/brain/candidate-ingest.test.ts: pass`\nPredicted: metric records-with-external-provenance >= 1\nAfter: S10, S15"
+  ]
+}

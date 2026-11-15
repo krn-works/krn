@@ -1,0 +1,14 @@
+{
+  "id": "t-4hg6y8x",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "One adoption check replaces three (S28)",
+  "after": [
+    "t-8bv3z0k"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S28 (Sector 7 — Onboarding (ADR 0023)); program t-b160jt0.\nWhy: ADR 0023 — moves the north-star items named in the plan sector. Counts toward the slop cut t-jgent6a.\nOutcome: verify, canary and the walkthrough merge into `krn adopt --verify`; census moves to evals/adoption; unused and host-remediation fold or go\nFiles: see ADR 0023 Consequences.\nProof: `find src/adopt -name '*.ts' | xargs cat | wc -l: <= 2450`\nPredicted: outside adopt >= 1 in >= 5 rows\nAfter: S27"
+  ]
+}

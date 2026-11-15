@@ -1,0 +1,14 @@
+{
+  "id": "t-26p4xm7",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "One replay harness runs arms A, B and C (S6)",
+  "after": [
+    "t-6psh6t3"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S6 (Sector 2 — Proof (ADR 0021; north-star item 5)); program t-b160jt0.\nWhy: ADR 0021 — moves the north-star items named in the plan sector. Counts toward the slop cut t-jgent6a.\nOutcome: `evals/replay/` replaces outside-acceptance, outside-testgrade and the d23 harness; arms are configuration; results rows are (unit, arm, rep, pass, cost, harness sha)\nFiles: see ADR 0021 Consequences.\nProof: `node evals/replay/run.ts --arms A,B,C --units 3 --dry: 9 rows`\nPredicted: outside hidden >= 1 in >= 9 rows\nAfter: S4"
+  ]
+}

@@ -248,9 +248,7 @@ test('a PR that turns conflicting only in the capability index is regenerated, f
   const out = await shipCommand(args, r);
   assert.match(out, new RegExp(`^verdict: merged ${merge}$`, 'mu'));
   const rebase = r.calls.findIndex((c) => c.includes('rebase origin/main'));
-  const push = r.calls.findIndex(
-    (c) => c === 'git push --force-with-lease origin feat-x',
-  );
+  const push = r.calls.indexOf('git push --force-with-lease origin feat-x');
   assert.ok(rebase > 0 && push > rebase, r.calls.join('\n'));
 });
 

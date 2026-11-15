@@ -1,0 +1,14 @@
+{
+  "id": "t-kjbxv9d",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Session memory is pointers (S14)",
+  "after": [
+    "t-bp8c2f9"
+  ],
+  "body": [
+    "Source: Fable architecture decision 2026-11-15, docs/program/plan.md S14 (Sector 4 — Formats and memory (ADR 0017, ADR 0019; item 4)); program t-b160jt0.\nWhy: ADR 0017, ADR 0019 — moves the north-star items named in the plan sector. Counts toward the slop cut t-jgent6a.\nOutcome: capsule at most 2 kB; MEMORY.md links all resolve; decisions-register removed; inbox drops harness blocks and tags agent-origin rows; memory-refs shrinks to a link check\nFiles: see ADR 0017, ADR 0019 Consequences.\nProof: `wc -c .krn/runs/delivery-loop/session-continuity/state.md: <= 2048`\nPredicted: metric memory-dangling-links == 0\nAfter: S13"
+  ]
+}
