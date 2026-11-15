@@ -45,6 +45,7 @@ import {
   rowCredentialArgs,
   rowGreen,
   scratchRegistryEnv,
+  scratchRowEnv,
   seedTask,
   sweepOwnedRows,
   workflowFiles,
@@ -882,4 +883,17 @@ test('a failed drain row names the lane BLOCKER without the drain suffix', () =>
     'blocker: the Stop hook reports no test file changed on this branch, but `tests/run.php` differs from `outside/php` in `9eee856`. It also requires a test that is red at the base, which a characterizati',
   );
   assert.equal(drainBlocker('t-a t-a exit=0 1s\n'), undefined);
+});
+
+// Rows 1115k3: wp-plugin's test command read an unset ${KRN_OUTSIDE_SCRATCH:?}
+// (exit 127, red baseline 72) and the go lane ran `mise use`, leaving an
+// untracked .tool-versions (dirty tree 74).
+test('a row exports its scratch root and the chosen Go version', () => {
+  assert.deepEqual(scratchRowEnv('/work/scratch', '/work/mise/go/1.25.4/bin'), {
+    KRN_OUTSIDE_SCRATCH: '/work/scratch',
+    MISE_GO_VERSION: '1.25.4',
+  });
+  assert.deepEqual(scratchRowEnv('/work/scratch', undefined), {
+    KRN_OUTSIDE_SCRATCH: '/work/scratch',
+  });
 });

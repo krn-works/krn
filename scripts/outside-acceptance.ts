@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { delimiter, dirname, join, resolve } from 'node:path';
+import { basename, delimiter, dirname, join, resolve } from 'node:path';
 import {
   BOOTSTRAP_TASK_TITLE,
   GREEN_BASE_TASK_TITLE,
@@ -317,6 +317,22 @@ export interface RowInput {
   /** The krn commit the row's hooks ran, against the checkout HEAD it must equal. */
   hook?: { commit: string | undefined; head: string };
   note?: string;
+}
+
+/**
+ * Variables a row's commands read: row test commands name `${KRN_OUTSIDE_SCRATCH}` (wp-plugin's WordPress core),
+ * and a session shell that puts mise shims first needs the Go version chosen, else the lane runs `mise use` and
+ * leaves an untracked `.tool-versions` that ends the lane as a dirty tree (go row 1115k3).
+ */
+export function scratchRowEnv(
+  scratch: string,
+  goBin: string | undefined,
+): Record<string, string> {
+  const go = goBin === undefined ? undefined : basename(dirname(goBin));
+  return {
+    KRN_OUTSIDE_SCRATCH: scratch,
+    ...(go === undefined ? {} : { MISE_GO_VERSION: go }),
+  };
 }
 
 /**
@@ -898,16 +914,18 @@ function acceptStack(
   const dir = join(options.scratch, 'runs', `${stack}-${Date.now()}`);
   owned.push(dir);
   const krn = join(root, 'bin/krn');
+  const goBin = goToolchainBin(miseInstalls());
   const rowEnv = {
     ...process.env,
     PATH: hookPath(
       root,
-      [goToolchainBin(miseInstalls()), process.env.PATH]
+      [goBin, process.env.PATH]
         .filter((part): part is string => part !== undefined)
         .join(delimiter),
     ),
     KRN_APP_REPOSITORY: repo,
     ...scratchRegistryEnv(options.scratch),
+    ...scratchRowEnv(options.scratch, goBin),
   };
   const git = (args: string[], cwd = dir) =>
     run('git', [...appCredentialArgs(repo), ...args], cwd);

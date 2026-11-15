@@ -205,7 +205,7 @@ export const TEST_FILE = [
   /Test\.php$/u,
   // A runner script directly under test/ or tests/ (tests/run.php, the
   // repository's own harness) is a test file in any language.
-  /(?:^|\/)tests?\/[^/]+\.(?:[cm]?js|php|py)$/u,
+  /(?:^|\/)tests?\/[^/]+\.(?:[cm]?js|php|py|rs)$/u,
 ];
 
 export const isTestFile = (path: string) => TEST_FILE.some((p) => p.test(path));
