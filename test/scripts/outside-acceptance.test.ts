@@ -32,6 +32,8 @@ import {
   parseTaskFile,
   pick,
   publishRefusal,
+  repoFor,
+  repoUrl,
   rowGreen,
   seedTask,
   workflowFiles,
@@ -204,6 +206,50 @@ test('a public or unknown remote takes only a copy with a public upstream and an
       'public',
     ) ?? '',
     /open "license"/u,
+  );
+});
+
+test('a row can target its own private repository while the public one stays refused for the same operator copy', () => {
+  const options = parseOptions(
+    [
+      '--repo',
+      'php=krn-works/outside-php',
+      '--repo',
+      'npm=krn-works/outside-npm',
+    ],
+    '/r',
+    '/s',
+  );
+  const visibility: Record<string, string> = {
+    'krn-works/outside-php': 'private',
+    'krn-works/outside-npm': 'private',
+    'krn-works/krn': 'public',
+  };
+  // An operator copy has no UPSTREAM.json.
+  const refusalFor = (stack: string) =>
+    publishRefusal(undefined, visibility[repoFor(options.repos, stack)]);
+  assert.equal(refusalFor('php'), undefined);
+  assert.equal(refusalFor('npm'), undefined);
+  assert.match(refusalFor('py') ?? '', /remote is public/u);
+  assert.equal(repoFor(options.repos, 'py'), 'krn-works/krn');
+  assert.equal(
+    repoUrl(repoFor(options.repos, 'php')),
+    'https://github.com/krn-works/outside-php.git',
+  );
+  assert.match(
+    gradedRow({
+      repo: 'krn-works/outside-php',
+      stack: 'php',
+      adoptExit: 0,
+      firstPr: '#1',
+      drain: undefined,
+    }),
+    /^krn-works\/outside-php outside\/php \|/u,
+  );
+  assert.throws(() => parseOptions(['--repo', 'php'], '/r', '/s'), /STACK=/u);
+  assert.throws(
+    () => parseOptions(['--repo', 'php=https://x/y'], '/r', '/s'),
+    /bad repository/u,
   );
 });
 
