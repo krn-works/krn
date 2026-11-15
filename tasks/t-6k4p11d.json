@@ -1,7 +1,11 @@
 {
   "id": "t-6k4p11d",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "harvest skips non-git rows; baseline reruns once when only the worktree dir was missing"
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Outside harvest survives a row without a git checkout and the baseline preflight ignores KRN worktree paths",

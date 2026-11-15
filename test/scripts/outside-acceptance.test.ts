@@ -5,6 +5,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  realpathSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -20,6 +21,7 @@ import {
   entryCommit,
   failedCases,
   gradedRow,
+  harvestRows,
   hiddenResult,
   hiddenSeedTask,
   hookCell,
@@ -752,4 +754,19 @@ test('a row adopts into a scratch registry inside its scratch directory', () => 
   assert.deepEqual(scratchRegistryEnv('/scratch/rows'), {
     KRN_ADOPTED_REGISTRY: '/scratch/rows/registry.json',
   });
+});
+
+test('clause 1: a row checkout that is not a git repository is skipped and reported, not fatal', () => {
+  const root = realpathSync(join(import.meta.dirname, '..', '..'));
+  const plain = mkdtempSync(join(tmpdir(), 'krn-harvest-plain-'));
+  // Verbatim shape of the 1115i crash: a row directory that exists without a checkout.
+  const missing = join(plain, 'runs', 'py-1794752669827');
+  const lines = harvestRows([plain, missing], root);
+  assert.match(lines.join('\n'), /skipped: .*is not a git repository/u);
+  assert.match(lines.join('\n'), /skipped: .*is not a directory/u);
+  assert.match(
+    lines.at(-2) ?? '',
+    /^harvest: 0 candidates from 0 proposals in 0 repositories/u,
+  );
+  assert.equal(lines.at(-1), 'promoted: none');
 });
