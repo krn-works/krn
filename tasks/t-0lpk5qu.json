@@ -1,7 +1,11 @@
 {
   "id": "t-0lpk5qu",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "scanAll paging test; krn.json test set"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "one real test and a test command",
@@ -14,8 +18,8 @@
   "acceptance": [
     {
       "verify": "node --test test/*.test.mjs",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }

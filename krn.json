@@ -1,6 +1,5 @@
 {
   "base": "outside/npm",
-  "test": "echo 'no test command: add one real test and set test in krn.json' >&2; exit 1",
-  "tracker": "krn",
-  "vacuous": true
+  "test": "node --test test/*.test.mjs",
+  "tracker": "krn"
 }
