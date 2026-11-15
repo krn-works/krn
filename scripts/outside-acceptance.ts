@@ -310,6 +310,38 @@ export interface RowInput {
   note?: string;
 }
 
+/**
+ * The bin directory of the newest Go toolchain mise has installed, or undefined: a host with several installed
+ * versions and none selected makes the `go` shim fail, so a Go row puts the toolchain itself on PATH.
+ */
+export function goToolchainBin(
+  installs: string,
+  has: (path: string) => boolean = existsSync,
+  list: (path: string) => string[] = (path) => readdirSync(path),
+): string | undefined {
+  const root = join(installs, 'go');
+  let versions: string[];
+  try {
+    versions = list(root);
+  } catch {
+    return undefined;
+  }
+  const newest = versions
+    .filter((name) => /^\d+\.\d+\.\d+$/u.test(name))
+    .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
+    .at(-1);
+  const bin = newest === undefined ? undefined : join(root, newest, 'bin');
+  return bin !== undefined && has(join(bin, 'go')) ? bin : undefined;
+}
+
+/** Where mise keeps installed tool versions on this host. */
+function miseInstalls(): string {
+  return (
+    process.env.MISE_DATA_DIR ??
+    join(process.env.HOME ?? '', '.local/share/mise')
+  ).concat('/installs');
+}
+
 /** PATH with the checkout's bin/ first, so the `krn` that hooks and lanes call by name is the checkout's own. */
 export function hookPath(root: string, pathEnv: string | undefined): string {
   return [join(root, 'bin'), ...(pathEnv ? [pathEnv] : [])].join(delimiter);
@@ -859,7 +891,12 @@ function acceptStack(
   const krn = join(root, 'bin/krn');
   const rowEnv = {
     ...process.env,
-    PATH: hookPath(root, process.env.PATH),
+    PATH: hookPath(
+      root,
+      [goToolchainBin(miseInstalls()), process.env.PATH]
+        .filter((part): part is string => part !== undefined)
+        .join(delimiter),
+    ),
     KRN_APP_REPOSITORY: repo,
     ...scratchRegistryEnv(options.scratch),
   };

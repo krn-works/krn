@@ -47,7 +47,7 @@ function fixture(files: Record<string, string>, branch?: string): string {
 test('each stack is detected with its test and related commands', () => {
   const cases: [Record<string, string>, string, string, string | undefined][] =
     [
-      [{ 'Cargo.toml': '' }, 'rust', 'cargo test', undefined],
+      [{ 'Cargo.toml': '' }, 'rust', 'cargo test', 'cargo test'],
       [{ 'go.mod': 'module x' }, 'go', 'go test ./...', 'go test {files}'],
       [
         { 'pyproject.toml': '' },

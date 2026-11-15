@@ -115,6 +115,36 @@
       "install": "mise exec pnpm@12.5.1 -- pnpm install --frozen-lockfile --ignore-scripts",
       "test": "mise exec pnpm@12.5.1 -- pnpm exec vitest --no-watch packages/tailwind-merge/tests/important-modifier.test.ts",
       "related": "mise exec pnpm@12.5.1 -- pnpm exec vitest --no-watch {files}"
+    },
+    {
+      "stack": "rust",
+      "upstream": "https://github.com/dtolnay/anyhow.git",
+      "license": "MIT OR Apache-2.0",
+      "fix": "8ebf822c951a7f2696152bb63a2961922461582a",
+      "title": "anyhow aborts when the wrapped error type needs a large alignment",
+      "body": [
+        "Bug: an error type declared #[repr(align(64))] makes Error::new(..) followed by downcast_ref::<T>() abort the process, because the error is read through an address that ignores the alignment padding of the wrapped value.",
+        "Outcome: downcast_ref returns the wrapped value for a type with alignment 64, and every existing downcast, drop and display behaviour is unchanged. Fix src/error.rs and add a test in tests/test_downcast.rs."
+      ],
+      "hidden": ["tests/test_downcast.rs"],
+      "hiddenVerify": "cargo test --test test_downcast",
+      "test": "cargo test",
+      "suite": "cargo test"
+    },
+    {
+      "stack": "go",
+      "upstream": "https://github.com/dustin/go-humanize.git",
+      "license": "MIT",
+      "fix": "212246793da0a95873d1f3be675529f7ab7dc799",
+      "title": "go-humanize prints 1000 kB instead of 1.0 MB for a rounded byte count",
+      "body": [
+        "Bug: Bytes(1000*1000-1) returns \"1000 kB\" and IBytes(1024*1024-1) returns \"1024 KiB\": the value is rounded to the digits shown, reaches the size of the next unit, and keeps the smaller unit suffix. BytesN and IBytesN with other digit counts, BigBytes and BigIBytes do the same.",
+        "Outcome: a value that rounds up to the size of the next unit is printed in that unit with the precision of the new unit (\"1.0 MB\", \"1.0 MiB\", BytesN(999500, 3) is \"1.00 MB\"); a value that stays below the boundary after rounding is unchanged (Bytes(999499) is \"999 kB\"); the largest unit never promotes (Bytes of the largest uint64 is \"18 EB\"). Fix bytes.go and bigbytes.go and add tests."
+      ],
+      "hidden": ["bytes_test.go", "bigbytes_test.go"],
+      "hiddenVerify": "go test ./...",
+      "test": "go test ./...",
+      "suite": "go test ./..."
     }
   ]
 }
