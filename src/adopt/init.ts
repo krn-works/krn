@@ -405,9 +405,22 @@ function skeleton(root: string, stack: InitStack): Record<string, string> {
           types: ['node'],
         },
         include: ['src', 'test'],
-      }),
+      }).replace(
+        /\[\s+((?:"[^"]*",?\s+)+)\]/gu,
+        (_, items: string) => `[${items.trim().replace(/,\s+/gu, ', ')}]`,
+      ),
       'biome.json': json({
-        files: { includes: ['**', '!package-lock.json'] },
+        files: {
+          includes: [
+            '**',
+            '!package-lock.json',
+            '!.agents',
+            '!.claude',
+            '!.krn',
+            '!tasks',
+            '!krn.json',
+          ],
+        },
         formatter: { indentStyle: 'space' },
         javascript: { formatter: { quoteStyle: 'single' } },
         linter: { rules: { nursery: { noFloatingPromises: 'error' } } },

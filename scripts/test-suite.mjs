@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
 import {
+  existsSync,
   globSync,
   lstatSync,
   readFileSync,
@@ -160,6 +161,20 @@ function parentMiseDataDirectory() {
   return resolve(parentDataHome, 'mise');
 }
 
+/** The rustup and cargo homes of the parent: a rustup shim under the worker HOME finds no toolchain and exits 1, not 127. */
+function parentToolHomes() {
+  const parentHome = process.env.HOME || homedir();
+  return Object.fromEntries(
+    [
+      ['RUSTUP_HOME', '.rustup'],
+      ['CARGO_HOME', '.cargo'],
+    ].flatMap(([name, directory]) => {
+      const value = process.env[name] || join(parentHome, directory);
+      return existsSync(value) ? [[name, value]] : [];
+    }),
+  );
+}
+
 function parentPnpmStoreDirectory() {
   const configuredStoreDirectory = process.env.pnpm_config_store_dir;
   if (configuredStoreDirectory !== undefined && configuredStoreDirectory !== '')
@@ -244,6 +259,7 @@ function childEnvironment(
     XDG_DATA_HOME: join(home, '.local', 'share'),
     XDG_STATE_HOME: join(home, '.local', 'state'),
     MISE_DATA_DIR: parentMiseDataDirectory(),
+    ...parentToolHomes(),
     // Node creates this best-effort cache. Keep it outside disposable shard
     // TMPDIRs so subsequent runners and inherited child nodes can reuse it.
     NODE_COMPILE_CACHE:
