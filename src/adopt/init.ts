@@ -272,7 +272,9 @@ function skeleton(root: string, stack: InitStack): Record<string, string> {
         requires: true,
         packages: { '': { name } },
       }),
-      'biome.json': '{}\n',
+      'biome.json': json({
+        linter: { rules: { nursery: { noFloatingPromises: 'error' } } },
+      }),
       '.gitignore': 'node_modules/\n',
       'README.md': readme(name, 'npm test'),
       'test/smoke.test.ts': smokeTs,

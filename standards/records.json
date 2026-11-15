@@ -1234,6 +1234,96 @@
     "supersedes": []
   },
   {
+    "id": "s-wp-rest-permission-callback",
+    "type": "standard",
+    "area": "security",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "floor",
+    "text": "Every WordPress `register_rest_route` call declares a `permission_callback`; a public route says so with `__return_true`.",
+    "why": "A REST route without a permission callback is open to every visitor, and WordPress only warns about it in debug logs.",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node -e 'const cp=require(\"child_process\"),fs=require(\"fs\");const sh=(a)=>cp.execFileSync(\"git\",a,{encoding:\"utf8\"}).split(\"\\0\").filter(Boolean);const src=sh([\"ls-files\",\"-z\",\"--\",\"*.php\",\"*.phtml\"]).filter(f=>!/(^|\\/)(vendor|node_modules|tests?|spec)\\//.test(f));const code=(f)=>fs.readFileSync(f,\"utf8\").split(\"\\n\").filter(l=>!/^\\s*(\\*|\\/\\/|#|\\/\\*)/.test(l)).join(\"\\n\");const bad=src.filter(f=>{const t=code(f);const n=(t.match(/\\bregister_rest_route\\s*\\(/g)||[]).length;return n>0&&(t.match(/[\\x27\"]permission_callback[\\x27\"]/g)||[]).length<n});if(bad.length){console.error(\"register_rest_route without permission_callback in: \"+bad.join(\", \"));process.exit(1)}'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["test/cli/standards.test.ts#PHP and WordPress rules"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-wp-capability-with-nonce",
+    "type": "standard",
+    "area": "security",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "A WordPress PHP file that verifies a nonce (`wp_verify_nonce`, `check_admin_referer`, `check_ajax_referer`) also checks a capability with `current_user_can`, unless it only serves logged-out `nopriv` hooks.",
+    "why": "A nonce proves the request came from the form, not that the user may perform the action; without a capability check any subscriber can call an admin handler.",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node -e 'const cp=require(\"child_process\"),fs=require(\"fs\");const sh=(a)=>cp.execFileSync(\"git\",a,{encoding:\"utf8\"}).split(\"\\0\").filter(Boolean);const src=sh([\"ls-files\",\"-z\",\"--\",\"*.php\",\"*.phtml\"]).filter(f=>!/(^|\\/)(vendor|node_modules|tests?|spec)\\//.test(f));const code=(f)=>fs.readFileSync(f,\"utf8\").split(\"\\n\").filter(l=>!/^\\s*(\\*|\\/\\/|#|\\/\\*)/.test(l)).join(\"\\n\");const bad=src.filter(f=>{const t=code(f);return /\\b(wp_verify_nonce|check_admin_referer|check_ajax_referer)\\s*\\(/.test(t)&&!/\\b(current_user_can|user_can)\\s*\\(/.test(t)&&!/wp_ajax_nopriv_|admin_post_nopriv_/.test(t)});if(bad.length){console.error(\"nonce without capability check in: \"+bad.join(\", \"));process.exit(1)}'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["test/cli/standards.test.ts#PHP and WordPress rules"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-wp-sanitize-before-store",
+    "type": "standard",
+    "area": "security",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "floor",
+    "text": "WordPress never stores a raw `$_POST`, `$_GET` or `$_REQUEST` value with `update_option`, `add_option` or a `*_meta` writer: the value passes a `sanitize_*`, `absint`, `intval`, `wp_kses*` or a typed cast first.",
+    "why": "Stored raw input becomes stored XSS or corrupt settings the moment another screen prints or trusts it.",
+    "applies": {
+      "stacks": [],
+      "needs": ["wordpress"],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node -e 'const cp=require(\"child_process\"),fs=require(\"fs\");const sh=(a)=>cp.execFileSync(\"git\",a,{encoding:\"utf8\"}).split(\"\\0\").filter(Boolean);const src=sh([\"ls-files\",\"-z\",\"--\",\"*.php\",\"*.phtml\"]).filter(f=>!/(^|\\/)(vendor|node_modules|tests?|spec)\\//.test(f));const code=(f)=>fs.readFileSync(f,\"utf8\").split(\"\\n\").filter(l=>!/^\\s*(\\*|\\/\\/|#|\\/\\*)/.test(l)).join(\"\\n\");const bad=src.filter(f=>{const t=code(f);const call=/\\b(update_option|add_option|update_site_option|update_post_meta|add_post_meta|update_user_meta|add_user_meta|update_term_meta|add_term_meta)\\s*\\(([^;]*)\\)\\s*;/g;let m;while((m=call.exec(t))){if(/\\$_(POST|GET|REQUEST)\\s*\\[/.test(m[2])&&!/sanitize_\\w+|absint|intval|floatval|boolval|wp_kses\\w*|esc_url_raw|filter_var|\\(\\s*(int|bool|float)\\s*\\)/.test(m[2]))return true}return false});if(bad.length){console.error(\"raw request value stored in: \"+bad.join(\", \"));process.exit(1)}'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["test/cli/standards.test.ts#PHP and WordPress rules"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
     "id": "s-wp-text-domain-literal",
     "type": "standard",
     "area": "i18n",
@@ -1767,6 +1857,39 @@
     "provenance": {
       "origin": "krn pack",
       "evidence": ["docs/program/hardening-checklist.md#exit-codes"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-ts-no-floating-promises",
+    "type": "standard",
+    "area": "error-handling",
+    "layer": "universal",
+    "audience": "worker",
+    "tier": "reflex",
+    "text": "A JavaScript or TypeScript project with a Biome or ESLint config lints floating promises: Biome `noFloatingPromises` or `@typescript-eslint/no-floating-promises` is on.",
+    "why": "A promise nobody awaits loses its rejection and its ordering; the failure surfaces later as an unhandled rejection or a silent missing write.",
+    "applies": {
+      "stacks": ["node"],
+      "needs": [],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "command",
+      "run": "node -e 'const fs=require(\"fs\");const read=(f)=>fs.existsSync(f)?fs.readFileSync(f,\"utf8\"):\"\";const biome=[\"biome.json\",\"biome.jsonc\"].map(read).join(\"\");const eslint=[\"eslint.config.js\",\"eslint.config.mjs\",\"eslint.config.cjs\",\"eslint.config.ts\",\".eslintrc\",\".eslintrc.json\",\".eslintrc.js\",\".eslintrc.cjs\"].map(read).join(\"\");if(!biome&&!eslint)process.exit(0);const on=/\"noFloatingPromises\"\\s*:\\s*(?:\"(error|warn|info|on)\"|\\{[^}]*\"level\"\\s*:\\s*\"(error|warn|info|on)\")/.test(biome)||/no-floating-promises[\\x27\"]?\\s*:\\s*\\[?\\s*[\\x27\"]?(error|warn|2|1)\\b/.test(eslint);if(!on){console.error(\"floating promises are not linted: enable Biome noFloatingPromises or @typescript-eslint/no-floating-promises\");process.exit(1)}'"
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": [
+        ".claude/skills/typescript/SKILL.md",
+        "test/cli/standards-coverage.test.ts#s-ts-no-floating-promises"
+      ],
       "proposals": []
     },
     "status": "accepted",

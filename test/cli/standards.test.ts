@@ -80,7 +80,8 @@ const typescript = {
     devDependencies: { typescript: '5.0.0', vitest: '1.0.0' },
   }),
   'package-lock.json': '{"lockfileVersion": 3}\n',
-  'biome.json': '{}\n',
+  'biome.json':
+    '{ "linter": { "rules": { "nursery": { "noFloatingPromises": "error" } } } }\n',
   'tsconfig.json': '{"compilerOptions": {"strict": true}}\n',
   '.gitignore': 'node_modules/\ndist/\n',
   'README.md': '# probe\n\n    npm test\n',
@@ -1208,6 +1209,41 @@ const phpWpCases: [string, Record<string, string>, Record<string, string>][] = [
     {
       'src/I18n.php':
         '<?php\necho esc_html__("A", "probe");\necho esc_html_x("B", "context", "probe");\necho __("C");\necho __("D", "default");\necho sprintf(__("E %s", "probe"), esc_html($x));\n',
+    },
+  ],
+  [
+    's-wp-rest-permission-callback',
+    {
+      'src/Rest.php':
+        '<?php\nregister_rest_route("p/v1", "/a", ["callback" => "a", "permission_callback" => "__return_true"]);\nregister_rest_route("p/v1", "/b", ["callback" => "b"]);\n',
+    },
+    {
+      'src/Rest.php':
+        '<?php\nregister_rest_route("p/v1", "/a", ["callback" => "a", "permission_callback" => "__return_true"]);\nregister_rest_route("p/v1", "/b", ["methods" => "POST", "callback" => "b", "permission_callback" => fn () => current_user_can("edit_posts")]);\n',
+    },
+  ],
+  [
+    's-wp-capability-with-nonce',
+    {
+      'src/Admin.php':
+        '<?php\nfunction save() { check_admin_referer("save"); delete_option("a"); }\n',
+    },
+    {
+      'src/Admin.php':
+        '<?php\nfunction save() { check_admin_referer("save"); if (!current_user_can("manage_options")) { wp_die(); } delete_option("a"); }\n',
+      'src/Public.php':
+        '<?php\nadd_action("wp_ajax_nopriv_vote", "vote");\nfunction vote() { check_ajax_referer("vote"); }\n',
+    },
+  ],
+  [
+    's-wp-sanitize-before-store',
+    {
+      'src/Save.php':
+        '<?php\nfunction save($id) { update_post_meta($id, "note", wp_unslash($_POST["note"])); }\n',
+    },
+    {
+      'src/Save.php':
+        '<?php\nfunction save($id) { update_post_meta($id, "note", sanitize_text_field(wp_unslash($_POST["note"])));\nupdate_option("count", absint($_POST["count"]));\nupdate_user_meta($id, "n", (int) $_REQUEST["n"]);\nupdate_option("plain", "value"); }\n',
     },
   ],
   [
