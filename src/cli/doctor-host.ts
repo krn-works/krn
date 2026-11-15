@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { lockHostRefusal } from '../task/lock-host.ts';
 
 export interface HostFacts {
   platform: string;
@@ -27,23 +26,20 @@ export function readHostFacts(productRoot: string): HostFacts {
   };
 }
 
-/** `krn doctor` host section: every requirement the CLI names; exit 64 when the host cannot take claim locks. */
+/** `krn doctor` host section: every requirement the CLI names. */
 export function hostReport(facts: HostFacts): {
   text: string;
   exitCode: number;
 } {
   const pin = /^node\s*=\s*"([^"]+)"/mu.exec(facts.miseToml ?? '')?.[1];
-  const refusal = lockHostRefusal(facts.platform);
   const text = [
     `host=${facts.platform}`,
-    refusal
-      ? `lock=unsupported: ${refusal}`
-      : 'lock=abstract-unix-socket (Linux)',
+    'lock=exclusive-link',
     `tmp=${facts.tmpPath} (set TMPDIR to a disk path for large runs)`,
     `node=${facts.nodeVersion}`,
     `node-pin=${pin ?? 'unknown'}`,
     `node-match=${pin === undefined ? 'unknown' : pin === facts.nodeVersion ? 'yes' : 'no'}`,
     '',
   ].join('\n');
-  return { text, exitCode: refusal ? 64 : 0 };
+  return { text, exitCode: 0 };
 }

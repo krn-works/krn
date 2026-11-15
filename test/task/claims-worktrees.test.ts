@@ -56,7 +56,7 @@ test('two worktrees can claim concurrently without assigning an id twice', async
         assert.equal(result.status, 75, result.stderr);
         assert.match(
           result.stderr,
-          /task claim is busy|no ready tasks are available to claim/u,
+          /held by|no ready tasks are available to claim/u,
         );
         assert.equal(result.stdout.trim(), '');
         continue;

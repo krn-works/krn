@@ -174,11 +174,7 @@
     },
     "src/task/claims.ts": {
       "receivers": ["git"],
-      "real": "test/task/claim-lock.test.ts"
-    },
-    "src/task/comments.ts": {
-      "receivers": ["git"],
-      "real": "test/task/comments.test.ts"
+      "real": "test/task/claim-race.test.ts"
     },
     "src/task/store.ts": {
       "receivers": ["git"],

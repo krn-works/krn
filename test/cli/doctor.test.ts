@@ -3,7 +3,6 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { hostReport } from '../../src/cli/doctor-host.ts';
-import { lockHostRefusal } from '../../src/task/lock-host.ts';
 
 const facts = {
   platform: 'linux',
@@ -15,7 +14,7 @@ const facts = {
 test('doctor host section lists lock, tmp path and node pin', () => {
   const report = hostReport(facts);
   assert.match(report.text, /^host=linux$/mu);
-  assert.match(report.text, /^lock=abstract-unix-socket/mu);
+  assert.match(report.text, /^lock=exclusive-link/mu);
   assert.match(report.text, /^tmp=\/var\/scratch /mu);
   assert.match(report.text, /^node-pin=24\.22\.1$/mu);
   assert.match(report.text, /^node-match=yes$/mu);
@@ -27,14 +26,11 @@ test('doctor flags a node that differs from the pin', () => {
   assert.match(report.text, /^node-match=no$/mu);
 });
 
-test('a non-Linux host gets a named refusal and exit 64', () => {
+test('a non-Linux host is not refused: claims need no Linux-only lock', () => {
   const report = hostReport({ ...facts, platform: 'darwin' });
-  assert.match(
-    report.text,
-    /^lock=unsupported: claim locking requires Linux \(this host is darwin\)$/mu,
-  );
-  assert.equal(report.exitCode, 64);
-  assert.equal(lockHostRefusal('linux'), null);
+  assert.match(report.text, /^host=darwin$/mu);
+  assert.match(report.text, /^lock=exclusive-link$/mu);
+  assert.equal(report.exitCode, 0);
 });
 
 test('the real krn doctor prints the host section', () => {

@@ -8,11 +8,8 @@ import {
   realpathSync,
   unlinkSync,
 } from 'node:fs';
-import { createServer, type Server } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
-import { performance } from 'node:perf_hooks';
 import { contractBase } from '../repo/contract.ts';
-import { lockHostRefusal } from './lock-host.ts';
 import {
   parseTaskDocument,
   TaskCommandError,
@@ -142,12 +139,11 @@ async function pruneClosedClaims(mainRoot: string): Promise<void> {
     const id = name.slice(0, -'.json'.length) as TaskId;
     if (index.get(id)?.status !== 'closed') continue;
     try {
-      await withTaskLock(mainRoot, id, () => {
-        unlinkSync(claimPath(mainRoot, id));
-      });
+      unlinkSync(claimPath(mainRoot, id));
     } catch {
-      /* Removed first by another ready, or busy under a claim operation: leave it. */
+      /* Removed first by another ready: nothing left to remove. */
     }
+    removeTakeoverMarkers(mainRoot, id);
   }
 }
 
@@ -266,42 +262,117 @@ export async function claimTask(
 
   const mainRoot = mainCheckoutRoot(worktreeRoot);
   const path = claimPath(mainRoot, id);
-  return withTaskLock(mainRoot, id, () => {
-    const current = inspectClaimAt(mainRoot, id);
-    const claim: TaskClaim = {
-      id,
-      actor: options.actor,
-      worktree: realpathSync(worktreeRoot),
-      branch,
-      claimed: new Date().toISOString(),
-      reason: options.reason ?? null,
-    };
-    const serialized = serializeClaim(claim);
-    if (current.state === 'live' || current.state === 'corrupt') {
-      if (!options.takeover) throw heldClaimError(current);
-      atomicWrite(mainRoot, path, serialized, true);
-      return { id, previous: current };
-    }
+  const current = inspectClaimAt(mainRoot, id);
+  const claim: TaskClaim = {
+    id,
+    actor: options.actor,
+    worktree: realpathSync(worktreeRoot),
+    branch,
+    claimed: new Date().toISOString(),
+    reason: options.reason ?? null,
+  };
+  const serialized = serializeClaim(claim);
+  if (current.state === 'live' || current.state === 'corrupt') {
+    if (!options.takeover) throw heldClaimError(current);
+    atomicWrite(mainRoot, path, serialized, true);
+    return { id, previous: current };
+  }
 
-    let removedExpired: ClaimInspection | undefined;
-    if (current.state === 'expired') {
-      try {
-        unlinkSync(path);
-      } catch (error) {
-        if (!isMissing(error)) throw error;
-      }
-      removedExpired = current;
-    }
+  if (current.state === 'expired') {
+    claimExpired(mainRoot, path, id, serialized);
+    return { id, removedExpired: current };
+  }
 
+  try {
+    atomicWrite(mainRoot, path, serialized);
+  } catch (error) {
+    if (isAlreadyExists(error))
+      throw heldClaimError(inspectClaimAt(mainRoot, id));
+    throw error;
+  }
+  return { id };
+}
+
+/**
+ * Replace an expired claim. The claim file itself is only ever created with an
+ * exclusive hard link, so the one step that could race is removing the expired
+ * file: a second claimer would delete the first claimer's fresh claim. A marker
+ * named by the digest of the expired bytes, created exclusively, lets exactly
+ * one claimer replace that expired claim; every other claimer is refused.
+ */
+function claimExpired(
+  mainRoot: string,
+  path: string,
+  id: TaskId,
+  serialized: string,
+): void {
+  const seen = readClaimBytes(path);
+  const again = inspectClaimAt(mainRoot, id);
+  if (
+    seen === undefined ||
+    again.state !== 'expired' ||
+    !seen.equals(readClaimBytes(path) ?? Buffer.alloc(0))
+  ) {
+    if (seen === undefined) {
+      atomicWriteOrHeld(mainRoot, path, id, serialized);
+      return;
+    }
+    throw heldClaimError(again);
+  }
+  try {
+    atomicWrite(mainRoot, takeoverMarker(path, seen), '');
+  } catch (error) {
+    if (isAlreadyExists(error)) throw heldClaimError(again);
+    throw error;
+  }
+  atomicWrite(mainRoot, path, serialized, true);
+}
+
+function atomicWriteOrHeld(
+  mainRoot: string,
+  path: string,
+  id: TaskId,
+  serialized: string,
+): void {
+  try {
+    atomicWrite(mainRoot, path, serialized);
+  } catch (error) {
+    if (isAlreadyExists(error))
+      throw heldClaimError(inspectClaimAt(mainRoot, id));
+    throw error;
+  }
+}
+
+function readClaimBytes(path: string): Buffer | undefined {
+  try {
+    return readFileSync(path);
+  } catch (error) {
+    if (isMissing(error)) return undefined;
+    throw error;
+  }
+}
+
+function takeoverMarker(path: string, expired: Buffer): string {
+  const digest = createHash('sha256').update(expired).digest('hex');
+  return `${path}.expired-${digest.slice(0, 16)}`;
+}
+
+function removeTakeoverMarkers(mainRoot: string, id: TaskId): void {
+  const directory = join(mainRoot, '.krn', 'task-claims');
+  let names: string[];
+  try {
+    names = readdirSync(directory);
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    if (!name.startsWith(`${id}.json.expired-`)) continue;
     try {
-      atomicWrite(mainRoot, path, serialized);
-    } catch (error) {
-      if (isAlreadyExists(error))
-        throw heldClaimError(inspectClaimAt(mainRoot, id));
-      throw error;
+      unlinkSync(join(directory, name));
+    } catch {
+      /* Removed first by another run. */
     }
-    return { id, ...(removedExpired === undefined ? {} : { removedExpired }) };
-  });
+  }
 }
 
 export async function claimNext(
@@ -335,19 +406,18 @@ export async function releaseClaim(
 ): Promise<ClaimInspection> {
   const mainRoot = mainCheckoutRoot(root);
   const path = claimPath(mainRoot, id);
-  return withTaskLock(mainRoot, id, () => {
-    const current = inspectClaimAt(mainRoot, id);
-    if (current.state === 'none')
+  const current = inspectClaimAt(mainRoot, id);
+  if (current.state === 'none')
+    throw new TaskDataError([`task ${id} has no claim to release`]);
+  try {
+    unlinkSync(path);
+  } catch (error) {
+    if (isMissing(error))
       throw new TaskDataError([`task ${id} has no claim to release`]);
-    try {
-      unlinkSync(path);
-    } catch (error) {
-      if (isMissing(error))
-        throw new TaskDataError([`task ${id} has no claim to release`]);
-      throw error;
-    }
-    return current;
-  });
+    throw error;
+  }
+  removeTakeoverMarkers(mainRoot, id);
+  return current;
 }
 
 export function serializeClaim(claim: TaskClaim): string {
@@ -669,90 +739,6 @@ export function mainCheckoutRoot(root: string): string {
 
 function claimPath(mainRoot: string, id: TaskId): string {
   return join(mainRoot, '.krn', 'task-claims', `${id}.json`);
-}
-
-let afterLockAcquired: () => void | Promise<void> = () => undefined;
-
-/** Test seam: run `hook` while a task lock is held, before its operation; production sets none. */
-export function onTaskLockAcquired(hook: () => void | Promise<void>): void {
-  afterLockAcquired = hook;
-}
-
-async function withTaskLock<T>(
-  mainRoot: string,
-  id: TaskId,
-  operation: () => T | Promise<T>,
-): Promise<T> {
-  const lock = await acquireTaskLock(mainRoot, id);
-  try {
-    await afterLockAcquired();
-    return await operation();
-  } finally {
-    await releaseTaskLock(lock);
-  }
-}
-
-async function acquireTaskLock(mainRoot: string, id: TaskId): Promise<Server> {
-  const refusal = lockHostRefusal(process.platform);
-  if (refusal) throw new TaskUsageError(refusal);
-
-  const lockId = createHash('sha256')
-    .update(mainRoot)
-    .update('\0')
-    .update(id)
-    .digest('hex');
-  const address = `\0krn-task-lock:${lockId}`;
-
-  const deadline = performance.now() + lockWaitMs();
-  while (true) {
-    try {
-      return await listenForTaskLock(address);
-    } catch (error) {
-      if (errorCode(error) !== 'EADDRINUSE') throw error;
-      const remaining = deadline - performance.now();
-      if (remaining <= 0) throw new TaskCommandError('task claim is busy', 75);
-      await wait(Math.min(25, remaining));
-    }
-  }
-}
-
-function listenForTaskLock(address: string): Promise<Server> {
-  const server = createServer();
-  return new Promise((resolve, reject) => {
-    const onError = (error: Error) => {
-      server.removeListener('error', onError);
-      reject(error);
-    };
-    server.once('error', onError);
-    server.listen(address, () => {
-      server.removeListener('error', onError);
-      resolve(server);
-    });
-  });
-}
-
-async function releaseTaskLock(server: Server): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) reject(error);
-      else resolve();
-    });
-  });
-}
-
-function lockWaitMs(): number {
-  const override = Number(process.env.KRN_TASK_LOCK_WAIT_MS);
-  if (
-    process.env.NODE_ENV === 'test' &&
-    Number.isSafeInteger(override) &&
-    override >= 0
-  )
-    return override;
-  return 2_000;
-}
-
-function wait(milliseconds: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function heldClaimError(inspection: ClaimInspection): TaskCommandError {

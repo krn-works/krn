@@ -234,7 +234,6 @@ export const BINARIES: Readonly<Record<string, readonly string[]>> = {
     'src/task/branch-evidence.ts',
     'src/task/branch-tickets.ts',
     'src/task/claims.ts',
-    'src/task/comments.ts',
     'src/task/store.ts',
   ],
 };
