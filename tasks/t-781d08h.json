@@ -1,0 +1,14 @@
+{
+  "id": "t-781d08h",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Stop refuses a clause set without a boundary clause",
+  "after": [
+    "t-8tvfrbs"
+  ],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115k.md slice 4\nWhy: a lane can prove only happy-path clauses; boundary cases (empty, missing, non-ASCII, duplicate) are what a plain session skips.\nOutcome: Stop refuses a clause set with no boundary clause from the stack's list; the refusal names the missing class.\nFiles: src/brain/acceptance-clauses.ts, src/hook/stop.ts\nProof: a fixture with happy-path-only clauses is refused once, then passes.\nPredicted: proof stop-refusals <= 1"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "t-k3298ca",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "Rust and Go outside rows drain with hidden tests",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115k.md slice 2\nWhy: scripts/outside-hidden/tasks.json has no Rust or Go row and FirstTestStack (src/brain/first-test.ts) knows only wordpress/php/npm/static, so KRN is untested on those stacks.\nOutcome: one MIT-licensed bug row each for Rust and Go with a hidden test; first-test and related-test commands for `cargo test` and `go test`.\nFiles: scripts/outside-hidden/tasks.json, src/brain/first-test.ts, scripts/outside-acceptance.ts\nProof: both rows adopt 0, drain 0, hidden pass.\nPredicted: outside adopt == 0 in >= 2 rows"
+  ]
+}

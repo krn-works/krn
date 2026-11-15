@@ -1,0 +1,12 @@
+{
+  "id": "t-4kqzdw0",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 1,
+  "title": "The PHP column proves on head with a characterization clause",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115k.md slice 1\nWhy: php plain exited 73 at 1115h2 (characterization task) and php-red, npm-workspaces, wp-plugin last ran before the proof arms were on by default; the PHP column is unproven on head.\nOutcome: a task whose behaviour already works is accepted with a characterization proof (test green at base, clause marked `characterizes`) instead of BLOCKER; php plain, php bug, php-red and wp-plugin rerun on the new head.\nFiles: src/hook/stop.ts, src/brain/acceptance-clauses.ts, src/cli/lane-run/red-check.ts\nProof: four PHP outside rows drain 0 with clauses N/N; regression test at the lowest layer for the characterization clause.\nPredicted: outside drain == 0 in >= 4 rows"
+  ]
+}

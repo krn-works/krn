@@ -1,0 +1,12 @@
+{
+  "id": "t-bxw0ben",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "The predictions scorecard scores outside rows run after the merge",
+  "after": [],
+  "body": [
+    "Source: .krn/runs/overnight/fable-direction-1115k.md slice 6\nWhy: every plan row on `krn ledger --predictions` is unpredicted or unmeasured (.krn/runs/overnight/predictions-1115k.txt); outside predictions are not tied to rows run after the slice merged.\nOutcome: `krn ledger --predictions` scores outside predictions only against rows whose hook commit is at or after the task's merge; the grammar gains a `hidden` field.\nFiles: src/brain/exposures.ts, docs/program/fable-plan-brief.md, src/cli/help.ts\nProof: the 1115k rows print hit or miss, none unmeasured.\nPredicted: outside usd <= 1 in >= 6 rows"
+  ]
+}
