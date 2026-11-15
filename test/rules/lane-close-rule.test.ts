@@ -17,8 +17,8 @@ test('KRN-11 and lanes.md agree that a lane closes its own task in its own PR', 
     /a lane closes its own task record, inside its own worktree, in the PR that carries `Ticket:`/u,
   );
   assert.match(
-    read('.agents/skills/krn-lead/lanes.md'),
-    /a lane closes only its own task, in its own PR that carries `Ticket:`/u,
+    read('.agents/skills/delivery-lead/lanes.md'),
+    /a lane closes only its own task, in its own pull request/u,
   );
   assert.match(read('AGENTS.md'), /a lane closes its own task record/u);
 });

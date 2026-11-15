@@ -40,7 +40,7 @@ test('tracker paths are denied to a worker; harness files are allowed and report
     );
   // A red test that needs a harness file must not stay red: the write runs and is named.
   for (const path of [
-    '.agents/skills/krn-lead/SKILL.md',
+    '.agents/skills/delivery-lead/SKILL.md',
     '.claude/settings.json',
     'AGENTS.md',
     'CLAUDE.md',
@@ -131,7 +131,7 @@ test('parseScope reads a Scope line or a comma list', () => {
   // Prose entries name no path; a path inside prose still counts (D23 unit 470).
   assert.deepEqual(
     parseScope(
-      'Scope: .claude/settings.json autoCompactWindow or the context-gauge thresholds, krn-lead skill text, their tests.',
+      'Scope: .claude/settings.json autoCompactWindow or the context-gauge thresholds, delivery-lead skill text, their tests.',
     ),
     ['.claude/settings.json'],
   );

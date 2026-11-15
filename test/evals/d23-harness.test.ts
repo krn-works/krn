@@ -100,7 +100,12 @@ test('the worker tree lists no lead-only rule line, lead skill or positive workf
     const merge = git('rev-parse', 'HEAD');
     put('spec/rules.json', readFileSync(join(real, 'spec/rules.json'), 'utf8'));
     put('AGENTS.md', readFileSync(join(real, 'AGENTS.md'), 'utf8'));
-    for (const skill of ['krn-lead', 'krn-handoff', 'krn-retro', 'typescript'])
+    for (const skill of [
+      'delivery-lead',
+      'delivery-handoff',
+      'delivery-retro',
+      'typescript',
+    ])
       put(`.agents/skills/${skill}/SKILL.md`, `${skill}\n`);
     git('add', '.');
     git('commit', '-qm', 'ref');

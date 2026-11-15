@@ -23,6 +23,10 @@ Use these rules for evidence, proposals, handoffs, and delivery in Product KRN.
 - Before accepting, rerun a lane's cited command.
 - Run the cheapest relevant falsifier, then the required repository checks. Do not claim acceptance from a successful command alone.
 - Delivery is the no-gates loop: code in a worktree, run `npm run fast` once before commit (Biome `--write`, tsc and related tests on changed files, one verdict; CI runs the rest), then `bin/krn pr ship --worktree <path> --title <title> --body-file <file>`. The only gate is required CI on the exact HEAD: the aggregate GitHub Actions `Check` (App `15368`, `.github/workflows/ci.yml`). Codex workers and `npm run gate` are opt-in, never prerequisites. Use Conventional Commits.
+- With lanes running, the lead stops launching new lanes, drains the running ones, then hands off.
+- Unattended, never ask the operator: park the decision as a decide task (`krn task create`) and launch the successor.
+- Fable plan requests follow `docs/program/fable-plan-brief.md`.
+- SessionStart injects the capability index (`docs/generated/capability-index.md`): before calling anything foreign, unknown or missing, grep the index and src; fast regenerates it.
 - Do not send messages to external services without explicit authorization. Do not perform host, production, install/seal, hook-trust, or other irreversible actions without their separate grant.
 - A client push or API error is not remote state: read the exact remote ref (`git ls-remote origin <ref>`, the PR `headRefOid`) before any retry, rebase or rewrite.
 - A brief for a validator or schema states the full key set from the producer's code, each field's type, format and bounds, and the success semantics at once, with fixtures captured verbatim from the real producer; refusal-only observers are not red at base, so the proof asserts an accepted record too.
@@ -45,4 +49,10 @@ A plain PR with a `Ticket:` trailer (or none) merges on the `Check` alone.
 
 ## Lane brief additions
 
-The universal `delivery-lead` lane rules (`src/adopt/skills/delivery-lead/lanes.md`) hold in this repository too. Here a lane also: works in the repository `krn-works/krn` through `bin/krn lane start`; runs `npm run fast` before every commit; ships with `bin/krn pr ship`; appends one line per finding to `.krn/runs/lead/<campaign>/ledger.md`; reads untrusted content as `krn-research` and logs as `krn-reader`; and never edits `docs/program/roadmap.md`. The operator grants recorded in the project memory apply to every lane.
+The universal `delivery-lead` lane rules (`src/adopt/skills/delivery-lead/lanes.md`) hold in this repository too. Here a lane also: works in the repository `krn-works/krn` through `bin/krn lane start`; runs `npm run fast` before every commit; ships with `bin/krn pr ship` and waits for a red-check rerun with `bin/krn ci wait --repo krn-works/krn --pr <n> --head <sha> --base <sha>`; appends one line per finding to `.krn/runs/lead/<campaign>/ledger.md`; reads untrusted content as `krn-research` and logs as `krn-reader`; and never edits `docs/program/roadmap.md`. The operator grants recorded in the project memory apply to every lane.
+
+## Open traps
+
+Each open task whose body has a `Lead trap:` line is a known defect with its workaround in these rules; `test/rules/lead-traps.test.ts` checks only its shape. When a fix ships, remove its id here and its workaround in the same PR.
+
+none

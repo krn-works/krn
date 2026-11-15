@@ -8,9 +8,9 @@ const root = fileURLToPath(new URL('../..', import.meta.url));
 const skillsRoot = join(root, '.agents', 'skills');
 const expected = [
   'architecture',
-  'krn-handoff',
-  'krn-lead',
-  'krn-retro',
+  'delivery-handoff',
+  'delivery-lead',
+  'delivery-retro',
   'typescript',
 ];
 
@@ -25,9 +25,10 @@ test('the lead loop skills are the project skills for Codex and Claude Code', ()
   assert.equal(readlinkSync(link), '../.agents/skills');
   for (const name of expected) {
     const text = skill(name);
-    const front = /^---\nname: ([^\n]+)\ndescription: ([^\n]+)\n---\n/u.exec(
-      text,
-    );
+    const front =
+      /^---\nname: ([^\n]+)\ndescription: ([^\n]+)\n(?:[a-z-]+: [^\n]+\n)*---\n/u.exec(
+        text,
+      );
     assert.ok(front, `${name} needs name and description frontmatter`);
     assert.equal(front[1], name);
     assert.ok(
@@ -39,7 +40,7 @@ test('the lead loop skills are the project skills for Codex and Claude Code', ()
 
 test('the lead loop skills name the real launch command', () => {
   assert.match(
-    skill('krn-handoff'),
+    readFileSync(join(root, 'docs/program/repository-workflow.md'), 'utf8'),
     /node scripts\/claude\/successor-launch\.ts --name "[^"]+" --model claude-opus-5-5 --effort medium --prompt /u,
   );
 });
@@ -53,8 +54,8 @@ test('every slice ships as one squash-merged PR with the template sections and i
     assert.match(template, new RegExp(`^## ${section}$`, 'mu'));
   assert.match(template, /^Agent:/mu);
   const shipping = [
-    skill('krn-lead'),
-    readFileSync(join(skillsRoot, 'krn-lead', 'lanes.md'), 'utf8'),
+    skill('delivery-lead'),
+    readFileSync(join(skillsRoot, 'delivery-lead', 'lanes.md'), 'utf8'),
     readFileSync(join(root, 'docs', 'program', 'lead-rules.md'), 'utf8'),
     readFileSync(
       join(root, 'docs', 'program', 'repository-workflow.md'),
@@ -66,8 +67,8 @@ test('every slice ships as one squash-merged PR with the template sections and i
     assert.doesNotMatch(text, /gh pr merge[^`\n]*--merge/u);
     assert.doesNotMatch(text, /gh pr merge[^`\n]*--rebase/u);
   }
-  assert.match(skill('krn-lead'), /krn pr ship/u);
-  assert.match(skill('krn-retro'), /krn task create/u);
+  assert.match(skill('delivery-lead'), /krn pr ship/u);
+  assert.match(skill('delivery-retro'), /krn task create/u);
 });
 
 function frontmatter(path: string): Map<string, string> {
@@ -111,10 +112,7 @@ test('research lanes read untrusted content without a shell, file writes or sub-
   assert.deepEqual(tools, ['Read', 'Grep', 'Glob', 'WebFetch', 'WebSearch']);
   for (const banned of ['Agent', 'Task', 'Bash', 'Edit', 'MultiEdit', 'Write'])
     assert.ok(!tools.includes(banned), `krn-research must not get ${banned}`);
-  const lanes = readFileSync(
-    join(root, '.agents/skills/krn-lead/lanes.md'),
-    'utf8',
-  );
+  const lanes = readFileSync(join(root, 'docs/program/lead-rules.md'), 'utf8');
   assert.match(lanes, /`krn-research`/u);
   assert.match(lanes, /bin\/krn ci wait --repo/u);
   assert.doesNotMatch(lanes, /every 60s/u);

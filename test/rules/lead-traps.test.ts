@@ -22,7 +22,7 @@ function section(
 }
 
 test('the open traps section is either "none" or a list of ids that each have a workaround in the lead loop', () => {
-  const lead = read('.agents/skills/krn-lead/SKILL.md');
+  const lead = read('docs/program/lead-rules.md');
   const { body, rest } = section(lead, 'Open traps');
   const ids = [...body.matchAll(/\bt-[0-9a-z]{7}\b/gu)].map(
     (match) => match[0],

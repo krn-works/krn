@@ -17,7 +17,7 @@ const script = fileURLToPath(
   new URL('../../scripts/claude/handoff-requests.ts', import.meta.url),
 );
 const skill = fileURLToPath(
-  new URL('../../.agents/skills/krn-handoff/SKILL.md', import.meta.url),
+  new URL('../../docs/program/repository-workflow.md', import.meta.url),
 );
 
 function fixture() {
@@ -58,7 +58,7 @@ function fixture() {
   return { root, check };
 }
 
-test('krn-handoff runs the operator-request check on every handoff', () => {
+test('the repository handoff rule runs the operator-request check on every handoff', () => {
   assert.ok(existsSync(script), 'handoff request check exists');
   const text = readFileSync(skill, 'utf8');
   assert.match(text, /## Operator requests/u);
