@@ -258,9 +258,23 @@ function detectNode(root: string): Detected | undefined {
       : /\bnode\b[^&|;]*--test\b/.test(script)
         ? 'node --test {files}'
         : undefined;
+  const declared = Object.keys({
+    ...(pkg.devDependencies as object),
+    ...(pkg.dependencies as object),
+  });
+  // A fresh worktree has no node_modules: a package that declares dependencies needs them installed.
+  const install =
+    declared.length === 0
+      ? undefined
+      : pm === 'npm'
+        ? existsSync(join(root, 'package-lock.json'))
+          ? 'npm ci'
+          : 'npm install'
+        : `${pm} install`;
   return {
     stack: `node/${pm}`,
     test: `${pm} test`,
+    ...(install ? { install } : {}),
     ...(runner ? { related: runner } : {}),
     ...(typeof scripts.fast === 'string' ? { fast: `${run} fast` } : {}),
   };
@@ -305,9 +319,13 @@ function detectPhpunit(root: string): Detected | undefined {
     ...(composer?.['require-dev'] as object),
   };
   if (!config && !('phpunit/phpunit' in requires)) return undefined;
+  // vendor/bin/phpunit exists only after composer installs the dependencies into a fresh worktree.
   return {
     stack: 'php/phpunit',
     test: 'vendor/bin/phpunit',
+    ...(composer === undefined
+      ? {}
+      : { install: 'composer install --no-interaction' }),
     related: 'vendor/bin/phpunit {files}',
   };
 }
