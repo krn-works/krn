@@ -1,7 +1,11 @@
 {
   "id": "t-aj36bdz",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "weekly mutation-samples workflow; sampler prints killed/total, local 13/14"
+  },
   "created": "2026-11-13",
   "priority": 3,
   "title": "Mutation samples run on a schedule over the touched critical modules",
