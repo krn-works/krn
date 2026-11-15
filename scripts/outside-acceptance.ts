@@ -746,16 +746,28 @@ export function harvestRows(
   checkouts: readonly string[],
   root: string,
 ): string[] {
-  const sourced = checkouts.flatMap((dir) =>
-    readProposals(repositoryRoot(dir)),
-  );
+  // A row whose clone is gone or never became a git repository has nothing to harvest; it is reported, not fatal.
+  const skipped: string[] = [];
+  const usable = checkouts.filter((dir) => {
+    try {
+      repositoryRoot(dir);
+      return true;
+    } catch (error) {
+      skipped.push(
+        `skipped: ${dir} (${error instanceof Error ? error.message : String(error)})`,
+      );
+      return false;
+    }
+  });
+  const sourced = usable.flatMap((dir) => readProposals(repositoryRoot(dir)));
   const candidates = harvestCandidates(sourced);
   const pack = parseUnified(JSON.parse(readFileSync(packFile(root), 'utf8')));
   const { pack: next, promoted } = promoteCandidates(pack, candidates);
   if (promoted.length > 0)
     writeFileSync(packFile(root), `${JSON.stringify(next, null, 2)}\n`);
   return [
-    ...renderHarvest(candidates, checkouts.length),
+    ...skipped,
+    ...renderHarvest(candidates, usable.length),
     `promoted: ${promoted.join(', ') || 'none'}`,
   ];
 }

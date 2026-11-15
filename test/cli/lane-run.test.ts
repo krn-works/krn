@@ -2170,3 +2170,36 @@ test('clause 6: a lane ending prints the proof line from the real Stop log, the 
     rmSync(config, { recursive: true, force: true });
   }
 });
+
+test('clause 2: a baseline run that failed only because the worktree directory was missing runs once more', () => {
+  // Verbatim failure of the 1115i py row, with the marker making the first run the only one that fails.
+  const { base, repo } = fixture('true', {
+    'krn.json': JSON.stringify({ test: 'node check.mjs' }),
+    'check.mjs': `import { existsSync, writeFileSync } from 'node:fs';
+if (!existsSync('seen')) {
+  writeFileSync('seen', '');
+  console.error("FileNotFoundError: [Errno 2] No such file or directory: '" + process.cwd() + "'");
+  process.exit(1);
+}
+`,
+  });
+  try {
+    assert.equal(prepareWorktree(repo, 'main', repo), undefined);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test('clause 2: a FileNotFoundError naming another path stays a red baseline', () => {
+  const { base, repo } = fixture('true', {
+    'krn.json': JSON.stringify({ test: 'node check.mjs' }),
+    'check.mjs': `console.error("FileNotFoundError: [Errno 2] No such file or directory: '/elsewhere'");
+process.exit(1);
+`,
+  });
+  try {
+    assert.equal(prepareWorktree(repo, 'main', repo)?.exitCode, 72);
+  } finally {
+    rmSync(base, { recursive: true, force: true });
+  }
+});

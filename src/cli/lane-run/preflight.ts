@@ -95,6 +95,27 @@ export function settledRun<
   };
 }
 
+/**
+ * A test run whose only complaint is that the lane's own worktree directory was not there
+ * (`FileNotFoundError: ... <worktree>`): the directory exists now, so the run says nothing about
+ * the base. It runs once more before its failure counts.
+ */
+export function settleVanishedWorktree<
+  R extends {
+    status: number | null;
+    stdout?: string | null;
+    stderr?: string | null;
+  },
+>(execute: (command: string) => R, command: string, worktree: string): R {
+  const run = execute(command);
+  if (run.status === 0 || !existsSync(worktree)) return run;
+  const said = `${run.stdout ?? ''}\n${run.stderr ?? ''}`.replace(ansi, '');
+  return said.includes('FileNotFoundError') &&
+    said.includes(`No such file or directory: '${worktree}'`)
+    ? execute(command)
+    : run;
+}
+
 /** The lock that makes concurrent lanes of one repository run their baseline tests one at a time. */
 export function baselineLockFile(main: string): string {
   return join(main, '.krn', 'tmp', 'lane-baseline.lock');
@@ -191,7 +212,10 @@ export function prepareWorktree(
   // A timing-flaky suite fails under host load and passes alone: a red run reruns only its
   // failing files once, and the baseline is red only when they fail again.
   const settled = withFileLock(baselineLockFile(main), () =>
-    settledRun(execute, contract.test),
+    settledRun(
+      (command) => settleVanishedWorktree(execute, command, worktree),
+      contract.test,
+    ),
   );
   const baseline = settled.run;
   if (
