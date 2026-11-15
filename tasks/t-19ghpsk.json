@@ -1,7 +1,11 @@
 {
   "id": "t-19ghpsk",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "evals/standards-audit.md shows s-skill-* advisory cells on the ymir WordPress plugin row"
+  },
   "created": "2026-11-15",
   "priority": 3,
   "title": "Audit a public WordPress row for the s-skill standards",

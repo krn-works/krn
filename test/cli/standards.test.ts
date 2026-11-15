@@ -102,6 +102,7 @@ const go = {
 const php = {
   'composer.json': JSON.stringify({
     name: 'probe/site',
+    autoload: { 'psr-4': { 'Probe\\': 'src/' } },
     'require-dev': { 'phpunit/phpunit': '10.0.0' },
     scripts: { test: 'phpunit', lint: 'phpcs' },
   }),
@@ -115,11 +116,18 @@ const php = {
   'tests/ProbeTest.php': '<?php\n',
 };
 
+const wordpress = {
+  ...php,
+  'probe.php': '<?php\n/**\n * Plugin Name: Probe\n * Version: 1.2.0\n */\n',
+  'readme.txt': '=== Probe ===\nStable tag: 1.2.0\n',
+};
+
 const fixtures = [
   ['Python', python, 'python'],
   ['TypeScript', typescript, 'node/npm'],
   ['Go', go, 'go'],
   ['PHP', php, 'php/phpunit'],
+  ['WordPress', wordpress, 'php/phpunit'],
 ] as const;
 
 for (const [name, files, stack] of fixtures) {
@@ -820,7 +828,7 @@ test('standards pack stack-scoped records: PHP rules do not apply to a TypeScrip
   const ts = repositoryFacts(repository(typescript));
   const pack = parseStandards(JSON.parse(readFileSync(packFile, 'utf8')));
   const names = pack.filter((s) => s.id.startsWith('s-php-')).map((s) => s.id);
-  assert.equal(names.length, 4);
+  assert.equal(names.length, 9);
   for (const record of pack.filter((s) => names.includes(s.id)))
     assert.equal(appliesTo(record, ts), false, record.id);
   const root = repository({
@@ -1088,5 +1096,142 @@ test('s-php-composer-lock asks for a lock only from a project that declares Comp
     assert.equal(checkRecord(dependent, 's-php-composer-lock').status, 1);
   } finally {
     rmSync(dependent, { recursive: true, force: true });
+  }
+});
+
+// PHP and WordPress rules: each record fails on its plainest violation and passes on the
+// plainest form that satisfies what it means (the green cases are the false-red traps).
+const pluginHeader = (extra = '') =>
+  `<?php\n/**\n * Plugin Name: Probe\n * Version: 1.2.0\n${extra} */\n`;
+const wpPlugin = {
+  ...php,
+  'probe.php': pluginHeader(),
+};
+const phpWpCases: [string, Record<string, string>, Record<string, string>][] = [
+  [
+    's-php-no-error-suppression',
+    { 'src/A.php': '<?php\n$size = @getimagesize($path);\n' },
+    {
+      'src/A.php':
+        '<?php\n/**\n * @see getimagesize()\n * @param array($a)\n */\n$m = "a@b.test";\n$size = getimagesize($path);\n',
+    },
+  ],
+  [
+    's-php-no-empty-catch',
+    { 'src/A.php': '<?php\ntry { run(); } catch (Exception $e) {}\n' },
+    {
+      'src/A.php':
+        '<?php\ntry { run(); } catch (Exception $e) { /* the cache is optional */ }\ntry { run(); } catch (Exception $e) { log_it($e); }\n',
+    },
+  ],
+  [
+    's-php-no-eval',
+    { 'src/A.php': '<?php\neval($code);\n' },
+    {
+      'src/A.php':
+        '<?php\n// eval($code) was removed\n$r = $this->eval($x);\n$s = Foo::eval($x);\n',
+    },
+  ],
+  [
+    's-php-autoload-declared',
+    {
+      'composer.json': JSON.stringify({ name: 'a/b' }),
+      'src/A.php': '<?php\nclass A {}\n',
+    },
+    {
+      'composer.json': JSON.stringify({
+        autoload: { 'psr-4': { 'A\\': 'src/' } },
+      }),
+      'src/A.php': '<?php\nclass A {}\n',
+    },
+  ],
+  [
+    's-php-composer-no-wildcard',
+    {
+      'composer.json': JSON.stringify({ require: { 'psr/log': '*' } }),
+    },
+    {
+      'composer.json': JSON.stringify({
+        require: { php: '*', 'ext-curl': '*', 'psr/log': '^3.0' },
+      }),
+    },
+  ],
+  [
+    's-wp-escape-translations',
+    { 'views/a.php': '<h1><?php _e("Title", "probe"); ?></h1>\n' },
+    {
+      'views/a.php':
+        '<h1><?php esc_html_e("Title", "probe"); ?></h1>\n<?php echo esc_html__("T", "probe"); $x->_e(1); ?>\n',
+    },
+  ],
+  [
+    's-wp-nonce-on-request',
+    {
+      'src/Form.php':
+        '<?php\nfunction save() { update_option("a", $_POST["a"]); }\n',
+    },
+    {
+      'src/Form.php':
+        '<?php\nfunction save() { check_admin_referer("save"); update_option("a", $_POST["a"]); }\n',
+      'src/Ajax.php':
+        '<?php\nfunction crop() { if (!$this->isAttachmentIdValid($_POST["id"], "nonce")) { die; } }\n',
+    },
+  ],
+  [
+    's-wp-prepared-queries',
+    {
+      'src/Db.php':
+        '<?php\nfunction f($id) { global $wpdb; return $wpdb->get_var("SELECT a FROM x WHERE id = $id"); }\n',
+    },
+    {
+      'src/Db.php':
+        '<?php\nfunction f($id) { global $wpdb; $t = $wpdb->prefix . "x";\n$a = $wpdb->get_var($wpdb->prepare("SELECT a FROM {$t} WHERE id = %d", $id));\n$b = $wpdb->get_results("SELECT * FROM {$wpdb->posts}");\n$c = $wpdb->query("DELETE FROM $wpdb->options");\n$d = $wpdb->get_row("SELECT a FROM " . $wpdb->users); }\n',
+    },
+  ],
+  [
+    's-wp-text-domain-literal',
+    {
+      'src/I18n.php': '<?php\necho esc_html__("A", $domain);\n',
+    },
+    {
+      'src/I18n.php':
+        '<?php\necho esc_html__("A", "probe");\necho esc_html_x("B", "context", "probe");\necho __("C");\necho __("D", "default");\necho sprintf(__("E %s", "probe"), esc_html($x));\n',
+    },
+  ],
+  [
+    's-wp-release-version-matches-readme',
+    { 'readme.txt': '=== Probe ===\nStable tag: 1.1.0\n' },
+    { 'readme.txt': '=== Probe ===\nStable tag: 1.2.0\n' },
+  ],
+];
+const phpWpCheck = (files: Record<string, string>, id: string) => {
+  const root = repository({ ...wpPlugin, ...files });
+  try {
+    return checkRecord(root, id);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+};
+for (const [id, red, green] of phpWpCases) {
+  test(`${id} fails on its plainest violation and passes on the form that satisfies it`, () => {
+    const failed = phpWpCheck(red, id);
+    assert.equal(failed.status, 1, failed.stdout + failed.stderr);
+    assert.match(failed.stderr, new RegExp(`^${id}: exit 1`, 'mu'));
+    const passed = phpWpCheck(green, id);
+    assert.equal(passed.status, 0, passed.stdout + passed.stderr);
+  });
+}
+
+test('a plugin header makes a repository WordPress, so the WordPress records apply to it', () => {
+  const plugin = repository({ 'ymir.php': pluginHeader() });
+  const plain = repository({
+    'lib.php': '<?php\n// Plugin Name: not a header\n',
+  });
+  try {
+    assert.ok(repositoryFacts(plugin).needs.has('wordpress'));
+    assert.ok(!repositoryFacts(plain).needs.has('wordpress'));
+  } finally {
+    rmSync(plugin, { recursive: true, force: true });
+    rmSync(plain, { recursive: true, force: true });
   }
 });

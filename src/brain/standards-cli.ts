@@ -192,8 +192,24 @@ function isWordPress(root: string): boolean {
     /"(?:roots\/(?:bedrock|wordpress)|johnpbloch\/wordpress[\w-]*)"/u.test(
       readText(join(root, 'composer.json')),
     ) ||
-    /^\s*Theme Name:/mu.test(readText(join(root, 'style.css')))
+    /^\s*Theme Name:/mu.test(readText(join(root, 'style.css'))) ||
+    hasPluginHeader(root)
   );
+}
+
+/** A plugin: a top-level PHP file whose opening comment names the plugin. */
+function hasPluginHeader(root: string): boolean {
+  try {
+    return readdirSync(root).some(
+      (name) =>
+        name.endsWith('.php') &&
+        /^[ \t*@]*Plugin Name:/mu.test(
+          readText(join(root, name)).slice(0, 8192),
+        ),
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** A package.json that depends on a CSS or asset build tool. */
