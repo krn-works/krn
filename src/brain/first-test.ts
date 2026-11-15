@@ -1,7 +1,7 @@
 // First-test recipes (the worker packet of a bootstrap lane): per detected stack, how to add the first
 // real test and wire krn.json `test`. The bootstrap proof (lane-run) accepts only a test that goes red
 // when a production line is deleted, so every recipe tests a pure function, never a smoke over nothing.
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export type FirstTestStack = 'wordpress' | 'php' | 'npm' | 'static';
@@ -41,7 +41,8 @@ const RECIPES: Record<FirstTestStack, string> = {
   ].join(' '),
   npm: [
     'First test, npm: node:test over a pure module or the build output.',
-    'Write test/<module>.test.mjs with `import test from "node:test"; import assert from "node:assert/strict";`, import one pure function (or read a file from the build output) and assert its result for one hand-written input.',
+    'Write test/<module>.test.mjs with `import test from "node:test"; import assert from "node:assert/strict";`, import one pure function from a production source file and assert its result for one hand-written input.',
+    'Never assert only on data, config or docs files (JSON contracts, fixtures, README): the proof deletes one production source line and the test must go red.',
     'krn.json "test": "node --test" (and "scripts.test" in package.json when absent).',
   ].join(' '),
   static: [
@@ -54,7 +55,51 @@ const RECIPES: Record<FirstTestStack, string> = {
 export const firstTestRecipe = (stack: FirstTestStack): string =>
   RECIPES[stack];
 
+const RUNNERS = ['vitest', 'jest', 'mocha'] as const;
+
+/** The test runner a package.json declares in its dependencies, if any. */
+function declaredRunner(root: string): string | undefined {
+  let manifest: unknown;
+  try {
+    manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  } catch {
+    return undefined;
+  }
+  if (typeof manifest !== 'object' || manifest === null) return undefined;
+  const names = new Set<string>();
+  for (const key of ['devDependencies', 'dependencies']) {
+    const deps: unknown = Reflect.get(manifest, key);
+    if (typeof deps === 'object' && deps !== null)
+      for (const name of Object.keys(deps)) names.add(name);
+  }
+  return RUNNERS.find((runner) => names.has(runner));
+}
+
+/**
+ * Repository facts the npm recipe alone gets wrong: a TypeScript source tree whose files import
+ * siblings as './x.js' cannot be imported by node:test directly, and a declared runner is the
+ * repository's own way to run its tests.
+ */
+function npmHints(root: string): string[] {
+  const hints: string[] = [];
+  const runner = declaredRunner(root);
+  if (existsSync(join(root, 'tsconfig.json')))
+    hints.push(
+      'This is a TypeScript repository: node:test imports a .ts file directly only when every relative import it makes exists as written; sources importing siblings as "./x.js" fail with ERR_MODULE_NOT_FOUND, so use the declared runner (or a .ts module with no relative imports).',
+    );
+  if (runner !== undefined)
+    hints.push(
+      `package.json declares ${runner}: run \`npm ci\` (or \`npm install\`), write one test the way the existing tests do, and set krn.json "test" to \`npx ${runner}${runner === 'vitest' ? ' run' : ''} <that test file>\` (krn.json "install": "npm ci").`,
+    );
+  return hints;
+}
+
 /** The packet section a bootstrap lane gets: the recipe of the repository's own stack. */
 export function firstTestSection(root: string): string {
-  return `First-test recipe (${firstTestStack(root)}): ${firstTestRecipe(firstTestStack(root))}`;
+  const stack = firstTestStack(root);
+  const hints = stack === 'npm' ? npmHints(root) : [];
+  return [
+    `First-test recipe (${stack}): ${firstTestRecipe(stack)}`,
+    ...hints,
+  ].join(' ');
 }
