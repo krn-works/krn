@@ -18,6 +18,7 @@ import {
   defaultScratch,
   drainFacts,
   entryCommit,
+  failedCases,
   gradedRow,
   hiddenResult,
   hiddenSeedTask,
@@ -573,4 +574,42 @@ test('every support file of the discriminating rows exists and the mock shim ser
 test('adoptEnv drops the test-first arm and keeps the rest', () => {
   const env = adoptEnv({ KRN_TEST_FIRST: '1', PATH: '/bin', HOME: '/h' });
   assert.deepEqual(env, { PATH: '/bin', HOME: '/h' });
+});
+
+test('failed cases name each failing hidden case from pytest, TAP and shim output', () => {
+  const pytest = [
+    'FAILED tests/test_a.py::test_threshold_counter - assert 1 == 2',
+    'FAILED tests/test_a.py::test_bytes2human[1024] - AssertionError',
+    'FAILED tests/test_a.py::test_threshold_counter - again',
+    '==== 3 failed, 8 passed in 0.12s ====',
+  ].join('\n');
+  assert.deepEqual(failedCases(pytest), [
+    'test_threshold_counter',
+    'test_bytes2human[1024]',
+  ]);
+  assert.deepEqual(failedCases('ok 1 - a\nnot ok 2 - b c\n'), ['b c']);
+  assert.deepEqual(failedCases('FAIL T::a #0\nran 6, failed 1\n'), ['a']);
+  assert.deepEqual(failedCases('5 passed in 0.01s'), []);
+});
+
+test('a graded row names the failed hidden cases after the metrics', () => {
+  const row = gradedRow({
+    stack: 'py',
+    adoptExit: 0,
+    firstPr: '#5',
+    drain: undefined,
+    metrics: {
+      cases: { passed: 5, total: 7 },
+      regressions: 0,
+      refusals: 0,
+      failed: ['test_a', 'test_b'],
+    },
+  });
+  assert.match(row, /\| 5\/7 \| 0 \| 0 \| none \| failed test_a test_b$/u);
+});
+
+test('reps takes a positive integer and defaults to one', () => {
+  assert.equal(parseOptions([], '/r', '/s').reps, 1);
+  assert.equal(parseOptions(['--reps', '3'], '/r', '/s').reps, 3);
+  assert.throws(() => parseOptions(['--reps', '0'], '/r', '/s'), /--reps/u);
 });

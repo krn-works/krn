@@ -45,6 +45,8 @@ export interface RunOptions {
   taskFile?: string;
   /** Where the harvest over the row checkouts is written. */
   harvest: string;
+  /** How many times each row runs, serially, each from a fresh clone. */
+  reps: number;
 }
 
 /** The only branches this script may push or delete: orphan bases outside/<stack>. */
@@ -71,6 +73,7 @@ export function parseOptions(
     windowHours: 8,
     summary: join(root, '.krn/runs/outside/summary.txt'),
     harvest: join(root, '.krn/runs/outside/harvest.txt'),
+    reps: 1,
   };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index] as string;
@@ -100,6 +103,11 @@ export function parseOptions(
       if (!/^[1-9]\d*$/u.test(text))
         throw new Error('outside-acceptance: --max needs a positive integer');
       options.max = Number(text);
+    } else if (arg === '--reps') {
+      const text = value();
+      if (!/^[1-9]\d*$/u.test(text))
+        throw new Error('outside-acceptance: --reps needs a positive integer');
+      options.reps = Number(text);
     } else throw new Error(`outside-acceptance: unknown argument ${arg}`);
   }
   if (options.stacks.length === 0) options.stacks = [...defaultStacks];
@@ -214,6 +222,22 @@ export function caseCounts(output: string): CaseCounts | undefined {
   return passed + failed === 0 ? undefined : { passed, total: passed + failed };
 }
 
+/**
+ * The names of the cases a runner reported failing: pytest `FAILED path::name - reason` (a parametrize
+ * suffix is kept), TAP `not ok N - name` and the PHP shim's `FAIL T::name #n`. Each name appears once.
+ */
+export function failedCases(output: string): string[] {
+  const names = new Set<string>();
+  for (const line of output.split('\n')) {
+    const found =
+      /^(?:FAILED|ERROR) (\S+?::\S+?)(?: - .*)?$/u.exec(line)?.[1] ??
+      /^not ok \d+ - (.+)$/u.exec(line)?.[1] ??
+      /^FAIL (\S+) #\d+/u.exec(line)?.[1];
+    if (found !== undefined) names.add(found.replace(/^.*::/u, ''));
+  }
+  return [...names];
+}
+
 /** The graded measures of a fixed-issue row beyond pass or fail. */
 export interface RowMetrics {
   cases?: CaseCounts | undefined;
@@ -221,6 +245,8 @@ export interface RowMetrics {
   regressions: number | undefined;
   /** Distinct records the Stop gate refused. */
   refusals: number;
+  /** Names of the hidden cases that failed on the merged tree. */
+  failed?: string[];
 }
 
 /** The summary cells of the graded measures: `cases P/T | regressions N | refusals N | turns N`. */
@@ -334,6 +360,9 @@ export function gradedRow(input: RowInput): string {
       ? []
       : metricsCells(input.metrics, drain?.turns)),
   ];
+  const failed = input.metrics?.failed;
+  if (failed !== undefined && failed.length > 0)
+    cells.push(`failed ${failed.join(' ')}`);
   const row = cells.join(' | ');
   return input.note === undefined ? row : `${row} | ${input.note}`;
 }
@@ -859,6 +888,10 @@ function acceptStack(
         regressions,
         refusals: refusedRecords(readExposures(dir)).length,
       };
+      const failedNames = failedCases(
+        `${graded.stdout ?? ''}${graded.stderr ?? ''}`,
+      );
+      if (failedNames.length > 0) metrics.failed = failedNames;
       note = `merged ${merged} fix ${hiddenRow.fix.slice(0, 7)}`;
     }
     collectRow(
@@ -914,7 +947,8 @@ if (import.meta.main) {
           )
           .map((row) => ({ stack: row.stack, hidden: row }));
   const checkouts: string[] = [];
-  for (const { stack, hidden } of picked) {
+  const repeated = Array.from({ length: options.reps }, () => picked).flat();
+  for (const { stack, hidden } of repeated) {
     let row: string;
     try {
       row = acceptStack(stack, options, root, hidden, checkouts);
