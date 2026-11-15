@@ -23,6 +23,7 @@ import {
   hiddenSeedTask,
   hookCell,
   hookPath,
+  hookTreeCommit,
   metricsCells,
   outsideBranch,
   parseOptions,
@@ -34,6 +35,8 @@ import {
   workflowFiles,
 } from '../../scripts/outside-acceptance.ts';
 import { GREEN_BASE_TASK_TITLE } from '../../src/adopt/adopt.ts';
+import { stopCommand } from '../../src/adopt/stop-hook.ts';
+import { sessionEnvironment } from '../../src/cli/lane-run/environment.ts';
 
 test('only outside/<stack> branches can be named, so a cleanup never touches another branch', () => {
   assert.equal(outsideBranch('php'), 'outside/php');
@@ -387,6 +390,74 @@ test('the checkout bin comes first on PATH, so a stale installed shim cannot ser
   assert.equal(path.split(':')[0], join(work, 'root/bin'));
   assert.equal(doctorCommit(path), head);
   assert.equal(doctorCommit(`${shim}:/usr/bin:/bin`), stale);
+});
+
+/** A git tree with a bin/krn whose `doctor` reports the host's product entry, like the real one, never the tree. */
+function krnTree(dir: string, mark: string): { bin: string; commit: string } {
+  mkdirSync(join(dir, 'bin'), { recursive: true });
+  writeFileSync(join(dir, 'mark'), mark);
+  fakeKrn(join(dir, 'bin'), 'c'.repeat(40));
+  const git = (...args: string[]) =>
+    spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+      cwd: dir,
+      encoding: 'utf8',
+    });
+  git('init', '--quiet');
+  git('add', '-A');
+  git('commit', '--quiet', '-m', 'tree');
+  return {
+    bin: join(dir, 'bin'),
+    commit: git('rev-parse', 'HEAD').stdout.trim(),
+  };
+}
+
+test('the hook cell names the tree the hook command resolves, not what krn doctor reports', () => {
+  const work = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'hook-tree-'));
+  const checkout = krnTree(join(work, 'checkout'), 'checkout');
+  const release = krnTree(join(work, 'release'), 'release');
+  assert.notEqual(checkout.commit, release.commit);
+  const rowPath = hookPath(
+    join(work, 'checkout'),
+    `${release.bin}:/usr/bin:/bin`,
+  );
+  const env = { PATH: rowPath };
+  assert.equal(hookTreeCommit(env, work), checkout.commit);
+  assert.equal(
+    hookTreeCommit({ PATH: `${release.bin}:/usr/bin:/bin` }, work),
+    release.commit,
+  );
+  // doctor reports the same host commit from both trees: it cannot tell them apart.
+  assert.equal(
+    doctorCommit(rowPath),
+    doctorCommit(`${release.bin}:/usr/bin:/bin`),
+  );
+  assert.equal(hookTreeCommit({ PATH: '/nonexistent' }, work), undefined);
+});
+
+test('the Stop hook command a lane session runs executes the checkout krn, behind the lane session environment', () => {
+  const work = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'hook-run-'));
+  const checkout = krnTree(join(work, 'checkout'), 'checkout');
+  const release = krnTree(join(work, 'release'), 'release');
+  for (const bin of [checkout.bin, release.bin])
+    writeFileSync(
+      join(bin, 'krn'),
+      `#!/bin/sh\necho "hook ran from ${bin}: $*"\nexit 2\n`,
+    );
+  const row = hookPath(join(work, 'checkout'), `${release.bin}:/usr/bin:/bin`);
+  const session = sessionEnvironment({ PATH: row }, join(work, 'cache'), {
+    lane: 'row',
+  });
+  const result = spawnSync('sh', ['-c', stopCommand], {
+    encoding: 'utf8',
+    env: session,
+    input: '{}',
+  });
+  assert.equal(result.status, 2);
+  assert.equal(
+    result.stdout.trim(),
+    `hook ran from ${checkout.bin}: hook stop`,
+  );
+  assert.equal(hookTreeCommit(session, work), checkout.commit);
 });
 
 test('a row whose hook commit differs from the checkout HEAD is skewed and not green', () => {
