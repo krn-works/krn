@@ -599,3 +599,61 @@ def test_frozendict_api():
 
     import copy
     assert copy.copy(fd) is fd
+
+
+def test_omd_eq_distinguishes_none_items():
+    from boltons.dictutils import OrderedMultiDict
+    assert OrderedMultiDict([(None, None)]) != OrderedMultiDict([(None, None), (None, None)])
+
+
+def test_omd_update_repeated_new_key():
+    from boltons.dictutils import OrderedMultiDict
+    omd = OrderedMultiDict()
+    omd.update([('a', 1), ('a', 3)])
+    assert omd.getlist('a') == [1, 3]
+
+
+def test_oto_update_iterator_and_atomic():
+    import pytest
+    from boltons.dictutils import OneToOne
+    oto = OneToOne({'a': 1})
+    oto.update(iter([('b', 2), ('c', 3)]))
+    assert oto == {'a': 1, 'b': 2, 'c': 3}
+    with pytest.raises(TypeError):
+        oto.update(iter([('d', 4), ('e', [])]))
+    assert oto == {'a': 1, 'b': 2, 'c': 3} and oto.inv == {1: 'a', 2: 'b', 3: 'c'}
+
+
+def test_oto_ior_in_place():
+    from boltons.dictutils import OneToOne
+    oto = OneToOne({'a': 1, 'b': 2})
+    same = oto
+    oto |= {'c': 2, 'd': 1}
+    assert oto is same and oto == {'c': 2, 'd': 1}
+    assert oto.inv == {2: 'c', 1: 'd'}
+
+
+def test_m2m_add_unhashable_no_stray_key():
+    import pytest
+    from boltons.dictutils import ManyToMany
+    m = ManyToMany()
+    with pytest.raises(TypeError):
+        m.add('new', [])
+    assert 'new' not in m and len(m) == 0
+
+
+def test_m2m_copy_independent():
+    from boltons.dictutils import ManyToMany
+    a = ManyToMany([('x', 1)])
+    b = ManyToMany(a)
+    b.add('x', 2)
+    assert a['x'] == {1} and a.inv.get(2) == frozenset()
+    assert b['x'] == {1, 2}
+
+
+def test_m2m_replace_existing():
+    from boltons.dictutils import ManyToMany
+    m = ManyToMany([('a', 1), ('new', 2)])
+    m.replace('a', 'new')
+    assert m['new'] == {1, 2} and 'a' not in m
+    assert m.inv[1] == {'new'} and m.inv[2] == {'new'}
