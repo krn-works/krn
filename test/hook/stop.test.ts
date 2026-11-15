@@ -1143,6 +1143,38 @@ test('clause 12: the --red mode prints a test red at the base and nothing for on
   }
 });
 
+test('clause 6: a commit line "Clause N: characterizes" accepts a green marked test next to a source change', () => {
+  const dir = clone();
+  try {
+    writeFileSync(join(dir, 'src/a.ts'), 'export const a = 2;\n');
+    writeFileSync(
+      join(dir, 'test/a.test.ts'),
+      "// clause 1\nimport { a } from '../src/a.ts';\nvoid a;\n",
+    );
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'change');
+    const env = { ...lane(dir), KRN_TEST_FIRST: '1' };
+    assert.match(
+      judgeStop(payload(dir), env, () => []) ?? '',
+      /no changed test fails at the base/u,
+    );
+    sh(
+      dir,
+      'commit',
+      '-q',
+      '--allow-empty',
+      '-m',
+      'note\n\nClause 1: characterizes: the behaviour already works',
+    );
+    assert.equal(
+      judgeStop(payload(dir), env, () => []),
+      undefined,
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('clause 11: a source change with no red-at-base test stays refused', () => {
   const dir = clone();
   try {

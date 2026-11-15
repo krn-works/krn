@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  characterizingTests,
   clauseMarker,
   clauseProof,
   clauseSection,
+  declaresCharacterizes,
   declaresNotReproducible,
   markedTests,
   splitClauses,
@@ -164,4 +166,28 @@ test('clause 2: a worker-written list counts the numbers it marked, and markedTe
     [1, 3],
   );
   assert.deepEqual(markedTests([], tests), ['test/a.test.ts']);
+});
+
+test('clause 9: a characterizes line needs a reason and names the marked test files', () => {
+  assert.equal(
+    declaresCharacterizes('Clause 2: characterizes: already works', 2),
+    true,
+  );
+  assert.equal(declaresCharacterizes('Clause 2: characterizes', 2), false);
+  assert.equal(
+    declaresCharacterizes('Clause 2: characterizes: already works', 3),
+    false,
+  );
+  const tests = new Map([
+    ['test/a.test.ts', "test('clause 2: x', () => {})"],
+    ['test/b.test.ts', "test('clause 3: y', () => {})"],
+  ]);
+  assert.deepEqual(
+    characterizingTests('Clause 2: characterizes: already works', tests),
+    ['test/a.test.ts'],
+  );
+  assert.match(
+    clauseSection('1. Parse the header line\n2. Reject an empty header'),
+    /characterizes/u,
+  );
 });
