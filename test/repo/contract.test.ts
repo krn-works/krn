@@ -397,6 +397,16 @@ test('a detected node or php contract installs the declared dependencies into a 
     }),
   );
   assert.equal(node.contract.install, 'npm ci');
+  // Without a lockfile the install must not write one into the worktree: an untracked lock dirties it.
+  const unlocked = resolveContract(
+    fixture({
+      'package.json': JSON.stringify({
+        scripts: { test: 'tap test/*.js' },
+        devDependencies: { tap: '^1' },
+      }),
+    }),
+  );
+  assert.equal(unlocked.contract.install, 'npm install --no-package-lock');
   const bare = resolveContract(
     fixture({
       'package.json': JSON.stringify({ scripts: { test: 'node --test' } }),
