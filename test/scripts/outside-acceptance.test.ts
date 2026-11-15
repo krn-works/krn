@@ -18,6 +18,7 @@ import {
   baseCommit,
   caseCounts,
   defaultScratch,
+  drainBlocker,
   drainFacts,
   entryCommit,
   failedCases,
@@ -868,4 +869,17 @@ test('clause 7: a Go row finds the newest installed Go toolchain, and none when 
     }),
     undefined,
   );
+});
+
+// The drain line of outside php row 1115k (php.log), its worktree path neutralised.
+test('a failed drain row names the lane BLOCKER without the drain suffix', () => {
+  const output = [
+    't-04ewf93 t-04ewf93 exit=73 43s',
+    'lane t-04ewf93: BLOCKER: the Stop hook reports no test file changed on this branch, but `tests/run.php` differs from `outside/php` in `9eee856`. It also requires a test that is red at the base, which a characterizati (worktree /work/runs/php-1/.krn/worktrees/t-04ewf93, rerun reuses it, claim released) model sonnet cost $0.22 turns 9 packet f40688c89cf3',
+  ].join('\n');
+  assert.equal(
+    drainBlocker(output),
+    'blocker: the Stop hook reports no test file changed on this branch, but `tests/run.php` differs from `outside/php` in `9eee856`. It also requires a test that is red at the base, which a characterizati',
+  );
+  assert.equal(drainBlocker('t-a t-a exit=0 1s\n'), undefined);
 });

@@ -1,0 +1,17 @@
+{
+  "id": "t-a1b7gf6",
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "TEST_FILE counts tests/<file>.php|py; clauseMarker reads testClause1/test_clause_1; failed outside rows carry the lane BLOCKER as a note. Tests red before, green after; outside php rerun follows the merge."
+  },
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "A PHP or Python runner under tests/ counts as a test file",
+  "after": [],
+  "body": [
+    "Source: outside php plain row 1115k on 8fcc850 (.krn/runs/outside/php.log second drain block, lane t-04ewf93 exit 73)\nWhy: the Stop test-first arm refused \"no test file changed on this branch\" although the lane changed tests/run.php: TEST_FILE (src/brain/acceptance-clauses.ts) matches `tests/<file>` only for JS, so a PHP or Python runner script under tests/ is no test file; the lane gave up with BLOCKER and the row log kept no reason (summary row note empty, php.log truncated the BLOCKER).\nOutcome: a .php or .py file directly under test/ or tests/ counts as a test file for Stop and the lane proof; the outside summary row carries the lane's BLOCKER text when drain fails.\nProof: regression test on tests/run.php red before, green after; php plain outside row drains 0 on the merged head.\nPredicted: outside drain == 0 in >= 1 rows",
+    "Amendment: php bug row 1115k (php.log:787): PHP method names cannot hold a space; clauseMarker missed testClause1/test_clause_1; marker reads identifier forms and the brief names them."
+  ]
+}

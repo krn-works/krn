@@ -225,6 +225,15 @@ export function drainFacts(exitCode: number, output: string): DrainFacts {
   };
 }
 
+/** The first BLOCKER a failed drain's lane printed, so the row says why it stopped. */
+export function drainBlocker(output: string): string | undefined {
+  // The drain appends `(worktree ...) model ... cost ...` to the lane's words.
+  const line = /\bBLOCKER:\s*(.+?)(?:\s+\(worktree [^)]*\).*)?$/mu
+    .exec(output)?.[1]
+    ?.trim();
+  return line ? `blocker: ${line}` : undefined;
+}
+
 /** Passed and total test cases a runner printed: pytest, TAP or node:test, or the PHP shim's `ran N, failed M`. */
 export interface CaseCounts {
   passed: number;
@@ -1101,6 +1110,8 @@ function acceptStack(
       if (failedNames.length > 0) metrics.failed = failedNames;
       note = `merged ${merged} fix ${hiddenRow.fix.slice(0, 7)}`;
     }
+    const blocker = drain.status === 0 ? undefined : drainBlocker(drain.output);
+    if (blocker) note = note === undefined ? blocker : `${note}; ${blocker}`;
     collectRow(
       dir,
       stack,
