@@ -1,7 +1,11 @@
 {
   "id": "t-bkbkmbd",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Three untuned public repos (php-fig/http-message-util MIT, thlorenz/parse-link-header MIT, saulpw/unzip-http MIT) ran through outside-acceptance: adopt 0, first-test PR merged, drain 0 (rows php ba25a45, npm 0493887, py a5ce4c6); outside/* branches deleted. Defects fixed in their own PRs: orphan base as krn.json base, canary on test/*.js, install detection for npm/composer, install litter ignores, title scope, npm lockfile, unprotected-base merge."
+  },
   "created": "2026-11-15",
   "priority": 1,
   "title": "Bootstrap and drain proven on three fresh public repositories (php, npm, py)",
