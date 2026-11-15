@@ -20,6 +20,7 @@ import {
   nonDeliveryCeiling,
 } from '../outcome/window.ts';
 import { contractBase } from '../repo/contract.ts';
+import { shipRecordDir } from '../repo/ship-record.ts';
 import {
   claimTask,
   inspectClaim,
@@ -144,6 +145,55 @@ export function fetchBase(
       throw new CliUsageError(`git fetch -q origin ${base} failed: ${said}`);
     sleepSync(delayMs);
   }
+}
+
+function gitRun(cwd: string, args: string[]) {
+  return spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8' });
+}
+
+/**
+ * A lane ends at the merge: `krn pr ship` leaves its worktree and branch. The next lane start removes
+ * each lane whose ship record names a merge commit that is on `origin/<base>`, provided the worktree
+ * holds no uncommitted change, then prunes the worktrees git lost. Returns the removed lane slugs.
+ * Evidence-based, not `git branch --merged`: squash merges leave the lane commits unmerged by ancestry.
+ */
+export function pruneMergedLanes(main: string, base: string): string[] {
+  gitRun(main, ['worktree', 'prune']);
+  const dir = join(main, shipRecordDir);
+  if (!existsSync(dir)) return [];
+  const removed: string[] = [];
+  for (const name of readdirSync(dir)) {
+    let record: { branch?: unknown; sha?: unknown };
+    try {
+      record = JSON.parse(readFileSync(join(dir, name), 'utf8'));
+    } catch {
+      continue;
+    }
+    const { branch, sha } = record;
+    if (typeof branch !== 'string' || typeof sha !== 'string') continue;
+    if (!/^[0-9a-f]{7,40}$/u.test(sha) || branch === base) continue;
+    if (
+      gitRun(main, ['merge-base', '--is-ancestor', sha, `origin/${base}`])
+        .status !== 0
+    )
+      continue;
+    const path = join(main, '.krn', 'worktrees', branch);
+    if (existsSync(path)) {
+      const status = gitRun(path, ['status', '--porcelain']);
+      if (status.status !== 0 || status.stdout.trim() !== '') continue;
+      if (gitRun(main, ['worktree', 'remove', '--force', path]).status !== 0)
+        continue;
+    }
+    const has = gitRun(main, [
+      'show-ref',
+      '--verify',
+      '--quiet',
+      `refs/heads/${branch}`,
+    ]);
+    if (has.status === 0) gitRun(main, ['branch', '-D', branch]);
+    removed.push(branch);
+  }
+  return removed;
 }
 
 function gitOk(root: string, args: string[]): boolean {
@@ -365,10 +415,12 @@ export async function startLane(
   if (gitOk(main, ['show-ref', '--verify', '--quiet', `refs/heads/${slug}`]))
     throw new CliUsageError(`branch ${slug} already exists`);
 
-  checkLaneBudget(main);
-  await checkLaneCeiling(main, sessionClass, deps.ceiling);
   const base = contractBase(origin);
   fetchBase(main, base);
+  // Shipped lanes leave their worktree and branch behind: free them before the budget counts them.
+  pruneMergedLanes(main, base);
+  checkLaneBudget(main);
+  await checkLaneCeiling(main, sessionClass, deps.ceiling);
   // An adoption committed only locally is invisible to a worktree cut from origin/<base>.
   if (
     existsSync(join(main, 'krn.json')) &&
