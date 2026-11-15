@@ -269,7 +269,7 @@ function detectNode(root: string): Detected | undefined {
       : pm === 'npm'
         ? existsSync(join(root, 'package-lock.json'))
           ? 'npm ci'
-          : 'npm install'
+          : 'npm install --no-package-lock'
         : `${pm} install`;
   return {
     stack: `node/${pm}`,

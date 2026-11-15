@@ -8,6 +8,8 @@ test('conventional titles pass', () => {
     'feat(roadmap): let parallel lanes close rows without conflicts (t-r3k9f7m)',
     'fix: bound every GitHub call (t-xtmc5e6)',
     'refactor(cli)!: drop the deliver command',
+    'test(unzip_http): cover warning writing to stderr (t-0x3pmx6)',
+    'fix(lib.core): keep the dotted module name (t-0x3pmx6)',
   ])
     assert.equal(titleProblem(title), undefined, title);
 });
