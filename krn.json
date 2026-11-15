@@ -1,0 +1,7 @@
+{
+  "base": "outside/frontend",
+  "test": "mise exec pnpm@12.5.1 -- pnpm exec vitest --no-watch packages/tailwind-merge/tests/important-modifier.test.ts",
+  "tracker": "krn",
+  "install": "mise exec pnpm@12.5.1 -- pnpm install --frozen-lockfile --ignore-scripts",
+  "related": "mise exec pnpm@12.5.1 -- pnpm exec vitest --no-watch {files}"
+}

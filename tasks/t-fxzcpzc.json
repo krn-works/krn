@@ -1,0 +1,15 @@
+{
+  "id": "t-fxzcpzc",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 2,
+  "title": "Make standard s-ts-no-floating-promises pass",
+  "after": [],
+  "body": [
+    "Outcome: `krn standards check --record s-ts-no-floating-promises` no longer fails s-ts-no-floating-promises.",
+    "Why: adoption found this reflex standard failing: exit 1 from node -e 'const fs=require(\"fs\");const read=(f)=>fs.existsSync(f)?fs.readFileSync(f,\"utf8\"):\"\";const biome=[\"biome.json\",\"biome.jsonc\"].map(read).joi...",
+    "Files: the files the failing check names (run the Proof command).",
+    "Proof: `krn standards check --record s-ts-no-floating-promises`"
+  ]
+}
