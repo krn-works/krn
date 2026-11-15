@@ -1,0 +1,7 @@
+{
+  "base": "outside/wp-plugin",
+  "test": "WP_CORE_DIR=/mnt/storage/tmp/krn-outside-public/wp-core vendor/bin/phpunit tests/Unit/CloudProvider/Aws/LambdaClientTest.php",
+  "tracker": "krn",
+  "install": "composer install --no-interaction --quiet",
+  "related": "WP_CORE_DIR=/mnt/storage/tmp/krn-outside-public/wp-core vendor/bin/phpunit {files}"
+}
