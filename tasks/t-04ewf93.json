@@ -1,0 +1,20 @@
+{
+  "id": "t-04ewf93",
+  "status": "open",
+  "resolution": null,
+  "created": "2026-11-15",
+  "priority": 0,
+  "title": "get_in and update_in must stop at a value that is not an array",
+  "after": [],
+  "body": [
+    "Bug: get_in([\"foo\" => null], [\"foo\", \"bar\"]) and get_in([\"key\" => \"value\"], [\"key\", \"x\"], \"default\") fail instead of returning the default, because the walk keeps indexing into a null or scalar.",
+    "Outcome: get_in returns its default when the path goes through a value that is not an array; update_in throws InvalidArgumentException for the same path. Existing behaviour is unchanged. Fix src/get_in.php and add a test."
+  ],
+  "acceptance": [
+    {
+      "verify": "php tests/shim.php src/get_in.php tests/GetInTest.php",
+      "passes": false,
+      "exit": null
+    }
+  ]
+}
