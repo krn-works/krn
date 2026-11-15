@@ -396,3 +396,8 @@ def test_args2cmd_sep():
     assert strutils.args2cmd(['aa', 'bb']) == 'aa bb'
     assert strutils.args2cmd(['aa', 'bb'], sep='|') == 'aa|bb'
     assert strutils.args2cmd(['a a', 'bb'], sep='|') == '"a a"|bb'
+
+
+def test_bytes2human_largest_unit():
+    assert strutils.bytes2human(1024 ** 8) == '1Y'
+    assert strutils.bytes2human(1024 ** 7) == '1Z'

@@ -478,3 +478,44 @@ def test_threshold_counter():
     assert sorted(tc.keys()) == [2, 5]
     assert sorted(tc.values()) == [1, 10]
     assert sorted(tc.items()) == [(2, 10), (5, 1)]
+
+
+def test_threshold_counter_update_mapping_and_keywords():
+    tc = ThresholdCounter()
+    tc.update({'a': 3, 'b': 2, 'zero': 0})
+    assert tc.get('a') == 3 and tc.get('b') == 2
+    assert 'zero' not in tc
+    assert tc.total == 5
+    tc = ThresholdCounter()
+    tc.update(['a'], a=3, b=2)
+    assert tc.get('a') == 4 and tc.get('b') == 2
+    assert tc.total == 6
+
+
+def test_threshold_counter_mapping_update_matches_one_by_one():
+    data = {'a': 40, 'b': 25, 'c': 3, 'd': 1}
+    one = ThresholdCounter(threshold=0.1)
+    for k, n in data.items():
+        for _ in range(n):
+            one.add(k)
+    bulk = ThresholdCounter(threshold=0.1)
+    bulk.update(data)
+    assert bulk.items() == one.items() and bulk.total == one.total
+
+
+def test_threshold_counter_most_common_zero():
+    tc = ThresholdCounter()
+    tc.update('aab')
+    assert tc.most_common(0) == []
+    assert tc.most_common() == [('a', 2), ('b', 1)]
+
+
+@pytest.mark.parametrize('cls', [LRI, LRU])
+def test_lru_update_forms(cls):
+    c = cls()
+    c.update()
+    assert dict(c) == {}
+    c.update(a=1)
+    c.update(c)
+    c.update([('b', 2)], c=3)
+    assert dict(c) == {'a': 1, 'b': 2, 'c': 3}

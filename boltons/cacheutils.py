@@ -293,7 +293,7 @@ class LRI(dict):
                 self[key] = default
                 return default
 
-    def update(self, E, **F):
+    def update(self, E=(), **F):
         # E and F are throwback names to the dict() __doc__
         with self._lock:
             if E is self:
@@ -726,7 +726,7 @@ class ThresholdCounter:
         """Get the top *n* keys and counts as tuples. If *n* is omitted,
         returns all the pairs.
         """
-        if not n or n <= 0:
+        if n is not None and n <= 0:
             return []
         ret = sorted(self.iteritems(), key=lambda x: x[1], reverse=True)
         if n is None or n >= len(ret):
@@ -802,8 +802,8 @@ class ThresholdCounter:
         to integer counts.
         """
         if iterable is not None:
-            if callable(getattr(iterable, 'iteritems', None)):
-                for key, count in iterable.iteritems():
+            if callable(getattr(iterable, 'items', None)):
+                for key, count in list(iterable.items()):
                     for i in range(count):
                         self.add(key)
             else:
