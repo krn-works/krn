@@ -21,7 +21,9 @@ import {
   exitBudgetCapped,
   exitCredentialUnavailable,
   exitNoDelivery,
+  exitNoProgress,
   exitSessionBlocked,
+  noProgressAttempts,
 } from './result.ts';
 import type { SessionOutcome } from './session.ts';
 import type { LaneRunSteps, LaneVerdict } from './steps.ts';
@@ -80,6 +82,11 @@ export async function laneVerdict(
   };
 
   try {
+    if (!result.ok && result.noProgress !== undefined)
+      return await stop(
+        `no progress: ${noProgressAttempts} identical Stop refusals with no edit between them (${result.noProgress}); ${result.detail}`,
+        exitNoProgress,
+      );
     if (!result.ok)
       return await stop(
         result.detail,
