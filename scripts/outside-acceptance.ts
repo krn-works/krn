@@ -106,6 +106,7 @@ export function baseCommit(
 }
 
 export interface AdoptFlags {
+  base?: string;
   test?: string;
   install?: string;
   related?: string;
@@ -231,9 +232,9 @@ export function seedTask(
   };
 }
 
-/** The krn.json keys adopt has no flag for. */
-export function pick(config: AdoptFlags): AdoptFlags {
-  const kept: AdoptFlags = {};
+/** The krn.json keys adopt has no flag for, plus the base: the orphan branch the drain delivers to. */
+export function pick(config: AdoptFlags, branch: string): AdoptFlags {
+  const kept: AdoptFlags = { base: branch };
   if (config.install !== undefined) kept.install = config.install;
   if (config.related !== undefined) kept.related = config.related;
   return kept;
@@ -388,7 +389,7 @@ function acceptStack(stack: string, options: RunOptions, root: string): string {
     if (existsSync(clonePath))
       writeFileSync(
         clonePath,
-        `${JSON.stringify({ ...JSON.parse(readFileSync(clonePath, 'utf8')), ...pick(config) }, null, 2)}\n`,
+        `${JSON.stringify({ ...JSON.parse(readFileSync(clonePath, 'utf8')), ...pick(config, branch) }, null, 2)}\n`,
       );
     // A vacuous base admits only the bootstrap task (it adds the first test); adopt seeds it only into a fresh tasks/.
     const vacuous =

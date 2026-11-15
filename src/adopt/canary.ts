@@ -36,6 +36,8 @@ export interface CanaryResult {
 const productCli = fileURLToPath(new URL('../cli/main.ts', import.meta.url));
 const TEST_FILE = [
   /\.(?:test|spec)\.[cm]?[jt]sx?$/u,
+  // A script in a test directory is a test file (tap and mocha run `test/*.js`).
+  /(?:^|\/)(?:tests?|__tests__)\/[^/]+\.[cm]?[jt]sx?$/u,
   /(?:^|\/)test_[^/]+\.py$/u,
   /_test\.(?:py|go)$/u,
   /(?:^|\/)tests?\/[^/]+\.php$/u,

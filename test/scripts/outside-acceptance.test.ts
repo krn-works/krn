@@ -137,12 +137,14 @@ test('the drain output of a real merged run is graded all merged with its commit
   );
 });
 
-test('pick carries install and related from the scratch krn.json and nothing else', () => {
-  assert.deepEqual(pick({ test: 't', install: 'i', related: 'r' } as never), {
-    install: 'i',
-    related: 'r',
+test('pick carries install and related from the scratch krn.json and names the orphan branch as the base', () => {
+  assert.deepEqual(
+    pick({ test: 't', install: 'i', related: 'r' } as never, 'outside/php'),
+    { base: 'outside/php', install: 'i', related: 'r' },
+  );
+  assert.deepEqual(pick({ test: 't', base: 'main' }, 'outside/py'), {
+    base: 'outside/py',
   });
-  assert.deepEqual(pick({ test: 't' }), {});
 });
 
 test('the scratch default is the env override, else krn-outside in the system temp dir', () => {
