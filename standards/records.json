@@ -1979,5 +1979,185 @@
     "valid_from": "2026-11-15",
     "valid_to": null,
     "supersedes": []
+  },
+  {
+    "id": "s-task-measurable-outcome",
+    "type": "standard",
+    "area": "task-quality",
+    "layer": "krn-delivery",
+    "audience": "lead",
+    "tier": "reflex",
+    "text": "Every open task states a measurable outcome: its `Outcome:` line names a count, exit code, named output or pass/fail, or the task carries a `--verify` command.",
+    "why": "An outcome nobody can measure cannot be shown done, so the task closes on opinion.",
+    "applies": {
+      "stacks": [],
+      "needs": ["tracker"],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "krn",
+      "args": ["standards", "task-quality", "--rule", "measurable-outcome"]
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["src/brain/task-quality.ts#measurable-outcome"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-task-named-proof",
+    "type": "standard",
+    "area": "task-quality",
+    "layer": "krn-delivery",
+    "audience": "lead",
+    "tier": "reflex",
+    "text": "Every open task names its proof: a `Proof:` (or `Remedy:`) line says what evidence shows it done, or the task carries a `--verify` command.",
+    "why": "Without named evidence the closer chooses the proof after the fact.",
+    "applies": {
+      "stacks": [],
+      "needs": ["tracker"],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "krn",
+      "args": ["standards", "task-quality", "--rule", "named-proof"]
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["src/brain/task-quality.ts#named-proof"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-task-named-files",
+    "type": "standard",
+    "area": "task-quality",
+    "layer": "krn-delivery",
+    "audience": "lead",
+    "tier": "reflex",
+    "text": "Every open task names the files it touches: a `Files:` or `Scope:` line, or a file path in its body.",
+    "why": "A task that names no file cannot be sliced, scoped or checked for overlap with parallel lanes.",
+    "applies": {
+      "stacks": [],
+      "needs": ["tracker"],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "krn",
+      "args": ["standards", "task-quality", "--rule", "named-files"]
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["src/brain/task-quality.ts#named-files"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-task-one-pr",
+    "type": "standard",
+    "area": "task-quality",
+    "layer": "krn-delivery",
+    "audience": "lead",
+    "tier": "reflex",
+    "text": "No open task declares more than one pull request: its `Size:` and `Outcome:` lines never say 2+ PRs, several or multi.",
+    "why": "One task per PR keeps each delivery reviewable, revertable and traceable to a single task.",
+    "applies": {
+      "stacks": [],
+      "needs": ["tracker"],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "krn",
+      "args": ["standards", "task-quality", "--rule", "one-pr"]
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["src/brain/task-quality.ts#one-pr"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-task-declared-dependencies",
+    "type": "standard",
+    "area": "task-quality",
+    "layer": "krn-delivery",
+    "audience": "lead",
+    "tier": "reflex",
+    "text": "Every dependency an open task names on an `After:`, `Blocked by:` or `Depends on:` line is in its `after` list, and every `after` id exists.",
+    "why": "An undeclared dependency lets the task run before its prerequisite, and a dangling one blocks it forever.",
+    "applies": {
+      "stacks": [],
+      "needs": ["tracker"],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "krn",
+      "args": ["standards", "task-quality", "--rule", "declared-dependencies"]
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["src/brain/task-quality.ts#declared-dependencies"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
+  },
+  {
+    "id": "s-task-close-evidence",
+    "type": "standard",
+    "area": "task-quality",
+    "layer": "krn-delivery",
+    "audience": "lead",
+    "tier": "reflex",
+    "text": "A task closed `done` carries evidence: a `--note` of 10+ characters naming what was proved, or passed acceptance commands (tasks created from 2026-11-01).",
+    "why": "A close without evidence cannot be audited, so done means whatever the closer says.",
+    "applies": {
+      "stacks": [],
+      "needs": ["tracker"],
+      "paths": [],
+      "terms": []
+    },
+    "enforcement": {
+      "kind": "krn",
+      "args": ["standards", "task-quality", "--rule", "close-evidence"]
+    },
+    "provenance": {
+      "origin": "krn pack",
+      "evidence": ["src/brain/task-quality.ts#close-evidence"],
+      "proposals": []
+    },
+    "status": "accepted",
+    "recorded_at": "2026-11-15",
+    "valid_from": "2026-11-15",
+    "valid_to": null,
+    "supersedes": []
   }
 ]

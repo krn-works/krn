@@ -46,6 +46,7 @@ src/brain/retire.ts: Retirement of prose stand
 src/brain/skill-harvest.ts: Harvest of a repos
 src/brain/standards-cli.ts: `krn standards che
 src/brain/standards.ts: The standards pack (AD
+src/brain/task-quality.ts: The task-quality ru
 src/brain/worker-packet.ts: Conventions packet
 src/ci/app-token.ts: GitHub App token minting.
 src/ci/commit-title.ts: A squash merge makes t

@@ -355,6 +355,7 @@ export function seedGreenBaseTask(root: string, evidence: string): void {
     body: [
       "Outcome: the repository's own test command exits 0 on a clean checkout of the base.",
       `Why: adoption found a red base: ${evidence}`,
+      'Files: the files the failing test names (run the test command).',
       'Proof: the test command in krn.json exits 0 on the delivered tree.',
     ],
   });
@@ -377,6 +378,7 @@ function seedTasks(
       body: [
         'Outcome: merging to the default branch needs a green `ci / Check` and auto-merge is enabled.',
         'Why: the adopted delivery rules treat that Check as the only gate.',
+        'Files: .github/workflows/ci.yml and the repository branch settings.',
         'Proof: a pull request with a red Check stays unmerged.',
       ],
     });
@@ -387,6 +389,7 @@ function seedTasks(
       body: [
         'Outcome: the repository has one real test and a test command in krn.json that runs it; "vacuous" is dropped from krn.json.',
         'Why: adoption found no test command or one that runs zero tests, and the Stop gate and lane run refuse a vacuous command as green.',
+        'Files: krn.json and the new test file.',
         'Proof: the test command exits 0 and runs at least one test.',
       ],
     });
