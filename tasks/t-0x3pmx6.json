@@ -1,7 +1,11 @@
 {
   "id": "t-0x3pmx6",
-  "status": "open",
-  "resolution": null,
+  "status": "closed",
+  "resolution": {
+    "kind": "done",
+    "ref": null,
+    "note": "Added test for warning() writing to stderr"
+  },
   "created": "2026-11-15",
   "priority": 0,
   "title": "Add a focused py test for one untested function",
@@ -12,8 +16,8 @@
   "acceptance": [
     {
       "verify": "true",
-      "passes": false,
-      "exit": null
+      "passes": true,
+      "exit": 0
     }
   ]
 }

@@ -35,3 +35,10 @@ def test_cli_full_filepaths_refuses_escaping_member(tmp_path, monkeypatch):
     with pytest.raises(Exception, match='unsafe path'):
         unzip_http.download_file(f, None, args)
     assert not (tmp_path.parent/'escaped.txt').exists()
+
+
+def test_warning_prints_message_to_stderr(capsys):
+    unzip_http.warning('careful')
+    captured = capsys.readouterr()
+    assert captured.err == 'careful\n'
+    assert captured.out == ''
