@@ -570,8 +570,10 @@ def bytes2human(nbytes, ndigits=0):
     '1K'
     """
     abs_bytes = abs(nbytes)
-    for (size, symbol), (next_size, next_symbol) in _SIZE_RANGES:
+    size, symbol = _SIZE_BOUNDS[-1]
+    for (cur_size, cur_symbol), (next_size, _) in _SIZE_RANGES:
         if abs_bytes < next_size:
+            size, symbol = cur_size, cur_symbol
             break
     hnbytes = float(nbytes) / size
     return '{hnbytes:.{ndigits}f}{symbol}'.format(hnbytes=hnbytes,

@@ -721,8 +721,9 @@ class URL:
         """
         parts = []
         _add = parts.append
-        if self.username and with_userinfo:
-            _add(quote_userinfo_part(self.username))
+        if (self.username or self.password) and with_userinfo:
+            if self.username:
+                _add(quote_userinfo_part(self.username))
             if self.password:
                 _add(':')
                 _add(quote_userinfo_part(self.password))
