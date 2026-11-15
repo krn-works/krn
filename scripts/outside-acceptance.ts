@@ -31,13 +31,34 @@ import {
 // outside/<stack> to krn-works/krn, adopts, drains the ready tasks unattended, appends one graded
 // row to the summary and always deletes the branch. The logic up to main() is pure and tested.
 
-export const remoteUrl = 'https://github.com/krn-works/krn.git';
+/** The repository a row's scratch copy is pushed to unless `--repo STACK=OWNER/NAME` names another. */
+export const defaultRepo = 'krn-works/krn';
+
+/** The `OWNER/NAME` of a `--repo` value, refused unless it is a plain GitHub repository name. */
+export function repoName(text: string): string {
+  if (!/^[A-Za-z0-9][A-Za-z0-9-]*\/[A-Za-z0-9._-]+$/u.test(text))
+    throw new Error(`outside-acceptance: bad repository name: ${text}`);
+  return text;
+}
+
+/** The repository a stack's row pushes to: its `--repo` choice, else the default. */
+export function repoFor(
+  repos: Readonly<Record<string, string>> | undefined,
+  stack: string,
+): string {
+  return repos?.[stack] ?? defaultRepo;
+}
+
+export const repoUrl = (repo: string): string =>
+  `https://github.com/${repo}.git`;
 export const summaryHeader =
   'repo/branch | stack | adopt exit | first-test PR | drain exit | PRs (all merged) | sessions (approx) | USD (approx) | hidden | hook | cases | suite regressions | stop refusals | turns';
 const defaultStacks = ['php', 'npm', 'py'];
 
 export interface RunOptions {
   stacks: string[];
+  /** Per-stack push target, OWNER/NAME; a stack without one pushes to the default repository. */
+  repos: Record<string, string>;
   scratch: string;
   max: number;
   windowHours: number;
@@ -75,6 +96,7 @@ export function parseOptions(
     summary: join(root, '.krn/runs/outside/summary.txt'),
     harvest: join(root, '.krn/runs/outside/harvest.txt'),
     reps: 1,
+    repos: {},
   };
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index] as string;
@@ -89,7 +111,15 @@ export function parseOptions(
       outsideBranch(stack);
       options.stacks.push(stack);
     } else if (arg === '--scratch') options.scratch = resolve(value());
-    else if (arg === '--summary') options.summary = resolve(value());
+    else if (arg === '--repo') {
+      const text = value();
+      const at = text.indexOf('=');
+      if (at < 1)
+        throw new Error('outside-acceptance: --repo needs STACK=OWNER/NAME');
+      const stack = text.slice(0, at);
+      outsideBranch(stack);
+      options.repos[stack] = repoName(text.slice(at + 1));
+    } else if (arg === '--summary') options.summary = resolve(value());
     else if (arg === '--harvest') options.harvest = resolve(value());
     else if (arg === '--task-file') options.taskFile = resolve(value());
     else if (arg === '--window-hours') {
@@ -267,6 +297,8 @@ export function metricsCells(
 
 export interface RowInput {
   stack: string;
+  /** The repository the row ran on; the default when absent. */
+  repo?: string;
   adoptExit: number;
   firstPr: string;
   drain: DrainFacts | undefined;
@@ -347,7 +379,7 @@ export function gradedRow(input: RowInput): string {
       ? 'none'
       : `${drain.prs.join(' ')} (${green ? 'all merged' : `${drain.merged} merged`})`;
   const cells = [
-    `krn-works/krn ${outsideBranch(stack)}`,
+    `${input.repo ?? defaultRepo} ${outsideBranch(stack)}`,
     stack,
     String(adoptExit),
     firstPr,
@@ -641,10 +673,7 @@ export function publishRefusal(
 }
 
 /** The visibility GitHub reports for the remote repository, undefined when it cannot be read. */
-function remoteVisibility(root: string): string | undefined {
-  const repo = remoteUrl
-    .replace(/^https:\/\/github\.com\//u, '')
-    .replace(/\.git$/u, '');
+function remoteVisibility(root: string, repo: string): string | undefined {
   const result = run(
     'gh',
     ['api', `repos/${repo}`, '--jq', '.visibility'],
@@ -729,6 +758,7 @@ function acceptStack(
   checkouts: string[] = [],
 ): string {
   const branch = outsideBranch(stack);
+  const repo = repoFor(options.repos, stack);
   const source = hiddenRow
     ? join(options.scratch, 'runs', `${stack}-upstream-${Date.now()}`)
     : join(options.scratch, stack);
@@ -763,7 +793,7 @@ function acceptStack(
       : existsSync(manifestPath)
         ? readFileSync(manifestPath, 'utf8')
         : undefined,
-    remoteVisibility(root),
+    remoteVisibility(root, repo),
   );
   if (refusal !== undefined)
     throw new Error(`outside-acceptance: ${stack}: ${refusal}`);
@@ -812,7 +842,7 @@ function acceptStack(
     for (const step of [['clone', '--quiet', '--no-checkout', source, dir]])
       if (run('git', step, options.scratch).status !== 0)
         throw new Error('clone failed');
-    git(['remote', 'set-url', 'origin', remoteUrl]);
+    git(['remote', 'set-url', 'origin', repoUrl(repo)]);
     git(['checkout', '--quiet', '-B', branch, base]);
     // The upstream's own branch names must not leak into adoption: it would pick the stale tip as the base.
     git(['branch', '-D', 'master', 'main']);
@@ -962,6 +992,7 @@ function acceptStack(
     };
     keep('hook', `${hookCell(hook)}`);
     return gradedRow({
+      repo,
       hook,
       hidden,
       ...(metrics === undefined ? {} : { metrics }),
