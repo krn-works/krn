@@ -161,6 +161,7 @@ export const BINARIES: Readonly<Record<string, readonly string[]>> = {
     'src/context/restart.ts',
     'src/harness/memory-directory.ts',
     'src/hook/scope.ts',
+    'src/hook/session-start.ts',
     'src/hook/stop.ts',
     'src/hook/unpushed-delete.ts',
     'src/memory/memory-refs.ts',
