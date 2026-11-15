@@ -24,7 +24,13 @@ import {
   detectStack,
 } from '../repo/contract.ts';
 import { pruneRegistry, registryPath } from './adopted-registry.ts';
-import { effectRows, effectTotals, readExposures } from './exposures.ts';
+import {
+  appendExposure,
+  effectRows,
+  effectTotals,
+  readExposures,
+  servedExposure,
+} from './exposures.ts';
 import { globalDrift, installGlobal } from './global-standards.ts';
 import {
   formatProposal,
@@ -67,9 +73,10 @@ import {
   type TaskRule,
   taskQualityFailures,
 } from './task-quality.ts';
+import { NO_MATCH, queryStandards, renderHit } from './worker-packet.ts';
 
 export const usage =
-  'usage: krn standards check [--record ID | --tasks] [--root DIR] | task-quality --rule RULE [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos [DIR...] [--repos-file FILE] | effect [--root DIR] | retire [--write] [--root DIR] | review [--root DIR]';
+  'usage: krn standards check [--record ID | --tasks] [--root DIR] | task-quality --rule RULE [--root DIR] | install --global [--check] | propose --text TEXT --kind check|template|skill|prose --evidence REF [--evidence REF]... [--root DIR] | harvest [--from-ledger] [REPO...] [--root DIR] | harvest --skills REPO [--commit SHA] | harvest --repos [DIR...] [--repos-file FILE] | effect [--root DIR] | retire [--write] [--root DIR] | review [--root DIR] | query TEXT [--file PATH]... [--stack S] [--budget TOKENS] [--task ID] [--json] [--root DIR]';
 
 /** The pack KRN ships, relative to the product root. */
 export const PACK = 'standards/records.json';
@@ -540,6 +547,69 @@ function taskQualityCommand(rest: readonly string[]): void {
   process.exitCode = failures.length === 0 ? 0 : 1;
 }
 
+const QUERY_SINGLE = new Set(['--root', '--stack', '--budget', '--task']);
+
+/** The main checkout of a repository (a worktree logs to its main), where the exposure log lives. */
+function mainCheckout(root: string): string {
+  const common = spawnSync(
+    'git',
+    ['-C', root, 'rev-parse', '--git-common-dir'],
+    {
+      encoding: 'utf8',
+      env: environment(),
+    },
+  );
+  return common.status === 0
+    ? dirname(resolve(root, common.stdout.trim()))
+    : root;
+}
+
+/** `krn standards query TEXT`: the ranked records that apply to what the session is doing now; each shown record is logged as a "query" exposure. */
+function queryCommand(rest: readonly string[]): void {
+  const json = rest.includes('--json');
+  const { values, positional } = flags(
+    rest.filter((arg) => arg !== '--json'),
+    new Set(['--file']),
+    QUERY_SINGLE,
+  );
+  const text = positional.join(' ').trim();
+  const budgetText = values.get('--budget')?.[0];
+  const budget = budgetText === undefined ? undefined : Number(budgetText);
+  if (text === '' || (budget !== undefined && !(budget > 0)))
+    throw new CliUsageError(usage);
+  const root = repositoryRoot(
+    resolve(values.get('--root')?.[0] ?? process.cwd()),
+  );
+  const stack = values.get('--stack')?.[0];
+  const task = values.get('--task')?.[0];
+  const hits = queryStandards(root, {
+    text,
+    files: values.get('--file') ?? [],
+    asOf: new Date().toISOString().slice(0, 10),
+    ...(stack === undefined ? {} : { stack }),
+    ...(task === undefined ? {} : { task }),
+    ...(budget === undefined ? {} : { budget }),
+  });
+  if (hits.length > 0)
+    try {
+      appendExposure(
+        mainCheckout(root),
+        servedExposure(
+          process.env.CLAUDE_SESSION_ID ?? `query-${Date.now()}`,
+          'query',
+          hits.map((hit) => hit.id),
+        ),
+      );
+    } catch {
+      /* The log is evidence, never a reason to lose the answer. */
+    }
+  process.stdout.write(
+    json
+      ? `${JSON.stringify(hits)}\n`
+      : `${hits.length === 0 ? NO_MATCH : hits.map(renderHit).join('\n')}\n`,
+  );
+}
+
 function effectCommand(rest: readonly string[]): void {
   const { values, positional } = flags(rest, new Set(), ROOT);
   if (positional.length > 0) throw new CliUsageError(usage);
@@ -886,5 +956,6 @@ export function standardsCommand(args: string[]): void {
   else if (verb === 'effect') effectCommand(rest);
   else if (verb === 'retire') retireCommand(rest);
   else if (verb === 'review') reviewCommand(rest);
+  else if (verb === 'query') queryCommand(rest);
   else throw new CliUsageError(usage);
 }

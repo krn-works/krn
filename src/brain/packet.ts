@@ -124,9 +124,16 @@ export function brainPacket(input: {
   readonly budget: number;
   /** Multiplies a record's match score (default 1: pure match, the FR-40 arm). */
   readonly effect?: (record: BrainRecord) => number;
+  /** Extra words a record answers to besides its text (its scope terms); absent: the text alone. */
+  readonly matchText?: (record: BrainRecord) => string;
 }): Packet {
   const pool = input.records.filter((record) => known(record, input.asOf));
-  const bags = new Map(pool.map((record) => [record.id, terms(record.text)]));
+  const bags = new Map(
+    pool.map((record) => [
+      record.id,
+      terms(`${record.text} ${input.matchText?.(record) ?? ''}`),
+    ]),
+  );
   const frequency = new Map<string, number>();
   for (const bag of bags.values())
     for (const term of bag) frequency.set(term, (frequency.get(term) ?? 0) + 1);

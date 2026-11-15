@@ -15,7 +15,13 @@ import {
   parseRecords,
   tokens,
 } from './packet.ts';
-import { appliesTo, inForce } from './standards.ts';
+import { parseUnified } from './record.ts';
+import {
+  appliesTo,
+  inForce,
+  type Repository,
+  type Standard,
+} from './standards.ts';
 import { readPack, readProject, repositoryFacts } from './standards-cli.ts';
 
 /** Token budget of the one lane packet; the frozen FR-40 arms stay at BUDGET. */
@@ -161,4 +167,111 @@ export function gatesBlock(repo: string, asOf: string): string | undefined {
     kept.push(id);
   }
   return kept.length === 0 ? undefined : `${head}${kept.join(', ')}`;
+}
+
+// Query: the records that apply to what a session is doing now (`krn standards query`).
+/** Records one query shows at most, whatever the budget allows. */
+export const QUERY_LIMIT = 5;
+
+/** Token budget of one query answer. */
+export const QUERY_BUDGET = 400;
+
+/** The task id a query's holdout is keyed by when the caller names none. */
+export const QUERY_TASK = 'query';
+
+export const NO_MATCH = 'no matching record';
+
+export type Query = {
+  readonly text: string;
+  readonly files: readonly string[];
+  readonly stack?: string;
+  readonly budget?: number;
+  readonly task?: string;
+  readonly asOf: string;
+};
+
+export type Hit = {
+  readonly id: string;
+  readonly text: string;
+  readonly why: string;
+};
+
+/** A glob (`*` within a segment, `**` across segments) as an anchored regular expression. */
+function globRegExp(glob: string): RegExp {
+  const body = glob
+    .replace(/[.+^${}()|[\]\\]/gu, '\\$&')
+    .replace(/\*\*\//gu, '@@DIR@@')
+    .replace(/\*\*/gu, '@@ANY@@')
+    .replace(/\*/gu, '[^/]*')
+    .replace(/@@DIR@@/gu, '(?:.*/)?')
+    .replace(/@@ANY@@/gu, '.*');
+  return new RegExp(`^${body}$`, 'u');
+}
+
+function scoped(
+  standard: Standard,
+  facts: Repository,
+  files: readonly string[],
+): boolean {
+  if (!appliesTo(standard, facts)) return false;
+  const { paths } = standard.applies;
+  if (paths.length === 0 || files.length === 0) return true;
+  const patterns = paths.map(globRegExp);
+  return files.some((file) => patterns.some((pattern) => pattern.test(file)));
+}
+
+function conventions(root: string): Standard[] {
+  const path = join(root, contractConventions(root));
+  return existsSync(path)
+    ? parseUnified(JSON.parse(readFileSync(path, 'utf8')))
+    : [];
+}
+
+export function renderHit(hit: Hit): string {
+  return `- [${hit.id}] ${hit.text}${hit.why === '' ? '' : ` (why: ${hit.why})`}`;
+}
+
+/** The answer's records, best first, within the budget as printed (id, text and why). */
+export function queryStandards(root: string, query: Query): Hit[] {
+  const base = repositoryFacts(root);
+  const facts: Repository =
+    query.stack === undefined ? base : { ...base, stack: query.stack };
+  const task = query.task ?? QUERY_TASK;
+  const seen = new Set<string>();
+  const pool = [
+    ...readPack(),
+    ...readProject(root),
+    ...conventions(root),
+  ].filter((standard) => {
+    if (seen.has(standard.id)) return false;
+    seen.add(standard.id);
+    return (
+      standard.audience !== 'lead' &&
+      standard.audience !== 'adopt' &&
+      inForce(standard, query.asOf) &&
+      scoped(standard, facts, query.files)
+    );
+  });
+  const byId = new Map(pool.map((standard) => [standard.id, standard]));
+  const records: BrainRecord[] = pool
+    .filter((standard) => !heldOut(task, standard.id))
+    .map(packetRecord);
+  const ranked = brainPacket({
+    task,
+    query: [query.text, ...query.files].join(' '),
+    records,
+    asOf: query.asOf,
+    budget: Number.MAX_SAFE_INTEGER,
+    matchText: (record) => (byId.get(record.id)?.applies.terms ?? []).join(' '),
+  }).records;
+  const budget = query.budget ?? QUERY_BUDGET;
+  const hits: Hit[] = [];
+  for (const id of ranked.slice(0, QUERY_LIMIT)) {
+    const standard = byId.get(id);
+    if (standard === undefined) continue;
+    const hit = { id, text: standard.text, why: standard.why };
+    if (tokens([...hits, hit].map(renderHit).join('\n')) <= budget)
+      hits.push(hit);
+  }
+  return hits;
 }
