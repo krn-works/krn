@@ -26,6 +26,7 @@ import {
   shippedMerge,
   statesBlocker,
   stopHook,
+  testFirstOn,
   withinPackage,
 } from '../../src/hook/stop.ts';
 import { resolveContract } from '../../src/repo/contract.ts';
@@ -58,6 +59,9 @@ function sh(cwd: string, ...args: string[]) {
   const out = spawnSync('git', args, { cwd, encoding: 'utf8' });
   assert.equal(out.status, 0, out.stderr);
 }
+
+/** These tests probe the test selection, not the red-at-base arm: they opt out of it. */
+const optOut = { ...process.env, KRN_TEST_FIRST: '0' };
 
 function clone() {
   const dir = mkdtempSync(join(tmpdir(), 'worker-stop-'));
@@ -515,11 +519,15 @@ test('a pytest repository against real pytest: red refuses, green commit allows'
   });
   try {
     commitFile(dir, 'calc.py', ADD_RED);
-    const red = inspect(dir);
+    const red = inspect(dir, undefined, undefined, optOut);
     assert.equal(red.ok, false);
     assert.match(red.reason, /tests\/test_calc\.py :: test_add/u);
     commitFile(dir, 'calc.py', `${ADD_GREEN}# fixed\n`);
-    assert.deepEqual(inspect(dir), { ok: true, reason: '', ignored: 0 });
+    assert.deepEqual(inspect(dir, undefined, undefined, optOut), {
+      ok: true,
+      reason: '',
+      ignored: 0,
+    });
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -547,14 +555,14 @@ test('a go repository: the changed package runs through the detected go test; re
       commands.push(command);
       return failuresIn(output, output === '' ? 0 : 1);
     };
-    const red = inspect(dir, () => [], shell);
+    const red = inspect(dir, () => [], shell, optOut);
     assert.equal(red.ok, false);
     assert.match(red.reason, /TestAdd/u);
     assert.deepEqual(commands, ["go test './calc'"]);
     output = '';
     commitFile(dir, 'calc/calc.go', `${GO_ADD('+')}// fixed\n`);
     assert.deepEqual(
-      inspect(dir, () => [], shell),
+      inspect(dir, () => [], shell, optOut),
       {
         ok: true,
         reason: '',
@@ -726,6 +734,7 @@ test('a named failure that also fails at the base stays pre-existing', () => {
       dir,
       () => [],
       () => ['t.py::test_old'],
+      optOut,
     );
     assert.equal(outcome.ok, true);
     assert.equal(outcome.ignored, 1);
@@ -766,13 +775,13 @@ test('a package in a subdirectory runs its related test through the real npm --p
       'packages/seo/page.js',
       'export const title = () => "a";\n// edit\n',
     );
-    assert.equal(inspect(dir).ok, true);
+    assert.equal(inspect(dir, undefined, undefined, optOut).ok, true);
     commitFile(
       dir,
       'packages/seo/page.js',
       'export const title = () => "b";\n',
     );
-    const red = inspect(dir);
+    const red = inspect(dir, undefined, undefined, optOut);
     assert.equal(red.ok, false);
     assert.match(red.reason, /'test\/page.test.js'/u);
   } finally {
@@ -872,6 +881,7 @@ test('a subpackage test beside root node tests runs through the contract command
         commands.push(command);
         return [];
       },
+      optOut,
     );
     assert.equal(outcome.ok, true);
     assert.deepEqual(commands, ['npm --prefix packages/seo test']);
@@ -1038,14 +1048,44 @@ for (const file of ['tests/GetInTest.php', 'test/parse-link-header.js']) {
   });
 }
 
-test('without KRN_TEST_FIRST a green branch with no base-red test still ends', () => {
+test('Stop refuses a green branch with no base-red test by default and names the missing red-at-base proof', () => {
+  const dir = clone();
+  try {
+    writeFileSync(
+      join(dir, 'krn.json'),
+      '{"base":"main","test":"node --test test/"}\n',
+    );
+    sh(dir, 'add', '.');
+    sh(dir, 'commit', '-q', '-m', 'contract');
+    sh(dir, 'checkout', '-q', '-B', 'main');
+    sh(dir, 'checkout', '-q', '-b', 'work2');
+    testFirstBranch(dir);
+    const env: NodeJS.ProcessEnv = { ...lane(dir) };
+    delete env.KRN_TEST_FIRST;
+    const reason = judgeStop(payload(dir), env, () => []) ?? '';
+    assert.match(reason, /red-at-base proof/u);
+    assert.match(reason, /no changed test fails at the base/u);
+    const baseRed = (root: string) =>
+      root === dir ? [] : ['test/a.test.ts::a is 2'];
+    assert.equal(judgeStop(payload(dir), env, baseRed), undefined);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('testFirstOn is on for a real test command, off for vacuous, absent or opted-out', () => {
+  const real = { base: 'main', test: 'npm test', tracker: 'krn' } as const;
+  assert.equal(testFirstOn({}, real), true);
+  assert.equal(testFirstOn({}, { ...real, vacuous: true }), false);
+  assert.equal(testFirstOn({}, undefined), false);
+  assert.equal(testFirstOn({ KRN_TEST_FIRST: '0' }, real), false);
+  assert.equal(testFirstOn({ KRN_TEST_FIRST: '1' }, undefined), true);
+});
+
+test('KRN_TEST_FIRST=0 lets a green branch with no base-red test end', () => {
   const dir = clone();
   try {
     testFirstBranch(dir);
-    assert.equal(
-      judgeStop(payload(dir), lane(dir), () => []),
-      undefined,
-    );
     const off = { ...lane(dir), KRN_TEST_FIRST: '0' };
     assert.equal(
       judgeStop(payload(dir), off, () => []),
@@ -1056,13 +1096,15 @@ test('without KRN_TEST_FIRST a green branch with no base-red test still ends', (
   }
 });
 
-test('the test-first rule line is in the worker rules only with the arm on', async () => {
+test('the red-at-base rule line is in the worker rules unless the arm is off', async () => {
   const { workerRules, TEST_FIRST_RULE } = await import(
     '../../src/cli/lane-brief.ts'
   );
   const repo = fileURLToPath(new URL('../..', import.meta.url));
   assert.ok(workerRules(repo, true).includes(TEST_FIRST_RULE));
   assert.ok(!workerRules(repo, false).includes(TEST_FIRST_RULE));
+  assert.ok(workerRules(repo).includes(TEST_FIRST_RULE));
+  assert.match(TEST_FIRST_RULE, /red at base/u);
 });
 
 test('the Stop hook refuses a floor and an unwaived reflex standard and only reports finish and waived ones', () => {
